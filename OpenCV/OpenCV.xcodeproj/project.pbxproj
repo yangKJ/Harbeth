@@ -8,11 +8,40 @@
 
 /* Begin PBXBuildFile section */
 		04359BDA27B1FC0E00CD9C1E /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 04359BD927B1FC0E00CD9C1E /* AppDelegate.m */; };
-		04359BE027B1FC0E00CD9C1E /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 04359BDF27B1FC0E00CD9C1E /* ViewController.m */; };
+		04359BE027B1FC0E00CD9C1E /* ATViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 04359BDF27B1FC0E00CD9C1E /* ATViewController.m */; };
 		04359BE327B1FC0E00CD9C1E /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 04359BE127B1FC0E00CD9C1E /* Main.storyboard */; };
 		04359BE527B1FC0F00CD9C1E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04359BE427B1FC0F00CD9C1E /* Assets.xcassets */; };
 		04359BE827B1FC0F00CD9C1E /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 04359BE627B1FC0F00CD9C1E /* LaunchScreen.storyboard */; };
 		04359BEB27B1FC0F00CD9C1E /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 04359BEA27B1FC0F00CD9C1E /* main.m */; };
+		0438F9BE27B2138A00948CEC /* BaseViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9BD27B2138A00948CEC /* BaseViewController.m */; };
+		0438F9FC27B2142E00948CEC /* WarpPerspectiveViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9C227B2142D00948CEC /* WarpPerspectiveViewController.m */; };
+		0438F9FD27B2142E00948CEC /* TiledViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9C527B2142D00948CEC /* TiledViewController.m */; };
+		0438F9FE27B2142E00948CEC /* Inpaint.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9C827B2142D00948CEC /* Inpaint.jpg */; };
+		0438F9FF27B2142E00948CEC /* InpaintViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9CB27B2142D00948CEC /* InpaintViewController.m */; };
+		0438FA0027B2142E00948CEC /* ChangeColorViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9CE27B2142D00948CEC /* ChangeColorViewController.m */; };
+		0438FA0127B2142E00948CEC /* ImageBlend.png in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9D127B2142D00948CEC /* ImageBlend.png */; };
+		0438FA0227B2142E00948CEC /* ImageBlendViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9D427B2142D00948CEC /* ImageBlendViewController.m */; };
+		0438FA0327B2142E00948CEC /* Hough.png in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9D727B2142D00948CEC /* Hough.png */; };
+		0438FA0427B2142E00948CEC /* HoughViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9DA27B2142D00948CEC /* HoughViewController.m */; };
+		0438FA0527B2142E00948CEC /* Blur.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9DD27B2142D00948CEC /* Blur.jpg */; };
+		0438FA0627B2142E00948CEC /* BlurViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9E027B2142D00948CEC /* BlurViewController.m */; };
+		0438FA0727B2142E00948CEC /* LuminanceViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9E327B2142D00948CEC /* LuminanceViewController.m */; };
+		0438FA0827B2142E00948CEC /* Morphology.png in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9E627B2142D00948CEC /* Morphology.png */; };
+		0438FA0927B2142E00948CEC /* MorphologyViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9E827B2142D00948CEC /* MorphologyViewController.m */; };
+		0438FA0A27B2142E00948CEC /* MaxCut.png in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9EC27B2142D00948CEC /* MaxCut.png */; };
+		0438FA0B27B2142E00948CEC /* MaxCutViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9EE27B2142D00948CEC /* MaxCutViewController.m */; };
+		0438FA0C27B2142E00948CEC /* Repair.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9F227B2142D00948CEC /* Repair.jpg */; };
+		0438FA0D27B2142E00948CEC /* RepairViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9F527B2142D00948CEC /* RepairViewController.m */; };
+		0438FA0E27B2142E00948CEC /* Sobel.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 0438F9F827B2142D00948CEC /* Sobel.jpeg */; };
+		0438FA0F27B2142E00948CEC /* SobelViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438F9FA27B2142D00948CEC /* SobelViewController.m */; };
+		0438FA1327B2162300948CEC /* NSObject+KJGCDBox.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA1227B2162300948CEC /* NSObject+KJGCDBox.m */; };
+		0438FA1627B2163800948CEC /* UIButton+KJBlock.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA1527B2163800948CEC /* UIButton+KJBlock.m */; };
+		0438FA1927B2165A00948CEC /* UIView+KJGestureBlock.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA1727B2165A00948CEC /* UIView+KJGestureBlock.m */; };
+		0438FA1C27B2166800948CEC /* UIView+KJFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA1A27B2166800948CEC /* UIView+KJFrame.m */; };
+		0438FA1F27B2175E00948CEC /* UIColor+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA1E27B2175E00948CEC /* UIColor+KJExtension.m */; };
+		0438FA2227B217AB00948CEC /* UIImage+KJCompress.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA2027B217AB00948CEC /* UIImage+KJCompress.m */; };
+		0438FA2527B2180D00948CEC /* UINavigationItem+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA2427B2180D00948CEC /* UINavigationItem+KJExtension.m */; };
+		0438FA2827B2183200948CEC /* UIViewController+KJFullScreen.m in Sources */ = {isa = PBXBuildFile; fileRef = 0438FA2627B2183100948CEC /* UIViewController+KJFullScreen.m */; };
 		9F9FC9684E1AE091366DA56D /* Pods_OpenCV.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C1FF5C83F6C31D0FF35477AC /* Pods_OpenCV.framework */; };
 /* End PBXBuildFile section */
 
@@ -20,13 +49,63 @@
 		04359BD527B1FC0E00CD9C1E /* OpenCV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenCV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04359BD827B1FC0E00CD9C1E /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		04359BD927B1FC0E00CD9C1E /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		04359BDE27B1FC0E00CD9C1E /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		04359BDF27B1FC0E00CD9C1E /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		04359BDE27B1FC0E00CD9C1E /* ATViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ATViewController.h; sourceTree = "<group>"; };
+		04359BDF27B1FC0E00CD9C1E /* ATViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ATViewController.m; sourceTree = "<group>"; };
 		04359BE227B1FC0E00CD9C1E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		04359BE427B1FC0F00CD9C1E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		04359BE727B1FC0F00CD9C1E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		04359BE927B1FC0F00CD9C1E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		04359BEA27B1FC0F00CD9C1E /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		0438F9BC27B2138A00948CEC /* BaseViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BaseViewController.h; sourceTree = "<group>"; };
+		0438F9BD27B2138A00948CEC /* BaseViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BaseViewController.m; sourceTree = "<group>"; };
+		0438F9C127B2142D00948CEC /* WarpPerspectiveViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WarpPerspectiveViewController.h; sourceTree = "<group>"; };
+		0438F9C227B2142D00948CEC /* WarpPerspectiveViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = WarpPerspectiveViewController.m; sourceTree = "<group>"; };
+		0438F9C427B2142D00948CEC /* TiledViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TiledViewController.h; sourceTree = "<group>"; };
+		0438F9C527B2142D00948CEC /* TiledViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TiledViewController.m; sourceTree = "<group>"; };
+		0438F9C827B2142D00948CEC /* Inpaint.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = Inpaint.jpg; sourceTree = "<group>"; };
+		0438F9CA27B2142D00948CEC /* InpaintViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = InpaintViewController.h; sourceTree = "<group>"; };
+		0438F9CB27B2142D00948CEC /* InpaintViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = InpaintViewController.m; sourceTree = "<group>"; };
+		0438F9CD27B2142D00948CEC /* ChangeColorViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ChangeColorViewController.h; sourceTree = "<group>"; };
+		0438F9CE27B2142D00948CEC /* ChangeColorViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ChangeColorViewController.m; sourceTree = "<group>"; };
+		0438F9D127B2142D00948CEC /* ImageBlend.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ImageBlend.png; sourceTree = "<group>"; };
+		0438F9D327B2142D00948CEC /* ImageBlendViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImageBlendViewController.h; sourceTree = "<group>"; };
+		0438F9D427B2142D00948CEC /* ImageBlendViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImageBlendViewController.m; sourceTree = "<group>"; };
+		0438F9D727B2142D00948CEC /* Hough.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Hough.png; sourceTree = "<group>"; };
+		0438F9D927B2142D00948CEC /* HoughViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HoughViewController.h; sourceTree = "<group>"; };
+		0438F9DA27B2142D00948CEC /* HoughViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HoughViewController.m; sourceTree = "<group>"; };
+		0438F9DD27B2142D00948CEC /* Blur.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = Blur.jpg; sourceTree = "<group>"; };
+		0438F9DF27B2142D00948CEC /* BlurViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BlurViewController.h; sourceTree = "<group>"; };
+		0438F9E027B2142D00948CEC /* BlurViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BlurViewController.m; sourceTree = "<group>"; };
+		0438F9E227B2142D00948CEC /* LuminanceViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LuminanceViewController.h; sourceTree = "<group>"; };
+		0438F9E327B2142D00948CEC /* LuminanceViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LuminanceViewController.m; sourceTree = "<group>"; };
+		0438F9E627B2142D00948CEC /* Morphology.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Morphology.png; sourceTree = "<group>"; };
+		0438F9E827B2142D00948CEC /* MorphologyViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MorphologyViewController.m; sourceTree = "<group>"; };
+		0438F9E927B2142D00948CEC /* MorphologyViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MorphologyViewController.h; sourceTree = "<group>"; };
+		0438F9EC27B2142D00948CEC /* MaxCut.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MaxCut.png; sourceTree = "<group>"; };
+		0438F9EE27B2142D00948CEC /* MaxCutViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MaxCutViewController.m; sourceTree = "<group>"; };
+		0438F9EF27B2142D00948CEC /* MaxCutViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MaxCutViewController.h; sourceTree = "<group>"; };
+		0438F9F227B2142D00948CEC /* Repair.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = Repair.jpg; sourceTree = "<group>"; };
+		0438F9F427B2142D00948CEC /* RepairViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RepairViewController.h; sourceTree = "<group>"; };
+		0438F9F527B2142D00948CEC /* RepairViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RepairViewController.m; sourceTree = "<group>"; };
+		0438F9F827B2142D00948CEC /* Sobel.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = Sobel.jpeg; sourceTree = "<group>"; };
+		0438F9FA27B2142D00948CEC /* SobelViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SobelViewController.m; sourceTree = "<group>"; };
+		0438F9FB27B2142D00948CEC /* SobelViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SobelViewController.h; sourceTree = "<group>"; };
+		0438FA1127B2162300948CEC /* NSObject+KJGCDBox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+KJGCDBox.h"; sourceTree = "<group>"; };
+		0438FA1227B2162300948CEC /* NSObject+KJGCDBox.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSObject+KJGCDBox.m"; sourceTree = "<group>"; };
+		0438FA1427B2163800948CEC /* UIButton+KJBlock.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIButton+KJBlock.h"; sourceTree = "<group>"; };
+		0438FA1527B2163800948CEC /* UIButton+KJBlock.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIButton+KJBlock.m"; sourceTree = "<group>"; };
+		0438FA1727B2165A00948CEC /* UIView+KJGestureBlock.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIView+KJGestureBlock.m"; sourceTree = "<group>"; };
+		0438FA1827B2165A00948CEC /* UIView+KJGestureBlock.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIView+KJGestureBlock.h"; sourceTree = "<group>"; };
+		0438FA1A27B2166800948CEC /* UIView+KJFrame.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIView+KJFrame.m"; sourceTree = "<group>"; };
+		0438FA1B27B2166800948CEC /* UIView+KJFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIView+KJFrame.h"; sourceTree = "<group>"; };
+		0438FA1D27B2175E00948CEC /* UIColor+KJExtension.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIColor+KJExtension.h"; sourceTree = "<group>"; };
+		0438FA1E27B2175E00948CEC /* UIColor+KJExtension.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIColor+KJExtension.m"; sourceTree = "<group>"; };
+		0438FA2027B217AB00948CEC /* UIImage+KJCompress.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIImage+KJCompress.m"; sourceTree = "<group>"; };
+		0438FA2127B217AB00948CEC /* UIImage+KJCompress.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIImage+KJCompress.h"; sourceTree = "<group>"; };
+		0438FA2327B2180C00948CEC /* UINavigationItem+KJExtension.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UINavigationItem+KJExtension.h"; sourceTree = "<group>"; };
+		0438FA2427B2180D00948CEC /* UINavigationItem+KJExtension.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UINavigationItem+KJExtension.m"; sourceTree = "<group>"; };
+		0438FA2627B2183100948CEC /* UIViewController+KJFullScreen.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIViewController+KJFullScreen.m"; sourceTree = "<group>"; };
+		0438FA2727B2183200948CEC /* UIViewController+KJFullScreen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIViewController+KJFullScreen.h"; sourceTree = "<group>"; };
 		3DC685008CDFEF4B445D1E78 /* Pods-OpenCV.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenCV.release.xcconfig"; path = "Target Support Files/Pods-OpenCV/Pods-OpenCV.release.xcconfig"; sourceTree = "<group>"; };
 		C1FF5C83F6C31D0FF35477AC /* Pods_OpenCV.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_OpenCV.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		DBC4D296E736DE1A61173DEE /* Pods-OpenCV.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenCV.debug.xcconfig"; path = "Target Support Files/Pods-OpenCV/Pods-OpenCV.debug.xcconfig"; sourceTree = "<group>"; };
@@ -65,6 +144,14 @@
 		04359BD727B1FC0E00CD9C1E /* OpenCV */ = {
 			isa = PBXGroup;
 			children = (
+				04359BD827B1FC0E00CD9C1E /* AppDelegate.h */,
+				04359BD927B1FC0E00CD9C1E /* AppDelegate.m */,
+				04359BDE27B1FC0E00CD9C1E /* ATViewController.h */,
+				04359BDF27B1FC0E00CD9C1E /* ATViewController.m */,
+				0438F9BC27B2138A00948CEC /* BaseViewController.h */,
+				0438F9BD27B2138A00948CEC /* BaseViewController.m */,
+				0438F9BF27B2142D00948CEC /* Demo */,
+				0438FA1027B215FE00948CEC /* Extension */,
 				04359BF127B205F200CD9C1E /* Resource */,
 			);
 			path = OpenCV;
@@ -73,10 +160,6 @@
 		04359BF127B205F200CD9C1E /* Resource */ = {
 			isa = PBXGroup;
 			children = (
-				04359BD827B1FC0E00CD9C1E /* AppDelegate.h */,
-				04359BD927B1FC0E00CD9C1E /* AppDelegate.m */,
-				04359BDE27B1FC0E00CD9C1E /* ViewController.h */,
-				04359BDF27B1FC0E00CD9C1E /* ViewController.m */,
 				04359BE127B1FC0E00CD9C1E /* Main.storyboard */,
 				04359BE427B1FC0F00CD9C1E /* Assets.xcassets */,
 				04359BE627B1FC0F00CD9C1E /* LaunchScreen.storyboard */,
@@ -84,6 +167,292 @@
 				04359BEA27B1FC0F00CD9C1E /* main.m */,
 			);
 			path = Resource;
+			sourceTree = "<group>";
+		};
+		0438F9BF27B2142D00948CEC /* Demo */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9C027B2142D00948CEC /* WarpPerspective */,
+				0438F9C327B2142D00948CEC /* Tiled */,
+				0438F9C627B2142D00948CEC /* Inpaint */,
+				0438F9CC27B2142D00948CEC /* ChangeColor */,
+				0438F9CF27B2142D00948CEC /* Blend */,
+				0438F9D527B2142D00948CEC /* Hough */,
+				0438F9DB27B2142D00948CEC /* Blur */,
+				0438F9E127B2142D00948CEC /* Luminance */,
+				0438F9E427B2142D00948CEC /* Morphology */,
+				0438F9EA27B2142D00948CEC /* MaxCut */,
+				0438F9F027B2142D00948CEC /* Repair */,
+				0438F9F627B2142D00948CEC /* Sobel */,
+			);
+			path = Demo;
+			sourceTree = "<group>";
+		};
+		0438F9C027B2142D00948CEC /* WarpPerspective */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9C127B2142D00948CEC /* WarpPerspectiveViewController.h */,
+				0438F9C227B2142D00948CEC /* WarpPerspectiveViewController.m */,
+			);
+			path = WarpPerspective;
+			sourceTree = "<group>";
+		};
+		0438F9C327B2142D00948CEC /* Tiled */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9C427B2142D00948CEC /* TiledViewController.h */,
+				0438F9C527B2142D00948CEC /* TiledViewController.m */,
+			);
+			path = Tiled;
+			sourceTree = "<group>";
+		};
+		0438F9C627B2142D00948CEC /* Inpaint */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9C927B2142D00948CEC /* Controller */,
+				0438F9C727B2142D00948CEC /* Resources */,
+			);
+			path = Inpaint;
+			sourceTree = "<group>";
+		};
+		0438F9C727B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9C827B2142D00948CEC /* Inpaint.jpg */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9C927B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9CA27B2142D00948CEC /* InpaintViewController.h */,
+				0438F9CB27B2142D00948CEC /* InpaintViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438F9CC27B2142D00948CEC /* ChangeColor */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9CD27B2142D00948CEC /* ChangeColorViewController.h */,
+				0438F9CE27B2142D00948CEC /* ChangeColorViewController.m */,
+			);
+			path = ChangeColor;
+			sourceTree = "<group>";
+		};
+		0438F9CF27B2142D00948CEC /* Blend */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9D227B2142D00948CEC /* Controller */,
+				0438F9D027B2142D00948CEC /* Resources */,
+			);
+			path = Blend;
+			sourceTree = "<group>";
+		};
+		0438F9D027B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9D127B2142D00948CEC /* ImageBlend.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9D227B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9D327B2142D00948CEC /* ImageBlendViewController.h */,
+				0438F9D427B2142D00948CEC /* ImageBlendViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438F9D527B2142D00948CEC /* Hough */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9D827B2142D00948CEC /* Controller */,
+				0438F9D627B2142D00948CEC /* Resources */,
+			);
+			path = Hough;
+			sourceTree = "<group>";
+		};
+		0438F9D627B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9D727B2142D00948CEC /* Hough.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9D827B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9D927B2142D00948CEC /* HoughViewController.h */,
+				0438F9DA27B2142D00948CEC /* HoughViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438F9DB27B2142D00948CEC /* Blur */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9DE27B2142D00948CEC /* Controller */,
+				0438F9DC27B2142D00948CEC /* Resources */,
+			);
+			path = Blur;
+			sourceTree = "<group>";
+		};
+		0438F9DC27B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9DD27B2142D00948CEC /* Blur.jpg */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9DE27B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9DF27B2142D00948CEC /* BlurViewController.h */,
+				0438F9E027B2142D00948CEC /* BlurViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438F9E127B2142D00948CEC /* Luminance */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9E227B2142D00948CEC /* LuminanceViewController.h */,
+				0438F9E327B2142D00948CEC /* LuminanceViewController.m */,
+			);
+			path = Luminance;
+			sourceTree = "<group>";
+		};
+		0438F9E427B2142D00948CEC /* Morphology */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9E727B2142D00948CEC /* Controller */,
+				0438F9E527B2142D00948CEC /* Resources */,
+			);
+			path = Morphology;
+			sourceTree = "<group>";
+		};
+		0438F9E527B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9E627B2142D00948CEC /* Morphology.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9E727B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9E927B2142D00948CEC /* MorphologyViewController.h */,
+				0438F9E827B2142D00948CEC /* MorphologyViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438F9EA27B2142D00948CEC /* MaxCut */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9ED27B2142D00948CEC /* Controller */,
+				0438F9EB27B2142D00948CEC /* Resources */,
+			);
+			path = MaxCut;
+			sourceTree = "<group>";
+		};
+		0438F9EB27B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9EC27B2142D00948CEC /* MaxCut.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9ED27B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9EF27B2142D00948CEC /* MaxCutViewController.h */,
+				0438F9EE27B2142D00948CEC /* MaxCutViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438F9F027B2142D00948CEC /* Repair */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9F327B2142D00948CEC /* Controller */,
+				0438F9F127B2142D00948CEC /* Resources */,
+			);
+			path = Repair;
+			sourceTree = "<group>";
+		};
+		0438F9F127B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9F227B2142D00948CEC /* Repair.jpg */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9F327B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9F427B2142D00948CEC /* RepairViewController.h */,
+				0438F9F527B2142D00948CEC /* RepairViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438F9F627B2142D00948CEC /* Sobel */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9F927B2142D00948CEC /* Controller */,
+				0438F9F727B2142D00948CEC /* Resources */,
+			);
+			path = Sobel;
+			sourceTree = "<group>";
+		};
+		0438F9F727B2142D00948CEC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9F827B2142D00948CEC /* Sobel.jpeg */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0438F9F927B2142D00948CEC /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				0438F9FB27B2142D00948CEC /* SobelViewController.h */,
+				0438F9FA27B2142D00948CEC /* SobelViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		0438FA1027B215FE00948CEC /* Extension */ = {
+			isa = PBXGroup;
+			children = (
+				0438FA1127B2162300948CEC /* NSObject+KJGCDBox.h */,
+				0438FA1227B2162300948CEC /* NSObject+KJGCDBox.m */,
+				0438FA1427B2163800948CEC /* UIButton+KJBlock.h */,
+				0438FA1527B2163800948CEC /* UIButton+KJBlock.m */,
+				0438FA1D27B2175E00948CEC /* UIColor+KJExtension.h */,
+				0438FA1E27B2175E00948CEC /* UIColor+KJExtension.m */,
+				0438FA2127B217AB00948CEC /* UIImage+KJCompress.h */,
+				0438FA2027B217AB00948CEC /* UIImage+KJCompress.m */,
+				0438FA2327B2180C00948CEC /* UINavigationItem+KJExtension.h */,
+				0438FA2427B2180D00948CEC /* UINavigationItem+KJExtension.m */,
+				0438FA1B27B2166800948CEC /* UIView+KJFrame.h */,
+				0438FA1A27B2166800948CEC /* UIView+KJFrame.m */,
+				0438FA1827B2165A00948CEC /* UIView+KJGestureBlock.h */,
+				0438FA1727B2165A00948CEC /* UIView+KJGestureBlock.m */,
+				0438FA2727B2183200948CEC /* UIViewController+KJFullScreen.h */,
+				0438FA2627B2183100948CEC /* UIViewController+KJFullScreen.m */,
+			);
+			path = Extension;
 			sourceTree = "<group>";
 		};
 		6EBB90491117207B2F4F6548 /* Pods */ = {
@@ -163,8 +532,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				04359BE827B1FC0F00CD9C1E /* LaunchScreen.storyboard in Resources */,
+				0438FA0827B2142E00948CEC /* Morphology.png in Resources */,
+				0438FA0C27B2142E00948CEC /* Repair.jpg in Resources */,
+				0438F9FE27B2142E00948CEC /* Inpaint.jpg in Resources */,
 				04359BE527B1FC0F00CD9C1E /* Assets.xcassets in Resources */,
+				0438FA0A27B2142E00948CEC /* MaxCut.png in Resources */,
+				0438FA0E27B2142E00948CEC /* Sobel.jpeg in Resources */,
+				0438FA0127B2142E00948CEC /* ImageBlend.png in Resources */,
 				04359BE327B1FC0E00CD9C1E /* Main.storyboard in Resources */,
+				0438FA0527B2142E00948CEC /* Blur.jpg in Resources */,
+				0438FA0327B2142E00948CEC /* Hough.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,9 +594,30 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				04359BE027B1FC0E00CD9C1E /* ViewController.m in Sources */,
+				0438FA2227B217AB00948CEC /* UIImage+KJCompress.m in Sources */,
+				04359BE027B1FC0E00CD9C1E /* ATViewController.m in Sources */,
+				0438F9FD27B2142E00948CEC /* TiledViewController.m in Sources */,
+				0438FA0427B2142E00948CEC /* HoughViewController.m in Sources */,
+				0438FA2527B2180D00948CEC /* UINavigationItem+KJExtension.m in Sources */,
+				0438FA1C27B2166800948CEC /* UIView+KJFrame.m in Sources */,
+				0438FA1F27B2175E00948CEC /* UIColor+KJExtension.m in Sources */,
+				0438FA0627B2142E00948CEC /* BlurViewController.m in Sources */,
+				0438FA1327B2162300948CEC /* NSObject+KJGCDBox.m in Sources */,
+				0438FA0F27B2142E00948CEC /* SobelViewController.m in Sources */,
+				0438FA0D27B2142E00948CEC /* RepairViewController.m in Sources */,
+				0438FA0227B2142E00948CEC /* ImageBlendViewController.m in Sources */,
+				0438FA1627B2163800948CEC /* UIButton+KJBlock.m in Sources */,
+				0438FA0027B2142E00948CEC /* ChangeColorViewController.m in Sources */,
+				0438F9FF27B2142E00948CEC /* InpaintViewController.m in Sources */,
+				0438FA0927B2142E00948CEC /* MorphologyViewController.m in Sources */,
 				04359BDA27B1FC0E00CD9C1E /* AppDelegate.m in Sources */,
+				0438F9BE27B2138A00948CEC /* BaseViewController.m in Sources */,
+				0438FA2827B2183200948CEC /* UIViewController+KJFullScreen.m in Sources */,
+				0438FA0B27B2142E00948CEC /* MaxCutViewController.m in Sources */,
+				0438F9FC27B2142E00948CEC /* WarpPerspectiveViewController.m in Sources */,
 				04359BEB27B1FC0F00CD9C1E /* main.m in Sources */,
+				0438FA0727B2142E00948CEC /* LuminanceViewController.m in Sources */,
+				0438FA1927B2165A00948CEC /* UIView+KJGestureBlock.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -296,7 +694,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -349,7 +747,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
@@ -374,7 +772,7 @@
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -405,7 +803,7 @@
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
