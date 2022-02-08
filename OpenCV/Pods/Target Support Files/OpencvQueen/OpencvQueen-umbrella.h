@@ -11,6 +11,7 @@
 #endif
 
 #import "KJOpencvType.h"
+#import "OpencvQueen.h"
 #import "UIImage+Queen.h"
 
 FOUNDATION_EXPORT double OpencvQueenVersionNumber;

@@ -6,8 +6,8 @@
 //
 
 #import <UIKit/UIKit.h>
+#import <OpencvQueen/OpencvQueen.h>
 @import KJCategories;
-@import OpencvQueen;
 
 NS_ASSUME_NONNULL_BEGIN
 

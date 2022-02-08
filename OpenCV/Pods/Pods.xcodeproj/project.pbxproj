@@ -15,6 +15,7 @@
 		1B433A1BF92BBD5811F61A000E4771C2 /* MASConstraintMaker.h in Headers */ = {isa = PBXBuildFile; fileRef = DE0EFCBDDE3729AEC69F768DB1986FAF /* MASConstraintMaker.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		1BCEA17D550142C2DEFE4EFA8A11D3F2 /* UIDevice+KJExtension.h in Headers */ = {isa = PBXBuildFile; fileRef = 3FB5A1B3095248094439E3B794AE2EE7 /* UIDevice+KJExtension.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		1D3FFDBB09D354077D751D0D264DEA69 /* UITextView+KJPlaceHolder.m in Sources */ = {isa = PBXBuildFile; fileRef = 4119D4417566A4851EFA0D0F64CB13AE /* UITextView+KJPlaceHolder.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
+		1F49E2C5FEFE52108468FDD146A0B6C8 /* UIImage+Queen.mm in Sources */ = {isa = PBXBuildFile; fileRef = CD2E8D7D9E64CAE546977EE11075FC18 /* UIImage+Queen.mm */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		26D8FFD3E5153C28F0A6D736ABEE7BDE /* UIViewController+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 15B1216FB67464C4385D163026DB1B8D /* UIViewController+KJExtension.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		2839E3707C14798138E8A0C72ACE4C25 /* MASLayoutConstraint.h in Headers */ = {isa = PBXBuildFile; fileRef = 3F16A7F47657BBDFF1E0122751AF61FA /* MASLayoutConstraint.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		290EFBDA73F32C6B874565F89648FA54 /* UIImage+KJURLSize.m in Sources */ = {isa = PBXBuildFile; fileRef = FD00FAD0EB2AD99EF23FBE0897D97B24 /* UIImage+KJURLSize.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
@@ -35,10 +36,11 @@
 		43C1124239A646ADB03D11E7DCB1A817 /* UINavigationItem+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 59AC9CCC833279B9536FE4F2CD061970 /* UINavigationItem+KJExtension.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		43E9153A83AA5B586C5809B94018AC1C /* NSObject+KJRuntime.h in Headers */ = {isa = PBXBuildFile; fileRef = DF0A9F98B59F0446B4E2A539481CEB74 /* NSObject+KJRuntime.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		44FBF2780950BC613BBD5BDB17DE5254 /* NSObject+KJRunLoop.m in Sources */ = {isa = PBXBuildFile; fileRef = EA37E10C9F0FAA1AD27058355739697F /* NSObject+KJRunLoop.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
+		47916A07AFE232F0051C55ABEFC48FA6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAB6F611E86A4758835A715E4B4184F6 /* Foundation.framework */; };
 		47A1E43EA03E487EFE160D9D17A2B5E0 /* NSObject+KJRunLoop.h in Headers */ = {isa = PBXBuildFile; fileRef = 907359034788D31F04ED60A98339EC02 /* NSObject+KJRunLoop.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		49ACA1DA25A296CFC56D8AF23910A573 /* UINavigationBar+KJExtension.h in Headers */ = {isa = PBXBuildFile; fileRef = C496E34CF04F4F36D80DF9F885D2D103 /* UINavigationBar+KJExtension.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		4BA2B1D1D3BBA1D02CDFCD06BBDA792F /* OpencvQueen-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 759F6F783183B7361FA302E30AAE4858 /* OpencvQueen-dummy.m */; };
 		4CE8A2433116431F1D7AC457917188A9 /* NSArray+KJExtension.h in Headers */ = {isa = PBXBuildFile; fileRef = CDCDA19B515833E909325D7EE9CE2FC1 /* NSArray+KJExtension.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		4DDDCF2A5ABA858418838303317F66B3 /* OpencvQueen-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = C0573EE4A27D585BEF38CDFD62A7F3D4 /* OpencvQueen-dummy.m */; };
 		4E4EF2F6B2E1F68D06D6BA966090D720 /* UINavigationBar+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 9FE7AE85593611E754C2DAC1EC4D3180 /* UINavigationBar+KJExtension.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		52CBB6CA867F631118B2BE7AB33E7B3A /* MASViewConstraint.m in Sources */ = {isa = PBXBuildFile; fileRef = 4B3120B6E61BAB874B53653FA03E0B23 /* MASViewConstraint.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		61225B0B9AEC591476E30C9A575013B3 /* View+MASShorthandAdditions.h in Headers */ = {isa = PBXBuildFile; fileRef = 23045D5F47C63E2B178CB7F40D0E5ABA /* View+MASShorthandAdditions.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -54,10 +56,9 @@
 		77EC67E168481C3FDA69FB492033EDC0 /* NSDictionary+KJExtension.h in Headers */ = {isa = PBXBuildFile; fileRef = 90041E1487890569AB190EFFF20163C0 /* NSDictionary+KJExtension.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		78251F42EB680FB72F040A1986279CD2 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAB6F611E86A4758835A715E4B4184F6 /* Foundation.framework */; };
 		7C660C6A836B635A7E122E3B16715D4D /* MASCompositeConstraint.m in Sources */ = {isa = PBXBuildFile; fileRef = 39F943F59BFE4F1D2A55F3E844E46A08 /* MASCompositeConstraint.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
-		7E960AD0DD89581CB9AF88901801EB49 /* UIImage+Queen.h in Headers */ = {isa = PBXBuildFile; fileRef = 34AD969E88AFDBAD59362F27079D6924 /* UIImage+Queen.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		7FB8006EEA0A6D9B2CD2807A915D6803 /* UINavigationItem+KJExtension.h in Headers */ = {isa = PBXBuildFile; fileRef = FF2CF80874C491CE39B200798C522B97 /* UINavigationItem+KJExtension.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		8171D105E2C5CD3C1357D544942B4446 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D245E0514AAC1A2B9A6D5EA2F383E90F /* UIKit.framework */; };
-		840422EABE3FEC6A946757C784C0F2C2 /* OpencvQueen-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 7CD189914D7D133C476B080760E99F72 /* OpencvQueen-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		817AA09E22A6F7C82E46C8F0C71C6EEC /* KJOpencvType.h in Headers */ = {isa = PBXBuildFile; fileRef = E7D4292975C19DB7FC715AFB61A7E0B6 /* KJOpencvType.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		844B9C432A49321AE11152EAAB35484B /* NSObject+KJRuntime.m in Sources */ = {isa = PBXBuildFile; fileRef = 4490A212AB525B94ED59CB373E3E4244 /* NSObject+KJRuntime.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		84736390D25F6E9909EB67FAEF0A8E28 /* NSObject+KJGCDBox.h in Headers */ = {isa = PBXBuildFile; fileRef = E42682D6E7AE35FE246E458129A0C89E /* NSObject+KJGCDBox.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		85C3A2B6C4072C2B504B5867B03C1245 /* NSString+KJHash.m in Sources */ = {isa = PBXBuildFile; fileRef = A37E7495F0559E13E6EADC500968B9D8 /* NSString+KJHash.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
@@ -75,6 +76,7 @@
 		A4DD81451C9ED32392F03CFB8F7F7025 /* KJCoreHeader.h in Headers */ = {isa = PBXBuildFile; fileRef = 57893F2513CED9E00115306C87106AE9 /* KJCoreHeader.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		A4FA94DB61EA3AF7EBC03D263F6FB4D3 /* NSArray+MASAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = D94835B436E387FE1DE7C0D2B081680A /* NSArray+MASAdditions.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		A61081582CA3A2D579D68AA46F6D2734 /* MASLayoutConstraint.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D1852F38BF47593B056C423DA4A3C6D /* MASLayoutConstraint.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
+		A770E3655C210BD55AF5742CDC70745C /* OpencvQueen.h in Headers */ = {isa = PBXBuildFile; fileRef = 612538FE6C5973FF07CC212D3BA9A7ED /* OpencvQueen.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		A83A6757F6C0003332D57B41FE24BEEA /* MASConstraint+Private.h in Headers */ = {isa = PBXBuildFile; fileRef = A5AFDE45B5A68AAE35418F1DA25A1CF3 /* MASConstraint+Private.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		A97F37E82183146FC86AD9DFE45C8E1B /* NSArray+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 3940D78FF3D4C653DF5A9B69ED89BC21 /* NSArray+KJExtension.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		ABDDDD31C3C7858212ADA90F1970B5AC /* UIColor+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 6D9B147E50F1400AD11A53882ED9EF8B /* UIColor+KJExtension.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
@@ -89,12 +91,12 @@
 		BE050DABC9BF806B3379AFD2367F4194 /* NSLayoutConstraint+MASDebugAdditions.h in Headers */ = {isa = PBXBuildFile; fileRef = 27B68A8C73918A78AED6BBA2AA54F274 /* NSLayoutConstraint+MASDebugAdditions.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		BE6DB06DA82FF31FEEFDCE15F219FACC /* NSObject+KJGCDBox.m in Sources */ = {isa = PBXBuildFile; fileRef = 5E3837F2262D1F428F96A75CE7EA1A85 /* NSObject+KJGCDBox.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		BEA99A49E5F8DA685E33DABA606041FF /* MASConstraint.h in Headers */ = {isa = PBXBuildFile; fileRef = 0A3B4F716FE6D3C28687C3DEFAE8F96E /* MASConstraint.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		C8B173A57B6161CB4050D989AF47370D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAB6F611E86A4758835A715E4B4184F6 /* Foundation.framework */; };
+		C56300E6F975A4F08BA5A7BBFD6914E4 /* UIImage+Queen.h in Headers */ = {isa = PBXBuildFile; fileRef = AF9D867BD21CE8A31EB3F7CAD1CCCB27 /* UIImage+Queen.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		CB47FFC51F1365E248BADA1858F90B99 /* Masonry-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 574993A1EC16AAE1A1AED2F94F1CC974 /* Masonry-dummy.m */; };
+		CD9534D5FA6A894DC159456AC489E533 /* OpencvQueen-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 9F1C5D9289FCA56DAD4C751C342EC77B /* OpencvQueen-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		CEE7BDCC3F3073CBBF7A76BC6CF3E519 /* MASViewConstraint.h in Headers */ = {isa = PBXBuildFile; fileRef = 16E52036728F0BCA69A58CDE38433792 /* MASViewConstraint.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D37968674B97DE0402A6977A6A4E0D84 /* NSObject+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 0D146061F81A25FE88D4D1624786D3CD /* NSObject+KJExtension.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		D5A060D24A58AA6684AB40E43A7F5198 /* NSString+KJMath.h in Headers */ = {isa = PBXBuildFile; fileRef = ECB6C8DE388400884412843B20E436B1 /* NSString+KJMath.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		D5F4807D6F30C71C730F9C715D9EB916 /* UIImage+Queen.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5B9E9388A324385F97F62FA8DA8FA38E /* UIImage+Queen.mm */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		D8334E41F23B2FA474FAB61E545E729E /* UILabel+KJExtension.h in Headers */ = {isa = PBXBuildFile; fileRef = C696187737BCE13714CF71E692E312C2 /* UILabel+KJExtension.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D973D469DCC367AC77E90AEB2582A40F /* UIDevice+KJExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = E811E575589D57A85E61457D378865BF /* UIDevice+KJExtension.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		DA823C733339254D92F247D42C15F17B /* UIView+KJXib.h in Headers */ = {isa = PBXBuildFile; fileRef = E1F09A018410A1541DD0E16EA204A4D4 /* UIView+KJXib.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -104,7 +106,6 @@
 		E744B40F6A296DBB7F4A8177FC39C0B8 /* UIViewController+KJExtension.h in Headers */ = {isa = PBXBuildFile; fileRef = 743F0911D5275B7C0BEC96F096CACFDE /* UIViewController+KJExtension.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		E999F7F80E91A93B5FB7C232871B5A1D /* UIImage+KJResize.m in Sources */ = {isa = PBXBuildFile; fileRef = 2C149DCA02FADEEC9E2B0BBC865DAECA /* UIImage+KJResize.m */; settings = {COMPILER_FLAGS = "-w -Xanalyzer -analyzer-disable-all-checks"; }; };
 		E9BFBC10F56DB946AB9E043E747889C1 /* UIColor+KJGradient.h in Headers */ = {isa = PBXBuildFile; fileRef = CEF24F4A8E71E292B7701713165AADB2 /* UIColor+KJGradient.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		F02BCDD9468C19A826A2DCEF385D0D73 /* KJOpencvType.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F17478EDD3F74DE8E0A0F076589085B /* KJOpencvType.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F1796047B9DB07DC4B4E6960BC2CC48C /* KJCategories-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = D1A7ECC1D2C5B859FEC4E079FE5C8706 /* KJCategories-dummy.m */; };
 		F631894CD271F7B8661E735201909A7D /* UITextView+KJPlaceHolder.h in Headers */ = {isa = PBXBuildFile; fileRef = A58AD50262B5BE17AE1A64E34843909F /* UITextView+KJPlaceHolder.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F7AEE95D65ECECFA88841772745A6078 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAB6F611E86A4758835A715E4B4184F6 /* Foundation.framework */; };
@@ -113,21 +114,21 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		85956CD911D2E34AA755E43C3D3E3D46 /* PBXContainerItemProxy */ = {
+		3F67C1907D7B6781AD6A882E57E1EE76 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 55AF53E6C77A10ED4985E04D74A8878E;
 			remoteInfo = Masonry;
 		};
-		8CDB6B58C6A0E2A6043FD4FB1C6A6036 /* PBXContainerItemProxy */ = {
+		CFD5ABB0F8ED535FE70B772CC3C5096D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 5D2AFEEEC3EB10D25503ABFD7274B596;
 			remoteInfo = KJCategories;
 		};
-		CA0FE9605A5773B0C1DB895F018F98FA /* PBXContainerItemProxy */ = {
+		DFEAA40C835747426BAD7409AC8E8FD5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
 			proxyType = 1;
@@ -154,9 +155,8 @@
 		147B338420B819C9DC2D3F5C417452B6 /* MASViewAttribute.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = MASViewAttribute.m; path = Masonry/MASViewAttribute.m; sourceTree = "<group>"; };
 		1572BB2923DC2181AFD8168B6A6823EE /* ViewController+MASAdditions.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "ViewController+MASAdditions.h"; path = "Masonry/ViewController+MASAdditions.h"; sourceTree = "<group>"; };
 		15B1216FB67464C4385D163026DB1B8D /* UIViewController+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIViewController+KJExtension.m"; path = "Sources/Core/UIKit/UIViewController/UIViewController+KJExtension.m"; sourceTree = "<group>"; };
+		16367F0F23D1DBF5EBB95E39DE68BD71 /* OpencvQueen.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = OpencvQueen.modulemap; sourceTree = "<group>"; };
 		16E52036728F0BCA69A58CDE38433792 /* MASViewConstraint.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = MASViewConstraint.h; path = Masonry/MASViewConstraint.h; sourceTree = "<group>"; };
-		16F2BE58F8FCE12BDD8AA970D89D50EE /* OpencvQueen.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = OpencvQueen.release.xcconfig; sourceTree = "<group>"; };
-		1881DBCCA9E8653B4FEA0F15CD0EA675 /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; path = README.md; sourceTree = "<group>"; };
 		1A2F07F25241DE708E76F71D38BAC161 /* UIImage+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIImage+KJExtension.m"; path = "Sources/Core/UIKit/UIImage/UIImage+KJExtension.m"; sourceTree = "<group>"; };
 		1B0DE53F1F2CB49F38AE823BC473AEDE /* Pods-OpenCV.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-OpenCV.debug.xcconfig"; sourceTree = "<group>"; };
 		1D449E4E6BE6FD1CF9FB3BEB9EEC3AD9 /* UIImage+KJCut.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIImage+KJCut.m"; path = "Sources/Core/UIKit/UIImage/UIImage+KJCut.m"; sourceTree = "<group>"; };
@@ -168,7 +168,7 @@
 		27B68A8C73918A78AED6BBA2AA54F274 /* NSLayoutConstraint+MASDebugAdditions.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSLayoutConstraint+MASDebugAdditions.h"; path = "Masonry/NSLayoutConstraint+MASDebugAdditions.h"; sourceTree = "<group>"; };
 		2C149DCA02FADEEC9E2B0BBC865DAECA /* UIImage+KJResize.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIImage+KJResize.m"; path = "Sources/Core/UIKit/UIImage/UIImage+KJResize.m"; sourceTree = "<group>"; };
 		2DD58D3DCB7A6F120BE9D9D4DD7D2F39 /* Pods-OpenCV-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-OpenCV-acknowledgements.markdown"; sourceTree = "<group>"; };
-		34AD969E88AFDBAD59362F27079D6924 /* UIImage+Queen.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIImage+Queen.h"; path = "OpenCV/Sources/UIImage+Queen.h"; sourceTree = "<group>"; };
+		3490D18809A7C68D77BA806DECF5B7A7 /* OpencvQueen-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "OpencvQueen-Info.plist"; sourceTree = "<group>"; };
 		36738F8CC2B5318FBFFEEB50557E4635 /* Pods-OpenCV.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-OpenCV.release.xcconfig"; sourceTree = "<group>"; };
 		3940D78FF3D4C653DF5A9B69ED89BC21 /* NSArray+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "NSArray+KJExtension.m"; path = "Sources/Core/Foundation/NSArray/NSArray+KJExtension.m"; sourceTree = "<group>"; };
 		39F943F59BFE4F1D2A55F3E844E46A08 /* MASCompositeConstraint.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = MASCompositeConstraint.m; path = Masonry/MASCompositeConstraint.m; sourceTree = "<group>"; };
@@ -181,22 +181,25 @@
 		455D4F8948926C2D2ED847E1C11BFAA7 /* Pods-OpenCV-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-OpenCV-dummy.m"; sourceTree = "<group>"; };
 		4B3120B6E61BAB874B53653FA03E0B23 /* MASViewConstraint.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = MASViewConstraint.m; path = Masonry/MASViewConstraint.m; sourceTree = "<group>"; };
 		4D69F6A9E2845B3337860B6081416536 /* Masonry-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Masonry-umbrella.h"; sourceTree = "<group>"; };
-		4F17478EDD3F74DE8E0A0F076589085B /* KJOpencvType.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = KJOpencvType.h; path = OpenCV/Sources/KJOpencvType.h; sourceTree = "<group>"; };
+		512A28572FCA1EE553898C2148D44731 /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; path = README.md; sourceTree = "<group>"; };
 		54311755570BC8B283811628073D8A79 /* KJCategories-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "KJCategories-Info.plist"; sourceTree = "<group>"; };
 		574993A1EC16AAE1A1AED2F94F1CC974 /* Masonry-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Masonry-dummy.m"; sourceTree = "<group>"; };
 		57893F2513CED9E00115306C87106AE9 /* KJCoreHeader.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = KJCoreHeader.h; path = Sources/Core/KJCoreHeader.h; sourceTree = "<group>"; };
 		59AC9CCC833279B9536FE4F2CD061970 /* UINavigationItem+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UINavigationItem+KJExtension.m"; path = "Sources/UIKit/UINavigation/UINavigationItem+KJExtension.m"; sourceTree = "<group>"; };
 		5A975A90084D8BAF38A716245B7319AD /* UIViewController+KJFullScreen.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIViewController+KJFullScreen.m"; path = "Sources/UIKit/UIViewController/UIViewController+KJFullScreen.m"; sourceTree = "<group>"; };
-		5B9E9388A324385F97F62FA8DA8FA38E /* UIImage+Queen.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = "UIImage+Queen.mm"; path = "OpenCV/Sources/UIImage+Queen.mm"; sourceTree = "<group>"; };
 		5E3837F2262D1F428F96A75CE7EA1A85 /* NSObject+KJGCDBox.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "NSObject+KJGCDBox.m"; path = "Sources/Core/Foundation/NSObject/NSObject+KJGCDBox.m"; sourceTree = "<group>"; };
 		5FC3F18913D0735CA545A3A051C03280 /* UIViewController+KJFullScreen.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIViewController+KJFullScreen.h"; path = "Sources/UIKit/UIViewController/UIViewController+KJFullScreen.h"; sourceTree = "<group>"; };
+		612538FE6C5973FF07CC212D3BA9A7ED /* OpencvQueen.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = OpencvQueen.h; path = OpenCV/Sources/OpencvQueen.h; sourceTree = "<group>"; };
 		63A6F5B2BA0C6C950EC5D66C47917B8E /* NSDate+KJFormat.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "NSDate+KJFormat.m"; path = "Sources/Core/Foundation/NSDate/NSDate+KJFormat.m"; sourceTree = "<group>"; };
 		6AF5FE9444B93CFDF755DCA3DBC6234B /* UIColor+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIColor+KJExtension.h"; path = "Sources/Core/UIKit/UIColor/UIColor+KJExtension.h"; sourceTree = "<group>"; };
 		6D9B147E50F1400AD11A53882ED9EF8B /* UIColor+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIColor+KJExtension.m"; path = "Sources/Core/UIKit/UIColor/UIColor+KJExtension.m"; sourceTree = "<group>"; };
+		726EC00779D67399F42B8CF15513E1D7 /* OpencvQueen-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "OpencvQueen-prefix.pch"; sourceTree = "<group>"; };
 		743F0911D5275B7C0BEC96F096CACFDE /* UIViewController+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIViewController+KJExtension.h"; path = "Sources/Core/UIKit/UIViewController/UIViewController+KJExtension.h"; sourceTree = "<group>"; };
-		7CD189914D7D133C476B080760E99F72 /* OpencvQueen-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "OpencvQueen-umbrella.h"; sourceTree = "<group>"; };
+		759F6F783183B7361FA302E30AAE4858 /* OpencvQueen-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "OpencvQueen-dummy.m"; sourceTree = "<group>"; };
+		784F84605DA24885B68AB4CC43E0B477 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
 		7D1852F38BF47593B056C423DA4A3C6D /* MASLayoutConstraint.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = MASLayoutConstraint.m; path = Masonry/MASLayoutConstraint.m; sourceTree = "<group>"; };
 		803AF0DEFE4B01A135E393714D03DDA2 /* NSArray+MASShorthandAdditions.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSArray+MASShorthandAdditions.h"; path = "Masonry/NSArray+MASShorthandAdditions.h"; sourceTree = "<group>"; };
+		844D6D597641AFFAD492722B075D6E34 /* OpencvQueen.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; path = OpencvQueen.podspec; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		8465E57EC0E65D581F3C5520EA8FBB8D /* NSString+KJHash.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSString+KJHash.h"; path = "Sources/Core/Foundation/NSString/NSString+KJHash.h"; sourceTree = "<group>"; };
 		84CF5671EB7DDC15BB6BAD9377265DC4 /* MASCompositeConstraint.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = MASCompositeConstraint.h; path = Masonry/MASCompositeConstraint.h; sourceTree = "<group>"; };
 		882F5412ED0C89DCD6A76BD373ABED78 /* KJCategories-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "KJCategories-umbrella.h"; sourceTree = "<group>"; };
@@ -205,13 +208,12 @@
 		90041E1487890569AB190EFFF20163C0 /* NSDictionary+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSDictionary+KJExtension.h"; path = "Sources/Core/Foundation/NSDictionary/NSDictionary+KJExtension.h"; sourceTree = "<group>"; };
 		907359034788D31F04ED60A98339EC02 /* NSObject+KJRunLoop.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSObject+KJRunLoop.h"; path = "Sources/Core/Foundation/NSObject/NSObject+KJRunLoop.h"; sourceTree = "<group>"; };
 		93F65D02B8C309320603A817FF38996B /* UIImage+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIImage+KJExtension.h"; path = "Sources/Core/UIKit/UIImage/UIImage+KJExtension.h"; sourceTree = "<group>"; };
-		9470CDC0B742ADCC26297CDCDC1B9A24 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
 		94D433383A1AB0BFE9D4E674EDACFFF5 /* ViewController+MASAdditions.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "ViewController+MASAdditions.m"; path = "Masonry/ViewController+MASAdditions.m"; sourceTree = "<group>"; };
 		96EA707EBCFA348249DA247FCF31EC88 /* Masonry.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = Masonry.modulemap; sourceTree = "<group>"; };
 		98206357B696D53E0B39DB43BF5CD9C0 /* UITextField+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UITextField+KJExtension.h"; path = "Sources/Core/UIKit/UITextField/UITextField+KJExtension.h"; sourceTree = "<group>"; };
 		991A6045D5914FE6396B3285FBD168FF /* UIImage+KJURLSize.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIImage+KJURLSize.h"; path = "Sources/Core/UIKit/UIImage/UIImage+KJURLSize.h"; sourceTree = "<group>"; };
-		9D314403FC1AEF1AED08E51F2265AE4E /* OpencvQueen.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; path = OpencvQueen.podspec; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		9F1C5D9289FCA56DAD4C751C342EC77B /* OpencvQueen-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "OpencvQueen-umbrella.h"; sourceTree = "<group>"; };
 		9F39BD15D0AAAA275E1B6DC8E4ECC4F5 /* UIView+KJFrame.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIView+KJFrame.m"; path = "Sources/Core/UIKit/UIView/UIView+KJFrame.m"; sourceTree = "<group>"; };
 		9FE7AE85593611E754C2DAC1EC4D3180 /* UINavigationBar+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UINavigationBar+KJExtension.m"; path = "Sources/UIKit/UINavigation/UINavigationBar+KJExtension.m"; sourceTree = "<group>"; };
 		A34D3CF7AA70EE2826D9ED721ACDA176 /* UIButton+KJContentLayout.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIButton+KJContentLayout.m"; path = "Sources/Core/UIKit/UIButton/UIButton+KJContentLayout.m"; sourceTree = "<group>"; };
@@ -223,14 +225,17 @@
 		A959A7F1D579768603F369CF69DE55E1 /* Masonry-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Masonry-Info.plist"; sourceTree = "<group>"; };
 		AB67E61AC4AB07048F3A50A4CC78F58D /* Pods-OpenCV.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-OpenCV.modulemap"; sourceTree = "<group>"; };
 		AE52B5CEAC361012965BAB84D3E665FB /* UILabel+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UILabel+KJExtension.m"; path = "Sources/Core/UIKit/UILabel/UILabel+KJExtension.m"; sourceTree = "<group>"; };
+		AF9D867BD21CE8A31EB3F7CAD1CCCB27 /* UIImage+Queen.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIImage+Queen.h"; path = "OpenCV/Sources/UIImage+Queen.h"; sourceTree = "<group>"; };
 		B5B4C144AC359E151E2A56F3BE57BE32 /* View+MASAdditions.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "View+MASAdditions.h"; path = "Masonry/View+MASAdditions.h"; sourceTree = "<group>"; };
 		BA8B70E21C389CD7F076F7F5DA42E3A8 /* Pods-OpenCV-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-OpenCV-Info.plist"; sourceTree = "<group>"; };
 		BC314F462A39C5DCDEE752EC4F55B867 /* UIButton+KJBlock.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIButton+KJBlock.h"; path = "Sources/Core/UIKit/UIButton/UIButton+KJBlock.h"; sourceTree = "<group>"; };
 		BFFD3C48C66B29DEFDA21113A2E270DD /* MASUtilities.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = MASUtilities.h; path = Masonry/MASUtilities.h; sourceTree = "<group>"; };
-		C0573EE4A27D585BEF38CDFD62A7F3D4 /* OpencvQueen-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "OpencvQueen-dummy.m"; sourceTree = "<group>"; };
 		C496E34CF04F4F36D80DF9F885D2D103 /* UINavigationBar+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UINavigationBar+KJExtension.h"; path = "Sources/UIKit/UINavigation/UINavigationBar+KJExtension.h"; sourceTree = "<group>"; };
+		C52C551D8E19AF93B83B962A594E2F07 /* OpencvQueen.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = OpencvQueen.release.xcconfig; sourceTree = "<group>"; };
 		C696187737BCE13714CF71E692E312C2 /* UILabel+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UILabel+KJExtension.h"; path = "Sources/Core/UIKit/UILabel/UILabel+KJExtension.h"; sourceTree = "<group>"; };
 		C72B4B57BA76301DFFB001E2F27AC1DA /* KJCategories.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = KJCategories.debug.xcconfig; sourceTree = "<group>"; };
+		CBC357D2EE6697FEFF9D38DDB4BA483D /* OpencvQueen.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = OpencvQueen.debug.xcconfig; sourceTree = "<group>"; };
+		CD2E8D7D9E64CAE546977EE11075FC18 /* UIImage+Queen.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = "UIImage+Queen.mm"; path = "OpenCV/Sources/UIImage+Queen.mm"; sourceTree = "<group>"; };
 		CDCDA19B515833E909325D7EE9CE2FC1 /* NSArray+KJExtension.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSArray+KJExtension.h"; path = "Sources/Core/Foundation/NSArray/NSArray+KJExtension.h"; sourceTree = "<group>"; };
 		CE2AF8EDCE9AC8A6914D40B9BBC3BE4A /* UIImage+KJCapture.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIImage+KJCapture.h"; path = "Sources/Core/UIKit/UIImage/UIImage+KJCapture.h"; sourceTree = "<group>"; };
 		CEF24F4A8E71E292B7701713165AADB2 /* UIColor+KJGradient.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIColor+KJGradient.h"; path = "Sources/Core/UIKit/UIColor/UIColor+KJGradient.h"; sourceTree = "<group>"; };
@@ -238,7 +243,6 @@
 		D167AE6C6D0818F290C8E5D95EDAF275 /* Pods-OpenCV-frameworks.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-OpenCV-frameworks.sh"; sourceTree = "<group>"; };
 		D1A7ECC1D2C5B859FEC4E079FE5C8706 /* KJCategories-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "KJCategories-dummy.m"; sourceTree = "<group>"; };
 		D245E0514AAC1A2B9A6D5EA2F383E90F /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/UIKit.framework; sourceTree = DEVELOPER_DIR; };
-		D48E1D8FD54FD1038753ADCAF22FE44A /* OpencvQueen-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "OpencvQueen-prefix.pch"; sourceTree = "<group>"; };
 		D54831D2376E9339087DBBEFD0BBF186 /* Pods-OpenCV-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-OpenCV-umbrella.h"; sourceTree = "<group>"; };
 		D94835B436E387FE1DE7C0D2B081680A /* NSArray+MASAdditions.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "NSArray+MASAdditions.m"; path = "Masonry/NSArray+MASAdditions.m"; sourceTree = "<group>"; };
 		DE0EFCBDDE3729AEC69F768DB1986FAF /* MASConstraintMaker.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = MASConstraintMaker.h; path = Masonry/MASConstraintMaker.h; sourceTree = "<group>"; };
@@ -247,7 +251,7 @@
 		E42682D6E7AE35FE246E458129A0C89E /* NSObject+KJGCDBox.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSObject+KJGCDBox.h"; path = "Sources/Core/Foundation/NSObject/NSObject+KJGCDBox.h"; sourceTree = "<group>"; };
 		E571C4E063CAD6D0711FDD11C972920F /* MASViewAttribute.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = MASViewAttribute.h; path = Masonry/MASViewAttribute.h; sourceTree = "<group>"; };
 		E58ADB13D69C515889FA6929D9F6CFDF /* NSDictionary+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "NSDictionary+KJExtension.m"; path = "Sources/Core/Foundation/NSDictionary/NSDictionary+KJExtension.m"; sourceTree = "<group>"; };
-		E610715EC5750B6A26DCEADEDAE356C9 /* OpencvQueen.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = OpencvQueen.modulemap; sourceTree = "<group>"; };
+		E7D4292975C19DB7FC715AFB61A7E0B6 /* KJOpencvType.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = KJOpencvType.h; path = OpenCV/Sources/KJOpencvType.h; sourceTree = "<group>"; };
 		E7E5931CB97FDA1B30B261648CED6CE2 /* Masonry-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Masonry-prefix.pch"; sourceTree = "<group>"; };
 		E811E575589D57A85E61457D378865BF /* UIDevice+KJExtension.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIDevice+KJExtension.m"; path = "Sources/Core/UIKit/UIDevice/UIDevice+KJExtension.m"; sourceTree = "<group>"; };
 		E92DCB4DD3FFD8889C2137CB51581841 /* Masonry.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = Masonry.debug.xcconfig; sourceTree = "<group>"; };
@@ -255,11 +259,9 @@
 		EA2A074E3EC6F1C93A2FF8FA02630B9A /* UIView+KJGestureBlock.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIView+KJGestureBlock.h"; path = "Sources/Core/UIKit/UIView/UIView+KJGestureBlock.h"; sourceTree = "<group>"; };
 		EA37E10C9F0FAA1AD27058355739697F /* NSObject+KJRunLoop.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "NSObject+KJRunLoop.m"; path = "Sources/Core/Foundation/NSObject/NSObject+KJRunLoop.m"; sourceTree = "<group>"; };
 		EAB6F611E86A4758835A715E4B4184F6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		EBF6283DB165FF4DE434FC0DEA6DC99E /* OpencvQueen-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "OpencvQueen-Info.plist"; sourceTree = "<group>"; };
 		ECB6C8DE388400884412843B20E436B1 /* NSString+KJMath.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSString+KJMath.h"; path = "Sources/Core/Foundation/NSString/NSString+KJMath.h"; sourceTree = "<group>"; };
 		F0EAF6CA5448893F604E2708A5339CD2 /* Pods-OpenCV-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-OpenCV-acknowledgements.plist"; sourceTree = "<group>"; };
 		F1669292305C4546C586A259234307F6 /* NSArray+MASAdditions.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "NSArray+MASAdditions.h"; path = "Masonry/NSArray+MASAdditions.h"; sourceTree = "<group>"; };
-		F29C349F77D6DE5F30138C48AAA797E9 /* OpencvQueen.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = OpencvQueen.debug.xcconfig; sourceTree = "<group>"; };
 		F88EC6C88D4A89100C440A30DDE0599F /* UITextField+KJCustomView.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UITextField+KJCustomView.h"; path = "Sources/Core/UIKit/UITextField/UITextField+KJCustomView.h"; sourceTree = "<group>"; };
 		FA8A67D128F0D8A2088F9C0DAD87F043 /* UIView+KJFrame.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "UIView+KJFrame.h"; path = "Sources/Core/UIKit/UIView/UIView+KJFrame.h"; sourceTree = "<group>"; };
 		FCBF876B921A63254972B042DC5DB9B9 /* UIView+KJGestureBlock.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = "UIView+KJGestureBlock.m"; path = "Sources/Core/UIKit/UIView/UIView+KJGestureBlock.m"; sourceTree = "<group>"; };
@@ -270,19 +272,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		285CF3B62999DEFD63A4B1F9A2946FDA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47916A07AFE232F0051C55ABEFC48FA6 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		30C0FE80F119B94359CB241CB4B7FE76 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				6F6239189E77A867AD4522A35230836F /* Foundation.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A496D7A301FFB32DC25B394CA5C29A72 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				C8B173A57B6161CB4050D989AF47370D /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -324,6 +326,14 @@
 			name = "Targets Support Files";
 			sourceTree = "<group>";
 		};
+		0EABEB2E57B54C79C4D077926C391E6B /* Development Pods */ = {
+			isa = PBXGroup;
+			children = (
+				725FFAFF4C0BFBB3244C548D43E7025C /* OpencvQueen */,
+			);
+			name = "Development Pods";
+			sourceTree = "<group>";
+		};
 		1628BF05B4CAFDCC3549A101F5A10A17 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -345,24 +355,6 @@
 			);
 			name = "Support Files";
 			path = "../Target Support Files/Masonry";
-			sourceTree = "<group>";
-		};
-		35F93793917423B2AEABDA52BF9F04BA /* Development Pods */ = {
-			isa = PBXGroup;
-			children = (
-				B4C9CFE81BAFDB1D379890365F397A67 /* OpencvQueen */,
-			);
-			name = "Development Pods";
-			sourceTree = "<group>";
-		};
-		363D3DFC8B3E096B827313123CAF7F00 /* Pod */ = {
-			isa = PBXGroup;
-			children = (
-				9470CDC0B742ADCC26297CDCDC1B9A24 /* LICENSE */,
-				9D314403FC1AEF1AED08E51F2265AE4E /* OpencvQueen.podspec */,
-				1881DBCCA9E8653B4FEA0F15CD0EA675 /* README.md */,
-			);
-			name = Pod;
 			sourceTree = "<group>";
 		};
 		3764D3B81C4A3908A60837D02E106152 /* UIViewController */ = {
@@ -392,19 +384,18 @@
 			name = Pods;
 			sourceTree = "<group>";
 		};
-		6DDF881003EAA8E545ADD04BC26884F3 /* Support Files */ = {
+		725FFAFF4C0BFBB3244C548D43E7025C /* OpencvQueen */ = {
 			isa = PBXGroup;
 			children = (
-				E610715EC5750B6A26DCEADEDAE356C9 /* OpencvQueen.modulemap */,
-				C0573EE4A27D585BEF38CDFD62A7F3D4 /* OpencvQueen-dummy.m */,
-				EBF6283DB165FF4DE434FC0DEA6DC99E /* OpencvQueen-Info.plist */,
-				D48E1D8FD54FD1038753ADCAF22FE44A /* OpencvQueen-prefix.pch */,
-				7CD189914D7D133C476B080760E99F72 /* OpencvQueen-umbrella.h */,
-				F29C349F77D6DE5F30138C48AAA797E9 /* OpencvQueen.debug.xcconfig */,
-				16F2BE58F8FCE12BDD8AA970D89D50EE /* OpencvQueen.release.xcconfig */,
+				E7D4292975C19DB7FC715AFB61A7E0B6 /* KJOpencvType.h */,
+				612538FE6C5973FF07CC212D3BA9A7ED /* OpencvQueen.h */,
+				AF9D867BD21CE8A31EB3F7CAD1CCCB27 /* UIImage+Queen.h */,
+				CD2E8D7D9E64CAE546977EE11075FC18 /* UIImage+Queen.mm */,
+				B3EB7304F0247FABE432064BA98BEF1E /* Pod */,
+				B7BEFCC7F52E3A492D751DB38AD7D61F /* Support Files */,
 			);
-			name = "Support Files";
-			path = "OpenCV/Pods/Target Support Files/OpencvQueen";
+			name = OpencvQueen;
+			path = ../..;
 			sourceTree = "<group>";
 		};
 		78877BC030710079A280FFA092427978 /* Pods-OpenCV */ = {
@@ -462,17 +453,29 @@
 			path = "../Target Support Files/KJCategories";
 			sourceTree = "<group>";
 		};
-		B4C9CFE81BAFDB1D379890365F397A67 /* OpencvQueen */ = {
+		B3EB7304F0247FABE432064BA98BEF1E /* Pod */ = {
 			isa = PBXGroup;
 			children = (
-				4F17478EDD3F74DE8E0A0F076589085B /* KJOpencvType.h */,
-				34AD969E88AFDBAD59362F27079D6924 /* UIImage+Queen.h */,
-				5B9E9388A324385F97F62FA8DA8FA38E /* UIImage+Queen.mm */,
-				363D3DFC8B3E096B827313123CAF7F00 /* Pod */,
-				6DDF881003EAA8E545ADD04BC26884F3 /* Support Files */,
+				784F84605DA24885B68AB4CC43E0B477 /* LICENSE */,
+				844D6D597641AFFAD492722B075D6E34 /* OpencvQueen.podspec */,
+				512A28572FCA1EE553898C2148D44731 /* README.md */,
 			);
-			name = OpencvQueen;
-			path = ../..;
+			name = Pod;
+			sourceTree = "<group>";
+		};
+		B7BEFCC7F52E3A492D751DB38AD7D61F /* Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				16367F0F23D1DBF5EBB95E39DE68BD71 /* OpencvQueen.modulemap */,
+				759F6F783183B7361FA302E30AAE4858 /* OpencvQueen-dummy.m */,
+				3490D18809A7C68D77BA806DECF5B7A7 /* OpencvQueen-Info.plist */,
+				726EC00779D67399F42B8CF15513E1D7 /* OpencvQueen-prefix.pch */,
+				9F1C5D9289FCA56DAD4C751C342EC77B /* OpencvQueen-umbrella.h */,
+				CBC357D2EE6697FEFF9D38DDB4BA483D /* OpencvQueen.debug.xcconfig */,
+				C52C551D8E19AF93B83B962A594E2F07 /* OpencvQueen.release.xcconfig */,
+			);
+			name = "Support Files";
+			path = "OpenCV/Pods/Target Support Files/OpencvQueen";
 			sourceTree = "<group>";
 		};
 		C97414831FA237F4FAA563986A0E444F /* UIKit */ = {
@@ -547,7 +550,7 @@
 			isa = PBXGroup;
 			children = (
 				9D940727FF8FB9C785EB98E56350EF41 /* Podfile */,
-				35F93793917423B2AEABDA52BF9F04BA /* Development Pods */,
+				0EABEB2E57B54C79C4D077926C391E6B /* Development Pods */,
 				1628BF05B4CAFDCC3549A101F5A10A17 /* Frameworks */,
 				65E9F99C10BCE3FAA8848409C48C97C3 /* Pods */,
 				841EB09E29412A851B86C2F5DA24EA54 /* Products */,
@@ -643,6 +646,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB601DCF2552BD91A737583C50CA9A17 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				817AA09E22A6F7C82E46C8F0C71C6EEC /* KJOpencvType.h in Headers */,
+				A770E3655C210BD55AF5742CDC70745C /* OpencvQueen.h in Headers */,
+				CD9534D5FA6A894DC159456AC489E533 /* OpencvQueen-umbrella.h in Headers */,
+				C56300E6F975A4F08BA5A7BBFD6914E4 /* UIImage+Queen.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C000342FF7A029C5A6751B7F4B1A8BB4 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -683,16 +697,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FE64475E71B60D6A6C309B1087BAC93C /* Headers */ = {
-			isa = PBXHeadersBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				F02BCDD9468C19A826A2DCEF385D0D73 /* KJOpencvType.h in Headers */,
-				840422EABE3FEC6A946757C784C0F2C2 /* OpencvQueen-umbrella.h in Headers */,
-				7E960AD0DD89581CB9AF88901801EB49 /* UIImage+Queen.h in Headers */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
@@ -708,9 +712,9 @@
 			buildRules = (
 			);
 			dependencies = (
-				840556D847D94E1EA10FD0636F52AC34 /* PBXTargetDependency */,
-				4F02A288B7AE4F9E393D6828DA5EB543 /* PBXTargetDependency */,
-				0046A5253EF6A9DC36153907A113761E /* PBXTargetDependency */,
+				E57F4AB2E9D31999004F47984A416820 /* PBXTargetDependency */,
+				71A7C95706F97BC70C0DEE3D5579D4A9 /* PBXTargetDependency */,
+				0A9DE47B38A84F162BDB679F08A46BAE /* PBXTargetDependency */,
 			);
 			name = "Pods-OpenCV";
 			productName = Pods_OpenCV;
@@ -755,12 +759,12 @@
 		};
 		F942172440E7EB61B599879DEFF30838 /* OpencvQueen */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 183D71A1A4E22E779EBF358308918184 /* Build configuration list for PBXNativeTarget "OpencvQueen" */;
+			buildConfigurationList = EEF8E3542496DDF6BC5BABA67B75DF74 /* Build configuration list for PBXNativeTarget "OpencvQueen" */;
 			buildPhases = (
-				FE64475E71B60D6A6C309B1087BAC93C /* Headers */,
-				4D3CA83C3156277743C1B496B6320DA4 /* Sources */,
-				A496D7A301FFB32DC25B394CA5C29A72 /* Frameworks */,
-				722B1E0449689996D279DAF23A21AEC8 /* Resources */,
+				BB601DCF2552BD91A737583C50CA9A17 /* Headers */,
+				45D3418C7AC0BA6DDD66721DA83241CA /* Sources */,
+				285CF3B62999DEFD63A4B1F9A2946FDA /* Frameworks */,
+				8A330688A00262D7D3B84C32CB910BE7 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -816,7 +820,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		722B1E0449689996D279DAF23A21AEC8 /* Resources */ = {
+		8A330688A00262D7D3B84C32CB910BE7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -871,12 +875,12 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		4D3CA83C3156277743C1B496B6320DA4 /* Sources */ = {
+		45D3418C7AC0BA6DDD66721DA83241CA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4DDDCF2A5ABA858418838303317F66B3 /* OpencvQueen-dummy.m in Sources */,
-				D5F4807D6F30C71C730F9C715D9EB916 /* UIImage+Queen.mm in Sources */,
+				4BA2B1D1D3BBA1D02CDFCD06BBDA792F /* OpencvQueen-dummy.m in Sources */,
+				1F49E2C5FEFE52108468FDD146A0B6C8 /* UIImage+Queen.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -909,23 +913,23 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		0046A5253EF6A9DC36153907A113761E /* PBXTargetDependency */ = {
+		0A9DE47B38A84F162BDB679F08A46BAE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = OpencvQueen;
 			target = F942172440E7EB61B599879DEFF30838 /* OpencvQueen */;
-			targetProxy = CA0FE9605A5773B0C1DB895F018F98FA /* PBXContainerItemProxy */;
+			targetProxy = DFEAA40C835747426BAD7409AC8E8FD5 /* PBXContainerItemProxy */;
 		};
-		4F02A288B7AE4F9E393D6828DA5EB543 /* PBXTargetDependency */ = {
+		71A7C95706F97BC70C0DEE3D5579D4A9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = Masonry;
 			target = 55AF53E6C77A10ED4985E04D74A8878E /* Masonry */;
-			targetProxy = 85956CD911D2E34AA755E43C3D3E3D46 /* PBXContainerItemProxy */;
+			targetProxy = 3F67C1907D7B6781AD6A882E57E1EE76 /* PBXContainerItemProxy */;
 		};
-		840556D847D94E1EA10FD0636F52AC34 /* PBXTargetDependency */ = {
+		E57F4AB2E9D31999004F47984A416820 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = KJCategories;
 			target = 5D2AFEEEC3EB10D25503ABFD7274B596 /* KJCategories */;
-			targetProxy = 8CDB6B58C6A0E2A6043FD4FB1C6A6036 /* PBXContainerItemProxy */;
+			targetProxy = CFD5ABB0F8ED535FE70B772CC3C5096D /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1034,6 +1038,41 @@
 				VERSION_INFO_PREFIX = "";
 			};
 			name = Release;
+		};
+		2E492C05C2114971058C5E5571AD5DE3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = CBC357D2EE6697FEFF9D38DDB4BA483D /* OpencvQueen.debug.xcconfig */;
+			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				COMPILER_INDEX_STORE_ENABLE = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GCC_PREFIX_HEADER = "Target Support Files/OpencvQueen/OpencvQueen-prefix.pch";
+				INFOPLIST_FILE = "Target Support Files/OpencvQueen/OpencvQueen-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MODULEMAP_FILE = "Target Support Files/OpencvQueen/OpencvQueen.modulemap";
+				PRODUCT_MODULE_NAME = OpencvQueen;
+				PRODUCT_NAME = OpencvQueen;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
 		};
 		574336E93FEE5E80463961C3B5210418 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1166,42 +1205,6 @@
 			};
 			name = Release;
 		};
-		915EF76F59B2771BBCC0C710E3AF027E /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 16F2BE58F8FCE12BDD8AA970D89D50EE /* OpencvQueen.release.xcconfig */;
-			buildSettings = {
-				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
-				COMPILER_INDEX_STORE_ENABLE = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GCC_PREFIX_HEADER = "Target Support Files/OpencvQueen/OpencvQueen-prefix.pch";
-				INFOPLIST_FILE = "Target Support Files/OpencvQueen/OpencvQueen-Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/OpencvQueen/OpencvQueen.modulemap";
-				PRODUCT_MODULE_NAME = OpencvQueen;
-				PRODUCT_NAME = OpencvQueen;
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = Release;
-		};
 		965137C3EBDFEB4E8D27677AF056C2C1 /* Release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FD01931E3A982EFB94DB723135398227 /* KJCategories.release.xcconfig */;
@@ -1239,9 +1242,9 @@
 			};
 			name = Release;
 		};
-		A36DEA7E7158E90A7707B532A3C99451 /* Debug */ = {
+		A22D932D2C543D0CF06A7CA1CA6BDE68 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F29C349F77D6DE5F30138C48AAA797E9 /* OpencvQueen.debug.xcconfig */;
+			baseConfigurationReference = C52C551D8E19AF93B83B962A594E2F07 /* OpencvQueen.release.xcconfig */;
 			buildSettings = {
 				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
@@ -1269,10 +1272,11 @@
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};
-			name = Debug;
+			name = Release;
 		};
 		AAC23B1857DB6F80CB2EDB23F0A3390D /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1369,15 +1373,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		183D71A1A4E22E779EBF358308918184 /* Build configuration list for PBXNativeTarget "OpencvQueen" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A36DEA7E7158E90A7707B532A3C99451 /* Debug */,
-				915EF76F59B2771BBCC0C710E3AF027E /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		2F957B368848B8BC1962F0E542D31FE0 /* Build configuration list for PBXNativeTarget "Pods-OpenCV" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1392,6 +1387,15 @@
 			buildConfigurations = (
 				2B9E26EAE2CD392AD762421F663075A1 /* Debug */,
 				63FAF33E1C55B71A5F5A8B3CC8749F99 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EEF8E3542496DDF6BC5BABA67B75DF74 /* Build configuration list for PBXNativeTarget "OpencvQueen" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2E492C05C2114971058C5E5571AD5DE3 /* Debug */,
+				A22D932D2C543D0CF06A7CA1CA6BDE68 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
