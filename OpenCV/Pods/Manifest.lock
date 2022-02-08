@@ -1,0 +1,23 @@
+PODS:
+  - Masonry (1.1.0)
+  - OpencvQueen (0.0.1)
+
+DEPENDENCIES:
+  - Masonry
+  - OpencvQueen (from `./`)
+
+SPEC REPOS:
+  trunk:
+    - Masonry
+
+EXTERNAL SOURCES:
+  OpencvQueen:
+    :path: "./"
+
+SPEC CHECKSUMS:
+  Masonry: 678fab65091a9290e40e2832a55e7ab731aad201
+  OpencvQueen: c1679e424df88382cafdee6ba0696b24880d0a7c
+
+PODFILE CHECKSUM: f09e249afc9241b120e49da1e1b391d69be56b57
+
+COCOAPODS: 1.11.2
