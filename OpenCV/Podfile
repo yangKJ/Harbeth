@@ -10,6 +10,9 @@ target 'OpenCV' do
   pod 'OpencvQueen', :path => '../'
   
   pod 'Masonry'
+  pod 'KJCategories' # 开发加速库
+  pod 'KJCategories/C7/UINavigation'
+  pod 'KJCategories/C7/UIViewController'
   
 end
 

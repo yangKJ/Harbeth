@@ -5,7 +5,7 @@
 //  Created by 77。 on 2021/3/20.
 //
 
-/* **************** Need to introduce OpenCV library, pod'OpenCV','~> 4.1.0' *************** ****/
+/* **************** Need to introduce OpenCV library, pod 'OpenCV','~> 4.1.0' *******************/
 
 #import <UIKit/UIKit.h>
 #import "KJOpencvType.h"

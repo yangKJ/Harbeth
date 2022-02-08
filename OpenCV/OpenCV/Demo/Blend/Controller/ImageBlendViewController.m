@@ -21,7 +21,7 @@
     // Do any additional setup after loading the view.
     UIImage *image = [UIImage imageNamed:@"ImageBlend"];
     if (!CGSizeEqualToSize(self.topImageView.image.size, image.size)) {
-        image = [image kj_BitmapChangeImageSize:self.topImageView.image.size];
+        image = [ImageBlendViewController kj_BitmapChangeImageSize:self.topImageView.image.size image:image];
     }
     self.topSlider.value = 0.5;
     _weakself;
@@ -42,5 +42,31 @@
 }
 
 #endif
+
+/// 图片压缩
++ (UIImage *)kj_BitmapChangeImageSize:(CGSize)size image:(UIImage *)image{
+    const size_t width = size.width, height = size.height;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(NULL,
+                                                 width,
+                                                 height,
+                                                 8,
+                                                 width * 4,
+                                                 space,
+                                                 kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(space);
+    if (!context) return nil;
+    CGContextDrawImage(context, CGRectMake(0, 0, width, height), image.CGImage);
+    UInt8 * data = (UInt8*)CGBitmapContextGetData(context);
+    if (!data){
+        CGContextRelease(context);
+        return nil;
+    }
+    CGImageRef imageRef = CGBitmapContextCreateImage(context);
+    UIImage *newImage = [UIImage imageWithCGImage:imageRef];
+    CGImageRelease(imageRef);
+    CGContextRelease(context);
+    return newImage;
+}
 
 @end

@@ -6,14 +6,7 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "UIView+KJFrame.h"
-#import "UIView+KJGestureBlock.h"
-#import "UIButton+KJBlock.h"
-#import "NSObject+KJGCDBox.h"
-#import "UIColor+KJExtension.h"
-#import "UIImage+KJCompress.h"
-#import "UINavigationItem+KJExtension.h"
-#import "UIViewController+KJFullScreen.h"
+@import KJCategories;
 @import OpencvQueen;
 
 NS_ASSUME_NONNULL_BEGIN

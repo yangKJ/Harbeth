@@ -5,7 +5,19 @@
 
 ---
 
-- [x] OpenCV: Hough correction, feature extraction, image processing package, morphological processing, filter processing, photo restoration, etc.
+## Features
+At the moment, the most important features of [OpencvQueen](https://github.com/yangKJ/MetalQueen) can be summarized as follows:
+
+- [x] Hough line detection and correction text.
+- [x] Feature extraction processing.
+- [x] Repair old photos.
+- [x] Repair the picture to remove the watermark.
+- [x] Maximum area cut.
+- [x] Morphology operation.
+- [x] Blurred skin whitening treatment.
+- [x] Picture perspective or blend.
+- [x] Modify brightness and contrast.
+- [x] Picture mosaic tile.
 
 ### <a id="Catalogue list"></a>Catalogue list ###
 - **[OpenCV](#OpenCV)**
