@@ -11,7 +11,7 @@
     "yangkejun": "ykj310@126.com"
   },
   "source": {
-    "git": "https://github.com/yangKJ/MetalQueen/OpenCV.git",
+    "git": "https://github.com/yangKJ/MetalQueen.git",
     "tag": "0.0.1"
   },
   "platforms": {
@@ -29,5 +29,5 @@
   "user_target_xcconfig": {
     "EXCLUDED_ARCHS[sdk=iphonesimulator*]": "arm64"
   },
-  "source_files": "Sources/*.{h,mm}"
+  "source_files": "OpenCV/Sources/*.{h,mm}"
 }

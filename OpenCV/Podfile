@@ -7,7 +7,7 @@ target 'OpenCV' do
   
   # Pods for OpenCV
   
-  pod 'OpencvQueen', :path => './'
+  pod 'OpencvQueen', :path => '../'
   
   pod 'Masonry'
   

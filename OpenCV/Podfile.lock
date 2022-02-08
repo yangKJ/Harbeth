@@ -4,7 +4,7 @@ PODS:
 
 DEPENDENCIES:
   - Masonry
-  - OpencvQueen (from `./`)
+  - OpencvQueen (from `../`)
 
 SPEC REPOS:
   trunk:
@@ -12,12 +12,12 @@ SPEC REPOS:
 
 EXTERNAL SOURCES:
   OpencvQueen:
-    :path: "./"
+    :path: "../"
 
 SPEC CHECKSUMS:
   Masonry: 678fab65091a9290e40e2832a55e7ab731aad201
-  OpencvQueen: c1679e424df88382cafdee6ba0696b24880d0a7c
+  OpencvQueen: b0f781baf40ccf77b5103d4509b5bb525b4055b8
 
-PODFILE CHECKSUM: f09e249afc9241b120e49da1e1b391d69be56b57
+PODFILE CHECKSUM: 24ebd752b3ba02b949534acd5b9d7eea439027e6
 
 COCOAPODS: 1.11.2

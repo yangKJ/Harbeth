@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 ## OpencvQueen
 
-Copyright (c) 2018 yangkejun
+Copyright (c) 2019 77
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

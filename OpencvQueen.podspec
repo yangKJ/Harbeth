@@ -20,7 +20,7 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://github.com/yangKJ/MetalQueen/OpenCV'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'yangkejun' => 'ykj310@126.com' }
-  s.source           = { :git => 'https://github.com/yangKJ/MetalQueen/OpenCV.git', :tag => "#{s.version}" }
+  s.source           = { :git => 'https://github.com/yangKJ/MetalQueen.git', :tag => "#{s.version}" }
   
   s.platform = :ios
   s.ios.deployment_target = '9.0'
@@ -31,7 +31,7 @@ Pod::Spec.new do |s|
   s.pod_target_xcconfig  = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
   s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
   
-  s.source_files = "Sources/*.{h,mm}"
+  s.source_files = "OpenCV/Sources/*.{h,mm}"
   s.dependency 'OpenCV', "~> 4.1.0"
 
 end
