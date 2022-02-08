@@ -4,7 +4,7 @@
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpencvQueen&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
 
-**[MetalQueen](https://github.com/yangKJ/MetalQueen)** is mainly used to learn image processing related records, such as [OpenCV 4.0.1](https://docs.opencv.org/4.0.1/modules.html) image processing, [Metal](https://developer.apple.com/metal) graphic filter processing, etc.
+**[MetalQueen](https://github.com/yangKJ/MetalQueen)** is mainly used to learn image processing related records, such as [OpenCV 4.0.1](https://docs.opencv.org/4.0.1/modules.html), [Metal](https://developer.apple.com/metal), [OpenGL](https://www.opengl.org) graphic filter processing etc.
 
 <font color=red>**Graphics processing And Filter production.👒👒👒**</font>
 
@@ -29,7 +29,7 @@ At the moment, the most important features of MetalQueen can be summarized as fo
 	
 ### CocoaPods
 
-If you want import opencv image module:
+- If you want to import opencv image module, you need in your Podfile: 
 
 ```
 pod 'OpencvQueen'
