@@ -1,21 +1,22 @@
-# MetalQueen
+# ATMetalQueen
 
-[![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/MetalQueen)
-[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpencvQueen&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
+![x](Screenshot/launch.jpeg)
+
+[![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/ATMetalQueen)
+[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/ATMetalQueen.svg?style=flat&label=Metal&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/ATMetalQueen)
+[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=Opencv&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
 
-**[MetalQueen](https://github.com/yangKJ/MetalQueen)** is mainly used to learn image processing related records, such as [OpenCV 4.0.1](https://docs.opencv.org/4.0.1/modules.html), [Metal](https://developer.apple.com/metal), [OpenGL](https://www.opengl.org) graphic filter processing etc.
+[**ATMetalQueen**](https://github.com/yangKJ/ATMetalQueen) is mainly used to learn image processing related records, such as [OpenCV 4.0.1](https://docs.opencv.org/4.0.1/modules.html), [Metal](https://developer.apple.com/metal), [OpenGL](https://www.opengl.org) graphic filter processing etc.
 
 <font color=red>**Graphics processing And Filter production.👒👒👒**</font>
 
 -------
 
-English | [**简体中文**](README_CN.md)
-
 ## Features
-At the moment, the most important features of MetalQueen can be summarized as follows:
+🟣At the moment, the most important features of ATMetalQueen can be summarized as follows:
 
-- OpenCV module:
+- [OpenCV module](https://github.com/yangKJ/OpencvQueen):
 	- [x] Hough line detection and correction text.
 	- [x] Feature extraction processing.
 	- [x] Repair old photos.
@@ -29,7 +30,13 @@ At the moment, the most important features of MetalQueen can be summarized as fo
 	
 ### CocoaPods
 
-- If you want to import opencv image module, you need in your Podfile: 
+- If you want to import [**Metal**](https://github.com/yangKJ/ATMetalQueen) module, you need in your Podfile: 
+
+```
+pod 'ATMetalQueen'
+```
+
+- If you want to import [**OpenCV**](https://github.com/yangKJ/OpencvQueen) image module, you need in your Podfile: 
 
 ```
 pod 'OpencvQueen'
@@ -39,7 +46,7 @@ pod 'OpencvQueen'
 
 > The general process is almost like this, the Demo is also written in great detail, you can check it out for yourself.🎷
 >
-> [**MetalQueenDemo**](https://github.com/yangKJ/MetalQueen)
+> [**ATMetalQueenDemo**](https://github.com/yangKJ/ATMetalQueen)
 >
 > Tip: If you find it helpful, please help me with a star. If you have any questions or needs, you can also issue.
 >
@@ -52,6 +59,6 @@ pod 'OpencvQueen'
 -----
 
 ### License
-MetalQueen is available under the [MIT](LICENSE) license. See the [LICENSE](LICENSE) file for more info.
+ATMetalQueen is available under the [MIT](LICENSE) license. See the [LICENSE](LICENSE) file for more info.
 
 -----
