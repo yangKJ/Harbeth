@@ -7,6 +7,7 @@
 
 import Foundation
 import MetalKit
+import CoreGraphics
 
 public class RenderingDevice {
     
@@ -19,6 +20,7 @@ public class RenderingDevice {
     public let defaultLibrary: MTLLibrary
     /// 加载纹理工具
     public let textureLoader: MTKTextureLoader
+    public let colorSpace: CGColorSpace
     
     public static let shared = RenderingDevice()
     
@@ -39,5 +41,16 @@ public class RenderingDevice {
         self.defaultLibrary = library
         
         self.textureLoader = MTKTextureLoader(device: device)
+        
+        self.colorSpace = CGColorSpaceCreateDeviceRGB()
+    }
+}
+
+extension MTLDevice {
+    func cdy_makeDefaultLibrary(bundle: Bundle) -> MTLLibrary? {
+        guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
+            return nil
+        }
+        return try? makeLibrary(filepath: path)
     }
 }

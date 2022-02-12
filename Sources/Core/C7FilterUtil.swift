@@ -26,13 +26,10 @@ public struct C7FilterUtil {
     static func dstTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
                            width: Int, height: Int,
                            mipmapped: Bool = false) -> MTLTexture {
-        /// 创建 2D 纹理描述器
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
                                                                   width: width,
                                                                   height: height,
                                                                   mipmapped: mipmapped)
-        /// MTLTextureUsage declares how the texture will be used over its lifetime (bitwise OR for multiple uses)
-        /// 决定纹理在生命周期中 将会如何被使用
         descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
         guard let newTexture = RenderingDevice.shared.device.makeTexture(descriptor: descriptor) else {
             fatalError("Could not create texture of size: (\(width), \(height))")
@@ -43,7 +40,6 @@ public struct C7FilterUtil {
     /// 创建命令缓冲区
     static func makeCommandBuffer() -> MTLCommandBuffer? {
         let commandBuffer = RenderingDevice.shared.commandQueue.makeCommandBuffer()
-        /// 指定缓存区名称
         commandBuffer?.label = "QueenCommand"
         return commandBuffer
     }
@@ -69,14 +65,11 @@ extension C7FilterUtil.Compute {
                            commandBuffer: MTLCommandBuffer,
                            textures: [MTLTexture],
                            factors: [T]) {
-        /// 创建计算编码器
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             return
         }
-        /// 设置并发计算管线
         computeEncoder.setComputePipelineState(pipelineState)
         
-        /// 传递纹理信息
         for (index, texture) in textures.enumerated() {
             computeEncoder.setTexture(texture, index: index)
         }
@@ -88,14 +81,14 @@ extension C7FilterUtil.Compute {
             computeEncoder.setBuffer(buffer, offset: 0, index: i)
         }
         
-        let threadGroupCount = MTLSizeMake(16, 16, 1)
+        let threadGroupCount = MTLSize(width: 16, height: 16, depth: 1)
         let dstTexture = textures[0]
         // +1 目的解决得到的图片出现边缘未绘制问题
-        let row = Int(dstTexture.width / threadGroupCount.width) + 1
-        let col = Int(dstTexture.height / threadGroupCount.height) + 1
-        computeEncoder.dispatchThreadgroups(MTLSizeMake(row, col, 1), threadsPerThreadgroup: threadGroupCount)
+        let w = max(Int((dstTexture.width + threadGroupCount.width - 1) / threadGroupCount.width), 1)
+        let h = max(Int((dstTexture.height + threadGroupCount.height - 1) / threadGroupCount.height), 1)
+        let threadGroups = MTLSizeMake(w, h, dstTexture.arrayLength)
+        computeEncoder.dispatchThreadgroups(threadGroups, threadsPerThreadgroup: threadGroupCount)
         
-        /// 编码器生成的命令都已完成，并且从MTLCommandBuffer中分离
         computeEncoder.endEncoding()
     }
 }

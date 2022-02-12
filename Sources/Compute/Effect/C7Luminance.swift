@@ -7,7 +7,6 @@
 
 import Foundation
 
-/// 亮度效果
 public struct C7Luminance: C7FilterProtocol {
     
     public private(set) var minLuminance: Float = 0.0

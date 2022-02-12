@@ -7,28 +7,33 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		045A9D5627B4F2A500C834E0 /* ColorSwizzle.metal in Sources */ = {isa = PBXBuildFile; fileRef = 045A9D5527B4F2A500C834E0 /* ColorSwizzle.metal */; };
-		045A9D6127B5137100C834E0 /* C7Opacity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 045A9D6027B5137100C834E0 /* C7Opacity.swift */; };
-		045A9D6327B513A200C834E0 /* Opacity.metal in Sources */ = {isa = PBXBuildFile; fileRef = 045A9D6227B513A200C834E0 /* Opacity.metal */; };
-		045A9D6527B516E100C834E0 /* C7LuminanceThreshold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 045A9D6427B516E100C834E0 /* C7LuminanceThreshold.swift */; };
-		045A9D6727B516EB00C834E0 /* LuminanceThreshold.metal in Sources */ = {isa = PBXBuildFile; fileRef = 045A9D6627B516EB00C834E0 /* LuminanceThreshold.metal */; };
-		045A9D6927B518BB00C834E0 /* Exposure.metal in Sources */ = {isa = PBXBuildFile; fileRef = 045A9D6827B518BB00C834E0 /* Exposure.metal */; };
-		045A9D6B27B518C400C834E0 /* C7Exposure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 045A9D6A27B518C400C834E0 /* C7Exposure.swift */; };
-		04994F1727B5F70F00FDAB82 /* C7FilterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04994F1627B5F70F00FDAB82 /* C7FilterManager.swift */; };
-		04994F1D27B6335E00FDAB82 /* C7FilterUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04994F1C27B6335E00FDAB82 /* C7FilterUtil.swift */; };
+		0441B01A27B7E56F00F68AF9 /* C7FilterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00427B7E56F00F68AF9 /* C7FilterManager.swift */; };
+		0441B01B27B7E56F00F68AF9 /* C7FilterUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00527B7E56F00F68AF9 /* C7FilterUtil.swift */; };
+		0441B01C27B7E56F00F68AF9 /* MTQTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00627B7E56F00F68AF9 /* MTQTransform.swift */; };
+		0441B01D27B7E56F00F68AF9 /* C7FilterChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00727B7E56F00F68AF9 /* C7FilterChain.swift */; };
+		0441B01E27B7E56F00F68AF9 /* MTQCompatible.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00827B7E56F00F68AF9 /* MTQCompatible.swift */; };
+		0441B01F27B7E56F00F68AF9 /* C7FilterProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00927B7E56F00F68AF9 /* C7FilterProtocol.swift */; };
+		0441B02027B7E56F00F68AF9 /* RenderingDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00A27B7E56F00F68AF9 /* RenderingDevice.swift */; };
+		0441B02127B7E57000F68AF9 /* ColorInvert.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00C27B7E56F00F68AF9 /* ColorInvert.metal */; };
+		0441B02227B7E57000F68AF9 /* C7ComputeFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00D27B7E56F00F68AF9 /* C7ComputeFilter.swift */; };
+		0441B02327B7E57000F68AF9 /* ColorSwizzle.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B00E27B7E56F00F68AF9 /* ColorSwizzle.metal */; };
+		0441B02427B7E57000F68AF9 /* C7Luminance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01027B7E56F00F68AF9 /* C7Luminance.swift */; };
+		0441B02527B7E57000F68AF9 /* Exposure.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01127B7E56F00F68AF9 /* Exposure.metal */; };
+		0441B02627B7E57000F68AF9 /* C7Opacity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01227B7E56F00F68AF9 /* C7Opacity.swift */; };
+		0441B02727B7E57000F68AF9 /* C7LuminanceThreshold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01327B7E56F00F68AF9 /* C7LuminanceThreshold.swift */; };
+		0441B02827B7E57000F68AF9 /* Luminance.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01427B7E56F00F68AF9 /* Luminance.metal */; };
+		0441B02927B7E57000F68AF9 /* LuminanceThreshold.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01527B7E56F00F68AF9 /* LuminanceThreshold.metal */; };
+		0441B02A27B7E57000F68AF9 /* Opacity.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01627B7E56F00F68AF9 /* Opacity.metal */; };
+		0441B02B27B7E57000F68AF9 /* C7Exposure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01727B7E56F00F68AF9 /* C7Exposure.swift */; };
+		0441B02C27B7E57000F68AF9 /* Brightness.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01827B7E56F00F68AF9 /* Brightness.metal */; };
+		0441B02D27B7E57000F68AF9 /* C7Brightness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B01927B7E56F00F68AF9 /* C7Brightness.swift */; };
+		0441B02F27B7EF1D00F68AF9 /* ATMetalQueen.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 0441B02E27B7EF1D00F68AF9 /* ATMetalQueen.podspec */; };
+		0441B03227B7F08C00F68AF9 /* LookupFilter.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B03027B7F08C00F68AF9 /* LookupFilter.metal */; };
+		0441B03327B7F08C00F68AF9 /* C7LookupFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B03127B7F08C00F68AF9 /* C7LookupFilter.swift */; };
+		0441B03627B7FB8B00F68AF9 /* C7ZoomBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0441B03427B7FB8A00F68AF9 /* C7ZoomBlur.swift */; };
+		0441B03727B7FB8B00F68AF9 /* ZoomBlur.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0441B03527B7FB8B00F68AF9 /* ZoomBlur.metal */; };
 		04994F2727B6529E00FDAB82 /* MTKViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04994F2627B6529E00FDAB82 /* MTKViewController.swift */; };
-		04994F2D27B740E800FDAB82 /* C7FilterChain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04994F2C27B740E800FDAB82 /* C7FilterChain.swift */; };
-		049F633C27B4B0B100A38F29 /* MTQTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049F633427B4B0B100A38F29 /* MTQTransform.swift */; };
-		049F633D27B4B0B100A38F29 /* C7FilterProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049F633527B4B0B100A38F29 /* C7FilterProtocol.swift */; };
-		049F633E27B4B0B100A38F29 /* RenderingDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049F633627B4B0B100A38F29 /* RenderingDevice.swift */; };
-		049F634027B4B0B100A38F29 /* C7Brightness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049F633927B4B0B100A38F29 /* C7Brightness.swift */; };
-		049F634127B4B0B100A38F29 /* Brightness.metal in Sources */ = {isa = PBXBuildFile; fileRef = 049F633A27B4B0B100A38F29 /* Brightness.metal */; };
-		049F634727B4B8B800A38F29 /* C7Luminance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049F634627B4B8B800A38F29 /* C7Luminance.swift */; };
-		049F634927B4B8BE00A38F29 /* Luminance.metal in Sources */ = {isa = PBXBuildFile; fileRef = 049F634827B4B8BE00A38F29 /* Luminance.metal */; };
-		049F634D27B4C1ED00A38F29 /* ColorInvert.metal in Sources */ = {isa = PBXBuildFile; fileRef = 049F634B27B4C1ED00A38F29 /* ColorInvert.metal */; };
-		049F634E27B4C1ED00A38F29 /* C7ComputeFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049F634C27B4C1ED00A38F29 /* C7ComputeFilter.swift */; };
 		44DBD3EAA490ABA4821C7B85 /* Pods_MetalQueenDemoUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 505893364101E0CDEA171B99 /* Pods_MetalQueenDemoUITests.framework */; };
-		686B0CB627B544DA008A4A81 /* MTQCompatible.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686B0CB527B544DA008A4A81 /* MTQCompatible.swift */; };
 		689B215627B2B0FD00F51005 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689B215527B2B0FD00F51005 /* AppDelegate.swift */; };
 		689B215D27B2B0FD00F51005 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 689B215B27B2B0FD00F51005 /* Main.storyboard */; };
 		689B215F27B2B10100F51005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 689B215E27B2B10100F51005 /* Assets.xcassets */; };
@@ -62,32 +67,37 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		045A9D5527B4F2A500C834E0 /* ColorSwizzle.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ColorSwizzle.metal; sourceTree = "<group>"; };
-		045A9D6027B5137100C834E0 /* C7Opacity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Opacity.swift; sourceTree = "<group>"; };
-		045A9D6227B513A200C834E0 /* Opacity.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Opacity.metal; sourceTree = "<group>"; };
-		045A9D6427B516E100C834E0 /* C7LuminanceThreshold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7LuminanceThreshold.swift; sourceTree = "<group>"; };
-		045A9D6627B516EB00C834E0 /* LuminanceThreshold.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = LuminanceThreshold.metal; sourceTree = "<group>"; };
-		045A9D6827B518BB00C834E0 /* Exposure.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Exposure.metal; sourceTree = "<group>"; };
-		045A9D6A27B518C400C834E0 /* C7Exposure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Exposure.swift; sourceTree = "<group>"; };
-		04994F1627B5F70F00FDAB82 /* C7FilterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7FilterManager.swift; sourceTree = "<group>"; };
-		04994F1C27B6335E00FDAB82 /* C7FilterUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7FilterUtil.swift; sourceTree = "<group>"; };
+		0441B00427B7E56F00F68AF9 /* C7FilterManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7FilterManager.swift; sourceTree = "<group>"; };
+		0441B00527B7E56F00F68AF9 /* C7FilterUtil.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7FilterUtil.swift; sourceTree = "<group>"; };
+		0441B00627B7E56F00F68AF9 /* MTQTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MTQTransform.swift; sourceTree = "<group>"; };
+		0441B00727B7E56F00F68AF9 /* C7FilterChain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7FilterChain.swift; sourceTree = "<group>"; };
+		0441B00827B7E56F00F68AF9 /* MTQCompatible.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MTQCompatible.swift; sourceTree = "<group>"; };
+		0441B00927B7E56F00F68AF9 /* C7FilterProtocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7FilterProtocol.swift; sourceTree = "<group>"; };
+		0441B00A27B7E56F00F68AF9 /* RenderingDevice.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RenderingDevice.swift; sourceTree = "<group>"; };
+		0441B00C27B7E56F00F68AF9 /* ColorInvert.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = ColorInvert.metal; sourceTree = "<group>"; };
+		0441B00D27B7E56F00F68AF9 /* C7ComputeFilter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7ComputeFilter.swift; sourceTree = "<group>"; };
+		0441B00E27B7E56F00F68AF9 /* ColorSwizzle.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = ColorSwizzle.metal; sourceTree = "<group>"; };
+		0441B01027B7E56F00F68AF9 /* C7Luminance.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Luminance.swift; sourceTree = "<group>"; };
+		0441B01127B7E56F00F68AF9 /* Exposure.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Exposure.metal; sourceTree = "<group>"; };
+		0441B01227B7E56F00F68AF9 /* C7Opacity.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Opacity.swift; sourceTree = "<group>"; };
+		0441B01327B7E56F00F68AF9 /* C7LuminanceThreshold.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7LuminanceThreshold.swift; sourceTree = "<group>"; };
+		0441B01427B7E56F00F68AF9 /* Luminance.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Luminance.metal; sourceTree = "<group>"; };
+		0441B01527B7E56F00F68AF9 /* LuminanceThreshold.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = LuminanceThreshold.metal; sourceTree = "<group>"; };
+		0441B01627B7E56F00F68AF9 /* Opacity.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Opacity.metal; sourceTree = "<group>"; };
+		0441B01727B7E56F00F68AF9 /* C7Exposure.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Exposure.swift; sourceTree = "<group>"; };
+		0441B01827B7E56F00F68AF9 /* Brightness.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Brightness.metal; sourceTree = "<group>"; };
+		0441B01927B7E56F00F68AF9 /* C7Brightness.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Brightness.swift; sourceTree = "<group>"; };
+		0441B02E27B7EF1D00F68AF9 /* ATMetalQueen.podspec */ = {isa = PBXFileReference; lastKnownFileType = file; path = ATMetalQueen.podspec; sourceTree = SOURCE_ROOT; };
+		0441B03027B7F08C00F68AF9 /* LookupFilter.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = LookupFilter.metal; sourceTree = "<group>"; };
+		0441B03127B7F08C00F68AF9 /* C7LookupFilter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7LookupFilter.swift; sourceTree = "<group>"; };
+		0441B03427B7FB8A00F68AF9 /* C7ZoomBlur.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7ZoomBlur.swift; sourceTree = "<group>"; };
+		0441B03527B7FB8B00F68AF9 /* ZoomBlur.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = ZoomBlur.metal; sourceTree = "<group>"; };
 		04994F2627B6529E00FDAB82 /* MTKViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTKViewController.swift; sourceTree = "<group>"; };
-		04994F2C27B740E800FDAB82 /* C7FilterChain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7FilterChain.swift; sourceTree = "<group>"; };
-		049F633427B4B0B100A38F29 /* MTQTransform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MTQTransform.swift; sourceTree = "<group>"; };
-		049F633527B4B0B100A38F29 /* C7FilterProtocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7FilterProtocol.swift; sourceTree = "<group>"; };
-		049F633627B4B0B100A38F29 /* RenderingDevice.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RenderingDevice.swift; sourceTree = "<group>"; };
-		049F633927B4B0B100A38F29 /* C7Brightness.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Brightness.swift; sourceTree = "<group>"; };
-		049F633A27B4B0B100A38F29 /* Brightness.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Brightness.metal; sourceTree = "<group>"; };
-		049F634627B4B8B800A38F29 /* C7Luminance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Luminance.swift; sourceTree = "<group>"; };
-		049F634827B4B8BE00A38F29 /* Luminance.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Luminance.metal; sourceTree = "<group>"; };
-		049F634B27B4C1ED00A38F29 /* ColorInvert.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = ColorInvert.metal; sourceTree = "<group>"; };
-		049F634C27B4C1ED00A38F29 /* C7ComputeFilter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7ComputeFilter.swift; sourceTree = "<group>"; };
 		1D314D10574ED0C45CD18A0A /* Pods-MetalQueenDemo-MetalQueenDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalQueenDemo-MetalQueenDemoUITests.debug.xcconfig"; path = "Target Support Files/Pods-MetalQueenDemo-MetalQueenDemoUITests/Pods-MetalQueenDemo-MetalQueenDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		1DD6ED8062DF041AB4B2FF67 /* Pods_MetalQueenDemoTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MetalQueenDemoTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		234BFDEB84B96DFBA4A9E6B7 /* Pods-MetalQueenDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalQueenDemoUITests.debug.xcconfig"; path = "Target Support Files/Pods-MetalQueenDemoUITests/Pods-MetalQueenDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		3F054D0EE47FB26610DB9F75 /* Pods_MetalQueenDemo.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MetalQueenDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		505893364101E0CDEA171B99 /* Pods_MetalQueenDemoUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MetalQueenDemoUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		686B0CB527B544DA008A4A81 /* MTQCompatible.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTQCompatible.swift; sourceTree = "<group>"; };
 		689B215227B2B0FD00F51005 /* MetalQueenDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalQueenDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		689B215527B2B0FD00F51005 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		689B215C27B2B0FD00F51005 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -139,55 +149,75 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0490461427B7531D00E2F2FE /* Effect */ = {
+		0441B00227B7E56F00F68AF9 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				049F633A27B4B0B100A38F29 /* Brightness.metal */,
-				045A9D6827B518BB00C834E0 /* Exposure.metal */,
-				049F634827B4B8BE00A38F29 /* Luminance.metal */,
-				045A9D6627B516EB00C834E0 /* LuminanceThreshold.metal */,
-				045A9D6227B513A200C834E0 /* Opacity.metal */,
-				049F633927B4B0B100A38F29 /* C7Brightness.swift */,
-				045A9D6A27B518C400C834E0 /* C7Exposure.swift */,
-				049F634627B4B8B800A38F29 /* C7Luminance.swift */,
-				045A9D6427B516E100C834E0 /* C7LuminanceThreshold.swift */,
-				045A9D6027B5137100C834E0 /* C7Opacity.swift */,
-			);
-			path = Effect;
-			sourceTree = "<group>";
-		};
-		049F633127B4B0B100A38F29 /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				049F633827B4B0B100A38F29 /* Compute */,
-				049F633227B4B0B100A38F29 /* Core */,
+				0441B00327B7E56F00F68AF9 /* Core */,
+				0441B00B27B7E56F00F68AF9 /* Compute */,
 			);
 			path = Sources;
 			sourceTree = SOURCE_ROOT;
 		};
-		049F633227B4B0B100A38F29 /* Core */ = {
+		0441B00327B7E56F00F68AF9 /* Core */ = {
 			isa = PBXGroup;
 			children = (
-				04994F2C27B740E800FDAB82 /* C7FilterChain.swift */,
-				04994F1627B5F70F00FDAB82 /* C7FilterManager.swift */,
-				049F633527B4B0B100A38F29 /* C7FilterProtocol.swift */,
-				04994F1C27B6335E00FDAB82 /* C7FilterUtil.swift */,
-				686B0CB527B544DA008A4A81 /* MTQCompatible.swift */,
-				049F633427B4B0B100A38F29 /* MTQTransform.swift */,
-				049F633627B4B0B100A38F29 /* RenderingDevice.swift */,
+				0441B00727B7E56F00F68AF9 /* C7FilterChain.swift */,
+				0441B00427B7E56F00F68AF9 /* C7FilterManager.swift */,
+				0441B00927B7E56F00F68AF9 /* C7FilterProtocol.swift */,
+				0441B00527B7E56F00F68AF9 /* C7FilterUtil.swift */,
+				0441B00827B7E56F00F68AF9 /* MTQCompatible.swift */,
+				0441B00627B7E56F00F68AF9 /* MTQTransform.swift */,
+				0441B00A27B7E56F00F68AF9 /* RenderingDevice.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
 		};
-		049F633827B4B0B100A38F29 /* Compute */ = {
+		0441B00B27B7E56F00F68AF9 /* Compute */ = {
 			isa = PBXGroup;
 			children = (
-				049F634C27B4C1ED00A38F29 /* C7ComputeFilter.swift */,
-				049F634B27B4C1ED00A38F29 /* ColorInvert.metal */,
-				045A9D5527B4F2A500C834E0 /* ColorSwizzle.metal */,
-				0490461427B7531D00E2F2FE /* Effect */,
+				0441B00F27B7E56F00F68AF9 /* Effect */,
+				0441B03927B8052C00F68AF9 /* Filter */,
+				0441B03827B8050F00F68AF9 /* Lookup */,
 			);
 			path = Compute;
+			sourceTree = "<group>";
+		};
+		0441B00F27B7E56F00F68AF9 /* Effect */ = {
+			isa = PBXGroup;
+			children = (
+				0441B01827B7E56F00F68AF9 /* Brightness.metal */,
+				0441B01927B7E56F00F68AF9 /* C7Brightness.swift */,
+				0441B01727B7E56F00F68AF9 /* C7Exposure.swift */,
+				0441B01027B7E56F00F68AF9 /* C7Luminance.swift */,
+				0441B01327B7E56F00F68AF9 /* C7LuminanceThreshold.swift */,
+				0441B01227B7E56F00F68AF9 /* C7Opacity.swift */,
+				0441B03427B7FB8A00F68AF9 /* C7ZoomBlur.swift */,
+				0441B01127B7E56F00F68AF9 /* Exposure.metal */,
+				0441B01427B7E56F00F68AF9 /* Luminance.metal */,
+				0441B01527B7E56F00F68AF9 /* LuminanceThreshold.metal */,
+				0441B01627B7E56F00F68AF9 /* Opacity.metal */,
+				0441B03527B7FB8B00F68AF9 /* ZoomBlur.metal */,
+			);
+			path = Effect;
+			sourceTree = "<group>";
+		};
+		0441B03827B8050F00F68AF9 /* Lookup */ = {
+			isa = PBXGroup;
+			children = (
+				0441B03127B7F08C00F68AF9 /* C7LookupFilter.swift */,
+				0441B03027B7F08C00F68AF9 /* LookupFilter.metal */,
+			);
+			path = Lookup;
+			sourceTree = "<group>";
+		};
+		0441B03927B8052C00F68AF9 /* Filter */ = {
+			isa = PBXGroup;
+			children = (
+				0441B00D27B7E56F00F68AF9 /* C7ComputeFilter.swift */,
+				0441B00C27B7E56F00F68AF9 /* ColorInvert.metal */,
+				0441B00E27B7E56F00F68AF9 /* ColorSwizzle.metal */,
+			);
+			path = Filter;
 			sourceTree = "<group>";
 		};
 		07661E954F73B729A0E58A07 /* Pods */ = {
@@ -246,7 +276,7 @@
 				689B218A27B2B26700F51005 /* HomeViewModel.swift */,
 				04994F2627B6529E00FDAB82 /* MTKViewController.swift */,
 				689B218527B2B21C00F51005 /* Resources */,
-				049F633127B4B0B100A38F29 /* Sources */,
+				0441B00227B7E56F00F68AF9 /* Sources */,
 			);
 			path = MetalQueenDemo;
 			sourceTree = "<group>";
@@ -276,6 +306,7 @@
 				689B216327B2B10100F51005 /* Info.plist */,
 				689B216027B2B10100F51005 /* LaunchScreen.storyboard */,
 				689B215B27B2B0FD00F51005 /* Main.storyboard */,
+				0441B02E27B7EF1D00F68AF9 /* ATMetalQueen.podspec */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -387,6 +418,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0441B02F27B7EF1D00F68AF9 /* ATMetalQueen.podspec in Resources */,
 				689B216227B2B10100F51005 /* LaunchScreen.storyboard in Resources */,
 				689B218727B2B23E00F51005 /* Color.xcassets in Resources */,
 				689B215F27B2B10100F51005 /* Assets.xcassets in Resources */,
@@ -485,30 +517,34 @@
 			buildActionMask = 2147483647;
 			files = (
 				689B215627B2B0FD00F51005 /* AppDelegate.swift in Sources */,
-				049F634027B4B0B100A38F29 /* C7Brightness.swift in Sources */,
-				045A9D6727B516EB00C834E0 /* LuminanceThreshold.metal in Sources */,
-				04994F2D27B740E800FDAB82 /* C7FilterChain.swift in Sources */,
+				0441B03227B7F08C00F68AF9 /* LookupFilter.metal in Sources */,
+				0441B01A27B7E56F00F68AF9 /* C7FilterManager.swift in Sources */,
+				0441B02C27B7E57000F68AF9 /* Brightness.metal in Sources */,
+				0441B02427B7E57000F68AF9 /* C7Luminance.swift in Sources */,
+				0441B02027B7E56F00F68AF9 /* RenderingDevice.swift in Sources */,
+				0441B03327B7F08C00F68AF9 /* C7LookupFilter.swift in Sources */,
 				689B218D27B2B26800F51005 /* HomeViewController.swift in Sources */,
-				045A9D6527B516E100C834E0 /* C7LuminanceThreshold.swift in Sources */,
-				049F634D27B4C1ED00A38F29 /* ColorInvert.metal in Sources */,
-				049F633D27B4B0B100A38F29 /* C7FilterProtocol.swift in Sources */,
-				049F633C27B4B0B100A38F29 /* MTQTransform.swift in Sources */,
-				045A9D6B27B518C400C834E0 /* C7Exposure.swift in Sources */,
+				0441B01C27B7E56F00F68AF9 /* MTQTransform.swift in Sources */,
 				04994F2727B6529E00FDAB82 /* MTKViewController.swift in Sources */,
-				049F634927B4B8BE00A38F29 /* Luminance.metal in Sources */,
-				049F634727B4B8B800A38F29 /* C7Luminance.swift in Sources */,
-				04994F1D27B6335E00FDAB82 /* C7FilterUtil.swift in Sources */,
-				049F634E27B4C1ED00A38F29 /* C7ComputeFilter.swift in Sources */,
-				049F634127B4B0B100A38F29 /* Brightness.metal in Sources */,
-				049F633E27B4B0B100A38F29 /* RenderingDevice.swift in Sources */,
+				0441B01B27B7E56F00F68AF9 /* C7FilterUtil.swift in Sources */,
+				0441B02827B7E57000F68AF9 /* Luminance.metal in Sources */,
+				0441B02527B7E57000F68AF9 /* Exposure.metal in Sources */,
+				0441B01D27B7E56F00F68AF9 /* C7FilterChain.swift in Sources */,
+				0441B02927B7E57000F68AF9 /* LuminanceThreshold.metal in Sources */,
+				0441B01F27B7E56F00F68AF9 /* C7FilterProtocol.swift in Sources */,
 				689B218E27B2B26800F51005 /* HomeViewModel.swift in Sources */,
-				045A9D6327B513A200C834E0 /* Opacity.metal in Sources */,
-				686B0CB627B544DA008A4A81 /* MTQCompatible.swift in Sources */,
-				04994F1727B5F70F00FDAB82 /* C7FilterManager.swift in Sources */,
-				045A9D6127B5137100C834E0 /* C7Opacity.swift in Sources */,
+				0441B01E27B7E56F00F68AF9 /* MTQCompatible.swift in Sources */,
+				0441B02727B7E57000F68AF9 /* C7LuminanceThreshold.swift in Sources */,
+				0441B02227B7E57000F68AF9 /* C7ComputeFilter.swift in Sources */,
+				0441B03727B7FB8B00F68AF9 /* ZoomBlur.metal in Sources */,
+				0441B02B27B7E57000F68AF9 /* C7Exposure.swift in Sources */,
 				689B218F27B2B26800F51005 /* FilterViewController.swift in Sources */,
-				045A9D6927B518BB00C834E0 /* Exposure.metal in Sources */,
-				045A9D5627B4F2A500C834E0 /* ColorSwizzle.metal in Sources */,
+				0441B02127B7E57000F68AF9 /* ColorInvert.metal in Sources */,
+				0441B03627B7FB8B00F68AF9 /* C7ZoomBlur.swift in Sources */,
+				0441B02A27B7E57000F68AF9 /* Opacity.metal in Sources */,
+				0441B02D27B7E57000F68AF9 /* C7Brightness.swift in Sources */,
+				0441B02327B7E57000F68AF9 /* ColorSwizzle.metal in Sources */,
+				0441B02627B7E57000F68AF9 /* C7Opacity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -697,6 +733,7 @@
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -727,6 +764,7 @@
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -746,8 +784,11 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -758,6 +799,8 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.condy.MetalQueenDemoTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -771,8 +814,11 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -783,6 +829,8 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.condy.MetalQueenDemoTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

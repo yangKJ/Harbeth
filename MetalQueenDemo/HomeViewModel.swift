@@ -7,9 +7,11 @@
 
 import Foundation
 import UIKit
+//import ATMetalQueen
 
-typealias maxminTuple = (max: Float, min: Float, current: Float)?
+typealias maxminTuple = (current: Float, min: Float, max: Float)?
 typealias FilterCallback = (_ value: Float) -> C7FilterProtocol
+typealias FilterResult = (filter: C7FilterProtocol, maxminValue: maxminTuple, callback: FilterCallback?)
 
 enum ViewControllerType: String {
     case Brightness = "Brightness"
@@ -18,6 +20,8 @@ enum ViewControllerType: String {
     case ColorSwizzle = "rgba -> bgra"
     case Opacity = "透明度修改alpha"
     case Exposure = "曝光"
+    case abao = "阿宝色滤镜"
+    case ZoomBlur = "中心点缩放模糊"
     
     var image: UIImage {
         switch self {
@@ -30,7 +34,7 @@ enum ViewControllerType: String {
         }
     }
     
-    func filterConfig() -> (filter: C7FilterProtocol, maxminValue: maxminTuple, callback: FilterCallback?) {
+    func filterConfig() -> FilterResult {
         switch self {
         case .Brightness:
             var filter = C7Brightness()
@@ -39,7 +43,7 @@ enum ViewControllerType: String {
                 filter.brightness = $0
                 return filter
             }
-            return (filter, (filter.maxBrightness, filter.minBrightness, filter.brightness), cb)
+            return (filter, (filter.brightness, filter.minBrightness, filter.maxBrightness), cb)
         case .Luminance:
             var filter = C7Luminance()
             filter.luminance = 0.5
@@ -47,7 +51,7 @@ enum ViewControllerType: String {
                 filter.luminance = $0
                 return filter
             }
-            return (filter, (filter.maxLuminance, filter.minLuminance, filter.luminance), cb)
+            return (filter, (filter.luminance, filter.minLuminance, filter.maxLuminance), cb)
         case .ColorInvert:
             let filter = C7ComputeFilter(with: .colorInvert)
             return (filter, nil, nil)
@@ -61,7 +65,7 @@ enum ViewControllerType: String {
                 filter.opacity = $0
                 return filter
             }
-            return (filter, (filter.maxOpacity, filter.minOpacity, filter.opacity), cb)
+            return (filter, (filter.opacity, filter.minOpacity, filter.maxOpacity), cb)
         case .Exposure:
             var filter = C7Exposure()
             filter.exposure = 0.8
@@ -69,7 +73,23 @@ enum ViewControllerType: String {
                 filter.exposure = $0
                 return filter
             }
-            return (filter, (2, -2, filter.exposure), cb)
+            return (filter, (filter.exposure, -2, 2), cb)
+        case .abao:
+            var filter = C7LookupFilter(image: MTQImage(named: "lut_abao")!)
+            filter.intensity = -1
+            let cb: FilterCallback = {
+                filter.intensity = $0
+                return filter
+            }
+            return (filter, (filter.intensity, -2, 2), cb)
+        case .ZoomBlur:
+            var filter = C7ZoomBlur()
+            filter.blurSize = 3
+            let cb: FilterCallback = {
+                filter.blurSize = $0
+                return filter
+            }
+            return (filter, (filter.blurSize, 0, 20), cb)
         }
     }
 }
@@ -85,10 +105,10 @@ struct HomeViewModel {
     
     let effect: [ViewControllerType] = [
         .Brightness, .Luminance, .Opacity,
-        .Exposure,
+        .Exposure, .ZoomBlur,
     ]
     
     let filter: [ViewControllerType] = [
-        .ColorInvert, .ColorSwizzle,
+        .ColorInvert, .ColorSwizzle, .abao,
     ]
 }
