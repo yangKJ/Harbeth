@@ -1,6 +1,0 @@
-framework module OpencvQueen {
-  umbrella header "OpencvQueen-umbrella.h"
-
-  export *
-  module * { export * }
-}

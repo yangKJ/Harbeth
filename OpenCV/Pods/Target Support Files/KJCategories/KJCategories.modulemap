@@ -1,6 +1,0 @@
-framework module KJCategories {
-  umbrella header "KJCategories-umbrella.h"
-
-  export *
-  module * { export * }
-}
