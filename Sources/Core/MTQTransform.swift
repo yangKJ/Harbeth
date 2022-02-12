@@ -57,3 +57,12 @@ extension MTLTexture {
         return MTQImage(cgImage: cgImage)
     }
 }
+
+extension MTLDevice {
+    func cdy_makeDefaultLibrary(bundle: Bundle) -> MTLLibrary? {
+        guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
+            return nil
+        }
+        return try? makeLibrary(filepath: path)
+    }
+}

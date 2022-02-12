@@ -13,8 +13,6 @@ kernel void LookupFilter(texture2d<half, access::write> outTexture [[texture(0)]
                          texture2d<half, access::sample> lookupTexture [[texture(2)]],
                          constant float *intensity [[buffer(0)]],
                          uint2 grid [[thread_position_in_grid]]) {
-    if ((grid.x >= outTexture.get_width()) || (grid.y >= outTexture.get_height())) { return; }
-    
     const half4 inColor = inTexture.read(grid);
     const half blueColor = inColor.b * 63.0h;
     
