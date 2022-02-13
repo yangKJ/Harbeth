@@ -11,7 +11,7 @@ public struct C7LookupFilter: C7FilterProtocol {
     
     public private(set) var minIntensity: Float = 0.0
     public private(set) var maxIntensity: Float = 100//MAXFLOAT
-    public private(set) var lookupImage: MTQImage?
+    public private(set) var lookupImage: C7Image?
     public var intensity: Float = 0.0
     
     public var modifier: Modifier {
@@ -29,11 +29,11 @@ public struct C7LookupFilter: C7FilterProtocol {
         return []
     }
     
-    public init(image: MTQImage) {
+    public init(image: C7Image) {
         lookupImage = image
     }
     
     public init(name: String) {
-        lookupImage = MTQImage(named: name)
+        lookupImage = C7Image(named: name)
     }
 }

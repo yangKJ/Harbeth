@@ -1,13 +1,13 @@
 //
-//  MTQCompatible.swift
-//  MetalQueenDemo
+//  Compatible.swift
+//  ATMetalBand
 //
-//  Created by 77。 on 2022/2/10.
+//  Created by Condy on 2022/2/13.
 //
 
 import Foundation
 
-/// 添加 `mt` 前缀命名空间
+/// Add the `mt` prefix namespace
 public struct Queen<Base> {
     public let base: Base
     public init(_ base: Base) {
@@ -15,9 +15,9 @@ public struct Queen<Base> {
     }
 }
 
-public protocol MTQCompatible { }
+public protocol C7Compatible { }
 
-extension MTQCompatible {
+extension C7Compatible {
     public var mt: Queen<Self> {
         get { return Queen(self) }
         set { }

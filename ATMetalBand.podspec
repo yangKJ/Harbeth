@@ -35,7 +35,7 @@ Pod::Spec.new do |s|
   }
   
   s.subspec 'Basic' do |xx|
-    xx.source_files = 'Sources/Core/*'
+    xx.source_files = 'Sources/Basic/*'
   end
   
   s.subspec 'Compute' do |xx|
@@ -45,6 +45,14 @@ Pod::Spec.new do |s|
     end
     xx.subspec 'Lookup' do |xxx|
       xxx.source_files = 'Sources/Compute/Lookup/*'
+      xxx.dependency 'ATMetalBand/Basic'
+    end
+    xx.subspec 'Blur' do |xxx|
+      xxx.source_files = 'Sources/Compute/Blur/*'
+      xxx.dependency 'ATMetalBand/Basic'
+    end
+    xx.subspec 'Blend' do |xxx|
+      xxx.source_files = 'Sources/Compute/Blend/*'
       xxx.dependency 'ATMetalBand/Basic'
     end
     xx.subspec 'Effect' do |xxx|

@@ -9,22 +9,22 @@ import Foundation
 import MetalKit
 import CoreGraphics
 
-public class RenderingDevice {
+class RenderingDevice {
     
-    /// 设备信息，创建其他对象
-    /// MTLDevice 的创建很昂贵、耗时，并且它可以一直使用，所以只需要创建一次即可
-    public let device: MTLDevice
-    /// 单一命令队列
-    public let commandQueue: MTLCommandQueue
-    /// 默认提供的函数库，项目中所有 `.metal` 文件
-    public let defaultLibrary: MTLLibrary?
-    ///`ATMetalBand`库当中的所有 `.metal` 文件
-    public let ATMetalLibrary: MTLLibrary?
-    /// 加载纹理工具
-    public let textureLoader: MTKTextureLoader
-    public let colorSpace: CGColorSpace
+    /// Device information to create other objects
+    /// MTLDevice creation is expensive, time-consuming, and can be used forever, so you only need to create it once
+    let device: MTLDevice
+    /// Single command queue
+    let commandQueue: MTLCommandQueue
+    /// Metal file in your local project
+    let defaultLibrary: MTLLibrary?
+    /// Metal file in ATMetalBand
+    let ATMetalLibrary: MTLLibrary?
+    /// Load the texture tool
+    let textureLoader: MTKTextureLoader
+    let colorSpace: CGColorSpace
     
-    public static let shared = RenderingDevice()
+    static let shared = RenderingDevice()
     
     private init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -53,11 +53,11 @@ public class RenderingDevice {
 extension MTLDevice {
     
     func makeATLibrary(forResource: String) -> MTLLibrary? {
-        // 兼容CocoaPods导入framework方式的Bundle地址
+        /// Compatible with the Bundle address used by CocoaPods to import framework
         guard let bundleURL = Bundle.main.url(forResource: forResource, withExtension: "bundle"),
               let bundle = Bundle(url: bundleURL) else {
-            return nil
-        }
+                  return nil
+              }
         guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
             return nil
         }
@@ -68,11 +68,11 @@ extension MTLDevice {
 extension RenderingDevice {
     
     static func readMTLFunction(_ name: String) -> MTLFunction {
-        // 先读取项目当中的`.metal`
+        // Read the project first
         if let libray = RenderingDevice.shared.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
-        // 再读取CocoaPods当中
+        // Then read from CocoaPods
         if let libray = RenderingDevice.shared.ATMetalLibrary, let function = libray.makeFunction(name: name) {
             return function
         }

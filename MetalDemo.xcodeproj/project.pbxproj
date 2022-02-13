@@ -19,7 +19,6 @@
 		04FA70B327B8D7DA006199B0 /* MetalDemoUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA70B227B8D7DA006199B0 /* MetalDemoUITestsLaunchTests.swift */; };
 		04FA70C227B8D8D4006199B0 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA70C027B8D8D4006199B0 /* HomeViewModel.swift */; };
 		04FA70C327B8D8D4006199B0 /* FilterViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA70C127B8D8D4006199B0 /* FilterViewController.swift */; };
-		04FA70C527B8D902006199B0 /* Color.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04FA70C427B8D902006199B0 /* Color.xcassets */; };
 		6D1EC699C73A07B9503F8872 /* Pods_MetalDemo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0DD4DCEFA13BF5415219F8EE /* Pods_MetalDemo.framework */; };
 		E0560FED70DCD36740EE0A4A /* libPods-MetalDemoTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = ADF29C3B1AFC87EFB494C2D2 /* libPods-MetalDemoTests.a */; };
 		EAC51807608CC80F094EDC39 /* libPods-MetalDemoUITests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = AB6331F607E012019148EB76 /* libPods-MetalDemoUITests.a */; };
@@ -59,7 +58,6 @@
 		04FA70B227B8D7DA006199B0 /* MetalDemoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalDemoUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		04FA70C027B8D8D4006199B0 /* HomeViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		04FA70C127B8D8D4006199B0 /* FilterViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FilterViewController.swift; sourceTree = "<group>"; };
-		04FA70C427B8D902006199B0 /* Color.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Color.xcassets; sourceTree = "<group>"; };
 		0DD4DCEFA13BF5415219F8EE /* Pods_MetalDemo.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MetalDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A5CAC2F53A0E19838369511 /* Pods-MetalDemoUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemoUITests.release.xcconfig"; path = "Target Support Files/Pods-MetalDemoUITests/Pods-MetalDemoUITests.release.xcconfig"; sourceTree = "<group>"; };
 		72A61F98A4BC80995F04B23F /* Pods-MetalDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemo.release.xcconfig"; path = "Target Support Files/Pods-MetalDemo/Pods-MetalDemo.release.xcconfig"; sourceTree = "<group>"; };
@@ -164,7 +162,6 @@
 			isa = PBXGroup;
 			children = (
 				04FA709827B8D7DA006199B0 /* Assets.xcassets */,
-				04FA70C427B8D902006199B0 /* Color.xcassets */,
 				04FA709D27B8D7DA006199B0 /* Info.plist */,
 				04FA709A27B8D7DA006199B0 /* LaunchScreen.storyboard */,
 				04FA709527B8D7D8006199B0 /* Main.storyboard */,
@@ -304,7 +301,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				04FA709C27B8D7DA006199B0 /* LaunchScreen.storyboard in Resources */,
-				04FA70C527B8D902006199B0 /* Color.xcassets in Resources */,
 				04FA709927B8D7DA006199B0 /* Assets.xcassets in Resources */,
 				04FA709727B8D7D8006199B0 /* Main.storyboard in Resources */,
 			);

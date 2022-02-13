@@ -7,9 +7,7 @@
 
 import Foundation
 import MetalKit
-import UIKit
 
-public typealias MTQImage = UIImage
 public typealias MTQInputTextures = [MTLTexture]
 
 public enum Modifier {

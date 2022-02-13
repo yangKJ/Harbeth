@@ -14,15 +14,16 @@ typealias FilterCallback = (_ value: Float) -> C7FilterProtocol
 typealias FilterResult = (filter: C7FilterProtocol, maxminValue: maxminTuple, callback: FilterCallback?)
 
 enum ViewControllerType: String {
-    case Brightness = "Brightness"
-    case Luminance = "Luminance"
-    case ColorInvert = "颜色翻转 1-rgb"
-    case ColorSwizzle = "rgba -> bgra"
-    case Opacity = "透明度修改alpha"
+    case Luminance = "亮度"
+    case ColorInvert = "颜色翻转"
+    case ColorSwizzle = "颜色转换"
+    case Opacity = "透明度"
     case Exposure = "曝光"
+    case AddBlend = "叠加融合"
     case abao = "阿宝色滤镜"
     case ZoomBlur = "中心点缩放模糊"
     case Pixellated = "马赛克像素化"
+    case AlphaBlend = "透明度融合"
     
     var image: UIImage {
         switch self {
@@ -37,13 +38,6 @@ enum ViewControllerType: String {
     
     func filterConfig() -> FilterResult {
         switch self {
-        case .Brightness:
-            var filter = C7Brightness(brightness: 0.2)
-            let cb: FilterCallback = {
-                filter.brightness = $0
-                return filter
-            }
-            return (filter, (filter.brightness, filter.minBrightness, filter.maxBrightness), cb)
         case .Luminance:
             var filter = C7Luminance(luminance: 0.5)
             let cb: FilterCallback = {
@@ -72,7 +66,7 @@ enum ViewControllerType: String {
             }
             return (filter, (filter.exposure, -2, 2), cb)
         case .abao:
-            var filter = C7LookupFilter(image: MTQImage(named: "lut_abao")!)
+            var filter = C7LookupFilter(image: C7Image(named: "lut_abao")!)
             filter.intensity = -1
             let cb: FilterCallback = {
                 filter.intensity = $0
@@ -93,6 +87,16 @@ enum ViewControllerType: String {
                 return filter
             }
             return (filter, (filter.pixelWidth, 0, 0.2), cb)
+        case .AddBlend:
+            let filter = C7BlendFilter(with: .add, image: C7Image(named: "yuan000")!)
+            return (filter, nil, nil)
+        case .AlphaBlend:
+            var filter = C7BlendFilter(with: .alpha(mixturePercent: 0.5), image: C7Image(named: "yuan000")!)
+            let cb: FilterCallback = {
+                filter.updateBlend(.alpha(mixturePercent: $0))
+                return filter
+            }
+            return (filter, (0.5, 0, 1), cb)
         }
     }
 }
@@ -107,8 +111,9 @@ struct HomeViewModel {
     }()
     
     let effect: [ViewControllerType] = [
-        .Brightness, .Luminance, .Opacity,
-        .Exposure, .ZoomBlur, .Pixellated,
+        .Luminance, .Opacity, .Exposure,
+        .ZoomBlur, .Pixellated, .AddBlend,
+        .AlphaBlend,
     ]
     
     let filter: [ViewControllerType] = [

@@ -23,7 +23,7 @@ class FilterViewController: UIViewController {
     
     private lazy var originImageView: UIImageView = {
         let imageView = UIImageView.init()
-        imageView.backgroundColor = UIColor.defaultTint?.withAlphaComponent(0.3)
+        imageView.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
@@ -31,7 +31,7 @@ class FilterViewController: UIViewController {
     
     private lazy var filterImageView: UIImageView = {
         let imageView = UIImageView.init()
-        imageView.backgroundColor = UIColor.defaultTint?.withAlphaComponent(0.3)
+        imageView.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
@@ -40,8 +40,8 @@ class FilterViewController: UIViewController {
     private lazy var leftLabel: UILabel = {
         let label = UILabel.init()
         label.textAlignment = .left
-        label.backgroundColor = UIColor.defaultTint?.withAlphaComponent(0.3)
-        label.textColor = UIColor.defaultTint
+        label.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
+        label.textColor = UIColor.systemPink
         label.font = UIFont.systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -50,8 +50,8 @@ class FilterViewController: UIViewController {
     private lazy var rightLabel: UILabel = {
         let label = UILabel.init()
         label.textAlignment = .right
-        label.backgroundColor = UIColor.defaultTint?.withAlphaComponent(0.3)
-        label.textColor = UIColor.defaultTint
+        label.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
+        label.textColor = UIColor.systemPink
         label.font = UIFont.systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -60,8 +60,8 @@ class FilterViewController: UIViewController {
     private lazy var currentLabel: UILabel = {
         let label = UILabel.init()
         label.textAlignment = .center
-        label.backgroundColor = UIColor.defaultTint?.withAlphaComponent(0.3)
-        label.textColor = UIColor.defaultTint
+        label.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
+        label.textColor = UIColor.systemPink
         label.font = UIFont.systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -74,7 +74,7 @@ class FilterViewController: UIViewController {
     }
     
     func setupUI() {
-        view.backgroundColor = UIColor.background
+        view.backgroundColor = UIColor.white
         view.addSubview(originImageView)
         view.addSubview(filterImageView)
         view.addSubview(slider)
@@ -128,16 +128,14 @@ class FilterViewController: UIViewController {
     }
     
     func setupFilter() {
-        let image = C7FilterManager.compute.makeImage(input: originImage, filter: filter!)
-        filterImageView.image = image
+        filterImageView.image = originImage.makeImage(filter: filter!)
     }
     
     @objc func sliderDidchange(_ slider: UISlider) {
         currentLabel.text = String(format: "%.2f", slider.value)
         if let callback = callback {
             let filter = callback(slider.value)
-            let image = C7FilterManager.compute.makeImage(input: originImage, filter: filter)
-            filterImageView.image = image
+            filterImageView.image = originImage.makeImage(filter: filter)
         }
     }
 }

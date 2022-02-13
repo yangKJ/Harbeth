@@ -21,9 +21,8 @@ class HomeViewController: UIViewController {
         table.cellLayoutMarginsFollowReadableWidth = false
         table.sectionHeaderHeight = UITableView.automaticDimension
         table.register(UITableViewCell.self, forCellReuseIdentifier: HomeViewController.identifier)
-        table.backgroundColor = UIColor.clear
+        table.backgroundColor = UIColor.gray.withAlphaComponent(0.1)
         table.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-        table.separatorStyle = .none
         table.contentInsetAdjustmentBehavior = .automatic
         return table
     }()
@@ -36,7 +35,6 @@ class HomeViewController: UIViewController {
     
     func setupInit() {
         title = "Metal"
-        view.backgroundColor = UIColor.background
     }
     
     func setupUI() {
@@ -70,15 +68,8 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         let element = viewModel.datas[indexPath.section][indexPath.row]
         let cell = UITableViewCell(style: .value1, reuseIdentifier: HomeViewController.identifier)
         cell.selectionStyle = .none
-        cell.accessoryType = .none
-        cell.textLabel?.textColor = UIColor.defaultTint
         cell.textLabel?.text = "\(indexPath.row + 1). " + element.rawValue
         cell.textLabel?.font = UIFont.systemFont(ofSize: 14)
-        if indexPath.row % 2 == 0 {
-            cell.backgroundColor = UIColor.cell_background?.withAlphaComponent(0.6)
-        } else {
-            cell.backgroundColor = UIColor.background
-        }
         return cell
     }
     
@@ -100,10 +91,4 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         vc.title = type.rawValue
         navigationController?.pushViewController(vc, animated: true)
     }
-}
-
-extension UIColor {
-    static let background = UIColor(named: "background")
-    static let defaultTint = UIColor(named: "defaultTint")
-    static let cell_background = UIColor(named: "cell_background")
 }

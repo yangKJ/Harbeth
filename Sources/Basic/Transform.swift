@@ -1,5 +1,5 @@
 //
-//  MTQTransform.swift
+//  Transform.swift
 //  MetalQueenDemo
 //
 //  Created by Condy on 2021/8/7.
@@ -8,21 +8,6 @@
 import Foundation
 import MetalKit
 import ImageIO
-
-extension MTQImage: MTQCompatible { }
-
-extension Queen where Base: MTQImage {
-    public func toTexture() -> MTLTexture? {
-        do {
-            let loader = RenderingDevice.shared.textureLoader
-            let options = [MTKTextureLoader.Option.SRGB : false]
-            let texture = try loader.newTexture(cgImage: base.cgImage!, options: options)
-            return texture
-        } catch {
-            fatalError("Failed loading image texture")
-        }
-    }
-}
 
 extension MTLTexture {
     public func toCGImage() -> CGImage? {
@@ -46,15 +31,15 @@ extension MTLTexture {
                                 bytesPerRow: bytesPerRow,
                                 space: colorSpace,
                                 bitmapInfo: bitmapInfo)
-
+        
         guard let context = context else { return nil }
         return context.makeImage()
     }
     
-    public func toImage() -> MTQImage? {
+    public func toImage() -> C7Image? {
         guard let cgImage = toCGImage() else {
             return nil
         }
-        return MTQImage(cgImage: cgImage)
+        return C7Image(cgImage: cgImage)
     }
 }

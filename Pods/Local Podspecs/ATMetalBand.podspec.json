@@ -40,7 +40,7 @@
   "subspecs": [
     {
       "name": "Basic",
-      "source_files": "Sources/Core/*"
+      "source_files": "Sources/Basic/*"
     },
     {
       "name": "Compute",
@@ -66,6 +66,15 @@
         {
           "name": "Blur",
           "source_files": "Sources/Compute/Blur/*",
+          "dependencies": {
+            "ATMetalBand/Basic": [
+
+            ]
+          }
+        },
+        {
+          "name": "Blend",
+          "source_files": "Sources/Compute/Blend/*",
           "dependencies": {
             "ATMetalBand/Basic": [
 
