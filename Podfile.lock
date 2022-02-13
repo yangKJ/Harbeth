@@ -4,9 +4,12 @@ PODS:
     - ATMetalBand/Compute (= 0.0.1)
   - ATMetalBand/Basic (0.0.1)
   - ATMetalBand/Compute (0.0.1):
+    - ATMetalBand/Compute/Blur (= 0.0.1)
     - ATMetalBand/Compute/Effect (= 0.0.1)
     - ATMetalBand/Compute/Filter (= 0.0.1)
     - ATMetalBand/Compute/Lookup (= 0.0.1)
+  - ATMetalBand/Compute/Blur (0.0.1):
+    - ATMetalBand/Basic
   - ATMetalBand/Compute/Effect (0.0.1):
     - ATMetalBand/Basic
   - ATMetalBand/Compute/Filter (0.0.1):
@@ -22,7 +25,7 @@ EXTERNAL SOURCES:
     :path: "./"
 
 SPEC CHECKSUMS:
-  ATMetalBand: 75167d0635aed4062a90db532ed3a0919f280842
+  ATMetalBand: 51abb0dfb48b6f9adbaa82c6d7975d11590a588b
 
 PODFILE CHECKSUM: 8914b7ee510c9e654228ad885d8c64132e46e605
 

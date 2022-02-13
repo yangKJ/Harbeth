@@ -64,6 +64,15 @@
           }
         },
         {
+          "name": "Blur",
+          "source_files": "Sources/Compute/Blur/*",
+          "dependencies": {
+            "ATMetalBand/Basic": [
+
+            ]
+          }
+        },
+        {
           "name": "Effect",
           "source_files": "Sources/Compute/Effect/*",
           "dependencies": {
