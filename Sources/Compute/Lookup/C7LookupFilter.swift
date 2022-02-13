@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import class UIKit.UIImage
 
 public struct C7LookupFilter: C7FilterProtocol {
     
@@ -23,8 +22,11 @@ public struct C7LookupFilter: C7FilterProtocol {
         return [intensity]
     }
     
-    public var otherFiterImage: MTQImage? {
-        return lookupImage
+    public var otherInputTextures: MTQInputTextures {
+        if let texture = lookupImage?.mt.toTexture() {
+            return [texture]
+        }
+        return []
     }
     
     public init(image: MTQImage) {

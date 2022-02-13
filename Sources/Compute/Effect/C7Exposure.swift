@@ -20,5 +20,7 @@ public struct C7Exposure: C7FilterProtocol {
         return [exposure]
     }
     
-    public init() { }
+    public init(exposure: Float = 0.0) {
+        self.exposure = exposure
+    }
 }

@@ -37,16 +37,14 @@ enum ViewControllerType: String {
     func filterConfig() -> FilterResult {
         switch self {
         case .Brightness:
-            var filter = C7Brightness()
-            filter.brightness = 0.2
+            var filter = C7Brightness(brightness: 0.2)
             let cb: FilterCallback = {
                 filter.brightness = $0
                 return filter
             }
             return (filter, (filter.brightness, filter.minBrightness, filter.maxBrightness), cb)
         case .Luminance:
-            var filter = C7Luminance()
-            filter.luminance = 0.5
+            var filter = C7Luminance(luminance: 0.5)
             let cb: FilterCallback = {
                 filter.luminance = $0
                 return filter
@@ -59,16 +57,14 @@ enum ViewControllerType: String {
             let filter = C7ComputeFilter(with: .colorSwizzle)
             return (filter, nil, nil)
         case .Opacity:
-            var filter = C7Opacity()
-            filter.opacity = 0.8
+            var filter = C7Opacity(opacity: 0.8)
             let cb: FilterCallback = {
                 filter.opacity = $0
                 return filter
             }
             return (filter, (filter.opacity, filter.minOpacity, filter.maxOpacity), cb)
         case .Exposure:
-            var filter = C7Exposure()
-            filter.exposure = 0.8
+            var filter = C7Exposure(exposure: 0.8)
             let cb: FilterCallback = {
                 filter.exposure = $0
                 return filter
@@ -83,8 +79,7 @@ enum ViewControllerType: String {
             }
             return (filter, (filter.intensity, -2, 2), cb)
         case .ZoomBlur:
-            var filter = C7ZoomBlur()
-            filter.blurSize = 3
+            var filter = C7ZoomBlur(blurSize: 3)
             let cb: FilterCallback = {
                 filter.blurSize = $0
                 return filter

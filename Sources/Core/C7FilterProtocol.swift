@@ -6,6 +6,11 @@
 //
 
 import Foundation
+import MetalKit
+import UIKit
+
+public typealias MTQImage = UIImage
+public typealias MTQInputTextures = [MTLTexture]
 
 public enum Modifier {
     /// 基于并行计算编码器，可直接生成图片
@@ -22,11 +27,14 @@ public protocol C7FilterProtocol {
     
     var factors: [Float] { get }
     
-    var otherFiterImage: MTQImage? { get }
+    var otherInputTextures: MTQInputTextures { get }
 }
 
 extension C7FilterProtocol {
-    public var otherFiterImage: MTQImage? {
-        return nil
+    public var factors: [Float] {
+        return []
+    }
+    public var otherInputTextures: MTQInputTextures {
+        return []
     }
 }

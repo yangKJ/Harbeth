@@ -8,7 +8,8 @@
 import Foundation
 import MetalKit
 import ImageIO
-import UIKit
+
+extension MTQImage: MTQCompatible { }
 
 extension Queen where Base: MTQImage {
     public func toTexture() -> MTLTexture? {
@@ -55,14 +56,5 @@ extension MTLTexture {
             return nil
         }
         return MTQImage(cgImage: cgImage)
-    }
-}
-
-extension MTLDevice {
-    func cdy_makeDefaultLibrary(bundle: Bundle) -> MTLLibrary? {
-        guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
-            return nil
-        }
-        return try? makeLibrary(filepath: path)
     }
 }

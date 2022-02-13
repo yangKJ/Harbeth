@@ -6,10 +6,6 @@
 //
 
 import Foundation
-import MetalKit
-import UIKit
-
-public typealias MTQImage = UIImage
 
 /// 添加 `mt` 前缀命名空间
 public struct Queen<Base> {
@@ -30,5 +26,3 @@ extension MTQCompatible {
         Queen<Self>.self
     }
 }
-
-extension MTQImage: MTQCompatible { }

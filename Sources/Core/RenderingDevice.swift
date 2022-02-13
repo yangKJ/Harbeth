@@ -45,3 +45,17 @@ public class RenderingDevice {
         self.colorSpace = CGColorSpaceCreateDeviceRGB()
     }
 }
+
+extension RenderingDevice {
+    
+    fileprivate func makeDefaultLibrary(bundle: Bundle) -> MTLLibrary? {
+        guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
+            return nil
+        }
+        return try? device.makeLibrary(filepath: path)
+    }
+}
+
+extension Bundle {
+    
+}

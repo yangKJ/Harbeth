@@ -31,10 +31,7 @@ public struct C7FilterUtil {
                                                                   height: height,
                                                                   mipmapped: mipmapped)
         descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
-        guard let newTexture = RenderingDevice.shared.device.makeTexture(descriptor: descriptor) else {
-            fatalError("Could not create texture of size: (\(width), \(height))")
-        }
-        return newTexture
+        return RenderingDevice.shared.device.makeTexture(descriptor: descriptor)!
     }
     
     /// 创建命令缓冲区

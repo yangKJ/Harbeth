@@ -20,10 +20,6 @@ public struct C7ComputeFilter: C7FilterProtocol {
         return .compute(kernel: filterType.rawValue)
     }
     
-    public var factors: [Float] {
-        return []
-    }
-    
     public init(with type: ComputeFilterType) {
         self.filterType = type
     }
