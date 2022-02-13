@@ -8,7 +8,9 @@
 import Foundation
 
 public enum ComputeFilterType: String {
+    ///` rgba -> bgra
     case colorSwizzle = "ColorSwizzle"
+    ///` 1 - rgb
     case colorInvert = "ColorInvert"
 }
 

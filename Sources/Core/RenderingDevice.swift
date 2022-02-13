@@ -35,7 +35,7 @@ public class RenderingDevice {
         }
         self.commandQueue = queue
         
-        guard let library = device.makeDefaultLibrary() else {
+        guard let library = device.makeLibrary(forResource: "ATMetalLibrary") else {
             fatalError("Could not load library")
         }
         self.defaultLibrary = library
@@ -46,16 +46,17 @@ public class RenderingDevice {
     }
 }
 
-extension RenderingDevice {
+extension MTLDevice {
     
-    fileprivate func makeDefaultLibrary(bundle: Bundle) -> MTLLibrary? {
+    func makeLibrary(forResource: String) -> MTLLibrary? {
+        // 兼容CocoaPods导入framework方式的Bundle地址
+        guard let bundleURL = Bundle.main.url(forResource: forResource, withExtension: "bundle"),
+              let bundle = Bundle(url: bundleURL) else {
+            return nil
+        }
         guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
             return nil
         }
-        return try? device.makeLibrary(filepath: path)
+        return try? makeLibrary(filepath: path)
     }
-}
-
-extension Bundle {
-    
 }

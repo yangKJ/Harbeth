@@ -1,6 +1,0 @@
-framework module Pods_MetalQueenDemoUITests {
-  umbrella header "Pods-MetalQueenDemoUITests-umbrella.h"
-
-  export *
-  module * { export * }
-}

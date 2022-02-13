@@ -8,7 +8,6 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// rgba -> bgra
 kernel void ColorSwizzle(texture2d<half, access::write> outTexture [[texture(0)]],
                          texture2d<half, access::read> inTexture [[texture(1)]],
                          uint2 grid [[thread_position_in_grid]]) {

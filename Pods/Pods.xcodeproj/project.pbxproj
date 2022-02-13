@@ -7,77 +7,231 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2BE5520171E6FB5BB4C7CC16918E306A /* Pods-MetalQueenDemoTests-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 8CA474D06A9790061D4133BC26A7E770 /* Pods-MetalQueenDemoTests-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		512AAA3E8011471133F5FAB08FA4286C /* Pods-MetalQueenDemo-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = E575CF0F6995871E0E90EED6AE3AAD08 /* Pods-MetalQueenDemo-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		55AA09EDD315666E714A5B9AABEA2113 /* Pods-MetalQueenDemoUITests-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 3706D31A973242806325CDAC45BBCC1C /* Pods-MetalQueenDemoUITests-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		69E594098118D5D7CB1D321383B46CE4 /* Pods-MetalQueenDemoUITests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = A1068E592D18726C6BC91CB2857E4F36 /* Pods-MetalQueenDemoUITests-dummy.m */; };
-		795B18900C3583DC26C79E92099C7C6D /* Pods-MetalQueenDemoTests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = A3594CA457F46874F2212ED0B7761046 /* Pods-MetalQueenDemoTests-dummy.m */; };
-		C91EDDAC09173CB25D5C11C585795565 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
-		C9DFB9DEB9FB177EE8D55BC2ECB4FD68 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
-		ED2197D59BA81056DDF42C504009BC1E /* Pods-MetalQueenDemo-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 0886CF5E17003FA136D67E010683A5F5 /* Pods-MetalQueenDemo-dummy.m */; };
-		FCC8CE2FD5AD33EC793A993C8F4ACF3D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
+		000A226C46C6D17D5B5586B90221618D /* Opacity.metal in Sources */ = {isa = PBXBuildFile; fileRef = 81432CF50D5A5F58FC939315B74154A6 /* Opacity.metal */; };
+		073EB08331FC743384527A96D09946E5 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
+		09FB33F15F4D9200C0E5D24BBC0C2FE0 /* C7LookupFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAE8246FC9CF5498C6B4BEB894E318F /* C7LookupFilter.swift */; };
+		0F5EF74BDDDE0057A1F47EC335CA97CF /* Luminance.metal in Sources */ = {isa = PBXBuildFile; fileRef = 151A552FAD60515A1BEA1FE727105EAF /* Luminance.metal */; };
+		1745974DED23D1BCBBF91954BBE17B9D /* ATMetalBand-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 4CE7D5B6D6CB43F93AE544F66560F7A3 /* ATMetalBand-dummy.m */; };
+		1C10E7C55D2CAFE88BE2EBAD2BCB8394 /* ColorSwizzle.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7E6B3DB2295F375EC9D353C568B7D760 /* ColorSwizzle.metal */; };
+		25473622B9469729AB97164091E802FD /* Brightness.metal in Sources */ = {isa = PBXBuildFile; fileRef = 509AA69540ABEB2FCDF7B02485AE55D5 /* Brightness.metal */; };
+		2E8B69D7A4897DD1BA8C273C5CFF6BCC /* C7FilterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D472A7A6368F5DDEF314B29474D61678 /* C7FilterManager.swift */; };
+		381F2B8CD3D8103FA520D5E7DD241FDB /* ColorInvert.metal in Sources */ = {isa = PBXBuildFile; fileRef = EF168556643B3AA6D8B58303F98A1465 /* ColorInvert.metal */; };
+		387BE633CD04854FCE7723886ED1F87F /* MTQCompatible.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B0300C27506C142AB658FBEE44CABF /* MTQCompatible.swift */; };
+		3AF946D475EB6753C9B12493D1A283B9 /* C7ZoomBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF5C3B3CC05E25F87752D52945B630B1 /* C7ZoomBlur.swift */; };
+		3BD12E3431D7560664C2B5D5470A151C /* LookupFilter.metal in Sources */ = {isa = PBXBuildFile; fileRef = 33E784C834A2403656127B2811E46AE3 /* LookupFilter.metal */; };
+		43D6F8CFC43E7C7429A8DB33BC10FC36 /* MTQTransform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51313111E8EFD1D913B1E2687ACAB768 /* MTQTransform.swift */; };
+		47F22D8A83FB5ED93AB86D6BEA0EE654 /* C7FilterProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75D7B7287A728CC950ADAAFB80E1D9FF /* C7FilterProtocol.swift */; };
+		4B82A61DCCE8C9D934E11480B8C837AF /* C7ComputeFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 248B802BB9F1D241651262D9DE58247F /* C7ComputeFilter.swift */; };
+		4EAFC9C8E1800968436639735343EB42 /* C7Brightness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4AB79BC6D68712557CF5B7E0469DC1 /* C7Brightness.swift */; };
+		4F8A93F310B91DA166313F29F0746C01 /* Pods-MetalDemoUITests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 8988ED5146830985F5A08F44702A94F2 /* Pods-MetalDemoUITests-dummy.m */; };
+		59ABD4297FE1C33B3397EAE553E07605 /* ATMetalBand-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 5AD26F3866A9FAE94F4D0AA7BECE8DF2 /* ATMetalBand-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		5C47CE177D9D8CD8319CB322BD71FFA8 /* Pods-MetalDemo-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 94D8B0881F6077C969D8635308902D81 /* Pods-MetalDemo-dummy.m */; };
+		611C5049C1F222F1F2C66F3A6DB08190 /* Exposure.metal in Resources */ = {isa = PBXBuildFile; fileRef = 54A57CABFAD7033AD9DA8FE2972BFF30 /* Exposure.metal */; };
+		66EB4AA8FB5709B0FE352D488B48D065 /* C7Exposure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B173560BE9749662A0FFD9F5C61E2FD /* C7Exposure.swift */; };
+		6AF09D2103B9A081DF98FE339006BD87 /* ZoomBlur.metal in Sources */ = {isa = PBXBuildFile; fileRef = BB7A4FA122D8A1AE20B58E84B3E7BFF3 /* ZoomBlur.metal */; };
+		74FDDE25E9580965EAF683398C993AD8 /* LuminanceThreshold.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0D95381DFAE754D28CA61457A5200998 /* LuminanceThreshold.metal */; };
+		9C6C291988EF3C0778305792673CB08E /* Pods-MetalDemoTests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 770FDF03293E7C16B1B186ABDDE2A3F5 /* Pods-MetalDemoTests-dummy.m */; };
+		A5EA436C416CC1C5AEAB272734E6B544 /* LookupFilter.metal in Resources */ = {isa = PBXBuildFile; fileRef = 33E784C834A2403656127B2811E46AE3 /* LookupFilter.metal */; };
+		A9304A2E1AEC0619640F28789D2DC6F3 /* Pods-MetalDemo-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 6CF791AE0C1453B461BA56B9FC206381 /* Pods-MetalDemo-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		B1A95DE91EA06013CEC98A0B61E4182D /* LuminanceThreshold.metal in Resources */ = {isa = PBXBuildFile; fileRef = 0D95381DFAE754D28CA61457A5200998 /* LuminanceThreshold.metal */; };
+		BA4CB2C28E6854F7D7DF83E57FE5398C /* Luminance.metal in Resources */ = {isa = PBXBuildFile; fileRef = 151A552FAD60515A1BEA1FE727105EAF /* Luminance.metal */; };
+		BC2D6AC5C787D13027CD11BDB5CAEBD8 /* C7Opacity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3AFE732D4D03416B20817148B63AD7 /* C7Opacity.swift */; };
+		BDE5DFA3A3B53825DCFFDEFEB5920307 /* Opacity.metal in Resources */ = {isa = PBXBuildFile; fileRef = 81432CF50D5A5F58FC939315B74154A6 /* Opacity.metal */; };
+		C63C975ADF2878B9D9A199562462939F /* RenderingDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CEC4181F07F04FBC918A797AFACEAB8 /* RenderingDevice.swift */; };
+		CBE50170422D51998C653659997736FB /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
+		CCA92606803EC23B0729658C2B1624C7 /* Brightness.metal in Resources */ = {isa = PBXBuildFile; fileRef = 509AA69540ABEB2FCDF7B02485AE55D5 /* Brightness.metal */; };
+		CF3B53B92F0BB060414E865BE38692BB /* Exposure.metal in Sources */ = {isa = PBXBuildFile; fileRef = 54A57CABFAD7033AD9DA8FE2972BFF30 /* Exposure.metal */; };
+		D13F7730ECA26A0F635118979E6CBE23 /* ColorSwizzle.metal in Resources */ = {isa = PBXBuildFile; fileRef = 7E6B3DB2295F375EC9D353C568B7D760 /* ColorSwizzle.metal */; };
+		D17D7807EDFEDFFD37CB9E4D5123644C /* C7FilterUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9053D20EEB2BACB9F6412B6824C6DF /* C7FilterUtil.swift */; };
+		E93708C09B6FEA77C2869DE9009ACFE9 /* C7Luminance.swift in Sources */ = {isa = PBXBuildFile; fileRef = C11E5394E9FE9EB99A692907A85FFA10 /* C7Luminance.swift */; };
+		EA012789F4E298523AEB80D6C8995484 /* ZoomBlur.metal in Resources */ = {isa = PBXBuildFile; fileRef = BB7A4FA122D8A1AE20B58E84B3E7BFF3 /* ZoomBlur.metal */; };
+		EBA5163A0FBECADE8BF984F5A6008799 /* C7LuminanceThreshold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 721E6AB50105CC6F005A95ECFCA35753 /* C7LuminanceThreshold.swift */; };
+		FD3099C6F4AC7253BE33C430C067235B /* ColorInvert.metal in Resources */ = {isa = PBXBuildFile; fileRef = EF168556643B3AA6D8B58303F98A1465 /* ColorInvert.metal */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		56CF45304389FB0070896ED7F4F58B59 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 09763EF6C518BD793B55E67014348C7D;
+			remoteInfo = ATMetalBand;
+		};
+		BAEDE19461EE77AA7A01C57DB6652EB3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 94707657354CC2428E6660E3C11ADBBF;
+			remoteInfo = "ATMetalBand-ATMetalLibrary";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
-		0886CF5E17003FA136D67E010683A5F5 /* Pods-MetalQueenDemo-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalQueenDemo-dummy.m"; sourceTree = "<group>"; };
-		1A2F8ADA06BCE52AF7843FAF441CC1FA /* Pods-MetalQueenDemo */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-MetalQueenDemo"; path = Pods_MetalQueenDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		202363B9D45D25A79A56BC7DC341B1F0 /* Pods-MetalQueenDemoTests */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-MetalQueenDemoTests"; path = Pods_MetalQueenDemoTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		25F64A4BF8EE4539E81A3A36BB1D4BC2 /* Pods-MetalQueenDemo.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-MetalQueenDemo.modulemap"; sourceTree = "<group>"; };
-		29FED6214BADEFD1C6AB283F8E2C0614 /* Pods-MetalQueenDemo-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalQueenDemo-Info.plist"; sourceTree = "<group>"; };
-		3706D31A973242806325CDAC45BBCC1C /* Pods-MetalQueenDemoUITests-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-MetalQueenDemoUITests-umbrella.h"; sourceTree = "<group>"; };
-		45E266DE7F63473027FA149EEAE92FA1 /* Pods-MetalQueenDemoTests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalQueenDemoTests-acknowledgements.markdown"; sourceTree = "<group>"; };
-		48B290EDB373A9461CF9CBE93A4C588C /* Pods-MetalQueenDemoUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalQueenDemoUITests.release.xcconfig"; sourceTree = "<group>"; };
-		514C54E1E4E4C3112211CDDC10556EC8 /* Pods-MetalQueenDemoTests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalQueenDemoTests-acknowledgements.plist"; sourceTree = "<group>"; };
-		56337BC2ADAC3CAE33A0088E111B4D15 /* Pods-MetalQueenDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalQueenDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
-		6C129F80F8FD9F4A4E3217589ED977B0 /* Pods-MetalQueenDemoUITests.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-MetalQueenDemoUITests.modulemap"; sourceTree = "<group>"; };
+		077576EDA9B3157FB0569729FBB51E2C /* Pods-MetalDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemo.release.xcconfig"; sourceTree = "<group>"; };
+		0D95381DFAE754D28CA61457A5200998 /* LuminanceThreshold.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = LuminanceThreshold.metal; path = Sources/Compute/Effect/LuminanceThreshold.metal; sourceTree = "<group>"; };
+		134694336F822ED52B91604E51F08361 /* Pods-MetalDemoTests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalDemoTests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		151A552FAD60515A1BEA1FE727105EAF /* Luminance.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = Luminance.metal; path = Sources/Compute/Effect/Luminance.metal; sourceTree = "<group>"; };
+		1572243B27FAF83C618D116F1D9509AD /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; path = README.md; sourceTree = "<group>"; };
+		18D2564A72DAA6DFD0EB166D766E3C8E /* Pods-MetalDemo */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-MetalDemo"; path = Pods_MetalDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		1EF167AEEC2603F9242EAFCD55C2F0A3 /* ATMetalBand.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ATMetalBand.debug.xcconfig; sourceTree = "<group>"; };
+		248B802BB9F1D241651262D9DE58247F /* C7ComputeFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7ComputeFilter.swift; path = Sources/Compute/Filter/C7ComputeFilter.swift; sourceTree = "<group>"; };
+		25C1B9CF5C51DCC7B0795AC70F03DBD2 /* Pods-MetalDemo.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-MetalDemo.modulemap"; sourceTree = "<group>"; };
+		275F8CBD3E37CC84A88DB5506E863F75 /* ATMetalBand.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = ATMetalBand.modulemap; sourceTree = "<group>"; };
+		2BAC234C4A033EDD30EBE03AA01DBB89 /* Pods-MetalDemo-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemo-Info.plist"; sourceTree = "<group>"; };
+		2CEC4181F07F04FBC918A797AFACEAB8 /* RenderingDevice.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RenderingDevice.swift; path = Sources/Core/RenderingDevice.swift; sourceTree = "<group>"; };
+		2DDB59D63AAF029D90BC5E9DA0ECFDE6 /* ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist"; sourceTree = "<group>"; };
+		33E784C834A2403656127B2811E46AE3 /* LookupFilter.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = LookupFilter.metal; path = Sources/Compute/Lookup/LookupFilter.metal; sourceTree = "<group>"; };
+		4CE7D5B6D6CB43F93AE544F66560F7A3 /* ATMetalBand-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "ATMetalBand-dummy.m"; sourceTree = "<group>"; };
+		4D3AFE732D4D03416B20817148B63AD7 /* C7Opacity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Opacity.swift; path = Sources/Compute/Effect/C7Opacity.swift; sourceTree = "<group>"; };
+		4DB080C69116EB0D87A809FD14797FA1 /* Pods-MetalDemoUITests */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; name = "Pods-MetalDemoUITests"; path = "libPods-MetalDemoUITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4FAE8246FC9CF5498C6B4BEB894E318F /* C7LookupFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7LookupFilter.swift; path = Sources/Compute/Lookup/C7LookupFilter.swift; sourceTree = "<group>"; };
+		509AA69540ABEB2FCDF7B02485AE55D5 /* Brightness.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = Brightness.metal; path = Sources/Compute/Effect/Brightness.metal; sourceTree = "<group>"; };
+		51313111E8EFD1D913B1E2687ACAB768 /* MTQTransform.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MTQTransform.swift; path = Sources/Core/MTQTransform.swift; sourceTree = "<group>"; };
+		54A57CABFAD7033AD9DA8FE2972BFF30 /* Exposure.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = Exposure.metal; path = Sources/Compute/Effect/Exposure.metal; sourceTree = "<group>"; };
+		5A85DAC6D7B32C7BA880553D1609D880 /* Pods-MetalDemoTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoTests.release.xcconfig"; sourceTree = "<group>"; };
+		5AD26F3866A9FAE94F4D0AA7BECE8DF2 /* ATMetalBand-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ATMetalBand-umbrella.h"; sourceTree = "<group>"; };
+		5B173560BE9749662A0FFD9F5C61E2FD /* C7Exposure.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Exposure.swift; path = Sources/Compute/Effect/C7Exposure.swift; sourceTree = "<group>"; };
+		6A0048E7049D7220184358B046A1DC45 /* Pods-MetalDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemo.debug.xcconfig"; sourceTree = "<group>"; };
+		6B14803577D163B531517EFAE80AA704 /* Pods-MetalDemoTests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemoTests-acknowledgements.plist"; sourceTree = "<group>"; };
+		6CF791AE0C1453B461BA56B9FC206381 /* Pods-MetalDemo-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-MetalDemo-umbrella.h"; sourceTree = "<group>"; };
+		721E6AB50105CC6F005A95ECFCA35753 /* C7LuminanceThreshold.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7LuminanceThreshold.swift; path = Sources/Compute/Effect/C7LuminanceThreshold.swift; sourceTree = "<group>"; };
 		73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		85F289AF93279447E7AAEABD87DB2A32 /* Pods-MetalQueenDemoTests.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-MetalQueenDemoTests.modulemap"; sourceTree = "<group>"; };
-		8B6CC1ACFB33CD49BCEBA39551BA5E56 /* Pods-MetalQueenDemoTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalQueenDemoTests.release.xcconfig"; sourceTree = "<group>"; };
-		8CA474D06A9790061D4133BC26A7E770 /* Pods-MetalQueenDemoTests-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-MetalQueenDemoTests-umbrella.h"; sourceTree = "<group>"; };
-		8E6E0D35EB29521C8543EC88F46D1758 /* Pods-MetalQueenDemo-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalQueenDemo-acknowledgements.markdown"; sourceTree = "<group>"; };
-		9C094F8BCD5F195D9F6A3186D100B476 /* Pods-MetalQueenDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalQueenDemo.release.xcconfig"; sourceTree = "<group>"; };
+		75D7B7287A728CC950ADAAFB80E1D9FF /* C7FilterProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7FilterProtocol.swift; path = Sources/Core/C7FilterProtocol.swift; sourceTree = "<group>"; };
+		770FDF03293E7C16B1B186ABDDE2A3F5 /* Pods-MetalDemoTests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemoTests-dummy.m"; sourceTree = "<group>"; };
+		7C8B39E29669071FF14232841DA2F2E6 /* ATMetalBand.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; path = ATMetalBand.podspec; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		7E6B3DB2295F375EC9D353C568B7D760 /* ColorSwizzle.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = ColorSwizzle.metal; path = Sources/Compute/Filter/ColorSwizzle.metal; sourceTree = "<group>"; };
+		804A83E3FBE5FB92D95A9A5131D626B2 /* ATMetalBand-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ATMetalBand-Info.plist"; sourceTree = "<group>"; };
+		81432CF50D5A5F58FC939315B74154A6 /* Opacity.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = Opacity.metal; path = Sources/Compute/Effect/Opacity.metal; sourceTree = "<group>"; };
+		863449BE951370966E78DFA3EDFE9DD6 /* Pods-MetalDemoTests */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; name = "Pods-MetalDemoTests"; path = "libPods-MetalDemoTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8988ED5146830985F5A08F44702A94F2 /* Pods-MetalDemoUITests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemoUITests-dummy.m"; sourceTree = "<group>"; };
+		8C002616685BFE8B51030AE8E5A51491 /* Pods-MetalDemoUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoUITests.release.xcconfig"; sourceTree = "<group>"; };
+		8E4AB79BC6D68712557CF5B7E0469DC1 /* C7Brightness.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Brightness.swift; path = Sources/Compute/Effect/C7Brightness.swift; sourceTree = "<group>"; };
+		93951703A091980835660AFEEED5E2E8 /* Pods-MetalDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
+		94D8B0881F6077C969D8635308902D81 /* Pods-MetalDemo-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemo-dummy.m"; sourceTree = "<group>"; };
+		99940CEABF0F5606546575C19038B4FF /* ATMetalBand-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ATMetalBand-prefix.pch"; sourceTree = "<group>"; };
+		9D32B5BE6F116E44425A593BDFD4A1FA /* ATMetalBand.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ATMetalBand.release.xcconfig; sourceTree = "<group>"; };
 		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		A1068E592D18726C6BC91CB2857E4F36 /* Pods-MetalQueenDemoUITests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalQueenDemoUITests-dummy.m"; sourceTree = "<group>"; };
-		A3594CA457F46874F2212ED0B7761046 /* Pods-MetalQueenDemoTests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalQueenDemoTests-dummy.m"; sourceTree = "<group>"; };
-		ACA091B9CB5F2077481EB7B86F13A71C /* Pods-MetalQueenDemoUITests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalQueenDemoUITests-acknowledgements.markdown"; sourceTree = "<group>"; };
-		B12DEE59214F7527B0C8D306A29649A0 /* Pods-MetalQueenDemoTests-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalQueenDemoTests-Info.plist"; sourceTree = "<group>"; };
-		CC4E1AADBE7A5F4AF142D57059B096A0 /* Pods-MetalQueenDemoUITests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalQueenDemoUITests-acknowledgements.plist"; sourceTree = "<group>"; };
-		CF0DE58191DCCEAFDD5271A1F02D57E3 /* Pods-MetalQueenDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalQueenDemo.debug.xcconfig"; sourceTree = "<group>"; };
-		D85EE8D1A4C54C73920E24210F2CC7B6 /* Pods-MetalQueenDemoUITests-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalQueenDemoUITests-Info.plist"; sourceTree = "<group>"; };
-		DFB1D8AAFD92AA11D1EF850217867601 /* Pods-MetalQueenDemo-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalQueenDemo-acknowledgements.plist"; sourceTree = "<group>"; };
-		E575CF0F6995871E0E90EED6AE3AAD08 /* Pods-MetalQueenDemo-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-MetalQueenDemo-umbrella.h"; sourceTree = "<group>"; };
-		F9B5D999373CA69EABE89C5C9F3E177E /* Pods-MetalQueenDemoTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalQueenDemoTests.debug.xcconfig"; sourceTree = "<group>"; };
-		FD9140C3127C4ED5181FB03A20F3C2DE /* Pods-MetalQueenDemoUITests */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-MetalQueenDemoUITests"; path = Pods_MetalQueenDemoUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A424EE6914E86AE7A8EBA2093EBA70FD /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
+		A44C61D4DDC87E9E57628AE0E1D18BD8 /* Pods-MetalDemo-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemo-acknowledgements.plist"; sourceTree = "<group>"; };
+		A591FF14548982C14AB32570AB125E60 /* Pods-MetalDemoTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoTests.debug.xcconfig"; sourceTree = "<group>"; };
+		B0BE393011ACF7D1A45B0E06C1A12B7E /* ATMetalBand-ATMetalLibrary */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "ATMetalBand-ATMetalLibrary"; path = ATMetalLibrary.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4B0300C27506C142AB658FBEE44CABF /* MTQCompatible.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MTQCompatible.swift; path = Sources/Core/MTQCompatible.swift; sourceTree = "<group>"; };
+		BB7A4FA122D8A1AE20B58E84B3E7BFF3 /* ZoomBlur.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = ZoomBlur.metal; path = Sources/Compute/Effect/ZoomBlur.metal; sourceTree = "<group>"; };
+		C11E5394E9FE9EB99A692907A85FFA10 /* C7Luminance.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Luminance.swift; path = Sources/Compute/Effect/C7Luminance.swift; sourceTree = "<group>"; };
+		C2F4119A8B71D64E3BD0BD3B4B22632A /* Pods-MetalDemoUITests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemoUITests-acknowledgements.plist"; sourceTree = "<group>"; };
+		D472A7A6368F5DDEF314B29474D61678 /* C7FilterManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7FilterManager.swift; path = Sources/Core/C7FilterManager.swift; sourceTree = "<group>"; };
+		DF5C3B3CC05E25F87752D52945B630B1 /* C7ZoomBlur.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7ZoomBlur.swift; path = Sources/Compute/Effect/C7ZoomBlur.swift; sourceTree = "<group>"; };
+		ED346776A89C7545572CCE61DFD817B4 /* Pods-MetalDemo-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalDemo-acknowledgements.markdown"; sourceTree = "<group>"; };
+		EF168556643B3AA6D8B58303F98A1465 /* ColorInvert.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = ColorInvert.metal; path = Sources/Compute/Filter/ColorInvert.metal; sourceTree = "<group>"; };
+		F13E724941C532A6A881635B51C64E15 /* Pods-MetalDemo-resources.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-MetalDemo-resources.sh"; sourceTree = "<group>"; };
+		FCAF9D5F3CAD61485CFB795A91528BE1 /* Pods-MetalDemoUITests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalDemoUITests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		FD9053D20EEB2BACB9F6412B6824C6DF /* C7FilterUtil.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7FilterUtil.swift; path = Sources/Core/C7FilterUtil.swift; sourceTree = "<group>"; };
+		FF77BC66D91AAEFBF658D32710A0C711 /* ATMetalBand */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = ATMetalBand; path = ATMetalBand.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		C75EF804E2F53606084CE270DF5BE02A /* Frameworks */ = {
+		11BA7C41D4643D9578CF2D400CDAF4D3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FCC8CE2FD5AD33EC793A993C8F4ACF3D /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E965102E59C6665EFB453F74E20BE123 /* Frameworks */ = {
+		1CD81D78157A803A61BAE748801E129F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C9DFB9DEB9FB177EE8D55BC2ECB4FD68 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F0E1096BCB70014AA038088BA83CA9CE /* Frameworks */ = {
+		3BD728D5F12529E947F02B6B01831916 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C91EDDAC09173CB25D5C11C585795565 /* Foundation.framework in Frameworks */,
+				073EB08331FC743384527A96D09946E5 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		961F3146A58C2FC60039D43008764858 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBE50170422D51998C653659997736FB /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DA134557372918BFE4DC0D7D663BB81A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0D43552F858CE960B9A04E037514E838 /* Pod */ = {
+			isa = PBXGroup;
+			children = (
+				7C8B39E29669071FF14232841DA2F2E6 /* ATMetalBand.podspec */,
+				A424EE6914E86AE7A8EBA2093EBA70FD /* LICENSE */,
+				1572243B27FAF83C618D116F1D9509AD /* README.md */,
+			);
+			name = Pod;
+			sourceTree = "<group>";
+		};
+		15A81D24F1DA31004C57CC5136BAB2C4 /* Pods-MetalDemoTests */ = {
+			isa = PBXGroup;
+			children = (
+				134694336F822ED52B91604E51F08361 /* Pods-MetalDemoTests-acknowledgements.markdown */,
+				6B14803577D163B531517EFAE80AA704 /* Pods-MetalDemoTests-acknowledgements.plist */,
+				770FDF03293E7C16B1B186ABDDE2A3F5 /* Pods-MetalDemoTests-dummy.m */,
+				A591FF14548982C14AB32570AB125E60 /* Pods-MetalDemoTests.debug.xcconfig */,
+				5A85DAC6D7B32C7BA880553D1609D880 /* Pods-MetalDemoTests.release.xcconfig */,
+			);
+			name = "Pods-MetalDemoTests";
+			path = "Target Support Files/Pods-MetalDemoTests";
+			sourceTree = "<group>";
+		};
+		46D06A60637E830399D27FC41AD2E6D8 /* Pods-MetalDemo */ = {
+			isa = PBXGroup;
+			children = (
+				25C1B9CF5C51DCC7B0795AC70F03DBD2 /* Pods-MetalDemo.modulemap */,
+				ED346776A89C7545572CCE61DFD817B4 /* Pods-MetalDemo-acknowledgements.markdown */,
+				A44C61D4DDC87E9E57628AE0E1D18BD8 /* Pods-MetalDemo-acknowledgements.plist */,
+				94D8B0881F6077C969D8635308902D81 /* Pods-MetalDemo-dummy.m */,
+				2BAC234C4A033EDD30EBE03AA01DBB89 /* Pods-MetalDemo-Info.plist */,
+				F13E724941C532A6A881635B51C64E15 /* Pods-MetalDemo-resources.sh */,
+				6CF791AE0C1453B461BA56B9FC206381 /* Pods-MetalDemo-umbrella.h */,
+				6A0048E7049D7220184358B046A1DC45 /* Pods-MetalDemo.debug.xcconfig */,
+				077576EDA9B3157FB0569729FBB51E2C /* Pods-MetalDemo.release.xcconfig */,
+			);
+			name = "Pods-MetalDemo";
+			path = "Target Support Files/Pods-MetalDemo";
+			sourceTree = "<group>";
+		};
+		4EC17545ED3A0FCC294574EDC95783E0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FF77BC66D91AAEFBF658D32710A0C711 /* ATMetalBand */,
+				B0BE393011ACF7D1A45B0E06C1A12B7E /* ATMetalBand-ATMetalLibrary */,
+				18D2564A72DAA6DFD0EB166D766E3C8E /* Pods-MetalDemo */,
+				863449BE951370966E78DFA3EDFE9DD6 /* Pods-MetalDemoTests */,
+				4DB080C69116EB0D87A809FD14797FA1 /* Pods-MetalDemoUITests */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		51B1BBC57E02243F4475269B7BD6558D /* Targets Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				46D06A60637E830399D27FC41AD2E6D8 /* Pods-MetalDemo */,
+				15A81D24F1DA31004C57CC5136BAB2C4 /* Pods-MetalDemoTests */,
+				989A00A4444BF03FD5276C0FD75A2A18 /* Pods-MetalDemoUITests */,
+			);
+			name = "Targets Support Files";
+			sourceTree = "<group>";
+		};
 		578452D2E740E91742655AC8F1636D1F /* iOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -86,61 +240,103 @@
 			name = iOS;
 			sourceTree = "<group>";
 		};
-		5CEBE16325ECA525372DAFB7CFD0A744 /* Pods-MetalQueenDemo */ = {
+		6718A6885517641010643B46A5012D65 /* ATMetalBand */ = {
 			isa = PBXGroup;
 			children = (
-				25F64A4BF8EE4539E81A3A36BB1D4BC2 /* Pods-MetalQueenDemo.modulemap */,
-				8E6E0D35EB29521C8543EC88F46D1758 /* Pods-MetalQueenDemo-acknowledgements.markdown */,
-				DFB1D8AAFD92AA11D1EF850217867601 /* Pods-MetalQueenDemo-acknowledgements.plist */,
-				0886CF5E17003FA136D67E010683A5F5 /* Pods-MetalQueenDemo-dummy.m */,
-				29FED6214BADEFD1C6AB283F8E2C0614 /* Pods-MetalQueenDemo-Info.plist */,
-				E575CF0F6995871E0E90EED6AE3AAD08 /* Pods-MetalQueenDemo-umbrella.h */,
-				CF0DE58191DCCEAFDD5271A1F02D57E3 /* Pods-MetalQueenDemo.debug.xcconfig */,
-				9C094F8BCD5F195D9F6A3186D100B476 /* Pods-MetalQueenDemo.release.xcconfig */,
+				DB5E773C915ECD25E60CAD781E769064 /* Basic */,
+				CE4676D902E4C7FFF53B602910BDBFE8 /* Compute */,
+				0D43552F858CE960B9A04E037514E838 /* Pod */,
+				747F82634CB09532F027B5163449D512 /* Support Files */,
 			);
-			name = "Pods-MetalQueenDemo";
-			path = "Target Support Files/Pods-MetalQueenDemo";
+			name = ATMetalBand;
+			path = ..;
 			sourceTree = "<group>";
 		};
-		8D5DD6EF757915AA571F9571D098FA3C /* Pods-MetalQueenDemoUITests */ = {
+		67F2EA4A3C08D75E258DBB08C3B9EB7B /* Filter */ = {
 			isa = PBXGroup;
 			children = (
-				6C129F80F8FD9F4A4E3217589ED977B0 /* Pods-MetalQueenDemoUITests.modulemap */,
-				ACA091B9CB5F2077481EB7B86F13A71C /* Pods-MetalQueenDemoUITests-acknowledgements.markdown */,
-				CC4E1AADBE7A5F4AF142D57059B096A0 /* Pods-MetalQueenDemoUITests-acknowledgements.plist */,
-				A1068E592D18726C6BC91CB2857E4F36 /* Pods-MetalQueenDemoUITests-dummy.m */,
-				D85EE8D1A4C54C73920E24210F2CC7B6 /* Pods-MetalQueenDemoUITests-Info.plist */,
-				3706D31A973242806325CDAC45BBCC1C /* Pods-MetalQueenDemoUITests-umbrella.h */,
-				56337BC2ADAC3CAE33A0088E111B4D15 /* Pods-MetalQueenDemoUITests.debug.xcconfig */,
-				48B290EDB373A9461CF9CBE93A4C588C /* Pods-MetalQueenDemoUITests.release.xcconfig */,
+				248B802BB9F1D241651262D9DE58247F /* C7ComputeFilter.swift */,
+				EF168556643B3AA6D8B58303F98A1465 /* ColorInvert.metal */,
+				7E6B3DB2295F375EC9D353C568B7D760 /* ColorSwizzle.metal */,
 			);
-			name = "Pods-MetalQueenDemoUITests";
-			path = "Target Support Files/Pods-MetalQueenDemoUITests";
+			name = Filter;
 			sourceTree = "<group>";
 		};
-		908F830776420ABE50A4F07CFBAAEA65 /* Pods-MetalQueenDemoTests */ = {
+		6A8EE5C7EFC7EC81A8543DA6CD4F012A /* Lookup */ = {
 			isa = PBXGroup;
 			children = (
-				85F289AF93279447E7AAEABD87DB2A32 /* Pods-MetalQueenDemoTests.modulemap */,
-				45E266DE7F63473027FA149EEAE92FA1 /* Pods-MetalQueenDemoTests-acknowledgements.markdown */,
-				514C54E1E4E4C3112211CDDC10556EC8 /* Pods-MetalQueenDemoTests-acknowledgements.plist */,
-				A3594CA457F46874F2212ED0B7761046 /* Pods-MetalQueenDemoTests-dummy.m */,
-				B12DEE59214F7527B0C8D306A29649A0 /* Pods-MetalQueenDemoTests-Info.plist */,
-				8CA474D06A9790061D4133BC26A7E770 /* Pods-MetalQueenDemoTests-umbrella.h */,
-				F9B5D999373CA69EABE89C5C9F3E177E /* Pods-MetalQueenDemoTests.debug.xcconfig */,
-				8B6CC1ACFB33CD49BCEBA39551BA5E56 /* Pods-MetalQueenDemoTests.release.xcconfig */,
+				4FAE8246FC9CF5498C6B4BEB894E318F /* C7LookupFilter.swift */,
+				33E784C834A2403656127B2811E46AE3 /* LookupFilter.metal */,
 			);
-			name = "Pods-MetalQueenDemoTests";
-			path = "Target Support Files/Pods-MetalQueenDemoTests";
+			name = Lookup;
+			sourceTree = "<group>";
+		};
+		747F82634CB09532F027B5163449D512 /* Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				275F8CBD3E37CC84A88DB5506E863F75 /* ATMetalBand.modulemap */,
+				4CE7D5B6D6CB43F93AE544F66560F7A3 /* ATMetalBand-dummy.m */,
+				804A83E3FBE5FB92D95A9A5131D626B2 /* ATMetalBand-Info.plist */,
+				99940CEABF0F5606546575C19038B4FF /* ATMetalBand-prefix.pch */,
+				5AD26F3866A9FAE94F4D0AA7BECE8DF2 /* ATMetalBand-umbrella.h */,
+				1EF167AEEC2603F9242EAFCD55C2F0A3 /* ATMetalBand.debug.xcconfig */,
+				9D32B5BE6F116E44425A593BDFD4A1FA /* ATMetalBand.release.xcconfig */,
+				2DDB59D63AAF029D90BC5E9DA0ECFDE6 /* ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist */,
+			);
+			name = "Support Files";
+			path = "Pods/Target Support Files/ATMetalBand";
+			sourceTree = "<group>";
+		};
+		989A00A4444BF03FD5276C0FD75A2A18 /* Pods-MetalDemoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				FCAF9D5F3CAD61485CFB795A91528BE1 /* Pods-MetalDemoUITests-acknowledgements.markdown */,
+				C2F4119A8B71D64E3BD0BD3B4B22632A /* Pods-MetalDemoUITests-acknowledgements.plist */,
+				8988ED5146830985F5A08F44702A94F2 /* Pods-MetalDemoUITests-dummy.m */,
+				93951703A091980835660AFEEED5E2E8 /* Pods-MetalDemoUITests.debug.xcconfig */,
+				8C002616685BFE8B51030AE8E5A51491 /* Pods-MetalDemoUITests.release.xcconfig */,
+			);
+			name = "Pods-MetalDemoUITests";
+			path = "Target Support Files/Pods-MetalDemoUITests";
+			sourceTree = "<group>";
+		};
+		B6FF84B2D86EE06A6896E690CF6A7976 /* Effect */ = {
+			isa = PBXGroup;
+			children = (
+				509AA69540ABEB2FCDF7B02485AE55D5 /* Brightness.metal */,
+				8E4AB79BC6D68712557CF5B7E0469DC1 /* C7Brightness.swift */,
+				5B173560BE9749662A0FFD9F5C61E2FD /* C7Exposure.swift */,
+				C11E5394E9FE9EB99A692907A85FFA10 /* C7Luminance.swift */,
+				721E6AB50105CC6F005A95ECFCA35753 /* C7LuminanceThreshold.swift */,
+				4D3AFE732D4D03416B20817148B63AD7 /* C7Opacity.swift */,
+				DF5C3B3CC05E25F87752D52945B630B1 /* C7ZoomBlur.swift */,
+				54A57CABFAD7033AD9DA8FE2972BFF30 /* Exposure.metal */,
+				151A552FAD60515A1BEA1FE727105EAF /* Luminance.metal */,
+				0D95381DFAE754D28CA61457A5200998 /* LuminanceThreshold.metal */,
+				81432CF50D5A5F58FC939315B74154A6 /* Opacity.metal */,
+				BB7A4FA122D8A1AE20B58E84B3E7BFF3 /* ZoomBlur.metal */,
+			);
+			name = Effect;
+			sourceTree = "<group>";
+		};
+		CE4676D902E4C7FFF53B602910BDBFE8 /* Compute */ = {
+			isa = PBXGroup;
+			children = (
+				B6FF84B2D86EE06A6896E690CF6A7976 /* Effect */,
+				67F2EA4A3C08D75E258DBB08C3B9EB7B /* Filter */,
+				6A8EE5C7EFC7EC81A8543DA6CD4F012A /* Lookup */,
+			);
+			name = Compute;
 			sourceTree = "<group>";
 		};
 		CF1408CF629C7361332E53B88F7BD30C = {
 			isa = PBXGroup;
 			children = (
 				9D940727FF8FB9C785EB98E56350EF41 /* Podfile */,
+				DFD9EE56E837EA1C6AA945BC8519902C /* Development Pods */,
 				D210D550F4EA176C3123ED886F8F87F5 /* Frameworks */,
-				F34D131EF8A7F571590D62C9EC8B88E6 /* Products */,
-				F9A8DEEFAE313C306541E9DA05486536 /* Targets Support Files */,
+				4EC17545ED3A0FCC294574EDC95783E0 /* Products */,
+				51B1BBC57E02243F4475269B7BD6558D /* Targets Support Files */,
 			);
 			sourceTree = "<group>";
 		};
@@ -152,109 +348,151 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		F34D131EF8A7F571590D62C9EC8B88E6 /* Products */ = {
+		DB5E773C915ECD25E60CAD781E769064 /* Basic */ = {
 			isa = PBXGroup;
 			children = (
-				1A2F8ADA06BCE52AF7843FAF441CC1FA /* Pods-MetalQueenDemo */,
-				202363B9D45D25A79A56BC7DC341B1F0 /* Pods-MetalQueenDemoTests */,
-				FD9140C3127C4ED5181FB03A20F3C2DE /* Pods-MetalQueenDemoUITests */,
+				D472A7A6368F5DDEF314B29474D61678 /* C7FilterManager.swift */,
+				75D7B7287A728CC950ADAAFB80E1D9FF /* C7FilterProtocol.swift */,
+				FD9053D20EEB2BACB9F6412B6824C6DF /* C7FilterUtil.swift */,
+				B4B0300C27506C142AB658FBEE44CABF /* MTQCompatible.swift */,
+				51313111E8EFD1D913B1E2687ACAB768 /* MTQTransform.swift */,
+				2CEC4181F07F04FBC918A797AFACEAB8 /* RenderingDevice.swift */,
 			);
-			name = Products;
+			name = Basic;
 			sourceTree = "<group>";
 		};
-		F9A8DEEFAE313C306541E9DA05486536 /* Targets Support Files */ = {
+		DFD9EE56E837EA1C6AA945BC8519902C /* Development Pods */ = {
 			isa = PBXGroup;
 			children = (
-				5CEBE16325ECA525372DAFB7CFD0A744 /* Pods-MetalQueenDemo */,
-				908F830776420ABE50A4F07CFBAAEA65 /* Pods-MetalQueenDemoTests */,
-				8D5DD6EF757915AA571F9571D098FA3C /* Pods-MetalQueenDemoUITests */,
+				6718A6885517641010643B46A5012D65 /* ATMetalBand */,
 			);
-			name = "Targets Support Files";
+			name = "Development Pods";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
-		4A5BC424D94A5B557916FF15975241D2 /* Headers */ = {
+		1268D094366E278399261E4BAA96F6E2 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				55AA09EDD315666E714A5B9AABEA2113 /* Pods-MetalQueenDemoUITests-umbrella.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		50931153E5D0F5F1B214B94265AA5083 /* Headers */ = {
+		5C0B8BC62A36507F6B75C2CC09E0FEE0 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2BE5520171E6FB5BB4C7CC16918E306A /* Pods-MetalQueenDemoTests-umbrella.h in Headers */,
+				A9304A2E1AEC0619640F28789D2DC6F3 /* Pods-MetalDemo-umbrella.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E7035B5204DCEBD636A72B93985FA8AB /* Headers */ = {
+		ACC999AD7A717CEB902297214B803949 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				512AAA3E8011471133F5FAB08FA4286C /* Pods-MetalQueenDemo-umbrella.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC7B5E4B850EE1BB2FF3916D96DCAF67 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59ABD4297FE1C33B3397EAE553E07605 /* ATMetalBand-umbrella.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		308447F54F979C33E677A995C1A62D2F /* Pods-MetalQueenDemo */ = {
+		09763EF6C518BD793B55E67014348C7D /* ATMetalBand */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 7571CCABCEBE70FB168EF5054F0869CD /* Build configuration list for PBXNativeTarget "Pods-MetalQueenDemo" */;
+			buildConfigurationList = 8CD46A0CCE8C8531088868BCE5377156 /* Build configuration list for PBXNativeTarget "ATMetalBand" */;
 			buildPhases = (
-				E7035B5204DCEBD636A72B93985FA8AB /* Headers */,
-				494721BD50E84244C34A044972586979 /* Sources */,
-				E965102E59C6665EFB453F74E20BE123 /* Frameworks */,
-				0EC825847A2F7244EC6E8D96B90244D0 /* Resources */,
+				CC7B5E4B850EE1BB2FF3916D96DCAF67 /* Headers */,
+				C95B59AF81D9BF20F14A049FDF30F216 /* Sources */,
+				3BD728D5F12529E947F02B6B01831916 /* Frameworks */,
+				A0218B955C4C452B7094EDC8230FD4F6 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6215D6B7382F30AC374C1B288ED2E7C2 /* PBXTargetDependency */,
 			);
-			name = "Pods-MetalQueenDemo";
-			productName = Pods_MetalQueenDemo;
-			productReference = 1A2F8ADA06BCE52AF7843FAF441CC1FA /* Pods-MetalQueenDemo */;
+			name = ATMetalBand;
+			productName = ATMetalBand;
+			productReference = FF77BC66D91AAEFBF658D32710A0C711 /* ATMetalBand */;
 			productType = "com.apple.product-type.framework";
 		};
-		9E88FF346370678953A21F435E6D5123 /* Pods-MetalQueenDemoTests */ = {
+		167031EDDBABA205D1F503D4F3C03B97 /* Pods-MetalDemo */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E1CF0FCAE54366939AACD635B30487E5 /* Build configuration list for PBXNativeTarget "Pods-MetalQueenDemoTests" */;
+			buildConfigurationList = 1F983E1FE0AECFB2C555D20302F87168 /* Build configuration list for PBXNativeTarget "Pods-MetalDemo" */;
 			buildPhases = (
-				50931153E5D0F5F1B214B94265AA5083 /* Headers */,
-				B20B0B4C3F347594A391E7E60ADA8D7E /* Sources */,
-				C75EF804E2F53606084CE270DF5BE02A /* Frameworks */,
-				AB4F4DC2D667E9956545C6598BBBB95B /* Resources */,
+				5C0B8BC62A36507F6B75C2CC09E0FEE0 /* Headers */,
+				5C7F330FA4042D0D68A2EEACD3F1949A /* Sources */,
+				961F3146A58C2FC60039D43008764858 /* Frameworks */,
+				DEFE2BEFE9BF859FF234F857767B6DD5 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0B56A84DCFE5C35AD8F3278C15AC3318 /* PBXTargetDependency */,
 			);
-			name = "Pods-MetalQueenDemoTests";
-			productName = Pods_MetalQueenDemoTests;
-			productReference = 202363B9D45D25A79A56BC7DC341B1F0 /* Pods-MetalQueenDemoTests */;
+			name = "Pods-MetalDemo";
+			productName = Pods_MetalDemo;
+			productReference = 18D2564A72DAA6DFD0EB166D766E3C8E /* Pods-MetalDemo */;
 			productType = "com.apple.product-type.framework";
 		};
-		F4D6724072BCDBD851894DAA99F8B929 /* Pods-MetalQueenDemoUITests */ = {
+		4F5D074D0E26BE77261A21185943E777 /* Pods-MetalDemoUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E96D4A1D0AAEF2C5BF8EA370E2F69BB9 /* Build configuration list for PBXNativeTarget "Pods-MetalQueenDemoUITests" */;
+			buildConfigurationList = A5DF78CB86726E9C159176F3E11E69AE /* Build configuration list for PBXNativeTarget "Pods-MetalDemoUITests" */;
 			buildPhases = (
-				4A5BC424D94A5B557916FF15975241D2 /* Headers */,
-				DB7244A50AB8B975566B0F52654570D0 /* Sources */,
-				F0E1096BCB70014AA038088BA83CA9CE /* Frameworks */,
-				79A36F72FBCA0164819220DFD5B11A32 /* Resources */,
+				ACC999AD7A717CEB902297214B803949 /* Headers */,
+				5E766E1AFDF72025B73776C56D8B47E3 /* Sources */,
+				11BA7C41D4643D9578CF2D400CDAF4D3 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = "Pods-MetalQueenDemoUITests";
-			productName = Pods_MetalQueenDemoUITests;
-			productReference = FD9140C3127C4ED5181FB03A20F3C2DE /* Pods-MetalQueenDemoUITests */;
-			productType = "com.apple.product-type.framework";
+			name = "Pods-MetalDemoUITests";
+			productName = "Pods-MetalDemoUITests";
+			productReference = 4DB080C69116EB0D87A809FD14797FA1 /* Pods-MetalDemoUITests */;
+			productType = "com.apple.product-type.library.static";
+		};
+		94707657354CC2428E6660E3C11ADBBF /* ATMetalBand-ATMetalLibrary */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 13F413A7B0AE49D261F68290D0A7E805 /* Build configuration list for PBXNativeTarget "ATMetalBand-ATMetalLibrary" */;
+			buildPhases = (
+				976253238162D487534DDD7445631575 /* Sources */,
+				DA134557372918BFE4DC0D7D663BB81A /* Frameworks */,
+				029C18DEA2B7F78BBF0BBAC8C5532170 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "ATMetalBand-ATMetalLibrary";
+			productName = ATMetalLibrary;
+			productReference = B0BE393011ACF7D1A45B0E06C1A12B7E /* ATMetalBand-ATMetalLibrary */;
+			productType = "com.apple.product-type.bundle";
+		};
+		B4B800D839C0BFE096F697E353105A46 /* Pods-MetalDemoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 283145F23A16A3E140771D76EC07ADB2 /* Build configuration list for PBXNativeTarget "Pods-MetalDemoTests" */;
+			buildPhases = (
+				1268D094366E278399261E4BAA96F6E2 /* Headers */,
+				BF9529433D2D77295EC74E1B25468DF1 /* Sources */,
+				1CD81D78157A803A61BAE748801E129F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Pods-MetalDemoTests";
+			productName = "Pods-MetalDemoTests";
+			productReference = 863449BE951370966E78DFA3EDFE9DD6 /* Pods-MetalDemoTests */;
+			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */
 
@@ -274,33 +512,44 @@
 				en,
 			);
 			mainGroup = CF1408CF629C7361332E53B88F7BD30C;
-			productRefGroup = F34D131EF8A7F571590D62C9EC8B88E6 /* Products */;
+			productRefGroup = 4EC17545ED3A0FCC294574EDC95783E0 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				308447F54F979C33E677A995C1A62D2F /* Pods-MetalQueenDemo */,
-				9E88FF346370678953A21F435E6D5123 /* Pods-MetalQueenDemoTests */,
-				F4D6724072BCDBD851894DAA99F8B929 /* Pods-MetalQueenDemoUITests */,
+				09763EF6C518BD793B55E67014348C7D /* ATMetalBand */,
+				94707657354CC2428E6660E3C11ADBBF /* ATMetalBand-ATMetalLibrary */,
+				167031EDDBABA205D1F503D4F3C03B97 /* Pods-MetalDemo */,
+				B4B800D839C0BFE096F697E353105A46 /* Pods-MetalDemoTests */,
+				4F5D074D0E26BE77261A21185943E777 /* Pods-MetalDemoUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		0EC825847A2F7244EC6E8D96B90244D0 /* Resources */ = {
+		029C18DEA2B7F78BBF0BBAC8C5532170 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCA92606803EC23B0729658C2B1624C7 /* Brightness.metal in Resources */,
+				FD3099C6F4AC7253BE33C430C067235B /* ColorInvert.metal in Resources */,
+				D13F7730ECA26A0F635118979E6CBE23 /* ColorSwizzle.metal in Resources */,
+				611C5049C1F222F1F2C66F3A6DB08190 /* Exposure.metal in Resources */,
+				A5EA436C416CC1C5AEAB272734E6B544 /* LookupFilter.metal in Resources */,
+				BA4CB2C28E6854F7D7DF83E57FE5398C /* Luminance.metal in Resources */,
+				B1A95DE91EA06013CEC98A0B61E4182D /* LuminanceThreshold.metal in Resources */,
+				BDE5DFA3A3B53825DCFFDEFEB5920307 /* Opacity.metal in Resources */,
+				EA012789F4E298523AEB80D6C8995484 /* ZoomBlur.metal in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A0218B955C4C452B7094EDC8230FD4F6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		79A36F72FBCA0164819220DFD5B11A32 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AB4F4DC2D667E9956545C6598BBBB95B /* Resources */ = {
+		DEFE2BEFE9BF859FF234F857767B6DD5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -310,36 +559,126 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		494721BD50E84244C34A044972586979 /* Sources */ = {
+		5C7F330FA4042D0D68A2EEACD3F1949A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ED2197D59BA81056DDF42C504009BC1E /* Pods-MetalQueenDemo-dummy.m in Sources */,
+				5C47CE177D9D8CD8319CB322BD71FFA8 /* Pods-MetalDemo-dummy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B20B0B4C3F347594A391E7E60ADA8D7E /* Sources */ = {
+		5E766E1AFDF72025B73776C56D8B47E3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				795B18900C3583DC26C79E92099C7C6D /* Pods-MetalQueenDemoTests-dummy.m in Sources */,
+				4F8A93F310B91DA166313F29F0746C01 /* Pods-MetalDemoUITests-dummy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DB7244A50AB8B975566B0F52654570D0 /* Sources */ = {
+		976253238162D487534DDD7445631575 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				69E594098118D5D7CB1D321383B46CE4 /* Pods-MetalQueenDemoUITests-dummy.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF9529433D2D77295EC74E1B25468DF1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9C6C291988EF3C0778305792673CB08E /* Pods-MetalDemoTests-dummy.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C95B59AF81D9BF20F14A049FDF30F216 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1745974DED23D1BCBBF91954BBE17B9D /* ATMetalBand-dummy.m in Sources */,
+				25473622B9469729AB97164091E802FD /* Brightness.metal in Sources */,
+				4EAFC9C8E1800968436639735343EB42 /* C7Brightness.swift in Sources */,
+				4B82A61DCCE8C9D934E11480B8C837AF /* C7ComputeFilter.swift in Sources */,
+				66EB4AA8FB5709B0FE352D488B48D065 /* C7Exposure.swift in Sources */,
+				2E8B69D7A4897DD1BA8C273C5CFF6BCC /* C7FilterManager.swift in Sources */,
+				47F22D8A83FB5ED93AB86D6BEA0EE654 /* C7FilterProtocol.swift in Sources */,
+				D17D7807EDFEDFFD37CB9E4D5123644C /* C7FilterUtil.swift in Sources */,
+				09FB33F15F4D9200C0E5D24BBC0C2FE0 /* C7LookupFilter.swift in Sources */,
+				E93708C09B6FEA77C2869DE9009ACFE9 /* C7Luminance.swift in Sources */,
+				EBA5163A0FBECADE8BF984F5A6008799 /* C7LuminanceThreshold.swift in Sources */,
+				BC2D6AC5C787D13027CD11BDB5CAEBD8 /* C7Opacity.swift in Sources */,
+				3AF946D475EB6753C9B12493D1A283B9 /* C7ZoomBlur.swift in Sources */,
+				381F2B8CD3D8103FA520D5E7DD241FDB /* ColorInvert.metal in Sources */,
+				1C10E7C55D2CAFE88BE2EBAD2BCB8394 /* ColorSwizzle.metal in Sources */,
+				CF3B53B92F0BB060414E865BE38692BB /* Exposure.metal in Sources */,
+				3BD12E3431D7560664C2B5D5470A151C /* LookupFilter.metal in Sources */,
+				0F5EF74BDDDE0057A1F47EC335CA97CF /* Luminance.metal in Sources */,
+				74FDDE25E9580965EAF683398C993AD8 /* LuminanceThreshold.metal in Sources */,
+				387BE633CD04854FCE7723886ED1F87F /* MTQCompatible.swift in Sources */,
+				43D6F8CFC43E7C7429A8DB33BC10FC36 /* MTQTransform.swift in Sources */,
+				000A226C46C6D17D5B5586B90221618D /* Opacity.metal in Sources */,
+				C63C975ADF2878B9D9A199562462939F /* RenderingDevice.swift in Sources */,
+				6AF09D2103B9A081DF98FE339006BD87 /* ZoomBlur.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		0B56A84DCFE5C35AD8F3278C15AC3318 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ATMetalBand;
+			target = 09763EF6C518BD793B55E67014348C7D /* ATMetalBand */;
+			targetProxy = 56CF45304389FB0070896ED7F4F58B59 /* PBXContainerItemProxy */;
+		};
+		6215D6B7382F30AC374C1B288ED2E7C2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "ATMetalBand-ATMetalLibrary";
+			target = 94707657354CC2428E6660E3C11ADBBF /* ATMetalBand-ATMetalLibrary */;
+			targetProxy = BAEDE19461EE77AA7A01C57DB6652EB3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
-		20865F52B929D1F35C321B14F1A9576F /* Release */ = {
+		0009CBD22C8854F4796A32BB9FBB54C0 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9C094F8BCD5F195D9F6A3186D100B476 /* Pods-MetalQueenDemo.release.xcconfig */;
+			baseConfigurationReference = 1EF167AEEC2603F9242EAFCD55C2F0A3 /* ATMetalBand.debug.xcconfig */;
+			buildSettings = {
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/ATMetalBand";
+				IBSC_MODULE = ATMetalBand;
+				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				PRODUCT_NAME = ATMetalLibrary;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Debug;
+		};
+		39F9F7B83492442CF23AE8A5751AF75C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A591FF14548982C14AB32570AB125E60 /* Pods-MetalDemoTests.debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.2;
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		47BB57C10F54CE23E2849FC722D9CFFF /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 077576EDA9B3157FB0569729FBB51E2C /* Pods-MetalDemo.release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CLANG_ENABLE_OBJC_WEAK = NO;
@@ -351,7 +690,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				INFOPLIST_FILE = "Target Support Files/Pods-MetalQueenDemo/Pods-MetalQueenDemo-Info.plist";
+				INFOPLIST_FILE = "Target Support Files/Pods-MetalDemo/Pods-MetalDemo-Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -360,7 +699,7 @@
 					"@loader_path/Frameworks",
 				);
 				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/Pods-MetalQueenDemo/Pods-MetalQueenDemo.modulemap";
+				MODULEMAP_FILE = "Target Support Files/Pods-MetalDemo/Pods-MetalDemo.modulemap";
 				OTHER_LDFLAGS = "";
 				OTHER_LIBTOOLFLAGS = "";
 				PODS_ROOT = "$(SRCROOT)";
@@ -375,11 +714,70 @@
 			};
 			name = Release;
 		};
-		33637551E554A5B0439E44F5146960FF /* Debug */ = {
+		4ACEDE657AEEEB96097855AE9555FC24 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 56337BC2ADAC3CAE33A0088E111B4D15 /* Pods-MetalQueenDemoUITests.debug.xcconfig */;
+			baseConfigurationReference = 9D32B5BE6F116E44425A593BDFD4A1FA /* ATMetalBand.release.xcconfig */;
+			buildSettings = {
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/ATMetalBand";
+				IBSC_MODULE = ATMetalBand;
+				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				PRODUCT_NAME = ATMetalLibrary;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Release;
+		};
+		50B588045327EA3225DE8900ED43AC07 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8C002616685BFE8B51030AE8E5A51491 /* Pods-MetalDemoUITests.release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		6D8DADF3B9515A88A2A4ABCB411114A0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5A85DAC6D7B32C7BA880553D1609D880 /* Pods-MetalDemoTests.release.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.2;
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		6F5EEC27E67076EEB82A269ECC261458 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1EF167AEEC2603F9242EAFCD55C2F0A3 /* ATMetalBand.debug.xcconfig */;
+			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
@@ -389,63 +787,46 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				INFOPLIST_FILE = "Target Support Files/Pods-MetalQueenDemoUITests/Pods-MetalQueenDemoUITests-Info.plist";
+				GCC_PREFIX_HEADER = "Target Support Files/ATMetalBand/ATMetalBand-prefix.pch";
+				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ATMetalBand-Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
 				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/Pods-MetalQueenDemoUITests/Pods-MetalQueenDemoUITests.modulemap";
-				OTHER_LDFLAGS = "";
-				OTHER_LIBTOOLFLAGS = "";
-				PODS_ROOT = "$(SRCROOT)";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				MODULEMAP_FILE = "Target Support Files/ATMetalBand/ATMetalBand.modulemap";
+				PRODUCT_MODULE_NAME = ATMetalBand;
+				PRODUCT_NAME = ATMetalBand;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};
 			name = Debug;
 		};
-		48221BFFCB2E22597922C075C1EFC9C3 /* Debug */ = {
+		7C72BCF5AAA45EF8C7AA087EBA9C2A31 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = CF0DE58191DCCEAFDD5271A1F02D57E3 /* Pods-MetalQueenDemo.debug.xcconfig */;
+			baseConfigurationReference = 93951703A091980835660AFEEED5E2E8 /* Pods-MetalDemoUITests.debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
-				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				INFOPLIST_FILE = "Target Support Files/Pods-MetalQueenDemo/Pods-MetalQueenDemo-Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
 				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/Pods-MetalQueenDemo/Pods-MetalQueenDemo.modulemap";
 				OTHER_LDFLAGS = "";
 				OTHER_LIBTOOLFLAGS = "";
 				PODS_ROOT = "$(SRCROOT)";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
 			};
 			name = Debug;
 		};
@@ -577,9 +958,9 @@
 			};
 			name = Release;
 		};
-		A6AEEC6EA42DE40F3BC6BDBF878897AA /* Release */ = {
+		A3EA815384ACCF0D0EAAB789EA42FD73 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 8B6CC1ACFB33CD49BCEBA39551BA5E56 /* Pods-MetalQueenDemoTests.release.xcconfig */;
+			baseConfigurationReference = 6A0048E7049D7220184358B046A1DC45 /* Pods-MetalDemo.debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				CLANG_ENABLE_OBJC_WEAK = NO;
@@ -591,7 +972,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				INFOPLIST_FILE = "Target Support Files/Pods-MetalQueenDemoTests/Pods-MetalQueenDemoTests-Info.plist";
+				INFOPLIST_FILE = "Target Support Files/Pods-MetalDemo/Pods-MetalDemo-Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -600,83 +981,7 @@
 					"@loader_path/Frameworks",
 				);
 				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/Pods-MetalQueenDemoTests/Pods-MetalQueenDemoTests.modulemap";
-				OTHER_LDFLAGS = "";
-				OTHER_LIBTOOLFLAGS = "";
-				PODS_ROOT = "$(SRCROOT)";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = Release;
-		};
-		B10CCBD3C4CECF395536215C36AE043E /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 48B290EDB373A9461CF9CBE93A4C588C /* Pods-MetalQueenDemoUITests.release.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
-				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				INFOPLIST_FILE = "Target Support Files/Pods-MetalQueenDemoUITests/Pods-MetalQueenDemoUITests-Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/Pods-MetalQueenDemoUITests/Pods-MetalQueenDemoUITests.modulemap";
-				OTHER_LDFLAGS = "";
-				OTHER_LIBTOOLFLAGS = "";
-				PODS_ROOT = "$(SRCROOT)";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = Release;
-		};
-		E50FC9B18B9B27B37336FA93A319B778 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = F9B5D999373CA69EABE89C5C9F3E177E /* Pods-MetalQueenDemoTests.debug.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
-				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				INFOPLIST_FILE = "Target Support Files/Pods-MetalQueenDemoTests/Pods-MetalQueenDemoTests-Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/Pods-MetalQueenDemoTests/Pods-MetalQueenDemoTests.modulemap";
+				MODULEMAP_FILE = "Target Support Files/Pods-MetalDemo/Pods-MetalDemo.modulemap";
 				OTHER_LDFLAGS = "";
 				OTHER_LIBTOOLFLAGS = "";
 				PODS_ROOT = "$(SRCROOT)";
@@ -690,9 +995,72 @@
 			};
 			name = Debug;
 		};
+		B905243C0A71A1475092764594897BEB /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9D32B5BE6F116E44425A593BDFD4A1FA /* ATMetalBand.release.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GCC_PREFIX_HEADER = "Target Support Files/ATMetalBand/ATMetalBand-prefix.pch";
+				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ATMetalBand-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MODULEMAP_FILE = "Target Support Files/ATMetalBand/ATMetalBand.modulemap";
+				PRODUCT_MODULE_NAME = ATMetalBand;
+				PRODUCT_NAME = ATMetalBand;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		13F413A7B0AE49D261F68290D0A7E805 /* Build configuration list for PBXNativeTarget "ATMetalBand-ATMetalLibrary" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0009CBD22C8854F4796A32BB9FBB54C0 /* Debug */,
+				4ACEDE657AEEEB96097855AE9555FC24 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1F983E1FE0AECFB2C555D20302F87168 /* Build configuration list for PBXNativeTarget "Pods-MetalDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A3EA815384ACCF0D0EAAB789EA42FD73 /* Debug */,
+				47BB57C10F54CE23E2849FC722D9CFFF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		283145F23A16A3E140771D76EC07ADB2 /* Build configuration list for PBXNativeTarget "Pods-MetalDemoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				39F9F7B83492442CF23AE8A5751AF75C /* Debug */,
+				6D8DADF3B9515A88A2A4ABCB411114A0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		4821239608C13582E20E6DA73FD5F1F9 /* Build configuration list for PBXProject "Pods" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -702,29 +1070,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		7571CCABCEBE70FB168EF5054F0869CD /* Build configuration list for PBXNativeTarget "Pods-MetalQueenDemo" */ = {
+		8CD46A0CCE8C8531088868BCE5377156 /* Build configuration list for PBXNativeTarget "ATMetalBand" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				48221BFFCB2E22597922C075C1EFC9C3 /* Debug */,
-				20865F52B929D1F35C321B14F1A9576F /* Release */,
+				6F5EEC27E67076EEB82A269ECC261458 /* Debug */,
+				B905243C0A71A1475092764594897BEB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		E1CF0FCAE54366939AACD635B30487E5 /* Build configuration list for PBXNativeTarget "Pods-MetalQueenDemoTests" */ = {
+		A5DF78CB86726E9C159176F3E11E69AE /* Build configuration list for PBXNativeTarget "Pods-MetalDemoUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E50FC9B18B9B27B37336FA93A319B778 /* Debug */,
-				A6AEEC6EA42DE40F3BC6BDBF878897AA /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E96D4A1D0AAEF2C5BF8EA370E2F69BB9 /* Build configuration list for PBXNativeTarget "Pods-MetalQueenDemoUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				33637551E554A5B0439E44F5146960FF /* Debug */,
-				B10CCBD3C4CECF395536215C36AE043E /* Release */,
+				7C72BCF5AAA45EF8C7AA087EBA9C2A31 /* Debug */,
+				50B588045327EA3225DE8900ED43AC07 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

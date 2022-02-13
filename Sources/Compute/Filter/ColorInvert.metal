@@ -8,7 +8,6 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// 1-rgb
 kernel void ColorInvert(texture2d<half, access::write> outTexture [[texture(0)]],
                         texture2d<half, access::read> inTexture [[texture(1)]],
                         uint2 grid [[thread_position_in_grid]]) {
