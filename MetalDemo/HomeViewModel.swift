@@ -22,6 +22,7 @@ enum ViewControllerType: String {
     case Exposure = "曝光"
     case abao = "阿宝色滤镜"
     case ZoomBlur = "中心点缩放模糊"
+    case Pixellated = "马赛克像素化"
     
     var image: UIImage {
         switch self {
@@ -85,6 +86,13 @@ enum ViewControllerType: String {
                 return filter
             }
             return (filter, (filter.blurSize, 0, 20), cb)
+        case .Pixellated:
+            var filter = C7Pixellated()
+            let cb: FilterCallback = {
+                filter.pixelWidth = $0
+                return filter
+            }
+            return (filter, (filter.pixelWidth, 0, 0.2), cb)
         }
     }
 }
@@ -100,7 +108,7 @@ struct HomeViewModel {
     
     let effect: [ViewControllerType] = [
         .Brightness, .Luminance, .Opacity,
-        .Exposure, .ZoomBlur,
+        .Exposure, .ZoomBlur, .Pixellated,
     ]
     
     let filter: [ViewControllerType] = [
