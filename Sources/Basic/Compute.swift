@@ -15,9 +15,9 @@ struct Compute {
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
     static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState {
-        let function = RenderingDevice.readMTLFunction(kernel)
+        let function = Device.readMTLFunction(kernel)
         do {
-            let pipelineState = try RenderingDevice.shared.device.makeComputePipelineState(function: function)
+            let pipelineState = try Device.shared.device.makeComputePipelineState(function: function)
             return pipelineState
         } catch {
             fatalError("Unable to setup Metal")
@@ -37,7 +37,7 @@ struct Compute {
             computeEncoder.setTexture(texture, index: index)
         }
         
-        let device = RenderingDevice.shared.device
+        let device = Device.shared.device
         let size = max(MemoryLayout<T>.size, 16)
         let buffer = device.makeBuffer(bytes: factors, length: size, options: MTLResourceOptions.storageModeShared)
         for i in 0..<factors.count {

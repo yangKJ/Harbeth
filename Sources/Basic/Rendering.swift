@@ -16,10 +16,10 @@ struct Rendering {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
         descriptor.rasterSampleCount = 1
-        descriptor.vertexFunction = RenderingDevice.readMTLFunction(vertex)
-        descriptor.fragmentFunction = RenderingDevice.readMTLFunction(fragment)
+        descriptor.vertexFunction = Device.readMTLFunction(vertex)
+        descriptor.fragmentFunction = Device.readMTLFunction(fragment)
         do {
-            let pipelineState = try RenderingDevice.shared.device.makeRenderPipelineState(descriptor: descriptor)
+            let pipelineState = try Device.shared.device.makeRenderPipelineState(descriptor: descriptor)
             return pipelineState
         } catch {
             fatalError("Could not create render pipeline state for vertex:\(vertex), fragment:\(fragment)")
@@ -40,7 +40,7 @@ struct Rendering {
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
             fatalError("Could not create render encoder")
         }
-        let device = RenderingDevice.shared.device
+        let device = Device.shared.device
         let size = MemoryLayout<T>.size
         let vertexBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!
         

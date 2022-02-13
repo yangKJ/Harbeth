@@ -74,12 +74,12 @@ extension C7FilterSerializer {
                                                                   height: height,
                                                                   mipmapped: mipmapped)
         descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
-        return RenderingDevice.shared.device.makeTexture(descriptor: descriptor)!
+        return Device.shared.device.makeTexture(descriptor: descriptor)!
     }
     
     /// Create command buffer.
     private func makeCommandBuffer() -> MTLCommandBuffer? {
-        let commandBuffer = RenderingDevice.shared.commandQueue.makeCommandBuffer()
+        let commandBuffer = Device.shared.commandQueue.makeCommandBuffer()
         commandBuffer?.label = "QueenCommand"
         return commandBuffer
     }

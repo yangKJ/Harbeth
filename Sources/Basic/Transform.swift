@@ -21,7 +21,7 @@ extension MTLTexture {
         
         //kCGImageAlphaPremultipliedLast保留透明度
         let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
-        let colorSpace = RenderingDevice.shared.colorSpace//CGColorSpaceCreateDeviceRGB()
+        let colorSpace = Device.shared.colorSpace//CGColorSpaceCreateDeviceRGB()
         
         let bitsPerComponent = 8
         let context = CGContext(data: &src,
