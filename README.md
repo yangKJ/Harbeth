@@ -3,8 +3,8 @@
 ![x](Screenshot/launch.jpeg)
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/ATMetalBand)
-[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/ATMetalBand.svg?style=flat&label=Metal&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/ATMetalBand)
-[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=Opencv&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
+[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/ATMetalBand.svg?style=flat&label=ATMetalBand&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/ATMetalBand)
+[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
 
 [**ATMetalBand**](https://github.com/yangKJ/ATMetalBand) is mainly used to learn image processing related records, such as [OpenCV 4.0.1](https://docs.opencv.org/4.0.1/modules.html), [Metal](https://developer.apple.com/metal), [OpenGL](https://www.opengl.org) graphic filter processing etc.
