@@ -16,8 +16,10 @@ public class RenderingDevice {
     public let device: MTLDevice
     /// 单一命令队列
     public let commandQueue: MTLCommandQueue
-    /// 默认提供的函数库，项目中所有 `.metal` 着色器文件
-    public let defaultLibrary: MTLLibrary
+    /// 默认提供的函数库，项目中所有 `.metal` 文件
+    public let defaultLibrary: MTLLibrary?
+    ///`ATMetalBand`库当中的所有 `.metal` 文件
+    public let ATMetalLibrary: MTLLibrary?
     /// 加载纹理工具
     public let textureLoader: MTKTextureLoader
     public let colorSpace: CGColorSpace
@@ -35,10 +37,12 @@ public class RenderingDevice {
         }
         self.commandQueue = queue
         
-        guard let library = device.makeLibrary(forResource: "ATMetalLibrary") else {
+        self.defaultLibrary = device.makeDefaultLibrary()
+        self.ATMetalLibrary = device.makeATLibrary(forResource: "ATMetalLibrary")
+        
+        if defaultLibrary == nil && ATMetalLibrary == nil {
             fatalError("Could not load library")
         }
-        self.defaultLibrary = library
         
         self.textureLoader = MTKTextureLoader(device: device)
         
@@ -48,7 +52,7 @@ public class RenderingDevice {
 
 extension MTLDevice {
     
-    func makeLibrary(forResource: String) -> MTLLibrary? {
+    func makeATLibrary(forResource: String) -> MTLLibrary? {
         // 兼容CocoaPods导入framework方式的Bundle地址
         guard let bundleURL = Bundle.main.url(forResource: forResource, withExtension: "bundle"),
               let bundle = Bundle(url: bundleURL) else {
@@ -58,5 +62,21 @@ extension MTLDevice {
             return nil
         }
         return try? makeLibrary(filepath: path)
+    }
+}
+
+extension RenderingDevice {
+    
+    static func readMTLFunction(_ name: String) -> MTLFunction {
+        // 先读取项目当中的`.metal`
+        if let libray = RenderingDevice.shared.defaultLibrary, let function = libray.makeFunction(name: name) {
+            return function
+        }
+        // 再读取CocoaPods当中
+        if let libray = RenderingDevice.shared.ATMetalLibrary, let function = libray.makeFunction(name: name) {
+            return function
+        }
+        
+        fatalError("Read MTL Function failed with \(name)")
     }
 }

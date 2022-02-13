@@ -49,7 +49,7 @@ extension C7FilterUtil.Compute {
     /// - Parameter kernel: 数据并行计算着色函数名称
     /// - Returns: MTLComputePipelineState
     static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState {
-        let function = RenderingDevice.shared.defaultLibrary.makeFunction(name: kernel)!
+        let function = RenderingDevice.readMTLFunction(kernel)
         do {
             let pipelineState = try RenderingDevice.shared.device.makeComputePipelineState(function: function)
             return pipelineState
@@ -96,8 +96,8 @@ extension C7FilterUtil.Render {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
         descriptor.rasterSampleCount = 1
-        descriptor.vertexFunction = RenderingDevice.shared.defaultLibrary.makeFunction(name: vertex)
-        descriptor.fragmentFunction = RenderingDevice.shared.defaultLibrary.makeFunction(name: fragment)
+        descriptor.vertexFunction = RenderingDevice.readMTLFunction(vertex)
+        descriptor.fragmentFunction = RenderingDevice.readMTLFunction(fragment)
         do {
             let pipelineState = try RenderingDevice.shared.device.makeRenderPipelineState(descriptor: descriptor)
             return pipelineState
