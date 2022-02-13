@@ -16,7 +16,7 @@ public struct C7Opacity: C7FilterProtocol {
     public var opacity: Float = 1.0
     
     public var modifier: Modifier {
-        return .compute(kernel: "Opacity")
+        return .compute(kernel: "C7Opacity")
     }
     
     public var factors: [Float] {

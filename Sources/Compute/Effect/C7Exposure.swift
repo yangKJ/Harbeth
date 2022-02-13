@@ -13,7 +13,7 @@ public struct C7Exposure: C7FilterProtocol {
     public var exposure: Float = 0.0
     
     public var modifier: Modifier {
-        return .compute(kernel: "Exposure")
+        return .compute(kernel: "C7Exposure")
     }
     
     public var factors: [Float] {

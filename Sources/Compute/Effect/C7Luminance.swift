@@ -15,7 +15,7 @@ public struct C7Luminance: C7FilterProtocol {
     public var luminance: Float = 1.0
     
     public var modifier: Modifier {
-        return .compute(kernel: "Luminance")
+        return .compute(kernel: "C7Luminance")
     }
     
     public var factors: [Float] {

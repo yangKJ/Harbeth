@@ -15,7 +15,7 @@ public struct C7LookupFilter: C7FilterProtocol {
     public var intensity: Float = 0.0
     
     public var modifier: Modifier {
-        return .compute(kernel: "LookupFilter")
+        return .compute(kernel: "C7LookupFilter")
     }
     
     public var factors: [Float] {

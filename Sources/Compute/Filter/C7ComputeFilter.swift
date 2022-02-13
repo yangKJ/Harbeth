@@ -9,9 +9,9 @@ import Foundation
 
 public enum ComputeFilterType: String {
     ///` rgba -> bgra
-    case colorSwizzle = "ColorSwizzle"
+    case colorSwizzle = "C7ColorSwizzle"
     ///` 1 - rgb
-    case colorInvert = "ColorInvert"
+    case colorInvert = "C7ColorInvert"
 }
 
 public struct C7ComputeFilter: C7FilterProtocol {
