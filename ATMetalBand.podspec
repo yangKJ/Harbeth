@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'ATMetalBand'
-  s.version          = '0.0.2'
+  s.version          = '0.0.3'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -35,7 +35,7 @@ Pod::Spec.new do |s|
   }
   
   s.subspec 'Basic' do |xx|
-    xx.source_files = 'Sources/Basic/*'
+    xx.source_files = 'Sources/Basic/**/*.swift'
   end
   
   s.subspec 'Compute' do |xx|
