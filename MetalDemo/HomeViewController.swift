@@ -35,6 +35,7 @@ class HomeViewController: UIViewController {
     
     func setupInit() {
         title = "Metal"
+        view.backgroundColor = UIColor.background
     }
     
     func setupUI() {
@@ -70,6 +71,7 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         cell.selectionStyle = .none
         cell.textLabel?.text = "\(indexPath.row + 1). " + element.rawValue
         cell.textLabel?.font = UIFont.systemFont(ofSize: 14)
+        cell.textLabel?.textColor = UIColor.defaultTint
         return cell
     }
     
@@ -91,4 +93,10 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         vc.title = type.rawValue
         navigationController?.pushViewController(vc, animated: true)
     }
+}
+
+extension UIColor {
+    static let background = UIColor(named: "background")
+    static let background2 = UIColor(named: "background2")
+    static let defaultTint = UIColor(named: "defaultTint")
 }

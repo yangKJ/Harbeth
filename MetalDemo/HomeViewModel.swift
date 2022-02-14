@@ -38,6 +38,8 @@ extension ViewControllerType {
             return UIImage.init(named: "yuan001")!
         case .ColorToGray:
             return UIImage.init(named: "yuan002")!
+        case .ZoomBlur:
+            return UIImage.init(named: "IMG_1668")!
         default:
             return UIImage.init(named: "timg-3")!
         }
@@ -74,7 +76,7 @@ extension ViewControllerType {
             return (filter, (filter.exposure, -2, 2), cb)
         case .abao:
             var filter = C7LookupFilter(image: C7Image(named: "lut_abao")!)
-            filter.intensity = -1
+            filter.intensity = -0.5
             let cb: FilterCallback = {
                 filter.intensity = $0
                 return filter
@@ -105,12 +107,12 @@ extension ViewControllerType {
             }
             return (filter, (0.5, 0, 1), cb)
         case .Hue:
-            var filter = C7Hue(hue: 90)
+            var filter = C7Hue(hue: 10)
             let cb: FilterCallback = {
                 filter.hue = $0
                 return filter
             }
-            return (filter, (filter.hue, filter.minHue, filter.maxHue), cb)
+            return (filter, (filter.hue, 0, 45), cb)
         case .Bulge:
             var filter = C7Bulge(scale: 0.5)
             let cb: FilterCallback = {

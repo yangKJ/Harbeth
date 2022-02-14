@@ -19,6 +19,7 @@
 		04FA70B327B8D7DA006199B0 /* MetalDemoUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA70B227B8D7DA006199B0 /* MetalDemoUITestsLaunchTests.swift */; };
 		04FA70C227B8D8D4006199B0 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA70C027B8D8D4006199B0 /* HomeViewModel.swift */; };
 		04FA70C327B8D8D4006199B0 /* FilterViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA70C127B8D8D4006199B0 /* FilterViewController.swift */; };
+		684C192127BA8045005ACCA7 /* Color.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 684C192027BA8045005ACCA7 /* Color.xcassets */; };
 		6D1EC699C73A07B9503F8872 /* Pods_MetalDemo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0DD4DCEFA13BF5415219F8EE /* Pods_MetalDemo.framework */; };
 		E0560FED70DCD36740EE0A4A /* libPods-MetalDemoTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = ADF29C3B1AFC87EFB494C2D2 /* libPods-MetalDemoTests.a */; };
 		EAC51807608CC80F094EDC39 /* libPods-MetalDemoUITests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = AB6331F607E012019148EB76 /* libPods-MetalDemoUITests.a */; };
@@ -60,6 +61,7 @@
 		04FA70C127B8D8D4006199B0 /* FilterViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FilterViewController.swift; sourceTree = "<group>"; };
 		0DD4DCEFA13BF5415219F8EE /* Pods_MetalDemo.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MetalDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A5CAC2F53A0E19838369511 /* Pods-MetalDemoUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemoUITests.release.xcconfig"; path = "Target Support Files/Pods-MetalDemoUITests/Pods-MetalDemoUITests.release.xcconfig"; sourceTree = "<group>"; };
+		684C192027BA8045005ACCA7 /* Color.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Color.xcassets; sourceTree = "<group>"; };
 		72A61F98A4BC80995F04B23F /* Pods-MetalDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemo.release.xcconfig"; path = "Target Support Files/Pods-MetalDemo/Pods-MetalDemo.release.xcconfig"; sourceTree = "<group>"; };
 		A23258842C01F83C0702A99E /* Pods-MetalDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemoUITests.debug.xcconfig"; path = "Target Support Files/Pods-MetalDemoUITests/Pods-MetalDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		AB6331F607E012019148EB76 /* libPods-MetalDemoUITests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MetalDemoUITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -161,6 +163,7 @@
 		04FA70BF27B8D83B006199B0 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				684C192027BA8045005ACCA7 /* Color.xcassets */,
 				04FA709827B8D7DA006199B0 /* Assets.xcassets */,
 				04FA709D27B8D7DA006199B0 /* Info.plist */,
 				04FA709A27B8D7DA006199B0 /* LaunchScreen.storyboard */,
@@ -301,6 +304,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				04FA709C27B8D7DA006199B0 /* LaunchScreen.storyboard in Resources */,
+				684C192127BA8045005ACCA7 /* Color.xcassets in Resources */,
 				04FA709927B8D7DA006199B0 /* Assets.xcassets in Resources */,
 				04FA709727B8D7D8006199B0 /* Main.storyboard in Resources */,
 			);
@@ -598,6 +602,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MetalDemo/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -627,6 +632,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MetalDemo/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
