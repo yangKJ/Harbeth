@@ -41,9 +41,10 @@ internal struct Compute {
         }
         
         let device = Device.shared.device
-        let size = max(MemoryLayout<T>.size, 16)
-        let buffer = device.makeBuffer(bytes: factors, length: size, options: MTLResourceOptions.storageModeShared)
+        let size = MemoryLayout<T>.size
         for i in 0..<factors.count {
+            var factor = factors[i]
+            let buffer = device.makeBuffer(bytes: &factor, length: size, options: MTLResourceOptions.storageModeShared)
             computeEncoder.setBuffer(buffer, offset: 0, index: i)
         }
         
