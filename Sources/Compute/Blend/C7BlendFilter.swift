@@ -15,8 +15,8 @@ public enum BlendFilterType {
 extension BlendFilterType {
     var kernel: String {
         switch self {
-        case .add: return "AddBlend"
-        case .alpha: return "AlphaBlend"
+        case .add: return "C7AddBlend"
+        case .alpha: return "C7AlphaBlend"
         }
     }
 }

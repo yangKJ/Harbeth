@@ -5,12 +5,15 @@
 //  Created by Condy on 2022/2/13.
 //
 
+/// 文档
+/// https://colin19941.gitbooks.io/metal-programming-guide-zh/content/Data-Parallel_Compute_Processing_Compute_Command_Encoder.html
+
 import Foundation
 import MetalKit
 
-struct Compute {
+internal struct Compute {
     /// Create a parallel computation pipeline.
-    /// https://colin19941.gitbooks.io/metal-programming-guide-zh
+    /// Performance intensive operations should not be invoked frequently
     ///
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
@@ -24,10 +27,10 @@ struct Compute {
         }
     }
     
-    static func process<T>(pipelineState: MTLComputePipelineState,
-                           commandBuffer: MTLCommandBuffer,
-                           textures: [MTLTexture],
-                           factors: [T]) {
+    static func drawingProcess<T>(pipelineState: MTLComputePipelineState,
+                                  commandBuffer: MTLCommandBuffer,
+                                  textures: [MTLTexture],
+                                  factors: [T]) {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             return
         }
@@ -44,12 +47,14 @@ struct Compute {
             computeEncoder.setBuffer(buffer, offset: 0, index: i)
         }
         
+        // Too large some Gpus are not supported. Too small gpus have low efficiency
+        // 2D texture, depth set to 1
         let threadGroupCount = MTLSize(width: 16, height: 16, depth: 1)
-        let dstTexture = textures[0]
-        // +1 目的解决得到的图片出现边缘未绘制问题
-        let w = max(Int((dstTexture.width + threadGroupCount.width - 1) / threadGroupCount.width), 1)
-        let h = max(Int((dstTexture.height + threadGroupCount.height - 1) / threadGroupCount.height), 1)
-        let threadGroups = MTLSizeMake(w, h, dstTexture.arrayLength)
+        let destTexture = textures[0]
+        // +1 Objective To solve the problem that the edges of images are not drawn
+        let w = max(Int((destTexture.width + threadGroupCount.width - 1) / threadGroupCount.width), 1)
+        let h = max(Int((destTexture.height + threadGroupCount.height - 1) / threadGroupCount.height), 1)
+        let threadGroups = MTLSizeMake(w, h, destTexture.arrayLength)
         computeEncoder.dispatchThreadgroups(threadGroups, threadsPerThreadgroup: threadGroupCount)
         
         computeEncoder.endEncoding()

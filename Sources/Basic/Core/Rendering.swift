@@ -11,7 +11,7 @@ import MetalKit
 public let kOneInputVertex: String = "oneInputVertex"
 public let kTwoInputVertex: String = "twoInputVertex"
 
-struct Rendering {
+internal struct Rendering {
     static func makeRenderPipelineState(with vertex: String, fragment: String) -> MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
@@ -26,11 +26,11 @@ struct Rendering {
         }
     }
     
-    static func process<T>(pipelineState: MTLRenderPipelineState,
-                           commandBuffer: MTLCommandBuffer,
-                           inputTextures: [MTLTexture],
-                           outputTexture: MTLTexture,
-                           factors: [T]) {
+    static func drawingProcess<T>(pipelineState: MTLRenderPipelineState,
+                                  commandBuffer: MTLCommandBuffer,
+                                  inputTextures: [MTLTexture],
+                                  outputTexture: MTLTexture,
+                                  factors: [T]) {
         let renderPass = MTLRenderPassDescriptor()
         renderPass.colorAttachments[0].texture = outputTexture
         renderPass.colorAttachments[0].loadAction = MTLLoadAction.clear

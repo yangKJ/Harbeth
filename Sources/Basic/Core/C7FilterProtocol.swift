@@ -21,10 +21,18 @@ public enum Modifier {
 
 public protocol C7FilterProtocol {
     
+    /// Encoder type and corresponding function name
+    ///
+    /// Compute requires the corresponding `kernel` function name
+    /// Render requires a `vertex` shader function name and a `fragment` shader function name
     var modifier: Modifier { get }
     
+    /// MakeBuffer
+    /// Set modify parameter factor, you need to convert to `Float`.
     var factors: [Float] { get }
     
+    /// Multiple input source extensions
+    /// An array containing the `MTLTexture`
     var otherInputTextures: MTQInputTextures { get }
 }
 

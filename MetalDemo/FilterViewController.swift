@@ -11,17 +11,17 @@ import ATMetalBand
 
 class FilterViewController: UIViewController {
     
-    public var filter: C7FilterProtocol?
-    public var callback: FilterCallback?
-    public var originImage: UIImage = UIImage.init(named: "timg-3")!
-    public lazy var slider: UISlider = {
+    var filter: C7FilterProtocol?
+    var callback: FilterCallback?
+    var originImage: UIImage = UIImage.init(named: "timg-3")!
+    lazy var slider: UISlider = {
         let slider = UISlider.init()
         slider.translatesAutoresizingMaskIntoConstraints = false
         slider.addTarget(self, action:#selector(sliderDidchange(_:)), for: .valueChanged)
         return slider
     }()
     
-    private lazy var originImageView: UIImageView = {
+    lazy var originImageView: UIImageView = {
         let imageView = UIImageView.init()
         imageView.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
         imageView.contentMode = .scaleAspectFit
@@ -29,7 +29,7 @@ class FilterViewController: UIViewController {
         return imageView
     }()
     
-    private lazy var filterImageView: UIImageView = {
+    lazy var filterImageView: UIImageView = {
         let imageView = UIImageView.init()
         imageView.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
         imageView.contentMode = .scaleAspectFit
@@ -37,7 +37,7 @@ class FilterViewController: UIViewController {
         return imageView
     }()
     
-    private lazy var leftLabel: UILabel = {
+    lazy var leftLabel: UILabel = {
         let label = UILabel.init()
         label.textAlignment = .left
         label.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
@@ -47,7 +47,7 @@ class FilterViewController: UIViewController {
         return label
     }()
     
-    private lazy var rightLabel: UILabel = {
+    lazy var rightLabel: UILabel = {
         let label = UILabel.init()
         label.textAlignment = .right
         label.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
@@ -57,7 +57,7 @@ class FilterViewController: UIViewController {
         return label
     }()
     
-    private lazy var currentLabel: UILabel = {
+    lazy var currentLabel: UILabel = {
         let label = UILabel.init()
         label.textAlignment = .center
         label.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)

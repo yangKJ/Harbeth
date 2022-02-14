@@ -8,15 +8,14 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void AddBlend(texture2d<half, access::write> outTexture [[texture(0)]],
-                     texture2d<half, access::read> inTexture [[texture(1)]],
-                     texture2d<half, access::sample> inputTexture2 [[texture(2)]],
-                     uint2 grid [[thread_position_in_grid]]) {
+kernel void C7AddBlend(texture2d<half, access::write> outTexture [[texture(0)]],
+                       texture2d<half, access::read> inTexture [[texture(1)]],
+                       texture2d<half, access::sample> inputTexture2 [[texture(2)]],
+                       uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
-    const half4 overlay = inputTexture2.sample(quadSampler, float2(float(grid.x) / outTexture.get_width(),
-                                                                   float(grid.y) / outTexture.get_height()));
+    const half4 overlay = inputTexture2.sample(quadSampler, float2(float(grid.x) / outTexture.get_width(), float(grid.y) / outTexture.get_height()));
     
     half r;
     if (overlay.r * inColor.a + inColor.r * overlay.a >= overlay.a * inColor.a) {

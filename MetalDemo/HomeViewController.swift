@@ -9,10 +9,10 @@ import UIKit
 
 class HomeViewController: UIViewController {
 
-    private static let identifier = "homeCellIdentifier"
-    private var viewModel: HomeViewModel = HomeViewModel()
+    static let identifier = "homeCellIdentifier"
+    var viewModel: HomeViewModel = HomeViewModel()
     
-    private lazy var tableView: UITableView = {
+    lazy var tableView: UITableView = {
         let table = UITableView.init(frame: .zero, style: .plain)
         table.delegate = self
         table.dataSource = self

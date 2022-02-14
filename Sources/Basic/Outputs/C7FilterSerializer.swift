@@ -36,19 +36,19 @@ extension C7FilterSerializer {
             var textures = [outTexture, inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }
             let pipelineState = Compute.makeComputePipelineState(with: kernel)
-            Compute.process(pipelineState: pipelineState,
-                            commandBuffer: commandBuffer,
-                            textures: textures,
-                            factors: filter.factors)
+            Compute.drawingProcess(pipelineState: pipelineState,
+                                   commandBuffer: commandBuffer,
+                                   textures: textures,
+                                   factors: filter.factors)
         } else if case .render(let vertex, let fragment) = filter.modifier {
             var textures = [inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }
             let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
-            Rendering.process(pipelineState: pipelineState,
-                              commandBuffer: commandBuffer,
-                              inputTextures: textures,
-                              outputTexture: outTexture,
-                              factors: filter.factors)
+            Rendering.drawingProcess(pipelineState: pipelineState,
+                                     commandBuffer: commandBuffer,
+                                     inputTextures: textures,
+                                     outputTexture: outTexture,
+                                     factors: filter.factors)
         }
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
@@ -61,7 +61,7 @@ extension C7FilterSerializer {
     
     /// Create a texture for later storage according to the texture parameters.
     /// - Parameters:
-    ///    - pixelformat: Indicates the pixelFormat
+    ///    - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
     ///    - width: The texture width
     ///    - height: The texture height
     ///    - mipmAPPED: No mapping was required

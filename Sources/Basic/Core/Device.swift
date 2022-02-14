@@ -48,11 +48,15 @@ class Device {
         
         self.colorSpace = CGColorSpaceCreateDeviceRGB()
     }
+    
+    deinit {
+        print("Device is Deinit.")
+    }
 }
 
 extension MTLDevice {
     
-    func makeATLibrary(forResource: String) -> MTLLibrary? {
+    fileprivate func makeATLibrary(forResource: String) -> MTLLibrary? {
         /// Compatible with the Bundle address used by CocoaPods to import framework
         guard let bundleURL = Bundle.main.url(forResource: forResource, withExtension: "bundle"),
               let bundle = Bundle(url: bundleURL) else {
@@ -68,7 +72,7 @@ extension MTLDevice {
 extension Device {
     
     static func readMTLFunction(_ name: String) -> MTLFunction {
-        // Read the project first
+        // First read the project
         if let libray = Device.shared.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
