@@ -26,6 +26,8 @@ class FilterViewController: UIViewController {
         imageView.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.layer.borderColor = UIColor.systemPink.cgColor
+        imageView.layer.borderWidth = 0.5
         return imageView
     }()
     
@@ -34,6 +36,8 @@ class FilterViewController: UIViewController {
         imageView.backgroundColor = UIColor.systemPink.withAlphaComponent(0.3)
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.layer.borderColor = UIColor.systemPink.cgColor
+        imageView.layer.borderWidth = 0.5
         return imageView
     }()
     
@@ -111,6 +115,7 @@ class FilterViewController: UIViewController {
                 originImageView.heightAnchor.constraint(equalTo: filterImageView.heightAnchor),
             ])
         } else {
+            originImageView.layer.borderWidth = 0
             NSLayoutConstraint.activate([
                 originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
                 originImageView.widthAnchor.constraint(equalToConstant: 100),

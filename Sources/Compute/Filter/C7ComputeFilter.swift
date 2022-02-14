@@ -12,6 +12,7 @@ public enum ComputeFilterType: String, CaseIterable {
     case colorSwizzle = "C7ColorSwizzle"
     ///` 1 - rgb
     case colorInvert = "C7ColorInvert"
+    case colorToGray = "C7ColorToGray"
 }
 
 public struct C7ComputeFilter: C7FilterProtocol {

@@ -26,6 +26,7 @@ enum ViewControllerType: String {
     case AlphaBlend = "透明度融合"
     case Hue = "色相角度"
     case Bulge = "鼓起效果"
+    case ColorToGray = "灰度图滤镜"
 }
 
 extension ViewControllerType {
@@ -35,6 +36,8 @@ extension ViewControllerType {
             return UIImage.init(named: "yuan000")!
         case .ColorSwizzle:
             return UIImage.init(named: "yuan001")!
+        case .ColorToGray:
+            return UIImage.init(named: "yuan002")!
         default:
             return UIImage.init(named: "timg-3")!
         }
@@ -109,12 +112,15 @@ extension ViewControllerType {
             }
             return (filter, (filter.hue, filter.minHue, filter.maxHue), cb)
         case .Bulge:
-            var filter = C7Bulge(scale: 0)
+            var filter = C7Bulge(scale: 0.5)
             let cb: FilterCallback = {
                 filter.scale = $0
                 return filter
             }
             return (filter, (filter.scale, -1, 1), cb)
+        case .ColorToGray:
+            let filter = C7ComputeFilter(with: .colorToGray)
+            return (filter, nil, nil)
         }
     }
 }
@@ -136,5 +142,6 @@ struct HomeViewModel {
     
     let filter: [ViewControllerType] = [
         .ColorInvert, .ColorSwizzle, .abao,
+        .ColorToGray,
     ]
 }
