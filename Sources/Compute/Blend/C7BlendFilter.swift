@@ -10,6 +10,23 @@ import Foundation
 public enum BlendFilterType {
     case add
     case alpha(mixturePercent: Float)
+    case colorBurn
+    case colorDodge
+    case darken
+    case difference
+    case dissolve
+    case exclusion
+    case hardLight
+    case lighten
+    case linearBurn
+    case mask
+    case multiply
+    case normal
+    case overlay
+    case screen
+    case softLight
+    case sourceOver
+    case subtract
 }
 
 extension BlendFilterType {
@@ -17,6 +34,23 @@ extension BlendFilterType {
         switch self {
         case .add: return "C7AddBlend"
         case .alpha: return "C7AlphaBlend"
+        case .colorBurn: return "C7ColorBurnBlend"
+        case .colorDodge: return "C7ColorDodgeBlend"
+        case .darken: return "C7DarkenBlend"
+        case .difference: return "C7DifferenceBlend"
+        case .dissolve: return "C7DissolveBlend"
+        case .exclusion: return "C7ExclusionBlend"
+        case .hardLight: return "C7HardLightBlend"
+        case .lighten: return "C7LightenBlend"
+        case .linearBurn: return "C7LinearBurnBlend"
+        case .mask: return "C7MaskBlend"
+        case .multiply: return "C7MultiplyBlend"
+        case .normal: return "C7NormalBlend"
+        case .overlay: return "C7OverlayBlend"
+        case .screen: return "C7ScreenBlend"
+        case .softLight: return "C7SoftLightBlend"
+        case .sourceOver: return "C7SourceOverBlend"
+        case .subtract: return "C7SubtractBlend"
         }
     }
 }
