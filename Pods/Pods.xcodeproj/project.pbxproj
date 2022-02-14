@@ -7,66 +7,72 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0953F67E124F092B5584D575BAC1651F /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFC4A46C126568B14978E55B10999BD /* Device.swift */; };
-		0969D5A1A76E3EFFC242F546C72AD268 /* ATMetalBand-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 0C05DC0F039B5F8C34F25FA58AC4537F /* ATMetalBand-dummy.m */; };
-		0A665C579574AF2DDBC2253105922204 /* C7Exposure.metal in Sources */ = {isa = PBXBuildFile; fileRef = 4B129EB2003668A9092E9E91A0673F4E /* C7Exposure.metal */; };
-		0F4958586011EB0AC631A3D78C66973A /* C7ZoomBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAB38C1076D0C342945D6395A2A0CD0 /* C7ZoomBlur.swift */; };
-		10B814E8D27621A5D25DE5D5A23C38E7 /* C7LuminanceThreshold.metal in Sources */ = {isa = PBXBuildFile; fileRef = 2F5343D9D22AC97A0C2BAD26BC70EBD0 /* C7LuminanceThreshold.metal */; };
-		1609935D53371240FDCC4A2A41D621D5 /* C7Exposure.swift in Sources */ = {isa = PBXBuildFile; fileRef = A672A9E78D6DFD5ADDF01953C6A2422F /* C7Exposure.swift */; };
-		19B0BB6DECC02BF3AF01139974719C06 /* C7Opacity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4892B25E11DCD65BCF2C0313AFCB610A /* C7Opacity.swift */; };
-		1D2E570DF1F15727C684FE4B054D8865 /* C7Luminance.metal in Resources */ = {isa = PBXBuildFile; fileRef = 6B2CE91AE6EED05299359AF54956E58E /* C7Luminance.metal */; };
-		25AE5331E8A77199B013FC39EBE389FD /* C7ZoomBlur.metal in Sources */ = {isa = PBXBuildFile; fileRef = EAE717E47B3F83ECB43537219CCA2EBC /* C7ZoomBlur.metal */; };
-		2643D26BFD9FE1352E3345641B945DB5 /* C7Luminance.metal in Sources */ = {isa = PBXBuildFile; fileRef = 6B2CE91AE6EED05299359AF54956E58E /* C7Luminance.metal */; };
-		2ED5FD4CEDC5BF71D8F582D1B878A757 /* Compute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B68DE2A72361512CB23524A349115FC /* Compute.swift */; };
-		307E5E517350DB46E4E771C74ACB6E2B /* C7ColorInvert.metal in Sources */ = {isa = PBXBuildFile; fileRef = F83F81447FE56D58C7B46CDC880B9288 /* C7ColorInvert.metal */; };
-		3B62A4FF8327ABD58A728D5CBBBFE7AB /* C7ColorSwizzle.metal in Sources */ = {isa = PBXBuildFile; fileRef = E26455F1A895A9861450E76555686C90 /* C7ColorSwizzle.metal */; };
-		48A01FA81DD206176E6D793AE29DEE27 /* C7FilterProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF20C6EE22B11371783425D46A0CA5B1 /* C7FilterProtocol.swift */; };
+		07D01AEE24575DC8FC98566F75BA06F9 /* C7Opacity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF31692E934BFF38FC2E95AFEDF63ADD /* C7Opacity.swift */; };
+		0A8ECF451B7308A7D704B3AD8C4A205C /* C7FilterImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71401C920E111B8A15D9DFA25D8EF04 /* C7FilterImage.swift */; };
+		10D5F81319A471BC3D7BEC8C5A2BECE1 /* C7Bulge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 385D918B3FAC041EE99B692989F260E3 /* C7Bulge.swift */; };
+		13582EE4EA4A9F8FD98A62A1CA9B0E4C /* C7LuminanceThreshold.metal in Resources */ = {isa = PBXBuildFile; fileRef = CB2F8635C5E89310E0946E97D5C7670F /* C7LuminanceThreshold.metal */; };
+		25BEC2217B895634765C681BF036A31F /* ATMetalBand-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 2397CD6F4180F4273BAB591AC6CC89B3 /* ATMetalBand-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		283D9F7D48FBB0CE6BB2D7648124E582 /* C7LuminanceThreshold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E1AD8D0C2D104599C94E360EA2D8BDC /* C7LuminanceThreshold.swift */; };
+		31BB6E08FC60B7F1DBAB34AEE29057FF /* C7ColorSwizzle.metal in Sources */ = {isa = PBXBuildFile; fileRef = 9093CBD7489564D2325CDB9FE53701B9 /* C7ColorSwizzle.metal */; };
+		3226AF504B33537EB30DDED3C23C36EB /* C7Luminance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E546C8BE1B15FCA281392F44A272CF /* C7Luminance.swift */; };
+		354FC94AD5D7697828EF3D1091FBE15A /* C7AddBlend.metal in Sources */ = {isa = PBXBuildFile; fileRef = E3691C4101BF205BD70A1F0D7E0E9D2F /* C7AddBlend.metal */; };
+		369E1A6B0E525792AD5B1E7B501CDBAE /* C7LuminanceThreshold.metal in Sources */ = {isa = PBXBuildFile; fileRef = CB2F8635C5E89310E0946E97D5C7670F /* C7LuminanceThreshold.metal */; };
+		451A188B3B797A8CCA176040457974DD /* C7LookupFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6EA97CAB09D91CD2C2DB871EF3081A4 /* C7LookupFilter.swift */; };
+		45B77AB8A03E99F3400B84D6D7A760AB /* C7Exposure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2524EF65385B7E369F459AA75BD799EF /* C7Exposure.swift */; };
+		4CD0E8EC1CC4928E660758F56104B6D6 /* C7Luminance.metal in Resources */ = {isa = PBXBuildFile; fileRef = 42854B83ADCABD45A077400C9702BB7C /* C7Luminance.metal */; };
 		4F8A93F310B91DA166313F29F0746C01 /* Pods-MetalDemoUITests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 8988ED5146830985F5A08F44702A94F2 /* Pods-MetalDemoUITests-dummy.m */; };
+		56857FD74DB03FC9949E20AE5BA59245 /* C7Opacity.metal in Sources */ = {isa = PBXBuildFile; fileRef = 9669209F403FFDAEFF2640C06DEB5B99 /* C7Opacity.metal */; };
+		5786FA7FE587184202DFEAA4AB7C1543 /* Compatible.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4B72755F6DC2AC85CF757F98715D39 /* Compatible.swift */; };
+		581A56BC525E09156161B2D036AECBCA /* ATMetalBand-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 0C05DC0F039B5F8C34F25FA58AC4537F /* ATMetalBand-dummy.m */; };
 		5C47CE177D9D8CD8319CB322BD71FFA8 /* Pods-MetalDemo-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 94D8B0881F6077C969D8635308902D81 /* Pods-MetalDemo-dummy.m */; };
-		5E2E49EFE8DA0889F76E11D624F8C6A0 /* C7Exposure.metal in Resources */ = {isa = PBXBuildFile; fileRef = 4B129EB2003668A9092E9E91A0673F4E /* C7Exposure.metal */; };
-		5E50CA369C1B74BE9C6604E457D0334A /* C7AddBlend.metal in Sources */ = {isa = PBXBuildFile; fileRef = D5D03D69FA19E29538E355C0276CC6F1 /* C7AddBlend.metal */; };
-		62D6177305689E8835524525CC661B7F /* C7Brightness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99BF642321DBDF0EC7A30F23E0F4824B /* C7Brightness.swift */; };
-		69C0E140864D41C98816030A6958AD63 /* C7ZoomBlur.metal in Resources */ = {isa = PBXBuildFile; fileRef = EAE717E47B3F83ECB43537219CCA2EBC /* C7ZoomBlur.metal */; };
-		760444378D570E36F1E6007A92632B2B /* C7Opacity.metal in Sources */ = {isa = PBXBuildFile; fileRef = FD3B43BB2D6BD30E3A5D2439BD786303 /* C7Opacity.metal */; };
-		770C40D8E6F739870A27FE9D021983A6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
-		8617C70938E64393C14273CD9BD5617B /* Compatible.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4B72755F6DC2AC85CF757F98715D39 /* Compatible.swift */; };
-		87196F9CE211BADB94C14F9A21E18F48 /* Rendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D0A836FFC78AAC39D969449F0794DE /* Rendering.swift */; };
-		880D140B9386C5EF717A1A0313A717A5 /* C7FilterSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 903BB860C9B40CA51623528A8D3D8AA7 /* C7FilterSerializer.swift */; };
-		8C7FC0E5BBD0FBD680169BB31BD92CA8 /* C7ComputeFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950C0F255B54E56AC51CB293769E9652 /* C7ComputeFilter.swift */; };
-		8EEEBC57FCE04209FFB618D4F6933220 /* C7AlphaBlend.metal in Sources */ = {isa = PBXBuildFile; fileRef = ADA3470ED2AEEAFB35765F05907C8381 /* C7AlphaBlend.metal */; };
-		95532FD7C11DE6B4C703464703A3E6EF /* C7LuminanceThreshold.metal in Resources */ = {isa = PBXBuildFile; fileRef = 2F5343D9D22AC97A0C2BAD26BC70EBD0 /* C7LuminanceThreshold.metal */; };
-		99B20F16523AD3F2C09D629AA2A80F2F /* C7Opacity.metal in Resources */ = {isa = PBXBuildFile; fileRef = FD3B43BB2D6BD30E3A5D2439BD786303 /* C7Opacity.metal */; };
-		9A800BD3507494FCC89CF1278ED79D41 /* C7LuminanceThreshold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049761513960500A9A72B273F2F288EE /* C7LuminanceThreshold.swift */; };
+		5D897665BA96910DD88A96D9AED4CB02 /* C7BlendFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14A2FECBCA50D190F68DAABB97A432A /* C7BlendFilter.swift */; };
+		5F33AFFF09FECBD937F9587E279B1CAC /* Rendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D0A836FFC78AAC39D969449F0794DE /* Rendering.swift */; };
+		5F97DFEF64FB4DE5E90C55F80B8C6275 /* Operators.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7B872525AE33C1EDD55E01DB0844B6D /* Operators.swift */; };
+		63DE69BB01E28C92B0DFF436E5CAB3DD /* C7ZoomBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DB78935577471F04CF06D13110616E9 /* C7ZoomBlur.swift */; };
+		643A7C9683679A089B05F5E4D4C1EC37 /* C7FilterSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 903BB860C9B40CA51623528A8D3D8AA7 /* C7FilterSerializer.swift */; };
+		65E417333439C646E052E50055AAF33D /* C7Bulge.metal in Sources */ = {isa = PBXBuildFile; fileRef = 5CD3CC5232F441101F616A1DFD465C45 /* C7Bulge.metal */; };
+		6CB1FAFED5B5D905FC70637C0C63842F /* C7FilterVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E7089E1A5D525DCA9DCBC9D2E73D89 /* C7FilterVideo.swift */; };
+		7A4C4DDCEDCE52F1B85C385A27389688 /* C7Hue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85F1C7DCEE61EA0620F46B66774A5F82 /* C7Hue.swift */; };
+		7B3992C3FA541F52EC0261F9DD4BFC9C /* C7Exposure.metal in Sources */ = {isa = PBXBuildFile; fileRef = CBBD9B5063317F70D2E9D096AF798C34 /* C7Exposure.metal */; };
+		827A167D5E5797DC3775E2274D6BB54D /* C7ColorSwizzle.metal in Resources */ = {isa = PBXBuildFile; fileRef = 9093CBD7489564D2325CDB9FE53701B9 /* C7ColorSwizzle.metal */; };
+		8ECB3445455DE89BAE7426F4AD6B51A3 /* C7AddBlend.metal in Resources */ = {isa = PBXBuildFile; fileRef = E3691C4101BF205BD70A1F0D7E0E9D2F /* C7AddBlend.metal */; };
+		9328DC28DFA1DF55C5BDBED4360FBDF0 /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFC4A46C126568B14978E55B10999BD /* Device.swift */; };
+		93E7ABBE054DCC8368883A14D525984E /* C7Brightness.metal in Sources */ = {isa = PBXBuildFile; fileRef = 53C077ED31A7EDCBEE3839BC87D03333 /* C7Brightness.metal */; };
+		957E403E1313DC1FBEDA4C29916D0BCA /* Compute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B68DE2A72361512CB23524A349115FC /* Compute.swift */; };
+		967160DEF3A694D2C62DA54FC02CD7A3 /* C7ZoomBlur.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3481197B0ACEE76A7A75050B323C8DD8 /* C7ZoomBlur.metal */; };
+		97D20FA22BCBF1288397E6688C653AEB /* C7ColorInvert.metal in Resources */ = {isa = PBXBuildFile; fileRef = 3A1D920CE1B2FF5B3BCEC03F37FFAC13 /* C7ColorInvert.metal */; };
+		99E91460B11E7248256453DAA9AA12DD /* C7ComputeFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567EEE8EDFC69EDC930903CA69B9279D /* C7ComputeFilter.swift */; };
+		9B4070BD42A7320E35AD08803A2954A9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
+		9B79DAC17D625C76E36573870350EFF1 /* C7Bulge.metal in Resources */ = {isa = PBXBuildFile; fileRef = 5CD3CC5232F441101F616A1DFD465C45 /* C7Bulge.metal */; };
+		9BB94086D0C3FFDF6A81C0860A43DB8B /* C7AlphaBlend.metal in Sources */ = {isa = PBXBuildFile; fileRef = CBBD89E431A1F3730306C960AF807B3B /* C7AlphaBlend.metal */; };
 		9C6C291988EF3C0778305792673CB08E /* Pods-MetalDemoTests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 770FDF03293E7C16B1B186ABDDE2A3F5 /* Pods-MetalDemoTests-dummy.m */; };
-		A22628BE3FF9532E07FB953D7CACCF4E /* C7LookupFilter.metal in Resources */ = {isa = PBXBuildFile; fileRef = F6F033B8D0886EE963AC16457F9EF99F /* C7LookupFilter.metal */; };
-		A33F772364442D7142E1721184B53652 /* C7AlphaBlend.metal in Resources */ = {isa = PBXBuildFile; fileRef = ADA3470ED2AEEAFB35765F05907C8381 /* C7AlphaBlend.metal */; };
-		A42006A6D7ED5C90402A65FE6ACF46C6 /* C7BlendFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA1911FD81B82C2172A5443DBF011CF /* C7BlendFilter.swift */; };
 		A9304A2E1AEC0619640F28789D2DC6F3 /* Pods-MetalDemo-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 6CF791AE0C1453B461BA56B9FC206381 /* Pods-MetalDemo-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		AAE7C5AF202120BBD7ECD81BB5F06E31 /* C7LookupFilter.metal in Sources */ = {isa = PBXBuildFile; fileRef = F6F033B8D0886EE963AC16457F9EF99F /* C7LookupFilter.metal */; };
-		AFAFDEFFB22586AFA78735C9247A659E /* Transform.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF65B0E0C4F6CF0071BAEE0A2AFEF00 /* Transform.swift */; };
-		B26609E7F5B3F36F6E620AA72B6EE75C /* C7Brightness.metal in Resources */ = {isa = PBXBuildFile; fileRef = A0A84110304D700743F6A8CFE53D8C66 /* C7Brightness.metal */; };
-		BA112602561B8FFA6295642D79C17294 /* C7ColorSwizzle.metal in Resources */ = {isa = PBXBuildFile; fileRef = E26455F1A895A9861450E76555686C90 /* C7ColorSwizzle.metal */; };
-		BA24AA45944788473C5B53DA28A32E15 /* C7ColorInvert.metal in Resources */ = {isa = PBXBuildFile; fileRef = F83F81447FE56D58C7B46CDC880B9288 /* C7ColorInvert.metal */; };
-		BC346144F0FB9AFA519A00C950A41CD3 /* C7Brightness.metal in Sources */ = {isa = PBXBuildFile; fileRef = A0A84110304D700743F6A8CFE53D8C66 /* C7Brightness.metal */; };
-		BEF4F6A27A65CE52D12E7E472F903245 /* C7Luminance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DE004B69141B72F9768D8A051FCAE5E /* C7Luminance.swift */; };
-		C304966ED1B5002176B4DC7CC781A9BE /* C7LookupFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C42AE369336BF9D3F88FEAC56B7F9BA /* C7LookupFilter.swift */; };
+		A960FCB3AF2782D6E01BA079869F1808 /* C7AlphaBlend.metal in Resources */ = {isa = PBXBuildFile; fileRef = CBBD89E431A1F3730306C960AF807B3B /* C7AlphaBlend.metal */; };
+		AB4BABE5F3617BCCD3C0994F86921424 /* C7ZoomBlur.metal in Resources */ = {isa = PBXBuildFile; fileRef = 3481197B0ACEE76A7A75050B323C8DD8 /* C7ZoomBlur.metal */; };
+		AB940AD4B11E0FA568EB25BE5456CB78 /* C7Luminance.metal in Sources */ = {isa = PBXBuildFile; fileRef = 42854B83ADCABD45A077400C9702BB7C /* C7Luminance.metal */; };
+		B412A26BE0950DE7802B492EE85E339D /* C7ColorInvert.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3A1D920CE1B2FF5B3BCEC03F37FFAC13 /* C7ColorInvert.metal */; };
+		B82708A71B8A7F59B9B2AD0C07BDCE6F /* C7Hue.metal in Sources */ = {isa = PBXBuildFile; fileRef = E010ED533F04E6C8BD65D52E957FB337 /* C7Hue.metal */; };
+		BB0F5BC88EAFBBA1544C05DD04723EE8 /* C7LookupFilter.metal in Sources */ = {isa = PBXBuildFile; fileRef = A21BA02ADBA50CC26A89ED5F3C0D11B2 /* C7LookupFilter.metal */; };
 		CBE50170422D51998C653659997736FB /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */; };
-		DC8B837EE1D780FDBBE81F8028352CF0 /* Operators.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7B872525AE33C1EDD55E01DB0844B6D /* Operators.swift */; };
-		DDCDE3EEEF9DED816CB53FF1E83A2D23 /* C7FilterVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E7089E1A5D525DCA9DCBC9D2E73D89 /* C7FilterVideo.swift */; };
-		E47B1BB879E7D462DDF32A907227330F /* C7FilterImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71401C920E111B8A15D9DFA25D8EF04 /* C7FilterImage.swift */; };
-		F152489C92B3F92EF8BAA411573FD218 /* C7AddBlend.metal in Resources */ = {isa = PBXBuildFile; fileRef = D5D03D69FA19E29538E355C0276CC6F1 /* C7AddBlend.metal */; };
-		FCA72021F61D7560C08008752D8CBD4C /* ATMetalBand-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 2397CD6F4180F4273BAB591AC6CC89B3 /* ATMetalBand-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		DB7837F6FC571B1F55AFC0C3525B4B3D /* C7LookupFilter.metal in Resources */ = {isa = PBXBuildFile; fileRef = A21BA02ADBA50CC26A89ED5F3C0D11B2 /* C7LookupFilter.metal */; };
+		DC83E9E5F1F6F38937F68724FEF732A4 /* C7FilterProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF20C6EE22B11371783425D46A0CA5B1 /* C7FilterProtocol.swift */; };
+		DC87615C1D7373E6F8140F0C2912FA79 /* C7Hue.metal in Resources */ = {isa = PBXBuildFile; fileRef = E010ED533F04E6C8BD65D52E957FB337 /* C7Hue.metal */; };
+		ED7C09A30152BBBE2A23B4A55957C90E /* C7Brightness.metal in Resources */ = {isa = PBXBuildFile; fileRef = 53C077ED31A7EDCBEE3839BC87D03333 /* C7Brightness.metal */; };
+		EE6A6ABF75AACEBE24E3987C57165E3F /* Transform.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF65B0E0C4F6CF0071BAEE0A2AFEF00 /* Transform.swift */; };
+		EEE5D8F1BC01272C9AA5C5461325DEC9 /* C7Brightness.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE497EE6256FBE4080D0895AF547A6F1 /* C7Brightness.swift */; };
+		FC281CDCBB790EF4311E4EB5054183C9 /* C7Exposure.metal in Resources */ = {isa = PBXBuildFile; fileRef = CBBD9B5063317F70D2E9D096AF798C34 /* C7Exposure.metal */; };
+		FEF8D8B83071B61A0D85DA0BD4FEC332 /* C7Opacity.metal in Resources */ = {isa = PBXBuildFile; fileRef = 9669209F403FFDAEFF2640C06DEB5B99 /* C7Opacity.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		6BF9DDFAF226A5D9763D07BDE7788EC9 /* PBXContainerItemProxy */ = {
+		22C755B46D9688A6409E8A882462FB24 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 09763EF6C518BD793B55E67014348C7D;
 			remoteInfo = ATMetalBand;
 		};
-		82A24C720A0EFDCBE00E4FA1E0763847 /* PBXContainerItemProxy */ = {
+		470DEB2765240D5D329FBC0CDFA0DC7C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
 			proxyType = 1;
@@ -76,72 +82,76 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		049761513960500A9A72B273F2F288EE /* C7LuminanceThreshold.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7LuminanceThreshold.swift; path = Sources/Compute/Effect/C7LuminanceThreshold.swift; sourceTree = "<group>"; };
 		077576EDA9B3157FB0569729FBB51E2C /* Pods-MetalDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemo.release.xcconfig"; sourceTree = "<group>"; };
 		0C05DC0F039B5F8C34F25FA58AC4537F /* ATMetalBand-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "ATMetalBand-dummy.m"; sourceTree = "<group>"; };
 		0CD312C93AEC7607738BF23A9A106F71 /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; path = README.md; sourceTree = "<group>"; };
 		134694336F822ED52B91604E51F08361 /* Pods-MetalDemoTests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalDemoTests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		17E546C8BE1B15FCA281392F44A272CF /* C7Luminance.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Luminance.swift; path = Sources/Compute/Effect/C7Luminance.swift; sourceTree = "<group>"; };
 		18D2564A72DAA6DFD0EB166D766E3C8E /* Pods-MetalDemo */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-MetalDemo"; path = Pods_MetalDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		2397CD6F4180F4273BAB591AC6CC89B3 /* ATMetalBand-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ATMetalBand-umbrella.h"; sourceTree = "<group>"; };
+		2524EF65385B7E369F459AA75BD799EF /* C7Exposure.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Exposure.swift; path = Sources/Compute/Effect/C7Exposure.swift; sourceTree = "<group>"; };
 		25C1B9CF5C51DCC7B0795AC70F03DBD2 /* Pods-MetalDemo.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-MetalDemo.modulemap"; sourceTree = "<group>"; };
 		2BAC234C4A033EDD30EBE03AA01DBB89 /* Pods-MetalDemo-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemo-Info.plist"; sourceTree = "<group>"; };
-		2C42AE369336BF9D3F88FEAC56B7F9BA /* C7LookupFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7LookupFilter.swift; path = Sources/Compute/Lookup/C7LookupFilter.swift; sourceTree = "<group>"; };
-		2F5343D9D22AC97A0C2BAD26BC70EBD0 /* C7LuminanceThreshold.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7LuminanceThreshold.metal; path = Sources/Compute/Effect/C7LuminanceThreshold.metal; sourceTree = "<group>"; };
-		3CAB38C1076D0C342945D6395A2A0CD0 /* C7ZoomBlur.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7ZoomBlur.swift; path = Sources/Compute/Blur/C7ZoomBlur.swift; sourceTree = "<group>"; };
-		4892B25E11DCD65BCF2C0313AFCB610A /* C7Opacity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Opacity.swift; path = Sources/Compute/Effect/C7Opacity.swift; sourceTree = "<group>"; };
-		4B129EB2003668A9092E9E91A0673F4E /* C7Exposure.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Exposure.metal; path = Sources/Compute/Effect/C7Exposure.metal; sourceTree = "<group>"; };
+		3481197B0ACEE76A7A75050B323C8DD8 /* C7ZoomBlur.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7ZoomBlur.metal; path = Sources/Compute/Blur/C7ZoomBlur.metal; sourceTree = "<group>"; };
+		385D918B3FAC041EE99B692989F260E3 /* C7Bulge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Bulge.swift; path = Sources/Compute/Effect/C7Bulge.swift; sourceTree = "<group>"; };
+		3A1D920CE1B2FF5B3BCEC03F37FFAC13 /* C7ColorInvert.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7ColorInvert.metal; path = Sources/Compute/Filter/C7ColorInvert.metal; sourceTree = "<group>"; };
+		3DB78935577471F04CF06D13110616E9 /* C7ZoomBlur.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7ZoomBlur.swift; path = Sources/Compute/Blur/C7ZoomBlur.swift; sourceTree = "<group>"; };
+		42854B83ADCABD45A077400C9702BB7C /* C7Luminance.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Luminance.metal; path = Sources/Compute/Effect/C7Luminance.metal; sourceTree = "<group>"; };
 		4DB080C69116EB0D87A809FD14797FA1 /* Pods-MetalDemoUITests */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; name = "Pods-MetalDemoUITests"; path = "libPods-MetalDemoUITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		53C077ED31A7EDCBEE3839BC87D03333 /* C7Brightness.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Brightness.metal; path = Sources/Compute/Effect/C7Brightness.metal; sourceTree = "<group>"; };
+		567EEE8EDFC69EDC930903CA69B9279D /* C7ComputeFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7ComputeFilter.swift; path = Sources/Compute/Filter/C7ComputeFilter.swift; sourceTree = "<group>"; };
 		5A4B72755F6DC2AC85CF757F98715D39 /* Compatible.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Compatible.swift; sourceTree = "<group>"; };
 		5A85DAC6D7B32C7BA880553D1609D880 /* Pods-MetalDemoTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoTests.release.xcconfig"; sourceTree = "<group>"; };
+		5CD3CC5232F441101F616A1DFD465C45 /* C7Bulge.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Bulge.metal; path = Sources/Compute/Effect/C7Bulge.metal; sourceTree = "<group>"; };
 		6A0048E7049D7220184358B046A1DC45 /* Pods-MetalDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemo.debug.xcconfig"; sourceTree = "<group>"; };
 		6B14803577D163B531517EFAE80AA704 /* Pods-MetalDemoTests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemoTests-acknowledgements.plist"; sourceTree = "<group>"; };
-		6B2CE91AE6EED05299359AF54956E58E /* C7Luminance.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Luminance.metal; path = Sources/Compute/Effect/C7Luminance.metal; sourceTree = "<group>"; };
 		6CF791AE0C1453B461BA56B9FC206381 /* Pods-MetalDemo-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-MetalDemo-umbrella.h"; sourceTree = "<group>"; };
 		6D4D249B7CB395F0A05C735F73FA4233 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
+		6E1AD8D0C2D104599C94E360EA2D8BDC /* C7LuminanceThreshold.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7LuminanceThreshold.swift; path = Sources/Compute/Effect/C7LuminanceThreshold.swift; sourceTree = "<group>"; };
 		73010CC983E3809BECEE5348DA1BB8C6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		770FDF03293E7C16B1B186ABDDE2A3F5 /* Pods-MetalDemoTests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemoTests-dummy.m"; sourceTree = "<group>"; };
 		7A57815D158FEFE4568456D21BB3699E /* ATMetalBand.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = ATMetalBand.modulemap; sourceTree = "<group>"; };
 		84B3223D838F9743277BC067D028A2A8 /* ATMetalBand-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ATMetalBand-Info.plist"; sourceTree = "<group>"; };
+		85F1C7DCEE61EA0620F46B66774A5F82 /* C7Hue.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Hue.swift; path = Sources/Compute/Effect/C7Hue.swift; sourceTree = "<group>"; };
 		863449BE951370966E78DFA3EDFE9DD6 /* Pods-MetalDemoTests */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; name = "Pods-MetalDemoTests"; path = "libPods-MetalDemoTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8988ED5146830985F5A08F44702A94F2 /* Pods-MetalDemoUITests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemoUITests-dummy.m"; sourceTree = "<group>"; };
 		8B68DE2A72361512CB23524A349115FC /* Compute.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Compute.swift; sourceTree = "<group>"; };
 		8C002616685BFE8B51030AE8E5A51491 /* Pods-MetalDemoUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoUITests.release.xcconfig"; sourceTree = "<group>"; };
 		903BB860C9B40CA51623528A8D3D8AA7 /* C7FilterSerializer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = C7FilterSerializer.swift; sourceTree = "<group>"; };
+		9093CBD7489564D2325CDB9FE53701B9 /* C7ColorSwizzle.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7ColorSwizzle.metal; path = Sources/Compute/Filter/C7ColorSwizzle.metal; sourceTree = "<group>"; };
 		93951703A091980835660AFEEED5E2E8 /* Pods-MetalDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		94D8B0881F6077C969D8635308902D81 /* Pods-MetalDemo-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemo-dummy.m"; sourceTree = "<group>"; };
-		950C0F255B54E56AC51CB293769E9652 /* C7ComputeFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7ComputeFilter.swift; path = Sources/Compute/Filter/C7ComputeFilter.swift; sourceTree = "<group>"; };
-		99BF642321DBDF0EC7A30F23E0F4824B /* C7Brightness.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Brightness.swift; path = Sources/Compute/Effect/C7Brightness.swift; sourceTree = "<group>"; };
+		9669209F403FFDAEFF2640C06DEB5B99 /* C7Opacity.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Opacity.metal; path = Sources/Compute/Effect/C7Opacity.metal; sourceTree = "<group>"; };
 		9B63978EA1AD47355164888DB9B81788 /* ATMetalBand-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ATMetalBand-prefix.pch"; sourceTree = "<group>"; };
 		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		9DE004B69141B72F9768D8A051FCAE5E /* C7Luminance.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Luminance.swift; path = Sources/Compute/Effect/C7Luminance.swift; sourceTree = "<group>"; };
-		A0A84110304D700743F6A8CFE53D8C66 /* C7Brightness.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Brightness.metal; path = Sources/Compute/Effect/C7Brightness.metal; sourceTree = "<group>"; };
+		A14A2FECBCA50D190F68DAABB97A432A /* C7BlendFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7BlendFilter.swift; path = Sources/Compute/Blend/C7BlendFilter.swift; sourceTree = "<group>"; };
+		A21BA02ADBA50CC26A89ED5F3C0D11B2 /* C7LookupFilter.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7LookupFilter.metal; path = Sources/Compute/Lookup/C7LookupFilter.metal; sourceTree = "<group>"; };
 		A44C61D4DDC87E9E57628AE0E1D18BD8 /* Pods-MetalDemo-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemo-acknowledgements.plist"; sourceTree = "<group>"; };
 		A591FF14548982C14AB32570AB125E60 /* Pods-MetalDemoTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoTests.debug.xcconfig"; sourceTree = "<group>"; };
-		A672A9E78D6DFD5ADDF01953C6A2422F /* C7Exposure.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Exposure.swift; path = Sources/Compute/Effect/C7Exposure.swift; sourceTree = "<group>"; };
 		A8D4CF8ACA7E4641C41E16763F7A5A41 /* ATMetalBand.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ATMetalBand.debug.xcconfig; sourceTree = "<group>"; };
 		A9DCA41FA7675F3A2B6E752E1EB86E86 /* ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist"; sourceTree = "<group>"; };
-		ADA3470ED2AEEAFB35765F05907C8381 /* C7AlphaBlend.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7AlphaBlend.metal; path = Sources/Compute/Blend/C7AlphaBlend.metal; sourceTree = "<group>"; };
+		AE497EE6256FBE4080D0895AF547A6F1 /* C7Brightness.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Brightness.swift; path = Sources/Compute/Effect/C7Brightness.swift; sourceTree = "<group>"; };
+		AF31692E934BFF38FC2E95AFEDF63ADD /* C7Opacity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7Opacity.swift; path = Sources/Compute/Effect/C7Opacity.swift; sourceTree = "<group>"; };
 		B0BE393011ACF7D1A45B0E06C1A12B7E /* ATMetalBand-ATMetalLibrary */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "ATMetalBand-ATMetalLibrary"; path = ATMetalLibrary.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2D0A836FFC78AAC39D969449F0794DE /* Rendering.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Rendering.swift; sourceTree = "<group>"; };
 		BAFC4A46C126568B14978E55B10999BD /* Device.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Device.swift; sourceTree = "<group>"; };
 		BF20C6EE22B11371783425D46A0CA5B1 /* C7FilterProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = C7FilterProtocol.swift; sourceTree = "<group>"; };
 		C2F4119A8B71D64E3BD0BD3B4B22632A /* Pods-MetalDemoUITests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemoUITests-acknowledgements.plist"; sourceTree = "<group>"; };
+		CB2F8635C5E89310E0946E97D5C7670F /* C7LuminanceThreshold.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7LuminanceThreshold.metal; path = Sources/Compute/Effect/C7LuminanceThreshold.metal; sourceTree = "<group>"; };
+		CBBD89E431A1F3730306C960AF807B3B /* C7AlphaBlend.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7AlphaBlend.metal; path = Sources/Compute/Blend/C7AlphaBlend.metal; sourceTree = "<group>"; };
+		CBBD9B5063317F70D2E9D096AF798C34 /* C7Exposure.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Exposure.metal; path = Sources/Compute/Effect/C7Exposure.metal; sourceTree = "<group>"; };
 		CEF65B0E0C4F6CF0071BAEE0A2AFEF00 /* Transform.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Transform.swift; sourceTree = "<group>"; };
 		D4E7089E1A5D525DCA9DCBC9D2E73D89 /* C7FilterVideo.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = C7FilterVideo.swift; sourceTree = "<group>"; };
-		D5D03D69FA19E29538E355C0276CC6F1 /* C7AddBlend.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7AddBlend.metal; path = Sources/Compute/Blend/C7AddBlend.metal; sourceTree = "<group>"; };
+		D6EA97CAB09D91CD2C2DB871EF3081A4 /* C7LookupFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7LookupFilter.swift; path = Sources/Compute/Lookup/C7LookupFilter.swift; sourceTree = "<group>"; };
 		D7B872525AE33C1EDD55E01DB0844B6D /* Operators.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Operators.swift; sourceTree = "<group>"; };
+		E010ED533F04E6C8BD65D52E957FB337 /* C7Hue.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Hue.metal; path = Sources/Compute/Effect/C7Hue.metal; sourceTree = "<group>"; };
 		E075214AFACC7292206DA00CE429984D /* ATMetalBand.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; path = ATMetalBand.podspec; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		E26455F1A895A9861450E76555686C90 /* C7ColorSwizzle.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7ColorSwizzle.metal; path = Sources/Compute/Filter/C7ColorSwizzle.metal; sourceTree = "<group>"; };
-		EAE717E47B3F83ECB43537219CCA2EBC /* C7ZoomBlur.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7ZoomBlur.metal; path = Sources/Compute/Blur/C7ZoomBlur.metal; sourceTree = "<group>"; };
+		E3691C4101BF205BD70A1F0D7E0E9D2F /* C7AddBlend.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7AddBlend.metal; path = Sources/Compute/Blend/C7AddBlend.metal; sourceTree = "<group>"; };
 		ED346776A89C7545572CCE61DFD817B4 /* Pods-MetalDemo-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalDemo-acknowledgements.markdown"; sourceTree = "<group>"; };
-		EFA1911FD81B82C2172A5443DBF011CF /* C7BlendFilter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = C7BlendFilter.swift; path = Sources/Compute/Blend/C7BlendFilter.swift; sourceTree = "<group>"; };
 		F13E724941C532A6A881635B51C64E15 /* Pods-MetalDemo-resources.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-MetalDemo-resources.sh"; sourceTree = "<group>"; };
 		F584913EED9B501FD228EE361ABC233D /* ATMetalBand.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ATMetalBand.release.xcconfig; sourceTree = "<group>"; };
-		F6F033B8D0886EE963AC16457F9EF99F /* C7LookupFilter.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7LookupFilter.metal; path = Sources/Compute/Lookup/C7LookupFilter.metal; sourceTree = "<group>"; };
 		F71401C920E111B8A15D9DFA25D8EF04 /* C7FilterImage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = C7FilterImage.swift; sourceTree = "<group>"; };
-		F83F81447FE56D58C7B46CDC880B9288 /* C7ColorInvert.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7ColorInvert.metal; path = Sources/Compute/Filter/C7ColorInvert.metal; sourceTree = "<group>"; };
 		FCAF9D5F3CAD61485CFB795A91528BE1 /* Pods-MetalDemoUITests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-MetalDemoUITests-acknowledgements.markdown"; sourceTree = "<group>"; };
-		FD3B43BB2D6BD30E3A5D2439BD786303 /* C7Opacity.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = C7Opacity.metal; path = Sources/Compute/Effect/C7Opacity.metal; sourceTree = "<group>"; };
 		FF77BC66D91AAEFBF658D32710A0C711 /* ATMetalBand */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = ATMetalBand; path = ATMetalBand.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -160,18 +170,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		621BDD8E449AC9DA8346BEBE77AC48AA /* Frameworks */ = {
+		6ED94290C70FCE6ABAC0E6E3D6B52E4B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		6EB91C2113DDBE97F9FD6C4C51E6B972 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				770C40D8E6F739870A27FE9D021983A6 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,6 +185,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C21CDD0E1854F8B0E95F625C45F7BF87 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9B4070BD42A7320E35AD08803A2954A9 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -190,7 +200,7 @@
 			isa = PBXGroup;
 			children = (
 				2CA66DC62948476EA3B5612FDCB6290E /* Basic */,
-				F1C9DF6056966955259FB213D4A00964 /* Compute */,
+				788B74047B1DC034A85613AB43CDC9AC /* Compute */,
 				EDD19162D8D63481EE5DE68E3B3BFD43 /* Pod */,
 				3433A61B6395089CC4B0CF0DDC3F129F /* Support Files */,
 			);
@@ -234,23 +244,6 @@
 			);
 			name = "Support Files";
 			path = "Pods/Target Support Files/ATMetalBand";
-			sourceTree = "<group>";
-		};
-		361FF6CCDD23EC0C40154C47C4BF36C9 /* Effect */ = {
-			isa = PBXGroup;
-			children = (
-				A0A84110304D700743F6A8CFE53D8C66 /* C7Brightness.metal */,
-				99BF642321DBDF0EC7A30F23E0F4824B /* C7Brightness.swift */,
-				4B129EB2003668A9092E9E91A0673F4E /* C7Exposure.metal */,
-				A672A9E78D6DFD5ADDF01953C6A2422F /* C7Exposure.swift */,
-				6B2CE91AE6EED05299359AF54956E58E /* C7Luminance.metal */,
-				9DE004B69141B72F9768D8A051FCAE5E /* C7Luminance.swift */,
-				2F5343D9D22AC97A0C2BAD26BC70EBD0 /* C7LuminanceThreshold.metal */,
-				049761513960500A9A72B273F2F288EE /* C7LuminanceThreshold.swift */,
-				FD3B43BB2D6BD30E3A5D2439BD786303 /* C7Opacity.metal */,
-				4892B25E11DCD65BCF2C0313AFCB610A /* C7Opacity.swift */,
-			);
-			name = Effect;
 			sourceTree = "<group>";
 		};
 		46D06A60637E830399D27FC41AD2E6D8 /* Pods-MetalDemo */ = {
@@ -300,14 +293,45 @@
 			name = iOS;
 			sourceTree = "<group>";
 		};
-		6797F532E0536415ED102C434094ACA5 /* Blend */ = {
+		714E9C006E3628945C628D63E9E20E98 /* Blend */ = {
 			isa = PBXGroup;
 			children = (
-				D5D03D69FA19E29538E355C0276CC6F1 /* C7AddBlend.metal */,
-				ADA3470ED2AEEAFB35765F05907C8381 /* C7AlphaBlend.metal */,
-				EFA1911FD81B82C2172A5443DBF011CF /* C7BlendFilter.swift */,
+				E3691C4101BF205BD70A1F0D7E0E9D2F /* C7AddBlend.metal */,
+				CBBD89E431A1F3730306C960AF807B3B /* C7AlphaBlend.metal */,
+				A14A2FECBCA50D190F68DAABB97A432A /* C7BlendFilter.swift */,
 			);
 			name = Blend;
+			sourceTree = "<group>";
+		};
+		76067AE50DF09066AFAFE1234C894570 /* Filter */ = {
+			isa = PBXGroup;
+			children = (
+				3A1D920CE1B2FF5B3BCEC03F37FFAC13 /* C7ColorInvert.metal */,
+				9093CBD7489564D2325CDB9FE53701B9 /* C7ColorSwizzle.metal */,
+				567EEE8EDFC69EDC930903CA69B9279D /* C7ComputeFilter.swift */,
+			);
+			name = Filter;
+			sourceTree = "<group>";
+		};
+		788B74047B1DC034A85613AB43CDC9AC /* Compute */ = {
+			isa = PBXGroup;
+			children = (
+				714E9C006E3628945C628D63E9E20E98 /* Blend */,
+				BE5D46F5849F1601380A59455AEB4EB8 /* Blur */,
+				F6896A464755840CAF66D18E3AFDE213 /* Effect */,
+				76067AE50DF09066AFAFE1234C894570 /* Filter */,
+				788BF222E0CBF09C83FD2C907ADEA8BE /* Lookup */,
+			);
+			name = Compute;
+			sourceTree = "<group>";
+		};
+		788BF222E0CBF09C83FD2C907ADEA8BE /* Lookup */ = {
+			isa = PBXGroup;
+			children = (
+				A21BA02ADBA50CC26A89ED5F3C0D11B2 /* C7LookupFilter.metal */,
+				D6EA97CAB09D91CD2C2DB871EF3081A4 /* C7LookupFilter.swift */,
+			);
+			name = Lookup;
 			sourceTree = "<group>";
 		};
 		85943B371B902128518DE2299BA6B811 /* Outputs */ = {
@@ -319,15 +343,6 @@
 			);
 			name = Outputs;
 			path = Sources/Basic/Outputs;
-			sourceTree = "<group>";
-		};
-		8E4ED10350DA89397D72257DD420E82C /* Blur */ = {
-			isa = PBXGroup;
-			children = (
-				EAE717E47B3F83ECB43537219CCA2EBC /* C7ZoomBlur.metal */,
-				3CAB38C1076D0C342945D6395A2A0CD0 /* C7ZoomBlur.swift */,
-			);
-			name = Blur;
 			sourceTree = "<group>";
 		};
 		989A00A4444BF03FD5276C0FD75A2A18 /* Pods-MetalDemoUITests */ = {
@@ -343,25 +358,6 @@
 			path = "Target Support Files/Pods-MetalDemoUITests";
 			sourceTree = "<group>";
 		};
-		ABD771A7C81B36F009C862A65189AF17 /* Lookup */ = {
-			isa = PBXGroup;
-			children = (
-				F6F033B8D0886EE963AC16457F9EF99F /* C7LookupFilter.metal */,
-				2C42AE369336BF9D3F88FEAC56B7F9BA /* C7LookupFilter.swift */,
-			);
-			name = Lookup;
-			sourceTree = "<group>";
-		};
-		AFA4AC60D465ED15F4F751104610A280 /* Filter */ = {
-			isa = PBXGroup;
-			children = (
-				F83F81447FE56D58C7B46CDC880B9288 /* C7ColorInvert.metal */,
-				E26455F1A895A9861450E76555686C90 /* C7ColorSwizzle.metal */,
-				950C0F255B54E56AC51CB293769E9652 /* C7ComputeFilter.swift */,
-			);
-			name = Filter;
-			sourceTree = "<group>";
-		};
 		BA5D6CC9E08C8CD8B53DB882633E0AF1 /* Core */ = {
 			isa = PBXGroup;
 			children = (
@@ -375,6 +371,15 @@
 			);
 			name = Core;
 			path = Sources/Basic/Core;
+			sourceTree = "<group>";
+		};
+		BE5D46F5849F1601380A59455AEB4EB8 /* Blur */ = {
+			isa = PBXGroup;
+			children = (
+				3481197B0ACEE76A7A75050B323C8DD8 /* C7ZoomBlur.metal */,
+				3DB78935577471F04CF06D13110616E9 /* C7ZoomBlur.swift */,
+			);
+			name = Blur;
 			sourceTree = "<group>";
 		};
 		CF1408CF629C7361332E53B88F7BD30C = {
@@ -414,16 +419,25 @@
 			name = Pod;
 			sourceTree = "<group>";
 		};
-		F1C9DF6056966955259FB213D4A00964 /* Compute */ = {
+		F6896A464755840CAF66D18E3AFDE213 /* Effect */ = {
 			isa = PBXGroup;
 			children = (
-				6797F532E0536415ED102C434094ACA5 /* Blend */,
-				8E4ED10350DA89397D72257DD420E82C /* Blur */,
-				361FF6CCDD23EC0C40154C47C4BF36C9 /* Effect */,
-				AFA4AC60D465ED15F4F751104610A280 /* Filter */,
-				ABD771A7C81B36F009C862A65189AF17 /* Lookup */,
+				53C077ED31A7EDCBEE3839BC87D03333 /* C7Brightness.metal */,
+				AE497EE6256FBE4080D0895AF547A6F1 /* C7Brightness.swift */,
+				5CD3CC5232F441101F616A1DFD465C45 /* C7Bulge.metal */,
+				385D918B3FAC041EE99B692989F260E3 /* C7Bulge.swift */,
+				CBBD9B5063317F70D2E9D096AF798C34 /* C7Exposure.metal */,
+				2524EF65385B7E369F459AA75BD799EF /* C7Exposure.swift */,
+				E010ED533F04E6C8BD65D52E957FB337 /* C7Hue.metal */,
+				85F1C7DCEE61EA0620F46B66774A5F82 /* C7Hue.swift */,
+				42854B83ADCABD45A077400C9702BB7C /* C7Luminance.metal */,
+				17E546C8BE1B15FCA281392F44A272CF /* C7Luminance.swift */,
+				CB2F8635C5E89310E0946E97D5C7670F /* C7LuminanceThreshold.metal */,
+				6E1AD8D0C2D104599C94E360EA2D8BDC /* C7LuminanceThreshold.swift */,
+				9669209F403FFDAEFF2640C06DEB5B99 /* C7Opacity.metal */,
+				AF31692E934BFF38FC2E95AFEDF63ADD /* C7Opacity.swift */,
 			);
-			name = Compute;
+			name = Effect;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -433,6 +447,14 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3161D79909647FB75C28DF5C94BACDB4 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				25BEC2217B895634765C681BF036A31F /* ATMetalBand-umbrella.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -451,30 +473,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B92F358B6981DA9855D29FF25E7597B7 /* Headers */ = {
-			isa = PBXHeadersBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				FCA72021F61D7560C08008752D8CBD4C /* ATMetalBand-umbrella.h in Headers */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		09763EF6C518BD793B55E67014348C7D /* ATMetalBand */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A16494616DE3A309EEAF3108409E2E3E /* Build configuration list for PBXNativeTarget "ATMetalBand" */;
+			buildConfigurationList = F02AD2F247EE2AFC96EE9A3E3F619BB7 /* Build configuration list for PBXNativeTarget "ATMetalBand" */;
 			buildPhases = (
-				B92F358B6981DA9855D29FF25E7597B7 /* Headers */,
-				722FC32896D1EE13061106DB53C2A8E5 /* Sources */,
-				6EB91C2113DDBE97F9FD6C4C51E6B972 /* Frameworks */,
-				86D35E6E3A4E20F0D1493A753992BDFA /* Resources */,
+				3161D79909647FB75C28DF5C94BACDB4 /* Headers */,
+				BD8810B38403383F0AAC678D1513F5A7 /* Sources */,
+				C21CDD0E1854F8B0E95F625C45F7BF87 /* Frameworks */,
+				B2139600875F4CD067D66C6EEBD28E1D /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				2455BCADFA77B64099AC84F7F80E3920 /* PBXTargetDependency */,
+				8A02E4057F4C46D981550940F4F635A9 /* PBXTargetDependency */,
 			);
 			name = ATMetalBand;
 			productName = ATMetalBand;
@@ -493,7 +507,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				4B78BA73A31178124EFC7A204D2732B0 /* PBXTargetDependency */,
+				17E54A0221966272766BDE45C29E223D /* PBXTargetDependency */,
 			);
 			name = "Pods-MetalDemo";
 			productName = Pods_MetalDemo;
@@ -519,11 +533,11 @@
 		};
 		94707657354CC2428E6660E3C11ADBBF /* ATMetalBand-ATMetalLibrary */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DDB39D4F5B3EE0CB525E84DB41821933 /* Build configuration list for PBXNativeTarget "ATMetalBand-ATMetalLibrary" */;
+			buildConfigurationList = 191CFE3F25AC702CB83FA454AAB79174 /* Build configuration list for PBXNativeTarget "ATMetalBand-ATMetalLibrary" */;
 			buildPhases = (
-				D137EF8057AC10B4DADFC656B2926EBA /* Sources */,
-				621BDD8E449AC9DA8346BEBE77AC48AA /* Frameworks */,
-				24DFBF70843A7E5D7C279657814980E0 /* Resources */,
+				8B1B9438E4D152F07F9E9BA02C3522A7 /* Sources */,
+				6ED94290C70FCE6ABAC0E6E3D6B52E4B /* Frameworks */,
+				589F630F027DA64BBDED8E788E7C896D /* Resources */,
 			);
 			buildRules = (
 			);
@@ -583,25 +597,27 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		24DFBF70843A7E5D7C279657814980E0 /* Resources */ = {
+		589F630F027DA64BBDED8E788E7C896D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F152489C92B3F92EF8BAA411573FD218 /* C7AddBlend.metal in Resources */,
-				A33F772364442D7142E1721184B53652 /* C7AlphaBlend.metal in Resources */,
-				B26609E7F5B3F36F6E620AA72B6EE75C /* C7Brightness.metal in Resources */,
-				BA24AA45944788473C5B53DA28A32E15 /* C7ColorInvert.metal in Resources */,
-				BA112602561B8FFA6295642D79C17294 /* C7ColorSwizzle.metal in Resources */,
-				5E2E49EFE8DA0889F76E11D624F8C6A0 /* C7Exposure.metal in Resources */,
-				A22628BE3FF9532E07FB953D7CACCF4E /* C7LookupFilter.metal in Resources */,
-				1D2E570DF1F15727C684FE4B054D8865 /* C7Luminance.metal in Resources */,
-				95532FD7C11DE6B4C703464703A3E6EF /* C7LuminanceThreshold.metal in Resources */,
-				99B20F16523AD3F2C09D629AA2A80F2F /* C7Opacity.metal in Resources */,
-				69C0E140864D41C98816030A6958AD63 /* C7ZoomBlur.metal in Resources */,
+				8ECB3445455DE89BAE7426F4AD6B51A3 /* C7AddBlend.metal in Resources */,
+				A960FCB3AF2782D6E01BA079869F1808 /* C7AlphaBlend.metal in Resources */,
+				ED7C09A30152BBBE2A23B4A55957C90E /* C7Brightness.metal in Resources */,
+				9B79DAC17D625C76E36573870350EFF1 /* C7Bulge.metal in Resources */,
+				97D20FA22BCBF1288397E6688C653AEB /* C7ColorInvert.metal in Resources */,
+				827A167D5E5797DC3775E2274D6BB54D /* C7ColorSwizzle.metal in Resources */,
+				FC281CDCBB790EF4311E4EB5054183C9 /* C7Exposure.metal in Resources */,
+				DC87615C1D7373E6F8140F0C2912FA79 /* C7Hue.metal in Resources */,
+				DB7837F6FC571B1F55AFC0C3525B4B3D /* C7LookupFilter.metal in Resources */,
+				4CD0E8EC1CC4928E660758F56104B6D6 /* C7Luminance.metal in Resources */,
+				13582EE4EA4A9F8FD98A62A1CA9B0E4C /* C7LuminanceThreshold.metal in Resources */,
+				FEF8D8B83071B61A0D85DA0BD4FEC332 /* C7Opacity.metal in Resources */,
+				AB4BABE5F3617BCCD3C0994F86921424 /* C7ZoomBlur.metal in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		86D35E6E3A4E20F0D1493A753992BDFA /* Resources */ = {
+		B2139600875F4CD067D66C6EEBD28E1D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -634,41 +650,52 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		722FC32896D1EE13061106DB53C2A8E5 /* Sources */ = {
+		8B1B9438E4D152F07F9E9BA02C3522A7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0969D5A1A76E3EFFC242F546C72AD268 /* ATMetalBand-dummy.m in Sources */,
-				5E50CA369C1B74BE9C6604E457D0334A /* C7AddBlend.metal in Sources */,
-				8EEEBC57FCE04209FFB618D4F6933220 /* C7AlphaBlend.metal in Sources */,
-				A42006A6D7ED5C90402A65FE6ACF46C6 /* C7BlendFilter.swift in Sources */,
-				BC346144F0FB9AFA519A00C950A41CD3 /* C7Brightness.metal in Sources */,
-				62D6177305689E8835524525CC661B7F /* C7Brightness.swift in Sources */,
-				307E5E517350DB46E4E771C74ACB6E2B /* C7ColorInvert.metal in Sources */,
-				3B62A4FF8327ABD58A728D5CBBBFE7AB /* C7ColorSwizzle.metal in Sources */,
-				8C7FC0E5BBD0FBD680169BB31BD92CA8 /* C7ComputeFilter.swift in Sources */,
-				0A665C579574AF2DDBC2253105922204 /* C7Exposure.metal in Sources */,
-				1609935D53371240FDCC4A2A41D621D5 /* C7Exposure.swift in Sources */,
-				E47B1BB879E7D462DDF32A907227330F /* C7FilterImage.swift in Sources */,
-				48A01FA81DD206176E6D793AE29DEE27 /* C7FilterProtocol.swift in Sources */,
-				880D140B9386C5EF717A1A0313A717A5 /* C7FilterSerializer.swift in Sources */,
-				DDCDE3EEEF9DED816CB53FF1E83A2D23 /* C7FilterVideo.swift in Sources */,
-				AAE7C5AF202120BBD7ECD81BB5F06E31 /* C7LookupFilter.metal in Sources */,
-				C304966ED1B5002176B4DC7CC781A9BE /* C7LookupFilter.swift in Sources */,
-				2643D26BFD9FE1352E3345641B945DB5 /* C7Luminance.metal in Sources */,
-				BEF4F6A27A65CE52D12E7E472F903245 /* C7Luminance.swift in Sources */,
-				10B814E8D27621A5D25DE5D5A23C38E7 /* C7LuminanceThreshold.metal in Sources */,
-				9A800BD3507494FCC89CF1278ED79D41 /* C7LuminanceThreshold.swift in Sources */,
-				760444378D570E36F1E6007A92632B2B /* C7Opacity.metal in Sources */,
-				19B0BB6DECC02BF3AF01139974719C06 /* C7Opacity.swift in Sources */,
-				25AE5331E8A77199B013FC39EBE389FD /* C7ZoomBlur.metal in Sources */,
-				0F4958586011EB0AC631A3D78C66973A /* C7ZoomBlur.swift in Sources */,
-				8617C70938E64393C14273CD9BD5617B /* Compatible.swift in Sources */,
-				2ED5FD4CEDC5BF71D8F582D1B878A757 /* Compute.swift in Sources */,
-				0953F67E124F092B5584D575BAC1651F /* Device.swift in Sources */,
-				DC8B837EE1D780FDBBE81F8028352CF0 /* Operators.swift in Sources */,
-				87196F9CE211BADB94C14F9A21E18F48 /* Rendering.swift in Sources */,
-				AFAFDEFFB22586AFA78735C9247A659E /* Transform.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BD8810B38403383F0AAC678D1513F5A7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				581A56BC525E09156161B2D036AECBCA /* ATMetalBand-dummy.m in Sources */,
+				354FC94AD5D7697828EF3D1091FBE15A /* C7AddBlend.metal in Sources */,
+				9BB94086D0C3FFDF6A81C0860A43DB8B /* C7AlphaBlend.metal in Sources */,
+				5D897665BA96910DD88A96D9AED4CB02 /* C7BlendFilter.swift in Sources */,
+				93E7ABBE054DCC8368883A14D525984E /* C7Brightness.metal in Sources */,
+				EEE5D8F1BC01272C9AA5C5461325DEC9 /* C7Brightness.swift in Sources */,
+				65E417333439C646E052E50055AAF33D /* C7Bulge.metal in Sources */,
+				10D5F81319A471BC3D7BEC8C5A2BECE1 /* C7Bulge.swift in Sources */,
+				B412A26BE0950DE7802B492EE85E339D /* C7ColorInvert.metal in Sources */,
+				31BB6E08FC60B7F1DBAB34AEE29057FF /* C7ColorSwizzle.metal in Sources */,
+				99E91460B11E7248256453DAA9AA12DD /* C7ComputeFilter.swift in Sources */,
+				7B3992C3FA541F52EC0261F9DD4BFC9C /* C7Exposure.metal in Sources */,
+				45B77AB8A03E99F3400B84D6D7A760AB /* C7Exposure.swift in Sources */,
+				0A8ECF451B7308A7D704B3AD8C4A205C /* C7FilterImage.swift in Sources */,
+				DC83E9E5F1F6F38937F68724FEF732A4 /* C7FilterProtocol.swift in Sources */,
+				643A7C9683679A089B05F5E4D4C1EC37 /* C7FilterSerializer.swift in Sources */,
+				6CB1FAFED5B5D905FC70637C0C63842F /* C7FilterVideo.swift in Sources */,
+				B82708A71B8A7F59B9B2AD0C07BDCE6F /* C7Hue.metal in Sources */,
+				7A4C4DDCEDCE52F1B85C385A27389688 /* C7Hue.swift in Sources */,
+				BB0F5BC88EAFBBA1544C05DD04723EE8 /* C7LookupFilter.metal in Sources */,
+				451A188B3B797A8CCA176040457974DD /* C7LookupFilter.swift in Sources */,
+				AB940AD4B11E0FA568EB25BE5456CB78 /* C7Luminance.metal in Sources */,
+				3226AF504B33537EB30DDED3C23C36EB /* C7Luminance.swift in Sources */,
+				369E1A6B0E525792AD5B1E7B501CDBAE /* C7LuminanceThreshold.metal in Sources */,
+				283D9F7D48FBB0CE6BB2D7648124E582 /* C7LuminanceThreshold.swift in Sources */,
+				56857FD74DB03FC9949E20AE5BA59245 /* C7Opacity.metal in Sources */,
+				07D01AEE24575DC8FC98566F75BA06F9 /* C7Opacity.swift in Sources */,
+				967160DEF3A694D2C62DA54FC02CD7A3 /* C7ZoomBlur.metal in Sources */,
+				63DE69BB01E28C92B0DFF436E5CAB3DD /* C7ZoomBlur.swift in Sources */,
+				5786FA7FE587184202DFEAA4AB7C1543 /* Compatible.swift in Sources */,
+				957E403E1313DC1FBEDA4C29916D0BCA /* Compute.swift in Sources */,
+				9328DC28DFA1DF55C5BDBED4360FBDF0 /* Device.swift in Sources */,
+				5F97DFEF64FB4DE5E90C55F80B8C6275 /* Operators.swift in Sources */,
+				5F33AFFF09FECBD937F9587E279B1CAC /* Rendering.swift in Sources */,
+				EE6A6ABF75AACEBE24E3987C57165E3F /* Transform.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -680,83 +707,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D137EF8057AC10B4DADFC656B2926EBA /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		2455BCADFA77B64099AC84F7F80E3920 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = "ATMetalBand-ATMetalLibrary";
-			target = 94707657354CC2428E6660E3C11ADBBF /* ATMetalBand-ATMetalLibrary */;
-			targetProxy = 82A24C720A0EFDCBE00E4FA1E0763847 /* PBXContainerItemProxy */;
-		};
-		4B78BA73A31178124EFC7A204D2732B0 /* PBXTargetDependency */ = {
+		17E54A0221966272766BDE45C29E223D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = ATMetalBand;
 			target = 09763EF6C518BD793B55E67014348C7D /* ATMetalBand */;
-			targetProxy = 6BF9DDFAF226A5D9763D07BDE7788EC9 /* PBXContainerItemProxy */;
+			targetProxy = 22C755B46D9688A6409E8A882462FB24 /* PBXContainerItemProxy */;
+		};
+		8A02E4057F4C46D981550940F4F635A9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "ATMetalBand-ATMetalLibrary";
+			target = 94707657354CC2428E6660E3C11ADBBF /* ATMetalBand-ATMetalLibrary */;
+			targetProxy = 470DEB2765240D5D329FBC0CDFA0DC7C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		05778FD462B8AFC51CABF36D3BD4CA34 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = F584913EED9B501FD228EE361ABC233D /* ATMetalBand.release.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
-				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GCC_PREFIX_HEADER = "Target Support Files/ATMetalBand/ATMetalBand-prefix.pch";
-				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ATMetalBand-Info.plist";
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MACH_O_TYPE = staticlib;
-				MODULEMAP_FILE = "Target Support Files/ATMetalBand/ATMetalBand.modulemap";
-				PRODUCT_MODULE_NAME = ATMetalBand;
-				PRODUCT_NAME = ATMetalBand;
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-				VERSIONING_SYSTEM = "apple-generic";
-				VERSION_INFO_PREFIX = "";
-			};
-			name = Release;
-		};
-		0D1E6F28F774E74B824DB4CE986B900D /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = F584913EED9B501FD228EE361ABC233D /* ATMetalBand.release.xcconfig */;
-			buildSettings = {
-				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/ATMetalBand";
-				IBSC_MODULE = ATMetalBand;
-				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				PRODUCT_NAME = ATMetalLibrary;
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = bundle;
-			};
-			name = Release;
-		};
 		39F9F7B83492442CF23AE8A5751AF75C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A591FF14548982C14AB32570AB125E60 /* Pods-MetalDemoTests.debug.xcconfig */;
@@ -816,23 +784,29 @@
 			};
 			name = Release;
 		};
-		4AA7AA3BE3F6648052F55E45839FA5EB /* Debug */ = {
+		50B588045327EA3225DE8900ED43AC07 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A8D4CF8ACA7E4641C41E16763F7A5A41 /* ATMetalBand.debug.xcconfig */;
+			baseConfigurationReference = 8C002616685BFE8B51030AE8E5A51491 /* Pods-MetalDemoUITests.release.xcconfig */;
 			buildSettings = {
-				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/ATMetalBand";
-				IBSC_MODULE = ATMetalBand;
-				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
-				PRODUCT_NAME = ATMetalLibrary;
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = bundle;
+				VALIDATE_PRODUCT = YES;
 			};
-			name = Debug;
+			name = Release;
 		};
-		4C03F52DE14434C9809B970ACAF7E115 /* Debug */ = {
+		682C3BB3BE94C3DC4CEDE4A37E67A33C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A8D4CF8ACA7E4641C41E16763F7A5A41 /* ATMetalBand.debug.xcconfig */;
 			buildSettings = {
@@ -866,28 +840,6 @@
 				VERSION_INFO_PREFIX = "";
 			};
 			name = Debug;
-		};
-		50B588045327EA3225DE8900ED43AC07 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 8C002616685BFE8B51030AE8E5A51491 /* Pods-MetalDemoUITests.release.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
-				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACH_O_TYPE = staticlib;
-				OTHER_LDFLAGS = "";
-				OTHER_LIBTOOLFLAGS = "";
-				PODS_ROOT = "$(SRCROOT)";
-				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
 		};
 		6D8DADF3B9515A88A2A4ABCB411114A0 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -931,6 +883,22 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		893EA0C4817696BA140866D0A208DA07 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F584913EED9B501FD228EE361ABC233D /* ATMetalBand.release.xcconfig */;
+			buildSettings = {
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/ATMetalBand";
+				IBSC_MODULE = ATMetalBand;
+				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				PRODUCT_NAME = ATMetalLibrary;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Release;
 		};
 		90D4D09BCB6A4660E43ACBE9ECB6FE9A /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1097,9 +1065,70 @@
 			};
 			name = Debug;
 		};
+		BDBCC3EB6B7C339B53EE72BCDB2364CA /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F584913EED9B501FD228EE361ABC233D /* ATMetalBand.release.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GCC_PREFIX_HEADER = "Target Support Files/ATMetalBand/ATMetalBand-prefix.pch";
+				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ATMetalBand-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MODULEMAP_FILE = "Target Support Files/ATMetalBand/ATMetalBand.modulemap";
+				PRODUCT_MODULE_NAME = ATMetalBand;
+				PRODUCT_NAME = ATMetalBand;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		DCC42A199864E63F4BB1AECC78080928 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A8D4CF8ACA7E4641C41E16763F7A5A41 /* ATMetalBand.debug.xcconfig */;
+			buildSettings = {
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/ATMetalBand";
+				IBSC_MODULE = ATMetalBand;
+				INFOPLIST_FILE = "Target Support Files/ATMetalBand/ResourceBundle-ATMetalLibrary-ATMetalBand-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				PRODUCT_NAME = ATMetalLibrary;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		191CFE3F25AC702CB83FA454AAB79174 /* Build configuration list for PBXNativeTarget "ATMetalBand-ATMetalLibrary" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCC42A199864E63F4BB1AECC78080928 /* Debug */,
+				893EA0C4817696BA140866D0A208DA07 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1F983E1FE0AECFB2C555D20302F87168 /* Build configuration list for PBXNativeTarget "Pods-MetalDemo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1127,15 +1156,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A16494616DE3A309EEAF3108409E2E3E /* Build configuration list for PBXNativeTarget "ATMetalBand" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				4C03F52DE14434C9809B970ACAF7E115 /* Debug */,
-				05778FD462B8AFC51CABF36D3BD4CA34 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		A5DF78CB86726E9C159176F3E11E69AE /* Build configuration list for PBXNativeTarget "Pods-MetalDemoUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1145,11 +1165,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DDB39D4F5B3EE0CB525E84DB41821933 /* Build configuration list for PBXNativeTarget "ATMetalBand-ATMetalLibrary" */ = {
+		F02AD2F247EE2AFC96EE9A3E3F619BB7 /* Build configuration list for PBXNativeTarget "ATMetalBand" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				4AA7AA3BE3F6648052F55E45839FA5EB /* Debug */,
-				0D1E6F28F774E74B824DB4CE986B900D /* Release */,
+				682C3BB3BE94C3DC4CEDE4A37E67A33C /* Debug */,
+				BDBCC3EB6B7C339B53EE72BCDB2364CA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

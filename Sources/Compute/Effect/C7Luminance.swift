@@ -9,8 +9,8 @@ import Foundation
 
 public struct C7Luminance: C7FilterProtocol {
     
-    public private(set) var minLuminance: Float = 0.0
-    public private(set) var maxLuminance: Float = 1.0
+    public let minLuminance: Float = 0.0
+    public let maxLuminance: Float = 1.0
     
     public var luminance: Float = 1.0
     

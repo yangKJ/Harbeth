@@ -10,6 +10,8 @@ import MetalKit
 
 public protocol C7FilterSerializer {
     
+    mutating func makeMTLTexture(filter: C7FilterProtocol) -> MTLTexture
+    
     mutating func makeImage<T: C7FilterSerializer>(filter: C7FilterProtocol) -> T
     
     /// Multiple filter combinations
@@ -20,18 +22,24 @@ public protocol C7FilterSerializer {
     /// - Returns: C7FilterSerializer
     mutating func makeGroup<T: C7FilterSerializer>(filters: [C7FilterProtocol]) -> T
     
-    func makeMTLTexture(inTexture: MTLTexture, otherTextures: MTQInputTextures?, filter: C7FilterProtocol) -> MTLTexture
+    /// Create a new texture based on the filter content.
+    /// This protocol method does not need to be overridden unless you need to change the internal logic.
+    ///
+    /// - Parameters:
+    ///   - intexture: Input texture
+    ///   - otherTextures: Other input textures
+    ///   - filter: It must be an object implementing C7FilterProtocol
+    /// - Returns: New texture after processing
+    func newTexture(inTexture: MTLTexture, otherTextures: MTQInputTextures?, filter: C7FilterProtocol) -> MTLTexture
 }
 
-extension C7FilterSerializer {
-    public func makeMTLTexture(inTexture: MTLTexture,
-                               otherTextures: MTQInputTextures?,
-                               filter: C7FilterProtocol) -> MTLTexture {
+public extension C7FilterSerializer {
+    func newTexture(inTexture: MTLTexture, otherTextures: MTQInputTextures?, filter: C7FilterProtocol) -> MTLTexture {
         guard let commandBuffer = makeCommandBuffer() else {
             return inTexture
         }
         
-        let outTexture = dstTexture(width: inTexture.width, height: inTexture.height)
+        let outTexture = destTexture(width: inTexture.width, height: inTexture.height)
         if case .compute(let kernel) = filter.modifier {
             var textures = [outTexture, inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }
@@ -66,14 +74,14 @@ extension C7FilterSerializer {
     ///    - height: The texture height
     ///    - mipmAPPED: No mapping was required
     /// - Returns: New textures
-    private func dstTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
-                            width: Int, height: Int,
-                            mipmapped: Bool = false) -> MTLTexture {
+    private func destTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
+                             width: Int, height: Int,
+                             mipmapped: Bool = false) -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
                                                                   width: width,
                                                                   height: height,
                                                                   mipmapped: mipmapped)
-        descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
+        descriptor.usage = [.shaderRead, .shaderWrite]
         return Device.shared.device.makeTexture(descriptor: descriptor)!
     }
     

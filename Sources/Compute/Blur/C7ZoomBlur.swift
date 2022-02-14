@@ -9,7 +9,8 @@ import Foundation
 
 public struct C7ZoomBlur: C7FilterProtocol {
     
-    public var blurSize: Float = 0
+    /// A multiplier for the blur size, ranging from 0.0 on up, with a default of 0.0
+    public var blurSize: Float
     
     public var modifier: Modifier {
         return .compute(kernel: "C7ZoomBlur")

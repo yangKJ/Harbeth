@@ -24,7 +24,11 @@ enum ViewControllerType: String {
     case ZoomBlur = "中心点缩放模糊"
     case Pixellated = "马赛克像素化"
     case AlphaBlend = "透明度融合"
-    
+    case Hue = "色相角度"
+    case Bulge = "鼓起效果"
+}
+
+extension ViewControllerType {
     var image: UIImage {
         switch self {
         case .ColorInvert:
@@ -97,6 +101,20 @@ enum ViewControllerType: String {
                 return filter
             }
             return (filter, (0.5, 0, 1), cb)
+        case .Hue:
+            var filter = C7Hue(hue: 90)
+            let cb: FilterCallback = {
+                filter.hue = $0
+                return filter
+            }
+            return (filter, (filter.hue, filter.minHue, filter.maxHue), cb)
+        case .Bulge:
+            var filter = C7Bulge(scale: 0)
+            let cb: FilterCallback = {
+                filter.scale = $0
+                return filter
+            }
+            return (filter, (filter.scale, -1, 1), cb)
         }
     }
 }
@@ -113,7 +131,7 @@ struct HomeViewModel {
     let effect: [ViewControllerType] = [
         .Luminance, .Opacity, .Exposure,
         .ZoomBlur, .Pixellated, .AddBlend,
-        .AlphaBlend,
+        .AlphaBlend, .Hue, .Bulge,
     ]
     
     let filter: [ViewControllerType] = [

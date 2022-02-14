@@ -81,9 +81,9 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         vc.filter = tuple.filter
         vc.callback = tuple.callback
         if let maxmin = tuple.maxminValue {
-            vc.slider.value = maxmin.current
-            vc.slider.maximumValue = maxmin.max
             vc.slider.minimumValue = maxmin.min
+            vc.slider.maximumValue = maxmin.max
+            vc.slider.value = maxmin.current
         } else {
             vc.slider.isHidden = true
         }

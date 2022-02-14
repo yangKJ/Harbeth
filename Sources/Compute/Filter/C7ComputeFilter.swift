@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum ComputeFilterType: String {
+public enum ComputeFilterType: String, CaseIterable {
     ///` rgba -> bgra
     case colorSwizzle = "C7ColorSwizzle"
     ///` 1 - rgb

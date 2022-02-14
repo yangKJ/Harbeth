@@ -18,12 +18,21 @@ extension C7Image: C7Compatible { }
 ///
 extension C7Image: C7FilterSerializer {
     
+    public func makeMTLTexture(filter: C7FilterProtocol) -> MTLTexture {
+        guard let inTexture = self.mt.toTexture() else {
+            fatalError("Input image transform texture failed.")
+        }
+        let otherTextures = filter.otherInputTextures
+        let outTexture = newTexture(inTexture: inTexture, otherTextures: otherTextures, filter: filter)
+        return outTexture
+    }
+    
     public func makeImage<T>(filter: C7FilterProtocol) -> T where T : C7FilterSerializer {
         guard let inTexture = self.mt.toTexture() else {
             return self as! T
         }
         let otherTextures = filter.otherInputTextures
-        let outTexture = makeMTLTexture(inTexture: inTexture, otherTextures: otherTextures, filter: filter)
+        let outTexture = newTexture(inTexture: inTexture, otherTextures: otherTextures, filter: filter)
         return (outTexture.toImage() ?? self) as! T
     }
     
@@ -34,13 +43,13 @@ extension C7Image: C7FilterSerializer {
         var outTexture: MTLTexture = inTexture
         for filter in filters {
             let otherTextures = filter.otherInputTextures
-            outTexture = makeMTLTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
+            outTexture = newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
         }
         return (outTexture.toImage() ?? self) as! T
     }
 }
 
-extension Queen where Base: C7Image {
+extension Queen where Base == C7Image {
     public func toTexture() -> MTLTexture? {
         do {
             let loader = Device.shared.textureLoader

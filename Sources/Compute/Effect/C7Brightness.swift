@@ -9,10 +9,11 @@ import Foundation
 
 public struct C7Brightness: C7FilterProtocol {
     
-    public private(set) var minBrightness: Float = -1.0
-    public private(set) var maxBrightness: Float = 1.0
+    public let minBrightness: Float = -1.0
+    public let maxBrightness: Float = 1.0
     
-    public var brightness: Float = 0.0
+    /// The adjusted brightness, from -1.0 to 1.0, with a default of 0.0
+    public var brightness: Float
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Brightness")

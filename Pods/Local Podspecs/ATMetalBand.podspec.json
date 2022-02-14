@@ -32,15 +32,15 @@
   "pod_target_xcconfig": {
     "SWIFT_VERSION": "5.0"
   },
-  "resource_bundles": {
-    "ATMetalLibrary": [
-      "Sources/Compute/**/*.metal"
-    ]
-  },
   "subspecs": [
     {
       "name": "Basic",
-      "source_files": "Sources/Basic/**/*.swift"
+      "source_files": "Sources/Basic/**/*.swift",
+      "resource_bundles": {
+        "ATMetalLibrary": [
+          "Sources/Compute/**/*.metal"
+        ]
+      }
     },
     {
       "name": "Compute",
