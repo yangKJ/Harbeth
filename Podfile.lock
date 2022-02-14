@@ -1,23 +1,23 @@
 PODS:
-  - ATMetalBand (0.0.3):
-    - ATMetalBand/Basic (= 0.0.3)
-    - ATMetalBand/Compute (= 0.0.3)
-  - ATMetalBand/Basic (0.0.3)
-  - ATMetalBand/Compute (0.0.3):
-    - ATMetalBand/Compute/Blend (= 0.0.3)
-    - ATMetalBand/Compute/Blur (= 0.0.3)
-    - ATMetalBand/Compute/Effect (= 0.0.3)
-    - ATMetalBand/Compute/Filter (= 0.0.3)
-    - ATMetalBand/Compute/Lookup (= 0.0.3)
-  - ATMetalBand/Compute/Blend (0.0.3):
+  - ATMetalBand (0.0.4):
+    - ATMetalBand/Basic (= 0.0.4)
+    - ATMetalBand/Compute (= 0.0.4)
+  - ATMetalBand/Basic (0.0.4)
+  - ATMetalBand/Compute (0.0.4):
+    - ATMetalBand/Compute/Blend (= 0.0.4)
+    - ATMetalBand/Compute/Blur (= 0.0.4)
+    - ATMetalBand/Compute/Effect (= 0.0.4)
+    - ATMetalBand/Compute/Filter (= 0.0.4)
+    - ATMetalBand/Compute/Lookup (= 0.0.4)
+  - ATMetalBand/Compute/Blend (0.0.4):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Blur (0.0.3):
+  - ATMetalBand/Compute/Blur (0.0.4):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Effect (0.0.3):
+  - ATMetalBand/Compute/Effect (0.0.4):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Filter (0.0.3):
+  - ATMetalBand/Compute/Filter (0.0.4):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Lookup (0.0.3):
+  - ATMetalBand/Compute/Lookup (0.0.4):
     - ATMetalBand/Basic
 
 DEPENDENCIES:
@@ -28,7 +28,7 @@ EXTERNAL SOURCES:
     :path: "./"
 
 SPEC CHECKSUMS:
-  ATMetalBand: be5e450fc09c20d39f0c8b5cb79d026d20df94fe
+  ATMetalBand: 99157abe37759cb1a84730c1b0812a60fa275742
 
 PODFILE CHECKSUM: 8914b7ee510c9e654228ad885d8c64132e46e605
 

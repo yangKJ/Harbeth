@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'ATMetalBand'
-  s.version          = '0.0.3'
+  s.version          = '0.0.4'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -30,12 +30,11 @@ Pod::Spec.new do |s|
   s.ios.frameworks = ["UIKit", 'MetalKit', 'ImageIO', "CoreImage"]
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
   
-  s.resource_bundles = {
-    'ATMetalLibrary' => [ 'Sources/Compute/**/*.metal' ]
-  }
-  
   s.subspec 'Basic' do |xx|
     xx.source_files = 'Sources/Basic/**/*.swift'
+    xx.resource_bundles = {
+      'ATMetalLibrary' => [ 'Sources/Compute/**/*.metal' ]
+    }
   end
   
   s.subspec 'Compute' do |xx|
