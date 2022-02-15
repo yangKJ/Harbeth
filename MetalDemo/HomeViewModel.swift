@@ -25,6 +25,7 @@ enum ViewControllerType: String {
     case Monochrome = "黑白照片"
     case ChromaKey = "类似绿幕抠图"
     case ChromaKey2 = "扣掉红色"
+    case ReplaceColor = "替换背景颜色"
     case Haze = "变模糊"
     case ZoomBlur = "中心点缩放模糊"
     case Pixellated = "马赛克像素化"
@@ -55,7 +56,7 @@ extension ViewControllerType {
             return UIImage.init(named: "IMG_1668")!
         case .ChromaKey:
             return UIImage.init(named: "lvmu")!
-        case .ChromaKey2:
+        case .ChromaKey2, .ReplaceColor:
             return UIImage.init(named: "IMG_2606")!
         default:
             return UIImage.init(named: "timg-3")!
@@ -214,6 +215,16 @@ extension ViewControllerType {
                 return filter
             }
             return (filter, (filter.smoothing, 0, 1), cb)
+        case .ReplaceColor:
+            var filter = C7ReplaceRGBA()
+            filter.smoothing = 0.02
+            filter.chroma = UIColor.red
+            filter.replaceColor = UIColor.purple
+            let cb: FilterCallback = {
+                filter.smoothing = $0
+                return filter
+            }
+            return (filter, (filter.smoothing, 0, 1), cb)
         case .Haze:
             var filter = C7Haze()
             filter.distance = 0.5
@@ -242,7 +253,7 @@ struct HomeViewModel {
         .Hue, .Bulge, .Contrast,
         .Saturation, .ChannelRGBA, .HighlightShadow,
         .Monochrome, .ChromaKey, .ChromaKey2,
-        .Haze,
+        .ReplaceColor, .Haze,
     ]
     
     let blur: [ViewControllerType] = [
