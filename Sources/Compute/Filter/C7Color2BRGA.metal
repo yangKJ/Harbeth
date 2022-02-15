@@ -8,13 +8,13 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7Color2BRGA(texture2d<half, access::write> outTexture [[texture(0)]],
-                         texture2d<half, access::read> inTexture [[texture(1)]],
+kernel void C7Color2BRGA(texture2d<half, access::write> outputTexture [[texture(0)]],
+                         texture2d<half, access::read> inputTexture [[texture(1)]],
                          uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inTexture.read(grid);
+    const half4 inColor = inputTexture.read(grid);
     
     const half4 outColor(inColor.brg, inColor.a);
     
-    outTexture.write(outColor, grid);
+    outputTexture.write(outColor, grid);
 }
 

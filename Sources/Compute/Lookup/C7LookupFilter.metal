@@ -8,12 +8,12 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7LookupFilter(texture2d<half, access::write> outTexture [[texture(0)]],
-                           texture2d<half, access::read> inTexture [[texture(1)]],
+kernel void C7LookupFilter(texture2d<half, access::write> outputTexture [[texture(0)]],
+                           texture2d<half, access::read> inputTexture [[texture(1)]],
                            texture2d<half, access::sample> lookupTexture [[texture(2)]],
                            constant float *intensity [[buffer(0)]],
                            uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inTexture.read(grid);
+    const half4 inColor = inputTexture.read(grid);
     const half blueColor = inColor.b * 63.0h;
     
     half2 quad1;
@@ -43,5 +43,5 @@ kernel void C7LookupFilter(texture2d<half, access::write> outTexture [[texture(0
     const half4 newColor = mix(newColor1, newColor2, fract(blueColor));
     const half4 outColor(mix(inColor, half4(newColor.rgb, inColor.a), half(*intensity)));
     
-    outTexture.write(outColor, grid);
+    outputTexture.write(outColor, grid);
 }

@@ -23,6 +23,9 @@ enum ViewControllerType: String {
     case ChannelRGBA = "RGBA通道"
     case HighlightShadow = "高光阴影"
     case Monochrome = "黑白照片"
+    case ChromaKey = "类似绿幕抠图"
+    case ChromaKey2 = "扣掉红色"
+    case Haze = "变模糊"
     case ZoomBlur = "中心点缩放模糊"
     case Pixellated = "马赛克像素化"
     case abao = "阿宝色滤镜"
@@ -50,6 +53,10 @@ extension ViewControllerType {
             return UIImage.init(named: "yuan002")!
         case .ZoomBlur:
             return UIImage.init(named: "IMG_1668")!
+        case .ChromaKey:
+            return UIImage.init(named: "lvmu")!
+        case .ChromaKey2:
+            return UIImage.init(named: "IMG_2606")!
         default:
             return UIImage.init(named: "timg-3")!
         }
@@ -189,6 +196,34 @@ extension ViewControllerType {
                 return filter
             }
             return (filter, (filter.intensity, 0, 1), cb)
+        case .ChromaKey:
+            var filter = C7ChromaKey()
+            filter.smoothing = 0.25
+            filter.color = UIColor.green
+            let cb: FilterCallback = {
+                filter.smoothing = $0
+                return filter
+            }
+            return (filter, (filter.smoothing, 0, 1), cb)
+        case .ChromaKey2:
+            var filter = C7ChromaKey()
+            filter.smoothing = 0.05
+            filter.color = UIColor.red
+            let cb: FilterCallback = {
+                filter.smoothing = $0
+                return filter
+            }
+            return (filter, (filter.smoothing, 0, 1), cb)
+        case .Haze:
+            var filter = C7Haze()
+            filter.distance = 0.5
+            filter.slope = 0.5
+            let cb: FilterCallback = {
+                filter.distance = $0
+                filter.slope = $0
+                return filter
+            }
+            return (filter, (0.5, -1, 1), cb)
         }
     }
 }
@@ -206,7 +241,8 @@ struct HomeViewModel {
         .Opacity, .Exposure, .Luminance,
         .Hue, .Bulge, .Contrast,
         .Saturation, .ChannelRGBA, .HighlightShadow,
-        .Monochrome,
+        .Monochrome, .ChromaKey, .ChromaKey2,
+        .Haze,
     ]
     
     let blur: [ViewControllerType] = [

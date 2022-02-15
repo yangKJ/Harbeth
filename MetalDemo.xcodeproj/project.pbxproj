@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		04F2714827B8F16D00BE3E1B /* Pixellated.metal in Sources */ = {isa = PBXBuildFile; fileRef = 04F2714627B8F16C00BE3E1B /* Pixellated.metal */; };
-		04F2714927B8F16D00BE3E1B /* C7Pixellated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04F2714727B8F16D00BE3E1B /* C7Pixellated.swift */; };
 		04FA709027B8D7D8006199B0 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA708F27B8D7D8006199B0 /* AppDelegate.swift */; };
 		04FA709427B8D7D8006199B0 /* HomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA709327B8D7D8006199B0 /* HomeViewController.swift */; };
 		04FA709727B8D7D8006199B0 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 04FA709527B8D7D8006199B0 /* Main.storyboard */; };
@@ -43,8 +41,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		04F2714627B8F16C00BE3E1B /* Pixellated.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = Pixellated.metal; sourceTree = "<group>"; };
-		04F2714727B8F16D00BE3E1B /* C7Pixellated.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Pixellated.swift; sourceTree = "<group>"; };
 		04FA708C27B8D7D8006199B0 /* MetalDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04FA708F27B8D7D8006199B0 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		04FA709327B8D7D8006199B0 /* HomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewController.swift; sourceTree = "<group>"; };
@@ -102,8 +98,6 @@
 		04F2714127B8EB5800BE3E1B /* MFilater */ = {
 			isa = PBXGroup;
 			children = (
-				04F2714727B8F16D00BE3E1B /* C7Pixellated.swift */,
-				04F2714627B8F16C00BE3E1B /* Pixellated.metal */,
 			);
 			path = MFilater;
 			sourceTree = "<group>";
@@ -420,9 +414,7 @@
 				04FA709427B8D7D8006199B0 /* HomeViewController.swift in Sources */,
 				04FA70C227B8D8D4006199B0 /* HomeViewModel.swift in Sources */,
 				04FA70C327B8D8D4006199B0 /* FilterViewController.swift in Sources */,
-				04F2714927B8F16D00BE3E1B /* C7Pixellated.swift in Sources */,
 				04FA709027B8D7D8006199B0 /* AppDelegate.swift in Sources */,
-				04F2714827B8F16D00BE3E1B /* Pixellated.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
