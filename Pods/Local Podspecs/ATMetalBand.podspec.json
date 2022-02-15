@@ -89,6 +89,15 @@
 
             ]
           }
+        },
+        {
+          "name": "Shape",
+          "source_files": "Sources/Compute/Shape/*",
+          "dependencies": {
+            "ATMetalBand/Basic": [
+
+            ]
+          }
         }
       ]
     }

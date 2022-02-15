@@ -9,6 +9,7 @@ import Foundation
 import MetalKit
 
 public typealias MTQInputTextures = [MTLTexture]
+public typealias MTQSize = (width: Int, height: Int)
 
 public enum Modifier {
     /// 基于并行计算编码器，可直接生成图片
@@ -34,6 +35,9 @@ public protocol C7FilterProtocol {
     /// Multiple input source extensions
     /// An array containing the `MTLTexture`
     var otherInputTextures: MTQInputTextures { get }
+    
+    /// Change the size of the output image
+    func outputSize(input size: MTQSize) -> MTQSize
 }
 
 extension C7FilterProtocol {
@@ -42,5 +46,8 @@ extension C7FilterProtocol {
     }
     public var otherInputTextures: MTQInputTextures {
         return []
+    }
+    public func outputSize(input size: MTQSize) -> MTQSize {
+        return size
     }
 }

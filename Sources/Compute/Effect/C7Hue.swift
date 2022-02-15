@@ -9,9 +9,7 @@ import Foundation
 
 public struct C7Hue: C7FilterProtocol {
     
-    public let minHue: Float = 0.0
-    public let maxHue: Float = 359.0
-    
+    /// Hue adjustment, unit is degree
     public var hue: Float = 90.0
     
     public var modifier: Modifier {

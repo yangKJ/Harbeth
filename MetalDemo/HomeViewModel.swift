@@ -38,9 +38,12 @@ enum ViewControllerType: String {
     case Color2GRBA = "颜色转GRBA"
     case Color2RBGA = "颜色转RBGA"
     case Bulge = "鼓起效果"
-    case Blend = "测试融合"
+    case HueBlend = "色相融合"
     case AlphaBlend = "透明度融合"
     case LuminosityBlend = "亮度融合"
+    case Crop = "图形延展补齐"
+    case Rotate = "图形旋转"
+    case Flip = "图形翻转"
 }
 
 extension ViewControllerType {
@@ -52,7 +55,7 @@ extension ViewControllerType {
             return UIImage.init(named: "IMG_1668")!
         case .Color2Gray:
             return UIImage.init(named: "yuan002")!
-        case .ZoomBlur:
+        case .ZoomBlur, .Crop:
             return UIImage.init(named: "IMG_1668")!
         case .ChromaKey:
             return UIImage.init(named: "lvmu")!
@@ -65,16 +68,12 @@ extension ViewControllerType {
     
     func setupFilterObject() -> FilterResult {
         switch self {
-        case .Blend:
-            let filter = C7BlendFilter(with: .hue, image: C7Image(named: "yuan000")!)
-            return (filter, nil, nil)
         case .Luminance:
             var filter = C7Luminance()
-            let cb: FilterCallback = {
+            return (filter, (filter.luminance, filter.minLuminance, filter.maxLuminance), {
                 filter.luminance = $0
                 return filter
-            }
-            return (filter, (filter.luminance, filter.minLuminance, filter.maxLuminance), cb)
+            })
         case .ColorInvert:
             let filter = C7ComputeFilter(with: .colorInvert)
             return (filter, nil, nil)
@@ -95,157 +94,162 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .Opacity:
             var filter = C7Opacity()
-            let cb: FilterCallback = {
+            return (filter, (filter.opacity, filter.minOpacity, filter.maxOpacity), {
                 filter.opacity = $0
                 return filter
-            }
-            return (filter, (filter.opacity, filter.minOpacity, filter.maxOpacity), cb)
+            })
         case .Exposure:
             var filter = C7Exposure()
-            let cb: FilterCallback = {
+            return (filter, (filter.exposure, -2, 2), {
                 filter.exposure = $0
                 return filter
-            }
-            return (filter, (filter.exposure, -2, 2), cb)
+            })
         case .abao:
             var filter = C7LookupFilter(image: C7Image(named: "lut_abao")!)
             filter.intensity = -0.5
-            let cb: FilterCallback = {
+            return (filter, (filter.intensity, -2, 2), {
                 filter.intensity = $0
                 return filter
-            }
-            return (filter, (filter.intensity, -2, 2), cb)
+            })
         case .ZoomBlur:
             var filter = C7ZoomBlur()
-            let cb: FilterCallback = {
+            return (filter, (filter.blurSize, 0, 20), {
                 filter.blurSize = $0
                 return filter
-            }
-            return (filter, (filter.blurSize, 0, 20), cb)
+            })
         case .Pixellated:
             var filter = C7Pixellated()
-            let cb: FilterCallback = {
+            return (filter, (filter.pixelWidth, 0, 0.2), {
                 filter.pixelWidth = $0
                 return filter
-            }
-            return (filter, (filter.pixelWidth, 0, 0.2), cb)
+            })
+        case .HueBlend:
+            let filter = C7BlendFilter(with: .hue, image: C7Image(named: "yuan000")!)
+            return (filter, nil, nil)
         case .AlphaBlend:
             var filter = C7BlendFilter(with: .alpha(mixturePercent: 0.5), image: C7Image(named: "yuan000")!)
-            let cb: FilterCallback = {
+            return (filter, (0.5, 0, 1), {
                 filter.updateBlend(.alpha(mixturePercent: $0))
                 return filter
-            }
-            return (filter, (0.5, 0, 1), cb)
+            })
         case .LuminosityBlend:
             let filter = C7BlendFilter(with: .luminosity, image: C7Image(named: "yuan000")!)
             return (filter, nil, nil)
         case .Hue:
             var filter = C7Hue()
-            let cb: FilterCallback = {
+            return (filter, (filter.hue, 0, 45), {
                 filter.hue = $0
                 return filter
-            }
-            return (filter, (filter.hue, 0, 45), cb)
+            })
         case .Bulge:
             var filter = C7Bulge()
-            let cb: FilterCallback = {
+            return (filter, (filter.scale, -1, 1), {
                 filter.scale = $0
                 return filter
-            }
-            return (filter, (filter.scale, -1, 1), cb)
+            })
         case .Color2Gray:
             let filter = C7ComputeFilter(with: .color2Gray)
             return (filter, nil, nil)
         case .Contrast:
             var filter = C7Contrast()
-            let cb: FilterCallback = {
+            return (filter, (filter.contrast, 0, 4), {
                 filter.contrast = $0
                 return filter
-            }
-            return (filter, (filter.contrast, 0, 4), cb)
+            })
         case .Saturation:
             var filter = C7Saturation()
-            let cb: FilterCallback = {
+            return (filter, (filter.saturation, 0, 2), {
                 filter.saturation = $0
                 return filter
-            }
-            return (filter, (filter.saturation, 0, 2), cb)
+            })
         case .ChannelRGBA:
             var filter = C7ChannelRGBA()
             filter.color = UIColor.cyan
-            let cb: FilterCallback = {
+            return (filter, (filter.red, 0, 10), {
                 filter.red = $0
                 return filter
-            }
-            return (filter, (filter.red, 0, 10), cb)
+            })
         case .HighlightShadow:
             var filter = C7HighlightShadow()
             filter.highlights = 0.5
             filter.shadows = 0.5
-            let cb: FilterCallback = {
+            return (filter, (0.5, 0, 1), {
                 filter.highlights = $0
                 filter.shadows = $0
                 return filter
-            }
-            return (filter, (0.5, 0, 1), cb)
+            })
         case .Monochrome:
             var filter = C7Monochrome()
             filter.intensity = 0.5
             filter.color = UIColor.red
-            let cb: FilterCallback = {
+            return (filter, (0.5, 0, 1), {
                 filter.intensity = $0
                 return filter
-            }
-            return (filter, (filter.intensity, 0, 1), cb)
+            })
         case .ChromaKey:
             var filter = C7ChromaKey()
             filter.smoothing = 0.25
             filter.color = UIColor.green
-            let cb: FilterCallback = {
+            return (filter, (0.25, 0, 1), {
                 filter.smoothing = $0
                 return filter
-            }
-            return (filter, (filter.smoothing, 0, 1), cb)
+            })
         case .ChromaKey2:
             var filter = C7ChromaKey()
             filter.smoothing = 0.05
             filter.color = UIColor.red
-            let cb: FilterCallback = {
+            return (filter, (0.05, 0, 1), {
                 filter.smoothing = $0
                 return filter
-            }
-            return (filter, (filter.smoothing, 0, 1), cb)
+            })
         case .ReplaceColor:
             var filter = C7ReplaceRGBA()
             filter.smoothing = 0.02
             filter.chroma = UIColor.red
             filter.replaceColor = UIColor.purple
-            let cb: FilterCallback = {
+            return (filter, (0.02, 0, 1), {
                 filter.smoothing = $0
                 return filter
-            }
-            return (filter, (filter.smoothing, 0, 1), cb)
+            })
         case .Haze:
             var filter = C7Haze()
             filter.distance = 0.5
             filter.slope = 0.5
-            let cb: FilterCallback = {
+            return (filter, (0.5, -1, 1), {
                 filter.distance = $0
                 filter.slope = $0
                 return filter
-            }
-            return (filter, (0.5, -1, 1), cb)
+            })
+        case .Crop:
+            var filter = C7Crop()
+            filter.origin = CGPoint(x: 0.3, y: 0.3)
+            filter.height = 1080
+            return (filter, (0.3, 0, 1), {
+                filter.origin = CGPoint(x: CGFloat($0), y: CGFloat($0))
+                return filter
+            })
+        case .Rotate:
+            var filter = C7Rotate()
+            filter.angle = 10
+            return (filter, (filter.angle, 0, 360), {
+                filter.angle = $0
+                return filter
+            })
+        case .Flip:
+            var filter = C7Flip()
+            filter.vertical = true
+            return (filter, nil, nil)
         }
     }
 }
 
 struct HomeViewModel {
     lazy var section: [String] = {
-        return ["效果类", "模糊处理", "图片融合类", "滤镜类"]
+        return ["效果类", "形状变化", "模糊处理", "图片融合类", "滤镜类"]
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [effect, blur, blend, filter]
+        return [shape, effect, blur, blend, filter]
     }()
     
     let effect: [ViewControllerType] = [
@@ -256,12 +260,16 @@ struct HomeViewModel {
         .ReplaceColor, .Haze,
     ]
     
+    let shape: [ViewControllerType] = [
+        .Crop, .Rotate, .Flip,
+    ]
+    
     let blur: [ViewControllerType] = [
         .ZoomBlur, .Pixellated,
     ]
     
     let blend: [ViewControllerType] = [
-        .Blend, .AlphaBlend, .LuminosityBlend,
+        .HueBlend, .AlphaBlend, .LuminosityBlend,
     ]
     
     let filter: [ViewControllerType] = [

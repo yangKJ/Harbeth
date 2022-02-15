@@ -46,8 +46,8 @@ extension C7FilterSerializer {
         guard let commandBuffer = makeCommandBuffer() else {
             return inTexture
         }
-        
-        let outTexture = destTexture(width: inTexture.width, height: inTexture.height)
+        let outputSize = filter.outputSize(input: (inTexture.width, inTexture.height))
+        let outTexture = destTexture(width: outputSize.width, height: outputSize.height)
         if case .compute(let kernel) = filter.modifier {
             var textures = [outTexture, inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }
