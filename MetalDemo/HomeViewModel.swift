@@ -20,12 +20,15 @@ enum ViewControllerType: String {
     case Exposure = "曝光"
     case Contrast = "对比度"
     case Saturation = "饱和度"
+    case ChannelRGBA = "RGBA通道"
+    case HighlightShadow = "高光阴影"
+    case Monochrome = "黑白照片"
     case ZoomBlur = "中心点缩放模糊"
     case Pixellated = "马赛克像素化"
     case abao = "阿宝色滤镜"
-    case ColorToGray = "灰度图滤镜"
     case ColorInvert = "颜色反转"
-    case ColorSwizzle = "颜色转换"
+    case Color2Gray = "灰度图滤镜"
+    case Color2BGRA = "颜色转BGRA"
     case Bulge = "鼓起效果"
     case Blend = "测试融合"
     case AlphaBlend = "透明度融合"
@@ -37,9 +40,9 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert:
             return UIImage.init(named: "yuan000")!
-        case .ColorSwizzle:
+        case .Color2BGRA:
             return UIImage.init(named: "yuan001")!
-        case .ColorToGray:
+        case .Color2Gray:
             return UIImage.init(named: "yuan002")!
         case .ZoomBlur:
             return UIImage.init(named: "IMG_1668")!
@@ -63,8 +66,8 @@ extension ViewControllerType {
         case .ColorInvert:
             let filter = C7ComputeFilter(with: .colorInvert)
             return (filter, nil, nil)
-        case .ColorSwizzle:
-            let filter = C7ComputeFilter(with: .colorSwizzle)
+        case .Color2BGRA:
+            let filter = C7ComputeFilter(with: .color2BGRA)
             return (filter, nil, nil)
         case .Opacity:
             var filter = C7Opacity()
@@ -126,8 +129,8 @@ extension ViewControllerType {
                 return filter
             }
             return (filter, (filter.scale, -1, 1), cb)
-        case .ColorToGray:
-            let filter = C7ComputeFilter(with: .colorToGray)
+        case .Color2Gray:
+            let filter = C7ComputeFilter(with: .color2Gray)
             return (filter, nil, nil)
         case .Contrast:
             var filter = C7Contrast()
@@ -143,6 +146,33 @@ extension ViewControllerType {
                 return filter
             }
             return (filter, (filter.saturation, 0, 2), cb)
+        case .ChannelRGBA:
+            var filter = C7ChannelRGBA()
+            filter.color = UIColor.cyan
+            let cb: FilterCallback = {
+                filter.red = $0
+                return filter
+            }
+            return (filter, (filter.red, 0, 10), cb)
+        case .HighlightShadow:
+            var filter = C7HighlightShadow()
+            filter.highlights = 0.5
+            filter.shadows = 0.5
+            let cb: FilterCallback = {
+                filter.highlights = $0
+                filter.shadows = $0
+                return filter
+            }
+            return (filter, (0.5, 0, 1), cb)
+        case .Monochrome:
+            var filter = C7Monochrome()
+            filter.intensity = 0.5
+            filter.color = UIColor.red
+            let cb: FilterCallback = {
+                filter.intensity = $0
+                return filter
+            }
+            return (filter, (filter.intensity, 0, 1), cb)
         }
     }
 }
@@ -159,7 +189,8 @@ struct HomeViewModel {
     let effect: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
         .Hue, .Bulge, .Contrast,
-        .Saturation,
+        .Saturation, .ChannelRGBA, .HighlightShadow,
+        .Monochrome,
     ]
     
     let blur: [ViewControllerType] = [
@@ -171,7 +202,7 @@ struct HomeViewModel {
     ]
     
     let filter: [ViewControllerType] = [
-        .abao, .ColorToGray, .ColorSwizzle,
+        .abao, .Color2Gray, .Color2BGRA,
         .ColorInvert,
     ]
 }
