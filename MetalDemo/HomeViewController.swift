@@ -13,7 +13,7 @@ class HomeViewController: UIViewController {
     var viewModel: HomeViewModel = HomeViewModel()
     
     lazy var tableView: UITableView = {
-        let table = UITableView.init(frame: .zero, style: .plain)
+        let table = UITableView(frame: .zero, style: .plain)
         table.delegate = self
         table.dataSource = self
         table.showsVerticalScrollIndicator = false

@@ -5,8 +5,6 @@
 //  Created by Condy on 2021/8/7.
 //
 
-import Foundation
-import UIKit
 import ATMetalBand
 
 typealias maxminTuple = (current: Float, min: Float, max: Float)?
@@ -22,6 +20,7 @@ enum ViewControllerType: String {
     case Saturation = "饱和度"
     case ChannelRGBA = "RGBA通道"
     case HighlightShadow = "高光阴影"
+    case Crosshatch = "绘制阴影线"
     case Monochrome = "黑白照片"
     case ChromaKey = "类似绿幕抠图"
     case ChromaKey2 = "扣掉红色"
@@ -239,6 +238,12 @@ extension ViewControllerType {
             var filter = C7Flip()
             filter.vertical = true
             return (filter, nil, nil)
+        case .Crosshatch:
+            var filter = C7Crosshatch()
+            return (filter, (filter.crosshatchSpacing, 0, 0.1), {
+                filter.crosshatchSpacing = $0
+                return filter
+            })
         }
     }
 }
@@ -249,7 +254,7 @@ struct HomeViewModel {
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [shape, effect, blur, blend, filter]
+        return [effect, shape, blur, blend, filter]
     }()
     
     let effect: [ViewControllerType] = [
@@ -257,7 +262,7 @@ struct HomeViewModel {
         .Hue, .Bulge, .Contrast,
         .Saturation, .ChannelRGBA, .HighlightShadow,
         .Monochrome, .ChromaKey, .ChromaKey2,
-        .ReplaceColor, .Haze,
+        .ReplaceColor, .Haze, .Crosshatch,
     ]
     
     let shape: [ViewControllerType] = [

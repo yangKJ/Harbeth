@@ -5,25 +5,22 @@
 //  Created by Condy on 2021/8/7.
 //
 
-import Foundation
-import UIKit
 import ATMetalBand
 
 class FilterViewController: UIViewController {
     
     var filter: C7FilterProtocol?
     var callback: FilterCallback?
-    var originImage: UIImage = UIImage.init(named: "timg-3")!
+    var originImage: UIImage!
     lazy var slider: UISlider = {
-        let slider = UISlider.init()
+        let slider = UISlider()
         slider.translatesAutoresizingMaskIntoConstraints = false
         slider.addTarget(self, action:#selector(sliderDidchange(_:)), for: .valueChanged)
         return slider
     }()
     
     lazy var originImageView: UIImageView = {
-        let imageView = UIImageView.init()
-        imageView.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
+        let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.borderColor = UIColor.background2?.cgColor
@@ -32,8 +29,7 @@ class FilterViewController: UIViewController {
     }()
     
     lazy var filterImageView: UIImageView = {
-        let imageView = UIImageView.init()
-        imageView.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
+        let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.borderColor = UIColor.background2?.cgColor
@@ -42,31 +38,25 @@ class FilterViewController: UIViewController {
     }()
     
     lazy var leftLabel: UILabel = {
-        let label = UILabel.init()
+        let label = UILabel()
         label.textAlignment = .left
-        label.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
         label.textColor = UIColor.background2
-        label.font = UIFont.systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
     lazy var rightLabel: UILabel = {
-        let label = UILabel.init()
+        let label = UILabel()
         label.textAlignment = .right
-        label.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
         label.textColor = UIColor.background2
-        label.font = UIFont.systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
     lazy var currentLabel: UILabel = {
-        let label = UILabel.init()
+        let label = UILabel()
         label.textAlignment = .center
-        label.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
         label.textColor = UIColor.background2
-        label.font = UIFont.systemFont(ofSize: 16)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -122,6 +112,12 @@ class FilterViewController: UIViewController {
                 originImageView.heightAnchor.constraint(equalToConstant: 100),
             ])
         }
+        let bg = UIColor.background2?.withAlphaComponent(0.3)
+        originImageView.backgroundColor = bg
+        filterImageView.backgroundColor = bg
+        leftLabel.backgroundColor = bg
+        rightLabel.backgroundColor = bg
+        currentLabel.backgroundColor = bg
         leftLabel.text  = "\(slider.minimumValue)"
         rightLabel.text = "\(slider.maximumValue)"
         currentLabel.text = "\(slider.value)"
