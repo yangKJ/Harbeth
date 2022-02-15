@@ -20,6 +20,7 @@ enum ViewControllerType: String {
     case Saturation = "饱和度"
     case ChannelRGBA = "RGBA通道"
     case HighlightShadow = "高光阴影"
+    case WhiteBalance = "白平衡"
     case Crosshatch = "绘制阴影线"
     case Monochrome = "黑白照片"
     case ChromaKey = "类似绿幕抠图"
@@ -229,6 +230,13 @@ extension ViewControllerType {
                 filter.crosshatchSpacing = $0
                 return filter
             })
+        case .WhiteBalance:
+            var filter = C7WhiteBalance()
+            filter.temperature = 4444
+            return (filter, (4444, 4000, 7000), {
+                filter.temperature = $0
+                return filter
+            })
         }
     }
 }
@@ -245,9 +253,9 @@ struct HomeViewModel {
     let effect: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow,
-        .Saturation, .Crosshatch, .Bulge,
+        .Saturation, .WhiteBalance, .Bulge,
         .ChannelRGBA, .Monochrome, .ChromaKey,
-        .ReplaceColor,
+        .ReplaceColor, .Crosshatch,
     ]
     
     let shape: [ViewControllerType] = [
