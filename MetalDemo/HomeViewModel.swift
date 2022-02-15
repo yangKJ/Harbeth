@@ -23,9 +23,7 @@ enum ViewControllerType: String {
     case Crosshatch = "绘制阴影线"
     case Monochrome = "黑白照片"
     case ChromaKey = "类似绿幕抠图"
-    case ChromaKey2 = "扣掉红色"
-    case ReplaceColor = "替换背景颜色"
-    case Haze = "变模糊"
+    case ReplaceColor = "扣掉红色替换背景"
     case ZoomBlur = "中心点缩放模糊"
     case Pixellated = "马赛克像素化"
     case abao = "阿宝色滤镜"
@@ -36,7 +34,7 @@ enum ViewControllerType: String {
     case Color2GBRA = "颜色转GBRA"
     case Color2GRBA = "颜色转GRBA"
     case Color2RBGA = "颜色转RBGA"
-    case Bulge = "鼓起效果"
+    case Bulge = "大胸效果"
     case HueBlend = "色相融合"
     case AlphaBlend = "透明度融合"
     case LuminosityBlend = "亮度融合"
@@ -58,7 +56,7 @@ extension ViewControllerType {
             return UIImage.init(named: "IMG_1668")!
         case .ChromaKey:
             return UIImage.init(named: "lvmu")!
-        case .ChromaKey2, .ReplaceColor:
+        case .ReplaceColor:
             return UIImage.init(named: "IMG_2606")!
         default:
             return UIImage.init(named: "timg-3")!
@@ -67,12 +65,6 @@ extension ViewControllerType {
     
     func setupFilterObject() -> FilterResult {
         switch self {
-        case .Luminance:
-            var filter = C7Luminance()
-            return (filter, (filter.luminance, filter.minLuminance, filter.maxLuminance), {
-                filter.luminance = $0
-                return filter
-            })
         case .ColorInvert:
             let filter = C7ComputeFilter(with: .colorInvert)
             return (filter, nil, nil)
@@ -91,34 +83,44 @@ extension ViewControllerType {
         case .Color2RBGA:
             let filter = C7ComputeFilter(with: .color2RBGA)
             return (filter, nil, nil)
+        case .Luminance:
+            var filter = C7Luminance()
+            filter.luminance = 0.6
+            return (filter, (0.6, 0, 1), {
+                filter.luminance = $0
+                return filter
+            })
         case .Opacity:
             var filter = C7Opacity()
-            return (filter, (filter.opacity, filter.minOpacity, filter.maxOpacity), {
+            filter.opacity = 0.8
+            return (filter, (0.8, 0, 1), {
                 filter.opacity = $0
                 return filter
             })
         case .Exposure:
             var filter = C7Exposure()
-            return (filter, (filter.exposure, -2, 2), {
+            filter.exposure = 0.5
+            return (filter, (0.5, -2, 2), {
                 filter.exposure = $0
                 return filter
             })
         case .abao:
             var filter = C7LookupFilter(image: C7Image(named: "lut_abao")!)
             filter.intensity = -0.5
-            return (filter, (filter.intensity, -2, 2), {
+            return (filter, (-0.5, -2, 2), {
                 filter.intensity = $0
                 return filter
             })
         case .ZoomBlur:
             var filter = C7ZoomBlur()
-            return (filter, (filter.blurSize, 0, 20), {
+            filter.blurSize = 3
+            return (filter, (3, 0, 20), {
                 filter.blurSize = $0
                 return filter
             })
         case .Pixellated:
             var filter = C7Pixellated()
-            return (filter, (filter.pixelWidth, 0, 0.2), {
+            return (filter, (0.05, 0, 0.2), {
                 filter.pixelWidth = $0
                 return filter
             })
@@ -136,13 +138,15 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .Hue:
             var filter = C7Hue()
-            return (filter, (filter.hue, 0, 45), {
+            filter.hue = 30
+            return (filter, (30, 0, 45), {
                 filter.hue = $0
                 return filter
             })
         case .Bulge:
             var filter = C7Bulge()
-            return (filter, (filter.scale, -1, 1), {
+            filter.scale = 0.2
+            return (filter, (0.2, -1, 1), {
                 filter.scale = $0
                 return filter
             })
@@ -151,19 +155,19 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .Contrast:
             var filter = C7Contrast()
-            return (filter, (filter.contrast, 0, 4), {
+            return (filter, (1, 0, 4), {
                 filter.contrast = $0
                 return filter
             })
         case .Saturation:
             var filter = C7Saturation()
-            return (filter, (filter.saturation, 0, 2), {
+            return (filter, (1, 0, 2), {
                 filter.saturation = $0
                 return filter
             })
         case .ChannelRGBA:
             var filter = C7ChannelRGBA()
-            filter.color = UIColor.cyan
+            filter.color = UIColor.white
             return (filter, (filter.red, 0, 10), {
                 filter.red = $0
                 return filter
@@ -179,44 +183,25 @@ extension ViewControllerType {
             })
         case .Monochrome:
             var filter = C7Monochrome()
-            filter.intensity = 0.5
-            filter.color = UIColor.red
-            return (filter, (0.5, 0, 1), {
+            filter.intensity = 0.9
+            return (filter, (0.9, 0, 1), {
                 filter.intensity = $0
                 return filter
             })
         case .ChromaKey:
             var filter = C7ChromaKey()
-            filter.smoothing = 0.25
             filter.color = UIColor.green
-            return (filter, (0.25, 0, 1), {
-                filter.smoothing = $0
-                return filter
-            })
-        case .ChromaKey2:
-            var filter = C7ChromaKey()
-            filter.smoothing = 0.05
-            filter.color = UIColor.red
-            return (filter, (0.05, 0, 1), {
+            filter.smoothing = 0.3
+            return (filter, (0.3, 0, 1), {
                 filter.smoothing = $0
                 return filter
             })
         case .ReplaceColor:
             var filter = C7ReplaceRGBA()
-            filter.smoothing = 0.02
             filter.chroma = UIColor.red
             filter.replaceColor = UIColor.purple
-            return (filter, (0.02, 0, 1), {
+            return (filter, (0.2, 0, 1), {
                 filter.smoothing = $0
-                return filter
-            })
-        case .Haze:
-            var filter = C7Haze()
-            filter.distance = 0.5
-            filter.slope = 0.5
-            return (filter, (0.5, -1, 1), {
-                filter.distance = $0
-                filter.slope = $0
                 return filter
             })
         case .Crop:
@@ -230,7 +215,7 @@ extension ViewControllerType {
         case .Rotate:
             var filter = C7Rotate()
             filter.angle = 10
-            return (filter, (filter.angle, 0, 360), {
+            return (filter, (10, 0, 360), {
                 filter.angle = $0
                 return filter
             })
@@ -240,7 +225,7 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .Crosshatch:
             var filter = C7Crosshatch()
-            return (filter, (filter.crosshatchSpacing, 0, 0.1), {
+            return (filter, (0.03, 0, 0.1), {
                 filter.crosshatchSpacing = $0
                 return filter
             })
@@ -259,10 +244,10 @@ struct HomeViewModel {
     
     let effect: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
-        .Hue, .Bulge, .Contrast,
-        .Saturation, .ChannelRGBA, .HighlightShadow,
-        .Monochrome, .ChromaKey, .ChromaKey2,
-        .ReplaceColor, .Haze, .Crosshatch,
+        .Hue, .Contrast, .HighlightShadow,
+        .Saturation, .Crosshatch, .Bulge,
+        .ChannelRGBA, .Monochrome, .ChromaKey,
+        .ReplaceColor,
     ]
     
     let shape: [ViewControllerType] = [

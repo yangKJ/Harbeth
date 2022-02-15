@@ -18,6 +18,7 @@ kernel void C7Crosshatch(texture2d<half, access::write> outputTexture [[texture(
                          constant float *lineWidthPointer [[buffer(1)]],
                          uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
+    
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     const float crossHatchSpacing = float(*crossHatchSpacingPointer);
     const float lineWidth = float(*lineWidthPointer);

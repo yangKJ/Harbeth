@@ -95,13 +95,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		04F2714127B8EB5800BE3E1B /* MFilater */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = MFilater;
-			sourceTree = "<group>";
-		};
 		04FA708327B8D7D8006199B0 = {
 			isa = PBXGroup;
 			children = (
@@ -131,7 +124,6 @@
 				04FA70C127B8D8D4006199B0 /* FilterViewController.swift */,
 				04FA709327B8D7D8006199B0 /* HomeViewController.swift */,
 				04FA70C027B8D8D4006199B0 /* HomeViewModel.swift */,
-				04F2714127B8EB5800BE3E1B /* MFilater */,
 				04FA70BF27B8D83B006199B0 /* Resources */,
 			);
 			path = MetalDemo;
