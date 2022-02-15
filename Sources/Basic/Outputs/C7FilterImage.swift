@@ -18,12 +18,15 @@ extension C7Image: C7Compatible { }
 ///
 extension C7Image: C7FilterSerializer {
     
-    public func makeMTLTexture(filter: C7FilterProtocol) -> MTLTexture {
+    public func makeMTLTexture(filters: [C7FilterProtocol]) -> MTLTexture {
         guard let inTexture = self.mt.toTexture() else {
             fatalError("Input image transform texture failed.")
         }
-        let otherTextures = filter.otherInputTextures
-        let outTexture = newTexture(inTexture: inTexture, otherTextures: otherTextures, filter: filter)
+        var outTexture: MTLTexture = inTexture
+        for filter in filters {
+            let otherTextures = filter.otherInputTextures
+            outTexture = newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
+        }
         return outTexture
     }
     

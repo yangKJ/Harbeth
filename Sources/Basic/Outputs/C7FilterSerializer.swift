@@ -10,18 +10,30 @@ import MetalKit
 
 public protocol C7FilterSerializer {
     
-    mutating func makeMTLTexture(filter: C7FilterProtocol) -> MTLTexture
+    /// Create a new texture based on the filter content.
+    /// Please note that the order in which filters are added may affect the result of image generation.
+    ///
+    /// - Parameters:
+    ///   - filters: Filter group, It must be an object implementing C7FilterProtocol
+    /// - Returns: New texture after processing
+    mutating func makeMTLTexture(filters: [C7FilterProtocol]) -> MTLTexture
     
+    /// Filter processing
+    /// - Parameters:
+    ///   - filter: It must be an object implementing C7FilterProtocol
+    /// - Returns: C7FilterSerializer
     mutating func makeImage<T: C7FilterSerializer>(filter: C7FilterProtocol) -> T
     
     /// Multiple filter combinations
-    /// Please note that the order in which filters are added may affect the result of image generation
+    /// Please note that the order in which filters are added may affect the result of image generation.
     ///
     /// - Parameters:
-    ///   - filters: Filter group
+    ///   - filters: Filter group, It must be an object implementing C7FilterProtocol
     /// - Returns: C7FilterSerializer
     mutating func makeGroup<T: C7FilterSerializer>(filters: [C7FilterProtocol]) -> T
-    
+}
+
+extension C7FilterSerializer {
     /// Create a new texture based on the filter content.
     /// This protocol method does not need to be overridden unless you need to change the internal logic.
     ///
@@ -30,10 +42,6 @@ public protocol C7FilterSerializer {
     ///   - otherTextures: Other input textures
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: New texture after processing
-    func newTexture(inTexture: MTLTexture, otherTextures: MTQInputTextures?, filter: C7FilterProtocol) -> MTLTexture
-}
-
-public extension C7FilterSerializer {
     func newTexture(inTexture: MTLTexture, otherTextures: MTQInputTextures?, filter: C7FilterProtocol) -> MTLTexture {
         guard let commandBuffer = makeCommandBuffer() else {
             return inTexture
