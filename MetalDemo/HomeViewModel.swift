@@ -29,6 +29,10 @@ enum ViewControllerType: String {
     case ColorInvert = "颜色反转"
     case Color2Gray = "灰度图滤镜"
     case Color2BGRA = "颜色转BGRA"
+    case Color2BRGA = "颜色转BRGA"
+    case Color2GBRA = "颜色转GBRA"
+    case Color2GRBA = "颜色转GRBA"
+    case Color2RBGA = "颜色转RBGA"
     case Bulge = "鼓起效果"
     case Blend = "测试融合"
     case AlphaBlend = "透明度融合"
@@ -40,8 +44,8 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert:
             return UIImage.init(named: "yuan000")!
-        case .Color2BGRA:
-            return UIImage.init(named: "yuan001")!
+        case .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
+            return UIImage.init(named: "IMG_1668")!
         case .Color2Gray:
             return UIImage.init(named: "yuan002")!
         case .ZoomBlur:
@@ -68,6 +72,18 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .Color2BGRA:
             let filter = C7ComputeFilter(with: .color2BGRA)
+            return (filter, nil, nil)
+        case .Color2BRGA:
+            let filter = C7ComputeFilter(with: .color2BRGA)
+            return (filter, nil, nil)
+        case .Color2GBRA:
+            let filter = C7ComputeFilter(with: .color2GBRA)
+            return (filter, nil, nil)
+        case .Color2GRBA:
+            let filter = C7ComputeFilter(with: .color2GRBA)
+            return (filter, nil, nil)
+        case .Color2RBGA:
+            let filter = C7ComputeFilter(with: .color2RBGA)
             return (filter, nil, nil)
         case .Opacity:
             var filter = C7Opacity()
@@ -202,7 +218,8 @@ struct HomeViewModel {
     ]
     
     let filter: [ViewControllerType] = [
-        .abao, .Color2Gray, .Color2BGRA,
-        .ColorInvert,
+        .abao, .ColorInvert,
+        .Color2BGRA, .Color2BRGA, .Color2GBRA,
+        .Color2GRBA, .Color2RBGA,
     ]
 }

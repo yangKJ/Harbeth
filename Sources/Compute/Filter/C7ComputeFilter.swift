@@ -8,11 +8,13 @@
 import Foundation
 
 public enum ComputeFilterType: String, CaseIterable {
-    ///` rgba -> bgra
-    case colorSwizzle = "C7ColorSwizzle"
-    ///` 1 - rgb
-    case colorInvert = "C7ColorInvert"
-    case colorToGray = "C7ColorToGray"
+    case colorInvert = "C7ColorInvert" // 1-rgb
+    case color2Gray = "C7Color2Gray"
+    case color2BGRA = "C7Color2BGRA"
+    case color2BRGA = "C7Color2BRGA"
+    case color2GBRA = "C7Color2GBRA"
+    case color2GRBA = "C7Color2GRBA"
+    case color2RBGA = "C7Color2RBGA"
 }
 
 public struct C7ComputeFilter: C7FilterProtocol {
