@@ -12,7 +12,7 @@ public struct C7Hue: C7FilterProtocol {
     public let minHue: Float = 0.0
     public let maxHue: Float = 359.0
     
-    public var hue: Float
+    public var hue: Float = 90.0
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Hue")
@@ -22,7 +22,5 @@ public struct C7Hue: C7FilterProtocol {
         return [hue]
     }
     
-    public init(hue: Float = 90.0) {
-        self.hue = hue
-    }
+    public init() { }
 }

@@ -13,7 +13,7 @@ public struct C7Opacity: C7FilterProtocol {
     public let maxOpacity: Float = 1.0
     
     /// Change the opacity of an image, from -1.0 to 1.0, with a default of 0.0
-    public var opacity: Float
+    public var opacity: Float = 1.0
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Opacity")
@@ -23,7 +23,5 @@ public struct C7Opacity: C7FilterProtocol {
         return [opacity]
     }
     
-    public init(opacity: Float = 1.0) {
-        self.opacity = opacity
-    }
+    public init() { }
 }

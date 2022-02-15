@@ -9,14 +9,12 @@ import Foundation
 
 public struct C7Bulge: C7FilterProtocol {
     
-    /// The center of the image (in normalized coordinates from 0 - 1.0) about which to distort, with a default of (0.5, 0.5)
-    public var center: CGPoint
-    
+    /// For 2D textures, normalized texture coordinates are used, from 0.0 to 1.0 in both x and y directions
+    public var center: CGPoint = CGPoint(x: 0.5, y: 0.5)
     /// The radius from the center to apply the distortion, with a default of 0.25
-    public var radius: Float
-    
+    public var radius: Float = 0.25
     /// The amount of distortion to apply, from -1.0 to 1.0, with a default of 0.5
-    public var scale: Float
+    public var scale: Float = 0.5
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Bulge")
@@ -26,9 +24,5 @@ public struct C7Bulge: C7FilterProtocol {
         return [Float(center.x), Float(center.y), radius, scale]
     }
     
-    public init(center: CGPoint = CGPoint(x: 0.5, y: 0.5), radius: Float = 0.25, scale: Float = 0.5) {
-        self.center = center
-        self.radius = radius
-        self.scale = scale
-    }
+    public init() { }
 }

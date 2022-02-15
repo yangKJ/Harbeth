@@ -13,7 +13,7 @@ public struct C7Brightness: C7FilterProtocol {
     public let maxBrightness: Float = 1.0
     
     /// The adjusted brightness, from -1.0 to 1.0, with a default of 0.0
-    public var brightness: Float
+    public var brightness: Float = 0.0
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Brightness")
@@ -23,7 +23,5 @@ public struct C7Brightness: C7FilterProtocol {
         return [brightness]
     }
     
-    public init(brightness: Float = 0.0) {
-        self.brightness = brightness
-    }
+    public init() { }
 }

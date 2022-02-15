@@ -10,11 +10,13 @@ using namespace metal;
 
 kernel void C7ZoomBlur(texture2d<half, access::write> outTexture [[texture(0)]],
                        texture2d<half, access::sample> inTexture [[texture(1)]],
-                       constant float *blurSize [[buffer(0)]],
+                       constant float *blurCenterX [[buffer(0)]],
+                       constant float *blurCenterY [[buffer(1)]],
+                       constant float *blurSize [[buffer(2)]],
                        uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
-    float2 blurCenter = float2(0.5, 0.5);
+    float2 blurCenter = float2(*blurCenterX, *blurCenterY);
     const float2 textureCoord = float2(float(grid.x) / outTexture.get_width(),
                                        float(grid.y) / outTexture.get_height());
     const float2 samplingOffset = 1.0 / 100.0 * (blurCenter - textureCoord) * float(*blurSize);

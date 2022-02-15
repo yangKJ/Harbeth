@@ -15,18 +15,21 @@ typealias FilterResult = (filter: C7FilterProtocol, maxminValue: maxminTuple, ca
 
 enum ViewControllerType: String {
     case Luminance = "亮度"
-    case ColorInvert = "颜色翻转"
-    case ColorSwizzle = "颜色转换"
     case Opacity = "透明度"
+    case Hue = "色相角度"
     case Exposure = "曝光"
-    case AddBlend = "叠加融合"
-    case abao = "阿宝色滤镜"
+    case Contrast = "对比度"
+    case Saturation = "饱和度"
     case ZoomBlur = "中心点缩放模糊"
     case Pixellated = "马赛克像素化"
-    case AlphaBlend = "透明度融合"
-    case Hue = "色相角度"
-    case Bulge = "鼓起效果"
+    case abao = "阿宝色滤镜"
     case ColorToGray = "灰度图滤镜"
+    case ColorInvert = "颜色反转"
+    case ColorSwizzle = "颜色转换"
+    case Bulge = "鼓起效果"
+    case Blend = "测试融合"
+    case AlphaBlend = "透明度融合"
+    case LuminosityBlend = "亮度融合"
 }
 
 extension ViewControllerType {
@@ -45,10 +48,13 @@ extension ViewControllerType {
         }
     }
     
-    func filterConfig() -> FilterResult {
+    func setupFilterObject() -> FilterResult {
         switch self {
+        case .Blend:
+            let filter = C7BlendFilter(with: .hue, image: C7Image(named: "yuan000")!)
+            return (filter, nil, nil)
         case .Luminance:
-            var filter = C7Luminance(luminance: 0.5)
+            var filter = C7Luminance()
             let cb: FilterCallback = {
                 filter.luminance = $0
                 return filter
@@ -61,14 +67,14 @@ extension ViewControllerType {
             let filter = C7ComputeFilter(with: .colorSwizzle)
             return (filter, nil, nil)
         case .Opacity:
-            var filter = C7Opacity(opacity: 0.8)
+            var filter = C7Opacity()
             let cb: FilterCallback = {
                 filter.opacity = $0
                 return filter
             }
             return (filter, (filter.opacity, filter.minOpacity, filter.maxOpacity), cb)
         case .Exposure:
-            var filter = C7Exposure(exposure: 0.8)
+            var filter = C7Exposure()
             let cb: FilterCallback = {
                 filter.exposure = $0
                 return filter
@@ -83,7 +89,7 @@ extension ViewControllerType {
             }
             return (filter, (filter.intensity, -2, 2), cb)
         case .ZoomBlur:
-            var filter = C7ZoomBlur(blurSize: 3)
+            var filter = C7ZoomBlur()
             let cb: FilterCallback = {
                 filter.blurSize = $0
                 return filter
@@ -96,9 +102,6 @@ extension ViewControllerType {
                 return filter
             }
             return (filter, (filter.pixelWidth, 0, 0.2), cb)
-        case .AddBlend:
-            let filter = C7BlendFilter(with: .add, image: C7Image(named: "yuan000")!)
-            return (filter, nil, nil)
         case .AlphaBlend:
             var filter = C7BlendFilter(with: .alpha(mixturePercent: 0.5), image: C7Image(named: "yuan000")!)
             let cb: FilterCallback = {
@@ -106,15 +109,18 @@ extension ViewControllerType {
                 return filter
             }
             return (filter, (0.5, 0, 1), cb)
+        case .LuminosityBlend:
+            let filter = C7BlendFilter(with: .luminosity, image: C7Image(named: "yuan000")!)
+            return (filter, nil, nil)
         case .Hue:
-            var filter = C7Hue(hue: 10)
+            var filter = C7Hue()
             let cb: FilterCallback = {
                 filter.hue = $0
                 return filter
             }
             return (filter, (filter.hue, 0, 45), cb)
         case .Bulge:
-            var filter = C7Bulge(scale: 0.5)
+            var filter = C7Bulge()
             let cb: FilterCallback = {
                 filter.scale = $0
                 return filter
@@ -123,27 +129,49 @@ extension ViewControllerType {
         case .ColorToGray:
             let filter = C7ComputeFilter(with: .colorToGray)
             return (filter, nil, nil)
+        case .Contrast:
+            var filter = C7Contrast()
+            let cb: FilterCallback = {
+                filter.contrast = $0
+                return filter
+            }
+            return (filter, (filter.contrast, 0, 4), cb)
+        case .Saturation:
+            var filter = C7Saturation()
+            let cb: FilterCallback = {
+                filter.saturation = $0
+                return filter
+            }
+            return (filter, (filter.saturation, 0, 2), cb)
         }
     }
 }
 
 struct HomeViewModel {
     lazy var section: [String] = {
-        return ["效果类", "滤镜类"]
+        return ["效果类", "模糊处理", "图片融合类", "滤镜类"]
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [effect, filter]
+        return [effect, blur, blend, filter]
     }()
     
     let effect: [ViewControllerType] = [
-        .Luminance, .Opacity, .Exposure,
-        .ZoomBlur, .Pixellated, .AddBlend,
-        .AlphaBlend, .Hue, .Bulge,
+        .Opacity, .Exposure, .Luminance,
+        .Hue, .Bulge, .Contrast,
+        .Saturation,
+    ]
+    
+    let blur: [ViewControllerType] = [
+        .ZoomBlur, .Pixellated,
+    ]
+    
+    let blend: [ViewControllerType] = [
+        .Blend, .AlphaBlend, .LuminosityBlend,
     ]
     
     let filter: [ViewControllerType] = [
-        .ColorInvert, .ColorSwizzle, .abao,
-        .ColorToGray,
+        .abao, .ColorToGray, .ColorSwizzle,
+        .ColorInvert,
     ]
 }

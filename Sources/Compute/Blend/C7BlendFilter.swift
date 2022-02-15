@@ -17,8 +17,10 @@ public enum BlendFilterType {
     case dissolve
     case exclusion
     case hardLight
+    case hue
     case lighten
     case linearBurn
+    case luminosity
     case mask
     case multiply
     case normal
@@ -41,8 +43,10 @@ extension BlendFilterType {
         case .dissolve: return "C7DissolveBlend"
         case .exclusion: return "C7ExclusionBlend"
         case .hardLight: return "C7HardLightBlend"
+        case .hue: return "C7HueBlend"
         case .lighten: return "C7LightenBlend"
         case .linearBurn: return "C7LinearBurnBlend"
+        case .luminosity: return "C7LuminosityBlend"
         case .mask: return "C7MaskBlend"
         case .multiply: return "C7MultiplyBlend"
         case .normal: return "C7NormalBlend"

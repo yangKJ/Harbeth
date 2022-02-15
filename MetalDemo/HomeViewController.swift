@@ -79,7 +79,7 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         tableView.deselectRow(at: indexPath, animated: true)
         let type = viewModel.datas[indexPath.section][indexPath.row]
         let vc = FilterViewController()
-        let tuple = type.filterConfig()
+        let tuple = type.setupFilterObject()
         vc.filter = tuple.filter
         vc.callback = tuple.callback
         if let maxmin = tuple.maxminValue {
