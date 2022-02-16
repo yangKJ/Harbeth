@@ -49,6 +49,11 @@ enum ViewControllerType: String {
     case GlassSphere = "玻璃球效果"
     case Split = "分割滤镜"
     case Sobel = "Sobel算子特征提取"
+    case Pinch = "类似波浪效果"
+    case PolkaDot = "波点"
+    case Posterize = "色调分离"
+    case Swirl = "漩涡鸣人"
+    case MotionBlur = "移动模糊效果"
 }
 
 extension ViewControllerType {
@@ -121,14 +126,15 @@ extension ViewControllerType {
             })
         case .ZoomBlur:
             var filter = C7ZoomBlur()
-            filter.blurSize = 3
-            return (filter, (3, 0, 20), {
+            filter.blurSize = 10
+            return (filter, (10, 5, 15), {
                 filter.blurSize = $0
                 return filter
             })
         case .Pixellated:
             var filter = C7Pixellated()
-            return (filter, (0.05, 0, 0.2), {
+            filter.pixelWidth = 0.03
+            return (filter, (0.03, 0.01, 0.05), {
                 filter.pixelWidth = $0
                 return filter
             })
@@ -154,7 +160,7 @@ extension ViewControllerType {
         case .Bulge:
             var filter = C7Bulge()
             filter.scale = 0.2
-            return (filter, (0.2, -1, 1), {
+            return (filter, (0.2, -0.5, 0.5), {
                 filter.scale = $0
                 return filter
             })
@@ -233,7 +239,7 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .Crosshatch:
             var filter = C7Crosshatch()
-            return (filter, (0.03, 0, 0.1), {
+            return (filter, (0.03, 0.01, 0.08), {
                 filter.crosshatchSpacing = $0
                 return filter
             })
@@ -267,8 +273,7 @@ extension ViewControllerType {
             })
         case .GlassSphere:
             var filter = C7GlassSphere()
-            filter.radius = 0.6
-            return (filter, (0.6, 0, 1), {
+            return (filter, (0.25, 0, 0.5), {
                 filter.radius = $0
                 return filter
             })
@@ -280,8 +285,10 @@ extension ViewControllerType {
         case .Split:
             var filter = C7LookupSplitFilter(C7Image(named: "lut_abao")!, lookupImage2: C7Image(named: "ll")!)
             filter.progress = 0.5
+            filter.intensity = 0
             return (filter, (0.5, 0, 1), {
                 filter.progress = $0
+                filter.intensity = $0 * 2 - 2
                 return filter
             })
         case .Sobel:
@@ -291,32 +298,69 @@ extension ViewControllerType {
                 filter.edgeStrength = $0
                 return filter
             })
+        case .Pinch:
+            var filter = C7Pinch()
+            filter.radius = 0.25
+            return (filter, (0.25, 0, 0.5), {
+                filter.radius = $0
+                return filter
+            })
+        case .PolkaDot:
+            var filter = C7PolkaDot()
+            filter.fractionalWidth = 0.05
+            return (filter, (0.05, 0.01, 0.2), {
+                filter.fractionalWidth = $0
+                return filter
+            })
+        case .Posterize:
+            var filter = C7Posterize()
+            filter.colorLevels = 2
+            return (filter, (2, 0.5, 5), {
+                filter.colorLevels = $0
+                return filter
+            })
+        case .Swirl:
+            var filter = C7Swirl()
+            return (filter, (0.25, 0, 0.5), {
+                filter.radius = $0
+                return filter
+            })
+        case .MotionBlur:
+            var filter = C7MotionBlur()
+            filter.blurAngle = 45
+            filter.blurSize = 5
+            return (filter, (5, 1, 10), {
+                filter.blurSize = $0
+                return filter
+            })
         }
     }
 }
 
 struct HomeViewModel {
     lazy var section: [String] = {
-        return ["颜色处理", "效果类", "形状变化", "模糊处理", "图片融合类", "滤镜类"]
+        return ["效果类", "颜色处理", "形状变化", "模糊处理", "图片融合类", "滤镜类"]
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [colorProcess, effect, shape, blur, blend, filter]
+        return [effect, colorProcess, shape, blur, blend, filter]
     }()
+    
+    let effect: [ViewControllerType] = [
+        .ZoomBlur, .Pixellated, .Crosshatch,
+        .GlassSphere, .Bulge, .Pinch, .PolkaDot,
+        .Posterize, .Swirl,
+        .Monochrome, .ReplaceColor, .ChromaKey,
+    ]
     
     let colorProcess: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow,
         .Saturation, .WhiteBalance, .Vibrance,
+        .Sobel,
         .ChannelRGBA, .FalseColor, .ColorInvert,
         .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
-    ]
-    
-    let effect: [ViewControllerType] = [
-        .Monochrome, .Bulge, .ChromaKey,
-        .ReplaceColor, .Crosshatch, .GlassSphere,
-        .Pixellated, .Sobel,
     ]
     
     let shape: [ViewControllerType] = [
@@ -324,7 +368,7 @@ struct HomeViewModel {
     ]
     
     let blur: [ViewControllerType] = [
-        .ZoomBlur, .MonochromeDilation,
+        .MonochromeDilation, .MotionBlur,
     ]
     
     let blend: [ViewControllerType] = [

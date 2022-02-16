@@ -147,7 +147,11 @@ class FilterViewController: UIViewController {
 // MARK: - filter process
 extension FilterViewController {
     func setupFilter() {
-        filterImageView.image = originImage.makeImage(filter: filter!)
+        if slider.isHidden {
+            filterImageView.image = originImage.makeImage(filter: filter!)
+            return
+        }
+        autoTestAction()
     }
     
     @objc func autoTestAction() {
@@ -159,14 +163,21 @@ extension FilterViewController {
             timer = nil
         } else {
             autoBarButton.title = "Stop"
-            let timer = Timer(timeInterval: 0.01, repeats: true, block: { [weak self] _ in
+            var add = true
+            let timer = Timer(timeInterval: 0.001, repeats: true, block: { [weak self] _ in
                 guard let `self` = self else { return }
                 if self.slider.value >= self.slider.maximumValue {
-                    self.slider.value = self.slider.minimumValue
-                } else {
-                    self.slider.value += (self.slider.maximumValue - self.slider.minimumValue) / 250
+                    add = false
+                    //self.slider.value = self.slider.minimumValue
+                } else if self.slider.value <= self.slider.minimumValue {
+                    add = true
                 }
-                self.currentLabel.text = String(format: "%.2f", self.slider.value)
+                if add {
+                    self.slider.value += (self.slider.maximumValue - self.slider.minimumValue) / 250
+                } else {
+                    self.slider.value -= (self.slider.maximumValue - self.slider.minimumValue) / 250
+                }
+                self.currentLabel.text = String(format: "%.4f", self.slider.value)
                 if let callback = self.callback {
                     let filter = callback(self.slider.value)
                     self.filterImageView.image = self.originImage.makeImage(filter: filter)
@@ -179,7 +190,7 @@ extension FilterViewController {
     }
     
     @objc func sliderDidchange(_ slider: UISlider) {
-        currentLabel.text = String(format: "%.2f", slider.value)
+        currentLabel.text = String(format: "%.4f", slider.value)
         if let callback = callback {
             let filter = callback(slider.value)
             filterImageView.image = originImage.makeImage(filter: filter)

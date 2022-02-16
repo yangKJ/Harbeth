@@ -55,12 +55,11 @@ kernel void C7LookupSplitFilter(texture2d<half, access::write> outputTexture [[t
         half l = length(half2(xx, yy));
         result = l > p / 2;
     } else if (*orientation == 3.0) { // topLeft
-        // x^2 + y^2
+        // x^2 + y^2 开根号
         half l = length(half2(x, y));
-        result = sqrt(l) / sqrt(2.0) > p;
+        result = l / sqrt(2.0) > p;
     } else if (*orientation == 4.0) { // bottomLeft
-        half l = length(half2(x, 1-y));
-        result = sqrt(l) / sqrt(2.0) > p;
+        result = length(half2(x, 1-y)) / sqrt(2.0) > p;
     }
     
     if (result) {
