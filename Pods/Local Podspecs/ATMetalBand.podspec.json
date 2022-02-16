@@ -46,8 +46,8 @@
       "name": "Compute",
       "subspecs": [
         {
-          "name": "Filter",
-          "source_files": "Sources/Compute/Filter/*",
+          "name": "ColorProcess",
+          "source_files": "Sources/Compute/ColorProcess/*",
           "dependencies": {
             "ATMetalBand/Basic": [
 

@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// Pull and compress the picture, the picture will be distorted
 public struct C7Resize: C7FilterProtocol {
     
     public var width: Int = 0
@@ -16,7 +17,7 @@ public struct C7Resize: C7FilterProtocol {
         return .compute(kernel: "C7Resize")
     }
     
-    public func outputSize(input size: MTQSize) -> MTQSize {
+    public func outputSize(input size: C7Size) -> C7Size {
         let w: Int = width > 0 ? width : size.width
         let h: Int = height > 0 ? height : size.height
         return (width: w, height: h)

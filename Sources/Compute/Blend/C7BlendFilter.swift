@@ -77,7 +77,7 @@ public struct C7BlendFilter: C7FilterProtocol {
         }
     }
     
-    public var otherInputTextures: MTQInputTextures {
+    public var otherInputTextures: C7InputTextures {
         if let texture = blendImage?.mt.toTexture() {
             return [texture]
         }

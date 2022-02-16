@@ -1,5 +1,5 @@
 //
-//  C7ComputeFilter.swift
+//  C7Color2.swift
 //  MetalQueenDemo
 //
 //  Created by Condy on 2021/8/8.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum ComputeFilterType: String, CaseIterable {
+public enum C7Color2Type: String, CaseIterable {
     case colorInvert = "C7ColorInvert" // 1-rgb
     case color2Gray = "C7Color2Gray"
     case color2BGRA = "C7Color2BGRA"
@@ -17,15 +17,15 @@ public enum ComputeFilterType: String, CaseIterable {
     case color2RBGA = "C7Color2RBGA"
 }
 
-public struct C7ComputeFilter: C7FilterProtocol {
+public struct C7Color2: C7FilterProtocol {
     
-    private let filterType: ComputeFilterType
+    private let type: C7Color2Type
     
     public var modifier: Modifier {
-        return .compute(kernel: filterType.rawValue)
+        return .compute(kernel: type.rawValue)
     }
     
-    public init(with type: ComputeFilterType) {
-        self.filterType = type
+    public init(with type: C7Color2Type) {
+        self.type = type
     }
 }

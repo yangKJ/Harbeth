@@ -7,9 +7,6 @@
 
 import Foundation
 import MetalKit
-import class UIKit.UIImage
-
-public typealias C7Image = UIImage
 
 extension C7Image: C7Compatible { }
 

@@ -27,7 +27,7 @@ public struct C7Rotate: C7FilterProtocol {
         return [_angle]
     }
     
-    public func outputSize(input size: MTQSize) -> MTQSize {
+    public func outputSize(input size: C7Size) -> C7Size {
         if fitSize {
             let w = Int(abs(sin(_angle) * Float(size.height)) + abs(cos(_angle) * Float(size.width)))
             let h = Int(abs(sin(_angle) * Float(size.width)) + abs(cos(_angle) * Float(size.height)))

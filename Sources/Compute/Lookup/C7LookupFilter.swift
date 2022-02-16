@@ -22,7 +22,7 @@ public struct C7LookupFilter: C7FilterProtocol {
         return [intensity]
     }
     
-    public var otherInputTextures: MTQInputTextures {
+    public var otherInputTextures: C7InputTextures {
         if let texture = lookupImage?.mt.toTexture() {
             return [texture]
         }

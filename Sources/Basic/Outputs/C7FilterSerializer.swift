@@ -42,7 +42,7 @@ extension C7FilterSerializer {
     ///   - otherTextures: Other input textures
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: New texture after processing
-    func newTexture(inTexture: MTLTexture, otherTextures: MTQInputTextures?, filter: C7FilterProtocol) -> MTLTexture {
+    func newTexture(inTexture: MTLTexture, otherTextures: C7InputTextures?, filter: C7FilterProtocol) -> MTLTexture {
         guard let commandBuffer = makeCommandBuffer() else {
             return inTexture
         }

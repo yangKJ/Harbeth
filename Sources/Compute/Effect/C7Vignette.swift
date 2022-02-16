@@ -13,8 +13,7 @@ public struct C7Vignette: C7FilterProtocol {
     public var start: Float = 0.3
     /// The normalized distance from the center where the vignette effect ends, with a default of 0.75
     public var end: Float = 0.75
-    /// 2D textures, normalized texture coordinates are used, from 0.0 to 1.0 in both x and y directions
-    public var center: CGPoint = CGPoint(x: 0.5, y: 0.5)
+    public var center: C7Point2D = C7Point2DCenter
     /// Keep the color scheme
     public var color: UIColor {
         didSet {
@@ -35,7 +34,7 @@ public struct C7Vignette: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [Float(center.x), Float(center.y), red, green, blue, start, end]
+        return [center.x, center.y, red, green, blue, start, end]
     }
     
     public init() {

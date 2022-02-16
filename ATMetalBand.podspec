@@ -38,8 +38,8 @@ Pod::Spec.new do |s|
   end
   
   s.subspec 'Compute' do |xx|
-    xx.subspec 'Filter' do |xxx|
-      xxx.source_files = 'Sources/Compute/Filter/*'
+    xx.subspec 'ColorProcess' do |xxx|
+      xxx.source_files = 'Sources/Compute/ColorProcess/*'
       xxx.dependency 'ATMetalBand/Basic'
     end
     xx.subspec 'Lookup' do |xxx|

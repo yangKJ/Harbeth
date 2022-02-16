@@ -21,6 +21,7 @@ enum ViewControllerType: String {
     case ChannelRGBA = "RGBA通道"
     case HighlightShadow = "高光阴影"
     case WhiteBalance = "白平衡"
+    case Vibrance = "自然饱和度"
     case Crosshatch = "绘制阴影线"
     case Monochrome = "黑白照片"
     case ChromaKey = "类似绿幕抠图"
@@ -42,47 +43,48 @@ enum ViewControllerType: String {
     case Crop = "图形延展补齐"
     case Rotate = "图形旋转"
     case Flip = "图形翻转"
+    case Resize = "改变尺寸"
+    case MonochromeDilation = "黑白模糊"
+    case GlassSphere = "玻璃球效果"
 }
 
 extension ViewControllerType {
     var image: UIImage {
         switch self {
         case .ColorInvert:
-            return UIImage.init(named: "yuan000")!
-        case .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
-            return UIImage.init(named: "IMG_1668")!
-        case .Color2Gray:
-            return UIImage.init(named: "yuan002")!
+            return C7Image(named: "yuan001")!
+        case .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
+            return C7Image(named: "yuan002")!
         case .ZoomBlur, .Crop:
-            return UIImage.init(named: "IMG_1668")!
+            return C7Image(named: "IMG_1668")!
         case .ChromaKey:
-            return UIImage.init(named: "lvmu")!
+            return C7Image(named: "lvmu")!
         case .ReplaceColor:
-            return UIImage.init(named: "IMG_2606")!
+            return C7Image(named: "IMG_2606")!
         default:
-            return UIImage.init(named: "timg-3")!
+            return C7Image(named: "timg-3")!
         }
     }
     
     func setupFilterObject() -> FilterResult {
         switch self {
         case .ColorInvert:
-            let filter = C7ComputeFilter(with: .colorInvert)
+            let filter = C7Color2(with: .colorInvert)
             return (filter, nil, nil)
         case .Color2BGRA:
-            let filter = C7ComputeFilter(with: .color2BGRA)
+            let filter = C7Color2(with: .color2BGRA)
             return (filter, nil, nil)
         case .Color2BRGA:
-            let filter = C7ComputeFilter(with: .color2BRGA)
+            let filter = C7Color2(with: .color2BRGA)
             return (filter, nil, nil)
         case .Color2GBRA:
-            let filter = C7ComputeFilter(with: .color2GBRA)
+            let filter = C7Color2(with: .color2GBRA)
             return (filter, nil, nil)
         case .Color2GRBA:
-            let filter = C7ComputeFilter(with: .color2GRBA)
+            let filter = C7Color2(with: .color2GRBA)
             return (filter, nil, nil)
         case .Color2RBGA:
-            let filter = C7ComputeFilter(with: .color2RBGA)
+            let filter = C7Color2(with: .color2RBGA)
             return (filter, nil, nil)
         case .Luminance:
             var filter = C7Luminance()
@@ -152,7 +154,7 @@ extension ViewControllerType {
                 return filter
             })
         case .Color2Gray:
-            let filter = C7ComputeFilter(with: .color2Gray)
+            let filter = C7Color2(with: .color2Gray)
             return (filter, nil, nil)
         case .Contrast:
             var filter = C7Contrast()
@@ -207,10 +209,10 @@ extension ViewControllerType {
             })
         case .Crop:
             var filter = C7Crop()
-            filter.origin = CGPoint(x: 0.3, y: 0.3)
+            filter.origin = C7Point2D(x: 0.3, y: 0.3)
             filter.height = 1080
             return (filter, (0.3, 0, 1), {
-                filter.origin = CGPoint(x: CGFloat($0), y: CGFloat($0))
+                filter.origin = C7Point2D(x: $0, y: $0)
                 return filter
             })
         case .Rotate:
@@ -237,33 +239,67 @@ extension ViewControllerType {
                 filter.temperature = $0
                 return filter
             })
+        case .Resize:
+            var filter = C7Resize()
+            filter.width = 1000
+            return (filter, (1000, 50, 2000), {
+                filter.width = Int($0)
+                return filter
+            })
+        case .MonochromeDilation:
+            var filter = C7MonochromeDilation()
+            filter.pixelRadius = 1
+            return (filter, (1, 0, 10), {
+                filter.pixelRadius = Int($0)
+                return filter
+            })
+        case .Vibrance:
+            var filter = C7Vibrance()
+            filter.vibrance = 0.6
+            return (filter, (0.6, -1.2, 1.2), {
+                filter.vibrance = $0
+                return filter
+            })
+        case .GlassSphere:
+            var filter = C7GlassSphere()
+            filter.radius = 0.6
+            return (filter, (0.6, 0, 1), {
+                filter.radius = $0
+                return filter
+            })
         }
     }
 }
 
 struct HomeViewModel {
     lazy var section: [String] = {
-        return ["效果类", "形状变化", "模糊处理", "图片融合类", "滤镜类"]
+        return ["颜色处理", "效果类", "形状变化", "模糊处理", "图片融合类", "滤镜类"]
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [effect, shape, blur, blend, filter]
+        return [colorProcess, effect, shape, blur, blend, filter]
     }()
     
-    let effect: [ViewControllerType] = [
+    let colorProcess: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow,
-        .Saturation, .WhiteBalance, .Bulge,
-        .ChannelRGBA, .Monochrome, .ChromaKey,
-        .ReplaceColor, .Crosshatch,
+        .Saturation, .WhiteBalance, .Vibrance,
+        .ChannelRGBA, .ColorInvert, .Color2Gray,
+        .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
+    ]
+    
+    let effect: [ViewControllerType] = [
+        .Monochrome, .Bulge, .ChromaKey,
+        .ReplaceColor, .Crosshatch, .GlassSphere,
+        .Pixellated,
     ]
     
     let shape: [ViewControllerType] = [
-        .Crop, .Rotate, .Flip,
+        .Crop, .Rotate, .Resize, .Flip,
     ]
     
     let blur: [ViewControllerType] = [
-        .ZoomBlur, .Pixellated,
+        .ZoomBlur, .MonochromeDilation,
     ]
     
     let blend: [ViewControllerType] = [
@@ -271,8 +307,6 @@ struct HomeViewModel {
     ]
     
     let filter: [ViewControllerType] = [
-        .abao, .ColorInvert,
-        .Color2BGRA, .Color2BRGA, .Color2GBRA,
-        .Color2GRBA, .Color2RBGA,
+        .abao,
     ]
 }
