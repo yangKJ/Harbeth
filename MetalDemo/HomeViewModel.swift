@@ -47,6 +47,7 @@ enum ViewControllerType: String {
     case Resize = "改变尺寸"
     case MonochromeDilation = "黑白模糊"
     case GlassSphere = "玻璃球效果"
+    case Split = "分割滤镜"
 }
 
 extension ViewControllerType {
@@ -275,6 +276,13 @@ extension ViewControllerType {
             filter.fristColor = UIColor.black
             filter.secondColor = UIColor.systemPink
             return (filter, nil, nil)
+        case .Split:
+            var filter = C7LookupSplitFilter(C7Image(named: "lut_abao")!, lookupImage2: C7Image(named: "ll")!)
+            filter.progress = 0.5
+            return (filter, (0.5, 0, 1), {
+                filter.progress = $0
+                return filter
+            })
         }
     }
 }
@@ -316,6 +324,6 @@ struct HomeViewModel {
     ]
     
     let filter: [ViewControllerType] = [
-        .abao,
+        .abao, .Split,
     ]
 }
