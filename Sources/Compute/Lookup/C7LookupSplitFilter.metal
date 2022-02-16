@@ -14,6 +14,7 @@ kernel void C7LookupSplitFilter(texture2d<half, access::write> outputTexture [[t
                                 texture2d<half, access::sample> inputTexture3 [[texture(3)]],
                                 constant float *intensity [[buffer(0)]],
                                 constant float *progress [[buffer(1)]],
+                                constant float *orientation [[buffer(2)]],
                                 uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     const half blueColor = inColor.b * 63.0h;
@@ -38,8 +39,31 @@ kernel void C7LookupSplitFilter(texture2d<half, access::write> outputTexture [[t
     texPos2.x = A * quad2.x + B + C * inColor.r;
     texPos2.y = A * quad2.y + B + C * inColor.g;
     
-    const float x = float(grid.x) / outputTexture.get_width();
-    if (x > (*progress)) {
+    // 归一化坐标系
+    const half x = half(grid.x) / outputTexture.get_width();
+    const half y = half(grid.y) / outputTexture.get_height();
+    const half p = half(*progress);
+    bool result = false;
+    
+    if (*orientation == 0.0) { // top
+        result = y > p;
+    } else if (*orientation == 1.0) { // left
+        result = x > p;
+    } else if (*orientation == 2.0) { // center
+        half xx = abs(x - 0.5);
+        half yy = abs(y - 0.5);
+        half l = length(half2(xx, yy));
+        result = l > p / 2;
+    } else if (*orientation == 3.0) { // topLeft
+        // x^2 + y^2
+        half l = length(half2(x, y));
+        result = sqrt(l) / sqrt(2.0) > p;
+    } else if (*orientation == 4.0) { // bottomLeft
+        half l = length(half2(x, 1-y));
+        result = sqrt(l) / sqrt(2.0) > p;
+    }
+    
+    if (result) {
         constexpr sampler quadSampler3;
         half4 newColor1 = inputTexture2.sample(quadSampler3, texPos1);
         constexpr sampler quadSampler4;
