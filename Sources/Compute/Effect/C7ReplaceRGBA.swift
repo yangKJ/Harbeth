@@ -18,21 +18,13 @@ public struct C7ReplaceRGBA: C7FilterProtocol {
     /// Need to be transparent color
     public var chroma: UIColor {
         didSet {
-            if chroma != UIColor.clear {
-                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                chroma.getRed(&r, green: &g, blue: &b, alpha: &a)
-                red = Float(r); green = Float(g); blue = Float(b)
-            }
+            chroma.mt.toRGB(red: &red, green: &green, blue: &blue)
         }
     }
     /// The color to be replaced
     public var replaceColor: UIColor {
         didSet {
-            if replaceColor != UIColor.clear {
-                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                replaceColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-                _r = Float(r); _g = Float(g); _b = Float(b); _a = Float(a)
-            }
+            replaceColor.mt.toRGBA(red: &_r, green: &_g, blue: &_b, alpha: &_a)
         }
     }
     
@@ -53,7 +45,7 @@ public struct C7ReplaceRGBA: C7FilterProtocol {
     }
     
     public init() {
-        self.chroma = UIColor.clear
-        self.replaceColor = UIColor.clear
+        self.chroma = C7EmptyColor
+        self.replaceColor = C7EmptyColor
     }
 }

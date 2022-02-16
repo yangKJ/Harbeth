@@ -17,11 +17,7 @@ public struct C7ChannelRGBA: C7FilterProtocol {
     /// Transparent colors are not processed, Will directly modify the overall color scheme
     public var color: UIColor {
         didSet {
-            if color != UIColor.clear {
-                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                color.getRed(&r, green: &g, blue: &b, alpha: &a)
-                red = Float(r); green = Float(g); blue = Float(b); alpha = Float(a)
-            }
+            color.mt.toRGBA(red: &red, green: &green, blue: &blue, alpha: &alpha)
         }
     }
     
@@ -34,6 +30,6 @@ public struct C7ChannelRGBA: C7FilterProtocol {
     }
     
     public init() {
-        self.color = UIColor.clear
+        self.color = C7EmptyColor
     }
 }

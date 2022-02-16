@@ -22,6 +22,7 @@ enum ViewControllerType: String {
     case HighlightShadow = "高光阴影"
     case WhiteBalance = "白平衡"
     case Vibrance = "自然饱和度"
+    case FalseColor = "伪色彩"
     case Crosshatch = "绘制阴影线"
     case Monochrome = "黑白照片"
     case ChromaKey = "类似绿幕抠图"
@@ -61,6 +62,8 @@ extension ViewControllerType {
             return C7Image(named: "lvmu")!
         case .ReplaceColor:
             return C7Image(named: "IMG_2606")!
+        case .FalseColor:
+            return C7Image(named: "test")!
         default:
             return C7Image(named: "timg-3")!
         }
@@ -267,6 +270,11 @@ extension ViewControllerType {
                 filter.radius = $0
                 return filter
             })
+        case .FalseColor:
+            var filter = C7FalseColor()
+            filter.fristColor = UIColor.black
+            filter.secondColor = UIColor.systemPink
+            return (filter, nil, nil)
         }
     }
 }
@@ -284,8 +292,9 @@ struct HomeViewModel {
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow,
         .Saturation, .WhiteBalance, .Vibrance,
-        .ChannelRGBA, .ColorInvert, .Color2Gray,
-        .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
+        .ChannelRGBA, .FalseColor, .ColorInvert,
+        .Color2Gray, .Color2BGRA, .Color2BRGA,
+        .Color2GBRA, .Color2GRBA, .Color2RBGA,
     ]
     
     let effect: [ViewControllerType] = [

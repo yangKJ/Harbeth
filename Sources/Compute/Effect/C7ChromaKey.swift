@@ -18,11 +18,7 @@ public struct C7ChromaKey: C7FilterProtocol {
     /// Color patches that need to be removed,
     public var color: UIColor {
         didSet {
-            if color != UIColor.clear {
-                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                color.getRed(&r, green: &g, blue: &b, alpha: &a)
-                red = Float(r); green = Float(g); blue = Float(b)
-            }
+            color.mt.toRGB(red: &red, green: &green, blue: &blue)
         }
     }
     
@@ -39,6 +35,6 @@ public struct C7ChromaKey: C7FilterProtocol {
     }
     
     public init() {
-        self.color = UIColor.clear
+        self.color = C7EmptyColor
     }
 }

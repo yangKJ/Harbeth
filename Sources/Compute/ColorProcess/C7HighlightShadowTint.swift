@@ -17,20 +17,12 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
     
     public var shadowsColor: UIColor {
         didSet {
-            if shadowsColor != UIColor.clear {
-                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                shadowsColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-                sr = Float(r); sg = Float(g); sb = Float(b)
-            }
+            shadowsColor.mt.toRGB(red: &sr, green: &sg, blue: &sb)
         }
     }
     public var highlightsColor: UIColor {
         didSet {
-            if highlightsColor != UIColor.clear {
-                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-                highlightsColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-                hr = Float(r); hg = Float(g); hb = Float(b)
-            }
+            highlightsColor.mt.toRGB(red: &hr, green: &hg, blue: &hb)
         }
     }
     
@@ -50,7 +42,7 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
     }
     
     public init() {
-        self.shadowsColor = UIColor.clear
-        self.highlightsColor = UIColor.clear
+        self.shadowsColor = C7EmptyColor
+        self.highlightsColor = C7EmptyColor
     }
 }
