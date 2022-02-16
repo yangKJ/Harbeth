@@ -12,6 +12,15 @@ class FilterViewController: UIViewController {
     var filter: C7FilterProtocol?
     var callback: FilterCallback?
     var originImage: UIImage!
+    weak var timer: Timer?
+    lazy var autoBarButton: UIBarButtonItem = {
+        let barButton = UIBarButtonItem(title: "Auto",
+                                        style: .plain,
+                                        target: self,
+                                        action: #selector(autoTestAction))
+        return barButton
+    }()
+    
     lazy var slider: UISlider = {
         let slider = UISlider()
         slider.translatesAutoresizingMaskIntoConstraints = false
@@ -61,6 +70,10 @@ class FilterViewController: UIViewController {
         return label
     }()
     
+    deinit {
+        print("🎨 is Deinit.")
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -68,6 +81,7 @@ class FilterViewController: UIViewController {
     }
     
     func setupUI() {
+        navigationItem.rightBarButtonItem = autoBarButton
         view.backgroundColor = UIColor.background
         view.addSubview(originImageView)
         view.addSubview(filterImageView)
@@ -80,7 +94,6 @@ class FilterViewController: UIViewController {
             filterImageView.topAnchor.constraint(equalTo: originImageView.bottomAnchor, constant: 15),
             filterImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             filterImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            filterImageView.heightAnchor.constraint(equalTo: filterImageView.widthAnchor, multiplier: 3/4),
             leftLabel.topAnchor.constraint(equalTo: filterImageView.bottomAnchor, constant: 20),
             leftLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             leftLabel.widthAnchor.constraint(equalToConstant: 100),
@@ -100,6 +113,7 @@ class FilterViewController: UIViewController {
         ])
         if slider.isHidden {
             NSLayoutConstraint.activate([
+                filterImageView.heightAnchor.constraint(equalTo: filterImageView.widthAnchor, multiplier: 3/4),
                 originImageView.centerXAnchor.constraint(equalTo: filterImageView.centerXAnchor),
                 originImageView.widthAnchor.constraint(equalTo: filterImageView.widthAnchor),
                 originImageView.heightAnchor.constraint(equalTo: filterImageView.heightAnchor),
@@ -107,6 +121,7 @@ class FilterViewController: UIViewController {
         } else {
             originImageView.layer.borderWidth = 0
             NSLayoutConstraint.activate([
+                filterImageView.heightAnchor.constraint(equalTo: filterImageView.widthAnchor, multiplier: 3.5/4),
                 originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
                 originImageView.widthAnchor.constraint(equalToConstant: 100),
                 originImageView.heightAnchor.constraint(equalToConstant: 100),
@@ -130,6 +145,34 @@ class FilterViewController: UIViewController {
     
     func setupFilter() {
         filterImageView.image = originImage.makeImage(filter: filter!)
+    }
+    
+    @objc func autoTestAction() {
+        if slider.isHidden { return }
+        
+        if let _ = timer {
+            autoBarButton.title = "Auto"
+            timer?.invalidate()
+            timer = nil
+        } else {
+            autoBarButton.title = "Stop"
+            let timer = Timer.init(timeInterval: 0.01, repeats: true, block: { [weak self] _ in
+                guard let `self` = self else { return }
+                if self.slider.value >= self.slider.maximumValue {
+                    self.slider.value = self.slider.minimumValue
+                } else {
+                    self.slider.value += (self.slider.maximumValue - self.slider.minimumValue) / 250
+                }
+                self.currentLabel.text = String(format: "%.2f", self.slider.value)
+                if let callback = self.callback {
+                    let filter = callback(self.slider.value)
+                    self.filterImageView.image = self.originImage.makeImage(filter: filter)
+                }
+            })
+            RunLoop.current.add(timer, forMode: .common)
+            timer.fire()
+            self.timer = timer
+        }
     }
     
     @objc func sliderDidchange(_ slider: UISlider) {
