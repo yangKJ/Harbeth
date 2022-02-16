@@ -48,6 +48,7 @@ enum ViewControllerType: String {
     case MonochromeDilation = "黑白模糊"
     case GlassSphere = "玻璃球效果"
     case Split = "分割滤镜"
+    case Sobel = "Sobel算子"
 }
 
 extension ViewControllerType {
@@ -61,7 +62,7 @@ extension ViewControllerType {
             return C7Image(named: "IMG_1668")!
         case .ChromaKey:
             return C7Image(named: "lvmu")!
-        case .ReplaceColor:
+        case .ReplaceColor, .Sobel:
             return C7Image(named: "IMG_2606")!
         case .FalseColor:
             return C7Image(named: "test")!
@@ -283,6 +284,9 @@ extension ViewControllerType {
                 filter.progress = $0
                 return filter
             })
+        case .Sobel:
+            let filter = C7Sobel()
+            return (filter, nil, nil)
         }
     }
 }
@@ -313,6 +317,7 @@ struct HomeViewModel {
     
     let shape: [ViewControllerType] = [
         .Crop, .Rotate, .Resize, .Flip,
+        .Sobel,
     ]
     
     let blur: [ViewControllerType] = [

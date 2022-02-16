@@ -142,7 +142,10 @@ class FilterViewController: UIViewController {
         rightLabel.isHidden = slider.isHidden
         currentLabel.isHidden = slider.isHidden
     }
-    
+}
+
+// MARK: - filter process
+extension FilterViewController {
     func setupFilter() {
         filterImageView.image = originImage.makeImage(filter: filter!)
     }
@@ -156,7 +159,7 @@ class FilterViewController: UIViewController {
             timer = nil
         } else {
             autoBarButton.title = "Stop"
-            let timer = Timer.init(timeInterval: 0.01, repeats: true, block: { [weak self] _ in
+            let timer = Timer(timeInterval: 0.01, repeats: true, block: { [weak self] _ in
                 guard let `self` = self else { return }
                 if self.slider.value >= self.slider.maximumValue {
                     self.slider.value = self.slider.minimumValue
