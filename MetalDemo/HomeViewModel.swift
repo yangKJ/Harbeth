@@ -48,7 +48,7 @@ enum ViewControllerType: String {
     case MonochromeDilation = "黑白模糊"
     case GlassSphere = "玻璃球效果"
     case Split = "分割滤镜"
-    case Sobel = "Sobel算子"
+    case Sobel = "Sobel算子特征提取"
 }
 
 extension ViewControllerType {
@@ -285,8 +285,12 @@ extension ViewControllerType {
                 return filter
             })
         case .Sobel:
-            let filter = C7Sobel()
-            return (filter, nil, nil)
+            var filter = C7Sobel()
+            filter.edgeStrength = 1.5
+            return (filter, (1.5, 0, 5), {
+                filter.edgeStrength = $0
+                return filter
+            })
         }
     }
 }
@@ -312,12 +316,11 @@ struct HomeViewModel {
     let effect: [ViewControllerType] = [
         .Monochrome, .Bulge, .ChromaKey,
         .ReplaceColor, .Crosshatch, .GlassSphere,
-        .Pixellated,
+        .Pixellated, .Sobel,
     ]
     
     let shape: [ViewControllerType] = [
         .Crop, .Rotate, .Resize, .Flip,
-        .Sobel,
     ]
     
     let blur: [ViewControllerType] = [

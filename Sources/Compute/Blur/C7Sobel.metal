@@ -10,6 +10,7 @@ using namespace metal;
 
 kernel void C7Sobel(texture2d<half, access::write> outputTexture [[texture(0)]],
                     texture2d<half, access::read> inputTexture [[texture(1)]],
+                    constant float *edgeStrength [[buffer(0)]],
                     uint2 grid [[thread_position_in_grid]]) {
     const half sobelStep = 2.0;
     const half3 kRec709Luma = half3(0.2126, 0.7152, 0.0722);
@@ -30,7 +31,8 @@ kernel void C7Sobel(texture2d<half, access::write> outputTexture [[texture(0)]],
     half grayV = dot(v.rgb, kRec709Luma);
     
     // sqrt(h^2 + v^2), 求点到(h, v)的距离
-    half color = length(half2(grayH, grayV));
+    half color = length(half2(grayH, grayV)) * (*edgeStrength);
+    const half4 outColor(half3(color), 1.0);
     
-    outputTexture.write(half4(color, color, color, 1.0), grid);
+    outputTexture.write(outColor, grid);
 }
