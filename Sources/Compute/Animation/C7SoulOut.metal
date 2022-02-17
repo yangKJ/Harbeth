@@ -15,7 +15,9 @@ kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]
                       constant float *maxAlphaPointer [[buffer(2)]],
                       uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const half4 inColor = inputTexture.read(grid);
+    const float x = float(grid.x) / outputTexture.get_width();
+    const float y = float(grid.y) / outputTexture.get_height();
     
     const half soul = half(*soulPointer);
     const half maxScale = half(*maxScalePointer);
@@ -23,16 +25,15 @@ kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]
     
     const half alpha = maxAlpha * (1.0h - soul);
     const half scale = 1.0h + (maxScale - 1.0h) * soul;
-    
-    const half weakX = 0.5h + (textureCoordinate.x - 0.5h) / scale;
-    const half weakY = 0.5h + (textureCoordinate.y - 0.5h) / scale;
+
+    const half weakX = 0.5h + (x - 0.5h) / scale;
+    const half weakY = 0.5h + (y - 0.5h) / scale;
     
     const float2 weakTextureCoords = float2(weakX, weakY);
     const half4 weakMask = inputTexture.sample(quadSampler, weakTextureCoords);
-    const half4 mask = inputTexture.sample(quadSampler, textureCoordinate);
     
-    // 最终色 = 混合色 * (1 - a%) + 基色 * a%
-    const half4 outColor = mask * (1.0h - alpha) + weakMask * alpha;
+    // 最终色 = 基色 * (1 - a) + 混合色 * a
+    const half4 outColor = inColor * (1.0h - alpha) + weakMask * alpha;
     
     outputTexture.write(outColor, grid);
 }
