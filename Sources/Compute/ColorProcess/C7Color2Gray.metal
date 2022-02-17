@@ -14,8 +14,8 @@ kernel void C7Color2Gray(texture2d<half, access::write> outputTexture [[texture(
     const half4 inColor = inputTexture.read(grid);
     
     const half3 kRec709Luma = half3(0.2126, 0.7152, 0.0722);
-    half  gray = dot(inColor.rgb, kRec709Luma);
-    const half4 outColor(half4(gray, gray, gray, 1.0));
+    const half gray = dot(inColor.rgb, kRec709Luma);
+    const half4 outColor = half4(half3(gray), 1.0h);
     
     outputTexture.write(outColor, grid);
 }

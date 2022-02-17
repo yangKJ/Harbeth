@@ -16,7 +16,7 @@ kernel void C7Saturation(texture2d<half, access::write> outputTexture [[texture(
     
     const half3 luminanceWeighting = half3(0.2125, 0.7154, 0.0721);
     const half luminance = dot(inColor.rgb, luminanceWeighting);
-    const half4 outColor(mix(half3(luminance), inColor.rgb, half(*saturation)), inColor.a);
+    const half4 outColor = (mix(half3(luminance), inColor.rgb, half(*saturation)), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

@@ -41,6 +41,6 @@ kernel void C7Sketch(texture2d<half, access::write> outputTexture [[texture(0)]]
     const half v = -bottomLeftIntensity - 2.0h * leftIntensity - topLeftIntensity + bottomRightIntensity + 2.0h * rightIntensity + topRightIntensity;
     
     const half mag = 1.0h - (length(half2(h, v)) * float(*edgeStrength));
-    const half4 outColor(half3(mag), 1.0h);
+    const half4 outColor = half4(half3(mag), 1.0h);
     outputTexture.write(outColor, grid);
 }

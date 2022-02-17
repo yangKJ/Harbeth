@@ -46,6 +46,6 @@ kernel void C7ThresholdSketch(texture2d<half, access::write> outputTexture [[tex
     half mag = length(half2(h, v)) * half(*edgeStrength);
     mag = 1.0h - step(half(*threshold), mag);
     
-    const half4 outColor(half3(mag), 1.0h);
+    const half4 outColor = half4(half3(mag), 1.0h);
     outputTexture.write(outColor, grid);
 }

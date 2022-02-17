@@ -20,7 +20,7 @@ kernel void C7HighlightShadow(texture2d<half, access::write> outputTexture [[tex
     const half shadow = clamp((pow(luminance, 1.0h / (half(*shadows) + 1.0h)) + (-0.76) * pow(luminance, 2.0h / (half(*shadows) + 1.0h))) - luminance, 0.0, 1.0);
     const half highlight = clamp((1.0 - (pow(1.0 - luminance, 1.0 / (2.0 - half(*highlights))) + (-0.8) * pow(1.0 - luminance, 2.0 / (2.0 - half(*highlights))))) - luminance, -1.0, 0.0);
     const half3 result = half3(0.0, 0.0, 0.0) + ((luminance + shadow + highlight) - 0.0) * ((inColor.rgb - half3(0.0, 0.0, 0.0)) / (luminance - 0.0));
-    const half4 outColor(result.rgb, inColor.a);
+    const half4 outColor = half4(result.rgb, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

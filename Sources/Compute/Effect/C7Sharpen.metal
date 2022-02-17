@@ -30,9 +30,10 @@ kernel void C7Sharpen(texture2d<half, access::write> outputTexture [[texture(0)]
     const half4 topColor = inputTexture.sample(quadSampler, topCoordinate);
     const half4 bottomColor = inputTexture.sample(quadSampler, bottomCoordinate);
     
-    const half centerMultiplier = 1.0 + 4.0 * half(*sharpeness);
+    const half centerMultiplier = 1.0h + 4.0h * half(*sharpeness);
     const half edgeMultiplier = half(*sharpeness);
-    const half4 outColor((inColor.rgb * centerMultiplier - (leftColor.rgb + rightColor.rgb + topColor.rgb + bottomColor.rgb) * edgeMultiplier), bottomColor.a);
+    const half3 rgb = (inColor.rgb * centerMultiplier - (leftColor.rgb + rightColor.rgb + topColor.rgb + bottomColor.rgb) * edgeMultiplier);
+    const half4 outColor = half4(rgb, bottomColor.a);
     
     outputTexture.write(outColor, grid);
 }

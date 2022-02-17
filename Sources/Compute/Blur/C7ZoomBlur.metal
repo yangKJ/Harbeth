@@ -16,20 +16,20 @@ kernel void C7ZoomBlur(texture2d<half, access::write> outputTexture [[texture(0)
                        uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
-    float2 blurCenter = float2(*blurCenterX, *blurCenterY);
+    const float2 blurCenter = float2(*blurCenterX, *blurCenterY);
     const float2 textureCoord = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     const float2 samplingOffset = 1.0 / 100.0 * (blurCenter - textureCoord) * float(*blurSize);
     
-    half4 color = inputTexture.sample(quadSampler, textureCoord) * 0.18;
+    half4 outColor = inputTexture.sample(quadSampler, textureCoord) * 0.18;
     
-    color += inputTexture.sample(quadSampler, textureCoord + (1.0 * samplingOffset)) * 0.15h;
-    color += inputTexture.sample(quadSampler, textureCoord + (2.0 * samplingOffset)) * 0.12h;
-    color += inputTexture.sample(quadSampler, textureCoord + (3.0 * samplingOffset)) * 0.09h;
-    color += inputTexture.sample(quadSampler, textureCoord + (4.0 * samplingOffset)) * 0.05h;
-    color += inputTexture.sample(quadSampler, textureCoord - (1.0 * samplingOffset)) * 0.15h;
-    color += inputTexture.sample(quadSampler, textureCoord - (2.0 * samplingOffset)) * 0.12h;
-    color += inputTexture.sample(quadSampler, textureCoord - (3.0 * samplingOffset)) * 0.09h;
-    color += inputTexture.sample(quadSampler, textureCoord - (4.0 * samplingOffset)) * 0.05h;
+    outColor += inputTexture.sample(quadSampler, textureCoord + (1.0 * samplingOffset)) * 0.15h;
+    outColor += inputTexture.sample(quadSampler, textureCoord + (2.0 * samplingOffset)) * 0.12h;
+    outColor += inputTexture.sample(quadSampler, textureCoord + (3.0 * samplingOffset)) * 0.09h;
+    outColor += inputTexture.sample(quadSampler, textureCoord + (4.0 * samplingOffset)) * 0.05h;
+    outColor += inputTexture.sample(quadSampler, textureCoord - (1.0 * samplingOffset)) * 0.15h;
+    outColor += inputTexture.sample(quadSampler, textureCoord - (2.0 * samplingOffset)) * 0.12h;
+    outColor += inputTexture.sample(quadSampler, textureCoord - (3.0 * samplingOffset)) * 0.09h;
+    outColor += inputTexture.sample(quadSampler, textureCoord - (4.0 * samplingOffset)) * 0.05h;
     
-    outputTexture.write(color, grid);
+    outputTexture.write(outColor, grid);
 }

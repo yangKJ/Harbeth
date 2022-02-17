@@ -17,29 +17,16 @@ kernel void C7AddBlend(texture2d<half, access::write> outTexture [[texture(0)]],
     
     const half4 overlay = inputTexture2.sample(quadSampler, float2(float(grid.x) / outTexture.get_width(), float(grid.y) / outTexture.get_height()));
     
-    half r;
-    if (overlay.r * inColor.a + inColor.r * overlay.a >= overlay.a * inColor.a) {
-        r = overlay.a * inColor.a + overlay.r * (1.0h - inColor.a) + inColor.r * (1.0h - overlay.a);
-    } else {
-        r = overlay.r + inColor.r;
-    }
+    const bool rbool = overlay.r * inColor.a + inColor.r * overlay.a >= overlay.a * inColor.a;
+    const bool gbool = overlay.g * inColor.a + inColor.g * overlay.a >= overlay.a * inColor.a;
+    const bool bbool = overlay.b * inColor.a + inColor.b * overlay.a >= overlay.a * inColor.a;
+    const half xa = overlay.a * inColor.a;
+    const half r = rbool ? (xa + overlay.r * (1.0h - inColor.a) + inColor.r * (1.0h - overlay.a)) : (overlay.r + inColor.r);
+    const half g = gbool ? (xa + overlay.g * (1.0h - inColor.a) + inColor.g * (1.0h - overlay.a)) : (overlay.g + inColor.g);
+    const half b = bbool ? (xa + overlay.b * (1.0h - inColor.a) + inColor.b * (1.0h - overlay.a)) : (overlay.b + inColor.b);
+    const half a = overlay.a + inColor.a - xa;
     
-    half g;
-    if (overlay.g * inColor.a + inColor.g * overlay.a >= overlay.a * inColor.a) {
-        g = overlay.a * inColor.a + overlay.g * (1.0h - inColor.a) + inColor.g * (1.0h - overlay.a);
-    } else {
-        g = overlay.g + inColor.g;
-    }
+    const half4 outColor = half4(r, g, b, a);
     
-    half b;
-    if (overlay.b * inColor.a + inColor.b * overlay.a >= overlay.a * inColor.a) {
-        b = overlay.a * inColor.a + overlay.b * (1.0h - inColor.a) + inColor.b * (1.0h - overlay.a);
-    } else {
-        b = overlay.b + inColor.b;
-    }
-    
-    const half a = overlay.a + inColor.a - overlay.a * inColor.a;
-    
-    const half4 outColor(r, g, b, a);
     outTexture.write(outColor, grid);
 }

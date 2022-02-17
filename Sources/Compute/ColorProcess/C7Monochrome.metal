@@ -19,12 +19,11 @@ kernel void C7Monochrome(texture2d<half, access::write> outputTexture [[texture(
     
     const half3 luminanceWeighting = half3(0.2125, 0.7154, 0.0721);
     const half luminance = dot(inColor.rgb, luminanceWeighting);
-    const half4 desat = half4(half3(luminance), 1.0);
+    const half4 desat = half4(half3(luminance), 1.0h);
     const half r = desat.r < 0.5 ? (2.0 * desat.r * half(*colorR)) : (1.0 - 2.0 * (1.0 - desat.r) * (1.0 - half(*colorR)));
     const half g = desat.g < 0.5 ? (2.0 * desat.g * half(*colorG)) : (1.0 - 2.0 * (1.0 - desat.g) * (1.0 - half(*colorG)));
     const half b = desat.b < 0.5 ? (2.0 * desat.b * half(*colorB)) : (1.0 - 2.0 * (1.0 - desat.b) * (1.0 - half(*colorB)));
-    const half4 outputColor = half4(r, g, b, 1.0);
-    const half4 outColor(mix(inColor.rgb, outputColor.rgb, half(*intensity)), inColor.a);
+    const half4 outColor = half4(mix(inColor.rgb, half3(r, g, b), half(*intensity)), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

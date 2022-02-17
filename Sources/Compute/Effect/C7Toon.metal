@@ -13,6 +13,7 @@ kernel void C7Toon(texture2d<half, access::write> outputTexture [[texture(0)]],
                    constant float *threshold [[buffer(0)]],
                    constant float *quantizationLevels [[buffer(1)]],
                    uint2 grid [[thread_position_in_grid]]) {
+    const half4 inColor = inputTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const float x = float(grid.x);
@@ -38,8 +39,6 @@ kernel void C7Toon(texture2d<half, access::write> outputTexture [[texture(0)]],
     const half bottomLeftIntensity = inputTexture.sample(quadSampler, bottomLeftCoordinate).r;
     const half bottomRightIntensity = inputTexture.sample(quadSampler, bottomRightCoordinate).r;
     
-    const half4 inColor = inputTexture.read(grid);
-    
     const half h = -topLeftIntensity - 2.0h * topIntensity - topRightIntensity + bottomLeftIntensity + 2.0h * bottomIntensity + bottomRightIntensity;
     const half v = -bottomLeftIntensity - 2.0h * leftIntensity - topLeftIntensity + bottomRightIntensity + 2.0h * rightIntensity + topRightIntensity;
     
@@ -47,6 +46,6 @@ kernel void C7Toon(texture2d<half, access::write> outputTexture [[texture(0)]],
     const half3 posterizedImageColor = floor((inColor.rgb * half3(*quantizationLevels)) + 0.5h) / half3(*quantizationLevels);
     const half thresholdTest = 1.0h - step(half(*threshold), mag);
     
-    const half4 outColor(posterizedImageColor * thresholdTest, inColor.a);
+    const half4 outColor = half4(posterizedImageColor * thresholdTest, inColor.a);
     outputTexture.write(outColor, grid);
 }

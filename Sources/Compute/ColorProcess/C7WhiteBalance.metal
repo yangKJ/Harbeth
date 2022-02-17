@@ -25,6 +25,6 @@ kernel void C7WhiteBalance(texture2d<half, access::write> outputTexture [[textur
     const half3 warmFilter = half3(0.93, 0.54, 0.0);
     const half3 processed = half3((rgb.r < 0.5 ? (2.0 * rgb.r * warmFilter.r) : (1.0 - 2.0 * (1.0 - rgb.r) * (1.0 - warmFilter.r))), (rgb.g < 0.5 ? (2.0 * rgb.g * warmFilter.g) : (1.0 - 2.0 * (1.0 - rgb.g) * (1.0 - warmFilter.g))), (rgb.b < 0.5 ? (2.0 * rgb.b * warmFilter.b) : (1.0 - 2.0 * (1.0 - rgb.b) * (1.0 - warmFilter.b))));
     
-    const half4 outColor(mix(rgb, processed, half(*temperature)), inColor.a);
+    const half4 outColor = (mix(rgb, processed, half(*temperature)), inColor.a);
     outputTexture.write(outColor, grid);
 }

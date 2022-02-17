@@ -20,19 +20,19 @@ kernel void C7Bulge(texture2d<half, access::write> outputTexture [[texture(0)]],
     const float scale = float(*scalePointer);
     const float aspectRatio = float(inputTexture.get_height()) / float(inputTexture.get_width());
     
-    const float2 inCoordinateToUse = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
-    float2 textureCoordinateToUse = float2(inCoordinateToUse.x, (inCoordinateToUse.y - center.y) * aspectRatio + center.y);
-    const float dist = distance(center, textureCoordinateToUse);
-    textureCoordinateToUse = inCoordinateToUse;
+    const float2 inCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    float2 textureCoordinate = float2(inCoordinate.x, (inCoordinate.y - center.y) * aspectRatio + center.y);
+    const float dist = distance(center, textureCoordinate);
+    textureCoordinate = inCoordinate;
     
     if (dist < radius) {
-        textureCoordinateToUse -= center;
+        textureCoordinate -= center;
         float percent = 1.0 - (radius - dist) / radius * scale;
         percent = percent * percent;
-        textureCoordinateToUse = textureCoordinateToUse * percent + center;
+        textureCoordinate = textureCoordinate * percent + center;
     }
     
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half4 outColor = inputTexture.sample(quadSampler, textureCoordinateToUse);
+    const half4 outColor = inputTexture.sample(quadSampler, textureCoordinate);
     outputTexture.write(outColor, grid);
 }

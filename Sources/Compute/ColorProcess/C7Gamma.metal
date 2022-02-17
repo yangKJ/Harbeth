@@ -14,7 +14,7 @@ kernel void C7Gamma(texture2d<half, access::write> outputTexture [[texture(0)]],
                     uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half4 outColor(pow(inColor.rgb, half3(*gamma)), inColor.a);
+    const half4 outColor = half4(pow(inColor.rgb, half3(*gamma)), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

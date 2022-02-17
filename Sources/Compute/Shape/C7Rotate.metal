@@ -32,6 +32,6 @@ kernel void C7Rotate(texture2d<half, access::write> outputTexture [[texture(0)]]
     }
     
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half4 color = inputTexture.sample(quadSampler, float2(inX, inY));
-    outputTexture.write(color, grid);
+    const half4 outColor = inputTexture.sample(quadSampler, float2(inX, inY));
+    outputTexture.write(outColor, grid);
 }

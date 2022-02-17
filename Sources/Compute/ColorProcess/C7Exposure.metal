@@ -14,7 +14,7 @@ kernel void C7Exposure(texture2d<half, access::write> outputTexture [[texture(0)
                        uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half4 outColor((inColor.rgb * pow(2.0, *exposure)), inColor.a);
+    const half4 outColor = half4((inColor.rgb * pow(2.0, *exposure)), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

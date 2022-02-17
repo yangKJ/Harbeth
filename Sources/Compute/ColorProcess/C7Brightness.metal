@@ -14,7 +14,7 @@ kernel void C7Brightness(texture2d<half, access::write> outputTexture [[texture(
                          uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half4 outColor(inColor.rgb + half3(*brightness), inColor.a);
+    const half4 outColor = half4(inColor.rgb + half3(*brightness), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

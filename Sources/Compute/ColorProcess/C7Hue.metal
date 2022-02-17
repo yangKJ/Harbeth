@@ -38,8 +38,8 @@ kernel void C7Hue(texture2d<half, access::write> outputTexture [[texture(0)]],
     I = chroma * cos(hue);
     
     // Convert back to RGB
-    const half4 yIQ = half4(YPrime, I, Q, 0.0);
-    const half4 outColor(dot(yIQ, kYIQToR), dot(yIQ, kYIQToG), dot(yIQ, kYIQToB), inColor.a);
+    const half4 yIQ = half4(YPrime, I, Q, 0.0h);
+    const half4 outColor = half4(dot(yIQ, kYIQToR), dot(yIQ, kYIQToG), dot(yIQ, kYIQToB), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

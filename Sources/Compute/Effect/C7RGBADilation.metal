@@ -14,9 +14,9 @@ kernel void C7RGBADilation(texture2d<half, access::write> outputTexture [[textur
                            constant float *vertical [[buffer(1)]],
                            uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    half4 maxValue = half4(0);
+    half4 maxValue = half4(0.0h);
     
-    int radius = abs(*pixelRadius);
+    const int radius = abs(*pixelRadius);
     if (*vertical) {
         for (int i = -radius; i <= radius; ++i) {
             const float2 coordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y + i) / outputTexture.get_height());

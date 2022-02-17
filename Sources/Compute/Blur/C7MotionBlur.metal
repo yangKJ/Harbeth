@@ -31,17 +31,17 @@ kernel void C7MotionBlur(texture2d<half, access::write> outputTexture [[texture(
     const float2 threeStepsForwardTextureCoordinate = textureCoordinate.xy + 3.0 * directionalTexelStep;
     const float2 fourStepsForwardTextureCoordinate = textureCoordinate.xy + 4.0 * directionalTexelStep;
     
-    half4 color = inputTexture.sample(quadSampler, textureCoordinate) * 0.18;
+    half4 outColor = inputTexture.sample(quadSampler, textureCoordinate) * 0.18;
     
-    color += inputTexture.sample(quadSampler, oneStepBackTextureCoordinate) * 0.15;
-    color += inputTexture.sample(quadSampler, twoStepsBackTextureCoordinate) *  0.12;
-    color += inputTexture.sample(quadSampler, threeStepsBackTextureCoordinate) * 0.09;
-    color += inputTexture.sample(quadSampler, fourStepsBackTextureCoordinate) * 0.05;
-    color += inputTexture.sample(quadSampler, oneStepForwardTextureCoordinate) * 0.15;
-    color += inputTexture.sample(quadSampler, twoStepsForwardTextureCoordinate) *  0.12;
-    color += inputTexture.sample(quadSampler, threeStepsForwardTextureCoordinate) * 0.09;
-    color += inputTexture.sample(quadSampler, fourStepsForwardTextureCoordinate) * 0.05;
+    outColor += inputTexture.sample(quadSampler, oneStepBackTextureCoordinate) * 0.15;
+    outColor += inputTexture.sample(quadSampler, twoStepsBackTextureCoordinate) *  0.12;
+    outColor += inputTexture.sample(quadSampler, threeStepsBackTextureCoordinate) * 0.09;
+    outColor += inputTexture.sample(quadSampler, fourStepsBackTextureCoordinate) * 0.05;
+    outColor += inputTexture.sample(quadSampler, oneStepForwardTextureCoordinate) * 0.15;
+    outColor += inputTexture.sample(quadSampler, twoStepsForwardTextureCoordinate) *  0.12;
+    outColor += inputTexture.sample(quadSampler, threeStepsForwardTextureCoordinate) * 0.09;
+    outColor += inputTexture.sample(quadSampler, fourStepsForwardTextureCoordinate) * 0.05;
     
-    outputTexture.write(color, grid);
+    outputTexture.write(outColor, grid);
 }
 

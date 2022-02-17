@@ -68,7 +68,7 @@ kernel void C7LookupSplitFilter(texture2d<half, access::write> outputTexture [[t
         constexpr sampler quadSampler4;
         half4 newColor2 = inputTexture2.sample(quadSampler4, texPos2);
         half4 newColor = mix(newColor1, newColor2, fract(blueColor));
-        const half4 outColor = half4(mix(inColor, half4(newColor.rgb, inColor.w), 1));
+        const half4 outColor = half4(mix(inColor, half4(newColor.rgb, inColor.w), 1.0h));
         outputTexture.write(outColor, grid);
     } else {
         constexpr sampler quadSampler3;

@@ -27,7 +27,7 @@ kernel void C7HighlightShadowTint(texture2d<half, access::write> outputTexture [
     const half luminance = dot(inColor.rgb, luminanceWeighting);
     const half4 shadowResult = mix(inColor, max(inColor, half4(mix(shadowTintColor, inColor.rgb, luminance), inColor.a)), half(*shadowTintIntensity));
     const half4 highlightResult = mix(inColor, min(shadowResult, half4(mix(shadowResult.rgb, highlightTintColor, luminance), inColor.a)), half(*highlightTintIntensity));
-    const half4 outColor(mix(shadowResult.rgb, highlightResult.rgb, luminance), inColor.a);
+    const half4 outColor = half4(mix(shadowResult.rgb, highlightResult.rgb, luminance), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

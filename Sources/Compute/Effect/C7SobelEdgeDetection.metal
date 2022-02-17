@@ -41,6 +41,6 @@ kernel void C7SobelEdgeDetection(texture2d<half, access::write> outputTexture [[
     const half v = -bottomLeftIntensity - 2.0h * leftIntensity - topLeftIntensity + bottomRightIntensity + 2.0h * rightIntensity + topRightIntensity;
     
     const half mag = length(half2(h, v)) * half(*edgeStrength);
-    const half4 outColor(half3(mag), 1.0h);
+    const half4 outColor = half4(half3(mag), 1.0h);
     outputTexture.write(outColor, grid);
 }

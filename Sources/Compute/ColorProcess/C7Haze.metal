@@ -13,12 +13,12 @@ kernel void C7Haze(texture2d<half, access::write> outputTexture [[texture(0)]],
                    constant float *hazeDistance [[buffer(0)]],
                    constant float *slope [[buffer(1)]],
                    uint2 grid [[thread_position_in_grid]]) {
-    half4 inColor = inputTexture.read(grid);
+    const half4 inColor = inputTexture.read(grid);
     
     const half4 white = half4(1.0);
     const half dd = half(grid.y) / half(inputTexture.get_height()) * half(*slope) + half(*hazeDistance);
-    inColor = (inColor - dd * white) / (1.0 - dd);
+    const half4 outColor = half4((inColor - dd * white) / (1.0h - dd));
     
-    outputTexture.write(inColor, grid);
+    outputTexture.write(outColor, grid);
 }
 

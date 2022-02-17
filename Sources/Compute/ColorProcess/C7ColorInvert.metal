@@ -13,7 +13,7 @@ kernel void C7ColorInvert(texture2d<half, access::write> outputTexture [[texture
                           uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half4 outColor(1.0 - inColor.rgb, inColor.a);
+    const half4 outColor(1.0h - inColor.rgb, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

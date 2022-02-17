@@ -36,7 +36,7 @@ kernel void C7ReplaceRGBA(texture2d<half, access::write> outputTexture [[texture
     
     const half blendValue = smoothstep(half(*thresholdSensitivity), half(*thresholdSensitivity + *smoothing), distance(half2(Cr, Cb), half2(maskCr, maskCb)));
     
-    half4 outColor(inColor * blendValue);
+    half4 outColor = half4(inColor * blendValue);
     if (outColor.a == 0) {
         outColor = half4(*replaceColorR, *replaceColorG, *replaceColorB, *replaceColorA);
     }
