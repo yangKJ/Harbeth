@@ -98,6 +98,15 @@
 
             ]
           }
+        },
+        {
+          "name": "Animation",
+          "source_files": "Sources/Compute/Animation/*",
+          "dependencies": {
+            "ATMetalBand/Basic": [
+
+            ]
+          }
         }
       ]
     }

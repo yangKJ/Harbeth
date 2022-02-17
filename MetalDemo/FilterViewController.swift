@@ -164,7 +164,7 @@ extension FilterViewController {
         } else {
             autoBarButton.title = "Stop"
             var add = true
-            let timer = Timer(timeInterval: 0.001, repeats: true, block: { [weak self] _ in
+            let timer = Timer(timeInterval: 0.01, repeats: true, block: { [weak self] _ in
                 guard let `self` = self else { return }
                 if self.slider.value >= self.slider.maximumValue {
                     add = false
@@ -173,9 +173,9 @@ extension FilterViewController {
                     add = true
                 }
                 if add {
-                    self.slider.value += (self.slider.maximumValue - self.slider.minimumValue) / 250
+                    self.slider.value += (self.slider.maximumValue - self.slider.minimumValue) / 77
                 } else {
-                    self.slider.value -= (self.slider.maximumValue - self.slider.minimumValue) / 250
+                    self.slider.value -= (self.slider.maximumValue - self.slider.minimumValue) / 77
                 }
                 self.currentLabel.text = String(format: "%.4f", self.slider.value)
                 if let callback = self.callback {

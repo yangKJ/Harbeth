@@ -19,7 +19,7 @@ internal struct Rendering {
         descriptor.vertexFunction = Device.readMTLFunction(vertex)
         descriptor.fragmentFunction = Device.readMTLFunction(fragment)
         do {
-            let pipelineState = try Device.shared.device.makeRenderPipelineState(descriptor: descriptor)
+            let pipelineState = try Shared.shared.device!.device.makeRenderPipelineState(descriptor: descriptor)
             return pipelineState
         } catch {
             fatalError("Could not create render pipeline state for vertex:\(vertex), fragment:\(fragment)")
@@ -40,7 +40,7 @@ internal struct Rendering {
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
             fatalError("Could not create render encoder")
         }
-        let device = Device.shared.device
+        let device = Shared.shared.device!.device
         let size = MemoryLayout<T>.size
         let vertexBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!
         

@@ -22,11 +22,8 @@ class Device {
     let ATMetalLibrary: MTLLibrary?
     /// Load the texture tool
     let textureLoader: MTKTextureLoader
-    let colorSpace: CGColorSpace
     
-    static let shared = Device()
-    
-    private init() {
+    init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Could not create Metal Device")
         }
@@ -45,8 +42,6 @@ class Device {
         }
         
         self.textureLoader = MTKTextureLoader(device: device)
-        
-        self.colorSpace = CGColorSpaceCreateDeviceRGB()
     }
     
     deinit {
@@ -73,11 +68,11 @@ extension Device {
     
     static func readMTLFunction(_ name: String) -> MTLFunction {
         // First read the project
-        if let libray = Device.shared.defaultLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = Shared.shared.device!.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         // Then read from CocoaPods
-        if let libray = Device.shared.ATMetalLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = Shared.shared.device!.ATMetalLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         

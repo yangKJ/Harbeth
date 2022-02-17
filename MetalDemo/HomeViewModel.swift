@@ -54,6 +54,7 @@ enum ViewControllerType: String {
     case Posterize = "色调分离"
     case Swirl = "漩涡鸣人"
     case MotionBlur = "移动模糊效果"
+    case SoulOut = "灵魂出窍"
 }
 
 extension ViewControllerType {
@@ -333,6 +334,13 @@ extension ViewControllerType {
                 filter.blurSize = $0
                 return filter
             })
+        case .SoulOut:
+            var filter = C7SoulOut()
+            filter.soul = 0.5
+            return (filter, (0.5, 0.2, 0.8), {
+                filter.soul = $0
+                return filter
+            })
         }
     }
 }
@@ -347,7 +355,7 @@ struct HomeViewModel {
     }()
     
     let effect: [ViewControllerType] = [
-        .ZoomBlur, .Pixellated, .Crosshatch,
+        .SoulOut, .ZoomBlur, .Pixellated, .Crosshatch,
         .GlassSphere, .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl,
         .Monochrome, .ReplaceColor, .ChromaKey,

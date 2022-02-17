@@ -90,12 +90,12 @@ extension C7FilterSerializer {
                                                                   height: height,
                                                                   mipmapped: mipmapped)
         descriptor.usage = [.shaderRead, .shaderWrite]
-        return Device.shared.device.makeTexture(descriptor: descriptor)!
+        return Shared.shared.device!.device.makeTexture(descriptor: descriptor)!
     }
     
     /// Create command buffer.
     private func makeCommandBuffer() -> MTLCommandBuffer? {
-        let commandBuffer = Device.shared.commandQueue.makeCommandBuffer()
+        let commandBuffer = Shared.shared.device!.commandQueue.makeCommandBuffer()
         commandBuffer?.label = "QueenCommand"
         return commandBuffer
     }

@@ -4,12 +4,15 @@ PODS:
     - ATMetalBand/Compute (= 0.0.10)
   - ATMetalBand/Basic (0.0.10)
   - ATMetalBand/Compute (0.0.10):
+    - ATMetalBand/Compute/Animation (= 0.0.10)
     - ATMetalBand/Compute/Blend (= 0.0.10)
     - ATMetalBand/Compute/Blur (= 0.0.10)
     - ATMetalBand/Compute/ColorProcess (= 0.0.10)
     - ATMetalBand/Compute/Effect (= 0.0.10)
     - ATMetalBand/Compute/Lookup (= 0.0.10)
     - ATMetalBand/Compute/Shape (= 0.0.10)
+  - ATMetalBand/Compute/Animation (0.0.10):
+    - ATMetalBand/Basic
   - ATMetalBand/Compute/Blend (0.0.10):
     - ATMetalBand/Basic
   - ATMetalBand/Compute/Blur (0.0.10):
@@ -31,7 +34,7 @@ EXTERNAL SOURCES:
     :path: "./"
 
 SPEC CHECKSUMS:
-  ATMetalBand: c4cd77e34ee29444c00596087e6505608a4ef1bf
+  ATMetalBand: 14c435fbc87fb909abfdcf1060021e86a5b35876
 
 PODFILE CHECKSUM: 8914b7ee510c9e654228ad885d8c64132e46e605
 

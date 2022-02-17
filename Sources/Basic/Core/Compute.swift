@@ -20,7 +20,7 @@ internal struct Compute {
     static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState {
         let function = Device.readMTLFunction(kernel)
         do {
-            let pipelineState = try Device.shared.device.makeComputePipelineState(function: function)
+            let pipelineState = try Shared.shared.device!.device.makeComputePipelineState(function: function)
             return pipelineState
         } catch {
             fatalError("Unable to setup Metal")
@@ -40,7 +40,7 @@ internal struct Compute {
             computeEncoder.setTexture(texture, index: index)
         }
         
-        let device = Device.shared.device
+        let device = Shared.shared.device!.device
         let size = MemoryLayout<T>.size
         for i in 0..<factors.count {
             var factor = factors[i]

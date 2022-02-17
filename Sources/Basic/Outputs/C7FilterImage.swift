@@ -52,7 +52,7 @@ extension C7Image: C7FilterSerializer {
 extension Queen where Base == C7Image {
     public func toTexture() -> MTLTexture? {
         do {
-            let loader = Device.shared.textureLoader
+            let loader = Shared.shared.device!.textureLoader
             let options = [MTKTextureLoader.Option.SRGB : false]
             let texture = try loader.newTexture(cgImage: base.cgImage!, options: options)
             return texture
