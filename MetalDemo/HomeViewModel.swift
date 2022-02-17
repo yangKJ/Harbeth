@@ -61,9 +61,7 @@ enum ViewControllerType: String {
 extension ViewControllerType {
     var image: UIImage {
         switch self {
-        case .ColorInvert:
-            return C7Image(named: "yuan001")!
-        case .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
+        case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
             return C7Image(named: "yuan002")!
         case .ZoomBlur, .Crop:
             return C7Image(named: "IMG_1668")!
@@ -207,19 +205,14 @@ extension ViewControllerType {
         case .ChromaKey:
             var filter = C7ChromaKey()
             filter.color = UIColor.green
-            filter.smoothing = 0.3
-            return (filter, (0.3, 0, 1), {
-                filter.smoothing = $0
-                return filter
-            })
+            filter.smoothing = 0.05
+            return (filter, nil, nil)
         case .ReplaceColor:
             var filter = C7ReplaceRGBA()
             filter.chroma = UIColor.red
             filter.replaceColor = UIColor.purple
-            return (filter, (0.2, 0, 1), {
-                filter.smoothing = $0
-                return filter
-            })
+            filter.smoothing = 0.1
+            return (filter, nil, nil)
         case .Crop:
             var filter = C7Crop()
             filter.origin = C7Point2D(x: 0.3, y: 0.3)
