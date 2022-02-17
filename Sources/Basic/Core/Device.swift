@@ -7,9 +7,8 @@
 
 import Foundation
 import MetalKit
-import CoreGraphics
 
-class Device {
+internal struct Device {
     
     /// Device information to create other objects
     /// MTLDevice creation is expensive, time-consuming, and can be used forever, so you only need to create it once
@@ -42,10 +41,6 @@ class Device {
         }
         
         self.textureLoader = MTKTextureLoader(device: device)
-    }
-    
-    deinit {
-        print("Device is Deinit.")
     }
 }
 

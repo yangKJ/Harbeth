@@ -70,7 +70,7 @@ extension ViewControllerType {
             return C7Image(named: "lvmu")!
         case .ReplaceColor, .Sobel:
             return C7Image(named: "IMG_2606")!
-        case .FalseColor:
+        case .FalseColor, .SoulOut:
             return C7Image(named: "test")!
         default:
             return C7Image(named: "timg-3")!
@@ -337,7 +337,8 @@ extension ViewControllerType {
         case .SoulOut:
             var filter = C7SoulOut()
             filter.soul = 0.5
-            return (filter, (0.5, 0.2, 0.8), {
+            filter.maxScale = 2.0
+            return (filter, (0.5, 0.1, 1.0), {
                 filter.soul = $0
                 return filter
             })

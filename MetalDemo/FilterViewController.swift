@@ -72,6 +72,7 @@ class FilterViewController: UIViewController {
     
     deinit {
         print("🎨 is Deinit.")
+        Shared.shared.deinitDevice()
     }
     
     override func viewDidLoad() {
