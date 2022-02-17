@@ -27,7 +27,81 @@
  	- [x] Picture perspective or blend.
 	- [x] Modify brightness and contrast.
 	- [x] Picture mosaic tile.
-	
+
+- Some
+
+<p align="left">
+<img src="Screenshot/ZoomBlur.gif" width="200" hspace="1px">
+<img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/eed0fef004d941bf926efb31ee191a83~tplv-k3u1fbpfcp-watermark.image?" width="200" hspace="30px">
+<img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9c40c28f123642468a9f2211c55999a8~tplv-k3u1fbpfcp-watermark.image?" width="200" hspace="1px">
+</p>
+
+- Currently there are 6 modules of filter effects:
+   - Blend: Image fusion technology
+   - Blur: Blur effect
+   - ColorProcess: basic pixel processing of images
+   - Effect: Effect processing
+   - Lookup: Lookup table filter
+   - Shape: Image shape size related
+
+- A total of `80+` kinds of filters are currently available.
+
+### Custom filters
+- Accomplish `C7FilterProtocal`
+
+```
+public protocol C7FilterProtocol {
+    /// Encoder type and corresponding function name
+    ///
+    /// Compute requires the corresponding `kernel` function name
+    /// Render requires a `vertex` shader function name and a `fragment` shader function name
+    var modifier: Modifier { get }
+    
+    /// MakeBuffer
+    /// Set modify parameter factor, you need to convert to `Float`.
+    var factors: [Float] { get }
+    
+    /// Multiple input source extensions
+    /// An array containing the `MTLTexture`
+    var otherInputTextures: C7InputTextures { get }
+    
+    /// Change the size of the output image
+    func outputSize(input size: C7Size) -> C7Size
+}
+```
+
+- Write a kernel function shader based on parallel computing.
+- Configure the passed parameter factor, only supports `Float` type.
+- Configure additional required textures.
+
+### Example
+
+```
+public struct C7Crop: C7FilterProtocol {
+    /// The adjusted contrast, from 0 to 1.0, with a default of 0.0
+    public var origin: C7Point2D = C7Point2DZero
+    
+    public var width: Int = 0
+    public var height: Int = 0
+    
+    public var modifier: Modifier {
+        return .compute(kernel: "C7Crop")
+    }
+    
+    public var factors: [Float] {
+        return [origin.x, origin.y]
+    }
+    
+    public func outputSize(input size: C7Size) -> C7Size {
+        let w: Int = width > 0 ? width : size.width
+        let h: Int = height > 0 ? height : size.height
+        return (width: w, height: h)
+    }
+    
+    public init() { }
+}
+```
+
 ### CocoaPods
 
 - If you want to import [**Metal**](https://github.com/yangKJ/ATMetalBand) module, you need in your Podfile: 
