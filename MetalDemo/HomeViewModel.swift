@@ -55,6 +55,7 @@ enum ViewControllerType: String {
     case Swirl = "漩涡鸣人"
     case MotionBlur = "移动模糊效果"
     case SoulOut = "灵魂出窍"
+    case SplitScreen = "分屏展示"
 }
 
 extension ViewControllerType {
@@ -342,6 +343,9 @@ extension ViewControllerType {
                 filter.soul = $0
                 return filter
             })
+        case .SplitScreen:
+            let filter = C7SplitScreen()
+            return (filter, nil, nil)
         }
     }
 }
@@ -356,8 +360,9 @@ struct HomeViewModel {
     }()
     
     let effect: [ViewControllerType] = [
-        .SoulOut, .ZoomBlur, .Pixellated, .Crosshatch,
-        .GlassSphere, .Bulge, .Pinch, .PolkaDot,
+        .SplitScreen, .SoulOut, .ZoomBlur,
+        .Pixellated, .Crosshatch, .GlassSphere,
+        .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl,
         .Monochrome, .ReplaceColor, .ChromaKey,
     ]
