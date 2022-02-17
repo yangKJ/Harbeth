@@ -1,26 +1,26 @@
 PODS:
-  - ATMetalBand (0.0.9):
-    - ATMetalBand/Basic (= 0.0.9)
-    - ATMetalBand/Compute (= 0.0.9)
-  - ATMetalBand/Basic (0.0.9)
-  - ATMetalBand/Compute (0.0.9):
-    - ATMetalBand/Compute/Blend (= 0.0.9)
-    - ATMetalBand/Compute/Blur (= 0.0.9)
-    - ATMetalBand/Compute/ColorProcess (= 0.0.9)
-    - ATMetalBand/Compute/Effect (= 0.0.9)
-    - ATMetalBand/Compute/Lookup (= 0.0.9)
-    - ATMetalBand/Compute/Shape (= 0.0.9)
-  - ATMetalBand/Compute/Blend (0.0.9):
+  - ATMetalBand (0.0.10):
+    - ATMetalBand/Basic (= 0.0.10)
+    - ATMetalBand/Compute (= 0.0.10)
+  - ATMetalBand/Basic (0.0.10)
+  - ATMetalBand/Compute (0.0.10):
+    - ATMetalBand/Compute/Blend (= 0.0.10)
+    - ATMetalBand/Compute/Blur (= 0.0.10)
+    - ATMetalBand/Compute/ColorProcess (= 0.0.10)
+    - ATMetalBand/Compute/Effect (= 0.0.10)
+    - ATMetalBand/Compute/Lookup (= 0.0.10)
+    - ATMetalBand/Compute/Shape (= 0.0.10)
+  - ATMetalBand/Compute/Blend (0.0.10):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Blur (0.0.9):
+  - ATMetalBand/Compute/Blur (0.0.10):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/ColorProcess (0.0.9):
+  - ATMetalBand/Compute/ColorProcess (0.0.10):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Effect (0.0.9):
+  - ATMetalBand/Compute/Effect (0.0.10):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Lookup (0.0.9):
+  - ATMetalBand/Compute/Lookup (0.0.10):
     - ATMetalBand/Basic
-  - ATMetalBand/Compute/Shape (0.0.9):
+  - ATMetalBand/Compute/Shape (0.0.10):
     - ATMetalBand/Basic
 
 DEPENDENCIES:
@@ -31,7 +31,7 @@ EXTERNAL SOURCES:
     :path: "./"
 
 SPEC CHECKSUMS:
-  ATMetalBand: 6f899ad7a42783991ef85c65773f8de19579f5e5
+  ATMetalBand: c4cd77e34ee29444c00596087e6505608a4ef1bf
 
 PODFILE CHECKSUM: 8914b7ee510c9e654228ad885d8c64132e46e605
 
