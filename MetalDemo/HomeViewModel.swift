@@ -56,6 +56,8 @@ enum ViewControllerType: String {
     case MotionBlur = "移动模糊效果"
     case SoulOut = "灵魂出窍"
     case SplitScreen = "分屏展示"
+    case Convolution3x3 = "卷积运算"
+    case Sharpen3x3 = "锐化卷积"
 }
 
 extension ViewControllerType {
@@ -339,24 +341,33 @@ extension ViewControllerType {
         case .SplitScreen:
             let filter = C7SplitScreen()
             return (filter, nil, nil)
+        case .Convolution3x3:
+            let filter = C7Convolution3x3(matrix: .default)
+            return (filter, nil, nil)
+        case .Sharpen3x3:
+            var filter = C7Convolution3x3(matrix: .sharpen(iterations: 1))
+            return (filter, (1, 0, 7), {
+                filter.updateMatrix(.sharpen(iterations: $0))
+                return filter
+            })
         }
     }
 }
 
 struct HomeViewModel {
     lazy var section: [String] = {
-        return ["效果类", "颜色处理", "形状变化", "模糊处理", "图片融合类", "滤镜类"]
+        return ["效果类", "颜色处理", "形状变化", "模糊处理", "图片融合类", "滤镜类", "矩阵卷积"]
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [effect, colorProcess, shape, blur, blend, filter]
+        return [matrix, effect, colorProcess, shape, blur, blend, filter]
     }()
     
     let effect: [ViewControllerType] = [
-        .SplitScreen, .SoulOut, .ZoomBlur,
+        .SoulOut, .ZoomBlur,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot,
-        .Posterize, .Swirl,
+        .Posterize, .Swirl, .SplitScreen,
         .Monochrome, .ReplaceColor, .ChromaKey,
     ]
     
@@ -384,5 +395,9 @@ struct HomeViewModel {
     
     let filter: [ViewControllerType] = [
         .abao, .Split,
+    ]
+    
+    let matrix: [ViewControllerType] = [
+        .Convolution3x3, .Sharpen3x3,
     ]
 }

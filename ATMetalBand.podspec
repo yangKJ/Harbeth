@@ -62,8 +62,8 @@ Pod::Spec.new do |s|
       xxx.source_files = 'Sources/Compute/Shape/*'
       xxx.dependency 'ATMetalBand/Basic'
     end
-    xx.subspec 'Animation' do |xxx|
-      xxx.source_files = 'Sources/Compute/Animation/*'
+    xx.subspec 'Matrix' do |xxx|
+      xxx.source_files = 'Sources/Compute/Matrix/*'
       xxx.dependency 'ATMetalBand/Basic'
     end
   end
