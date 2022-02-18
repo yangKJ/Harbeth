@@ -9,10 +9,13 @@ import Foundation
 
 public enum C7ConvolutionType {
     case `default`
-    case gaussian
+    case identity
     case edgedetect
-    case emboss
+    case embossment
+    case embossment45
     case morphological
+    case sobel(orientation: Bool)
+    case laplance(iterations: Float)
     case sharpen(iterations: Float)
     case custom(Matrix3x3)
 }
@@ -20,22 +23,22 @@ public enum C7ConvolutionType {
 extension C7ConvolutionType {
     var matrix: Matrix3x3 {
         switch self {
-        case .gaussian:
-            return Matrix3x3.gaussian
+        case .identity:
+            return Matrix3x3.identity
         case .edgedetect:
             return Matrix3x3.edgedetect
-        case .emboss:
-            return Matrix3x3.emboss
+        case .embossment:
+            return Matrix3x3.embossment
+        case .embossment45:
+            return Matrix3x3.embossment45
         case .morphological:
             return Matrix3x3.morphological
+        case .sobel(let orientation):
+            return Matrix3x3.sobel(orientation)
+        case .laplance(let iterations):
+            return Matrix3x3.laplance(iterations)
         case .sharpen(let iterations):
-            let cc = Float(8 * iterations + 1)
-            let xx = Float(-iterations)
-            return Matrix3x3(values: [
-                xx, xx, xx,
-                xx, cc, xx,
-                xx, xx, xx,
-            ])
+            return Matrix3x3.sharpen(iterations)
         case .custom(let matrix3x3):
             return matrix3x3
         default:
@@ -49,12 +52,17 @@ public struct C7Convolution3x3: C7FilterProtocol {
     
     var matrix: Matrix3x3
     
+    /// Convolution pixels, default 1
+    public var convolutionPixel: Int = 1
+    
     public var modifier: Modifier {
         return .compute(kernel: "C7Convolution3x3")
     }
     
     public var factors: [Float] {
-        return matrix.values
+        var array = [Float(convolutionPixel)]
+        array += matrix.values
+        return array
     }
     
     public init(matrix: C7ConvolutionType = C7ConvolutionType.default) {

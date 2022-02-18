@@ -10,18 +10,17 @@ import Foundation
 /// 常见 3x3 矩阵卷积内核，考线性代数时刻😪
 /// Common 3x3 matrix convolution kernel
 extension Matrix3x3 {
-    /// 原始矩阵
+    /// 原始矩阵，空卷积核
     public static let `default` = Matrix3x3(values: [
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0,
         0.0, 0.0, 0.0,
     ])
     
-    /// 高斯矩阵
-    public static let gaussian = Matrix3x3(values: [
-        1.0, 2.0, 1.0,
-        2.0, 4.0, 2.0,
-        1.0, 2.0, 1.0,
+    public static let identity = Matrix3x3(values: [
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0,
     ])
     
     /// 边缘检测矩阵
@@ -32,10 +31,17 @@ extension Matrix3x3 {
     ])
     
     /// 浮雕矩阵
-    public static let emboss = Matrix3x3(values: [
+    public static let embossment = Matrix3x3(values: [
         -2.0, 0.0, 0.0,
          0.0, 1.0, 0.0,
          0.0, 0.0, 2.0,
+    ])
+    
+    /// 45度的浮雕滤波器
+    public static let embossment45 = Matrix3x3(values: [
+        -1.0, -1.0, 0.0,
+        -1.0,  0.0, 1.0,
+         0.0,  1.0, 1.0,
     ])
     
     /// 侵蚀矩阵
@@ -44,4 +50,42 @@ extension Matrix3x3 {
         1.0, 1.0, 1.0,
         1.0, 1.0, 1.0,
     ])
+    
+    /// 拉普拉斯算子，边缘检测算子
+    public static func laplance(_ iterations: Float) -> Matrix3x3 {
+        let xxx = iterations
+        return Matrix3x3(values: [
+             0.0, -1.0,  0.0,
+            -1.0,  xxx, -1.0,
+             0.0, -1.0,  0.0,
+        ])
+    }
+    
+    /// 锐化矩阵
+    public static func sharpen(_ iterations: Float) -> Matrix3x3 {
+        let cc = (8 * iterations + 1)
+        let xx = (-iterations)
+        return Matrix3x3(values: [
+            xx, xx, xx,
+            xx, cc, xx,
+            xx, xx, xx,
+        ])
+    }
+    
+    /// Sobel矩阵图像边缘提取，求梯度比较常用
+    public static func sobel(_ orientation: Bool) -> Matrix3x3 {
+        if orientation {
+            return Matrix3x3(values: [
+                -1.0, 0.0, 1.0,
+                -2.0, 0.0, 2.0,
+                -1.0, 0.0, 1.0,
+            ])
+        } else {
+            return Matrix3x3(values: [
+                -1.0, -2.0, -1.0,
+                 0.0,  0.0,  0.0,
+                 1.0,  2.0,  1.0,
+            ])
+        }
+    }
 }
