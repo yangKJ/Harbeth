@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-internal struct Device {
+internal class Device {
     
     /// Device information to create other objects
     /// MTLDevice creation is expensive, time-consuming, and can be used forever, so you only need to create it once
@@ -41,6 +41,10 @@ internal struct Device {
         }
         
         self.textureLoader = MTKTextureLoader(device: device)
+    }
+    
+    deinit {
+        print("Device is deinit.")
     }
 }
 

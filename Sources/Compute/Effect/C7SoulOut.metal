@@ -25,15 +25,13 @@ kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]
     
     const half alpha = maxAlpha * (1.0h - soul);
     const half scale = 1.0h + (maxScale - 1.0h) * soul;
-
-    const half weakX = 0.5h + (x - 0.5h) / scale;
-    const half weakY = 0.5h + (y - 0.5h) / scale;
     
-    const float2 weakTextureCoords = float2(weakX, weakY);
-    const half4 weakMask = inputTexture.sample(quadSampler, weakTextureCoords);
+    const half soulX = 0.5h + (x - 0.5h) / scale;
+    const half soulY = 0.5h + (y - 0.5h) / scale;
     
     // 最终色 = 基色 * (1 - a) + 混合色 * a
-    const half4 outColor = inColor * (1.0h - alpha) + weakMask * alpha;
+    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
+    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
     
     outputTexture.write(outColor, grid);
 }

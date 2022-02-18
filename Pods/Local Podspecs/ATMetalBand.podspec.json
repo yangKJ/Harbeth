@@ -100,8 +100,8 @@
           }
         },
         {
-          "name": "Animation",
-          "source_files": "Sources/Compute/Animation/*",
+          "name": "Matrix",
+          "source_files": "Sources/Compute/Matrix/*",
           "dependencies": {
             "ATMetalBand/Basic": [
 

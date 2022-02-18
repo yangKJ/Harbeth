@@ -14,7 +14,7 @@ public enum C7SplitScreenType: Int {
 
 public struct C7SplitScreen: C7FilterProtocol {
     
-    public var type: C7SplitScreenType = .three
+    public var type: C7SplitScreenType = .two
     
     public var modifier: Modifier {
         return .compute(kernel: "C7SplitScreen")

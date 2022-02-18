@@ -31,7 +31,7 @@ fileprivate var C7ATSharedContext: UInt8 = 0
 extension Shared {
     
     /// Device instantiation
-    internal var device: Device? {
+    weak var device: Device? {
         get {
             return synchronizedDevice {
                 if let object = objc_getAssociatedObject(self, &C7ATSharedContext) {
