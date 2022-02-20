@@ -16,7 +16,7 @@ public protocol C7FilterSerializer {
     /// - Parameters:
     ///   - filters: Filter group, It must be an object implementing C7FilterProtocol
     /// - Returns: New texture after processing
-    mutating func makeMTLTexture(filters: [C7FilterProtocol]) -> MTLTexture
+    mutating func makeMTLTexture(filters: [C7FilterProtocol]) throws -> MTLTexture
     
     /// Filter processing
     /// - Parameters:
@@ -49,17 +49,21 @@ extension C7FilterSerializer {
         let outputSize = filter.outputSize(input: (inTexture.width, inTexture.height))
         let outTexture = destTexture(width: outputSize.width, height: outputSize.height)
         if case .compute(let kernel) = filter.modifier {
+            guard let pipelineState = Compute.makeComputePipelineState(with: kernel) else {
+                return inTexture
+            }
             var textures = [outTexture, inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }
-            let pipelineState = Compute.makeComputePipelineState(with: kernel)
             Compute.drawingProcess(pipelineState: pipelineState,
                                    commandBuffer: commandBuffer,
                                    textures: textures,
                                    factors: filter.factors)
         } else if case .render(let vertex, let fragment) = filter.modifier {
+            guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
+                return inTexture
+            }
             var textures = [inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }
-            let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
             Rendering.drawingProcess(pipelineState: pipelineState,
                                      commandBuffer: commandBuffer,
                                      inputTextures: textures,

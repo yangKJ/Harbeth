@@ -14,10 +14,9 @@ extension C7Image: C7Compatible { }
 /// The following modes support only the encoder based on parallel computing
 ///
 extension C7Image: C7FilterSerializer {
-    
-    public func makeMTLTexture(filters: [C7FilterProtocol]) -> MTLTexture {
+    public func makeMTLTexture(filters: [C7FilterProtocol]) throws -> MTLTexture {
         guard let inTexture = self.mt.toTexture() else {
-            fatalError("Input image transform texture failed.")
+            throw C7CustomError.image2Texture
         }
         var outTexture: MTLTexture = inTexture
         for filter in filters {
@@ -51,13 +50,8 @@ extension C7Image: C7FilterSerializer {
 
 extension Queen where Base == C7Image {
     public func toTexture() -> MTLTexture? {
-        do {
-            let loader = Shared.shared.device!.textureLoader
-            let options = [MTKTextureLoader.Option.SRGB : false]
-            let texture = try loader.newTexture(cgImage: base.cgImage!, options: options)
-            return texture
-        } catch {
-            fatalError("Failed loading image texture")
-        }
+        guard let cgimage = base.cgImage else { return nil }
+        let loader = Shared.shared.device!.textureLoader
+        return try? loader.newTexture(cgImage: cgimage, options: [MTKTextureLoader.Option.SRGB : false])
     }
 }

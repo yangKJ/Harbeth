@@ -12,18 +12,13 @@ public let kOneInputVertex: String = "oneInputVertex"
 public let kTwoInputVertex: String = "twoInputVertex"
 
 internal struct Rendering {
-    static func makeRenderPipelineState(with vertex: String, fragment: String) -> MTLRenderPipelineState {
+    static func makeRenderPipelineState(with vertex: String, fragment: String) -> MTLRenderPipelineState? {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
         descriptor.rasterSampleCount = 1
-        descriptor.vertexFunction = Device.readMTLFunction(vertex)
-        descriptor.fragmentFunction = Device.readMTLFunction(fragment)
-        do {
-            let pipelineState = try Shared.shared.device!.device.makeRenderPipelineState(descriptor: descriptor)
-            return pipelineState
-        } catch {
-            fatalError("Could not create render pipeline state for vertex:\(vertex), fragment:\(fragment)")
-        }
+        descriptor.vertexFunction = try? Device.readMTLFunction(vertex)
+        descriptor.fragmentFunction = try? Device.readMTLFunction(fragment)
+        return try? Shared.shared.device!.device.makeRenderPipelineState(descriptor: descriptor)
     }
     
     static func drawingProcess<T>(pipelineState: MTLRenderPipelineState,
@@ -38,7 +33,8 @@ internal struct Rendering {
         renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.65, 0.8, 1)
         
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
-            fatalError("Could not create render encoder")
+            C7FailedErrorInDebug("Could not create render encoder")
+            return
         }
         let device = Shared.shared.device!.device
         let size = MemoryLayout<T>.size

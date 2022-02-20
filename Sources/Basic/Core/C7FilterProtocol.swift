@@ -41,13 +41,7 @@ public protocol C7FilterProtocol {
 }
 
 extension C7FilterProtocol {
-    public var factors: [Float] {
-        return []
-    }
-    public var otherInputTextures: C7InputTextures {
-        return []
-    }
-    public func outputSize(input size: C7Size) -> C7Size {
-        return size
-    }
+    public var factors: [Float] { [] }
+    public var otherInputTextures: C7InputTextures { [] }
+    public func outputSize(input size: C7Size) -> C7Size { size }
 }

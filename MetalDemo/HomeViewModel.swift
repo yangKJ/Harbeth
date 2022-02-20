@@ -342,10 +342,10 @@ extension ViewControllerType {
             let filter = C7SplitScreen()
             return (filter, nil, nil)
         case .Convolution3x3:
-            let filter = C7Convolution3x3(matrix: .default)
+            let filter = C7Convolution3x3(convolutionType: .default)
             return (filter, nil, nil)
         case .Sharpen3x3:
-            var filter = C7Convolution3x3(matrix: .sharpen(iterations: 1))
+            var filter = C7Convolution3x3(convolutionType: .sharpen(iterations: 1))
             return (filter, (1, 0, 7), {
                 filter.updateMatrix(.sharpen(iterations: $0))
                 return filter
@@ -360,7 +360,7 @@ struct HomeViewModel {
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [matrix, effect, colorProcess, shape, blur, blend, filter]
+        return [effect, colorProcess, shape, blur, blend, lookup, matrix]
     }()
     
     let effect: [ViewControllerType] = [
@@ -393,7 +393,7 @@ struct HomeViewModel {
         .HueBlend, .AlphaBlend, .LuminosityBlend,
     ]
     
-    let filter: [ViewControllerType] = [
+    let lookup: [ViewControllerType] = [
         .abao, .Split,
     ]
     

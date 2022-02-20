@@ -37,7 +37,7 @@ internal class Device {
         self.ATMetalLibrary = device.makeATLibrary(forResource: "ATMetalLibrary")
         
         if defaultLibrary == nil && ATMetalLibrary == nil {
-            fatalError("Could not load library")
+            C7FailedErrorInDebug("Could not load library")
         }
         
         self.textureLoader = MTKTextureLoader(device: device)
@@ -65,7 +65,7 @@ extension MTLDevice {
 
 extension Device {
     
-    static func readMTLFunction(_ name: String) -> MTLFunction {
+    static func readMTLFunction(_ name: String) throws -> MTLFunction {
         // First read the project
         if let libray = Shared.shared.device!.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
@@ -74,7 +74,10 @@ extension Device {
         if let libray = Shared.shared.device!.ATMetalLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
-        
-        fatalError("Read MTL Function failed with \(name)")
+        #if DEBUG
+        fatalError(C7CustomError.readFunction(name).debugDescription)
+        #else
+        throw C7CustomError.readFunction(name)
+        #endif
     }
 }

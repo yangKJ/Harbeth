@@ -65,11 +65,11 @@ public struct C7Convolution3x3: C7FilterProtocol {
         return array
     }
     
-    public init(matrix: C7ConvolutionType = C7ConvolutionType.default) {
-        self.matrix = matrix.matrix
+    public init(convolutionType: C7ConvolutionType = C7ConvolutionType.default) {
+        self.matrix = convolutionType.matrix
     }
     
-    public mutating func updateMatrix(_ matrix: C7ConvolutionType) {
-        self.matrix = matrix.matrix
+    public mutating func updateMatrix(_ convolutionType: C7ConvolutionType) {
+        self.matrix = convolutionType.matrix
     }
 }

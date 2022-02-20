@@ -19,7 +19,7 @@ open class Matrix {
 public class Matrix3x3: Matrix {
     public override init(values: [Float]) {
         if values.count != 9 {
-            fatalError("There must be nine for 3x3 Matrix.")
+            C7FailedErrorInDebug("There must be nine for 3x3 Matrix.")
         }
         super.init(values: values)
     }

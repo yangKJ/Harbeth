@@ -17,14 +17,10 @@ internal struct Compute {
     ///
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
-    static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState {
-        let function = Device.readMTLFunction(kernel)
-        do {
-            let pipelineState = try Shared.shared.device!.device.makeComputePipelineState(function: function)
-            return pipelineState
-        } catch {
-            fatalError("Unable to setup Metal")
-        }
+    static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
+        guard let function = try? Device.readMTLFunction(kernel) else { return nil }
+        let pipelineState = try? Shared.shared.device!.device.makeComputePipelineState(function: function)
+        return pipelineState
     }
     
     static func drawingProcess<T>(pipelineState: MTLComputePipelineState,
