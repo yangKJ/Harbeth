@@ -80,7 +80,7 @@
 
 4. Write a kernel function shader based on parallel computing.
 
-	```swift
+	```metal
 	kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]],
 	                      texture2d<half, access::sample> inputTexture [[texture(1)]],
 	                      constant float *soulPointer [[buffer(0)]],
