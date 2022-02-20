@@ -1,41 +1,41 @@
 PODS:
-  - ATMetalBand (0.0.12):
-    - ATMetalBand/Basic (= 0.0.12)
-    - ATMetalBand/Compute (= 0.0.12)
-  - ATMetalBand/Basic (0.0.12)
-  - ATMetalBand/Compute (0.0.12):
-    - ATMetalBand/Compute/Blend (= 0.0.12)
-    - ATMetalBand/Compute/Blur (= 0.0.12)
-    - ATMetalBand/Compute/ColorProcess (= 0.0.12)
-    - ATMetalBand/Compute/Effect (= 0.0.12)
-    - ATMetalBand/Compute/Lookup (= 0.0.12)
-    - ATMetalBand/Compute/Matrix (= 0.0.12)
-    - ATMetalBand/Compute/Shape (= 0.0.12)
-  - ATMetalBand/Compute/Blend (0.0.12):
-    - ATMetalBand/Basic
-  - ATMetalBand/Compute/Blur (0.0.12):
-    - ATMetalBand/Basic
-  - ATMetalBand/Compute/ColorProcess (0.0.12):
-    - ATMetalBand/Basic
-  - ATMetalBand/Compute/Effect (0.0.12):
-    - ATMetalBand/Basic
-  - ATMetalBand/Compute/Lookup (0.0.12):
-    - ATMetalBand/Basic
-  - ATMetalBand/Compute/Matrix (0.0.12):
-    - ATMetalBand/Basic
-  - ATMetalBand/Compute/Shape (0.0.12):
-    - ATMetalBand/Basic
+  - Harbeth (0.1.0):
+    - Harbeth/Basic (= 0.1.0)
+    - Harbeth/Compute (= 0.1.0)
+  - Harbeth/Basic (0.1.0)
+  - Harbeth/Compute (0.1.0):
+    - Harbeth/Compute/Blend (= 0.1.0)
+    - Harbeth/Compute/Blur (= 0.1.0)
+    - Harbeth/Compute/ColorProcess (= 0.1.0)
+    - Harbeth/Compute/Effect (= 0.1.0)
+    - Harbeth/Compute/Lookup (= 0.1.0)
+    - Harbeth/Compute/Matrix (= 0.1.0)
+    - Harbeth/Compute/Shape (= 0.1.0)
+  - Harbeth/Compute/Blend (0.1.0):
+    - Harbeth/Basic
+  - Harbeth/Compute/Blur (0.1.0):
+    - Harbeth/Basic
+  - Harbeth/Compute/ColorProcess (0.1.0):
+    - Harbeth/Basic
+  - Harbeth/Compute/Effect (0.1.0):
+    - Harbeth/Basic
+  - Harbeth/Compute/Lookup (0.1.0):
+    - Harbeth/Basic
+  - Harbeth/Compute/Matrix (0.1.0):
+    - Harbeth/Basic
+  - Harbeth/Compute/Shape (0.1.0):
+    - Harbeth/Basic
 
 DEPENDENCIES:
-  - ATMetalBand (from `./`)
+  - Harbeth (from `./`)
 
 EXTERNAL SOURCES:
-  ATMetalBand:
+  Harbeth:
     :path: "./"
 
 SPEC CHECKSUMS:
-  ATMetalBand: 5a6ebd970cdc7b6f8e58ed87bc0f203aa5f06696
+  Harbeth: d43745f686ed145464f3f557dc9c329cd9c1a68a
 
-PODFILE CHECKSUM: 8914b7ee510c9e654228ad885d8c64132e46e605
+PODFILE CHECKSUM: 41a2dc167d858bf698d5d353994cf18220150a1a
 
 COCOAPODS: 1.11.2

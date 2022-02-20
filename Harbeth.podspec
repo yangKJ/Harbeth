@@ -1,5 +1,5 @@
 #
-# Be sure to run `pod lib lint ATMetalBand.podspec' to ensure this is a
+# Be sure to run `pod lib lint Harbeth.podspec' to ensure this is a
 # valid spec before submitting.
 #
 # Any lines starting with a # are optional, but their use is encouraged
@@ -7,8 +7,8 @@
 #
 
 Pod::Spec.new do |s|
-  s.name             = 'ATMetalBand'
-  s.version          = '0.0.12'
+  s.name             = 'Harbeth'
+  s.version          = '0.1.0'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -17,10 +17,10 @@ Pod::Spec.new do |s|
   #   * Write the description between the DESC delimiters below.
   #   * Finally, don't worry about the indent, CocoaPods strips it!
   
-  s.homepage         = 'https://github.com/yangKJ/ATMetalBand'
+  s.homepage         = 'https://github.com/yangKJ/Harbeth'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Condy' => 'ykj310@126.com' }
-  s.source           = { :git => 'https://github.com/yangKJ/ATMetalBand.git', :tag => s.version }
+  s.source           = { :git => 'https://github.com/yangKJ/Harbeth.git', :tag => s.version }
   s.module_name      = s.name
   
   s.swift_version    = '5.0'
@@ -40,31 +40,31 @@ Pod::Spec.new do |s|
   s.subspec 'Compute' do |xx|
     xx.subspec 'ColorProcess' do |xxx|
       xxx.source_files = 'Sources/Compute/ColorProcess/*'
-      xxx.dependency 'ATMetalBand/Basic'
+      xxx.dependency 'Harbeth/Basic'
     end
     xx.subspec 'Lookup' do |xxx|
       xxx.source_files = 'Sources/Compute/Lookup/*'
-      xxx.dependency 'ATMetalBand/Basic'
+      xxx.dependency 'Harbeth/Basic'
     end
     xx.subspec 'Blur' do |xxx|
       xxx.source_files = 'Sources/Compute/Blur/*'
-      xxx.dependency 'ATMetalBand/Basic'
+      xxx.dependency 'Harbeth/Basic'
     end
     xx.subspec 'Blend' do |xxx|
       xxx.source_files = 'Sources/Compute/Blend/*'
-      xxx.dependency 'ATMetalBand/Basic'
+      xxx.dependency 'Harbeth/Basic'
     end
     xx.subspec 'Effect' do |xxx|
       xxx.source_files = 'Sources/Compute/Effect/*'
-      xxx.dependency 'ATMetalBand/Basic'
+      xxx.dependency 'Harbeth/Basic'
     end
     xx.subspec 'Shape' do |xxx|
       xxx.source_files = 'Sources/Compute/Shape/*'
-      xxx.dependency 'ATMetalBand/Basic'
+      xxx.dependency 'Harbeth/Basic'
     end
     xx.subspec 'Matrix' do |xxx|
       xxx.source_files = 'Sources/Compute/Matrix/*'
-      xxx.dependency 'ATMetalBand/Basic'
+      xxx.dependency 'Harbeth/Basic'
     end
   end
   
