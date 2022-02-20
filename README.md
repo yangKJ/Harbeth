@@ -14,93 +14,115 @@
 -------
 
 ## Features
-🟣At the moment, the most important features of ATMetalBand can be summarized as follows:
+🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/ATMetalBand) can be summarized as follows:
 
-- [OpenCV module](https://github.com/yangKJ/OpencvQueen):
-	- [x] Hough line detection and correction text.
-	- [x] Feature extraction processing.
-	- [x] Repair old photos.
-	- [x] Repair the picture to remove the watermark.
-	- [x] Maximum area cut.
-	- [x] Morphology operation.
-	- [x] Blurred skin whitening treatment.
- 	- [x] Picture perspective or blend.
-	- [x] Modify brightness and contrast.
-	- [x] Picture mosaic tile.
+- [x] Blend: This module mainly contains image blend filters.
+- [x] Blur: Blur effect
+- [x] ColorProcess: basic pixel processing of images.
+- [x] Effect: Effect processing.
+- [x] Lookup: Lookup table filter.
+- [x] Matrix: Matrix convolution filter.
+- [x] Shape: Image shape size related.
 
-- Some
+#### **A total of `90+` kinds of filters are currently available.**
+
+### Main file
+- Core, basic core board
+    - [C7FilterProtocol](https://github.com/yangKJ/ATMetalBand/blob/master/Sources/Basic/Core/C7FilterProtocol.swift): Filter designs must follow this protocol.
+        - **modifier**: Encoder type and corresponding function name.
+        - **factors**: Set modify parameter factor, you need to convert to `Float`.
+        - **otherInputTextures**: Multiple input source extensions, An array containing the `MTLTexture`
+        - **outputSize**: Change the size of the output image. 
+
+- Outputs, output section
+    - [C7FilterSerializer](https://github.com/yangKJ/ATMetalBand/blob/master/Sources/Basic/Outputs/C7FilterSerializer.swift): Output content protocol, all outputs must implement this protocol.
+        - **makeMTLTexture**: Create a new texture based on the filter content, Please note that the order in which filters are added may affect the result of image generation.
+        - **makeImage**: Generate data based on filter processing.
+        - **makeGroup**: Multiple filter combinations, Please note that the order in which filters are added may affect the result of image generation.
+    - [C7FilterImage](https://github.com/yangKJ/ATMetalBand/blob/master/Sources/Basic/Outputs/C7FilterImage.swift): Image input source based on C7FilterSerializer, The following modes support only the encoder based on parallel computing.
+
+### Usages
+- For example, how to design an soul filter.🎷
 
 <p align="left">
-<img src="Screenshot/ZoomBlur.gif" width="200" hspace="1px">
-<img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/eed0fef004d941bf926efb31ee191a83~tplv-k3u1fbpfcp-watermark.image?" width="200" hspace="30px">
-<img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9c40c28f123642468a9f2211c55999a8~tplv-k3u1fbpfcp-watermark.image?" width="200" hspace="1px">
+<img src="Screenshot/Soul.gif" width="280" hspace="30px">
 </p>
 
-- Currently there are 6 modules of filter effects:
-   - Blend: Image fusion technology
-   - Blur: Blur effect
-   - ColorProcess: basic pixel processing of images
-   - Effect: Effect processing
-   - Lookup: Lookup table filter
-   - Shape: Image shape size related
+-----
 
-- A total of `80+` kinds of filters are currently available.
+1. Accomplish `C7FilterProtocal`
 
-### Custom filters
-- Accomplish `C7FilterProtocal`
+	```swift
+	public struct C7SoulOut: C7FilterProtocol {
+	    public var soul: Float = 0.5
+	    public var maxScale: Float = 1.5
+	    public var maxAlpha: Float = 0.5
+	    
+	    public var modifier: Modifier {
+	        return .compute(kernel: "C7SoulOut")
+	    }
+	    
+	    public var factors: [Float] {
+	        return [soul, maxScale, maxAlpha]
+	    }
+	    
+	    public init() { }
+	}
+	```
 
-```
-public protocol C7FilterProtocol {
-    /// Encoder type and corresponding function name
-    ///
-    /// Compute requires the corresponding `kernel` function name
-    /// Render requires a `vertex` shader function name and a `fragment` shader function name
-    var modifier: Modifier { get }
-    
-    /// MakeBuffer
-    /// Set modify parameter factor, you need to convert to `Float`.
-    var factors: [Float] { get }
-    
-    /// Multiple input source extensions
-    /// An array containing the `MTLTexture`
-    var otherInputTextures: C7InputTextures { get }
-    
-    /// Change the size of the output image
-    func outputSize(input size: C7Size) -> C7Size
-}
-```
+2. Configure additional required textures.
 
-- Write a kernel function shader based on parallel computing.
-- Configure the passed parameter factor, only supports `Float` type.
-- Configure additional required textures.
+3. Configure the passed parameter factor, only supports `Float` type.
+    - This filter requires three parameters: 
+        - `soul`: The adjusted soul, from 0.0 to 1.0, with a default of 0.5
+        - `maxScale`: Maximum soul scale
+        - `maxAlpha`: The transparency of the max soul
 
-### Example
+4. Write a kernel function shader based on parallel computing.
 
-```
-public struct C7Crop: C7FilterProtocol {
-    /// The adjusted contrast, from 0 to 1.0, with a default of 0.0
-    public var origin: C7Point2D = C7Point2DZero
-    
-    public var width: Int = 0
-    public var height: Int = 0
-    
-    public var modifier: Modifier {
-        return .compute(kernel: "C7Crop")
-    }
-    
-    public var factors: [Float] {
-        return [origin.x, origin.y]
-    }
-    
-    public func outputSize(input size: C7Size) -> C7Size {
-        let w: Int = width > 0 ? width : size.width
-        let h: Int = height > 0 ? height : size.height
-        return (width: w, height: h)
-    }
-    
-    public init() { }
-}
-```
+	```swift
+	kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]],
+	                      texture2d<half, access::sample> inputTexture [[texture(1)]],
+	                      constant float *soulPointer [[buffer(0)]],
+	                      constant float *maxScalePointer [[buffer(1)]],
+	                      constant float *maxAlphaPointer [[buffer(2)]],
+	                      uint2 grid [[thread_position_in_grid]]) {
+	    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
+	    const half4 inColor = inputTexture.read(grid);
+	    const float x = float(grid.x) / outputTexture.get_width();
+	    const float y = float(grid.y) / outputTexture.get_height();
+	    
+	    const half soul = half(*soulPointer);
+	    const half maxScale = half(*maxScalePointer);
+	    const half maxAlpha = half(*maxAlphaPointer);
+	    
+	    const half alpha = maxAlpha * (1.0h - soul);
+	    const half scale = 1.0h + (maxScale - 1.0h) * soul;
+	    
+	    const half soulX = 0.5h + (x - 0.5h) / scale;
+	    const half soulY = 0.5h + (y - 0.5h) / scale;
+	    
+	    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
+	    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
+	    
+	    outputTexture.write(outColor, grid);
+	}
+	```
+
+5. Simple to use, since my design is based on a parallel computing pipeline, images can be generated directly.
+
+	```swift
+	var filter = C7SoulOut()
+	filter.soul = 0.5
+	filter.maxScale = 2.0
+	
+	/// Display directly in ImageView
+	ImageView.image = originImage.makeImage(filter: filter)
+	```
+
+6. As for the animation above, it is also very simple, add a timer, and then change the value of `soul` and you are done, simple.
+
+----
 
 ### CocoaPods
 
