@@ -6,7 +6,7 @@ target 'MetalDemo' do
   use_frameworks!
 
   # Pods for MetalDemo
-  pod 'ATMetalBand', :path => './'
+  pod 'Harbeth', :path => './'
 
 end
 

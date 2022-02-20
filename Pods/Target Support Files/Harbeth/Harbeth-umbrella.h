@@ -11,6 +11,6 @@
 #endif
 
 
-FOUNDATION_EXPORT double ATMetalBandVersionNumber;
-FOUNDATION_EXPORT const unsigned char ATMetalBandVersionString[];
+FOUNDATION_EXPORT double HarbethVersionNumber;
+FOUNDATION_EXPORT const unsigned char HarbethVersionString[];
 
