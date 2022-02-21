@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-internal class Device {
+internal final class Device {
     
     /// Device information to create other objects
     /// MTLDevice creation is expensive, time-consuming, and can be used forever, so you only need to create it once
@@ -33,7 +33,11 @@ internal class Device {
         }
         self.commandQueue = queue
         
-        self.defaultLibrary = device.makeDefaultLibrary()
+        if #available(OSX 10.12, *) {
+            self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
+        } else {
+            self.defaultLibrary = device.makeDefaultLibrary()
+        }
         self.ATMetalLibrary = device.makeATLibrary(forResource: "ATMetalLibrary")
         
         if defaultLibrary == nil && ATMetalLibrary == nil {
@@ -75,7 +79,7 @@ extension Device {
             return function
         }
         #if DEBUG
-        fatalError(C7CustomError.readFunction(name).debugDescription)
+        fatalError(C7CustomError.readFunction(name).localizedDescription)
         #else
         throw C7CustomError.readFunction(name)
         #endif

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum C7CustomError: Swift.Error, CustomDebugStringConvertible {
+public enum C7CustomError: Swift.Error {
     case unknown
     case image2Texture
     case readFunction(String)
@@ -15,7 +15,7 @@ public enum C7CustomError: Swift.Error, CustomDebugStringConvertible {
 
 extension C7CustomError {
     /// A textual representation of `self`, suitable for debugging.
-    public var debugDescription: String {
+    public var localizedDescription: String {
         switch self {
         case .image2Texture:
             return "Input image transform texture failed."
