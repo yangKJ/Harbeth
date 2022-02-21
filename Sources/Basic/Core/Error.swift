@@ -11,6 +11,10 @@ public enum C7CustomError: Swift.Error {
     case unknown
     case image2Texture
     case readFunction(String)
+    case commandBuffer
+    case computePipelineState(String)
+    case source2Texture
+    case texture2Image
 }
 
 extension C7CustomError {
@@ -21,6 +25,14 @@ extension C7CustomError {
             return "Input image transform texture failed."
         case .readFunction(let name):
             return "Read MTL Function failed with \(name)"
+        case .commandBuffer:
+            return "Make Command buffer failed."
+        case .computePipelineState(let name):
+            return "Make Compute Pipeline State failed with \(name)"
+        case .source2Texture:
+            return "Transform to texture failed."
+        case .texture2Image:
+            return "MTLTexture transform to image failed."
         default:
             return "Unknown error occurred."
         }
