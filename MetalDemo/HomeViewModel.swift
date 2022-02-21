@@ -22,6 +22,7 @@ enum ViewControllerType: String {
     case HighlightShadow = "高光阴影"
     case WhiteBalance = "白平衡"
     case Vibrance = "自然饱和度"
+    case Granularity = "颗粒感"
     case FalseColor = "伪色彩"
     case Crosshatch = "绘制阴影线"
     case Monochrome = "黑白照片"
@@ -65,14 +66,12 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
             return C7Image(named: "yuan002")!
-        case .ZoomBlur, .Crop:
+        case .Crop:
             return C7Image(named: "IMG_1668")!
-        case .ChromaKey:
-            return C7Image(named: "lvmu")!
-        case .ReplaceColor, .Sobel:
+        case .ChromaKey, .ReplaceColor, .Sobel:
             return C7Image(named: "IMG_2606")!
-        case .FalseColor, .SoulOut:
-            return C7Image(named: "test")!
+        case .FalseColor:
+            return C7Image(named: "IMG_2623")!
         default:
             return C7Image(named: "timg-3")!
         }
@@ -206,7 +205,7 @@ extension ViewControllerType {
             })
         case .ChromaKey:
             var filter = C7ChromaKey()
-            filter.color = UIColor.green
+            filter.color = UIColor.red
             filter.smoothing = 0.05
             return (filter, nil, nil)
         case .ReplaceColor:
@@ -333,8 +332,8 @@ extension ViewControllerType {
         case .SoulOut:
             var filter = C7SoulOut()
             filter.soul = 0.5
-            filter.maxScale = 2.0
-            return (filter, (0.5, 0.1, 1.0), {
+            filter.maxScale = 1.5
+            return (filter, (0.5, 0.1, 0.8), {
                 filter.soul = $0
                 return filter
             })
@@ -348,6 +347,12 @@ extension ViewControllerType {
             var filter = C7Convolution3x3(convolutionType: .sharpen(iterations: 1))
             return (filter, (1, 0, 7), {
                 filter.updateMatrix(.sharpen(iterations: $0))
+                return filter
+            })
+        case .Granularity:
+            var filter = C7Granularity()
+            return (filter, (0.3, 0, 0.5), {
+                filter.grain = $0
                 return filter
             })
         }
@@ -375,7 +380,7 @@ struct HomeViewModel {
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow,
         .Saturation, .WhiteBalance, .Vibrance,
-        .Sobel,
+        .Granularity, .Sobel,
         .ChannelRGBA, .FalseColor, .ColorInvert,
         .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
