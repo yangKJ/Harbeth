@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 缩放模糊效果
 public struct C7ZoomBlur: C7FilterProtocol {
     
     /// A multiplier for the blur size, ranging from 0.0 on up, with a default of 0.0

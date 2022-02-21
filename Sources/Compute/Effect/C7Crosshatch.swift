@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 绘制阴影线
 public struct C7Crosshatch: C7FilterProtocol {
     
     /// The fractional width of the image to use as the spacing for the crosshatch, default of 0.03

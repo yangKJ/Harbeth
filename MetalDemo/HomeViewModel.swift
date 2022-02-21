@@ -60,6 +60,7 @@ enum ViewControllerType: String {
     case SplitScreen = "分屏展示"
     case Convolution3x3 = "卷积运算"
     case Sharpen3x3 = "锐化卷积"
+    case WaterRipple = "水波效果"
 }
 
 extension ViewControllerType {
@@ -363,6 +364,12 @@ extension ViewControllerType {
                 filter.start = $0
                 return filter
             })
+        case .WaterRipple:
+            var filter = C7WaterRipple()
+            return (filter, (0, 0.1, 0.8), {
+                filter.ripple = $0
+                return filter
+            })
         }
     }
 }
@@ -377,7 +384,7 @@ struct HomeViewModel {
     }()
     
     let effect: [ViewControllerType] = [
-        .SoulOut, .ZoomBlur, .Vignette,
+        .SoulOut, .ZoomBlur, .Vignette, .WaterRipple,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl, .SplitScreen,

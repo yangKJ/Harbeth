@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 马赛克像素化
 public struct C7Pixellated: C7FilterProtocol {
     
     /// Adjust the pixel color block size,  from 0.0 to 1.0, with a default of 0.05

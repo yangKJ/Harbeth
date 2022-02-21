@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 灵魂出窍效果
 public struct C7SoulOut: C7FilterProtocol {
     
     /// The adjusted soul, from 0.0 to 1.0, with a default of 0.5

@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 饱和度
 public struct C7Saturation: C7FilterProtocol {
     
     /// Saturation refers to the brightness of the colors of images, which is adjusted by adjusting saturation.

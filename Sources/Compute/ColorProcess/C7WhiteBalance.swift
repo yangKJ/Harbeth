@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 白平衡
 public struct C7WhiteBalance: C7FilterProtocol {
     
     /// The tint to adjust the image by. A value of -200 is very green and 200 is very pink.

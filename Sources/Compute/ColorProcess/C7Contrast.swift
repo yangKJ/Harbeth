@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 对比度
 public struct C7Contrast: C7FilterProtocol {
     
     /// The adjusted contrast, from 0 to 2.0, with a default of 1.0 being the original picture.

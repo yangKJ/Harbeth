@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 自然饱和度
 public struct C7Vibrance: C7FilterProtocol {
     
     /// Change the vibrance of an image, from -1.2 to 1.2, with a default of 0.0

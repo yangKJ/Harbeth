@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 移动模糊
 public struct C7MotionBlur: C7FilterProtocol {
     
     /// A multiplier for the blur size
