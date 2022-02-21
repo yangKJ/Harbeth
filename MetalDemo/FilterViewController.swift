@@ -149,11 +149,7 @@ class FilterViewController: UIViewController {
 extension FilterViewController {
     func setupFilter() {
         if slider.isHidden {
-            do {
-                filterImageView.image = try originImage.make(filter: filter!)
-            } catch {
-                print(error.localizedDescription)
-            }
+            filterImageView.image = try? originImage.make(filter: filter!)
             return
         }
         autoTestAction()
