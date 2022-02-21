@@ -14,35 +14,33 @@ extension C7Image: C7Compatible { }
 /// The following modes support only the encoder based on parallel computing
 ///
 extension C7Image: C7FilterSerializer {
-    public func makeMTLTexture(filters: [C7FilterProtocol]) throws -> MTLTexture {
+    
+    public func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterSerializer {
         guard let inTexture = self.mt.toTexture() else {
-            throw C7CustomError.image2Texture
+            throw C7CustomError.serializer2Texture(self)
+        }
+        do {
+            let otherTextures = filter.otherInputTextures
+            let outTexture = try newTexture(inTexture: inTexture, otherTextures: otherTextures, filter: filter)
+            guard let outImage = outTexture.toImage() else {
+                throw C7CustomError.texture2Image
+            }
+            return outImage as! T
+        } catch {
+            throw error
+        }
+    }
+    
+    public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterSerializer {
+        guard let inTexture = self.mt.toTexture() else {
+            throw C7CustomError.serializer2Texture(self)
         }
         var outTexture: MTLTexture = inTexture
         for filter in filters {
             let otherTextures = filter.otherInputTextures
-            outTexture = newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
-        }
-        return outTexture
-    }
-    
-    public func makeImage<T>(filter: C7FilterProtocol) -> T where T : C7FilterSerializer {
-        guard let inTexture = self.mt.toTexture() else {
-            return self as! T
-        }
-        let otherTextures = filter.otherInputTextures
-        let outTexture = newTexture(inTexture: inTexture, otherTextures: otherTextures, filter: filter)
-        return (outTexture.toImage() ?? self) as! T
-    }
-    
-    public func makeGroup<T>(filters: [C7FilterProtocol]) -> T where T : C7FilterSerializer {
-        guard let inTexture = self.mt.toTexture() else {
-            return self as! T
-        }
-        var outTexture: MTLTexture = inTexture
-        for filter in filters {
-            let otherTextures = filter.otherInputTextures
-            outTexture = newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
+            if let texture = try? newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter) {
+                outTexture = texture
+            }
         }
         return (outTexture.toImage() ?? self) as! T
     }

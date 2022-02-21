@@ -10,19 +10,11 @@ import MetalKit
 
 public protocol C7FilterSerializer {
     
-    /// Create a new texture based on the filter content.
-    /// Please note that the order in which filters are added may affect the result of image generation.
-    ///
-    /// - Parameters:
-    ///   - filters: Filter group, It must be an object implementing C7FilterProtocol
-    /// - Returns: New texture after processing
-    mutating func makeMTLTexture(filters: [C7FilterProtocol]) throws -> MTLTexture
-    
     /// Filter processing
     /// - Parameters:
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: C7FilterSerializer
-    mutating func makeImage<T: C7FilterSerializer>(filter: C7FilterProtocol) -> T
+    mutating func make<T: C7FilterSerializer>(filter: C7FilterProtocol) throws -> T
     
     /// Multiple filter combinations
     /// Please note that the order in which filters are added may affect the result of image generation.
@@ -30,7 +22,7 @@ public protocol C7FilterSerializer {
     /// - Parameters:
     ///   - filters: Filter group, It must be an object implementing C7FilterProtocol
     /// - Returns: C7FilterSerializer
-    mutating func makeGroup<T: C7FilterSerializer>(filters: [C7FilterProtocol]) -> T
+    mutating func makeGroup<T: C7FilterSerializer>(filters: [C7FilterProtocol]) throws -> T
 }
 
 extension C7FilterSerializer {
@@ -42,15 +34,15 @@ extension C7FilterSerializer {
     ///   - otherTextures: Other input textures
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: New texture after processing
-    func newTexture(inTexture: MTLTexture, otherTextures: C7InputTextures?, filter: C7FilterProtocol) -> MTLTexture {
+    func newTexture(inTexture: MTLTexture, otherTextures: C7InputTextures?, filter: C7FilterProtocol) throws -> MTLTexture {
         guard let commandBuffer = makeCommandBuffer() else {
-            return inTexture
+            throw C7CustomError.commandBuffer
         }
         let outputSize = filter.outputSize(input: (inTexture.width, inTexture.height))
         let outTexture = destTexture(width: outputSize.width, height: outputSize.height)
         if case .compute(let kernel) = filter.modifier {
             guard let pipelineState = Compute.makeComputePipelineState(with: kernel) else {
-                return inTexture
+                throw C7CustomError.computePipelineState(kernel)
             }
             var textures = [outTexture, inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }

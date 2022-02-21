@@ -149,7 +149,7 @@ class FilterViewController: UIViewController {
 extension FilterViewController {
     func setupFilter() {
         if slider.isHidden {
-            filterImageView.image = originImage.makeImage(filter: filter!)
+            filterImageView.image = try? originImage.make(filter: filter!)
             return
         }
         autoTestAction()
@@ -181,7 +181,7 @@ extension FilterViewController {
                 self.currentLabel.text = String(format: "%.4f", self.slider.value)
                 if let callback = self.callback {
                     let filter = callback(self.slider.value)
-                    self.filterImageView.image = self.originImage.makeImage(filter: filter)
+                    self.filterImageView.image = try? self.originImage.make(filter: filter)
                 }
             })
             RunLoop.current.add(timer, forMode: .common)
@@ -194,7 +194,7 @@ extension FilterViewController {
         currentLabel.text = String(format: "%.4f", slider.value)
         if let callback = callback {
             let filter = callback(slider.value)
-            filterImageView.image = originImage.makeImage(filter: filter)
+            filterImageView.image = try? originImage.make(filter: filter)
         }
     }
 }
