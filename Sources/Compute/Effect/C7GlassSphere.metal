@@ -23,14 +23,14 @@ kernel void C7GlassSphere(texture2d<half, access::write> outputTexture [[texture
     const float2 center = float2(*centerX, *centerY);
     const float2 textureCoord = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     
-    float2 textureCoordinateToUse = float2(textureCoord.x, (textureCoord.y * _aspectRatio + 0.5 - 0.5 * _aspectRatio));
-    float distanceFromCenter = distance(center, textureCoordinateToUse);
+    const float2 textureCoordinate = float2(textureCoord.x, (textureCoord.y * _aspectRatio + 0.5 - 0.5 * _aspectRatio));
+    float distanceFromCenter = distance(center, textureCoordinate);
     float checkForPresenceWithinSphere = step(distanceFromCenter, _radius);
     
     distanceFromCenter = distanceFromCenter / _radius;
     
     float normalizedDepth = _radius * sqrt(1.0 - distanceFromCenter * distanceFromCenter);
-    float3 sphereNormal = normalize(float3(textureCoordinateToUse - center, normalizedDepth));
+    float3 sphereNormal = normalize(float3(textureCoordinate - center, normalizedDepth));
     
     float3 refractedVector = 2.0 * refract(float3(0.0, 0.0, -1.0), sphereNormal, float(*refractiveIndex));
     refractedVector.xy = -refractedVector.xy;

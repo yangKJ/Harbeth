@@ -21,19 +21,19 @@ kernel void C7Swirl(texture2d<half, access::write> outputTexture [[texture(0)]],
     const float radius = float(*radiusPointer);
     const float angle = float(*anglePointer);
     
-    float2 textureCoordinateToUse = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
-    const float dist = distance(center, textureCoordinateToUse);
+    float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const float dist = distance(center, textureCoordinate);
     
     if (dist < radius) {
-        textureCoordinateToUse -= center;
+        textureCoordinate -= center;
         const float percent = (radius - dist) / radius;
         const float theta = percent * percent * angle * 8.0;
         const float s = sin(theta);
         const float c = cos(theta);
-        textureCoordinateToUse = float2(dot(textureCoordinateToUse, float2(c, -s)), dot(textureCoordinateToUse, float2(s, c)));
-        textureCoordinateToUse += center;
+        textureCoordinate = float2(dot(textureCoordinate, float2(c, -s)), dot(textureCoordinate, float2(s, c)));
+        textureCoordinate += center;
     }
     
-    const half4 outColor = inputTexture.sample(quadSampler, textureCoordinateToUse);
+    const half4 outColor = inputTexture.sample(quadSampler, textureCoordinate);
     outputTexture.write(outColor, grid);
 }

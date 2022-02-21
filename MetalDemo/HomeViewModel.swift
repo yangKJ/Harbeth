@@ -23,6 +23,7 @@ enum ViewControllerType: String {
     case WhiteBalance = "白平衡"
     case Vibrance = "自然饱和度"
     case Granularity = "颗粒感"
+    case Vignette = "渐进效果"
     case FalseColor = "伪色彩"
     case Crosshatch = "绘制阴影线"
     case Monochrome = "黑白照片"
@@ -355,6 +356,13 @@ extension ViewControllerType {
                 filter.grain = $0
                 return filter
             })
+        case .Vignette:
+            var filter = C7Vignette()
+            filter.color = UIColor.systemPink
+            return (filter, (0.3, 0.1, filter.end), {
+                filter.start = $0
+                return filter
+            })
         }
     }
 }
@@ -369,7 +377,7 @@ struct HomeViewModel {
     }()
     
     let effect: [ViewControllerType] = [
-        .SoulOut, .ZoomBlur,
+        .SoulOut, .ZoomBlur, .Vignette,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl, .SplitScreen,
