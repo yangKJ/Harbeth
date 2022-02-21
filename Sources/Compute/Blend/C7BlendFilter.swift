@@ -29,6 +29,7 @@ public enum BlendFilterType {
     case softLight
     case sourceOver
     case subtract
+    case chromaKey(threshold: Float = 0.4, smoothing: Float = 0.1, color: UIColor = UIColor.green)
 }
 
 extension BlendFilterType {
@@ -38,6 +39,7 @@ extension BlendFilterType {
         case .alpha: return "C7AlphaBlend"
         case .colorBurn: return "C7ColorBurnBlend"
         case .colorDodge: return "C7ColorDodgeBlend"
+        case .chromaKey: return "C7ChromaKeyBlend"
         case .darken: return "C7DarkenBlend"
         case .difference: return "C7DifferenceBlend"
         case .dissolve: return "C7DissolveBlend"
@@ -72,6 +74,10 @@ public struct C7BlendFilter: C7FilterProtocol {
         switch blendType {
         case .alpha(let mixturePercent):
             return [mixturePercent]
+        case .chromaKey(let threshold, let smoothing, let color):
+            var red: Float = 0, green: Float = 0, blue: Float = 0
+            color.mt.toRGB(red: &red, green: &green, blue: &blue)
+            return [threshold, smoothing, red, green, blue]
         default:
             return []
         }

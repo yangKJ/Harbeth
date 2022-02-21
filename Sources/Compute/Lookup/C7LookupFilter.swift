@@ -9,8 +9,6 @@ import Foundation
 
 public struct C7LookupFilter: C7FilterProtocol {
     
-    public private(set) var minIntensity: Float = 0.0
-    public private(set) var maxIntensity: Float = 100//MAXFLOAT
     public private(set) var lookupImage: C7Image?
     public var intensity: Float = 1.0
     

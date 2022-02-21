@@ -50,8 +50,6 @@ extension C7ConvolutionType {
 /// 3 x 3卷积
 public struct C7Convolution3x3: C7FilterProtocol {
     
-    var matrix: Matrix3x3
-    
     /// Convolution pixels, default 1
     public var convolutionPixel: Int = 1
     
@@ -64,6 +62,8 @@ public struct C7Convolution3x3: C7FilterProtocol {
         array += matrix.values
         return array
     }
+    
+    private var matrix: Matrix3x3
     
     public init(convolutionType: C7ConvolutionType = C7ConvolutionType.default) {
         self.matrix = convolutionType.matrix
