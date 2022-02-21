@@ -6,8 +6,10 @@
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
+ 
+[**Harbeth**](https://github.com/yangKJ/Harbeth) is a tiny set of utils and extensions over Apple's Metal framework dedicated to make your Swift GPU code much cleaner and let you prototype your pipelines faster.
 
-[**Harbeth**](https://github.com/yangKJ/Harbeth) is mainly used to learn image processing related records, such as [OpenCV 4.0.1](https://docs.opencv.org/4.0.1/modules.html), [Metal](https://developer.apple.com/metal), [OpenGL](https://www.opengl.org) graphic filter processing etc.
+While this library doesn't introduce any new paradigms or concepts that significantly change the way you approach your Metal implementations, it has some optional-to-use things that you can incorporate in your apps if you find them as useful as library author did :)
 
 <font color=red>**Graphics processing And Filter production.👒👒👒**</font>
 
@@ -26,7 +28,7 @@
 
 #### **A total of `90+` kinds of filters are currently available.**
 
-### Main file
+### Overview
 - Core, basic core board
     - [C7FilterProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Core/C7FilterProtocol.swift): Filter designs must follow this protocol.
         - **modifier**: Encoder type and corresponding function name.
