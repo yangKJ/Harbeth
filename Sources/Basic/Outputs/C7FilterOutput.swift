@@ -1,5 +1,5 @@
 //
-//  C7FilterSerializer.swift
+//  C7FilterOutput.swift
 //  ATMetalBand
 //
 //  Created by Condy on 2022/2/13.
@@ -8,24 +8,24 @@
 import Foundation
 import MetalKit
 
-public protocol C7FilterSerializer {
+public protocol C7FilterOutput {
     
     /// Filter processing
     /// - Parameters:
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: C7FilterSerializer
-    mutating func make<T: C7FilterSerializer>(filter: C7FilterProtocol) throws -> T
+    mutating func make<T: C7FilterOutput>(filter: C7FilterProtocol) throws -> T
     
     /// Multiple filter combinations
     /// Please note that the order in which filters are added may affect the result of image generation.
     ///
     /// - Parameters:
     ///   - filters: Filter group, It must be an object implementing C7FilterProtocol
-    /// - Returns: C7FilterSerializer
-    mutating func makeGroup<T: C7FilterSerializer>(filters: [C7FilterProtocol]) throws -> T
+    /// - Returns: C7FilterOutput
+    mutating func makeGroup<T: C7FilterOutput>(filters: [C7FilterProtocol]) throws -> T
 }
 
-extension C7FilterSerializer {
+extension C7FilterOutput {
     /// Create a new texture based on the filter content.
     /// This protocol method does not need to be overridden unless you need to change the internal logic.
     ///
@@ -69,7 +69,7 @@ extension C7FilterSerializer {
     }
 }
 
-extension C7FilterSerializer {
+extension C7FilterOutput {
     
     /// Create a texture for later storage according to the texture parameters.
     /// - Parameters:
