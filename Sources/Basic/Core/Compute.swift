@@ -19,8 +19,7 @@ internal struct Compute {
     /// - Returns: MTLComputePipelineState
     static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
         guard let function = try? Device.readMTLFunction(kernel) else { return nil }
-        let pipelineState = try? Shared.shared.device!.device.makeComputePipelineState(function: function)
-        return pipelineState
+        return try? Shared.shared.device!.device.makeComputePipelineState(function: function)
     }
     
     static func drawingProcess<T>(pipelineState: MTLComputePipelineState,

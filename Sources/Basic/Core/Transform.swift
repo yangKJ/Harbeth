@@ -16,7 +16,7 @@ extension MTLTexture {
         let bytesPerRow = width * bytesPerPixel
         var src = [UInt8](repeating: 0, count: Int(imageByteCount))
         
-        let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
+        let region = MTLRegionMake2D(0, 0, width, height)
         self.getBytes(&src, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
         
         //kCGImageAlphaPremultipliedLast保留透明度

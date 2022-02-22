@@ -32,14 +32,16 @@ extension C7FilterTexture: C7FilterOutput {
     }
     
     public mutating func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterOutput {
-        var outTexture: MTLTexture = self.inputTexture
-        for filter in filters {
-            let otherTextures = filter.otherInputTextures
-            if let texture = try? newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter) {
-                outTexture = texture
+        do {
+            var outTexture: MTLTexture = self.inputTexture
+            for filter in filters {
+                let otherTextures = filter.otherInputTextures
+                outTexture = try newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
             }
+            self.destTexture = outTexture
+            return self as! T
+        } catch {
+            throw error
         }
-        self.destTexture = outTexture
-        return self as! T
     }
 }

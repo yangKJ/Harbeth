@@ -35,14 +35,16 @@ extension C7Image: C7FilterOutput {
         guard let inTexture = self.mt.toTexture() else {
             throw C7CustomError.source2Texture
         }
-        var outTexture: MTLTexture = inTexture
-        for filter in filters {
-            let otherTextures = filter.otherInputTextures
-            if let texture = try? newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter) {
-                outTexture = texture
+        do {
+            var outTexture: MTLTexture = inTexture
+            for filter in filters {
+                let otherTextures = filter.otherInputTextures
+                outTexture = try newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
             }
+            return (outTexture.toImage() ?? self) as! T
+        } catch {
+            throw error
         }
-        return (outTexture.toImage() ?? self) as! T
     }
 }
 

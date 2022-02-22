@@ -20,7 +20,7 @@ internal final class Device {
     /// Metal file in ATMetalBand
     let ATMetalLibrary: MTLLibrary?
     /// Load the texture tool
-    let textureLoader: MTKTextureLoader
+    lazy var textureLoader: MTKTextureLoader = MTKTextureLoader(device: device)
     
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -43,8 +43,6 @@ internal final class Device {
         if defaultLibrary == nil && ATMetalLibrary == nil {
             C7FailedErrorInDebug("Could not load library")
         }
-        
-        self.textureLoader = MTKTextureLoader(device: device)
     }
     
     deinit {
