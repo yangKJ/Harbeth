@@ -18,13 +18,18 @@ While this library doesn't introduce any new paradigms or concepts that signific
 ## Features
 🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
-- [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
-- [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur): Blur effect
-- [x] [ColorProcess](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): basic pixel processing of images.
-- [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect): Effect processing.
-- [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filter.
-- [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
-- [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
+- Support operator chain filter.
+- Support quick design filters.
+- Support fast expansion of output sources.
+- Support matrix convolution.
+- The filter part is roughly divided into the following modules:
+    - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
+    - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur): Blur effect
+    - [x] [ColorProcess](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): basic pixel processing of images.
+    - [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect): Effect processing.
+    - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filter.
+    - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
+    - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
 
 #### **A total of `90+` kinds of filters are currently available.**
 
@@ -37,11 +42,11 @@ While this library doesn't introduce any new paradigms or concepts that signific
         - **outputSize**: Change the size of the output image. 
 
 - Outputs, output section
-    - [C7FilterSerializer](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterSerializer.swift): Output content protocol, all outputs must implement this protocol.
-        - **makeMTLTexture**: Create a new texture based on the filter content, Please note that the order in which filters are added may affect the result of image generation.
-        - **makeImage**: Generate data based on filter processing.
+    - [C7FilterOutput](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterOutput.swift): Output content protocol, all outputs must implement this protocol.
+        - **make**: Generate data based on filter processing.
         - **makeGroup**: Multiple filter combinations, Please note that the order in which filters are added may affect the result of image generation.
-    - [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift): Image input source based on C7FilterSerializer, The following modes support only the encoder based on parallel computing.
+    - [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift): Image input source based on C7FilterOutput, The following modes support only the encoder based on parallel computing.
+    - [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): MTLTexture input source based on C7FilterOutput, The input texture is converted to a filter to process the texture.
 
 ### Usages
 - For example, how to design an soul filter.🎷
@@ -123,6 +128,55 @@ While this library doesn't introduce any new paradigms or concepts that signific
 	```
 
 6. As for the animation above, it is also very simple, add a timer, and then change the value of `soul` and you are done, simple.
+
+----
+
+### Advanced usage
+
+- Operator chain processing
+
+```swift
+/// 1.Convert to grayscale
+let filter1 = C7Color2(with: .color2Gray)
+
+/// 2.Adjust the granularity
+var filter2 = C7Granularity()
+filter2.grain = 0.8
+
+/// 3.Soul effect
+var filter3 = C7SoulOut()
+filter3.soul = 0.7
+
+/// 4.Combination operation
+let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
+let result = AT ->> filter1 ->> filter2 ->> filter3
+
+/// 5.Get the result
+filterImageView.image = result.outputImage()
+```
+
+- Batch processing
+
+```swift
+/// 1.Convert to grayscale
+let filter1 = C7Color2(with: .color2Gray)
+
+/// 2.Adjust the granularity
+var filter2 = C7Granularity()
+filter2.grain = 0.8
+
+/// 3.Soul effect
+var filter3 = C7SoulOut()
+filter3.soul = 0.7
+
+/// 4.Combination operation
+let group: [C7FilterProtocol] = [filter1, filter2, filter3]
+
+/// 5.Get the result
+filterImageView.image = try? originImage.makeGroup(filters: group)
+```
+
+**Both methods can handle multiple filter schemes, depending on your mood.✌️**
 
 ----
 
