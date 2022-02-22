@@ -16,7 +16,9 @@ precedencegroup AppendPrecedence {
 infix operator ->> : AppendPrecedence
 
 @discardableResult
-public func ->> (left: C7FilterProtocol, right: C7FilterProtocol) -> C7FilterProtocol {
-    // TODO:
-    return right
+public func ->> (left: C7FilterTexture, right: C7FilterProtocol) -> C7FilterTexture {
+    var temp = left
+    temp.updateInputTexture(temp.destTexture)
+    _ = try? temp.make(filter: right) as C7FilterTexture
+    return temp
 }
