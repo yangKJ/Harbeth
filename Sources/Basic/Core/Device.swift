@@ -21,6 +21,8 @@ internal final class Device {
     let ATMetalLibrary: MTLLibrary?
     /// Load the texture tool
     lazy var textureLoader: MTKTextureLoader = MTKTextureLoader(device: device)
+    /// Transform using color space
+    lazy var colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
     
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
