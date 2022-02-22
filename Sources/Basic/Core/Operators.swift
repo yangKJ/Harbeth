@@ -15,7 +15,7 @@ precedencegroup AppendPrecedence {
 
 infix operator ->> : AppendPrecedence
 
-@discardableResult
+//@discardableResult
 public func ->> (left: C7FilterTexture, right: C7FilterProtocol) -> C7FilterTexture {
     var temp = left
     temp.updateInputTexture(temp.destTexture)

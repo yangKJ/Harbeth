@@ -9,8 +9,6 @@
  
 [**Harbeth**](https://github.com/yangKJ/Harbeth) is a tiny set of utils and extensions over Apple's Metal framework dedicated to make your Swift GPU code much cleaner and let you prototype your pipelines faster.
 
-While this library doesn't introduce any new paradigms or concepts that significantly change the way you approach your Metal implementations, it has some optional-to-use things that you can incorporate in your apps if you find them as useful as library author did :)
-
 <font color=red>**Graphics processing And Filter production.👒👒👒**</font>
 
 -------
@@ -54,8 +52,6 @@ While this library doesn't introduce any new paradigms or concepts that signific
 <p align="left">
 <img src="Screenshot/Soul.gif" width="280" hspace="30px">
 </p>
-
------
 
 1. Accomplish `C7FilterProtocal`
 
@@ -133,33 +129,48 @@ While this library doesn't introduce any new paradigms or concepts that signific
 
 ### Advanced usage
 
+<p align="left">
+<img src="Screenshot/Mix.png" width="250" hspace="1px">
+</p>
+
 - Operator chain processing
 
 ```swift
-/// 1.Convert to grayscale
-let filter1 = C7Color2(with: .color2Gray)
+/// 1.Convert to BGRA
+let filter1 = C7Color2(with: .color2BGRA)
 
 /// 2.Adjust the granularity
 var filter2 = C7Granularity()
 filter2.grain = 0.8
 
-/// 3.Soul effect
-var filter3 = C7SoulOut()
-filter3.soul = 0.7
+/// 3.Adjust white balance
+var filter3 = C7WhiteBalance()
+filter3.temperature = 5555
 
-/// 4.Combination operation
+/// 4.Adjust the highlight shadows
+var filter4 = C7HighlightShadow()
+filter4.shadows = 0.4
+filter4.highlights = 0.5
+
+/// 5.Combination operation
 let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-let result = AT ->> filter1 ->> filter2 ->> filter3
+let result = AT ->> filter1 ->> filter2 ->> filter3 ->> filter4
 
-/// 5.Get the result
+/// 6.Get the result
 filterImageView.image = result.outputImage()
 ```
+
+-----
+
+<p align="left">
+<img src="Screenshot/Mix2.png" width="250" hspace="1px">
+</p>
 
 - Batch processing
 
 ```swift
-/// 1.Convert to grayscale
-let filter1 = C7Color2(with: .color2Gray)
+/// 1.Convert to RBGA
+let filter1 = C7Color2(with: .color2RBGA)
 
 /// 2.Adjust the granularity
 var filter2 = C7Granularity()
