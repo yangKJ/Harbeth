@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 高光阴影
 public struct C7HighlightShadow: C7FilterProtocol {
     
     /// Increase to lighten shadows, from 0.0 to 1.0, with 0.0 as the default.
