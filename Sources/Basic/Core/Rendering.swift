@@ -18,7 +18,7 @@ internal struct Rendering {
         descriptor.rasterSampleCount = 1
         descriptor.vertexFunction = try? Device.readMTLFunction(vertex)
         descriptor.fragmentFunction = try? Device.readMTLFunction(fragment)
-        return try? Shared.shared.device!.device.makeRenderPipelineState(descriptor: descriptor)
+        return try? Device.device().makeRenderPipelineState(descriptor: descriptor)
     }
     
     static func drawingProcess<T>(pipelineState: MTLRenderPipelineState,
@@ -36,7 +36,7 @@ internal struct Rendering {
             C7FailedErrorInDebug("Could not create render encoder")
             return
         }
-        let device = Shared.shared.device!.device
+        let device = Device.device()
         let size = MemoryLayout<T>.size
         let vertexBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!
         

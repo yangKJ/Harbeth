@@ -19,7 +19,7 @@ internal struct Compute {
     /// - Returns: MTLComputePipelineState
     static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
         guard let function = try? Device.readMTLFunction(kernel) else { return nil }
-        return try? Shared.shared.device!.device.makeComputePipelineState(function: function)
+        return try? Device.device().makeComputePipelineState(function: function)
     }
     
     static func drawingProcess<T>(pipelineState: MTLComputePipelineState,
@@ -35,7 +35,7 @@ internal struct Compute {
             computeEncoder.setTexture(texture, index: index)
         }
         
-        let device = Shared.shared.device!.device
+        let device = Device.device()
         let size = MemoryLayout<T>.size
         for i in 0..<factors.count {
             var factor = factors[i]

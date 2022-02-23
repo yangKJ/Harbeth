@@ -86,7 +86,7 @@ extension C7FilterOutput {
                                                                   height: height,
                                                                   mipmapped: mipmapped)
         descriptor.usage = [.shaderRead, .shaderWrite]
-        return Shared.shared.device!.device.makeTexture(descriptor: descriptor)!
+        return Device.device().makeTexture(descriptor: descriptor)!
     }
     
     /// Create command buffer.

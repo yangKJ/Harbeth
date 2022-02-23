@@ -69,6 +69,10 @@ extension MTLDevice {
 
 extension Device {
     
+    static func device() -> MTLDevice {
+        return Shared.shared.device!.device
+    }
+    
     static func readMTLFunction(_ name: String) throws -> MTLFunction {
         // First read the project
         if let libray = Shared.shared.device!.defaultLibrary, let function = libray.makeFunction(name: name) {
