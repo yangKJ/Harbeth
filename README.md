@@ -13,6 +13,8 @@
 
 -------
 
+English | [**简体中文**](README_CN.md)
+
 ## Features
 🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
