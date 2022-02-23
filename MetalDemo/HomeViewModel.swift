@@ -373,6 +373,7 @@ extension ViewControllerType {
             })
         case .ColorMatrix:
             var filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+            //var filter = C7Sepia()
             filter.intensity = 0.3
             return (filter, (0.3, 0.1, 1.0), {
                 filter.intensity = $0

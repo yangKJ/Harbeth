@@ -1,29 +1,29 @@
 PODS:
-  - Harbeth (0.1.5):
-    - Harbeth/Basic (= 0.1.5)
-    - Harbeth/Compute (= 0.1.5)
-  - Harbeth/Basic (0.1.5)
-  - Harbeth/Compute (0.1.5):
-    - Harbeth/Compute/Blend (= 0.1.5)
-    - Harbeth/Compute/Blur (= 0.1.5)
-    - Harbeth/Compute/ColorProcess (= 0.1.5)
-    - Harbeth/Compute/Effect (= 0.1.5)
-    - Harbeth/Compute/Lookup (= 0.1.5)
-    - Harbeth/Compute/Matrix (= 0.1.5)
-    - Harbeth/Compute/Shape (= 0.1.5)
-  - Harbeth/Compute/Blend (0.1.5):
+  - Harbeth (0.1.6):
+    - Harbeth/Basic (= 0.1.6)
+    - Harbeth/Compute (= 0.1.6)
+  - Harbeth/Basic (0.1.6)
+  - Harbeth/Compute (0.1.6):
+    - Harbeth/Compute/Blend (= 0.1.6)
+    - Harbeth/Compute/Blur (= 0.1.6)
+    - Harbeth/Compute/ColorProcess (= 0.1.6)
+    - Harbeth/Compute/Effect (= 0.1.6)
+    - Harbeth/Compute/Lookup (= 0.1.6)
+    - Harbeth/Compute/Matrix (= 0.1.6)
+    - Harbeth/Compute/Shape (= 0.1.6)
+  - Harbeth/Compute/Blend (0.1.6):
     - Harbeth/Basic
-  - Harbeth/Compute/Blur (0.1.5):
+  - Harbeth/Compute/Blur (0.1.6):
     - Harbeth/Basic
-  - Harbeth/Compute/ColorProcess (0.1.5):
+  - Harbeth/Compute/ColorProcess (0.1.6):
     - Harbeth/Basic
-  - Harbeth/Compute/Effect (0.1.5):
+  - Harbeth/Compute/Effect (0.1.6):
     - Harbeth/Basic
-  - Harbeth/Compute/Lookup (0.1.5):
+  - Harbeth/Compute/Lookup (0.1.6):
     - Harbeth/Basic
-  - Harbeth/Compute/Matrix (0.1.5):
+  - Harbeth/Compute/Matrix (0.1.6):
     - Harbeth/Basic
-  - Harbeth/Compute/Shape (0.1.5):
+  - Harbeth/Compute/Shape (0.1.6):
     - Harbeth/Basic
 
 DEPENDENCIES:
@@ -34,7 +34,7 @@ EXTERNAL SOURCES:
     :path: "./"
 
 SPEC CHECKSUMS:
-  Harbeth: 1e31dbe644567b3f6b06e2916e96e5478339b85a
+  Harbeth: 5c07707fdbfa03197b45ccfe347ae20dd8938721
 
 PODFILE CHECKSUM: 41a2dc167d858bf698d5d353994cf18220150a1a
 

@@ -52,10 +52,10 @@ public protocol C7FilterProtocol {
     ///
     /// - Parameters:
     ///   - encoder: 编码器，可以是并行计算编码器，也可以是渲染 3D 编码器
-    ///   - index: 当前参数因子，后序使用请直接累加，参数`C7ColorMatrix4x4`滤镜
+    ///   - index: 当前参数因子，后序使用请直接累加，请参考`C7ColorMatrix4x4`滤镜
     ///
     ///   - encoder: encoder, can be parallel computation encoder, can also be render 3D encoder
-    ///   - index: Current parameter factor, after use please directly add, parameter `C7ColorMatrix4x4`
+    ///   - index: Current parameter factor, after use please directly add, Please refer to the `C7ColorMatrix4x4`
     func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int)
 }
 
