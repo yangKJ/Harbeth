@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 透明度调整，核心就是改变`alpha`
 public struct C7Opacity: C7FilterProtocol {
     
     public let minOpacity: Float = 0.0

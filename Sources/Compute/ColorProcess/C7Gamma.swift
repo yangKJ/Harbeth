@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 灰度系数
 public struct C7Gamma: C7FilterProtocol {
     
     /// The adjusted gamma, from 0 to 3.0, with a default of 1.0

@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 去雾，类似于UV过滤器
 public struct C7Haze: C7FilterProtocol {
     
     /// Strength of the color applied.
