@@ -46,10 +46,7 @@ extension C7FilterOutput {
             }
             var textures = [outTexture, inTexture]
             if let inTexture2 = otherTextures { textures += inTexture2 }
-            Compute.drawingProcess(pipelineState: pipelineState,
-                                   commandBuffer: commandBuffer,
-                                   textures: textures,
-                                   factors: filter.factors)
+            Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
         } else if case .render(let vertex, let fragment) = filter.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
                 return inTexture

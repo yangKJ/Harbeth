@@ -1,5 +1,5 @@
 //
-//  C7ColorMatrix.swift
+//  C7ColorMatrix4x4.swift
 //  Harbeth
 //
 //  Created by Condy on 2022/2/21.
@@ -7,19 +7,23 @@
 
 import Foundation
 
-public struct C7ColorMatrix: C7FilterProtocol {
+public struct C7ColorMatrix4x4: C7FilterProtocol {
     
     /// The degree to which the new transformed color replaces the original color for each pixel, default 1
     public var intensity: Float = 1.0
     
     public var modifier: Modifier {
-        return .compute(kernel: "C7ColorMatrix")
+        return .compute(kernel: "C7ColorMatrix4x4")
     }
     
     public var factors: [Float] {
-        var array = [intensity]
-        array += matrix.values
-        return array
+        return [intensity]
+    }
+    
+    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
+        let computeEncoder = encoder as! MTLComputeCommandEncoder
+        var factor = matrix.to_matrix_float4x4()
+        computeEncoder.setBytes(&factor, length: Matrix4x4.size, index: index + 1)
     }
     
     /// A 4x4 matrix used to transform each color in an image

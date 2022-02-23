@@ -61,6 +61,7 @@ enum ViewControllerType: String {
     case Convolution3x3 = "卷积运算"
     case Sharpen3x3 = "锐化卷积"
     case WaterRipple = "水波效果"
+    case ColorMatrix = "颜色矩阵"
 }
 
 extension ViewControllerType {
@@ -370,6 +371,13 @@ extension ViewControllerType {
                 filter.ripple = $0
                 return filter
             })
+        case .ColorMatrix:
+            var filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+            filter.intensity = 0.3
+            return (filter, (0.3, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
         }
     }
 }
@@ -418,6 +426,6 @@ struct HomeViewModel {
     ]
     
     let matrix: [ViewControllerType] = [
-        .Convolution3x3, .Sharpen3x3,
+        .Convolution3x3, .Sharpen3x3, .ColorMatrix,
     ]
 }

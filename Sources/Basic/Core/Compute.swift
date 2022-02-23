@@ -22,10 +22,10 @@ internal struct Compute {
         return try? Device.device().makeComputePipelineState(function: function)
     }
     
-    static func drawingProcess<T>(pipelineState: MTLComputePipelineState,
-                                  commandBuffer: MTLCommandBuffer,
-                                  textures: [MTLTexture],
-                                  factors: [T]) {
+    static func drawingProcess(_ pipelineState: MTLComputePipelineState,
+                               commandBuffer: MTLCommandBuffer,
+                               textures: [MTLTexture],
+                               filter: C7FilterProtocol) {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             return
         }
@@ -35,13 +35,17 @@ internal struct Compute {
             computeEncoder.setTexture(texture, index: index)
         }
         
-        let device = Device.device()
-        let size = MemoryLayout<T>.size
-        for i in 0..<factors.count {
-            var factor = factors[i]
-            let buffer = device.makeBuffer(bytes: &factor, length: size, options: MTLResourceOptions.storageModeShared)
-            computeEncoder.setBuffer(buffer, offset: 0, index: i)
+        let size = MemoryLayout<Float>.size
+        let count = filter.factors.count
+        for i in 0..<count {
+            var factor = filter.factors[i]
+            computeEncoder.setBytes(&factor, length: size, index: i)
+            //let buffer = Device.device().makeBuffer(bytes: &factor, length: size, options: MTLResourceOptions.storageModeShared)
+            //computeEncoder.setBuffer(buffer, offset: 0, index: i)
         }
+        
+        /// 配置特殊参数非`Float`类型，例如4x4矩阵
+        filter.setupSpecialFactors(for: computeEncoder, index: count - 1)
         
         // Too large some Gpus are not supported. Too small gpus have low efficiency
         // 2D texture, depth set to 1
