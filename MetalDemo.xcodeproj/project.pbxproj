@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0474836A27C5C5C9001ABF44 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 0474836927C5C5C9001ABF44 /* README_CN.md */; };
+		0474836C27C5C5CF001ABF44 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 0474836B27C5C5CF001ABF44 /* README.md */; };
 		04FA709027B8D7D8006199B0 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA708F27B8D7D8006199B0 /* AppDelegate.swift */; };
 		04FA709427B8D7D8006199B0 /* HomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA709327B8D7D8006199B0 /* HomeViewController.swift */; };
 		04FA709727B8D7D8006199B0 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 04FA709527B8D7D8006199B0 /* Main.storyboard */; };
@@ -41,6 +43,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0474836927C5C5C9001ABF44 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = SOURCE_ROOT; };
+		0474836B27C5C5CF001ABF44 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
 		04FA708C27B8D7D8006199B0 /* MetalDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		04FA708F27B8D7D8006199B0 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		04FA709327B8D7D8006199B0 /* HomeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewController.swift; sourceTree = "<group>"; };
@@ -149,11 +153,13 @@
 		04FA70BF27B8D83B006199B0 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				684C192027BA8045005ACCA7 /* Color.xcassets */,
 				04FA709827B8D7DA006199B0 /* Assets.xcassets */,
+				684C192027BA8045005ACCA7 /* Color.xcassets */,
 				04FA709D27B8D7DA006199B0 /* Info.plist */,
 				04FA709A27B8D7DA006199B0 /* LaunchScreen.storyboard */,
 				04FA709527B8D7D8006199B0 /* Main.storyboard */,
+				0474836927C5C5C9001ABF44 /* README_CN.md */,
+				0474836B27C5C5CF001ABF44 /* README.md */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -289,8 +295,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0474836C27C5C5CF001ABF44 /* README.md in Resources */,
 				04FA709C27B8D7DA006199B0 /* LaunchScreen.storyboard in Resources */,
 				684C192127BA8045005ACCA7 /* Color.xcassets in Resources */,
+				0474836A27C5C5C9001ABF44 /* README_CN.md in Resources */,
 				04FA709927B8D7DA006199B0 /* Assets.xcassets in Resources */,
 				04FA709727B8D7D8006199B0 /* Main.storyboard in Resources */,
 			);

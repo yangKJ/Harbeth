@@ -18,11 +18,11 @@
 ## 功能清单
  🟣 目前，[**Metal Moudle**](https://github.com/yangKJ/Harbeth) 最重要的特点可以总结如下：
 
-- 支持算子链过滤
-- 支持快速设计过滤器
+- 支持运算符函数式操作
+- 支持快速设计滤镜
 - 支持输出源的快速扩展
 - 支持矩阵卷积
-- 过滤部分大致分为以下几个模块：
+- 滤镜部分大致分为以下几个模块：
    - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend)：图像融合技术
    - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur)：模糊效果
    - [x] [ColorProcess](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess)：图像的基本像素颜色处理
@@ -58,24 +58,24 @@
 1. 遵循协议 `C7FilterProtocal`
 
 	```swift
-	public protocol C7FilterProtocol {
-		/// 编码器类型和对应的函数名
-		///
-		/// 计算需要对应的`kernel`函数名
-		/// 渲染需要一个`vertex`着色器函数名和一个`fragment`着色器函数名
-		var modifier: Modifier { get }
-		    
-		/// 制作缓冲区
-		/// 设置修改参数因子，需要转换为`Float`。
-		var factors: [Float] { get }
-		    
-		/// 多输入源扩展
-		/// 包含 `MTLTexture` 的数组
-		var otherInputTextures: C7InputTextures { get }
-		    
-		/// 改变输出图像的大小
-		func outputSize(input size：C7Size) -> C7Size
-	}
+    public protocol C7FilterProtocol {
+        /// 编码器类型和对应的函数名
+        ///
+        /// 计算需要对应的`kernel`函数名
+        /// 渲染需要一个`vertex`着色器函数名和一个`fragment`着色器函数名
+        var modifier: Modifier { get }
+            
+        /// 制作缓冲区
+        /// 设置修改参数因子，需要转换为`Float`。
+        var factors: [Float] { get }
+            
+        /// 多输入源扩展
+        /// 包含 `MTLTexture` 的数组
+        var otherInputTextures: C7InputTextures { get }
+            
+        /// 改变输出图像的大小
+        func outputSize(input size：C7Size) -> C7Size
+    }
 	```
 
 2. 配置额外的所需纹理
