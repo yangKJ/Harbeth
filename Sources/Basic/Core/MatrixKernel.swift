@@ -11,6 +11,7 @@ import Foundation
 /// Common 3x3 matrix convolution kernel
 extension Matrix3x3 {
     /// 原始矩阵，空卷积核
+    /// The original matrix, the empty convolution kernel
     public static let `default` = Matrix3x3(values: [
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0,
@@ -24,6 +25,7 @@ extension Matrix3x3 {
     ])
     
     /// 边缘检测矩阵
+    /// Edge detection matrix
     public static let edgedetect = Matrix3x3(values: [
         -1.0, -1.0, -1.0,
         -1.0,  8.0, -1.0,
@@ -31,6 +33,7 @@ extension Matrix3x3 {
     ])
     
     /// 浮雕矩阵
+    /// Anaglyph matrix
     public static let embossment = Matrix3x3(values: [
         -2.0, 0.0, 0.0,
          0.0, 1.0, 0.0,
@@ -38,6 +41,7 @@ extension Matrix3x3 {
     ])
     
     /// 45度的浮雕滤波器
+    /// A 45 degree emboss filter
     public static let embossment45 = Matrix3x3(values: [
         -1.0, -1.0, 0.0,
         -1.0,  0.0, 1.0,
@@ -45,6 +49,7 @@ extension Matrix3x3 {
     ])
     
     /// 侵蚀矩阵
+    /// Matrix erosion
     public static let morphological = Matrix3x3(values: [
         1.0, 1.0, 1.0,
         1.0, 1.0, 1.0,
@@ -52,6 +57,7 @@ extension Matrix3x3 {
     ])
     
     /// 拉普拉斯算子，边缘检测算子
+    /// Laplace operator, edge detection operator
     public static func laplance(_ iterations: Float) -> Matrix3x3 {
         let xxx = iterations
         return Matrix3x3(values: [
@@ -62,6 +68,7 @@ extension Matrix3x3 {
     }
     
     /// 锐化矩阵
+    /// Sharpening matrix
     public static func sharpen(_ iterations: Float) -> Matrix3x3 {
         let cc = (8 * iterations + 1)
         let xx = (-iterations)
@@ -73,6 +80,7 @@ extension Matrix3x3 {
     }
     
     /// Sobel矩阵图像边缘提取，求梯度比较常用
+    /// Sobel matrix image edge extraction, gradient is more commonly used
     public static func sobel(_ orientation: Bool) -> Matrix3x3 {
         if orientation {
             return Matrix3x3(values: [
