@@ -15,6 +15,17 @@
 
 English | [**简体中文**](README_CN.md)
 
+- Code zero intrusion injection filter function.
+
+```swift
+// Original code:
+ImageView.image = originImage
+
+// Injection filter code:
+let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+ImageView.image = try? originImage.make(filter: filter)
+```
+
 ## Features
 🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
@@ -31,7 +42,7 @@ English | [**简体中文**](README_CN.md)
     - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
     - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
 
-#### **A total of `90+` kinds of filters are currently available.**
+#### **A total of `100+` kinds of filters are currently available.✌️**
 
 ### Overview
 - Core, basic core board
@@ -122,7 +133,7 @@ English | [**简体中文**](README_CN.md)
 	filter.maxScale = 2.0
 	
 	/// Display directly in ImageView
-	ImageView.image = originImage.makeImage(filter: filter)
+	ImageView.image = try? originImage.make(filter: filter)
 	```
 
 6. As for the animation above, it is also very simple, add a timer, and then change the value of `soul` and you are done, simple.

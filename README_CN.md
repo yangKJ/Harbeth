@@ -15,6 +15,17 @@
 
 [**English**](README.md) | 简体中文
 
+- 代码零侵入注入滤镜功能，
+
+```swift
+原始代码：
+ImageView.image = originImage
+
+注入滤镜代码：
+let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+ImageView.image = try? originImage.make(filter: filter)
+```
+
 ## 功能清单
  🟣 目前，[**Metal Moudle**](https://github.com/yangKJ/Harbeth) 最重要的特点可以总结如下：
 
@@ -31,7 +42,7 @@
    - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): 矩阵卷积滤波器
    - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape)：图像形状大小相关
 
-#### **总结下来目前共有`90+`种滤镜供您使用。**
+#### **总结下来目前共有 `100+` 种滤镜供您使用。✌️**
 
 ### 主要部分
 - 核心，基础核心板块
@@ -125,7 +136,7 @@
 	filter.maxScale = 2.0
 	
 	/// Display directly in ImageView
-	ImageView.image = originImage.makeImage(filter: filter)
+	ImageView.image = try? originImage.make(filter: filter)
 	```
 
 6. 至于上面的动效也很简单，添加一个计时器，然后改变`soul`值就完事，简单嘛 0 0.
