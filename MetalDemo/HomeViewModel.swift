@@ -85,22 +85,22 @@ extension ViewControllerType {
     func setupFilterObject() -> FilterResult {
         switch self {
         case .ColorInvert:
-            let filter = C7Color2(with: .colorInvert)
+            let filter = C7ColorConvert(with: .colorInvert)
             return (filter, nil, nil)
         case .Color2BGRA:
-            let filter = C7Color2(with: .color2BGRA)
+            let filter = C7ColorConvert(with: .color2BGRA)
             return (filter, nil, nil)
         case .Color2BRGA:
-            let filter = C7Color2(with: .color2BRGA)
+            let filter = C7ColorConvert(with: .color2BRGA)
             return (filter, nil, nil)
         case .Color2GBRA:
-            let filter = C7Color2(with: .color2GBRA)
+            let filter = C7ColorConvert(with: .color2GBRA)
             return (filter, nil, nil)
         case .Color2GRBA:
-            let filter = C7Color2(with: .color2GRBA)
+            let filter = C7ColorConvert(with: .color2GRBA)
             return (filter, nil, nil)
         case .Color2RBGA:
-            let filter = C7Color2(with: .color2RBGA)
+            let filter = C7ColorConvert(with: .color2RBGA)
             return (filter, nil, nil)
         case .Luminance:
             var filter = C7Luminance()
@@ -171,7 +171,7 @@ extension ViewControllerType {
                 return filter
             })
         case .Color2Gray:
-            let filter = C7Color2(with: .color2Gray)
+            let filter = C7ColorConvert(with: .color2Gray)
             return (filter, nil, nil)
         case .Contrast:
             var filter = C7Contrast()
@@ -186,7 +186,7 @@ extension ViewControllerType {
                 return filter
             })
         case .ChannelRGBA:
-            var filter = C7ChannelRGBA()
+            var filter = C7ColorRGBA()
             filter.color = UIColor.white
             return (filter, (filter.red, 0, 10), {
                 filter.red = $0

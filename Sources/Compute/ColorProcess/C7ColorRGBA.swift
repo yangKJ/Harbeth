@@ -1,5 +1,5 @@
 //
-//  C7ChannelRGBA.swift
+//  C7ColorRGBA.swift
 //  ATMetalBand
 //
 //  Created by Condy on 2022/2/15.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct C7ChannelRGBA: C7FilterProtocol {
+public struct C7ColorRGBA: C7FilterProtocol {
 
     /// Modify the value of color single channel, `1` keeps the source channel color, `>1` adds red pigment, `<1` reduces red pigment
     public var red:   Float = 1
@@ -22,7 +22,7 @@ public struct C7ChannelRGBA: C7FilterProtocol {
     }
     
     public var modifier: Modifier {
-        return .compute(kernel: "C7ChannelRGBA")
+        return .compute(kernel: "C7ColorRGBA")
     }
     
     public var factors: [Float] {
