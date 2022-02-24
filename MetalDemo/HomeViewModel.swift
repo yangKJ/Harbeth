@@ -69,6 +69,8 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
             return C7Image(named: "yuan002")!
+        case .ColorMatrix:
+            return C7Image(named: "yuan001")!
         case .Crop:
             return C7Image(named: "IMG_1668")!
         case .ChromaKey, .ReplaceColor, .Sobel:
@@ -372,8 +374,8 @@ extension ViewControllerType {
                 return filter
             })
         case .ColorMatrix:
-            var filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
-            //var filter = C7Sepia()
+            var filter = C7ColorMatrix4x4(matrix: Matrix4x4.skyblue_turns_green)
+            filter.offset = C7ColorOffset(0, 0, 1, 0)
             filter.intensity = 0.3
             return (filter, (0.3, 0.1, 1.0), {
                 filter.intensity = $0

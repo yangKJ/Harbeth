@@ -31,8 +31,8 @@ internal struct Compute {
         }
         computeEncoder.setComputePipelineState(pipelineState)
         
-        for (index, texture) in textures.enumerated() {
-            computeEncoder.setTexture(texture, index: index)
+        for (i, texture) in textures.enumerated() {
+            computeEncoder.setTexture(texture, index: i)
         }
         
         let size = MemoryLayout<Float>.size
@@ -40,8 +40,6 @@ internal struct Compute {
         for i in 0..<count {
             var factor = filter.factors[i]
             computeEncoder.setBytes(&factor, length: size, index: i)
-            //let buffer = Device.device().makeBuffer(bytes: &factor, length: size, options: MTLResourceOptions.storageModeShared)
-            //computeEncoder.setBuffer(buffer, offset: 0, index: i)
         }
         
         /// 配置特殊参数非`Float`类型，例如4x4矩阵

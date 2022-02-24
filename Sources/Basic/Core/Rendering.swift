@@ -47,9 +47,9 @@ internal struct Rendering {
         /// 纹理坐标，左下角为坐标原点
         let standard: [Float] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
         let textureBuffer = device.makeBuffer(bytes: standard, length: standard.count * size, options: [])!
-        for (index, texture) in inputTextures.enumerated() {
-            renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: 1 + index)
-            renderEncoder.setFragmentTexture(texture, index: index)
+        for (i, texture) in inputTextures.enumerated() {
+            renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: i + 1)
+            renderEncoder.setFragmentTexture(texture, index: i)
         }
         
         let uniformBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!

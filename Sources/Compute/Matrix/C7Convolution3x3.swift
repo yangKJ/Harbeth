@@ -52,6 +52,7 @@ public struct C7Convolution3x3: C7FilterProtocol {
     
     /// Convolution pixels, default 1
     public var convolutionPixel: Int = 1
+    private var matrix: Matrix3x3
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Convolution3x3")
@@ -63,9 +64,7 @@ public struct C7Convolution3x3: C7FilterProtocol {
         return array
     }
     
-    private var matrix: Matrix3x3
-    
-    public init(convolutionType: C7ConvolutionType = C7ConvolutionType.default) {
+    public init(convolutionType: C7ConvolutionType) {
         self.matrix = convolutionType.matrix
     }
     
