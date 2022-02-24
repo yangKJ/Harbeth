@@ -62,6 +62,7 @@ enum ViewControllerType: String {
     case Sharpen3x3 = "锐化卷积"
     case WaterRipple = "水波效果"
     case ColorMatrix = "颜色矩阵"
+    case Levels = "色阶"
 }
 
 extension ViewControllerType {
@@ -381,6 +382,10 @@ extension ViewControllerType {
                 filter.intensity = $0
                 return filter
             })
+        case .Levels:
+            var filter = C7Levels()
+            filter.minimum = UIColor.purple
+            return (filter, nil, nil)
         }
     }
 }
@@ -406,7 +411,7 @@ struct HomeViewModel {
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow,
         .Saturation, .WhiteBalance, .Vibrance,
-        .Granularity, .Sobel,
+        .Granularity, .Levels, .Sobel,
         .ChannelRGBA, .FalseColor, .ColorInvert,
         .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,

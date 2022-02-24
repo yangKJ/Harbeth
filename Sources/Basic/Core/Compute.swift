@@ -19,6 +19,7 @@ internal struct Compute {
     /// - Returns: MTLComputePipelineState
     static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
         guard let function = try? Device.readMTLFunction(kernel) else { return nil }
+        /// 同步阻塞编译计算程序来创建管道状态
         return try? Device.device().makeComputePipelineState(function: function)
     }
     

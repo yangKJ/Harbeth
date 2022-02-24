@@ -45,14 +45,14 @@ extension C7FilterOutput {
                 throw C7CustomError.computePipelineState(kernel)
             }
             var textures = [outTexture, inTexture]
-            if !filter.otherInputTextures.isEmpty { textures += filter.otherInputTextures }
+            textures += filter.otherInputTextures
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
         } else if case .render(let vertex, let fragment) = filter.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
                 return inTexture
             }
             var textures = [inTexture]
-            if !filter.otherInputTextures.isEmpty { textures += filter.otherInputTextures }
+            textures += filter.otherInputTextures
             Rendering.drawingProcess(pipelineState: pipelineState,
                                      commandBuffer: commandBuffer,
                                      inputTextures: textures,

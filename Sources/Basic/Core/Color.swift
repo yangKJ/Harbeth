@@ -15,6 +15,13 @@ extension UIColor: C7Compatible { }
 
 extension Queen where Base: UIColor {
     
+    /// Convert RGBA value
+    public func toRGBA() -> C7Color {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (Float(r), Float(g), Float(b), Float(a))
+    }
+    
     /// Convert RGBA value, transparent color does not do processing
     public func toRGBA(red: inout Float, green: inout Float, blue: inout Float, alpha: inout Float) {
         if base == C7EmptyColor { return }
