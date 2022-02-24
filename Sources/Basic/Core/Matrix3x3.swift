@@ -6,20 +6,6 @@
 //
 
 import Foundation
-import simd
-
-extension Matrix3x3 {
-    
-    public static let size = MemoryLayout<matrix_float3x3>.size
-    
-    public func to_matrix_float3x3() -> matrix_float3x3 {
-        return matrix_float3x3([
-            SIMD3<Float>(values[0], values[1], values[2]),
-            SIMD3<Float>(values[3], values[4], values[5]),
-            SIMD3<Float>(values[6], values[7], values[8]),
-        ])
-    }
-}
 
 /// 常见 3x3 矩阵卷积内核，考线性代数时刻😪
 /// Common 3x3 matrix convolution kernel

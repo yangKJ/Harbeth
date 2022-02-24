@@ -8,6 +8,7 @@
 import Foundation
 import QuartzCore
 import CoreGraphics
+import simd
 
 open class Matrix {
     public let values: [Float]
@@ -48,5 +49,33 @@ public class Matrix4x4: Matrix {
     
     public convenience init(transform: CGAffineTransform) {
         self.init(transform3D: CATransform3DMakeAffineTransform(transform))
+    }
+}
+
+// MARK: - Transform
+extension Matrix3x3 {
+    
+    public static let size = MemoryLayout<matrix_float3x3>.size
+    
+    public func to_matrix_float3x3() -> matrix_float3x3 {
+        return matrix_float3x3([
+            SIMD3<Float>(values[0], values[1], values[2]),
+            SIMD3<Float>(values[3], values[4], values[5]),
+            SIMD3<Float>(values[6], values[7], values[8]),
+        ])
+    }
+}
+
+extension Matrix4x4 {
+    
+    public static let size = MemoryLayout<matrix_float4x4>.size
+    
+    public func to_matrix_float4x4() -> matrix_float4x4 {
+        return matrix_float4x4(rows: [
+            SIMD4<Float>(values[0], values[4], values[8],  values[12]),
+            SIMD4<Float>(values[1], values[5], values[9],  values[13]),
+            SIMD4<Float>(values[2], values[6], values[10], values[14]),
+            SIMD4<Float>(values[3], values[7], values[11], values[15]),
+        ])
     }
 }
