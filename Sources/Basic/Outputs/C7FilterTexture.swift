@@ -29,8 +29,7 @@ extension C7FilterTexture: C7FilterOutput {
     
     public mutating func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterOutput {
         do {
-            let otherTextures = filter.otherInputTextures
-            destTexture = try newTexture(inTexture: inputTexture, otherTextures: otherTextures, filter: filter)
+            destTexture = try generateOutTexture(inTexture: inputTexture, filter: filter)
             return self as! T
         } catch {
             throw error
@@ -41,8 +40,7 @@ extension C7FilterTexture: C7FilterOutput {
         do {
             var outTexture: MTLTexture = self.inputTexture
             for filter in filters {
-                let otherTextures = filter.otherInputTextures
-                outTexture = try newTexture(inTexture: outTexture, otherTextures: otherTextures, filter: filter)
+                outTexture = try generateOutTexture(inTexture: outTexture, filter: filter)
             }
             destTexture = outTexture
             return self as! T

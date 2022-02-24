@@ -34,7 +34,7 @@ extension C7FilterOutput {
     ///   - otherTextures: Other input textures
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: New texture after processing
-    func newTexture(inTexture: MTLTexture, otherTextures: C7InputTextures?, filter: C7FilterProtocol) throws -> MTLTexture {
+    func generateOutTexture(inTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         guard let commandBuffer = makeCommandBuffer() else {
             throw C7CustomError.commandBuffer
         }
@@ -45,14 +45,14 @@ extension C7FilterOutput {
                 throw C7CustomError.computePipelineState(kernel)
             }
             var textures = [outTexture, inTexture]
-            if let inTexture2 = otherTextures { textures += inTexture2 }
+            if !filter.otherInputTextures.isEmpty { textures += filter.otherInputTextures }
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
         } else if case .render(let vertex, let fragment) = filter.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
                 return inTexture
             }
             var textures = [inTexture]
-            if let inTexture2 = otherTextures { textures += inTexture2 }
+            if !filter.otherInputTextures.isEmpty { textures += filter.otherInputTextures }
             Rendering.drawingProcess(pipelineState: pipelineState,
                                      commandBuffer: commandBuffer,
                                      inputTextures: textures,
