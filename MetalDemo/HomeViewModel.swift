@@ -63,6 +63,7 @@ enum ViewControllerType: String {
     case WaterRipple = "水波效果"
     case ColorMatrix = "颜色矩阵"
     case Levels = "色阶"
+    case Transform = "透视变形"
 }
 
 extension ViewControllerType {
@@ -386,6 +387,10 @@ extension ViewControllerType {
             var filter = C7Levels()
             filter.minimum = UIColor.purple
             return (filter, nil, nil)
+        case .Transform:
+            let transform = CGAffineTransform(scaleX: 0.8, y: 1).rotated(by: .pi / 6)
+            let filter = C7Transform(transform: transform)
+            return (filter, nil, nil)
         }
     }
 }
@@ -419,6 +424,7 @@ struct HomeViewModel {
     
     let shape: [ViewControllerType] = [
         .Crop, .Rotate, .Resize, .Flip,
+        .Transform,
     ]
     
     let blur: [ViewControllerType] = [
