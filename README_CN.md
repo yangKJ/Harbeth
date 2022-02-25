@@ -41,6 +41,7 @@ ImageView.image = try? originImage.make(filter: filter)
    - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup)：查找表过滤器
    - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): 矩阵卷积滤波器
    - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape)：图像形状大小相关
+   - [x] [VisualEffect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/VisualEffect): 视觉动态特效
 
 #### **总结下来目前共有 `100+` 种滤镜供您使用。✌️**
 
@@ -53,11 +54,11 @@ ImageView.image = try? originImage.make(filter: filter)
         - **outputSize**：更改输出图像的大小
 
 - 输出，输出板块
-	- [C7FilterOutput](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterOutput.swift)：输出内容协议，所有输出都必须实现该协议
+	- [C7FilterDestProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterDestProtocol.swift)：输出内容协议，所有输出都必须实现该协议
 	    - **make**：根据滤镜处理生成数据
 	    - **makeGroup**：多个滤镜组合，请注意滤镜添加的顺序可能会影响图像生成的结果
-	- [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift)：基于C7FilterOutput的图像输入源，以下模式仅支持基于并行计算的编码器
-	- [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): 基于C7FilterOutput的纹理输入源，输入纹理转换成滤镜处理纹理
+	- [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift)：基于C7FilterDestProtocol的图像输入源，以下模式仅支持基于并行计算的编码器
+	- [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): 基于C7FilterDestProtocol的纹理输入源，输入纹理转换成滤镜处理纹理
 
 ### 设计滤镜
 - 举个例子，如何设计一款灵魂出窍滤镜🎷
@@ -153,7 +154,7 @@ ImageView.image = try? originImage.make(filter: filter)
 
 ```swift
 /// 1.转换成BGRA
-let filter1 = C7Color2(with: .color2BGRA)
+let filter1 = C7ColorConvert(with: .color2BGRA)
 
 /// 2.调整颗粒度
 var filter2 = C7Granularity()
@@ -186,7 +187,7 @@ filterImageView.image = result.outputImage()
 
 ```swift
 /// 1.转换成RBGA
-let filter1 = C7Color2(with: .color2RBGA)
+let filter1 = C7ColorConvert(with: .color2RBGA)
 
 /// 2.调整颗粒度
 var filter2 = C7Granularity()
