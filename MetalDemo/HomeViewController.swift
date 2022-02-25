@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Harbeth
 
 class HomeViewController: UIViewController {
 
@@ -78,20 +79,27 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let type = viewModel.datas[indexPath.section][indexPath.row]
-        let vc = FilterViewController()
-        let tuple = type.setupFilterObject()
-        vc.filter = tuple.filter
-        vc.callback = tuple.callback
-        if let maxmin = tuple.maxminValue {
-            vc.slider.minimumValue = maxmin.min
-            vc.slider.maximumValue = maxmin.max
-            vc.slider.value = maxmin.current
+        if indexPath.section > 0 {
+            let vc = FilterViewController()
+            let tuple = type.setupFilterObject()
+            vc.filter = tuple.filter
+            vc.callback = tuple.callback
+            if let maxmin = tuple.maxminValue {
+                vc.slider.minimumValue = maxmin.min
+                vc.slider.maximumValue = maxmin.max
+                vc.slider.value = maxmin.current
+            } else {
+                vc.slider.isHidden = true
+            }
+            vc.originImage = type.image
+            vc.title = type.rawValue
+            navigationController?.pushViewController(vc, animated: true)
         } else {
-            vc.slider.isHidden = true
+            let vc = CameraViewController()
+            vc.tuple = type.setupFilterObject()
+            vc.title = type.rawValue
+            navigationController?.pushViewController(vc, animated: true)
         }
-        vc.originImage = type.image
-        vc.title = type.rawValue
-        navigationController?.pushViewController(vc, animated: true)
     }
 }
 

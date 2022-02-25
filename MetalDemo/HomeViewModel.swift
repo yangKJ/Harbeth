@@ -400,7 +400,7 @@ extension ViewControllerType {
         case .EdgeGlow:
             var filter = C7EdgeGlow()
             return (filter, (0.5, 0.1, 0.6), {
-                filter.time = $0 * 2
+                filter.time = $0
                 return filter
             })
         }
@@ -418,6 +418,7 @@ struct HomeViewModel {
     
     let visual: [ViewControllerType] = [
         .ShiftGlitch, .SoulOut, .EdgeGlow,
+        .Luminance, .ColorMatrix, .Monochrome,
     ]
     
     let effect: [ViewControllerType] = [
