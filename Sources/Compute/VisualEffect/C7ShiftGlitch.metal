@@ -15,26 +15,27 @@ float C7ShiftGlitchHash(float n);
 float C7ShiftGlitchNoise(float3 x);
 
 kernel void C7ShiftGlitch(texture2d<half, access::write> outputTexture [[texture(0)]],
-                          texture2d<half, access::sample> inputTexture [[texture(1)]],
+                          texture2d<half, access::read> inputTexture [[texture(1)]],
                           constant float *timePointer [[buffer(0)]],
                           uint2 grid [[thread_position_in_grid]]) {
-    const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const float w = outputTexture.get_width();
+    const float h = outputTexture.get_height();
+    const float2 textureCoordinate = float2(grid) / float2(w, h);
     
     const half time = half(*timePointer);
-    const float blurx = C7ShiftGlitchNoise(float3(time * 10.0, 0.0, 0.0)) * 2.0 - 1.0;
-    const float offsetx = blurx * 0.025;
+    const float blurX = C7ShiftGlitchNoise(float3(time * 10.0, 0.0, 0.0)) * 2.0 - 1.0;
+    const float offsetx = blurX * 0.025;
     
-    const float blury = C7ShiftGlitchNoise(float3(time * 10.0, 1.0, 0.0)) * 2.0 - 1.0;
-    const float offsety = blury * 0.01;
+    const float blurY = C7ShiftGlitchNoise(float3(time * 10.0, 1.0, 0.0)) * 2.0 - 1.0;
+    const float offsety = blurY * 0.01;
     
-    const float2 ruv = textureCoordinate + float2(offsetx, offsety);
-    const float2 guv = textureCoordinate + float2(-offsetx, -offsety);
-    const float2 buv = textureCoordinate + float2(0.0, 0.0);
+    const half2 ruv = half2(textureCoordinate) + half2(offsetx, offsety);
+    const half2 guv = half2(textureCoordinate) + half2(-offsetx, -offsety);
+    const half2 buv = half2(textureCoordinate) + half2(0.0h, 0.0h);
     
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half r = inputTexture.sample(quadSampler, ruv * textureCoordinate).r;
-    const half g = inputTexture.sample(quadSampler, guv * textureCoordinate).g;
-    const half b = inputTexture.sample(quadSampler, buv * textureCoordinate).b;
+    const half r = inputTexture.read(uint2(ruv * half2(w, h))).r;
+    const half g = inputTexture.read(uint2(guv * half2(w, h))).g;
+    const half b = inputTexture.read(uint2(buv * half2(w, h))).b;
     const half4 outColor = half4(r, g, b, 1.0h);
     
     outputTexture.write(outColor, grid);

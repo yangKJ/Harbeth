@@ -73,7 +73,7 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
             return C7Image(named: "yuan002")!
-        case .EdgeGlow:
+        case .EdgeGlow, .ShiftGlitch:
             return C7Image(named: "yuan003")!
         case .Crop:
             return C7Image(named: "IMG_1668")!
