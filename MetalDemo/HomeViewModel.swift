@@ -71,14 +71,10 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
             return C7Image(named: "yuan002")!
-        case .ColorMatrix:
-            return C7Image(named: "yuan001")!
         case .Crop:
             return C7Image(named: "IMG_1668")!
         case .ChromaKey, .ReplaceColor, .Sobel:
             return C7Image(named: "IMG_2606")!
-        case .FalseColor:
-            return C7Image(named: "IMG_2623")!
         default:
             return C7Image(named: "timg-3")!
         }
