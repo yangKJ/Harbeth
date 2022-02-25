@@ -64,6 +64,8 @@ enum ViewControllerType: String {
     case ColorMatrix = "颜色矩阵"
     case Levels = "色阶"
     case Transform = "透视变形"
+    case ShiftGlitch = "色彩故障转移特效"
+    case EdgeGlow = "边缘发光特效"
 }
 
 extension ViewControllerType {
@@ -71,6 +73,8 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
             return C7Image(named: "yuan002")!
+        case .EdgeGlow:
+            return C7Image(named: "yuan003")!
         case .Crop:
             return C7Image(named: "IMG_1668")!
         case .ChromaKey, .ReplaceColor, .Sobel:
@@ -387,21 +391,37 @@ extension ViewControllerType {
             let transform = CGAffineTransform(scaleX: 0.8, y: 1).rotated(by: .pi / 6)
             let filter = C7Transform(transform: transform)
             return (filter, nil, nil)
+        case .ShiftGlitch:
+            var filter = C7ShiftGlitch()
+            return (filter, (0.5, 0.1, 0.5), {
+                filter.time = $0
+                return filter
+            })
+        case .EdgeGlow:
+            var filter = C7EdgeGlow()
+            return (filter, (0.5, 0.1, 0.6), {
+                filter.time = $0 * 2
+                return filter
+            })
         }
     }
 }
 
 struct HomeViewModel {
     lazy var section: [String] = {
-        return ["效果类", "颜色处理", "形状变化", "模糊处理", "图片融合类", "滤镜类", "矩阵卷积"]
+        return ["视觉特效", "效果类", "颜色处理", "形状变化", "模糊处理", "图片融合类", "滤镜类", "矩阵卷积"]
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [effect, colorProcess, shape, blur, blend, lookup, matrix]
+        return [visual, effect, colorProcess, shape, blur, blend, lookup, matrix]
     }()
     
+    let visual: [ViewControllerType] = [
+        .ShiftGlitch, .SoulOut, .EdgeGlow,
+    ]
+    
     let effect: [ViewControllerType] = [
-        .SoulOut, .ZoomBlur, .Vignette, .WaterRipple,
+        .ZoomBlur, .Vignette, .WaterRipple,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl, .SplitScreen,

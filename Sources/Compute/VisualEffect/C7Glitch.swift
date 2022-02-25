@@ -9,8 +9,8 @@ import Foundation
 
 public struct C7Glitch: C7FilterProtocol {
     
-    /// The adjusted progress, from 0.0 to 1.0, with a default of 0.5
-    public var progress: Float = 0.5
+    /// The adjusted glitch, from 0.0 to 1.0, with a default of 0.5
+    public var glitch: Float = 0.5
     public var maxJitter: Float = 0.06
     
     public var modifier: Modifier {
@@ -18,7 +18,7 @@ public struct C7Glitch: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [progress, maxJitter]
+        return [glitch, maxJitter]
     }
     
     public init() { }
