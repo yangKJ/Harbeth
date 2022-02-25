@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.1.7'
+  s.version          = '0.1.8'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -64,6 +64,10 @@ Pod::Spec.new do |s|
     end
     xx.subspec 'Matrix' do |xxx|
       xxx.source_files = 'Sources/Compute/Matrix/*'
+      xxx.dependency 'Harbeth/Basic'
+    end
+    xx.subspec 'VisualEffect' do |xxx|
+      xxx.source_files = 'Sources/Compute/VisualEffect/*'
       xxx.dependency 'Harbeth/Basic'
     end
   end
