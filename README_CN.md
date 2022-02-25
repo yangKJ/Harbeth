@@ -15,23 +15,13 @@
 
 [**English**](README.md) | 简体中文
 
-- 代码零侵入注入滤镜功能，
-
-```swift
-原始代码：
-ImageView.image = originImage
-
-注入滤镜代码：
-let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
-ImageView.image = try? originImage.make(filter: filter)
-```
-
 ## 功能清单
  🟣 目前，[**Metal Moudle**](https://github.com/yangKJ/Harbeth) 最重要的特点可以总结如下：
 
 - 支持运算符函数式操作
 - 支持快速设计滤镜
 - 支持输出源的快速扩展
+- 支持相机采集特效
 - 支持矩阵卷积
 - 滤镜部分大致分为以下几个模块：
    - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend)：图像融合技术
@@ -44,6 +34,37 @@ ImageView.image = try? originImage.make(filter: filter)
    - [x] [VisualEffect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/VisualEffect): 视觉动态特效
 
 #### **总结下来目前共有 `100+` 种滤镜供您使用。✌️**
+
+<p align="left">
+<img src="Screenshot/ShiftGlitch.gif" width="300" hspace="1px">
+<img src="Screenshot/EdgeGlow.gif" width="300" hspace="1px">
+</p>
+
+- 代码零侵入注入滤镜功能，
+
+```swift
+原始代码：
+ImageView.image = originImage
+
+注入滤镜代码：
+let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+ImageView.image = try? originImage.make(filter: filter)
+```
+
+- 相机采集生成图片
+
+```swift
+注入边缘检测滤镜:
+var filter = C7EdgeGlow()
+filter.lineColor = UIColor.red
+
+生成相机采集器:
+let collector = C7FilterCollector(callback: {
+    self.ImageView.image = $0
+})
+collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
+collector.filter = filter
+```
 
 ### 主要部分
 - 核心，基础核心板块
@@ -59,6 +80,7 @@ ImageView.image = try? originImage.make(filter: filter)
 	    - **makeGroup**：多个滤镜组合，请注意滤镜添加的顺序可能会影响图像生成的结果
 	- [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift)：基于C7FilterDestProtocol的图像输入源，以下模式仅支持基于并行计算的编码器
 	- [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): 基于C7FilterDestProtocol的纹理输入源，输入纹理转换成滤镜处理纹理
+	- [C7FilterCollector](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterCollector.swift)：相机数据采集器，生成Layer，然后在主线程返回图片
 
 ### 设计滤镜
 - 举个例子，如何设计一款灵魂出窍滤镜🎷
@@ -207,6 +229,9 @@ filterImageView.image = try? originImage.makeGroup(filters: group)
 **两种方式都可以处理多滤镜方案，怎么选择就看你心情。✌️**
 
 ----
+
+### 相机采集特效
+
 
 ### CocoaPods Install
 

@@ -15,23 +15,13 @@
 
 English | [**简体中文**](README_CN.md)
 
-- Code zero intrusion injection filter function.
-
-```swift
-// Original code:
-ImageView.image = originImage
-
-// Injection filter code:
-let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
-ImageView.image = try? originImage.make(filter: filter)
-```
-
 ## Features
 🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
 - Support operator chain filter.
 - Support quick design filters.
 - Support fast expansion of output sources.
+- Support camera capture effects.
 - Support matrix convolution.
 - The filter part is roughly divided into the following modules:
     - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
@@ -44,6 +34,37 @@ ImageView.image = try? originImage.make(filter: filter)
     - [x] [VisualEffect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/VisualEffect): Visual dynamic effects.
 
 #### **A total of `100+` kinds of filters are currently available.✌️**
+
+<p align="left">
+<img src="Screenshot/ShiftGlitch.gif" width="300" hspace="1px">
+<img src="Screenshot/EdgeGlow.gif" width="300" hspace="1px">
+</p>
+
+- Code zero intrusion injection filter function.
+
+```swift
+// Original code:
+ImageView.image = originImage
+
+// Injection filter code:
+let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+ImageView.image = try? originImage.make(filter: filter)
+```
+
+- Camera capture generates pictures.
+
+```swift
+// Inject an edge detection filter:
+var filter = C7EdgeGlow()
+filter.lineColor = UIColor.red
+
+// Generate camera collector:
+let collector = C7FilterCollector(callback: {
+	self.ImageView.image = $0
+})
+collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
+collector.filter = filter
+```
 
 ### Overview
 - Core, basic core board

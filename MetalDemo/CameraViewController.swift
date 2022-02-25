@@ -26,7 +26,7 @@ class CameraViewController: UIViewController {
                 self?.collector.filter = callback(self!.nextTime)
             }
         })
-        collector.captureSession.sessionPreset = AVCaptureSession.Preset.vga640x480
+        collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
         collector.filter = self.tuple?.filter
         return collector
     }()
