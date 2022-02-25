@@ -23,6 +23,10 @@ public struct C7FilterTexture {
     public func outputImage() -> C7Image? {
         return destTexture.toImage()
     }
+    
+    mutating func updateInputTexture(_ texture: MTLTexture) {
+        inputTexture = texture
+    }
 }
 
 extension C7FilterTexture: C7FilterDestProtocol {
@@ -47,11 +51,5 @@ extension C7FilterTexture: C7FilterDestProtocol {
         } catch {
             throw error
         }
-    }
-}
-
-extension C7FilterTexture {
-    mutating func updateInputTexture(_ texture: MTLTexture) {
-        inputTexture = texture
     }
 }
