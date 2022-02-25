@@ -13,14 +13,14 @@ extension C7Image: C7Compatible { }
 /// 以下模式均只支持基于并行计算编码器`compute(kernel: String)`
 /// The following modes support only the encoder based on parallel computing
 ///
-extension C7Image: C7FilterOutput {
+extension C7Image: C7FilterDestProtocol {
     
-    public func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterOutput {
-        guard let inTexture = self.mt.toTexture() else {
+    public func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterDestProtocol {
+        guard let inTexture = mt.toTexture() else {
             throw C7CustomError.source2Texture
         }
         do {
-            let outTexture = try generateOutTexture(inTexture: inTexture, filter: filter)
+            let outTexture = try Processed.generateOutTexture(inTexture: inTexture, filter: filter)
             guard let outImage = outTexture.toImage() else {
                 throw C7CustomError.texture2Image
             }
@@ -30,14 +30,14 @@ extension C7Image: C7FilterOutput {
         }
     }
     
-    public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterOutput {
-        guard let inTexture = self.mt.toTexture() else {
+    public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterDestProtocol {
+        guard let inTexture = mt.toTexture() else {
             throw C7CustomError.source2Texture
         }
         do {
             var outTexture: MTLTexture = inTexture
             for filter in filters {
-                outTexture = try generateOutTexture(inTexture: outTexture, filter: filter)
+                outTexture = try Processed.generateOutTexture(inTexture: outTexture, filter: filter)
             }
             return (outTexture.toImage() ?? self) as! T
         } catch {

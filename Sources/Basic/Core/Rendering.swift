@@ -58,5 +58,4 @@ internal struct Rendering {
         renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         renderEncoder.endEncoding()
     }
-    
 }

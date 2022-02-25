@@ -25,22 +25,22 @@ public struct C7FilterTexture {
     }
 }
 
-extension C7FilterTexture: C7FilterOutput {
+extension C7FilterTexture: C7FilterDestProtocol {
     
-    public mutating func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterOutput {
+    public mutating func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterDestProtocol {
         do {
-            destTexture = try generateOutTexture(inTexture: inputTexture, filter: filter)
+            destTexture = try Processed.generateOutTexture(inTexture: inputTexture, filter: filter)
             return self as! T
         } catch {
             throw error
         }
     }
     
-    public mutating func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterOutput {
+    public mutating func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterDestProtocol {
         do {
-            var outTexture: MTLTexture = self.inputTexture
+            var outTexture: MTLTexture = inputTexture
             for filter in filters {
-                outTexture = try generateOutTexture(inTexture: outTexture, filter: filter)
+                outTexture = try Processed.generateOutTexture(inTexture: outTexture, filter: filter)
             }
             destTexture = outTexture
             return self as! T
