@@ -22,3 +22,11 @@ public func ->> (left: C7FilterTexture, right: C7FilterProtocol) -> C7FilterText
     _ = try? temp.make(filter: right) as C7FilterTexture
     return temp
 }
+
+@discardableResult
+public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
+    if let destTexture = try? Processed.generateOutTexture(inTexture: left, filter: right) {
+        return destTexture
+    }
+    return left
+}

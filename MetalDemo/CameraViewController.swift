@@ -23,11 +23,11 @@ class CameraViewController: UIViewController {
         let collector = C7FilterCollector(callback: { [weak self] (image) in
             self?.originImageView.image = image
             if let callback = self?.tuple?.callback {
-                self?.collector.filter = callback(self!.nextTime)
+                self?.collector.groupFilters = [callback(self!.nextTime)]
             }
         })
         collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
-        collector.filter = self.tuple?.filter
+        collector.groupFilters = [self.tuple!.filter]
         return collector
     }()
     

@@ -16,7 +16,7 @@ public typealias CollectorImageCallback = (_ image: UIImage) -> Void
 /// The camera data collector returns pictures in the main thread.
 public final class C7FilterCollector: CALayer {
     
-    public var filter: C7FilterProtocol?
+    public var groupFilters: [C7FilterProtocol]
     public lazy var captureSession: AVCaptureSession = AVCaptureSession()
     
     private var textureCache: CVMetalTextureCache?
@@ -24,9 +24,10 @@ public final class C7FilterCollector: CALayer {
     
     public init(callback: @escaping CollectorImageCallback) {
         self.callback = callback
+        self.groupFilters = []
         super.init()
         setupCaptureSession()
-        /// 生成全局纹理缓存
+        // 生成全局纹理缓存，Generate a global texture cache.
         CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Device.device(), nil, &textureCache)
     }
     
@@ -65,17 +66,21 @@ extension C7FilterCollector: AVCaptureVideoDataOutputSampleBufferDelegate {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return
         }
-        guard let filter = filter,
-              let inputTexture = processNext(pixelBuffer: pixelBuffer, textureCache: textureCache),
-              let destTexture = try? Processed.generateOutTexture(inTexture: inputTexture, filter: filter),
-              let image = destTexture.toImage() else {
-                  return
-              }
+        guard let inputTexture = processNext(pixelBuffer: pixelBuffer, textureCache: textureCache) else {
+            return
+        }
+        var destTexture: MTLTexture = inputTexture
+        for filter in groupFilters {
+            if let outTexture = try? Processed.generateOutTexture(inTexture: destTexture, filter: filter) {
+                destTexture = outTexture
+            }
+        }
+        guard let image = destTexture.toImage() else {
+            return
+        }
         if let textureCache = textureCache {
-            /// 渲染完毕之后清空一下
             CVMetalTextureCacheFlush(textureCache, 0);
         }
-        /// 主线程抛出图片
         DispatchQueue.main.sync { callback(image) }
     }
 }
