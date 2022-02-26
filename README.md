@@ -49,6 +49,11 @@ ImageView.image = originImage
 // Injection filter code:
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
 ImageView.image = try? originImage.make(filter: filter)
+
+// OR Use:
+let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
+let result = AT ->> filter
+ImageView.image = result.outputImage()
 ```
 
 - Camera capture generates pictures.
@@ -58,12 +63,17 @@ ImageView.image = try? originImage.make(filter: filter)
 var filter = C7EdgeGlow()
 filter.lineColor = UIColor.red
 
+// Inject a particle filter:
+var filter2 = C7Granularity()
+filter2.grain = 0.8
+
 // Generate camera collector:
 let collector = C7FilterCollector(callback: {
-	self.ImageView.image = $0
+    self.ImageView.image = $0
 })
+ImageView.layer.addSublayer(collector) // Must
 collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
-collector.filter = filter
+collector.groupFilters = [filter, filter2]
 ```
 
 ### Overview
@@ -85,7 +95,7 @@ collector.filter = filter
 - For example, how to design an soul filter.🎷
 
 <p align="left">
-<img src="Screenshot/Soul.gif" width="280" hspace="30px">
+<img src="Screenshot/Soul.gif" width="250" hspace="30px">
 </p>
 
 1. Accomplish `C7FilterProtocal`

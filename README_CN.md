@@ -49,6 +49,11 @@ ImageView.image = originImage
 注入滤镜代码：
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
 ImageView.image = try? originImage.make(filter: filter)
+
+或者
+let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
+let result = AT ->> filter
+ImageView.image = result.outputImage()
 ```
 
 - 相机采集生成图片
@@ -58,12 +63,17 @@ ImageView.image = try? originImage.make(filter: filter)
 var filter = C7EdgeGlow()
 filter.lineColor = UIColor.red
 
+注入颗粒感滤镜:
+var filter2 = C7Granularity()
+filter2.grain = 0.8
+
 生成相机采集器:
 let collector = C7FilterCollector(callback: {
     self.ImageView.image = $0
 })
+ImageView.layer.addSublayer(collector) // 这句必须要，
 collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
-collector.filter = filter
+collector.groupFilters = [filter, filter2]
 ```
 
 ### 主要部分
@@ -86,7 +96,7 @@ collector.filter = filter
 - 举个例子，如何设计一款灵魂出窍滤镜🎷
 
 <p align="left">
-<img src="Screenshot/Soul.gif" width="280" hspace="30px">
+<img src="Screenshot/Soul.gif" width="250" hspace="30px">
 </p>
 
 1. 遵循协议 `C7FilterProtocal`
