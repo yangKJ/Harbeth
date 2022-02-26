@@ -10,12 +10,12 @@ import AVFoundation
 import CoreVideo
 import MetalKit
 
-public typealias CollectorImageCallback = (_ image: UIImage) -> Void
-
 /// 相机数据采集器，在主线程返回图片
 /// The camera data collector returns pictures in the main thread.
 public final class C7FilterCollector: CALayer {
     
+    public typealias CollectorImageCallback = (_ image: UIImage) -> Void
+
     public var groupFilters: [C7FilterProtocol]
     public lazy var captureSession: AVCaptureSession = AVCaptureSession()
     
