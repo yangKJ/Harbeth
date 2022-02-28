@@ -20,6 +20,7 @@ English | [**简体中文**](README_CN.md)
 
 - Support operator chain filter.
 - Support quick design filters.
+- Support merge multiple filter effects.
 - Support fast expansion of output sources.
 - Support camera capture effects.
 - Support matrix convolution.
@@ -48,12 +49,24 @@ ImageView.image = originImage
 
 // Injection filter code:
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
-ImageView.image = try? originImage.make(filter: filter)
+var filter2 = C7Granularity()
+filter2.grain = 0.8
+var filter3 = C7SoulOut()
+filter3.soul = 0.7
+let filters = [filter, filter2, filter3]
+
+// Use:
+ImageView.image = try? originImage.makeGroup(filters: filters)
 
 // OR Use:
 let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-let result = AT ->> filter
+let result = AT ->> filter ->> filter2 ->> filter3
 ImageView.image = result.outputImage()
+
+// Even:
+var texture = originImage.mt.toTexture()!
+filters.forEach { texture = texture ->> $0 }
+ImageView.image = texture.toImage()
 ```
 
 - Camera capture generates pictures.

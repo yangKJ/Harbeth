@@ -20,6 +20,7 @@
 
 - 支持运算符函数式操作
 - 支持快速设计滤镜
+- 支持合并多种滤镜效果
 - 支持输出源的快速扩展
 - 支持相机采集特效
 - 支持矩阵卷积
@@ -48,12 +49,24 @@ ImageView.image = originImage
 
 注入滤镜代码：
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
-ImageView.image = try? originImage.make(filter: filter)
+var filter2 = C7Granularity()
+filter2.grain = 0.8
+var filter3 = C7SoulOut()
+filter3.soul = 0.7
+let filters = [filter, filter2, filter3]
 
-或者
+简单使用
+ImageView.image = try? originImage.makeGroup(filters: filters)
+
+或者运算符操作
 let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-let result = AT ->> filter
+let result = AT ->> filter ->> filter2 ->> filter3
 ImageView.image = result.outputImage()
+
+甚至函数式编程高级用法
+var texture = originImage.mt.toTexture()!
+filters.forEach { texture = texture ->> $0 }
+ImageView.image = texture.toImage()
 ```
 
 - 相机采集生成图片
