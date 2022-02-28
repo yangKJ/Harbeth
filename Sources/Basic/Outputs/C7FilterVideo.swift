@@ -48,7 +48,7 @@ public final class C7FilterVideo {
                   return
               }
         if let image = pixelBuffer.mt.convert2C7Image(textureCache: textureCache, filters: groupFilters) {
-            DispatchQueue.main.sync { callback(image) }
+            callback(image)
         }
     }
 }

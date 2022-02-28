@@ -409,11 +409,15 @@ extension ViewControllerType {
 
 struct HomeViewModel {
     lazy var section: [String] = {
-        return ["视觉特效", "效果类", "颜色处理", "形状变化", "模糊处理", "图片融合类", "滤镜类", "矩阵卷积"]
+        return [
+            "视频视觉特效", "相机视觉特效", "效果类",
+            "颜色处理", "形状变化", "模糊处理",
+            "图片融合类", "滤镜类", "矩阵卷积"
+        ]
     }()
     
     lazy var datas: [[ViewControllerType]] = {
-        return [visual, effect, colorProcess, shape, blur, blend, lookup, matrix]
+        return [visual, visual, effect, colorProcess, shape, blur, blend, lookup, matrix]
     }()
     
     let visual: [ViewControllerType] = [

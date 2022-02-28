@@ -79,7 +79,17 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let type = viewModel.datas[indexPath.section][indexPath.row]
-        if indexPath.section > 0 {
+        if indexPath.section == 0 {
+            let vc = PlayerViewConteroller()
+            vc.tuple = type.setupFilterObject()
+            vc.title = type.rawValue
+            navigationController?.pushViewController(vc, animated: true)
+        } else if (indexPath.section == 1) {
+            let vc = CameraViewController()
+            vc.tuple = type.setupFilterObject()
+            vc.title = type.rawValue
+            navigationController?.pushViewController(vc, animated: true)
+        } else {
             let vc = FilterViewController()
             let tuple = type.setupFilterObject()
             vc.filter = tuple.filter
@@ -92,11 +102,6 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
                 vc.slider.isHidden = true
             }
             vc.originImage = type.image
-            vc.title = type.rawValue
-            navigationController?.pushViewController(vc, animated: true)
-        } else {
-            let vc = CameraViewController()
-            vc.tuple = type.setupFilterObject()
             vc.title = type.rawValue
             navigationController?.pushViewController(vc, animated: true)
         }

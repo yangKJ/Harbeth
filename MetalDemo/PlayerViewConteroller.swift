@@ -22,12 +22,24 @@ class PlayerViewConteroller: UIViewController {
     var player: AVPlayer!
     
     lazy var video: C7FilterVideo = {
-        let video = C7FilterVideo.init(player: player) {
-            self.originImageView.image = $0
+        let video = C7FilterVideo.init(player: player) { [weak self] (image) in
+            self?.originImageView.image = image
+            if let callback = self?.tuple?.callback {
+                self?.video.groupFilters = [callback(self!.nextTime)]
+            }
         }
         video.groupFilters = [self.tuple!.filter]
         return video
     }()
+    
+    // random time(actually NOT random)
+    private let times: [Float] = (0..<50).map { 0.1 + Float($0) * 0.03 }
+    private var current = 0
+    var nextTime: Float {
+        let time = times[current]
+        current = (current + 1) % times.count
+        return time
+    }
     
     deinit {
         print("🎨 is Deinit.")
@@ -40,6 +52,11 @@ class PlayerViewConteroller: UIViewController {
         setupPlayer()
     }
     
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        video.pause()
+    }
+    
     func setupUI() {
         view.backgroundColor = UIColor.background
         view.addSubview(originImageView)
@@ -47,12 +64,13 @@ class PlayerViewConteroller: UIViewController {
             originImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
             originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             originImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            originImageView.heightAnchor.constraint(equalTo: originImageView.widthAnchor, multiplier: 9/16),
+            originImageView.heightAnchor.constraint(equalTo: originImageView.widthAnchor, multiplier: 1),
         ])
     }
     
     func setupPlayer() {
-        let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2017-11-21/7c2b143eeb27d9f2bf98c4ab03360cfe.mp4")!
+        //let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
+        let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2018-03-30/1f36dd9819eeef0bc508414494d34ad9.mp4")!
         let asset = AVURLAsset.init(url: videoURL as URL)
         let playerItem = AVPlayerItem(asset: asset)
         player = AVPlayer.init(playerItem: playerItem)
