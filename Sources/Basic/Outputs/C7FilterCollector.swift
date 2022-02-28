@@ -13,21 +13,21 @@ import MetalKit
 /// The camera data collector returns pictures in the main thread.
 public final class C7FilterCollector: CALayer {
     
-    public typealias CollectorImageCallback = (_ image: UIImage) -> Void
-
     public var groupFilters: [C7FilterProtocol]
     public lazy var captureSession: AVCaptureSession = AVCaptureSession()
     
     private var textureCache: CVMetalTextureCache?
-    private let callback: CollectorImageCallback
+    private let callback: C7FilterImageCallback
     
-    public init(callback: @escaping CollectorImageCallback) {
+    public init(callback: @escaping C7FilterImageCallback) {
         self.callback = callback
         self.groupFilters = []
         super.init()
         setupCaptureSession()
+        #if !targetEnvironment(simulator)
         // 生成全局纹理缓存，Generate a global texture cache.
         CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Device.device(), nil, &textureCache)
+        #endif
     }
     
     required init?(coder: NSCoder) {
@@ -57,26 +57,6 @@ public final class C7FilterCollector: CALayer {
         }
         captureSession.commitConfiguration()
     }
-    
-    func convertPixelBuffer(_ pixelBuffer: CVPixelBuffer, textureCache: CVMetalTextureCache?) -> MTLTexture? {
-        guard let textureCache = textureCache else {
-            return nil
-        }
-        var cvmTexture: CVMetalTexture?
-        CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                  textureCache,
-                                                  pixelBuffer,
-                                                  nil,
-                                                  MTLPixelFormat.bgra8Unorm,
-                                                  CVPixelBufferGetWidth(pixelBuffer),
-                                                  CVPixelBufferGetHeight(pixelBuffer),
-                                                  0,
-                                                  &cvmTexture)
-        if let cvmTexture = cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) {
-            return texture
-        }
-        return nil
-    }
 }
 
 extension C7FilterCollector: AVCaptureVideoDataOutputSampleBufferDelegate {
@@ -85,21 +65,8 @@ extension C7FilterCollector: AVCaptureVideoDataOutputSampleBufferDelegate {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return
         }
-        guard let inputTexture = convertPixelBuffer(pixelBuffer, textureCache: textureCache) else {
-            return
+        if let image = pixelBuffer.mt.convert2C7Image(textureCache: textureCache, filters: groupFilters) {
+            DispatchQueue.main.sync { callback(image) }
         }
-        var destTexture: MTLTexture = inputTexture
-        for filter in groupFilters {
-            if let outTexture = try? Processed.generateOutTexture(inTexture: destTexture, filter: filter) {
-                destTexture = outTexture
-            }
-        }
-        guard let image = destTexture.toImage() else {
-            return
-        }
-        if let textureCache = textureCache {
-            CVMetalTextureCacheFlush(textureCache, 0);
-        }
-        DispatchQueue.main.sync { callback(image) }
     }
 }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04299FE327CCA52F0002FDE8 /* PlayerViewConteroller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04299FE227CCA52F0002FDE8 /* PlayerViewConteroller.swift */; };
 		044E2AD527C8CB850098B0D1 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044E2AD427C8CB850098B0D1 /* CameraViewController.swift */; };
 		0474836A27C5C5C9001ABF44 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 0474836927C5C5C9001ABF44 /* README_CN.md */; };
 		0474836C27C5C5CF001ABF44 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 0474836B27C5C5CF001ABF44 /* README.md */; };
@@ -44,6 +45,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		04299FE227CCA52F0002FDE8 /* PlayerViewConteroller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewConteroller.swift; sourceTree = "<group>"; };
 		044E2AD427C8CB850098B0D1 /* CameraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewController.swift; sourceTree = "<group>"; };
 		0474836927C5C5C9001ABF44 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = SOURCE_ROOT; };
 		0474836B27C5C5CF001ABF44 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
@@ -131,6 +133,7 @@
 				04FA70C127B8D8D4006199B0 /* FilterViewController.swift */,
 				04FA709327B8D7D8006199B0 /* HomeViewController.swift */,
 				04FA70C027B8D8D4006199B0 /* HomeViewModel.swift */,
+				04299FE227CCA52F0002FDE8 /* PlayerViewConteroller.swift */,
 				04FA70BF27B8D83B006199B0 /* Resources */,
 			);
 			path = MetalDemo;
@@ -418,6 +421,7 @@
 				044E2AD527C8CB850098B0D1 /* CameraViewController.swift in Sources */,
 				04FA70C227B8D8D4006199B0 /* HomeViewModel.swift in Sources */,
 				04FA70C327B8D8D4006199B0 /* FilterViewController.swift in Sources */,
+				04299FE327CCA52F0002FDE8 /* PlayerViewConteroller.swift in Sources */,
 				04FA709027B8D7D8006199B0 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

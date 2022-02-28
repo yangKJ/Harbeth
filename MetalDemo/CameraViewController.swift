@@ -31,13 +31,6 @@ class CameraViewController: UIViewController {
         return collector
     }()
     
-    lazy var displayLink: CADisplayLink = {
-        let displayLink = CADisplayLink(target: self, selector: #selector(readBuffer(_:)))
-        displayLink.add(to: .current, forMode: .default)
-        displayLink.isPaused = true
-        return displayLink
-    }()
-    
     // random time(actually NOT random)
     private let times: [Float] = (0..<50).map { 0.1 + Float($0) * 0.03 }
     private var current = 0
@@ -81,9 +74,5 @@ class CameraViewController: UIViewController {
             originImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             originImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100)
         ])
-    }
-    
-    @objc func readBuffer(_ sender: CADisplayLink) {
-        
     }
 }

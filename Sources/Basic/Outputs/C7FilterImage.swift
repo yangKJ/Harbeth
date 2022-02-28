@@ -89,4 +89,14 @@ extension Queen where Base == C7Image {
         }
         return nil
     }
+    
+    /// Convert to a filter image
+    public func convert2FilterImage(filters: [C7FilterProtocol]) -> C7Image {
+        guard var texture = toTexture() else { return base }
+        filters.forEach { texture = texture ->> $0 }
+        if let image = texture.toImage() {
+            return image
+        }
+        return base
+    }
 }
