@@ -16,7 +16,8 @@ kernel void C7ExclusionBlend(texture2d<half, access::write> outputTexture [[text
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const half4 overlay = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
-    const half4 outColor((overlay.rgb * inColor.a + inColor.rgb * overlay.a - 2.0h * overlay.rgb * inColor.rgb) + overlay.rgb * (1.0h - inColor.a) + inColor.rgb * (1.0h - overlay.a), inColor.a);
+    const half3 excolor = half3(overlay.rgb * inColor.a + inColor.rgb * overlay.a - 2.0h * overlay.rgb * inColor.rgb) + overlay.rgb * (1.0h - inColor.a) + inColor.rgb * (1.0h - overlay.a);
+    const half4 outColor = half4(excolor, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

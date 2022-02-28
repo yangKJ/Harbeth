@@ -15,7 +15,7 @@ kernel void C7Haze(texture2d<half, access::write> outputTexture [[texture(0)]],
                    uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half4 white = half4(1.0);
+    const half4 white = half4(1.0h);
     const half dd = half(grid.y) / half(inputTexture.get_height()) * half(*slope) + half(*hazeDistance);
     const half4 outColor = half4((inColor - dd * white) / (1.0h - dd));
     

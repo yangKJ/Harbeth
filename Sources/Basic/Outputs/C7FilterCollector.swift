@@ -5,7 +5,6 @@
 //  Created by Condy on 2022/2/25.
 //
 
-import Foundation
 import AVFoundation
 import CoreVideo
 import MetalKit
@@ -58,36 +57,8 @@ public final class C7FilterCollector: CALayer {
         }
         captureSession.commitConfiguration()
     }
-}
-
-extension C7FilterCollector: AVCaptureVideoDataOutputSampleBufferDelegate {
     
-    public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            return
-        }
-        guard let inputTexture = processNext(pixelBuffer: pixelBuffer, textureCache: textureCache) else {
-            return
-        }
-        var destTexture: MTLTexture = inputTexture
-        for filter in groupFilters {
-            if let outTexture = try? Processed.generateOutTexture(inTexture: destTexture, filter: filter) {
-                destTexture = outTexture
-            }
-        }
-        guard let image = destTexture.toImage() else {
-            return
-        }
-        if let textureCache = textureCache {
-            CVMetalTextureCacheFlush(textureCache, 0);
-        }
-        DispatchQueue.main.sync { callback(image) }
-    }
-}
-
-extension C7FilterCollector {
-    
-    func processNext(pixelBuffer: CVPixelBuffer, textureCache: CVMetalTextureCache?) -> MTLTexture? {
+    func convertPixelBuffer(_ pixelBuffer: CVPixelBuffer, textureCache: CVMetalTextureCache?) -> MTLTexture? {
         guard let textureCache = textureCache else {
             return nil
         }
@@ -105,5 +76,30 @@ extension C7FilterCollector {
             return texture
         }
         return nil
+    }
+}
+
+extension C7FilterCollector: AVCaptureVideoDataOutputSampleBufferDelegate {
+    
+    public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return
+        }
+        guard let inputTexture = convertPixelBuffer(pixelBuffer, textureCache: textureCache) else {
+            return
+        }
+        var destTexture: MTLTexture = inputTexture
+        for filter in groupFilters {
+            if let outTexture = try? Processed.generateOutTexture(inTexture: destTexture, filter: filter) {
+                destTexture = outTexture
+            }
+        }
+        guard let image = destTexture.toImage() else {
+            return
+        }
+        if let textureCache = textureCache {
+            CVMetalTextureCacheFlush(textureCache, 0);
+        }
+        DispatchQueue.main.sync { callback(image) }
     }
 }

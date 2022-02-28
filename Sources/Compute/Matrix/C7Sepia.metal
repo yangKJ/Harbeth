@@ -18,7 +18,7 @@ kernel void C7Sepia(texture2d<half, access::write> outputTexture [[texture(0)]],
                                    {0.2990, 0.5870, 0.1140, 0.0},
                                    {0.2392, 0.4696, 0.0912, 0.0},
                                    {0.0000, 0.0000, 0.0000, 1.0});
-    const half4 outColor = half(*intensity) * (inColor * matrix) + (1.0 - half(*intensity)) * inColor;
+    const half4 outColor = half(*intensity) * (inColor * matrix) + (1.0h - half(*intensity)) * inColor;
     
     outputTexture.write(outColor, grid);
 }

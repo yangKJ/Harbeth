@@ -19,10 +19,11 @@ kernel void C7Vignette(texture2d<half, access::write> outputTexture [[texture(0)
                        constant float *end [[buffer(6)]],
                        uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
+    const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     
     const half2 center = half2(*centerX, *centerY);
     const half3 color = half3(*colorR, *colorG, *colorB);
-    const float dd = distance(float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()), float2(center));
+    const float dd = distance(textureCoordinate, float2(center));
     const half percent = smoothstep(*start, *end, dd);
     const half4 outColor = half4(mix(inColor.rgb, color, percent), inColor.a);
     

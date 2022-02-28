@@ -16,7 +16,7 @@ kernel void C7ColorBurnBlend(texture2d<half, access::write> outputTexture [[text
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const half4 inColor2 = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
-    const half4 whiteColor = half4(1.0);
+    const half4 whiteColor = half4(1.0h);
     const half4 outColor = whiteColor - (whiteColor - inColor) / inColor2;
     
     outputTexture.write(outColor, grid);

@@ -58,7 +58,7 @@ internal struct Processed {
     ///    - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
     ///    - width: The texture width
     ///    - height: The texture height
-    ///    - mipmAPPED: No mapping was required
+    ///    - mipmapped: No mapping was required
     /// - Returns: New textures
     static func destTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
                             width: Int, height: Int,

@@ -15,7 +15,7 @@ kernel void C7Posterize(texture2d<half, access::write> outputTexture [[texture(0
     const half4 inColor = inputTexture.read(grid);
     
     const half colorLevels = half(*colorLevelsPointer);
-    const half4 outColor = floor((inColor * colorLevels) + half4(0.5)) / colorLevels;
+    const half4 outColor = floor((inColor * colorLevels) + half4(0.5h)) / colorLevels;
     
     outputTexture.write(outColor, grid);
 }

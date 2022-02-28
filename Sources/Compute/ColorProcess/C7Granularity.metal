@@ -16,7 +16,7 @@ kernel void C7Granularity(texture2d<half, access::write> outputTexture [[texture
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     
     const float d = dot(textureCoordinate, float2(12.9898, 78.233) * 2.0);
-    const half noise = (fract(sin(d) * 43758.5453));
+    const half noise = half(fract(sin(d) * 43758.5453h));
     const half4 outColor = half4(inColor - noise * (*grain));
     
     outputTexture.write(outColor, grid);

@@ -16,7 +16,7 @@ kernel void C7LuminanceRangeReduction(texture2d<half, access::write> outputTextu
     
     const half3 luminanceWeighting = half3(0.2125, 0.7154, 0.0721); // 亮度常量
     const half _luminance = dot(inColor.rgb, luminanceWeighting);
-    half luminanceRatio = ((0.5 - _luminance) * half(*rangeReductionFactor));
+    half luminanceRatio = ((0.5h - _luminance) * half(*rangeReductionFactor));
     const half4 outColor = half4(half3((inColor.rgb) + (luminanceRatio)), inColor.w);
     
     outputTexture.write(outColor, grid);

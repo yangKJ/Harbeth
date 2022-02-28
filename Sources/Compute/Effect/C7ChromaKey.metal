@@ -22,11 +22,11 @@ kernel void C7ChromaKey(texture2d<half, access::write> outputTexture [[texture(0
     const half G = half(*colorG);
     const half B = half(*colorB);
     
-    const half maskY = 0.2989h * R + 0.5866h * G + 0.1145h * B;
+    const half maskY  = 0.2989h * R + 0.5866h * G + 0.1145h * B;
     const half maskCr = 0.7132h * (R - maskY);
     const half maskCb = 0.5647h * (B - maskY);
     
-    const half Y = 0.2989h * inColor.r + 0.5866h * inColor.g + 0.1145h * inColor.b;
+    const half Y  = 0.2989h * inColor.r + 0.5866h * inColor.g + 0.1145h * inColor.b;
     const half Cr = 0.7132h * (inColor.r - Y);
     const half Cb = 0.5647h * (inColor.b - Y);
     

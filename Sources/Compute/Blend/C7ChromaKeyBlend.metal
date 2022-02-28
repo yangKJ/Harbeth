@@ -21,11 +21,11 @@ kernel void C7ChromaKeyBlend(texture2d<half, access::write> outputTexture [[text
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const half4 inColor2 = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
     
-    const half maskY = 0.2989h * half(*red) + 0.5866h * half(*green) + 0.1145h * half(*blue);
+    const half maskY  = 0.2989h * half(*red) + 0.5866h * half(*green) + 0.1145h * half(*blue);
     const half maskCr = 0.7132h * (half(*red) - maskY);
     const half maskCb = 0.5647h * (half(*blue) - maskY);
     
-    const half Y = 0.2989h * inColor.r + 0.5866h * inColor.g + 0.1145h * inColor.b;
+    const half Y  = 0.2989h * inColor.r + 0.5866h * inColor.g + 0.1145h * inColor.b;
     const half Cr = 0.7132h * (inColor.r - Y);
     const half Cb = 0.5647h * (inColor.b - Y);
     

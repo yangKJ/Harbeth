@@ -31,7 +31,7 @@ kernel void C7Crosshatch(texture2d<half, access::write> outputTexture [[texture(
     ((luminance < 0.50) && (C7CrosshatchMod(textureCoordinate.x + textureCoordinate.y - (crossHatchSpacing / 2.0), crossHatchSpacing) <= lineWidth)) ||
     ((luminance < 0.3) && (C7CrosshatchMod(textureCoordinate.x - textureCoordinate.y - (crossHatchSpacing / 2.0), crossHatchSpacing) <= lineWidth));
     
-    const half4 outColor = displayBlack ? half4(0.0, 0.0, 0.0, 1.0) : half4(1.0);
+    const half4 outColor = displayBlack ? half4(0.0h, 0.0h, 0.0h, 1.0h) : half4(1.0h);
     
     outputTexture.write(outColor, grid);
 }

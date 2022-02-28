@@ -16,7 +16,7 @@ kernel void C7MonochromeDilation(texture2d<half, access::write> outputTexture [[
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     int radius = abs(*pixelRadius);
-    half maxValue = half(0);
+    half maxValue = half(0.0h);
     if (*vertical) {
         for (int i = -radius; i <= radius; ++i) {
             const float2 coordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y + i) / outputTexture.get_height());

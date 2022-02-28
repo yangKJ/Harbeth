@@ -36,7 +36,7 @@ kernel void C7LuminosityBlend(texture2d<half, access::write> outputTexture [[tex
     
     const half4 overlay = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
     const half tt = dot(overlay.rgb, half3(0.3, 0.59, 0.11));
-    const half4 outColor(inColor.rgb * (1.0h - overlay.a) + C7LuminosityBlendSetlum(inColor.rgb, tt) * overlay.a, inColor.a);
+    const half4 outColor = half4(inColor.rgb * (1.0h - overlay.a) + C7LuminosityBlendSetlum(inColor.rgb, tt) * overlay.a, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

@@ -17,7 +17,7 @@ kernel void C7MaskBlend(texture2d<half, access::write> outputTexture [[texture(0
     
     const half4 inColor2 = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
     const half newAlpha = dot(inColor2.rgb, half3(.33333334, .33333334, .33333334)) * inColor2.a;
-    const half4 outColor(inColor.rgb, newAlpha);
+    const half4 outColor = half4(inColor.rgb, newAlpha);
     
     outputTexture.write(outColor, grid);
 }

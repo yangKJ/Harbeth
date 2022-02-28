@@ -48,6 +48,6 @@ kernel void C7GlassSphere(texture2d<half, access::write> outputTexture [[texture
     lightingIntensity = pow(lightingIntensity, 15.0);
     finalSphereColor += half3(0.8, 0.8, 0.8) * half(lightingIntensity);
     
-    const half4 outColor = half4(finalSphereColor, 1.0) * half(checkForPresenceWithinSphere);
+    const half4 outColor = half4(finalSphereColor, 1.0h) * half(checkForPresenceWithinSphere);
     outputTexture.write(outColor, grid);
 }

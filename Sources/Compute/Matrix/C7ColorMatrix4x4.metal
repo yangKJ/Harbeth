@@ -30,7 +30,7 @@ kernel void C7ColorMatrix4x4(texture2d<half, access::write> outputTexture [[text
     const half alpha = r * matrix[3][0] + g * matrix[3][1] + b * matrix[3][2] + a * matrix[3][3] + (*alphaOffset);
     
     const half4 color = half4(red, green, blue, alpha);
-    const half4 outColor = half(*intensity) * color + (1.0 - half(*intensity)) * inColor;
+    const half4 outColor = half(*intensity) * color + (1.0h - half(*intensity)) * inColor;
     
     outputTexture.write(outColor, grid);
 }

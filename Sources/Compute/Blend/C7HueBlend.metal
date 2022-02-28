@@ -78,7 +78,7 @@ kernel void C7HueBlend(texture2d<half, access::write> outputTexture [[texture(0)
     const half tt = dot(overlay.rgb, half3(0.3, 0.59, 0.11));
     const half sat = max(max(inColor.r, inColor.g), inColor.b) - min(min(inColor.r, inColor.g), inColor.b);
     const half3 xxx = C7HueBlendSetsat(overlay.rgb, sat);
-    const half4 outColor(inColor.rgb * (1.0h - overlay.a) + C7HueBlendSetlum(xxx, tt) * overlay.a, inColor.a);
+    const half4 outColor = half4(inColor.rgb * (1.0h - overlay.a) + C7HueBlendSetlum(xxx, tt) * overlay.a, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

@@ -38,6 +38,6 @@ kernel void C7HardLightBlend(texture2d<half, access::write> outputTexture [[text
         ba = overlay.a * inColor.a - 2.0h * (inColor.a - inColor.b) * (overlay.a - overlay.b) + overlay.b * (1.0h - inColor.a) + inColor.b * (1.0h - overlay.a);
     }
     
-    const half4 outColor(ra, ga, ba, 1.0h);
+    const half4 outColor = half4(ra, ga, ba, 1.0h);
     outputTexture.write(outColor, grid);
 }

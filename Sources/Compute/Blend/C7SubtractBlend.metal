@@ -16,7 +16,7 @@ kernel void C7SubtractBlend(texture2d<half, access::write> outputTexture [[textu
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const half4 inColor2 = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
-    const half4 outColor(inColor.rgb - inColor2.rgb, inColor.a);
+    const half4 outColor = half4(inColor.rgb - inColor2.rgb, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

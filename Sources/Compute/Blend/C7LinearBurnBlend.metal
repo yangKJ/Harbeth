@@ -16,7 +16,7 @@ kernel void C7LinearBurnBlend(texture2d<half, access::write> outputTexture [[tex
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const half4 inColor2 = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
-    const half4 outColor(clamp(inColor.rgb + inColor2.rgb - half3(1.0h), half3(0.0h), half3(1.0h)), inColor.a);
+    const half4 outColor = half4(clamp(inColor.rgb + inColor2.rgb - half3(1.0h), half3(0.0h), half3(1.0h)), inColor.a);
     
     outputTexture.write(outColor, grid);
 }
