@@ -66,6 +66,7 @@ enum ViewControllerType: String {
     case Transform = "透视变形"
     case ShiftGlitch = "色彩故障转移特效"
     case EdgeGlow = "边缘发光特效"
+    case VoronoiOverlay = "泰森多边形法叠加效果"
 }
 
 extension ViewControllerType {
@@ -403,6 +404,12 @@ extension ViewControllerType {
                 filter.time = $0
                 return filter
             })
+        case .VoronoiOverlay:
+            var filter = C7VoronoiOverlay()
+            return (filter, (0.5, 0.1, 0.6), {
+                filter.time = $0
+                return filter
+            })
         }
     }
 }
@@ -423,6 +430,7 @@ struct HomeViewModel {
     let visual: [ViewControllerType] = [
         .ShiftGlitch, .SoulOut, .EdgeGlow,
         .Luminance, .ColorMatrix, .Monochrome,
+        .VoronoiOverlay,
     ]
     
     let effect: [ViewControllerType] = [
@@ -431,6 +439,7 @@ struct HomeViewModel {
         .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl, .SplitScreen,
         .Monochrome, .ReplaceColor, .ChromaKey,
+        .VoronoiOverlay,
     ]
     
     let colorProcess: [ViewControllerType] = [
