@@ -50,10 +50,13 @@ ImageView.image = originImage
 
 注入滤镜代码：
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+
 var filter2 = C7Granularity()
 filter2.grain = 0.8
+
 var filter3 = C7SoulOut()
 filter3.soul = 0.7
+
 let filters = [filter, filter2, filter3]
 
 简单使用
@@ -82,12 +85,11 @@ var filter2 = C7Granularity()
 filter2.grain = 0.8
 
 生成相机采集器:
-let collector = C7FilterCollector(callback: { [weak self] (image) in
+let camera = C7CollectorCamera(callback: { [weak self] (image) in
     self?.ImageView.image = image
 })
-ImageView.layer.addSublayer(collector) // 这句必须要，
-collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
-collector.groupFilters = [filter, filter2]
+camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
+camera.filters = [filter, filter2]
 ```
 
 ### 主要部分
@@ -99,11 +101,11 @@ collector.groupFilters = [filter, filter2]
         - **outputSize**：更改输出图像的大小
 
 - 输出，输出板块
-	- [C7FilterDestProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterDestProtocol.swift)：输出内容协议，所有输出都必须实现该协议
+	- [C7FilterOutput](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterOutput.swift)：输出内容协议，所有输出都必须实现该协议
 	    - **make**：根据滤镜处理生成数据
 	    - **makeGroup**：多个滤镜组合，请注意滤镜添加的顺序可能会影响图像生成的结果
-	- [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift)：基于C7FilterDestProtocol的图像输入源，以下模式仅支持基于并行计算的编码器
-	- [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): 基于C7FilterDestProtocol的纹理输入源，输入纹理转换成滤镜处理纹理
+	- [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift)：基于C7FilterOutput的图像输入源，以下模式仅支持基于并行计算的编码器
+	- [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): 基于C7FilterOutput的纹理输入源，输入纹理转换成滤镜处理纹理
 	- [C7FilterCollector](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterCollector.swift)：相机数据采集器，生成Layer，然后在主线程返回图片
 
 ### 设计滤镜

@@ -50,10 +50,13 @@ ImageView.image = originImage
 
 // Injection filter code:
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+
 var filter2 = C7Granularity()
 filter2.grain = 0.8
+
 var filter3 = C7SoulOut()
 filter3.soul = 0.7
+
 let filters = [filter, filter2, filter3]
 
 // Use:
@@ -82,12 +85,11 @@ var filter2 = C7Granularity()
 filter2.grain = 0.8
 
 // Generate camera collector:
-let collector = C7FilterCollector(callback: { [weak self] (image) in
+let camera = C7CollectorCamera(callback: { [weak self] (image) in
     self?.ImageView.image = image
 })
-ImageView.layer.addSublayer(collector) // Must
-collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
-collector.groupFilters = [filter, filter2]
+camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
+camera.filters = [filter, filter2]
 ```
 
 ### Overview
@@ -99,11 +101,11 @@ collector.groupFilters = [filter, filter2]
         - **outputSize**: Change the size of the output image. 
 
 - Outputs, output section
-    - [C7FilterDestProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterDestProtocol.swift): Output content protocol, all outputs must implement this protocol.
+    - [C7FilterOutput](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterOutput.swift): Output content protocol, all outputs must implement this protocol.
         - **make**: Generate data based on filter processing.
         - **makeGroup**: Multiple filter combinations, Please note that the order in which filters are added may affect the result of image generation.
-    - [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift): Image input source based on C7FilterDestProtocol, The following modes support only the encoder based on parallel computing.
-    - [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): MTLTexture input source based on C7FilterDestProtocol, The input texture is converted to a filter to process the texture.
+    - [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift): Image input source based on C7FilterOutput, The following modes support only the encoder based on parallel computing.
+    - [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): MTLTexture input source based on C7FilterOutput, The input texture is converted to a filter to process the texture.
 
 ### Usages
 - For example, how to design an soul filter.🎷
