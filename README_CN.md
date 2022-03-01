@@ -1,6 +1,6 @@
 # Harbeth
 
-![x](Screenshot/launch.jpeg)
+![x](Screenshot/M.jpeg)
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
@@ -23,6 +23,7 @@
 - 支持合并多种滤镜效果
 - 支持输出源的快速扩展
 - 支持相机采集特效
+- 支持视频添加滤镜特效
 - 支持矩阵卷积
 - 滤镜部分大致分为以下几个模块：
    - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend)：图像融合技术
@@ -81,8 +82,8 @@ var filter2 = C7Granularity()
 filter2.grain = 0.8
 
 生成相机采集器:
-let collector = C7FilterCollector(callback: {
-    self.ImageView.image = $0
+let collector = C7FilterCollector(callback: { [weak self] (image) in
+    self?.ImageView.image = image
 })
 ImageView.layer.addSublayer(collector) // 这句必须要，
 collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720

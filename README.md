@@ -23,6 +23,7 @@ English | [**简体中文**](README_CN.md)
 - Support merge multiple filter effects.
 - Support fast expansion of output sources.
 - Support camera capture effects.
+- Support video to add filter special effects.
 - Support matrix convolution.
 - The filter part is roughly divided into the following modules:
     - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
@@ -81,8 +82,8 @@ var filter2 = C7Granularity()
 filter2.grain = 0.8
 
 // Generate camera collector:
-let collector = C7FilterCollector(callback: {
-    self.ImageView.image = $0
+let collector = C7FilterCollector(callback: { [weak self] (image) in
+    self?.ImageView.image = image
 })
 ImageView.layer.addSublayer(collector) // Must
 collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
