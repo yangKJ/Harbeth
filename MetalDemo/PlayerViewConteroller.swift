@@ -21,14 +21,14 @@ class PlayerViewConteroller: UIViewController {
     
     var player: AVPlayer!
     
-    lazy var video: C7FilterVideo = {
-        let video = C7FilterVideo.init(player: player) { [weak self] (image) in
+    lazy var video: C7CollectorVideo = {
+        let video = C7CollectorVideo.init(player: player) { [weak self] (image) in
             self?.originImageView.image = image
             if let callback = self?.tuple?.callback {
-                self?.video.groupFilters = [callback(self!.nextTime)]
+                self?.video.filters = [callback(self!.nextTime)]
             }
         }
-        video.groupFilters = [self.tuple!.filter]
+        video.filters = [self.tuple!.filter]
         return video
     }()
     
@@ -69,8 +69,8 @@ class PlayerViewConteroller: UIViewController {
     }
     
     func setupPlayer() {
-        //let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
-        let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2018-03-30/1f36dd9819eeef0bc508414494d34ad9.mp4")!
+        let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
+        //let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2018-03-30/1f36dd9819eeef0bc508414494d34ad9.mp4")!
         let asset = AVURLAsset.init(url: videoURL as URL)
         let playerItem = AVPlayerItem(asset: asset)
         player = AVPlayer.init(playerItem: playerItem)

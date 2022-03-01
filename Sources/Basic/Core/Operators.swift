@@ -15,7 +15,13 @@ precedencegroup AppendPrecedence {
 
 infix operator ->> : AppendPrecedence
 
-//@discardableResult
+public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
+    if let destTexture = try? Processed.generateOutTexture(inTexture: left, filter: right) {
+        return destTexture
+    }
+    return left
+}
+
 public func ->> (left: C7FilterTexture, right: C7FilterProtocol) -> C7FilterTexture {
     var temp = left
     temp.updateInputTexture(temp.destTexture)
@@ -24,9 +30,7 @@ public func ->> (left: C7FilterTexture, right: C7FilterProtocol) -> C7FilterText
 }
 
 @discardableResult
-public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
-    if let destTexture = try? Processed.generateOutTexture(inTexture: left, filter: right) {
-        return destTexture
-    }
+public func ->> (left: C7Collector, right: C7FilterProtocol) -> C7Collector {
+    left.filters.append(right)
     return left
 }

@@ -6,7 +6,6 @@
 //
 
 import Harbeth
-import AVFoundation
 
 class CameraViewController: UIViewController {
     
@@ -19,16 +18,16 @@ class CameraViewController: UIViewController {
         return imageView
     }()
     
-    lazy var collector: C7FilterCollector = {
-        let collector = C7FilterCollector(callback: { [weak self] (image) in
+    lazy var camera: C7CollectorCamera = {
+        let camera = C7CollectorCamera(callback: { [weak self] (image) in
             self?.originImageView.image = image
             if let callback = self?.tuple?.callback {
-                self?.collector.groupFilters = [callback(self!.nextTime)]
+                self?.camera.filters = [callback(self!.nextTime)]
             }
         })
-        collector.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
-        collector.groupFilters = [self.tuple!.filter]
-        return collector
+        camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
+        camera.filters = [self.tuple!.filter]
+        return camera
     }()
     
     // random time(actually NOT random)
@@ -52,22 +51,17 @@ class CameraViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        DispatchQueue.global().async{
-            self.collector.captureSession.startRunning()
-        }
+        camera.startCollector()
     }
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        DispatchQueue.global().async{
-            self.collector.captureSession.stopRunning()
-        }
+        camera.stopCollector()
     }
     
     func setupUI() {
         view.backgroundColor = UIColor.background
         view.addSubview(originImageView)
-        originImageView.layer.addSublayer(collector)
         NSLayoutConstraint.activate([
             originImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
             originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
