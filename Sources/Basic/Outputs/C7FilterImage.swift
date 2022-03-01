@@ -13,9 +13,9 @@ extension C7Image: C7Compatible { }
 /// 以下模式均只支持基于并行计算编码器`compute(kernel: String)`
 /// The following modes support only the encoder based on parallel computing
 ///
-extension C7Image: C7FilterDestProtocol {
+extension C7Image: C7FilterOutput {
     
-    public func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterDestProtocol {
+    public func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterOutput {
         guard let inTexture = mt.toTexture() else {
             throw C7CustomError.source2Texture
         }
@@ -30,7 +30,7 @@ extension C7Image: C7FilterDestProtocol {
         }
     }
     
-    public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterDestProtocol {
+    public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterOutput {
         guard let inTexture = mt.toTexture() else {
             throw C7CustomError.source2Texture
         }
