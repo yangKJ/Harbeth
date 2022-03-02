@@ -26,8 +26,6 @@ kernel void C7SplitScreen(texture2d<half, access::write> outputTexture [[texture
         }
     }
     
-    const half4 mask = inputTexture.sample(quadSampler, float2(x, y));
-    const half4 outColor = half4(mask.rgb, 1.0h);
-    
+    const half4 outColor = inputTexture.sample(quadSampler, float2(x, y));
     outputTexture.write(outColor, grid);
 }

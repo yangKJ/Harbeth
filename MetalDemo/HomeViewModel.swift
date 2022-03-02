@@ -67,6 +67,9 @@ enum ViewControllerType: String {
     case ShiftGlitch = "色彩故障转移特效"
     case EdgeGlow = "边缘发光特效"
     case VoronoiOverlay = "泰森多边形法叠加效果"
+    case MeanBlur = "均值模糊"
+    case GaussianBlur = "高斯模糊"
+    case Storyboard = "分镜展示"
 }
 
 extension ViewControllerType {
@@ -410,6 +413,24 @@ extension ViewControllerType {
                 filter.time = $0
                 return filter
             })
+        case .MeanBlur:
+            var filter = C7MeanBlur()
+            return (filter, (1, 0, 2), {
+                filter.blurRadius = $0
+                return filter
+            })
+        case .GaussianBlur:
+            var filter = C7GaussianBlur()
+            return (filter, (1, 0, 2), {
+                filter.blurRadius = $0
+                return filter
+            })
+        case .Storyboard:
+            var filter = C7Storyboard()
+            return (filter, (2, 1, 10), {
+                filter.N = Int($0)
+                return filter
+            })
         }
     }
 }
@@ -437,7 +458,7 @@ struct HomeViewModel {
         .ZoomBlur, .Vignette, .WaterRipple,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot,
-        .Posterize, .Swirl, .SplitScreen,
+        .Posterize, .Swirl, .SplitScreen, .Storyboard,
         .Monochrome, .ReplaceColor, .ChromaKey,
         .VoronoiOverlay,
     ]
@@ -458,7 +479,8 @@ struct HomeViewModel {
     ]
     
     let blur: [ViewControllerType] = [
-        .MonochromeDilation, .MotionBlur,
+        .MonochromeDilation, .MotionBlur, .MeanBlur,
+        .GaussianBlur,
     ]
     
     let blend: [ViewControllerType] = [

@@ -34,7 +34,7 @@ kernel void C7VoronoiOverlay(texture2d<half, access::write> outputTexture [[text
     const half alpha = half(*alphaPointer);
     const float3 iResolution = float3(*iResolutionX, *iResolutionY, 1);
     
-    float mode = iTime / 5.0;//mod(iTime/5.0, 3.0);
+    float mode = fmod(iTime/5.0, 3.0);
     mode = floor(mode) + smoothstep(0.8, 1.0, fract(mode));
     
     float2 p = textureCoordinate.xy / iResolution.xx;
