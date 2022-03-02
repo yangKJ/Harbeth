@@ -70,6 +70,7 @@ enum ViewControllerType: String {
     case MeanBlur = "均值模糊"
     case GaussianBlur = "高斯模糊"
     case Storyboard = "分镜展示"
+    case BilateralBlur = "双边模糊"
 }
 
 extension ViewControllerType {
@@ -431,6 +432,12 @@ extension ViewControllerType {
                 filter.N = Int($0)
                 return filter
             })
+        case .BilateralBlur:
+            var filter = C7BilateralBlur()
+            return (filter, (1, 0, 1), {
+                filter.blurRadius = $0
+                return filter
+            })
         }
     }
 }
@@ -480,7 +487,7 @@ struct HomeViewModel {
     
     let blur: [ViewControllerType] = [
         .MonochromeDilation, .MotionBlur, .MeanBlur,
-        .GaussianBlur,
+        .GaussianBlur, .BilateralBlur,
     ]
     
     let blend: [ViewControllerType] = [
