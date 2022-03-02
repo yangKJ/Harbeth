@@ -21,7 +21,7 @@ public protocol C7CollectorProtocol {
     /// - Parameter callback: Collect generated filter image callback. You can display it directly using ImageView.
     init(callback: @escaping C7FilterImageCallback)
     
-    /// Initialization method
+    /// Initialization method, TODO:
     /// This mode internally generates MTKView for rendering.
     ///
     /// - Parameter view: Host the render control view.
@@ -55,9 +55,11 @@ extension C7Collector {
     func pixelBuffer2Image(_ pixelBuffer: CVPixelBuffer?) -> C7Image? {
         guard let pixelBuffer = pixelBuffer else { return nil }
         let image = pixelBuffer.mt.convert2C7Image(textureCache: textureCache, filters: filters)
+        #if !targetEnvironment(simulator)
         if let textureCache = textureCache {
             CVMetalTextureCacheFlush(textureCache, 0);
         }
+        #endif
         return image
     }
 }
