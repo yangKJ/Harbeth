@@ -22,10 +22,10 @@ kernel void C7Pinch(texture2d<half, access::write> outputTexture [[texture(0)]],
     const float scale = float(*scalePointer);
     const float aspectRatio = float(inputTexture.get_height()) / float(inputTexture.get_width());
     
-    const float2 inCoordinateToUse = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
-    float2 textureCoordinateToUse = float2(inCoordinateToUse.x, inCoordinateToUse.y * aspectRatio + 0.5 - 0.5 * aspectRatio);
+    const float2 inCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    float2 textureCoordinateToUse = float2(inCoordinate.x, inCoordinate.y * aspectRatio + 0.5 - 0.5 * aspectRatio);
     const float dist = distance(center, textureCoordinateToUse);
-    textureCoordinateToUse = inCoordinateToUse;
+    textureCoordinateToUse = inCoordinate;
     
     if (dist < radius) {
         textureCoordinateToUse -= center;

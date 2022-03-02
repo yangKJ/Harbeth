@@ -34,5 +34,3 @@ kernel void C7Halftone(texture2d<half, access::write> outputTexture [[texture(0)
     
     outputTexture.write(outColor, grid);
 }
-
-

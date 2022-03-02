@@ -11,8 +11,24 @@
 #include <metal_stdlib>
 using namespace metal;
 
-float C7ShiftGlitchHash(float n);
-float C7ShiftGlitchNoise(float3 x);
+namespace shift_glitch {
+    METAL_FUNC float hash(float n) {
+        return fract(sin(n) * 43758.5453);
+    }
+
+    METAL_FUNC float noise(float3 x) {
+        float3 p = floor(x);
+        float3 f = fract(x);
+        f = f * f * (3.0 - 2.0 * f);
+        float n = p.x + p.y * 57.0 + 113.0 * p.z;
+        float res = mix(mix(mix(hash(n + 0.0), hash(n + 1.0), f.x),
+                            mix(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
+                        mix(mix(hash(n + 113.0), hash(n + 114.0), f.x),
+                            mix(hash(n + 170.0), hash(n + 171.0), f.x), f.y),
+                        f.z);
+        return res;
+    }
+}
 
 kernel void C7ShiftGlitch(texture2d<half, access::write> outputTexture [[texture(0)]],
                           texture2d<half, access::read> inputTexture [[texture(1)]],
@@ -23,10 +39,10 @@ kernel void C7ShiftGlitch(texture2d<half, access::write> outputTexture [[texture
     const float2 textureCoordinate = float2(grid) / float2(w, h);
     
     const half time = half(*timePointer);
-    const float blurX = C7ShiftGlitchNoise(float3(time * 10.0, 0.0, 0.0)) * 2.0 - 1.0;
+    const float blurX = shift_glitch::noise(float3(time * 10.0, 0.0, 0.0)) * 2.0 - 1.0;
     const float offsetx = blurX * 0.025;
     
-    const float blurY = C7ShiftGlitchNoise(float3(time * 10.0, 1.0, 0.0)) * 2.0 - 1.0;
+    const float blurY = shift_glitch::noise(float3(time * 10.0, 1.0, 0.0)) * 2.0 - 1.0;
     const float offsety = blurY * 0.01;
     
     const half2 ruv = half2(textureCoordinate) + half2(offsetx, offsety);
@@ -39,20 +55,4 @@ kernel void C7ShiftGlitch(texture2d<half, access::write> outputTexture [[texture
     const half4 outColor = half4(r, g, b, 1.0h);
     
     outputTexture.write(outColor, grid);
-}
-
-float C7ShiftGlitchHash(float n) {
-    return fract(sin(n) * 43758.5453);
-}
-
-float C7ShiftGlitchNoise(float3 x) {
-    float3 p = floor(x);
-    float3 f = fract(x);
-    f = f * f * (3.0 - 2.0 * f);
-    float n = p.x + p.y * 57.0 + 113.0 * p.z;
-    float res = mix(mix(mix(C7ShiftGlitchHash(n + 0.0), C7ShiftGlitchHash(n + 1.0), f.x),
-                        mix(C7ShiftGlitchHash(n + 57.0), C7ShiftGlitchHash(n + 58.0), f.x), f.y),
-                    mix(mix(C7ShiftGlitchHash(n + 113.0), C7ShiftGlitchHash(n + 114.0), f.x),
-                        mix(C7ShiftGlitchHash(n + 170.0), C7ShiftGlitchHash(n + 171.0), f.x), f.y), f.z);
-    return res;
 }

@@ -9,8 +9,6 @@
 using namespace metal;
 
 // 均值模糊原理其实很简单通过多个纹理叠加，每个纹理偏移量设置不同达到一点重影效果来实现模糊
-// The principle of mean obfuscating is actually quite simple to achieve blur
-// by stacking multiple textures with different offset Settings for each texture to achieve a bit of double shadow effect.
 kernel void C7MeanBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
                        texture2d<half, access::sample> inputTexture [[texture(1)]],
                        constant float *blurRadius [[buffer(0)]],

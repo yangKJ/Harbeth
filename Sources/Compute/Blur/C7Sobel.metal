@@ -12,7 +12,7 @@ kernel void C7Sobel(texture2d<half, access::write> outputTexture [[texture(0)]],
                     texture2d<half, access::read> inputTexture [[texture(1)]],
                     constant float *edgeStrength [[buffer(0)]],
                     uint2 grid [[thread_position_in_grid]]) {
-    const half sobelStep = half(2.0);
+    const half sobelStep = half(2.0h);
     const half3 kRec709Luma = half3(0.2126, 0.7152, 0.0722);
     
     const half4 topLeft     = inputTexture.read(uint2(grid.x - sobelStep, grid.y - sobelStep));

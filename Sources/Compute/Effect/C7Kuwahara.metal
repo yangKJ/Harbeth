@@ -56,7 +56,6 @@ kernel void C7Kuwahara(texture2d<half, access::write> outputTexture [[texture(0)
         }
     }
     
-    
     float min_sigma2 = 1e+2;
     m0 /= n;
     s0 = abs(s0 / n - m0 * m0);

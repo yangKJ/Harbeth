@@ -8,7 +8,13 @@
 #include <metal_stdlib>
 using namespace metal;
 
-bool C7AFFTZeroOrOne(float x);
+namespace transform {
+    METAL_FUNC bool zeroOrOne(float x) {
+        if (abs(x - round(x)) >= 1e-10) { return false; }
+        float a = abs(round(x));
+        return a == 0 || a == 1;
+    }
+}
 
 kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[texture(0)]],
                               texture2d<half, access::sample> inputTexture [[texture(1)]],
@@ -45,7 +51,10 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
     
     #if defined(__HAVE_BICUBIC_FILTERING__)
     // If rotation angle is 90 * N degrees (N is integer), use bicubic
-    if (C7AFFTZeroOrOne(a) && C7AFFTZeroOrOne(b) && C7AFFTZeroOrOne(c) && C7AFFTZeroOrOne(d)) {
+    if (transform::zeroOrOne(a) &&
+        transform::zeroOrOne(b) &&
+        transform::zeroOrOne(c) &&
+        transform::zeroOrOne(d)) {
         constexpr sampler quadSampler(mag_filter::bicubic, min_filter::bicubic);
         const half4 color = inputTexture.sample(quadSampler, float2(inX, inY));
         outputTexture.write(color, grid);
@@ -56,10 +65,4 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const half4 outColor = inputTexture.sample(quadSampler, float2(inX, inY));
     outputTexture.write(outColor, grid);
-}
-
-bool C7AFFTZeroOrOne(float x) {
-    if (abs(x - round(x)) >= 1e-10) { return false; }
-    float a = abs(round(x));
-    return a == 0 || a == 1;
 }

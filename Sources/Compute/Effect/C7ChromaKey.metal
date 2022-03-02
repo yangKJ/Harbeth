@@ -32,7 +32,7 @@ kernel void C7ChromaKey(texture2d<half, access::write> outputTexture [[texture(0
     
     const half blendValue = smoothstep(half(*thresholdSensitivity), half(*thresholdSensitivity + *smoothing), distance(half2(Cr, Cb), half2(maskCr, maskCb)));
     
-    const half4 outColor(inColor * blendValue);
+    const half4 outColor = half4(inColor * blendValue);
     outputTexture.write(outColor, grid);
 }
 
