@@ -11,39 +11,39 @@ using namespace metal;
 kernel void C7EdgeGlow(texture2d<half, access::write> outputTexture [[texture(0)]],
                        texture2d<half, access::sample> inputTexture [[texture(1)]],
                        constant float *timePointer [[buffer(0)]],
-                       constant float *lineR [[buffer(1)]],
-                       constant float *lineG [[buffer(2)]],
-                       constant float *lineB [[buffer(3)]],
-                       constant float *lineA [[buffer(4)]],
+                       constant float *spacingPointer [[buffer(1)]],
+                       constant float *lineR [[buffer(2)]],
+                       constant float *lineG [[buffer(3)]],
+                       constant float *lineB [[buffer(4)]],
+                       constant float *lineA [[buffer(5)]],
                        uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
-    float w = outputTexture.get_width();
-    float h = outputTexture.get_height();
+    const float w = outputTexture.get_width();
+    const float h = outputTexture.get_height();
     const float2 textureCoordinate = float2(grid) / float2(w, h);
+    const float x = textureCoordinate.x;
+    const float y = textureCoordinate.y;
+    const half spacing = half(*spacingPointer);
+    
+    // 边缘检测矩阵卷积核
+    const half3x3 matrix = half3x3({-1.0, -1.0, -1.0}, {-1.0,  8.0, -1.0}, {-1.0, -1.0, -1.0});
+    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
+    half4 result = half4(0.0h);
+    for (int i = 0; i < 9; i++) {
+        int a = i % 3; int b = i / 3;
+        const half4 sample = inputTexture.sample(quadSampler, float2(x + (a - 3/2.0) / w, y + (b - 3/2.0) / h));
+        result += sample * matrix[a][b];
+    }
+    
+    // 向量长度比`spacing`小的数据显示原本颜色，非边缘
+    if (length(result) <= spacing) {
+        outputTexture.write(inColor, grid);
+        return;
+    }
+    
     const half time = half(*timePointer);
-    const int kernelWidth = 3;
-    const int kernelHeight = 3;
     const half4 lineColor = half4(*lineR, *lineG, *lineB, *lineA);
     
-    float k[9];
-    k[0] = -1.0; k[1] = -1.0; k[2] = -1.0;
-    k[3] = -1.0; k[4] =  8.0; k[5] = -1.0;
-    k[6] = -1.0; k[7] = -1.0; k[8] = -1.0;
-    
-    half4 result = half4(0.0h);
-    for (int y = 0; y < kernelHeight; ++y) {
-        for (int x = 0; x < kernelWidth; ++x) {
-            float2 position = float2(textureCoordinate.x + float(x - kernelWidth / 2.0) / w,
-                                     textureCoordinate.y + float(y - kernelHeight / 2.0) / h);
-            const half4 rgba = inputTexture.read(uint2(position * float2(w, h)));
-            result += rgba * k[x + y * kernelWidth];
-        }
-    }
-    
-    if (length(result) <= 0.2) {
-        outputTexture.write(inColor, grid);
-    } else {
-        const half4 outColor = half4(lineColor * sin(time * 5.0h) + inColor * cos(time * 5.0h));
-        outputTexture.write(outColor, grid);
-    }
+    const half4 outColor = half4(lineColor * sin(time * 5.0h) + inColor * cos(time * 5.0h));
+    outputTexture.write(outColor, grid);
 }

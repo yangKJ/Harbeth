@@ -11,6 +11,8 @@ public struct C7EdgeGlow: C7FilterProtocol {
     
     /// The adjusted time, from 0.0 to 1.0, with a default of 0.5
     public var time: Float = 0.5
+    /// 边缘跨度，比`spacing`大即为边缘，form 0.0 to 1.0
+    public var spacing: Float = 0.5
     public var lineColor: UIColor {
         didSet {
             lineColor.mt.toRGBA(red: &r, green: &g, blue: &b, alpha: &a)
@@ -27,7 +29,7 @@ public struct C7EdgeGlow: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [time, r, g, b, a]
+        return [time, spacing, r, g, b, a]
     }
     
     public init() {
