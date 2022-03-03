@@ -27,6 +27,14 @@ extension Matrix4x4 {
         0.0000, 0.0000, 0.0000, 1.0,
     ])
     
+    /// 怀旧效果
+    public static let nostalgic = Matrix4x4(values: [
+        0.272, 0.534, 0.131, 0.0,
+        0.349, 0.686, 0.168, 0.0,
+        0.393, 0.769, 0.189, 0.0,
+        0.000, 0.000, 0.000, 1.0,
+    ])
+    
     /// 复古效果
     public static let retroStyle = Matrix4x4(values: [
         0.50, 0.50, 0.50, 0.0,

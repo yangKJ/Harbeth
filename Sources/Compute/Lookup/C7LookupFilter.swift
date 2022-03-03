@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// LUT映射滤镜
 public struct C7LookupFilter: C7FilterProtocol {
     
     public private(set) var lookupImage: C7Image?

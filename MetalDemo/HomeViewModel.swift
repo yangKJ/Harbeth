@@ -71,12 +71,15 @@ enum ViewControllerType: String {
     case GaussianBlur = "高斯模糊"
     case Storyboard = "分镜展示"
     case BilateralBlur = "双边模糊"
+    case Sepia = "棕褐色老照片"
+    case ComicStrip = "连环画效果"
 }
 
 extension ViewControllerType {
     var image: UIImage {
         switch self {
-        case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA:
+        case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
+                .ComicStrip, .Sepia:
             return C7Image(named: "yuan002")!
         case .EdgeGlow, .ShiftGlitch:
             return C7Image(named: "yuan003")!
@@ -438,6 +441,12 @@ extension ViewControllerType {
                 filter.blurRadius = $0
                 return filter
             })
+        case .Sepia:
+            let filter = C7Sepia()
+            return (filter, nil, nil)
+        case .ComicStrip:
+            let filter = C7ComicStrip()
+            return (filter, nil, nil)
         }
     }
 }
@@ -500,5 +509,6 @@ struct HomeViewModel {
     
     let matrix: [ViewControllerType] = [
         .Convolution3x3, .Sharpen3x3, .ColorMatrix,
+        .Sepia, .ComicStrip,
     ]
 }
