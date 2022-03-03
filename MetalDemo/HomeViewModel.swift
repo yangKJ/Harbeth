@@ -432,7 +432,7 @@ extension ViewControllerType {
         case .Storyboard:
             var filter = C7Storyboard()
             return (filter, (2, 1, 10), {
-                filter.N = Int($0)
+                filter.N = Int(ceil($0))
                 return filter
             })
         case .BilateralBlur:
@@ -467,7 +467,7 @@ struct HomeViewModel {
     let visual: [ViewControllerType] = [
         .ShiftGlitch, .SoulOut, .EdgeGlow,
         .Luminance, .ColorMatrix, .Monochrome,
-        .VoronoiOverlay,
+        .VoronoiOverlay, .Storyboard,
     ]
     
     let effect: [ViewControllerType] = [
@@ -487,6 +487,7 @@ struct HomeViewModel {
         .ChannelRGBA, .FalseColor, .ColorInvert,
         .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
+        .Sepia, .ComicStrip,
     ]
     
     let shape: [ViewControllerType] = [
@@ -509,6 +510,5 @@ struct HomeViewModel {
     
     let matrix: [ViewControllerType] = [
         .Convolution3x3, .Sharpen3x3, .ColorMatrix,
-        .Sepia, .ComicStrip,
     ]
 }
