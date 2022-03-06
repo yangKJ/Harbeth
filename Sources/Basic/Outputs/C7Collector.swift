@@ -10,7 +10,7 @@ import Foundation
 import CoreVideo
 import MetalKit
 
-open class C7Collector: NSObject, C7CollectorProtocol {
+public class C7Collector: NSObject, C7CollectorProtocol {
     
     var haveMTKView: Bool = false
     var callback: C7FilterImageCallback!

@@ -10,7 +10,7 @@ import QuartzCore
 import CoreGraphics
 import simd
 
-open class Matrix {
+public class Matrix {
     public let values: [Float]
     
     init(values: [Float]) {

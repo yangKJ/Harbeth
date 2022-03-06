@@ -1,5 +1,5 @@
 //
-//  PlayerViewConteroller.swift
+//  PlayerViewController.swift
 //  MetalDemo
 //
 //  Created by Condy on 2022/2/28.
@@ -8,7 +8,7 @@
 import Harbeth
 import AVFoundation
 
-class PlayerViewConteroller: UIViewController {
+class PlayerViewController: UIViewController {
     
     var tuple: FilterResult?
     lazy var originImageView: UIImageView = {
