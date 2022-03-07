@@ -18,9 +18,17 @@ internal struct Compute {
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
     static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
-        guard let function = try? Device.readMTLFunction(kernel) else { return nil }
+        /// 先读取缓存管线
+        if let pipelineState = Shared.shared.device?.pipelines[kernel] {
+            return pipelineState
+        }
         /// 同步阻塞编译计算程序来创建管道状态
-        return try? Device.device().makeComputePipelineState(function: function)
+        if let function = try? Device.readMTLFunction(kernel),
+           let pipeline = try? Device.device().makeComputePipelineState(function: function) {
+            Shared.shared.device?.pipelines[kernel] = pipeline
+            return pipeline
+        }
+        return nil
     }
     
     static func drawingProcess(_ pipelineState: MTLComputePipelineState,

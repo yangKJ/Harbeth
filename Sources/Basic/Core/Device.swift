@@ -19,6 +19,8 @@ internal final class Device {
     let defaultLibrary: MTLLibrary?
     /// Metal file in ATMetalBand
     let ATMetalLibrary: MTLLibrary?
+    /// Cache pipe state
+    lazy var pipelines = [C7KernelFunction: MTLComputePipelineState]()
     /// Load the texture tool
     lazy var textureLoader: MTKTextureLoader = MTKTextureLoader(device: device)
     /// Transform using color space
