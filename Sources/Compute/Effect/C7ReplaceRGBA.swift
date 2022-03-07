@@ -16,13 +16,13 @@ public struct C7ReplaceRGBA: C7FilterProtocol {
     /// How smoothly to blend for the color match (default of 0.1)
     public var smoothing: Float = 0.1
     /// Need to be transparent color
-    public var chroma: UIColor {
+    public var chroma: UIColor = C7EmptyColor {
         didSet {
             chroma.mt.toRGB(red: &red, green: &green, blue: &blue)
         }
     }
     /// The color to be replaced
-    public var replaceColor: UIColor {
+    public var replaceColor: UIColor = C7EmptyColor {
         didSet {
             replaceColor.mt.toRGBA(red: &_r, green: &_g, blue: &_b, alpha: &_a)
         }
@@ -44,8 +44,5 @@ public struct C7ReplaceRGBA: C7FilterProtocol {
         return [thresholdSensitivity, smoothing, red, green, blue, _r, _g, _b, _a]
     }
     
-    public init() {
-        self.chroma = C7EmptyColor
-        self.replaceColor = C7EmptyColor
-    }
+    public init() { }
 }

@@ -13,7 +13,7 @@ public struct C7Monochrome: C7FilterProtocol {
     /// The degree to which the specific color replaces the normal image color, from 0.0 to 1.0, with 0.0 as the default.
     public var intensity: Float = 0.0
     /// Keep the color scheme
-    public var color: UIColor {
+    public var color: UIColor = C7EmptyColor {
         didSet {
             color.mt.toRGB(red: &red, green: &green, blue: &blue)
         }
@@ -31,7 +31,5 @@ public struct C7Monochrome: C7FilterProtocol {
         return [intensity, red, green, blue]
     }
     
-    public init() {
-        self.color = C7EmptyColor
-    }
+    public init() { }
 }

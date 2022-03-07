@@ -15,7 +15,7 @@ public struct C7ColorRGBA: C7FilterProtocol {
     public var blue:  Float = 1
     public var alpha: Float = 1
     /// Transparent colors are not processed, Will directly modify the overall color scheme
-    public var color: UIColor {
+    public var color: UIColor = C7EmptyColor {
         didSet {
             color.mt.toRGBA(red: &red, green: &green, blue: &blue, alpha: &alpha)
         }
@@ -29,7 +29,5 @@ public struct C7ColorRGBA: C7FilterProtocol {
         return [red, green, blue, alpha]
     }
     
-    public init() {
-        self.color = C7EmptyColor
-    }
+    public init() { }
 }

@@ -12,13 +12,13 @@ import Foundation
 public struct C7FalseColor: C7FilterProtocol {
     
     /// The first and second colors specify what colors replace the dark and light areas of the image, respectively.
-    public var fristColor: UIColor {
+    public var fristColor: UIColor = C7EmptyColor {
         didSet {
             fristColor.mt.toRGB(red: &r, green: &g, blue: &b)
         }
     }
     
-    public var secondColor: UIColor {
+    public var secondColor: UIColor = C7EmptyColor {
         didSet {
             secondColor.mt.toRGB(red: &r2, green: &g2, blue: &b2)
         }
@@ -39,8 +39,5 @@ public struct C7FalseColor: C7FilterProtocol {
         return [r, g, b, r2, g2, b2]
     }
     
-    public init() {
-        self.fristColor = C7EmptyColor
-        self.secondColor = C7EmptyColor
-    }
+    public init() { }
 }

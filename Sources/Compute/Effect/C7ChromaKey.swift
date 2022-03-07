@@ -16,7 +16,7 @@ public struct C7ChromaKey: C7FilterProtocol {
     /// How smoothly to blend for the color match (default of 0.1)
     public var smoothing: Float = 0.1
     /// Color patches that need to be removed,
-    public var color: UIColor {
+    public var color: UIColor = C7EmptyColor {
         didSet {
             color.mt.toRGB(red: &red, green: &green, blue: &blue)
         }
@@ -34,7 +34,5 @@ public struct C7ChromaKey: C7FilterProtocol {
         return [thresholdSensitivity, smoothing, red, green, blue]
     }
     
-    public init() {
-        self.color = C7EmptyColor
-    }
+    public init() { }
 }
