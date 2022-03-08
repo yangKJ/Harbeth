@@ -106,7 +106,8 @@ camera.filters = [filter, filter2]
 	    - **makeGroup**：多个滤镜组合，请注意滤镜添加的顺序可能会影响图像生成的结果
 	- [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift)：基于C7FilterOutput的图像输入源，以下模式仅支持基于并行计算的编码器
 	- [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): 基于C7FilterOutput的纹理输入源，输入纹理转换成滤镜处理纹理
-	- [C7FilterCollector](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterCollector.swift)：相机数据采集器，生成Layer，然后在主线程返回图片
+	- [C7CollectorCamera](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorCamera.swift)：相机数据采集器，直接生成图像，然后在主线程返回
+	- [C7CollectorVideo](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorVideo.swift)：视频图像桢加入滤镜效果，直接生成图像
 
 ### 设计滤镜
 - 举个例子，如何设计一款灵魂出窍滤镜🎷

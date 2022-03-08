@@ -106,6 +106,8 @@ camera.filters = [filter, filter2]
         - **makeGroup**: Multiple filter combinations, Please note that the order in which filters are added may affect the result of image generation.
     - [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift): Image input source based on C7FilterOutput, The following modes support only the encoder based on parallel computing.
     - [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): MTLTexture input source based on C7FilterOutput, The input texture is converted to a filter to process the texture.
+    - [C7CollectorCamera] (https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorCamera.swift) : The camera data collector generates images directly and then returns them in the main thread.
+	- [C7CollectorVideo] (https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorVideo.swift) : Add the filter effect to the video image frame to generate the image directly.
 
 ### Usages
 - For example, how to design an soul filter.🎷
