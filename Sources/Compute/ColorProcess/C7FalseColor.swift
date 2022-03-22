@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import class UIKit.UIColor
 
 /// 使用图像的亮度在两种用户指定的颜色之间进行混合
 /// Uses the luminance of the image to mix between two user-specified colors

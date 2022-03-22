@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import class UIKit.UIColor
 
 /// 渐晕效果，使边缘的图像淡化
 public struct C7Vignette: C7FilterProtocol {

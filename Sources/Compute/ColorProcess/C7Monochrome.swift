@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import class UIKit.UIColor
 
 /// 将图像转换为单色版本，根据每个像素的亮度进行着色
 public struct C7Monochrome: C7FilterProtocol {

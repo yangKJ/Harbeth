@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import class UIKit.UIColor
 
 public enum BlendFilterType {
     case add

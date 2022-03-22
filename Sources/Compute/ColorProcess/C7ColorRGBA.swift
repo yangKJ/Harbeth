@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import class UIKit.UIColor
 
 public struct C7ColorRGBA: C7FilterProtocol {
 

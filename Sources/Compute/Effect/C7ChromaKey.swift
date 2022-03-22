@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import class UIKit.UIColor
 
 /// 祛除某种色系，有点类似绿幕抠图，被祛除的像素会变透明
 /// Remove a certain color system, a bit like green screen matting, The removed pixels become transparent

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import class UIKit.UIView
 
 public final class C7CollectorVideo: C7Collector {
     

@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import class UIKit.UIView
+import class UIKit.UIApplication
 
 /// 相机数据采集器，在主线程返回图片
 /// The camera data collector returns pictures in the main thread.
