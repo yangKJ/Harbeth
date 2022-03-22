@@ -617,6 +617,7 @@
 				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MetalDemo/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Usage Needed";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -648,6 +649,7 @@
 				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MetalDemo/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Usage Needed";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
