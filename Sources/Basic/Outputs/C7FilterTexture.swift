@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-public struct C7FilterTexture {
+@frozen public struct C7FilterTexture {
     
     public private(set) var inputTexture: MTLTexture
     public private(set) var destTexture: MTLTexture

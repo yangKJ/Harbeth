@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 /// 祛除某种色系，有点类似绿幕抠图，被祛除的像素会变透明
 /// Remove a certain color system, a bit like green screen matting, The removed pixels become transparent
@@ -17,7 +16,7 @@ public struct C7ChromaKey: C7FilterProtocol {
     /// How smoothly to blend for the color match (default of 0.1)
     public var smoothing: Float = 0.1
     /// Color patches that need to be removed,
-    public var color: UIColor = C7EmptyColor {
+    public var color: C7Color = C7EmptyColor {
         didSet {
             color.mt.toRGB(red: &red, green: &green, blue: &blue)
         }

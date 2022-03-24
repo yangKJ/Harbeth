@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import class UIKit.UIView
 import class UIKit.UIApplication
 
 /// 相机数据采集器，在主线程返回图片
@@ -20,7 +19,7 @@ public final class C7CollectorCamera: C7Collector {
         setupCaptureSession()
     }
     
-    required init(view: UIView) {
+    required init(view: C7View) {
         super.init(view: view)
         setupCaptureSession()
     }

@@ -6,17 +6,16 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 /// Empty color, do default
-public let C7EmptyColor = UIColor.clear
+public let C7EmptyColor = C7Color.clear
 
-extension UIColor: C7Compatible { }
+extension C7Color: C7Compatible { }
 
-extension Queen where Base: UIColor {
+extension Queen where Base: C7Color {
     
     /// Convert RGBA value
-    public func toC7Color() -> C7Color {
+    public func toC7RGBAColor() -> C7RGBAColor {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
         return (Float(r), Float(g), Float(b), Float(a))

@@ -18,7 +18,7 @@ public class Matrix {
     }
 }
 
-public class Matrix3x3: Matrix {
+public final class Matrix3x3: Matrix {
     public override init(values: [Float]) {
         if values.count != 9 {
             C7FailedErrorInDebug("There must be nine values for 3x3 Matrix.")
@@ -27,7 +27,7 @@ public class Matrix3x3: Matrix {
     }
 }
 
-public class Matrix4x4: Matrix {
+public final class Matrix4x4: Matrix {
     
     public override init(values: [Float]) {
         if values.count != 16 {

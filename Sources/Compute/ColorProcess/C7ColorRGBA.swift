@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 public struct C7ColorRGBA: C7FilterProtocol {
 
@@ -16,7 +15,7 @@ public struct C7ColorRGBA: C7FilterProtocol {
     public var blue:  Float = 1
     public var alpha: Float = 1
     /// Transparent colors are not processed, Will directly modify the overall color scheme
-    public var color: UIColor = C7EmptyColor {
+    public var color: C7Color = C7EmptyColor {
         didSet {
             color.mt.toRGBA(red: &red, green: &green, blue: &blue, alpha: &alpha)
         }

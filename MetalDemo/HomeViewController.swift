@@ -14,13 +14,13 @@ class HomeViewController: UIViewController {
     lazy var viewModel: HomeViewModel = {
         var identifier = view.restorationIdentifier
         if identifier == "520" {
-            title = "图像处理"
+            title = "Graphic"//"图像处理"
             return HomeViewModel.init(.image)
         } else if identifier == "521" {
-            title = "相机采集"
+            title = "Camera"//"相机采集"
             return HomeViewModel.init(.camera)
         } else {
-            title = "视频特效"
+            title = "Video"//"视频特效"
             return HomeViewModel.init(.player)
         }
     }()
@@ -49,8 +49,9 @@ class HomeViewController: UIViewController {
         super.viewDidLoad()
         view.addSubview(tableView)
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        let tabBarHeight = tabBarController?.tabBar.frame.size.height ?? 0
         NSLayoutConstraint.activate([
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -80),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -tabBarHeight),
             tableView.topAnchor.constraint(equalTo: view.topAnchor, constant: 64),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),

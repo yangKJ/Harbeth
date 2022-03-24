@@ -6,16 +6,15 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 /// 色阶
 public struct C7Levels: C7FilterProtocol {
     
-    public var minimum: UIColor = UIColor.black
-    public var middle:  UIColor = UIColor.white
-    public var maximum: UIColor = UIColor.white
-    public var minOutput: UIColor = UIColor.black
-    public var maxOutput: UIColor = UIColor.white
+    public var minimum: C7Color = C7Color.black
+    public var middle:  C7Color = C7Color.white
+    public var maximum: C7Color = C7Color.white
+    public var minOutput: C7Color = C7Color.black
+    public var maxOutput: C7Color = C7Color.white
     
     public var modifier: Modifier {
         return .compute(kernel: "C7LevelsFilter")
@@ -23,12 +22,12 @@ public struct C7Levels: C7FilterProtocol {
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         let computeEncoder = encoder as! MTLComputeCommandEncoder
-        var _minimum = minimum.mt.toC7Color()
-        var _middle = middle.mt.toC7Color()
-        var _maximum = maximum.mt.toC7Color()
-        var _minOutput = minOutput.mt.toC7Color()
-        var _maxOutput = maxOutput.mt.toC7Color()
-        let size = MemoryLayout<C7Color>.size
+        var _minimum = minimum.mt.toC7RGBAColor()
+        var _middle = middle.mt.toC7RGBAColor()
+        var _maximum = maximum.mt.toC7RGBAColor()
+        var _minOutput = minOutput.mt.toC7RGBAColor()
+        var _maxOutput = maxOutput.mt.toC7RGBAColor()
+        let size = MemoryLayout<C7RGBAColor>.size
         computeEncoder.setBytes(&_minimum, length: size, index: index + 1)
         computeEncoder.setBytes(&_middle, length: size, index: index + 2)
         computeEncoder.setBytes(&_maximum, length: size, index: index + 3)

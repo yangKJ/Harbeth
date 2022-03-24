@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 public struct C7HighlightShadowTint: C7FilterProtocol {
     
@@ -16,12 +15,12 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
     /// Decrease to darken highlights, from 1.0 to 0.0, with 0.0 as the default.
     public var highlights: Float = 0.0
     
-    public var shadowsColor: UIColor = C7EmptyColor {
+    public var shadowsColor: C7Color = C7EmptyColor {
         didSet {
             shadowsColor.mt.toRGB(red: &sr, green: &sg, blue: &sb)
         }
     }
-    public var highlightsColor: UIColor = C7EmptyColor {
+    public var highlightsColor: C7Color = C7EmptyColor {
         didSet {
             highlightsColor.mt.toRGB(red: &hr, green: &hg, blue: &hb)
         }

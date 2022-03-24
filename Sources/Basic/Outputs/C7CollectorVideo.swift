@@ -6,12 +6,11 @@
 //
 
 import Foundation
-import class UIKit.UIView
 
 public final class C7CollectorVideo: C7Collector {
     
-    var player: AVPlayer!
-    var videoOutput: AVPlayerItemVideoOutput!
+    private var player: AVPlayer!
+    public private(set) var videoOutput: AVPlayerItemVideoOutput!
     
     lazy var displayLink: CADisplayLink = {
         let displayLink = CADisplayLink(target: self, selector: #selector(readBuffer(_:)))
@@ -25,7 +24,7 @@ public final class C7CollectorVideo: C7Collector {
         setupVideoOutput()
     }
     
-    required init(view: UIView) {
+    required init(view: C7View) {
         super.init(view: view)
         setupVideoOutput()
     }
@@ -38,7 +37,7 @@ public final class C7CollectorVideo: C7Collector {
         }
     }
     
-    public convenience init(player: AVPlayer, view: UIView) {
+    public convenience init(player: AVPlayer, view: C7View) {
         self.init(view: view)
         self.player = player
         if let currentItem = player.currentItem {

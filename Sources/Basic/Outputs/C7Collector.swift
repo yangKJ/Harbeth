@@ -14,8 +14,8 @@ public class C7Collector: NSObject, C7CollectorProtocol {
     
     var haveMTKView: Bool = false
     var callback: C7FilterImageCallback!
-    var view: UIView!
-    private var textureCache: CVMetalTextureCache?
+    var view: C7View!
+    var textureCache: CVMetalTextureCache?
     
     public var filters: [C7FilterProtocol] = []
     
@@ -26,7 +26,7 @@ public class C7Collector: NSObject, C7CollectorProtocol {
         #endif
     }
     
-    public required init(view: UIView) {
+    public required init(view: C7View) {
         self.haveMTKView = true
         self.view = view
     }

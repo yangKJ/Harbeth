@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 public struct C7EdgeGlow: C7FilterProtocol {
     
@@ -14,7 +13,7 @@ public struct C7EdgeGlow: C7FilterProtocol {
     public var time: Float = 0.5
     /// 边缘跨度，比`spacing`大即为边缘，form 0.0 to 1.0
     public var spacing: Float = 0.5
-    public var lineColor: UIColor = UIColor.green {
+    public var lineColor: C7Color = C7Color.green {
         didSet {
             lineColor.mt.toRGBA(red: &r, green: &g, blue: &b, alpha: &a)
         }

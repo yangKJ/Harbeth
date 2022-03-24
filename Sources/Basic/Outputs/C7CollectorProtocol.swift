@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import UIKit
 
 public protocol C7CollectorProtocol {
     
@@ -23,5 +22,5 @@ public protocol C7CollectorProtocol {
     /// This mode internally generates MTKView for rendering.
     ///
     /// - Parameter view: Host the render control view.
-    init(view: UIView)
+    init(view: C7View)
 }

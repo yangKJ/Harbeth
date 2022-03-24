@@ -6,20 +6,19 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 /// 使用图像的亮度在两种用户指定的颜色之间进行混合
 /// Uses the luminance of the image to mix between two user-specified colors
 public struct C7FalseColor: C7FilterProtocol {
     
     /// The first and second colors specify what colors replace the dark and light areas of the image, respectively.
-    public var fristColor: UIColor = C7EmptyColor {
+    public var fristColor: C7Color = C7EmptyColor {
         didSet {
             fristColor.mt.toRGB(red: &r, green: &g, blue: &b)
         }
     }
     
-    public var secondColor: UIColor = C7EmptyColor {
+    public var secondColor: C7Color = C7EmptyColor {
         didSet {
             secondColor.mt.toRGB(red: &r2, green: &g2, blue: &b2)
         }

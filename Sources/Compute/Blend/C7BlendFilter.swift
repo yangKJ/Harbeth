@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import class UIKit.UIColor
 
 public enum BlendFilterType {
     case add
@@ -30,7 +29,7 @@ public enum BlendFilterType {
     case softLight
     case sourceOver
     case subtract
-    case chromaKey(threshold: Float = 0.4, smoothing: Float = 0.1, color: UIColor = UIColor.green)
+    case chromaKey(threshold: Float = 0.4, smoothing: Float = 0.1, color: C7Color = C7Color.green)
 }
 
 extension BlendFilterType {
