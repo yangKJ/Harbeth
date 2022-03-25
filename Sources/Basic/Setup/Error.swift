@@ -39,7 +39,9 @@ extension C7CustomError {
     }
 }
 
-internal func C7FailedErrorInDebug(_ message: @autoclosure () -> String, file: StaticString = #file, line: UInt = #line) {
+internal func C7FailedErrorInDebug(_ message: @autoclosure () -> String,
+                                   file: StaticString = #file,
+                                   line: UInt = #line) {
     #if DEBUG
     fatalError(message(), file: file, line: line)
     #else

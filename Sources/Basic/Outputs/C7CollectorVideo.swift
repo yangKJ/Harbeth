@@ -75,7 +75,7 @@ extension C7CollectorVideo {
         }
         let pixelBuffer = videoOutput.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil)
         if let image = pixelBuffer2Image(pixelBuffer) {
-            callback(image)
+            DispatchQueue.main.async { self.callback(image) }
         }
     }
 }

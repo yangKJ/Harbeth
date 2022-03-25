@@ -44,9 +44,6 @@ extension Queen where Base: CVPixelBuffer {
         }
         // 运算符组合滤镜效果，生成纹理
         filters.forEach { texture = texture ->> $0 }
-        guard let image = texture.toImage() else {
-            return nil
-        }
-        return image
+        return texture.toImage()
     }
 }

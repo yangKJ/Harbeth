@@ -8,7 +8,7 @@
 import Foundation
 import ObjectiveC
 
-public class Shared {
+public final class Shared {
     
     public static let shared = Shared()
     
