@@ -31,7 +31,6 @@ let package = Package(
     ],
     products: [
         .library(name: "Harbeth", targets: ["Harbeth"]),
-        .library(name: "Harbeth-Dynamic", type: .dynamic, targets: ["Harbeth"]),
     ],
     targets: [
         .target(name: "Harbeth", path: "Sources"),

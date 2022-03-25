@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="19529" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="nm2-aA-1NX">
-    <device id="retina6_1" orientation="portrait" appearance="light"/>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="19162" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="nm2-aA-1NX">
+    <device id="retina5_5" orientation="portrait" appearance="light"/>
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19519"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19144"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
         <capability name="System colors in document resources" minToolsVersion="11.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -33,7 +33,7 @@
             <objects>
                 <viewController id="oOt-OE-Qw3" customClass="HomeViewController" customModule="MetalDemo" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" restorationIdentifier="520" id="hQA-uf-eWy">
-                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="736"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <viewLayoutGuide key="safeArea" id="hJt-FF-IEe"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -49,7 +49,7 @@
             <objects>
                 <viewController id="n8h-jc-iDX" customClass="HomeViewController" customModule="MetalDemo" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" restorationIdentifier="522" id="hJO-cY-vef">
-                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="736"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <viewLayoutGuide key="safeArea" id="2kQ-ks-A5g"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -65,7 +65,7 @@
             <objects>
                 <viewController id="rTl-RD-ufO" customClass="HomeViewController" customModule="MetalDemo" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" restorationIdentifier="521" id="8o2-0U-7GQ">
-                        <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="736"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <viewLayoutGuide key="safeArea" id="Kxb-cu-lrg"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -76,14 +76,14 @@
             </objects>
             <point key="canvasLocation" x="2889.8550724637685" y="773.4375"/>
         </scene>
-        <!--相机采集-->
+        <!--Camera-->
         <scene sceneID="jwh-4O-wdy">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="hAI-wz-YaY" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="相机采集" image="camera.metering.center.weighted" catalog="system" id="C0e-U0-IJg"/>
+                    <tabBarItem key="tabBarItem" title="Camera" image="camera.metering.center.weighted" catalog="system" id="C0e-U0-IJg"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" restorationIdentifier="520" id="qzX-ol-Pg4">
-                        <rect key="frame" x="0.0" y="44" width="414" height="44"/>
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
@@ -95,14 +95,14 @@
             </objects>
             <point key="canvasLocation" x="1979.7101449275365" y="772.76785714285711"/>
         </scene>
-        <!--视频特效-->
+        <!--Video-->
         <scene sceneID="zNV-35-XHe">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="UNy-GX-PbX" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="视频特效" image="play.tv" catalog="system" id="EcX-bS-zyh"/>
+                    <tabBarItem key="tabBarItem" title="Video" image="play.tv" catalog="system" id="EcX-bS-zyh"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="wJY-4Y-X5H">
-                        <rect key="frame" x="0.0" y="44" width="414" height="44"/>
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
@@ -114,14 +114,14 @@
             </objects>
             <point key="canvasLocation" x="1979.7101449275365" y="-624.10714285714278"/>
         </scene>
-        <!--图像处理-->
+        <!--Graphic-->
         <scene sceneID="Dkz-4X-huC">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="43K-dr-XFz" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="图像处理" image="scribble.variable" catalog="system" id="nam-0e-5kZ"/>
+                    <tabBarItem key="tabBarItem" title="Graphic" image="scribble.variable" catalog="system" id="nam-0e-5kZ"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="0zv-sn-3Ys">
-                        <rect key="frame" x="0.0" y="44" width="414" height="44"/>
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
