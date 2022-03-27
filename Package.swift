@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.3
 //
 //  Harbeth
 //
@@ -33,10 +33,11 @@ let package = Package(
         .library(name: "Harbeth", targets: ["Harbeth"]),
     ],
     targets: [
-        .target(name: "Harbeth", path: "Sources"),
-        .testTarget(name: "HarbethTests", dependencies: ["Harbeth"]),
-    ],
-    swiftLanguageVersions: [
-        .v5
+        .target(
+            name: "Harbeth",
+            path: "Sources",
+            exclude: [],
+            resources: [.process("Harbeth")]
+        ),
     ]
 )
