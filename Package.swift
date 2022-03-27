@@ -37,7 +37,7 @@ let package = Package(
             name: "Harbeth",
             path: "Sources",
             exclude: [],
-            resources: [.process("Harbeth")]
+            resources: [.process("Compute")]
         ),
     ]
 )
