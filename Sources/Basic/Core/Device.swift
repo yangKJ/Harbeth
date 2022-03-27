@@ -42,7 +42,7 @@ internal final class Device {
         } else {
             self.defaultLibrary = device.makeDefaultLibrary()
         }
-        self.ATMetalLibrary = device.makeATLibrary(forResource: "ATMetalLibrary")
+        self.ATMetalLibrary = device.makeATLibrary(forResource: "Harbeth")
         
         if defaultLibrary == nil && ATMetalLibrary == nil {
             C7FailedErrorInDebug("Could not load library")
@@ -58,17 +58,33 @@ extension MTLDevice {
     
     fileprivate func makeATLibrary(forResource: String) -> MTLLibrary? {
         /// Compatible with the Bundle address used by CocoaPods to import framework
-        guard let bundleURL = Bundle.main.url(forResource: forResource, withExtension: "bundle"),
-              let bundle = Bundle(url: bundleURL) else {
-                  return nil
-              }
+        let bundle = getFrameworkBundle(bundleName: forResource)
         guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
             return nil
         }
         return try? makeLibrary(filepath: path)
     }
+    
+    fileprivate func getFrameworkBundle(bundleName: String) -> Bundle {
+        let candidates = [
+            // Bundle should be present here when the package is linked into an App.
+            Bundle.main.resourceURL,
+            // Bundle should be present here when the package is linked into a framework.
+            Bundle(for: Device.self).resourceURL,
+            // For command-line tools.
+            Bundle.main.bundleURL,
+        ]
+        for candidate in candidates {
+            let bundlePath = candidate?.appendingPathComponent(bundleName + ".bundle")
+            if let bundle = bundlePath.flatMap(Bundle.init(url:)) {
+                print(candidate)
+                return bundle
+            }
+        }
+        // Return whatever bundle this code is in as a last resort.
+        return Bundle(for: Device.self)
+    }
 }
-
 extension Device {
     
     static func device() -> MTLDevice {
