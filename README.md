@@ -278,7 +278,7 @@ To integrate Harbeth into your Xcode project using Swift Package Manager, add it
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yangKJ/Harbeth.git", branch: "master"),
+    .package(url: "https://github.com/yangKJ/Harbeth", .upToNextMajor(from: "0.1.15")),
 ]
 ```
 
