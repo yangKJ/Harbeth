@@ -15,13 +15,13 @@ class HomeViewController: UIViewController {
         var identifier = view.restorationIdentifier
         if identifier == "520" {
             title = "Graphic"//"图像处理"
-            return HomeViewModel.init(.image)
+            return HomeViewModel.init(viewType: .image)
         } else if identifier == "521" {
             title = "Camera"//"相机采集"
-            return HomeViewModel.init(.camera)
+            return HomeViewModel.init(viewType: .camera)
         } else {
             title = "Video"//"视频特效"
-            return HomeViewModel.init(.player)
+            return HomeViewModel.init(viewType: .player)
         }
     }()
     

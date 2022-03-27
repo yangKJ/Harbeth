@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.1.16'
+  s.version          = '0.1.17'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -33,7 +33,7 @@ Pod::Spec.new do |s|
   s.subspec 'Basic' do |xx|
     xx.source_files = 'Sources/Basic/**/*.swift'
     xx.resource_bundles = {
-      'ATMetalLibrary' => [ 'Sources/Compute/**/*.metal' ]
+      s.name => [ 'Sources/Compute/**/*.metal' ]
     }
   end
   

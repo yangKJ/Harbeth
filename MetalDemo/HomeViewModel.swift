@@ -14,9 +14,6 @@ enum ViewType {
 
 struct HomeViewModel {
     var viewType: ViewType
-    init(_ viewType: ViewType) {
-        self.viewType = viewType
-    }
     
     func setupViewController(_ type: ViewControllerType) -> UIViewController {
         switch viewType {
