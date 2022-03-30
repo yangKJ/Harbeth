@@ -109,8 +109,8 @@
           }
         },
         {
-          "name": "VisualEffect",
-          "source_files": "Sources/Compute/VisualEffect/*",
+          "name": "Visual",
+          "source_files": "Sources/Compute/Visual/*",
           "dependencies": {
             "Harbeth/Basic": [
 
