@@ -33,7 +33,7 @@ English | [**简体中文**](README_CN.md)
     - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filter.
     - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
     - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
-    - [x] [VisualEffect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/VisualEffect): Visual dynamic effects.
+    - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): Visual dynamic effects.
 
 #### **A total of `100+` kinds of filters are currently available.✌️**
 
