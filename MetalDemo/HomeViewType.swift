@@ -58,10 +58,10 @@ enum ViewControllerType: String {
     case MotionBlur = "移动模糊效果"
     case SoulOut = "灵魂出窍"
     case SplitScreen = "分屏展示"
-    case Convolution3x3 = "卷积运算"
+    case Convolution3x3 = "3x3卷积运算"
     case Sharpen3x3 = "锐化卷积"
     case WaterRipple = "水波效果"
-    case ColorMatrix = "颜色矩阵"
+    case ColorMatrix4x4 = "4x4颜色矩阵"
     case Levels = "色阶"
     case Transform = "透视变形"
     case ShiftGlitch = "色彩故障转移特效"
@@ -73,12 +73,14 @@ enum ViewControllerType: String {
     case BilateralBlur = "双边模糊"
     case Sepia = "棕褐色老照片"
     case ComicStrip = "连环画效果"
+    case OilPainting = "油画效果"
 }
 
 extension ViewControllerType {
     var image: UIImage {
         switch self {
-        case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA, .ComicStrip, .Sepia:
+        case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
+                .ComicStrip, .OilPainting:
             return C7Image(named: "yuan002")!
         case .EdgeGlow, .ShiftGlitch:
             return C7Image(named: "yuan003")!
@@ -354,9 +356,6 @@ extension ViewControllerType {
         case .SplitScreen:
             let filter = C7SplitScreen()
             return (filter, nil, nil)
-        case .Convolution3x3:
-            let filter = C7Convolution3x3(convolutionType: .default)
-            return (filter, nil, nil)
         case .Sharpen3x3:
             var filter = C7Convolution3x3(convolutionType: .sharpen(iterations: 1))
             return (filter, (1, 0, 7), {
@@ -380,14 +379,6 @@ extension ViewControllerType {
             var filter = C7WaterRipple()
             return (filter, (0, 0.1, 0.8), {
                 filter.ripple = $0
-                return filter
-            })
-        case .ColorMatrix:
-            var filter = C7ColorMatrix4x4(matrix: Matrix4x4.skyblue_turns_green)
-            filter.offset = C7ColorOffset(0, 0, 1, 0)
-            filter.intensity = 0.3
-            return (filter, (0.3, 0.1, 1.0), {
-                filter.intensity = $0
                 return filter
             })
         case .Levels:
@@ -445,6 +436,20 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .ComicStrip:
             let filter = C7ComicStrip()
+            return (filter, nil, nil)
+        case .OilPainting:
+            let filter = C7OilPainting()
+            return (filter, nil, nil)
+        case .ColorMatrix4x4:
+            var filter = C7ColorMatrix4x4(matrix: Harbeth.Matrix4x4.replaced_red_green)
+            filter.offset = C7ColorOffset(0, 0, 1, 0)
+            filter.intensity = 0.3
+            return (filter, (0.3, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .Convolution3x3:
+            let filter = C7Convolution3x3(convolutionType: .custom(Matrix3x3.embossment))
             return (filter, nil, nil)
         }
     }

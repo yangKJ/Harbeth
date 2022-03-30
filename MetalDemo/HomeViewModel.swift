@@ -66,7 +66,7 @@ struct HomeViewModel {
     
     let visual: [ViewControllerType] = [
         .ShiftGlitch, .SoulOut, .EdgeGlow,
-        .Luminance, .ColorMatrix, .Monochrome,
+        .Luminance, .ColorMatrix4x4, .Monochrome,
         .VoronoiOverlay, .Storyboard,
     ]
     
@@ -87,7 +87,7 @@ struct HomeViewModel {
         .ChannelRGBA, .FalseColor, .ColorInvert,
         .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
-        .Sepia, .ComicStrip,
+        .ComicStrip, .OilPainting,
     ]
     
     let shape: [ViewControllerType] = [
@@ -109,6 +109,7 @@ struct HomeViewModel {
     ]
     
     let matrix: [ViewControllerType] = [
-        .Convolution3x3, .Sharpen3x3, .ColorMatrix,
+        .ColorMatrix4x4, .Convolution3x3, .Sharpen3x3,
+        .Sepia,
     ]
 }

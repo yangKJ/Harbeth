@@ -22,10 +22,10 @@ class PlayerViewController: UIViewController {
     var player: AVPlayer!
     
     lazy var video: C7CollectorVideo = {
-        let video = C7CollectorVideo.init(player: player) { [weak self] (image) in
-            self?.originImageView.image = image
-            if let callback = self?.tuple?.callback {
-                self?.video.filters = [callback(self!.nextTime)]
+        let video = C7CollectorVideo.init(player: player) { [unowned self] in
+            self.originImageView.image = $0
+            if let callback = self.tuple?.callback {
+                self.video.filters = [callback(self.nextTime)]
             }
         }
         video.filters = [self.tuple!.filter]
