@@ -1,7 +1,5 @@
 # Harbeth
 
-![x](Screenshot/M.jpeg)
-
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
@@ -38,8 +36,8 @@
 #### **总结下来目前共有 `100+` 种滤镜供您使用。✌️**
 
 <p align="left">
-<img src="Screenshot/ShiftGlitch.gif" width="300" hspace="1px">
-<img src="Screenshot/EdgeGlow.gif" width="300" hspace="1px">
+<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ab261e06fe3a44deb508f15249cd52bb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="300" hspace="1px">
+<img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6b607add314b4b2180009e2517629be2~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="300" hspace="1px">
 </p>
 
 - 代码零侵入注入滤镜功能，
@@ -113,7 +111,7 @@ camera.filters = [filter, filter2]
 - 举个例子，如何设计一款灵魂出窍滤镜🎷
 
 <p align="left">
-<img src="Screenshot/Soul.gif" width="250" hspace="30px">
+<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5f2b0a70ab16426fb36054b32c9bc2a9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="250" hspace="30px">
 </p>
 
 1. 遵循协议 `C7FilterProtocal`
@@ -196,7 +194,7 @@ camera.filters = [filter, filter2]
 ### 高级用法
 
 <p align="left">
-<img src="Screenshot/Mix.png" width="250" hspace="1px">
+<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae83280ff32340a889d7d4a61d0af8f6~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="250" hspace="1px">
 </p>
 
 - 运算符链式处理
@@ -229,7 +227,7 @@ filterImageView.image = result.outputImage()
 -----
 
 <p align="left">
-<img src="Screenshot/Mix2.png" width="250" hspace="1px">
+<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6f454038a958434da8bc26fc3aa1486a~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="250" hspace="1px">
 </p>
 
 - 组合操作
