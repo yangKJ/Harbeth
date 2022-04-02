@@ -87,7 +87,7 @@ struct HomeViewModel {
         .ChannelRGBA, .FalseColor, .ColorInvert,
         .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
-        .ComicStrip, .OilPainting,
+        .ComicStrip, .OilPainting, .Sketch,
     ]
     
     let shape: [ViewControllerType] = [

@@ -74,13 +74,14 @@ enum ViewControllerType: String {
     case Sepia = "棕褐色老照片"
     case ComicStrip = "连环画效果"
     case OilPainting = "油画效果"
+    case Sketch = "素描效果"
 }
 
 extension ViewControllerType {
     var image: UIImage {
         switch self {
         case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
-                .ComicStrip, .OilPainting:
+                .ComicStrip, .OilPainting, .Sketch:
             return C7Image(named: "yuan002")!
         case .EdgeGlow, .ShiftGlitch:
             return C7Image(named: "yuan003")!
@@ -305,8 +306,7 @@ extension ViewControllerType {
             })
         case .Sobel:
             var filter = C7Sobel()
-            filter.edgeStrength = 1.5
-            return (filter, (1.5, 0, 5), {
+            return (filter, (1, 0, 5), {
                 filter.edgeStrength = $0
                 return filter
             })
@@ -439,6 +439,10 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .OilPainting:
             let filter = C7OilPainting()
+            return (filter, nil, nil)
+        case .Sketch:
+            var filter = C7Sketch()
+            filter.edgeStrength = 0.3
             return (filter, nil, nil)
         case .ColorMatrix4x4:
             var filter = C7ColorMatrix4x4(matrix: Harbeth.Matrix4x4.replaced_red_green)

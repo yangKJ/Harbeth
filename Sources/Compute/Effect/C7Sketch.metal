@@ -12,35 +12,26 @@ kernel void C7Sketch(texture2d<half, access::write> outputTexture [[texture(0)]]
                      texture2d<half, access::sample> inputTexture [[texture(1)]],
                      constant float *edgeStrength [[buffer(0)]],
                      uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
+    const half sobelStep = half(2.0h);
+    const half3 kRec709Luma = half3(0.2126, 0.7152, 0.0722);
     
-    const float x = float(grid.x);
-    const float y = float(grid.y);
-    const float width = float(inputTexture.get_width());
-    const float height = float(inputTexture.get_height());
+    const half4 topLeft     = inputTexture.read(uint2(grid.x - sobelStep, grid.y - sobelStep));
+    const half4 top         = inputTexture.read(uint2(grid.x, grid.y - sobelStep));
+    const half4 topRight    = inputTexture.read(uint2(grid.x + sobelStep, grid.y - sobelStep));
+    const half4 centerLeft  = inputTexture.read(uint2(grid.x - sobelStep, grid.y));
+    const half4 centerRight = inputTexture.read(uint2(grid.x + sobelStep, grid.y));
+    const half4 bottomLeft  = inputTexture.read(uint2(grid.x - sobelStep, grid.y + sobelStep));
+    const half4 bottom      = inputTexture.read(uint2(grid.x, grid.y + sobelStep));
+    const half4 bottomRight = inputTexture.read(uint2(grid.x + sobelStep, grid.y + sobelStep));
     
-    const float2 leftCoordinate = float2((x - 1) / width, y / height);
-    const float2 rightCoordinate = float2((x + 1) / width, y / height);
-    const float2 topCoordinate = float2(x / width, (y - 1) / height);
-    const float2 bottomCoordinate = float2(x / width, (y + 1) / height);
-    const float2 topLeftCoordinate = float2((x - 1) / width, (y - 1) / height);
-    const float2 topRightCoordinate = float2((x + 1) / width, (y - 1) / height);
-    const float2 bottomLeftCoordinate = float2((x - 1) / width, (y + 1) / height);
-    const float2 bottomRightCoordinate = float2((x + 1) / width, (y + 1) / height);
+    const half4 h = -topLeft - 2.0h * top - topRight + bottomLeft + 2.0h * bottom + bottomRight;
+    const half4 v = -bottom - 2.0h * centerLeft - topLeft + bottomRight + 2.0h * centerRight + topRight;
     
-    const half leftIntensity = inputTexture.sample(quadSampler, leftCoordinate).r;
-    const half rightIntensity = inputTexture.sample(quadSampler, rightCoordinate).r;
-    const half topIntensity = inputTexture.sample(quadSampler, topCoordinate).r;
-    const half bottomIntensity = inputTexture.sample(quadSampler, bottomCoordinate).r;
-    const half topLeftIntensity = inputTexture.sample(quadSampler, topLeftCoordinate).r;
-    const half topRightIntensity = inputTexture.sample(quadSampler, topRightCoordinate).r;
-    const half bottomLeftIntensity = inputTexture.sample(quadSampler, bottomLeftCoordinate).r;
-    const half bottomRightIntensity = inputTexture.sample(quadSampler, bottomRightCoordinate).r;
+    half grayH = dot(h.rgb, kRec709Luma);
+    half grayV = dot(v.rgb, kRec709Luma);
     
-    const half h = -topLeftIntensity - 2.0h * topIntensity - topRightIntensity + bottomLeftIntensity + 2.0h * bottomIntensity + bottomRightIntensity;
-    const half v = -bottomLeftIntensity - 2.0h * leftIntensity - topLeftIntensity + bottomRightIntensity + 2.0h * rightIntensity + topRightIntensity;
-    
-    const half mag = 1.0h - (length(half2(h, v)) * float(*edgeStrength));
-    const half4 outColor = half4(half3(mag), 1.0h);
+    // sqrt(h^2 + v^2), 求点到(h, v)的距离
+    half color = length(half2(grayH, grayV)) * (*edgeStrength);
+    const half4 outColor = half4(half3(1.0h - color), 1.0h);
     outputTexture.write(outColor, grid);
 }
