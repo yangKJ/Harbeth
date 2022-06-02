@@ -21,55 +21,23 @@ Pod::Spec.new do |s|
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Condy' => 'ykj310@126.com' }
   s.source           = { :git => 'https://github.com/yangKJ/Harbeth.git', :tag => s.version }
-  s.module_name      = s.name
+  s.screenshots      = [ 'https://github.com/yangKJ/Harbeth/blob/master/Screenshot/EdgeGlow.gif' ]
   
   s.swift_version    = '5.0'
   s.requires_arc     = true
   s.static_framework = true
   s.ios.deployment_target = '10.0'
-  s.ios.frameworks = ["UIKit", 'MetalKit', 'ImageIO', "CoreImage"]
+  s.ios.frameworks = [ "UIKit", 'MetalKit', 'ImageIO', "CoreImage" ]
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
   
   s.subspec 'Basic' do |xx|
     xx.source_files = 'Sources/Basic/**/*.swift'
-    xx.resource_bundles = {
-      s.name => [ 'Sources/Compute/**/*.metal' ]
-    }
   end
   
   s.subspec 'Compute' do |xx|
-    xx.subspec 'ColorProcess' do |xxx|
-      xxx.source_files = 'Sources/Compute/ColorProcess/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
-    xx.subspec 'Lookup' do |xxx|
-      xxx.source_files = 'Sources/Compute/Lookup/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
-    xx.subspec 'Blur' do |xxx|
-      xxx.source_files = 'Sources/Compute/Blur/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
-    xx.subspec 'Blend' do |xxx|
-      xxx.source_files = 'Sources/Compute/Blend/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
-    xx.subspec 'Effect' do |xxx|
-      xxx.source_files = 'Sources/Compute/Effect/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
-    xx.subspec 'Shape' do |xxx|
-      xxx.source_files = 'Sources/Compute/Shape/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
-    xx.subspec 'Matrix' do |xxx|
-      xxx.source_files = 'Sources/Compute/Matrix/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
-    xx.subspec 'Visual' do |xxx|
-      xxx.source_files = 'Sources/Compute/Visual/*'
-      xxx.dependency 'Harbeth/Basic'
-    end
+    xx.source_files = 'Sources/Compute/**/*.swift'
+    xx.resource_bundles = { s.name => [ 'Sources/Compute/**/*.metal' ] }
+    xx.dependency 'Harbeth/Basic'
   end
   
 end
