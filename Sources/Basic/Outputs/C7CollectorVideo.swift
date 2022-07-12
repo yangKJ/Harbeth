@@ -68,8 +68,7 @@ extension C7CollectorVideo {
     }
     
     @objc func readBuffer(_ sender: CADisplayLink) {
-        var time = CMTime.invalid
-        time = videoOutput.itemTime(forHostTime: sender.timestamp + sender.duration)
+        let time = videoOutput.itemTime(forHostTime: sender.timestamp + sender.duration)
         guard videoOutput.hasNewPixelBuffer(forItemTime: time) else {
             return
         }

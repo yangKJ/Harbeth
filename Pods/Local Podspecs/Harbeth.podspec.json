@@ -37,7 +37,7 @@
   "subspecs": [
     {
       "name": "Basic",
-      "source_files": "Sources/Basic/**/*.swift"
+      "source_files": "Sources/Basic/**/*.{swift,metal}"
     },
     {
       "name": "Compute",

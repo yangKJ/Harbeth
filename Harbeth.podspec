@@ -31,7 +31,7 @@ Pod::Spec.new do |s|
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
   
   s.subspec 'Basic' do |xx|
-    xx.source_files = 'Sources/Basic/**/*.swift'
+    xx.source_files = 'Sources/Basic/**/*.{swift,metal}'
   end
   
   s.subspec 'Compute' do |xx|

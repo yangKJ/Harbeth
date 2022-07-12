@@ -6,13 +6,16 @@
 //
 
 import Foundation
-import class UIKit.UIApplication
 
 /// 相机数据采集器，在主线程返回图片
 /// The camera data collector returns pictures in the main thread.
 public final class C7CollectorCamera: C7Collector {
     
     public lazy var captureSession: AVCaptureSession = AVCaptureSession()
+    
+    private let videoQueue = DispatchQueue(label: "camera.collector.metal")
+    private lazy var sessionQueue = DispatchQueue(label: "camera.session.collector.metal")
+    private lazy var videoOutput = AVCaptureVideoDataOutput()
     
     required init(callback: @escaping C7FilterImageCallback) {
         super.init(callback: callback)
@@ -23,18 +26,28 @@ public final class C7CollectorCamera: C7Collector {
         super.init(view: view)
         setupCaptureSession()
     }
+    
+    public var videoOrientation: AVCaptureVideoOrientation = .landscapeRight {
+        didSet {
+            guard let connection = videoOutput.connection(with: .video),
+                  connection.isVideoOrientationSupported else {
+                return
+            }
+            connection.videoOrientation = videoOrientation
+        }
+    }
 }
 
 extension C7CollectorCamera {
     
     public func startCollector() {
-        DispatchQueue.global().async{
+        sessionQueue.async{
             self.captureSession.startRunning()
         }
     }
     
     public func stopCollector() {
-        DispatchQueue.global().async{
+        sessionQueue.async{
             self.captureSession.stopRunning()
         }
     }
@@ -53,14 +66,14 @@ extension C7CollectorCamera {
         }
         
         // video output
-        let videoOutput = AVCaptureVideoDataOutput()
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera.collector.metal"))
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.setSampleBufferDelegate(self, queue: videoQueue)
         if captureSession.canAddOutput(videoOutput) {
             captureSession.addOutput(videoOutput)
         }
         if let connection = videoOutput.connection(with: .video), connection.isVideoOrientationSupported {
-            connection.videoOrientation = AVCaptureVideoOrientation(rawValue: UIApplication.shared.statusBarOrientation.rawValue)!
+            connection.videoOrientation = .landscapeRight
         }
         captureSession.commitConfiguration()
     }
