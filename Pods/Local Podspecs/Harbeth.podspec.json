@@ -52,6 +52,15 @@
 
         ]
       }
+    },
+    {
+      "name": "CoreImage",
+      "source_files": "Sources/CoreImage/**/*.swift",
+      "dependencies": {
+        "Harbeth/Basic": [
+
+        ]
+      }
     }
   ],
   "swift_version": "5.0"

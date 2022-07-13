@@ -27,7 +27,7 @@ public final class C7CollectorCamera: C7Collector {
         setupCaptureSession()
     }
     
-    public var videoOrientation: AVCaptureVideoOrientation = .landscapeRight {
+    public var videoOrientation: AVCaptureVideoOrientation = .portrait {
         didSet {
             guard let connection = videoOutput.connection(with: .video),
                   connection.isVideoOrientationSupported else {
@@ -73,7 +73,7 @@ extension C7CollectorCamera {
             captureSession.addOutput(videoOutput)
         }
         if let connection = videoOutput.connection(with: .video), connection.isVideoOrientationSupported {
-            connection.videoOrientation = .landscapeRight
+            connection.videoOrientation = videoOrientation
         }
         captureSession.commitConfiguration()
     }

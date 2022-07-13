@@ -18,6 +18,9 @@ public enum Modifier {
     /// 基于渲染 3D 编码器，需配合`MTKView`方能显示
     /// Render based 3D encoder, Need to cooperate with MTKView to display.
     case render(vertex: String, fragment: String)
+    /// 基于CoreImage，直接生成图片
+    /// Based on `CoreImage`, directly generate images
+    case coreimage(CIFilterName: String)
 }
 
 public protocol C7FilterProtocol {
@@ -57,6 +60,13 @@ public protocol C7FilterProtocol {
     ///   - encoder: encoder, can be parallel computation encoder, can also be render 3D encoder
     ///   - index: Current parameter factor, after use please directly add, Please refer to the `C7ColorMatrix4x4`
     func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int)
+    
+    /// CoreImage 滤镜专属方案
+    ///
+    /// - Parameters:
+    ///   - filter: `CIFilter`
+    ///   - cgimage: input source
+    func coreImageSetupCIFilter(_ filter: CIFilter?, input cgimage: CGImage)
 }
 
 extension C7FilterProtocol {
@@ -64,4 +74,5 @@ extension C7FilterProtocol {
     public var otherInputTextures: C7InputTextures { [] }
     public func outputSize(input size: C7Size) -> C7Size { size }
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) { }
+    public func coreImageSetupCIFilter(_ filter: CIFilter?, input cgimage: CGImage) { }
 }

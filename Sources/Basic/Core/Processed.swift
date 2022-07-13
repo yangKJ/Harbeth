@@ -20,6 +20,10 @@ internal struct Processed {
     static func generateOutTexture(inTexture: MTLTexture,
                                    outTexture: MTLTexture? = nil,
                                    filter: C7FilterProtocol) throws -> MTLTexture {
+        // 单独处理`CoreImage`滤镜
+        if case .coreimage(let name) = filter.modifier {
+            return coreimage_.drawingProcess(input: inTexture, name: name, filter: filter) ?? inTexture
+        }
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
             throw C7CustomError.commandBuffer
         }

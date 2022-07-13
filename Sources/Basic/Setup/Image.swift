@@ -34,7 +34,7 @@ extension Queen where Base == C7Image {
         let bytesPerPixel: Int = 4
         let bytesPerRow = width * bytesPerPixel
         let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
-        let colorSpace = Shared.shared.device!.colorSpace
+        let colorSpace = cgimage.colorSpace ?? Shared.shared.device!.colorSpace
         
         if let currentTexture = Device.device().makeTexture(descriptor: descriptor),
            let context = CGContext(data: nil,

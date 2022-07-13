@@ -40,4 +40,9 @@ Pod::Spec.new do |s|
     xx.dependency 'Harbeth/Basic'
   end
   
+  s.subspec 'CoreImage' do |xx|
+    xx.source_files = 'Sources/CoreImage/**/*.swift'
+    xx.dependency 'Harbeth/Basic'
+  end
+  
 end
