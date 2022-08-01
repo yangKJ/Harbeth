@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AVFoundation
 
 public final class C7CollectorVideo: C7Collector {
     
@@ -19,30 +20,27 @@ public final class C7CollectorVideo: C7Collector {
         return displayLink
     }()
     
-    required init(callback: @escaping C7FilterImageCallback) {
-        super.init(callback: callback)
-        setupVideoOutput()
-    }
-    
-    required init(view: C7View) {
-        super.init(view: view)
-        setupVideoOutput()
-    }
-    
     public convenience init(player: AVPlayer, callback: @escaping C7FilterImageCallback) {
         self.init(callback: callback)
         self.player = player
-        if let currentItem = player.currentItem {
-            currentItem.add(videoOutput)
-        }
+        setupPlayer(player)
     }
     
     public convenience init(player: AVPlayer, view: C7View) {
         self.init(view: view)
         self.player = player
-        if let currentItem = player.currentItem {
-            currentItem.add(videoOutput)
-        }
+        setupPlayer(player)
+    }
+    
+    public convenience init(player: AVPlayer, delegate: C7CollectorImageDelegate) {
+        self.init(delegate: delegate)
+        self.player = player
+        setupPlayer(player)
+    }
+    
+    public override func setupInit() {
+        super.setupInit()
+        setupVideoOutput()
     }
 }
 
@@ -61,6 +59,12 @@ extension C7CollectorVideo {
 
 extension C7CollectorVideo {
     
+    func setupPlayer(_ player: AVPlayer) {
+        if let currentItem = player.currentItem {
+            currentItem.add(videoOutput)
+        }
+    }
+    
     func setupVideoOutput() {
         videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
@@ -73,8 +77,6 @@ extension C7CollectorVideo {
             return
         }
         let pixelBuffer = videoOutput.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil)
-        if let image = pixelBuffer2Image(pixelBuffer) {
-            DispatchQueue.main.async { self.callback(image) }
-        }
+        self.generateFilterImage(with: pixelBuffer)
     }
 }

@@ -7,10 +7,24 @@
 
 import Foundation
 
+public protocol C7CollectorImageDelegate: NSObjectProtocol {
+    
+    /// The filter image is returned in the child thread.
+    ///
+    /// - Parameters:
+    ///   - collector: collector
+    ///   - image: fliter image
+    func filterImage(_ collector: C7Collector, fliter image: C7Image)
+}
+
 public protocol C7CollectorProtocol {
     
     /// Multiple filter combinations.
     var filters: [C7FilterProtocol] { get set }
+    
+    /// Initialization method
+    /// - Parameter delegate: Protocol to generate filter images.
+    init(delegate: C7CollectorImageDelegate)
     
     /// Initialization method
     /// This mode directly generates images for external use.
