@@ -1,6 +1,6 @@
 {
   "name": "Harbeth",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "summary": "About Metal graphics processing.",
   "homepage": "https://github.com/yangKJ/Harbeth",
   "license": {
@@ -12,7 +12,7 @@
   },
   "source": {
     "git": "https://github.com/yangKJ/Harbeth.git",
-    "tag": "0.2.0"
+    "tag": "0.2.1"
   },
   "screenshots": [
     "https://github.com/yangKJ/Harbeth/blob/master/Screenshot/EdgeGlow.gif"
@@ -37,7 +37,7 @@
   "subspecs": [
     {
       "name": "Basic",
-      "source_files": "Sources/Basic/**/*.{swift,metal}"
+      "source_files": "Sources/Basic/**/*.swift"
     },
     {
       "name": "Compute",

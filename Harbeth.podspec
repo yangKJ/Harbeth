@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.2.0'
+  s.version          = '0.2.1'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -31,7 +31,7 @@ Pod::Spec.new do |s|
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
   
   s.subspec 'Basic' do |xx|
-    xx.source_files = 'Sources/Basic/**/*.{swift,metal}'
+    xx.source_files = 'Sources/Basic/**/*.swift'
   end
   
   s.subspec 'Compute' do |xx|
