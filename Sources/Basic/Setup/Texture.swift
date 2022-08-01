@@ -19,9 +19,8 @@ extension MTLTexture {
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         self.getBytes(&src, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
         
-        //kCGImageAlphaPremultipliedLast保留透明度
-        let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
-        let colorSpace = Shared.shared.device!.colorSpace//CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo(rawValue: Device.bitmapInfo())
+        let colorSpace = Device.colorSpace()
         
         if let cfdata = CFDataCreate(kCFAllocatorDefault, &src, bytesPerRow * height),
            let dataProvider = CGDataProvider(data: cfdata),
@@ -30,7 +29,7 @@ extension MTLTexture {
                                  bitsPerPixel: 32,
                                  bytesPerRow: bytesPerRow,
                                  space: colorSpace,
-                                 bitmapInfo: CGBitmapInfo(rawValue: bitmapInfo),
+                                 bitmapInfo: bitmapInfo,
                                  provider: dataProvider,
                                  decode: nil,
                                  shouldInterpolate: true,

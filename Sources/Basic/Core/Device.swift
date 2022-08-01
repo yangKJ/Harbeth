@@ -42,7 +42,7 @@ internal final class Device {
         } else {
             self.defaultLibrary = device.makeDefaultLibrary()
         }
-        self.ATMetalLibrary = device.makeATLibrary(forResource: "Harbeth")
+        self.ATMetalLibrary = Device.makeATLibrary(device, for: "Harbeth")
         
         if defaultLibrary == nil && ATMetalLibrary == nil {
             C7FailedErrorInDebug("Could not load library")
@@ -54,18 +54,18 @@ internal final class Device {
     }
 }
 
-extension MTLDevice {
+extension Device {
     
-    fileprivate func makeATLibrary(forResource: String) -> MTLLibrary? {
+    static func makeATLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
         /// Compatible with the Bundle address used by CocoaPods to import framework
-        let bundle = getFrameworkBundle(bundleName: forResource)
+        let bundle = getFrameworkBundle(bundleName: resource)
         guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
             return nil
         }
-        return try? makeLibrary(filepath: path)
+        return try? device.makeLibrary(filepath: path)
     }
     
-    fileprivate func getFrameworkBundle(bundleName: String) -> Bundle {
+    static func getFrameworkBundle(bundleName: String) -> Bundle {
         let candidates = [
             // Bundle should be present here when the package is linked into an App.
             Bundle.main.resourceURL,
@@ -84,10 +84,23 @@ extension MTLDevice {
         return Bundle(for: Device.self)
     }
 }
+
 extension Device {
     
     static func device() -> MTLDevice {
         return Shared.shared.device!.device
+    }
+    
+    static func colorSpace(_ cgimage: CGImage? = nil) -> CGColorSpace {
+        return cgimage?.colorSpace ?? Shared.shared.device!.colorSpace
+    }
+    
+    static func bitmapInfo(_ cgimage: CGImage? = nil) -> UInt32 {
+        if let c = cgimage?.bitmapInfo.rawValue {
+            return c
+        }
+        //kCGImageAlphaPremultipliedLast保留透明度
+        return CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
     }
     
     static func commandQueue() -> MTLCommandQueue {

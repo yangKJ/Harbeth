@@ -19,12 +19,6 @@ extension Queen where Base == C7Image {
     /// - Returns: MTLTexture
     public func toTexture() -> MTLTexture? {
         guard let cgimage = base.cgImage else { return nil }
-        let loader = Shared.shared.device!.textureLoader
-        let options = [MTKTextureLoader.Option.SRGB : false]
-        if let texture = try? loader.newTexture(cgImage: cgimage, options: options) {
-            return texture
-        }
-        
         let width = cgimage.width, height = cgimage.height
         let descriptor = MTLTextureDescriptor()
         descriptor.pixelFormat = MTLPixelFormat.rgba8Unorm
@@ -33,8 +27,8 @@ extension Queen where Base == C7Image {
         descriptor.usage = MTLTextureUsage.shaderRead
         let bytesPerPixel: Int = 4
         let bytesPerRow = width * bytesPerPixel
-        let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
-        let colorSpace = cgimage.colorSpace ?? Shared.shared.device!.colorSpace
+        let bitmapInfo = Device.bitmapInfo(cgimage)
+        let colorSpace = Device.colorSpace(cgimage)
         
         if let currentTexture = Device.device().makeTexture(descriptor: descriptor),
            let context = CGContext(data: nil,
