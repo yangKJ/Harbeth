@@ -75,6 +75,7 @@ enum ViewControllerType: String {
     case ComicStrip = "连环画效果"
     case OilPainting = "油画效果"
     case Sketch = "素描效果"
+    case CIHS = "coreImage高光阴影"
 }
 
 extension ViewControllerType {
@@ -455,6 +456,12 @@ extension ViewControllerType {
         case .Convolution3x3:
             let filter = C7Convolution3x3(convolutionType: .custom(Matrix3x3.embossment))
             return (filter, nil, nil)
+        case .CIHS:
+            var filter = CIHighlightShadow()
+            return (filter, (1, 0, 1), {
+                filter.value = $0
+                return filter
+            })
         }
     }
 }

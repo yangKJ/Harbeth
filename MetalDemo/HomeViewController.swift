@@ -72,15 +72,15 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return viewModel.datas[section].count
+        return Array(viewModel.datas.values)[section].count
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return viewModel.section[section]
+        return Array(viewModel.datas.keys)[section]
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let element = viewModel.datas[indexPath.section][indexPath.row]
+        let element = Array(viewModel.datas.values)[indexPath.section][indexPath.row]
         let cell = UITableViewCell(style: .value1, reuseIdentifier: HomeViewController.identifier)
         cell.selectionStyle = .none
         cell.accessoryType = .disclosureIndicator
@@ -95,7 +95,7 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let type = viewModel.datas[indexPath.section][indexPath.row]
+        let type = Array(viewModel.datas.values)[indexPath.section][indexPath.row]
         let vc = viewModel.setupViewController(type)
         vc.title = type.rawValue
         tabBarController?.tabBar.isHidden = true

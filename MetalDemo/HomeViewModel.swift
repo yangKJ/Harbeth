@@ -42,25 +42,22 @@ struct HomeViewModel {
         }
     }
     
-    lazy var section: [String] = {
+    lazy var datas: [String: [ViewControllerType]] = {
         switch viewType {
         case .image:
-            return ["效果类", "颜色处理", "形状变化", "模糊处理", "图片融合类", "滤镜类", "矩阵卷积"]
+            return [
+                "查找滤镜类": lookup,
+                "效果类": effect,
+                "颜色处理": colorProcess,
+                "形状变化": shape,
+                "模糊处理": blur,
+                "图片融合类": blend,
+                "矩阵卷积": matrix
+            ]
         case .camera:
-            return ["相机采集效果 - 真机测试"]
+            return ["颜色 - 真机测试": colorProcess, "特效 - 真机测试": visual]
         case .player:
-            return ["视频特效 - 真机测试"]
-        }
-    }()
-    
-    lazy var datas: [[ViewControllerType]] = {
-        switch viewType {
-        case .image:
-            return [effect, colorProcess, shape, blur, blend, lookup, matrix]
-        case .camera:
-            return [visual]
-        case .player:
-            return [visual]
+            return ["视频特效 - 真机测试": visual]
         }
     }()
     
@@ -81,7 +78,7 @@ struct HomeViewModel {
     
     let colorProcess: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
-        .Hue, .Contrast, .HighlightShadow,
+        .Hue, .Contrast, .HighlightShadow, .CIHS,
         .Saturation, .WhiteBalance, .Vibrance,
         .Granularity, .Levels, .Sobel,
         .ChannelRGBA, .FalseColor, .ColorInvert,
