@@ -42,7 +42,7 @@ class PlayerViewController: UIViewController {
     }
     
     deinit {
-        print("🎨 is Deinit.")
+        print("PlayerViewController is Deinit.")
         Shared.shared.deinitDevice()
     }
     

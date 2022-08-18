@@ -14,7 +14,7 @@ public protocol C7CollectorImageDelegate: NSObjectProtocol {
     /// - Parameters:
     ///   - collector: collector
     ///   - image: fliter image
-    func filterImage(_ collector: C7Collector, fliter image: C7Image)
+    func preview(_ collector: C7Collector, fliter image: C7Image)
 }
 
 public protocol C7CollectorProtocol {

@@ -71,7 +71,7 @@ class FilterViewController: UIViewController {
     }()
     
     deinit {
-        print("🎨 is Deinit.")
+        print("FilterViewController is Deinit.")
         Shared.shared.deinitDevice()
     }
     

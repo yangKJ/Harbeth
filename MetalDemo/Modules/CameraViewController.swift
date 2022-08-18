@@ -19,28 +19,14 @@ class CameraViewController: UIViewController {
     }()
     
     lazy var camera: C7CollectorCamera = {
-        let camera = C7CollectorCamera(callback: { [weak self] (image) in
-            self?.originImageView.image = image
-            if let callback = self?.tuple?.callback {
-                self?.camera.filters = [callback(self!.nextTime)]
-            }
-        })
+        let camera = C7CollectorCamera.init(delegate: self)
         camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
         camera.filters = [self.tuple!.filter]
         return camera
     }()
     
-    // random time(actually NOT random)
-    private let times: [Float] = (0..<50).map { 0.1 + Float($0) * 0.03 }
-    private var current = 0
-    var nextTime: Float {
-        let time = times[current]
-        current = (current + 1) % times.count
-        return time
-    }
-    
     deinit {
-        print("🎨 is Deinit.")
+        print("CameraViewController is deinit.")
         Shared.shared.deinitDevice()
     }
     
@@ -59,5 +45,14 @@ class CameraViewController: UIViewController {
             originImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             originImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100)
         ])
+    }
+}
+
+extension CameraViewController: C7CollectorImageDelegate {
+    
+    func preview(_ collector: C7Collector, fliter image: C7Image) {
+        DispatchQueue.main.async {
+            self.originImageView.image = image
+        }
     }
 }
