@@ -10,6 +10,7 @@
 
 import Foundation
 import MetalKit
+import CoreImage
 
 public enum Modifier {
     /// 基于并行计算编码器，可直接生成图片

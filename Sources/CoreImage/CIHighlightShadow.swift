@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreImage
 
 /// 高光阴影
 public struct CIHighlightShadow: C7FilterProtocol {
