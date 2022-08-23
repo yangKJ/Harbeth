@@ -92,7 +92,7 @@ extension Device {
     }
     
     static func colorSpace(_ cgimage: CGImage? = nil) -> CGColorSpace {
-        return cgimage?.colorSpace ?? Shared.shared.device!.colorSpace
+        return cgimage?.colorSpace ?? (Shared.shared.device?.colorSpace ?? CGColorSpaceCreateDeviceRGB())
     }
     
     static func bitmapInfo(_ cgimage: CGImage? = nil) -> UInt32 {
@@ -109,11 +109,11 @@ extension Device {
     
     static func readMTLFunction(_ name: String) throws -> MTLFunction {
         // First read the project
-        if let libray = Shared.shared.device!.defaultLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = Shared.shared.device?.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         // Then read from CocoaPods
-        if let libray = Shared.shared.device!.ATMetalLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = Shared.shared.device?.ATMetalLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         #if DEBUG
