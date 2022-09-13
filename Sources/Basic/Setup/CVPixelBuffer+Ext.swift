@@ -8,6 +8,7 @@
 import Foundation
 import CoreVideo
 import MetalKit
+import VideoToolbox
 
 extension CVPixelBuffer: C7Compatible { }
 
@@ -45,5 +46,11 @@ extension Queen where Base: CVPixelBuffer {
         // 运算符组合滤镜效果，生成纹理
         filters.forEach { texture = texture ->> $0 }
         return texture.toImage()
+    }
+    
+    public func convert2cgImage() -> CGImage? {
+        var cgImage: CGImage?
+        VTCreateCGImageFromCVPixelBuffer(base, options: nil, imageOut: &cgImage)
+        return cgImage
     }
 }

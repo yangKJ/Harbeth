@@ -59,6 +59,11 @@ extension C7Collector {
     
     func pixelBuffer2Image(_ pixelBuffer: CVPixelBuffer?) -> C7Image? {
         guard let pixelBuffer = pixelBuffer else { return nil }
+        if filters.isEmpty {
+            // Fixed rgba => bgra when no filter is introduced.
+            guard let cgimage = pixelBuffer.mt.convert2cgImage() else { return nil }
+            return C7Image.init(cgImage: cgimage)
+        }
         let image = pixelBuffer.mt.convert2C7Image(textureCache: textureCache, filters: filters)
         #if !targetEnvironment(simulator)
         if let textureCache = textureCache {
