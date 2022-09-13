@@ -40,10 +40,10 @@ class CameraViewController: UIViewController {
         view.backgroundColor = UIColor.background
         view.addSubview(originImageView)
         NSLayoutConstraint.activate([
-            originImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
-            originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            originImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            originImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100)
+            originImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 84),
+            originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
+            originImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
+            originImageView.heightAnchor.constraint(equalTo: originImageView.widthAnchor, multiplier: view.frame.size.height/view.frame.size.width),
         ])
     }
 }

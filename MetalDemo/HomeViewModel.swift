@@ -55,7 +55,9 @@ struct HomeViewModel {
                 "矩阵卷积": matrix
             ]
         case .camera:
-            return ["颜色 - 真机测试": colorProcess, "特效 - 真机测试": visual]
+            var filters = colorProcess
+            filters.insert(.Storyboard, at: 0)
+            return ["真机测试": filters]
         case .player:
             return ["视频特效 - 真机测试": visual]
         }
