@@ -13,6 +13,9 @@ import MetalKit
 public class C7Collector: NSObject, C7CollectorProtocol {
     
     public var filters: [C7FilterProtocol] = []
+    public var videoSettings: [String : Any] = [
+        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+    ]
     
     var haveMTKView: Bool = false
     var callback: C7FilterImageCallback?

@@ -66,9 +66,7 @@ extension C7CollectorVideo {
     }
     
     func setupVideoOutput() {
-        videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: [
-            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
-        ])
+        videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: videoSettings)
     }
     
     @objc func readBuffer(_ sender: CADisplayLink) {

@@ -76,6 +76,7 @@ enum ViewControllerType: String {
     case OilPainting = "油画效果"
     case Sketch = "素描效果"
     case CIHS = "coreImage高光阴影"
+    case CIGaussian = "coreImage高斯模糊"
 }
 
 extension ViewControllerType {
@@ -460,6 +461,12 @@ extension ViewControllerType {
             var filter = CIHighlightShadow()
             return (filter, (1, 0, 1), {
                 filter.value = $0
+                return filter
+            })
+        case .CIGaussian:
+            var filter = CIGaussianBlur()
+            return (filter, (10, 0, 30), {
+                filter.radius = $0
                 return filter
             })
         }

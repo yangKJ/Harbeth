@@ -36,7 +36,7 @@ public final class C7CollectorCamera: C7Collector {
     
     public lazy var videoOutput: AVCaptureVideoDataOutput = {
         let output = AVCaptureVideoDataOutput()
-        output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        output.videoSettings = videoSettings
         output.alwaysDiscardsLateVideoFrames = true
         output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera.collector.buffer.metal"))
         if captureSession.canAddOutput(output) {

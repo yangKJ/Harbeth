@@ -96,7 +96,7 @@ struct HomeViewModel {
     
     let blur: [ViewControllerType] = [
         .MonochromeDilation, .MotionBlur, .MeanBlur,
-        .GaussianBlur, .BilateralBlur,
+        .GaussianBlur, .CIGaussian, .BilateralBlur,
     ]
     
     let blend: [ViewControllerType] = [
