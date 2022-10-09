@@ -7,29 +7,31 @@
 
 import Foundation
 import CoreImage
+import MetalKit
 
-internal struct coreimage_ {
+internal struct COImage {
     
-    static func drawingProcess(input texture: MTLTexture,
-                               name: String,
-                               filter: C7FilterProtocol) -> MTLTexture? {
-        guard let cgImage = texture.toCGImage() else {
-            return nil
-        }
+    @inlinable static func drawingProcess(cgImage: CGImage, name: String, filter: C7FilterProtocol) -> CGImage {
         let ciimage = CIImage.init(cgImage: cgImage)
         let cifiter = CIFilter.init(name: name)
-        // 配置滤镜参数
         filter.coreImageSetupCIFilter(cifiter, input: cgImage)
-        // 设置输入源
         cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
         guard let outputImage = cifiter?.outputImage else {
-            return nil
+            return cgImage
         }
-        let context = CIContext(options: nil)
-        guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
-            return nil
+        let context = CIContext(options: [
+            CIContextOption.workingColorSpace: Device.colorSpace(cgImage)
+        ])
+        let outputcgImage = context.createCGImage(outputImage, from: outputImage.extent)
+        return outputcgImage ?? cgImage
+    }
+    
+    @inlinable static func drawingProcess(texture: MTLTexture, name: String, filter: C7FilterProtocol) -> MTLTexture {
+        guard var cgImage = texture.toCGImage() else {
+            return texture
         }
-        let resultImage = C7Image(cgImage: cgImage)
-        return resultImage.mt.toTexture()
+        cgImage = Self.drawingProcess(cgImage: cgImage, name: name, filter: filter)
+        
+        return C7Image(cgImage: cgImage).mt.toTexture() ?? texture
     }
 }

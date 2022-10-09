@@ -17,12 +17,13 @@ internal struct Processed {
     ///   - outTexture: Output texture
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: New texture after processing
+    @inlinable @discardableResult
     static func generateOutTexture(inTexture: MTLTexture,
                                    outTexture: MTLTexture? = nil,
                                    filter: C7FilterProtocol) throws -> MTLTexture {
         // 单独处理`CoreImage`滤镜
         if case .coreimage(let name) = filter.modifier {
-            return coreimage_.drawingProcess(input: inTexture, name: name, filter: filter) ?? inTexture
+            return COImage.drawingProcess(texture: inTexture, name: name, filter: filter)
         }
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
             throw C7CustomError.commandBuffer
@@ -64,9 +65,9 @@ internal struct Processed {
     ///    - height: The texture height
     ///    - mipmapped: No mapping was required
     /// - Returns: New textures
-    static func destTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
-                            width: Int, height: Int,
-                            mipmapped: Bool = false) -> MTLTexture {
+    @inlinable static func destTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
+                                       width: Int, height: Int,
+                                       mipmapped: Bool = false) -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
                                                                   width: width,
                                                                   height: height,

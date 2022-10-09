@@ -17,7 +17,7 @@ internal struct Compute {
     ///
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
-    static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
+    @inlinable static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
         /// 先读取缓存管线
         if let pipelineState = Shared.shared.device?.pipelines[kernel] {
             return pipelineState
@@ -31,10 +31,10 @@ internal struct Compute {
         return nil
     }
     
-    static func drawingProcess(_ pipelineState: MTLComputePipelineState,
-                               commandBuffer: MTLCommandBuffer,
-                               textures: [MTLTexture],
-                               filter: C7FilterProtocol) {
+    @inlinable static func drawingProcess(_ pipelineState: MTLComputePipelineState,
+                                          commandBuffer: MTLCommandBuffer,
+                                          textures: [MTLTexture],
+                                          filter: C7FilterProtocol) {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             return
         }
