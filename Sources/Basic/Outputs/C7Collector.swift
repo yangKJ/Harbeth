@@ -16,6 +16,8 @@ public class C7Collector: NSObject, C7CollectorProtocol {
     public var videoSettings: [String : Any] = [
         kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
     ]
+    /// Whether to enable automatic direction correction of pictures? The default is true.
+    public var autoCorrectDirection: Bool = true
     
     var haveMTKView: Bool = false
     var callback: C7FilterImageCallback?
@@ -44,11 +46,44 @@ public class C7Collector: NSObject, C7CollectorProtocol {
     
     deinit {
         delegate = nil
+        flushTextureCache()
         print("C7Collector is deinit.")
     }
     
     open func setupInit() {
         setupTextureCache()
+    }
+}
+
+extension C7Collector {
+    
+    func pixelBuffer2Image(_ pixelBuffer: CVPixelBuffer?) -> C7Image? {
+        guard let pixelBuffer = pixelBuffer else { return nil }
+        if filters.isEmpty {
+            // Fixed rgba => bgra when no filter is introduced.
+            guard let cgimage = pixelBuffer.mt.convert2cgImage() else { return nil }
+            return C7Image.init(cgImage: cgimage)
+        }
+        
+        let image = injectFliterAndConvert2Image(with: pixelBuffer)
+        
+        flushTextureCache()
+        return image
+    }
+    
+    func processing(with pixelBuffer: CVPixelBuffer?) {
+        guard var image = self.pixelBuffer2Image(pixelBuffer) else {
+            return
+        }
+        if autoCorrectDirection {
+            image = image.mt.fixOrientation()
+        }
+        if let callback = self.callback {
+            DispatchQueue.main.async { callback(image) }
+        }
+        if let delegate = self.delegate {
+            delegate.preview(self, fliter: image)
+        }
     }
 }
 
@@ -60,31 +95,21 @@ extension C7Collector {
         #endif
     }
     
-    func pixelBuffer2Image(_ pixelBuffer: CVPixelBuffer?) -> C7Image? {
-        guard let pixelBuffer = pixelBuffer else { return nil }
-        if filters.isEmpty {
-            // Fixed rgba => bgra when no filter is introduced.
-            guard let cgimage = pixelBuffer.mt.convert2cgImage() else { return nil }
-            return C7Image.init(cgImage: cgimage)
-        }
-        let image = pixelBuffer.mt.convert2C7Image(textureCache: textureCache, filters: filters)
+    private func flushTextureCache() {
         #if !targetEnvironment(simulator)
         if let textureCache = textureCache {
-            CVMetalTextureCacheFlush(textureCache, 0);
+            CVMetalTextureCacheFlush(textureCache, 0)
         }
         #endif
-        return image
     }
     
-    func generateFilterImage(with pixelBuffer: CVPixelBuffer?) {
-        guard let image = self.pixelBuffer2Image(pixelBuffer) else {
-            return
+    /// Inject filter and convert to image
+    private func injectFliterAndConvert2Image(with pixelBuffer: CVPixelBuffer) -> C7Image? {
+        guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
+            return nil
         }
-        if let callback = self.callback {
-            DispatchQueue.main.async { callback(image) }
-        }
-        if let delegate = self.delegate {
-            delegate.preview(self, fliter: image)
-        }
+        // 运算符组合滤镜效果，生成纹理
+        filters.forEach { texture = texture ->> $0 }
+        return texture.toImage()
     }
 }

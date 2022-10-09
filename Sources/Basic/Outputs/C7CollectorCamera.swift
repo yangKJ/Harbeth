@@ -85,6 +85,6 @@ extension C7CollectorCamera: AVCaptureVideoDataOutputSampleBufferDelegate {
     
     public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
-        self.generateFilterImage(with: pixelBuffer)
+        self.processing(with: pixelBuffer)
     }
 }

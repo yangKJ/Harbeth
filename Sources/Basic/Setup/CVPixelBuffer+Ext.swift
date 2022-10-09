@@ -39,15 +39,6 @@ extension Queen where Base: CVPixelBuffer {
         return nil
     }
     
-    public func convert2C7Image(textureCache: CVMetalTextureCache?, filters: [C7FilterProtocol]) -> C7Image? {
-        guard var texture = convert2MTLTexture(textureCache: textureCache) else {
-            return nil
-        }
-        // 运算符组合滤镜效果，生成纹理
-        filters.forEach { texture = texture ->> $0 }
-        return texture.toImage()
-    }
-    
     public func convert2cgImage() -> CGImage? {
         var cgImage: CGImage?
         VTCreateCGImageFromCVPixelBuffer(base, options: nil, imageOut: &cgImage)
