@@ -84,7 +84,7 @@ public struct C7BlendFilter: C7FilterProtocol {
     }
     
     public var otherInputTextures: C7InputTextures {
-        if let texture = blendImage?.mt.toTexture() {
+        if let texture = blendImage?.cgImage?.mt.newTexture() {
             return [texture]
         }
         return []
