@@ -17,35 +17,8 @@ extension Queen where Base == C7Image {
     /// Texture loader can not load image data to create texture
     /// Draw image and create texture
     /// - Returns: MTLTexture
-    public func toTexture() -> MTLTexture? {
-        guard let cgimage = base.cgImage else { return nil }
-        let width = cgimage.width, height = cgimage.height
-        let descriptor = MTLTextureDescriptor()
-        descriptor.pixelFormat = MTLPixelFormat.rgba8Unorm
-        descriptor.width = width
-        descriptor.height = height
-        descriptor.usage = MTLTextureUsage.shaderRead
-        let bytesPerPixel: Int = 4
-        let bytesPerRow = width * bytesPerPixel
-        let bitmapInfo = Device.bitmapInfo(cgimage)
-        let colorSpace = Device.colorSpace(cgimage)
-        
-        if let currentTexture = Device.device().makeTexture(descriptor: descriptor),
-           let context = CGContext(data: nil,
-                                   width: width,
-                                   height: height,
-                                   bitsPerComponent: 8,
-                                   bytesPerRow: bytesPerRow,
-                                   space: colorSpace,
-                                   bitmapInfo: bitmapInfo) {
-            context.draw(cgimage, in: CGRect(x: 0, y: 0, width: width, height: height))
-            if let data = context.data {
-                let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-                currentTexture.replace(region: region, mipmapLevel: 0, withBytes: data, bytesPerRow: bytesPerRow)
-                return currentTexture
-            }
-        }
-        return nil
+    public func toTexture(cgimage: CGImage? = nil) -> MTLTexture? {
+        return (cgimage ?? base.cgImage)?.mt.toTexture()
     }
     
     /// Fixed image rotation direction.
