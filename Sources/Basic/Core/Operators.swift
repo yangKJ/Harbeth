@@ -17,7 +17,7 @@ infix operator ->> : AppendPrecedence
 
 @discardableResult
 public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
-    if let destTexture = try? Processed.generateOutTexture(inTexture: left, filter: right) {
+    if let destTexture = try? Processed.IO(inTexture: left, filter: right) {
         return destTexture
     }
     return left

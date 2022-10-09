@@ -18,9 +18,7 @@ internal struct Processed {
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: New texture after processing
     @inlinable @discardableResult
-    static func generateOutTexture(inTexture: MTLTexture,
-                                   outTexture: MTLTexture? = nil,
-                                   filter: C7FilterProtocol) throws -> MTLTexture {
+    static func IO(inTexture: MTLTexture, outTexture: MTLTexture? = nil, filter: C7FilterProtocol) throws -> MTLTexture {
         // 单独处理`CoreImage`滤镜
         if case .coreimage(let name) = filter.modifier {
             return COImage.drawingProcess(texture: inTexture, name: name, filter: filter)

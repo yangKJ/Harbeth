@@ -17,7 +17,7 @@ extension C7Image: C7FilterOutput {
             throw C7CustomError.source2Texture
         }
         do {
-            let outTexture = try Processed.generateOutTexture(inTexture: inTexture, filter: filter)
+            let outTexture = try Processed.IO(inTexture: inTexture, filter: filter)
             guard let outImage = outTexture.toImage() else {
                 throw C7CustomError.texture2Image
             }
@@ -34,7 +34,7 @@ extension C7Image: C7FilterOutput {
         do {
             var outTexture: MTLTexture = inTexture
             for filter in filters {
-                outTexture = try Processed.generateOutTexture(inTexture: outTexture, filter: filter)
+                outTexture = try Processed.IO(inTexture: outTexture, filter: filter)
             }
             return (outTexture.toImage() ?? self) as! T
         } catch {
