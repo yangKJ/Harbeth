@@ -46,6 +46,7 @@ struct HomeViewModel {
         switch viewType {
         case .image:
             return [
+                "CoreImage滤镜": coreImage,
                 "查找滤镜类": lookup,
                 "效果类": effect,
                 "颜色处理": colorProcess,
@@ -110,5 +111,9 @@ struct HomeViewModel {
     let matrix: [ViewControllerType] = [
         .ColorMatrix4x4, .Convolution3x3, .Sharpen3x3,
         .Sepia,
+    ]
+    
+    let coreImage: [ViewControllerType] = [
+        .CIGaussian, .CIHS,
     ]
 }
