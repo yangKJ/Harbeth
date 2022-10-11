@@ -51,8 +51,14 @@ extension Queen where Base: CGImage {
     /// Creates a new Metal texture from a given bitmap image.
     /// - Parameter options: Dictonary of MTKTextureLoaderOptions
     /// - Returns: MTLTexture
-    public func newTexture(options: [MTKTextureLoader.Option: Any] = [.SRGB: false]) -> MTLTexture? {
+    public func newTexture(options: [MTKTextureLoader.Option: Any]? = nil) -> MTLTexture? {
+        let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
+        let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
+            .textureUsage: NSNumber(value: usage.rawValue),
+            .generateMipmaps: NSNumber(value: false),
+            .SRGB: NSNumber(value: false)
+        ]
         let loader = Shared.shared.device?.textureLoader
-        return try? loader?.newTexture(cgImage: base, options: options)
+        return try? loader?.newTexture(cgImage: base, options: textureOptions)
     }
 }
