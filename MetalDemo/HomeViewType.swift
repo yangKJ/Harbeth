@@ -465,6 +465,7 @@ extension ViewControllerType {
             })
         case .CIGaussian:
             var filter = CIGaussianBlur()
+            filter.radius = 10
             return (filter, (10, 0, 30), {
                 filter.radius = $0
                 return filter

@@ -57,10 +57,13 @@ struct HomeViewModel {
             ]
         case .camera:
             var filters = colorProcess
-            filters.insert(.Storyboard, at: 0)
+            filters.insert(.CIGaussian, at: 0)
+            filters.insert(.Storyboard, at: 1)
             return ["真机测试": filters]
         case .player:
-            return ["视频特效 - 真机测试": visual]
+            var filters = visual
+            filters.insert(.CIHS, at: 0)
+            return ["视频特效 - 真机测试": filters]
         }
     }()
     
