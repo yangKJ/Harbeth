@@ -28,7 +28,8 @@ extension MTLTexture {
             getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             let colorScape = colorSpace ?? CGColorSpaceCreateDeviceGray()
-            let bitmapInfo = CGBitmapInfo(rawValue: pixelFormat == .a8Unorm ? CGImageAlphaInfo.alphaOnly.rawValue : CGImageAlphaInfo.none.rawValue)
+            let rawV = pixelFormat == .a8Unorm ? CGImageAlphaInfo.alphaOnly.rawValue : CGImageAlphaInfo.none.rawValue
+            let bitmapInfo = CGBitmapInfo(rawValue: rawV)
             guard let data = CFDataCreate(nil, rgbaBytes, length),
                   let dataProvider = CGDataProvider(data: data),
                   let cgImage = CGImage(width: width,

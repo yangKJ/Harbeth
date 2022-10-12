@@ -11,7 +11,7 @@ import simd
 public struct C7Transform: C7FilterProtocol {
     
     public var transform: CGAffineTransform
-    public var anchorPoint: C7Point2D = C7Point2DZero
+    public var anchorPoint: C7Point2D = C7Point2D.zero
     /// True to change image size to fit rotated image, false to keep image size
     public var fitSize: Bool = true
     
@@ -20,13 +20,13 @@ public struct C7Transform: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [anchorPoint.x, anchorPoint.y]
+        return anchorPoint.toFloatArray()
     }
     
     public func outputSize(input size: C7Size) -> C7Size {
         if fitSize {
             let newSize = CGRect(x: 0, y: 0, width: size.width, height: size.height).applying(transform)
-            return (width: Int(newSize.width), height: Int(newSize.height))
+            return C7Size(width: Int(newSize.width), height: Int(newSize.height))
         }
         return size
     }

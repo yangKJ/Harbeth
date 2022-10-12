@@ -12,7 +12,7 @@ public struct C7ZoomBlur: C7FilterProtocol {
     
     /// A multiplier for the blur size, ranging from 0.0 on up, with a default of 0.0
     public var blurSize: Float = 0
-    public var blurCenter: C7Point2D = C7Point2DCenter
+    public var blurCenter: C7Point2D = C7Point2D.center
     
     public var modifier: Modifier {
         return .compute(kernel: "C7ZoomBlur")

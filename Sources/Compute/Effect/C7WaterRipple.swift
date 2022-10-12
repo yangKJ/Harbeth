@@ -11,7 +11,7 @@ import Foundation
 public struct C7WaterRipple: C7FilterProtocol {
     
     /// Click location, normalized
-    public var touchCenter: C7Point2D = C7Point2DCenter
+    public var touchCenter: C7Point2D = C7Point2D.center
     /// The waves, from 0.0 to 1.0
     public var ripple: Float = 0.0
     /// The wave size

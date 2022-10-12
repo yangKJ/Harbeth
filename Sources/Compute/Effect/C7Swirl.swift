@@ -9,7 +9,7 @@ import Foundation
 
 public struct C7Swirl: C7FilterProtocol {
     
-    public var center: C7Point2D = C7Point2DCenter
+    public var center: C7Point2D = C7Point2D.center
     /// The radius from the center to apply the distortion, with a default of 0.25
     public var radius: Float = 0.5
     /// The amount of twist to apply to the image

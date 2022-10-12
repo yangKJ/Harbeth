@@ -13,7 +13,7 @@ public struct C7VoronoiOverlay: C7FilterProtocol {
     
     public var time: Float = 0.5
     public var alpha: Float = 0.05
-    public var iResolution: C7Point2D = C7Point2DCenter
+    public var iResolution: C7Point2D = C7Point2D.center
     
     public var modifier: Modifier {
         return .compute(kernel: "C7VoronoiOverlay")

@@ -9,7 +9,7 @@ import Foundation
 
 public struct C7PolarPixellate: C7FilterProtocol {
     
-    public var center: C7Point2D = C7Point2DCenter
+    public var center: C7Point2D = C7Point2D.center
     /// The fractional pixel size, split into width and height components.
     public var pixelSize: CGSize = CGSize(width: 0.05, height: 0.05)
     

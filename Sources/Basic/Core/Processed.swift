@@ -28,7 +28,7 @@ internal struct Processed {
         }
         var outputTexture = outTexture
         if outputTexture == nil {
-            let outputSize = filter.outputSize(input: (inTexture.width, inTexture.height))
+            let outputSize = filter.outputSize(input: C7Size(width: inTexture.width, height: inTexture.height))
             outputTexture = destTexture(width: outputSize.width, height: outputSize.height)
         }
         if case .compute(let kernel) = filter.modifier {

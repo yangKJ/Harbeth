@@ -20,7 +20,7 @@ public struct C7Resize: C7FilterProtocol {
     public func outputSize(input size: C7Size) -> C7Size {
         let w: Int = width > 0 ? width : size.width
         let h: Int = height > 0 ? height : size.height
-        return (width: w, height: h)
+        return C7Size(width: w, height: h)
     }
     
     public init() { }

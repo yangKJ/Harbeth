@@ -11,7 +11,7 @@ import Foundation
 public struct C7BilateralBlur: C7FilterProtocol {
     
     public var blurRadius: Float = 1
-    public var offect: C7Point2D = C7Point2DCenter
+    public var offect: C7Point2D = C7Point2D.center
     
     public var modifier: Modifier {
         return .compute(kernel: "C7BilateralBlur")

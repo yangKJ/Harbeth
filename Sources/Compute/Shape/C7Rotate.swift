@@ -31,7 +31,7 @@ public struct C7Rotate: C7FilterProtocol {
         if fitSize {
             let w = Int(abs(sin(_angle) * Float(size.height)) + abs(cos(_angle) * Float(size.width)))
             let h = Int(abs(sin(_angle) * Float(size.width)) + abs(cos(_angle) * Float(size.height)))
-            return (width: w, height: h)
+            return C7Size(width: w, height: h)
         }
         return size
     }

@@ -14,7 +14,7 @@ public struct C7Vignette: C7FilterProtocol {
     public var start: Float = 0.3
     /// The normalized distance from the center where the vignette effect ends, with a default of 0.75
     public var end: Float = 0.75
-    public var center: C7Point2D = C7Point2DCenter
+    public var center: C7Point2D = C7Point2D.center
     /// Keep the color scheme
     public var color: C7Color = C7EmptyColor {
         didSet {

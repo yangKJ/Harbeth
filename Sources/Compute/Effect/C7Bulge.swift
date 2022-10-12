@@ -10,7 +10,7 @@ import Foundation
 public struct C7Bulge: C7FilterProtocol {
     
     /// 2D textures, normalized texture coordinates are used, from 0.0 to 1.0 in both x and y directions
-    public var center: C7Point2D = C7Point2DCenter
+    public var center: C7Point2D = C7Point2D.center
     /// The radius from the center to apply the distortion, with a default of 0.25
     public var radius: Float = 0.25
     /// The amount of distortion to apply, from -1.0 to 1.0, with a default of 0.5
