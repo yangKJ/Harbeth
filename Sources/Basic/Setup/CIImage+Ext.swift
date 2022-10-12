@@ -34,5 +34,6 @@ extension Queen where Base: CIImage {
         //let bounds = CGRect(origin: origin, size: scaledImage.extent.size)
         context.render(scaledImage, to: texture, commandBuffer: buffer, bounds: scaledImage.extent, colorSpace: colorSpace)
         buffer?.commit()
+        buffer?.waitUntilCompleted()
     }
 }
