@@ -77,6 +77,7 @@ enum ViewControllerType: String {
     case Sketch = "素描效果"
     case CIHS = "coreImage高光阴影"
     case CIGaussian = "coreImage高斯模糊"
+    case TextHEIC = "测试HEIC类型图片"
 }
 
 extension ViewControllerType {
@@ -91,6 +92,8 @@ extension ViewControllerType {
             return C7Image(named: "IMG_1668")!
         case .ChromaKey, .ReplaceColor, .Sobel:
             return C7Image(named: "IMG_2606")!
+        case .TextHEIC:
+            return C7Image(named: "IMG_3960.heic")!
         default:
             return C7Image(named: "timg-3")!
         }
@@ -470,6 +473,10 @@ extension ViewControllerType {
                 filter.radius = $0
                 return filter
             })
+        case .TextHEIC:
+            var filter = C7Granularity()
+            filter.grain = 0.8
+            return (filter, nil, nil)
         }
     }
 }

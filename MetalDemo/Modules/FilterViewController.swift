@@ -149,9 +149,7 @@ class FilterViewController: UIViewController {
 extension FilterViewController {
     func setupFilter() {
         if slider.isHidden {
-            let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-            let result = AT ->> filter!
-            filterImageView.image = result.outputImage()
+            filterImageView.image = originImage ->> filter!
             return
         }
         autoTestAction()

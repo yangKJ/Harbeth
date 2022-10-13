@@ -46,17 +46,17 @@ struct HomeViewModel {
         switch viewType {
         case .image:
             return [
-                "CoreImage滤镜": coreImage,
-                "查找滤镜类": lookup,
-                "效果类": effect,
-                "颜色处理": colorProcess,
+                "查找滤镜": lookup,
+                "效果展示": effect,
+                "颜色处理": color,
                 "形状变化": shape,
                 "模糊处理": blur,
-                "图片融合类": blend,
-                "矩阵卷积": matrix
+                "图片融合": blend,
+                "矩阵卷积": matrix,
+                "其他测试": other,
             ]
         case .camera:
-            var filters = colorProcess
+            var filters = color
             filters.insert(.CIGaussian, at: 0)
             filters.insert(.Storyboard, at: 1)
             return ["真机测试": filters]
@@ -82,7 +82,7 @@ struct HomeViewModel {
         .VoronoiOverlay,
     ]
     
-    let colorProcess: [ViewControllerType] = [
+    let color: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow, .CIHS,
         .Saturation, .WhiteBalance, .Vibrance,
@@ -116,7 +116,7 @@ struct HomeViewModel {
         .Sepia,
     ]
     
-    let coreImage: [ViewControllerType] = [
-        .CIGaussian, .CIHS,
+    let other: [ViewControllerType] = [
+        .CIGaussian, .CIHS, .TextHEIC,
     ]
 }
