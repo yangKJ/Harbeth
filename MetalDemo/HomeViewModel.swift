@@ -117,6 +117,6 @@ struct HomeViewModel {
     ]
     
     let other: [ViewControllerType] = [
-        .CIGaussian, .CIHS, .TextHEIC,
+        .MPSGaussian, .TextHEIC, .CIGaussian, .CIHS,
     ]
 }

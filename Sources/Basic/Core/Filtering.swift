@@ -11,6 +11,7 @@
 import Foundation
 import MetalKit
 import CoreImage
+import MetalPerformanceShaders
 
 public enum Modifier {
     /// 基于并行计算编码器，可直接生成图片
@@ -22,6 +23,9 @@ public enum Modifier {
     /// 基于CoreImage，直接生成图片
     /// Based on `CoreImage`, directly generate images
     case coreimage(CIFilterName: String)
+    /// 基于`MetalPerformanceShaders`着色器
+    /// Based on the MetalPerformanceShaders shader.
+    case mps(performance: MPSUnaryImageKernel)
 }
 
 public protocol C7FilterProtocol {

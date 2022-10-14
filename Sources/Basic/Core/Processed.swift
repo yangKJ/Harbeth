@@ -49,6 +49,8 @@ internal struct Processed {
                                      inputTextures: textures,
                                      outputTexture: outputTexture!,
                                      factors: filter.factors)
+        } else if case .mps(let performance) = filter.modifier {
+            performance.encode(commandBuffer: commandBuffer, sourceTexture: inTexture, destinationTexture: outputTexture!)
         }
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()

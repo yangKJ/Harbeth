@@ -78,6 +78,7 @@ enum ViewControllerType: String {
     case CIHS = "coreImage高光阴影"
     case CIGaussian = "coreImage高斯模糊"
     case TextHEIC = "测试HEIC类型图片"
+    case MPSGaussian = "测试MPS高斯模糊"
 }
 
 extension ViewControllerType {
@@ -421,7 +422,7 @@ extension ViewControllerType {
         case .GaussianBlur:
             var filter = C7GaussianBlur()
             return (filter, (1, 0, 2), {
-                filter.blurRadius = $0
+                filter.radius = $0
                 return filter
             })
         case .Storyboard:
@@ -477,6 +478,13 @@ extension ViewControllerType {
             var filter = C7Granularity()
             filter.grain = 0.8
             return (filter, nil, nil)
+        case .MPSGaussian:
+            var filter = MPSGaussianBlur()
+            filter.radius = 10
+            return (filter, (10, 0, 30), {
+                filter.radius = $0
+                return filter
+            })
         }
     }
 }

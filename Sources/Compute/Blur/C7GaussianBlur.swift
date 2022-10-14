@@ -9,14 +9,14 @@ import Foundation
 
 public struct C7GaussianBlur: C7FilterProtocol {
     
-    public var blurRadius: Float = 1
+    public var radius: Float = 1
     
     public var modifier: Modifier {
         return .compute(kernel: "C7GaussianBlur")
     }
     
     public var factors: [Float] {
-        return [blurRadius]
+        return [radius]
     }
     
     public init() { }
