@@ -29,9 +29,9 @@ import MetalKit
     }
 }
 
-extension C7FilterTexture: C7FilterOutput {
+extension C7FilterTexture: Outputable {
     
-    public mutating func make<T>(filter: C7FilterProtocol) throws -> T where T : C7FilterOutput {
+    public mutating func make<T>(filter: C7FilterProtocol) throws -> T where T : Outputable {
         do {
             destTexture = try Processed.IO(inTexture: inputTexture, filter: filter)
             return self as! T
@@ -40,7 +40,7 @@ extension C7FilterTexture: C7FilterOutput {
         }
     }
     
-    public mutating func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : C7FilterOutput {
+    public mutating func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : Outputable {
         do {
             var outTexture: MTLTexture = inputTexture
             for filter in filters {

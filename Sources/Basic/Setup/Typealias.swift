@@ -17,10 +17,16 @@ public typealias C7Image = UIImage
 public typealias C7InputTextures = [MTLTexture]
 public typealias C7FilterImageCallback = (_ image: C7Image) -> Void
 
-internal typealias C7KernelFunction = String
+typealias C7KernelFunction = String
 
 // For simulator compile
 #if targetEnvironment(simulator)
 public typealias CVMetalTexture = AnyClass
 public typealias CVMetalTextureCache = AnyClass
 #endif
+
+
+// Make sure to run on the main thread.
+@inline(__always) func make_run_on_main_thread() {
+    assert(Thread.isMainThread)
+}

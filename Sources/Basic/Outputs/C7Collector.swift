@@ -10,7 +10,7 @@ import Foundation
 import CoreVideo
 import MetalKit
 
-public class C7Collector: NSObject, C7CollectorProtocol {
+public class C7Collector: NSObject, Collectorable {
     
     public var filters: [C7FilterProtocol] = []
     public var videoSettings: [String : Any] = [
@@ -66,7 +66,7 @@ extension C7Collector {
             return C7Image.init(cgImage: cgimage)
         }
         
-        let image = injectFliterAndConvert2Image(with: pixelBuffer)
+        let image = filteringAndConvert2Image(with: pixelBuffer)
         
         flushTextureCache()
         return image
@@ -105,7 +105,7 @@ extension C7Collector {
     }
     
     /// Inject filter and convert to image
-    private func injectFliterAndConvert2Image(with pixelBuffer: CVPixelBuffer) -> C7Image? {
+    private func filteringAndConvert2Image(with pixelBuffer: CVPixelBuffer) -> C7Image? {
         guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
             return nil
         }

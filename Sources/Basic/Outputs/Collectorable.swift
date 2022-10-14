@@ -1,5 +1,5 @@
 //
-//  C7CollectorProtocol.swift
+//  Collectorable.swift
 //  Harbeth
 //
 //  Created by Condy on 2022/2/13.
@@ -17,7 +17,7 @@ public protocol C7CollectorImageDelegate: NSObjectProtocol {
     func preview(_ collector: C7Collector, fliter image: C7Image)
 }
 
-public protocol C7CollectorProtocol {
+public protocol Collectorable {
     
     /// Multiple filter combinations.
     var filters: [C7FilterProtocol] { get set }
