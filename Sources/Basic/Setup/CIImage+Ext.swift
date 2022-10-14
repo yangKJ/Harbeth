@@ -36,4 +36,8 @@ extension Queen where Base: CIImage {
         buffer?.commit()
         buffer?.waitUntilCompleted()
     }
+    
+    public func removingExtentOffset() -> CIImage {
+        base.transformed(by: .init(translationX: -base.extent.origin.x, y: -base.extent.origin.y))
+    }
 }
