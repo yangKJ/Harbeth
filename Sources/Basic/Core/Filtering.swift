@@ -66,8 +66,9 @@ public protocol C7FilterProtocol {
     ///
     /// - Parameters:
     ///   - filter: `CIFilter`
-    ///   - cgimage: input source
-    func coreImageSetupCIFilter(_ filter: CIFilter?, input cgimage: CGImage)
+    ///   - ciImage: Input source
+    /// - Returns: Output source
+    func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage
 }
 
 extension C7FilterProtocol {
@@ -75,5 +76,5 @@ extension C7FilterProtocol {
     public var otherInputTextures: C7InputTextures { [] }
     public func outputSize(input size: C7Size) -> C7Size { size }
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) { }
-    public func coreImageSetupCIFilter(_ filter: CIFilter?, input cgimage: CGImage) { }
+    public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage { ciImage }
 }

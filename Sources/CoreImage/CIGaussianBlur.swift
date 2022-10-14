@@ -19,8 +19,9 @@ public struct CIGaussianBlur: C7FilterProtocol {
         return .coreimage(CIFilterName: "CIGaussianBlur")
     }
     
-    public func coreImageSetupCIFilter(_ filter: CIFilter?, input cgimage: CGImage) {
+    public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage {
         filter?.setValue(radius, forKey: "inputRadius")
+        return ciImage.cropped(to: ciImage.extent)
     }
     
     public init() { }

@@ -18,8 +18,9 @@ public struct CIHighlightShadow: C7FilterProtocol {
         return .coreimage(CIFilterName: "CIHighlightShadowAdjust")
     }
     
-    public func coreImageSetupCIFilter(_ filter: CIFilter?, input cgimage: CGImage) {
+    public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage {
         filter?.setValue(1 - value, forKey: "inputHighlightAmount")
+        return ciImage
     }
     
     public init() { }

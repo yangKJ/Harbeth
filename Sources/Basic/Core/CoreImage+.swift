@@ -11,14 +11,16 @@ import MetalKit
 
 internal struct COImage {
     
+    @inlinable static func drawingProcess(ciImage: CIImage, name: String, filter: C7FilterProtocol) -> CIImage {
+        let cifiter = CIFilter.init(name: name)
+        let ciimage = filter.coreImageApply(filter: cifiter, input: ciImage)
+        cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
+        return cifiter?.outputImage ?? ciimage
+    }
+    
     @inlinable static func drawingProcess(cgImage: CGImage, name: String, filter: C7FilterProtocol) -> CGImage {
         let ciimage = CIImage.init(cgImage: cgImage)
-        let cifiter = CIFilter.init(name: name)
-        filter.coreImageSetupCIFilter(cifiter, input: cgImage)
-        cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
-        guard let outputImage = cifiter?.outputImage else {
-            return cgImage
-        }
+        let outputImage = drawingProcess(ciImage: ciimage, name: name, filter: filter)
         let options = [CIContextOption.workingColorSpace: Device.colorSpace(cgImage)]
         var context: CIContext
         if #available(iOS 13.0, *) {
@@ -46,9 +48,9 @@ extension COImage {
         guard let cgImage = texture.toCGImage() else {
             return texture
         }
-        let ciimage = CIImage.init(cgImage: cgImage)
+        var ciimage = CIImage.init(cgImage: cgImage)
         let cifiter = CIFilter.init(name: name)
-        filter.coreImageSetupCIFilter(cifiter, input: cgImage)
+        ciimage = filter.coreImageApply(filter: cifiter, input: ciimage)
         cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
         
         let colorSpace = Device.colorSpace(cgImage)
