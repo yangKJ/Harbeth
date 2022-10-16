@@ -62,3 +62,23 @@ extension Queen where Base: CGImage {
         return try? loader?.newTexture(cgImage: base, options: textureOptions)
     }
 }
+
+extension Queen where Base: CGImage {
+    
+    public func swapRgbaToBgra() -> CGImage {
+        let ciImage = CIImage(cgImage: base)
+        let options = [CIContextOption.workingColorSpace: Device.colorSpace(base)]
+        var context: CIContext
+        if #available(iOS 13.0, *) {
+            context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
+        } else {
+            context = CIContext(options: options)
+        }
+        let source = "kernel vec4 swapRedAndGreenAmount(__sample s) { return s.bgra; }"
+        let swapKernel = CIColorKernel(source: source)
+        if let ciOutput = swapKernel?.apply(extent: ciImage.extent, arguments: [ciImage as Any]) {
+            return context.createCGImage(ciOutput, from: ciImage.extent) ?? base
+        }
+        return base
+    }
+}
