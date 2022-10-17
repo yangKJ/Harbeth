@@ -104,7 +104,7 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
 }
 
 extension UIColor {
-    static let background = UIColor(named: "background")
+    static let background  = UIColor(named: "background")
     static let background2 = UIColor(named: "background2")
     static let defaultTint = UIColor(named: "defaultTint")
 }

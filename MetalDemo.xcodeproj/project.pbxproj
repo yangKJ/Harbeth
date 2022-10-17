@@ -24,6 +24,7 @@
 		04FA70C327B8D8D4006199B0 /* FilterViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FA70C127B8D8D4006199B0 /* FilterViewController.swift */; };
 		684C192127BA8045005ACCA7 /* Color.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 684C192027BA8045005ACCA7 /* Color.xcassets */; };
 		6D1EC699C73A07B9503F8872 /* Pods_MetalDemo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0DD4DCEFA13BF5415219F8EE /* Pods_MetalDemo.framework */; };
+		876F6DAA28FCE808005820B4 /* HomeViewType+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876F6DA928FCE808005820B4 /* HomeViewType+Ext.swift */; };
 		E0560FED70DCD36740EE0A4A /* libPods-MetalDemoTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = ADF29C3B1AFC87EFB494C2D2 /* libPods-MetalDemoTests.a */; };
 		EAC51807608CC80F094EDC39 /* libPods-MetalDemoUITests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = AB6331F607E012019148EB76 /* libPods-MetalDemoUITests.a */; };
 /* End PBXBuildFile section */
@@ -69,6 +70,7 @@
 		5A5CAC2F53A0E19838369511 /* Pods-MetalDemoUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemoUITests.release.xcconfig"; path = "Target Support Files/Pods-MetalDemoUITests/Pods-MetalDemoUITests.release.xcconfig"; sourceTree = "<group>"; };
 		684C192027BA8045005ACCA7 /* Color.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Color.xcassets; sourceTree = "<group>"; };
 		72A61F98A4BC80995F04B23F /* Pods-MetalDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemo.release.xcconfig"; path = "Target Support Files/Pods-MetalDemo/Pods-MetalDemo.release.xcconfig"; sourceTree = "<group>"; };
+		876F6DA928FCE808005820B4 /* HomeViewType+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeViewType+Ext.swift"; sourceTree = "<group>"; };
 		A23258842C01F83C0702A99E /* Pods-MetalDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MetalDemoUITests.debug.xcconfig"; path = "Target Support Files/Pods-MetalDemoUITests/Pods-MetalDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		AB6331F607E012019148EB76 /* libPods-MetalDemoUITests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MetalDemoUITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ADF29C3B1AFC87EFB494C2D2 /* libPods-MetalDemoTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MetalDemoTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -144,6 +146,7 @@
 				04FA709327B8D7D8006199B0 /* HomeViewController.swift */,
 				04FA70C027B8D8D4006199B0 /* HomeViewModel.swift */,
 				04D094C227D471D1008AFAA6 /* HomeViewType.swift */,
+				876F6DA928FCE808005820B4 /* HomeViewType+Ext.swift */,
 				04CC324E27D4AD71008AC21A /* Modules */,
 				04FA70BF27B8D83B006199B0 /* Resources */,
 			);
@@ -431,6 +434,7 @@
 				04FA709427B8D7D8006199B0 /* HomeViewController.swift in Sources */,
 				044E2AD527C8CB850098B0D1 /* CameraViewController.swift in Sources */,
 				04FA70C227B8D8D4006199B0 /* HomeViewModel.swift in Sources */,
+				876F6DAA28FCE808005820B4 /* HomeViewType+Ext.swift in Sources */,
 				04FA70C327B8D8D4006199B0 /* FilterViewController.swift in Sources */,
 				04299FE327CCA52F0002FDE8 /* PlayerViewController.swift in Sources */,
 				04D094C327D471D1008AFAA6 /* HomeViewType.swift in Sources */,
