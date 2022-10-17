@@ -17,22 +17,26 @@ extension Queen where Base: CIImage {
     /// - Parameters:
     ///   - texture: Texture type must be MTLTexture2D.
     ///   - colorSpace: Color space
-    public func renderImageToTexture(_ texture: MTLTexture, colorSpace: CGColorSpace? = nil) {
+    ///   - context: An evaluation context for rendering image processing results and performing image analysis.
+    public func renderImageToTexture(_ texture: MTLTexture, colorSpace: CGColorSpace? = nil, context: CIContext? = nil) {
         let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
-        let options = [CIContextOption.workingColorSpace: colorSpace]
-        let context: CIContext
-        if #available(iOS 13.0, *) {
-            context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-        } else {
-            context = CIContext(options: options)
-        }
+        let ctx = context ?? {
+            let options = [CIContextOption.workingColorSpace: colorSpace]
+            let context: CIContext
+            if #available(iOS 13.0, *) {
+                context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
+            } else {
+                context = CIContext(options: options)
+            }
+            return context
+        }()
         let buffer = Device.commandQueue().makeCommandBuffer()
         // Fixed image horizontal flip problem.
         let scaledImage = base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
             .transformed(by: CGAffineTransform(translationX: 0, y: base.extent.height))
         //let origin = CGPoint(x: -scaledImage.extent.origin.x, y: -scaledImage.extent.origin.y)
         //let bounds = CGRect(origin: origin, size: scaledImage.extent.size)
-        context.render(scaledImage, to: texture, commandBuffer: buffer, bounds: scaledImage.extent, colorSpace: colorSpace)
+        ctx.render(scaledImage, to: texture, commandBuffer: buffer, bounds: scaledImage.extent, colorSpace: colorSpace)
         buffer?.commit()
         buffer?.waitUntilCompleted()
     }

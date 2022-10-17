@@ -17,7 +17,7 @@ extension Queen where Base: CVPixelBuffer {
     /// Convert cached pixel objects into textures that can be used for camera capture and video frame filters
     /// - parameter textureCache: Global textureCache.
     /// - Returns: textures
-    public func convert2MTLTexture(textureCache: CVMetalTextureCache?) -> MTLTexture? {
+    public func convert2MTLTexture(textureCache: CVMetalTextureCache?, pixelFormat: MTLPixelFormat = .bgra8Unorm) -> MTLTexture? {
         guard let textureCache = textureCache else {
             return nil
         }
@@ -27,7 +27,7 @@ extension Queen where Base: CVPixelBuffer {
                                                   textureCache,
                                                   self.base,
                                                   nil,
-                                                  MTLPixelFormat.bgra8Unorm,
+                                                  pixelFormat,
                                                   CVPixelBufferGetWidth(self.base),
                                                   CVPixelBufferGetHeight(self.base),
                                                   0,
