@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import MetalKit
 
 public enum BlendFilterType {
     case add
@@ -63,7 +64,8 @@ extension BlendFilterType {
 
 public struct C7BlendFilter: C7FilterProtocol {
     
-    public private(set) var blendImage: C7Image?
+    public let blendImage: C7Image
+    public let blendTexture: MTLTexture?
     public private(set) var blendType: BlendFilterType
     
     public var modifier: Modifier {
@@ -84,15 +86,13 @@ public struct C7BlendFilter: C7FilterProtocol {
     }
     
     public var otherInputTextures: C7InputTextures {
-        if let texture = blendImage?.cgImage?.mt.newTexture() {
-            return [texture]
-        }
-        return []
+        return blendTexture == nil ? [] : [blendTexture!]
     }
     
     public init(with type: BlendFilterType, image: C7Image) {
         self.blendType = type
         self.blendImage = image
+        self.blendTexture = image.cgImage?.mt.newTexture()
     }
     
     public mutating func updateBlend(_ type: BlendFilterType) {

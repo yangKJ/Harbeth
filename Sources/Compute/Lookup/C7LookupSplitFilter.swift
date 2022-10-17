@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import MetalKit
 
 public enum C7SplitOrientation {
     case top, left, center
@@ -26,8 +27,8 @@ extension C7SplitOrientation {
 
 public struct C7LookupSplitFilter: C7FilterProtocol {
     
-    public private(set) var lookupImage1: C7Image?
-    public private(set) var lookupImage2: C7Image?
+    public let lookupTexture1: MTLTexture?
+    public let lookupTexture2: MTLTexture?
     
     public var orientation: C7SplitOrientation = .center
     public var intensity: Float = 1.0
@@ -43,15 +44,14 @@ public struct C7LookupSplitFilter: C7FilterProtocol {
     }
     
     public var otherInputTextures: C7InputTextures {
-        if let texture1 = lookupImage1?.mt.toTexture(),
-           let texture2 = lookupImage2?.mt.toTexture() {
+        if let texture1 = lookupTexture1, let texture2 = lookupTexture2 {
             return [texture1, texture2]
         }
         return []
     }
     
     public init(_ lookupImage: C7Image, lookupImage2: C7Image) {
-        self.lookupImage1 = lookupImage
-        self.lookupImage2 = lookupImage2
+        self.lookupTexture1 = lookupImage.cgImage?.mt.newTexture()
+        self.lookupTexture2 = lookupImage2.cgImage?.mt.newTexture()
     }
 }

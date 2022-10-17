@@ -109,8 +109,13 @@ extension C7Collector {
         guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
             return nil
         }
-        // 运算符组合滤镜效果，生成纹理
-        filters.forEach { texture = texture ->> $0 }
+        filters.forEach {
+            do {
+                let size = $0.outputSize(input: C7Size(width: texture.width, height: texture.height))
+                let destTexture = Processed.destTexture(width: size.width, height: size.height)
+                texture = try Processed.IO(inTexture: texture, outTexture: destTexture, filter: $0)
+            } catch { }
+        }
         return texture.toImage()
     }
 }

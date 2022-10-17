@@ -6,11 +6,13 @@
 //
 
 import Foundation
+import MetalKit
 
 /// LUT映射滤镜
 public struct C7LookupFilter: C7FilterProtocol {
     
-    public private(set) var lookupImage: C7Image?
+    public let lookupImage: C7Image?
+    public let lookupTexture: MTLTexture?
     public var intensity: Float = 1.0
     
     public var modifier: Modifier {
@@ -22,17 +24,15 @@ public struct C7LookupFilter: C7FilterProtocol {
     }
     
     public var otherInputTextures: C7InputTextures {
-        if let texture = lookupImage?.mt.toTexture() {
-            return [texture]
-        }
-        return []
+        return lookupTexture == nil ? [] : [lookupTexture!]
     }
     
-    public init(image: C7Image) {
-        lookupImage = image
+    public init(image: C7Image?) {
+        self.lookupImage = image
+        self.lookupTexture = image?.cgImage?.mt.newTexture()
     }
     
     public init(name: String) {
-        lookupImage = C7Image(named: name)
+        self.init(image: C7Image(named: name))
     }
 }
