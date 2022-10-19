@@ -20,7 +20,10 @@ internal struct COImage {
     
     @inlinable static func drawingProcess(cgImage: CGImage, name: String, filter: C7FilterProtocol) -> CGImage {
         let ciimage = CIImage.init(cgImage: cgImage)
-        let outputImage = drawingProcess(ciImage: ciimage, name: name, filter: filter)
+        let outputCIImage = drawingProcess(ciImage: ciimage, name: name, filter: filter)
+        if let outputcgImage = outputCIImage.cgImage {
+            return outputcgImage
+        }
         let options = [CIContextOption.workingColorSpace: Device.colorSpace(cgImage)]
         var context: CIContext
         if #available(iOS 13.0, *) {
@@ -28,17 +31,17 @@ internal struct COImage {
         } else {
             context = CIContext(options: options)
         }
-        let outputcgImage = context.createCGImage(outputImage, from: outputImage.extent)
+        let outputcgImage = context.createCGImage(outputCIImage, from: outputCIImage.extent)
         return outputcgImage ?? cgImage
     }
     
     @inlinable static func drawingProcess(texture: MTLTexture, name: String, filter: C7FilterProtocol) -> MTLTexture {
-        guard var cgImage = texture.toCGImage() else {
+        guard let cgImage = texture.toCGImage() else {
             return texture
         }
-        cgImage = Self.drawingProcess(cgImage: cgImage, name: name, filter: filter)
+        let outputcgImage = Self.drawingProcess(cgImage: cgImage, name: name, filter: filter)
         
-        return C7Image(cgImage: cgImage).mt.toTexture() ?? texture
+        return C7Image(cgImage: outputcgImage).mt.toTexture() ?? texture
     }
 }
 

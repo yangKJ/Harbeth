@@ -82,17 +82,17 @@ extension ViewControllerType {
         switch self {
         case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
                 .ComicStrip, .OilPainting, .Sketch:
-            return C7Image(named: "yuan002")!
+            return R.image("yuan002")
         case .EdgeGlow, .ShiftGlitch:
-            return C7Image(named: "yuan003")!
+            return R.image("yuan003")
         case .Crop:
-            return C7Image(named: "IMG_1668")!
+            return R.image("IMG_1668")
         case .ChromaKey, .ReplaceColor, .Sobel:
-            return C7Image(named: "IMG_2606")!
+            return R.image("IMG_2606")
         case .TextHEIC:
-            return C7Image(named: "IMG_3960.heic")!
+            return R.image("IMG_3960.heic")
         default:
-            return C7Image(named: "timg-3")!
+            return R.image("timg-3")
         }
     }
 }

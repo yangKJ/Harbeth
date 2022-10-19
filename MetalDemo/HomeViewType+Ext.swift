@@ -57,7 +57,7 @@ extension ViewControllerType {
                 return filter
             })
         case .abao:
-            var filter = C7LookupFilter(image: C7Image(named: "lut_abao")!)
+            var filter = C7LookupFilter(image: R.image("lut_abao"))
             filter.intensity = -0.5
             return (filter, (-0.5, -2, 2), {
                 filter.intensity = $0
@@ -78,16 +78,16 @@ extension ViewControllerType {
                 return filter
             })
         case .HueBlend:
-            let filter = C7BlendFilter(with: .hue, image: C7Image(named: "yuan000")!)
+            let filter = C7BlendFilter(with: .hue, image: R.image("yuan000"))
             return (filter, nil, nil)
         case .AlphaBlend:
-            var filter = C7BlendFilter(with: .alpha(mixturePercent: 0.5), image: C7Image(named: "yuan000")!)
+            var filter = C7BlendFilter(with: .alpha(mixturePercent: 0.5), image: R.image("yuan000"))
             return (filter, (0.5, 0, 1), {
                 filter.updateBlend(.alpha(mixturePercent: $0))
                 return filter
             })
         case .LuminosityBlend:
-            let filter = C7BlendFilter(with: .luminosity, image: C7Image(named: "yuan000")!)
+            let filter = C7BlendFilter(with: .luminosity, image: R.image("yuan000"))
             return (filter, nil, nil)
         case .Hue:
             var filter = C7Hue()
@@ -214,7 +214,7 @@ extension ViewControllerType {
             filter.secondColor = UIColor.systemPink
             return (filter, nil, nil)
         case .Split:
-            var filter = C7LookupSplitFilter(C7Image(named: "lut_abao")!, lookupImage2: C7Image(named: "ll")!)
+            var filter = C7LookupSplitFilter(R.image("lut_abao"), lookupImage2: R.image("ll"))
             filter.progress = 0.5
             filter.intensity = 0
             return (filter, (0.5, 0, 1), {

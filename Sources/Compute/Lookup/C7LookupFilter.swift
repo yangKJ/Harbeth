@@ -33,6 +33,6 @@ public struct C7LookupFilter: C7FilterProtocol {
     }
     
     public init(name: String) {
-        self.init(image: C7Image(named: name))
+        self.init(image: R.image(name))
     }
 }
