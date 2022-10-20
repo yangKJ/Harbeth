@@ -85,14 +85,14 @@ extension ViewControllerType {
             return R.image("yuan002")
         case .EdgeGlow, .ShiftGlitch:
             return R.image("yuan003")
-        case .Crop:
-            return R.image("IMG_1668")
+        case .Bulge:
+            return R.image("timg-3")
+        case .TextHEIC:
+            return R.image("IMG_3960.HEIC")
         case .ChromaKey, .ReplaceColor, .Sobel:
             return R.image("IMG_2606")
-        case .TextHEIC:
-            return R.image("IMG_3960.heic")
         default:
-            return R.image("timg-3")
+            return R.image("timg-2")
         }
     }
 }

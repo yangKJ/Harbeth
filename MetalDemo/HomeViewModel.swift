@@ -63,6 +63,7 @@ struct HomeViewModel {
         case .player:
             var filters = visual
             filters.insert(.CIHS, at: 0)
+            filters.insert(.MPSGaussian, at: 1)
             return ["视频特效 - 真机测试": filters]
         }
     }()
