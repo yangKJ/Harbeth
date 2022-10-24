@@ -18,7 +18,7 @@ extension C7Image: Outputable {
         }
         do {
             let outTexture = try Processed.IO(inTexture: inTexture, filter: filter)
-            return try fixImageOrientation(texture: outTexture) as! T
+            return try C7FlexoDest<Any>.fixImageOrientation(texture: outTexture, base: self) as! T
         } catch {
             throw error
         }
@@ -33,17 +33,9 @@ extension C7Image: Outputable {
             for filter in filters {
                 outTexture = try Processed.IO(inTexture: outTexture, filter: filter)
             }
-            return try fixImageOrientation(texture: outTexture) as! T
+            return try C7FlexoDest<Any>.fixImageOrientation(texture: outTexture, base: self) as! T
         } catch {
             throw error
         }
-    }
-    
-    private func fixImageOrientation(texture: MTLTexture) throws -> C7Image {
-        guard let cgImage = texture.toCGImage() else {
-            throw C7CustomError.texture2Image
-        }
-        // Fixed an issue with HEIC flipping after adding filter.
-        return C7Image(cgImage: cgImage, scale: self.scale, orientation: self.imageOrientation)
     }
 }

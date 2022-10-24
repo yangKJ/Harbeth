@@ -17,9 +17,9 @@ extension MTLTexture {
     /// The layout of the pixels is described with bitmap info.
     /// - Parameter colorSpace: Color space
     /// - Returns: CGImage
-    public func toCGImage(colorSpace: CGColorSpace? = nil) -> CGImage? {
+    public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil) -> CGImage? {
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-        switch pixelFormat {
+        switch pixelFormat ?? self.pixelFormat {
         case .a8Unorm, .r8Unorm, .r8Uint:
             let rowBytes = width
             let length = rowBytes * height
