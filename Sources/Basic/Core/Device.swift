@@ -26,6 +26,18 @@ internal final class Device {
     /// Transform using color space
     lazy var colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
     
+    lazy var context: CIContext = {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let options = [CIContextOption.workingColorSpace: colorSpace]
+        let context: CIContext
+        if #available(iOS 13.0, *) {
+            context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
+        } else {
+            context = CIContext(options: options)
+        }
+        return context
+    }()
+    
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Could not create Metal Device")
@@ -105,6 +117,10 @@ extension Device {
     
     static func commandQueue() -> MTLCommandQueue {
         return Shared.shared.device!.commandQueue
+    }
+    
+    static func context() -> CIContext? {
+        return Shared.shared.device?.context
     }
     
     static func readMTLFunction(_ name: String) throws -> MTLFunction {
