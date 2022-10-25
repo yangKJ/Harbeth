@@ -25,12 +25,16 @@ import UIKit
         self.filters = filters
     }
     
-    public func output() -> Dest {
-        if let element = element as? C7Image {
-            return filtering(image: element) as! Dest
-        }
-        if let element = element as? MTLTexture {
-            return filtering(texture: element) as! Dest
+    public func output() throws -> Dest {
+        do {
+            if let element = element as? C7Image {
+                return try filtering(image: element) as! Dest
+            }
+            if let element = element as? MTLTexture {
+                return try  filtering(texture: element) as! Dest
+            }
+        } catch {
+            throw error
         }
         return element
     }
@@ -38,26 +42,28 @@ import UIKit
 
 extension C7FlexoDest {
     
-    func filtering(image: C7Image) -> C7Image {
+    func filtering(image: C7Image) throws -> C7Image {
         guard var texture = image.mt.toTexture() else {
-            return image
+            throw C7CustomError.source2Texture
         }
-        texture = filtering(texture: texture)
         do {
+            texture = try filtering(texture: texture)
             return try Self.fixImageOrientation(texture: texture, base: image)
-        } catch { }
-        return image
+        } catch {
+            throw error
+        }
     }
     
-    func filtering(texture: MTLTexture) -> MTLTexture {
+    func filtering(texture: MTLTexture) throws -> MTLTexture {
         do {
             var outTexture: MTLTexture = texture
             for filter in filters {
                 outTexture = try Processed.IO(inTexture: outTexture, filter: filter)
             }
             return outTexture
-        } catch { }
-        return texture
+        } catch {
+            throw error
+        }
     }
 }
 

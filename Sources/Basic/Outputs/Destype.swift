@@ -16,5 +16,5 @@ public protocol Destype {
     
     init(element: Element, filters: [C7FilterProtocol])
     
-    func output() -> Element
+    func output() throws -> Element
 }
