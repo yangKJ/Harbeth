@@ -24,14 +24,6 @@ public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
 }
 
 @discardableResult
-public func ->> (left: C7FilterTexture, right: C7FilterProtocol) -> C7FilterTexture {
-    var temp = left
-    temp.updateInputTexture(temp.destTexture)
-    _ = try? temp.make(filter: right) as C7FilterTexture
-    return temp
-}
-
-@discardableResult
 public func ->> (left: C7Image, right: C7FilterProtocol) -> C7Image {
     if let image: C7Image = try? left.make(filter: right) {
         return image
