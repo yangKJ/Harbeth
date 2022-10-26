@@ -119,8 +119,8 @@ extension Device {
         return Shared.shared.device!.commandQueue
     }
     
-    static func context() -> CIContext? {
-        return Shared.shared.device?.context
+    static func context() -> CIContext {
+        return Shared.shared.device!.context
     }
     
     static func readMTLFunction(_ name: String) throws -> MTLFunction {

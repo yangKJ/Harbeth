@@ -44,4 +44,22 @@ extension Queen where Base: CIImage {
     public func removingExtentOffset() -> CIImage {
         base.transformed(by: .init(translationX: -base.extent.origin.x, y: -base.extent.origin.y))
     }
+    
+    public func toCVPixelBuffer() -> CVPixelBuffer? {
+        // see https://stackoverflow.com/questions/54354138/how-can-you-make-a-cvpixelbuffer-directly-from-a-ciimage-instead-of-a-uiimage-in
+        let attrs = [
+            kCVPixelBufferCGImageCompatibilityKey: kCFBooleanTrue,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: kCFBooleanTrue
+        ] as CFDictionary
+        var pixelBuffer : CVPixelBuffer?
+        let status = CVPixelBufferCreate(kCFAllocatorDefault,
+                                         Int(base.extent.width),
+                                         Int(base.extent.height),
+                                         kCVPixelFormatType_32ARGB,
+                                         attrs, &pixelBuffer)
+        guard (status == kCVReturnSuccess) else {
+            return nil
+        }
+        return pixelBuffer
+    }
 }
