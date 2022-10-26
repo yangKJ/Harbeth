@@ -8,10 +8,9 @@
 import Foundation
 import MetalKit
 import UIKit
+import CoreVideo
 
-/// 多功能处理器，目前支持`UIImage、CGImage、CIImage、MTLTexture`
-/// Multifunctional processor, currently support `UIImage, CGImage、CIImage、MTLTexture`
-///
+/// Support `UIImage,CGImage,CIImage,MTLTexture,CMSampleBuffer,CVPixelBuffer`
 @frozen public struct C7FlexoDest<Dest> : Destype {
     public typealias Element = Dest
     public var element: Dest
@@ -40,6 +39,14 @@ import UIKit
             if let element = element as? CIImage {
                 return try filtering(ciImage: element) as! Dest
             }
+            if CFGetTypeID(element as CFTypeRef) == CVPixelBufferGetTypeID() {
+                return try filtering(pixelBuffer: element as! CVPixelBuffer) as! Dest
+            }
+            if #available(iOS 13.0, *) {
+                if CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
+                    return try filtering(sampleBuffer: element as! CMSampleBuffer) as! Dest
+                }
+            }
         } catch {
             throw error
         }
@@ -49,6 +56,45 @@ import UIKit
 
 // MARK: - filtering methods
 extension C7FlexoDest {
+    
+    func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
+        if let _ = filterEmpty(target: pixelBuffer as! Dest) {
+            return pixelBuffer
+        }
+        let textureCache: CVMetalTextureCache? = self.setupTextureCache()
+        defer { deferTextureCache(textureCache: textureCache) }
+        guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
+            throw C7CustomError.source2Texture
+        }
+        do {
+            for filter in filters {
+                let outputSize = filter.outputSize(input: C7Size(width: texture.width, height: texture.height))
+                // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
+                // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
+                let outputTexture = Processed.destTexture(pixelFormat: .bgra8Unorm, width: outputSize.width, height: outputSize.height)
+                texture = try Processed.IO(inTexture: texture, outTexture: outputTexture, filter: filter)
+            }
+            pixelBuffer.mt.copyToPixelBuffer(with: texture)
+            return pixelBuffer
+        } catch {
+            throw error
+        }
+    }
+    
+    func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
+        if let _ = filterEmpty(target: sampleBuffer as! Dest) {
+            return sampleBuffer
+        }
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            throw C7CustomError.source2Texture
+        }
+        do {
+            let _ = try filtering(pixelBuffer: pixelBuffer)
+        } catch {
+            throw error
+        }
+        return sampleBuffer
+    }
     
     func filtering(ciImage: CIImage) throws -> CIImage {
         if let _ = filterEmpty(target: element) {
@@ -127,5 +173,21 @@ extension C7FlexoDest {
     
     private func filterEmpty(target: Dest) -> Dest? {
         return filters.isEmpty ? target : nil
+    }
+    
+    private func setupTextureCache() -> CVMetalTextureCache? {
+        var textureCache: CVMetalTextureCache?
+        #if !targetEnvironment(simulator)
+        CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Device.device(), nil, &textureCache)
+        #endif
+        return textureCache
+    }
+    
+    private func deferTextureCache(textureCache: CVMetalTextureCache?) {
+        #if !targetEnvironment(simulator)
+        if let textureCache = textureCache {
+            CVMetalTextureCacheFlush(textureCache, 0)
+        }
+        #endif
     }
 }
