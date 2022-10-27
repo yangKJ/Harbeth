@@ -20,7 +20,10 @@ extension Queen where Base == C7Image {
     public func toTexture(cgimage: CGImage? = nil) -> MTLTexture? {
         return (cgimage ?? base.cgImage)?.mt.toTexture()
     }
-    
+}
+
+// MARK: - edit image
+extension Queen where Base: C7Image {
     /// Fixed image rotation direction.
     public func fixOrientation() -> C7Image {
         if base.imageOrientation == .up {
@@ -77,5 +80,16 @@ extension Queen where Base == C7Image {
             return base
         }
         return C7Image(cgImage: newCgImage)
+    }
+    
+    /// To ensure image orientation is correct, redraw image if image orientation is not up.
+    /// see: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
+    public var flattened: C7Image {
+        if base.imageOrientation == .up { return base }
+        UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
+        base.draw(in: CGRect(origin: .zero, size: base.size))
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result ?? base
     }
 }

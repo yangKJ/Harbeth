@@ -52,12 +52,10 @@ extension Queen where Base: CIImage {
             kCVPixelBufferCGBitmapContextCompatibilityKey: kCFBooleanTrue
         ] as CFDictionary
         var pixelBuffer : CVPixelBuffer?
-        let status = CVPixelBufferCreate(kCFAllocatorDefault,
-                                         Int(base.extent.width),
-                                         Int(base.extent.height),
-                                         kCVPixelFormatType_32ARGB,
-                                         attrs, &pixelBuffer)
-        guard (status == kCVReturnSuccess) else {
+        let width  = Int(base.extent.width)
+        let height = Int(base.extent.height)
+        let status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, attrs, &pixelBuffer)
+        guard status == kCVReturnSuccess else {
             return nil
         }
         return pixelBuffer

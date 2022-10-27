@@ -37,6 +37,7 @@ internal struct Processed {
             }
             var textures = [outputTexture!, inTexture]
             textures += filter.otherInputTextures
+            commandBuffer.label = "Condy" + kernel
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
         } else if case .render(let vertex, let fragment) = filter.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
@@ -44,12 +45,14 @@ internal struct Processed {
             }
             var textures = [inTexture]
             textures += filter.otherInputTextures
+            commandBuffer.label = "Condy" + vertex + "_" + fragment
             Rendering.drawingProcess(pipelineState: pipelineState,
                                      commandBuffer: commandBuffer,
                                      inputTextures: textures,
                                      outputTexture: outputTexture!,
                                      factors: filter.factors)
         } else if case .mps(let performance) = filter.modifier {
+            commandBuffer.label = "Condy" + performance.description
             performance.encode(commandBuffer: commandBuffer, sourceTexture: inTexture, destinationTexture: outputTexture!)
         }
         commandBuffer.commit()

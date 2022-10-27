@@ -42,10 +42,8 @@ import CoreVideo
             if CFGetTypeID(element as CFTypeRef) == CVPixelBufferGetTypeID() {
                 return try filtering(pixelBuffer: element as! CVPixelBuffer) as! Dest
             }
-            if #available(iOS 13.0, *) {
-                if CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
-                    return try filtering(sampleBuffer: element as! CMSampleBuffer) as! Dest
-                }
+            if #available(iOS 13.0, *), CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
+                return try filtering(sampleBuffer: element as! CMSampleBuffer) as! Dest
             }
         } catch {
             throw error

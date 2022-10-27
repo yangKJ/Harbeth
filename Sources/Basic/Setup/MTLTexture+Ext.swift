@@ -15,7 +15,10 @@ extension MTLTexture {
     /// Create a CGImage with the data and information we provided.
     /// Each pixel contains of 4 UInt8s or 32 bits, each byte is representing one channel.
     /// The layout of the pixels is described with bitmap info.
-    /// - Parameter colorSpace: Color space
+    /// Process steps：Data => CFData => CGDataProvider => CGImage
+    /// - Parameters:
+    ///   - colorSpace: Color space
+    ///   - pixelFormat: Current Metal texture pixel format.
     /// - Returns: CGImage
     public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil) -> CGImage? {
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
