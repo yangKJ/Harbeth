@@ -10,8 +10,10 @@ import Foundation
 /// 曝光效果
 public struct C7Exposure: C7FilterProtocol {
     
+    public static let range: ParameterRange<Float, Self> = .init(min: -10.0, max: 10.0, value: 0.0)
+    
     /// The adjusted exposure, from -10.0 to 10.0, with a default of 0.0
-    public var exposure: Float = 0.0
+    public var exposure: Float = range.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Exposure")

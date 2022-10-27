@@ -328,7 +328,7 @@ extension ViewControllerType {
         case .MeanBlur:
             var filter = C7MeanBlur()
             return (filter, (1, 0, 2), {
-                filter.blurRadius = $0
+                filter.radius = $0
                 return filter
             })
         case .GaussianBlur:
@@ -346,7 +346,7 @@ extension ViewControllerType {
         case .BilateralBlur:
             var filter = C7BilateralBlur()
             return (filter, (1, 0, 1), {
-                filter.blurRadius = $0
+                filter.radius = $0
                 return filter
             })
         case .Sepia:
@@ -382,7 +382,7 @@ extension ViewControllerType {
         case .CIGaussian:
             var filter = CIGaussianBlur()
             filter.radius = 10
-            return (filter, (10, 0, 30), {
+            return (filter, (10, CIGaussianBlur.range.min, CIGaussianBlur.range.max), {
                 filter.radius = $0
                 return filter
             })
@@ -392,8 +392,8 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .MPSGaussian:
             var filter = MPSGaussianBlur()
-            filter.radius = 10
-            return (filter, (10, 0, 30), {
+            filter.radius = MPSGaussianBlur.range.value
+            return (filter, (MPSGaussianBlur.range.value, MPSGaussianBlur.range.min, MPSGaussianBlur.range.max), {
                 filter.radius = $0
                 return filter
             })

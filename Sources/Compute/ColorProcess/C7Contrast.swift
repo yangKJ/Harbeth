@@ -10,8 +10,10 @@ import Foundation
 /// 对比度
 public struct C7Contrast: C7FilterProtocol {
     
+    public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 2.0, value: 1.0)
+    
     /// The adjusted contrast, from 0 to 2.0, with a default of 1.0 being the original picture.
-    public var contrast: Float = 1.0
+    public var contrast: Float = range.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Contrast")

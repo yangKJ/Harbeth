@@ -12,10 +12,10 @@ import CoreImage
 /// https://cifilter.io/CIGaussianBlur/
 public struct CIGaussianBlur: C7FilterProtocol {
     
-    public static let range: ParameterRange<Float, CIGaussianBlur> = .init(min: 0, max: 100)
+    public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 100, value: 10)
     
     /// The radius determines how many pixels are used to create the blur.
-    public var radius: Float = 10
+    public var radius: Float = range.value
     
     public var modifier: Modifier {
         return .coreimage(CIFilterName: "CIGaussianBlur")

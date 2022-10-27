@@ -10,7 +10,7 @@ import Foundation
 /// 双边模糊
 public struct C7BilateralBlur: C7FilterProtocol {
     
-    public var blurRadius: Float = 1
+    public var radius: Float = 1
     public var offect: C7Point2D = C7Point2D.center
     
     public var modifier: Modifier {
@@ -18,7 +18,7 @@ public struct C7BilateralBlur: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [blurRadius, offect.x, offect.y]
+        return [radius, offect.x, offect.y]
     }
     
     public init() { }

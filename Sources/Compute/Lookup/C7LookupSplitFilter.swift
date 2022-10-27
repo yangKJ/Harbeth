@@ -27,13 +27,15 @@ extension C7SplitOrientation {
 
 public struct C7LookupSplitFilter: C7FilterProtocol {
     
+    public static let progressRange: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
+    
     public let lookupTexture1: MTLTexture?
     public let lookupTexture2: MTLTexture?
     
     public var orientation: C7SplitOrientation = .center
     public var intensity: Float = 1.0
     /// Split range, from 0.0 to 1.0, with a default of 0.0
-    public var progress: Float = 1.0
+    public var progress: Float = progressRange.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7LookupSplitFilter")

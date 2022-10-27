@@ -11,9 +11,9 @@ import CoreImage
 /// 高光
 public struct CIHighlight: C7FilterProtocol {
     
-    public static let range: ParameterRange<Float, CIHighlight> = .init(min: 0, max: 1)
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
     
-    public var value: Float = 0
+    public var value: Float = range.value
     
     public var modifier: Modifier {
         return .coreimage(CIFilterName: "CIHighlightShadowAdjust")

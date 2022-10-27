@@ -10,11 +10,13 @@ import Foundation
 /// 高光阴影
 public struct C7HighlightShadow: C7FilterProtocol {
     
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
+    
     /// Increase to lighten shadows, from 0.0 to 1.0, with 0.0 as the default.
-    public var shadows: Float = 0.0
+    public var shadows: Float = range.value
     
     /// Decrease to darken highlights, from 1.0 to 0.0, with 1.0 as the default.
-    public var highlights: Float = 1.0
+    public var highlights: Float = range.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7HighlightShadow")
