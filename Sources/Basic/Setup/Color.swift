@@ -32,6 +32,16 @@ extension C7RGBAColor: Convertible {
     }
 }
 
+extension C7RGBAColor: Equatable {
+    
+    public static func == (lhs: C7RGBAColor, rhs: C7RGBAColor) -> Bool {
+        lhs.red == rhs.red &&
+        lhs.green == rhs.green &&
+        lhs.blue == rhs.blue &&
+        lhs.alpha == rhs.alpha
+    }
+}
+
 /// Empty color, do default
 public let C7EmptyColor = C7Color.clear
 

@@ -23,3 +23,10 @@ extension C7Size: Convertible {
         [Float(width), Float(height)]
     }
 }
+
+extension C7Size: Equatable {
+    
+    public static func == (lhs: C7Size, rhs: C7Size) -> Bool {
+        lhs.width == rhs.width && lhs.height == rhs.height
+    }
+}

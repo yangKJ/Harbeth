@@ -29,3 +29,10 @@ extension C7Point2D: Convertible {
         [x, y]
     }
 }
+
+extension C7Point2D: Equatable {
+    
+    public static func == (lhs: C7Point2D, rhs: C7Point2D) -> Bool {
+        lhs.x == rhs.x && lhs.y == rhs.y
+    }
+}
