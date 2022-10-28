@@ -92,4 +92,29 @@ extension Queen where Base: C7Image {
         UIGraphicsEndImageContext()
         return result ?? base
     }
+    
+    public func zipScale(size: CGSize, equalRatio: Bool = false, scale: CGFloat = 0) -> C7Image {
+        if __CGSizeEqualToSize(base.size, size) {
+            return base
+        }
+        let scale = scale == 0 ? base.scale : scale
+        let rect: CGRect
+        if size.width / size.height != base.size.width / base.size.height && equalRatio {
+            let scale = size.width / base.size.width
+            var sh = scale * base.size.height
+            var sw = size.width
+            if sh < size.height {
+                sw = size.height / sh * size.width
+                sh = size.height
+            }
+            rect = CGRect(x: -(sw - size.height) * 0.5, y: -(sh - size.height) * 0.5, width: sw, height: sh)
+        } else {
+            rect = CGRect(origin: .zero, size: size)
+        }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+        let renderer = UIGraphicsImageRenderer(size: rect.size, format: format)
+        let image = renderer.image { _ in base.draw(in: rect) }
+        return image
+    }
 }

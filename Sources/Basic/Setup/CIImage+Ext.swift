@@ -60,4 +60,25 @@ extension Queen where Base: CIImage {
         }
         return pixelBuffer
     }
+    
+    /// CIImage to cgImage
+    /// - Parameters:
+    ///   - colorSpace: Color space
+    ///   - context: An evaluation context for rendering image processing results and performing image analysis.
+    /// - Returns: Newly created CGImage.
+    public func toCGImage(colorSpace: CGColorSpace? = nil, context: CIContext? = nil) -> CGImage? {
+        if let cgImage = base.cgImage { return cgImage }
+        let context = context ?? {
+            let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
+            let options = [CIContextOption.workingColorSpace: colorSpace]
+            let context: CIContext
+            if #available(iOS 13.0, *) {
+                context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
+            } else {
+                context = CIContext(options: options)
+            }
+            return context
+        }()
+        return context.createCGImage(base, from: base.extent)
+    }
 }
