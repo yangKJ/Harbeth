@@ -14,7 +14,6 @@ public class C7Collector: NSObject, Collectorable, Cacheable {
     
     public var filters: [C7FilterProtocol] = []
     public var videoSettings: [String : Any] = [
-        kCVPixelBufferMetalCompatibilityKey as String: true,
         kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
     ]
     /// Whether to enable automatic direction correction of pictures? The default is true.

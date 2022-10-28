@@ -9,6 +9,7 @@ import Foundation
 import CoreImage
 
 /// 高光
+/// https://cifilter.io/CIHighlightShadowAdjust/
 public struct CIHighlight: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
@@ -21,7 +22,7 @@ public struct CIHighlight: C7FilterProtocol {
     
     public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage {
         filter?.setValue(1 - value, forKey: "inputHighlightAmount")
-        return ciImage
+        return ciImage.cropped(to: ciImage.extent)
     }
     
     public init() { }

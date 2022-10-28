@@ -57,8 +57,7 @@ struct HomeViewModel {
             ]
         case .camera:
             var filters = color
-            filters.insert(.CIGaussian, at: 0)
-            filters.insert(.Storyboard, at: 1)
+            filters.insert(.Storyboard, at: 0)
             return ["真机测试": filters]
         case .player:
             var filters = visual
@@ -101,7 +100,7 @@ struct HomeViewModel {
     
     let blur: [ViewControllerType] = [
         .MonochromeDilation, .MotionBlur, .MeanBlur,
-        .GaussianBlur, .CIGaussian, .BilateralBlur,
+        .GaussianBlur, .BilateralBlur,
     ]
     
     let blend: [ViewControllerType] = [
@@ -118,6 +117,6 @@ struct HomeViewModel {
     ]
     
     let other: [ViewControllerType] = [
-        .MPSGaussian, .TextHEIC, .CIGaussian, .CIHS,
+        .MPSGaussian, .TextHEIC, .CIHS,
     ]
 }

@@ -72,7 +72,6 @@ enum ViewControllerType: String {
     case OilPainting = "油画效果"
     case Sketch = "素描效果"
     case CIHS = "coreImage高光阴影"
-    case CIGaussian = "coreImage高斯模糊"
     case TextHEIC = "测试HEIC类型图片"
     case MPSGaussian = "测试MPS高斯模糊"
 }

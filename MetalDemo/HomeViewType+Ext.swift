@@ -379,13 +379,6 @@ extension ViewControllerType {
                 filter.value = $0
                 return filter
             })
-        case .CIGaussian:
-            var filter = CIGaussianBlur()
-            filter.radius = 10
-            return (filter, (10, CIGaussianBlur.range.min, CIGaussianBlur.range.max), {
-                filter.radius = $0
-                return filter
-            })
         case .TextHEIC:
             var filter = C7Granularity()
             filter.grain = 0.8
