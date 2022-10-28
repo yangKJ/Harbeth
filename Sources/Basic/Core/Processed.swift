@@ -16,10 +16,9 @@ internal struct Processed {
     ///   - intexture: Input texture
     ///   - outTexture: Output texture
     ///   - filter: It must be an object implementing C7FilterProtocol
-    /// - Returns: New texture after processing
+    /// - Returns: Output texture after processing
     @inlinable @discardableResult
     static func IO(inTexture: MTLTexture, outTexture: MTLTexture? = nil, filter: C7FilterProtocol) throws -> MTLTexture {
-        // 单独处理`CoreImage`滤镜
         if case .coreimage(let name) = filter.modifier {
             return COImage.render(texture: inTexture, name: name, filter: filter)
         }
@@ -41,16 +40,12 @@ internal struct Processed {
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
         } else if case .render(let vertex, let fragment) = filter.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
-                return inTexture
+                throw C7CustomError.renderPipelineState(vertex, fragment)
             }
-            var textures = [inTexture]
+            var textures = [outputTexture!, inTexture]
             textures += filter.otherInputTextures
             commandBuffer.label = "Condy" + vertex + "_" + fragment
-            Rendering.drawingProcess(pipelineState: pipelineState,
-                                     commandBuffer: commandBuffer,
-                                     inputTextures: textures,
-                                     outputTexture: outputTexture!,
-                                     factors: filter.factors)
+            Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, factors: filter.factors)
         } else if case .mps(let performance) = filter.modifier {
             commandBuffer.label = "Condy" + performance.description
             performance.encode(commandBuffer: commandBuffer, sourceTexture: inTexture, destinationTexture: outputTexture!)

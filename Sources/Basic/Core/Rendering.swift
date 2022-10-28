@@ -21,13 +21,12 @@ internal struct Rendering {
         return try? Device.device().makeRenderPipelineState(descriptor: descriptor)
     }
     
-    static func drawingProcess<T>(pipelineState: MTLRenderPipelineState,
+    static func drawingProcess<T>(_ pipelineState: MTLRenderPipelineState,
                                   commandBuffer: MTLCommandBuffer,
-                                  inputTextures: [MTLTexture],
-                                  outputTexture: MTLTexture,
+                                  textures: [MTLTexture],
                                   factors: [T]) {
         let renderPass = MTLRenderPassDescriptor()
-        renderPass.colorAttachments[0].texture = outputTexture
+        renderPass.colorAttachments[0].texture = textures.first
         renderPass.colorAttachments[0].loadAction = MTLLoadAction.clear
         renderPass.colorAttachments[0].storeAction = MTLStoreAction.store
         renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.65, 0.8, 1)
@@ -47,7 +46,8 @@ internal struct Rendering {
         /// 纹理坐标，左下角为坐标原点
         let standard: [Float] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
         let textureBuffer = device.makeBuffer(bytes: standard, length: standard.count * size, options: [])!
-        for (i, texture) in inputTextures.enumerated() {
+        var inTextures = textures; inTextures.removeFirst()
+        for (i, texture) in inTextures.enumerated() {
             renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: i + 1)
             renderEncoder.setFragmentTexture(texture, index: i)
         }

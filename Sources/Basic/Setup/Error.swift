@@ -13,6 +13,7 @@ public enum C7CustomError: Swift.Error {
     case readFunction(String)
     case commandBuffer
     case computePipelineState(String)
+    case renderPipelineState(String, String)
     case source2Texture
     case texture2Image
 }
@@ -29,6 +30,8 @@ extension C7CustomError {
             return "Make Command buffer failed."
         case .computePipelineState(let name):
             return "Make Compute Pipeline State failed with \(name)"
+        case .renderPipelineState(let vertex, let fragment):
+            return "Make Rendering Pipeline State failed with \(vertex) and \(fragment)"
         case .source2Texture:
             return "Transform to texture failed."
         case .texture2Image:
