@@ -10,7 +10,7 @@ import Foundation
 import CoreVideo
 import MetalKit
 
-public class C7Collector: NSObject, Collectorable {
+public class C7Collector: NSObject, Collectorable, Cacheable {
     
     public var filters: [C7FilterProtocol] = []
     public var videoSettings: [String : Any] = [
@@ -24,7 +24,6 @@ public class C7Collector: NSObject, Collectorable {
     var callback: C7FilterImageCallback?
     var view: C7View?
     weak var delegate: C7CollectorImageDelegate?
-    private var textureCache: CVMetalTextureCache?
     
     public required init(delegate: C7CollectorImageDelegate) {
         self.delegate = delegate
@@ -47,12 +46,12 @@ public class C7Collector: NSObject, Collectorable {
     
     deinit {
         delegate = nil
-        flushTextureCache()
+        deferTextureCache()
         print("C7Collector is deinit.")
     }
     
     open func setupInit() {
-        setupTextureCache()
+        let _ = self.textureCache
     }
 }
 
@@ -65,10 +64,7 @@ extension C7Collector {
             guard let cgimage = pixelBuffer.mt.toCGImage() else { return nil }
             return C7Image.init(cgImage: cgimage)
         }
-        
         let image = filteringAndConvert2Image(with: pixelBuffer)
-        
-        flushTextureCache()
         return image
     }
     
@@ -89,21 +85,6 @@ extension C7Collector {
 }
 
 extension C7Collector {
-    
-    private func setupTextureCache() {
-        #if !targetEnvironment(simulator)
-        CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Device.device(), nil, &textureCache)
-        #endif
-    }
-    
-    private func flushTextureCache() {
-        #if !targetEnvironment(simulator)
-        if let textureCache = textureCache {
-            CVMetalTextureCacheFlush(textureCache, 0)
-        }
-        #endif
-    }
-    
     /// Inject filter and convert to image
     private func filteringAndConvert2Image(with pixelBuffer: CVPixelBuffer) -> C7Image? {
         guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {

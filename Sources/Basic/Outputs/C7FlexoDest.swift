@@ -11,7 +11,7 @@ import UIKit
 import CoreVideo
 
 /// Support ` UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer `
-@frozen public struct C7FlexoDest<Dest> : Destype {
+@frozen public struct C7FlexoDest<Dest> : Destype, Cacheable {
     public typealias Element = Dest
     public var element: Dest
     public var filters: [C7FilterProtocol]
@@ -55,8 +55,6 @@ extension C7FlexoDest {
         if let _ = filterEmpty(target: pixelBuffer as! Dest) {
             return pixelBuffer
         }
-        let textureCache: CVMetalTextureCache? = self.setupTextureCache()
-        defer { deferTextureCache(textureCache: textureCache) }
         guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
             throw C7CustomError.source2Texture
         }
@@ -165,21 +163,5 @@ extension C7FlexoDest {
     
     private func filterEmpty(target: Dest) -> Dest? {
         return filters.isEmpty ? target : nil
-    }
-    
-    private func setupTextureCache() -> CVMetalTextureCache? {
-        var textureCache: CVMetalTextureCache?
-        #if !targetEnvironment(simulator)
-        CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Device.device(), nil, &textureCache)
-        #endif
-        return textureCache
-    }
-    
-    private func deferTextureCache(textureCache: CVMetalTextureCache?) {
-        #if !targetEnvironment(simulator)
-        if let textureCache = textureCache {
-            CVMetalTextureCacheFlush(textureCache, 0)
-        }
-        #endif
     }
 }
