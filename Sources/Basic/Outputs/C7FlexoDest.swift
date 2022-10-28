@@ -10,15 +10,11 @@ import MetalKit
 import UIKit
 import CoreVideo
 
-/// Support `UIImage,CGImage,CIImage,MTLTexture,CMSampleBuffer,CVPixelBuffer`
+/// Support ` UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer `
 @frozen public struct C7FlexoDest<Dest> : Destype {
     public typealias Element = Dest
     public var element: Dest
     public var filters: [C7FilterProtocol]
-    
-    /// 是否提前绘制过图片
-    /// Whether the picture has been drawn in advance.
-    public var hasBitmap: Bool = false
     
     public init(element: Dest, filters: [C7FilterProtocol]) {
         self.element = element
@@ -123,8 +119,7 @@ extension C7FlexoDest {
         }
         do {
             texture = try filtering(texture: texture)
-            let pixelFormat = hasBitmap ? .bgra8Unorm : texture.pixelFormat
-            return texture.toCGImage(pixelFormat: pixelFormat) ?? cgImage
+            return texture.toCGImage() ?? cgImage
         } catch {
             throw error
         }
@@ -161,8 +156,7 @@ extension C7FlexoDest {
 // MARK: - private methods
 extension C7FlexoDest {
     private func fixImageOrientation(texture: MTLTexture, base: C7Image) throws -> C7Image {
-        let pixelFormat = hasBitmap ? .bgra8Unorm : texture.pixelFormat
-        guard let cgImage = texture.toCGImage(pixelFormat: pixelFormat) else {
+        guard let cgImage = texture.toCGImage() else {
             throw C7CustomError.texture2Image
         }
         // Fixed an issue with HEIC flipping after adding filter.

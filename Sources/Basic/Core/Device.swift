@@ -107,10 +107,7 @@ extension Device {
         return cgimage?.colorSpace ?? (Shared.shared.device?.colorSpace ?? CGColorSpaceCreateDeviceRGB())
     }
     
-    static func bitmapInfo(_ cgimage: CGImage? = nil) -> UInt32 {
-        if let c = cgimage?.bitmapInfo.rawValue {
-            return c
-        }
+    static func bitmapInfo() -> UInt32 {
         //kCGImageAlphaPremultipliedLast保留透明度
         return CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
     }
