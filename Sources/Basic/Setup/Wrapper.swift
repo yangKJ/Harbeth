@@ -29,3 +29,7 @@ extension C7Compatible {
 }
 
 extension C7Color: C7Compatible { }
+extension CGFloat: C7Compatible { }
+extension Double: C7Compatible { }
+extension Float: C7Compatible { }
+extension Int: C7Compatible { }
