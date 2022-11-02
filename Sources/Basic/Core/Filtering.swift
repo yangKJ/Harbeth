@@ -73,6 +73,9 @@ public protocol C7FilterProtocol {
     ///   - ciImage: Input source
     /// - Returns: Output source
     func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage
+    
+    /// Parametric description.
+    var parameterDescription: [String: Any] { get }
 }
 
 extension C7FilterProtocol {
@@ -81,4 +84,28 @@ extension C7FilterProtocol {
     public func outputSize(input size: C7Size) -> C7Size { size }
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) { }
     public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage { ciImage }
+    public var parameterDescription: [String: Any] {
+        let mirror = Mirror(reflecting: self)
+        return mapDictionary(mirror: mirror)
+    }
+}
+
+extension C7FilterProtocol {
+    private func mapDictionary(mirror: Mirror) -> [String: Any] {
+        var dict: [String: Any] = [:]
+        for child in mirror.children {
+            // If there is no labe, it will be discarded.
+            if let label = child.label {
+                //_ = Mirror(reflecting: child.value)
+                dict[label] = child.value
+            }
+        }
+        if let superMirror = mirror.superclassMirror {
+            let superDic = mapDictionary(mirror: superMirror)
+            for x in superDic {
+                dict[x.key] = x.value
+            }
+        }
+        return dict
+    }
 }
