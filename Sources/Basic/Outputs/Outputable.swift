@@ -9,6 +9,11 @@ import Foundation
 
 public protocol Outputable {
     
+    /// Filter working
+    /// - Parameter filter: It must be an object implementing C7FilterProtocol
+    /// - Returns: Outputable
+    mutating func filtering<T>(_ filter: C7FilterProtocol?) -> T
+    
     /// Filter processing
     /// - Parameters:
     ///   - filter: It must be an object implementing C7FilterProtocol
@@ -23,3 +28,36 @@ public protocol Outputable {
     /// - Returns: Outputable
     mutating func makeGroup<T: Outputable>(filters: [C7FilterProtocol]) throws -> T
 }
+
+extension Outputable {
+    
+    public func filtering<T>(_ filter: C7FilterProtocol?) -> T {
+        guard let filter = filter else { return self as! T }
+        let dest = AnyDest.init(element: self, filters: [filter])
+        return ((try? dest.output()) ?? self) as! T
+    }
+    
+    public func make<T>(filter: C7FilterProtocol) throws -> T where T : Outputable {
+        let dest = AnyDest.init(element: self, filters: [filter])
+        do {
+            return try dest.output() as! T
+        } catch {
+            throw error
+        }
+    }
+    
+    public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : Outputable {
+        let dest = AnyDest.init(element: self, filters: filters)
+        do {
+            return try dest.output() as! T
+        } catch {
+            throw error
+        }
+    }
+}
+
+extension C7Image: Outputable { }
+extension CGImage: Outputable { }
+extension CIImage: Outputable { }
+extension CVPixelBuffer: Outputable { }
+extension CMSampleBuffer: Outputable { }
