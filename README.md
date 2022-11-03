@@ -19,21 +19,25 @@ English | [**简体中文**](README_CN.md)
 🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
 - Support operator chain filter.
+- Support use UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
 - Support quick design filters.
 - Support merge multiple filter effects.
 - Support fast expansion of output sources.
 - Support camera capture effects.
 - Support video to add filter special effects.
 - Support matrix convolution.
+- Support MetalPerformanceShaders.
+- Support compatible for CoreImage.
 - The filter part is roughly divided into the following modules:
     - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
     - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur): Blur effect
-    - [x] [ColorProcess](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): basic pixel processing of images.
+    - [x] [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): basic pixel processing of images.
     - [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect): Effect processing.
     - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filter.
     - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
     - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
     - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): Visual dynamic effects.
+    - [x] [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): MetalPerformanceShaders.
 
 #### **A total of `100+` kinds of filters are currently available.✌️**
 
@@ -60,17 +64,14 @@ filter3.soul = 0.7
 let filters = [filter, filter2, filter3]
 
 // Use:
-ImageView.image = try? originImage.makeGroup(filters: filters)
+let dest = C7DestIO.init(element: originImage, filters: filters)
+ImageView.image = try? dest.output()
 
 // OR Use:
-let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-let result = AT ->> filter ->> filter2 ->> filter3
-ImageView.image = result.outputImage()
+ImageView.image = try? originImage.makeGroup(filters: filters)
 
-// Even:
-var texture = originImage.mt.toTexture()!
-filters.forEach { texture = texture ->> $0 }
-ImageView.image = texture.toImage()
+// OR Use Operator:
+ImageView.image = originImage ->> filter ->> filter2 ->> filter3
 ```
 
 - Camera capture generates pictures.
@@ -85,27 +86,64 @@ var filter2 = C7Granularity()
 filter2.grain = 0.8
 
 // Generate camera collector:
-let camera = C7CollectorCamera(callback: { [weak self] (image) in
-    self?.ImageView.image = image
-})
+let camera = C7CollectorCamera.init(delegate: self)
 camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
 camera.filters = [filter, filter2]
+
+extension CameraViewController: C7CollectorImageDelegate {
+    func preview(_ collector: C7Collector, fliter image: C7Image) {
+        DispatchQueue.main.async {
+            self.originImageView.image = image
+        }
+    }
+}
+```
+
+- Local video or Network video are simply apply with filters.
+  - 🙄 For details, See [PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/MetalDemo/Modules/PlayerViewController.swift).
+  - You can also extend this by using `C7DestIO` to filter the collected CVPixelBuffer.
+
+```swift
+lazy var video: C7CollectorVideo = {
+    let videoURL = URL.init(string: "Link")!
+    let asset = AVURLAsset.init(url: videoURL)
+    let playerItem = AVPlayerItem.init(asset: asset)
+    let player = AVPlayer.init(playerItem: playerItem)
+    let video = C7CollectorVideo.init(player: player, delegate: self)
+    let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+    video.filters = [filter]
+    return video
+}()
+
+self.video.play()
+
+extension PlayerViewController: C7CollectorImageDelegate {
+    func preview(_ collector: C7Collector, fliter image: C7Image) {
+        self.originImageView.image = image
+        // Simulated dynamic effect.
+        if let filter = self.tuple?.callback?(self.nextTime) {
+            self.video.filters = [filter]
+        }
+    }
+}
 ```
 
 ### Overview
 - Core, basic core board
-    - [C7FilterProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Core/C7FilterProtocol.swift): Filter designs must follow this protocol.
+    - [C7FilterProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Core/Filtering.swift): Filter designs must follow this protocol.
         - **modifier**: Encoder type and corresponding function name.
         - **factors**: Set modify parameter factor, you need to convert to `Float`.
         - **otherInputTextures**: Multiple input source extensions, An array containing the `MTLTexture`
         - **outputSize**: Change the size of the output image. 
+        - **setupSpecialFactors**: Special type of parameter factor, such as 4x4 matrix.
+        - **coreImageApply**: Compatible support for CoreImage.
+        - **parameterDescription**: Parametric description.
 
 - Outputs, output section
-    - [C7FilterOutput](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterOutput.swift): Output content protocol, all outputs must implement this protocol.
+    - [C7DestIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7DestIO.swift): Multi-function output, support UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer and so on.
+    - [Outputable](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/Outputable.swift): Output content protocol, all outputs must implement this protocol.
         - **make**: Generate data based on filter processing.
         - **makeGroup**: Multiple filter combinations, Please note that the order in which filters are added may affect the result of image generation.
-    - [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift): Image input source based on C7FilterOutput, The following modes support only the encoder based on parallel computing.
-    - [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): MTLTexture input source based on C7FilterOutput, The input texture is converted to a filter to process the texture.
     - [C7CollectorCamera](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorCamera.swift) : The camera data collector generates images directly and then returns them in the main thread.
 	- [C7CollectorVideo](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorVideo.swift) : Add the filter effect to the video image frame to generate the image directly.
 
@@ -216,11 +254,11 @@ filter4.shadows = 0.4
 filter4.highlights = 0.5
 
 /// 5.Combination operation
-let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-let result = AT ->> filter1 ->> filter2 ->> filter3 ->> filter4
+let texture = originImage.mt.toTexture()!
+let result = texture ->> filter1 ->> filter2 ->> filter3 ->> filter4
 
 /// 6.Get the result
-filterImageView.image = result.outputImage()
+filterImageView.image = result.toImage()
 ```
 
 -----

@@ -17,21 +17,25 @@
  🟣 目前，[**Metal Moudle**](https://github.com/yangKJ/Harbeth) 最重要的特点可以总结如下：
 
 - 支持运算符函数式操作
+- 支持多种模式数据源 UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
 - 支持快速设计滤镜
 - 支持合并多种滤镜效果
 - 支持输出源的快速扩展
 - 支持相机采集特效
 - 支持视频添加滤镜特效
 - 支持矩阵卷积
+- 支持使用系统 MetalPerformanceShaders.
+- 支持兼容 CoreImage.
 - 滤镜部分大致分为以下几个模块：
    - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend)：图像融合技术
    - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur)：模糊效果
-   - [x] [ColorProcess](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess)：图像的基本像素颜色处理
+   - [x] [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess)：图像的基本像素颜色处理
    - [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect)：效果处理
    - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup)：查找表过滤器
    - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): 矩阵卷积滤波器
    - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape)：图像形状大小相关
    - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): 视觉动态特效
+   - [x] [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): 系统 MetalPerformanceShaders.
 
 #### **总结下来目前共有 `100+` 种滤镜供您使用。✌️**
 
@@ -46,7 +50,7 @@
 原始代码：
 ImageView.image = originImage
 
-注入滤镜代码：
+🎷注入滤镜代码：
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
 
 var filter2 = C7Granularity()
@@ -57,18 +61,22 @@ filter3.soul = 0.7
 
 let filters = [filter, filter2, filter3]
 
-简单使用
+简单使用`Outputable`🚗 🚗 🚗
 ImageView.image = try? originImage.makeGroup(filters: filters)
 
+也可数据源模式使用
+let dest = C7DestIO.init(element: originImage, filters: filters)
+ImageView.image = try? dest.output()
+
 或者运算符操作
-let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-let result = AT ->> filter ->> filter2 ->> filter3
-ImageView.image = result.outputImage()
+ImageView.image = originImage ->> filter ->> filter2 ->> filter3
 
 甚至函数式编程高级用法
-var texture = originImage.mt.toTexture()!
+guard var texture = originImage.mt.toTexture() else { reture }
 filters.forEach { texture = texture ->> $0 }
 ImageView.image = texture.toImage()
+
+怎么使用就看你的心情了!!!🫤
 ```
 
 - 相机采集生成图片
@@ -83,27 +91,62 @@ var filter2 = C7Granularity()
 filter2.grain = 0.8
 
 生成相机采集器:
-let camera = C7CollectorCamera(callback: { [weak self] (image) in
-    self?.ImageView.image = image
-})
+let camera = C7CollectorCamera.init(delegate: self)
 camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
 camera.filters = [filter, filter2]
+
+extension CameraViewController: C7CollectorImageDelegate {
+    func preview(_ collector: C7Collector, fliter image: C7Image) {
+        // 显示注入滤镜之后的图像
+    }
+}
+```
+
+- 本地视频 or 网络视频简单注入滤镜
+  - 🙄 详细请参考[PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/MetalDemo/Modules/PlayerViewController.swift)
+  - 您也可以自己去扩展，使用`C7DestIO`对采集的`CVPixelBuffer`进行滤镜注入处理。
+
+```swift
+lazy var video: C7CollectorVideo = {
+    let videoURL = URL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
+    let asset = AVURLAsset.init(url: videoURL)
+    let playerItem = AVPlayerItem(asset: asset)
+    let player = AVPlayer.init(playerItem: playerItem)
+    let video = C7CollectorVideo.init(player: player, delegate: self)
+    let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+    video.filters = [filter]
+    return video
+}()
+
+// 播放视频
+self.video.play()
+
+extension PlayerViewController: C7CollectorImageDelegate {
+    func preview(_ collector: C7Collector, fliter image: C7Image) {
+        self.originImageView.image = image
+        if let filter = self.tuple?.callback?(self.nextTime) {
+            self.video.filters = [filter]
+        }
+    }
+}
 ```
 
 ### 主要部分
 - 核心，基础核心板块
-    - [C7FilterProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Core/C7FilterProtocol.swift)：滤镜设计必须遵循此协议
+    - [C7FilterProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Core/Filtering.swift)：滤镜设计必须遵循此协议
         - **modifier**：编码器类型和对应的函数名称
         - **factors**：设置修改参数因子，需要转换为`Float`
         - **otherInputTextures**：多个输入源，包含`MTLTexture`的数组
         - **outputSize**：更改输出图像的大小
+        - **setupSpecialFactors**: 特殊类型参数因子，例如4x4矩阵
+        - **coreImageApply**: CoreImage 滤镜专属方案
+        - **parameterDescription**: 滤镜参数详情信息
 
 - 输出，输出板块
-	- [C7FilterOutput](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterOutput.swift)：输出内容协议，所有输出都必须实现该协议
+    - [C7DestIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7DestIO.swift): 多功能数据源, 目前支持`UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer`等.
+	- [Outputable](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/Outputable.swift)：输出内容协议，所有输出都必须实现该协议
 	    - **make**：根据滤镜处理生成数据
 	    - **makeGroup**：多个滤镜组合，请注意滤镜添加的顺序可能会影响图像生成的结果
-	- [C7FilterImage](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterImage.swift)：基于C7FilterOutput的图像输入源，以下模式仅支持基于并行计算的编码器
-	- [C7FilterTexture](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7FilterTexture.swift): 基于C7FilterOutput的纹理输入源，输入纹理转换成滤镜处理纹理
 	- [C7CollectorCamera](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorCamera.swift)：相机数据采集器，直接生成图像，然后在主线程返回
 	- [C7CollectorVideo](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorVideo.swift)：视频图像桢加入滤镜效果，直接生成图像
 
@@ -169,6 +212,7 @@ camera.filters = [filter, filter2]
 	    const half soulX = 0.5h + (x - 0.5h) / scale;
 	    const half soulY = 0.5h + (y - 0.5h) / scale;
 	    
+        // 最终色 = 基色 * (1 - a) + 混合色 * a   
 	    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
 	    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
 	    
@@ -217,11 +261,11 @@ filter4.shadows = 0.4
 filter4.highlights = 0.5
 
 /// 5.组合操作
-let AT = C7FilterTexture.init(texture: originImage.mt.toTexture()!)
-let result = AT ->> filter1 ->> filter2 ->> filter3 ->> filter4
+let texture = originImage.mt.toTexture()!
+let result = texture ->> filter1 ->> filter2 ->> filter3 ->> filter4
 
 /// 6.获取结果
-filterImageView.image = result.outputImage()
+filterImageView.image = result.toImage()
 ```
 
 -----
