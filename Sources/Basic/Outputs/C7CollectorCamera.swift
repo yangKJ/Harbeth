@@ -12,7 +12,8 @@ import AVFoundation
 /// The camera data collector returns pictures in the main thread.
 public final class C7CollectorCamera: C7Collector {
     
-    private lazy var sessionQueue = DispatchQueue(label: "camera.session.collector.metal")
+    private let sessionQueue = DispatchQueue(label: "camera.session.collector.metal")
+    private let bufferQueue  = DispatchQueue(label: "camera.collector.buffer.metal")
     
     public var deviceInput: AVCaptureDeviceInput? {
         didSet {
@@ -38,7 +39,7 @@ public final class C7CollectorCamera: C7Collector {
         let output = AVCaptureVideoDataOutput()
         output.videoSettings = videoSettings
         output.alwaysDiscardsLateVideoFrames = true
-        output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera.collector.buffer.metal"))
+        output.setSampleBufferDelegate(self, queue: bufferQueue)
         if captureSession.canAddOutput(output) {
             captureSession.addOutput(output)
         }
@@ -50,6 +51,7 @@ public final class C7CollectorCamera: C7Collector {
     
     deinit {
         self.stopRunning()
+        self.videoOutput.setSampleBufferDelegate(nil, queue: nil)
     }
     
     public override func setupInit() {

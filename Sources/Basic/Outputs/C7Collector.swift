@@ -78,7 +78,7 @@ extension C7Collector {
             DispatchQueue.main.async { callback(image) }
         }
         if let delegate = self.delegate {
-            delegate.preview(self, fliter: image)
+            DispatchQueue.main.async { delegate.preview(self, fliter: image) }
         }
     }
 }

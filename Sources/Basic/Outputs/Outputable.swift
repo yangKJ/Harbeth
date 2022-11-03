@@ -33,12 +33,12 @@ extension Outputable {
     
     public func filtering<T>(_ filter: C7FilterProtocol?) -> T {
         guard let filter = filter else { return self as! T }
-        let dest = AnyDest.init(element: self, filters: [filter])
+        let dest = C7DestIO.init(element: self, filters: [filter])
         return ((try? dest.output()) ?? self) as! T
     }
     
     public func make<T>(filter: C7FilterProtocol) throws -> T where T : Outputable {
-        let dest = AnyDest.init(element: self, filters: [filter])
+        let dest = C7DestIO.init(element: self, filters: [filter])
         do {
             return try dest.output() as! T
         } catch {
@@ -47,7 +47,7 @@ extension Outputable {
     }
     
     public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : Outputable {
-        let dest = AnyDest.init(element: self, filters: filters)
+        let dest = C7DestIO.init(element: self, filters: filters)
         do {
             return try dest.output() as! T
         } catch {

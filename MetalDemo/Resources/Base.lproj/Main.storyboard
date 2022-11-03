@@ -20,6 +20,7 @@
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                     </tabBar>
                     <connections>
+                        <segue destination="D7T-AE-VIp" kind="relationship" relationship="viewControllers" id="tpL-Ew-Jku"/>
                         <segue destination="43K-dr-XFz" kind="relationship" relationship="viewControllers" id="p3J-A6-UKW"/>
                         <segue destination="hAI-wz-YaY" kind="relationship" relationship="viewControllers" id="w3m-Ye-mlh"/>
                         <segue destination="UNy-GX-PbX" kind="relationship" relationship="viewControllers" id="G0R-ho-S5v"/>
@@ -27,7 +28,7 @@
                 </tabBarController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="DFg-F3-VMg" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="1042.0289855072465" y="69.642857142857139"/>
+            <point key="canvasLocation" x="757" y="-263"/>
         </scene>
         <!--Home View Controller-->
         <scene sceneID="Q9p-TQ-lng">
@@ -75,7 +76,23 @@
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="uwY-mK-7bP" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="2862" y="774"/>
+            <point key="canvasLocation" x="2891" y="776"/>
+        </scene>
+        <!--Unit Test View Controller-->
+        <scene sceneID="77X-XI-ocT">
+            <objects>
+                <viewController id="wdr-AB-yzd" customClass="UnitTestViewController" customModule="MetalDemo" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="C9U-Pi-b52">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="736"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <viewLayoutGuide key="safeArea" id="hRq-tr-gJw"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                    </view>
+                    <navigationItem key="navigationItem" id="7r9-7G-w3D"/>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="35Z-id-jLO" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="2861" y="-1331"/>
         </scene>
         <!--Camera-->
         <scene sceneID="jwh-4O-wdy">
@@ -94,7 +111,7 @@
                 </navigationController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="n2p-mZ-CH1" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="1952" y="773"/>
+            <point key="canvasLocation" x="1952" y="776"/>
         </scene>
         <!--Video-->
         <scene sceneID="zNV-35-XHe">
@@ -134,9 +151,29 @@
             </objects>
             <point key="canvasLocation" x="1952.1739130434785" y="69.642857142857139"/>
         </scene>
+        <!--Test-->
+        <scene sceneID="exH-T0-fje">
+            <objects>
+                <navigationController automaticallyAdjustsScrollViewInsets="NO" id="D7T-AE-VIp" sceneMemberID="viewController">
+                    <tabBarItem key="tabBarItem" title="Test" image="figure.outdoor.cycle" catalog="system" id="WNI-CL-ALG"/>
+                    <toolbarItems/>
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="Wvl-p4-8Vd">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <nil name="viewControllers"/>
+                    <connections>
+                        <segue destination="wdr-AB-yzd" kind="relationship" relationship="rootViewController" id="GXb-Kl-Iy2"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="KQR-RE-FdV" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1952" y="-1331"/>
+        </scene>
     </scenes>
     <resources>
         <image name="camera.metering.center.weighted" catalog="system" width="128" height="93"/>
+        <image name="figure.outdoor.cycle" catalog="system" width="128" height="90"/>
         <image name="play.tv" catalog="system" width="128" height="95"/>
         <image name="scribble.variable" catalog="system" width="128" height="119"/>
         <systemColor name="systemBackgroundColor">

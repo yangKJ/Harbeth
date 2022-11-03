@@ -19,15 +19,13 @@ class PlayerViewController: UIViewController {
         return imageView
     }()
     
-    var player: AVPlayer!
-    
     lazy var video: C7CollectorVideo = {
-        let video = C7CollectorVideo.init(player: player) { [unowned self] in
-            self.originImageView.image = $0
-            if let callback = self.tuple?.callback {
-                self.video.filters = [callback(self.nextTime)]
-            }
-        }
+        let videoURL = URL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
+        //let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2018-03-30/1f36dd9819eeef0bc508414494d34ad9.mp4")!
+        let asset = AVURLAsset.init(url: videoURL)
+        let playerItem = AVPlayerItem(asset: asset)
+        let player = AVPlayer.init(playerItem: playerItem)
+        let video = C7CollectorVideo.init(player: player, delegate: self)
         video.filters = [self.tuple!.filter]
         return video
     }()
@@ -69,12 +67,16 @@ class PlayerViewController: UIViewController {
     }
     
     func setupPlayer() {
-        let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
-        //let videoURL = NSURL.init(string: "https://mp4.vjshi.com/2018-03-30/1f36dd9819eeef0bc508414494d34ad9.mp4")!
-        let asset = AVURLAsset.init(url: videoURL as URL)
-        let playerItem = AVPlayerItem(asset: asset)
-        player = AVPlayer.init(playerItem: playerItem)
-        
-        video.play()
+        self.video.play()
+    }
+}
+
+extension PlayerViewController: C7CollectorImageDelegate {
+    func preview(_ collector: C7Collector, fliter image: C7Image) {
+        self.originImageView.image = image
+        // Simulated dynamic effect.
+        if let filter = self.tuple?.callback?(self.nextTime) {
+            self.video.filters = [filter]
+        }
     }
 }

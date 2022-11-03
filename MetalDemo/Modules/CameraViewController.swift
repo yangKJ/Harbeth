@@ -49,10 +49,7 @@ class CameraViewController: UIViewController {
 }
 
 extension CameraViewController: C7CollectorImageDelegate {
-    
     func preview(_ collector: C7Collector, fliter image: C7Image) {
-        DispatchQueue.main.async {
-            self.originImageView.image = image
-        }
+        self.originImageView.image = image
     }
 }
