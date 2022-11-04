@@ -19,11 +19,11 @@ extension C7DestIO {
         }
         do {
             for filter in filters {
-                let outputSize = filter.outputSize(input: C7Size(width: texture.width, height: texture.height))
+                let OSize = filter.outputSize(input: C7Size(width: texture.width, height: texture.height))
                 // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
                 // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-                let outputTexture = Processed.destTexture(pixelFormat: bufferPixelFormat, width: outputSize.width, height: outputSize.height)
-                texture = try Processed.IO(inTexture: texture, outTexture: outputTexture, filter: filter)
+                let OTexture = Processed.destTexture(pixelFormat: bufferPixelFormat, width: OSize.width, height: OSize.height)
+                texture = try Processed.IO(inTexture: texture, outTexture: OTexture, filter: filter)
             }
             pixelBuffer.mt.copyToPixelBuffer(with: texture)
             return pixelBuffer

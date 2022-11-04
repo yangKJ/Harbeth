@@ -10,15 +10,15 @@ PODS:
     - Harbeth/Basic
 
 DEPENDENCIES:
-  - Harbeth (from `./`)
+  - Harbeth (from `../`)
 
 EXTERNAL SOURCES:
   Harbeth:
-    :path: "./"
+    :path: "../"
 
 SPEC CHECKSUMS:
   Harbeth: 3ca97d8a5b424b08f1154ac72a8cd08de8d5f757
 
-PODFILE CHECKSUM: ed93cf903a0ede62bdea6c75490a25e8851c6d93
+PODFILE CHECKSUM: d12d36446627534e328e614e4f17d4ee2a77152a
 
 COCOAPODS: 1.11.3
