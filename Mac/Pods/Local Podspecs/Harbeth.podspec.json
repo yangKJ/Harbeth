@@ -1,6 +1,6 @@
 {
   "name": "Harbeth",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "summary": "About Metal graphics processing.",
   "homepage": "https://github.com/yangKJ/Harbeth",
   "license": {
@@ -12,7 +12,7 @@
   },
   "source": {
     "git": "https://github.com/yangKJ/Harbeth.git",
-    "tag": "0.3.1"
+    "tag": "0.3.2"
   },
   "swift_versions": "5.0",
   "requires_arc": true,
@@ -28,7 +28,10 @@
     {
       "name": "Basic",
       "source_files": "Sources/Basic/**/*.swift",
-      "weak_frameworks": "ImageIO"
+      "weak_frameworks": [
+        "ImageIO",
+        "MetalKit"
+      ]
     },
     {
       "name": "Compute",

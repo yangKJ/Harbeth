@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.3.1'
+  s.version          = '0.3.2'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -21,27 +21,29 @@ Pod::Spec.new do |s|
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Condy' => 'ykj310@126.com' }
   s.source           = { :git => 'https://github.com/yangKJ/Harbeth.git', :tag => s.version }
-  s.screenshots      = [ 'https://github.com/yangKJ/Harbeth/blob/master/Screenshot/EdgeGlow.gif' ]
   
   s.swift_version    = '5.0'
   s.requires_arc     = true
   s.static_framework = true
   s.ios.deployment_target = '10.0'
-  s.ios.frameworks = [ "UIKit", 'MetalKit', 'ImageIO', "CoreImage" ]
+  s.macos.deployment_target = '10.13'
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
   
   s.subspec 'Basic' do |xx|
     xx.source_files = 'Sources/Basic/**/*.swift'
+    xx.weak_frameworks = 'ImageIO', 'MetalKit'
   end
   
   s.subspec 'Compute' do |xx|
     xx.source_files = 'Sources/Compute/**/*.swift'
     xx.resource_bundles = { s.name => [ 'Sources/Compute/**/*.metal' ] }
+    xx.weak_frameworks = 'MetalPerformanceShaders', 'MetalKit'
     xx.dependency 'Harbeth/Basic'
   end
   
   s.subspec 'CoreImage' do |xx|
     xx.source_files = 'Sources/CoreImage/**/*.swift'
+    xx.weak_frameworks = 'CoreImage'
     xx.dependency 'Harbeth/Basic'
   end
   
