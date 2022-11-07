@@ -1,0 +1,6 @@
+framework module Harbeth {
+  umbrella header "Harbeth-umbrella.h"
+
+  export *
+  module * { export * }
+}

@@ -26,6 +26,7 @@ extension Queen where Base == C7Image {
 extension Queen where Base: C7Image {
     /// Fixed image rotation direction.
     public func fixOrientation() -> C7Image {
+        #if os(iOS) || os(tvOS) || os(watchOS)
         if base.imageOrientation == .up {
             return base
         }
@@ -79,11 +80,15 @@ extension Queen where Base: C7Image {
         guard let newCgImage = context?.makeImage() else {
             return base
         }
-        return C7Image(cgImage: newCgImage)
+        return newCgImage.mt.toC7Image()
+        #else
+        return base
+        #endif
     }
     
     /// To ensure image orientation is correct, redraw image if image orientation is not up.
     /// see: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
+    #if os(iOS) || os(tvOS) || os(watchOS)
     public var flattened: C7Image {
         if base.imageOrientation == .up { return base }
         UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
@@ -92,12 +97,12 @@ extension Queen where Base: C7Image {
         UIGraphicsEndImageContext()
         return result ?? base
     }
+    #endif
     
     public func zipScale(size: CGSize, equalRatio: Bool = false, scale: CGFloat = 0) -> C7Image {
         if __CGSizeEqualToSize(base.size, size) {
             return base
         }
-        let scale = scale == 0 ? base.scale : scale
         let rect: CGRect
         if size.width / size.height != base.size.width / base.size.height && equalRatio {
             let scale = size.width / base.size.width
@@ -111,10 +116,22 @@ extension Queen where Base: C7Image {
         } else {
             rect = CGRect(origin: .zero, size: size)
         }
+        #if os(iOS) || os(tvOS) || os(watchOS)
         let format = UIGraphicsImageRendererFormat.default()
-        format.scale = scale
+        format.scale = scale == 0 ? base.scale : scale
         let renderer = UIGraphicsImageRenderer(size: rect.size, format: format)
         let image = renderer.image { _ in base.draw(in: rect) }
         return image
+        #elseif os(macOS)
+        let fraction = scale == 0 ? 1.0 : scale
+        let _rect = NSRect(origin: rect.origin, size: rect.size)
+        let image = NSImage.init(size: _rect.size)
+        image.lockFocus()
+        defer { image.unlockFocus() }
+        base.draw(in: _rect, from: .zero, operation: .sourceOver, fraction: fraction)
+        return image
+        #else
+        return base
+        #endif
     }
 }

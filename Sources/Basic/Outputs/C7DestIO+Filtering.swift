@@ -116,8 +116,21 @@ extension C7DestIO {
         guard let cgImage = texture.toCGImage() else {
             throw C7CustomError.texture2Image
         }
+        #if os(iOS) || os(tvOS) || os(watchOS)
         // Fixed an issue with HEIC flipping after adding filter.
         return C7Image(cgImage: cgImage, scale: base.scale, orientation: base.imageOrientation)
+        #elseif os(macOS)
+        let fImage = cgImage.mt.toC7Image()
+        let image = C7Image(size: fImage.size)
+        image.lockFocus()
+        // Fixed an issue with HEIC flipping after adding filter.
+        //image.mt.flip(horizontal: true, vertical: true)
+        fImage.draw(in: NSRect(origin: .zero, size: fImage.size))
+        image.unlockFocus()
+        return image
+        #else
+        return base
+        #endif
     }
     
     private func filterEmpty(target: Dest) -> Dest? {

@@ -121,7 +121,7 @@ extension MTLTexture {
     
     public func toImage() -> C7Image? {
         guard let cgImage = toCGImage() else { return nil }
-        return C7Image(cgImage: cgImage)
+        return cgImage.mt.toC7Image()
     }
 }
 

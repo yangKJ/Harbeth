@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import UIKit
 
 /// Add the `mt` prefix namespace
 public struct Queen<Base> {
@@ -28,7 +27,6 @@ extension C7Compatible {
     }
 }
 
-extension C7Color: C7Compatible { }
 extension CGFloat: C7Compatible { }
 extension Double: C7Compatible { }
 extension Float: C7Compatible { }

@@ -20,16 +20,7 @@ extension Queen where Base: CIImage {
     ///   - context: An evaluation context for rendering image processing results and performing image analysis.
     public func renderImageToTexture(_ texture: MTLTexture, colorSpace: CGColorSpace? = nil, context: CIContext? = nil) {
         let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
-        let ctx = context ?? {
-            let options = [CIContextOption.workingColorSpace: colorSpace]
-            let context: CIContext
-            if #available(iOS 13.0, *) {
-                context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-            } else {
-                context = CIContext(options: options)
-            }
-            return context
-        }()
+        let ctx = context ?? Device.context(colorSpace: colorSpace)
         let buffer = Device.commandQueue().makeCommandBuffer()
         // Fixed image horizontal flip problem.
         let scaledImage = base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
@@ -68,17 +59,8 @@ extension Queen where Base: CIImage {
     /// - Returns: Newly created CGImage.
     public func toCGImage(colorSpace: CGColorSpace? = nil, context: CIContext? = nil) -> CGImage? {
         if let cgImage = base.cgImage { return cgImage }
-        let context = context ?? {
-            let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
-            let options = [CIContextOption.workingColorSpace: colorSpace]
-            let context: CIContext
-            if #available(iOS 13.0, *) {
-                context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-            } else {
-                context = CIContext(options: options)
-            }
-            return context
-        }()
+        let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
+        let context = context ?? Device.context(colorSpace: colorSpace)
         return context.createCGImage(base, from: base.extent)
     }
 }

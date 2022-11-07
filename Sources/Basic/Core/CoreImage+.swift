@@ -24,13 +24,7 @@ internal struct COImage {
         if let outputcgImage = outputCIImage.cgImage {
             return outputcgImage
         }
-        let options = [CIContextOption.workingColorSpace: Device.colorSpace(cgImage)]
-        var context: CIContext
-        if #available(iOS 13.0, *) {
-            context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-        } else {
-            context = CIContext(options: options)
-        }
+        let context = Device.context(cgImage: cgImage)
         let outputcgImage = context.createCGImage(outputCIImage, from: outputCIImage.extent)
         return outputcgImage ?? cgImage
     }
@@ -40,8 +34,8 @@ internal struct COImage {
             return texture
         }
         let outputcgImage = Self.drawingProcess(cgImage: cgImage, name: name, filter: filter)
-        
-        return C7Image(cgImage: outputcgImage).mt.toTexture() ?? texture
+        let image = outputcgImage.mt.toC7Image()
+        return image.mt.toTexture() ?? texture
     }
 }
 

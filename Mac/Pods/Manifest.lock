@@ -1,0 +1,24 @@
+PODS:
+  - Harbeth (0.3.1):
+    - Harbeth/Basic (= 0.3.1)
+    - Harbeth/Compute (= 0.3.1)
+    - Harbeth/CoreImage (= 0.3.1)
+  - Harbeth/Basic (0.3.1)
+  - Harbeth/Compute (0.3.1):
+    - Harbeth/Basic
+  - Harbeth/CoreImage (0.3.1):
+    - Harbeth/Basic
+
+DEPENDENCIES:
+  - Harbeth (from `../`)
+
+EXTERNAL SOURCES:
+  Harbeth:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  Harbeth: dbeac3c1f8346f89274cff4c3c8fd1abc1454e85
+
+PODFILE CHECKSUM: 2f674153fdb5431a7e1a778c734943b335e17bac
+
+COCOAPODS: 1.11.3

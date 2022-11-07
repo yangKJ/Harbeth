@@ -7,13 +7,19 @@
 
 import Foundation
 import MetalKit
-import class UIKit.UIImage
-import class UIKit.UIColor
-import class UIKit.UIView
 
+#if os(iOS) || os(tvOS) || os(watchOS)
+import UIKit
 public typealias C7View  = UIView
 public typealias C7Color = UIColor
 public typealias C7Image = UIImage
+#elseif os(macOS)
+import AppKit
+public typealias C7View  = NSView
+public typealias C7Color = NSColor
+public typealias C7Image = NSImage
+#endif
+
 public typealias C7InputTextures = [MTLTexture]
 public typealias C7FilterImageCallback = (_ image: C7Image) -> Void
 

@@ -61,7 +61,7 @@ extension C7Collector {
         if filters.isEmpty {
             // Fixed rgba => bgra when no filter is introduced.
             guard let cgimage = pixelBuffer.mt.toCGImage() else { return nil }
-            return C7Image.init(cgImage: cgimage)
+            return cgimage.mt.toC7Image()
         }
         let image = filteringAndConvert2Image(with: pixelBuffer)
         return image

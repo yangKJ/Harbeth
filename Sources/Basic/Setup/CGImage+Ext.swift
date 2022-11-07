@@ -61,21 +61,32 @@ extension Queen where Base: CGImage {
         let loader = Shared.shared.device?.textureLoader
         return try? loader?.newTexture(cgImage: base, options: textureOptions)
     }
+    
+    public func toC7Image() -> C7Image {
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        return C7Image.init(cgImage: base)
+        #elseif os(macOS)
+        return C7Image.init(cgImage: base, size: base.mt.size)
+        #else
+        #error("Unsupported Platform")
+        #endif
+    }
 }
 
 extension Queen where Base: CGImage {
     
+    #if os(iOS) || os(tvOS) || os(watchOS)
+    public var size: CGSize {
+        CGSize(width: base.width, height: base.height)
+    }
+    #elseif os(macOS)
+    public var size: NSSize {
+        NSSize(width: base.width, height: base.height)
+    }
+    #endif
+    
     public func swapRgbaToBgra(context: CIContext? = nil) -> CGImage {
-        let ctx = context ?? {
-            let options = [CIContextOption.workingColorSpace: Device.colorSpace(base)]
-            var context: CIContext
-            if #available(iOS 13.0, *) {
-                context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-            } else {
-                context = CIContext(options: options)
-            }
-            return context
-        }()
+        let ctx = context ?? Device.context(cgImage: base)
         let ciImage = CIImage(cgImage: base)
         let source = "kernel vec4 swapRedAndGreenAmount(__sample s) { return s.bgra; }"
         let swapKernel = CIColorKernel(source: source)

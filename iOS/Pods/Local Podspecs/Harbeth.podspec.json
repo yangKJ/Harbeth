@@ -14,22 +14,12 @@
     "git": "https://github.com/yangKJ/Harbeth.git",
     "tag": "0.3.1"
   },
-  "screenshots": [
-    "https://github.com/yangKJ/Harbeth/blob/master/Screenshot/EdgeGlow.gif"
-  ],
   "swift_versions": "5.0",
   "requires_arc": true,
   "static_framework": true,
   "platforms": {
-    "ios": "10.0"
-  },
-  "ios": {
-    "frameworks": [
-      "UIKit",
-      "MetalKit",
-      "ImageIO",
-      "CoreImage"
-    ]
+    "ios": "10.0",
+    "osx": "10.13"
   },
   "pod_target_xcconfig": {
     "SWIFT_VERSION": "5.0"

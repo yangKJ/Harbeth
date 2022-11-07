@@ -26,17 +26,7 @@ internal final class Device {
     /// Transform using color space
     lazy var colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
     
-    lazy var context: CIContext = {
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let options = [CIContextOption.workingColorSpace: colorSpace]
-        let context: CIContext
-        if #available(iOS 13.0, *) {
-            context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-        } else {
-            context = CIContext(options: options)
-        }
-        return context
-    }()
+    lazy var context: CIContext = Device.context(colorSpace: CGColorSpaceCreateDeviceRGB())
     
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -116,10 +106,6 @@ extension Device {
         return Shared.shared.device!.commandQueue
     }
     
-    static func context() -> CIContext {
-        return Shared.shared.device!.context
-    }
-    
     static func readMTLFunction(_ name: String) throws -> MTLFunction {
         // First read the project
         if let libray = Shared.shared.device?.defaultLibrary, let function = libray.makeFunction(name: name) {
@@ -133,6 +119,41 @@ extension Device {
         fatalError(C7CustomError.readFunction(name).localizedDescription)
         #else
         throw C7CustomError.readFunction(name)
+        #endif
+    }
+}
+
+extension Device {
+    
+    static func context() -> CIContext {
+        return Shared.shared.device!.context
+    }
+    
+    static func context(cgImage: CGImage) -> CIContext {
+        let options = [CIContextOption.workingColorSpace: Device.colorSpace(cgImage)]
+        return Self.context(options: options)
+    }
+    
+    static func context(colorSpace: CGColorSpace) -> CIContext {
+        let options = [CIContextOption.workingColorSpace: colorSpace]
+        return Self.context(options: options)
+    }
+    
+    static func context(options: [CIContextOption : Any]) -> CIContext {
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        if #available(iOS 13.0, *) {
+            return CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
+        } else {
+            return CIContext(options: options)
+        }
+        #elseif os(macOS)
+        if #available(macOS 10.15, *) {
+            return CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
+        } else {
+            return CIContext(options: options)
+        }
+        #else
+        #error("Unsupported Platform")
         #endif
     }
 }

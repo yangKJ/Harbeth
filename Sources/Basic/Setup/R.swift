@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// 资源文件读取
 public struct R {
@@ -21,9 +25,18 @@ public struct R {
             return imageblock(named)
         }
         let bundle = Bundle.init(path: bundlePath)
+        #if os(iOS) || os(tvOS) || os(watchOS)
         guard let image = C7Image(named: named, in: bundle, compatibleWith: nil) else {
             return imageblock(named)
         }
         return image
+        #elseif os(macOS)
+        guard let image = bundle?.image(forResource: named) else {
+            return imageblock(named)
+        }
+        return image
+        #else
+        #error("Unsupported Platform")
+        #endif
     }
 }

@@ -45,6 +45,8 @@ extension C7RGBAColor: Equatable {
 /// Empty color, do default
 public let C7EmptyColor = C7Color.clear
 
+extension C7Color: C7Compatible { }
+
 extension Queen where Base: C7Color {
     
     /// Convert RGBA value
@@ -68,5 +70,26 @@ extension Queen where Base: C7Color {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
         red = Float(r); green = Float(g); blue = Float(b)
+    }
+    
+    /// RGB to YUV.
+    /// - See: https://en.wikipedia.org/wiki/YUV
+    public var yuv: (y: CGFloat, u: CGFloat, v: CGFloat) {
+        var r: CGFloat = 1, g: CGFloat = 1, b: CGFloat = 1
+        base.getRed(&r, green: &g, blue: &b, alpha: nil)
+        let y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        let u = -0.09991 * r - 0.33609 * g + 0.436 * b;
+        let v = 0.615 * r - 0.55861 * g - 0.05639 * b;
+        return (y, u, v)
+    }
+}
+
+extension C7Color {
+    public convenience init(hex: Int) {
+        let mask = 0xFF
+        let r = CGFloat((hex >> 16) & mask) / 255
+        let g = CGFloat((hex >> 8) & mask) / 255
+        let b = CGFloat((hex) & mask) / 255
+        self.init(red: r, green: g, blue: b, alpha: 1)
     }
 }
