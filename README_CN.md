@@ -16,6 +16,7 @@
 ## 功能清单
  🟣 目前，[**Metal Moudle**](https://github.com/yangKJ/Harbeth) 最重要的特点可以总结如下：
 
+- 支持ios系统和macOS系统
 - 支持运算符函数式操作
 - 支持多种模式数据源 UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
 - 支持快速设计滤镜
@@ -65,7 +66,7 @@ let filters = [filter, filter2, filter3]
 ImageView.image = try? originImage.makeGroup(filters: filters)
 
 也可数据源模式使用
-let dest = C7DestIO.init(element: originImage, filters: filters)
+let dest = BoxxIO.init(element: originImage, filters: filters)
 ImageView.image = try? dest.output()
 
 或者运算符操作
@@ -104,7 +105,7 @@ extension CameraViewController: C7CollectorImageDelegate {
 
 - 本地视频 or 网络视频简单注入滤镜
   - 🙄 详细请参考[PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/MetalDemo/Modules/PlayerViewController.swift)
-  - 您也可以自己去扩展，使用`C7DestIO`对采集的`CVPixelBuffer`进行滤镜注入处理。
+  - 您也可以自己去扩展，使用`BoxxIO`对采集的`CVPixelBuffer`进行滤镜注入处理。
 
 ```swift
 lazy var video: C7CollectorVideo = {
@@ -143,7 +144,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
         - **parameterDescription**: 滤镜参数详情信息
 
 - 输出，输出板块
-    - [C7DestIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7DestIO.swift): 多功能数据源, 目前支持`UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer`等.
+    - [BoxxIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/BoxxIO.swift): 多功能数据源, 目前支持`UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer`等.
 	- [Outputable](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/Outputable.swift)：输出内容协议，所有输出都必须实现该协议
 	    - **make**：根据滤镜处理生成数据
 	    - **makeGroup**：多个滤镜组合，请注意滤镜添加的顺序可能会影响图像生成的结果

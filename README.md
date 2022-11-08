@@ -18,6 +18,7 @@ English | [**简体中文**](README_CN.md)
 ## Features
 🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
+- Supports iOS and macOS.
 - Support operator chain filter.
 - Support use UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
 - Support quick design filters.
@@ -64,7 +65,7 @@ filter3.soul = 0.7
 let filters = [filter, filter2, filter3]
 
 // Use:
-let dest = C7DestIO.init(element: originImage, filters: filters)
+let dest = BoxxIO.init(element: originImage, filters: filters)
 ImageView.image = try? dest.output()
 
 // OR Use:
@@ -101,7 +102,7 @@ extension CameraViewController: C7CollectorImageDelegate {
 
 - Local video or Network video are simply apply with filters.
   - 🙄 For details, See [PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/MetalDemo/Modules/PlayerViewController.swift).
-  - You can also extend this by using `C7DestIO` to filter the collected CVPixelBuffer.
+  - You can also extend this by using `BoxxIO` to filter the collected CVPixelBuffer.
 
 ```swift
 lazy var video: C7CollectorVideo = {
@@ -140,7 +141,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
         - **parameterDescription**: Parametric description.
 
 - Outputs, output section
-    - [C7DestIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7DestIO.swift): Multi-function output, support UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer and so on.
+    - [BoxxIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/BoxxIO.swift): Multi-function output, support UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer and so on.
     - [Outputable](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/Outputable.swift): Output content protocol, all outputs must implement this protocol.
         - **make**: Generate data based on filter processing.
         - **makeGroup**: Multiple filter combinations, Please note that the order in which filters are added may affect the result of image generation.
