@@ -1,5 +1,5 @@
 //
-//  C7DestIO.swift
+//  BoxxIO.swift
 //  Harbeth
 //
 //  Created by Condy on 2022/10/22.
@@ -7,11 +7,11 @@
 
 import Foundation
 import MetalKit
-import CoreVideo
-import ImageIO
+import CoreImage
+import CoreMedia
 
 /// Support ` UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer `
-@frozen public struct C7DestIO<Dest> : Destype, Cacheable {
+@frozen public struct BoxxIO<Dest> : Destype, Cacheable {
     public typealias Element = Dest
     public var element: Dest
     public var filters: [C7FilterProtocol]
@@ -25,6 +25,12 @@ import ImageIO
     // Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
     public var mirrored: Bool = false
     
+    #if os(macOS)
+    // Fixed an issue with HEIC flipping after adding filter.
+    // If drawing a HEIC, we need to make context flipped.
+    public var heic: Bool = false
+    #endif
+    
     public init(element: Dest, filter: C7FilterProtocol) {
         self.init(element: element, filters: [filter])
     }
@@ -35,6 +41,7 @@ import ImageIO
     }
     
     public func output() throws -> Dest {
+        if self.filters.isEmpty { return element }
         do {
             if let element = element as? C7Image {
                 return try filtering(image: element) as! Dest

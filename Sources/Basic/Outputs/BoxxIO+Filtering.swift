@@ -1,19 +1,17 @@
 //
-//  C7DestIO+Filtering.swift
+//  BoxxIO+Filtering.swift
 //  Harbeth
 //
 //  Created by Condy on 2022/10/22.
 //
 
 import Foundation
+import CoreImage
 
 // MARK: - filtering methods
-extension C7DestIO {
+extension BoxxIO {
     
     func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
-        if let _ = filterEmpty(target: pixelBuffer as! Dest) {
-            return pixelBuffer
-        }
         guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
             throw C7CustomError.source2Texture
         }
@@ -33,9 +31,6 @@ extension C7DestIO {
     }
     
     func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
-        if let _ = filterEmpty(target: sampleBuffer as! Dest) {
-            return sampleBuffer
-        }
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw C7CustomError.source2Texture
         }
@@ -48,9 +43,6 @@ extension C7DestIO {
     }
     
     func filtering(ciImage: CIImage) throws -> CIImage {
-        if let _ = filterEmpty(target: element) {
-            return ciImage
-        }
         guard let texture = ciImage.cgImage?.mt.newTexture() else {
             throw C7CustomError.source2Texture
         }
@@ -68,9 +60,6 @@ extension C7DestIO {
     }
     
     func filtering(cgImage: CGImage) throws -> CGImage {
-        if let _ = filterEmpty(target: element) {
-            return cgImage
-        }
         guard var texture = cgImage.mt.toTexture() else {
             throw C7CustomError.source2Texture
         }
@@ -83,9 +72,6 @@ extension C7DestIO {
     }
     
     func filtering(image: C7Image) throws -> C7Image {
-        if let _ = filterEmpty(target: element) {
-            return image
-        }
         guard var texture = image.mt.toTexture() else {
             throw C7CustomError.source2Texture
         }
@@ -111,7 +97,7 @@ extension C7DestIO {
 }
 
 // MARK: - private methods
-extension C7DestIO {
+extension BoxxIO {
     private func fixImageOrientation(texture: MTLTexture, base: C7Image) throws -> C7Image {
         guard let cgImage = texture.toCGImage() else {
             throw C7CustomError.texture2Image
@@ -123,17 +109,12 @@ extension C7DestIO {
         let fImage = cgImage.mt.toC7Image()
         let image = C7Image(size: fImage.size)
         image.lockFocus()
-        // Fixed an issue with HEIC flipping after adding filter.
-        //image.mt.flip(horizontal: true, vertical: true)
+        if self.heic { image.mt.flip(horizontal: true, vertical: true) }
         fImage.draw(in: NSRect(origin: .zero, size: fImage.size))
         image.unlockFocus()
         return image
         #else
         return base
         #endif
-    }
-    
-    private func filterEmpty(target: Dest) -> Dest? {
-        return filters.isEmpty ? target : nil
     }
 }

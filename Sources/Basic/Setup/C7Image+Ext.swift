@@ -90,7 +90,7 @@ extension Queen where Base: C7Image {
     /// see: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
     #if os(iOS) || os(tvOS) || os(watchOS)
     public var flattened: C7Image {
-        if base.imageOrientation == .up { return base }
+        if base.imageOrientation == .up { return base.copy() as! C7Image }
         UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
         base.draw(in: CGRect(origin: .zero, size: base.size))
         let result = UIGraphicsGetImageFromCurrentImageContext()
@@ -99,7 +99,7 @@ extension Queen where Base: C7Image {
     }
     #endif
     
-    public func zipScale(size: CGSize, equalRatio: Bool = false, scale: CGFloat = 0) -> C7Image {
+    public func zipScale(size: CGSize, equalRatio: Bool = false, scale: CGFloat? = nil) -> C7Image {
         if __CGSizeEqualToSize(base.size, size) {
             return base
         }
@@ -118,17 +118,16 @@ extension Queen where Base: C7Image {
         }
         #if os(iOS) || os(tvOS) || os(watchOS)
         let format = UIGraphicsImageRendererFormat.default()
-        format.scale = scale == 0 ? base.scale : scale
+        format.scale = scale ?? base.scale
         let renderer = UIGraphicsImageRenderer(size: rect.size, format: format)
         let image = renderer.image { _ in base.draw(in: rect) }
         return image
         #elseif os(macOS)
-        let fraction = scale == 0 ? 1.0 : scale
         let _rect = NSRect(origin: rect.origin, size: rect.size)
         let image = NSImage.init(size: _rect.size)
         image.lockFocus()
         defer { image.unlockFocus() }
-        base.draw(in: _rect, from: .zero, operation: .sourceOver, fraction: fraction)
+        base.draw(in: _rect, from: .zero, operation: .sourceOver, fraction: scale ?? base.scale)
         return image
         #else
         return base

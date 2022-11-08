@@ -10,6 +10,10 @@ import Harbeth
 
 class ViewController: NSViewController {
     
+    override func loadView() {
+        view = NSView(frame: .zero)
+    }
+    
     var originImage: C7Image = R.image("AX")
     
     lazy var ImageView: NSImageView = {
@@ -23,6 +27,16 @@ class ViewController: NSViewController {
         imageView.wantsLayer = true
         imageView.needsDisplay = true
         return imageView
+    }()
+    
+    lazy var textField: NSTextField = {
+        let html = ". Harbeth test case, <a href=\"https://github.com/yangKJ/Harbeth\">Please help me with a star.</a> Thanks!!!"
+        let string = self.string(fromHTML: html, with: .systemFont(ofSize: 15))
+        let label = NSTextField(labelWithAttributedString: string)
+        label.allowsEditingTextAttributes = true
+        label.isSelectable = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
     }()
     
     override func viewDidLoad() {
@@ -40,22 +54,48 @@ class ViewController: NSViewController {
     }
     
     func setupUI() {
-        title = "Unit testing"
         view.addSubview(ImageView)
+        view.addSubview(textField)
         NSLayoutConstraint.activate([
             ImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
-            ImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -20),
+            ImageView.heightAnchor.constraint(equalTo: ImageView.widthAnchor, multiplier: 1),
             ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             ImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            textField.topAnchor.constraint(equalTo: ImageView.bottomAnchor, constant: 10),
+            textField.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
+            textField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
+            textField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
         ])
     }
     
-    //let filter = C7LookupFilter(name: "lut_abao")
-    let filter = MPSGaussianBlur()
+    let filter0 = C7LookupFilter(name: "lut_ll")
+    let filter1 = C7SoulOut()
+    let filter2 = C7Granularity()
+    let filter3 = C7Storyboard.init()
     
     func unitTest() {
-        //originImage = originImage.mt.zipScale(size: CGSize(width: 800, height: 600))
-        let dest = C7DestIO.init(element: originImage, filter: filter)
+        originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
+        
+        let dest = BoxxIO.init(element: originImage, filters: [filter0, filter1, filter2, filter3])
         ImageView.image = try? dest.output()
+        
+        dest.filters.forEach {
+            NSLog("\($0.parameterDescription)")
+        }
+    }
+}
+
+extension ViewController {
+    func string(fromHTML html: String?, with font: NSFont? = nil) -> NSAttributedString {
+        var html = html
+        let font = font ?? .systemFont(ofSize: 0.0) // Default font
+        html = String(format: "<span style=\"font-family:'%@'; font-size:%dpx;\">%@</span>", font.fontName, Int(font.pointSize), html ?? "")
+        let data = html?.data(using: .utf8)
+        let options = [NSAttributedString.DocumentReadingOptionKey.textEncodingName: "UTF-8"]
+        var string: NSAttributedString? = nil
+        if let data {
+            string = NSAttributedString(html: data, options: options, documentAttributes: nil)
+        }
+        return string ?? NSAttributedString()
     }
 }

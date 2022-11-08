@@ -13,12 +13,25 @@ import AppKit
 // https://developer.apple.com/documentation/appkit/nsimage
 
 extension C7Image {
+    
     public var cgImage: CGImage? {
         return self.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    }
+    
+    public var scale: CGFloat {
+        return 1.0
     }
 }
 
 extension Queen where Base: C7Image {
+    
+    public var size: CGSize {
+        return base.representations.reduce(.zero) { (size, rep) in
+            let width  = max(size.width, CGFloat(rep.pixelsWide))
+            let height = max(size.height, CGFloat(rep.pixelsHigh))
+            return CGSize(width: width, height: height)
+        }
+    }
     
     /// Flip image, Need to be used in `base.lockFocus()`
     ///

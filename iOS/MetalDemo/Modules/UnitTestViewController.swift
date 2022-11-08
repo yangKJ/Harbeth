@@ -46,7 +46,7 @@ extension UnitTestViewController {
     func unitTest() {
         let filter = C7LookupFilter(name: "ll")
         
-        let dest = C7DestIO.init(element: originImage, filter: filter)
+        let dest = BoxxIO.init(element: originImage, filter: filter)
         
         ImageView.image = try? dest.output()
     }

@@ -8,10 +8,10 @@
 import Foundation
 import MetalKit
 
-public let kOneInputVertex: String = "oneInputVertex"
-public let kTwoInputVertex: String = "twoInputVertex"
-
 internal struct Rendering {
+    public static let kOneInputVertex: String = "oneInputVertex"
+    public static let kTwoInputVertex: String = "twoInputVertex"
+    
     static func makeRenderPipelineState(with vertex: String, fragment: String) -> MTLRenderPipelineState? {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm

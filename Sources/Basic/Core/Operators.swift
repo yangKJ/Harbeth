@@ -24,36 +24,36 @@ public func ->> (left: C7Collector, right: C7FilterProtocol) -> C7Collector {
 
 @discardableResult
 public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
-    let dest = C7DestIO.init(element: left, filters: [right])
+    let dest = BoxxIO.init(element: left, filters: [right])
     return (try? dest.output()) ?? left
 }
 
 @discardableResult
 public func ->> (left: C7Image, right: C7FilterProtocol) -> C7Image {
-    let dest = C7DestIO.init(element: left, filters: [right])
+    let dest = BoxxIO.init(element: left, filters: [right])
     return (try? dest.output()) ?? left
 }
 
 @discardableResult
 public func ->> (left: CGImage, right: C7FilterProtocol) -> CGImage {
-    let dest = C7DestIO.init(element: left, filters: [right])
+    let dest = BoxxIO.init(element: left, filters: [right])
     return (try? dest.output()) ?? left
 }
 
 @discardableResult
 public func ->> (left: CIImage, right: C7FilterProtocol) -> CIImage {
-    let dest = C7DestIO.init(element: left, filters: [right])
+    let dest = BoxxIO.init(element: left, filters: [right])
     return (try? dest.output()) ?? left
 }
 
 @discardableResult
 public func ->> (left: CMSampleBuffer, right: C7FilterProtocol) -> CMSampleBuffer {
-    let dest = C7DestIO.init(element: left, filters: [right])
+    let dest = BoxxIO.init(element: left, filters: [right])
     return (try? dest.output()) ?? left
 }
 
 @discardableResult
 public func ->> (left: CVPixelBuffer, right: C7FilterProtocol) -> CVPixelBuffer {
-    let dest = C7DestIO.init(element: left, filters: [right])
+    let dest = BoxxIO.init(element: left, filters: [right])
     return (try? dest.output()) ?? left
 }
