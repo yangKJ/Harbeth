@@ -17,12 +17,12 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
     /// Decrease to darken highlights, from 1.0 to 0.0, with 0.0 as the default.
     public var highlights: Float = range.value
     
-    public var shadowsColor: C7Color = C7EmptyColor {
+    public var shadowsColor: C7Color = .zero {
         didSet {
             shadowsColor.mt.toRGB(red: &sr, green: &sg, blue: &sb)
         }
     }
-    public var highlightsColor: C7Color = C7EmptyColor {
+    public var highlightsColor: C7Color = .zero {
         didSet {
             highlightsColor.mt.toRGB(red: &hr, green: &hg, blue: &hb)
         }

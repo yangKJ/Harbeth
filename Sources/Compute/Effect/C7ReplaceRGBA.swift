@@ -16,13 +16,13 @@ public struct C7ReplaceRGBA: C7FilterProtocol {
     /// How smoothly to blend for the color match (default of 0.1)
     public var smoothing: Float = 0.1
     /// Need to be transparent color
-    public var chroma: C7Color = C7EmptyColor {
+    public var chroma: C7Color = .zero {
         didSet {
             chroma.mt.toRGB(red: &red, green: &green, blue: &blue)
         }
     }
     /// The color to be replaced
-    public var replaceColor: C7Color = C7EmptyColor {
+    public var replaceColor: C7Color = .zero {
         didSet {
             replaceColor.mt.toRGBA(red: &_r, green: &_g, blue: &_b, alpha: &_a)
         }

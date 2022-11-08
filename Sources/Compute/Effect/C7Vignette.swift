@@ -16,7 +16,7 @@ public struct C7Vignette: C7FilterProtocol {
     public var end: Float = 0.75
     public var center: C7Point2D = C7Point2D.center
     /// Keep the color scheme
-    public var color: C7Color = C7EmptyColor {
+    public var color: C7Color = .zero {
         didSet {
             color.mt.toRGB(red: &red, green: &green, blue: &blue)
         }

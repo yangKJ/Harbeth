@@ -16,7 +16,7 @@ public struct C7ChromaKey: C7FilterProtocol {
     /// How smoothly to blend for the color match (default of 0.1)
     public var smoothing: Float = 0.1
     /// Color patches that need to be removed,
-    public var color: C7Color = C7EmptyColor {
+    public var color: C7Color = .zero {
         didSet {
             color.mt.toRGB(red: &red, green: &green, blue: &blue)
         }
