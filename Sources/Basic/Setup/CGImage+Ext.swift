@@ -33,7 +33,7 @@ extension Queen where Base: CGImage {
         let bytesPerPixel: Int = 4
         let bytesPerRow = width * bytesPerPixel
         let bitmapInfo = Device.bitmapInfo()
-        let colorSpace = Device.colorSpace(base)
+        let colorSpace = Device.colorSpace()
         let context = CGContext(data: nil, width: width, height: height,
                                 bitsPerComponent: 8,
                                 bytesPerRow: bytesPerRow,

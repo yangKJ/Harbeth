@@ -50,7 +50,7 @@ extension COImage {
         ciimage = filter.coreImageApply(filter: cifiter, input: ciimage)
         cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
         
-        let colorSpace = Device.colorSpace(cgImage)
+        let colorSpace = Device.colorSpace()
         cifiter?.outputImage?.mt.renderImageToTexture(texture, colorSpace: colorSpace)
         
         return texture

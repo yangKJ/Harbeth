@@ -93,8 +93,9 @@ extension Device {
         return Shared.shared.device!.device
     }
     
-    static func colorSpace(_ cgimage: CGImage? = nil) -> CGColorSpace {
-        return cgimage?.colorSpace ?? (Shared.shared.device?.colorSpace ?? CGColorSpaceCreateDeviceRGB())
+    static func colorSpace() -> CGColorSpace {
+        // Unitive the color space, otherwise it will crash.
+        return Shared.shared.device?.colorSpace ?? CGColorSpaceCreateDeviceRGB()
     }
     
     static func bitmapInfo() -> UInt32 {
@@ -130,8 +131,8 @@ extension Device {
     }
     
     static func context(cgImage: CGImage) -> CIContext {
-        let options = [CIContextOption.workingColorSpace: Device.colorSpace(cgImage)]
-        return Self.context(options: options)
+        let options = [CIContextOption.workingColorSpace: cgImage.colorSpace]
+        return Self.context(options: options as [CIContextOption : Any])
     }
     
     static func context(colorSpace: CGColorSpace) -> CIContext {
