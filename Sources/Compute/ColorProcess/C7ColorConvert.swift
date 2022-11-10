@@ -10,23 +10,23 @@ import Foundation
 /// 颜色通道`RGB`位置转换
 public struct C7ColorConvert: C7FilterProtocol {
     
-    public enum ConvertType: String, CaseIterable {
-        case colorInvert = "C7ColorInvert"
-        case color2Gray = "C7Color2Gray"
-        case color2BGRA = "C7Color2BGRA"
-        case color2BRGA = "C7Color2BRGA"
-        case color2GBRA = "C7Color2GBRA"
-        case color2GRBA = "C7Color2GRBA"
-        case color2RBGA = "C7Color2RBGA"
+    public enum ColorType: String, CaseIterable {
+        case invert = "C7ColorInvert"
+        case gray = "C7Color2Gray"
+        case bgra = "C7Color2BGRA"
+        case brga = "C7Color2BRGA"
+        case gbra = "C7Color2GBRA"
+        case grba = "C7Color2GRBA"
+        case rbga = "C7Color2RBGA"
     }
     
-    private let type: ConvertType
+    private let type: ColorType
     
     public var modifier: Modifier {
         return .compute(kernel: type.rawValue)
     }
     
-    public init(with type: ConvertType) {
+    public init(with type: ColorType) {
         self.type = type
     }
 }

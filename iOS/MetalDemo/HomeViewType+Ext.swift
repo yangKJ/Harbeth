@@ -15,25 +15,25 @@ extension ViewControllerType {
     func setupFilterObject() -> FilterResult {
         switch self {
         case .ColorInvert:
-            let filter = C7ColorConvert(with: .colorInvert)
+            let filter = C7ColorConvert(with: .invert)
             return (filter, nil, nil)
         case .Color2BGRA:
-            let filter = C7ColorConvert(with: .color2BGRA)
+            let filter = C7ColorConvert(with: .bgra)
             return (filter, nil, nil)
         case .Color2BRGA:
-            let filter = C7ColorConvert(with: .color2BRGA)
+            let filter = C7ColorConvert(with: .brga)
             return (filter, nil, nil)
         case .Color2GBRA:
-            let filter = C7ColorConvert(with: .color2GBRA)
+            let filter = C7ColorConvert(with: .gbra)
             return (filter, nil, nil)
         case .Color2GRBA:
-            let filter = C7ColorConvert(with: .color2GRBA)
+            let filter = C7ColorConvert(with: .grba)
             return (filter, nil, nil)
         case .Color2RBGA:
-            let filter = C7ColorConvert(with: .color2RBGA)
+            let filter = C7ColorConvert(with: .rbga)
             return (filter, nil, nil)
         case .Color2Gray:
-            let filter = C7ColorConvert(with: .color2Gray)
+            let filter = C7ColorConvert(with: .gray)
             return (filter, nil, nil)
         case .Luminance:
             var filter = C7Luminance()
