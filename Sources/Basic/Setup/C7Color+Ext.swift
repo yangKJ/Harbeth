@@ -24,10 +24,8 @@ extension C7Color: C7Compatible {
 extension Queen where Base: C7Color {
     
     /// Convert RGBA value
-    public func toC7RGBAColor() -> C7RGBAColor {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return C7RGBAColor(red: Float(r), green: Float(g), blue: Float(b), alpha: Float(a))
+    public func toC7RGBAColor() -> RGBAColor {
+        return RGBAColor(color: base)
     }
     
     /// Convert RGBA value, transparent color does not do processing
@@ -35,10 +33,7 @@ extension Queen where Base: C7Color {
         if base == C7Color.zero { return }
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
-        red   = Float(r)
-        green = Float(g)
-        blue  = Float(b)
-        alpha = Float(a)
+        red = Float(r); green = Float(g); blue = Float(b); alpha = Float(a)
     }
     
     /// Convert RGB value, transparent color does not do processing
@@ -46,9 +41,7 @@ extension Queen where Base: C7Color {
         if base == C7Color.zero { return }
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
-        red   = Float(r)
-        green = Float(g)
-        blue  = Float(b)
+        red = Float(r); green = Float(g); blue = Float(b)
     }
     
     /// RGB to YUV.

@@ -13,23 +13,14 @@ public struct C7EdgeGlow: C7FilterProtocol {
     public var time: Float = 0.5
     /// 边缘跨度，比`spacing`大即为边缘，form 0.0 to 1.0
     public var spacing: Float = 0.5
-    public var lineColor: C7Color = C7Color.green {
-        didSet {
-            lineColor.mt.toRGBA(red: &r, green: &g, blue: &b, alpha: &a)
-        }
-    }
-    
-    private var r: Float = 0.0
-    private var g: Float = 1.0
-    private var b: Float = 0.0
-    private var a: Float = 1.0
+    public var lineColor: C7Color = C7Color.green
     
     public var modifier: Modifier {
         return .compute(kernel: "C7EdgeGlow")
     }
     
     public var factors: [Float] {
-        return [time, spacing, r, g, b, a]
+        return [time, spacing] + RGBAColor(color: lineColor).toFloatArray()
     }
     
     public init() { }

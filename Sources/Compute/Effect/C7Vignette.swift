@@ -16,22 +16,14 @@ public struct C7Vignette: C7FilterProtocol {
     public var end: Float = 0.75
     public var center: C7Point2D = C7Point2D.center
     /// Keep the color scheme
-    public var color: C7Color = .zero {
-        didSet {
-            color.mt.toRGB(red: &red, green: &green, blue: &blue)
-        }
-    }
-    
-    private var red: Float = 1
-    private var green: Float = 1
-    private var blue: Float = 1
+    public var color: C7Color = .zero
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Vignette")
     }
     
     public var factors: [Float] {
-        return [center.x, center.y, red, green, blue, start, end]
+        return [center.x, center.y] + RGBAColor(color: color).toRGB() + [start, end]
     }
     
     public init() { }

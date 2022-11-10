@@ -15,22 +15,14 @@ public struct C7Monochrome: C7FilterProtocol {
     /// The degree to which the specific color replaces the normal image color, from 0.0 to 1.0, with 0.0 as the default.
     public var intensity: Float = range.value
     /// Keep the color scheme
-    public var color: C7Color = .zero {
-        didSet {
-            color.mt.toRGB(red: &red, green: &green, blue: &blue)
-        }
-    }
-    
-    private var red: Float = 1
-    private var green: Float = 1
-    private var blue: Float = 1
+    public var color: C7Color = .zero
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Monochrome")
     }
     
     public var factors: [Float] {
-        return [intensity, red, green, blue]
+        return [intensity] + RGBAColor(color: color).toRGB()
     }
     
     public init() { }

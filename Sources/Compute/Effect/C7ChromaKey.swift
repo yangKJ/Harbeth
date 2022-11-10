@@ -16,22 +16,14 @@ public struct C7ChromaKey: C7FilterProtocol {
     /// How smoothly to blend for the color match (default of 0.1)
     public var smoothing: Float = 0.1
     /// Color patches that need to be removed,
-    public var color: C7Color = .zero {
-        didSet {
-            color.mt.toRGB(red: &red, green: &green, blue: &blue)
-        }
-    }
-    
-    private var red: Float = 0
-    private var green: Float = 1
-    private var blue: Float = 0
+    public var color: C7Color = .zero
     
     public var modifier: Modifier {
         return .compute(kernel: "C7ChromaKey")
     }
     
     public var factors: [Float] {
-        return [thresholdSensitivity, smoothing, red, green, blue]
+        return [thresholdSensitivity, smoothing] + RGBAColor(color: color).toRGB()
     }
     
     public init() { }

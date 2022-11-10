@@ -11,7 +11,9 @@ import Harbeth
 class ViewController: NSViewController {
     
     override func loadView() {
-        view = NSView(frame: .zero)
+        let rect = NSApplication.shared.mainWindow?.frame ?? .zero
+        view = NSView(frame: rect)
+        view.wantsLayer = true
     }
     
     var originImage: C7Image = R.image("AX")
@@ -29,7 +31,7 @@ class ViewController: NSViewController {
         return imageView
     }()
     
-    lazy var textField: NSTextField = {
+    lazy var TextField: NSTextField = {
         let html = ". Harbeth test case, <a href=\"https://github.com/yangKJ/Harbeth\">Please help me with a star.</a> Thanks!!!"
         let string = self.string(fromHTML: html, with: .systemFont(ofSize: 15))
         let label = NSTextField(labelWithAttributedString: string)
@@ -55,16 +57,16 @@ class ViewController: NSViewController {
     
     func setupUI() {
         view.addSubview(ImageView)
-        view.addSubview(textField)
+        view.addSubview(TextField)
         NSLayoutConstraint.activate([
             ImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
             ImageView.heightAnchor.constraint(equalTo: ImageView.widthAnchor, multiplier: 1),
             ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             ImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            textField.topAnchor.constraint(equalTo: ImageView.bottomAnchor, constant: 10),
-            textField.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
-            textField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            textField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            TextField.topAnchor.constraint(equalTo: ImageView.bottomAnchor, constant: 10),
+            TextField.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
+            TextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
+            TextField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
         ])
     }
     

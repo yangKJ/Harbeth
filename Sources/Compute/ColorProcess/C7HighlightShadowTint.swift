@@ -13,34 +13,18 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
     
     /// Increase to lighten shadows, from 0.0 to 1.0, with 0.0 as the default.
     public var shadows: Float = range.value
+    public var shadowsColor: C7Color = .zero
     
     /// Decrease to darken highlights, from 1.0 to 0.0, with 0.0 as the default.
     public var highlights: Float = range.value
-    
-    public var shadowsColor: C7Color = .zero {
-        didSet {
-            shadowsColor.mt.toRGB(red: &sr, green: &sg, blue: &sb)
-        }
-    }
-    public var highlightsColor: C7Color = .zero {
-        didSet {
-            highlightsColor.mt.toRGB(red: &hr, green: &hg, blue: &hb)
-        }
-    }
-    
-    private var sr: Float = 1
-    private var sg: Float = 1
-    private var sb: Float = 1
-    private var hr: Float = 1
-    private var hg: Float = 1
-    private var hb: Float = 1
+    public var highlightsColor: C7Color = .zero
     
     public var modifier: Modifier {
         return .compute(kernel: "C7HighlightShadowTint")
     }
     
     public var factors: [Float] {
-        return [shadows, sr, sg, sb, highlights, hr, hg, hb]
+        return [shadows, highlights] + RGBAColor(color: shadowsColor).toRGB() + RGBAColor(color: highlightsColor).toRGB()
     }
     
     public init() { }

@@ -27,7 +27,7 @@ public struct C7Levels: C7FilterProtocol {
         var _maximum = maximum.mt.toC7RGBAColor()
         var _minOutput = minOutput.mt.toC7RGBAColor()
         var _maxOutput = maxOutput.mt.toC7RGBAColor()
-        let size = MemoryLayout<C7RGBAColor>.size
+        let size = MemoryLayout<RGBAColor>.size
         computeEncoder.setBytes(&_minimum, length: size, index: index + 1)
         computeEncoder.setBytes(&_middle, length: size, index: index + 2)
         computeEncoder.setBytes(&_maximum, length: size, index: index + 3)

@@ -364,7 +364,7 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .ColorMatrix4x4:
             var filter = C7ColorMatrix4x4(matrix: Harbeth.Matrix4x4.replaced_red_green)
-            filter.offset = C7RGBAColor(red: 0, green: 0, blue: 1, alpha: 0)
+            filter.offset = RGBAColor(red: 0, green: 0, blue: 1, alpha: 0)
             filter.intensity = 0.3
             return (filter, (0.3, 0.1, 1.0), {
                 filter.intensity = $0

@@ -12,31 +12,16 @@ import Foundation
 public struct C7FalseColor: C7FilterProtocol {
     
     /// The first and second colors specify what colors replace the dark and light areas of the image, respectively.
-    public var fristColor: C7Color = .zero {
-        didSet {
-            fristColor.mt.toRGB(red: &r, green: &g, blue: &b)
-        }
-    }
+    public var fristColor: C7Color = .zero
     
-    public var secondColor: C7Color = .zero {
-        didSet {
-            secondColor.mt.toRGB(red: &r2, green: &g2, blue: &b2)
-        }
-    }
-    
-    private var r: Float = 0
-    private var g: Float = 0
-    private var b: Float = 0.5
-    private var r2: Float = 1
-    private var g2: Float = 0
-    private var b2: Float = 0
+    public var secondColor: C7Color = .zero
     
     public var modifier: Modifier {
         return .compute(kernel: "C7FalseColor")
     }
     
     public var factors: [Float] {
-        return [r, g, b, r2, g2, b2]
+        return RGBAColor(color: fristColor).toRGB() + RGBAColor(color: secondColor).toRGB()
     }
     
     public init() { }

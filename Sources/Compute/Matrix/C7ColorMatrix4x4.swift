@@ -10,7 +10,7 @@ import Foundation
 public struct C7ColorMatrix4x4: C7FilterProtocol {
     
     /// Color offset for each channel, from -255 to 255.
-    public var offset: C7RGBAColor = .zero
+    public var offset: RGBAColor = .zero
     /// The degree to which the new transformed color replaces the original color for each pixel, default 1
     public var intensity: Float = 1.0
     private let matrix: Matrix4x4
