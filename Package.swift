@@ -27,7 +27,10 @@ import PackageDescription
 let package = Package(
     name: "Harbeth",
     platforms: [
-        .iOS(.v10)
+        .iOS(.v10),
+        .macOS(.v10_13),
+        .tvOS(.v12),
+        .watchOS(.v5)
     ],
     products: [
         .library(name: "Harbeth", targets: ["Harbeth"]),
@@ -36,8 +39,10 @@ let package = Package(
         .target(
             name: "Harbeth",
             path: "Sources",
-            exclude: [],
-            resources: [.process("Compute")]
+            resources: [
+                .process("Sources/Compute") // Import .metal file.
+            ]
         ),
-    ]
+    ],
+    swiftLanguageVersions: [.v5]
 )

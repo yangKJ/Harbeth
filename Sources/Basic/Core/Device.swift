@@ -59,12 +59,29 @@ internal final class Device {
 extension Device {
     
     static func makeATLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
+        #if SWIFT_PACKAGE
+        /// Fixed the Swift PM cannot read the `.metal` file.
+        /// https://stackoverflow.com/questions/63237395/generating-resource-bundle-accessor-type-bundle-has-no-member-module
+        if let pathURL = Bundle.module.url(forResource: "default", withExtension: "metallib") {
+            var path: String
+            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
+                path = pathURL.path()
+            } else {
+                path = pathURL.path
+            }
+            if let library = try? device.makeLibrary(filepath: path) {
+                return library
+            }
+        }
+        #endif
         /// Compatible with the Bundle address used by CocoaPods to import framework
         let bundle = getFrameworkBundle(bundleName: resource)
-        guard let path = bundle.path(forResource: "default", ofType: "metallib") else {
-            return nil
+        if let path = bundle.path(forResource: "default", ofType: "metallib") {
+            if let library = try? device.makeLibrary(filepath: path) {
+                return library
+            }
         }
-        return try? device.makeLibrary(filepath: path)
+        return nil
     }
     
     static func getFrameworkBundle(bundleName: String) -> Bundle {
