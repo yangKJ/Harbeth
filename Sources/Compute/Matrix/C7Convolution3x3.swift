@@ -7,20 +7,46 @@
 
 import Foundation
 
-public enum C7ConvolutionType {
-    case `default`
-    case identity
-    case edgedetect
-    case embossment
-    case embossment45
-    case morphological
-    case sobel(orientation: Bool)
-    case laplance(iterations: Float)
-    case sharpen(iterations: Float)
-    case custom(Matrix3x3)
+/// 3 x 3卷积
+public struct C7Convolution3x3: C7FilterProtocol {
+    
+    public enum C3x3Type {
+        case `default`
+        case identity
+        case edgedetect
+        case embossment
+        case embossment45
+        case morphological
+        case sobel(orientation: Bool)
+        case laplance(iterations: Float)
+        case sharpen(iterations: Float)
+        case custom(Matrix3x3)
+    }
+    
+    /// Convolution pixels, default 1
+    public var convolutionPixel: Int = 1
+    private var matrix: Matrix3x3
+    
+    public var modifier: Modifier {
+        return .compute(kernel: "C7Convolution3x3")
+    }
+    
+    public var factors: [Float] {
+        var array = [Float(convolutionPixel)]
+        array += matrix.values
+        return array
+    }
+    
+    public init(convolutionType: C3x3Type) {
+        self.matrix = convolutionType.matrix
+    }
+    
+    public mutating func updateMatrix(_ convolutionType: C3x3Type) {
+        self.matrix = convolutionType.matrix
+    }
 }
 
-extension C7ConvolutionType {
+extension C7Convolution3x3.C3x3Type {
     var matrix: Matrix3x3 {
         switch self {
         case .identity:
@@ -44,31 +70,5 @@ extension C7ConvolutionType {
         default:
             return Matrix3x3.`default`
         }
-    }
-}
-
-/// 3 x 3卷积
-public struct C7Convolution3x3: C7FilterProtocol {
-    
-    /// Convolution pixels, default 1
-    public var convolutionPixel: Int = 1
-    private var matrix: Matrix3x3
-    
-    public var modifier: Modifier {
-        return .compute(kernel: "C7Convolution3x3")
-    }
-    
-    public var factors: [Float] {
-        var array = [Float(convolutionPixel)]
-        array += matrix.values
-        return array
-    }
-    
-    public init(convolutionType: C7ConvolutionType) {
-        self.matrix = convolutionType.matrix
-    }
-    
-    public mutating func updateMatrix(_ convolutionType: C7ConvolutionType) {
-        self.matrix = convolutionType.matrix
     }
 }

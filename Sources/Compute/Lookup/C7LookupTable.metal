@@ -1,5 +1,5 @@
 //
-//  C7LookupFilter.metal
+//  C7LookupTable.metal
 //  MetalQueenDemo
 //
 //  Created by Condy on 2021/8/9.
@@ -8,11 +8,11 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7LookupFilter(texture2d<half, access::write> outputTexture [[texture(0)]],
-                           texture2d<half, access::read> inputTexture [[texture(1)]],
-                           texture2d<half, access::sample> lookupTexture [[texture(2)]],
-                           constant float *intensity [[buffer(0)]],
-                           uint2 grid [[thread_position_in_grid]]) {
+kernel void C7LookupTable(texture2d<half, access::write> outputTexture [[texture(0)]],
+                          texture2d<half, access::read> inputTexture [[texture(1)]],
+                          texture2d<half, access::sample> lookupTexture [[texture(2)]],
+                          constant float *intensity [[buffer(0)]],
+                          uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     const half blueColor = inColor.b * 63.0h; // 蓝色部分[0, 63] 共64种
     

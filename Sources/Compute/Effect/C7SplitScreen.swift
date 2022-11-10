@@ -7,14 +7,14 @@
 
 import Foundation
 
-public enum C7SplitScreenType: Int {
-    case two = 2
-    case three = 3
-}
-
 public struct C7SplitScreen: C7FilterProtocol {
+
+    public enum SSType: Int {
+        case two = 2
+        case three = 3
+    }
     
-    public var type: C7SplitScreenType = .two
+    public var type: SSType = .two
     
     public var modifier: Modifier {
         return .compute(kernel: "C7SplitScreen")

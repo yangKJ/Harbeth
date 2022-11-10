@@ -47,6 +47,7 @@ class HomeViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = UIColor.white
         view.addSubview(tableView)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         let tabBarHeight = tabBarController?.tabBar.frame.size.height ?? 0

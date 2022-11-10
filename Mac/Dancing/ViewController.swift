@@ -68,7 +68,7 @@ class ViewController: NSViewController {
         ])
     }
     
-    let filter0 = C7LookupFilter(name: "lut_ll")
+    let filter0 = C7LookupTable(name: "lut_ll")
     let filter1 = C7SoulOut()
     let filter2 = C7Granularity()
     let filter3 = C7Storyboard.init()

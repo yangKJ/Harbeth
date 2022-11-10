@@ -1,5 +1,5 @@
 //
-//  C7LookupSplitFilter.metal
+//  C7LookupSplit.metal
 //  ATMetalBand
 //
 //  Created by Condy on 2022/2/16.
@@ -8,14 +8,14 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7LookupSplitFilter(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                texture2d<half, access::read> inputTexture [[texture(1)]],
-                                texture2d<half, access::sample> inputTexture2 [[texture(2)]],
-                                texture2d<half, access::sample> inputTexture3 [[texture(3)]],
-                                constant float *intensity [[buffer(0)]],
-                                constant float *progress [[buffer(1)]],
-                                constant float *orientation [[buffer(2)]],
-                                uint2 grid [[thread_position_in_grid]]) {
+kernel void C7LookupSplit(texture2d<half, access::write> outputTexture [[texture(0)]],
+                          texture2d<half, access::read> inputTexture [[texture(1)]],
+                          texture2d<half, access::sample> inputTexture2 [[texture(2)]],
+                          texture2d<half, access::sample> inputTexture3 [[texture(3)]],
+                          constant float *intensity [[buffer(0)]],
+                          constant float *progress [[buffer(1)]],
+                          constant float *orientation [[buffer(2)]],
+                          uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     const half blueColor = inColor.b * 63.0h;
     

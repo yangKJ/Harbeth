@@ -1,5 +1,5 @@
 //
-//  C7LookupFilter.swift
+//  C7LookupTable.swift
 //  MetalQueenDemo
 //
 //  Created by Condy on 2021/8/9.
@@ -9,14 +9,14 @@ import Foundation
 import MetalKit
 
 /// LUT映射滤镜
-public struct C7LookupFilter: C7FilterProtocol {
+public struct C7LookupTable: C7FilterProtocol {
     
     public let lookupImage: C7Image?
     public let lookupTexture: MTLTexture?
     public var intensity: Float = 1.0
     
     public var modifier: Modifier {
-        return .compute(kernel: "C7LookupFilter")
+        return .compute(kernel: "C7LookupTable")
     }
     
     public var factors: [Float] {
