@@ -21,12 +21,12 @@ internal struct Rendering {
         return try? Device.device().makeRenderPipelineState(descriptor: descriptor)
     }
     
-    static func drawingProcess<T>(_ pipelineState: MTLRenderPipelineState,
-                                  commandBuffer: MTLCommandBuffer,
-                                  textures: [MTLTexture],
-                                  factors: [T]) {
+    static func drawingProcess(_ pipelineState: MTLRenderPipelineState,
+                               commandBuffer: MTLCommandBuffer,
+                               texture: MTLTexture,
+                               filter: C7FilterProtocol) {
         let renderPass = MTLRenderPassDescriptor()
-        renderPass.colorAttachments[0].texture = textures.first
+        renderPass.colorAttachments[0].texture = texture
         renderPass.colorAttachments[0].loadAction = MTLLoadAction.clear
         renderPass.colorAttachments[0].storeAction = MTLStoreAction.store
         renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.65, 0.8, 1)
@@ -36,26 +36,39 @@ internal struct Rendering {
             return
         }
         let device = Device.device()
-        let size = MemoryLayout<T>.size
-        let vertexBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!
+        let size = MemoryLayout<Float>.size
         
         renderEncoder.setFrontFacing(MTLWinding.counterClockwise)
         renderEncoder.setRenderPipelineState(pipelineState)
-        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
         
         /// 纹理坐标，左下角为坐标原点
         let standard: [Float] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
         let textureBuffer = device.makeBuffer(bytes: standard, length: standard.count * size, options: [])!
-        var inTextures = textures; inTextures.removeFirst()
-        for (i, texture) in inTextures.enumerated() {
-            renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: i + 1)
-            renderEncoder.setFragmentTexture(texture, index: i)
+        renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: 0)
+        //renderEncoder.setFragmentTexture(texture, index: 0)
+        
+        var vertexCount: Int = 1
+        if let vertexUniformBuffer = filter.setupVertexUniformBuffer(for: device) {
+            renderEncoder.setVertexBuffer(vertexUniformBuffer, offset: 0, index: vertexCount)
+            vertexCount += 1
         }
         
-        let uniformBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!
-        renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: 1)
+        if filter.factors.isEmpty == false,
+           let uniformBuffer = device.makeBuffer(bytes: filter.factors, length: filter.factors.count * size, options: []) {
+            renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: vertexCount)
+            vertexCount += 1
+        }
         
-        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+//        var inTextures = textures; inTextures.removeFirst()
+//        for (i, texture) in inTextures.enumerated() {
+//            renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: i + 1)
+//            renderEncoder.setFragmentTexture(texture, index: i)
+//        }
+//
+//        let uniformBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!
+//        renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: 1)
+        
+        renderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: vertexCount, instanceCount: 1)
         renderEncoder.endEncoding()
     }
 }

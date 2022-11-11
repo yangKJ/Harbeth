@@ -7,6 +7,7 @@
 
 import Foundation
 import MetalKit
+import MetalPerformanceShaders
 
 internal struct Processed {
     /// Create a new texture based on the filter content.
@@ -42,10 +43,8 @@ internal struct Processed {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
                 throw C7CustomError.renderPipelineState(vertex, fragment)
             }
-            var textures = [outputTexture!, inTexture]
-            textures += filter.otherInputTextures
             commandBuffer.label = "Condy" + vertex + "_" + fragment
-            Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, factors: filter.factors)
+            Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, texture: inTexture, filter: filter)
         } else if case .mps(let performance) = filter.modifier {
             commandBuffer.label = "Condy" + performance.description
             performance.encode(commandBuffer: commandBuffer, sourceTexture: inTexture, destinationTexture: outputTexture!)

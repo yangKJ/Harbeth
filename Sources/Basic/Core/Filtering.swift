@@ -66,6 +66,11 @@ public protocol C7FilterProtocol {
     ///   - index: Current parameter factor, after use please directly add, Please refer to the `C7ColorMatrix4x4`
     func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int)
     
+    /// Setup the vertex shader parameters.
+    /// - Parameter device: MTLDevice
+    /// - Returns: Vertex uniform buffer.
+    func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer?
+    
     /// CoreImage 滤镜专属方案
     ///
     /// - Parameters:
@@ -83,11 +88,9 @@ extension C7FilterProtocol {
     public var otherInputTextures: C7InputTextures { [] }
     public func outputSize(input size: C7Size) -> C7Size { size }
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) { }
+    public func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer? { return nil }
     public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage { ciImage }
-    public var parameterDescription: [String: Any] {
-        let mirror = Mirror(reflecting: self)
-        return mapDictionary(mirror: mirror)
-    }
+    public var parameterDescription: [String: Any] { mapDictionary(mirror: Mirror(reflecting: self)) }
 }
 
 extension C7FilterProtocol {

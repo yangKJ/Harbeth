@@ -74,6 +74,8 @@ class ViewController: NSViewController {
     let filter1 = C7SoulOut()
     let filter2 = C7Granularity()
     let filter3 = C7Storyboard.init()
+    let filter4 = C7ConvolutionMatrix3x3(matrix: .sharpen(2))
+    let filter5 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.rgb_to_bgr)
     
     func unitTest() {
         originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))

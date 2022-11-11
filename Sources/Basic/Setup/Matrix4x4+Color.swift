@@ -7,10 +7,15 @@
 
 import Foundation
 
-/// 常见4x4颜色矩阵，考线性代数时刻😪
-/// 第一行的值决定了红色值，第二行决定绿色，第三行蓝色，第四行是透明通道值
-/// Common 4x4 color matrix
 extension Matrix4x4 {
+    /// 常见4x4颜色矩阵，考线性代数时刻😪
+    /// 第一行的值决定了红色值，第二行决定绿色，第三行蓝色，第四行是透明通道值
+    /// Common 4x4 color matrix
+    /// See: https://medium.com/macoclock/coreimage-911-color-matrix-4x4-50a7098414f4
+    public struct Color { }
+}
+
+extension Matrix4x4.Color {
     
     public static let identity = Matrix4x4(values: [
         1.0, 0.0, 0.0, 0.0,
@@ -82,4 +87,30 @@ extension Matrix4x4 {
         0.0, 0.0, 1.0, 0.0,
         0.0, 0.0, 0.0, 1.0,
     ])
+    
+    /// 白色剪影
+    /// In case you have to produce a white silhouette you need to supply data to the last column of the color matrix.
+    public static let white_silhouette = Matrix4x4(values: [
+        0.0, 0.0, 0.0, 1.0,
+        0.0, 0.0, 0.0, 1.0,
+        0.0, 0.0, 0.0, 1.0,
+        0.0, 0.0, 0.0, 1.0,
+    ])
+    
+    /// maps RGB to BGR (rows permuted)
+    public static let rgb_to_bgr = Matrix4x4(values: [
+        0.22, 0.22, 0.90, 0.0,
+        0.11, 0.70, 0.44, 0.0,
+        0.90, 0.11, 0.11, 0.0,
+        0.00, 0.00, 0.00, 1.0
+    ])
+    
+    /// When you have a premultiplied image, where RGB is multiplied by Alpha, decreasing A value you decrease a whole opacity of RGB.
+    /// Thus, any underlying layer becomes partially visible from under our translucent image.
+    /// - Parameter alpha: Alpha, 0 ~ 1
+    public static func decreasingOpacity(_ alpha: Float) -> Matrix4x4 {
+        let matrix = Matrix4x4.Color.identity
+        matrix.values[15] = min(1.0, max(0.0, alpha))
+        return matrix
+    }
 }

@@ -11,7 +11,7 @@ import CoreGraphics
 import simd
 
 public class Matrix {
-    public let values: [Float]
+    public internal(set) var values: [Float]
     
     init(values: [Float]) {
         self.values = values

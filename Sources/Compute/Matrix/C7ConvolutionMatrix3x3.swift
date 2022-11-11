@@ -1,5 +1,5 @@
 //
-//  C7Convolution3x3.swift
+//  C7ConvolutionMatrix3x3.swift
 //  ATMetalBand
 //
 //  Created by Condy on 2022/2/18.
@@ -8,9 +8,9 @@
 import Foundation
 
 /// 3 x 3卷积
-public struct C7Convolution3x3: C7FilterProtocol {
+public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
     
-    public enum C3x3Type {
+    public enum ConvolutionType {
         case `default`
         case identity
         case edgedetect
@@ -28,7 +28,7 @@ public struct C7Convolution3x3: C7FilterProtocol {
     private var matrix: Matrix3x3
     
     public var modifier: Modifier {
-        return .compute(kernel: "C7Convolution3x3")
+        return .compute(kernel: "C7ConvolutionMatrix3x3")
     }
     
     public var factors: [Float] {
@@ -37,16 +37,24 @@ public struct C7Convolution3x3: C7FilterProtocol {
         return array
     }
     
-    public init(convolutionType: C3x3Type) {
+    public init(matrix: Matrix3x3) {
+        self.matrix = matrix
+    }
+    
+    public init(convolutionType: ConvolutionType) {
+        self.init(matrix: convolutionType.matrix)
+    }
+    
+    public mutating func updateConvolutionType(_ convolutionType: ConvolutionType) {
         self.matrix = convolutionType.matrix
     }
     
-    public mutating func updateMatrix(_ convolutionType: C3x3Type) {
-        self.matrix = convolutionType.matrix
+    public mutating func updateMatrix3x3(_ matrix: Matrix3x3) {
+        self.matrix = matrix
     }
 }
 
-extension C7Convolution3x3.C3x3Type {
+extension C7ConvolutionMatrix3x3.ConvolutionType {
     var matrix: Matrix3x3 {
         switch self {
         case .identity:

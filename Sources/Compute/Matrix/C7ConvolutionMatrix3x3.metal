@@ -1,5 +1,5 @@
 //
-//  C7Convolution3x3.metal
+//  C7ConvolutionMatrix3x3.metal
 //  ATMetalBand
 //
 //  Created by Condy on 2022/2/18.
@@ -8,19 +8,19 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7Convolution3x3(texture2d<half, access::write> outputTexture [[texture(0)]],
-                             texture2d<half, access::sample> inputTexture [[texture(1)]],
-                             constant float *pixel [[buffer(0)]],
-                             constant float *m11 [[buffer(1)]],
-                             constant float *m12 [[buffer(2)]],
-                             constant float *m13 [[buffer(3)]],
-                             constant float *m21 [[buffer(4)]],
-                             constant float *m22 [[buffer(5)]],
-                             constant float *m23 [[buffer(6)]],
-                             constant float *m31 [[buffer(7)]],
-                             constant float *m32 [[buffer(8)]],
-                             constant float *m33 [[buffer(9)]],
-                             uint2 grid [[thread_position_in_grid]]) {
+kernel void C7ConvolutionMatrix3x3(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                   texture2d<half, access::sample> inputTexture [[texture(1)]],
+                                   constant float *pixel [[buffer(0)]],
+                                   constant float *m11 [[buffer(1)]],
+                                   constant float *m12 [[buffer(2)]],
+                                   constant float *m13 [[buffer(3)]],
+                                   constant float *m21 [[buffer(4)]],
+                                   constant float *m22 [[buffer(5)]],
+                                   constant float *m23 [[buffer(6)]],
+                                   constant float *m31 [[buffer(7)]],
+                                   constant float *m32 [[buffer(8)]],
+                                   constant float *m33 [[buffer(9)]],
+                                   uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float x = float(grid.x);
     const float y = float(grid.y);

@@ -275,9 +275,9 @@ extension ViewControllerType {
             let filter = C7SplitScreen()
             return (filter, nil, nil)
         case .Sharpen3x3:
-            var filter = C7Convolution3x3(convolutionType: .sharpen(iterations: 1))
+            var filter = C7ConvolutionMatrix3x3(convolutionType: .sharpen(iterations: 1))
             return (filter, (1, 0, 7), {
-                filter.updateMatrix(.sharpen(iterations: $0))
+                filter.updateConvolutionType(.sharpen(iterations: $0))
                 return filter
             })
         case .Granularity:
@@ -363,7 +363,7 @@ extension ViewControllerType {
             filter.edgeStrength = 0.3
             return (filter, nil, nil)
         case .ColorMatrix4x4:
-            var filter = C7ColorMatrix4x4(matrix: Harbeth.Matrix4x4.replaced_red_green)
+            var filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.replaced_red_green)
             filter.offset = RGBAColor(red: 0, green: 0, blue: 1, alpha: 0)
             filter.intensity = 0.3
             return (filter, (0.3, 0.1, 1.0), {
@@ -371,7 +371,7 @@ extension ViewControllerType {
                 return filter
             })
         case .Convolution3x3:
-            let filter = C7Convolution3x3(convolutionType: .custom(Matrix3x3.embossment))
+            let filter = C7ConvolutionMatrix3x3(matrix: Matrix3x3.embossment)
             return (filter, nil, nil)
         case .CIHS:
             var filter = CIHighlight()

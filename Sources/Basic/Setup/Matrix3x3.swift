@@ -96,4 +96,25 @@ extension Matrix3x3 {
             ])
         }
     }
+    
+    /// BT.601, which is the standard for SDTV.
+    public static let to601 = Matrix3x3(values: [
+        1.164,  1.164, 1.164,
+        0.000, -0.392, 2.017,
+        1.596, -0.813, 0.000,
+    ])
+    
+    /// BT.601 full range (ref: http://www.equasys.de/colorconversion.html)
+    public static let to601FullRange = Matrix3x3(values: [
+        1.0,  1.000, 1.000,
+        0.0, -0.343, 1.765,
+        1.4, -0.711, 0.000,
+    ])
+    
+    /// BT.709, which is the standard for HDTV.
+    public static let to709 = Matrix3x3(values: [
+        1.164,  1.164, 1.164,
+        0.000, -0.213, 2.112,
+        1.793, -0.533, 0.000,
+    ])
 }

@@ -15,7 +15,7 @@ kernel void C7Crop(texture2d<half, access::write> outputTexture [[texture(0)]],
                    uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
-    const float minX = inputTexture.get_width() * (*originX);
+    const float minX = inputTexture.get_width()  * (*originX);
     const float minY = inputTexture.get_height() * (*originY);
     const half4 outColor = inputTexture.sample(quadSampler, float2((grid.x + minX) / inputTexture.get_width(), (grid.y + minY) / inputTexture.get_height()));
     
