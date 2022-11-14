@@ -18,7 +18,7 @@ public struct C7TransformMatrix4x4: C7FilterProtocol {
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         let computeEncoder = encoder as! MTLComputeCommandEncoder
-        var factor = matrix.to_matrix_float4x4()
+        var factor = matrix.to_factor()
         computeEncoder.setBytes(&factor, length: Matrix4x4.size, index: index + 1)
     }
     

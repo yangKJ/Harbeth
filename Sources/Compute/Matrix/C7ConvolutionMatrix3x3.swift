@@ -58,25 +58,25 @@ extension C7ConvolutionMatrix3x3.ConvolutionType {
     var matrix: Matrix3x3 {
         switch self {
         case .identity:
-            return Matrix3x3.identity
+            return Matrix3x3.Kernel.identity
         case .edgedetect:
-            return Matrix3x3.edgedetect
+            return Matrix3x3.Kernel.edgedetect
         case .embossment:
-            return Matrix3x3.embossment
+            return Matrix3x3.Kernel.embossment
         case .embossment45:
-            return Matrix3x3.embossment45
+            return Matrix3x3.Kernel.embossment45
         case .morphological:
-            return Matrix3x3.morphological
+            return Matrix3x3.Kernel.morphological
         case .sobel(let orientation):
-            return Matrix3x3.sobel(orientation)
+            return Matrix3x3.Kernel.sobel(orientation)
         case .laplance(let iterations):
-            return Matrix3x3.laplance(iterations)
+            return Matrix3x3.Kernel.laplance(iterations)
         case .sharpen(let iterations):
-            return Matrix3x3.sharpen(iterations)
+            return Matrix3x3.Kernel.sharpen(iterations)
         case .custom(let matrix3x3):
             return matrix3x3
         default:
-            return Matrix3x3.`default`
+            return Matrix3x3.Kernel.`default`
         }
     }
 }

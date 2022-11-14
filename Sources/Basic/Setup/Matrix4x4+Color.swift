@@ -109,7 +109,7 @@ extension Matrix4x4.Color {
     /// Thus, any underlying layer becomes partially visible from under our translucent image.
     /// - Parameter alpha: Alpha, 0 ~ 1
     public static func decreasingOpacity(_ alpha: Float) -> Matrix4x4 {
-        let matrix = Matrix4x4.Color.identity
+        var matrix = Matrix4x4.Color.identity
         matrix.values[15] = min(1.0, max(0.0, alpha))
         return matrix
     }

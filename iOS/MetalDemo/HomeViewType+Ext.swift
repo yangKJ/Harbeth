@@ -371,7 +371,7 @@ extension ViewControllerType {
                 return filter
             })
         case .Convolution3x3:
-            let filter = C7ConvolutionMatrix3x3(matrix: Matrix3x3.embossment)
+            let filter = C7ConvolutionMatrix3x3(convolutionType: .embossment)
             return (filter, nil, nil)
         case .CIHS:
             var filter = CIHighlight()

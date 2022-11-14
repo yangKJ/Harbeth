@@ -25,7 +25,7 @@ extension Matrix4x4.Transform {
     ])
     
     public static func scaling(_ scale: Float) -> Matrix4x4 {
-        let matrix = Matrix4x4.Transform.identity
+        var matrix = Matrix4x4.Transform.identity
         matrix.values[0] = scale
         matrix.values[5] = scale
         matrix.values[10] = scale
@@ -33,15 +33,15 @@ extension Matrix4x4.Transform {
     }
     
     public static func translationX(_ x: Float, y: Float, z: Float) -> Matrix4x4 {
-        let matrix = Matrix4x4.Transform.identity
+        var matrix = Matrix4x4.Transform.identity
         matrix.values[12] = x
         matrix.values[13] = y
         matrix.values[14] = z
         return matrix
     }
     
-    public static func rotationX(_ x: Float, y: Float, z: Float) -> Matrix {
-        let matrix = Matrix4x4.Transform.identity
+    public static func rotationX(_ x: Float, y: Float, z: Float) -> Matrix4x4 {
+        var matrix = Matrix4x4.Transform.identity
         matrix.values[0] = cos(y) * cos(z)
         matrix.values[4] = cos(z) * sin(x) * sin(y) - cos(x) * sin(z)
         matrix.values[8] = cos(x) * cos(z) * sin(y) + sin(x) * sin(z)
