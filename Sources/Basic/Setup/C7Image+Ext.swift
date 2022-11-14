@@ -7,6 +7,7 @@
 
 import Foundation
 import MetalKit
+import CoreImage
 
 extension C7Image: C7Compatible { }
 
@@ -20,6 +21,15 @@ extension Queen where Base == C7Image {
     public func toTexture(cgimage: CGImage? = nil) -> MTLTexture? {
         return (cgimage ?? base.cgImage)?.mt.toTexture()
     }
+    
+    #if os(iOS)
+    public func toCIImage() -> CIImage? {
+        if let ciImage = base.ciImage {
+            return ciImage
+        }
+        return CIImage(image: base)
+    }
+    #endif
 }
 
 // MARK: - edit image

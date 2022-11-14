@@ -44,10 +44,14 @@ class UnitTestViewController: UIViewController {
 extension UnitTestViewController {
     
     func unitTest() {
-        let filter = C7LookupTable(name: "ll")
-        
-        let dest = BoxxIO.init(element: originImage, filter: filter)
-        
-        ImageView.image = try? dest.output()
+//        let filter = C7LookupTable(name: "ll")
+//
+//        let dest = BoxxIO.init(element: originImage, filter: filter)
+//
+//        ImageView.image = try? dest.output()
+        let inputImage = CIImage(image: originImage)!
+        var face = Detector.Face.init(inputImage: inputImage, type: .eye)
+        let out = face.output() ?? inputImage
+        ImageView.image = C7Image.init(ciImage: out)
     }
 }

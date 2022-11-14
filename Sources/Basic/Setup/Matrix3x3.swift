@@ -12,6 +12,8 @@ public struct Matrix3x3: Matrix {
     
     public typealias MatrixType = matrix_float3x3
     
+    public var values: [Float]
+    
     public init(values: [Float]) {
         if values.count != 9 {
             C7FailedErrorInDebug("There must be nine values for 3x3 Matrix.")

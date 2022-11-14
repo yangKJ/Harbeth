@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.3.6'
+  s.version          = '0.3.7'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.

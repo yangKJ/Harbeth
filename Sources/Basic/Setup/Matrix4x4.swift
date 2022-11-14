@@ -12,6 +12,8 @@ public struct Matrix4x4: Matrix {
     
     public typealias MatrixType = matrix_float4x4
     
+    public var values: [Float]
+    
     public init(values: [Float]) {
         if values.count != 16 {
             C7FailedErrorInDebug("There must be 16 values for 4x4 Matrix.")

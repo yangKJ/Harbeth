@@ -1,6 +1,6 @@
 {
   "name": "Harbeth",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "summary": "About Metal graphics processing.",
   "homepage": "https://github.com/yangKJ/Harbeth",
   "license": {
@@ -12,7 +12,7 @@
   },
   "source": {
     "git": "https://github.com/yangKJ/Harbeth.git",
-    "tag": "0.3.6"
+    "tag": "0.3.7"
   },
   "swift_versions": "5.0",
   "requires_arc": true,
