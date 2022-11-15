@@ -10,18 +10,37 @@ import Foundation
 /// Pull and compress the picture, the picture will be distorted
 public struct C7Resize: C7FilterProtocol {
     
-    public var width: Int = 0
-    public var height: Int = 0
+    public var width: Float
+    public var height: Float
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Resize")
     }
     
     public func outputSize(input size: C7Size) -> C7Size {
-        let w: Int = width > 0 ? width : size.width
-        let h: Int = height > 0 ? height : size.height
-        return C7Size(width: w, height: h)
+        return ShapeMode.fitSize.resize(width: width, height: height, size: size)
     }
     
-    public init() { }
+    private var size: CGSize = .zero {
+        didSet {
+            if size.width > 0 {
+                self.width = Float(size.width)
+            }
+            if size.height > 0 {
+                self.height = Float(size.height)
+            }
+        }
+    }
+    
+    public init(size: CGSize) {
+        self.size = size
+        self.width = Float(size.width)
+        self.height = Float(size.height)
+    }
+    
+    public init(width: Float, height: Float) {
+        self.size = CGSize(width: CGFloat(width), height: CGFloat(height))
+        self.width = width
+        self.height = height
+    }
 }

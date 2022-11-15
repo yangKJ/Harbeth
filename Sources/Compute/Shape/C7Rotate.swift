@@ -14,10 +14,6 @@ public struct C7Rotate: C7FilterProtocol {
         get { return _angle / Float.pi * 180 }
         set { _angle = newValue * Float.pi / 180 }
     }
-    /// True to change image size to fit rotated image, false to keep image size
-    public var fitSize: Bool = true
-    
-    private var _angle: Float = 0
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Rotate")
@@ -28,15 +24,14 @@ public struct C7Rotate: C7FilterProtocol {
     }
     
     public func outputSize(input size: C7Size) -> C7Size {
-        if fitSize {
-            let w = Int(abs(sin(_angle) * Float(size.height)) + abs(cos(_angle) * Float(size.width)))
-            let h = Int(abs(sin(_angle) * Float(size.width)) + abs(cos(_angle) * Float(size.height)))
-            return C7Size(width: w, height: h)
-        }
-        return size
+        return mode.rotate(angle: _angle, size: size)
     }
     
-    public init() {
-        self.angle = 0
+    private var _angle: Float = 0
+    private var mode: ShapeMode = .fitSize
+    
+    public init(mode: ShapeMode = .fitSize, angle: Float = 0) {
+        self.angle = angle
+        self.mode = mode
     }
 }

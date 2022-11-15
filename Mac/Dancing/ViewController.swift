@@ -16,11 +16,11 @@ class ViewController: NSViewController {
         view.wantsLayer = true
     }
     
-    var originImage: C7Image = R.image("AX")
+    var originImage: C7Image = R.image("AR")
     
     lazy var ImageView: NSImageView = {
         let imageView = NSImageView.init(image: originImage)
-        imageView.imageScaling = .scaleAxesIndependently
+        imageView.imageScaling = .scaleProportionallyDown
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer?.borderWidth = 2
         imageView.layer?.borderColor = C7Color.red.cgColor
@@ -76,6 +76,9 @@ class ViewController: NSViewController {
     let filter3 = C7Storyboard.init()
     let filter4 = C7ConvolutionMatrix3x3(matrix: Matrix3x3.Kernel.sharpen(2))
     let filter5 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.rgb_to_bgr)
+    let filter6 = C7Rotate(angle: 10)
+    let filter7 = C7Resize(width: 200, height: 300)
+    let filter8 = C7Crop(space: 20)
     
     func unitTest() {
         originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))

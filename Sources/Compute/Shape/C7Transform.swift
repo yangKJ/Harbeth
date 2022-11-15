@@ -6,14 +6,11 @@
 //
 
 import Foundation
-import simd
 
 public struct C7Transform: C7FilterProtocol {
     
     public var transform: CGAffineTransform
     public var anchorPoint: C7Point2D = C7Point2D.zero
-    /// True to change image size to fit rotated image, false to keep image size
-    public var fitSize: Bool = true
     
     public var modifier: Modifier {
         return .compute(kernel: "C7AffineTransform")
@@ -24,11 +21,7 @@ public struct C7Transform: C7FilterProtocol {
     }
     
     public func outputSize(input size: C7Size) -> C7Size {
-        if fitSize {
-            let newSize = CGRect(x: 0, y: 0, width: size.width, height: size.height).applying(transform)
-            return C7Size(width: Int(newSize.width), height: Int(newSize.height))
-        }
-        return size
+        return mode.transform(transform, size: size)
     }
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
@@ -41,7 +34,10 @@ public struct C7Transform: C7FilterProtocol {
         computeEncoder.setBytes(&factor, length: MemoryLayout<matrix_float3x2>.size, index: index + 1)
     }
     
-    public init(transform: CGAffineTransform) {
+    private var mode: ShapeMode = .fitSize
+    
+    public init(mode: ShapeMode = .fitSize, transform: CGAffineTransform) {
         self.transform = transform
+        self.mode = mode
     }
 }

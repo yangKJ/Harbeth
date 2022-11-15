@@ -9,6 +9,8 @@ import Foundation
 
 public struct C7Size {
     
+    public static let zero = C7Size(width: 0, height: 0)
+    
     public var width: Int
     public var height: Int
     

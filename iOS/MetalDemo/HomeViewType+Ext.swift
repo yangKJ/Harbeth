@@ -150,9 +150,7 @@ extension ViewControllerType {
             filter.smoothing = 0.1
             return (filter, nil, nil)
         case .Crop:
-            var filter = C7Crop()
-            filter.origin = C7Point2D(x: 0.3, y: 0.3)
-            filter.height = 1080
+            let filter = C7Crop(origin: C7Point2D(x: 0.3, y: 0.3), width: 0, height: 1080)
             return (filter, (0.3, 0, 1), {
                 filter.origin = C7Point2D(x: $0, y: $0)
                 return filter
@@ -182,10 +180,9 @@ extension ViewControllerType {
                 return filter
             })
         case .Resize:
-            var filter = C7Resize()
-            filter.width = 1000
+            var filter = C7Resize(width: 1000, height: 0)
             return (filter, (1000, 50, 2000), {
-                filter.width = Int($0)
+                filter.width = $0
                 return filter
             })
         case .MonochromeDilation:
