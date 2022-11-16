@@ -22,5 +22,9 @@ public struct C7GlassSphere: C7FilterProtocol {
         return [radius, refractiveIndex, aspectRatio, center.x, center.y]
     }
     
-    public init() { }
+    public init(radius: Float = 0.25, refractiveIndex: Float = 0.71, aspectRatio: Float = 1) {
+        self.radius = radius
+        self.refractiveIndex = refractiveIndex
+        self.aspectRatio = aspectRatio
+    }
 }

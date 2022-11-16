@@ -23,5 +23,7 @@ public struct C7Pixellated: C7FilterProtocol {
         return [pixelWidth]
     }
     
-    public init() { }
+    public init(pixelWidth: Float = range.value) {
+        self.pixelWidth = pixelWidth
+    }
 }

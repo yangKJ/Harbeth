@@ -27,5 +27,8 @@ public struct C7WaterRipple: C7FilterProtocol {
         return [touchCenter.x, touchCenter.y, ripple, boundary]
     }
     
-    public init() { }
+    public init(ripple: Float = rippleRange.value, boundary: Float = 0.06) {
+        self.ripple = ripple
+        self.boundary = boundary
+    }
 }

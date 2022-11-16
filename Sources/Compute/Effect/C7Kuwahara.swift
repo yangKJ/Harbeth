@@ -21,5 +21,7 @@ public struct C7Kuwahara: C7FilterProtocol {
         return [Float(radius)]
     }
     
-    public init() { }
+    public init(radius: Int = 3) {
+        self.radius = radius
+    }
 }

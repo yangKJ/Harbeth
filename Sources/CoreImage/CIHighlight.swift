@@ -25,5 +25,7 @@ public struct CIHighlight: C7FilterProtocol {
         return ciImage.cropped(to: ciImage.extent)
     }
     
-    public init() { }
+    public init(highlight: Float = range.value) {
+        self.value = highlight
+    }
 }

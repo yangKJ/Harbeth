@@ -26,5 +26,9 @@ public struct C7Vignette: C7FilterProtocol {
         return [center.x, center.y] + RGBAColor(color: color).toRGB() + [start, end]
     }
     
-    public init() { }
+    public init(start: Float = 0.3, end: Float = 0.75, color: C7Color = .zero) {
+        self.start = start
+        self.end = end
+        self.color = color
+    }
 }

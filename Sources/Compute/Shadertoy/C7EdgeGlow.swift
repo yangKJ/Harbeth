@@ -23,5 +23,9 @@ public struct C7EdgeGlow: C7FilterProtocol {
         return [time, spacing] + RGBAColor(color: lineColor).toFloatArray()
     }
     
-    public init() { }
+    public init(time: Float = 0.5, spacing: Float = 0.5, lineColor: C7Color = .green) {
+        self.time = time
+        self.spacing = spacing
+        self.lineColor = lineColor
+    }
 }

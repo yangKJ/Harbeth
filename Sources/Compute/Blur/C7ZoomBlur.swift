@@ -22,5 +22,7 @@ public struct C7ZoomBlur: C7FilterProtocol {
         return [blurCenter.x, blurCenter.y, blurSize]
     }
     
-    public init() { }
+    public init(blurSize: Float = 0) {
+        self.blurSize = blurSize
+    }
 }

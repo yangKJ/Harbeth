@@ -22,5 +22,7 @@ public struct C7Brightness: C7FilterProtocol {
         return [brightness]
     }
     
-    public init() { }
+    public init(brightness: Float = range.value) {
+        self.brightness = brightness
+    }
 }

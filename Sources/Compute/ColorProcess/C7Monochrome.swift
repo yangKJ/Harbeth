@@ -25,5 +25,8 @@ public struct C7Monochrome: C7FilterProtocol {
         return [intensity] + RGBAColor(color: color).toRGB()
     }
     
-    public init() { }
+    public init(intensity: Float = range.value, color: C7Color = .zero) {
+        self.intensity = intensity
+        self.color = color
+    }
 }

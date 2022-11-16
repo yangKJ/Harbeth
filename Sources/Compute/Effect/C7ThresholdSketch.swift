@@ -23,5 +23,8 @@ public struct C7ThresholdSketch: C7FilterProtocol {
         return [edgeStrength, threshold]
     }
     
-    public init() { }
+    public init(edgeStrength: Float = 1, threshold: Float = 0.25) {
+        self.edgeStrength = edgeStrength
+        self.threshold = threshold
+    }
 }

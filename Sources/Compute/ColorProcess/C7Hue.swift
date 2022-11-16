@@ -20,5 +20,7 @@ public struct C7Hue: C7FilterProtocol {
         return [hue]
     }
     
-    public init() { }
+    public init(hue: Float = 90.0) {
+        self.hue = hue
+    }
 }

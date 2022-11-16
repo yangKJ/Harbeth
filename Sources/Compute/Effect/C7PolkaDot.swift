@@ -22,5 +22,8 @@ public struct C7PolkaDot: C7FilterProtocol {
         return [fractionalWidth, dotScaling]
     }
     
-    public init() { }
+    public init(fractionalWidth: Float = 0.05, dotScaling: Float = 0.9) {
+        self.fractionalWidth = fractionalWidth
+        self.dotScaling = dotScaling
+    }
 }

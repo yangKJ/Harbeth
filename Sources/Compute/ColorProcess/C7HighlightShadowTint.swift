@@ -27,5 +27,13 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
         return [shadows, highlights] + RGBAColor(color: shadowsColor).toRGB() + RGBAColor(color: highlightsColor).toRGB()
     }
     
-    public init() { }
+    public init(highlights: Float = range.value,
+                highlightsColor: C7Color = .zero,
+                shadows: Float = range.value,
+                shadowsColor: C7Color = .zero) {
+        self.highlights = highlights
+        self.shadows = shadows
+        self.highlightsColor = highlightsColor
+        self.shadowsColor = shadowsColor
+    }
 }

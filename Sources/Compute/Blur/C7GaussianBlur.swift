@@ -19,5 +19,7 @@ public struct C7GaussianBlur: C7FilterProtocol {
         return [radius]
     }
     
-    public init() { }
+    public init(radius: Float = 1) {
+        self.radius = radius
+    }
 }

@@ -26,7 +26,7 @@ public struct MPSGaussianBlur: C7FilterProtocol {
     
     private var gaussian: MPSImageGaussianBlur
     
-    public init() {
+    public init(radius: Float = range.value) {
         self.gaussian = MPSImageGaussianBlur(device: Device.device(), sigma: radius)
     }
 }

@@ -23,5 +23,7 @@ public struct C7RGBADilation: C7FilterProtocol {
         return [Float(pixelRadius), vertical ? 1 : 0]
     }
     
-    public init() { }
+    public init(pixelRadius: Int = 0) {
+        self.pixelRadius = pixelRadius
+    }
 }

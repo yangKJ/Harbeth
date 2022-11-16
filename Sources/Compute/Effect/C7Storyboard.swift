@@ -21,5 +21,7 @@ public struct C7Storyboard: C7FilterProtocol {
         return [Float(N)]
     }
     
-    public init() { }
+    public init(ranks: Int = 2) {
+        self.N = ranks
+    }
 }

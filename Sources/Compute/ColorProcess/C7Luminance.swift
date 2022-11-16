@@ -22,5 +22,7 @@ public struct C7Luminance: C7FilterProtocol {
         return [luminance]
     }
     
-    public init() { }
+    public init(luminance: Float = range.value) {
+        self.luminance = luminance
+    }
 }

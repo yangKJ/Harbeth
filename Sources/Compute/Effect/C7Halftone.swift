@@ -20,5 +20,7 @@ public struct C7Halftone: C7FilterProtocol {
         return [fractionalWidth]
     }
     
-    public init() { }
+    public init(fractionalWidth: Float = 0.01) {
+        self.fractionalWidth = fractionalWidth
+    }
 }

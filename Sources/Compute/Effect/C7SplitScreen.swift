@@ -24,5 +24,7 @@ public struct C7SplitScreen: C7FilterProtocol {
         return [Float(type.rawValue)]
     }
     
-    public init() { }
+    public init(type: C7SplitScreen.SSType = .two) {
+        self.type = type
+    }
 }

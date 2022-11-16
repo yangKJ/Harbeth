@@ -23,5 +23,8 @@ public struct C7Swirl: C7FilterProtocol {
         return [center.x, center.y, radius, angle]
     }
     
-    public init() { }
+    public init(radius: Float = 0.5, angle: Float = 1) {
+        self.radius = radius
+        self.angle = angle
+    }
 }

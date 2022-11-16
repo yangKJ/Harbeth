@@ -21,5 +21,7 @@ public struct C7LuminanceThreshold: C7FilterProtocol {
         return [threshold]
     }
     
-    public init() { }
+    public init(threshold: Float = 0.5) {
+        self.threshold = threshold
+    }
 }

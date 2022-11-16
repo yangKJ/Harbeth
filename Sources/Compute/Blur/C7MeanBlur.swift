@@ -20,5 +20,7 @@ public struct C7MeanBlur: C7FilterProtocol {
         return [radius]
     }
     
-    public init() { }
+    public init(radius: Float = 1) {
+        self.radius = radius
+    }
 }

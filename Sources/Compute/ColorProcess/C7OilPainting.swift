@@ -21,5 +21,8 @@ public struct C7OilPainting: C7FilterProtocol {
         return [radius, Float(pixel)]
     }
     
-    public init() { }
+    public init(radius: Float = 3.0, pixel: Int = 1) {
+        self.radius = radius
+        self.pixel = pixel
+    }
 }

@@ -71,7 +71,7 @@ class ViewController: NSViewController {
     }
     
     let filter0 = C7LookupTable(name: "lut_ll")
-    let filter1 = C7SoulOut()
+    let filter1 = C7SoulOut(soul: 0.7)
     let filter2 = C7Granularity()
     let filter3 = C7Storyboard.init()
     let filter4 = C7ConvolutionMatrix3x3(matrix: Matrix3x3.Kernel.sharpen(2))
@@ -83,7 +83,7 @@ class ViewController: NSViewController {
     func unitTest() {
         originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
         
-        let dest = BoxxIO.init(element: originImage, filter: filter3)
+        let dest = BoxxIO.init(element: originImage, filter: filter1)
         ImageView.image = try? dest.output()
         
         dest.filters.forEach {

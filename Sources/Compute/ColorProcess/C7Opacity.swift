@@ -23,5 +23,7 @@ public struct C7Opacity: C7FilterProtocol {
         return [opacity]
     }
     
-    public init() { }
+    public init(opacity: Float = range.value) {
+        self.opacity = opacity
+    }
 }

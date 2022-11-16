@@ -23,5 +23,7 @@ public struct C7Contrast: C7FilterProtocol {
         return [contrast]
     }
     
-    public init() { }
+    public init(contrast: Float = range.value) {
+        self.contrast = contrast
+    }
 }

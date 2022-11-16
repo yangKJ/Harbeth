@@ -26,5 +26,8 @@ public struct C7HighlightShadow: C7FilterProtocol {
         return [shadows, highlights]
     }
     
-    public init() { }
+    public init(highlights: Float = range.value, shadows: Float = range.value) {
+        self.highlights = highlights
+        self.shadows = shadows
+    }
 }

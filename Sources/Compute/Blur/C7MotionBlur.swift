@@ -23,5 +23,8 @@ public struct C7MotionBlur: C7FilterProtocol {
         return [blurSize, blurAngle]
     }
     
-    public init() { }
+    public init(blurSize: Float = 0, blurAngle: Float = 0) {
+        self.blurSize = blurSize
+        self.blurAngle = blurAngle
+    }
 }

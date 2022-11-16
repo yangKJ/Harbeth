@@ -23,5 +23,7 @@ public struct C7Vibrance: C7FilterProtocol {
         return [vibrance]
     }
     
-    public init() { }
+    public init(vibrance: Float = range.value) {
+        self.vibrance = vibrance
+    }
 }

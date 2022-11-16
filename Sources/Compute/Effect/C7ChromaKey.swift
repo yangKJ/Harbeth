@@ -26,5 +26,9 @@ public struct C7ChromaKey: C7FilterProtocol {
         return [thresholdSensitivity, smoothing] + RGBAColor(color: color).toRGB()
     }
     
-    public init() { }
+    public init(thresholdSensitivity: Float = 0.4, smoothing: Float = 0.1, color: C7Color = .zero) {
+        self.thresholdSensitivity = thresholdSensitivity
+        self.smoothing = smoothing
+        self.color = color
+    }
 }

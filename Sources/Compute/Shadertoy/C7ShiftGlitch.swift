@@ -21,5 +21,7 @@ public struct C7ShiftGlitch: C7FilterProtocol {
         return [time]
     }
     
-    public init() { }
+    public init(time: Float = 0.5) {
+        self.time = time
+    }
 }

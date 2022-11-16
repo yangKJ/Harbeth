@@ -20,5 +20,8 @@ public struct C7DepthLuminance: C7FilterProtocol {
         return [offect, range]
     }
     
-    public init() { }
+    public init(offect: Float = 0, range: Float = 0) {
+        self.offect = offect
+        self.range = range
+    }
 }

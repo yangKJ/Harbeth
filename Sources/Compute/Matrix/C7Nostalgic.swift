@@ -23,5 +23,7 @@ public struct C7Nostalgic: C7FilterProtocol {
         return [intensity]
     }
     
-    public init() { }
+    public init(intensity: Float = range.value) {
+        self.intensity = intensity
+    }
 }

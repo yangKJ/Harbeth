@@ -23,5 +23,7 @@ public struct C7Gamma: C7FilterProtocol {
         return [gamma]
     }
     
-    public init() { }
+    public init(gamma: Float = range.value) {
+        self.gamma = gamma
+    }
 }

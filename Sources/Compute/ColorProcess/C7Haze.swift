@@ -23,5 +23,8 @@ public struct C7Haze: C7FilterProtocol {
         return [distance, slope]
     }
     
-    public init() { }
+    public init(distance: Float = 0, slope: Float = 0) {
+        self.distance = distance
+        self.slope = slope
+    }
 }

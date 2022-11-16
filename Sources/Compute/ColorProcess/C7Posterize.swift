@@ -23,5 +23,7 @@ public struct C7Posterize: C7FilterProtocol {
         return [colorLevels]
     }
     
-    public init() { }
+    public init(colorLevels: Float = range.value) {
+        self.colorLevels = colorLevels
+    }
 }

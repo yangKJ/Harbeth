@@ -23,5 +23,7 @@ public struct C7Sobel: C7FilterProtocol {
         return [edgeStrength]
     }
     
-    public init() { }
+    public init(edgeStrength: Float = 1.0) {
+        self.edgeStrength = edgeStrength
+    }
 }

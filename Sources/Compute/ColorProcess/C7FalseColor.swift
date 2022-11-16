@@ -24,5 +24,8 @@ public struct C7FalseColor: C7FilterProtocol {
         return RGBAColor(color: fristColor).toRGB() + RGBAColor(color: secondColor).toRGB()
     }
     
-    public init() { }
+    public init(fristColor: C7Color = .zero, secondColor: C7Color = .zero) {
+        self.fristColor = fristColor
+        self.secondColor = secondColor
+    }
 }

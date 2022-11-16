@@ -29,5 +29,8 @@ public struct C7WhiteBalance: C7FilterProtocol {
         ]
     }
     
-    public init() { }
+    public init(temperature: Float = range.value, tint: Float = 0) {
+        self.temperature = temperature
+        self.tint = tint
+    }
 }

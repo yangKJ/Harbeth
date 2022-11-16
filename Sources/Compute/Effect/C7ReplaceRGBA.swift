@@ -28,5 +28,13 @@ public struct C7ReplaceRGBA: C7FilterProtocol {
         return [thresholdSensitivity, smoothing] + RGBAColor(color: chroma).toRGB() + RGBAColor(color: replaceColor).toRGB()
     }
     
-    public init() { }
+    public init(thresholdSensitivity: Float = 0.4,
+                smoothing: Float = 0.1,
+                chroma: C7Color = .zero,
+                replaceColor: C7Color = .zero) {
+        self.thresholdSensitivity = thresholdSensitivity
+        self.smoothing = smoothing
+        self.chroma = chroma
+        self.replaceColor = replaceColor
+    }
 }

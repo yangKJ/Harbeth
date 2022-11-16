@@ -24,5 +24,8 @@ public struct C7Bulge: C7FilterProtocol {
         return [center.x, center.y, radius, scale]
     }
     
-    public init() { }
+    public init(radius: Float = 0.25, scale: Float = 0.5) {
+        self.radius = radius
+        self.scale = scale
+    }
 }

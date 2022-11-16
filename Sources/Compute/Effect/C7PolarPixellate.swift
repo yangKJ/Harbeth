@@ -21,5 +21,7 @@ public struct C7PolarPixellate: C7FilterProtocol {
         return [Float(pixelSize.width), Float(pixelSize.height), center.x, center.y]
     }
     
-    public init() { }
+    public init(pixelSize: CGSize = CGSize(width: 0.05, height: 0.05)) {
+        self.pixelSize = pixelSize
+    }
 }

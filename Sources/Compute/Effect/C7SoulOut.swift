@@ -25,5 +25,9 @@ public struct C7SoulOut: C7FilterProtocol {
         return [soul, maxScale, maxAlpha]
     }
     
-    public init() { }
+    public init(soul: Float = soulRange.value, maxScale: Float = 1.5, maxAlpha: Float = 0.5) {
+        self.soul = soul
+        self.maxScale = maxScale
+        self.maxAlpha = maxAlpha
+    }
 }

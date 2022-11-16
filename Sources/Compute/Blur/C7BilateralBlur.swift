@@ -21,5 +21,7 @@ public struct C7BilateralBlur: C7FilterProtocol {
         return [radius, offect.x, offect.y]
     }
     
-    public init() { }
+    public init(radius: Float = 1) {
+        self.radius = radius
+    }
 }

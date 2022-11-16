@@ -21,5 +21,7 @@ public struct C7Sketch: C7FilterProtocol {
         return [edgeStrength]
     }
     
-    public init() { }
+    public init(edgeStrength: Float = 1) {
+        self.edgeStrength = edgeStrength
+    }
 }

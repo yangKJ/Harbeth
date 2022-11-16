@@ -24,5 +24,7 @@ public struct C7Granularity: C7FilterProtocol {
         return [grain]
     }
     
-    public init() { }
+    public init(grain: Float = range.value) {
+        self.grain = grain
+    }
 }
