@@ -83,7 +83,7 @@ class ViewController: NSViewController {
     func unitTest() {
         originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
         
-        let dest = BoxxIO.init(element: originImage, filters: [filter0, filter1, filter2, filter3])
+        let dest = BoxxIO.init(element: originImage, filter: filter3)
         ImageView.image = try? dest.output()
         
         dest.filters.forEach {
