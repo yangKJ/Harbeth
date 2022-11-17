@@ -23,6 +23,22 @@ public final class Shared {
         device = nil
     }
     
+    /// 是否已经初始化`Device`资源
+    /// Whether the Device resource has been initialized.
+    public var hasDevice: Bool {
+        return synchronizedDevice {
+            if let _ = objc_getAssociatedObject(self, &C7ATSharedContext) {
+                return true
+            }
+            return false
+        }
+    }
+    
+    /// 提前加载`Device`资源
+    public func advanceSetupDevice() {
+        let _ = self.device
+    }
+    
     private init() { }
 }
 
