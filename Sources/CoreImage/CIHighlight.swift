@@ -17,11 +17,11 @@ public struct CIHighlight: C7FilterProtocol {
     public var value: Float = range.value
     
     public var modifier: Modifier {
-        return .coreimage(CIFilterName: "CIHighlightShadowAdjust")
+        return .coreimage(CIName: "CIHighlightShadowAdjust")
     }
     
     public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage {
-        filter?.setValue(1 - value, forKey: "inputHighlightAmount")
+        filter?.setValue(value, forKey: "inputHighlightAmount")
         return ciImage.cropped(to: ciImage.extent)
     }
     

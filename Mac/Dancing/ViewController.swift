@@ -70,24 +70,23 @@ class ViewController: NSViewController {
         ])
     }
     
-    let filter0 = C7LookupTable(name: "lut_ll")
-    let filter1 = C7SoulOut(soul: 0.7)
-    let filter2 = C7Granularity()
-    let filter3 = C7Storyboard.init()
-    let filter4 = C7ConvolutionMatrix3x3(matrix: Matrix3x3.Kernel.sharpen(2))
-    let filter5 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.rgb_to_bgr)
-    let filter6 = C7Rotate(angle: 10)
-    let filter7 = C7Resize(width: 200, height: 300)
-    let filter8 = C7Crop(space: 20)
+    //let filter = C7Storyboard.init(ranks: 2)
+    //let filter = C7SoulOut.init(soul: 0.7)
+    //let filter = C7Granularity.init()
+    //let filter = C7MeanBlur.init(radius: 0.5)
+    //let filter = C7Brightness.init(brightness: 0.25)
+    //let filter = C7ConvolutionMatrix3x3(convolutionType: .sharpen(iterations: 2))
+    //let filter = C7ColorConvert(with: .gray)
+    let filter = C7LookupTable.init(image: R.image("lut_abao"))
     
     func unitTest() {
-        originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
+        //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
         
-        let dest = BoxxIO.init(element: originImage, filter: filter1)
+        let dest = BoxxIO.init(element: originImage, filter: filter)
         ImageView.image = try? dest.output()
         
         dest.filters.forEach {
-            NSLog("\($0.parameterDescription)")
+            NSLog("%@", "\($0.parameterDescription)")
         }
     }
 }

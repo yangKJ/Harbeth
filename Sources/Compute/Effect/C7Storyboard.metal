@@ -5,6 +5,8 @@
 //  Created by Condy on 2022/3/2.
 //
 
+// See：https://www.shadertoy.com/view/7sscDX
+
 #include <metal_stdlib>
 using namespace metal;
 
