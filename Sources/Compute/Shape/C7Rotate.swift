@@ -10,24 +10,20 @@ import Foundation
 public struct C7Rotate: C7FilterProtocol {
     
     /// Angle to rotate, unit is degree
-    public var angle: Float {
-        get { return _angle / Float.pi * 180 }
-        set { _angle = newValue * Float.pi / 180 }
-    }
+    public var angle: Float
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Rotate")
     }
     
     public var factors: [Float] {
-        return [_angle]
+        return [Degree(value: angle).radians]
     }
     
     public func outputSize(input size: C7Size) -> C7Size {
-        return mode.rotate(angle: _angle, size: size)
+        return mode.rotate(angle: Degree(value: angle).radians, size: size)
     }
     
-    private var _angle: Float = 0
     private var mode: ShapeMode = .fitSize
     
     public init(mode: ShapeMode = .fitSize, angle: Float = 0) {
