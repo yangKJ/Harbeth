@@ -32,9 +32,13 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        var array = [Float(convolutionPixel)]
-        array += matrix.values
-        return array
+        return [Float(convolutionPixel)]
+    }
+    
+    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
+        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
+        var factor = matrix.to_factor()
+        computeEncoder.setBytes(&factor, length: Matrix3x3.size, index: index + 1)
     }
     
     public init(matrix: Matrix3x3) {

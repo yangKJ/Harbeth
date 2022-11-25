@@ -21,7 +21,7 @@ public struct C7Levels: C7FilterProtocol {
     }
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        let computeEncoder = encoder as! MTLComputeCommandEncoder
+        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var _minimum = minimum.mt.toC7RGBAColor()
         var _middle = middle.mt.toC7RGBAColor()
         var _maximum = maximum.mt.toC7RGBAColor()

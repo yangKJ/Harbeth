@@ -78,7 +78,8 @@ class ViewController: NSViewController {
     //let filter = C7ConvolutionMatrix3x3(convolutionType: .sharpen(iterations: 2))
     //let filter = C7ColorConvert(with: .gray)
     //let filter = C7LookupTable.init(image: R.image("lut_abao"))
-    let filter = C7Rotate.init(angle: -30)
+    //let filter = C7Rotate.init(angle: -30)
+    let filter = C7ColorVector4.init(vector: Vector4.Color.warm)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))

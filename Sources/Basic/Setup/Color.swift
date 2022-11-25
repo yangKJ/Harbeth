@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// 每个通道颜色偏移量，在`-255 ~ 255`区间内
+/// 每个通道颜色偏移量，在`0 ~ 255`区间内
 /// Each channel color offset, from 0 to 255.
 public struct RGBAColor {
     

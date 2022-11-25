@@ -11,15 +11,7 @@ using namespace metal;
 kernel void C7ConvolutionMatrix3x3(texture2d<half, access::write> outputTexture [[texture(0)]],
                                    texture2d<half, access::sample> inputTexture [[texture(1)]],
                                    constant float *pixel [[buffer(0)]],
-                                   constant float *m11 [[buffer(1)]],
-                                   constant float *m12 [[buffer(2)]],
-                                   constant float *m13 [[buffer(3)]],
-                                   constant float *m21 [[buffer(4)]],
-                                   constant float *m22 [[buffer(5)]],
-                                   constant float *m23 [[buffer(6)]],
-                                   constant float *m31 [[buffer(7)]],
-                                   constant float *m32 [[buffer(8)]],
-                                   constant float *m33 [[buffer(9)]],
+                                   constant float3x3 *matrix3x3 [[buffer(1)]],
                                    uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float x = float(grid.x);
@@ -54,10 +46,11 @@ kernel void C7ConvolutionMatrix3x3(texture2d<half, access::write> outputTexture 
     const half3 m32Color = inputTexture.sample(quadSampler, m32Coordinate).rgb;
     const half3 m33Color = inputTexture.sample(quadSampler, m33Coordinate).rgb;
     
+    const float3x3 matrix = (*matrix3x3);
     half3 resultColor = half3(0.0h);
-    resultColor += m11Color * (*m11) + m12Color * (*m12) + m13Color * (*m13);
-    resultColor += m21Color * (*m21) + m22Color * (*m22) + m23Color * (*m23);
-    resultColor += m31Color * (*m31) + m32Color * (*m32) + m33Color * (*m33);
+    resultColor += m11Color * (matrix[0][0]) + m12Color * (matrix[0][1]) + m13Color * (matrix[0][2]);
+    resultColor += m21Color * (matrix[1][0]) + m22Color * (matrix[1][1]) + m23Color * (matrix[1][2]);
+    resultColor += m31Color * (matrix[2][0]) + m32Color * (matrix[2][1]) + m33Color * (matrix[2][2]);
     
     const half4 outColor = half4(resultColor, centerColor.a);
     outputTexture.write(outColor, grid);

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import simd
 
 public struct C7Transform: C7FilterProtocol {
     
@@ -25,7 +26,7 @@ public struct C7Transform: C7FilterProtocol {
     }
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        let computeEncoder = encoder as! MTLComputeCommandEncoder
+        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = matrix_float3x2(columns: (
             simd_float2(x: Float(transform.a ), y: Float(transform.b )),
             simd_float2(x: Float(transform.c ), y: Float(transform.d )),
