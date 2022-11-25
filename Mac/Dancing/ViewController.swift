@@ -32,8 +32,21 @@ class ViewController: NSViewController {
     }()
     
     lazy var TextField: NSTextField = {
+        func string(fromHTML html: String?, with font: NSFont? = nil) -> NSAttributedString {
+            var html = html
+            let font = font ?? .systemFont(ofSize: 0.0) // Default font
+            html = String(format: "<span style=\"font-family:'%@'; font-size:%dpx;\">%@</span>", font.fontName, Int(font.pointSize), html ?? "")
+            let data = html?.data(using: .utf8)
+            let options = [NSAttributedString.DocumentReadingOptionKey.textEncodingName: "UTF-8"]
+            var string: NSAttributedString? = nil
+            if let data {
+                string = NSAttributedString(html: data, options: options, documentAttributes: nil)
+            }
+            return string ?? NSAttributedString()
+        }
+        
         let html = ". Harbeth test case, <a href=\"https://github.com/yangKJ/Harbeth\">Please help me with a star.</a> Thanks!!!"
-        let string = self.string(fromHTML: html, with: .systemFont(ofSize: 15))
+        let string = string(fromHTML: html, with: .systemFont(ofSize: 15))
         let label = NSTextField(labelWithAttributedString: string)
         label.allowsEditingTextAttributes = true
         label.isSelectable = true
@@ -79,7 +92,9 @@ class ViewController: NSViewController {
     //let filter = C7ColorConvert(with: .gray)
     //let filter = C7LookupTable.init(image: R.image("lut_abao"))
     //let filter = C7Rotate.init(angle: -30)
-    let filter = C7ColorVector4.init(vector: Vector4.Color.warm)
+    //let filter = C7ColorVector4.init(vector: Vector4.Color.warm)
+    //let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.axix_red_rotate(90))
+    let filter = C7Hue.init(hue: 45)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
@@ -90,20 +105,5 @@ class ViewController: NSViewController {
         dest.filters.forEach {
             NSLog("%@", "\($0.parameterDescription)")
         }
-    }
-}
-
-extension ViewController {
-    func string(fromHTML html: String?, with font: NSFont? = nil) -> NSAttributedString {
-        var html = html
-        let font = font ?? .systemFont(ofSize: 0.0) // Default font
-        html = String(format: "<span style=\"font-family:'%@'; font-size:%dpx;\">%@</span>", font.fontName, Int(font.pointSize), html ?? "")
-        let data = html?.data(using: .utf8)
-        let options = [NSAttributedString.DocumentReadingOptionKey.textEncodingName: "UTF-8"]
-        var string: NSAttributedString? = nil
-        if let data {
-            string = NSAttributedString(html: data, options: options, documentAttributes: nil)
-        }
-        return string ?? NSAttributedString()
     }
 }

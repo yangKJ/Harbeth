@@ -113,4 +113,43 @@ extension Matrix4x4.Color {
         matrix.values[15] = min(1.0, max(0.0, alpha))
         return matrix
     }
+    
+    /// Rotates the color matrix by alpha degrees clockwise about the red component axis.
+    /// - Parameter angle: rotation degree.
+    /// - Returns: 4x4 color matrix.
+    public static func axix_red_rotate(_ angle: Float) -> Matrix4x4 {
+        var matrix = Matrix4x4.Color.identity
+        let radians = angle * Float.pi / 180.0
+        matrix.values[5] = cos(radians)
+        matrix.values[6] = sin(radians)
+        matrix.values[9] = -sin(radians)
+        matrix.values[10] = cos(radians)
+        return matrix
+    }
+    
+    /// Rotates the color matrix by alpha degrees clockwise about the green component axis.
+    /// - Parameter angle: rotation degree.
+    /// - Returns: 4x4 color matrix.
+    public static func axix_green_rotate(_ angle: Float) -> Matrix4x4 {
+        var matrix = Matrix4x4.Color.identity
+        let radians = angle * Float.pi / 180.0
+        matrix.values[0] = cos(radians)
+        matrix.values[2] = -sin(radians)
+        matrix.values[7] = sin(radians)
+        matrix.values[9] = cos(radians)
+        return matrix
+    }
+    
+    /// Rotates the color matrix by alpha degrees clockwise about the blue component axis.
+    /// - Parameter angle: rotation degree.
+    /// - Returns: 4x4 color matrix.
+    public static func axix_blue_rotate(_ angle: Float) -> Matrix4x4 {
+        var matrix = Matrix4x4.Color.identity
+        let radians = angle * Float.pi / 180.0
+        matrix.values[0] = cos(radians)
+        matrix.values[1] = sin(radians)
+        matrix.values[4] = -sin(radians)
+        matrix.values[5] = cos(radians)
+        return matrix
+    }
 }

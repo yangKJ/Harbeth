@@ -16,17 +16,16 @@ kernel void C7Rotate(texture2d<half, access::write> outputTexture [[texture(0)]]
     const float outY = float(grid.y) - outputTexture.get_height() / 2.0f;
     const float dd = distance(float2(outX, outY), float2(0, 0));
     const float pi = 3.14159265358979323846264338327950288;
+    const float w = inputTexture.get_width();
+    const float h = inputTexture.get_height();
     float outAngle = atan(outY / outX);
     if (outX < 0) { outAngle += pi; };
     const float inAngle = outAngle - float(*angle);
-    const float inX = (cos(inAngle) * dd + inputTexture.get_width() / 2.0f) / inputTexture.get_width();
-    const float inY = (sin(inAngle) * dd + inputTexture.get_height() / 2.0f) / inputTexture.get_height();
+    const float inX = (cos(inAngle) * dd + w / 2.0f) / w;
+    const float inY = (sin(inAngle) * dd + h / 2.0f) / h;
     
     // Set empty pixel when out of range
-    if (inX * inputTexture.get_width() < -1 ||
-        inX * inputTexture.get_width() > inputTexture.get_width() + 1 ||
-        inY * inputTexture.get_height() < -1 ||
-        inY * inputTexture.get_height() > inputTexture.get_height() + 1) {
+    if (inX * w < -1 || inX * w > w + 1 || inY * h < -1 || inY * h > h + 1) {
         outputTexture.write(half4(0), grid);
         return;
     }

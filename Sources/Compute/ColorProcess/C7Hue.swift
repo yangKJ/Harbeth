@@ -17,7 +17,7 @@ public struct C7Hue: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [hue]
+        return [Degree(value: hue).radians]
     }
     
     public init(hue: Float = 90.0) {

@@ -8,6 +8,7 @@
 import Foundation
 import simd
 
+/// 4维向量
 public struct Vector4: Matrix {
     
     public typealias MatrixType = vector_float4
@@ -16,7 +17,7 @@ public struct Vector4: Matrix {
     
     public init(values: [Float]) {
         if values.count != 4 {
-            C7FailedErrorInDebug("There must be nine values for Vector4.")
+            C7FailedErrorInDebug("There must be four values for Vector4.")
         }
         self.values = values
     }
