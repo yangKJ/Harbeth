@@ -20,10 +20,10 @@ public struct C7LookupSplit: C7FilterProtocol {
     public let lookupTexture1: MTLTexture?
     public let lookupTexture2: MTLTexture?
     
-    public var orientation: Orientation = .center
-    public var intensity: Float = 1.0
+    @ZeroOneRange public var intensity: Float = 1.0
     /// Split range, from 0.0 to 1.0, with a default of 0.0
-    public var progress: Float = progressRange.value
+    @ZeroOneRange public var progress: Float = progressRange.value
+    public var orientation: Orientation = .center
     
     public var modifier: Modifier {
         return .compute(kernel: "C7LookupSplit")

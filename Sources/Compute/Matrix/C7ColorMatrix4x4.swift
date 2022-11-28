@@ -10,10 +10,12 @@ import Foundation
 /// 4x4 color matrix.
 public struct C7ColorMatrix4x4: C7FilterProtocol {
     
-    /// Color offset for each channel, from 0 to 255.
-    public var offset: RGBAColor = .zero
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
+    
     /// The degree to which the new transformed color replaces the original color for each pixel, default 1
-    public var intensity: Float = 1.0
+    @ZeroOneRange public var intensity: Float = range.value
+    /// Color offset for each channel.
+    public var offset: RGBAColor = .zero
     public var matrix: Matrix4x4
     
     public var modifier: Modifier {

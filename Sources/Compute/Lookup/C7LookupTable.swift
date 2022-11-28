@@ -11,9 +11,13 @@ import MetalKit
 /// LUT映射滤镜
 public struct C7LookupTable: C7FilterProtocol {
     
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
+    
+    /// Opacity of lookup filter ranges from 0.0 to 1.0, with 1.0 as the normal setting.
+    @ZeroOneRange public var intensity: Float = range.value
+    
     public let lookupImage: C7Image?
     public let lookupTexture: MTLTexture?
-    public var intensity: Float = 1.0
     
     public var modifier: Modifier {
         return .compute(kernel: "C7LookupTable")

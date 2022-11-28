@@ -12,10 +12,10 @@ public struct C7WaterRipple: C7FilterProtocol {
     
     public static let rippleRange: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
     
+    /// The waves, from 0.0 to 1.0
+    @ZeroOneRange public var ripple: Float = rippleRange.value
     /// Click location, normalized
     public var touchCenter: C7Point2D = C7Point2D.center
-    /// The waves, from 0.0 to 1.0
-    public var ripple: Float = rippleRange.value
     /// The wave size
     public var boundary: Float = 0.06
     

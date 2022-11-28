@@ -15,8 +15,8 @@ public struct C7Point2D {
     public static let center  = C7Point2D(x: 0.5, y: 0.5)
     public static let zero    = C7Point2D(x: 0.0, y: 0.0)
     
-    public var x: Float
-    public var y: Float
+    @ZeroOneRange public var x: Float
+    @ZeroOneRange public var y: Float
     
     public init(x: Float, y: Float) {
         self.x = x

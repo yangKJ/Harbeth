@@ -7,16 +7,17 @@
 
 import Foundation
 
-/// 每个通道颜色偏移量，在`0 ~ 255`区间内
-/// Each channel color offset, from 0 to 255.
+/// RGBA色彩空间中的颜色，在`0 ~ 1`区间内
+/// Color in the RGBA color space, from 0 to 1.
 public struct RGBAColor {
     
     public static let zero = RGBAColor(red: 0, green: 0, blue: 0, alpha: 0)
+    public static let one  = RGBAColor(red: 1, green: 1, blue: 1, alpha: 1)
     
-    public var red:   Float = 0
-    public var green: Float = 0
-    public var blue:  Float = 0
-    public var alpha: Float = 0
+    @ZeroOneRange public var red: Float
+    @ZeroOneRange public var green: Float
+    @ZeroOneRange public var blue: Float
+    @ZeroOneRange public var alpha: Float
     
     public init(red: Float, green: Float, blue: Float, alpha: Float = 1.0) {
         self.red = red
@@ -26,7 +27,9 @@ public struct RGBAColor {
     }
     
     public init(color: C7Color) {
-        color.mt.toRGBA(red: &self.red, green: &self.green, blue: &self.blue, alpha: &self.alpha)
+        // See: https://developer.apple.com/documentation/uikit/uicolor/1621919-getred
+        let tuple = color.mt.toRGBA()
+        self.init(red: tuple.red, green: tuple.green, blue: tuple.blue, alpha: tuple.alpha)
     }
 }
 

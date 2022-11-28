@@ -10,7 +10,7 @@ import Foundation
 public struct C7Rotate: C7FilterProtocol {
     
     /// Angle to rotate, unit is degree
-    public var angle: Float
+    @DegreeRange public var angle: Float
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Rotate")

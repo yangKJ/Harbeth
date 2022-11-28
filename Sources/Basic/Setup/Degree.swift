@@ -20,3 +20,19 @@ public struct Degree {
 public prefix func -(degree: Degree) -> Degree {
     return Degree(value: -1 * degree.value)
 }
+
+/// `0.0 ..< 360.0` 范围角度区间属性包装器
+@propertyWrapper public struct DegreeRange {
+    
+    public var wrappedValue: Float {
+        didSet {
+            let value = wrappedValue.truncatingRemainder(dividingBy: 360.0)
+            wrappedValue = value >= 0 ? value : 360 + value
+        }
+    }
+    
+    public init(wrappedValue: Float) {
+        let value = wrappedValue.truncatingRemainder(dividingBy: 360.0)
+        self.wrappedValue = value >= 0 ? value : 360 + value
+    }
+}

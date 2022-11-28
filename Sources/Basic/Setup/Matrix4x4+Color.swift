@@ -64,7 +64,7 @@ extension Matrix4x4.Color {
         0.0, 0.0, 0.0, 1.0,
     ])
     
-    /// 灰度图矩阵
+    /// 灰度图矩阵，平均值法
     public static let gray = Matrix4x4(values: [
         0.33, 0.33, 0.33, 0.0,
         0.33, 0.33, 0.33, 0.0,

@@ -14,7 +14,7 @@ public struct CIHighlight: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
     
-    public var value: Float = range.value
+    @ZeroOneRange public var value: Float = range.value
     
     public var modifier: Modifier {
         return .coreimage(CIName: "CIHighlightShadowAdjust")

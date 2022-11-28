@@ -13,7 +13,8 @@ public struct C7Monochrome: C7FilterProtocol {
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
     
     /// The degree to which the specific color replaces the normal image color, from 0.0 to 1.0, with 0.0 as the default.
-    public var intensity: Float = range.value
+    @ZeroOneRange public var intensity: Float = range.value
+    
     /// Keep the color scheme
     public var color: C7Color = .zero
     

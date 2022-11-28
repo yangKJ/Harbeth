@@ -8,16 +8,20 @@
 import Foundation
 
 public struct C7ColorRGBA: C7FilterProtocol {
-
+    
     /// Modify the value of color single channel, `1` keeps the source channel color, `>1` adds red pigment, `<1` reduces red pigment
-    public var red:   Float = 1
-    public var green: Float = 1
-    public var blue:  Float = 1
-    public var alpha: Float = 1
+    @ZeroOneRange public var red: Float = 1
+    @ZeroOneRange public var green: Float = 1
+    @ZeroOneRange public var blue: Float = 1
+    @ZeroOneRange public var alpha: Float = 1
     /// Transparent colors are not processed, Will directly modify the overall color scheme
-    public var color: C7Color = .zero {
+    public var color: C7Color = .white {
         didSet {
-            color.mt.toRGBA(red: &red, green: &green, blue: &blue, alpha: &alpha)
+            let tuple = color.mt.toRGBA()
+            red = tuple.red
+            green = tuple.green
+            blue = tuple.blue
+            alpha = tuple.alpha
         }
     }
     
