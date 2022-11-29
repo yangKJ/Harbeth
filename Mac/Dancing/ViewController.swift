@@ -94,7 +94,9 @@ class ViewController: NSViewController {
     //let filter = C7Rotate.init(angle: -30)
     //let filter = C7ColorVector4.init(vector: Vector4.Color.warm)
     //let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.axix_red_rotate(90))
-    let filter = C7Hue.init(hue: 45)
+    //let filter = C7Hue.init(hue: 45)
+    //let filter = C7ThresholdSketch.init(edgeStrength: 2.5, threshold: 0.25)
+    let filter = C7ColorPacking.init(horizontalTexel: 2.5, verticalTexel: 5)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))

@@ -22,6 +22,11 @@ public struct Vector4: Matrix {
         self.values = values
     }
     
+    public init(color: C7Color) {
+        let (red, green, blue, alpha) = color.mt.toRGBA()
+        self.init(values: [red, green, blue, alpha])
+    }
+    
     public func to_factor() -> vector_float4 {
         vector_float4.init(x: values[0], y: values[1], z: values[2], w: values[3])
     }

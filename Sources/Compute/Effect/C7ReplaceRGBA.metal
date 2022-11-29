@@ -12,36 +12,28 @@ kernel void C7ReplaceRGBA(texture2d<half, access::write> outputTexture [[texture
                           texture2d<half, access::read> inputTexture [[texture(1)]],
                           constant float *thresholdSensitivity [[buffer(0)]],
                           constant float *smoothing [[buffer(1)]],
-                          constant float *colorR [[buffer(2)]],
-                          constant float *colorG [[buffer(3)]],
-                          constant float *colorB [[buffer(4)]],
-                          constant float *replaceColorR [[buffer(5)]],
-                          constant float *replaceColorG [[buffer(6)]],
-                          constant float *replaceColorB [[buffer(7)]],
-                          constant float *replaceColorA [[buffer(8)]],
+                          constant float3 *colorVector [[buffer(2)]],
+                          constant float4 *replaceColorVector [[buffer(3)]],
                           uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half R = half(*colorR);
-    const half G = half(*colorG);
-    const half B = half(*colorB);
+    const half3 color = half3(*colorVector);
     
-    const half maskY  = 0.2989h * R + 0.5866h * G + 0.1145h * B;
-    const half maskCr = 0.7132h * (R - maskY);
-    const half maskCb = 0.5647h * (B - maskY);
+    const half maskY  = 0.2989h * color.r + 0.5866h * color.g + 0.1145h * color.b;
+    const half maskCr = 0.7132h * (color.r - maskY);
+    const half maskCb = 0.5647h * (color.b - maskY);
     
     const half Y  = 0.2989h * inColor.r + 0.5866h * inColor.g + 0.1145h * inColor.b;
     const half Cr = 0.7132h * (inColor.r - Y);
     const half Cb = 0.5647h * (inColor.b - Y);
     
-    const half blendValue = smoothstep(half(*thresholdSensitivity), half(*thresholdSensitivity + *smoothing), distance(half2(Cr, Cb), half2(maskCr, maskCb)));
+    const half threshold = half(*thresholdSensitivity);
+    const half blendValue = smoothstep(threshold, half(threshold + *smoothing), distance(half2(Cr, Cb), half2(maskCr, maskCb)));
     
     half4 outColor = half4(inColor * blendValue);
     if (outColor.a == 0) {
-        outColor = half4(*replaceColorR, *replaceColorG, *replaceColorB, *replaceColorA);
+        outColor = half4(*replaceColorVector);
     }
     
     outputTexture.write(outColor, grid);
 }
-
-

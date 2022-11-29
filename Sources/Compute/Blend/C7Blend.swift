@@ -48,8 +48,7 @@ public struct C7Blend: C7FilterProtocol {
         case .alpha(let mixturePercent):
             return [mixturePercent]
         case .chromaKey(let threshold, let smoothing, let color):
-            var red: Float = 0, green: Float = 0, blue: Float = 0
-            color.mt.toRGB(red: &red, green: &green, blue: &blue)
+            let (red, green, blue, _) = color.mt.toRGBA()
             return [threshold, smoothing, red, green, blue]
         default:
             return []

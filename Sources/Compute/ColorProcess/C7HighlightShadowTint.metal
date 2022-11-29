@@ -12,17 +12,13 @@ kernel void C7HighlightShadowTint(texture2d<half, access::write> outputTexture [
                                   texture2d<half, access::read> inputTexture [[texture(1)]],
                                   constant float *shadowTintIntensity [[buffer(0)]],
                                   constant float *highlightTintIntensity [[buffer(1)]],
-                                  constant float *shadowTintColorR [[buffer(2)]],
-                                  constant float *shadowTintColorG [[buffer(3)]],
-                                  constant float *shadowTintColorB [[buffer(4)]],
-                                  constant float *highlightTintColorR [[buffer(5)]],
-                                  constant float *highlightTintColorG [[buffer(6)]],
-                                  constant float *highlightTintColorB [[buffer(7)]],
+                                  constant float3 *shadowVector [[buffer(2)]],
+                                  constant float3 *highlightVector [[buffer(3)]],
                                   uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half3 shadowTintColor = half3(*shadowTintColorR, *shadowTintColorG, *shadowTintColorB);
-    const half3 highlightTintColor = half3(*highlightTintColorR, *highlightTintColorG, *highlightTintColorB);
+    const half3 shadowTintColor = half3(*shadowVector);
+    const half3 highlightTintColor = half3(*highlightVector);
     const half3 luminanceWeighting = half3(0.2125, 0.7154, 0.0721);
     const half luminance = dot(inColor.rgb, luminanceWeighting);
     const half4 shadowResult = mix(inColor, max(inColor, half4(mix(shadowTintColor, inColor.rgb, luminance), inColor.a)), half(*shadowTintIntensity));

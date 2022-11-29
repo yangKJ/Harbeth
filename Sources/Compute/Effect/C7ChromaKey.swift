@@ -23,7 +23,13 @@ public struct C7ChromaKey: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [thresholdSensitivity, smoothing] + RGBAColor(color: color).toRGB()
+        return [thresholdSensitivity, smoothing]
+    }
+    
+    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
+        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
+        var factor = Vector3.init(color: color).to_factor()
+        computeEncoder.setBytes(&factor, length: Vector3.size, index: index + 1)
     }
     
     public init(thresholdSensitivity: Float = 0.4, smoothing: Float = 0.1, color: C7Color = .zero) {

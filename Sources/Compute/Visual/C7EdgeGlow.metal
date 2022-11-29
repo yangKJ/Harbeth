@@ -12,10 +12,7 @@ kernel void C7EdgeGlow(texture2d<half, access::write> outputTexture [[texture(0)
                        texture2d<half, access::sample> inputTexture [[texture(1)]],
                        constant float *timePointer [[buffer(0)]],
                        constant float *spacingPointer [[buffer(1)]],
-                       constant float *lineR [[buffer(2)]],
-                       constant float *lineG [[buffer(3)]],
-                       constant float *lineB [[buffer(4)]],
-                       constant float *lineA [[buffer(5)]],
+                       constant float4 *vectorColor [[buffer(2)]],
                        uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     const float w = outputTexture.get_width();
@@ -42,7 +39,7 @@ kernel void C7EdgeGlow(texture2d<half, access::write> outputTexture [[texture(0)
     }
     
     const half time = half(*timePointer);
-    const half4 lineColor = half4(*lineR, *lineG, *lineB, *lineA);
+    const half4 lineColor = half4(*vectorColor);
     
     const half4 outColor = half4(lineColor * sin(time * 5.0h) + inColor * cos(time * 5.0h));
     outputTexture.write(outColor, grid);

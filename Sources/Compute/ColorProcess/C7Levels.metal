@@ -33,12 +33,7 @@ kernel void  C7LevelsFilter(texture2d<half, access::write> outputTexture [[textu
                             uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half3 rgb = C7LevelsColor(inColor.rgb,
-                                    half3(*minimum),
-                                    half3(*middle),
-                                    half3(*maximum),
-                                    half3(*minOutput),
-                                    half3(*maxOutput));
+    const half3 rgb = C7LevelsColor(inColor.rgb, half3(*minimum), half3(*middle), half3(*maximum), half3(*minOutput), half3(*maxOutput));
     const half4 outColor = half4(rgb, inColor.a);
     
     outputTexture.write(outColor, grid);

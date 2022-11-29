@@ -25,7 +25,15 @@ public struct C7ReplaceRGBA: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [thresholdSensitivity, smoothing] + RGBAColor(color: chroma).toRGB() + RGBAColor(color: replaceColor).toRGB()
+        return [thresholdSensitivity, smoothing]
+    }
+    
+    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
+        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
+        var chromaFactor = Vector3.init(color: chroma).to_factor()
+        computeEncoder.setBytes(&chromaFactor, length: Vector3.size, index: index + 1)
+        var replaceColorFactor = Vector4(color: replaceColor).to_factor()
+        computeEncoder.setBytes(&replaceColorFactor, length: Vector4.size, index: index + 2)
     }
     
     public init(thresholdSensitivity: Float = 0.4,

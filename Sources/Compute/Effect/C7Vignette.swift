@@ -23,7 +23,13 @@ public struct C7Vignette: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [center.x, center.y] + RGBAColor(color: color).toRGB() + [start, end]
+        return [center.x, center.y, start, end]
+    }
+    
+    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
+        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
+        var factor = Vector3.init(color: color).to_factor()
+        computeEncoder.setBytes(&factor, length: Vector3.size, index: index + 1)
     }
     
     public init(start: Float = 0.3, end: Float = 0.75, color: C7Color = .zero) {

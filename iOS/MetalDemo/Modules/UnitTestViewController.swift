@@ -44,7 +44,9 @@ class UnitTestViewController: UIViewController {
 extension UnitTestViewController {
     
     func unitTest() {
-        let filter = C7LookupTable(name: "ll")
+        //let filter = C7LookupTable(name: "ll")
+        var filter = C7Levels()
+        filter.minimum = .green
 
         let dest = BoxxIO.init(element: originImage, filter: filter)
 
