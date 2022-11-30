@@ -96,7 +96,8 @@ class ViewController: NSViewController {
     //let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.axix_red_rotate(90))
     //let filter = C7Hue.init(hue: 45)
     //let filter = C7ThresholdSketch.init(edgeStrength: 2.5, threshold: 0.25)
-    let filter = C7ColorPacking.init(horizontalTexel: 2.5, verticalTexel: 5)
+    //let filter = C7ColorPacking.init(horizontalTexel: 2.5, verticalTexel: 5)
+    let filter = C7Fluctuate.init(extent: 50, amplitude: 0.003, fluctuate: 2.5)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
@@ -107,5 +108,18 @@ class ViewController: NSViewController {
         dest.filters.forEach {
             NSLog("%@", "\($0.parameterDescription)")
         }
+        
+        //dynamicTest()
+    }
+    
+    func dynamicTest() {
+        let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] timer in
+            guard let `self` = self else { return }
+            //self.filter.speed = (self.filter.speed) + Float(timer.timeInterval)
+            let dest = BoxxIO.init(element: self.originImage, filter: self.filter)
+            self.ImageView.image = try? dest.output()
+        }
+        RunLoop.current.add(timer, forMode: RunLoop.Mode.default)
+        timer.fire()
     }
 }
