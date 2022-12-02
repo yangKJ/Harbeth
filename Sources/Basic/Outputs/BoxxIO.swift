@@ -9,6 +9,7 @@ import Foundation
 import MetalKit
 import CoreImage
 import CoreMedia
+import CoreVideo
 
 /// Support ` UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer `
 @frozen public struct BoxxIO<Dest> : Destype, Cacheable {
