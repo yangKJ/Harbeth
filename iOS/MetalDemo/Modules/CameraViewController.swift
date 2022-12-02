@@ -52,4 +52,12 @@ extension CameraViewController: C7CollectorImageDelegate {
     func preview(_ collector: C7Collector, fliter image: C7Image) {
         self.originImageView.image = image
     }
+    
+    func captureOutput(_ collector: C7Collector, pixelBuffer: CVPixelBuffer) {
+        
+    }
+    
+    func captureOutput(_ collector: C7Collector, texture: MTLTexture) {
+        
+    }
 }

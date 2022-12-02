@@ -58,15 +58,10 @@ import CoreMedia
             if CFGetTypeID(element as CFTypeRef) == CVPixelBufferGetTypeID() {
                 return try filtering(pixelBuffer: element as! CVPixelBuffer) as! Dest
             }
-            #if os(iOS) || os(tvOS) || os(watchOS)
-            if #available(iOS 13.0, *), CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
+            if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *),
+               CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
                 return try filtering(sampleBuffer: element as! CMSampleBuffer) as! Dest
             }
-            #elseif os(macOS)
-            if #available(macOS 10.15, *), CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
-                return try filtering(sampleBuffer: element as! CMSampleBuffer) as! Dest
-            }
-            #endif
         } catch {
             throw error
         }

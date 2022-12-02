@@ -48,6 +48,14 @@ extension Matrix4x4.Color {
         0.00, 0.00, 0.00, 1.0,
     ])
     
+    /// 宝丽来彩色
+    public static let polaroid = Matrix4x4(values: [
+        1.4380, -0.062, -0.062, 0.0,
+        -0.122, 1.3780, -0.122, 0.0,
+        -0.016, -0.016, 1.4830, 0.0,
+        -0.030, 0.0500, -0.020, 1.0,
+    ])
+    
     /// 绿色通道加倍
     public static let greenDouble = Matrix4x4(values: [
         1.0, 0.0, 0.0, 0.0,

@@ -73,15 +73,18 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return Array(viewModel.datas.values)[section].count
+        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
+        return datas[section].value.count
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return Array(viewModel.datas.keys)[section]
+        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
+        return datas[section].key
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let element = Array(viewModel.datas.values)[indexPath.section][indexPath.row]
+        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
+        let element = datas[indexPath.section].value[indexPath.row]
         let cell = UITableViewCell(style: .value1, reuseIdentifier: HomeViewController.identifier)
         cell.selectionStyle = .none
         cell.accessoryType = .disclosureIndicator
@@ -96,7 +99,8 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let type = Array(viewModel.datas.values)[indexPath.section][indexPath.row]
+        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
+        let type = datas[indexPath.section].value[indexPath.row]
         let vc = viewModel.setupViewController(type)
         vc.title = type.rawValue
         tabBarController?.tabBar.isHidden = true

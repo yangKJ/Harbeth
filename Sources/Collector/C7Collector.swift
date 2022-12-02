@@ -58,9 +58,14 @@ extension C7Collector {
     
     func pixelBuffer2Image(_ pixelBuffer: CVPixelBuffer?) -> C7Image? {
         guard let pixelBuffer = pixelBuffer else { return nil }
+        delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
         if filters.isEmpty {
             // Fixed rgba => bgra when no filter is introduced.
             guard let cgimage = pixelBuffer.mt.toCGImage() else { return nil }
+            if let function = delegate?.captureOutput(_:texture:),
+               let texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) {
+                function(self, texture)
+            }
             return cgimage.mt.toC7Image()
         }
         let image = filteringAndConvert2Image(with: pixelBuffer)
@@ -89,6 +94,7 @@ extension C7Collector {
         guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
             return nil
         }
+        delegate?.captureOutput?(self, texture: texture)
         filters.forEach {
             do {
                 let size = $0.outputSize(input: C7Size(width: texture.width, height: texture.height))

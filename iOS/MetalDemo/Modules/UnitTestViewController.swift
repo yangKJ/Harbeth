@@ -44,12 +44,22 @@ class UnitTestViewController: UIViewController {
 extension UnitTestViewController {
     
     func unitTest() {
-        //let filter = C7LookupTable(name: "ll")
-        var filter = C7Levels()
-        filter.minimum = .green
+        let filter = C7LookupTable(name: "ll")
 
         let dest = BoxxIO.init(element: originImage, filter: filter)
 
         ImageView.image = try? dest.output()
+        
+        // 方案1:
+        //ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter, filter2]).output()
+        
+        // 方案2:
+        //ImageView.image = originImage.filtering(filter, filter2, filter3)
+                
+        // 方案3:
+        //ImageView.image = originImage ->> filter ->> filter2 ->> filter3
+        
+        // 方案4:
+        //ImageView.image = try? originImage.makeGroup(filters: [filter, filter2, filter3])
     }
 }

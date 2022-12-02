@@ -13,7 +13,7 @@ public protocol Outputable {
     /// Filter working
     /// - Parameter filter: It must be an object implementing C7FilterProtocol
     /// - Returns: Outputable
-    mutating func filtering<T>(_ filter: C7FilterProtocol?) -> T
+    mutating func filtering<T: Outputable>(_ filter: C7FilterProtocol?...) -> T
     
     /// Filter processing
     /// - Parameters:
@@ -32,9 +32,10 @@ public protocol Outputable {
 
 extension Outputable {
     
-    public func filtering<T>(_ filter: C7FilterProtocol?) -> T {
-        guard let filter = filter else { return self as! T }
-        let dest = BoxxIO.init(element: self, filters: [filter])
+    public func filtering<T>(_ filter: C7FilterProtocol?...) -> T where T : Outputable {
+        let filters = filter.compactMap { $0 }
+        if filters.isEmpty { return self as! T }
+        let dest = BoxxIO.init(element: self, filters: filters)
         return ((try? dest.output()) ?? self) as! T
     }
     

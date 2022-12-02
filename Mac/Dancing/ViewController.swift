@@ -97,17 +97,27 @@ class ViewController: NSViewController {
     //let filter = C7Hue.init(hue: 45)
     //let filter = C7ThresholdSketch.init(edgeStrength: 2.5, threshold: 0.25)
     //let filter = C7ColorPacking.init(horizontalTexel: 2.5, verticalTexel: 5)
-    let filter = C7Fluctuate.init(extent: 50, amplitude: 0.003, fluctuate: 2.5)
+    //let filter = C7Fluctuate.init(extent: 50, amplitude: 0.003, fluctuate: 2.5)
+    //let filter = C7Nostalgic.init(intensity: 0.6)
+    //let filter = C7ComicStrip.init()
+    let filter = C7OilPainting.init(radius: 4, pixel: 1)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
         
-        let dest = BoxxIO.init(element: originImage, filter: filter)
-        ImageView.image = try? dest.output()
+        NSLog("%@", "\(filter.parameterDescription)")
         
-        dest.filters.forEach {
-            NSLog("%@", "\($0.parameterDescription)")
-        }
+        // 方案1:
+        //ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
+        
+        // 方案2:
+        //ImageView.image = originImage.filtering(filter, filter2, filter3)
+                
+        // 方案3:
+        //ImageView.image = originImage ->> filter ->> filter2 ->> filter3
+        
+        // 方案4:
+        //ImageView.image = try? originImage.makeGroup(filters: [filter, filter2, filter3])
         
         //dynamicTest()
     }
@@ -115,7 +125,7 @@ class ViewController: NSViewController {
     func dynamicTest() {
         let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] timer in
             guard let `self` = self else { return }
-            //self.filter.speed = (self.filter.speed) + Float(timer.timeInterval)
+            //self.filter.intensity = (self.filter.intensity) + Float(timer.timeInterval/10)
             let dest = BoxxIO.init(element: self.originImage, filter: self.filter)
             self.ImageView.image = try? dest.output()
         }
