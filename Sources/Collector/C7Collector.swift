@@ -5,16 +5,8 @@
 //  Created by Condy on 2022/2/13.
 //
 
-@_exported import AVFoundation
 import Foundation
 import CoreVideo
-import MetalKit
-
-@discardableResult
-public func ->> (left: C7Collector, right: C7FilterProtocol) -> C7Collector {
-    left.filters.append(right)
-    return left
-}
 
 public class C7Collector: NSObject, Collectorable, Cacheable {
     

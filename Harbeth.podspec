@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.4.6'
+  s.version          = '0.4.7'
   s.summary          = 'About Metal graphics processing.'
   
   # This description is used to generate tags and improve search results.
@@ -31,12 +31,16 @@ Pod::Spec.new do |s|
   
   s.subspec 'Basic' do |xx|
     xx.source_files = 'Sources/Basic/**/*.swift'
-    xx.weak_frameworks = 'ImageIO', 'MetalKit'
+    xx.weak_frameworks = 'ImageIO', 'MetalKit', 'AVFoundation'
   end
   
   s.subspec 'Collector' do |xx|
     xx.source_files = 'Sources/Collector/*.swift'
     xx.dependency 'Harbeth/Basic'
+    xx.pod_target_xcconfig = {
+      'SWIFT_ACTIVE_COMPILATION_CONDITIONS' => 'HARBETH_COLLECTOR',
+      'GCC_PREPROCESSOR_DEFINITIONS' => 'HARBETH_COLLECTOR=1'
+    }
   end
   
   s.subspec 'Compute' do |xx|
