@@ -22,14 +22,30 @@ class UnitTestViewController: UIViewController {
         return imageView
     }()
     
+    lazy var leftBarButton: UIBarButtonItem = {
+        UIBarButtonItem(title: "Mourning", style: .plain, target: self, action: #selector(mourningAction))
+    }()
+    
+    lazy var overlay: UIView = {
+        let overlay = UIView.init(frame: view.bounds)
+        overlay.isUserInteractionEnabled = false
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        overlay.backgroundColor = .lightGray
+        overlay.layer.compositingFilter = "saturationBlendMode"
+        overlay.layer.zPosition = CGFloat(Float.greatestFiniteMagnitude)
+        return overlay
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         self.setupUI()
         self.unitTest()
+        self.setupGrayWindow()
     }
     
     func setupUI() {
         title = "Unit testing"
+        navigationItem.rightBarButtonItem = leftBarButton
         view.backgroundColor = UIColor.background
         view.addSubview(ImageView)
         NSLayoutConstraint.activate([
@@ -38,6 +54,26 @@ class UnitTestViewController: UIViewController {
             ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             ImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
         ])
+    }
+    
+    func setupGrayWindow() {
+        guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else {
+            return
+        }
+        window.addSubview(overlay)
+    }
+    
+    @objc func mourningAction() {
+        if #available(iOS 15.0, *) {
+            leftBarButton.isSelected = !leftBarButton.isSelected
+            if leftBarButton.isSelected {
+                self.overlay.removeFromSuperview()
+            } else {
+                self.setupGrayWindow()
+            }
+        } else {
+            self.overlay.removeFromSuperview()
+        }
     }
 }
 

@@ -8,6 +8,7 @@
 import Foundation
 
 /// 曝光效果
+/// See: https://docs.unity3d.com/cn/Packages/com.unity.render-pipelines.high-definition@10.4/manual/Override-Exposure.html
 public struct C7Exposure: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: -10.0, max: 10.0, value: 0.0)

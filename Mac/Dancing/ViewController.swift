@@ -100,7 +100,10 @@ class ViewController: NSViewController {
     //let filter = C7Fluctuate.init(extent: 50, amplitude: 0.003, fluctuate: 2.5)
     //let filter = C7Nostalgic.init(intensity: 0.6)
     //let filter = C7ComicStrip.init()
-    let filter = C7OilPainting.init(radius: 4, pixel: 1)
+    //let filter = C7OilPainting.init(radius: 4, pixel: 1)
+    //let filter = C7ColorVector4(vector: Vector4.Color.warm)
+    //let filter = C7Contrast.init(contrast: 1.5)
+    let filter = C7Exposure.init(exposure: 0.25)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
@@ -108,7 +111,7 @@ class ViewController: NSViewController {
         NSLog("%@", "\(filter.parameterDescription)")
         
         // 方案1:
-        //ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
+        ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
         
         // 方案2:
         //ImageView.image = originImage.filtering(filter, filter2, filter3)
