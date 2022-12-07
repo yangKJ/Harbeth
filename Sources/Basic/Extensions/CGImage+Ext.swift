@@ -85,7 +85,7 @@ extension Queen where Base: CGImage {
     }
     #endif
     
-    public func swapRgbaToBgra(context: CIContext? = nil) -> CGImage {
+    public func swapRedAndGreenAmount(context: CIContext? = nil) -> CGImage {
         let ctx = context ?? Device.context(cgImage: base)
         let ciImage = CIImage(cgImage: base)
         let source = "kernel vec4 swapRedAndGreenAmount(__sample s) { return s.bgra; }"

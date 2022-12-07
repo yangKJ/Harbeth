@@ -1,6 +1,6 @@
 {
   "name": "Harbeth",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "summary": "About Metal graphics processing.",
   "homepage": "https://github.com/yangKJ/Harbeth",
   "license": {
@@ -12,7 +12,7 @@
   },
   "source": {
     "git": "https://github.com/yangKJ/Harbeth.git",
-    "tag": "0.4.8"
+    "tag": "0.4.9"
   },
   "swift_versions": "5.0",
   "requires_arc": true,
@@ -63,6 +63,10 @@
         "Harbeth/Basic": [
 
         ]
+      },
+      "pod_target_xcconfig": {
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "HARBETH_COMPUTE",
+        "GCC_PREPROCESSOR_DEFINITIONS": "HARBETH_COMPUTE=1"
       }
     },
     {
