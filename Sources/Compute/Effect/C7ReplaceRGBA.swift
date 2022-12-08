@@ -9,7 +9,7 @@ import Foundation
 
 /// 先扣掉某种色系，然后再替换
 /// Subtract a color scheme and replace it later
-public struct C7ReplaceRGBA: C7FilterProtocol {
+public struct C7ReplaceRGBA: C7FilterProtocol, ComputeFiltering {
     
     /// How close a color match needs to exist to the target color to be replaced (default of 0.4)
     public var thresholdSensitivity: Float = 0.4

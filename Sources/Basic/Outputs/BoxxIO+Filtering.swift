@@ -17,7 +17,7 @@ extension BoxxIO {
         }
         do {
             for filter in filters {
-                let OSize = filter.outputSize(input: C7Size(width: texture.width, height: texture.height))
+                let OSize = filter.resize(input: C7Size(width: texture.width, height: texture.height))
                 // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
                 // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
                 let OTexture = Processed.destTexture(pixelFormat: bufferPixelFormat, width: OSize.width, height: OSize.height)

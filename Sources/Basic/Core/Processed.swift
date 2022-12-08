@@ -28,7 +28,7 @@ internal struct Processed {
         }
         var outputTexture = outTexture
         if outputTexture == nil {
-            let outputSize = filter.outputSize(input: C7Size(width: inTexture.width, height: inTexture.height))
+            let outputSize = filter.resize(input: C7Size(width: inTexture.width, height: inTexture.height))
             outputTexture = destTexture(width: outputSize.width, height: outputSize.height)
         }
         if case .compute(let kernel) = filter.modifier {
@@ -37,16 +37,13 @@ internal struct Processed {
             }
             var textures = [outputTexture!, inTexture]
             textures += filter.otherInputTextures
-            commandBuffer.label = "Condy" + kernel
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
         } else if case .render(let vertex, let fragment) = filter.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
                 throw C7CustomError.renderPipelineState(vertex, fragment)
             }
-            commandBuffer.label = "Condy" + vertex + "_" + fragment
             Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, texture: inTexture, filter: filter)
         } else if case .mps(let performance) = filter.modifier {
-            commandBuffer.label = "Condy" + performance.description
             performance.encode(commandBuffer: commandBuffer, sourceTexture: inTexture, destinationTexture: outputTexture!)
         }
         commandBuffer.commit()

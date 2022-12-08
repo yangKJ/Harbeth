@@ -10,7 +10,7 @@ import CoreImage
 
 /// Adjusts the reference white point for an image and maps all colors in the source using the new reference.
 /// https://cifilter.io/CIWhitePointAdjust/
-public struct CIWhitePoint: C7FilterProtocol {
+public struct CIWhitePoint: C7FilterProtocol, CoreImageFiltering {
     
     /// A color to use as the white point.
     public var color: C7Color = .white {

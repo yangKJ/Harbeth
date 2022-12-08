@@ -10,11 +10,11 @@ import Harbeth
 
 class UnitTestViewController: UIViewController {
     
-    let originImage = R.image("timg-2")
+    let originImage = R.image("AX")
     
     lazy var ImageView: UIImageView = {
         let imageView = UIImageView()
-        imageView.contentMode = .scaleAspectFit
+        //imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.borderColor = UIColor.background2?.cgColor
         imageView.layer.borderWidth = 0.5
@@ -23,7 +23,13 @@ class UnitTestViewController: UIViewController {
     }()
     
     lazy var leftBarButton: UIBarButtonItem = {
-        UIBarButtonItem(title: "Mourning", style: .plain, target: self, action: #selector(mourningAction))
+        let bar = UIBarButtonItem(title: "Mourning", style: .plain, target: self, action: #selector(mourningAction))
+        if #available(iOS 15.0, *) {
+            bar.isSelected = true
+        } else {
+            // Fallback on earlier versions
+        }
+        return bar
     }()
     
     lazy var overlay: UIView = {
@@ -40,7 +46,7 @@ class UnitTestViewController: UIViewController {
         super.viewDidLoad()
         self.setupUI()
         self.unitTest()
-        self.setupGrayWindow()
+        //self.setupGrayWindow()
     }
     
     func setupUI() {
@@ -50,7 +56,8 @@ class UnitTestViewController: UIViewController {
         view.addSubview(ImageView)
         NSLayoutConstraint.activate([
             ImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
-            ImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
+            ImageView.heightAnchor.constraint(equalTo: ImageView.widthAnchor, multiplier: 1.0),
+            //ImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
             ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             ImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
         ])
@@ -86,16 +93,16 @@ extension UnitTestViewController {
 
         ImageView.image = try? dest.output()
         
-        // 方案1:
+        // test case1:
         //ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter, filter2]).output()
         
-        // 方案2:
+        // test case2:
         //ImageView.image = originImage.filtering(filter, filter2, filter3)
                 
-        // 方案3:
+        // test case3:
         //ImageView.image = originImage ->> filter ->> filter2 ->> filter3
         
-        // 方案4:
+        // test case4:
         //ImageView.image = try? originImage.makeGroup(filters: [filter, filter2, filter3])
     }
 }

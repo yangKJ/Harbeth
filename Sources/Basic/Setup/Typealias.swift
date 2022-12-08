@@ -6,11 +6,6 @@
 //
 
 import Foundation
-@_exported import MetalKit
-@_exported import CoreVideo
-@_exported import CoreImage
-@_exported import CoreMedia
-@_exported import AVFoundation
 
 #if os(iOS) || os(tvOS) || os(watchOS)
 import UIKit

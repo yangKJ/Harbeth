@@ -103,7 +103,8 @@ class ViewController: NSViewController {
     //let filter = C7OilPainting.init(radius: 4, pixel: 1)
     //let filter = C7ColorVector4(vector: Vector4.Color.warm)
     //let filter = C7Contrast.init(contrast: 1.5)
-    let filter = C7Exposure.init(exposure: 0.25)
+    //let filter = C7Exposure.init(exposure: 0.25)
+    let filter = C7FalseColor.init(fristColor: .blue, secondColor: .green)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))

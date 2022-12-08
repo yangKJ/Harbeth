@@ -20,7 +20,7 @@ public struct C7Rotate: C7FilterProtocol {
         return [Degree(value: angle).radians]
     }
     
-    public func outputSize(input size: C7Size) -> C7Size {
+    public func resize(input size: C7Size) -> C7Size {
         return mode.rotate(angle: Degree(value: angle).radians, size: size)
     }
     

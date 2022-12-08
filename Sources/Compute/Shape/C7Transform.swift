@@ -8,7 +8,7 @@
 import Foundation
 import simd
 
-public struct C7Transform: C7FilterProtocol {
+public struct C7Transform: C7FilterProtocol, ComputeFiltering {
     
     public var transform: CGAffineTransform
     public var anchorPoint: C7Point2D = C7Point2D.zero
@@ -21,7 +21,7 @@ public struct C7Transform: C7FilterProtocol {
         return anchorPoint.toFloatArray()
     }
     
-    public func outputSize(input size: C7Size) -> C7Size {
+    public func resize(input size: C7Size) -> C7Size {
         return mode.transform(transform, size: size)
     }
     

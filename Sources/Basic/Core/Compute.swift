@@ -51,8 +51,10 @@ internal struct Compute {
             computeEncoder.setBytes(&factor, length: size, index: i)
         }
         
-        /// 配置特殊参数非`Float`类型，例如4x4矩阵
-        filter.setupSpecialFactors(for: computeEncoder, index: count - 1)
+        if let filter = filter as? ComputeFiltering {
+            /// 配置特殊参数非`Float`类型，例如4x4矩阵
+            filter.setupSpecialFactors(for: computeEncoder, index: count - 1)
+        }
         
         // Too large some Gpus are not supported. Too small gpus have low efficiency
         // 2D texture, depth set to 1

@@ -34,7 +34,7 @@ public enum Modifier {
     case mps(performance: MPSUnaryImageKernel)
 }
 
-public protocol C7FilterProtocol {
+public protocol C7FilterProtocol: Mirrorable {
     
     /// Encoder type and corresponding function name
     ///
@@ -52,8 +52,17 @@ public protocol C7FilterProtocol {
     var otherInputTextures: C7InputTextures { get }
     
     /// Change the size of the output image
-    func outputSize(input size: C7Size) -> C7Size
-    
+    func resize(input size: C7Size) -> C7Size
+}
+
+extension C7FilterProtocol {
+    public var factors: [Float] { [] }
+    public var otherInputTextures: C7InputTextures { [] }
+    public func resize(input size: C7Size) -> C7Size { size }
+}
+
+
+public protocol ComputeFiltering {
     /// 特殊类型参数因子，例如4x4矩阵
     /// 这些参数是在`factors`之后传递进入
     /// 如果参数因子能够转成`Float`并且个数小于16建议直接使用`factors`传递
@@ -72,12 +81,9 @@ public protocol C7FilterProtocol {
     ///   - encoder: encoder, can be parallel computation encoder, can also be render 3D encoder
     ///   - index: Current parameter factor, after use please directly add, Please refer to the `C7ColorMatrix4x4`
     func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int)
-    
-    /// Setup the vertex shader parameters.
-    /// - Parameter device: MTLDevice
-    /// - Returns: Vertex uniform buffer.
-    func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer?
-    
+}
+
+public protocol CoreImageFiltering {
     /// CoreImage 滤镜专属方案
     ///
     /// - Parameters:
@@ -85,37 +91,11 @@ public protocol C7FilterProtocol {
     ///   - ciImage: Input source
     /// - Returns: Output source
     func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage
-    
-    /// Parametric description.
-    var parameterDescription: [String: Any] { get }
 }
 
-extension C7FilterProtocol {
-    public var factors: [Float] { [] }
-    public var otherInputTextures: C7InputTextures { [] }
-    public func outputSize(input size: C7Size) -> C7Size { size }
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) { }
-    public func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer? { return nil }
-    public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage { ciImage }
-    public var parameterDescription: [String: Any] { mapDictionary(mirror: Mirror(reflecting: self)) }
-}
-
-extension C7FilterProtocol {
-    private func mapDictionary(mirror: Mirror) -> [String: Any] {
-        var dict: [String: Any] = [:]
-        for child in mirror.children {
-            // If there is no labe, it will be discarded.
-            if let label = child.label {
-                //_ = Mirror(reflecting: child.value)
-                dict[label] = child.value
-            }
-        }
-        if let superMirror = mirror.superclassMirror {
-            let superDic = mapDictionary(mirror: superMirror)
-            for x in superDic {
-                dict[x.key] = x.value
-            }
-        }
-        return dict
-    }
+public protocol RenderFiltering {
+    /// Setup the vertex shader parameters.
+    /// - Parameter device: MTLDevice
+    /// - Returns: Vertex uniform buffer.
+    func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer?
 }

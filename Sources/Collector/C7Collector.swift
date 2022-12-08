@@ -95,7 +95,7 @@ extension C7Collector {
         delegate?.captureOutput?(self, texture: texture)
         filters.forEach {
             do {
-                let size = $0.outputSize(input: C7Size(width: texture.width, height: texture.height))
+                let size = $0.resize(input: C7Size(width: texture.width, height: texture.height))
                 let destTexture = Processed.destTexture(width: size.width, height: size.height)
                 texture = try Processed.IO(inTexture: texture, outTexture: destTexture, filter: $0)
             } catch { }

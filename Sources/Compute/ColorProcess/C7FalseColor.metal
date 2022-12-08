@@ -19,7 +19,7 @@ kernel void C7FalseColor(texture2d<half, access::write> outputTexture [[texture(
     const half luminance = dot(inColor.rgb, luminanceWeighting);
     const half3 color1 = half3(*firstVector);
     const half3 color2 = half3(*secondVector);
-    const half4 outColor = half4(mix(half3(color1.rgb), half3(color2.rgb), half3(luminance)), inColor.a);
+    const half4 outColor = half4(mix(color1.rgb, color2.rgb, half3(luminance)), inColor.a);
     
     outputTexture.write(outColor, grid);
 }

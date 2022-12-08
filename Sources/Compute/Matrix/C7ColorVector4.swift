@@ -8,7 +8,7 @@
 import Foundation
 
 /// 四维向量颜色
-public struct C7ColorVector4: C7FilterProtocol {
+public struct C7ColorVector4: C7FilterProtocol, ComputeFiltering {
     
     public var vector: Vector4
     

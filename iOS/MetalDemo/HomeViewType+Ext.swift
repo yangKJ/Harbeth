@@ -92,7 +92,7 @@ extension ViewControllerType {
         case .Hue:
             var filter = C7Hue()
             filter.hue = 30
-            return (filter, (30, 0, 45), {
+            return (filter, (30, 0, 180), {
                 filter.hue = $0
                 return filter
             })
@@ -118,7 +118,7 @@ extension ViewControllerType {
         case .ChannelRGBA:
             var filter = C7ColorRGBA()
             filter.color = UIColor.white
-            return (filter, (filter.red, 0, 10), {
+            return (filter, (filter.red, 0, 1), {
                 filter.red = $0
                 return filter
             })
@@ -361,7 +361,6 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .ColorMatrix4x4:
             var filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.replaced_red_green)
-            filter.offset = RGBAColor(red: 0, green: 0, blue: 1, alpha: 0)
             filter.intensity = 0.3
             return (filter, (0.3, 0.1, 1.0), {
                 filter.intensity = $0

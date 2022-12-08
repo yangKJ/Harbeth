@@ -28,7 +28,7 @@ public class C7Crop: C7FilterProtocol {
         return origin.toFloatArray()
     }
     
-    public func outputSize(input size: C7Size) -> C7Size {
+    public func resize(input size: C7Size) -> C7Size {
         return crop(size: size)
     }
     

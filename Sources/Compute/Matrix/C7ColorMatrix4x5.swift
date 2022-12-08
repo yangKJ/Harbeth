@@ -8,7 +8,7 @@
 import Foundation
 
 /// 4 x 5 color matrix.
-public struct C7ColorMatrix4x5: C7FilterProtocol {
+public struct C7ColorMatrix4x5: C7FilterProtocol, ComputeFiltering {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
     

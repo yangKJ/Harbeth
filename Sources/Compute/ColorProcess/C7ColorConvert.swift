@@ -18,6 +18,7 @@ public struct C7ColorConvert: C7FilterProtocol {
         case gbra = "C7Color2GBRA"
         case grba = "C7Color2GRBA"
         case rbga = "C7Color2RBGA"
+        case y = "C7Color2Y"
     }
     
     private let type: ColorType

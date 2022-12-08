@@ -12,6 +12,7 @@ import MetalKit
 internal struct COImage {
     
     @inlinable static func drawingProcess(ciImage: CIImage, name: String, filter: C7FilterProtocol) -> CIImage {
+        guard let filter = filter as? CoreImageFiltering else { return ciImage }
         let cifiter = CIFilter.init(name: name)
         let ciimage = filter.coreImageApply(filter: cifiter, input: ciImage)
         cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
@@ -47,7 +48,9 @@ extension COImage {
         }
         var ciimage = CIImage.init(cgImage: cgImage)
         let cifiter = CIFilter.init(name: name)
-        ciimage = filter.coreImageApply(filter: cifiter, input: ciimage)
+        if let filter = filter as? CoreImageFiltering {
+            ciimage = filter.coreImageApply(filter: cifiter, input: ciimage)
+        }
         cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
         
         let colorSpace = Device.colorSpace()
