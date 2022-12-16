@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 阀值素描感滤镜
 public struct C7ThresholdSketch: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.25)

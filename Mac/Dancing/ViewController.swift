@@ -104,15 +104,22 @@ class ViewController: NSViewController {
     //let filter = C7ColorVector4(vector: Vector4.Color.warm)
     //let filter = C7Contrast.init(contrast: 1.5)
     //let filter = C7Exposure.init(exposure: 0.25)
-    let filter = C7FalseColor.init(fristColor: .blue, secondColor: .green)
+    //let filter = C7FalseColor.init(fristColor: .blue, secondColor: .green)
+    //let filter = C7Gamma.init(gamma: 3.0)
+    //let filter = C7Haze.init(distance: 0.25, slope: 0.5)
+    //let filter = C7Monochrome.init(intensity: 0.83, color: .blue)
+    //let filter = C7Opacity.init(opacity: 0.75)
+    let filter = C7Posterize.init(colorLevels: 2.3)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
         
+        ImageView.image = C7Color.systemPink.mt.colorImage(with: CGSize(width: 671, height: 300))
+        
         NSLog("%@", "\(filter.parameterDescription)")
         
         // 方案1:
-        ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
+        //ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
         
         // 方案2:
         //ImageView.image = originImage.filtering(filter, filter2, filter3)

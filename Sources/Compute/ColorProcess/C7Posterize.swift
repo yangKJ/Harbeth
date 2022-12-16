@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 海报化效果滤镜
 public struct C7Posterize: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 1.0, max: 255.0, value: 10.0)

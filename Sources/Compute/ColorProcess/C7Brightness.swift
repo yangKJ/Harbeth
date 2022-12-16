@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// 亮度
 public struct C7Brightness: C7FilterProtocol {
     
     /// The adjusted brightness, from -1.0 to 1.0, with a default of 0.0 being the original picture.

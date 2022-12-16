@@ -70,39 +70,46 @@ extension Queen where Base: C7Color {
         return RGBAColor(color: base)
     }
     
-    /// Convert RGBA value, transparent color does not do processing
-    public func toRGBA(red: inout Float, green: inout Float, blue: inout Float, alpha: inout Float) {
-        if base == C7Color.zero { return }
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
-        red = Float(r); green = Float(g); blue = Float(b); alpha = Float(a)
-    }
-    
     public func toRGBA() -> (red: Float, green: Float, blue: Float, alpha: Float) {
         if base == C7Color.zero { return (0,0,0,0) }
+        let color = base.mt.usingColorSpace_sRGB()
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
         return (Float(r), Float(g), Float(b), Float(a))
     }
     
-    /// Convert RGB value, transparent color does not do processing
-    public func toRGB(red: inout Float, green: inout Float, blue: inout Float) {
+    /// Convert RGBA value, transparent color does not do processing
+    public func toRGBA(red: inout Float, green: inout Float, blue: inout Float, alpha: inout Float) {
         if base == C7Color.zero { return }
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        self.base.getRed(&r, green: &g, blue: &b, alpha: &a)
-        red = Float(r); green = Float(g); blue = Float(b)
+        let (r, g, b, a) = base.mt.toRGBA()
+        red = r; green = g; blue = b; alpha = a;
     }
     
     /// RGB to YUV.
     /// - See: https://en.wikipedia.org/wiki/YUV
     public var yuv: (y: Float, u: Float, v: Float) {
         if base == C7Color.zero { return (0,0,0) }
-        var r: CGFloat = 1, g: CGFloat = 1, b: CGFloat = 1
-        base.getRed(&r, green: &g, blue: &b, alpha: nil)
+        let (r, g, b, _) = base.mt.toRGBA()
         let y = 0.212600 * r + 0.71520 * g + 0.07220 * b
         let u = -0.09991 * r - 0.33609 * g + 0.43600 * b
         let v = 0.615000 * r - 0.55861 * g - 0.05639 * b
         return (Float(y), Float(u), Float(v))
+    }
+    
+    /// Fixed `*** -getRed:green:blue:alpha: not valid for the NSColor Generic Gray Gamma 2.2 Profile colorspace 1 1;
+    /// Need to first convert colorspace.
+    /// See: https://stackoverflow.com/questions/67314642/color-not-valid-for-the-nscolor-generic-gray-gamma-when-creating-sktexture-fro
+    /// - Returns: Color.
+    func usingColorSpace_sRGB() -> C7Color {
+        #if os(macOS)
+        let colors: [C7Color] = [
+            .white, .black, .gray, .systemPink,
+        ]
+        if colors.contains(base) {
+            return base.usingColorSpace(.sRGB) ?? base
+        }
+        #endif
+        return base
     }
 }
 
