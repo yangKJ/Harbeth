@@ -114,16 +114,16 @@ class ViewController: NSViewController {
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
         
-        ImageView.image = C7Color.systemPink.mt.colorImage(with: CGSize(width: 671, height: 300))
+        //ImageView.image = C7Color.systemPink.mt.colorImage(with: CGSize(width: 671, height: 300))
         
         NSLog("%@", "\(filter.parameterDescription)")
         
         // 方案1:
-        //ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
+        ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
         
         // 方案2:
         //ImageView.image = originImage.filtering(filter, filter2, filter3)
-                
+        
         // 方案3:
         //ImageView.image = originImage ->> filter ->> filter2 ->> filter3
         
