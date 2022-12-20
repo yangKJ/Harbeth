@@ -102,14 +102,10 @@ extension Queen where Base: C7Color {
     /// - Returns: Color.
     func usingColorSpace_sRGB() -> C7Color {
         #if os(macOS)
-        let colors: [C7Color] = [
-            .white, .black, .gray, .systemPink,
-        ]
-        if colors.contains(base) {
-            return base.usingColorSpace(.sRGB) ?? base
-        }
-        #endif
+        return base.usingColorSpace(.sRGB) ?? base
+        #else
         return base
+        #endif
     }
 }
 

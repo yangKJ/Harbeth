@@ -87,20 +87,20 @@ class UnitTestViewController: UIViewController {
 extension UnitTestViewController {
     
     func unitTest() {
-//        let filter = C7LookupTable(name: "ll")
-//
-//        let dest = BoxxIO.init(element: originImage, filter: filter)
-//
-//        ImageView.image = try? dest.output()
+        let filter = C7LookupTable(name: "ll")
         
-        ImageView.image = C7Color.gray.mt.colorImage(with: CGSize(width: 600, height: 600))
+        let dest = BoxxIO.init(element: originImage, filter: filter)
+        
+        ImageView.image = try? dest.output()
+        
+        //ImageView.image = C7Color.gray.mt.colorImage(with: CGSize(width: 600, height: 600))
         
         // test case1:
         //ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter, filter2]).output()
         
         // test case2:
         //ImageView.image = originImage.filtering(filter, filter2, filter3)
-                
+        
         // test case3:
         //ImageView.image = originImage ->> filter ->> filter2 ->> filter3
         
