@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// 白平衡
+/// 基于色温调整白平衡
 public struct C7WhiteBalance: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 4000, max: 7000, value: 5000)
@@ -23,10 +23,7 @@ public struct C7WhiteBalance: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [
-            temperature < 5000 ? 0.0004 * (temperature - 5000) : 0.00006 * (temperature - 5000),
-            tint / 100
-        ]
+        return [temperature, tint]
     }
     
     public init(temperature: Float = range.value, tint: Float = 0) {
