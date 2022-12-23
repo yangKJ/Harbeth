@@ -16,14 +16,6 @@ precedencegroup AppendPrecedence {
 
 infix operator ->> : AppendPrecedence
 
-#if HARBETH_COLLECTOR
-@discardableResult
-public func ->> (left: C7Collector, right: C7FilterProtocol) -> C7Collector {
-    left.filters.append(right)
-    return left
-}
-#endif
-
 @discardableResult
 public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
     let dest = BoxxIO.init(element: left, filters: [right])

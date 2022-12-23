@@ -56,11 +56,16 @@ extension Queen where Base: CIImage {
     /// - Parameters:
     ///   - colorSpace: Color space
     ///   - context: An evaluation context for rendering image processing results and performing image analysis.
+    ///   - mirrored: New image representing the original image transformeded.
     /// - Returns: Newly created CGImage.
-    public func toCGImage(colorSpace: CGColorSpace? = nil, context: CIContext? = nil) -> CGImage? {
+    public func toCGImage(colorSpace: CGColorSpace? = nil, context: CIContext? = nil, mirrored: Bool = false) -> CGImage? {
         if let cgImage = base.cgImage { return cgImage }
         let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
         let context = context ?? Device.context(colorSpace: colorSpace)
-        return context.createCGImage(base, from: base.extent)
+        var ciImage: CIImage = base
+        if mirrored, #available(iOS 11.0, *) {
+            ciImage = ciImage.oriented(.downMirrored)
+        }
+        return context.createCGImage(ciImage, from: base.extent)
     }
 }

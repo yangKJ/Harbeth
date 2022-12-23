@@ -158,20 +158,10 @@ extension Device {
     }
     
     static func context(options: [CIContextOption : Any]) -> CIContext {
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        if #available(iOS 13.0, *) {
+        if #available(iOS 13.0, *, macOS 10.15, *) {
             return CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
         } else {
             return CIContext(options: options)
         }
-        #elseif os(macOS)
-        if #available(macOS 10.15, *) {
-            return CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-        } else {
-            return CIContext(options: options)
-        }
-        #else
-        #error("Unsupported Platform")
-        #endif
     }
 }

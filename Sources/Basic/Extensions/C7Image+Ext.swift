@@ -22,14 +22,19 @@ extension Queen where Base == C7Image {
         return (cgimage ?? base.cgImage)?.mt.toTexture()
     }
     
-    #if os(iOS)
     public func toCIImage() -> CIImage? {
+        #if os(iOS) || os(tvOS) || os(watchOS)
         if let ciImage = base.ciImage {
             return ciImage
         }
         return CIImage(image: base)
+        #else
+        if let cgImage = base.cgImage {
+            return CIImage(cgImage: cgImage)
+        }
+        return nil
+        #endif
     }
-    #endif
 }
 
 // MARK: - edit image
