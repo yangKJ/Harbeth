@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-internal final class Device {
+internal final class Device: Cacheable {
     
     /// Device information to create other objects
     /// MTLDevice creation is expensive, time-consuming, and can be used forever, so you only need to create it once
@@ -142,6 +142,10 @@ extension Device {
 }
 
 extension Device {
+    
+    static func sharedTextureCache() -> CVMetalTextureCache? {
+        return Shared.shared.device?.textureCache
+    }
     
     static func context() -> CIContext {
         return Shared.shared.device!.context

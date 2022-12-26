@@ -12,7 +12,7 @@ import CoreImage
 extension BoxxIO {
     
     func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
-        guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
+        guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: Device.sharedTextureCache()) else {
             throw C7CustomError.source2Texture
         }
         do {

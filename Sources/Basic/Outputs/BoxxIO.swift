@@ -12,7 +12,7 @@ import CoreMedia
 import CoreVideo
 
 /// Support ` UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer `
-@frozen public struct BoxxIO<Dest> : Destype, Cacheable {
+@frozen public struct BoxxIO<Dest> : Destype {
     public typealias Element = Dest
     public var element: Dest
     public var filters: [C7FilterProtocol]
