@@ -31,15 +31,15 @@ extension BoxxIO {
     }
     
     func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+        guard var pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw C7CustomError.source2Texture
         }
         do {
-            let _ = try filtering(pixelBuffer: pixelBuffer)
+            pixelBuffer = try filtering(pixelBuffer: pixelBuffer)
+            return pixelBuffer.mt.toCMSampleBuffer() ?? sampleBuffer
         } catch {
             throw error
         }
-        return sampleBuffer
     }
     
     func filtering(ciImage: CIImage) throws -> CIImage {

@@ -8,19 +8,18 @@
 import Foundation
 import AVFoundation
 
+#if os(iOS) || os(tvOS) || os(watchOS)
 public final class C7CollectorVideo: C7Collector {
     
     private var player: AVPlayer!
     public private(set) var videoOutput: AVPlayerItemVideoOutput!
     
-    #if os(iOS) || os(tvOS) || os(watchOS)
     lazy var displayLink: CADisplayLink = {
         let displayLink = CADisplayLink(target: self, selector: #selector(readBuffer(_:)))
         displayLink.add(to: .current, forMode: RunLoop.Mode.default)
         displayLink.isPaused = true
         return displayLink
     }()
-    #endif
     
     public convenience init(player: AVPlayer, callback: @escaping C7FilterImageCallback) {
         self.init(callback: callback)
@@ -50,16 +49,12 @@ extension C7CollectorVideo {
     
     public func play() {
         player.play()
-        #if os(iOS) || os(tvOS) || os(watchOS)
         displayLink.isPaused = false
-        #endif
     }
     
     public func pause() {
         player.pause()
-        #if os(iOS) || os(tvOS) || os(watchOS)
         displayLink.isPaused = true
-        #endif
     }
 }
 
@@ -75,7 +70,6 @@ extension C7CollectorVideo {
         videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: videoSettings)
     }
     
-    #if os(iOS) || os(tvOS) || os(watchOS)
     @objc func readBuffer(_ sender: CADisplayLink) {
         let time = videoOutput.itemTime(forHostTime: sender.timestamp + sender.duration)
         guard videoOutput.hasNewPixelBuffer(forItemTime: time) else {
@@ -84,5 +78,5 @@ extension C7CollectorVideo {
         let pixelBuffer = videoOutput.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil)
         self.processing(with: pixelBuffer)
     }
-    #endif
 }
+#endif

@@ -112,7 +112,8 @@ class ViewController: NSViewController {
     //let filter = C7Posterize.init(colorLevels: 2.3)
     //let filter = C7Vibrance.init(vibrance: -1.2)
     //let filter = C7WhiteBalance.init(temperature: 4000, tint: -200)
-    let filter = C7ColorSpace.init(with: .rgb_to_yuv)
+    //let filter = C7ColorSpace.init(with: .rgb_to_yuv)
+    let filter = C7BilateralBlur.init(radius: 0.5)
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
