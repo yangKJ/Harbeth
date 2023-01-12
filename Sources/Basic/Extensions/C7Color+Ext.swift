@@ -65,9 +65,9 @@ extension C7Color: C7Compatible {
 
 extension Queen where Base: C7Color {
     
-    /// Convert RGBA value
-    public func toC7RGBAColor() -> RGBAColor {
-        return RGBAColor(color: base)
+    /// Convert pixel color value
+    public func toPixelColor() -> PixelColor {
+        PixelColor(color: base)
     }
     
     public func toRGBA() -> (red: Float, green: Float, blue: Float, alpha: Float) {

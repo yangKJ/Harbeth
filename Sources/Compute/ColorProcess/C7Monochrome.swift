@@ -23,7 +23,7 @@ public struct C7Monochrome: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [intensity] + RGBAColor(color: color).toRGB()
+        return [intensity] + PixelColor(color: color).toRGB()
     }
     
     public init(intensity: Float = range.value, color: C7Color = .zero) {

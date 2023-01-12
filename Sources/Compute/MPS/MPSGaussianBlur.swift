@@ -14,7 +14,7 @@ public struct MPSGaussianBlur: C7FilterProtocol {
     public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 100, value: 10)
     
     /// The radius determines how many pixels are used to create the blur.
-    public var radius: Float = range.value {
+    @Clamping(range.min...range.max) public var radius: Float = range.value {
         didSet {
             self.gaussian = MPSImageGaussianBlur(device: Device.device(), sigma: radius)
         }

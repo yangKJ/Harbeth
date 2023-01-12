@@ -8,11 +8,11 @@
 import Foundation
 
 /// RGBA色彩空间中的颜色，在`0 ~ 1`区间内
-/// Color in the RGBA color space, from 0 to 1.
-public struct RGBAColor {
+/// Pixel Color contains 4  channels, from 0 to 1.
+public struct PixelColor {
     
-    public static let zero = RGBAColor(red: 0, green: 0, blue: 0, alpha: 0)
-    public static let one  = RGBAColor(red: 1, green: 1, blue: 1, alpha: 1)
+    public static let zero = PixelColor(red: 0, green: 0, blue: 0, alpha: 0)
+    public static let one  = PixelColor(red: 1, green: 1, blue: 1, alpha: 1)
     
     @ZeroOneRange public var red: Float
     @ZeroOneRange public var green: Float
@@ -26,14 +26,23 @@ public struct RGBAColor {
         self.alpha = alpha
     }
     
+    public init(white: Float, alpha: Float = 1.0) {
+        self.init(red: white, green: white, blue: white, alpha: alpha)
+    }
+    
     public init(color: C7Color) {
         // See: https://developer.apple.com/documentation/uikit/uicolor/1621919-getred
         let tuple = color.mt.toRGBA()
         self.init(red: tuple.red, green: tuple.green, blue: tuple.blue, alpha: tuple.alpha)
     }
+    
+    public init(hue: CGFloat, saturation: CGFloat, brightness: CGFloat, alpha: CGFloat = 1.0) {
+        let color = C7Color(hue: hue, saturation: saturation, brightness: brightness, alpha: alpha)
+        self.init(color: color)
+    }
 }
 
-extension RGBAColor: Convertible {
+extension PixelColor: Convertible {
     public func toFloatArray() -> [Float] {
         [red, green, blue, alpha]
     }
@@ -41,11 +50,19 @@ extension RGBAColor: Convertible {
     public func toRGB() -> [Float] {
         [red, green, blue]
     }
+    
+    public var components: [CGFloat] {
+        [red, green, blue, alpha].map { CGFloat($0) }
+    }
+    
+    public var greyComponents: [CGFloat] {
+        [red, alpha].map { CGFloat($0) }
+    }
 }
 
-extension RGBAColor: Equatable {
+extension PixelColor: Equatable {
     
-    public static func == (lhs: RGBAColor, rhs: RGBAColor) -> Bool {
+    public static func == (lhs: PixelColor, rhs: PixelColor) -> Bool {
         lhs.red == rhs.red &&
         lhs.green == rhs.green &&
         lhs.blue == rhs.blue &&

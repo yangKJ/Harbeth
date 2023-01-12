@@ -14,7 +14,7 @@ public struct C7Posterize: C7FilterProtocol {
     
     /// The number of color levels to reduce the image space to.
     /// This ranges from 1 to 256, with a default of 10
-    public var colorLevels: Float = range.value
+    @Clamping(range.min...range.max) public var colorLevels: Float = range.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Posterize")
