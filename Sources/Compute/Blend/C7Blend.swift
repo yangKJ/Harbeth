@@ -62,7 +62,13 @@ public struct C7Blend: C7FilterProtocol {
     public init(with type: BlendType, image: C7Image) {
         self.blendType = type
         self.blendImage = image
-        self.blendTexture = image.cgImage?.mt.newTexture()
+        self.blendTexture = image.cgImage?.mt.toTexture()
+    }
+    
+    public init(with type: BlendType, blendTexture: MTLTexture) {
+        self.blendType = type
+        self.blendImage = C7Image()
+        self.blendTexture = blendTexture
     }
     
     public mutating func updateBlend(_ type: BlendType) {

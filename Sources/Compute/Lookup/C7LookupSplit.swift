@@ -41,8 +41,13 @@ public struct C7LookupSplit: C7FilterProtocol {
     }
     
     public init(_ lookupImage: C7Image, lookupImage2: C7Image) {
-        self.lookupTexture1 = lookupImage.cgImage?.mt.newTexture()
-        self.lookupTexture2 = lookupImage2.cgImage?.mt.newTexture()
+        self.lookupTexture1 = lookupImage.cgImage?.mt.toTexture()
+        self.lookupTexture2 = lookupImage2.cgImage?.mt.toTexture()
+    }
+    
+    public init(_ lookupTexture: MTLTexture, lookupTexture2: MTLTexture) {
+        self.lookupTexture1 = lookupTexture
+        self.lookupTexture2 = lookupTexture2
     }
 }
 
