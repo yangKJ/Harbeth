@@ -42,7 +42,6 @@ import CoreVideo
     }
     
     public func output() throws -> Dest {
-        if self.filters.isEmpty { return element }
         do {
             if let element = element as? C7Image {
                 return try filtering(image: element) as! Dest
@@ -67,5 +66,36 @@ import CoreVideo
             throw error
         }
         return element
+    }
+}
+
+extension BoxxIO {
+    
+    /// CVPixelBuffer add filters and converts into C7Image.
+    /// - Parameters:
+    ///   - pixelBuffer: Based on the image buffer type. The pixel buffer implements the memory storage for an image buffer.
+    ///   - filters: It must be an array object implementing C7FilterProtocol.
+    ///   - bufferPixelFormat: Since the camera acquisition generally uses `kCVPixelFormatType_32BGRA`, so use `bgra8Unorm`
+    /// - Returns: ``CVPixelBuffer => C7Image``
+    public static func convert2Image(pixelBuffer: CVPixelBuffer?,
+                                     filters: [C7FilterProtocol],
+                                     bufferPixelFormat: MTLPixelFormat = .bgra8Unorm) -> C7Image? {
+        guard let pixelBuffer = pixelBuffer else { return nil }
+        if filters.isEmpty {
+            // Fixed rgba => bgra when no filter is introduced.
+            guard let cgimage = pixelBuffer.mt.toCGImage() else { return nil }
+            return cgimage.mt.toC7Image()
+        }
+        guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: Device.sharedTextureCache()) else {
+            return nil
+        }
+        for filter in filters {
+            let OSize = filter.resize(input: C7Size(width: texture.width, height: texture.height))
+            // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
+            // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
+            let OTexture = Processed.destTexture(pixelFormat: bufferPixelFormat, width: OSize.width, height: OSize.height)
+            texture = (try? Processed.IO(inTexture: texture, outTexture: OTexture, filter: filter)) ?? texture
+        }
+        return texture.toImage()
     }
 }
