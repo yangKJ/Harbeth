@@ -25,7 +25,7 @@ public class C7Crop: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return origin.toFloatArray()
+        return origin.toXY()
     }
     
     public func resize(input size: C7Size) -> C7Size {

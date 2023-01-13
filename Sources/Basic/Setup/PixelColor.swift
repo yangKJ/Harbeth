@@ -42,8 +42,8 @@ public struct PixelColor {
     }
 }
 
-extension PixelColor: Convertible {
-    public func toFloatArray() -> [Float] {
+extension PixelColor {
+    public func toRGBA() -> [Float] {
         [red, green, blue, alpha]
     }
     

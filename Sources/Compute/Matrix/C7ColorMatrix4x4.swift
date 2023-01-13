@@ -23,7 +23,7 @@ public struct C7ColorMatrix4x4: C7FilterProtocol, ComputeFiltering {
     }
     
     public var factors: [Float] {
-        return [intensity] + offset.toFloatArray()
+        return [intensity] + offset.toRGBA()
     }
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {

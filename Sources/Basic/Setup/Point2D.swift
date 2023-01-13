@@ -24,8 +24,8 @@ public struct C7Point2D {
     }
 }
 
-extension C7Point2D: Convertible {
-    public func toFloatArray() -> [Float] {
+extension C7Point2D {
+    public func toXY() -> [Float] {
         [x, y]
     }
 }

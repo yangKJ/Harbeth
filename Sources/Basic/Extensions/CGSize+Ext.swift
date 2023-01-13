@@ -51,9 +51,11 @@ extension Queen where Base == CGSize {
     ///   - anchor: An anchor point in which the size constraint should happen.
     /// - Returns: The result `CGRect` for the constraint operation.
     public func constrainedRect(for size: CGSize, anchor: CGPoint) -> CGRect {
-        let unifiedAnchor = CGPoint(x: anchor.x.mt_clamped(to: 0.0...1.0), y: anchor.y.mt_clamped(to: 0.0...1.0))
-        let x = unifiedAnchor.x * base.width - unifiedAnchor.x * size.width
-        let y = unifiedAnchor.y * base.height - unifiedAnchor.y * size.height
+        let limits = 0.0...1.0
+        let x_ = min(max(anchor.x, limits.lowerBound), limits.upperBound)
+        let y_ = min(max(anchor.y, limits.lowerBound), limits.upperBound)
+        let x = x_ * base.width - x_ * size.width
+        let y = y_ * base.height - y_ * size.height
         let r = CGRect(x: x, y: y, width: size.width, height: size.height)
         let origin = CGRect(origin: .zero, size: base)
         return origin.intersection(r)

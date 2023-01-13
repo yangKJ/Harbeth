@@ -20,7 +20,7 @@ public struct C7Size {
     }
 }
 
-extension C7Size: Convertible {
+extension C7Size {
     public func toFloatArray() -> [Float] {
         [Float(width), Float(height)]
     }

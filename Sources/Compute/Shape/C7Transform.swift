@@ -18,7 +18,7 @@ public struct C7Transform: C7FilterProtocol, ComputeFiltering {
     }
     
     public var factors: [Float] {
-        return anchorPoint.toFloatArray()
+        return anchorPoint.toXY()
     }
     
     public func resize(input size: C7Size) -> C7Size {
