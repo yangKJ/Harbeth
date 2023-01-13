@@ -18,6 +18,13 @@ class ViewController: NSViewController {
     
     var originImage: C7Image = R.image("AR")
     
+    private lazy var displayLink: CADisplayLink = {
+        let display = CADisplayLink(target: self, selector: #selector(ViewController.onScreenUpdate(_:)))
+        display.add(to: .current, forMode: RunLoop.Mode.default)
+        display.isPaused = true
+        return display
+    }()
+    
     lazy var ImageView: NSImageView = {
         let imageView = NSImageView.init(image: originImage)
         imageView.imageScaling = .scaleProportionallyDown
@@ -134,17 +141,22 @@ class ViewController: NSViewController {
         // 方案4:
         //ImageView.image = try? originImage.makeGroup(filters: [filter, filter2, filter3])
         
-        //dynamicTest()
+        dynamicTest()
     }
     
     func dynamicTest() {
-        let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] timer in
-            guard let `self` = self else { return }
-            //self.filter.intensity = (self.filter.intensity) + Float(timer.timeInterval/10)
-            let dest = BoxxIO.init(element: self.originImage, filter: self.filter)
-            self.ImageView.image = try? dest.output()
+        displayLink.isPaused = false
+    }
+    
+    var soul = C7SoulOut.init(soul: 0.7)
+    
+    @objc func onScreenUpdate(_ sender: CADisplayLink) {
+        let dest = BoxxIO.init(element: self.originImage, filter: soul)
+        //filter.intensity = Float.random(in: C7LookupTable.range.min...C7LookupTable.range.max)
+        soul.soul += 0.025
+        if soul.soul == C7SoulOut.range.max {
+            soul.soul = C7SoulOut.range.min
         }
-        RunLoop.current.add(timer, forMode: RunLoop.Mode.default)
-        timer.fire()
+        self.ImageView.image = try? dest.output()
     }
 }

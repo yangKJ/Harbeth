@@ -8,7 +8,6 @@
 import Foundation
 import AVFoundation
 
-#if os(iOS) || os(tvOS) || os(watchOS)
 public final class C7CollectorVideo: C7Collector {
     
     private var player: AVPlayer!
@@ -79,4 +78,3 @@ extension C7CollectorVideo {
         self.processing(with: pixelBuffer)
     }
 }
-#endif
