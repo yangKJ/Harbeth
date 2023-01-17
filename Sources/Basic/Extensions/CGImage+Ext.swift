@@ -75,6 +75,15 @@ extension Queen where Base: CGImage {
 
 extension Queen where Base: CGImage {
     
+    public var hasAlphaChannel: Bool {
+        switch base.alphaInfo {
+        case .first, .last, .premultipliedFirst, .premultipliedLast:
+            return true
+        default:
+            return false
+        }
+    }
+    
     #if os(iOS) || os(tvOS) || os(watchOS)
     public var size: CGSize {
         CGSize(width: base.width, height: base.height)

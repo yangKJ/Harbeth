@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import MetalKit
 
 public struct BufferIO {
     /// CVPixelBuffer add filters and converts into C7Image.

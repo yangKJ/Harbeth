@@ -8,12 +8,34 @@
 import Foundation
 import CoreGraphics
 
-extension CGSize: C7Compatible { }
+extension CGSize: C7Compatible {
+    
+    public static func * (lhs: Self, rhs: Double) -> Self {
+        .init(width: lhs.width * rhs, height: lhs.height * rhs)
+    }
+    
+    public static func + (lhs: Self, rhs: Double) -> Self {
+        .init(width: lhs.width + rhs, height: lhs.height + rhs)
+    }
+    
+    public static func - (lhs: Self, rhs: Double) -> Self {
+        .init(width: lhs.width - rhs, height: lhs.height - rhs)
+    }
+}
 
 extension Queen where Base == CGSize {
     
     public func toC7Size() -> C7Size {
         C7Size(width: Int(base.width), height: Int(base.height))
+    }
+    
+    public func aspectFit(to boundingSize: CGSize) -> CGSize {
+        let ratio = min(boundingSize.width / base.width, boundingSize.height / base.height)
+        return CGSize(width: base.width * ratio, height: base.height * ratio)
+    }
+
+    public func aspectFit(to widthHeight: Double) -> CGSize {
+        aspectFit(to: CGSize(width: widthHeight, height: widthHeight))
     }
     
     /// Returns a size by resizing the `base` size by making it aspect fitting the given `size`.

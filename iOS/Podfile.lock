@@ -1,15 +1,15 @@
 PODS:
-  - Harbeth (0.5.7):
-    - Harbeth/Basic (= 0.5.7)
-    - Harbeth/Collector (= 0.5.7)
-    - Harbeth/Compute (= 0.5.7)
-    - Harbeth/CoreImage (= 0.5.7)
-  - Harbeth/Basic (0.5.7)
-  - Harbeth/Collector (0.5.7):
+  - Harbeth (0.5.8):
+    - Harbeth/Basic (= 0.5.8)
+    - Harbeth/Collector (= 0.5.8)
+    - Harbeth/Compute (= 0.5.8)
+    - Harbeth/CoreImage (= 0.5.8)
+  - Harbeth/Basic (0.5.8)
+  - Harbeth/Collector (0.5.8):
     - Harbeth/Basic
-  - Harbeth/Compute (0.5.7):
+  - Harbeth/Compute (0.5.8):
     - Harbeth/Basic
-  - Harbeth/CoreImage (0.5.7):
+  - Harbeth/CoreImage (0.5.8):
     - Harbeth/Basic
 
 DEPENDENCIES:
@@ -20,7 +20,7 @@ EXTERNAL SOURCES:
     :path: "../"
 
 SPEC CHECKSUMS:
-  Harbeth: 458ca87ff50ca77e13fa193b0e3e19996555a029
+  Harbeth: a329841b51b31a5448c3679e1dafd526cae23d2c
 
 PODFILE CHECKSUM: d12d36446627534e328e614e4f17d4ee2a77152a
 

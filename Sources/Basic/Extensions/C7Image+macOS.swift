@@ -14,6 +14,10 @@ import AppKit
 
 extension C7Image {
     
+    public convenience init(cgImage: CGImage) {
+        self.init(cgImage: cgImage, size: .zero)
+    }
+    
     public var cgImage: CGImage? {
         return self.cgImage(forProposedRect: nil, context: nil, hints: nil)
     }

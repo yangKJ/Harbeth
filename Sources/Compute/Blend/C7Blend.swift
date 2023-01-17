@@ -32,10 +32,10 @@ public struct C7Blend: C7FilterProtocol {
         case softLight
         case sourceOver
         case subtract
-        case chromaKey(threshold: Float = 0.4, smoothing: Float = 0.1, color: C7Color = C7Color.green)
+        case chromaKey(threshold: Float = 0.4, smoothing: Float = 0.1, color: C7Color)
     }
     
-    public let blendImage: C7Image
+    public let blendImage: C7Image?
     public let blendTexture: MTLTexture?
     public private(set) var blendType: BlendType
     
@@ -67,7 +67,7 @@ public struct C7Blend: C7FilterProtocol {
     
     public init(with type: BlendType, blendTexture: MTLTexture) {
         self.blendType = type
-        self.blendImage = C7Image()
+        self.blendImage = nil
         self.blendTexture = blendTexture
     }
     
