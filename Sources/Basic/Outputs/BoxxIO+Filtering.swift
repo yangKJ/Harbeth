@@ -13,7 +13,7 @@ extension BoxxIO {
     
     func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
         if self.filters.isEmpty { return pixelBuffer }
-        guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: Device.sharedTextureCache()) else {
+        guard var texture = pixelBuffer.mt.toMTLTexture(textureCache: nil) else {
             throw C7CustomError.source2Texture
         }
         do {

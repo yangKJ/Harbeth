@@ -87,4 +87,33 @@ extension Queen where Base: CVPixelBuffer {
                                            sampleBufferOut: &newSampleBuffer)
         return newSampleBuffer
     }
+        
+    /// Convert textures based on different environments and add CVPixelBuffer.
+    /// - Parameters:
+    ///   - textureCache: The texture cache object that will manage the texture. Only the real machine used.
+    /// - Returns: Metal texture.
+    public func toMTLTexture(textureCache: CVMetalTextureCache? = nil) -> MTLTexture? {
+        let texture: MTLTexture?
+        #if targetEnvironment(simulator)
+        // The simulator needs to be fixed to `rgba8Unorm`.
+        let pixelFormat: MTLPixelFormat = .rgba8Unorm
+        texture = base.mt.toCGImage()?.mt.toTexture(pixelFormat: pixelFormat)
+        #else
+        texture = base.mt.convert2MTLTexture(textureCache: textureCache ?? Device.sharedTextureCache())
+        #endif
+        return texture
+    }
+    
+    /// Create a new MTLTexture and add CVPixelBuffer.
+    /// - Parameters:
+    ///   - pixelFormat: Specifies the Metal pixel format.
+    ///   - planeIndex: Specifies the plane of the CVImageBuffer to map bind.  Ignored for non-planar CVImageBuffers.
+    /// - Returns: New metal texture.
+    public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) -> MTLTexture {
+        let width = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
+        let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
+        let texture = Processed.destTexture(pixelFormat: pixelFormat, width: width, height: height)
+        base.mt.copyToPixelBuffer(with: texture)
+        return texture
+    }
 }

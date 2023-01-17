@@ -58,16 +58,20 @@ extension C7Collector {
         guard let pixelBuffer = pixelBuffer else { return nil }
         delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
         if filters.isEmpty {
-            // Fixed rgba => bgra when no filter is introduced.
-            guard let cgimage = pixelBuffer.mt.toCGImage() else { return nil }
             if let function = delegate?.captureOutput(_:texture:),
-               let texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) {
+               let texture = pixelBuffer.mt.toMTLTexture(textureCache: textureCache) {
                 function(self, texture)
             }
-            return cgimage.mt.toC7Image()
+            // Fixed rgba => bgra when no filter.
+            return pixelBuffer.mt.toCGImage()?.mt.toC7Image()
         }
-        let image = filteringAndConvert2Image(with: pixelBuffer)
-        return image
+        
+        // CVPixelBuffer add filter and convert to image.
+        guard let texture = BufferIO.convert2MTLTexture(pixelBuffer: pixelBuffer, filters: filters, textureCache: textureCache) else {
+            return nil
+        }
+        delegate?.captureOutput?(self, texture: texture)
+        return texture.toImage()
     }
     
     func processing(with pixelBuffer: CVPixelBuffer?) {
@@ -83,23 +87,5 @@ extension C7Collector {
         if let delegate = self.delegate {
             DispatchQueue.main.async { delegate.preview(self, fliter: image) }
         }
-    }
-}
-
-extension C7Collector {
-    /// Inject filter and convert to image
-    private func filteringAndConvert2Image(with pixelBuffer: CVPixelBuffer) -> C7Image? {
-        guard var texture = pixelBuffer.mt.convert2MTLTexture(textureCache: textureCache) else {
-            return nil
-        }
-        delegate?.captureOutput?(self, texture: texture)
-        filters.forEach {
-            do {
-                let size = $0.resize(input: C7Size(width: texture.width, height: texture.height))
-                let destTexture = Processed.destTexture(width: size.width, height: size.height)
-                texture = try Processed.IO(inTexture: texture, outTexture: destTexture, filter: $0)
-            } catch { }
-        }
-        return texture.toImage()
     }
 }
