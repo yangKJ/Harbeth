@@ -14,6 +14,12 @@ extension CVPixelBuffer: C7Compatible { }
 
 extension Queen where Base: CVPixelBuffer {
     
+    private var size: C7Size {
+        let width = CVPixelBufferGetWidthOfPlane(self.base, 0)
+        let height = CVPixelBufferGetHeightOfPlane(self.base, 0)
+        return C7Size(width: width, height: height)
+    }
+    
     /// Convert cached pixel objects into textures that can be used for camera capture and video frame filters
     /// - Parameters:
     ///   - textureCache: The texture cache object that will manage the texture.
@@ -59,10 +65,15 @@ extension Queen where Base: CVPixelBuffer {
     public func copyToPixelBuffer(with texture: MTLTexture) {
         let flags = CVPixelBufferLockFlags(rawValue: 0)
         CVPixelBufferLockBaseAddress(base, flags)
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
-        let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
         if let pixelBufferBytes = CVPixelBufferGetBaseAddress(base) {
-            texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
+            // Fixed if the CVPixelBuffer and MTLTexture size is not equal.
+            // If the size is inconsistent, using the modified size filter will crash.
+            // Such as: C7Resize, C7Crop and so on Shape filter.
+            if base.mt.size == texture.size {
+                let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
+                texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+            }
         }
         CVPixelBufferUnlockBaseAddress(base, flags)
     }

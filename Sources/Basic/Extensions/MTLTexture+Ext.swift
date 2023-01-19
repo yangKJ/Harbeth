@@ -127,6 +127,10 @@ extension MTLTexture {
 
 extension MTLTexture {
     
+    var size: C7Size {
+        C7Size(width: self.width, height: self.height)
+    }
+    
     /// Create a texture with similar properties.
     func matchingTexture(to texture: MTLTexture) -> MTLTexture {
         let matchingDescriptor = MTLTextureDescriptor()
