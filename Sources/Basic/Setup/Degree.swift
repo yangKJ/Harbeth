@@ -16,7 +16,7 @@ public struct Degree {
     }
 }
 
-// MARK - Negative Degrees
+// MARK: - Negative Degrees
 public prefix func -(degree: Degree) -> Degree {
     return Degree(value: -1 * degree.value)
 }

@@ -405,6 +405,7 @@
 		875A7FF12987A5970022941A /* MetalDemo.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = MetalDemo.xcodeproj; sourceTree = "<group>"; };
 		875A7FF42987A5970022941A /* Podfile.lock */ = {isa = PBXFileReference; lastKnownFileType = text; path = Podfile.lock; sourceTree = "<group>"; };
 		875A7FF52987A5970022941A /* MetalDemo.xcworkspace */ = {isa = PBXFileReference; lastKnownFileType = wrapper.workspace; path = MetalDemo.xcworkspace; sourceTree = "<group>"; };
+		875A801A2987AB9E0022941A /* Once.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Once.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -482,6 +483,7 @@
 				875A7E922987A5820022941A /* Matrix4x4+Color.swift */,
 				875A7E8D2987A5820022941A /* Matrix4x5.swift */,
 				875A7E932987A5820022941A /* Mirrorable.swift */,
+				875A801A2987AB9E0022941A /* Once.swift */,
 				875A7E902987A5820022941A /* ParameterRange.swift */,
 				875A7E8E2987A5820022941A /* PixelColor.swift */,
 				875A7E862987A5820022941A /* Point2D.swift */,

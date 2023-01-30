@@ -11,8 +11,9 @@ import CoreImage
 import CoreMedia
 import CoreVideo
 
-/// Quickly add filters to data sources.
-/// Support use``UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer``
+/// Quickly add filters to sources.
+/// Support use ``UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer``
+/// See: https://github.com/yangKJ/Harbeth
 @frozen public struct BoxxIO<Dest> : Destype {
     public typealias Element = Dest
     public var element: Dest

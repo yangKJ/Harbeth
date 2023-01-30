@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import CoreMedia.CMSampleBuffer
+import CoreMedia
 
 extension CMSampleBuffer: C7Compatible { }
 
