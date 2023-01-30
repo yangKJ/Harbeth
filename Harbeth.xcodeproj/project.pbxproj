@@ -1,0 +1,1336 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		875A7F9B2987A58E0022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7F752987A58E0022941A /* Dancing.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 6854BE4C291771F4003F0716;
+			remoteInfo = Dancing;
+		};
+		875A7FA02987A58E0022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7F792987A58E0022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = A60DA837EA9B96177ABB046909B46AF6;
+			remoteInfo = Harbeth;
+		};
+		875A7FA22987A58E0022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7F792987A58E0022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 6BD4A111B364B56ABEEDA0EB5DCA9BB1;
+			remoteInfo = "Harbeth-Harbeth";
+		};
+		875A7FA42987A58E0022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7F792987A58E0022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = FFAE3D6D928C7ABE0EBE9DDB587FAA1D;
+			remoteInfo = "Pods-Dancing";
+		};
+		875A7FF92987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FF12987A5970022941A /* MetalDemo.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 04FA708C27B8D7D8006199B0;
+			remoteInfo = MetalDemo;
+		};
+		875A7FFB2987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FF12987A5970022941A /* MetalDemo.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 04FA70A227B8D7DA006199B0;
+			remoteInfo = MetalDemoTests;
+		};
+		875A7FFD2987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FF12987A5970022941A /* MetalDemo.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 04FA70AC27B8D7DA006199B0;
+			remoteInfo = MetalDemoUITests;
+		};
+		875A80042987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FC12987A5970022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = A60DA837EA9B96177ABB046909B46AF6;
+			remoteInfo = Harbeth;
+		};
+		875A80062987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FC12987A5970022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 6BD4A111B364B56ABEEDA0EB5DCA9BB1;
+			remoteInfo = "Harbeth-Harbeth";
+		};
+		875A80082987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FC12987A5970022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 18D2564A72DAA6DFD0EB166D766E3C8E;
+			remoteInfo = "Pods-MetalDemo";
+		};
+		875A800A2987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FC12987A5970022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 863449BE951370966E78DFA3EDFE9DD6;
+			remoteInfo = "Pods-MetalDemoTests";
+		};
+		875A800C2987A5970022941A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 875A7FC12987A5970022941A /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4DB080C69116EB0D87A809FD14797FA1;
+			remoteInfo = "Pods-MetalDemoUITests";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		875A7E6D2987A5820022941A /* CIHighlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIHighlight.swift; sourceTree = "<group>"; };
+		875A7E6E2987A5820022941A /* CIWhitePoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIWhitePoint.swift; sourceTree = "<group>"; };
+		875A7E702987A5820022941A /* C7Collector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Collector.swift; sourceTree = "<group>"; };
+		875A7E712987A5820022941A /* Collectorable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Collectorable.swift; sourceTree = "<group>"; };
+		875A7E722987A5820022941A /* C7CollectorCamera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7CollectorCamera.swift; sourceTree = "<group>"; };
+		875A7E732987A5820022941A /* C7CollectorVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7CollectorVideo.swift; sourceTree = "<group>"; };
+		875A7E762987A5820022941A /* Rendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rendering.swift; sourceTree = "<group>"; };
+		875A7E772987A5820022941A /* Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared.swift; sourceTree = "<group>"; };
+		875A7E782987A5820022941A /* Filtering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Filtering.swift; sourceTree = "<group>"; };
+		875A7E792987A5820022941A /* Operators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Operators.swift; sourceTree = "<group>"; };
+		875A7E7A2987A5820022941A /* Compute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compute.swift; sourceTree = "<group>"; };
+		875A7E7B2987A5820022941A /* Processed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Processed.swift; sourceTree = "<group>"; };
+		875A7E7C2987A5820022941A /* CoreImage+.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CoreImage+.swift"; sourceTree = "<group>"; };
+		875A7E7D2987A5820022941A /* Device.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Device.swift; sourceTree = "<group>"; };
+		875A7E7F2987A5820022941A /* Matrix3x3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Matrix3x3.swift; sourceTree = "<group>"; };
+		875A7E802987A5820022941A /* R.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = R.swift; sourceTree = "<group>"; };
+		875A7E812987A5820022941A /* Clamping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clamping.swift; sourceTree = "<group>"; };
+		875A7E822987A5820022941A /* Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Error.swift; sourceTree = "<group>"; };
+		875A7E832987A5820022941A /* Wrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Wrapper.swift; sourceTree = "<group>"; };
+		875A7E842987A5820022941A /* ZeroOneRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeroOneRange.swift; sourceTree = "<group>"; };
+		875A7E852987A5820022941A /* ShapeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeMode.swift; sourceTree = "<group>"; };
+		875A7E862987A5820022941A /* Point2D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Point2D.swift; sourceTree = "<group>"; };
+		875A7E872987A5820022941A /* Export.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Export.swift; sourceTree = "<group>"; };
+		875A7E882987A5820022941A /* Size.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Size.swift; sourceTree = "<group>"; };
+		875A7E892987A5820022941A /* DisplayLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayLink.swift; sourceTree = "<group>"; };
+		875A7E8A2987A5820022941A /* Typealias.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typealias.swift; sourceTree = "<group>"; };
+		875A7E8B2987A5820022941A /* Matrix3x3+Kernel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Matrix3x3+Kernel.swift"; sourceTree = "<group>"; };
+		875A7E8C2987A5820022941A /* Matrix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Matrix.swift; sourceTree = "<group>"; };
+		875A7E8D2987A5820022941A /* Matrix4x5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Matrix4x5.swift; sourceTree = "<group>"; };
+		875A7E8E2987A5820022941A /* PixelColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelColor.swift; sourceTree = "<group>"; };
+		875A7E8F2987A5820022941A /* Vector4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Vector4.swift; sourceTree = "<group>"; };
+		875A7E902987A5820022941A /* ParameterRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterRange.swift; sourceTree = "<group>"; };
+		875A7E912987A5820022941A /* Vector3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Vector3.swift; sourceTree = "<group>"; };
+		875A7E922987A5820022941A /* Matrix4x4+Color.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Matrix4x4+Color.swift"; sourceTree = "<group>"; };
+		875A7E932987A5820022941A /* Mirrorable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mirrorable.swift; sourceTree = "<group>"; };
+		875A7E942987A5820022941A /* Degree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Degree.swift; sourceTree = "<group>"; };
+		875A7E952987A5820022941A /* Cacheable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cacheable.swift; sourceTree = "<group>"; };
+		875A7E962987A5820022941A /* Matrix4x4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Matrix4x4.swift; sourceTree = "<group>"; };
+		875A7E982987A5820022941A /* CVPixelBuffer+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CVPixelBuffer+Ext.swift"; sourceTree = "<group>"; };
+		875A7E992987A5820022941A /* C7Image+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7Image+Ext.swift"; sourceTree = "<group>"; };
+		875A7E9A2987A5820022941A /* CATransform3D+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CATransform3D+Ext.swift"; sourceTree = "<group>"; };
+		875A7E9B2987A5820022941A /* C7Image+iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7Image+iOS.swift"; sourceTree = "<group>"; };
+		875A7E9C2987A5820022941A /* CGSize+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGSize+Ext.swift"; sourceTree = "<group>"; };
+		875A7E9D2987A5820022941A /* CGPoint+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGPoint+Ext.swift"; sourceTree = "<group>"; };
+		875A7E9E2987A5820022941A /* C7Image+macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7Image+macOS.swift"; sourceTree = "<group>"; };
+		875A7E9F2987A5820022941A /* CMSampleBuffer+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CMSampleBuffer+Ext.swift"; sourceTree = "<group>"; };
+		875A7EA02987A5820022941A /* CIImage+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CIImage+Ext.swift"; sourceTree = "<group>"; };
+		875A7EA12987A5820022941A /* C7Color+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7Color+Ext.swift"; sourceTree = "<group>"; };
+		875A7EA22987A5820022941A /* CGImage+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGImage+Ext.swift"; sourceTree = "<group>"; };
+		875A7EA32987A5820022941A /* Data+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Ext.swift"; sourceTree = "<group>"; };
+		875A7EA42987A5820022941A /* MTLTexture+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MTLTexture+Ext.swift"; sourceTree = "<group>"; };
+		875A7EA52987A5820022941A /* URL+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+Ext.swift"; sourceTree = "<group>"; };
+		875A7EA72987A5820022941A /* Destype.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Destype.swift; sourceTree = "<group>"; };
+		875A7EA82987A5820022941A /* Outputable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Outputable.swift; sourceTree = "<group>"; };
+		875A7EA92987A5820022941A /* BufferIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BufferIO.swift; sourceTree = "<group>"; };
+		875A7EAA2987A5820022941A /* BoxxIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxxIO.swift; sourceTree = "<group>"; };
+		875A7EAC2987A5820022941A /* C7TransformMatrix4x4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7TransformMatrix4x4.swift; sourceTree = "<group>"; };
+		875A7EAD2987A5820022941A /* RenderShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = RenderShaders.metal; sourceTree = "<group>"; };
+		875A7EAE2987A5820022941A /* C7TransformMatrix4x4.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7TransformMatrix4x4.metal; sourceTree = "<group>"; };
+		875A7EB12987A5820022941A /* C7Rotate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Rotate.swift; sourceTree = "<group>"; };
+		875A7EB22987A5820022941A /* C7Resize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Resize.swift; sourceTree = "<group>"; };
+		875A7EB32987A5820022941A /* C7Crop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Crop.swift; sourceTree = "<group>"; };
+		875A7EB42987A5820022941A /* C7Transform.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Transform.metal; sourceTree = "<group>"; };
+		875A7EB52987A5820022941A /* C7Flip.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Flip.metal; sourceTree = "<group>"; };
+		875A7EB62987A5820022941A /* C7Resize.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Resize.metal; sourceTree = "<group>"; };
+		875A7EB72987A5820022941A /* C7Rotate.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Rotate.metal; sourceTree = "<group>"; };
+		875A7EB82987A5820022941A /* C7Transform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Transform.swift; sourceTree = "<group>"; };
+		875A7EB92987A5820022941A /* C7Crop.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Crop.metal; sourceTree = "<group>"; };
+		875A7EBA2987A5820022941A /* C7Flip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Flip.swift; sourceTree = "<group>"; };
+		875A7EBC2987A5820022941A /* MPSGaussianBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPSGaussianBlur.swift; sourceTree = "<group>"; };
+		875A7EBE2987A5820022941A /* C7ChromaKey.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ChromaKey.metal; sourceTree = "<group>"; };
+		875A7EBF2987A5820022941A /* C7ReplaceRGBA.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ReplaceRGBA.metal; sourceTree = "<group>"; };
+		875A7EC02987A5820022941A /* C7GlassSphere.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7GlassSphere.swift; sourceTree = "<group>"; };
+		875A7EC12987A5820022941A /* C7Bulge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Bulge.swift; sourceTree = "<group>"; };
+		875A7EC22987A5820022941A /* C7SoulOut.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7SoulOut.metal; sourceTree = "<group>"; };
+		875A7EC32987A5820022941A /* C7Halftone.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Halftone.metal; sourceTree = "<group>"; };
+		875A7EC42987A5820022941A /* C7SphereRefraction.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7SphereRefraction.metal; sourceTree = "<group>"; };
+		875A7EC52987A5820022941A /* C7SplitScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7SplitScreen.swift; sourceTree = "<group>"; };
+		875A7EC62987A5820022941A /* C7RGBADilation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7RGBADilation.swift; sourceTree = "<group>"; };
+		875A7EC72987A5820022941A /* C7Kuwahara.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Kuwahara.metal; sourceTree = "<group>"; };
+		875A7EC82987A5820022941A /* C7Fluctuate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Fluctuate.swift; sourceTree = "<group>"; };
+		875A7EC92987A5820022941A /* C7PolkaDot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7PolkaDot.swift; sourceTree = "<group>"; };
+		875A7ECA2987A5820022941A /* C7Storyboard.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Storyboard.metal; sourceTree = "<group>"; };
+		875A7ECB2987A5820022941A /* C7Pinch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Pinch.swift; sourceTree = "<group>"; };
+		875A7ECC2987A5820022941A /* C7Crosshatch.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Crosshatch.metal; sourceTree = "<group>"; };
+		875A7ECD2987A5820022941A /* C7Vignette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Vignette.swift; sourceTree = "<group>"; };
+		875A7ECE2987A5820022941A /* C7ThresholdSketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ThresholdSketch.swift; sourceTree = "<group>"; };
+		875A7ECF2987A5820022941A /* C7Sharpen.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Sharpen.metal; sourceTree = "<group>"; };
+		875A7ED02987A5820022941A /* C7Swirl.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Swirl.metal; sourceTree = "<group>"; };
+		875A7ED12987A5820022941A /* C7DepthLuminance.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7DepthLuminance.metal; sourceTree = "<group>"; };
+		875A7ED22987A5820022941A /* C7Toon.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Toon.metal; sourceTree = "<group>"; };
+		875A7ED32987A5820022941A /* C7PolarPixellate.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7PolarPixellate.metal; sourceTree = "<group>"; };
+		875A7ED42987A5820022941A /* C7WaterRipple.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7WaterRipple.swift; sourceTree = "<group>"; };
+		875A7ED52987A5820022941A /* C7Pixellated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Pixellated.swift; sourceTree = "<group>"; };
+		875A7ED62987A5820022941A /* C7Sobel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Sobel.swift; sourceTree = "<group>"; };
+		875A7ED72987A5820022941A /* C7Sketch.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Sketch.metal; sourceTree = "<group>"; };
+		875A7ED82987A5820022941A /* C7Bulge.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Bulge.metal; sourceTree = "<group>"; };
+		875A7ED92987A5820022941A /* C7SoulOut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7SoulOut.swift; sourceTree = "<group>"; };
+		875A7EDA2987A5820022941A /* C7GlassSphere.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7GlassSphere.metal; sourceTree = "<group>"; };
+		875A7EDB2987A5820022941A /* C7ChromaKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ChromaKey.swift; sourceTree = "<group>"; };
+		875A7EDC2987A5820022941A /* C7ReplaceRGBA.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ReplaceRGBA.swift; sourceTree = "<group>"; };
+		875A7EDD2987A5820022941A /* C7Kuwahara.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Kuwahara.swift; sourceTree = "<group>"; };
+		875A7EDE2987A5820022941A /* C7Halftone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Halftone.swift; sourceTree = "<group>"; };
+		875A7EDF2987A5820022941A /* C7SphereRefraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7SphereRefraction.swift; sourceTree = "<group>"; };
+		875A7EE02987A5820022941A /* C7SplitScreen.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7SplitScreen.metal; sourceTree = "<group>"; };
+		875A7EE12987A5820022941A /* C7RGBADilation.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7RGBADilation.metal; sourceTree = "<group>"; };
+		875A7EE22987A5820022941A /* C7Crosshatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Crosshatch.swift; sourceTree = "<group>"; };
+		875A7EE32987A5820022941A /* C7Vignette.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Vignette.metal; sourceTree = "<group>"; };
+		875A7EE42987A5820022941A /* C7ThresholdSketch.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ThresholdSketch.metal; sourceTree = "<group>"; };
+		875A7EE52987A5820022941A /* C7Pinch.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Pinch.metal; sourceTree = "<group>"; };
+		875A7EE62987A5820022941A /* C7Storyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Storyboard.swift; sourceTree = "<group>"; };
+		875A7EE72987A5820022941A /* C7Fluctuate.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Fluctuate.metal; sourceTree = "<group>"; };
+		875A7EE82987A5820022941A /* C7PolkaDot.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7PolkaDot.metal; sourceTree = "<group>"; };
+		875A7EE92987A5820022941A /* C7Sketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Sketch.swift; sourceTree = "<group>"; };
+		875A7EEA2987A5820022941A /* C7WaterRipple.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7WaterRipple.metal; sourceTree = "<group>"; };
+		875A7EEB2987A5820022941A /* C7Pixellated.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Pixellated.metal; sourceTree = "<group>"; };
+		875A7EEC2987A5820022941A /* C7Sobel.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Sobel.metal; sourceTree = "<group>"; };
+		875A7EED2987A5820022941A /* C7PolarPixellate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7PolarPixellate.swift; sourceTree = "<group>"; };
+		875A7EEE2987A5820022941A /* C7Sharpen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Sharpen.swift; sourceTree = "<group>"; };
+		875A7EEF2987A5820022941A /* C7Swirl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Swirl.swift; sourceTree = "<group>"; };
+		875A7EF02987A5820022941A /* C7DepthLuminance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7DepthLuminance.swift; sourceTree = "<group>"; };
+		875A7EF12987A5820022941A /* C7Toon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Toon.swift; sourceTree = "<group>"; };
+		875A7EF32987A5820022941A /* C7LookupTable.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7LookupTable.metal; sourceTree = "<group>"; };
+		875A7EF42987A5820022941A /* C7LookupSplit.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7LookupSplit.metal; sourceTree = "<group>"; };
+		875A7EF52987A5820022941A /* C7LookupTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7LookupTable.swift; sourceTree = "<group>"; };
+		875A7EF62987A5820022941A /* C7LookupSplit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7LookupSplit.swift; sourceTree = "<group>"; };
+		875A7EF82987A5820022941A /* C7Hue.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Hue.metal; sourceTree = "<group>"; };
+		875A7EF92987A5820022941A /* C7Saturation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Saturation.swift; sourceTree = "<group>"; };
+		875A7EFA2987A5820022941A /* C7Granularity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Granularity.swift; sourceTree = "<group>"; };
+		875A7EFB2987A5820022941A /* C7ComicStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ComicStrip.swift; sourceTree = "<group>"; };
+		875A7EFC2987A5820022941A /* C7CGAColorspace.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7CGAColorspace.metal; sourceTree = "<group>"; };
+		875A7EFD2987A5820022941A /* C7Vibrance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Vibrance.swift; sourceTree = "<group>"; };
+		875A7EFE2987A5820022941A /* C7Gamma.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Gamma.metal; sourceTree = "<group>"; };
+		875A7EFF2987A5820022941A /* C7LuminanceThreshold.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7LuminanceThreshold.metal; sourceTree = "<group>"; };
+		875A7F002987A5820022941A /* C7Levels.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Levels.metal; sourceTree = "<group>"; };
+		875A7F012987A5820022941A /* C7LuminanceRangeReduction.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7LuminanceRangeReduction.metal; sourceTree = "<group>"; };
+		875A7F022987A5820022941A /* C7Posterize.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Posterize.metal; sourceTree = "<group>"; };
+		875A7F032987A5820022941A /* C7Monochrome.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Monochrome.metal; sourceTree = "<group>"; };
+		875A7F042987A5820022941A /* C7Luminance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Luminance.swift; sourceTree = "<group>"; };
+		875A7F052987A5820022941A /* C7SolidColor.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7SolidColor.metal; sourceTree = "<group>"; };
+		875A7F062987A5820022941A /* C7WhiteBalance.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7WhiteBalance.metal; sourceTree = "<group>"; };
+		875A7F072987A5820022941A /* C7Opacity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Opacity.swift; sourceTree = "<group>"; };
+		875A7F082987A5820022941A /* C7Exposure.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Exposure.metal; sourceTree = "<group>"; };
+		875A7F092987A5820022941A /* C7FalseColor.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7FalseColor.metal; sourceTree = "<group>"; };
+		875A7F0A2987A5820022941A /* C7OilPainting.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7OilPainting.metal; sourceTree = "<group>"; };
+		875A7F0B2987A5820022941A /* C7HighlightShadow.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7HighlightShadow.metal; sourceTree = "<group>"; };
+		875A7F0C2987A5820022941A /* C7ColorPacking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorPacking.swift; sourceTree = "<group>"; };
+		875A7F0D2987A5820022941A /* C7ColorConvert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorConvert.swift; sourceTree = "<group>"; };
+		875A7F0E2987A5820022941A /* C7HighlightShadowTint.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7HighlightShadowTint.metal; sourceTree = "<group>"; };
+		875A7F0F2987A5820022941A /* C7Contrast.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Contrast.metal; sourceTree = "<group>"; };
+		875A7F102987A5820022941A /* C7ColorRGBA.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorRGBA.swift; sourceTree = "<group>"; };
+		875A7F112987A5820022941A /* C7Brightness.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Brightness.metal; sourceTree = "<group>"; };
+		875A7F122987A5820022941A /* C7Haze.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Haze.metal; sourceTree = "<group>"; };
+		875A7F132987A5820022941A /* C7ColorSpace.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorSpace.metal; sourceTree = "<group>"; };
+		875A7F142987A5820022941A /* C7Vibrance.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Vibrance.metal; sourceTree = "<group>"; };
+		875A7F152987A5820022941A /* C7Gamma.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Gamma.swift; sourceTree = "<group>"; };
+		875A7F162987A5820022941A /* C7LuminanceThreshold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7LuminanceThreshold.swift; sourceTree = "<group>"; };
+		875A7F172987A5820022941A /* C7ComicStrip.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ComicStrip.metal; sourceTree = "<group>"; };
+		875A7F182987A5820022941A /* C7CGAColorspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7CGAColorspace.swift; sourceTree = "<group>"; };
+		875A7F192987A5820022941A /* C7Saturation.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Saturation.metal; sourceTree = "<group>"; };
+		875A7F1A2987A5820022941A /* C7Granularity.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Granularity.metal; sourceTree = "<group>"; };
+		875A7F1B2987A5820022941A /* C7Hue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Hue.swift; sourceTree = "<group>"; };
+		875A7F1C2987A5820022941A /* C7Monochrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Monochrome.swift; sourceTree = "<group>"; };
+		875A7F1D2987A5820022941A /* C7Luminance.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Luminance.metal; sourceTree = "<group>"; };
+		875A7F1E2987A5820022941A /* C7Levels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Levels.swift; sourceTree = "<group>"; };
+		875A7F1F2987A5820022941A /* C7LuminanceRangeReduction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7LuminanceRangeReduction.swift; sourceTree = "<group>"; };
+		875A7F202987A5820022941A /* C7Posterize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Posterize.swift; sourceTree = "<group>"; };
+		875A7F212987A5820022941A /* C7Exposure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Exposure.swift; sourceTree = "<group>"; };
+		875A7F222987A5820022941A /* C7WhiteBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7WhiteBalance.swift; sourceTree = "<group>"; };
+		875A7F232987A5820022941A /* C7Opacity.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Opacity.metal; sourceTree = "<group>"; };
+		875A7F242987A5820022941A /* C7SolidColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7SolidColor.swift; sourceTree = "<group>"; };
+		875A7F252987A5820022941A /* C7ColorRGBA.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorRGBA.metal; sourceTree = "<group>"; };
+		875A7F262987A5820022941A /* C7Brightness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Brightness.swift; sourceTree = "<group>"; };
+		875A7F272987A5820022941A /* C7Haze.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Haze.swift; sourceTree = "<group>"; };
+		875A7F282987A5820022941A /* C7ColorSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorSpace.swift; sourceTree = "<group>"; };
+		875A7F292987A5820022941A /* C7HighlightShadowTint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7HighlightShadowTint.swift; sourceTree = "<group>"; };
+		875A7F2A2987A5820022941A /* C7Contrast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Contrast.swift; sourceTree = "<group>"; };
+		875A7F2B2987A5820022941A /* C7HighlightShadow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7HighlightShadow.swift; sourceTree = "<group>"; };
+		875A7F2C2987A5820022941A /* C7ColorPacking.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorPacking.metal; sourceTree = "<group>"; };
+		875A7F2D2987A5820022941A /* C7ColorConvert.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorConvert.metal; sourceTree = "<group>"; };
+		875A7F2E2987A5820022941A /* C7FalseColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7FalseColor.swift; sourceTree = "<group>"; };
+		875A7F2F2987A5820022941A /* C7OilPainting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7OilPainting.swift; sourceTree = "<group>"; };
+		875A7F312987A5820022941A /* C7ChromaKeyBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ChromaKeyBlend.metal; sourceTree = "<group>"; };
+		875A7F322987A5820022941A /* C7SubtractBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7SubtractBlend.metal; sourceTree = "<group>"; };
+		875A7F332987A5820022941A /* C7SourceOverBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7SourceOverBlend.metal; sourceTree = "<group>"; };
+		875A7F342987A5820022941A /* C7HardLightBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7HardLightBlend.metal; sourceTree = "<group>"; };
+		875A7F352987A5820022941A /* C7ColorAddBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorAddBlend.metal; sourceTree = "<group>"; };
+		875A7F362987A5820022941A /* C7DissolveBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7DissolveBlend.metal; sourceTree = "<group>"; };
+		875A7F372987A5820022941A /* C7MaskBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7MaskBlend.metal; sourceTree = "<group>"; };
+		875A7F382987A5820022941A /* C7LightenBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7LightenBlend.metal; sourceTree = "<group>"; };
+		875A7F392987A5820022941A /* C7DivideBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7DivideBlend.metal; sourceTree = "<group>"; };
+		875A7F3A2987A5820022941A /* C7ColorDodgeBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorDodgeBlend.metal; sourceTree = "<group>"; };
+		875A7F3B2987A5820022941A /* C7ExclusionBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ExclusionBlend.metal; sourceTree = "<group>"; };
+		875A7F3C2987A5820022941A /* C7ColorBurnBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorBurnBlend.metal; sourceTree = "<group>"; };
+		875A7F3D2987A5820022941A /* C7HueBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7HueBlend.metal; sourceTree = "<group>"; };
+		875A7F3E2987A5820022941A /* C7ColorAlphaBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorAlphaBlend.metal; sourceTree = "<group>"; };
+		875A7F3F2987A5820022941A /* C7OverlayBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7OverlayBlend.metal; sourceTree = "<group>"; };
+		875A7F402987A5820022941A /* C7NormalBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7NormalBlend.metal; sourceTree = "<group>"; };
+		875A7F412987A5820022941A /* C7LuminosityBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7LuminosityBlend.metal; sourceTree = "<group>"; };
+		875A7F422987A5820022941A /* C7MultiplyBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7MultiplyBlend.metal; sourceTree = "<group>"; };
+		875A7F432987A5820022941A /* C7LinearBurnBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7LinearBurnBlend.metal; sourceTree = "<group>"; };
+		875A7F442987A5820022941A /* C7ScreenBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ScreenBlend.metal; sourceTree = "<group>"; };
+		875A7F452987A5820022941A /* C7DarkenBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7DarkenBlend.metal; sourceTree = "<group>"; };
+		875A7F462987A5820022941A /* C7DifferenceBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7DifferenceBlend.metal; sourceTree = "<group>"; };
+		875A7F472987A5820022941A /* C7Blend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Blend.swift; sourceTree = "<group>"; };
+		875A7F482987A5820022941A /* C7SoftLightBlend.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7SoftLightBlend.metal; sourceTree = "<group>"; };
+		875A7F4A2987A5820022941A /* C7GaussianBlur.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7GaussianBlur.metal; sourceTree = "<group>"; };
+		875A7F4B2987A5820022941A /* C7MeanBlur.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7MeanBlur.metal; sourceTree = "<group>"; };
+		875A7F4C2987A5820022941A /* C7BilateralBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7BilateralBlur.swift; sourceTree = "<group>"; };
+		875A7F4D2987A5820022941A /* C7MotionBlur.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7MotionBlur.metal; sourceTree = "<group>"; };
+		875A7F4E2987A5820022941A /* C7MonochromeDilation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7MonochromeDilation.swift; sourceTree = "<group>"; };
+		875A7F4F2987A5820022941A /* C7ZoomBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ZoomBlur.swift; sourceTree = "<group>"; };
+		875A7F502987A5820022941A /* C7GaussianBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7GaussianBlur.swift; sourceTree = "<group>"; };
+		875A7F512987A5820022941A /* C7MeanBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7MeanBlur.swift; sourceTree = "<group>"; };
+		875A7F522987A5820022941A /* C7MotionBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7MotionBlur.swift; sourceTree = "<group>"; };
+		875A7F532987A5820022941A /* C7BilateralBlur.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7BilateralBlur.metal; sourceTree = "<group>"; };
+		875A7F542987A5820022941A /* C7ZoomBlur.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ZoomBlur.metal; sourceTree = "<group>"; };
+		875A7F552987A5820022941A /* C7MonochromeDilation.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7MonochromeDilation.metal; sourceTree = "<group>"; };
+		875A7F572987A5820022941A /* C7Glitch.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Glitch.metal; sourceTree = "<group>"; };
+		875A7F582987A5820022941A /* C7VoronoiOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7VoronoiOverlay.swift; sourceTree = "<group>"; };
+		875A7F592987A5820022941A /* C7ShiftGlitch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ShiftGlitch.swift; sourceTree = "<group>"; };
+		875A7F5A2987A5820022941A /* C7EdgeGlow.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7EdgeGlow.metal; sourceTree = "<group>"; };
+		875A7F5B2987A5820022941A /* C7Glitch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Glitch.swift; sourceTree = "<group>"; };
+		875A7F5C2987A5820022941A /* C7VoronoiOverlay.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7VoronoiOverlay.metal; sourceTree = "<group>"; };
+		875A7F5D2987A5820022941A /* C7ShiftGlitch.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ShiftGlitch.metal; sourceTree = "<group>"; };
+		875A7F5E2987A5820022941A /* C7EdgeGlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7EdgeGlow.swift; sourceTree = "<group>"; };
+		875A7F602987A5820022941A /* C7ColorVector4.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorVector4.metal; sourceTree = "<group>"; };
+		875A7F612987A5820022941A /* C7ColorMatrix4x5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorMatrix4x5.swift; sourceTree = "<group>"; };
+		875A7F622987A5820022941A /* C7ConvolutionMatrix3x3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ConvolutionMatrix3x3.swift; sourceTree = "<group>"; };
+		875A7F632987A5820022941A /* C7Nostalgic.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Nostalgic.metal; sourceTree = "<group>"; };
+		875A7F642987A5820022941A /* C7Sepia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Sepia.swift; sourceTree = "<group>"; };
+		875A7F652987A5820022941A /* C7ColorMatrix4x4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorMatrix4x4.swift; sourceTree = "<group>"; };
+		875A7F662987A5820022941A /* C7ConvolutionMatrix3x3.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ConvolutionMatrix3x3.metal; sourceTree = "<group>"; };
+		875A7F672987A5820022941A /* C7ColorMatrix4x5.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorMatrix4x5.metal; sourceTree = "<group>"; };
+		875A7F682987A5820022941A /* C7ColorVector4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorVector4.swift; sourceTree = "<group>"; };
+		875A7F692987A5820022941A /* C7Nostalgic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Nostalgic.swift; sourceTree = "<group>"; };
+		875A7F6A2987A5820022941A /* C7Sepia.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Sepia.metal; sourceTree = "<group>"; };
+		875A7F6B2987A5820022941A /* C7ColorMatrix4x4.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorMatrix4x4.metal; sourceTree = "<group>"; };
+		875A7F6D2987A58E0022941A /* Dancing.xcworkspace */ = {isa = PBXFileReference; lastKnownFileType = wrapper.workspace; path = Dancing.xcworkspace; sourceTree = "<group>"; };
+		875A7F752987A58E0022941A /* Dancing.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Dancing.xcodeproj; sourceTree = "<group>"; };
+		875A7F792987A58E0022941A /* Pods.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Pods.xcodeproj; sourceTree = "<group>"; };
+		875A7F7E2987A58E0022941A /* ResourceBundle-Harbeth-Harbeth-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ResourceBundle-Harbeth-Harbeth-Info.plist"; sourceTree = "<group>"; };
+		875A7F7F2987A58E0022941A /* Harbeth-umbrella.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Harbeth-umbrella.h"; sourceTree = "<group>"; };
+		875A7F802987A58E0022941A /* Harbeth.debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Harbeth.debug.xcconfig; sourceTree = "<group>"; };
+		875A7F812987A58E0022941A /* Harbeth-prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Harbeth-prefix.pch"; sourceTree = "<group>"; };
+		875A7F822987A58E0022941A /* Harbeth.release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Harbeth.release.xcconfig; sourceTree = "<group>"; };
+		875A7F832987A58E0022941A /* Harbeth.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = Harbeth.modulemap; sourceTree = "<group>"; };
+		875A7F842987A58E0022941A /* Harbeth-dummy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "Harbeth-dummy.m"; sourceTree = "<group>"; };
+		875A7F852987A58E0022941A /* Harbeth-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Harbeth-Info.plist"; sourceTree = "<group>"; };
+		875A7F872987A58E0022941A /* Pods-Dancing-resources-Release-input-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-Dancing-resources-Release-input-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7F882987A58E0022941A /* Pods-Dancing-acknowledgements.markdown */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Pods-Dancing-acknowledgements.markdown"; sourceTree = "<group>"; };
+		875A7F892987A58E0022941A /* Pods-Dancing.release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-Dancing.release.xcconfig"; sourceTree = "<group>"; };
+		875A7F8A2987A58E0022941A /* Pods-Dancing-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pods-Dancing-Info.plist"; sourceTree = "<group>"; };
+		875A7F8B2987A58E0022941A /* Pods-Dancing-acknowledgements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pods-Dancing-acknowledgements.plist"; sourceTree = "<group>"; };
+		875A7F8C2987A58E0022941A /* Pods-Dancing.debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-Dancing.debug.xcconfig"; sourceTree = "<group>"; };
+		875A7F8D2987A58E0022941A /* Pods-Dancing-dummy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "Pods-Dancing-dummy.m"; sourceTree = "<group>"; };
+		875A7F8E2987A58E0022941A /* Pods-Dancing.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = "Pods-Dancing.modulemap"; sourceTree = "<group>"; };
+		875A7F8F2987A58E0022941A /* Pods-Dancing-resources.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "Pods-Dancing-resources.sh"; sourceTree = "<group>"; };
+		875A7F902987A58E0022941A /* Pods-Dancing-resources-Release-output-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-Dancing-resources-Release-output-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7F912987A58E0022941A /* Pods-Dancing-umbrella.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Pods-Dancing-umbrella.h"; sourceTree = "<group>"; };
+		875A7F922987A58E0022941A /* Pods-Dancing-resources-Debug-output-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-Dancing-resources-Debug-output-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7F932987A58E0022941A /* Pods-Dancing-resources-Debug-input-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-Dancing-resources-Debug-input-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7F942987A58E0022941A /* Manifest.lock */ = {isa = PBXFileReference; lastKnownFileType = text; path = Manifest.lock; sourceTree = "<group>"; };
+		875A7F962987A58E0022941A /* Harbeth.podspec.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Harbeth.podspec.json; sourceTree = "<group>"; };
+		875A7F982987A58E0022941A /* Podfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Podfile; sourceTree = "<group>"; };
+		875A7F992987A58E0022941A /* Podfile.lock */ = {isa = PBXFileReference; lastKnownFileType = text; path = Podfile.lock; sourceTree = "<group>"; };
+		875A7FA82987A5970022941A /* MetalDemoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalDemoTests.swift; sourceTree = "<group>"; };
+		875A7FAA2987A5970022941A /* MetalDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalDemoUITests.swift; sourceTree = "<group>"; };
+		875A7FAB2987A5970022941A /* MetalDemoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalDemoUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		875A7FC12987A5970022941A /* Pods.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Pods.xcodeproj; sourceTree = "<group>"; };
+		875A7FC62987A5970022941A /* Pods-MetalDemoTests.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = "Pods-MetalDemoTests.modulemap"; sourceTree = "<group>"; };
+		875A7FC72987A5970022941A /* Pods-MetalDemoTests-umbrella.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Pods-MetalDemoTests-umbrella.h"; sourceTree = "<group>"; };
+		875A7FC82987A5970022941A /* Pods-MetalDemoTests.debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoTests.debug.xcconfig"; sourceTree = "<group>"; };
+		875A7FC92987A5970022941A /* Pods-MetalDemoTests-dummy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemoTests-dummy.m"; sourceTree = "<group>"; };
+		875A7FCA2987A5970022941A /* Pods-MetalDemoTests.release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoTests.release.xcconfig"; sourceTree = "<group>"; };
+		875A7FCB2987A5970022941A /* Pods-MetalDemoTests-acknowledgements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemoTests-acknowledgements.plist"; sourceTree = "<group>"; };
+		875A7FCC2987A5970022941A /* Pods-MetalDemoTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemoTests-Info.plist"; sourceTree = "<group>"; };
+		875A7FCD2987A5970022941A /* Pods-MetalDemoTests-acknowledgements.markdown */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Pods-MetalDemoTests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		875A7FCF2987A5970022941A /* ResourceBundle-Harbeth-Harbeth-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ResourceBundle-Harbeth-Harbeth-Info.plist"; sourceTree = "<group>"; };
+		875A7FD02987A5970022941A /* Harbeth-umbrella.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Harbeth-umbrella.h"; sourceTree = "<group>"; };
+		875A7FD12987A5970022941A /* Harbeth.debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Harbeth.debug.xcconfig; sourceTree = "<group>"; };
+		875A7FD22987A5970022941A /* Harbeth-prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Harbeth-prefix.pch"; sourceTree = "<group>"; };
+		875A7FD32987A5970022941A /* ResourceBundle-ATMetalLibrary-Harbeth-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ResourceBundle-ATMetalLibrary-Harbeth-Info.plist"; sourceTree = "<group>"; };
+		875A7FD42987A5970022941A /* Harbeth.release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Harbeth.release.xcconfig; sourceTree = "<group>"; };
+		875A7FD52987A5970022941A /* Harbeth.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = Harbeth.modulemap; sourceTree = "<group>"; };
+		875A7FD62987A5970022941A /* Harbeth-dummy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "Harbeth-dummy.m"; sourceTree = "<group>"; };
+		875A7FD72987A5970022941A /* Harbeth-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Harbeth-Info.plist"; sourceTree = "<group>"; };
+		875A7FD92987A5970022941A /* Pods-MetalDemo-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemo-Info.plist"; sourceTree = "<group>"; };
+		875A7FDA2987A5970022941A /* Pods-MetalDemo-acknowledgements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemo-acknowledgements.plist"; sourceTree = "<group>"; };
+		875A7FDB2987A5970022941A /* Pods-MetalDemo.debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemo.debug.xcconfig"; sourceTree = "<group>"; };
+		875A7FDC2987A5970022941A /* Pods-MetalDemo-acknowledgements.markdown */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Pods-MetalDemo-acknowledgements.markdown"; sourceTree = "<group>"; };
+		875A7FDD2987A5970022941A /* Pods-MetalDemo.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = "Pods-MetalDemo.modulemap"; sourceTree = "<group>"; };
+		875A7FDE2987A5970022941A /* Pods-MetalDemo-resources-Release-input-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-MetalDemo-resources-Release-input-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7FDF2987A5970022941A /* Pods-MetalDemo-resources-Release-output-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-MetalDemo-resources-Release-output-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7FE02987A5970022941A /* Pods-MetalDemo.release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemo.release.xcconfig"; sourceTree = "<group>"; };
+		875A7FE12987A5970022941A /* Pods-MetalDemo-resources.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "Pods-MetalDemo-resources.sh"; sourceTree = "<group>"; };
+		875A7FE22987A5970022941A /* Pods-MetalDemo-umbrella.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Pods-MetalDemo-umbrella.h"; sourceTree = "<group>"; };
+		875A7FE32987A5970022941A /* Pods-MetalDemo-resources-Debug-input-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-MetalDemo-resources-Debug-input-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7FE42987A5970022941A /* Pods-MetalDemo-dummy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemo-dummy.m"; sourceTree = "<group>"; };
+		875A7FE52987A5970022941A /* Pods-MetalDemo-resources-Debug-output-files.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = "Pods-MetalDemo-resources-Debug-output-files.xcfilelist"; sourceTree = "<group>"; };
+		875A7FE72987A5970022941A /* Pods-MetalDemoUITests-dummy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "Pods-MetalDemoUITests-dummy.m"; sourceTree = "<group>"; };
+		875A7FE82987A5970022941A /* Pods-MetalDemoUITests.debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoUITests.debug.xcconfig"; sourceTree = "<group>"; };
+		875A7FE92987A5970022941A /* Pods-MetalDemoUITests-acknowledgements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pods-MetalDemoUITests-acknowledgements.plist"; sourceTree = "<group>"; };
+		875A7FEA2987A5970022941A /* Pods-MetalDemoUITests.release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Pods-MetalDemoUITests.release.xcconfig"; sourceTree = "<group>"; };
+		875A7FEB2987A5970022941A /* Pods-MetalDemoUITests-acknowledgements.markdown */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Pods-MetalDemoUITests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		875A7FEC2987A5970022941A /* Manifest.lock */ = {isa = PBXFileReference; lastKnownFileType = text; path = Manifest.lock; sourceTree = "<group>"; };
+		875A7FEE2987A5970022941A /* Harbeth.podspec.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Harbeth.podspec.json; sourceTree = "<group>"; };
+		875A7FF02987A5970022941A /* Podfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Podfile; sourceTree = "<group>"; };
+		875A7FF12987A5970022941A /* MetalDemo.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = MetalDemo.xcodeproj; sourceTree = "<group>"; };
+		875A7FF42987A5970022941A /* Podfile.lock */ = {isa = PBXFileReference; lastKnownFileType = text; path = Podfile.lock; sourceTree = "<group>"; };
+		875A7FF52987A5970022941A /* MetalDemo.xcworkspace */ = {isa = PBXFileReference; lastKnownFileType = wrapper.workspace; path = MetalDemo.xcworkspace; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		875A7E6B2987A5820022941A /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				875A7E742987A5820022941A /* Basic */,
+				875A7E6F2987A5820022941A /* Collector */,
+				875A7EAF2987A5820022941A /* Compute */,
+				875A7E6C2987A5820022941A /* CoreImage */,
+				875A7EAB2987A5820022941A /* Render */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		875A7E6C2987A5820022941A /* CoreImage */ = {
+			isa = PBXGroup;
+			children = (
+				875A7E6D2987A5820022941A /* CIHighlight.swift */,
+				875A7E6E2987A5820022941A /* CIWhitePoint.swift */,
+			);
+			path = CoreImage;
+			sourceTree = "<group>";
+		};
+		875A7E6F2987A5820022941A /* Collector */ = {
+			isa = PBXGroup;
+			children = (
+				875A7E702987A5820022941A /* C7Collector.swift */,
+				875A7E722987A5820022941A /* C7CollectorCamera.swift */,
+				875A7E732987A5820022941A /* C7CollectorVideo.swift */,
+				875A7E712987A5820022941A /* Collectorable.swift */,
+			);
+			path = Collector;
+			sourceTree = "<group>";
+		};
+		875A7E742987A5820022941A /* Basic */ = {
+			isa = PBXGroup;
+			children = (
+				875A7E752987A5820022941A /* Core */,
+				875A7E972987A5820022941A /* Extensions */,
+				875A7EA62987A5820022941A /* Outputs */,
+				875A7E7E2987A5820022941A /* Setup */,
+			);
+			path = Basic;
+			sourceTree = "<group>";
+		};
+		875A7E752987A5820022941A /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				875A7E7A2987A5820022941A /* Compute.swift */,
+				875A7E7C2987A5820022941A /* CoreImage+.swift */,
+				875A7E7D2987A5820022941A /* Device.swift */,
+				875A7E782987A5820022941A /* Filtering.swift */,
+				875A7E792987A5820022941A /* Operators.swift */,
+				875A7E7B2987A5820022941A /* Processed.swift */,
+				875A7E762987A5820022941A /* Rendering.swift */,
+				875A7E772987A5820022941A /* Shared.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		875A7E7E2987A5820022941A /* Setup */ = {
+			isa = PBXGroup;
+			children = (
+				875A7E952987A5820022941A /* Cacheable.swift */,
+				875A7E812987A5820022941A /* Clamping.swift */,
+				875A7E942987A5820022941A /* Degree.swift */,
+				875A7E892987A5820022941A /* DisplayLink.swift */,
+				875A7E822987A5820022941A /* Error.swift */,
+				875A7E872987A5820022941A /* Export.swift */,
+				875A7E8C2987A5820022941A /* Matrix.swift */,
+				875A7E7F2987A5820022941A /* Matrix3x3.swift */,
+				875A7E8B2987A5820022941A /* Matrix3x3+Kernel.swift */,
+				875A7E962987A5820022941A /* Matrix4x4.swift */,
+				875A7E922987A5820022941A /* Matrix4x4+Color.swift */,
+				875A7E8D2987A5820022941A /* Matrix4x5.swift */,
+				875A7E932987A5820022941A /* Mirrorable.swift */,
+				875A7E902987A5820022941A /* ParameterRange.swift */,
+				875A7E8E2987A5820022941A /* PixelColor.swift */,
+				875A7E862987A5820022941A /* Point2D.swift */,
+				875A7E802987A5820022941A /* R.swift */,
+				875A7E852987A5820022941A /* ShapeMode.swift */,
+				875A7E882987A5820022941A /* Size.swift */,
+				875A7E8A2987A5820022941A /* Typealias.swift */,
+				875A7E912987A5820022941A /* Vector3.swift */,
+				875A7E8F2987A5820022941A /* Vector4.swift */,
+				875A7E832987A5820022941A /* Wrapper.swift */,
+				875A7E842987A5820022941A /* ZeroOneRange.swift */,
+			);
+			path = Setup;
+			sourceTree = "<group>";
+		};
+		875A7E972987A5820022941A /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				875A7EA12987A5820022941A /* C7Color+Ext.swift */,
+				875A7E992987A5820022941A /* C7Image+Ext.swift */,
+				875A7E9B2987A5820022941A /* C7Image+iOS.swift */,
+				875A7E9E2987A5820022941A /* C7Image+macOS.swift */,
+				875A7E9A2987A5820022941A /* CATransform3D+Ext.swift */,
+				875A7EA22987A5820022941A /* CGImage+Ext.swift */,
+				875A7E9D2987A5820022941A /* CGPoint+Ext.swift */,
+				875A7E9C2987A5820022941A /* CGSize+Ext.swift */,
+				875A7EA02987A5820022941A /* CIImage+Ext.swift */,
+				875A7E9F2987A5820022941A /* CMSampleBuffer+Ext.swift */,
+				875A7E982987A5820022941A /* CVPixelBuffer+Ext.swift */,
+				875A7EA32987A5820022941A /* Data+Ext.swift */,
+				875A7EA42987A5820022941A /* MTLTexture+Ext.swift */,
+				875A7EA52987A5820022941A /* URL+Ext.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		875A7EA62987A5820022941A /* Outputs */ = {
+			isa = PBXGroup;
+			children = (
+				875A7EAA2987A5820022941A /* BoxxIO.swift */,
+				875A7EA92987A5820022941A /* BufferIO.swift */,
+				875A7EA72987A5820022941A /* Destype.swift */,
+				875A7EA82987A5820022941A /* Outputable.swift */,
+			);
+			path = Outputs;
+			sourceTree = "<group>";
+		};
+		875A7EAB2987A5820022941A /* Render */ = {
+			isa = PBXGroup;
+			children = (
+				875A7EAE2987A5820022941A /* C7TransformMatrix4x4.metal */,
+				875A7EAC2987A5820022941A /* C7TransformMatrix4x4.swift */,
+				875A7EAD2987A5820022941A /* RenderShaders.metal */,
+			);
+			path = Render;
+			sourceTree = "<group>";
+		};
+		875A7EAF2987A5820022941A /* Compute */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F302987A5820022941A /* Blend */,
+				875A7F492987A5820022941A /* Blur */,
+				875A7EF72987A5820022941A /* ColorProcess */,
+				875A7EBD2987A5820022941A /* Effect */,
+				875A7EF22987A5820022941A /* Lookup */,
+				875A7F5F2987A5820022941A /* Matrix */,
+				875A7EBB2987A5820022941A /* MPS */,
+				875A7EB02987A5820022941A /* Shape */,
+				875A7F562987A5820022941A /* Visual */,
+			);
+			path = Compute;
+			sourceTree = "<group>";
+		};
+		875A7EB02987A5820022941A /* Shape */ = {
+			isa = PBXGroup;
+			children = (
+				875A7EB92987A5820022941A /* C7Crop.metal */,
+				875A7EB32987A5820022941A /* C7Crop.swift */,
+				875A7EB52987A5820022941A /* C7Flip.metal */,
+				875A7EBA2987A5820022941A /* C7Flip.swift */,
+				875A7EB62987A5820022941A /* C7Resize.metal */,
+				875A7EB22987A5820022941A /* C7Resize.swift */,
+				875A7EB72987A5820022941A /* C7Rotate.metal */,
+				875A7EB12987A5820022941A /* C7Rotate.swift */,
+				875A7EB42987A5820022941A /* C7Transform.metal */,
+				875A7EB82987A5820022941A /* C7Transform.swift */,
+			);
+			path = Shape;
+			sourceTree = "<group>";
+		};
+		875A7EBB2987A5820022941A /* MPS */ = {
+			isa = PBXGroup;
+			children = (
+				875A7EBC2987A5820022941A /* MPSGaussianBlur.swift */,
+			);
+			path = MPS;
+			sourceTree = "<group>";
+		};
+		875A7EBD2987A5820022941A /* Effect */ = {
+			isa = PBXGroup;
+			children = (
+				875A7ED82987A5820022941A /* C7Bulge.metal */,
+				875A7EC12987A5820022941A /* C7Bulge.swift */,
+				875A7EBE2987A5820022941A /* C7ChromaKey.metal */,
+				875A7EDB2987A5820022941A /* C7ChromaKey.swift */,
+				875A7ECC2987A5820022941A /* C7Crosshatch.metal */,
+				875A7EE22987A5820022941A /* C7Crosshatch.swift */,
+				875A7ED12987A5820022941A /* C7DepthLuminance.metal */,
+				875A7EF02987A5820022941A /* C7DepthLuminance.swift */,
+				875A7EE72987A5820022941A /* C7Fluctuate.metal */,
+				875A7EC82987A5820022941A /* C7Fluctuate.swift */,
+				875A7EDA2987A5820022941A /* C7GlassSphere.metal */,
+				875A7EC02987A5820022941A /* C7GlassSphere.swift */,
+				875A7EC32987A5820022941A /* C7Halftone.metal */,
+				875A7EDE2987A5820022941A /* C7Halftone.swift */,
+				875A7EC72987A5820022941A /* C7Kuwahara.metal */,
+				875A7EDD2987A5820022941A /* C7Kuwahara.swift */,
+				875A7EE52987A5820022941A /* C7Pinch.metal */,
+				875A7ECB2987A5820022941A /* C7Pinch.swift */,
+				875A7EEB2987A5820022941A /* C7Pixellated.metal */,
+				875A7ED52987A5820022941A /* C7Pixellated.swift */,
+				875A7ED32987A5820022941A /* C7PolarPixellate.metal */,
+				875A7EED2987A5820022941A /* C7PolarPixellate.swift */,
+				875A7EE82987A5820022941A /* C7PolkaDot.metal */,
+				875A7EC92987A5820022941A /* C7PolkaDot.swift */,
+				875A7EBF2987A5820022941A /* C7ReplaceRGBA.metal */,
+				875A7EDC2987A5820022941A /* C7ReplaceRGBA.swift */,
+				875A7EE12987A5820022941A /* C7RGBADilation.metal */,
+				875A7EC62987A5820022941A /* C7RGBADilation.swift */,
+				875A7ECF2987A5820022941A /* C7Sharpen.metal */,
+				875A7EEE2987A5820022941A /* C7Sharpen.swift */,
+				875A7ED72987A5820022941A /* C7Sketch.metal */,
+				875A7EE92987A5820022941A /* C7Sketch.swift */,
+				875A7EEC2987A5820022941A /* C7Sobel.metal */,
+				875A7ED62987A5820022941A /* C7Sobel.swift */,
+				875A7EC22987A5820022941A /* C7SoulOut.metal */,
+				875A7ED92987A5820022941A /* C7SoulOut.swift */,
+				875A7EC42987A5820022941A /* C7SphereRefraction.metal */,
+				875A7EDF2987A5820022941A /* C7SphereRefraction.swift */,
+				875A7EE02987A5820022941A /* C7SplitScreen.metal */,
+				875A7EC52987A5820022941A /* C7SplitScreen.swift */,
+				875A7ECA2987A5820022941A /* C7Storyboard.metal */,
+				875A7EE62987A5820022941A /* C7Storyboard.swift */,
+				875A7ED02987A5820022941A /* C7Swirl.metal */,
+				875A7EEF2987A5820022941A /* C7Swirl.swift */,
+				875A7EE42987A5820022941A /* C7ThresholdSketch.metal */,
+				875A7ECE2987A5820022941A /* C7ThresholdSketch.swift */,
+				875A7ED22987A5820022941A /* C7Toon.metal */,
+				875A7EF12987A5820022941A /* C7Toon.swift */,
+				875A7EE32987A5820022941A /* C7Vignette.metal */,
+				875A7ECD2987A5820022941A /* C7Vignette.swift */,
+				875A7EEA2987A5820022941A /* C7WaterRipple.metal */,
+				875A7ED42987A5820022941A /* C7WaterRipple.swift */,
+			);
+			path = Effect;
+			sourceTree = "<group>";
+		};
+		875A7EF22987A5820022941A /* Lookup */ = {
+			isa = PBXGroup;
+			children = (
+				875A7EF42987A5820022941A /* C7LookupSplit.metal */,
+				875A7EF62987A5820022941A /* C7LookupSplit.swift */,
+				875A7EF32987A5820022941A /* C7LookupTable.metal */,
+				875A7EF52987A5820022941A /* C7LookupTable.swift */,
+			);
+			path = Lookup;
+			sourceTree = "<group>";
+		};
+		875A7EF72987A5820022941A /* ColorProcess */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F112987A5820022941A /* C7Brightness.metal */,
+				875A7F262987A5820022941A /* C7Brightness.swift */,
+				875A7EFC2987A5820022941A /* C7CGAColorspace.metal */,
+				875A7F182987A5820022941A /* C7CGAColorspace.swift */,
+				875A7F2D2987A5820022941A /* C7ColorConvert.metal */,
+				875A7F0D2987A5820022941A /* C7ColorConvert.swift */,
+				875A7F2C2987A5820022941A /* C7ColorPacking.metal */,
+				875A7F0C2987A5820022941A /* C7ColorPacking.swift */,
+				875A7F252987A5820022941A /* C7ColorRGBA.metal */,
+				875A7F102987A5820022941A /* C7ColorRGBA.swift */,
+				875A7F132987A5820022941A /* C7ColorSpace.metal */,
+				875A7F282987A5820022941A /* C7ColorSpace.swift */,
+				875A7F172987A5820022941A /* C7ComicStrip.metal */,
+				875A7EFB2987A5820022941A /* C7ComicStrip.swift */,
+				875A7F0F2987A5820022941A /* C7Contrast.metal */,
+				875A7F2A2987A5820022941A /* C7Contrast.swift */,
+				875A7F082987A5820022941A /* C7Exposure.metal */,
+				875A7F212987A5820022941A /* C7Exposure.swift */,
+				875A7F092987A5820022941A /* C7FalseColor.metal */,
+				875A7F2E2987A5820022941A /* C7FalseColor.swift */,
+				875A7EFE2987A5820022941A /* C7Gamma.metal */,
+				875A7F152987A5820022941A /* C7Gamma.swift */,
+				875A7F1A2987A5820022941A /* C7Granularity.metal */,
+				875A7EFA2987A5820022941A /* C7Granularity.swift */,
+				875A7F122987A5820022941A /* C7Haze.metal */,
+				875A7F272987A5820022941A /* C7Haze.swift */,
+				875A7F0B2987A5820022941A /* C7HighlightShadow.metal */,
+				875A7F2B2987A5820022941A /* C7HighlightShadow.swift */,
+				875A7F0E2987A5820022941A /* C7HighlightShadowTint.metal */,
+				875A7F292987A5820022941A /* C7HighlightShadowTint.swift */,
+				875A7EF82987A5820022941A /* C7Hue.metal */,
+				875A7F1B2987A5820022941A /* C7Hue.swift */,
+				875A7F002987A5820022941A /* C7Levels.metal */,
+				875A7F1E2987A5820022941A /* C7Levels.swift */,
+				875A7F1D2987A5820022941A /* C7Luminance.metal */,
+				875A7F042987A5820022941A /* C7Luminance.swift */,
+				875A7F012987A5820022941A /* C7LuminanceRangeReduction.metal */,
+				875A7F1F2987A5820022941A /* C7LuminanceRangeReduction.swift */,
+				875A7EFF2987A5820022941A /* C7LuminanceThreshold.metal */,
+				875A7F162987A5820022941A /* C7LuminanceThreshold.swift */,
+				875A7F032987A5820022941A /* C7Monochrome.metal */,
+				875A7F1C2987A5820022941A /* C7Monochrome.swift */,
+				875A7F0A2987A5820022941A /* C7OilPainting.metal */,
+				875A7F2F2987A5820022941A /* C7OilPainting.swift */,
+				875A7F232987A5820022941A /* C7Opacity.metal */,
+				875A7F072987A5820022941A /* C7Opacity.swift */,
+				875A7F022987A5820022941A /* C7Posterize.metal */,
+				875A7F202987A5820022941A /* C7Posterize.swift */,
+				875A7F192987A5820022941A /* C7Saturation.metal */,
+				875A7EF92987A5820022941A /* C7Saturation.swift */,
+				875A7F052987A5820022941A /* C7SolidColor.metal */,
+				875A7F242987A5820022941A /* C7SolidColor.swift */,
+				875A7F142987A5820022941A /* C7Vibrance.metal */,
+				875A7EFD2987A5820022941A /* C7Vibrance.swift */,
+				875A7F062987A5820022941A /* C7WhiteBalance.metal */,
+				875A7F222987A5820022941A /* C7WhiteBalance.swift */,
+			);
+			path = ColorProcess;
+			sourceTree = "<group>";
+		};
+		875A7F302987A5820022941A /* Blend */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F472987A5820022941A /* C7Blend.swift */,
+				875A7F312987A5820022941A /* C7ChromaKeyBlend.metal */,
+				875A7F352987A5820022941A /* C7ColorAddBlend.metal */,
+				875A7F3E2987A5820022941A /* C7ColorAlphaBlend.metal */,
+				875A7F3C2987A5820022941A /* C7ColorBurnBlend.metal */,
+				875A7F3A2987A5820022941A /* C7ColorDodgeBlend.metal */,
+				875A7F452987A5820022941A /* C7DarkenBlend.metal */,
+				875A7F462987A5820022941A /* C7DifferenceBlend.metal */,
+				875A7F362987A5820022941A /* C7DissolveBlend.metal */,
+				875A7F392987A5820022941A /* C7DivideBlend.metal */,
+				875A7F3B2987A5820022941A /* C7ExclusionBlend.metal */,
+				875A7F342987A5820022941A /* C7HardLightBlend.metal */,
+				875A7F3D2987A5820022941A /* C7HueBlend.metal */,
+				875A7F382987A5820022941A /* C7LightenBlend.metal */,
+				875A7F432987A5820022941A /* C7LinearBurnBlend.metal */,
+				875A7F412987A5820022941A /* C7LuminosityBlend.metal */,
+				875A7F372987A5820022941A /* C7MaskBlend.metal */,
+				875A7F422987A5820022941A /* C7MultiplyBlend.metal */,
+				875A7F402987A5820022941A /* C7NormalBlend.metal */,
+				875A7F3F2987A5820022941A /* C7OverlayBlend.metal */,
+				875A7F442987A5820022941A /* C7ScreenBlend.metal */,
+				875A7F482987A5820022941A /* C7SoftLightBlend.metal */,
+				875A7F332987A5820022941A /* C7SourceOverBlend.metal */,
+				875A7F322987A5820022941A /* C7SubtractBlend.metal */,
+			);
+			path = Blend;
+			sourceTree = "<group>";
+		};
+		875A7F492987A5820022941A /* Blur */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F532987A5820022941A /* C7BilateralBlur.metal */,
+				875A7F4C2987A5820022941A /* C7BilateralBlur.swift */,
+				875A7F4A2987A5820022941A /* C7GaussianBlur.metal */,
+				875A7F502987A5820022941A /* C7GaussianBlur.swift */,
+				875A7F4B2987A5820022941A /* C7MeanBlur.metal */,
+				875A7F512987A5820022941A /* C7MeanBlur.swift */,
+				875A7F552987A5820022941A /* C7MonochromeDilation.metal */,
+				875A7F4E2987A5820022941A /* C7MonochromeDilation.swift */,
+				875A7F4D2987A5820022941A /* C7MotionBlur.metal */,
+				875A7F522987A5820022941A /* C7MotionBlur.swift */,
+				875A7F542987A5820022941A /* C7ZoomBlur.metal */,
+				875A7F4F2987A5820022941A /* C7ZoomBlur.swift */,
+			);
+			path = Blur;
+			sourceTree = "<group>";
+		};
+		875A7F562987A5820022941A /* Visual */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F5A2987A5820022941A /* C7EdgeGlow.metal */,
+				875A7F5E2987A5820022941A /* C7EdgeGlow.swift */,
+				875A7F572987A5820022941A /* C7Glitch.metal */,
+				875A7F5B2987A5820022941A /* C7Glitch.swift */,
+				875A7F5D2987A5820022941A /* C7ShiftGlitch.metal */,
+				875A7F592987A5820022941A /* C7ShiftGlitch.swift */,
+				875A7F5C2987A5820022941A /* C7VoronoiOverlay.metal */,
+				875A7F582987A5820022941A /* C7VoronoiOverlay.swift */,
+			);
+			path = Visual;
+			sourceTree = "<group>";
+		};
+		875A7F5F2987A5820022941A /* Matrix */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F6B2987A5820022941A /* C7ColorMatrix4x4.metal */,
+				875A7F652987A5820022941A /* C7ColorMatrix4x4.swift */,
+				875A7F672987A5820022941A /* C7ColorMatrix4x5.metal */,
+				875A7F612987A5820022941A /* C7ColorMatrix4x5.swift */,
+				875A7F602987A5820022941A /* C7ColorVector4.metal */,
+				875A7F682987A5820022941A /* C7ColorVector4.swift */,
+				875A7F662987A5820022941A /* C7ConvolutionMatrix3x3.metal */,
+				875A7F622987A5820022941A /* C7ConvolutionMatrix3x3.swift */,
+				875A7F632987A5820022941A /* C7Nostalgic.metal */,
+				875A7F692987A5820022941A /* C7Nostalgic.swift */,
+				875A7F6A2987A5820022941A /* C7Sepia.metal */,
+				875A7F642987A5820022941A /* C7Sepia.swift */,
+			);
+			path = Matrix;
+			sourceTree = "<group>";
+		};
+		875A7F6C2987A58E0022941A /* Mac */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F752987A58E0022941A /* Dancing.xcodeproj */,
+				875A7F6D2987A58E0022941A /* Dancing.xcworkspace */,
+				875A7F982987A58E0022941A /* Podfile */,
+				875A7F992987A58E0022941A /* Podfile.lock */,
+				875A7F782987A58E0022941A /* Pods */,
+			);
+			path = Mac;
+			sourceTree = "<group>";
+		};
+		875A7F762987A58E0022941A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F9C2987A58E0022941A /* Dancing.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		875A7F782987A58E0022941A /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F792987A58E0022941A /* Pods.xcodeproj */,
+				875A7F7C2987A58E0022941A /* Target Support Files */,
+				875A7F942987A58E0022941A /* Manifest.lock */,
+				875A7F952987A58E0022941A /* Local Podspecs */,
+				875A7F972987A58E0022941A /* Headers */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		875A7F7A2987A58E0022941A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FA12987A58E0022941A /* Harbeth */,
+				875A7FA32987A58E0022941A /* Harbeth-Harbeth */,
+				875A7FA52987A58E0022941A /* Pods-Dancing */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		875A7F7C2987A58E0022941A /* Target Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F7D2987A58E0022941A /* Harbeth */,
+				875A7F862987A58E0022941A /* Pods-Dancing */,
+			);
+			path = "Target Support Files";
+			sourceTree = "<group>";
+		};
+		875A7F7D2987A58E0022941A /* Harbeth */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F7E2987A58E0022941A /* ResourceBundle-Harbeth-Harbeth-Info.plist */,
+				875A7F7F2987A58E0022941A /* Harbeth-umbrella.h */,
+				875A7F802987A58E0022941A /* Harbeth.debug.xcconfig */,
+				875A7F812987A58E0022941A /* Harbeth-prefix.pch */,
+				875A7F822987A58E0022941A /* Harbeth.release.xcconfig */,
+				875A7F832987A58E0022941A /* Harbeth.modulemap */,
+				875A7F842987A58E0022941A /* Harbeth-dummy.m */,
+				875A7F852987A58E0022941A /* Harbeth-Info.plist */,
+			);
+			path = Harbeth;
+			sourceTree = "<group>";
+		};
+		875A7F862987A58E0022941A /* Pods-Dancing */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F872987A58E0022941A /* Pods-Dancing-resources-Release-input-files.xcfilelist */,
+				875A7F882987A58E0022941A /* Pods-Dancing-acknowledgements.markdown */,
+				875A7F892987A58E0022941A /* Pods-Dancing.release.xcconfig */,
+				875A7F8A2987A58E0022941A /* Pods-Dancing-Info.plist */,
+				875A7F8B2987A58E0022941A /* Pods-Dancing-acknowledgements.plist */,
+				875A7F8C2987A58E0022941A /* Pods-Dancing.debug.xcconfig */,
+				875A7F8D2987A58E0022941A /* Pods-Dancing-dummy.m */,
+				875A7F8E2987A58E0022941A /* Pods-Dancing.modulemap */,
+				875A7F8F2987A58E0022941A /* Pods-Dancing-resources.sh */,
+				875A7F902987A58E0022941A /* Pods-Dancing-resources-Release-output-files.xcfilelist */,
+				875A7F912987A58E0022941A /* Pods-Dancing-umbrella.h */,
+				875A7F922987A58E0022941A /* Pods-Dancing-resources-Debug-output-files.xcfilelist */,
+				875A7F932987A58E0022941A /* Pods-Dancing-resources-Debug-input-files.xcfilelist */,
+			);
+			path = "Pods-Dancing";
+			sourceTree = "<group>";
+		};
+		875A7F952987A58E0022941A /* Local Podspecs */ = {
+			isa = PBXGroup;
+			children = (
+				875A7F962987A58E0022941A /* Harbeth.podspec.json */,
+			);
+			path = "Local Podspecs";
+			sourceTree = "<group>";
+		};
+		875A7F972987A58E0022941A /* Headers */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Headers;
+			sourceTree = "<group>";
+		};
+		875A7FA62987A5970022941A /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FF12987A5970022941A /* MetalDemo.xcodeproj */,
+				875A7FF52987A5970022941A /* MetalDemo.xcworkspace */,
+				875A7FA72987A5970022941A /* MetalDemoTests */,
+				875A7FA92987A5970022941A /* MetalDemoUITests */,
+				875A7FF02987A5970022941A /* Podfile */,
+				875A7FF42987A5970022941A /* Podfile.lock */,
+				875A7FC02987A5970022941A /* Pods */,
+			);
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		875A7FA72987A5970022941A /* MetalDemoTests */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FA82987A5970022941A /* MetalDemoTests.swift */,
+			);
+			path = MetalDemoTests;
+			sourceTree = "<group>";
+		};
+		875A7FA92987A5970022941A /* MetalDemoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FAA2987A5970022941A /* MetalDemoUITests.swift */,
+				875A7FAB2987A5970022941A /* MetalDemoUITestsLaunchTests.swift */,
+			);
+			path = MetalDemoUITests;
+			sourceTree = "<group>";
+		};
+		875A7FC02987A5970022941A /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FC12987A5970022941A /* Pods.xcodeproj */,
+				875A7FC42987A5970022941A /* Target Support Files */,
+				875A7FEC2987A5970022941A /* Manifest.lock */,
+				875A7FED2987A5970022941A /* Local Podspecs */,
+				875A7FEF2987A5970022941A /* Headers */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		875A7FC22987A5970022941A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				875A80052987A5970022941A /* Harbeth */,
+				875A80072987A5970022941A /* Harbeth-Harbeth */,
+				875A80092987A5970022941A /* Pods-MetalDemo */,
+				875A800B2987A5970022941A /* Pods-MetalDemoTests */,
+				875A800D2987A5970022941A /* Pods-MetalDemoUITests */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		875A7FC42987A5970022941A /* Target Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FC52987A5970022941A /* Pods-MetalDemoTests */,
+				875A7FCE2987A5970022941A /* Harbeth */,
+				875A7FD82987A5970022941A /* Pods-MetalDemo */,
+				875A7FE62987A5970022941A /* Pods-MetalDemoUITests */,
+			);
+			path = "Target Support Files";
+			sourceTree = "<group>";
+		};
+		875A7FC52987A5970022941A /* Pods-MetalDemoTests */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FC62987A5970022941A /* Pods-MetalDemoTests.modulemap */,
+				875A7FC72987A5970022941A /* Pods-MetalDemoTests-umbrella.h */,
+				875A7FC82987A5970022941A /* Pods-MetalDemoTests.debug.xcconfig */,
+				875A7FC92987A5970022941A /* Pods-MetalDemoTests-dummy.m */,
+				875A7FCA2987A5970022941A /* Pods-MetalDemoTests.release.xcconfig */,
+				875A7FCB2987A5970022941A /* Pods-MetalDemoTests-acknowledgements.plist */,
+				875A7FCC2987A5970022941A /* Pods-MetalDemoTests-Info.plist */,
+				875A7FCD2987A5970022941A /* Pods-MetalDemoTests-acknowledgements.markdown */,
+			);
+			path = "Pods-MetalDemoTests";
+			sourceTree = "<group>";
+		};
+		875A7FCE2987A5970022941A /* Harbeth */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FCF2987A5970022941A /* ResourceBundle-Harbeth-Harbeth-Info.plist */,
+				875A7FD02987A5970022941A /* Harbeth-umbrella.h */,
+				875A7FD12987A5970022941A /* Harbeth.debug.xcconfig */,
+				875A7FD22987A5970022941A /* Harbeth-prefix.pch */,
+				875A7FD32987A5970022941A /* ResourceBundle-ATMetalLibrary-Harbeth-Info.plist */,
+				875A7FD42987A5970022941A /* Harbeth.release.xcconfig */,
+				875A7FD52987A5970022941A /* Harbeth.modulemap */,
+				875A7FD62987A5970022941A /* Harbeth-dummy.m */,
+				875A7FD72987A5970022941A /* Harbeth-Info.plist */,
+			);
+			path = Harbeth;
+			sourceTree = "<group>";
+		};
+		875A7FD82987A5970022941A /* Pods-MetalDemo */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FD92987A5970022941A /* Pods-MetalDemo-Info.plist */,
+				875A7FDA2987A5970022941A /* Pods-MetalDemo-acknowledgements.plist */,
+				875A7FDB2987A5970022941A /* Pods-MetalDemo.debug.xcconfig */,
+				875A7FDC2987A5970022941A /* Pods-MetalDemo-acknowledgements.markdown */,
+				875A7FDD2987A5970022941A /* Pods-MetalDemo.modulemap */,
+				875A7FDE2987A5970022941A /* Pods-MetalDemo-resources-Release-input-files.xcfilelist */,
+				875A7FDF2987A5970022941A /* Pods-MetalDemo-resources-Release-output-files.xcfilelist */,
+				875A7FE02987A5970022941A /* Pods-MetalDemo.release.xcconfig */,
+				875A7FE12987A5970022941A /* Pods-MetalDemo-resources.sh */,
+				875A7FE22987A5970022941A /* Pods-MetalDemo-umbrella.h */,
+				875A7FE32987A5970022941A /* Pods-MetalDemo-resources-Debug-input-files.xcfilelist */,
+				875A7FE42987A5970022941A /* Pods-MetalDemo-dummy.m */,
+				875A7FE52987A5970022941A /* Pods-MetalDemo-resources-Debug-output-files.xcfilelist */,
+			);
+			path = "Pods-MetalDemo";
+			sourceTree = "<group>";
+		};
+		875A7FE62987A5970022941A /* Pods-MetalDemoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FE72987A5970022941A /* Pods-MetalDemoUITests-dummy.m */,
+				875A7FE82987A5970022941A /* Pods-MetalDemoUITests.debug.xcconfig */,
+				875A7FE92987A5970022941A /* Pods-MetalDemoUITests-acknowledgements.plist */,
+				875A7FEA2987A5970022941A /* Pods-MetalDemoUITests.release.xcconfig */,
+				875A7FEB2987A5970022941A /* Pods-MetalDemoUITests-acknowledgements.markdown */,
+			);
+			path = "Pods-MetalDemoUITests";
+			sourceTree = "<group>";
+		};
+		875A7FED2987A5970022941A /* Local Podspecs */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FEE2987A5970022941A /* Harbeth.podspec.json */,
+			);
+			path = "Local Podspecs";
+			sourceTree = "<group>";
+		};
+		875A7FEF2987A5970022941A /* Headers */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Headers;
+			sourceTree = "<group>";
+		};
+		875A7FF22987A5970022941A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				875A7FFA2987A5970022941A /* MetalDemo.app */,
+				875A7FFC2987A5970022941A /* MetalDemoTests.xctest */,
+				875A7FFE2987A5970022941A /* MetalDemoUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8762D4482977C4D4009405E2 = {
+			isa = PBXGroup;
+			children = (
+				875A7FA62987A5970022941A /* iOS */,
+				875A7F6C2987A58E0022941A /* Mac */,
+				875A7E6B2987A5820022941A /* Sources */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXProject section */
+		8762D4492977C4D4009405E2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1410;
+				LastUpgradeCheck = 1410;
+			};
+			buildConfigurationList = 8762D44C2977C4D4009405E2 /* Build configuration list for PBXProject "Harbeth" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 8762D4482977C4D4009405E2;
+			packageReferences = (
+			);
+			productRefGroup = 8762D4482977C4D4009405E2;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 875A7F762987A58E0022941A /* Products */;
+					ProjectRef = 875A7F752987A58E0022941A /* Dancing.xcodeproj */;
+				},
+				{
+					ProductGroup = 875A7FF22987A5970022941A /* Products */;
+					ProjectRef = 875A7FF12987A5970022941A /* MetalDemo.xcodeproj */;
+				},
+				{
+					ProductGroup = 875A7FC22987A5970022941A /* Products */;
+					ProjectRef = 875A7FC12987A5970022941A /* Pods.xcodeproj */;
+				},
+				{
+					ProductGroup = 875A7F7A2987A58E0022941A /* Products */;
+					ProjectRef = 875A7F792987A58E0022941A /* Pods.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		875A7F9C2987A58E0022941A /* Dancing.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = Dancing.app;
+			remoteRef = 875A7F9B2987A58E0022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A7FA12987A58E0022941A /* Harbeth */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			name = Harbeth;
+			path = Harbeth.framework;
+			remoteRef = 875A7FA02987A58E0022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A7FA32987A58E0022941A /* Harbeth-Harbeth */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			name = "Harbeth-Harbeth";
+			path = Harbeth.bundle;
+			remoteRef = 875A7FA22987A58E0022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A7FA52987A58E0022941A /* Pods-Dancing */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			name = "Pods-Dancing";
+			path = Pods_Dancing.framework;
+			remoteRef = 875A7FA42987A58E0022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A7FFA2987A5970022941A /* MetalDemo.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = MetalDemo.app;
+			remoteRef = 875A7FF92987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A7FFC2987A5970022941A /* MetalDemoTests.xctest */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = MetalDemoTests.xctest;
+			remoteRef = 875A7FFB2987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A7FFE2987A5970022941A /* MetalDemoUITests.xctest */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = MetalDemoUITests.xctest;
+			remoteRef = 875A7FFD2987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A80052987A5970022941A /* Harbeth */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			name = Harbeth;
+			path = Harbeth.framework;
+			remoteRef = 875A80042987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A80072987A5970022941A /* Harbeth-Harbeth */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			name = "Harbeth-Harbeth";
+			path = Harbeth.bundle;
+			remoteRef = 875A80062987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A80092987A5970022941A /* Pods-MetalDemo */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			name = "Pods-MetalDemo";
+			path = Pods_MetalDemo.framework;
+			remoteRef = 875A80082987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A800B2987A5970022941A /* Pods-MetalDemoTests */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			name = "Pods-MetalDemoTests";
+			path = "libPods-MetalDemoTests.a";
+			remoteRef = 875A800A2987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		875A800D2987A5970022941A /* Pods-MetalDemoUITests */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			name = "Pods-MetalDemoUITests";
+			path = "libPods-MetalDemoUITests.a";
+			remoteRef = 875A800C2987A5970022941A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
+
+/* Begin XCBuildConfiguration section */
+		8762D4632977C4D6009405E2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		8762D4642977C4D6009405E2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8762D44C2977C4D4009405E2 /* Build configuration list for PBXProject "Harbeth" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8762D4632977C4D6009405E2 /* Debug */,
+				8762D4642977C4D6009405E2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8762D4492977C4D4009405E2 /* Project object */;
+}
