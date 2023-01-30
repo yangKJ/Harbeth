@@ -1,18 +1,18 @@
 {
   "name": "Harbeth",
-  "version": "0.5.9",
-  "summary": "About Metal graphics processing.",
+  "version": "0.6.0",
+  "summary": "About Metal image processing and video add filter.",
   "homepage": "https://github.com/yangKJ/Harbeth",
   "license": {
     "type": "MIT",
     "file": "LICENSE"
   },
   "authors": {
-    "Condy": "ykj310@126.com"
+    "Condy": "yangkj310@gmail.com"
   },
   "source": {
     "git": "https://github.com/yangKJ/Harbeth.git",
-    "tag": "0.5.9"
+    "tag": "0.6.0"
   },
   "swift_versions": "5.0",
   "requires_arc": true,

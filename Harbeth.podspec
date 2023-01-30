@@ -8,8 +8,8 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.5.9'
-  s.summary          = 'About Metal graphics processing.'
+  s.version          = '0.6.0'
+  s.summary          = 'About Metal image processing and video add filter.'
   
   # This description is used to generate tags and improve search results.
   #   * Think: What does it do? Why did you write it? What is the focus?
@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
   
   s.homepage         = 'https://github.com/yangKJ/Harbeth'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
-  s.author           = { 'Condy' => 'ykj310@126.com' }
+  s.author           = { 'Condy' => 'yangkj310@gmail.com' }
   s.source           = { :git => 'https://github.com/yangKJ/Harbeth.git', :tag => s.version }
   
   s.swift_version    = '5.0'

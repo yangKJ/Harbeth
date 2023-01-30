@@ -27,4 +27,8 @@ extension Queen where Base == URL {
         return uiImage.cgImage
         #endif
     }
+    
+    public var isLocalResource: Bool {
+        base.scheme == "file" || base.scheme == "data"
+    }
 }

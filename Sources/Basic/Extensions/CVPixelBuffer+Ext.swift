@@ -66,11 +66,11 @@ extension Queen where Base: CVPixelBuffer {
         let flags = CVPixelBufferLockFlags(rawValue: 0)
         CVPixelBufferLockBaseAddress(base, flags)
         if let pixelBufferBytes = CVPixelBufferGetBaseAddress(base) {
-            let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
             // Fixed if the CVPixelBuffer and MTLTexture size is not equal.
             // If the size is inconsistent, using the modified size filter will crash.
             // Such as: C7Resize, C7Crop and so on Shape filter.
             if base.mt.size == texture.size {
+                let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
                 let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
                 texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
             }

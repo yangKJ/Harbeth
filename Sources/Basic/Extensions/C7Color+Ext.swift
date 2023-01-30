@@ -96,6 +96,17 @@ extension Queen where Base: C7Color {
         return (Float(y), Float(u), Float(v))
     }
     
+    public func linearInterpolation(directionColor: C7Color, rate: Float) -> C7Color {
+        let rate = min(1, max(0, rate))
+        let (fR, fG, fB, fA) = base.mt.toRGBA()
+        let (tR, tG, tB, tA) = directionColor.mt.toRGBA()
+        let dR = CGFloat((tR-fR) * rate + fR) / 255.0
+        let dG = CGFloat((tG-fG) * rate + fR) / 255.0
+        let dB = CGFloat((tB-fB) * rate + fR) / 255.0
+        let dA = CGFloat((tA-fA) * rate + fA)
+        return C7Color.init(red: dR, green: dG, blue: dB, alpha: dA)
+    }
+    
     /// Fixed `*** -getRed:green:blue:alpha: not valid for the NSColor Generic Gray Gamma 2.2 Profile colorspace 1 1;
     /// Need to first convert colorspace.
     /// See: https://stackoverflow.com/questions/67314642/color-not-valid-for-the-nscolor-generic-gray-gamma-when-creating-sktexture-fro

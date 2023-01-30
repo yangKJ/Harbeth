@@ -37,6 +37,11 @@ extension Queen where Base: C7Image {
         }
     }
     
+    /// Fixed image rotation direction.
+    public func fixOrientation() -> C7Image {
+        base
+    }
+    
     /// Flip image, Need to be used in `base.lockFocus()`
     ///
     /// Example:
