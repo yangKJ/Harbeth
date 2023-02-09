@@ -1,6 +1,0 @@
-framework module Pods_MetalDemoTests {
-  umbrella header "Pods-MetalDemoTests-umbrella.h"
-
-  export *
-  module * { export * }
-}
