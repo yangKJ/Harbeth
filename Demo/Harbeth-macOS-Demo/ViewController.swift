@@ -67,6 +67,7 @@ class ViewController: NSViewController {
         // Do any additional setup after loading the view.
         self.setupUI()
         self.unitTest()
+        self.dynamicTest()
     }
     
     override var representedObject: Any? {
@@ -129,19 +130,7 @@ class ViewController: NSViewController {
         
         NSLog("%@", "\(filter.parameterDescription)")
         
-        // 方案1:
         ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
-        
-        // 方案2:
-        //ImageView.image = originImage.filtering(filter, filter2, filter3)
-        
-        // 方案3:
-        //ImageView.image = originImage ->> filter ->> filter2 ->> filter3
-        
-        // 方案4:
-        //ImageView.image = try? originImage.makeGroup(filters: [filter, filter2, filter3])
-        
-        dynamicTest()
     }
     
     func dynamicTest() {
@@ -149,14 +138,11 @@ class ViewController: NSViewController {
     }
     
     var soul = C7SoulOut.init(soul: 0.7)
-    
     @objc func onScreenUpdate(_ sender: CADisplayLink) {
-        let dest = BoxxIO.init(element: self.originImage, filter: soul)
-        //filter.intensity = Float.random(in: C7LookupTable.range.min...C7LookupTable.range.max)
         soul.soul += 0.025
         if soul.soul == C7SoulOut.range.max {
             soul.soul = C7SoulOut.range.min
         }
-        self.ImageView.image = try? dest.output()
+        self.ImageView.image = originImage ->> soul
     }
 }

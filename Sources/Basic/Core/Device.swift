@@ -1,6 +1,6 @@
 //
 //  Device.swift
-//  MetalQueen
+//  Harbeth
 //
 //  Created by Condy on 2021/8/8.
 //
@@ -17,8 +17,8 @@ internal final class Device: Cacheable {
     let commandQueue: MTLCommandQueue
     /// Metal file in your local project
     let defaultLibrary: MTLLibrary?
-    /// Metal file in ATMetalBand
-    let ATMetalLibrary: MTLLibrary?
+    /// Metal file in ``Harbeth Framework``
+    let harbethLibrary: MTLLibrary?
     /// Cache pipe state
     lazy var pipelines = [C7KernelFunction: MTLComputePipelineState]()
     /// Load the texture tool
@@ -44,9 +44,9 @@ internal final class Device: Cacheable {
         } else {
             self.defaultLibrary = device.makeDefaultLibrary()
         }
-        self.ATMetalLibrary = Device.makeATLibrary(device, for: "Harbeth")
+        self.harbethLibrary = Device.makeFrameworkLibrary(device, for: "Harbeth")
         
-        if defaultLibrary == nil && ATMetalLibrary == nil {
+        if defaultLibrary == nil && harbethLibrary == nil {
             C7FailedErrorInDebug("Could not load library")
         }
     }
@@ -58,7 +58,7 @@ internal final class Device: Cacheable {
 
 extension Device {
     
-    static func makeATLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
+    static func makeFrameworkLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
         #if SWIFT_PACKAGE
         /// Fixed the Swift PM cannot read the `.metal` file.
         /// https://stackoverflow.com/questions/63237395/generating-resource-bundle-accessor-type-bundle-has-no-member-module
@@ -129,8 +129,8 @@ extension Device {
         if let libray = Shared.shared.device?.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
-        // Then read from CocoaPods
-        if let libray = Shared.shared.device?.ATMetalLibrary, let function = libray.makeFunction(name: name) {
+        // Then read from ``Harbeth Framework``
+        if let libray = Shared.shared.device?.harbethLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         #if DEBUG

@@ -8,9 +8,8 @@
 import Foundation
 
 extension C7Color: C7Compatible {
-    /// Empty color, Dooo default.
-    /// Cannot get rgba.
-    public static let zero = C7Color.clear
+    /// Empty color, Dooo default. cannot get rgba.
+    public static let zero = C7Color.init(white: 0, alpha: 0)
     /// Random color
     public static let random = {
         C7Color(hue: CGFloat(arc4random() % 256 / 256),
