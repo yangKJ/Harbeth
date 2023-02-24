@@ -5,9 +5,7 @@
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
  
-[**Harbeth**](https://github.com/yangKJ/Harbeth) 是 Apple 的 Metal 框架上的一小部分实用程序和扩展，专用于使您的 Swift GPU 代码更加简洁，让您更快地构建管道原型。
-
-<font color=red>**图形处理和滤镜制作。👒👒👒**</font>
+[**Harbeth**](https://github.com/yangKJ/Harbeth) 是基于GPU快速实现图片or视频注入滤镜特效，代码零侵入实现图像显示and视频导出功能，支持iOS系统和macOS系统。👒👒👒
 
 -------
 
@@ -24,7 +22,7 @@
 - 支持输出源的快速扩展
 - 支持相机采集特效
 - 支持视频添加滤镜特效
-- 支持矩阵卷积
+- 支持已有视频添加滤镜并导出
 - 支持使用系统 MetalPerformanceShaders.
 - 支持兼容 CoreImage.
 - 滤镜部分大致分为以下几个模块：

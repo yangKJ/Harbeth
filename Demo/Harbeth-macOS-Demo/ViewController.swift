@@ -67,7 +67,7 @@ class ViewController: NSViewController {
         // Do any additional setup after loading the view.
         self.setupUI()
         self.unitTest()
-        self.dynamicTest()
+        //self.dynamicTest()
     }
     
     override var representedObject: Any? {
@@ -91,46 +91,47 @@ class ViewController: NSViewController {
         ])
     }
     
-    //let filter = C7Storyboard.init(ranks: 2)
-    //let filter = C7SoulOut.init(soul: 0.7)
-    //let filter = C7Granularity.init()
-    //let filter = C7MeanBlur.init(radius: 0.5)
-    //let filter = C7Brightness.init(brightness: 0.25)
-    //let filter = C7ConvolutionMatrix3x3(convolutionType: .sharpen(iterations: 2))
-    //let filter = C7ColorConvert(with: .gray)
-    //let filter = C7LookupTable.init(image: R.image("lut_abao"))
-    //let filter = C7Rotate.init(angle: -30)
-    //let filter = C7ColorVector4.init(vector: Vector4.Color.warm)
-    //let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.axix_red_rotate(90))
-    //let filter = C7Hue.init(hue: 45)
-    //let filter = C7ThresholdSketch.init(edgeStrength: 2.5, threshold: 0.25)
-    //let filter = C7ColorPacking.init(horizontalTexel: 2.5, verticalTexel: 5)
-    //let filter = C7Fluctuate.init(extent: 50, amplitude: 0.003, fluctuate: 2.5)
-    //let filter = C7Nostalgic.init(intensity: 0.6)
-    //let filter = C7ComicStrip.init()
-    //let filter = C7OilPainting.init(radius: 4, pixel: 1)
-    //let filter = C7ColorVector4(vector: Vector4.Color.warm)
-    //let filter = C7Contrast.init(contrast: 1.5)
-    //let filter = C7Exposure.init(exposure: 0.25)
-    //let filter = C7FalseColor.init(fristColor: .blue, secondColor: .green)
-    //let filter = C7Gamma.init(gamma: 3.0)
-    //let filter = C7Haze.init(distance: 0.25, slope: 0.5)
-    //let filter = C7Monochrome.init(intensity: 0.83, color: .blue)
-    //let filter = C7Opacity.init(opacity: 0.75)
-    //let filter = C7Posterize.init(colorLevels: 2.3)
-    //let filter = C7Vibrance.init(vibrance: -1.2)
-    //let filter = C7WhiteBalance.init(temperature: 4000, tint: -200)
-    //let filter = C7ColorSpace.init(with: .rgb_to_yuv)
-    let filter = C7BilateralBlur.init(radius: 0.5)
+    let filters: [C7FilterProtocol] = [
+        C7Storyboard.init(ranks: 2),
+        C7SoulOut.init(soul: 0.7),
+        C7Granularity.init(),
+        C7MeanBlur.init(radius: 0.5),
+        C7Brightness.init(brightness: 0.25),
+        C7ConvolutionMatrix3x3(convolutionType: .sharpen(iterations: 2)),
+        C7ColorConvert(with: .gray),
+        C7LookupTable.init(image: R.image("lut_abao")),
+        C7Rotate.init(angle: -30),
+        C7ColorVector4.init(vector: Vector4.Color.warm),
+        C7ColorMatrix4x4(matrix: Matrix4x4.Color.axix_red_rotate(90)),
+        C7Hue.init(hue: 45),
+        C7ThresholdSketch.init(edgeStrength: 2.5, threshold: 0.25),
+        C7ColorPacking.init(horizontalTexel: 2.5, verticalTexel: 5),
+        C7Fluctuate.init(extent: 50, amplitude: 0.003, fluctuate: 2.5),
+        C7Nostalgic.init(intensity: 0.6),
+        C7ComicStrip.init(),
+        C7OilPainting.init(radius: 4, pixel: 1),
+        C7ColorVector4(vector: Vector4.Color.warm),
+        C7Contrast.init(contrast: 1.5),
+        C7Exposure.init(exposure: 0.25),
+        C7FalseColor.init(fristColor: .blue, secondColor: .green),
+        C7Gamma.init(gamma: 3.0),
+        C7Haze.init(distance: 0.25, slope: 0.5),
+        C7Monochrome.init(intensity: 0.83, color: .blue),
+        C7Opacity.init(opacity: 0.75),
+        C7Posterize.init(colorLevels: 2.3),
+        C7Vibrance.init(vibrance: -1.2),
+        C7WhiteBalance.init(temperature: 4000, tint: -200),
+        C7ColorSpace.init(with: .rgb_to_yuv),
+        C7BilateralBlur.init(radius: 0.5),
+    ]
     
     func unitTest() {
         //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
-        
-        //ImageView.image = C7Color.systemPink.mt.colorImage(with: CGSize(width: 671, height: 300))
-        
-        NSLog("%@", "\(filter.parameterDescription)")
-        
-        ImageView.image = try? BoxxIO.init(element: originImage, filters: [filter]).output()
+        guard let filter = filters.randomElement() else {
+            return
+        }
+        NSLog("%@", "\(type(of: filter)) --- \(filter.parameterDescription)")
+        ImageView.image = try? BoxxIO.init(element: originImage, filter: filter).output()
     }
     
     func dynamicTest() {

@@ -16,8 +16,8 @@ import CoreVideo
 /// See: https://github.com/yangKJ/Harbeth
 @frozen public struct BoxxIO<Dest> : Destype {
     public typealias Element = Dest
-    public var element: Dest
-    public var filters: [C7FilterProtocol]
+    public let element: Dest
+    public let filters: [C7FilterProtocol]
     
     // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
     // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
