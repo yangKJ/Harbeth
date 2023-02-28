@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Harbeth
 
 class HomeViewController: UIViewController {
     
@@ -111,7 +112,7 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
 }
 
 extension UIColor {
-    static let background  = UIColor(named: "background")
-    static let background2 = UIColor(named: "background2")
-    static let defaultTint = UIColor(named: "defaultTint")
+    static let background  = R.color("background")//UIColor(named: "background")
+    static let background2 = R.color("background2")
+    static let defaultTint = R.color("defaultTint")
 }

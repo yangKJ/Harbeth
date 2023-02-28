@@ -67,10 +67,10 @@ public struct R {
     /// Read color resource
     @available(iOS 11.0, *, macOS 10.13, *)
     public static func color(_ named: String, forResource: String = "Harbeth") -> C7Color? {
-        guard let bundlePath = Bundle.main.path(forResource: forResource, ofType: "bundle"),
-              let bundle = Bundle.init(path: bundlePath) else {
-            return nil
+        guard let bundlePath = Bundle.main.path(forResource: forResource, ofType: "bundle") else {
+            return C7Color.init(named: named)
         }
+        let bundle = Bundle.init(path: bundlePath)
         #if os(iOS) || os(tvOS) || os(watchOS)
         return C7Color.init(named: named, in: bundle, compatibleWith: nil)
         #elseif os(macOS)
