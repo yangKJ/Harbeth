@@ -16,7 +16,7 @@ class ViewController: NSViewController {
         view.wantsLayer = true
     }
     
-    var originImage: C7Image = R.image("AR")
+    var originImage: C7Image = R.image("AR")!
     
     private lazy var displayLink: CADisplayLink = {
         let display = CADisplayLink(target: self, selector: #selector(ViewController.onScreenUpdate(_:)))
@@ -131,7 +131,8 @@ class ViewController: NSViewController {
             return
         }
         NSLog("%@", "\(type(of: filter)) --- \(filter.parameterDescription)")
-        ImageView.image = try? BoxxIO.init(element: originImage, filter: filter).output()
+        let dest = BoxxIO.init(element: originImage, filter: filter)
+        ImageView.image = try? dest.output()
     }
     
     func dynamicTest() {

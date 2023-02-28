@@ -3,7 +3,7 @@
 //  Harbeth
 //
 //  Created by Condy on 2022/10/22.
-//
+//  https://github.com/yangKJ/Harbeth
 
 import Foundation
 import MetalKit
@@ -12,8 +12,7 @@ import CoreMedia
 import CoreVideo
 
 /// Quickly add filters to sources.
-/// Support use ``UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer``
-/// See: https://github.com/yangKJ/Harbeth
+/// Support use ``UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer``
 @frozen public struct BoxxIO<Dest> : Destype {
     public typealias Element = Dest
     public let element: Dest
