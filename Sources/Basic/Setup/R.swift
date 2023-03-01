@@ -39,22 +39,6 @@ public struct R {
         #endif
     }
     
-    /// Read gif data.
-    public static func gifData(_ named: String, forResource: String = "Harbeth") -> Data? {
-        let bundle: Bundle?
-        if let bundlePath = Bundle.main.path(forResource: forResource, ofType: "bundle") {
-            bundle = Bundle.init(path: bundlePath)
-        } else {
-            bundle = Bundle.main
-        }
-        guard let contentURL = ["gif", "GIF", "Gif"].compactMap({
-            bundle?.url(forResource: named, withExtension: $0)
-        }).first else {
-            return nil
-        }
-        return try? Data(contentsOf: contentURL)
-    }
-    
     /// Read multilingual text resources
     public static func text(_ named: String, forResource: String = "Harbeth", comment: String = "Localizable") -> String {
         guard let bundlePath = Bundle.main.path(forResource: forResource, ofType: "bundle"),

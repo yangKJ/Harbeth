@@ -117,10 +117,6 @@ extension Queen where Base: C7Color {
         return base
         #endif
     }
-}
-
-#if HARBETH_COMPUTE // Compute module
-extension Queen where Base: C7Color {
     
     /// Create a solid color image.
     /// - Parameters:
@@ -128,12 +124,15 @@ extension Queen where Base: C7Color {
     ///   - size: Indicates the size of the solid color diagram.
     /// - Returns: Solid color graph.
     public func colorImage(with size: CGSize = CGSize(width: 1, height: 1)) -> C7Image? {
+        #if HARBETH_COMPUTE // Compute module
         let width  = Int(size.width > 0 ? size.width : 1)
         let height = Int(size.height > 0 ? size.height : 1)
         let texture = Processed.destTexture(width: width, height: height)
         let filter = C7SolidColor.init(color: base)
         let result = try? Processed.IO(inTexture: texture, outTexture: texture, filter: filter)
         return result?.toImage()
+        #else
+        return nil
+        #endif
     }
 }
-#endif

@@ -1,6 +1,6 @@
 # Harbeth
 
-![x](Screenshot/launch.jpeg)
+![x](https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/launch.jpeg)
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
@@ -9,7 +9,7 @@
  
 [**Harbeth**](https://github.com/yangKJ/Harbeth) is a tiny set of utils and extensions over Apple's Metal framework dedicated to make your Swift GPU code much cleaner and let you prototype your pipelines faster.
 
-<font color=red>**Graphics processing And Filter production.👒👒👒**</font>
+<font color=red>**Graphics Processing And Filter Production.👒👒👒**</font>
 
 -------
 
@@ -18,51 +18,63 @@ English | [**简体中文**](README_CN.md)
 ## Features
 🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
-- Supports iOS and macOS.
+- Support iOS and macOS.
 - Support operator chain filter.
-- Support use UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
+- Support `UIImage`, `CIImage`, `CGImage`, `CMSampleBuffer` and `CVPixelBuffer` add fillters.
 - Support quick design filters.
 - Support merge multiple filter effects.
 - Support fast expansion of output sources.
 - Support camera capture effects.
 - Support video to add filter special effects.
 - Support matrix convolution.
-- Support MetalPerformanceShaders.
-- Support compatible for CoreImage.
+- Support `MetalPerformanceShaders`.
+- Support compatible for `CoreImage`.
 - The filter part is roughly divided into the following modules:
-    - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
-    - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur): Blur effect
-    - [x] [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): basic pixel processing of images.
-    - [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect): Effect processing.
-    - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filter.
-    - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
-    - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
-    - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): Visual dynamic effects.
-    - [x] [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): MetalPerformanceShaders.
+  - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
+  - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur): Blur effect
+  - [x] [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): basic pixel processing of images.
+  - [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect): Effect processing.
+  - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filter.
+  - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
+  - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
+  - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): Visual dynamic effects.
+  - [x] [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): MetalPerformanceShaders.
 
 #### **A total of `100+` kinds of filters are currently available.✌️**
 
+## Usage
+
 <p align="left">
-<img src="Screenshot/ShiftGlitch.gif" width="300" hspace="1px">
-<img src="Screenshot/EdgeGlow.gif" width="300" hspace="1px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/ShiftGlitch.gif" width=35% hspace="15px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="1px">
 </p>
 
-- Code zero intrusion injection filter function.
+- Original code.
+```swift
+lazy var ImageView: UIImageView = {
+    let imageView = UIImageView()
+    //imageView.contentMode = .scaleAspectFit
+    imageView.translatesAutoresizingMaskIntoConstraints = false
+    imageView.layer.borderColor = UIColor.background2?.cgColor
+    imageView.layer.borderWidth = 0.5
+    imageView.image = self.originImage
+    return imageView
+}()
+
+ImageView.image = originImage
+```
+
+- 🫡 Code zero intrusion add filter function.
 
 ```swift
-// Original code:
-ImageView.image = originImage
+// sepia filter
+let filter1 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
+// granularity filter
+let filter2 = C7Granularity(grain: 0.8)
+// soul filter
+let filter3 = C7SoulOut(soul: 0.7)
 
-// Injection filter code:
-let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
-
-var filter2 = C7Granularity()
-filter2.grain = 0.8
-
-var filter3 = C7SoulOut()
-filter3.soul = 0.7
-
-let filters = [filter, filter2, filter3]
+let filters = [filter1, filter2, filter3]
 
 // Use:
 let dest = BoxxIO.init(element: originImage, filters: filters)
@@ -72,19 +84,17 @@ ImageView.image = try? dest.output()
 ImageView.image = try? originImage.makeGroup(filters: filters)
 
 // OR Use Operator:
-ImageView.image = originImage ->> filter ->> filter2 ->> filter3
+ImageView.image = originImage -->>> filters
 ```
 
-- Camera capture generates pictures.
+- 📸 Camera capture generates pictures.
 
 ```swift
-// Inject an edge detection filter:
-var filter = C7EdgeGlow()
-filter.lineColor = UIColor.red
+// Add an edge detection filter:
+let filter = C7EdgeGlow(lineColor: .red)
 
-// Inject a particle filter:
-var filter2 = C7Granularity()
-filter2.grain = 0.8
+// Add a particle filter:
+let filter2 = C7Granularity(grain: 0.8)
 
 // Generate camera collector:
 let camera = C7CollectorCamera.init(delegate: self)
@@ -101,8 +111,8 @@ extension CameraViewController: C7CollectorImageDelegate {
 ```
 
 - Local video or Network video are simply apply with filters.
-  - 🙄 For details, See [PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/MetalDemo/Modules/PlayerViewController.swift).
-  - You can also extend this by using `BoxxIO` to filter the collected CVPixelBuffer.
+  - 🙄 For details, See [PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/Demo/Harbeth-iOS-Demo/Modules/PlayerViewController.swift).
+  - You can also extend this by using [BoxxIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/BoxxIO.swift) to filter the collected `CVPixelBuffer`.
 
 ```swift
 lazy var video: C7CollectorVideo = {
@@ -111,8 +121,7 @@ lazy var video: C7CollectorVideo = {
     let playerItem = AVPlayerItem.init(asset: asset)
     let player = AVPlayer.init(playerItem: playerItem)
     let video = C7CollectorVideo.init(player: player, delegate: self)
-    let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
-    video.filters = [filter]
+    video.filters = [C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)]
     return video
 }()
 
@@ -129,50 +138,93 @@ extension PlayerViewController: C7CollectorImageDelegate {
 }
 ```
 
-### Overview
-- Core, basic core board
-    - [C7FilterProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Core/Filtering.swift): Filter designs must follow this protocol.
-        - **modifier**: Encoder type and corresponding function name.
-        - **factors**: Set modify parameter factor, you need to convert to `Float`.
-        - **otherInputTextures**: Multiple input source extensions, An array containing the `MTLTexture`
-        - **outputSize**: Change the size of the output image. 
-        - **setupSpecialFactors**: Special type of parameter factor, such as 4x4 matrix.
-        - **coreImageApply**: Compatible support for CoreImage.
-        - **parameterDescription**: Parametric description.
+### Advanced usage
 
-- Outputs, output section
-    - [BoxxIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/BoxxIO.swift): Multi-function output, support UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer and so on.
-    - [Outputable](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/Outputable.swift): Output content protocol, all outputs must implement this protocol.
-        - **make**: Generate data based on filter processing.
-        - **makeGroup**: Multiple filter combinations, Please note that the order in which filters are added may affect the result of image generation.
-    - [C7CollectorCamera](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorCamera.swift) : The camera data collector generates images directly and then returns them in the main thread.
-	- [C7CollectorVideo](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorVideo.swift) : Add the filter effect to the video image frame to generate the image directly.
+<p align="left">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Mix.png" width="250" hspace="15px">
+</p>
 
-### Usages
+- Operator chain processing
+
+```swift
+/// 1.Convert to BGRA
+let filter1 = C7ColorConvert(with: .bgra)
+
+/// 2.Adjust the granularity
+let filter2 = C7Granularity(grain: 0.8)
+
+/// 3.Adjust white balance
+let filter3 = C7WhiteBalance(temperature: 5555)
+
+/// 4.Adjust the highlight shadows
+let filter4 = C7HighlightShadow(shadows: 0.4, highlights: 0.5)
+
+/// 5.Combination operation
+filterImageView.image = originImage ->> filter1 ->> filter2 ->> filter3 ->> filter4
+```
+
+-----
+
+<p align="left">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Mix2.png" width="250" hspace="15px">
+</p>
+
+- Batch processing
+
+```swift
+/// 1.Convert to RBGA
+let filter1 = C7ColorConvert(with: .rbga)
+
+/// 2.Adjust the granularity
+let filter2 = C7Granularity(grain: 0.8)
+
+/// 3.Soul effect
+let filter3 = C7SoulOut(soul: 0.7)
+
+/// 4.Combination operation
+let group: [C7FilterProtocol] = [filter1, filter2, filter3]
+
+/// 5.Get the result
+filterImageView.image = try? originImage.makeGroup(filters: group)
+```
+
+**Both methods can handle multiple filter schemes, depending on your mood.✌️**
+
+----
+
+### Design
 - For example, how to design an soul filter.🎷
 
 <p align="left">
-<img src="Screenshot/Soul.gif" width="250" hspace="30px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Soul.gif" width="250" hspace="30px">
 </p>
 
 1. Accomplish `C7FilterProtocal`
 
 	```swift
-	public struct C7SoulOut: C7FilterProtocol {
-	    public var soul: Float = 0.5
-	    public var maxScale: Float = 1.5
-	    public var maxAlpha: Float = 0.5
-	    
-	    public var modifier: Modifier {
-	        return .compute(kernel: "C7SoulOut")
-	    }
-	    
-	    public var factors: [Float] {
-	        return [soul, maxScale, maxAlpha]
-	    }
-	    
-	    public init() { }
-	}
+    public struct C7SoulOut: C7FilterProtocol {
+        
+        public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.5)
+        
+        /// The adjusted soul, from 0.0 to 1.0, with a default of 0.5
+        @ZeroOneRange public var soul: Float = range.value
+        public var maxScale: Float = 1.5
+        public var maxAlpha: Float = 0.5
+        
+        public var modifier: Modifier {
+            return .compute(kernel: "C7SoulOut")
+        }
+        
+        public var factors: [Float] {
+            return [soul, maxScale, maxAlpha]
+        }
+        
+        public init(soul: Float = range.value, maxScale: Float = 1.5, maxAlpha: Float = 0.5) {
+            self.soul = soul
+            self.maxScale = maxScale
+            self.maxAlpha = maxAlpha
+        }
+    }
 	```
 
 2. Configure additional required textures.
@@ -217,79 +269,13 @@ extension PlayerViewController: C7CollectorImageDelegate {
 5. Simple to use, since my design is based on a parallel computing pipeline, images can be generated directly.
 
 	```swift
-	var filter = C7SoulOut()
-	filter.soul = 0.5
-	filter.maxScale = 2.0
+	let filter = C7SoulOut(soul: 0.5, maxScale: 2.0)
 	
 	/// Display directly in ImageView
-	ImageView.image = try? originImage.make(filter: filter)
+	ImageView.image = originImage ->> filter
 	```
 
 6. As for the animation above, it is also very simple, add a timer, and then change the value of `soul` and you are done, simple.
-
-----
-
-### Advanced usage
-
-<p align="left">
-<img src="Screenshot/Mix.png" width="250" hspace="1px">
-</p>
-
-- Operator chain processing
-
-```swift
-/// 1.Convert to BGRA
-let filter1 = C7ColorConvert(with: .color2BGRA)
-
-/// 2.Adjust the granularity
-var filter2 = C7Granularity()
-filter2.grain = 0.8
-
-/// 3.Adjust white balance
-var filter3 = C7WhiteBalance()
-filter3.temperature = 5555
-
-/// 4.Adjust the highlight shadows
-var filter4 = C7HighlightShadow()
-filter4.shadows = 0.4
-filter4.highlights = 0.5
-
-/// 5.Combination operation
-let texture = originImage.mt.toTexture()!
-let result = texture ->> filter1 ->> filter2 ->> filter3 ->> filter4
-
-/// 6.Get the result
-filterImageView.image = result.toImage()
-```
-
------
-
-<p align="left">
-<img src="Screenshot/Mix2.png" width="250" hspace="1px">
-</p>
-
-- Batch processing
-
-```swift
-/// 1.Convert to RBGA
-let filter1 = C7ColorConvert(with: .color2RBGA)
-
-/// 2.Adjust the granularity
-var filter2 = C7Granularity()
-filter2.grain = 0.8
-
-/// 3.Soul effect
-var filter3 = C7SoulOut()
-filter3.soul = 0.7
-
-/// 4.Combination operation
-let group: [C7FilterProtocol] = [filter1, filter2, filter3]
-
-/// 5.Get the result
-filterImageView.image = try? originImage.makeGroup(filters: group)
-```
-
-**Both methods can handle multiple filter schemes, depending on your mood.✌️**
 
 ----
 
