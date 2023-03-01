@@ -252,6 +252,9 @@
 		8773761A29A4525500531673 /* Instruction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8773761629A4525500531673 /* Instruction.swift */; };
 		8773761B29A4525500531673 /* Exporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8773761729A4525500531673 /* Exporter.swift */; };
 		8773761C29A4525500531673 /* Video.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8773761829A4525500531673 /* Video.swift */; };
+		87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8B29AF3F0900C4C2E6 /* README_CN.md */; };
+		87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8C29AF3F0900C4C2E6 /* README.md */; };
+		87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -501,6 +504,9 @@
 		8773761629A4525500531673 /* Instruction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Instruction.swift; sourceTree = "<group>"; };
 		8773761729A4525500531673 /* Exporter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Exporter.swift; sourceTree = "<group>"; };
 		8773761829A4525500531673 /* Video.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Video.swift; sourceTree = "<group>"; };
+		87C72F8B29AF3F0900C4C2E6 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = "<group>"; };
+		87C72F8C29AF3F0900C4C2E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Harbeth.podspec; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -520,6 +526,9 @@
 		87265FA42994D7EA00E612C7 = {
 			isa = PBXGroup;
 			children = (
+				87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */,
+				87C72F8B29AF3F0900C4C2E6 /* README_CN.md */,
+				87C72F8C29AF3F0900C4C2E6 /* README.md */,
 				87265FB82994D82100E612C7 /* Sources */,
 				87265FAF2994D7EA00E612C7 /* Products */,
 				875EEBAC2994E0C300EC62B3 /* Frameworks */,
@@ -1013,6 +1022,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */,
+				87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */,
+				87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -52,12 +52,11 @@ English | [**简体中文**](README_CN.md)
 - Original code.
 ```swift
 lazy var ImageView: UIImageView = {
-    let imageView = UIImageView()
+    let imageView = UIImageView(image: originImage)
     //imageView.contentMode = .scaleAspectFit
     imageView.translatesAutoresizingMaskIntoConstraints = false
-    imageView.layer.borderColor = UIColor.background2?.cgColor
+    imageView.layer.borderColor = R.color("background2")?.cgColor
     imageView.layer.borderWidth = 0.5
-    imageView.image = self.originImage
     return imageView
 }()
 

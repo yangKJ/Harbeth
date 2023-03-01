@@ -10,18 +10,18 @@ import Foundation
 /// 分镜滤镜
 public struct C7Storyboard: C7FilterProtocol {
     
-    /// 分为`N x N`个屏幕
-    public var N: Int = 2
+    /// It is divided into `ranks²` screens.
+    @Clamping(1...Int.max) public var ranks: Int = 2
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Storyboard")
     }
     
     public var factors: [Float] {
-        return [Float(N)]
+        return [Float(ranks)]
     }
     
     public init(ranks: Int = 2) {
-        self.N = ranks
+        self.ranks = ranks
     }
 }

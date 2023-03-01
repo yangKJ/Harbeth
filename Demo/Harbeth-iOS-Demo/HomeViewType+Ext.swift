@@ -337,7 +337,7 @@ extension ViewControllerType {
         case .Storyboard:
             var filter = C7Storyboard()
             return (filter, (2, 1, 10), {
-                filter.N = Int(ceil($0))
+                filter.ranks = Int(ceil($0))
                 return filter
             })
         case .BilateralBlur:

@@ -13,12 +13,11 @@ class UnitTestViewController: UIViewController {
     let originImage = R.image("AX")
     
     lazy var ImageView: UIImageView = {
-        let imageView = UIImageView()
+        let imageView = UIImageView(image: originImage)
         //imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.borderColor = UIColor.background2?.cgColor
         imageView.layer.borderWidth = 0.5
-        imageView.image = self.originImage
         return imageView
     }()
     
@@ -55,7 +54,7 @@ class UnitTestViewController: UIViewController {
         view.backgroundColor = UIColor.background
         view.addSubview(ImageView)
         NSLayoutConstraint.activate([
-            ImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
+            ImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
             ImageView.heightAnchor.constraint(equalTo: ImageView.widthAnchor, multiplier: 1.0),
             //ImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
             ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
@@ -87,7 +86,7 @@ class UnitTestViewController: UIViewController {
 extension UnitTestViewController {
     
     func unitTest() {
-        let filter = C7LookupTable(name: "ll")
+        let filter = C7Storyboard(ranks: 2)
         
         let dest = BoxxIO.init(element: originImage, filter: filter)
         
