@@ -9,14 +9,12 @@
  
 [**Harbeth**](https://github.com/yangKJ/Harbeth) is a tiny set of utils and extensions over Apple's Metal framework dedicated to make your Swift GPU code much cleaner and let you prototype your pipelines faster.
 
-<font color=red>**Graphics Processing And Filter Production.👒👒👒**</font>
-
 -------
 
 English | [**简体中文**](README_CN.md)
 
 ## Features
-🟣 At the moment, the most important features of [**Metal Moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
+🟣 At the moment, the most important features of [**metal moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
 
 - Support iOS and macOS.
 - Support operator chain filter.
@@ -27,18 +25,18 @@ English | [**简体中文**](README_CN.md)
 - Support camera capture effects.
 - Support video to add filter special effects.
 - Support matrix convolution.
-- Support `MetalPerformanceShaders`.
+- Support `MetalPerformanceShaders` related types of filters.
 - Support compatible for `CoreImage`.
 - The filter part is roughly divided into the following modules:
   - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend): This module mainly contains image blend filters.
-  - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur): Blur effect
-  - [x] [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): basic pixel processing of images.
+  - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur): Blur effect filters.
+  - [x] [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess): Basic pixel processing of images.
   - [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect): Effect processing.
-  - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filter.
-  - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filter.
-  - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related.
-  - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): Visual dynamic effects.
-  - [x] [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): MetalPerformanceShaders.
+  - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup): Lookup table filters.
+  - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): Matrix convolution filters.
+  - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape): Image shape size related filters.
+  - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): Visual dynamic effect filters.
+  - [x] [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): MetalPerformanceShaders related types of filters.
 
 #### **A total of `100+` kinds of filters are currently available.✌️**
 
@@ -46,7 +44,7 @@ English | [**简体中文**](README_CN.md)
 
 <p align="left">
 <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/ShiftGlitch.gif" width=35% hspace="10px">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="10px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="15px">
 </p>
 
 - Original code.
@@ -66,11 +64,10 @@ ImageView.image = originImage
 - 🫡 Code zero intrusion add filter function.
 
 ```swift
-// sepia filter
 let filter1 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
-// granularity filter
+
 let filter2 = C7Granularity(grain: 0.8)
-// soul filter
+
 let filter3 = C7SoulOut(soul: 0.7)
 
 let filters = [filter1, filter2, filter3]
@@ -200,79 +197,80 @@ filterImageView.image = try? originImage.makeGroup(filters: group)
 
 1. Accomplish `C7FilterProtocal`
 
-	```swift
-    public struct C7SoulOut: C7FilterProtocol {
-        
-        public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.5)
-        
-        /// The adjusted soul, from 0.0 to 1.0, with a default of 0.5
-        @ZeroOneRange public var soul: Float = range.value
-        public var maxScale: Float = 1.5
-        public var maxAlpha: Float = 0.5
-        
-        public var modifier: Modifier {
-            return .compute(kernel: "C7SoulOut")
-        }
-        
-        public var factors: [Float] {
-            return [soul, maxScale, maxAlpha]
-        }
-        
-        public init(soul: Float = range.value, maxScale: Float = 1.5, maxAlpha: Float = 0.5) {
-            self.soul = soul
-            self.maxScale = maxScale
-            self.maxAlpha = maxAlpha
-        }
+```swift
+public struct C7SoulOut: C7FilterProtocol {
+    
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.5)
+    
+    /// The adjusted soul, from 0.0 to 1.0, with a default of 0.5
+    @ZeroOneRange public var soul: Float = range.value
+    public var maxScale: Float = 1.5
+    public var maxAlpha: Float = 0.5
+    
+    public var modifier: Modifier {
+        return .compute(kernel: "C7SoulOut")
     }
-	```
+    
+    public var factors: [Float] {
+        return [soul, maxScale, maxAlpha]
+    }
+    
+    public init(soul: Float = range.value, maxScale: Float = 1.5, maxAlpha: Float = 0.5) {
+        self.soul = soul
+        self.maxScale = maxScale
+        self.maxAlpha = maxAlpha
+    }
+}
+```
 
 2. Configure additional required textures.
 
 3. Configure the passed parameter factor, only supports `Float` type.
     - This filter requires three parameters: 
         - `soul`: The adjusted soul, from 0.0 to 1.0, with a default of 0.5
-        - `maxScale`: Maximum soul scale
-        - `maxAlpha`: The transparency of the max soul
+        - `maxScale`: Maximum soul scale.
+        - `maxAlpha`: The transparency of the max soul.
 
 4. Write a kernel function shader based on parallel computing.
 
-	```metal
-	kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]],
-	                      texture2d<half, access::sample> inputTexture [[texture(1)]],
-	                      constant float *soulPointer [[buffer(0)]],
-	                      constant float *maxScalePointer [[buffer(1)]],
-	                      constant float *maxAlphaPointer [[buffer(2)]],
-	                      uint2 grid [[thread_position_in_grid]]) {
-	    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-	    const half4 inColor = inputTexture.read(grid);
-	    const float x = float(grid.x) / outputTexture.get_width();
-	    const float y = float(grid.y) / outputTexture.get_height();
-	    
-	    const half soul = half(*soulPointer);
-	    const half maxScale = half(*maxScalePointer);
-	    const half maxAlpha = half(*maxAlphaPointer);
-	    
-	    const half alpha = maxAlpha * (1.0h - soul);
-	    const half scale = 1.0h + (maxScale - 1.0h) * soul;
-	    
-	    const half soulX = 0.5h + (x - 0.5h) / scale;
-	    const half soulY = 0.5h + (y - 0.5h) / scale;
-	    
-	    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
-	    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
-	    
-	    outputTexture.write(outColor, grid);
-	}
-	```
+```metal
+kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]],
+                      texture2d<half, access::sample> inputTexture [[texture(1)]],
+                      constant float *soulPointer [[buffer(0)]],
+                      constant float *maxScalePointer [[buffer(1)]],
+                      constant float *maxAlphaPointer [[buffer(2)]],
+                      uint2 grid [[thread_position_in_grid]]) {
+    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
+    const half4 inColor = inputTexture.read(grid);
+    const float x = float(grid.x) / outputTexture.get_width();
+    const float y = float(grid.y) / outputTexture.get_height();
+    
+    const half soul = half(*soulPointer);
+    const half maxScale = half(*maxScalePointer);
+    const half maxAlpha = half(*maxAlphaPointer);
+    
+    const half alpha = maxAlpha * (1.0h - soul);
+    const half scale = 1.0h + (maxScale - 1.0h) * soul;
+    
+    const half soulX = 0.5h + (x - 0.5h) / scale;
+    const half soulY = 0.5h + (y - 0.5h) / scale;
+    
+    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
+    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
+    
+    outputTexture.write(outColor, grid);
+}
+```
 
 5. Simple to use, since my design is based on a parallel computing pipeline, images can be generated directly.
 
-	```swift
-	let filter = C7SoulOut(soul: 0.5, maxScale: 2.0)
-	
-	/// Display directly in ImageView
-	ImageView.image = originImage ->> filter
-	```
+```swift
+/// Add a soul out of the body filter.
+let filter = C7SoulOut(soul: 0.5, maxScale: 2.0)
+
+/// Display directly in ImageView.
+ImageView.image = originImage ->> filter
+```
 
 6. As for the animation above, it is also very simple, add a timer, and then change the value of `soul` and you are done, simple.
 

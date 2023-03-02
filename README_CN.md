@@ -50,13 +50,11 @@
 ImageView.image = originImage
 
 🎷注入滤镜代码：
-let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
 
-var filter2 = C7Granularity()
-filter2.grain = 0.8
+let filter2 = C7Granularity(grain: 0.8)
 
-var filter3 = C7SoulOut()
-filter3.soul = 0.7
+let filter3 = C7SoulOut(soul: 0.7)
 
 let filters = [filter, filter2, filter3]
 
@@ -68,12 +66,14 @@ let dest = BoxxIO.init(element: originImage, filters: filters)
 ImageView.image = try? dest.output()
 
 或者运算符操作
-ImageView.image = originImage ->> filter ->> filter2 ->> filter3
+ImageView.image = originImage -->>> filters
 
 甚至函数式编程高级用法
-guard var texture = originImage.mt.toTexture() else { reture }
-filters.forEach { texture = texture ->> $0 }
-ImageView.image = texture.toImage()
+filters.forEach { originImage = originImage ->> $0 }
+ImageView.image = originImage
+
+甚至不定参数使用
+ImageView.image = originImage.filtering(filter, filter2, filter3)
 
 怎么使用就看你的心情了!!!🫤
 ```
@@ -82,12 +82,10 @@ ImageView.image = texture.toImage()
 
 ```swift
 注入边缘检测滤镜:
-var filter = C7EdgeGlow()
-filter.lineColor = UIColor.red
+let filter = C7EdgeGlow(lineColor: .red)
 
 注入颗粒感滤镜:
-var filter2 = C7Granularity()
-filter2.grain = 0.8
+let filter2 = C7Granularity(grain: 0.8)
 
 生成相机采集器:
 let camera = C7CollectorCamera.init(delegate: self)
@@ -112,7 +110,7 @@ lazy var video: C7CollectorVideo = {
     let playerItem = AVPlayerItem(asset: asset)
     let player = AVPlayer.init(playerItem: playerItem)
     let video = C7CollectorVideo.init(player: player, delegate: self)
-    let filter = C7ColorMatrix4x4(matrix: Matrix4x4.sepia)
+    let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
     video.filters = [filter]
     return video
 }()
@@ -158,26 +156,26 @@ extension PlayerViewController: C7CollectorImageDelegate {
 
 1. 遵循协议 `C7FilterProtocal`
 
-	```swift
-    public protocol C7FilterProtocol {
-        /// 编码器类型和对应的函数名
-        ///
-        /// 计算需要对应的`kernel`函数名
-        /// 渲染需要一个`vertex`着色器函数名和一个`fragment`着色器函数名
-        var modifier: Modifier { get }
-            
-        /// 制作缓冲区
-        /// 设置修改参数因子，需要转换为`Float`。
-        var factors: [Float] { get }
-            
-        /// 多输入源扩展
-        /// 包含 `MTLTexture` 的数组
-        var otherInputTextures: C7InputTextures { get }
-            
-        /// 改变输出图像的大小
-        func outputSize(input size：C7Size) -> C7Size
-    }
-	```
+```swift
+public protocol C7FilterProtocol {
+    /// 编码器类型和对应的函数名
+    ///
+    /// 计算需要对应的`kernel`函数名
+    /// 渲染需要一个`vertex`着色器函数名和一个`fragment`着色器函数名
+    var modifier: Modifier { get }
+        
+    /// 制作缓冲区
+    /// 设置修改参数因子，需要转换为`Float`。
+    var factors: [Float] { get }
+        
+    /// 多输入源扩展
+    /// 包含 `MTLTexture` 的数组
+    var otherInputTextures: C7InputTextures { get }
+        
+    /// 改变输出图像的大小
+    func outputSize(input size：C7Size) -> C7Size
+}
+```
 
 2. 配置额外的所需纹理
 
@@ -189,46 +187,45 @@ extension PlayerViewController: C7CollectorImageDelegate {
 
 4. 编写基于并行计算的核函数着色器
 
-	```metal
-	kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]],
-	                      texture2d<half, access::sample> inputTexture [[texture(1)]],
-	                      constant float *soulPointer [[buffer(0)]],
-	                      constant float *maxScalePointer [[buffer(1)]],
-	                      constant float *maxAlphaPointer [[buffer(2)]],
-	                      uint2 grid [[thread_position_in_grid]]) {
-	    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-	    const half4 inColor = inputTexture.read(grid);
-	    const float x = float(grid.x) / outputTexture.get_width();
-	    const float y = float(grid.y) / outputTexture.get_height();
-	    
-	    const half soul = half(*soulPointer);
-	    const half maxScale = half(*maxScalePointer);
-	    const half maxAlpha = half(*maxAlphaPointer);
-	    
-	    const half alpha = maxAlpha * (1.0h - soul);
-	    const half scale = 1.0h + (maxScale - 1.0h) * soul;
-	    
-	    const half soulX = 0.5h + (x - 0.5h) / scale;
-	    const half soulY = 0.5h + (y - 0.5h) / scale;
-	    
-        // 最终色 = 基色 * (1 - a) + 混合色 * a   
-	    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
-	    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
-	    
-	    outputTexture.write(outColor, grid);
-	}
-	```
+```metal
+kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]],
+                      texture2d<half, access::sample> inputTexture [[texture(1)]],
+                      constant float *soulPointer [[buffer(0)]],
+                      constant float *maxScalePointer [[buffer(1)]],
+                      constant float *maxAlphaPointer [[buffer(2)]],
+                      uint2 grid [[thread_position_in_grid]]) {
+    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
+    const half4 inColor = inputTexture.read(grid);
+    const float x = float(grid.x) / outputTexture.get_width();
+    const float y = float(grid.y) / outputTexture.get_height();
+    
+    const half soul = half(*soulPointer);
+    const half maxScale = half(*maxScalePointer);
+    const half maxAlpha = half(*maxAlphaPointer);
+    
+    const half alpha = maxAlpha * (1.0h - soul);
+    const half scale = 1.0h + (maxScale - 1.0h) * soul;
+    
+    const half soulX = 0.5h + (x - 0.5h) / scale;
+    const half soulY = 0.5h + (y - 0.5h) / scale;
+    
+    // 最终色 = 基色 * (1 - a) + 混合色 * a   
+    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
+    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
+    
+    outputTexture.write(outColor, grid);
+}
+```
 
 5. 简单使用，由于我这边设计的是基于并行计算管道，所以可以直接生成图片
 
-	```swift
-	var filter = C7SoulOut()
-	filter.soul = 0.5
-	filter.maxScale = 2.0
-	
-	/// Display directly in ImageView
-	ImageView.image = try? originImage.make(filter: filter)
-	```
+```swift
+/// 添加一个灵魂出窍滤镜
+let filter = C7SoulOut(soul: 0.5, maxScale: 2.0)
+
+/// Display directly in ImageView
+ImageView.image = try? originImage.make(filter: filter)
+```
 
 6. 至于上面的动效也很简单，添加一个计时器，然后改变`soul`值就完事，简单嘛 0 0.
 
@@ -247,24 +244,16 @@ extension PlayerViewController: C7CollectorImageDelegate {
 let filter1 = C7ColorConvert(with: .color2BGRA)
 
 /// 2.调整颗粒度
-var filter2 = C7Granularity()
-filter2.grain = 0.8
+let filter2 = C7Granularity(grain: 0.8)
 
 /// 3.调整白平衡
-var filter3 = C7WhiteBalance()
-filter3.temperature = 5555
+let filter3 = C7WhiteBalance(temperature: 5555)
 
 /// 4.调整高光阴影
-var filter4 = C7HighlightShadow()
-filter4.shadows = 0.4
-filter4.highlights = 0.5
+let filter4 = C7HighlightShadow(highlights: 0.5, shadows: 0.4)
 
 /// 5.组合操作
-let texture = originImage.mt.toTexture()!
-let result = texture ->> filter1 ->> filter2 ->> filter3 ->> filter4
-
-/// 6.获取结果
-filterImageView.image = result.toImage()
+filterImageView.image = originImage ->> filter1 ->> filter2 ->> filter3 ->> filter4
 ```
 
 -----
@@ -280,12 +269,10 @@ filterImageView.image = result.toImage()
 let filter1 = C7ColorConvert(with: .color2RBGA)
 
 /// 2.调整颗粒度
-var filter2 = C7Granularity()
-filter2.grain = 0.8
+let filter2 = C7Granularity(grain: 0.8)
 
 /// 3.配置灵魂效果
-var filter3 = C7SoulOut()
-filter3.soul = 0.7
+let filter3 = C7SoulOut(soul: 0.7)
 
 /// 4.组合操作
 let group: [C7FilterProtocol] = [filter1, filter2, filter3]
