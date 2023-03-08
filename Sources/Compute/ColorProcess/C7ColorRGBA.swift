@@ -17,11 +17,7 @@ public struct C7ColorRGBA: C7FilterProtocol {
     /// Transparent colors are not processed, Will directly modify the overall color scheme
     public var color: C7Color = .white {
         didSet {
-            let tuple = color.mt.toRGBA()
-            red = tuple.red
-            green = tuple.green
-            blue = tuple.blue
-            alpha = tuple.alpha
+            (self.red, self.green, self.blue, self.alpha) = color.mt.toRGBA()
         }
     }
     
@@ -33,5 +29,8 @@ public struct C7ColorRGBA: C7FilterProtocol {
         return [red, green, blue, alpha]
     }
     
-    public init() { }
+    public init(color: C7Color = .white) {
+        self.color = color
+        (self.red, self.green, self.blue, self.alpha) = color.mt.toRGBA()
+    }
 }
