@@ -39,15 +39,6 @@ public struct R {
         #endif
     }
     
-    /// Read multilingual text resources
-    public static func text(_ named: String, forResource: String = "Harbeth", comment: String = "Localizable") -> String {
-        guard let bundlePath = Bundle.main.path(forResource: forResource, ofType: "bundle"),
-              let bundle = Bundle.init(path: bundlePath) else {
-            return named
-        }
-        return NSLocalizedString(named, tableName: nil, bundle: bundle, value: "", comment: comment)
-    }
-    
     /// Read color resource
     @available(iOS 11.0, *, macOS 10.13, *)
     public static func color(_ named: String, forResource: String = "Harbeth") -> C7Color? {

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8708D21E29BF2268004621AE /* Harbeth.h in Headers */ = {isa = PBXBuildFile; fileRef = 8708D21D29BF2268004621AE /* Harbeth.h */; };
 		872660BA2994D82200E612C7 /* CIHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBA2994D82100E612C7 /* CIHighlight.swift */; };
 		872660BB2994D82200E612C7 /* CIWhitePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBB2994D82100E612C7 /* CIWhitePoint.swift */; };
 		872660BC2994D82200E612C7 /* C7Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBD2994D82100E612C7 /* C7Collector.swift */; };
@@ -21,7 +22,6 @@
 		872660C52994D82200E612C7 /* Processed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC82994D82100E612C7 /* Processed.swift */; };
 		872660C62994D82200E612C7 /* CoreImage+.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC92994D82100E612C7 /* CoreImage+.swift */; };
 		872660C72994D82200E612C7 /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCA2994D82100E612C7 /* Device.swift */; };
-		872660C82994D82200E612C7 /* Once.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCC2994D82100E612C7 /* Once.swift */; };
 		872660C92994D82200E612C7 /* Matrix3x3.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCD2994D82100E612C7 /* Matrix3x3.swift */; };
 		872660CA2994D82200E612C7 /* R.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCE2994D82100E612C7 /* R.swift */; };
 		872660CB2994D82200E612C7 /* Clamping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCF2994D82100E612C7 /* Clamping.swift */; };
@@ -258,6 +258,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8708D21D29BF2268004621AE /* Harbeth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Harbeth.h; sourceTree = "<group>"; };
 		87265FAE2994D7EA00E612C7 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		87265FBA2994D82100E612C7 /* CIHighlight.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CIHighlight.swift; sourceTree = "<group>"; };
 		87265FBB2994D82100E612C7 /* CIWhitePoint.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CIWhitePoint.swift; sourceTree = "<group>"; };
@@ -273,7 +274,6 @@
 		87265FC82994D82100E612C7 /* Processed.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Processed.swift; sourceTree = "<group>"; };
 		87265FC92994D82100E612C7 /* CoreImage+.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "CoreImage+.swift"; sourceTree = "<group>"; };
 		87265FCA2994D82100E612C7 /* Device.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Device.swift; sourceTree = "<group>"; };
-		87265FCC2994D82100E612C7 /* Once.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Once.swift; sourceTree = "<group>"; };
 		87265FCD2994D82100E612C7 /* Matrix3x3.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix3x3.swift; sourceTree = "<group>"; };
 		87265FCE2994D82100E612C7 /* R.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = R.swift; sourceTree = "<group>"; };
 		87265FCF2994D82100E612C7 /* Clamping.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Clamping.swift; sourceTree = "<group>"; };
@@ -546,6 +546,7 @@
 		87265FB82994D82100E612C7 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				8708D21D29BF2268004621AE /* Harbeth.h */,
 				87265FC12994D82100E612C7 /* Basic */,
 				87265FBC2994D82100E612C7 /* Collector */,
 				87265FFD2994D82100E612C7 /* Compute */,
@@ -612,7 +613,6 @@
 				87265FD72994D82100E612C7 /* DisplayLink.swift */,
 				87265FD02994D82100E612C7 /* Error.swift */,
 				87265FE12994D82100E612C7 /* Mirrorable.swift */,
-				87265FCC2994D82100E612C7 /* Once.swift */,
 				87265FDE2994D82100E612C7 /* ParameterRange.swift */,
 				87265FDC2994D82100E612C7 /* PixelColor.swift */,
 				87265FD42994D82100E612C7 /* Point2D.swift */,
@@ -969,6 +969,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8708D21E29BF2268004621AE /* Harbeth.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1093,7 +1094,6 @@
 				8726611B2994D82200E612C7 /* C7Bulge.metal in Sources */,
 				872661982994D82200E612C7 /* C7EdgeGlow.metal in Sources */,
 				8726615C2994D82200E612C7 /* C7Hue.swift in Sources */,
-				872660C82994D82200E612C7 /* Once.swift in Sources */,
 				872661882994D82200E612C7 /* C7SoftLightBlend.metal in Sources */,
 				872660FC2994D82200E612C7 /* C7Rotate.metal in Sources */,
 				8726619C2994D82200E612C7 /* C7EdgeGlow.swift in Sources */,

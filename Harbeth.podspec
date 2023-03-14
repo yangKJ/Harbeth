@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.6.5'
+  s.version          = '0.6.6'
   s.summary          = 'About Metal image processing and video add filter.'
   
   # This description is used to generate tags and improve search results.
@@ -28,6 +28,9 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '10.0'
   s.macos.deployment_target = '10.13'
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
+  
+  s.module_name = 'Harbeth'
+  s.ios.source_files = 'Sources/Harbeth.h'
   
   s.subspec 'Basic' do |xx|
     xx.source_files = 'Sources/Basic/**/*.swift'
