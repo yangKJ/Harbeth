@@ -13,6 +13,12 @@
 		872661CB2994D8CF00E612C7 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 872661C92994D8CF00E612C7 /* Main.storyboard */; };
 		872661DE2994DA4700E612C7 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; };
 		872661DF2994DA4700E612C7 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8767F21029C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8767F20F29C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift */; };
+		8767F21229C95CE600FB5301 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8767F21129C95CE600FB5301 /* ContentView.swift */; };
+		8767F21429C95CE700FB5301 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8767F21329C95CE700FB5301 /* Assets.xcassets */; };
+		8767F21729C95CE700FB5301 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8767F21629C95CE700FB5301 /* Preview Assets.xcassets */; };
+		8767F21C29C95D0A00FB5301 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8767F21B29C95D0A00FB5301 /* Harbeth.framework */; };
+		8767F21D29C95D0A00FB5301 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8767F21B29C95D0A00FB5301 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		878444F52994DDA0001D856B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878444F42994DDA0001D856B /* AppDelegate.swift */; };
 		878444F72994DDA0001D856B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878444F62994DDA0001D856B /* SceneDelegate.swift */; };
 		878444FC2994DDA0001D856B /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 878444FA2994DDA0001D856B /* Main.storyboard */; };
@@ -43,6 +49,17 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8767F21E29C95D0A00FB5301 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				8767F21D29C95D0A00FB5301 /* Harbeth.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		878445092994DDC0001D856B /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -64,6 +81,12 @@
 		872661CA2994D8CF00E612C7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		872661CC2994D8CF00E612C7 /* Harbeth_macOS_Demo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Harbeth_macOS_Demo.entitlements; sourceTree = "<group>"; };
 		872661DD2994DA4700E612C7 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		8767F20D29C95CE600FB5301 /* Harbeth-SwiftUI-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-SwiftUI-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8767F20F29C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Harbeth_SwiftUI_DemoApp.swift; sourceTree = "<group>"; };
+		8767F21129C95CE600FB5301 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		8767F21329C95CE700FB5301 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8767F21629C95CE700FB5301 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		8767F21B29C95D0A00FB5301 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		878444F22994DDA0001D856B /* Harbeth-iOS-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-iOS-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		878444F42994DDA0001D856B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		878444F62994DDA0001D856B /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -92,6 +115,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8767F20A29C95CE600FB5301 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8767F21C29C95D0A00FB5301 /* Harbeth.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		878444EF2994DDA0001D856B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -108,6 +139,7 @@
 			children = (
 				878444F32994DDA0001D856B /* Harbeth-iOS-Demo */,
 				872661C22994D8CE00E612C7 /* Harbeth-macOS-Demo */,
+				8767F20E29C95CE600FB5301 /* Harbeth-SwiftUI-Demo */,
 				872661B42994D88D00E612C7 /* Products */,
 				872661D72994D91100E612C7 /* Frameworks */,
 			);
@@ -118,6 +150,7 @@
 			children = (
 				872661C12994D8CE00E612C7 /* Harbeth-macOS-Demo.app */,
 				878444F22994DDA0001D856B /* Harbeth-iOS-Demo.app */,
+				8767F20D29C95CE600FB5301 /* Harbeth-SwiftUI-Demo.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -137,10 +170,30 @@
 		872661D72994D91100E612C7 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				8767F21B29C95D0A00FB5301 /* Harbeth.framework */,
 				878445062994DDC0001D856B /* Harbeth.framework */,
 				872661DD2994DA4700E612C7 /* Harbeth.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8767F20E29C95CE600FB5301 /* Harbeth-SwiftUI-Demo */ = {
+			isa = PBXGroup;
+			children = (
+				8767F20F29C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift */,
+				8767F21129C95CE600FB5301 /* ContentView.swift */,
+				8767F21329C95CE700FB5301 /* Assets.xcassets */,
+				8767F21529C95CE700FB5301 /* Preview Content */,
+			);
+			path = "Harbeth-SwiftUI-Demo";
+			sourceTree = "<group>";
+		};
+		8767F21529C95CE700FB5301 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				8767F21629C95CE700FB5301 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
 			sourceTree = "<group>";
 		};
 		878444F32994DDA0001D856B /* Harbeth-iOS-Demo */ = {
@@ -202,6 +255,24 @@
 			productReference = 872661C12994D8CE00E612C7 /* Harbeth-macOS-Demo.app */;
 			productType = "com.apple.product-type.application";
 		};
+		8767F20C29C95CE600FB5301 /* Harbeth-SwiftUI-Demo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8767F21A29C95CE700FB5301 /* Build configuration list for PBXNativeTarget "Harbeth-SwiftUI-Demo" */;
+			buildPhases = (
+				8767F20929C95CE600FB5301 /* Sources */,
+				8767F20A29C95CE600FB5301 /* Frameworks */,
+				8767F20B29C95CE600FB5301 /* Resources */,
+				8767F21E29C95D0A00FB5301 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Harbeth-SwiftUI-Demo";
+			productName = "Harbeth-SwiftUI-Demo";
+			productReference = 8767F20D29C95CE600FB5301 /* Harbeth-SwiftUI-Demo.app */;
+			productType = "com.apple.product-type.application";
+		};
 		878444F12994DDA0001D856B /* Harbeth-iOS-Demo */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 878445032994DDA1001D856B /* Build configuration list for PBXNativeTarget "Harbeth-iOS-Demo" */;
@@ -227,11 +298,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1410;
+				LastSwiftUpdateCheck = 1420;
 				LastUpgradeCheck = 1410;
 				TargetAttributes = {
 					872661C02994D8CE00E612C7 = {
 						CreatedOnToolsVersion = 14.1;
+					};
+					8767F20C29C95CE600FB5301 = {
+						CreatedOnToolsVersion = 14.2;
 					};
 					878444F12994DDA0001D856B = {
 						CreatedOnToolsVersion = 14.1;
@@ -253,6 +327,7 @@
 			targets = (
 				878444F12994DDA0001D856B /* Harbeth-iOS-Demo */,
 				872661C02994D8CE00E612C7 /* Harbeth-macOS-Demo */,
+				8767F20C29C95CE600FB5301 /* Harbeth-SwiftUI-Demo */,
 			);
 		};
 /* End PBXProject section */
@@ -264,6 +339,15 @@
 			files = (
 				872661C82994D8CF00E612C7 /* Assets.xcassets in Resources */,
 				872661CB2994D8CF00E612C7 /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8767F20B29C95CE600FB5301 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8767F21729C95CE700FB5301 /* Preview Assets.xcassets in Resources */,
+				8767F21429C95CE700FB5301 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,6 +371,15 @@
 			files = (
 				872661C62994D8CE00E612C7 /* ViewController.swift in Sources */,
 				872661C42994D8CE00E612C7 /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8767F20929C95CE600FB5301 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8767F21229C95CE600FB5301 /* ContentView.swift in Sources */,
+				8767F21029C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -517,6 +610,66 @@
 			};
 			name = Release;
 		};
+		8767F21829C95CE700FB5301 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Harbeth-SwiftUI-Demo/Preview Content\"";
+				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8767F21929C95CE700FB5301 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Harbeth-SwiftUI-Demo/Preview Content\"";
+				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		878445042994DDA1001D856B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -592,6 +745,15 @@
 			buildConfigurations = (
 				872661CE2994D8CF00E612C7 /* Debug */,
 				872661CF2994D8CF00E612C7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8767F21A29C95CE700FB5301 /* Build configuration list for PBXNativeTarget "Harbeth-SwiftUI-Demo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8767F21829C95CE700FB5301 /* Debug */,
+				8767F21929C95CE700FB5301 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
