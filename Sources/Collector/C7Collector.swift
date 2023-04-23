@@ -71,7 +71,7 @@ extension C7Collector {
             return nil
         }
         delegate?.captureOutput?(self, texture: texture)
-        return texture.toImage()
+        return texture.mt.toImage()
     }
     
     func processing(with pixelBuffer: CVPixelBuffer?) {

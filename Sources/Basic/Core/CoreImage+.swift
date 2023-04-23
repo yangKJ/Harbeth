@@ -31,7 +31,7 @@ internal struct COImage {
     }
     
     @inlinable static func drawingProcess(texture: MTLTexture, name: String, filter: C7FilterProtocol) -> MTLTexture {
-        guard let cgImage = texture.toCGImage() else {
+        guard let cgImage = texture.mt.toCGImage() else {
             return texture
         }
         let outputcgImage = Self.drawingProcess(cgImage: cgImage, name: name, filter: filter)
@@ -43,7 +43,7 @@ internal struct COImage {
 extension COImage {
     
     @inlinable static func render(texture: MTLTexture, name: String, filter: C7FilterProtocol) -> MTLTexture {
-        guard let cgImage = texture.toCGImage() else {
+        guard let cgImage = texture.mt.toCGImage() else {
             return texture
         }
         var ciimage = CIImage.init(cgImage: cgImage)

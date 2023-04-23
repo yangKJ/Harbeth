@@ -28,7 +28,7 @@ public struct BufferIO {
                                              filters: filters,
                                              bufferPixelFormat: bufferPixelFormat,
                                              textureCache: textureCache)
-            return texture?.toImage()
+            return texture?.mt.toImage()
         }
     }
     

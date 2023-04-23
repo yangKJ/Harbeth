@@ -11,6 +11,24 @@ import ImageIO
 import Accelerate
 
 extension MTLTexture {
+    /// Add the `mt` prefix namespace
+    public var mt: MTLTextureCompatible_ {
+        MTLTextureCompatible_(target: self)
+    }
+}
+
+public struct MTLTextureCompatible_ {
+    
+    public let target: MTLTexture
+    
+    var size: C7Size {
+        C7Size(width: self.target.width, height: self.target.height)
+    }
+    
+    public func toImage() -> C7Image? {
+        guard let cgImage = toCGImage() else { return nil }
+        return cgImage.mt.toC7Image()
+    }
     
     /// Create a CGImage with the data and information we provided.
     /// Each pixel contains of 4 UInt8s or 32 bits, each byte is representing one channel.
@@ -21,14 +39,16 @@ extension MTLTexture {
     ///   - pixelFormat: Current Metal texture pixel format.
     /// - Returns: CGImage
     public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil) -> CGImage? {
+        let width = target.width
+        let height = target.height
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-        switch pixelFormat ?? self.pixelFormat {
+        switch pixelFormat ?? self.target.pixelFormat {
         case .a8Unorm, .r8Unorm, .r8Uint:
             let rowBytes = width
             let length = rowBytes * height
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { rgbaBytes.deallocate() }
-            getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             let colorScape = colorSpace ?? CGColorSpaceCreateDeviceGray()
             let rawV = pixelFormat == .a8Unorm ? CGImageAlphaInfo.alphaOnly.rawValue : CGImageAlphaInfo.none.rawValue
@@ -56,7 +76,7 @@ extension MTLTexture {
             let bgraBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { bgraBytes.deallocate(); rgbaBytes.deallocate() }
-            getBytes(bgraBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            target.getBytes(bgraBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             // use Accelerate framework to convert from BGRA to RGBA
             var bgraBuffer = vImage_Buffer(data: bgraBytes,
@@ -94,7 +114,7 @@ extension MTLTexture {
             let length = rowBytes * height
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { rgbaBytes.deallocate() }
-            getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             let colorScape = colorSpace ?? CGColorSpaceCreateDeviceRGB()
             let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
@@ -117,18 +137,6 @@ extension MTLTexture {
         default:
             return nil
         }
-    }
-    
-    public func toImage() -> C7Image? {
-        guard let cgImage = toCGImage() else { return nil }
-        return cgImage.mt.toC7Image()
-    }
-}
-
-extension MTLTexture {
-    
-    var size: C7Size {
-        C7Size(width: self.width, height: self.height)
     }
     
     /// Create a texture with similar properties.

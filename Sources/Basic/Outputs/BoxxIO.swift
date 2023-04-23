@@ -131,7 +131,7 @@ extension BoxxIO {
         }
         do {
             texture = try filtering(texture: texture)
-            return texture.toCGImage() ?? cgImage
+            return texture.mt.toCGImage() ?? cgImage
         } catch {
             throw error
         }
@@ -167,7 +167,7 @@ extension BoxxIO {
 // MARK: - private methods
 extension BoxxIO {
     private func fixImageOrientation(texture: MTLTexture, base: C7Image) throws -> C7Image {
-        guard let cgImage = texture.toCGImage() else {
+        guard let cgImage = texture.mt.toCGImage() else {
             throw C7CustomError.texture2Image
         }
         #if os(iOS) || os(tvOS) || os(watchOS)

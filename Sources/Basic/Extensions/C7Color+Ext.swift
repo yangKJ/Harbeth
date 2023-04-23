@@ -131,7 +131,7 @@ extension Queen where Base: C7Color {
         let texture = Processed.destTexture(width: width, height: height)
         let filter = C7SolidColor.init(color: base)
         let result = try? Processed.IO(inTexture: texture, outTexture: texture, filter: filter)
-        return result?.toImage()
+        return result?.mt.toImage()
         #else
         return nil
         #endif
