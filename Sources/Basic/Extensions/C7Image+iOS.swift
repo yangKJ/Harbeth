@@ -81,5 +81,86 @@ extension Queen where Base: C7Image {
         }
         return newCgImage.mt.toC7Image()
     }
+    
+    /// Compressed image data.
+    /// - Parameter maxCount: Maximum compression ratio.
+    /// - Returns: Compressed content data.
+    public func jpegData(maxCount: Int = 0) -> Data? {
+        var quality = CGFloat(1)
+        var jpegData = base.jpegData(compressionQuality: quality)
+        while let data = jpegData, maxCount > 0 && data.count > maxCount && quality > 0 {
+            quality -= 0.05
+            jpegData = base.jpegData(compressionQuality: quality)
+        }
+        return jpegData
+    }
 }
+
+extension Queen where Base: C7Image {
+    /// 白色背景透明化，色值在[222...255]之间均可祛除
+    /// The white background is transparent, and the color value can be removed between [222...255].
+    public func imageByMakingWhiteBackgroundTransparent() -> C7Image? {
+        // RGB color range to mask (make transparent) R-Low, R-High, G-Low, G-High, B-Low, B-High
+        let colorMasking: [CGFloat] = [222, 255, 222, 255, 222, 255]
+        return transparentColor(colorMasking: colorMasking)
+    }
+    
+    /// 黑色背景透明化，色值在[0...32]之间均可祛除
+    public func imageByRemoveBlackBg() -> C7Image? {
+        let colorMasking: [CGFloat] = [0, 32, 0, 32, 0, 32]
+        return transparentColor(colorMasking: colorMasking)
+    }
+    
+    /// Transparent background.
+    /// - Parameters:
+    ///   - colorMasking: RGB color range to mask [R-Low, R-High, G-Low, G-High, B-Low, B-High]
+    ///   - compressionQuality: Compression ratio.
+    /// - Returns: Remove the picture of the background.
+    public func transparentColor(colorMasking: [CGFloat], compressionQuality: CGFloat = 1.0) -> C7Image? {
+        // 解决前面有绘制过Bitmap《UIGraphicsGetCurrentContext》，导致失效问题
+        guard let data = base.jpegData(compressionQuality: compressionQuality),
+              let image = C7Image(data: data) else {
+            return nil
+        }
+        UIGraphicsBeginImageContext(image.size)
+        guard let maskedImageRef = image.cgImage?.copy(maskingColorComponents: colorMasking) else {
+            return nil
+        }
+        let rect = CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height)
+        let context = UIGraphicsGetCurrentContext()
+        context?.translateBy(x: 0.0, y: image.size.height)
+        context?.scaleBy(x: 1.0, y: -1.0)
+        context?.draw(maskedImageRef, in: rect)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result
+    }
+    
+    /// Rotate the picture.
+    /// Fixed `UIImage(cgImage:scale:orientation:)` 在绘制过bitmap之后失效问题
+    /// - Parameter degrees: Rotation angle.
+    /// - Returns: The picture after rotation.
+    public func rotate(degrees: Float) -> C7Image {
+        let radians = CGFloat(degrees) / 180.0 * CGFloat.pi
+        let width  = base.size.width
+        let height = base.size.height
+        var newSize = CGRect(origin: CGPoint.zero, size: base.size)
+            .applying(CGAffineTransform(rotationAngle: radians)).size
+        // Trim off the extremely small float value to prevent core graphics from rounding it up
+        newSize.width = floor(newSize.width)
+        newSize.height = floor(newSize.height)
+        UIGraphicsBeginImageContextWithOptions(newSize, false, base.scale)
+        let context = UIGraphicsGetCurrentContext()
+        // Move origin to middle
+        context?.translateBy(x: newSize.width/2, y: newSize.height/2)
+        // Rotate around middle
+        context?.rotate(by: radians)
+        // Draw the image at its center
+        base.draw(in: CGRect(x: -width/2, y: -height/2, width: width, height: height))
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return newImage ?? base
+    }
+}
+
 #endif

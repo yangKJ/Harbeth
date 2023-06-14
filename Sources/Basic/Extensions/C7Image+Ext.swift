@@ -35,6 +35,32 @@ extension Queen where Base == C7Image {
         return nil
         #endif
     }
+    
+    /// Change the color of the picture.
+    /// - Parameter color: Change the color.
+    /// - Returns: The changed image.
+    public func tinted(color: C7Color) -> C7Image {
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
+        color.setFill()
+        let bounds = CGRect.init(origin: .zero, size: base.size)
+        UIRectFill(bounds)
+        base.draw(in: bounds, blendMode: CGBlendMode.destinationIn, alpha: 1.0)
+        let tintedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return tintedImage ?? base
+        #elseif os(macOS)
+        let imageRect = NSRect.init(origin: .zero, size: base.size)
+        return NSImage.init(size: base.size, flipped: false) { (rect) -> Bool in
+            color.set()
+            rect.fill()
+            base.draw(in: rect, from: imageRect, operation: .destinationIn, fraction: 1.0)
+            return true
+        }
+        #else
+        return base
+        #endif
+    }
 }
 
 // MARK: - edit image
