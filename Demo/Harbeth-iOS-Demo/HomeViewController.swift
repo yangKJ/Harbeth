@@ -15,7 +15,7 @@ class HomeViewController: UIViewController {
     lazy var viewModel: HomeViewModel = {
         switch view.restorationIdentifier {
         case "520":
-            title = "Graphic"//"图像处理"
+            title = "Image"//"图像处理"
             return HomeViewModel.init(viewType: .image)
         case "521":
             title = "Camera"//"相机采集"

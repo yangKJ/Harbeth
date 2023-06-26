@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import Harbeth
 
 /// 相机数据采集器，在主线程返回图片
 /// The camera data collector returns pictures in the main thread.

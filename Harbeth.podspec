@@ -8,8 +8,8 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.6.8'
-  s.summary          = 'About Metal image processing and video add filter.'
+  s.version          = '0.6.9'
+  s.summary          = 'About image and video add filter for metal.'
   
   # This description is used to generate tags and improve search results.
   #   * Think: What does it do? Why did you write it? What is the focus?
@@ -35,11 +35,6 @@ Pod::Spec.new do |s|
   s.subspec 'Basic' do |xx|
     xx.source_files = 'Sources/Basic/**/*.swift'
     xx.weak_frameworks = 'ImageIO', 'MetalKit', 'AVFoundation'
-  end
-  
-  s.subspec 'Collector' do |xx|
-    xx.source_files = 'Sources/Collector/*.swift'
-    xx.dependency 'Harbeth/Basic'
   end
   
   s.subspec 'Compute' do |xx|

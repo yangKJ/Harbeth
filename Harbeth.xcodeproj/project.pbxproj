@@ -10,10 +10,6 @@
 		8708D21E29BF2268004621AE /* Harbeth.h in Headers */ = {isa = PBXBuildFile; fileRef = 8708D21D29BF2268004621AE /* Harbeth.h */; };
 		872660BA2994D82200E612C7 /* CIHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBA2994D82100E612C7 /* CIHighlight.swift */; };
 		872660BB2994D82200E612C7 /* CIWhitePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBB2994D82100E612C7 /* CIWhitePoint.swift */; };
-		872660BC2994D82200E612C7 /* C7Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBD2994D82100E612C7 /* C7Collector.swift */; };
-		872660BD2994D82200E612C7 /* Collectorable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBE2994D82100E612C7 /* Collectorable.swift */; };
-		872660BE2994D82200E612C7 /* C7CollectorCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FBF2994D82100E612C7 /* C7CollectorCamera.swift */; };
-		872660BF2994D82200E612C7 /* C7CollectorVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC02994D82100E612C7 /* C7CollectorVideo.swift */; };
 		872660C02994D82200E612C7 /* Rendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC32994D82100E612C7 /* Rendering.swift */; };
 		872660C12994D82200E612C7 /* Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC42994D82100E612C7 /* Shared.swift */; };
 		872660C22994D82200E612C7 /* Filtering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC52994D82100E612C7 /* Filtering.swift */; };
@@ -49,9 +45,6 @@
 		872660F02994D82200E612C7 /* Outputable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FF62994D82100E612C7 /* Outputable.swift */; };
 		872660F12994D82200E612C7 /* BufferIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FF72994D82100E612C7 /* BufferIO.swift */; };
 		872660F22994D82200E612C7 /* BoxxIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FF82994D82100E612C7 /* BoxxIO.swift */; };
-		872660F32994D82200E612C7 /* C7TransformMatrix4x4.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FFA2994D82100E612C7 /* C7TransformMatrix4x4.swift */; };
-		872660F42994D82200E612C7 /* RenderShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87265FFB2994D82100E612C7 /* RenderShaders.metal */; };
-		872660F52994D82200E612C7 /* C7TransformMatrix4x4.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87265FFC2994D82100E612C7 /* C7TransformMatrix4x4.metal */; };
 		872660F62994D82200E612C7 /* C7Rotate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FFF2994D82100E612C7 /* C7Rotate.swift */; };
 		872660F72994D82200E612C7 /* C7Resize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872660002994D82100E612C7 /* C7Resize.swift */; };
 		872660F82994D82200E612C7 /* C7Crop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872660012994D82100E612C7 /* C7Crop.swift */; };
@@ -262,10 +255,6 @@
 		87265FAE2994D7EA00E612C7 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		87265FBA2994D82100E612C7 /* CIHighlight.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CIHighlight.swift; sourceTree = "<group>"; };
 		87265FBB2994D82100E612C7 /* CIWhitePoint.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CIWhitePoint.swift; sourceTree = "<group>"; };
-		87265FBD2994D82100E612C7 /* C7Collector.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Collector.swift; sourceTree = "<group>"; };
-		87265FBE2994D82100E612C7 /* Collectorable.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Collectorable.swift; sourceTree = "<group>"; };
-		87265FBF2994D82100E612C7 /* C7CollectorCamera.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorCamera.swift; sourceTree = "<group>"; };
-		87265FC02994D82100E612C7 /* C7CollectorVideo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorVideo.swift; sourceTree = "<group>"; };
 		87265FC32994D82100E612C7 /* Rendering.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Rendering.swift; sourceTree = "<group>"; };
 		87265FC42994D82100E612C7 /* Shared.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Shared.swift; sourceTree = "<group>"; };
 		87265FC52994D82100E612C7 /* Filtering.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Filtering.swift; sourceTree = "<group>"; };
@@ -301,9 +290,6 @@
 		87265FF62994D82100E612C7 /* Outputable.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Outputable.swift; sourceTree = "<group>"; };
 		87265FF72994D82100E612C7 /* BufferIO.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BufferIO.swift; sourceTree = "<group>"; };
 		87265FF82994D82100E612C7 /* BoxxIO.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BoxxIO.swift; sourceTree = "<group>"; };
-		87265FFA2994D82100E612C7 /* C7TransformMatrix4x4.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7TransformMatrix4x4.swift; sourceTree = "<group>"; };
-		87265FFB2994D82100E612C7 /* RenderShaders.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = RenderShaders.metal; sourceTree = "<group>"; };
-		87265FFC2994D82100E612C7 /* C7TransformMatrix4x4.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = C7TransformMatrix4x4.metal; sourceTree = "<group>"; };
 		87265FFF2994D82100E612C7 /* C7Rotate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Rotate.swift; sourceTree = "<group>"; };
 		872660002994D82100E612C7 /* C7Resize.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Resize.swift; sourceTree = "<group>"; };
 		872660012994D82100E612C7 /* C7Crop.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Crop.swift; sourceTree = "<group>"; };
@@ -548,10 +534,8 @@
 			children = (
 				8708D21D29BF2268004621AE /* Harbeth.h */,
 				87265FC12994D82100E612C7 /* Basic */,
-				87265FBC2994D82100E612C7 /* Collector */,
 				87265FFD2994D82100E612C7 /* Compute */,
 				87265FB92994D82100E612C7 /* CoreImage */,
-				87265FF92994D82100E612C7 /* Render */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -563,17 +547,6 @@
 				87265FBB2994D82100E612C7 /* CIWhitePoint.swift */,
 			);
 			path = CoreImage;
-			sourceTree = "<group>";
-		};
-		87265FBC2994D82100E612C7 /* Collector */ = {
-			isa = PBXGroup;
-			children = (
-				87265FBD2994D82100E612C7 /* C7Collector.swift */,
-				87265FBF2994D82100E612C7 /* C7CollectorCamera.swift */,
-				87265FC02994D82100E612C7 /* C7CollectorVideo.swift */,
-				87265FBE2994D82100E612C7 /* Collectorable.swift */,
-			);
-			path = Collector;
 			sourceTree = "<group>";
 		};
 		87265FC12994D82100E612C7 /* Basic */ = {
@@ -656,16 +629,6 @@
 				87265FF62994D82100E612C7 /* Outputable.swift */,
 			);
 			path = Outputs;
-			sourceTree = "<group>";
-		};
-		87265FF92994D82100E612C7 /* Render */ = {
-			isa = PBXGroup;
-			children = (
-				87265FFC2994D82100E612C7 /* C7TransformMatrix4x4.metal */,
-				87265FFA2994D82100E612C7 /* C7TransformMatrix4x4.swift */,
-				87265FFB2994D82100E612C7 /* RenderShaders.metal */,
-			);
-			path = Render;
 			sourceTree = "<group>";
 		};
 		87265FFD2994D82100E612C7 /* Compute */ = {
@@ -1118,13 +1081,11 @@
 				872661622994D82200E612C7 /* C7Exposure.swift in Sources */,
 				872660C62994D82200E612C7 /* CoreImage+.swift in Sources */,
 				8726618E2994D82200E612C7 /* C7ZoomBlur.swift in Sources */,
-				872660BD2994D82200E612C7 /* Collectorable.swift in Sources */,
 				872661A62994D82200E612C7 /* C7Nostalgic.swift in Sources */,
 				872661422994D82200E612C7 /* C7LuminanceRangeReduction.metal in Sources */,
 				872661032994D82200E612C7 /* C7GlassSphere.swift in Sources */,
 				875CA59929B85C08006D4F1D /* CATransform3D+Ext.swift in Sources */,
 				872660F02994D82200E612C7 /* Outputable.swift in Sources */,
-				872660F42994D82200E612C7 /* RenderShaders.metal in Sources */,
 				872661732994D82200E612C7 /* C7SourceOverBlend.metal in Sources */,
 				8726618D2994D82200E612C7 /* C7MonochromeDilation.swift in Sources */,
 				8726610C2994D82200E612C7 /* C7PolkaDot.swift in Sources */,
@@ -1177,7 +1138,6 @@
 				875CA59C29B85C08006D4F1D /* CMSampleBuffer+Ext.swift in Sources */,
 				872661552994D82200E612C7 /* C7Vibrance.metal in Sources */,
 				872660DA2994D82200E612C7 /* ParameterRange.swift in Sources */,
-				872660BE2994D82200E612C7 /* C7CollectorCamera.swift in Sources */,
 				875CA59729B85C08006D4F1D /* C7Color+Ext.swift in Sources */,
 				872661A72994D82200E612C7 /* C7Sepia.metal in Sources */,
 				872661542994D82200E612C7 /* C7ColorSpace.metal in Sources */,
@@ -1190,7 +1150,6 @@
 				872661742994D82200E612C7 /* C7HardLightBlend.metal in Sources */,
 				872660BA2994D82200E612C7 /* CIHighlight.swift in Sources */,
 				872660D52994D82200E612C7 /* Matrix3x3+Kernel.swift in Sources */,
-				872660F32994D82200E612C7 /* C7TransformMatrix4x4.swift in Sources */,
 				872660DE2994D82200E612C7 /* Degree.swift in Sources */,
 				8726616F2994D82200E612C7 /* C7FalseColor.swift in Sources */,
 				872661412994D82200E612C7 /* C7Levels.metal in Sources */,
@@ -1205,7 +1164,6 @@
 				872661702994D82200E612C7 /* C7OilPainting.swift in Sources */,
 				872660DD2994D82200E612C7 /* Mirrorable.swift in Sources */,
 				8726610E2994D82200E612C7 /* C7Pinch.swift in Sources */,
-				872660BC2994D82200E612C7 /* C7Collector.swift in Sources */,
 				872661662994D82200E612C7 /* C7ColorRGBA.metal in Sources */,
 				872660C42994D82200E612C7 /* Compute.swift in Sources */,
 				872661492994D82200E612C7 /* C7Exposure.metal in Sources */,
@@ -1270,12 +1228,10 @@
 				872661942994D82200E612C7 /* C7MonochromeDilation.metal in Sources */,
 				872661642994D82200E612C7 /* C7Opacity.metal in Sources */,
 				872661572994D82200E612C7 /* C7LuminanceThreshold.swift in Sources */,
-				872660BF2994D82200E612C7 /* C7CollectorVideo.swift in Sources */,
 				872661832994D82200E612C7 /* C7LinearBurnBlend.metal in Sources */,
 				872660D62994D82200E612C7 /* Matrix.swift in Sources */,
 				872661902994D82200E612C7 /* C7MeanBlur.swift in Sources */,
 				872661652994D82200E612C7 /* C7SolidColor.swift in Sources */,
-				872660F52994D82200E612C7 /* C7TransformMatrix4x4.metal in Sources */,
 				872661042994D82200E612C7 /* C7Bulge.swift in Sources */,
 				872661632994D82200E612C7 /* C7WhiteBalance.swift in Sources */,
 				8726612C2994D82200E612C7 /* C7Sketch.swift in Sources */,

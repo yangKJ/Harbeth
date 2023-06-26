@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import Harbeth
 
 public final class C7CollectorVideo: C7Collector {
     

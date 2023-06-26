@@ -40,10 +40,9 @@ class ViewController: NSViewController {
     
     lazy var TextField: NSTextField = {
         func string(fromHTML html: String?, with font: NSFont? = nil) -> NSAttributedString {
-            var html = html
             let font = font ?? .systemFont(ofSize: 0.0) // Default font
-            html = String(format: "<span style=\"font-family:'%@'; font-size:%dpx;\">%@</span>", font.fontName, Int(font.pointSize), html ?? "")
-            let data = html?.data(using: .utf8)
+            let html = String(format: "<span style=\"font-family:'%@'; font-size:%dpx;\">%@</span>", font.fontName, Int(font.pointSize), html ?? "")
+            let data = html.data(using: .utf8)
             let options = [NSAttributedString.DocumentReadingOptionKey.textEncodingName: "UTF-8"]
             var string: NSAttributedString? = nil
             if let data {
@@ -59,6 +58,18 @@ class ViewController: NSViewController {
         label.isSelectable = true
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
+    }()
+    
+    lazy var dynamicButton: NSButton = {
+        let button = NSButton()
+        button.setButtonType(.momentaryChange)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.action = #selector(click)
+        button.setButtonType(.toggle)
+        button.title = "Start"
+        button.alternateTitle = "Stop"
+        button.bezelStyle = .regularSquare
+        return button
     }()
     
     override func viewDidLoad() {
@@ -79,6 +90,7 @@ class ViewController: NSViewController {
     func setupUI() {
         view.addSubview(ImageView)
         view.addSubview(TextField)
+        view.addSubview(dynamicButton)
         NSLayoutConstraint.activate([
             ImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
             ImageView.heightAnchor.constraint(equalTo: ImageView.widthAnchor, multiplier: 1),
@@ -87,7 +99,11 @@ class ViewController: NSViewController {
             TextField.topAnchor.constraint(equalTo: ImageView.bottomAnchor, constant: 10),
             TextField.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
             TextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            TextField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            TextField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -100),
+            dynamicButton.centerYAnchor.constraint(equalTo: TextField.centerYAnchor),
+            dynamicButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            dynamicButton.widthAnchor.constraint(equalToConstant: 70),
+            dynamicButton.heightAnchor.constraint(equalToConstant: 25),
         ])
     }
     
@@ -126,7 +142,6 @@ class ViewController: NSViewController {
     ]
     
     func unitTest() {
-        //originImage = originImage.mt.zipScale(size: CGSize(width: 600, height: 600))
         guard let filter = filters.randomElement() else {
             return
         }
@@ -135,11 +150,11 @@ class ViewController: NSViewController {
         ImageView.image = try? dest.output()
     }
     
-    func dynamicTest() {
-        displayLink.isPaused = false
+    @objc private func click(_ sender: NSButton) {
+        displayLink.isPaused = !displayLink.isPaused
     }
     
-    var soul = C7SoulOut.init(soul: 0.7)
+    lazy var soul = C7SoulOut.init(soul: 0.7)
     @objc func onScreenUpdate(_ sender: CADisplayLink) {
         soul.soul += 0.025
         if soul.soul == C7SoulOut.range.max {

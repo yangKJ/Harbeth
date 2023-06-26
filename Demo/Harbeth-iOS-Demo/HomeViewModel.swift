@@ -44,7 +44,7 @@ struct HomeViewModel {
     
     lazy var datas: [String: [ViewControllerType]] = {
         switch viewType {
-        case .image:
+        case .image, .player:
             return [
                 "查找滤镜": lookup,
                 "效果展示": effect,
@@ -58,12 +58,7 @@ struct HomeViewModel {
         case .camera:
             var filters = color
             filters.insert(.Storyboard, at: 0)
-            return ["真机测试": filters]
-        case .player:
-            var filters = visual
-            filters.insert(.CIHS, at: 0)
-            filters.insert(.MPSGaussian, at: 1)
-            return ["视频特效 - 真机测试": filters]
+            return ["相机特效 - 真机测试": filters]
         }
     }()
     
