@@ -78,6 +78,24 @@ extension Queen where Base: CVPixelBuffer {
         CVPixelBufferUnlockBaseAddress(base, flags)
     }
     
+    public func copyToCVPixelBuffer(with texture: MTLTexture) -> CVPixelBuffer {
+        let flags = CVPixelBufferLockFlags(rawValue: 0)
+        CVPixelBufferLockBaseAddress(base, flags)
+        var outPixelbuffer: CVPixelBuffer? = base
+        if let datas = texture.buffer?.contents() {
+            CVPixelBufferCreateWithBytes(kCFAllocatorDefault,
+                                         texture.width,
+                                         texture.height,
+                                         kCVPixelFormatType_64RGBAHalf,
+                                         datas,
+                                         texture.bufferBytesPerRow,
+                                         nil, nil, nil,
+                                         &outPixelbuffer);
+        }
+        CVPixelBufferUnlockBaseAddress(base, flags)
+        return outPixelbuffer ?? base
+    }
+    
     /// Creates a CMSampleBuffer that contains a CVImageBuffer instead of a CMBlockBuffer.
     /// - Returns: CMSampleBuffer
     public func toCMSampleBuffer() -> CMSampleBuffer? {

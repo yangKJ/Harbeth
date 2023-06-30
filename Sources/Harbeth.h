@@ -37,6 +37,11 @@
 // If you find it easy to use, I hope you can support STAR. Your ⭐️ is my motivation for updating!
 // Portal: https://github.com/YangKJ/Harbeth <Note: Open the browser command quickly, command + left mouse button>
 
+// 关于加载和缓存网络图像orGIF，你也可以使用另外的库[ImageX](https://github.com/YangKJ/ImageX)
+
+// If you need downloading and caching images or gif from the web.
+// You can also use another library [ImageX](https://github.com/YangKJ/ImageX)
+
 #import <Foundation/Foundation.h>
 
 FOUNDATION_EXPORT double HarbethVersionNumber;

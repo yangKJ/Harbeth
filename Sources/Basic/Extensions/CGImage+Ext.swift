@@ -8,6 +8,7 @@
 import Foundation
 import MetalKit
 import CoreGraphics
+import CoreVideo
 
 extension CGImage: C7Compatible { }
 
@@ -60,6 +61,44 @@ extension Queen where Base: CGImage {
         ]
         let loader = Shared.shared.device?.textureLoader
         return try? loader?.newTexture(cgImage: base, options: textureOptions)
+    }
+    
+    public func toPixelBuffer() -> CVPixelBuffer? {
+        let imageWidth = Int(base.width)
+        let imageHeight = Int(base.height)
+        let attributes: [NSObject:AnyObject] = [
+            kCVPixelBufferCGImageCompatibilityKey : true as AnyObject,
+            kCVPixelBufferCGBitmapContextCompatibilityKey : true as AnyObject
+        ]
+        var pxbuffer: CVPixelBuffer? = nil
+        CVPixelBufferCreate(kCFAllocatorDefault,
+                            imageWidth,
+                            imageHeight,
+                            kCVPixelFormatType_32ARGB,
+                            attributes as CFDictionary?,
+                            &pxbuffer)
+        guard let pxbuffer = pxbuffer else {
+            return nil
+        }
+        let flags = CVPixelBufferLockFlags(rawValue: 0)
+        CVPixelBufferLockBaseAddress(pxbuffer, flags)
+        let pxdata = CVPixelBufferGetBaseAddress(pxbuffer)
+        let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
+        let context = CGContext(data: pxdata,
+                                width: imageWidth,
+                                height: imageHeight,
+                                bitsPerComponent: 8,
+                                bytesPerRow: CVPixelBufferGetBytesPerRow(pxbuffer),
+                                space: rgbColorSpace,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue)
+        if let context = context {
+            context.draw(base, in: CGRect.init(x: 0, y: 0, width: imageWidth, height: imageHeight))
+        } else {
+            CVPixelBufferUnlockBaseAddress(pxbuffer, flags);
+            return nil
+        }
+        CVPixelBufferUnlockBaseAddress(pxbuffer, flags);
+        return pxbuffer
     }
     
     public func toC7Image() -> C7Image {
