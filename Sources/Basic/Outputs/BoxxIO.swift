@@ -80,11 +80,16 @@ extension BoxxIO {
         }
         do {
             for filter in filters {
+                #if HARBETH_COMPUTE || SWIFT_PACKAGE // Compute module Or Swift Package Manager
+                // This filter will cause a crash.
+                if filter is C7Resize { continue }
+                #else
                 let OSize = filter.resize(input: C7Size(width: texture.width, height: texture.height))
                 // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
                 // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
                 let OTexture = Processed.destTexture(pixelFormat: bufferPixelFormat, width: OSize.width, height: OSize.height)
                 texture = try Processed.IO(inTexture: texture, outTexture: OTexture, filter: filter)
+                #endif
             }
             pixelBuffer.mt.copyToPixelBuffer(with: texture)
             return pixelBuffer
