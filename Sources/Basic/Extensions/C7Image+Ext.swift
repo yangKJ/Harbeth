@@ -37,6 +37,7 @@ extension Queen where Base == C7Image {
         #endif
     }
     
+    #if canImport(UIKit) && !os(watchOS)
     public func toPixelBuffer() -> CVPixelBuffer? {
         let width = base.size.width
         let height = base.size.height
@@ -74,6 +75,7 @@ extension Queen where Base == C7Image {
         CVPixelBufferUnlockBaseAddress(resultPixelBuffer, CVPixelBufferLockFlags(rawValue: 0))
         return resultPixelBuffer
     }
+    #endif
     
     /// Change the color of the picture.
     /// - Parameter color: Change the color.
