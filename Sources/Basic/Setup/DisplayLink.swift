@@ -40,6 +40,13 @@ public protocol DisplayLinkProtocol: NSObjectProtocol {
     ///   - mode: The mode in which to add the display link to the run loop.
     func add(to runloop: RunLoop, forMode mode: RunLoop.Mode)
     
+    /// Removes the receiver from the given mode of the runloop.
+    /// This will implicitly release it when removed from the last mode it has been registered for.
+    /// - Parameters:
+    ///   - runloop: The run loop to associate with the display link.
+    ///   - mode: The mode in which to remove the display link to the run loop.
+    func remove(from runloop: RunLoop, forMode mode: RunLoop.Mode)
+    
     /// Removes the object from all runloop modes and releases the `target` object.
     func invalidate()
 }
@@ -94,37 +101,12 @@ public final class DisplayLink: NSObject, DisplayLinkProtocol {
     
     public func add(to runloop: RunLoop, forMode mode: RunLoop.Mode) {
         guard let timer = timer else { return }
-        let queue: DispatchQueue = runloop == RunLoop.main ? .main : .global()
-        self.source = DispatchSource.makeUserDataAddSource(queue: queue)
-        var successLink = CVDisplayLinkSetOutputCallback(timer, { (_, _, _, _, _, pointer) -> CVReturn in
-            if let sourceUnsafeRaw = pointer {
-                let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(sourceUnsafeRaw)
-                sourceUnmanaged.takeUnretainedValue().add(data: 1)
-            }
-            return kCVReturnSuccess
-        }, Unmanaged.passUnretained(source!).toOpaque())
-        guard successLink == kCVReturnSuccess else {
-            return
-        }
-        successLink = CVDisplayLinkSetCurrentCGDisplay(timer, CGMainDisplayID())
-        guard successLink == kCVReturnSuccess else {
-            return
-        }
-        // Timer setup
-        source!.setEventHandler(handler: { [weak self] in
-            guard let `self` = self, let target = self.target as? NSObjectProtocol else {
-                return
-            }
-            switch self.selParameterNumbers {
-            case 0 where self.selector.description.isEmpty == false:
-                target.perform(self.selector)
-            case 1:
-                target.perform(self.selector, with: self)
-            default:
-                self.callback?(self)
-                break
-            }
-        })
+        self.source = createSource(with: runloop)
+    }
+    
+    public func remove(from runloop: RunLoop, forMode mode: RunLoop.Mode) {
+        self.cancel()
+        self.source = nil
     }
     
     public var isPaused: Bool = false {
@@ -171,6 +153,44 @@ extension DisplayLink {
     private func running() -> Bool {
         guard let timer = timer else { return false }
         return CVDisplayLinkIsRunning(timer)
+    }
+    
+    private func createSource(with runloop: RunLoop) -> DispatchSourceUserDataAdd? {
+        if let source = self.source {
+            return source
+        }
+        let queue: DispatchQueue = runloop == RunLoop.main ? .main : .global()
+        let source = DispatchSource.makeUserDataAddSource(queue: queue)
+        var successLink = CVDisplayLinkSetOutputCallback(timer, { (_, _, _, _, _, pointer) -> CVReturn in
+            if let sourceUnsafeRaw = pointer {
+                let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(sourceUnsafeRaw)
+                sourceUnmanaged.takeUnretainedValue().add(data: 1)
+            }
+            return kCVReturnSuccess
+        }, Unmanaged.passUnretained(source).toOpaque())
+        guard successLink == kCVReturnSuccess else {
+            return
+        }
+        successLink = CVDisplayLinkSetCurrentCGDisplay(timer, CGMainDisplayID())
+        guard successLink == kCVReturnSuccess else {
+            return
+        }
+        // Timer setup
+        source.setEventHandler(handler: { [weak self] in
+            guard let `self` = self, let target = self.target as? NSObjectProtocol else {
+                return
+            }
+            switch self.selParameterNumbers {
+            case 0 where self.selector.description.isEmpty == false:
+                target.perform(self.selector)
+            case 1:
+                target.perform(self.selector, with: self)
+            default:
+                self.callback?(self)
+                break
+            }
+        })
+        return source
     }
 }
 #endif
