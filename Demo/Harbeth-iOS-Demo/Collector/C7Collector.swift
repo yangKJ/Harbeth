@@ -78,19 +78,13 @@ public class C7Collector: NSObject, Cacheable {
 extension C7Collector {
     
     func pixelBuffer2Image(_ pixelBuffer: CVPixelBuffer?) -> C7Image? {
-        guard let pixelBuffer = pixelBuffer else { return nil }
-        delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
-        if filters.isEmpty {
-            if let function = delegate?.captureOutput(_:texture:),
-               let texture = pixelBuffer.mt.toMTLTexture(textureCache: textureCache) {
-                function(self, texture)
-            }
-            // Fixed rgba => bgra when no filter.
-            return pixelBuffer.mt.toCGImage()?.mt.toC7Image()
+        guard let pixelBuffer = pixelBuffer else {
+            return nil
         }
-        
-        // CVPixelBuffer add filter and convert to image.
-        guard let texture = BufferIO.convert2MTLTexture(pixelBuffer: pixelBuffer, filters: filters, textureCache: textureCache) else {
+        delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
+        let texture = pixelBuffer.mt.toMTLTexture(textureCache: textureCache)
+        let dest = BoxxIO(element: texture, filters: filters)
+        guard let texture = try? dest.output() else {
             return nil
         }
         delegate?.captureOutput?(self, texture: texture)
