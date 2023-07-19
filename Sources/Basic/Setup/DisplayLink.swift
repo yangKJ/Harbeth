@@ -100,7 +100,9 @@ public final class DisplayLink: NSObject, DisplayLinkProtocol {
     }
     
     public func add(to runloop: RunLoop, forMode mode: RunLoop.Mode) {
-        guard let timer = timer else { return }
+        if let _ = self.source {
+            return
+        }
         self.source = createSource(with: runloop)
     }
     
@@ -156,8 +158,8 @@ extension DisplayLink {
     }
     
     private func createSource(with runloop: RunLoop) -> DispatchSourceUserDataAdd? {
-        if let source = self.source {
-            return source
+        guard let timer = timer else {
+            return nil
         }
         let queue: DispatchQueue = runloop == RunLoop.main ? .main : .global()
         let source = DispatchSource.makeUserDataAddSource(queue: queue)
@@ -169,11 +171,11 @@ extension DisplayLink {
             return kCVReturnSuccess
         }, Unmanaged.passUnretained(source).toOpaque())
         guard successLink == kCVReturnSuccess else {
-            return
+            return nil
         }
         successLink = CVDisplayLinkSetCurrentCGDisplay(timer, CGMainDisplayID())
         guard successLink == kCVReturnSuccess else {
-            return
+            return nil
         }
         // Timer setup
         source.setEventHandler(handler: { [weak self] in
