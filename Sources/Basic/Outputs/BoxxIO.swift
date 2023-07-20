@@ -255,15 +255,9 @@ extension BoxxIO {
     func filtering(texture: MTLTexture) throws -> MTLTexture {
         if self.filters.isEmpty { return texture }
         var sourceTexture: MTLTexture = texture
-        // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
-        // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-        var destTexture = BoxxIO.destTexture(bufferPixelFormat, width: sourceTexture.width, height: sourceTexture.height)
         do {
             for filter in filters {
-                let resize = filter.resize(input: C7Size(width: texture.width, height: texture.height))
-                if destTexture.width != resize.width || destTexture.height != resize.height {
-                    destTexture = BoxxIO.destTexture(bufferPixelFormat, width: resize.width, height: resize.height)
-                }
+                let destTexture = createDestTexture(with: sourceTexture, filter: filter)
                 sourceTexture = try Processed.IO(inTexture: sourceTexture, outTexture: destTexture, filter: filter)
             }
             return sourceTexture
@@ -277,14 +271,10 @@ extension BoxxIO {
     
     public func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, Error>) -> Void) {
         var index__ = 0
-        var destTexture = BoxxIO.destTexture(bufferPixelFormat, width: texture.width, height: texture.height)
         // 递归处理
         func recursion(filters: [C7FilterProtocol], index: Int, sourceTexture: MTLTexture) {
             let filter = filters[index]
-            let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
-            if destTexture.width != resize.width || destTexture.height != resize.height {
-                destTexture = BoxxIO.destTexture(bufferPixelFormat, width: resize.width, height: resize.height)
-            }
+            let destTexture = createDestTexture(with: sourceTexture, filter: filter)
             if filters.count == index + 1 {
                 Processed.runAsynIO(inTexture: sourceTexture, outTexture: destTexture, filter: filter) { res in
                     switch res {
@@ -331,6 +321,14 @@ extension BoxxIO {
         descriptor.storageMode = .managed
         #endif
         return Device.device().makeTexture(descriptor: descriptor)!
+    }
+    
+    private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) -> MTLTexture {
+        let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
+        // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
+        // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
+        let destTexture = BoxxIO.destTexture(bufferPixelFormat, width: resize.width, height: resize.height)
+        return destTexture
     }
     
     private func applyCIImage(_ ciImage: CIImage, with texture: MTLTexture) -> CIImage {
