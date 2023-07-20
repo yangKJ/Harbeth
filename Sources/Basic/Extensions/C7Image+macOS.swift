@@ -42,6 +42,10 @@ extension Queen where Base: C7Image {
         base
     }
     
+    public var flattened: C7Image {
+        base
+    }
+    
     /// Flip image, Need to be used in `base.lockFocus()`
     ///
     /// Example:

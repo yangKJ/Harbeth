@@ -16,7 +16,9 @@ extension Queen where Base: C7Image {
     /// To ensure image orientation is correct, redraw image if image orientation is not up.
     /// See: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
     public var flattened: C7Image {
-        if base.imageOrientation == .up { return base.copy() as! C7Image }
+        if base.imageOrientation == .up {
+            return base.copy() as! C7Image
+        }
         UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
         base.draw(in: CGRect(origin: .zero, size: base.size))
         let result = UIGraphicsGetImageFromCurrentImageContext()
