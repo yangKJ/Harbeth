@@ -10,63 +10,83 @@ import MetalKit
 import MetalPerformanceShaders
 
 internal struct Processed {
+    
     /// Create a new texture based on the filter content.
-    /// This protocol method does not need to be overridden unless you need to change the internal logic.
-    ///
+    /// Synchronously wait for the execution of the Metal command buffer to complete.
     /// - Parameters:
     ///   - intexture: Input texture
     ///   - outTexture: Output texture
     ///   - filter: It must be an object implementing C7FilterProtocol
     /// - Returns: Output texture after processing
-    @inlinable @discardableResult
-    static func IO(inTexture: MTLTexture, outTexture: MTLTexture? = nil, filter: C7FilterProtocol) throws -> MTLTexture {
+    @inlinable @discardableResult static func IO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if case .coreimage(let name) = filter.modifier {
             return COImage.render(texture: inTexture, name: name, filter: filter)
         }
+        let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
+        // Support mac catalyst in video writer.
+        #if targetEnvironment(macCatalyst)
+        let blitEncoder = commandBuffer.makeBlitCommandEncoder()
+        blitEncoder?.synchronize(resource: outTexture)
+        blitEncoder?.endEncoding()
+        #endif
+        // Commit a command buffer so it can be executed as soon as possible.
+        commandBuffer.commit()
+        // Wait to make sure that output texture contains new data.
+        commandBuffer.waitUntilCompleted()
+        return outTexture
+    }
+    
+    /// Whether to synchronously wait for the execution of the Metal command buffer to complete.
+    /// - Parameters:
+    ///   - intexture: Input texture
+    ///   - outTexture: Output texture
+    ///   - filter: It must be an object implementing C7FilterProtocol
+    ///   - complete: Add a block to be called when this command buffer has completed execution.
+    static func runAsynIO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol, complete: @escaping (Result<MTLTexture, Error>) -> Void) {
+        if case .coreimage(let name) = filter.modifier {
+            let texture = COImage.render(texture: inTexture, name: name, filter: filter)
+            complete(.success(texture))
+            return
+        }
+        do {
+            let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
+            commandBuffer.addCompletedHandler { (buffer) in
+                switch buffer.status {
+                case .completed:
+                    complete(.success(outTexture))
+                default:
+                    break
+                }
+            }
+            commandBuffer.commit()
+        } catch {
+            complete(.failure(error))
+        }
+    }
+}
+
+extension C7FilterProtocol {
+    
+    /// Add the filter into the output texture.
+    func applyAtTexture(form sourceTexture: MTLTexture, to destinationTexture: MTLTexture) throws -> MTLCommandBuffer {
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
             throw C7CustomError.commandBuffer
         }
-        var outputTexture = outTexture
-        if outputTexture == nil {
-            let outputSize = filter.resize(input: C7Size(width: inTexture.width, height: inTexture.height))
-            outputTexture = destTexture(width: outputSize.width, height: outputSize.height)
-        }
-        if case .compute(let kernel) = filter.modifier {
+        if case .compute(let kernel) = self.modifier {
             guard let pipelineState = Compute.makeComputePipelineState(with: kernel) else {
                 throw C7CustomError.computePipelineState(kernel)
             }
-            var textures = [outputTexture!, inTexture]
-            textures += filter.otherInputTextures
-            Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
-        } else if case .render(let vertex, let fragment) = filter.modifier {
+            var textures = [destinationTexture, sourceTexture]
+            textures += self.otherInputTextures
+            Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: self)
+        } else if case .render(let vertex, let fragment) = self.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
                 throw C7CustomError.renderPipelineState(vertex, fragment)
             }
-            Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, texture: inTexture, filter: filter)
-        } else if case .mps(let performance) = filter.modifier {
-            performance.encode(commandBuffer: commandBuffer, sourceTexture: inTexture, destinationTexture: outputTexture!)
+            Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, texture: sourceTexture, filter: self)
+        } else if case .mps(let performance) = self.modifier {
+            performance.encode(commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: destinationTexture)
         }
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-        
-        return outputTexture!
-    }
-    
-    /// Create a texture for later storage according to the texture parameters.
-    /// - Parameters:
-    ///    - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
-    ///    - width: The texture width
-    ///    - height: The texture height
-    ///    - mipmapped: No mapping was required
-    /// - Returns: New textures
-    @inlinable static func destTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
-                                       width: Int, height: Int,
-                                       mipmapped: Bool = false) -> MTLTexture {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
-                                                                  width: width,
-                                                                  height: height,
-                                                                  mipmapped: mipmapped)
-        descriptor.usage = [.shaderRead, .shaderWrite]
-        return Device.device().makeTexture(descriptor: descriptor)!
+        return commandBuffer
     }
 }

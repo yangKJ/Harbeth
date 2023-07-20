@@ -92,17 +92,29 @@ extension C7Collector {
     }
     
     func processing(with pixelBuffer: CVPixelBuffer?) {
-        guard var image = self.pixelBuffer2Image(pixelBuffer) else {
+        guard let pixelBuffer = pixelBuffer else {
             return
         }
-        if autoCorrectDirection {
-            image = image.mt.fixOrientation()
+        delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
+        guard let texture = pixelBuffer.mt.toMTLTexture(textureCache: textureCache) else {
+            return
         }
-        if let callback = self.callback {
-            DispatchQueue.main.async { callback(image) }
-        }
-        if let delegate = self.delegate {
-            DispatchQueue.main.async { delegate.preview(self, fliter: image) }
-        }
+        let dest = BoxxIO(element: texture, filters: filters)
+        dest.transmitOutput(success: { [weak self] desTexture in
+            guard let `self` = self else {
+                return
+            }
+            self.delegate?.captureOutput?(self, texture: desTexture)
+            guard var image = desTexture.mt.toImage() else {
+                return
+            }
+            if self.autoCorrectDirection {
+                image = image.mt.fixOrientation()
+            }
+            DispatchQueue.main.async {
+                self.callback?(image)
+                self.delegate?.preview(self, fliter: image)
+            }
+        })
     }
 }

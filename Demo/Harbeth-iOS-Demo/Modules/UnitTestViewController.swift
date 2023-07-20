@@ -87,10 +87,18 @@ extension UnitTestViewController {
     
     func unitTest() {
         let filter = C7Storyboard(ranks: 2)
+        let filter2 = C7SoulOut()
+        let filter3 = C7GaussianBlur()
         
-        let dest = BoxxIO.init(element: originImage, filter: filter)
+        let dest = BoxxIO.init(element: originImage, filters: [filter, filter2, filter3])
         
-        ImageView.image = try? dest.output()
+        dest.transmitOutput(success: { [weak self] image in
+            DispatchQueue.main.async {
+                self?.ImageView.image = image
+            }
+        })
+        
+        //ImageView.image = try? dest.output()
         
         //ImageView.image = C7Color.gray.mt.colorImage(with: CGSize(width: 600, height: 600))
         
