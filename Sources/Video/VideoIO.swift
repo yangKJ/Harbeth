@@ -1,5 +1,5 @@
 //
-//  Video.swift
+//  VideoIO.swift
 //  Harbeth
 //
 //  Created by Condy on 2023/2/20.
@@ -12,25 +12,33 @@ import AVFoundation
 /// 支持所有能转换`Buffer`的滤镜库，例如`GPUImage、Harbeth、CoreImage`等。
 /// See: https://github.com/yangKJ/Kakapos
 
-/// Video addition filter tool, support for network and local URLs and album videos.
-public class Video: NSObject {
+/// VideoIO addition filter tool, support for network and local URLs and album videos.
+public class VideoIO: NSObject {
     
     public typealias VideoCompleted = (_ videoURL: URL) -> Void
     public typealias VideoFailed = (_ error: Exporter.Error) -> Void
     
     private let asset: AVAsset
     private let completed: VideoCompleted
-    private let failed: VideoFailed
+    private let failed: VideoFailed?
     private lazy var exporter: Exporter = {
         let exporter = Exporter(asset: asset, delegate: self)
         return exporter
     }()
     
-    public convenience init(videoURL: URL, outputURL: URL? = nil, filters: [C7FilterProtocol], completed: @escaping VideoCompleted, failed: @escaping VideoFailed) {
+    public convenience init(videoURL: URL,
+                            outputURL: URL? = nil,
+                            filters: [C7FilterProtocol],
+                            completed: @escaping VideoCompleted,
+                            failed: VideoFailed? = nil) {
         self.init(asset: AVAsset(url: videoURL), outputURL: outputURL, filters: filters, completed: completed, failed: failed)
     }
     
-    public init(asset: AVAsset, outputURL: URL? = nil, filters: [C7FilterProtocol], completed: @escaping VideoCompleted, failed: @escaping VideoFailed) {
+    public init(asset: AVAsset,
+                outputURL: URL? = nil,
+                filters: [C7FilterProtocol],
+                completed: @escaping VideoCompleted,
+                failed: VideoFailed? = nil) {
         self.asset = asset
         self.completed = completed
         self.failed = failed
@@ -39,18 +47,19 @@ public class Video: NSObject {
     }
 }
 
-extension Video {
+extension VideoIO {
+    
     private func export(filters: [C7FilterProtocol], outputURL: URL?) {
         let outputURL: URL = outputURL ?? {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let outputURL = documents.appendingPathComponent("condy_exporter_video.mp4")
+            let outputURL = documents.appendingPathComponent("condy_harbeth_exporter_video.mp4")
             
             // Check if the file already exists then remove the previous file
             if FileManager.default.fileExists(atPath: outputURL.path) {
                 do {
                     try FileManager.default.removeItem(at: outputURL)
                 } catch {
-                    //completionHandler(nil, error)
+                    self.failed?(.error(error))
                 }
             }
             return outputURL
@@ -62,12 +71,13 @@ extension Video {
     }
 }
 
-extension Video: ExporterDelegate {
+extension VideoIO: ExporterDelegate {
+    
     public func export(_ exporter: Exporter, success videoURL: URL) {
-        completed(videoURL)
+        self.completed(videoURL)
     }
     
     public func export(_ exporter: Exporter, failed error: Exporter.Error) {
-        failed(error)
+        self.failed?(error)
     }
 }

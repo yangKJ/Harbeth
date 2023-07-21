@@ -10,6 +10,8 @@ import CoreGraphics
 
 extension CGSize: C7Compatible {
     
+    public static let onePixel = CGSizeMake(1.0, 1.0)
+    
     public static func * (lhs: Self, rhs: Double) -> Self {
         .init(width: lhs.width * rhs, height: lhs.height * rhs)
     }
@@ -33,7 +35,7 @@ extension Queen where Base == CGSize {
         let ratio = min(boundingSize.width / base.width, boundingSize.height / base.height)
         return CGSize(width: base.width * ratio, height: base.height * ratio)
     }
-
+    
     public func aspectFit(to widthHeight: Double) -> CGSize {
         aspectFit(to: CGSize(width: widthHeight, height: widthHeight))
     }

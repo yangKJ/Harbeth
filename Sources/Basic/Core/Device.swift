@@ -134,9 +134,9 @@ extension Device {
             return function
         }
         #if DEBUG
-        fatalError(C7CustomError.readFunction(name).localizedDescription)
+        fatalError(CustomError.readFunction(name).localizedDescription)
         #else
-        throw C7CustomError.readFunction(name)
+        throw CustomError.readFunction(name)
         #endif
     }
 }

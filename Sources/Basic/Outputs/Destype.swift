@@ -14,7 +14,31 @@ public protocol Destype {
     var element: Element { get }
     var filters: [C7FilterProtocol] { get }
     
+    init(element: Element, filter: C7FilterProtocol)
+    
     init(element: Element, filters: [C7FilterProtocol])
     
+    /// Add filters to sources synchronously.
+    /// - Returns: Added filter source.
     func output() throws -> Element
+    
+    /// Asynchronous quickly add filters to sources.
+    /// - Parameter success: Successful callback of adding filters to the sources asynchronously.
+    func transmitOutput(success: @escaping (Element) -> Void)
+    
+    /// Asynchronous quickly add filters to sources.
+    /// - Parameters:
+    ///   - success: Successful callback of adding filters to the sources asynchronously.
+    ///   - failed: An error occurred during the conversion process, the error is `CustomError`.
+    func transmitOutput(success: @escaping (Element) -> Void, failed: @escaping ((Error) -> Void))
+    
+    /// Convert to texture and add filters.
+    /// - Parameter complete: The conversion is complete, if failed the error is `CustomError`.
+    func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, Error>) -> Void)
+}
+
+extension Destype {
+    public func transmitOutput(success: @escaping (Element) -> Void) {
+        transmitOutput(success: success, failed: { _ in })
+    }
 }

@@ -124,7 +124,7 @@ extension Queen where Base: C7Color {
     ///   - color: Indicates the color.
     ///   - size: Indicates the size of the solid color diagram.
     /// - Returns: Solid color graph.
-    public func colorImage(with size: CGSize = CGSize(width: 1, height: 1)) -> C7Image? {
+    public func colorImage(with size: CGSize = .onePixel) -> C7Image? {
         #if HARBETH_COMPUTE || SWIFT_PACKAGE // Compute module Or Swift Package Manager
         let width  = Int(size.width > 0 ? size.width : 1)
         let height = Int(size.height > 0 ? size.height : 1)

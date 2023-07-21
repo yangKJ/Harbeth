@@ -8,6 +8,7 @@
 import Foundation
 import MetalKit
 import MetalPerformanceShaders
+import CoreImage
 
 internal struct Processed {
     
@@ -20,7 +21,7 @@ internal struct Processed {
     /// - Returns: Output texture after processing
     @inlinable @discardableResult static func IO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if case .coreimage(let name) = filter.modifier {
-            return COImage.render(texture: inTexture, name: name, filter: filter)
+            return filter.renderCoreImage(with: inTexture, name: name)
         }
         let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
         // Support mac catalyst in video writer.
@@ -44,7 +45,7 @@ internal struct Processed {
     ///   - complete: Add a block to be called when this command buffer has completed execution.
     static func runAsynIO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol, complete: @escaping (Result<MTLTexture, Error>) -> Void) {
         if case .coreimage(let name) = filter.modifier {
-            let texture = COImage.render(texture: inTexture, name: name, filter: filter)
+            let texture = filter.renderCoreImage(with: inTexture, name: name)
             complete(.success(texture))
             return
         }
@@ -70,23 +71,36 @@ extension C7FilterProtocol {
     /// Add the filter into the output texture.
     func applyAtTexture(form sourceTexture: MTLTexture, to destinationTexture: MTLTexture) throws -> MTLCommandBuffer {
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
-            throw C7CustomError.commandBuffer
+            throw CustomError.commandBuffer
         }
         if case .compute(let kernel) = self.modifier {
             guard let pipelineState = Compute.makeComputePipelineState(with: kernel) else {
-                throw C7CustomError.computePipelineState(kernel)
+                throw CustomError.computePipelineState(kernel)
             }
             var textures = [destinationTexture, sourceTexture]
             textures += self.otherInputTextures
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: self)
         } else if case .render(let vertex, let fragment) = self.modifier {
             guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
-                throw C7CustomError.renderPipelineState(vertex, fragment)
+                throw CustomError.renderPipelineState(vertex, fragment)
             }
             Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, texture: sourceTexture, filter: self)
         } else if case .mps(let performance) = self.modifier {
             performance.encode(commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: destinationTexture)
         }
         return commandBuffer
+    }
+    
+    /// Metal texture compatibility uses CoreImage filter.
+    func renderCoreImage(with texture: MTLTexture, name: String) -> MTLTexture {
+        guard let filter = self as? CoreImageFiltering, let cgImage = texture.mt.toCGImage() else {
+            return texture
+        }
+        var ciimage = CIImage.init(cgImage: cgImage)
+        let cifiter = CIFilter.init(name: name)
+        ciimage = filter.coreImageApply(filter: cifiter, input: ciimage)
+        cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
+        cifiter?.outputImage?.mt.renderImageToTexture(texture, colorSpace: Device.colorSpace())
+        return texture
     }
 }

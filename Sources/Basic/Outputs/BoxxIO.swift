@@ -55,25 +55,25 @@ import CoreVideo
     }
     
     public func output() throws -> Dest {
+        if self.filters.isEmpty {
+            return element
+        }
         do {
-            if let element = element as? C7Image {
-                return try filtering(image: element) as! Dest
-            }
-            if let element = element as? MTLTexture {
-                return try filtering(texture: element) as! Dest
-            }
-            if CFGetTypeID(element as CFTypeRef) == CGImage.typeID {
-                return try filtering(cgImage: element as! CGImage) as! Dest
-            }
-            if let element = element as? CIImage {
-                return try filtering(ciImage: element) as! Dest
-            }
-            if CFGetTypeID(element as CFTypeRef) == CVPixelBufferGetTypeID() {
-                return try filtering(pixelBuffer: element as! CVPixelBuffer) as! Dest
-            }
-            if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *),
-               CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
-                return try filtering(sampleBuffer: element as! CMSampleBuffer) as! Dest
+            switch element {
+            case let e as MTLTexture:
+                return try filtering(texture: e) as! Dest
+            case let e as C7Image:
+                return try filtering(image: e) as! Dest
+            case let e as CIImage:
+                return try filtering(ciImage: e) as! Dest
+            case let e where CFGetTypeID(e as CFTypeRef) == CGImage.typeID:
+                return try filtering(cgImage: e as! CGImage) as! Dest
+            case let e where CFGetTypeID(element as CFTypeRef) == CVPixelBufferGetTypeID():
+                return try filtering(pixelBuffer: e as! CVPixelBuffer) as! Dest
+            case let e where CFGetTypeID(element as CFTypeRef) == CMSampleBufferGetTypeID():
+                return try filtering(sampleBuffer: e as! CMSampleBuffer) as! Dest
+            default:
+                break
             }
         } catch {
             throw error
@@ -81,18 +81,23 @@ import CoreVideo
         return element
     }
     
-    /// Asynchronous quickly add filters to sources.
-    /// - Parameters:
-    ///   - success: successful.
-    ///   - failed: failed.
-    public func transmitOutput(success: @escaping (Dest) -> Void, failed: ((Error) -> Void)? = nil) {
+    public func transmitOutput(success: @escaping (Dest) -> Void, failed: @escaping ((Error) -> Void)) {
         if self.filters.isEmpty {
             success(element)
             return
         }
-        if let element = element as? C7Image {
+        if let element = element as? MTLTexture {
+            filtering(texture: element) { res in
+                switch res {
+                case .success(let t):
+                    success(t as! Dest)
+                case .failure(let err):
+                    failed(err)
+                }
+            }
+        } else if let element = element as? C7Image {
             guard let texture = element.mt.toTexture() else {
-                failed?(C7CustomError.source2Texture)
+                failed(CustomError.source2Texture)
                 return
             }
             filtering(texture: texture) { res in
@@ -102,39 +107,15 @@ import CoreVideo
                         let image = try fixImageOrientation(texture: t, base: element)
                         success(image as! Dest)
                     } catch {
-                        failed?(error)
+                        failed(error)
                     }
-                case .failure(let error):
-                    failed?(error)
-                }
-            }
-        } else if let element = element as? MTLTexture {
-            filtering(texture: element) { res in
-                switch res {
-                case .success(let t):
-                    success(t as! Dest)
-                case .failure(let error):
-                    failed?(error)
-                }
-            }
-        } else if CFGetTypeID(element as CFTypeRef) == CGImage.typeID {
-            guard let texture = (element as! CGImage).mt.toTexture() else {
-                failed?(C7CustomError.source2Texture)
-                return
-            }
-            filtering(texture: texture) { res in
-                switch res {
-                case .success(let t):
-                    if let cgImage = t.mt.toCGImage() {
-                        success(cgImage as! Dest)
-                    }
-                case .failure(let error):
-                    failed?(error)
+                case .failure(let err):
+                    failed(err)
                 }
             }
         } else if let element = element as? CIImage {
             guard let texture = element.cgImage?.mt.newTexture() else {
-                failed?(C7CustomError.source2Texture)
+                failed(CustomError.source2Texture)
                 return
             }
             filtering(texture: texture) { res in
@@ -142,13 +123,30 @@ import CoreVideo
                 case .success(let t):
                     let ciImage = self.applyCIImage(element, with: t) as! Dest
                     success(ciImage)
-                case .failure(let error):
-                    failed?(error)
+                case .failure(let err):
+                    failed(err)
+                }
+            }
+        } else if CFGetTypeID(element as CFTypeRef) == CGImage.typeID {
+            guard let texture = (element as! CGImage).mt.toTexture() else {
+                failed(CustomError.source2Texture)
+                return
+            }
+            filtering(texture: texture) { res in
+                switch res {
+                case .success(let t):
+                    guard let cgImage = t.mt.toCGImage() else {
+                        failed(CustomError.texture2Image)
+                        return
+                    }
+                    success(cgImage as! Dest)
+                case .failure(let err):
+                    failed(err)
                 }
             }
         } else if CFGetTypeID(element as CFTypeRef) == CVPixelBufferGetTypeID() {
-            guard let texture = (element as! CVPixelBuffer).mt.toMTLTexture(textureCache: nil) else {
-                failed?(C7CustomError.source2Texture)
+            guard let texture = (element as! CVPixelBuffer).mt.toMTLTexture() else {
+                failed(CustomError.source2Texture)
                 return
             }
             let pixelBuffer = element as! CVPixelBuffer
@@ -157,26 +155,27 @@ import CoreVideo
                 case .success(let t):
                     pixelBuffer.mt.copyToPixelBuffer(with: t)
                     success(pixelBuffer as! Dest)
-                case .failure(let error):
-                    failed?(error)
+                case .failure(let err):
+                    failed(err)
                 }
             }
-        } else if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *),
-                  CFGetTypeID(element as CFTypeRef) == CMSampleBuffer.typeID {
+        } else if CFGetTypeID(element as CFTypeRef) == CMSampleBufferGetTypeID() {
             guard let pixelBuffer = CMSampleBufferGetImageBuffer((element as! CMSampleBuffer)),
-                  let texture = (element as! CVPixelBuffer).mt.toMTLTexture(textureCache: nil) else {
-                failed?(C7CustomError.source2Texture)
+                  let texture = pixelBuffer.mt.toMTLTexture() else {
+                failed(CustomError.source2Texture)
                 return
             }
             filtering(texture: texture) { res in
                 switch res {
                 case .success(let t):
                     pixelBuffer.mt.copyToPixelBuffer(with: t)
-                    if let sampleBuffer = pixelBuffer.mt.toCMSampleBuffer() {
-                        success(sampleBuffer as! Dest)
+                    guard let buffer = pixelBuffer.mt.toCMSampleBuffer() else {
+                        failed(CustomError.CVPixelBufferToCMSampleBuffer)
+                        return
                     }
-                case .failure(let error):
-                    failed?(error)
+                    success(buffer as! Dest)
+                case .failure(let err):
+                    failed(err)
                 }
             }
         }
@@ -187,9 +186,8 @@ import CoreVideo
 extension BoxxIO {
     
     func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
-        if self.filters.isEmpty { return pixelBuffer }
-        guard var texture = pixelBuffer.mt.toMTLTexture(textureCache: nil) else {
-            throw C7CustomError.source2Texture
+        guard var texture = pixelBuffer.mt.toMTLTexture() else {
+            throw CustomError.source2Texture
         }
         do {
             texture = try filtering(texture: texture)
@@ -201,22 +199,23 @@ extension BoxxIO {
     }
     
     func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
-        if self.filters.isEmpty { return sampleBuffer }
         guard var pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            throw C7CustomError.source2Texture
+            throw CustomError.source2Texture
         }
         do {
             pixelBuffer = try filtering(pixelBuffer: pixelBuffer)
-            return pixelBuffer.mt.toCMSampleBuffer() ?? sampleBuffer
+            guard let buffer = pixelBuffer.mt.toCMSampleBuffer() else {
+                throw CustomError.CVPixelBufferToCMSampleBuffer
+            }
+            return buffer
         } catch {
             throw error
         }
     }
     
     func filtering(ciImage: CIImage) throws -> CIImage {
-        if self.filters.isEmpty { return ciImage }
         guard var texture = ciImage.cgImage?.mt.newTexture() else {
-            throw C7CustomError.source2Texture
+            throw CustomError.source2Texture
         }
         do {
             texture = try filtering(texture: texture)
@@ -227,22 +226,23 @@ extension BoxxIO {
     }
     
     func filtering(cgImage: CGImage) throws -> CGImage {
-        if self.filters.isEmpty { return cgImage }
         guard var texture = cgImage.mt.toTexture() else {
-            throw C7CustomError.source2Texture
+            throw CustomError.source2Texture
         }
         do {
             texture = try filtering(texture: texture)
-            return texture.mt.toCGImage() ?? cgImage
+            guard let cgImg = texture.mt.toCGImage() else {
+                throw CustomError.texture2Image
+            }
+            return cgImg
         } catch {
             throw error
         }
     }
     
     func filtering(image: C7Image) throws -> C7Image {
-        if self.filters.isEmpty { return image }
         guard var texture = image.mt.toTexture() else {
-            throw C7CustomError.source2Texture
+            throw CustomError.source2Texture
         }
         do {
             texture = try filtering(texture: texture)
@@ -253,7 +253,6 @@ extension BoxxIO {
     }
     
     func filtering(texture: MTLTexture) throws -> MTLTexture {
-        if self.filters.isEmpty { return texture }
         var sourceTexture: MTLTexture = texture
         do {
             for filter in filters {
@@ -347,7 +346,7 @@ extension BoxxIO {
     
     private func fixImageOrientation(texture: MTLTexture, base: C7Image) throws -> C7Image {
         guard let cgImage = texture.mt.toCGImage() else {
-            throw C7CustomError.texture2Image
+            throw CustomError.texture2Image
         }
         #if os(iOS) || os(tvOS) || os(watchOS)
         // Fixed an issue with HEIC flipping after adding filter.
