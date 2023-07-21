@@ -37,7 +37,7 @@
 		878445192994DE81001D856B /* PlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445152994DE81001D856B /* PlayerViewController.swift */; };
 		8784451A2994DE81001D856B /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445162994DE81001D856B /* CameraViewController.swift */; };
 		8784451B2994DE81001D856B /* UnitTestViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445172994DE81001D856B /* UnitTestViewController.swift */; };
-		8784451C2994DE81001D856B /* FilterViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445182994DE81001D856B /* FilterViewController.swift */; };
+		8784451C2994DE81001D856B /* ImageViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445182994DE81001D856B /* ImageViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -109,7 +109,7 @@
 		878445152994DE81001D856B /* PlayerViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PlayerViewController.swift; sourceTree = "<group>"; };
 		878445162994DE81001D856B /* CameraViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CameraViewController.swift; sourceTree = "<group>"; };
 		878445172994DE81001D856B /* UnitTestViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UnitTestViewController.swift; sourceTree = "<group>"; };
-		878445182994DE81001D856B /* FilterViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FilterViewController.swift; sourceTree = "<group>"; };
+		878445182994DE81001D856B /* ImageViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -231,7 +231,7 @@
 			isa = PBXGroup;
 			children = (
 				878445162994DE81001D856B /* CameraViewController.swift */,
-				878445182994DE81001D856B /* FilterViewController.swift */,
+				878445182994DE81001D856B /* ImageViewController.swift */,
 				878445152994DE81001D856B /* PlayerViewController.swift */,
 				878445172994DE81001D856B /* UnitTestViewController.swift */,
 			);
@@ -409,7 +409,7 @@
 				878444F72994DDA0001D856B /* SceneDelegate.swift in Sources */,
 				875CD5A12A49705400C114C3 /* C7CollectorVideo.swift in Sources */,
 				878445192994DE81001D856B /* PlayerViewController.swift in Sources */,
-				8784451C2994DE81001D856B /* FilterViewController.swift in Sources */,
+				8784451C2994DE81001D856B /* ImageViewController.swift in Sources */,
 				875CD5A02A49705400C114C3 /* C7CollectorCamera.swift in Sources */,
 				875CD59E2A49705400C114C3 /* C7Collector.swift in Sources */,
 				878445122994DE4A001D856B /* HomeViewModel.swift in Sources */,
@@ -700,6 +700,7 @@
 				DEVELOPMENT_TEAM = AAHMKJNWLX;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -711,7 +712,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -729,6 +730,7 @@
 				DEVELOPMENT_TEAM = AAHMKJNWLX;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -740,7 +742,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

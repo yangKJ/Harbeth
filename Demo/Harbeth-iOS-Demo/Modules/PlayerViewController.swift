@@ -11,6 +11,7 @@ import AVFoundation
 class PlayerViewController: UIViewController {
     
     var tuple: FilterResult?
+    
     lazy var originImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit

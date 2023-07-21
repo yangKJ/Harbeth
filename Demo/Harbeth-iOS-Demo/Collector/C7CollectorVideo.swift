@@ -21,18 +21,6 @@ public final class C7CollectorVideo: C7Collector {
         return displayLink
     }()
     
-    public convenience init(player: AVPlayer, callback: @escaping C7FilterImageCallback) {
-        self.init(callback: callback)
-        self.player = player
-        setupPlayer(player)
-    }
-    
-    public convenience init(player: AVPlayer, view: C7View) {
-        self.init(view: view)
-        self.player = player
-        setupPlayer(player)
-    }
-    
     public convenience init(player: AVPlayer, delegate: C7CollectorImageDelegate) {
         self.init(delegate: delegate)
         self.player = player

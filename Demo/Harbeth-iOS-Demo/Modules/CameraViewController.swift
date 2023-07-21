@@ -10,11 +10,13 @@ import Harbeth
 class CameraViewController: UIViewController {
     
     var tuple: FilterResult?
+    
     lazy var originImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
+        imageView.frame = self.view.frame
         return imageView
     }()
     
@@ -39,16 +41,11 @@ class CameraViewController: UIViewController {
     func setupUI() {
         view.backgroundColor = UIColor.background
         view.addSubview(originImageView)
-        NSLayoutConstraint.activate([
-            originImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
-            originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
-            originImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
-            originImageView.heightAnchor.constraint(equalTo: originImageView.widthAnchor, multiplier: view.frame.size.height/view.frame.size.width),
-        ])
     }
 }
 
 extension CameraViewController: C7CollectorImageDelegate {
+    
     func preview(_ collector: C7Collector, fliter image: C7Image) {
         self.originImageView.image = image
     }

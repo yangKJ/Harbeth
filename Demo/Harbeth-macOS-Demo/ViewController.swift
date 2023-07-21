@@ -51,7 +51,7 @@ class ViewController: NSViewController {
             return string ?? NSAttributedString()
         }
         
-        let html = ". Harbeth test case, <a href=\"https://github.com/yangKJ/Harbeth\">Please help me with a star.</a> Thanks!!!"
+        let html = "😎. Harbeth test case, <a href=\"https://github.com/yangKJ/Harbeth\">Please help me with a star.</a> Thanks!!!"
         let string = string(fromHTML: html, with: .systemFont(ofSize: 15))
         let label = NSTextField(labelWithAttributedString: string)
         label.allowsEditingTextAttributes = true

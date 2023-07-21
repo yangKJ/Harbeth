@@ -18,7 +18,7 @@ struct HomeViewModel {
     func setupViewController(_ type: ViewControllerType) -> UIViewController {
         switch viewType {
         case .image:
-            let vc = FilterViewController()
+            let vc = ImageViewController()
             let tuple = type.setupFilterObject()
             vc.filter = tuple.filter
             vc.callback = tuple.callback

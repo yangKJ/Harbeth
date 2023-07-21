@@ -40,26 +40,10 @@ public class C7Collector: NSObject, Cacheable {
     /// Whether to enable automatic direction correction of pictures? The default is true.
     public var autoCorrectDirection: Bool = true
     
-    var haveMTKView: Bool = false
-    var callback: C7FilterImageCallback?
-    var view: C7View?
     weak var delegate: C7CollectorImageDelegate?
     
     public required init(delegate: C7CollectorImageDelegate) {
         self.delegate = delegate
-        super.init()
-        setupInit()
-    }
-    
-    public required init(callback: @escaping C7FilterImageCallback) {
-        self.callback = callback
-        super.init()
-        setupInit()
-    }
-    
-    public required init(view: C7View) {
-        self.haveMTKView = true
-        self.view = view
         super.init()
         setupInit()
     }
@@ -112,7 +96,6 @@ extension C7Collector {
                 image = image.mt.fixOrientation()
             }
             DispatchQueue.main.async {
-                self.callback?(image)
                 self.delegate?.preview(self, fliter: image)
             }
         })
