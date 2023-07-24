@@ -147,7 +147,12 @@ class ViewController: NSViewController {
         }
         NSLog("%@", "\(type(of: filter)) --- \(filter.parameterDescription)")
         let dest = BoxxIO.init(element: originImage, filter: filter)
-        ImageView.image = try? dest.output()
+        //ImageView.image = try? dest.output()
+        dest.transmitOutput(success: { [weak self] img in
+            DispatchQueue.main.async {
+                self?.ImageView.image = img
+            }
+        })
     }
     
     @objc private func click(_ sender: NSButton) {

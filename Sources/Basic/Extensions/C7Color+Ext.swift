@@ -117,23 +117,3 @@ extension Queen where Base: C7Color {
         #endif
     }
 }
-
-extension Queen where Base: C7Color {
-    /// Create a solid color image.
-    /// - Parameters:
-    ///   - color: Indicates the color.
-    ///   - size: Indicates the size of the solid color diagram.
-    /// - Returns: Solid color graph.
-    public func colorImage(with size: CGSize = .onePixel) -> C7Image? {
-        #if HARBETH_COMPUTE || SWIFT_PACKAGE // Compute module Or Swift Package Manager
-        let width  = Int(size.width > 0 ? size.width : 1)
-        let height = Int(size.height > 0 ? size.height : 1)
-        let texture = BoxxIO<Any>.destTexture(width: width, height: height)
-        let filter = C7SolidColor.init(color: base)
-        let result = try? Processed.IO(inTexture: texture, outTexture: texture, filter: filter)
-        return result?.mt.toImage()
-        #else
-        return nil
-        #endif
-    }
-}

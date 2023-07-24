@@ -36,31 +36,29 @@ public enum Modifier {
 
 public protocol C7FilterProtocol: Mirrorable {
     
-    /// Encoder type and corresponding function name
-    ///
-    /// Compute requires the corresponding `kernel` function name
-    /// Render requires a `vertex` shader function name and a `fragment` shader function name
+    /// Encoder type and corresponding function name.
     var modifier: Modifier { get }
     
-    /// The MakeBuffer supports a maximum of 16 parameters.
-    /// Set modify parameter factor, you need to convert to `Float`.
+    /// The supports a maximum of 16 `Float` parameters.
     var factors: [Float] { get }
     
-    /// Multiple input source extensions
-    /// An array containing the `MTLTexture`
+    /// Multiple input source extensions, an array containing the `MTLTexture`.
     var otherInputTextures: C7InputTextures { get }
     
-    /// Change the size of the output image
+    /// The resize of the output texture.
     func resize(input size: C7Size) -> C7Size
 }
 
 extension C7FilterProtocol {
+    /// The supports a maximum of 16 `Float` parameters.
     public var factors: [Float] { [] }
+    /// Multiple input source extensions, an array containing the `MTLTexture`.
     public var otherInputTextures: C7InputTextures { [] }
+    /// The resize of the output texture.
     public func resize(input size: C7Size) -> C7Size { size }
 }
 
-
+// MARK: - compute filter protocol
 public protocol ComputeFiltering {
     /// Special type of parameter factor, such as 4x4 matrix
     /// It is recommended to pass the parameters directly. Don't use this function if you have to.
@@ -71,6 +69,7 @@ public protocol ComputeFiltering {
     func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int)
 }
 
+// MARK: - coreimage filter protocol
 public protocol CoreImageFiltering {
     /// Compatible with CoreImage.
     /// - Parameters:
@@ -80,6 +79,7 @@ public protocol CoreImageFiltering {
     func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage
 }
 
+// MARK: - render filter protocol
 public protocol RenderFiltering {
     /// Setup the vertex shader parameters.
     /// - Parameter device: MTLDevice

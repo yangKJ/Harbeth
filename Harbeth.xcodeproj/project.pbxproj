@@ -247,6 +247,7 @@
 		87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8B29AF3F0900C4C2E6 /* README_CN.md */; };
 		87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8C29AF3F0900C4C2E6 /* README.md */; };
 		87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */; };
+		87D1BBBE2A6E660700AB585E /* Mutatingable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87D1BBBD2A6E660700AB585E /* Mutatingable.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -491,6 +492,7 @@
 		87C72F8B29AF3F0900C4C2E6 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = "<group>"; };
 		87C72F8C29AF3F0900C4C2E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Harbeth.podspec; sourceTree = "<group>"; };
+		87D1BBBD2A6E660700AB585E /* Mutatingable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mutatingable.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -582,6 +584,7 @@
 				87265FD72994D82100E612C7 /* DisplayLink.swift */,
 				87265FD02994D82100E612C7 /* Error.swift */,
 				87265FE12994D82100E612C7 /* Mirrorable.swift */,
+				87D1BBBD2A6E660700AB585E /* Mutatingable.swift */,
 				87265FDE2994D82100E612C7 /* ParameterRange.swift */,
 				87265FDC2994D82100E612C7 /* PixelColor.swift */,
 				87265FD42994D82100E612C7 /* Point2D.swift */,
@@ -1040,6 +1043,7 @@
 				872661212994D82200E612C7 /* C7Halftone.swift in Sources */,
 				872661302994D82200E612C7 /* C7PolarPixellate.swift in Sources */,
 				8726610B2994D82200E612C7 /* C7Fluctuate.swift in Sources */,
+				87D1BBBE2A6E660700AB585E /* Mutatingable.swift in Sources */,
 				872661A52994D82200E612C7 /* C7ColorVector4.swift in Sources */,
 				872660C32994D82200E612C7 /* Operators.swift in Sources */,
 				872660CB2994D82200E612C7 /* Clamping.swift in Sources */,

@@ -24,12 +24,6 @@ internal struct Processed {
             return filter.renderCoreImage(with: inTexture, name: name)
         }
         let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
-        // Support mac catalyst in video writer.
-        #if targetEnvironment(macCatalyst)
-        let blitEncoder = commandBuffer.makeBlitCommandEncoder()
-        blitEncoder?.synchronize(resource: outTexture)
-        blitEncoder?.endEncoding()
-        #endif
         // Commit a command buffer so it can be executed as soon as possible.
         commandBuffer.commit()
         // Wait to make sure that output texture contains new data.
