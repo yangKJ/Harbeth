@@ -10,7 +10,7 @@ import AVFoundation
 
 extension Exporter {
     /// Exporter error definition.
-    public enum Error {
+    public enum Error: Swift.Error {
         case unknown
         case error(Swift.Error)
         case videoTrackEmpty

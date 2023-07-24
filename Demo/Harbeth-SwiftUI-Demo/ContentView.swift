@@ -11,7 +11,7 @@ import Harbeth
 struct ContentView: View {
     
     var __image: Image = {
-        let img = R.image("P1040808")!
+        let img = R.image("IMG_0020")!
         let filter1 = C7SoulOut(soul: 0.25)
         let dest = BoxxIO(element: img, filters: [filter1])
         let outImg = (try? dest.output()) ?? img

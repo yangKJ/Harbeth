@@ -53,7 +53,6 @@ struct HomeViewModel {
                 "模糊处理": blur,
                 "图片融合": blend,
                 "矩阵卷积": matrix,
-                "其他测试": other,
             ]
         case .camera:
             var filters = color
@@ -69,7 +68,7 @@ struct HomeViewModel {
     ]
     
     let effect: [ViewControllerType] = [
-        .ZoomBlur, .Vignette, .WaterRipple,
+        .TextHEIC, .ZoomBlur, .Vignette, .WaterRipple,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl, .SplitScreen, .Storyboard,
@@ -79,7 +78,7 @@ struct HomeViewModel {
     
     let color: [ViewControllerType] = [
         .Opacity, .Exposure, .Luminance,
-        .Hue, .Contrast, .HighlightShadow, .CIHS,
+        .Hue, .Contrast, .HighlightShadow,
         .Saturation, .WhiteBalance, .Vibrance,
         .Granularity, .Levels, .Sobel,
         .ChannelRGBA, .FalseColor, .ColorInvert,
@@ -95,7 +94,7 @@ struct HomeViewModel {
     
     let blur: [ViewControllerType] = [
         .MonochromeDilation, .MotionBlur, .MeanBlur,
-        .GaussianBlur, .BilateralBlur,
+        .GaussianBlur, .BilateralBlur, .MPSGaussian,
     ]
     
     let blend: [ViewControllerType] = [
@@ -109,9 +108,5 @@ struct HomeViewModel {
     let matrix: [ViewControllerType] = [
         .ColorMatrix4x4, .Convolution3x3, .Sharpen3x3,
         .Sepia,
-    ]
-    
-    let other: [ViewControllerType] = [
-        .MPSGaussian, .TextHEIC, .CIHS,
     ]
 }

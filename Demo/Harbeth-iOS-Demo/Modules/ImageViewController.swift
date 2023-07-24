@@ -149,7 +149,8 @@ class ImageViewController: UIViewController {
 extension ImageViewController {
     func setupFilter() {
         if slider.isHidden {
-            filterImageView.image = originImage ->> filter!
+            //filterImageView.image = originImage ->> filter!
+            self.setupFiltedImage(with: filter)
             return
         }
         autoTestAction()
@@ -165,7 +166,7 @@ extension ImageViewController {
         } else {
             autoBarButton.title = "Stop"
             var add = true
-            let timer = Timer(timeInterval: 0.01, repeats: true, block: { [weak self] _ in
+            let timer = Timer(timeInterval: 0.025, repeats: true, block: { [weak self] _ in
                 guard let `self` = self else { return }
                 if self.slider.value >= self.slider.maximumValue {
                     add = false
@@ -178,10 +179,11 @@ extension ImageViewController {
                 } else {
                     self.slider.value -= (self.slider.maximumValue - self.slider.minimumValue) / 77
                 }
-                self.currentLabel.text = String(format: "%.4f", self.slider.value)
+                self.currentLabel.text = String(format: "%.2f", self.slider.value)
                 if let callback = self.callback {
                     let filter = callback(self.slider.value)
-                    self.filterImageView.image = try? self.originImage.make(filter: filter)
+                    //self.filterImageView.image = try? self.originImage.make(filter: filter)
+                    self.setupFiltedImage(with: filter)
                 }
             })
             RunLoop.current.add(timer, forMode: .common)
@@ -191,10 +193,23 @@ extension ImageViewController {
     }
     
     @objc func sliderDidchange(_ slider: UISlider) {
-        currentLabel.text = String(format: "%.4f", slider.value)
+        currentLabel.text = String(format: "%.2f", slider.value)
         if let callback = callback {
             let filter = callback(slider.value)
-            filterImageView.image = try? originImage.makeGroup(filters: [filter])
+            //filterImageView.image = try? originImage.makeGroup(filters: [filter])
+            self.setupFiltedImage(with: filter)
         }
+    }
+    
+    func setupFiltedImage(with filter: C7FilterProtocol?) {
+        guard let filter = filter else {
+            return
+        }
+        let dest = BoxxIO(element: self.originImage, filter: filter)
+        dest.transmitOutput(success: { [weak self] img in
+            DispatchQueue.main.async {
+                self?.filterImageView.image = img
+            }
+        })
     }
 }

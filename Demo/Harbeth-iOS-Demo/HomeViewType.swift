@@ -90,8 +90,18 @@ extension ViewControllerType {
             return R.image("IMG_3960.HEIC")!
         case .ChromaKey, .ReplaceColor, .Sobel:
             return R.image("IMG_2606")!
+        case .AlphaBlend, .HueBlend, .LuminosityBlend:
+            return R.image("P1040808")!
         default:
             return R.image("timg-2")!
         }
+    }
+    
+    var overImage: UIImage {
+        let color = UIColor.green.withAlphaComponent(0.5)
+        let texture = BoxxIO<Any>.destTexture(width: 480, height: 270)
+        let filter = C7SolidColor.init(color: color)
+        let dest = BoxxIO(element: texture, filter: filter)
+        return (try? dest.output())!.mt.toImage()!
     }
 }

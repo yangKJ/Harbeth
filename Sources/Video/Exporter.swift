@@ -28,7 +28,7 @@ public protocol ExporterDelegate: NSObjectProtocol {
 
 public struct Exporter {
     
-    public typealias PixelBufferCallback = (_ buffer: ExporterBuffer) -> ExporterBuffer?
+    public typealias PixelBufferCallback = (_ buffer: ExporterBuffer) -> ExporterBuffer
     
     let asset: AVAsset
     weak var delegate: ExporterDelegate?

@@ -78,16 +78,16 @@ extension ViewControllerType {
                 return filter
             })
         case .HueBlend:
-            let filter = C7Blend(with: .hue, image: R.image("yuan000")!)
+            let filter = C7Blend(with: .hue, image: overImage)
             return (filter, nil, nil)
         case .AlphaBlend:
-            var filter = C7Blend(with: .alpha(mixturePercent: 0.5), image: R.image("yuan000")!)
+            var filter = C7Blend(with: .alpha(mixturePercent: 0.5), image: overImage)
             return (filter, (0.5, 0, 1), {
                 filter.updateBlend(.alpha(mixturePercent: $0))
                 return filter
             })
         case .LuminosityBlend:
-            let filter = C7Blend(with: .luminosity, image: R.image("yuan000")!)
+            let filter = C7Blend(with: .luminosity, image: overImage)
             return (filter, nil, nil)
         case .Hue:
             var filter = C7Hue()

@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.7.5'
+  s.version          = '0.7.6'
   s.summary          = 'About image and video add filter for metal.'
   
   # This description is used to generate tags and improve search results.
@@ -56,7 +56,6 @@ Pod::Spec.new do |s|
   
   s.subspec 'Video' do |xx|
     xx.source_files = 'Sources/Video/**/*.swift'
-    xx.weak_frameworks = 'CoreImage'
     xx.dependency 'Harbeth/Basic'
   end
   

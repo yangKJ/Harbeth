@@ -1,5 +1,7 @@
 # Harbeth
 
+![x](https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/launch.jpeg)
+
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
@@ -23,18 +25,17 @@
 - 支持相机采集特效
 - 支持视频添加滤镜特效
 - 支持已有视频添加滤镜并导出
-- 支持使用系统 MetalPerformanceShaders.
-- 支持兼容 CoreImage.
+- 支持使用系统 MetalPerformanceShaders 和兼容 CoreImage.
 - 滤镜部分大致分为以下几个模块：
-   - [x] [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend)：图像融合技术
-   - [x] [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur)：模糊效果
-   - [x] [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess)：图像的基本像素颜色处理
-   - [x] [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect)：效果处理
-   - [x] [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup)：查找表过滤器
-   - [x] [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): 矩阵卷积滤波器
-   - [x] [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape)：图像形状大小相关
-   - [x] [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): 视觉动态特效
-   - [x] [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): 系统 MetalPerformanceShaders.
+   - [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend)：图像融合技术
+   - [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur)：模糊效果
+   - [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess)：图像的基本像素颜色处理
+   - [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect)：效果处理
+   - [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup)：查找表过滤器
+   - [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): 矩阵卷积滤波器
+   - [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape)：图像形状大小相关
+   - [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): 视觉动态特效
+   - [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): 系统 MetalPerformanceShaders.
 
 #### **总结下来目前共有 `100+` 种滤镜供您使用。✌️**
 
@@ -51,9 +52,7 @@ ImageView.image = originImage
 
 🎷注入滤镜代码：
 let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
-
 let filter2 = C7Granularity(grain: 0.8)
-
 let filter3 = C7SoulOut(soul: 0.7)
 
 let filters = [filter, filter2, filter3]
@@ -63,7 +62,16 @@ ImageView.image = try? originImage.makeGroup(filters: filters)
 
 也可数据源模式使用
 let dest = BoxxIO.init(element: originImage, filters: filters)
+
+// 同步处理
 ImageView.image = try? dest.output()
+
+// 异步处理
+dest.transmitOutput(success: { [weak self] image in
+    DispatchQueue.main.async {
+        self?.ImageView.image = image
+    }
+})
 
 或者运算符操作
 ImageView.image = originImage -->>> filters
@@ -128,25 +136,6 @@ extension PlayerViewController: C7CollectorImageDelegate {
 }
 ```
 
-### 主要部分
-- 核心，基础核心板块
-    - [C7FilterProtocol](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Core/Filtering.swift)：滤镜设计必须遵循此协议
-        - **modifier**：编码器类型和对应的函数名称
-        - **factors**：设置修改参数因子，需要转换为`Float`
-        - **otherInputTextures**：多个输入源，包含`MTLTexture`的数组
-        - **outputSize**：更改输出图像的大小
-        - **setupSpecialFactors**: 特殊类型参数因子，例如4x4矩阵
-        - **coreImageApply**: CoreImage 滤镜专属方案
-        - **parameterDescription**: 滤镜参数详情信息
-
-- 输出，输出板块
-    - [BoxxIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/BoxxIO.swift): 多功能数据源, 目前支持`UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer`等.
-	- [Outputable](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/Outputable.swift)：输出内容协议，所有输出都必须实现该协议
-	    - **make**：根据滤镜处理生成数据
-	    - **makeGroup**：多个滤镜组合，请注意滤镜添加的顺序可能会影响图像生成的结果
-	- [C7CollectorCamera](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorCamera.swift)：相机数据采集器，直接生成图像，然后在主线程返回
-	- [C7CollectorVideo](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/C7CollectorVideo.swift)：视频图像桢加入滤镜效果，直接生成图像
-
 ### 设计滤镜
 - 举个例子，如何设计一款灵魂出窍滤镜🎷
 
@@ -180,10 +169,10 @@ public protocol C7FilterProtocol {
 2. 配置额外的所需纹理
 
 3. 配置传递参数因子，仅支持`Float`类型
-    - 这款滤镜主要需要三个参数：
-		- `soul`：调整后的灵魂，从 0.0 到 1.0，默认为 0.5
-		- `maxScale`：最大灵魂比例
-		- `maxAlpha`：最大灵魂的透明度
+- 这款滤镜主要需要三个参数：
+    - `soul`：调整后的灵魂，从 0.0 到 1.0，默认为 0.5
+    - `maxScale`：最大灵魂比例
+    - `maxAlpha`：最大灵魂的透明度
 
 4. 编写基于并行计算的核函数着色器
 

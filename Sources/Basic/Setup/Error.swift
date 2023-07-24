@@ -50,13 +50,3 @@ extension CustomError: CustomStringConvertible {
         }
     }
 }
-
-internal func C7FailedErrorInDebug(_ message: @autoclosure () -> String,
-                                   file: StaticString = #file,
-                                   line: UInt = #line) {
-    #if DEBUG
-    fatalError(message(), file: file, line: line)
-    #else
-    print("\(file):\(line): \(message())")
-    #endif
-}

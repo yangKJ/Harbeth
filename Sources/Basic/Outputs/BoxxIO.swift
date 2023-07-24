@@ -180,6 +180,27 @@ import CoreVideo
             }
         }
     }
+    
+    /// Create a texture for later storage according to the texture parameters.
+    /// - Parameters:
+    ///    - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
+    ///    - width: The texture width
+    ///    - height: The texture height
+    ///    - mipmapped: No mapping was required
+    /// - Returns: New textures
+    public static func destTexture(_ pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
+                                   width: Int, height: Int,
+                                   mipmapped: Bool = false) -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
+                                                                  width: width,
+                                                                  height: height,
+                                                                  mipmapped: mipmapped)
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        #if targetEnvironment(macCatalyst)
+        descriptor.storageMode = .managed
+        #endif
+        return Device.device().makeTexture(descriptor: descriptor)!
+    }
 }
 
 // MARK: - filtering methods
@@ -301,27 +322,6 @@ extension BoxxIO {
 
 // MARK: - private methods
 extension BoxxIO {
-    /// Create a texture for later storage according to the texture parameters.
-    /// - Parameters:
-    ///    - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
-    ///    - width: The texture width
-    ///    - height: The texture height
-    ///    - mipmapped: No mapping was required
-    /// - Returns: New textures
-    static func destTexture(_ pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
-                             width: Int, height: Int,
-                             mipmapped: Bool = false) -> MTLTexture {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
-                                                                  width: width,
-                                                                  height: height,
-                                                                  mipmapped: mipmapped)
-        descriptor.usage = [.shaderRead, .shaderWrite]
-        #if targetEnvironment(macCatalyst)
-        descriptor.storageMode = .managed
-        #endif
-        return Device.device().makeTexture(descriptor: descriptor)!
-    }
-    
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) -> MTLTexture {
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '

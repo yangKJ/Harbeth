@@ -33,3 +33,12 @@ typealias C7KernelFunction = String
 @inline(__always) func make_run_on_main_thread() {
     assert(Thread.isMainThread)
 }
+
+// Wrong printing.
+func C7FailedErrorInDebug(_ message: @autoclosure () -> String, file: StaticString = #file, line: UInt = #line) {
+    #if DEBUG
+    fatalError(message(), file: file, line: line)
+    #else
+    print("\(file):\(line): \(message())")
+    #endif
+}
