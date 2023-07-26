@@ -32,7 +32,12 @@ public struct Vector4: Matrix {
     }
 }
 
-extension Vector4 { public struct Color { } }
+// MARK: - color vector
+
+extension Vector4 {
+    /// 常见颜色四维向量
+    public struct Color { }
+}
 
 extension Vector4.Color {
     

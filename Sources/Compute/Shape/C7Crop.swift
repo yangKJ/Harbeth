@@ -64,7 +64,7 @@ extension C7Crop: Mutatingable {
             self.mutating(type: C7Crop.self) {
                 $0.origin = C7Point2D(x: Float(rect.origin.x)/Float(size.width), y: Float(rect.origin.y)/Float(size.height))
             }
-            return C7Size(width: Int(rect.size.width), height: Int(rect.size.height))
+            return rect.size.mt.toC7Size()
         }
     }
 }

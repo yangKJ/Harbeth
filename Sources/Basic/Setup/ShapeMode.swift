@@ -45,7 +45,7 @@ extension ShapeMode {
             return size
         case .fitSize:
             let rect = CGRect(x: 0, y: 0, width: size.width, height: size.height).applying(transform)
-            return C7Size(width: Int(rect.width), height: Int(rect.height))
+            return rect.size.mt.toC7Size()
         }
     }
 }

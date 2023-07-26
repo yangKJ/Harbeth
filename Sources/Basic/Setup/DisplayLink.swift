@@ -113,7 +113,7 @@ public final class DisplayLink: NSObject, DisplayLinkProtocol {
     
     public var isPaused: Bool = false {
         didSet {
-            isPaused ? cancel() : start()
+            isPaused ? suspend() : start()
         }
     }
     
@@ -140,15 +140,35 @@ extension DisplayLink {
     
     /// Starts the timer.
     private func start() {
-        guard !running(), let timer = timer else { return }
+        guard !running(), let timer = timer else {
+            return
+        }
         CVDisplayLinkStart(timer)
-        source?.resume()
+        if source?.isCancelled ?? false {
+            source?.activate()
+        } else {
+            source?.resume()
+        }
+    }
+    
+    /// Suspend the timer.
+    private func suspend() {
+        guard running(), let timer = timer else {
+            return
+        }
+        CVDisplayLinkStop(timer)
+        source?.suspend()
     }
     
     /// Cancels the timer, can be restarted aftewards.
     private func cancel() {
-        guard running(), let timer = timer else { return }
+        guard running(), let timer = timer else {
+            return
+        }
         CVDisplayLinkStop(timer)
+        if source?.isCancelled ?? false {
+            return
+        }
         source?.cancel()
     }
     
