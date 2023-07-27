@@ -16,10 +16,12 @@ kernel void C7ChromaKeyBlend(texture2d<half, access::write> outputTexture [[text
                              constant float *red [[buffer(2)]],
                              constant float *green [[buffer(3)]],
                              constant float *blue [[buffer(4)]],
+                             constant float *intensity [[buffer(5)]],
                              uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half4 inColor2 = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
+    float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const half4 overlay = inputTexture2.sample(quadSampler, textureCoordinate);
     
     const half maskY  = 0.2989h * half(*red) + 0.5866h * half(*green) + 0.1145h * half(*blue);
     const half maskCr = 0.7132h * (half(*red) - maskY);
@@ -30,7 +32,8 @@ kernel void C7ChromaKeyBlend(texture2d<half, access::write> outputTexture [[text
     const half Cb = 0.5647h * (inColor.b - Y);
     
     const float blendValue = 1.0 - smoothstep(float(*threshold), float(*threshold) + float(*smoothing), distance(float2(Cr, Cb), float2(maskCr, maskCb)));
-    const half4 outColor = half4(mix(inColor, inColor2, half(blendValue)));
+    const half4 outColor = half4(mix(inColor, overlay, half(blendValue)));
+    const half4 output = mix(inColor, outColor, half(*intensity));
     
-    outputTexture.write(outColor, grid);
+    outputTexture.write(output, grid);
 }

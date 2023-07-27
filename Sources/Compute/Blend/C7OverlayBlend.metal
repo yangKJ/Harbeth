@@ -11,11 +11,12 @@ using namespace metal;
 kernel void C7OverlayBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
                            texture2d<half, access::read> inputTexture [[texture(1)]],
                            texture2d<half, access::sample> inputTexture2 [[texture(2)]],
+                           constant float *intensity [[buffer(0)]],
                            uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    
-    const half4 overlay = inputTexture2.sample(quadSampler, float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height()));
+    float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const half4 overlay = inputTexture2.sample(quadSampler, textureCoordinate);
     
     half ra;
     if (2.0h * inColor.r < inColor.a) {
@@ -39,6 +40,8 @@ kernel void C7OverlayBlend(texture2d<half, access::write> outputTexture [[textur
     }
     
     const half4 outColor = half4(ra, ga, ba, 1.0h);
-    outputTexture.write(outColor, grid);
+    const half4 output = mix(inColor, outColor, half(*intensity));
+    
+    outputTexture.write(output, grid);
 }
 
