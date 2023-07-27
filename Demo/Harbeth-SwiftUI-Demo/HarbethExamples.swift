@@ -1,5 +1,5 @@
 //
-//  Harbeth_SwiftUI_DemoApp.swift
+//  HarbethExamples.swift
 //  Harbeth-SwiftUI-Demo
 //
 //  Created by Condy on 2023/3/21.
@@ -8,10 +8,13 @@
 import SwiftUI
 
 @main
-struct Harbeth_SwiftUI_DemoApp: App {
+struct HarbethExamples: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                #if os(macOS)
+                .frame(width: 700, height: 600)
+                #endif
         }
     }
 }

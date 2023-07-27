@@ -45,6 +45,10 @@ import CoreVideo
     public var heic: Bool = false
     #endif
     
+    /// Do you need to create an output texture object?
+    /// Such as solid color and gradient filters do not need to create an output texture.
+    public var createDestTexture: Bool = true
+    
     public init(element: Dest, filter: C7FilterProtocol) {
         self.init(element: element, filters: [filter])
     }
@@ -323,6 +327,10 @@ extension BoxxIO {
 // MARK: - private methods
 extension BoxxIO {
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) -> MTLTexture {
+        if self.createDestTexture == false {
+            // 纯色`C7SolidColor`和渐变色`C7ColorGradient`滤镜不需要创建新的输出纹理，直接使用输入纹理即可
+            return sourceTexture
+        }
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
         // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.

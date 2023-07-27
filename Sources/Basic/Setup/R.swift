@@ -55,3 +55,28 @@ public struct R {
         #endif
     }
 }
+
+extension R {
+    
+    /// Screen window width.
+    public static var width: CGFloat {
+        #if canImport(UIKit)
+        return UIScreen.main.bounds.width
+        #elseif os(macOS)
+        return NSScreen.main?.visibleFrame.width ?? 0.0
+        #else
+        return 0.0
+        #endif
+    }
+    
+    /// Screen window height.
+    public static var height: CGFloat {
+        #if canImport(UIKit)
+        return UIScreen.main.bounds.height
+        #elseif os(macOS)
+        return NSScreen.main?.visibleFrame.height ?? 0.0
+        #else
+        return 0.0
+        #endif
+    }
+}

@@ -16,7 +16,7 @@
 		875CD59E2A49705400C114C3 /* C7Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59A2A49705400C114C3 /* C7Collector.swift */; };
 		875CD5A02A49705400C114C3 /* C7CollectorCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */; };
 		875CD5A12A49705400C114C3 /* C7CollectorVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59D2A49705400C114C3 /* C7CollectorVideo.swift */; };
-		8767F21029C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8767F20F29C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift */; };
+		8767F21029C95CE600FB5301 /* HarbethExamples.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8767F20F29C95CE600FB5301 /* HarbethExamples.swift */; };
 		8767F21229C95CE600FB5301 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8767F21129C95CE600FB5301 /* ContentView.swift */; };
 		8767F21429C95CE700FB5301 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8767F21329C95CE700FB5301 /* Assets.xcassets */; };
 		8767F21729C95CE700FB5301 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8767F21629C95CE700FB5301 /* Preview Assets.xcassets */; };
@@ -88,7 +88,7 @@
 		875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorCamera.swift; sourceTree = "<group>"; };
 		875CD59D2A49705400C114C3 /* C7CollectorVideo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorVideo.swift; sourceTree = "<group>"; };
 		8767F20D29C95CE600FB5301 /* Harbeth-SwiftUI-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-SwiftUI-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		8767F20F29C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Harbeth_SwiftUI_DemoApp.swift; sourceTree = "<group>"; };
+		8767F20F29C95CE600FB5301 /* HarbethExamples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarbethExamples.swift; sourceTree = "<group>"; };
 		8767F21129C95CE600FB5301 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		8767F21329C95CE700FB5301 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8767F21629C95CE700FB5301 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -196,7 +196,7 @@
 		8767F20E29C95CE600FB5301 /* Harbeth-SwiftUI-Demo */ = {
 			isa = PBXGroup;
 			children = (
-				8767F20F29C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift */,
+				8767F20F29C95CE600FB5301 /* HarbethExamples.swift */,
 				8767F21129C95CE600FB5301 /* ContentView.swift */,
 				8767F21329C95CE700FB5301 /* Assets.xcassets */,
 				8767F21529C95CE700FB5301 /* Preview Content */,
@@ -396,7 +396,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8767F21229C95CE600FB5301 /* ContentView.swift in Sources */,
-				8767F21029C95CE600FB5301 /* Harbeth_SwiftUI_DemoApp.swift in Sources */,
+				8767F21029C95CE600FB5301 /* HarbethExamples.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -654,6 +654,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -684,6 +687,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

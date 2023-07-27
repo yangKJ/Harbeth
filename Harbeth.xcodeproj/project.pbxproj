@@ -242,6 +242,9 @@
 		875EEBAE2994E0C300EC62B3 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBAD2994E0C300EC62B3 /* MetalKit.framework */; };
 		875EEBB02994E0D800EC62B3 /* CoreImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBAF2994E0D700EC62B3 /* CoreImage.framework */; };
 		875EEBB22994E0DF00EC62B3 /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBB12994E0DF00EC62B3 /* ImageIO.framework */; };
+		87901EEF2A7210B5008FCB47 /* Image+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EEE2A7210B5008FCB47 /* Image+Ext.swift */; };
+		87901EF12A726588008FCB47 /* C7ColorGradient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF02A726588008FCB47 /* C7ColorGradient.swift */; };
+		87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */; };
 		87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8B29AF3F0900C4C2E6 /* README_CN.md */; };
 		87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8C29AF3F0900C4C2E6 /* README.md */; };
 		87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */; };
@@ -485,6 +488,9 @@
 		875EEBAD2994E0C300EC62B3 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/iOSSupport/System/Library/Frameworks/MetalKit.framework; sourceTree = DEVELOPER_DIR; };
 		875EEBAF2994E0D700EC62B3 /* CoreImage.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreImage.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/Library/Frameworks/CoreImage.framework; sourceTree = DEVELOPER_DIR; };
 		875EEBB12994E0DF00EC62B3 /* ImageIO.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImageIO.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/Library/Frameworks/ImageIO.framework; sourceTree = DEVELOPER_DIR; };
+		87901EEE2A7210B5008FCB47 /* Image+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Image+Ext.swift"; sourceTree = "<group>"; };
+		87901EF02A726588008FCB47 /* C7ColorGradient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorGradient.swift; sourceTree = "<group>"; };
+		87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorGradient.metal; sourceTree = "<group>"; };
 		87C72F8B29AF3F0900C4C2E6 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = "<group>"; };
 		87C72F8C29AF3F0900C4C2E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Harbeth.podspec; sourceTree = "<group>"; };
@@ -609,6 +615,7 @@
 				875CA58E29B85C08006D4F1D /* CMSampleBuffer+Ext.swift */,
 				875CA58529B85C08006D4F1D /* CVPixelBuffer+Ext.swift */,
 				875CA58D29B85C08006D4F1D /* Data+Ext.swift */,
+				87901EEE2A7210B5008FCB47 /* Image+Ext.swift */,
 				875CA58A29B85C08006D4F1D /* MTLTexture+Ext.swift */,
 				875CA58229B85C08006D4F1D /* URL+Ext.swift */,
 			);
@@ -746,6 +753,8 @@
 				872660662994D82100E612C7 /* C7CGAColorspace.swift */,
 				8726607B2994D82100E612C7 /* C7ColorConvert.metal */,
 				8726605B2994D82100E612C7 /* C7ColorConvert.swift */,
+				87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */,
+				87901EF02A726588008FCB47 /* C7ColorGradient.swift */,
 				8726607A2994D82100E612C7 /* C7ColorPacking.metal */,
 				8726605A2994D82100E612C7 /* C7ColorPacking.swift */,
 				872660732994D82100E612C7 /* C7ColorRGBA.metal */,
@@ -1013,6 +1022,7 @@
 				872660D82994D82200E612C7 /* PixelColor.swift in Sources */,
 				872660F62994D82200E612C7 /* C7Rotate.swift in Sources */,
 				8726619F2994D82200E612C7 /* C7ConvolutionMatrix3x3.swift in Sources */,
+				87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */,
 				872660EF2994D82200E612C7 /* Destype.swift in Sources */,
 				872660FE2994D82200E612C7 /* C7Crop.metal in Sources */,
 				8726613B2994D82200E612C7 /* C7Granularity.swift in Sources */,
@@ -1084,6 +1094,7 @@
 				872661732994D82200E612C7 /* C7SourceOverBlend.metal in Sources */,
 				8726618D2994D82200E612C7 /* C7MonochromeDilation.swift in Sources */,
 				8726610C2994D82200E612C7 /* C7PolkaDot.swift in Sources */,
+				87901EEF2A7210B5008FCB47 /* Image+Ext.swift in Sources */,
 				872661932994D82200E612C7 /* C7ZoomBlur.metal in Sources */,
 				8726615D2994D82200E612C7 /* C7Monochrome.swift in Sources */,
 				872661322994D82200E612C7 /* C7Swirl.swift in Sources */,
@@ -1189,6 +1200,7 @@
 				872661372994D82200E612C7 /* C7LookupTable.swift in Sources */,
 				872661A22994D82200E612C7 /* C7ColorMatrix4x4.swift in Sources */,
 				872661822994D82200E612C7 /* C7MultiplyBlend.metal in Sources */,
+				87901EF12A726588008FCB47 /* C7ColorGradient.swift in Sources */,
 				8726617C2994D82200E612C7 /* C7ColorBurnBlend.metal in Sources */,
 				8726611A2994D82200E612C7 /* C7Sketch.metal in Sources */,
 				872660F22994D82200E612C7 /* BoxxIO.swift in Sources */,
