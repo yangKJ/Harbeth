@@ -1,6 +1,6 @@
 //
 //  C7MotionBlur.metal
-//  ATMetalBand
+//  Harbeth
 //
 //  Created by Condy on 2022/2/14.
 //
@@ -10,7 +10,7 @@ using namespace metal;
 
 kernel void C7MotionBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
                          texture2d<half, access::sample> inputTexture [[texture(1)]],
-                         constant float *blurSize [[buffer(0)]],
+                         constant float *radius [[buffer(0)]],
                          constant float *blurAngle [[buffer(1)]],
                          uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
@@ -18,8 +18,8 @@ kernel void C7MotionBlur(texture2d<half, access::write> outputTexture [[texture(
     
     const float aspectRatio = float(inputTexture.get_height()) / float(inputTexture.get_width());
     float2 directionalTexelStep;
-    directionalTexelStep.x = float(*blurSize) * cos(float(*blurAngle) * pi / 180.0) * aspectRatio / inputTexture.get_width();
-    directionalTexelStep.y = float(*blurSize) * sin(float(*blurAngle) * pi / 180.0) / inputTexture.get_width();
+    directionalTexelStep.x = float(*radius) * cos(float(*blurAngle) * pi / 180.0) * aspectRatio / inputTexture.get_width();
+    directionalTexelStep.y = float(*radius) * sin(float(*blurAngle) * pi / 180.0) / inputTexture.get_width();
     
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     const float2 oneStepBackTextureCoordinate = textureCoordinate.xy - directionalTexelStep;

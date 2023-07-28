@@ -10,10 +10,8 @@ import Foundation
 /// 怀旧滤镜
 public struct C7Nostalgic: C7FilterProtocol {
     
-    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
-    
     /// The degree to which tan replaces normal image color, from 0.0 to 1.0
-    @ZeroOneRange public var intensity: Float = range.value
+    @ZeroOneRange public var intensity: Float = IntensityRange.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Nostalgic")
@@ -23,7 +21,7 @@ public struct C7Nostalgic: C7FilterProtocol {
         return [intensity]
     }
     
-    public init(intensity: Float = range.value) {
+    public init(intensity: Float = IntensityRange.value) {
         self.intensity = intensity
     }
 }

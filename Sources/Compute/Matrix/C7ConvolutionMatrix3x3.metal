@@ -10,9 +10,11 @@ using namespace metal;
 
 kernel void C7ConvolutionMatrix3x3(texture2d<half, access::write> outputTexture [[texture(0)]],
                                    texture2d<half, access::sample> inputTexture [[texture(1)]],
-                                   constant float *pixel [[buffer(0)]],
-                                   constant float3x3 *matrix3x3 [[buffer(1)]],
+                                   constant float *intensity [[buffer(0)]],
+                                   constant float *pixel [[buffer(1)]],
+                                   constant float3x3 *matrix3x3 [[buffer(2)]],
                                    uint2 grid [[thread_position_in_grid]]) {
+    const half4 inColor = inputTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float x = float(grid.x);
     const float y = float(grid.y);
@@ -53,5 +55,7 @@ kernel void C7ConvolutionMatrix3x3(texture2d<half, access::write> outputTexture 
     resultColor += m31Color * (matrix[2][0]) + m32Color * (matrix[2][1]) + m33Color * (matrix[2][2]);
     
     const half4 outColor = half4(resultColor, centerColor.a);
-    outputTexture.write(outColor, grid);
+    const half4 output = mix(inColor, outColor, half(*intensity));
+    
+    outputTexture.write(output, grid);
 }

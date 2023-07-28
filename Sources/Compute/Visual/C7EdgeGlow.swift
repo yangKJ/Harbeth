@@ -11,8 +11,9 @@ public struct C7EdgeGlow: C7FilterProtocol, ComputeFiltering {
     
     /// The adjusted time, from 0.0 to 1.0, with a default of 0.5
     public var time: Float = 0.5
-    /// 边缘跨度，比`spacing`大即为边缘，form 0.0 to 1.0
+    /// The edge span is larger than this. form 0.0 to 1.0
     public var spacing: Float = 0.5
+    
     public var lineColor: C7Color = C7Color.green
     
     public var modifier: Modifier {

@@ -9,6 +9,9 @@ import Foundation
 
 public struct C7ColorRGBA: C7FilterProtocol {
     
+    /// Specifies the intensity of the operation.
+    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    
     /// Modify the value of color single channel, `1` keeps the source channel color, `>1` adds red pigment, `<1` reduces red pigment
     @ZeroOneRange public var red: Float = 1
     @ZeroOneRange public var green: Float = 1
@@ -26,7 +29,7 @@ public struct C7ColorRGBA: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [red, green, blue, alpha]
+        return [red, green, blue, alpha, intensity]
     }
     
     public init(color: C7Color = .white) {

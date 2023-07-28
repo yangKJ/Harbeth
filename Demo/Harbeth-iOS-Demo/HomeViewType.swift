@@ -97,11 +97,11 @@ extension ViewControllerType {
         }
     }
     
-    var overImage: UIImage {
+    var overTexture: MTLTexture? {
         let color = UIColor.green.withAlphaComponent(0.5)
         let texture = BoxxIO<Any>.destTexture(width: 480, height: 270)
         let filter = C7SolidColor.init(color: color)
         let dest = BoxxIO(element: texture, filter: filter)
-        return (try? dest.output())!.mt.toImage()!
+        return try? dest.output()
     }
 }

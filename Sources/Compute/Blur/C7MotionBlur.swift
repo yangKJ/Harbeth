@@ -1,6 +1,6 @@
 //
 //  C7MotionBlur.swift
-//  ATMetalBand
+//  Harbeth
 //
 //  Created by Condy on 2022/2/14.
 //
@@ -11,7 +11,8 @@ import Foundation
 public struct C7MotionBlur: C7FilterProtocol {
     
     /// A multiplier for the blur size
-    public var blurSize: Float = 0
+    public var radius: Float = 0
+    
     /// The angular direction of the blur, in degrees, with a default of 0.0
     public var blurAngle: Float = 0
     
@@ -20,11 +21,11 @@ public struct C7MotionBlur: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [blurSize, blurAngle]
+        return [radius, blurAngle]
     }
     
-    public init(blurSize: Float = 0, blurAngle: Float = 0) {
-        self.blurSize = blurSize
+    public init(radius: Float = 0, blurAngle: Float = 0) {
+        self.radius = radius
         self.blurAngle = blurAngle
     }
 }

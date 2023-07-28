@@ -36,10 +36,8 @@ public struct C7Blend: C7FilterProtocol {
         case subtract
     }
     
-    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
-    
     /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = range.value
+    @ZeroOneRange public var intensity: Float = IntensityRange.value
     
     public var modifier: Modifier {
         return .compute(kernel: blendType.kernel)
@@ -59,8 +57,8 @@ public struct C7Blend: C7FilterProtocol {
         return blendTexture == nil ? [] : [blendTexture!]
     }
     
-    let blendTexture: MTLTexture?
-    var blendType: BlendType
+    private let blendTexture: MTLTexture?
+    private var blendType: BlendType
     
     public init(with type: BlendType, image: C7Image) {
         let overTexture = image.cgImage?.mt.toTexture()

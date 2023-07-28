@@ -27,12 +27,15 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol, ComputeFiltering {
     public var convolutionPixel: Int = 1
     private var matrix: Matrix3x3
     
+    /// Specifies the intensity of the operation.
+    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    
     public var modifier: Modifier {
         return .compute(kernel: "C7ConvolutionMatrix3x3")
     }
     
     public var factors: [Float] {
-        return [Float(convolutionPixel)]
+        return [intensity, Float(convolutionPixel)]
     }
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {

@@ -11,6 +11,8 @@ public struct C7Glitch: C7FilterProtocol {
     
     /// The adjusted glitch, from 0.0 to 1.0, with a default of 0.5
     public var glitch: Float = 0.5
+    
+    /// Maximum jitter ratio.
     public var maxJitter: Float = 0.06
     
     public var modifier: Modifier {

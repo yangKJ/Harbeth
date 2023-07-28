@@ -21,10 +21,17 @@ public struct C7ColorConvert: C7FilterProtocol {
         case y = "C7Color2Y"
     }
     
+    /// Specifies the intensity of the operation.
+    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    
     private let type: ColorType
     
     public var modifier: Modifier {
         return .compute(kernel: type.rawValue)
+    }
+    
+    public var factors: [Float] {
+        return [intensity]
     }
     
     public init(with type: ColorType) {

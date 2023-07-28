@@ -1,5 +1,5 @@
 //
-//  C7CGAColorspace.metal
+//  C7ColorCGASpace.metal
 //  Harbeth
 //
 //  Created by Condy on 2022/11/11.
@@ -8,8 +8,9 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7CGAColorspace(texture2d<half, access::write> outputTexture [[texture(0)]],
+kernel void C7ColorCGASpace(texture2d<half, access::write> outputTexture [[texture(0)]],
                             texture2d<half, access::sample> inputTexture [[texture(1)]],
+                            constant float *intensity [[buffer(0)]],
                             uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
@@ -42,6 +43,7 @@ kernel void C7CGAColorspace(texture2d<half, access::write> outputTexture [[textu
     } else {
         outColor = colorMagenta;
     }
+    const half4 output = mix(inColor, outColor, half(*intensity));
     
-    outputTexture.write(outColor, grid);
+    outputTexture.write(output, grid);
 }

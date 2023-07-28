@@ -10,10 +10,8 @@ import Foundation
 /// 4x4 color matrix.
 public struct C7ColorMatrix4x4: C7FilterProtocol, ComputeFiltering {
     
-    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
-    
     /// The degree to which the new transformed color replaces the original color for each pixel, default 1
-    @ZeroOneRange public var intensity: Float = range.value
+    @ZeroOneRange public var intensity: Float = IntensityRange.value
     /// Color offset for each channel.
     public var offset: PixelColor = .zero
     public var matrix: Matrix4x4

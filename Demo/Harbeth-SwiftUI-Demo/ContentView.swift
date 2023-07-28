@@ -70,7 +70,7 @@ struct ContentView: View {
                         
                         VStack(alignment: .leading) {
                             Text("Intensity: \(intensity, specifier: "%.2f")")
-                            Slider(value: $intensity, in: C7Blend.range.min...C7Blend.range.max)
+                            Slider(value: $intensity, in: IntensityRange.min...IntensityRange.max)
                         }
                         .padding()
                         .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
