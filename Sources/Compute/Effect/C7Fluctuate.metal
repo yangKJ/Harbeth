@@ -10,9 +10,9 @@ using namespace metal;
 
 kernel void C7Fluctuate(texture2d<half, access::write> outputTexture [[texture(0)]],
                         texture2d<half, access::sample> inputTexture [[texture(1)]],
-                        device float *extent [[buffer(0)]],
-                        device float *amplitude [[buffer(1)]],
-                        device float *fluctuate [[buffer(2)]],
+                        constant float *extent [[buffer(0)]],
+                        constant float *amplitude [[buffer(1)]],
+                        constant float *fluctuate [[buffer(2)]],
                         uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());

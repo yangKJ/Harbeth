@@ -17,7 +17,7 @@ constant half4 kYIQToB = half4(1.0, -1.1070, 1.7046, 0.0);
 
 kernel void C7Hue(texture2d<half, access::write> outputTexture [[texture(0)]],
                   texture2d<half, access::read> inputTexture [[texture(1)]],
-                  device float *hueAdjust [[buffer(0)]],
+                  constant float *hueAdjust [[buffer(0)]],
                   uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     

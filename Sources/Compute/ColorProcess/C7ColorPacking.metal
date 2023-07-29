@@ -10,8 +10,8 @@ using namespace metal;
 
 kernel void C7ColorPacking(texture2d<half, access::write> outputTexture [[texture(0)]],
                            texture2d<half, access::sample> inputTexture [[texture(1)]],
-                           device float *texelWidthPointer [[buffer(0)]],
-                           device float *texelHeightPointer [[buffer(1)]],
+                           constant float *texelWidthPointer [[buffer(0)]],
+                           constant float *texelHeightPointer [[buffer(1)]],
                            uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float width  = outputTexture.get_width();

@@ -10,7 +10,7 @@ using namespace metal;
 
 kernel void C7Brightness(texture2d<half, access::write> outputTexture [[texture(0)]],
                          texture2d<half, access::read> inputTexture [[texture(1)]],
-                         device float *brightness [[buffer(0)]],
+                         constant float *brightness [[buffer(0)]],
                          uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
