@@ -152,4 +152,21 @@ public struct MTLTextureCompatible_ {
         let matchingTexture = loader?.device.makeTexture(descriptor: matchingDescriptor)
         return matchingTexture ?? texture
     }
+    
+    func isBlank() -> Bool {
+        let width = target.width
+        let height = target.height
+        let bytesPerRow = width * 4
+        let data = UnsafeMutableRawPointer.allocate(byteCount: bytesPerRow * height, alignment: 4)
+        defer { data.deallocate() }
+        let region = MTLRegionMake2D(0, 0, width, height)
+        target.getBytes(data, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+        var bind = data.assumingMemoryBound(to: UInt8.self)
+        var sum: UInt8 = 0
+        for _ in 0..<width*height {
+            sum += bind.pointee
+            bind = bind.advanced(by: 1)
+        }
+        return sum != 0
+    }
 }

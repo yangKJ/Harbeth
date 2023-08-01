@@ -72,9 +72,9 @@ import CoreVideo
                 return try filtering(ciImage: e) as! Dest
             case let e where CFGetTypeID(e as CFTypeRef) == CGImage.typeID:
                 return try filtering(cgImage: e as! CGImage) as! Dest
-            case let e where CFGetTypeID(element as CFTypeRef) == CVPixelBufferGetTypeID():
+            case let e where CFGetTypeID(e as CFTypeRef) == CVPixelBufferGetTypeID():
                 return try filtering(pixelBuffer: e as! CVPixelBuffer) as! Dest
-            case let e where CFGetTypeID(element as CFTypeRef) == CMSampleBufferGetTypeID():
+            case let e where CFGetTypeID(e as CFTypeRef) == CMSampleBufferGetTypeID():
                 return try filtering(sampleBuffer: e as! CMSampleBuffer) as! Dest
             default:
                 break

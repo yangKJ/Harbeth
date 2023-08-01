@@ -38,6 +38,11 @@
 		8784451A2994DE81001D856B /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445162994DE81001D856B /* CameraViewController.swift */; };
 		8784451B2994DE81001D856B /* UnitTestViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445172994DE81001D856B /* UnitTestViewController.swift */; };
 		8784451C2994DE81001D856B /* ImageViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445182994DE81001D856B /* ImageViewController.swift */; };
+		87FD88D92A78EEFA00EAC2DD /* AsyncImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */; };
+		87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */; };
+		F75F72492A7420C8003478D7 /* BlendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F72482A7420C8003478D7 /* BlendView.swift */; };
+		F75F724D2A742272003478D7 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F724C2A742272003478D7 /* Extensions.swift */; };
+		F75F724F2A74227D003478D7 /* Res.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F724E2A74227D003478D7 /* Res.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -110,6 +115,11 @@
 		878445162994DE81001D856B /* CameraViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CameraViewController.swift; sourceTree = "<group>"; };
 		878445172994DE81001D856B /* UnitTestViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UnitTestViewController.swift; sourceTree = "<group>"; };
 		878445182994DE81001D856B /* ImageViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewController.swift; sourceTree = "<group>"; };
+		87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncImageView.swift; sourceTree = "<group>"; };
+		87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
+		F75F72482A7420C8003478D7 /* BlendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendView.swift; sourceTree = "<group>"; };
+		F75F724C2A742272003478D7 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		F75F724E2A74227D003478D7 /* Res.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Res.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -198,7 +208,8 @@
 			children = (
 				8767F20F29C95CE600FB5301 /* HarbethExamples.swift */,
 				8767F21129C95CE600FB5301 /* ContentView.swift */,
-				8767F21329C95CE700FB5301 /* Assets.xcassets */,
+				F75F724A2A7420CF003478D7 /* Views */,
+				F75F724B2A7420D8003478D7 /* Resources */,
 				8767F21529C95CE700FB5301 /* Preview Content */,
 			);
 			path = "Harbeth-SwiftUI-Demo";
@@ -251,6 +262,26 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		F75F724A2A7420CF003478D7 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */,
+				F75F72482A7420C8003478D7 /* BlendView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		F75F724B2A7420D8003478D7 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				8767F21329C95CE700FB5301 /* Assets.xcassets */,
+				F75F724C2A742272003478D7 /* Extensions.swift */,
+				87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */,
+				F75F724E2A74227D003478D7 /* Res.swift */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -286,6 +317,8 @@
 			dependencies = (
 			);
 			name = "Harbeth-SwiftUI-Demo";
+			packageProductDependencies = (
+			);
 			productName = "Harbeth-SwiftUI-Demo";
 			productReference = 8767F20D29C95CE600FB5301 /* Harbeth-SwiftUI-Demo.app */;
 			productType = "com.apple.product-type.application";
@@ -338,6 +371,8 @@
 				Base,
 			);
 			mainGroup = 872661A92994D88D00E612C7;
+			packageReferences = (
+			);
 			productRefGroup = 872661B42994D88D00E612C7 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -395,8 +430,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */,
 				8767F21229C95CE600FB5301 /* ContentView.swift in Sources */,
 				8767F21029C95CE600FB5301 /* HarbethExamples.swift in Sources */,
+				F75F72492A7420C8003478D7 /* BlendView.swift in Sources */,
+				F75F724D2A742272003478D7 /* Extensions.swift in Sources */,
+				F75F724F2A74227D003478D7 /* Res.swift in Sources */,
+				87FD88D92A78EEFA00EAC2DD /* AsyncImageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -720,6 +760,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -750,6 +793,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
