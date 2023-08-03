@@ -10,6 +10,7 @@
 
 import Foundation
 import MetalKit
+import Metal
 
 internal struct Compute {
     /// Create a parallel computation pipeline.
@@ -31,6 +32,29 @@ internal struct Compute {
             return pipeline
         }
         return nil
+    }
+    
+    @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, Error>) -> Void) {
+        Shared.shared.lock.lock()
+        defer { Shared.shared.lock.unlock() }
+        /// 先读取缓存管线
+        if let pipelineState = Shared.shared.device?.pipelines[kernel] {
+            complete(.success(pipelineState))
+            return
+        }
+        guard let function = try? Device.readMTLFunction(kernel) else {
+            complete(.failure(CustomError.readFunction(kernel)))
+            return
+        }
+        /// 异步创建管道状态
+        Device.device().makeComputePipelineState(function: function) { pipelineState, error in
+            guard let pipeline = pipelineState else {
+                complete(.failure(CustomError.computePipelineState(kernel)))
+                return
+            }
+            complete(.success(pipeline))
+            Shared.shared.device?.pipelines[kernel] = pipeline
+        }
     }
     
     @inlinable static func drawingProcess(_ pipelineState: MTLComputePipelineState,

@@ -42,21 +42,41 @@ internal struct Processed {
             filter.renderCoreImage(with: inTexture, name: name, complete: complete)
             return
         }
-        do {
-            let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
+        
+        func addCompletedHandler(with commandBuffer: MTLCommandBuffer) {
             commandBuffer.addCompletedHandler { (buffer) in
                 switch buffer.status {
                 case .completed:
                     complete(.success(outTexture))
-                case .error:
-                    if let error = buffer.error {
-                        complete(.failure(error))
-                    }
+                case .error where buffer.error != nil:
+                    complete(.failure(buffer.error!))
                 default:
                     break
                 }
             }
             commandBuffer.commit()
+        }
+        
+        if case .compute(let kernel) = filter.modifier {
+            Compute.makeComputePipelineState(with: kernel) { res in
+                switch res {
+                case .success(let pipelineState):
+                    guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
+                        complete(.failure(CustomError.commandBuffer))
+                        return
+                    }
+                    var textures = [outTexture, inTexture]
+                    textures += filter.otherInputTextures
+                    Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
+                    addCompletedHandler(with: commandBuffer)
+                case .failure(let err):
+                    complete(.failure(err))
+                }
+            }
+        }
+        do {
+            let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
+            addCompletedHandler(with: commandBuffer)
         } catch {
             complete(.failure(error))
         }
