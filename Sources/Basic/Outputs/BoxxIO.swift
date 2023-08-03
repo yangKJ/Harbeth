@@ -194,18 +194,23 @@ import CoreVideo
     /// Create a texture for later storage according to the texture parameters.
     /// - Parameters:
     ///    - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
-    ///    - width: The texture width
-    ///    - height: The texture height
+    ///    - width: The texture width, must be greater than 0.
+    ///    - height: The texture height, must be greater than 0.
+    ///    - usage: Description of texture usage
     ///    - mipmapped: No mapping was required
     /// - Returns: New textures
     public static func destTexture(_ pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
                                    width: Int, height: Int,
+                                   usage: MTLTextureUsage = [.shaderRead, .shaderWrite],
                                    mipmapped: Bool = false) -> MTLTexture {
+        let width  = max(1, width)
+        let height = max(1, height)
+        // Create a TextureDescriptor for a common 2D texture.
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
                                                                   width: width,
                                                                   height: height,
                                                                   mipmapped: mipmapped)
-        descriptor.usage = [.shaderRead, .shaderWrite]
+        descriptor.usage = usage
         #if targetEnvironment(macCatalyst)
         descriptor.storageMode = .managed
         #endif
