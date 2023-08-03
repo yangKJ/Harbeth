@@ -42,8 +42,8 @@ internal struct Processed {
             filter.renderCoreImage(with: inTexture, name: name, complete: complete)
             return
         }
-        
-        func addCompletedHandler(with commandBuffer: MTLCommandBuffer) {
+        do {
+            let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
             commandBuffer.addCompletedHandler { (buffer) in
                 switch buffer.status {
                 case .completed:
@@ -55,28 +55,6 @@ internal struct Processed {
                 }
             }
             commandBuffer.commit()
-        }
-        
-        if case .compute(let kernel) = filter.modifier {
-            Compute.makeComputePipelineState(with: kernel) { res in
-                switch res {
-                case .success(let pipelineState):
-                    guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
-                        complete(.failure(CustomError.commandBuffer))
-                        return
-                    }
-                    var textures = [outTexture, inTexture]
-                    textures += filter.otherInputTextures
-                    Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: filter)
-                    addCompletedHandler(with: commandBuffer)
-                case .failure(let err):
-                    complete(.failure(err))
-                }
-            }
-        }
-        do {
-            let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
-            addCompletedHandler(with: commandBuffer)
         } catch {
             complete(.failure(error))
         }
