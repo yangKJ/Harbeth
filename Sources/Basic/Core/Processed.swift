@@ -21,7 +21,7 @@ internal struct Processed {
     /// - Returns: Output texture after processing
     @inlinable @discardableResult static func IO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if case .coreimage(let name) = filter.modifier {
-            return filter.renderCoreImage(with: inTexture, name: name)
+            return try filter.renderCoreImage(with: inTexture, name: name)
         }
         let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
         // Commit a command buffer so it can be executed as soon as possible.
@@ -39,8 +39,7 @@ internal struct Processed {
     ///   - complete: Add a block to be called when this command buffer has completed execution.
     static func runAsynIO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol, complete: @escaping (Result<MTLTexture, Error>) -> Void) {
         if case .coreimage(let name) = filter.modifier {
-            let texture = filter.renderCoreImage(with: inTexture, name: name)
-            complete(.success(texture))
+            filter.renderCoreImage(with: inTexture, name: name, complete: complete)
             return
         }
         do {
@@ -49,6 +48,10 @@ internal struct Processed {
                 switch buffer.status {
                 case .completed:
                     complete(.success(outTexture))
+                case .error:
+                    if let error = buffer.error {
+                        complete(.failure(error))
+                    }
                 default:
                     break
                 }
@@ -86,15 +89,32 @@ extension C7FilterProtocol {
     }
     
     /// Metal texture compatibility uses CoreImage filter.
-    func renderCoreImage(with texture: MTLTexture, name: String) -> MTLTexture {
-        guard let filter = self as? CoreImageFiltering, let cgImage = texture.mt.toCGImage() else {
-            return texture
+    func renderCoreImage(with texture: MTLTexture, name: String) throws -> MTLTexture {
+        let outputImage = try outputCIImage(with: texture, name: name)
+        try outputImage.mt.renderImageToTexture(texture, colorSpace: Device.colorSpace())
+        return texture
+    }
+    
+    func renderCoreImage(with texture: MTLTexture, name: String, complete: @escaping ((Result<MTLTexture, Error>) -> Void)) {
+        do {
+            let outputImage = try outputCIImage(with: texture, name: name)
+            outputImage.mt.writeCIImageAtTexture(texture, complete: complete, colorSpace: Device.colorSpace())
+        } catch {
+            complete(.failure(error))
+        }
+    }
+    
+    private func outputCIImage(with texture: MTLTexture, name: String) throws -> CIImage {
+        guard let cgImage = texture.mt.toCGImage() else {
+            throw CustomError.texture2CGImage
         }
         var ciimage = CIImage.init(cgImage: cgImage)
         let cifiter = CIFilter.init(name: name)
-        ciimage = filter.coreImageApply(filter: cifiter, input: ciimage)
+        ciimage = (self as! CoreImageProtocol).coreImageApply(filter: cifiter, input: ciimage)
         cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
-        cifiter?.outputImage?.mt.renderImageToTexture(texture, colorSpace: Device.colorSpace())
-        return texture
+        guard let outputImage = cifiter?.outputImage else {
+            throw CustomError.outputCIImage(name)
+        }
+        return outputImage
     }
 }

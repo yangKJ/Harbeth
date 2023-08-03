@@ -30,18 +30,18 @@ import CoreVideo
     public let element: Dest
     public let filters: [C7FilterProtocol]
     
-    // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
-    // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
+    /// Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
+    /// The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
     public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm
     
-    // When the CIImage is created, it is mirrored and flipped upside down.
-    // But upon inspecting the texture, it still renders the CIImage as expected.
-    // Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
+    /// When the CIImage is created, it is mirrored and flipped upside down.
+    /// But upon inspecting the texture, it still renders the CIImage as expected.
+    /// Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
     public var mirrored: Bool = false
     
     #if os(macOS)
-    // Fixed an issue with HEIC flipping after adding filter.
-    // If drawing a HEIC, we need to make context flipped.
+    /// Fixed an issue with HEIC flipping after adding filter.
+    /// If drawing a HEIC, we need to make context flipped.
     public var heic: Bool = false
     #endif
     
@@ -125,8 +125,14 @@ import CoreVideo
             filtering(texture: texture) { res in
                 switch res {
                 case .success(let t):
-                    let ciImage = self.applyCIImage(element, with: t) as! Dest
-                    success(ciImage)
+                    self.asyncApplyCIImage(element, with: t) { res_ in
+                        switch res_ {
+                        case .success(let ciImage):
+                            success(ciImage as! Dest)
+                        case .failure(let err):
+                            failed(err)
+                        }
+                    }
                 case .failure(let err):
                     failed(err)
                 }
@@ -339,17 +345,36 @@ extension BoxxIO {
     }
     
     private func applyCIImage(_ ciImage: CIImage, with texture: MTLTexture) -> CIImage {
-        ciImage.mt.renderImageToTexture(texture, context: Device.context())
+        try? ciImage.mt.renderImageToTexture(texture, context: Device.context())
         guard let ciImage_ = CIImage(mtlTexture: texture) else {
             return ciImage
         }
-        if mirrored, #available(iOS 11.0, *) {
+        if self.mirrored, #available(iOS 11.0, macOS 10.13, *) {
             // When the CIImage is created, it is mirrored and flipped upside down.
             // But upon inspecting the texture, it still renders the CIImage as expected.
             // Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
             return ciImage_.oriented(.downMirrored)
         }
         return ciImage_
+    }
+    
+    private func asyncApplyCIImage(_ ciImage: CIImage, with texture: MTLTexture, complete: @escaping (Result<CIImage, Error>) -> Void) {
+        ciImage.mt.writeCIImageAtTexture(texture, complete: { res in
+            switch res {
+            case .success(let texture):
+                guard let ciImage_ = CIImage(mtlTexture: texture) else {
+                    complete(.failure(CustomError.texture2CIImage))
+                    return
+                }
+                if self.mirrored, #available(iOS 11.0, macOS 10.13, *) {
+                    complete(.success(ciImage_.oriented(.downMirrored)))
+                    return
+                }
+                complete(.success(ciImage_))
+            case .failure(let error):
+                complete(.failure(error))
+            }
+        }, context: Device.context())
     }
     
     private func fixImageOrientation(texture: MTLTexture, base: C7Image) throws -> C7Image {

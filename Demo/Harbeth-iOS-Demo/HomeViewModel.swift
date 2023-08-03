@@ -53,6 +53,7 @@ struct HomeViewModel {
                 "模糊处理": blur,
                 "图片融合": blend,
                 "矩阵卷积": matrix,
+                "CoreImage": coreImage,
             ]
         case .camera:
             var filters = color
@@ -108,5 +109,9 @@ struct HomeViewModel {
     let matrix: [ViewControllerType] = [
         .ColorMatrix4x4, .Convolution3x3, .Sharpen3x3,
         .Sepia,
+    ]
+    
+    let coreImage: [ViewControllerType] = [
+        .CIHS,
     ]
 }

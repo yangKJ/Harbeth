@@ -122,8 +122,8 @@ extension ViewControllerType {
             })
         case .ChannelRGBA:
             var filter = C7ColorRGBA(color: .red)
-            return (filter, (filter.red, 0, 1), {
-                filter.red = $0
+            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+                filter.intensity = $0
                 return filter
             })
         case .HighlightShadow:
@@ -376,8 +376,8 @@ extension ViewControllerType {
             })
         case .CIHS:
             var filter = CIHighlight()
-            return (filter, (1, 0, 1), {
-                filter.value = $0
+            return (filter, (CIHighlight.range.value, CIHighlight.range.min, CIHighlight.range.max), {
+                filter.highlight = $0
                 return filter
             })
         case .TextHEIC:

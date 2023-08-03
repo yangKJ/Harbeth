@@ -16,7 +16,10 @@ public enum CustomError: Swift.Error {
     case renderPipelineState(String, String)
     case source2Texture
     case texture2Image
+    case texture2CGImage
+    case texture2CIImage
     case CVPixelBufferToCMSampleBuffer
+    case outputCIImage(String)
 }
 
 extension CustomError: CustomStringConvertible {
@@ -43,8 +46,14 @@ extension CustomError: CustomStringConvertible {
             return "Transform to texture failed."
         case .texture2Image:
             return "MTLTexture transform to image failed."
+        case .texture2CGImage:
+            return "MTLTexture transform to CGImage failed."
+        case .texture2CIImage:
+            return "MTLTexture transform to CIImage failed."
         case .CVPixelBufferToCMSampleBuffer:
             return "CVPixelBuffer transform to CMSampleBuffer failed."
+        case .outputCIImage(let name):
+            return "CoreImage \(name) filter bring into being output image failed."
         default:
             return "Unknown error occurred."
         }

@@ -12,24 +12,60 @@ extension CIImage: C7Compatible { }
 
 extension Queen where Base: CIImage {
     
-    /// Renders a region of an image to a Metal texture.
-    /// Render `bounds` of `image` to a Metal texture, optionally specifying what command buffer to use.
+    /// Write CIImage to metal texture synchronously.
     /// - Parameters:
     ///   - texture: Texture type must be MTLTexture2D.
     ///   - colorSpace: Color space
     ///   - context: An evaluation context for rendering image processing results and performing image analysis.
-    public func renderImageToTexture(_ texture: MTLTexture, colorSpace: CGColorSpace? = nil, context: CIContext? = nil) {
+    public func renderImageToTexture(_ texture: MTLTexture, colorSpace: CGColorSpace? = nil, context: CIContext? = nil) throws {
+        guard let buffer = Device.commandQueue().makeCommandBuffer() else {
+            throw CustomError.commandBuffer
+        }
         let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
         let ctx = context ?? Device.context(colorSpace: colorSpace)
-        let buffer = Device.commandQueue().makeCommandBuffer()
         // Fixed image horizontal flip problem.
         let scaledImage = base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
             .transformed(by: CGAffineTransform(translationX: 0, y: base.extent.height))
         //let origin = CGPoint(x: -scaledImage.extent.origin.x, y: -scaledImage.extent.origin.y)
         //let bounds = CGRect(origin: origin, size: scaledImage.extent.size)
         ctx.render(scaledImage, to: texture, commandBuffer: buffer, bounds: scaledImage.extent, colorSpace: colorSpace)
-        buffer?.commit()
-        buffer?.waitUntilCompleted()
+        // 这俩必须写在`render`同一个方法下面，否则会卡死<很奇怪，没读懂什么意思>
+        buffer.commit()
+        buffer.waitUntilCompleted()
+    }
+    
+    /// Asynchronous write CIImage to metal texture.
+    /// Render `bounds` of `image` to a Metal texture, optionally specifying what command buffer to use.
+    /// - Parameters:
+    ///   - texture: Texture type must be MTLTexture2D.
+    ///   - colorSpace: Color space
+    ///   - context: An evaluation context for rendering image processing results and performing image analysis.
+    public func writeCIImageAtTexture(_ texture: MTLTexture,
+                                      complete: @escaping ((Result<MTLTexture, Error>) -> Void),
+                                      colorSpace: CGColorSpace? = nil,
+                                      context: CIContext? = nil) {
+        guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
+            complete(.failure(CustomError.commandBuffer))
+            return
+        }
+        let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
+        let ctx = context ?? Device.context(colorSpace: colorSpace)
+        let scaledImage = base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
+            .transformed(by: CGAffineTransform(translationX: 0, y: base.extent.height))
+        ctx.render(scaledImage, to: texture, commandBuffer: commandBuffer, bounds: scaledImage.extent, colorSpace: colorSpace)
+        commandBuffer.addCompletedHandler { (buffer) in
+            switch buffer.status {
+            case .completed:
+                complete(.success(texture))
+            case .error:
+                if let error = buffer.error {
+                    complete(.failure(error))
+                }
+            default:
+                break
+            }
+        }
+        commandBuffer.commit()
     }
     
     public func removingExtentOffset() -> CIImage {
