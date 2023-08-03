@@ -9,6 +9,7 @@ import Foundation
 
 public enum CustomError: Swift.Error {
     case unknown
+    case error(Swift.Error)
     case image2Texture
     case readFunction(String)
     case commandBuffer
@@ -32,6 +33,8 @@ extension CustomError: CustomStringConvertible {
     /// A textual representation of `self`, suitable for debugging.
     public var localizedDescription: String {
         switch self {
+        case .error(let error):
+            return error.localizedDescription
         case .image2Texture:
             return "Input image transform texture failed."
         case .readFunction(let name):
@@ -56,6 +59,16 @@ extension CustomError: CustomStringConvertible {
             return "CoreImage \(name) filter bring into being output image failed."
         default:
             return "Unknown error occurred."
+        }
+    }
+}
+
+extension CustomError {
+    static func toCustomError(_ error: Error) -> CustomError {
+        if let error = error as? CustomError {
+            return error
+        } else {
+            return .error(error)
         }
     }
 }

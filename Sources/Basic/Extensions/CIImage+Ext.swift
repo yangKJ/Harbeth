@@ -41,7 +41,7 @@ extension Queen where Base: CIImage {
     ///   - colorSpace: Color space
     ///   - context: An evaluation context for rendering image processing results and performing image analysis.
     public func writeCIImageAtTexture(_ texture: MTLTexture,
-                                      complete: @escaping ((Result<MTLTexture, Error>) -> Void),
+                                      complete: @escaping (Result<MTLTexture, CustomError>) -> Void,
                                       colorSpace: CGColorSpace? = nil,
                                       context: CIContext? = nil) {
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
@@ -57,10 +57,8 @@ extension Queen where Base: CIImage {
             switch buffer.status {
             case .completed:
                 complete(.success(texture))
-            case .error:
-                if let error = buffer.error {
-                    complete(.failure(error))
-                }
+            case .error where buffer.error != nil:
+                complete(.failure(.error(buffer.error!)))
             default:
                 break
             }

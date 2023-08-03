@@ -37,7 +37,7 @@ internal struct Processed {
     ///   - outTexture: Output texture
     ///   - filter: It must be an object implementing C7FilterProtocol
     ///   - complete: Add a block to be called when this command buffer has completed execution.
-    static func runAsynIO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol, complete: @escaping (Result<MTLTexture, Error>) -> Void) {
+    static func runAsynIO(inTexture: MTLTexture, outTexture: MTLTexture, filter: C7FilterProtocol, complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
         if case .coreimage(let name) = filter.modifier {
             filter.renderCoreImage(with: inTexture, name: name, complete: complete)
             return
@@ -49,14 +49,14 @@ internal struct Processed {
                 case .completed:
                     complete(.success(outTexture))
                 case .error where buffer.error != nil:
-                    complete(.failure(buffer.error!))
+                    complete(.failure(.error(buffer.error!)))
                 default:
                     break
                 }
             }
             commandBuffer.commit()
         } catch {
-            complete(.failure(error))
+            complete(.failure(CustomError.toCustomError(error)))
         }
     }
 }
@@ -91,12 +91,12 @@ extension C7FilterProtocol {
         return texture
     }
     
-    func renderCoreImage(with texture: MTLTexture, name: String, complete: @escaping ((Result<MTLTexture, Error>) -> Void)) {
+    func renderCoreImage(with texture: MTLTexture, name: String, complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
         do {
             let outputImage = try outputCIImage(with: texture, name: name)
             outputImage.mt.writeCIImageAtTexture(texture, complete: complete, colorSpace: Device.colorSpace())
         } catch {
-            complete(.failure(error))
+            complete(.failure(CustomError.toCustomError(error)))
         }
     }
     

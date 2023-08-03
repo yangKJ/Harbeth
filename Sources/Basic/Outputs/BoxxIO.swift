@@ -85,7 +85,7 @@ import CoreVideo
         return element
     }
     
-    public func transmitOutput(success: @escaping (Dest) -> Void, failed: @escaping ((Error) -> Void)) {
+    public func transmitOutput(success: @escaping (Dest) -> Void, failed: @escaping (CustomError) -> Void) {
         if self.filters.isEmpty {
             success(element)
             return
@@ -111,7 +111,7 @@ import CoreVideo
                         let image = try fixImageOrientation(texture: t, base: element)
                         success(image as! Dest)
                     } catch {
-                        failed(error)
+                        failed(CustomError.toCustomError(error))
                     }
                 case .failure(let err):
                     failed(err)
@@ -304,7 +304,7 @@ extension BoxxIO {
 
 extension BoxxIO {
     
-    public func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, Error>) -> Void) {
+    public func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
         var index__ = 0
         // 递归处理
         func recursion(filters: [C7FilterProtocol], index: Int, sourceTexture: MTLTexture) {
@@ -363,7 +363,7 @@ extension BoxxIO {
         return ciImage_
     }
     
-    private func asyncApplyCIImage(_ ciImage: CIImage, with texture: MTLTexture, complete: @escaping (Result<CIImage, Error>) -> Void) {
+    private func asyncApplyCIImage(_ ciImage: CIImage, with texture: MTLTexture, complete: @escaping (Result<CIImage, CustomError>) -> Void) {
         ciImage.mt.writeCIImageAtTexture(texture, complete: { res in
             switch res {
             case .success(let texture):

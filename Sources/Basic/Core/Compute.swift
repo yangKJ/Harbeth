@@ -33,7 +33,7 @@ internal struct Compute {
         return pipeline
     }
     
-    @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, Error>) -> Void) {
+    @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, CustomError>) -> Void) {
         Shared.shared.lock.lock()
         defer { Shared.shared.lock.unlock() }
         /// 先读取缓存管线
