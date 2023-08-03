@@ -15,10 +15,9 @@ import Metal
 internal struct Compute {
     /// Create a parallel computation pipeline.
     /// Performance intensive operations should not be invoked frequently
-    ///
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
-    @inlinable static func makeComputePipelineState(with kernel: String) -> MTLComputePipelineState? {
+    @inlinable static func makeComputePipelineState(with kernel: String) throws -> MTLComputePipelineState {
         Shared.shared.lock.lock()
         defer { Shared.shared.lock.unlock() }
         /// 先读取缓存管线
@@ -26,12 +25,12 @@ internal struct Compute {
             return pipelineState
         }
         /// 同步阻塞编译计算程序来创建管道状态
-        if let function = try? Device.readMTLFunction(kernel),
-           let pipeline = try? Device.device().makeComputePipelineState(function: function) {
-            Shared.shared.device?.pipelines[kernel] = pipeline
-            return pipeline
+        let function = try Device.readMTLFunction(kernel)
+        guard let pipeline = try? Device.device().makeComputePipelineState(function: function) else {
+            throw CustomError.computePipelineState(kernel)
         }
-        return nil
+        Shared.shared.device?.pipelines[kernel] = pipeline
+        return pipeline
     }
     
     @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, Error>) -> Void) {

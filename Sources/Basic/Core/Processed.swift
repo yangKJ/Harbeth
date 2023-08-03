@@ -69,9 +69,7 @@ extension C7FilterProtocol {
             throw CustomError.commandBuffer
         }
         if case .compute(let kernel) = self.modifier {
-            guard let pipelineState = Compute.makeComputePipelineState(with: kernel) else {
-                throw CustomError.computePipelineState(kernel)
-            }
+            let pipelineState = try Compute.makeComputePipelineState(with: kernel)
             var textures = [destinationTexture, sourceTexture]
             textures += self.otherInputTextures
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: self)
