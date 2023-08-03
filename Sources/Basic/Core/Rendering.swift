@@ -48,7 +48,7 @@ internal struct Rendering {
         //renderEncoder.setFragmentTexture(texture, index: 0)
         
         var vertexCount: Int = 1
-        if let filter = filter as? RenderFiltering, let buffer = filter.setupVertexUniformBuffer(for: device) {
+        if let filter = filter as? RenderProtocol, let buffer = filter.setupVertexUniformBuffer(for: device) {
             renderEncoder.setVertexBuffer(buffer, offset: 0, index: vertexCount)
             vertexCount += 1
         }

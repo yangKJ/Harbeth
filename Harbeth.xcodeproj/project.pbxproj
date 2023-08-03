@@ -239,6 +239,7 @@
 		875EEBAE2994E0C300EC62B3 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBAD2994E0C300EC62B3 /* MetalKit.framework */; };
 		875EEBB02994E0D800EC62B3 /* CoreImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBAF2994E0D700EC62B3 /* CoreImage.framework */; };
 		875EEBB22994E0DF00EC62B3 /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBB12994E0DF00EC62B3 /* ImageIO.framework */; };
+		8769CE202A79F0CF004AB055 /* FilterImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8769CE1F2A79F0CF004AB055 /* FilterImage.swift */; };
 		87901EEF2A7210B5008FCB47 /* Image+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EEE2A7210B5008FCB47 /* Image+Ext.swift */; };
 		87901EF12A726588008FCB47 /* C7ColorGradient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF02A726588008FCB47 /* C7ColorGradient.swift */; };
 		87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */; };
@@ -482,6 +483,7 @@
 		875EEBAD2994E0C300EC62B3 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/iOSSupport/System/Library/Frameworks/MetalKit.framework; sourceTree = DEVELOPER_DIR; };
 		875EEBAF2994E0D700EC62B3 /* CoreImage.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreImage.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/Library/Frameworks/CoreImage.framework; sourceTree = DEVELOPER_DIR; };
 		875EEBB12994E0DF00EC62B3 /* ImageIO.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImageIO.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/Library/Frameworks/ImageIO.framework; sourceTree = DEVELOPER_DIR; };
+		8769CE1F2A79F0CF004AB055 /* FilterImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterImage.swift; sourceTree = "<group>"; };
 		87901EEE2A7210B5008FCB47 /* Image+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Image+Ext.swift"; sourceTree = "<group>"; };
 		87901EF02A726588008FCB47 /* C7ColorGradient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorGradient.swift; sourceTree = "<group>"; };
 		87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorGradient.metal; sourceTree = "<group>"; };
@@ -532,6 +534,7 @@
 				87265FC12994D82100E612C7 /* Basic */,
 				87265FFD2994D82100E612C7 /* Compute */,
 				87265FB92994D82100E612C7 /* CoreImage */,
+				8769CE1E2A79F05A004AB055 /* SwiftUI */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -608,7 +611,6 @@
 				875CA58E29B85C08006D4F1D /* CMSampleBuffer+Ext.swift */,
 				875CA58529B85C08006D4F1D /* CVPixelBuffer+Ext.swift */,
 				875CA58D29B85C08006D4F1D /* Data+Ext.swift */,
-				87901EEE2A7210B5008FCB47 /* Image+Ext.swift */,
 				875CA58A29B85C08006D4F1D /* MTLTexture+Ext.swift */,
 				875CA58229B85C08006D4F1D /* URL+Ext.swift */,
 			);
@@ -911,6 +913,15 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		8769CE1E2A79F05A004AB055 /* SwiftUI */ = {
+			isa = PBXGroup;
+			children = (
+				8769CE1F2A79F0CF004AB055 /* FilterImage.swift */,
+				87901EEE2A7210B5008FCB47 /* Image+Ext.swift */,
+			);
+			path = SwiftUI;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -1008,6 +1019,7 @@
 				87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */,
 				872660EF2994D82200E612C7 /* Destype.swift in Sources */,
 				872660FE2994D82200E612C7 /* C7Crop.metal in Sources */,
+				8769CE202A79F0CF004AB055 /* FilterImage.swift in Sources */,
 				8726613B2994D82200E612C7 /* C7Granularity.swift in Sources */,
 				8726618A2994D82200E612C7 /* C7MeanBlur.metal in Sources */,
 				8726617B2994D82200E612C7 /* C7ExclusionBlend.metal in Sources */,

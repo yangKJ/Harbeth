@@ -53,7 +53,7 @@ internal struct Compute {
             computeEncoder.setBytes(&factor, length: size, index: i)
         }
         
-        if let filter = filter as? ComputeFiltering {
+        if let filter = filter as? ComputeProtocol {
             /// 配置特殊参数非`Float`类型，例如4x4矩阵
             filter.setupSpecialFactors(for: computeEncoder, index: count - 1)
         }

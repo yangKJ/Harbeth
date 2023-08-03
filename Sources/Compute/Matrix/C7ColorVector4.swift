@@ -8,7 +8,7 @@
 import Foundation
 
 /// 四维向量颜色
-public struct C7ColorVector4: C7FilterProtocol, ComputeFiltering {
+public struct C7ColorVector4: C7FilterProtocol, ComputeProtocol {
     
     /// The degree to which the new transformed color replaces the original color for each pixel, default 1
     @ZeroOneRange public var intensity: Float = IntensityRange.value

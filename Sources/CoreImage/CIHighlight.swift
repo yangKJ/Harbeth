@@ -10,22 +10,22 @@ import CoreImage
 
 /// 高光
 /// https://cifilter.io/CIHighlightShadowAdjust/
-public struct CIHighlight: C7FilterProtocol, CoreImageFiltering {
+public struct CIHighlight: C7FilterProtocol, CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
     
-    @ZeroOneRange public var value: Float = range.value
+    @ZeroOneRange public var highlight: Float = range.value
     
     public var modifier: Modifier {
         return .coreimage(CIName: "CIHighlightShadowAdjust")
     }
     
     public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage {
-        filter?.setValue(value, forKey: "inputHighlightAmount")
+        filter?.setValue(highlight, forKey: "inputHighlightAmount")
         return ciImage.cropped(to: ciImage.extent)
     }
     
     public init(highlight: Float = range.value) {
-        self.value = highlight
+        self.highlight = highlight
     }
 }

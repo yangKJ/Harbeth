@@ -59,7 +59,7 @@ extension C7FilterProtocol {
 }
 
 // MARK: - compute filter protocol
-public protocol ComputeFiltering {
+public protocol ComputeProtocol {
     /// Special type of parameter factor, such as 4x4 matrix
     /// It is recommended to pass the parameters directly. Don't use this function if you have to.
     ///
@@ -70,7 +70,7 @@ public protocol ComputeFiltering {
 }
 
 // MARK: - coreimage filter protocol
-public protocol CoreImageFiltering {
+public protocol CoreImageProtocol {
     /// Compatible with CoreImage.
     /// - Parameters:
     ///   - filter: CoreImage CIFilter.
@@ -80,7 +80,7 @@ public protocol CoreImageFiltering {
 }
 
 // MARK: - render filter protocol
-public protocol RenderFiltering {
+public protocol RenderProtocol {
     /// Setup the vertex shader parameters.
     /// - Parameter device: MTLDevice
     /// - Returns: Vertex uniform buffer.

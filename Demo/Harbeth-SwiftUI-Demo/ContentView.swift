@@ -18,6 +18,9 @@ struct ContentView: View {
                 NavigationLink(destination: AsyncImageView()) {
                     Text("Async Load Image")
                 }
+                NavigationLink(destination: SwiftUIView()) {
+                    Text("Supports use of SwiftUI")
+                }
             }
             .listStyle(.sidebar)
             .textCase(.none)

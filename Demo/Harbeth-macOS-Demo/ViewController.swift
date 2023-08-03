@@ -129,7 +129,7 @@ class ViewController: NSViewController {
         C7ColorVector4(vector: Vector4.Color.warm),
         C7Contrast.init(contrast: 1.5),
         C7Exposure.init(exposure: 0.25),
-        C7ColorFalseMix.init(fristColor: .blue, secondColor: .green),
+        C7FalseColor.init(fristColor: .blue, secondColor: .green),
         C7Gamma.init(gamma: 3.0),
         C7Haze.init(distance: 0.25, slope: 0.5),
         C7Monochrome.init(intensity: 0.83, color: .blue),

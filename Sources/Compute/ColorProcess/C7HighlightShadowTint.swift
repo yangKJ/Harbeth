@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct C7HighlightShadowTint: C7FilterProtocol, ComputeFiltering {
+public struct C7HighlightShadowTint: C7FilterProtocol, ComputeProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
     

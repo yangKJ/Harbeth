@@ -37,14 +37,15 @@ struct AsyncImageView: View {
     
     func setupImage() {
         let filters: [C7FilterProtocol] = [
-            C7Flip(horizontal: true, vertical: false),
-            MPSGaussianBlur(radius: 5),
-            C7SoulOut(soul: 0.3),
+            //CIHighlight(highlight: 0.5)
+            C7ColorConvert(with: .gray),
         ]
         let inputImage = R.image("IMG_0020")!
         let dest = BoxxIO(element: inputImage, filters: filters)
         dest.transmitOutput { img in
-            self.outImage = img
+            DispatchQueue.main.async {
+                self.outImage = img
+            }
         }
     }
 }

@@ -8,7 +8,7 @@
 import Foundation
 
 /// 纯色滤镜
-public struct C7SolidColor: C7FilterProtocol, ComputeFiltering {
+public struct C7SolidColor: C7FilterProtocol, ComputeProtocol {
     
     public var color: C7Color = .white
     

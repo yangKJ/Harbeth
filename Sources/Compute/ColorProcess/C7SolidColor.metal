@@ -14,11 +14,9 @@ using namespace metal;
 
 kernel void C7SolidColor(texture2d<half, access::write> outputTexture [[texture(0)]],
                          texture2d<half, access::read> inputTexture [[texture(1)]],
-                         constant float4 & colorVector [[buffer(0)]],
+                         constant float4 *colorVector [[buffer(0)]],
                          uint2 grid [[thread_position_in_grid]]) {
-    const half4 color = half4(colorVector);
-    
-    const half4 outColor = half4(color[0], color[1], color[2], color[3]);
+    const half4 outColor = half4(*colorVector);
     
     outputTexture.write(outColor, grid);
 }
