@@ -12,13 +12,16 @@ internal struct Rendering {
     public static let kOneInputVertex: String = "oneInputVertex"
     public static let kTwoInputVertex: String = "twoInputVertex"
     
-    static func makeRenderPipelineState(with vertex: String, fragment: String) -> MTLRenderPipelineState? {
+    static func makeRenderPipelineState(with vertex: String, fragment: String) throws -> MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
         descriptor.rasterSampleCount = 1
-        descriptor.vertexFunction = try? Device.readMTLFunction(vertex)
-        descriptor.fragmentFunction = try? Device.readMTLFunction(fragment)
-        return try? Device.device().makeRenderPipelineState(descriptor: descriptor)
+        descriptor.vertexFunction = try Device.readMTLFunction(vertex)
+        descriptor.fragmentFunction = try Device.readMTLFunction(fragment)
+        guard let pipelineState = try? Device.device().makeRenderPipelineState(descriptor: descriptor) else {
+            throw CustomError.renderPipelineState(vertex, fragment)
+        }
+        return pipelineState
     }
     
     static func drawingProcess(_ pipelineState: MTLRenderPipelineState,

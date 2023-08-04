@@ -31,7 +31,7 @@ public enum Modifier {
     case coreimage(CIName: String)
     /// 基于`MetalPerformanceShaders`着色器
     /// Based on the MetalPerformanceShaders shader.
-    case mps(performance: MPSUnaryImageKernel)
+    case mps(performance: MPSKernel)
 }
 
 public protocol C7FilterProtocol: Mirrorable {
@@ -85,4 +85,13 @@ public protocol RenderProtocol {
     /// - Parameter device: MTLDevice
     /// - Returns: Vertex uniform buffer.
     func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer?
+}
+
+// MARK: - msp filter protocol
+public protocol MPSKernelProtocol {
+    /// Encode a MPSKernel into a command buffer. The operation shall proceed out-of-place.
+    /// - Parameters:
+    ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
+    ///   - textures: Texture array, The first is the output texture, the second is the input texture, and other input textures.
+    func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture])
 }

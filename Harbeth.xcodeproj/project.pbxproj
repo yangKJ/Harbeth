@@ -246,6 +246,7 @@
 		87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8B29AF3F0900C4C2E6 /* README_CN.md */; };
 		87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8C29AF3F0900C4C2E6 /* README.md */; };
 		87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */; };
+		87C874A12A7BAA2A00EC8093 /* MPSHistogram.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87C874A02A7BAA2A00EC8093 /* MPSHistogram.swift */; };
 		87D1BBBE2A6E660700AB585E /* Mutatingable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87D1BBBD2A6E660700AB585E /* Mutatingable.swift */; };
 /* End PBXBuildFile section */
 
@@ -490,6 +491,7 @@
 		87C72F8B29AF3F0900C4C2E6 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = "<group>"; };
 		87C72F8C29AF3F0900C4C2E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Harbeth.podspec; sourceTree = "<group>"; };
+		87C874A02A7BAA2A00EC8093 /* MPSHistogram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPSHistogram.swift; sourceTree = "<group>"; };
 		87D1BBBD2A6E660700AB585E /* Mutatingable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mutatingable.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -665,6 +667,7 @@
 			isa = PBXGroup;
 			children = (
 				8726600A2994D82100E612C7 /* MPSGaussianBlur.swift */,
+				87C874A02A7BAA2A00EC8093 /* MPSHistogram.swift */,
 			);
 			path = MPS;
 			sourceTree = "<group>";
@@ -1211,6 +1214,7 @@
 				872660F72994D82200E612C7 /* C7Resize.swift in Sources */,
 				872660DF2994D82200E612C7 /* Cacheable.swift in Sources */,
 				872661072994D82200E612C7 /* C7SphereRefraction.metal in Sources */,
+				87C874A12A7BAA2A00EC8093 /* MPSHistogram.swift in Sources */,
 				8726616C2994D82200E612C7 /* C7HighlightShadow.swift in Sources */,
 				872661842994D82200E612C7 /* C7ScreenBlend.metal in Sources */,
 				872661512994D82200E612C7 /* C7ColorRGBA.swift in Sources */,

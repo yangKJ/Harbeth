@@ -68,18 +68,22 @@ extension C7FilterProtocol {
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
             throw CustomError.commandBuffer
         }
-        if case .compute(let kernel) = self.modifier {
+        switch self.modifier {
+        case .compute(let kernel):
             let pipelineState = try Compute.makeComputePipelineState(with: kernel)
             var textures = [destinationTexture, sourceTexture]
             textures += self.otherInputTextures
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: self)
-        } else if case .render(let vertex, let fragment) = self.modifier {
-            guard let pipelineState = Rendering.makeRenderPipelineState(with: vertex, fragment: fragment) else {
-                throw CustomError.renderPipelineState(vertex, fragment)
-            }
+        case .render(let vertex, let fragment):
+            let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
             Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, texture: sourceTexture, filter: self)
-        } else if case .mps(let performance) = self.modifier {
-            performance.encode(commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: destinationTexture)
+        case .mps:
+            var textures = [destinationTexture, sourceTexture]
+            textures += self.otherInputTextures
+            let filter = self as! MPSKernelProtocol
+            filter.encode(commandBuffer: commandBuffer, textures: textures)
+        default:
+            break
         }
         return commandBuffer
     }
