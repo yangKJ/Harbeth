@@ -40,7 +40,6 @@ Pod::Spec.new do |s|
   s.subspec 'Compute' do |xx|
     xx.source_files = 'Sources/Compute/**/*.swift'
     xx.resource_bundles = { s.name => [ 'Sources/Compute/**/*.metal' ] }
-    xx.weak_frameworks = 'MetalPerformanceShaders', 'MetalKit'
     xx.dependency 'Harbeth/Basic'
     xx.pod_target_xcconfig = {
       'SWIFT_ACTIVE_COMPILATION_CONDITIONS' => 'HARBETH_COMPUTE',
@@ -51,6 +50,12 @@ Pod::Spec.new do |s|
   s.subspec 'CoreImage' do |xx|
     xx.source_files = 'Sources/CoreImage/**/*.swift'
     xx.weak_frameworks = 'CoreImage'
+    xx.dependency 'Harbeth/Basic'
+  end
+  
+  s.subspec 'MPS' do |xx|
+    xx.source_files = 'Sources/MPS/*.swift'
+    xx.weak_frameworks = 'MetalPerformanceShaders'
     xx.dependency 'Harbeth/Basic'
   end
   
