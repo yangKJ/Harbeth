@@ -1,8 +1,8 @@
 # Harbeth
 
-| Animated | Still |
+| Still | Animated |
 | :---: | :---: |
-|<img width=230px src="Screenshot/Soul.gif" />|<img width=230px src="Screenshot/Mix2.png" />|
+|<img width=230px src="Screenshot/Mix2.png" />|<img width=230px src="Screenshot/Soul.gif" />|
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
@@ -16,19 +16,20 @@
 English | [**简体中文**](README_CN.md)
 
 ## Features
-🟣 At the moment, the most important features of [**metal moudle**](https://github.com/yangKJ/Harbeth) can be summarized as follows:
+🟣 At the moment, the most important features of metal moudle can be summarized as follows:
 
-- Support more platform system, macOS and iOS.
+- Support more platform system, macOS and iOS, both UIKit/AppKit and SwiftUI.
 - High performance quickly add filters at these sources:    
   - UIImage, NSImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
-- The built-in filters is roughly divided into the following modules:    
-  - [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess), [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape), [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual), [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS).
-- Customized filter and use [operator chain](https://github.com/yangKJ/Harbeth/tree/master/Sources/Basic/Outputs/Operators.swift) add filter at sources.
-- Setup `MetalPerformanceShaders` filters and also compatible for `CoreImage` filters.
-- Camera capture and video to add filter special effects.
-- Video source processing video file.
+- The built-in metal kernel filters is roughly divided into the following modules:    
+  - [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess), [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape), [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual).
+- Setup [MetalPerformanceShaders](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) filters And also compatible for [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters.
+- Previews and rendering backed with the power of Metal.
+- Drop-in support for your own custom filters using [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup/C7LookupTable.swift) or using [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage/CIColorCube.swift).
+- Realtime camera capture and video smooth playback with filters.
+- Video source processing video file by [Kakapos](https://github.com/yangKJ/Kakapos) library.
 
-#### **A total of `100+` kinds of built-in filters are currently available.✌️**
+#### **A total of 100+ kinds of built-in filters are currently available.✌️**
 
 ## Requirements
 
@@ -128,6 +129,20 @@ extension PlayerViewController: C7CollectorImageDelegate {
         // do something..
     }
 }
+```
+
+### SwiftUI Support
+- For the direct use [FiterImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/SwiftUI/FiterImage), it is just a simple implementation.
+- The SwiftUI API is still in-progress and may not be production ready. We're looking for help! 🤲
+
+```swift
+let filters: [C7FilterProtocol] = [
+    CIHighlight(highlight: intensity),
+    C7WaterRipple(ripple: intensity),
+]
+FilterImage(with: inputImage, filters: filters, builder: {
+    Image(c7Image: $0)
+})
 ```
 
 ### CocoaPods

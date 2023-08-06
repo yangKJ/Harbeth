@@ -22,6 +22,7 @@
 		8767F21729C95CE700FB5301 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8767F21629C95CE700FB5301 /* Preview Assets.xcassets */; };
 		8767F21C29C95D0A00FB5301 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8767F21B29C95D0A00FB5301 /* Harbeth.framework */; };
 		8767F21D29C95D0A00FB5301 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8767F21B29C95D0A00FB5301 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8769918C2A7CEBDC00551BD3 /* CustomViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8769918B2A7CEBDC00551BD3 /* CustomViews.swift */; };
 		8769CE222A79F4ED004AB055 /* SwiftUIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8769CE212A79F4ED004AB055 /* SwiftUIView.swift */; };
 		878444F52994DDA0001D856B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878444F42994DDA0001D856B /* AppDelegate.swift */; };
 		878444F72994DDA0001D856B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878444F62994DDA0001D856B /* SceneDelegate.swift */; };
@@ -44,6 +45,9 @@
 		F75F72492A7420C8003478D7 /* BlendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F72482A7420C8003478D7 /* BlendView.swift */; };
 		F75F724D2A742272003478D7 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F724C2A742272003478D7 /* Extensions.swift */; };
 		F75F724F2A74227D003478D7 /* Res.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F724E2A74227D003478D7 /* Res.swift */; };
+		F7621A852A7E079200614542 /* vista200 v1.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F7621A842A7E079200614542 /* vista200 v1.CUBE */; };
+		F7621A892A7E7DA200614542 /* CubeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7621A882A7E7DA200614542 /* CubeView.swift */; };
+		F7621AA92A7FDFDF00614542 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F7621AA82A7FDFDF00614542 /* violet.CUBE */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -99,6 +103,7 @@
 		8767F21329C95CE700FB5301 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8767F21629C95CE700FB5301 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		8767F21B29C95D0A00FB5301 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		8769918B2A7CEBDC00551BD3 /* CustomViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomViews.swift; sourceTree = "<group>"; };
 		8769CE212A79F4ED004AB055 /* SwiftUIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftUIView.swift; sourceTree = "<group>"; };
 		878444F22994DDA0001D856B /* Harbeth-iOS-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-iOS-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		878444F42994DDA0001D856B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -119,9 +124,13 @@
 		878445182994DE81001D856B /* ImageViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewController.swift; sourceTree = "<group>"; };
 		87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncImageView.swift; sourceTree = "<group>"; };
 		87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
+		F748B7262A7D2F3C00D7B3F1 /* Harbeth-SwiftUI-Demo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Harbeth-SwiftUI-Demo.entitlements"; sourceTree = "<group>"; };
 		F75F72482A7420C8003478D7 /* BlendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendView.swift; sourceTree = "<group>"; };
 		F75F724C2A742272003478D7 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		F75F724E2A74227D003478D7 /* Res.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Res.swift; sourceTree = "<group>"; };
+		F7621A842A7E079200614542 /* vista200 v1.CUBE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vista200 v1.CUBE"; sourceTree = "<group>"; };
+		F7621A882A7E7DA200614542 /* CubeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CubeView.swift; sourceTree = "<group>"; };
+		F7621AA82A7FDFDF00614542 /* violet.CUBE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -208,6 +217,7 @@
 		8767F20E29C95CE600FB5301 /* Harbeth-SwiftUI-Demo */ = {
 			isa = PBXGroup;
 			children = (
+				F748B7262A7D2F3C00D7B3F1 /* Harbeth-SwiftUI-Demo.entitlements */,
 				8767F20F29C95CE600FB5301 /* HarbethExamples.swift */,
 				8767F21129C95CE600FB5301 /* ContentView.swift */,
 				F75F724A2A7420CF003478D7 /* Views */,
@@ -269,6 +279,8 @@
 			children = (
 				87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */,
 				F75F72482A7420C8003478D7 /* BlendView.swift */,
+				F7621A882A7E7DA200614542 /* CubeView.swift */,
+				8769918B2A7CEBDC00551BD3 /* CustomViews.swift */,
 				8769CE212A79F4ED004AB055 /* SwiftUIView.swift */,
 			);
 			path = Views;
@@ -281,6 +293,8 @@
 				F75F724C2A742272003478D7 /* Extensions.swift */,
 				87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */,
 				F75F724E2A74227D003478D7 /* Res.swift */,
+				F7621AA82A7FDFDF00614542 /* violet.CUBE */,
+				F7621A842A7E079200614542 /* vista200 v1.CUBE */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -401,7 +415,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F7621A852A7E079200614542 /* vista200 v1.CUBE in Resources */,
 				8767F21729C95CE700FB5301 /* Preview Assets.xcassets in Resources */,
+				F7621AA92A7FDFDF00614542 /* violet.CUBE in Resources */,
 				8767F21429C95CE700FB5301 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -436,9 +452,11 @@
 				8769CE222A79F4ED004AB055 /* SwiftUIView.swift in Sources */,
 				87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */,
 				8767F21229C95CE600FB5301 /* ContentView.swift in Sources */,
+				F7621A892A7E7DA200614542 /* CubeView.swift in Sources */,
 				8767F21029C95CE600FB5301 /* HarbethExamples.swift in Sources */,
 				F75F72492A7420C8003478D7 /* BlendView.swift in Sources */,
 				F75F724D2A742272003478D7 /* Extensions.swift in Sources */,
+				8769918C2A7CEBDC00551BD3 /* CustomViews.swift in Sources */,
 				F75F724F2A74227D003478D7 /* Res.swift in Sources */,
 				87FD88D92A78EEFA00EAC2DD /* AsyncImageView.swift in Sources */,
 			);
@@ -679,6 +697,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Harbeth-SwiftUI-Demo/Harbeth-SwiftUI-Demo.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Harbeth-SwiftUI-Demo/Preview Content\"";
@@ -698,12 +717,12 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,3";
 			};
 			name = Debug;
 		};
@@ -712,6 +731,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Harbeth-SwiftUI-Demo/Harbeth-SwiftUI-Demo.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Harbeth-SwiftUI-Demo/Preview Content\"";
@@ -731,12 +751,12 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,3";
 			};
 			name = Release;
 		};

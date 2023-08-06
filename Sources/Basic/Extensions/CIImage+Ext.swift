@@ -97,9 +97,13 @@ extension Queen where Base: CIImage {
         let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
         let context = context ?? Device.context(colorSpace: colorSpace)
         var ciImage: CIImage = base
-        if mirrored, #available(iOS 11.0, *) {
+        if mirrored, #available(iOS 11.0, macOS 10.13, *) {
             ciImage = ciImage.oriented(.downMirrored)
         }
         return context.createCGImage(ciImage, from: base.extent)
+    }
+    
+    public var hasIOSurface: Bool {
+        base.debugDescription.contains("IOSurface")
     }
 }

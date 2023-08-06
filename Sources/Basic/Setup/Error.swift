@@ -21,6 +21,8 @@ public enum CustomError: Swift.Error {
     case texture2CIImage
     case CVPixelBufferToCMSampleBuffer
     case outputCIImage(String)
+    case cubeResource
+    case createCIFilter(String)
 }
 
 extension CustomError: CustomStringConvertible {
@@ -57,6 +59,10 @@ extension CustomError: CustomStringConvertible {
             return "CVPixelBuffer transform to CMSampleBuffer failed."
         case .outputCIImage(let name):
             return "CoreImage \(name) filter bring into being output image failed."
+        case .cubeResource:
+            return "Read the contents of the cube file failed."
+        case .createCIFilter(let name):
+            return "Create the filter \(name) is failed."
         default:
             return "Unknown error occurred."
         }

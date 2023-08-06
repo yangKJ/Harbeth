@@ -108,13 +108,16 @@ extension C7FilterProtocol {
         guard let cgImage = texture.mt.toCGImage() else {
             throw CustomError.texture2CGImage
         }
-        var ciimage = CIImage.init(cgImage: cgImage)
-        let cifiter = CIFilter.init(name: name)
-        ciimage = (self as! CoreImageProtocol).coreImageApply(filter: cifiter, input: ciimage)
-        cifiter?.setValue(ciimage, forKeyPath: kCIInputImageKey)
-        guard let outputImage = cifiter?.outputImage else {
+        guard let ciFiter = CIFilter.init(name: name) else {
+            throw CustomError.createCIFilter(name)
+        }
+        let inputCIImage = CIImage.init(cgImage: cgImage)
+        let ciImage = try (self as! CoreImageProtocol).coreImageApply(filter: ciFiter, input: inputCIImage)
+        ciFiter.setValue(ciImage, forKeyPath: kCIInputImageKey)
+        guard let outputImage = ciFiter.outputImage else {
             throw CustomError.outputCIImage(name)
         }
-        return outputImage
+        // Return a new image cropped to a rectangle.
+        return outputImage.cropped(to: inputCIImage.extent)
     }
 }

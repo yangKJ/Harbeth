@@ -23,9 +23,9 @@ public struct CIWhitePoint: C7FilterProtocol, CoreImageProtocol {
         return .coreimage(CIName: "CIWhitePointAdjust")
     }
     
-    public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage {
-        filter?.setValue(ciColor, forKey: "inputColor")
-        return ciImage.cropped(to: ciImage.extent)
+    public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
+        filter.setValue(ciColor, forKey: kCIInputColorKey)
+        return ciImage
     }
     
     private var ciColor: CIColor!

@@ -39,7 +39,7 @@ internal final class Device: Cacheable {
         }
         self.commandQueue = queue
         
-        if #available(OSX 10.12, *) {
+        if #available(iOS 10.0, macOS 10.12, *) {
             self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
         } else {
             self.defaultLibrary = device.makeDefaultLibrary()
@@ -116,7 +116,9 @@ extension Device {
     }
     
     static func bitmapInfo() -> UInt32 {
-        //kCGImageAlphaPremultipliedLast保留透明度
+        // You can't get `CGImage.bitmapInfo` here, otherwise the heic and heif formats will turn blue.
+        // Fixed draw bitmap after applying filter image color rgba => bgra.
+        // See：https://github.com/yangKJ/Harbeth/issues/12
         return CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
     }
     

@@ -20,9 +20,9 @@ public struct CIHighlight: C7FilterProtocol, CoreImageProtocol {
         return .coreimage(CIName: "CIHighlightShadowAdjust")
     }
     
-    public func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage {
-        filter?.setValue(highlight, forKey: "inputHighlightAmount")
-        return ciImage.cropped(to: ciImage.extent)
+    public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
+        filter.setValue(1 - highlight, forKey: "inputHighlightAmount")
+        return ciImage
     }
     
     public init(highlight: Float = range.value) {

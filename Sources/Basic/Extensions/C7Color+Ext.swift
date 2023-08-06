@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreImage
 
 extension C7Color: C7Compatible {
     /// Empty color, Dooo default. cannot get rgba.
@@ -67,6 +68,11 @@ extension Queen where Base: C7Color {
     /// Convert pixel color value
     public func toPixelColor() -> PixelColor {
         PixelColor(color: base)
+    }
+    
+    public func toCIColor() -> CIColor {
+        let (r, g, b, a) = base.mt.toRGBA()
+        return CIColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: CGFloat(a))
     }
     
     public func toRGBA() -> (red: Float, green: Float, blue: Float, alpha: Float) {

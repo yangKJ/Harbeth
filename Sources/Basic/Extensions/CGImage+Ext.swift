@@ -27,26 +27,24 @@ extension Queen where Base: CGImage {
         descriptor.width  = width
         descriptor.height = height
         descriptor.usage  = [MTLTextureUsage.shaderRead, MTLTextureUsage.shaderWrite]
-        guard let currentTexture = Device.device().makeTexture(descriptor: descriptor) else {
+        guard let texture = Device.device().makeTexture(descriptor: descriptor) else {
             return nil
         }
         
         let bytesPerPixel: Int = 4
         let bytesPerRow = width * bytesPerPixel
-        let bitmapInfo = Device.bitmapInfo()
-        let colorSpace = Device.colorSpace()
         let context = CGContext(data: nil, width: width, height: height,
                                 bitsPerComponent: 8,
                                 bytesPerRow: bytesPerRow,
-                                space: colorSpace,
-                                bitmapInfo: bitmapInfo)
+                                space: Device.colorSpace(),
+                                bitmapInfo: Device.bitmapInfo())
         context?.draw(base, in: CGRect(x: 0, y: 0, width: width, height: height))
-        if let data = context?.data {
-            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-            currentTexture.replace(region: region, mipmapLevel: 0, withBytes: data, bytesPerRow: bytesPerRow)
-            return currentTexture
+        guard let data = context?.data else {
+            return nil
         }
-        return nil
+        let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
+        texture.replace(region: region, mipmapLevel: 0, withBytes: data, bytesPerRow: bytesPerRow)
+        return texture
     }
     
     /// Creates a new Metal texture from a given bitmap image.
@@ -132,15 +130,4 @@ extension Queen where Base: CGImage {
         NSSize(width: base.width, height: base.height)
     }
     #endif
-    
-    public func swapRedAndGreenAmount(context: CIContext? = nil) -> CGImage {
-        let ctx = context ?? Device.context(cgImage: base)
-        let ciImage = CIImage(cgImage: base)
-        let source = "kernel vec4 swapRedAndGreenAmount(__sample s) { return s.bgra; }"
-        let swapKernel = CIColorKernel(source: source)
-        if let ciOutput = swapKernel?.apply(extent: ciImage.extent, arguments: [ciImage as Any]) {
-            return ctx.createCGImage(ciOutput, from: ciImage.extent) ?? base
-        }
-        return base
-    }
 }

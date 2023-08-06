@@ -1,0 +1,19 @@
+#Created by: Adobe Photoshop Export Color Lookup Plugin
+TITLE "violet.psd"
+
+#LUT size
+LUT_3D_SIZE 2
+
+#data domain
+DOMAIN_MIN 0.0 0.0 0.0
+DOMAIN_MAX 1.0 1.0 1.0
+
+#LUT data points
+0 0 0
+0.1 0 1
+0 1 0
+1 1 0
+0 0 1
+1 0 1
+0 1 1
+1 1 1

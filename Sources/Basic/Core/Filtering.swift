@@ -76,7 +76,7 @@ public protocol CoreImageProtocol {
     ///   - filter: CoreImage CIFilter.
     ///   - ciImage: Input source
     /// - Returns: Output source
-    func coreImageApply(filter: CIFilter?, input ciImage: CIImage) -> CIImage
+    func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage
 }
 
 // MARK: - render filter protocol

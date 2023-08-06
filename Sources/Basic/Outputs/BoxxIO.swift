@@ -305,33 +305,25 @@ extension BoxxIO {
 extension BoxxIO {
     
     public func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
-        var index__ = 0
+        var result: MTLTexture = texture
+        var iterator = filters.makeIterator()
         // 递归处理
-        func recursion(filters: [C7FilterProtocol], index: Int, sourceTexture: MTLTexture) {
-            let filter = filters[index]
-            let destTexture = createDestTexture(with: sourceTexture, filter: filter)
-            if filters.count == index + 1 {
-                Processed.runAsynIO(inTexture: sourceTexture, outTexture: destTexture, filter: filter) { res in
-                    switch res {
-                    case .success(let t):
-                        complete(.success(t))
-                    case .failure(let error):
-                        complete(.failure(error))
-                    }
-                }
-            } else {
-                Processed.runAsynIO(inTexture: sourceTexture, outTexture: destTexture, filter: filter) { res in
-                    switch res {
-                    case .success(let t):
-                        index__ += 1
-                        recursion(filters: filters, index: index__, sourceTexture: t)
-                    case .failure(let error):
-                        complete(.failure(error))
-                    }
+        func recursion(filter: C7FilterProtocol?, sourceTexture: MTLTexture) {
+            guard let filter = filter else {
+                complete(.success(result))
+                return
+            }
+            Processed.runAsynIO(inTexture: sourceTexture, outTexture: result, filter: filter) { res in
+                switch res {
+                case .success(let t):
+                    result = t
+                    recursion(filter: iterator.next(), sourceTexture: texture)
+                case .failure(let error):
+                    complete(.failure(error))
                 }
             }
         }
-        recursion(filters: filters, index: index__, sourceTexture: texture)
+        recursion(filter: iterator.next(), sourceTexture: texture)
     }
 }
 
