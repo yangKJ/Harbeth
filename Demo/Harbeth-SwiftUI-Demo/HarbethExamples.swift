@@ -13,7 +13,7 @@ struct HarbethExamples: App {
         WindowGroup {
             ContentView()
                 #if os(macOS)
-                .frame(width: 700, height: 600)
+                .frame(width: 888, height: 600)
                 #endif
         }
     }
