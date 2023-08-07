@@ -262,8 +262,10 @@ extension MTLTextureCompatible_ {
             #else
             if #available(iOS 13.0, *) {
                 return !device.supportsFamily(.apple3)
-            } else {
+            } else if #available(iOS 11.0, *)  {
                 return !device.supportsFeatureSet(.iOS_GPUFamily3_v3)
+            } else {
+                return false
             }
             #endif
         }
