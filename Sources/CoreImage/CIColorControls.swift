@@ -27,7 +27,7 @@ public struct CIColorControls: C7FilterProtocol, CoreImageProtocol {
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
         filter.setValue(brightness, forKey: kCIInputBrightnessKey)
         filter.setValue(saturation + 1, forKey: kCIInputSaturationKey)
-        filter.setValue(contrast, forKey: kCIInputContrastKey)
+        filter.setValue(contrast + 1, forKey: kCIInputContrastKey)
         return ciImage
     }
     

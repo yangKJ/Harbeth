@@ -23,6 +23,7 @@ public enum CustomError: Swift.Error {
     case outputCIImage(String)
     case cubeResource
     case createCIFilter(String)
+    case createRenderMTLTexture
 }
 
 extension CustomError: CustomStringConvertible {
@@ -63,6 +64,8 @@ extension CustomError: CustomStringConvertible {
             return "Read the contents of the cube file failed."
         case .createCIFilter(let name):
             return "Create the filter \(name) is failed."
+        case .createRenderMTLTexture:
+            return "Create render metel texture is failed."
         default:
             return "Unknown error occurred."
         }

@@ -63,7 +63,7 @@ extension CIColorCube.Resource {
     }
     
     /// Should be a line like `LUT_3D_SIZE 32`, get the `32`.
-    public static let LUT_3D = "LUT_([0-9]+)D_.* ([0-9]+)"
+    public static let LUT_3D = "LUT_([0-9A-Z]+)_.* ([0-9]+)"
     
     /// The number of corresponding color data per line.
     public enum Line: Int { case rgb = 3, rgba = 4 }

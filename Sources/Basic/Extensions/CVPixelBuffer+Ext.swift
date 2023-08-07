@@ -69,7 +69,7 @@ extension Queen where Base: CVPixelBuffer {
             // Fixed if the CVPixelBuffer and MTLTexture size is not equal.
             // If the size is inconsistent, using the modified size filter will crash.
             // Such as: C7Resize, C7Crop and so on Shape filter.
-            if base.mt.size == texture.mt.size {
+            if base.mt.size == texture.mt.toC7Size() {
                 let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
                 let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
                 texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
@@ -139,9 +139,9 @@ extension Queen where Base: CVPixelBuffer {
     ///   - planeIndex: Specifies the plane of the CVImageBuffer to map bind.  Ignored for non-planar CVImageBuffers.
     /// - Returns: New metal texture.
     public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) -> MTLTexture {
-        let width = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
+        let width  = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
         let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
-        let texture = BoxxIO<Any>.destTexture(pixelFormat, width: width, height: height)
+        let texture = MTLTextureCompatible_.destTexture(pixelFormat, width: width, height: height)
         base.mt.copyToPixelBuffer(with: texture)
         return texture
     }

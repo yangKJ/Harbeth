@@ -101,9 +101,9 @@ extension Queen where Base: CGImage {
     
     public func toC7Image() -> C7Image {
         #if os(iOS) || os(tvOS) || os(watchOS)
-        return C7Image.init(cgImage: base)
+        return UIImage.init(cgImage: base)
         #elseif os(macOS)
-        return C7Image.init(cgImage: base, size: base.mt.size)
+        return NSImage(cgImage: base, size: .init(width: base.width, height: base.height))
         #else
         #error("Unsupported Platform")
         #endif

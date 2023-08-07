@@ -190,32 +190,6 @@ import CoreVideo
             }
         }
     }
-    
-    /// Create a texture for later storage according to the texture parameters.
-    /// - Parameters:
-    ///    - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
-    ///    - width: The texture width, must be greater than 0.
-    ///    - height: The texture height, must be greater than 0.
-    ///    - usage: Description of texture usage
-    ///    - mipmapped: No mapping was required
-    /// - Returns: New textures
-    public static func destTexture(_ pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
-                                   width: Int, height: Int,
-                                   usage: MTLTextureUsage = [.shaderRead, .shaderWrite],
-                                   mipmapped: Bool = false) -> MTLTexture {
-        let width  = max(1, width)
-        let height = max(1, height)
-        // Create a TextureDescriptor for a common 2D texture.
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
-                                                                  width: width,
-                                                                  height: height,
-                                                                  mipmapped: mipmapped)
-        descriptor.usage = usage
-        #if targetEnvironment(macCatalyst)
-        descriptor.storageMode = .managed
-        #endif
-        return Device.device().makeTexture(descriptor: descriptor)!
-    }
 }
 
 // MARK: - filtering methods
@@ -337,8 +311,7 @@ extension BoxxIO {
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
         // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-        let destTexture = BoxxIO.destTexture(bufferPixelFormat, width: resize.width, height: resize.height)
-        return destTexture
+        return MTLTextureCompatible_.destTexture(bufferPixelFormat, width: resize.width, height: resize.height)
     }
     
     private func applyCIImage(_ ciImage: CIImage, with texture: MTLTexture) -> CIImage {

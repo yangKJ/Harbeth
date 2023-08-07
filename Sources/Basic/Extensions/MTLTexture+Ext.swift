@@ -21,12 +21,58 @@ public struct MTLTextureCompatible_ {
     
     public let target: MTLTexture
     
-    var size: C7Size {
-        C7Size(width: self.target.width, height: self.target.height)
+    public var size: MTLSize {
+        .init(width: target.width, height: target.height, depth: target.depth)
+    }
+    
+    public var region: MTLRegion {
+        .init(origin: MTLOrigin(x: 0, y: 0, z: 0), size: size)
+    }
+    
+    public var descriptor: MTLTextureDescriptor {
+        let descriptor = MTLTextureDescriptor()
+        descriptor.width = target.width
+        descriptor.height = target.height
+        descriptor.depth = target.depth
+        descriptor.arrayLength = target.arrayLength
+        descriptor.storageMode = target.storageMode
+        descriptor.cpuCacheMode = target.cpuCacheMode
+        descriptor.usage = target.usage
+        descriptor.textureType = target.textureType
+        descriptor.sampleCount = target.sampleCount
+        descriptor.mipmapLevelCount = target.mipmapLevelCount
+        descriptor.pixelFormat = target.pixelFormat
+        if #available(iOS 12, macOS 10.14, *) {
+            descriptor.allowGPUOptimizedContents = target.allowGPUOptimizedContents
+        }
+        return descriptor
+    }
+    
+    public func isBlank() -> Bool {
+        let width = target.width
+        let height = target.height
+        let bytesPerRow = width * 4
+        let data = UnsafeMutableRawPointer.allocate(byteCount: bytesPerRow * height, alignment: 4)
+        defer { data.deallocate() }
+        let region = MTLRegionMake2D(0, 0, width, height)
+        target.getBytes(data, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+        var bind = data.assumingMemoryBound(to: UInt8.self)
+        var sum: UInt8 = 0
+        for _ in 0..<width*height {
+            sum += bind.pointee
+            bind = bind.advanced(by: 1)
+        }
+        return sum != 0
+    }
+    
+    public func toC7Size() -> C7Size {
+        C7Size(width: target.width, height: target.height)
     }
     
     public func toImage() -> C7Image? {
-        guard let cgImage = toCGImage() else { return nil }
+        guard let cgImage = toCGImage() else {
+            return nil
+        }
         return cgImage.mt.toC7Image()
     }
     
@@ -39,7 +85,7 @@ public struct MTLTextureCompatible_ {
     ///   - pixelFormat: Current Metal texture pixel format.
     /// - Returns: CGImage
     public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil) -> CGImage? {
-        let width = target.width
+        let width  = target.width
         let height = target.height
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         switch pixelFormat ?? self.target.pixelFormat {
@@ -138,35 +184,102 @@ public struct MTLTextureCompatible_ {
             return nil
         }
     }
-    
-    /// Create a texture with similar properties.
-    func matchingTexture(to texture: MTLTexture) -> MTLTexture {
-        let matchingDescriptor = MTLTextureDescriptor()
-        matchingDescriptor.width = texture.width
-        matchingDescriptor.height = texture.height
-        matchingDescriptor.usage = texture.usage
-        matchingDescriptor.pixelFormat = texture.pixelFormat
-        matchingDescriptor.storageMode = texture.storageMode
-        
-        let loader = Shared.shared.device?.textureLoader
-        let matchingTexture = loader?.device.makeTexture(descriptor: matchingDescriptor)
-        return matchingTexture ?? texture
+}
+
+extension MTLTextureCompatible_ {
+    /// Create a texture for later storage according to the texture parameters.
+    /// - Parameters:
+    ///   - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
+    ///   - width: The texture width, must be greater than 0.
+    ///   - height: The texture height, must be greater than 0.
+    ///   - usage: Description of texture usage
+    ///   - mipmapped: No mapping was required
+    ///   - device: Device information to create other objects.
+    /// - Returns: New textures
+    public static func destTexture(_ pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
+                                   width: Int, height: Int,
+                                   usage: MTLTextureUsage = [.shaderRead, .shaderWrite],
+                                   mipmapped: Bool = false,
+                                   device: MTLDevice? = nil) -> MTLTexture {
+        let width  = max(1, width)
+        let height = max(1, height)
+        // Create a TextureDescriptor for a common 2D texture.
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
+                                                                  width: width,
+                                                                  height: height,
+                                                                  mipmapped: mipmapped)
+        descriptor.usage = usage
+        #if targetEnvironment(macCatalyst)
+        descriptor.storageMode = .managed
+        #endif
+        let device = device ?? Device.device()
+        return device.makeTexture(descriptor: descriptor)!
     }
     
-    func isBlank() -> Bool {
-        let width = target.width
-        let height = target.height
-        let bytesPerRow = width * 4
-        let data = UnsafeMutableRawPointer.allocate(byteCount: bytesPerRow * height, alignment: 4)
-        defer { data.deallocate() }
-        let region = MTLRegionMake2D(0, 0, width, height)
-        target.getBytes(data, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
-        var bind = data.assumingMemoryBound(to: UInt8.self)
-        var sum: UInt8 = 0
-        for _ in 0..<width*height {
-            sum += bind.pointee
-            bind = bind.advanced(by: 1)
+    /// Create a metal texture that only supports rendering.
+    /// - Parameters:
+    ///   - pixelformat: Indicates the pixelFormat, The format of the picture should be consistent with the data
+    ///   - width: The texture width, must be greater than 0.
+    ///   - height: The texture height, must be greater than 0.
+    ///   - sampleCount: The number of samples in the texture to create.
+    ///   - device: Device information to create other objects.
+    /// - Returns: New metal texture.
+    public static func renderTexture(pixelFormat: MTLPixelFormat = MTLPixelFormat.rgba8Unorm,
+                                     width: Int, height: Int,
+                                     sampleCount: Int = 4,
+                                     device: MTLDevice? = nil) throws -> MTLTexture {
+        let width  = max(1, width)
+        let height = max(1, height)
+        let sampleDescriptor = MTLTextureDescriptor()
+        sampleDescriptor.textureType = MTLTextureType.type2DMultisample
+        sampleDescriptor.width = width
+        sampleDescriptor.height = height
+        sampleDescriptor.sampleCount = sampleCount
+        sampleDescriptor.pixelFormat = pixelFormat
+        #if !os(macOS) && !targetEnvironment(macCatalyst)
+        sampleDescriptor.storageMode = .memoryless
+        #endif
+        sampleDescriptor.usage = .renderTarget
+        let device = device ?? Device.device()
+        guard let texture = device.makeTexture(descriptor: sampleDescriptor) else {
+            throw CustomError.createRenderMTLTexture
         }
-        return sum != 0
+        return texture
+    }
+    
+    /// Maximum metal texture size that can be processed.
+    /// - Parameters:
+    ///   - desiredSize: Metal textures size to be processed.
+    ///   - device: Device information to create other objects.
+    /// - Returns: New metal texture size.
+    public static func maxTextureSize(desiredSize: MTLSize, device: MTLDevice? = nil) -> MTLSize {
+        func supportsOnly8K() -> Bool {
+            let device = device ?? Device.device()
+            #if targetEnvironment(macCatalyst)
+            return !device.supportsFamily(.apple3)
+            #elseif os(macOS)
+            return false
+            #else
+            if #available(iOS 13.0, *) {
+                return !device.supportsFamily(.apple3)
+            } else {
+                return !device.supportsFeatureSet(.iOS_GPUFamily3_v3)
+            }
+            #endif
+        }
+        let maxSide: Int = supportsOnly8K() ? 8192 : 16_384
+        guard desiredSize.width > 0, desiredSize.height > 0 else {
+            return .init(width: 0, height: 0, depth: 0)
+        }
+        let aspectRatio = Float(desiredSize.width) / Float(desiredSize.height)
+        if aspectRatio > 1 {
+            let resultWidth = min(desiredSize.width, maxSide)
+            let resultHeight = Float(resultWidth) / aspectRatio
+            return MTLSize(width: resultWidth, height: Int(resultHeight.rounded()), depth: 0)
+        } else {
+            let resultHeight = min(desiredSize.height, maxSide)
+            let resultWidth = Float(resultHeight) * aspectRatio
+            return MTLSize(width: Int(resultWidth.rounded()), height: resultHeight, depth: 0)
+        }
     }
 }

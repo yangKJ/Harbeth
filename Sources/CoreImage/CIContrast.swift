@@ -10,7 +10,7 @@ import CoreImage
 
 public struct CIContrast: C7FilterProtocol, CoreImageProtocol {
     
-    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 2.0, value: 0.0)
+    public static let range: ParameterRange<Float, Self> = .init(min: -1.0, max: 1.0, value: 0.0)
     
     @Clamping(range.min...range.max) public var contrast: Float = range.value
     
@@ -19,7 +19,7 @@ public struct CIContrast: C7FilterProtocol, CoreImageProtocol {
     }
     
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
-        filter.setValue(contrast, forKey: kCIInputContrastKey)
+        filter.setValue(contrast + 1, forKey: kCIInputContrastKey)
         return ciImage
     }
     
