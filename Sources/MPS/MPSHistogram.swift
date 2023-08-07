@@ -26,18 +26,19 @@ public struct MPSHistogram: C7FilterProtocol, MPSKernelProtocol {
         return .mps(performance: self.histogram)
     }
     
-    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) {
+    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) -> MTLTexture {
         let destinationTexture = textures[0]
         let sourceTexture = textures[1]
         let bufferLength = histogram.histogramSize(forSourceFormat: sourceTexture.pixelFormat)
         guard let histogramBuffer = Device.device().makeBuffer(length: bufferLength, options: [.storageModePrivate]) else {
-            return
+            return destinationTexture
         }
         histogram.encode(to: commandBuffer, sourceTexture: sourceTexture, histogram: histogramBuffer, histogramOffset: 0)
         // 根据直方图计算累加直方图数据
         equalization.encodeTransform(to: commandBuffer, sourceTexture: sourceTexture, histogram: histogramBuffer, histogramOffset: 0)
         // 最后进行均衡化处理
         equalization.encode(commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: destinationTexture)
+        return destinationTexture
     }
     
     private var histogram: MPSImageHistogram

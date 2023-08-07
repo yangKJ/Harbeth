@@ -23,12 +23,12 @@ internal struct Processed {
         if case .coreimage(let name) = filter.modifier {
             return try filter.renderCoreImage(with: inTexture, name: name)
         }
-        let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
+        let (commandBuffer, destTexture) = try filter.applyAtTexture(form: inTexture, to: outTexture)
         // Commit a command buffer so it can be executed as soon as possible.
         commandBuffer.commit()
         // Wait to make sure that output texture contains new data.
         commandBuffer.waitUntilCompleted()
-        return outTexture
+        return destTexture
     }
     
     /// Whether to synchronously wait for the execution of the Metal command buffer to complete.
@@ -43,11 +43,11 @@ internal struct Processed {
             return
         }
         do {
-            let commandBuffer = try filter.applyAtTexture(form: inTexture, to: outTexture)
+            let (commandBuffer, destTexture) = try filter.applyAtTexture(form: inTexture, to: outTexture)
             commandBuffer.addCompletedHandler { (buffer) in
                 switch buffer.status {
                 case .completed:
-                    complete(.success(outTexture))
+                    complete(.success(destTexture))
                 case .error where buffer.error != nil:
                     complete(.failure(.error(buffer.error!)))
                 default:
@@ -64,7 +64,7 @@ internal struct Processed {
 extension C7FilterProtocol {
     
     /// Add the filter into the output texture.
-    func applyAtTexture(form sourceTexture: MTLTexture, to destinationTexture: MTLTexture) throws -> MTLCommandBuffer {
+    func applyAtTexture(form sourceTexture: MTLTexture, to destinationTexture: MTLTexture) throws -> (MTLCommandBuffer, MTLTexture) {
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
             throw CustomError.commandBuffer
         }
@@ -74,18 +74,20 @@ extension C7FilterProtocol {
             var textures = [destinationTexture, sourceTexture]
             textures += self.otherInputTextures
             Compute.drawingProcess(pipelineState, commandBuffer: commandBuffer, textures: textures, filter: self)
+            return (commandBuffer, destinationTexture)
         case .render(let vertex, let fragment):
             let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
             Rendering.drawingProcess(pipelineState, commandBuffer: commandBuffer, texture: sourceTexture, filter: self)
+            return (commandBuffer, destinationTexture)
         case .mps:
             var textures = [destinationTexture, sourceTexture]
             textures += self.otherInputTextures
             let filter = self as! MPSKernelProtocol
-            filter.encode(commandBuffer: commandBuffer, textures: textures)
+            let destTexture = filter.encode(commandBuffer: commandBuffer, textures: textures)
+            return (commandBuffer, destTexture)
         default:
-            break
+            return (commandBuffer, destinationTexture)            
         }
-        return commandBuffer
     }
     
     /// Metal texture compatibility uses CoreImage filter.
