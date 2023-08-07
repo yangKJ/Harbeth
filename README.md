@@ -1,8 +1,8 @@
 # Harbeth
 
-| Still | Animated |
+| Animated | Still |
 | :---: | :---: |
-|<img width=230px src="Screenshot/Mix2.png" />|<img width=230px src="Screenshot/Soul.gif" />|
+|<img width=230px src="Screenshot/Soul.gif" />|<img width=230px src="Screenshot/Mix2.png" />|
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)

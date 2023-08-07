@@ -26,7 +26,7 @@ public struct MPSHistogram: C7FilterProtocol, MPSKernelProtocol {
         return .mps(performance: self.histogram)
     }
     
-    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) -> MTLTexture {
+    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         let destinationTexture = textures[0]
         let sourceTexture = textures[1]
         let bufferLength = histogram.histogramSize(forSourceFormat: sourceTexture.pixelFormat)

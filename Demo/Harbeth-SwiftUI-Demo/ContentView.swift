@@ -37,6 +37,13 @@ struct ContentView: View {
                     }, min: C7PolarPixellate.range.min, max: C7PolarPixellate.range.max)) {
                         Text("Polar Pixellate")
                     }
+                    NavigationLink(destination: CustomViews<C7ColorConvert>(value: IntensityRange.value, filtering: {
+                        var filter = C7ColorConvert(with: .gray)
+                        filter.intensity = $0
+                        return filter
+                    }, min: IntensityRange.min, max: IntensityRange.max)) {
+                        Text("Gray image")
+                    }
                 } header: {
                     Text("Metal kernel").bold().textCase(.none)
                 }

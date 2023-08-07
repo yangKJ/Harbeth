@@ -99,7 +99,7 @@ extension ViewControllerType {
     
     var overTexture: MTLTexture? {
         let color = UIColor.green.withAlphaComponent(0.5)
-        let texture = BoxxIO<Any>.destTexture(width: 480, height: 270)
+        let texture = MTLTextureCompatible_.destTexture(width: 480, height: 270)
         let filter = C7SolidColor.init(color: color)
         let dest = BoxxIO(element: texture, filter: filter)
         return try? dest.output()

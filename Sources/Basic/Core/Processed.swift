@@ -82,8 +82,7 @@ extension C7FilterProtocol {
         case .mps:
             var textures = [destinationTexture, sourceTexture]
             textures += self.otherInputTextures
-            let filter = self as! MPSKernelProtocol
-            let destTexture = filter.encode(commandBuffer: commandBuffer, textures: textures)
+            let destTexture = try (self as! MPSKernelProtocol).encode(commandBuffer: commandBuffer, textures: textures)
             return (commandBuffer, destTexture)
         default:
             return (commandBuffer, destinationTexture)            

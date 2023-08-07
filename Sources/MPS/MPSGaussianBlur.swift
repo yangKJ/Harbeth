@@ -24,7 +24,7 @@ public struct MPSGaussianBlur: C7FilterProtocol, MPSKernelProtocol {
         return .mps(performance: self.gaussian)
     }
     
-    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) -> MTLTexture {
+    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         let destinationTexture = textures[0]
         let sourceTexture = textures[1]
         self.gaussian.encode(commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: destinationTexture)
