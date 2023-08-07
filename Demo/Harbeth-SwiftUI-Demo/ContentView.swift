@@ -27,6 +27,16 @@ struct ContentView: View {
                     }, min: C7SoulOut.range.min, max: C7SoulOut.range.max)) {
                         Text("Soul out")
                     }
+                    NavigationLink(destination: CustomViews(value: C7Pixellated.range.value, filtering: {
+                        C7Pixellated.init(scale: $0)
+                    }, min: C7Pixellated.range.min, max: C7Pixellated.range.max)) {
+                        Text("Pixellated")
+                    }
+                    NavigationLink(destination: CustomViews(value: C7PolarPixellate.range.value, filtering: {
+                        C7PolarPixellate.init(scale: $0)
+                    }, min: C7PolarPixellate.range.min, max: C7PolarPixellate.range.max)) {
+                        Text("Polar Pixellate")
+                    }
                 } header: {
                     Text("Metal kernel").bold().textCase(.none)
                 }

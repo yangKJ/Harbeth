@@ -13,17 +13,17 @@ public struct C7Pixellated: C7FilterProtocol {
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.05)
     
     /// Adjust the pixel color block size,  from 0.0 to 1.0, with a default of 0.05
-    @ZeroOneRange public var pixelWidth: Float = range.value
+    @ZeroOneRange public var scale: Float = range.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Pixellated")
     }
     
     public var factors: [Float] {
-        return [pixelWidth]
+        return [scale]
     }
     
-    public init(pixelWidth: Float = range.value) {
-        self.pixelWidth = pixelWidth
+    public init(scale: Float = range.value) {
+        self.scale = scale
     }
 }

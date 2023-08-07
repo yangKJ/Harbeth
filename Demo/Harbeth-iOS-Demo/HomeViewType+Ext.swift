@@ -71,9 +71,8 @@ extension ViewControllerType {
             })
         case .Pixellated:
             var filter = C7Pixellated()
-            filter.pixelWidth = 0.03
-            return (filter, (0.03, 0.01, 0.05), {
-                filter.pixelWidth = $0
+            return (filter, (C7Pixellated.range.value, C7Pixellated.range.min, C7Pixellated.range.max), {
+                filter.scale = $0
                 return filter
             })
         case .HueBlend:

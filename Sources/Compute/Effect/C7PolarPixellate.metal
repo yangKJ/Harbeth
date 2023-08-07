@@ -10,10 +10,9 @@ using namespace metal;
 
 kernel void C7PolarPixellate(texture2d<half, access::write> outputTexture [[texture(0)]],
                              texture2d<half, access::sample> inputTexture [[texture(1)]],
-                             constant float *pixelWidth [[buffer(0)]],
-                             constant float *pixelHeight [[buffer(1)]],
-                             constant float *centerX [[buffer(2)]],
-                             constant float *centerY [[buffer(3)]],
+                             constant float *pixelScale [[buffer(0)]],
+                             constant float *centerX [[buffer(1)]],
+                             constant float *centerY [[buffer(2)]],
                              uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
@@ -26,7 +25,7 @@ kernel void C7PolarPixellate(texture2d<half, access::write> outputTexture [[text
     float r = length(normCoord); // to polar coords
     float phi = atan2(normCoord.y, normCoord.x); // to polar coords
     
-    float2 size = float2(*pixelWidth, *pixelHeight);
+    float2 size = float2(*pixelScale, *pixelScale);
     const float m1 = r - size.x * floor(r / size.x);
     const float m2 = phi - size.y * floor(phi / size.y);
     r = r - m1 + 0.03;
