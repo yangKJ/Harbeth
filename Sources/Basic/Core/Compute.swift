@@ -55,14 +55,15 @@ internal struct Compute {
             Shared.shared.device?.pipelines[kernel] = pipeline
         }
     }
+}
+
+extension C7FilterProtocol {
     
-    @inlinable static func drawingProcess(_ pipelineState: MTLComputePipelineState,
-                                          commandBuffer: MTLCommandBuffer,
-                                          textures: [MTLTexture],
-                                          filter: C7FilterProtocol) {
+    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
-            return
+            throw CustomError.makeComputeCommandEncoder
         }
+        let pipelineState = try Compute.makeComputePipelineState(with: kernel)
         computeEncoder.setComputePipelineState(pipelineState)
         
         for (i, texture) in textures.enumerated() {
@@ -70,13 +71,13 @@ internal struct Compute {
         }
         
         let size = MemoryLayout<Float>.size
-        let count = filter.factors.count
+        let count = self.factors.count
         for i in 0..<count {
-            var factor = filter.factors[i]
+            var factor = self.factors[i]
             computeEncoder.setBytes(&factor, length: size, index: i)
         }
         
-        if let filter = filter as? ComputeProtocol {
+        if let filter = self as? ComputeProtocol {
             /// 配置特殊参数非`Float`类型，例如4x4矩阵
             filter.setupSpecialFactors(for: computeEncoder, index: count - 1)
         }

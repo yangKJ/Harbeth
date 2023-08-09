@@ -87,7 +87,7 @@ public protocol RenderProtocol {
     func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer?
 }
 
-// MARK: - msp filter protocol
+// MARK: - mps filter protocol
 public protocol MPSKernelProtocol {
     /// Encode a MPSKernel into a command buffer. The operation shall proceed out-of-place.
     /// - Parameters:
@@ -95,4 +95,34 @@ public protocol MPSKernelProtocol {
     ///   - textures: Texture array, The first is the output texture, the second is the input texture, and other input textures.
     /// - Returns: Return output metal texture.
     func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
+}
+
+// MARK: - combination filter protocol
+public protocol CombinationProtocol {
+    
+    /// If you need to replace the subsequent input source texture, return to a new texture with copied to dest.
+    /// - Parameters:
+    ///   - buffer: A valid MTLCommandBuffer to receive the encoded filter.
+    ///   - texture: Original input texture.
+    ///   - texture2: The final output texture, This parameter is mainly provided for copied new textures to use.
+    /// - Returns: A new texture with copied to dest.
+    func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture
+    
+    /// Combination output metal texture, support `compute`, `render` and `mps` type.
+    /// - Parameters:
+    ///   - buffer: A valid MTLCommandBuffer to receive the encoded filter.
+    ///   - texture: The output metal texture of the first filter.
+    ///   - texture2: Original input texture.
+    /// - Returns: Metal texture after combined filter treatment.
+    func combinationAfter(for buffer: MTLCommandBuffer, input texture: MTLTexture, source texture2: MTLTexture) throws -> MTLTexture
+}
+
+extension CombinationProtocol {
+    public func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture {
+        return texture
+    }
+    
+    public func combinationAfter(for buffer: MTLCommandBuffer, input texture: MTLTexture, source texture2: MTLTexture) throws -> MTLTexture {
+        return texture
+    }
 }

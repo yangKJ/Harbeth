@@ -24,6 +24,7 @@ public enum CustomError: Swift.Error {
     case cubeResource
     case createCIFilter(String)
     case createRenderMTLTexture
+    case makeComputeCommandEncoder
 }
 
 extension CustomError: CustomStringConvertible {
@@ -66,6 +67,8 @@ extension CustomError: CustomStringConvertible {
             return "Create the filter \(name) is failed."
         case .createRenderMTLTexture:
             return "Create render metel texture is failed."
+        case .makeComputeCommandEncoder:
+            return "Create a compute command encoder to encode into this command buffer failed."
         default:
             return "Unknown error occurred."
         }

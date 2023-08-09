@@ -141,7 +141,7 @@ extension Queen where Base: CVPixelBuffer {
     public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) -> MTLTexture {
         let width  = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
         let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
-        let texture = MTLTextureCompatible_.destTexture(pixelFormat, width: width, height: height)
+        let texture = Descriptor.destTexture(pixelFormat, width: width, height: height)
         base.mt.copyToPixelBuffer(with: texture)
         return texture
     }
