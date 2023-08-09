@@ -287,11 +287,12 @@ extension BoxxIO {
                 complete(.success(result))
                 return
             }
-            Processed.runAsynIO(inTexture: sourceTexture, outTexture: result, filter: filter) { res in
+            let destTexture = createDestTexture(with: sourceTexture, filter: filter)
+            Processed.runAsynIO(inTexture: sourceTexture, outTexture: destTexture, filter: filter) { res in
                 switch res {
                 case .success(let t):
                     result = t
-                    recursion(filter: iterator.next(), sourceTexture: texture)
+                    recursion(filter: iterator.next(), sourceTexture: t)
                 case .failure(let error):
                     complete(.failure(error))
                 }
@@ -303,6 +304,7 @@ extension BoxxIO {
 
 // MARK: - private methods
 extension BoxxIO {
+    
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) -> MTLTexture {
         if self.createDestTexture == false {
             // 纯色`C7SolidColor`和渐变色`C7ColorGradient`滤镜不需要创建新的输出纹理，直接使用输入纹理即可
@@ -311,7 +313,7 @@ extension BoxxIO {
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
         // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-        return MTLTextureCompatible_.destTexture(bufferPixelFormat, width: resize.width, height: resize.height)
+        return Descriptor.destTexture(bufferPixelFormat, width: resize.width, height: resize.height)
     }
     
     private func applyCIImage(_ ciImage: CIImage, with texture: MTLTexture) -> CIImage {
