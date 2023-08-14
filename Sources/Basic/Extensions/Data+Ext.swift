@@ -31,6 +31,6 @@ extension Queen where Base == Data {
         if let texture = try? loader?.newTexture(data: base, options: options) {
             return texture
         }
-        return C7Image.init(data: base)?.mt.toTexture()
+        return C7Image.init(data: base)?.c7.toTexture()
     }
 }

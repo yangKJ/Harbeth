@@ -130,11 +130,11 @@ import CoreVideo
 extension BoxxIO {
     
     private func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
-        guard let texture = pixelBuffer.mt.toMTLTexture() else {
+        guard let texture = pixelBuffer.c7.toMTLTexture() else {
             throw CustomError.source2Texture
         }
         let t = try filtering(texture: texture)
-        pixelBuffer.mt.copyToPixelBuffer(with: t)
+        pixelBuffer.c7.copyToPixelBuffer(with: t)
         return pixelBuffer
     }
     
@@ -143,7 +143,7 @@ extension BoxxIO {
             throw CustomError.source2Texture
         }
         let pixelBuffer_ = try filtering(pixelBuffer: pixelBuffer)
-        guard let buffer = pixelBuffer_.mt.toCMSampleBuffer() else {
+        guard let buffer = pixelBuffer_.c7.toCMSampleBuffer() else {
             throw CustomError.CVPixelBufferToCMSampleBuffer
         }
         return buffer
@@ -158,7 +158,7 @@ extension BoxxIO {
     private func filtering(cgImage: CGImage) throws -> CGImage {
         let inTexture = try TextureLoader.init(with: cgImage).texture
         let texture = try filtering(texture: inTexture)
-        guard let cgImg = texture.mt.toCGImage() else {
+        guard let cgImg = texture.c7.toCGImage() else {
             throw CustomError.texture2Image
         }
         return cgImg
@@ -184,25 +184,25 @@ extension BoxxIO {
 extension BoxxIO {
     
     private func filtering(pixelBuffer: CVPixelBuffer, success: @escaping (CVPixelBuffer) -> Void, failed: @escaping (CustomError) -> Void) {
-        guard let texture = pixelBuffer.mt.toMTLTexture() else {
+        guard let texture = pixelBuffer.c7.toMTLTexture() else {
             failed(CustomError.source2Texture)
             return
         }
         filtering(texture: texture, success: { t in
-            pixelBuffer.mt.copyToPixelBuffer(with: t)
+            pixelBuffer.c7.copyToPixelBuffer(with: t)
             success(pixelBuffer)
         }, failed: failed)
     }
     
     private func filtering(sampleBuffer: CMSampleBuffer, success: @escaping (CMSampleBuffer) -> Void, failed: @escaping (CustomError) -> Void) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer((sampleBuffer)),
-              let texture = pixelBuffer.mt.toMTLTexture() else {
+              let texture = pixelBuffer.c7.toMTLTexture() else {
             failed(CustomError.source2Texture)
             return
         }
         filtering(texture: texture, success: { t in
-            pixelBuffer.mt.copyToPixelBuffer(with: t)
-            guard let buffer = pixelBuffer.mt.toCMSampleBuffer() else {
+            pixelBuffer.c7.copyToPixelBuffer(with: t)
+            guard let buffer = pixelBuffer.c7.toCMSampleBuffer() else {
                 failed(CustomError.CVPixelBufferToCMSampleBuffer)
                 return
             }
@@ -234,7 +234,7 @@ extension BoxxIO {
     private func filtering(cgImage: CGImage, success: @escaping (CGImage) -> Void, failed: @escaping (CustomError) -> Void) {
         func setupTexture(_ texture: MTLTexture) {
             filtering(texture: texture, success: { t in
-                guard let cgImage = t.mt.toCGImage() else {
+                guard let cgImage = t.c7.toCGImage() else {
                     failed(CustomError.texture2Image)
                     return
                 }
@@ -322,7 +322,7 @@ extension BoxxIO {
     }
     
     private func applyCIImage(_ ciImage: CIImage, with texture: MTLTexture) -> CIImage {
-        guard let texture_ = try? ciImage.mt.renderCIImageToTexture(texture),
+        guard let texture_ = try? ciImage.c7.renderCIImageToTexture(texture),
               let ciImage_ = CIImage(mtlTexture: texture_) else {
             return ciImage
         }
@@ -336,7 +336,7 @@ extension BoxxIO {
     }
     
     private func asyncApplyCIImage(_ ciImage: CIImage, with texture: MTLTexture, complete: @escaping (Result<CIImage, CustomError>) -> Void) {
-        ciImage.mt.asyncRenderCIImageToTexture(texture, complete: { res in
+        ciImage.c7.asyncRenderCIImageToTexture(texture, complete: { res in
             switch res {
             case .success(let texture):
                 guard let ciImage_ = CIImage(mtlTexture: texture) else {
@@ -355,17 +355,17 @@ extension BoxxIO {
     }
     
     private func fixImageOrientation(texture: MTLTexture, base: C7Image) throws -> C7Image {
-        guard let cgImage = texture.mt.toCGImage() else {
+        guard let cgImage = texture.c7.toCGImage() else {
             throw CustomError.texture2Image
         }
         #if os(iOS) || os(tvOS) || os(watchOS)
         // Fixed an issue with HEIC flipping after adding filter.
         return C7Image(cgImage: cgImage, scale: base.scale, orientation: base.imageOrientation)
         #elseif os(macOS)
-        let fImage = cgImage.mt.toC7Image()
+        let fImage = cgImage.c7.toC7Image()
         let image = C7Image(size: fImage.size)
         image.lockFocus()
-        if self.heic { image.mt.flip(horizontal: true, vertical: true) }
+        if self.heic { image.c7.flip(horizontal: true, vertical: true) }
         fImage.draw(in: NSRect(origin: .zero, size: fImage.size))
         image.unlockFocus()
         return image

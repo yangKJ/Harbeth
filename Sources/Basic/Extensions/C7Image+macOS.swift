@@ -51,7 +51,7 @@ extension Queen where Base: C7Image {
     /// Example:
     ///
     ///     image.lockFocus()
-    ///     image.mt.flip(horizontal: true, vertical: true)
+    ///     image.c7.flip(horizontal: true, vertical: true)
     ///
     /// - Parameters:
     ///   - horizontal: Flip 180 degrees from left to right or right to left.

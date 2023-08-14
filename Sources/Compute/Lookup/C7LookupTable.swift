@@ -13,7 +13,7 @@ import MetalKit
 public struct C7LookupTable: C7FilterProtocol {
     
     /// Opacity of lookup filter ranges from 0.0 to 1.0, with 1.0 as the normal setting.
-    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    @ZeroOneRange public var intensity: Float = R.iRange.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7LookupTable")
@@ -32,7 +32,7 @@ public struct C7LookupTable: C7FilterProtocol {
     
     public init(image: C7Image?) {
         self.lookupImage = image
-        self.lookupTexture = image?.cgImage?.mt.toTexture()
+        self.lookupTexture = image?.cgImage?.c7.toTexture()
     }
     
     public init(name: String) {

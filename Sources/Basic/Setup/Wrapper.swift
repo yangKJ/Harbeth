@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Add the `mt` prefix namespace
+/// Add the `c7` prefix namespace
 public struct Queen<Base> {
     public let base: Base
 }
@@ -15,11 +15,13 @@ public struct Queen<Base> {
 public protocol C7Compatible { }
 
 extension C7Compatible {
-    public var mt: Queen<Self> {
+    
+    public var c7: Queen<Self> {
         get { return Queen(base: self) }
         set { }
     }
-    public static var mt: Queen<Self>.Type {
+    
+    public static var c7: Queen<Self>.Type {
         Queen<Self>.self
     }
 }

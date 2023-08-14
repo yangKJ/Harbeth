@@ -27,7 +27,7 @@ internal struct Processed {
         switch filter.modifier {
         case .coreimage(let name):
             let outputImage = try filter.outputCIImage(with: inTexture, name: name)
-            finalTexture = try outputImage.mt.renderCIImageToTexture(inTexture, commandBuffer: commandBuffer)
+            finalTexture = try outputImage.c7.renderCIImageToTexture(inTexture, commandBuffer: commandBuffer)
         case .compute, .mps, .render:
             finalTexture = try filter.combinationIO(in: inTexture, to: outTexture, commandBuffer: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted()
@@ -52,7 +52,7 @@ internal struct Processed {
             switch filter.modifier {
             case .coreimage(let name):
                 let outputImage = try filter.outputCIImage(with: intexture, name: name)
-                outputImage.mt.asyncRenderCIImageToTexture(intexture, commandBuffer: commandBuffer, complete: complete)
+                outputImage.c7.asyncRenderCIImageToTexture(intexture, commandBuffer: commandBuffer, complete: complete)
             case .compute, .mps, .render:
                 let finaTexture = try filter.combinationIO(in: intexture, to: outTexture, commandBuffer: commandBuffer)
                 commandBuffer.asyncCommit(texture: finaTexture, complete: complete)
@@ -108,7 +108,7 @@ extension C7FilterProtocol {
 extension C7FilterProtocol {
     
     func outputCIImage(with texture: MTLTexture, name: String) throws -> CIImage {
-        guard let cgImage = texture.mt.toCGImage() else {
+        guard let cgImage = texture.c7.toCGImage() else {
             throw CustomError.texture2CGImage
         }
         guard let ciFiter = CIFilter.init(name: name) else {

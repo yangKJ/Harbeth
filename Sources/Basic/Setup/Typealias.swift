@@ -42,6 +42,3 @@ func C7FailedErrorInDebug(_ message: @autoclosure () -> String, file: StaticStri
     print("\(file):\(line): \(message())")
     #endif
 }
-
-/// 强度范围
-public let IntensityRange: ParameterRange<Float, Any> = .init(min: 0.0, max: 1.0, value: 1.0)

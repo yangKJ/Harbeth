@@ -27,7 +27,7 @@ public struct Texturior {
         guard let texture = texture else {
             return true
         }
-        return texture.mt.isBlank()
+        return texture.c7.isBlank()
     }
     
     /// Create a new MTLTexture for later storage according to the texture parameters.

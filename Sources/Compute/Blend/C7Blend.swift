@@ -37,7 +37,7 @@ public struct C7Blend: C7FilterProtocol {
     }
     
     /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    @ZeroOneRange public var intensity: Float = R.iRange.value
     
     public var modifier: Modifier {
         return .compute(kernel: blendType.kernel)
@@ -46,7 +46,7 @@ public struct C7Blend: C7FilterProtocol {
     public var factors: [Float] {
         switch blendType {
         case .chromaKey(let threshold, let smoothing, let color):
-            let (red, green, blue, _) = color.mt.toRGBA()
+            let (red, green, blue, _) = color.c7.toRGBA()
             return [threshold, smoothing, red, green, blue, intensity]
         default:
             return [intensity]
@@ -61,7 +61,7 @@ public struct C7Blend: C7FilterProtocol {
     private var blendType: BlendType
     
     public init(with type: BlendType, image: C7Image) {
-        let overTexture = image.cgImage?.mt.toTexture()
+        let overTexture = image.cgImage?.c7.toTexture()
         self.init(with: type, blendTexture: overTexture)
     }
     

@@ -21,7 +21,7 @@ public struct CIUnsharpMask: C7FilterProtocol, CoreImageProtocol {
     }
     
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
-        let radius = RadiusCalculator.radius(radius, max: Self.range.max, rect: ciImage.extent)
+        let radius = ciImage.extent.c7.radius(radius, max: Self.range.max)
         filter.setValue(radius, forKey: kCIInputRadiusKey)
         filter.setValue(intensity, forKey: kCIInputIntensityKey)
         return ciImage

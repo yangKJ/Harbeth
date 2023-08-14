@@ -78,10 +78,10 @@ extension Queen where Base: C7Image {
             context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
         
-        guard let newCgImage = context?.makeImage() else {
+        guard let cgImage_ = context?.makeImage() else {
             return base
         }
-        return newCgImage.mt.toC7Image()
+        return cgImage_.c7.toC7Image()
     }
     
     /// Compressed image data.

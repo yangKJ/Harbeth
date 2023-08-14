@@ -10,7 +10,7 @@ import Foundation
 public struct C7ColorRGBA: C7FilterProtocol, ComputeProtocol {
     
     /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    @ZeroOneRange public var intensity: Float = R.iRange.value
     
     /// Transparent colors are not processed, Will directly modify the overall color scheme
     public var color: C7Color = .white

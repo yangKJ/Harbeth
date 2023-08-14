@@ -35,7 +35,7 @@ struct SwiftUIView: View {
             
             VStack(alignment: .leading) {
                 Text("Intensity: \(intensity, specifier: "%.2f")")
-                Slider(value: $intensity, in: IntensityRange.min...IntensityRange.max)
+                Slider(value: $intensity, in: R.iRange.min...R.iRange.max)
             }
             .padding()
             .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))

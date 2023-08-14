@@ -22,7 +22,7 @@ public struct C7ColorConvert: C7FilterProtocol {
     }
     
     /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    @ZeroOneRange public var intensity: Float = R.iRange.value
     
     private let type: ColorType
     

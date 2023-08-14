@@ -66,13 +66,13 @@ extension C7Collector {
             return nil
         }
         delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
-        let texture = pixelBuffer.mt.toMTLTexture(textureCache: textureCache)
+        let texture = pixelBuffer.c7.toMTLTexture(textureCache: textureCache)
         let dest = BoxxIO(element: texture, filters: filters)
         guard let texture = try? dest.output() else {
             return nil
         }
         delegate?.captureOutput?(self, texture: texture)
-        return texture.mt.toImage()
+        return texture.c7.toImage()
     }
     
     func processing(with pixelBuffer: CVPixelBuffer?) {
@@ -80,7 +80,7 @@ extension C7Collector {
             return
         }
         delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
-        guard let texture = pixelBuffer.mt.toMTLTexture(textureCache: textureCache) else {
+        guard let texture = pixelBuffer.c7.toMTLTexture(textureCache: textureCache) else {
             return
         }
         let dest = BoxxIO(element: texture, filters: filters)
@@ -89,11 +89,11 @@ extension C7Collector {
                 return
             }
             self.delegate?.captureOutput?(self, texture: desTexture)
-            guard var image = desTexture.mt.toImage() else {
+            guard var image = desTexture.c7.toImage() else {
                 return
             }
             if self.autoCorrectDirection {
-                image = image.mt.fixOrientation()
+                image = image.c7.fixOrientation()
             }
             DispatchQueue.main.async {
                 self.delegate?.preview(self, fliter: image)

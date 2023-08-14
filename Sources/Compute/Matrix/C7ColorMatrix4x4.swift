@@ -11,7 +11,7 @@ import Foundation
 public struct C7ColorMatrix4x4: C7FilterProtocol, ComputeProtocol {
     
     /// The degree to which the new transformed color replaces the original color for each pixel, default 1
-    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    @ZeroOneRange public var intensity: Float = R.iRange.value
     /// Color offset for each channel.
     public var offset: PixelColor = .zero
     public var matrix: Matrix4x4

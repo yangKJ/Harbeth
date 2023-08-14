@@ -71,13 +71,13 @@ extension Queen where Base: C7Color {
     }
     
     public func toCIColor() -> CIColor {
-        let (r, g, b, a) = base.mt.toRGBA()
+        let (r, g, b, a) = base.c7.toRGBA()
         return CIColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: CGFloat(a))
     }
     
     public func toRGBA() -> (red: Float, green: Float, blue: Float, alpha: Float) {
         if base == C7Color.zero { return (0,0,0,0) }
-        let color = base.mt.usingColorSpace_sRGB()
+        let color = base.c7.usingColorSpace_sRGB()
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         color.getRed(&r, green: &g, blue: &b, alpha: &a)
         return (Float(r), Float(g), Float(b), Float(a))
@@ -86,14 +86,14 @@ extension Queen where Base: C7Color {
     /// Convert RGBA value, transparent color does not do processing
     public func toRGBA(red: inout Float, green: inout Float, blue: inout Float, alpha: inout Float) {
         if base == C7Color.zero { return }
-        (red, green, blue, alpha) = base.mt.toRGBA()
+        (red, green, blue, alpha) = base.c7.toRGBA()
     }
     
     /// RGB to YUV.
     /// - See: https://en.wikipedia.org/wiki/YUV
     public var yuv: (y: Float, u: Float, v: Float) {
         if base == C7Color.zero { return (0,0,0) }
-        let (r, g, b, _) = base.mt.toRGBA()
+        let (r, g, b, _) = base.c7.toRGBA()
         let y = 0.212600 * r + 0.71520 * g + 0.07220 * b
         let u = -0.09991 * r - 0.33609 * g + 0.43600 * b
         let v = 0.615000 * r - 0.55861 * g - 0.05639 * b
@@ -102,8 +102,8 @@ extension Queen where Base: C7Color {
     
     public func linearInterpolation(directionColor: C7Color, rate: Float) -> C7Color {
         let rate = min(1, max(0, rate))
-        let (fR, fG, fB, fA) = base.mt.toRGBA()
-        let (tR, tG, tB, tA) = directionColor.mt.toRGBA()
+        let (fR, fG, fB, fA) = base.c7.toRGBA()
+        let (tR, tG, tB, tA) = directionColor.c7.toRGBA()
         let dR = CGFloat((tR-fR) * rate + fR) / 255.0
         let dG = CGFloat((tG-fG) * rate + fR) / 255.0
         let dB = CGFloat((tB-fB) * rate + fR) / 255.0

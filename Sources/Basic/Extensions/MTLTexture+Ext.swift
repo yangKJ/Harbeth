@@ -11,8 +11,8 @@ import ImageIO
 import Accelerate
 
 extension MTLTexture {
-    /// Add the `mt` prefix namespace
-    public var mt: MTLTextureCompatible_ {
+    /// Add the `c7` prefix namespace
+    public var c7: MTLTextureCompatible_ {
         MTLTextureCompatible_(target: self)
     }
 }
@@ -73,7 +73,7 @@ public struct MTLTextureCompatible_ {
         guard let cgImage = toCGImage() else {
             return nil
         }
-        return cgImage.mt.toC7Image()
+        return cgImage.c7.toC7Image()
     }
     
     /// Create a CGImage with the data and information we provided.

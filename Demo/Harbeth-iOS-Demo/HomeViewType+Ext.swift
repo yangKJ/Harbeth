@@ -58,7 +58,7 @@ extension ViewControllerType {
             })
         case .abao:
             var filter = C7LookupTable(image: R.image("lut_abao"))
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })
@@ -77,19 +77,19 @@ extension ViewControllerType {
             })
         case .HueBlend:
             var filter = C7Blend(with: .hue, blendTexture: overTexture)
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })
         case .AlphaBlend:
             var filter = C7Blend(with: .alpha, blendTexture: overTexture)
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })
         case .LuminosityBlend:
             var filter = C7Blend(with: .luminosity, blendTexture: overTexture)
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })
@@ -121,7 +121,7 @@ extension ViewControllerType {
             })
         case .ChannelRGBA:
             var filter = C7ColorRGBA(color: .red)
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })
@@ -136,7 +136,7 @@ extension ViewControllerType {
             })
         case .Monochrome:
             var filter = C7Monochrome()
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })
@@ -363,13 +363,13 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .ColorMatrix4x4:
             var filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.replaced_red_green)
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })
         case .Convolution3x3:
             var filter = C7ConvolutionMatrix3x3(convolutionType: .embossment)
-            return (filter, (IntensityRange.value, IntensityRange.min, IntensityRange.max), {
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
             })

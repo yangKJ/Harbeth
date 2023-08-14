@@ -9,7 +9,7 @@ import Foundation
 
 public class C7CombinationBeautiful: C7FilterProtocol, CombinationProtocol {
     
-    @ZeroOneRange public var intensity: Float = IntensityRange.value
+    @ZeroOneRange public var intensity: Float = R.iRange.value
     
     public var smoothDegree: Float = 0.0
     

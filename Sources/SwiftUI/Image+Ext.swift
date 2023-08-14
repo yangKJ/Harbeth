@@ -12,7 +12,7 @@ import SwiftUI
 extension Image {
     
     public init(cgImage: CGImage) {
-        self.init(c7Image: cgImage.mt.toC7Image())
+        self.init(c7Image: cgImage.c7.toC7Image())
     }
     
     public init(c7Image: C7Image) {

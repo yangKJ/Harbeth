@@ -45,11 +45,11 @@ struct MetalKernelViews: View {
             }, min: C7PolarPixellate.range.min, max: C7PolarPixellate.range.max)) {
                 Text("C7 Polar Pixellate")
             }
-            NavigationLink(destination: CustomViews<C7ColorConvert>(value: IntensityRange.value, filtering: {
+            NavigationLink(destination: CustomViews<C7ColorConvert>(value: R.iRange.value, filtering: {
                 var filter = C7ColorConvert(with: .gray)
                 filter.intensity = $0
                 return filter
-            }, min: IntensityRange.min, max: IntensityRange.max)) {
+            }, min: R.iRange.min, max: R.iRange.max)) {
                 Text("Gray image")
             }
         }

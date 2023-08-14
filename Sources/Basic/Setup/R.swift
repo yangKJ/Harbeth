@@ -58,6 +58,10 @@ public struct R {
 
 extension R {
     
+    /// 强度范围
+    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    public static let iRange: ParameterRange<Float, Any> = .init(min: 0.0, max: 1.0, value: 1.0)
+    
     /// Screen window width.
     public static var width: CGFloat {
         #if canImport(UIKit)

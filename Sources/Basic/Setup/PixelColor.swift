@@ -32,7 +32,7 @@ public struct PixelColor {
     
     public init(color: C7Color) {
         // See: https://developer.apple.com/documentation/uikit/uicolor/1621919-getred
-        let tuple = color.mt.toRGBA()
+        let tuple = color.c7.toRGBA()
         self.init(red: tuple.red, green: tuple.green, blue: tuple.blue, alpha: tuple.alpha)
     }
     

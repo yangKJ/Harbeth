@@ -37,7 +37,7 @@ public struct TextureLoader {
     ///   - image: A UIImage / NSImage.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        guard let cgImage = image.cgImage/*, let texture = cgImage.mt.toTexture() */else {
+        guard let cgImage = image.cgImage/*, let texture = cgImage.c7.toTexture() */else {
             throw CustomError.source2Texture
         }
         //self.texture = texture
@@ -58,7 +58,7 @@ public struct TextureLoader {
             }
             return nil
         }()
-        guard let cgImage = ciImage.mt.toCGImage(context: context) else {
+        guard let cgImage = ciImage.c7.toCGImage(context: context) else {
             throw CustomError.source2Texture
         }
         try self.init(with: cgImage, options: options)

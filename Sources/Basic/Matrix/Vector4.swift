@@ -23,7 +23,7 @@ public struct Vector4: Matrix {
     }
     
     public init(color: C7Color) {
-        let (red, green, blue, alpha) = color.mt.toRGBA()
+        let (red, green, blue, alpha) = color.c7.toRGBA()
         self.init(values: [red, green, blue, alpha])
     }
     
