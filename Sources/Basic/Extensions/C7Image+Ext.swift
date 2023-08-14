@@ -20,7 +20,10 @@ extension Queen where Base == C7Image {
     /// Draw image and create texture
     /// - Returns: MTLTexture
     public func toTexture(cgimage: CGImage? = nil) -> MTLTexture? {
-        return (cgimage ?? base.cgImage)?.mt.toTexture()
+        guard let cgImage = cgimage ?? base.cgImage else {
+            return nil
+        }
+        return try? TextureLoader.init(with: cgImage).texture
     }
     
     public func toCIImage() -> CIImage? {

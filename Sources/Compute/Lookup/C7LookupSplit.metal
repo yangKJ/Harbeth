@@ -62,21 +62,13 @@ kernel void C7LookupSplit(texture2d<half, access::write> outputTexture [[texture
         result = length(half2(x, 1-y)) / sqrt(2.0) > p;
     }
     
-    if (result) {
-        constexpr sampler quadSampler3;
-        half4 newColor1 = inputTexture2.sample(quadSampler3, texPos1);
-        constexpr sampler quadSampler4;
-        half4 newColor2 = inputTexture2.sample(quadSampler4, texPos2);
-        half4 newColor = mix(newColor1, newColor2, fract(blueColor));
-        const half4 outColor = half4(mix(inColor, half4(newColor.rgb, inColor.w), 1.0h));
-        outputTexture.write(outColor, grid);
-    } else {
-        constexpr sampler quadSampler3;
-        half4 newColor1 = inputTexture3.sample(quadSampler3, texPos1);
-        constexpr sampler quadSampler4;
-        half4 newColor2 = inputTexture3.sample(quadSampler4, texPos2);
-        half4 newColor = mix(newColor1, newColor2, fract(blueColor));
-        const half4 outColor = half4(mix(inColor, half4(newColor.rgb, inColor.w), half(*intensity)));
-        outputTexture.write(outColor, grid);
-    }
+    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
+    const half4 newColor1 = inputTexture2.sample(quadSampler, texPos1);
+    const half4 newColor2 = inputTexture2.sample(quadSampler, texPos2);
+    const half4 mixColor = mix(newColor1, newColor2, fract(blueColor));
+    
+    const half a = result ? 1.0h : half(*intensity);
+    half4 outColor = half4(mix(inColor, half4(mixColor.rgb, inColor.w), a));
+    
+    outputTexture.write(outColor, grid);
 }

@@ -14,13 +14,14 @@ public struct C7LookupSplit: C7FilterProtocol {
         case top, left, center
         case topLeft, bottomLeft
     }
-
-    public static let progressRange: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
+    
+    /// Split progress range.
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
     
     @ZeroOneRange public var intensity: Float = IntensityRange.value
     
     /// Split range, from 0.0 to 1.0, with a default of 0.0
-    @ZeroOneRange public var progress: Float = progressRange.value
+    @ZeroOneRange public var progress: Float = range.value
     
     public var orientation: Orientation = .center
     

@@ -22,15 +22,6 @@ extension Queen where Base: CGImage {
     /// - Returns: MTLTexture
     public func toTexture(pixelFormat: MTLPixelFormat = .rgba8Unorm) -> MTLTexture? {
         let width = base.width, height = base.height
-        let descriptor = MTLTextureDescriptor()
-        descriptor.pixelFormat = pixelFormat
-        descriptor.width  = width
-        descriptor.height = height
-        descriptor.usage  = [MTLTextureUsage.shaderRead, MTLTextureUsage.shaderWrite]
-        guard let texture = Device.device().makeTexture(descriptor: descriptor) else {
-            return nil
-        }
-        
         let bytesPerPixel: Int = 4
         let bytesPerRow = width * bytesPerPixel
         let context = CGContext(data: nil, width: width, height: height,
@@ -42,27 +33,18 @@ extension Queen where Base: CGImage {
         guard let data = context?.data else {
             return nil
         }
+        guard let texture = Texturior(width: width, height: height, options: [
+            .texturePixelFormat: pixelFormat
+        ]).texture else {
+            return nil
+        }
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         texture.replace(region: region, mipmapLevel: 0, withBytes: data, bytesPerRow: bytesPerRow)
         return texture
     }
     
-    /// Creates a new Metal texture from a given bitmap image.
-    /// - Parameter options: Dictonary of MTKTextureLoaderOptions
-    /// - Returns: MTLTexture
-    public func newTexture(options: [MTKTextureLoader.Option: Any]? = nil) -> MTLTexture? {
-        let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
-        let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
-            .textureUsage: NSNumber(value: usage.rawValue),
-            .generateMipmaps: NSNumber(value: false),
-            .SRGB: NSNumber(value: false)
-        ]
-        let loader = Shared.shared.device?.textureLoader
-        return try? loader?.newTexture(cgImage: base, options: textureOptions)
-    }
-    
     public func toPixelBuffer() -> CVPixelBuffer? {
-        let imageWidth = Int(base.width)
+        let imageWidth  = Int(base.width)
         let imageHeight = Int(base.height)
         let attributes: [NSObject:AnyObject] = [
             kCVPixelBufferCGImageCompatibilityKey : true as AnyObject,

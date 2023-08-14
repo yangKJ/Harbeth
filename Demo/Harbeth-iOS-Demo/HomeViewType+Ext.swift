@@ -389,6 +389,12 @@ extension ViewControllerType {
                 filter.radius = $0
                 return filter
             })
+        case .CIGaussian:
+            var filter = CIGaussianBlur()
+            return (filter, (CIGaussianBlur.range.value, CIGaussianBlur.range.min, CIGaussianBlur.range.max), {
+                filter.radius = $0
+                return filter
+            })
         }
     }
 }

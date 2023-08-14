@@ -31,10 +31,6 @@ public protocol Destype {
     ///   - success: Successful callback of adding filters to the sources asynchronously.
     ///   - failed: An error occurred during the conversion process, the error is `CustomError`.
     func transmitOutput(success: @escaping (Element) -> Void, failed: @escaping (CustomError) -> Void)
-    
-    /// Convert to texture and add filters.
-    /// - Parameter complete: The conversion is complete, if failed the error is `CustomError`.
-    func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, CustomError>) -> Void)
 }
 
 extension Destype {

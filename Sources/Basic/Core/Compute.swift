@@ -59,7 +59,7 @@ internal struct Compute {
 
 extension C7FilterProtocol {
     
-    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws {
+    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             throw CustomError.makeComputeCommandEncoder
         }
@@ -91,7 +91,8 @@ extension C7FilterProtocol {
         let h = max(Int((destTexture.height + threadGroupCount.height - 1) / threadGroupCount.height), 1)
         let threadGroups = MTLSizeMake(w, h, destTexture.arrayLength)
         computeEncoder.dispatchThreadgroups(threadGroups, threadsPerThreadgroup: threadGroupCount)
-        
         computeEncoder.endEncoding()
+        
+        return destTexture
     }
 }

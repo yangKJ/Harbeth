@@ -112,6 +112,6 @@ struct HomeViewModel {
     ]
     
     let coreImage: [ViewControllerType] = [
-        .CIHS,
+        .CIHS, .CIGaussian,
     ]
 }

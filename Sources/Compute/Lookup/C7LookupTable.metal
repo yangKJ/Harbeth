@@ -40,8 +40,8 @@ kernel void C7LookupTable(texture2d<half, access::write> outputTexture [[texture
     const half4 newColor1 = lookupTexture.sample(quadSampler, texPos1);
     const half4 newColor2 = lookupTexture.sample(quadSampler, texPos2);
     
-    const half4 newColor = mix(newColor1, newColor2, fract(blueColor));
-    const half4 outColor = half4(mix(inColor, half4(newColor.rgb, inColor.a), half(*intensity)));
+    const half4 mixColor = mix(newColor1, newColor2, fract(blueColor));
+    const half4 outColor = half4(mix(inColor, half4(mixColor.rgb, inColor.a), half(*intensity)));
     
     outputTexture.write(outColor, grid);
 }

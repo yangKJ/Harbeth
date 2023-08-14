@@ -12,58 +12,61 @@ extension CIImage: C7Compatible { }
 
 extension Queen where Base: CIImage {
     
+    public func toCGImage(context: CIContext? = nil) -> CGImage? {
+        if let cgImage = base.cgImage {
+            return cgImage
+        }
+        let context = context ?? Device.context(colorSpace: Device.colorSpace())
+        guard let cgImage = context.createCGImage(base, from: base.extent) else {
+            return nil
+        }
+        return cgImage
+    }
+    
+    /// Fixed image horizontal flip problem.
+    public func fixHorizontalFlip() -> CIImage {
+        return base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
+            .transformed(by: CGAffineTransform(translationX: 0, y: base.extent.height))
+    }
+    
     /// Write CIImage to metal texture synchronously.
+    /// Render `bounds` of `image` to a Metal texture, optionally specifying what command buffer to use.
     /// - Parameters:
     ///   - texture: Texture type must be MTLTexture2D.
-    ///   - colorSpace: Color space
-    ///   - context: An evaluation context for rendering image processing results and performing image analysis.
-    public func renderImageToTexture(_ texture: MTLTexture, colorSpace: CGColorSpace? = nil, context: CIContext? = nil) throws {
-        guard let buffer = Device.commandQueue().makeCommandBuffer() else {
+    ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
+    public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer? = nil) throws -> MTLTexture {
+        guard let buffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
             throw CustomError.commandBuffer
         }
-        let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
-        let ctx = context ?? Device.context(colorSpace: colorSpace)
+        let colorSpace = Device.colorSpace()
+        let ctx = Device.context(colorSpace: colorSpace)
         // Fixed image horizontal flip problem.
-        let scaledImage = base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
-            .transformed(by: CGAffineTransform(translationX: 0, y: base.extent.height))
+        let fixedImage = fixHorizontalFlip()
         //let origin = CGPoint(x: -scaledImage.extent.origin.x, y: -scaledImage.extent.origin.y)
         //let bounds = CGRect(origin: origin, size: scaledImage.extent.size)
-        ctx.render(scaledImage, to: texture, commandBuffer: buffer, bounds: scaledImage.extent, colorSpace: colorSpace)
+        ctx.render(fixedImage, to: texture, commandBuffer: buffer, bounds: fixedImage.extent, colorSpace: colorSpace)
         // 这俩必须写在`render`同一个方法下面，否则会卡死<很奇怪，没读懂什么意思>
-        buffer.commit()
-        buffer.waitUntilCompleted()
+        buffer.commitAndWaitUntilCompleted()
+        return texture
     }
     
     /// Asynchronous write CIImage to metal texture.
     /// Render `bounds` of `image` to a Metal texture, optionally specifying what command buffer to use.
     /// - Parameters:
     ///   - texture: Texture type must be MTLTexture2D.
-    ///   - colorSpace: Color space
-    ///   - context: An evaluation context for rendering image processing results and performing image analysis.
-    public func writeCIImageAtTexture(_ texture: MTLTexture,
-                                      complete: @escaping (Result<MTLTexture, CustomError>) -> Void,
-                                      colorSpace: CGColorSpace? = nil,
-                                      context: CIContext? = nil) {
-        guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
+    ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
+    public func asyncRenderCIImageToTexture(_ texture: MTLTexture,
+                                            commandBuffer: MTLCommandBuffer? = nil,
+                                            complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
+        guard let buffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
             complete(.failure(CustomError.commandBuffer))
             return
         }
-        let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
-        let ctx = context ?? Device.context(colorSpace: colorSpace)
-        let scaledImage = base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
-            .transformed(by: CGAffineTransform(translationX: 0, y: base.extent.height))
-        ctx.render(scaledImage, to: texture, commandBuffer: commandBuffer, bounds: scaledImage.extent, colorSpace: colorSpace)
-        commandBuffer.addCompletedHandler { (buffer) in
-            switch buffer.status {
-            case .completed:
-                complete(.success(texture))
-            case .error where buffer.error != nil:
-                complete(.failure(.error(buffer.error!)))
-            default:
-                break
-            }
-        }
-        commandBuffer.commit()
+        let colorSpace = Device.colorSpace()
+        let ctx = Device.context(colorSpace: colorSpace)
+        let fixedImage = fixHorizontalFlip()
+        ctx.render(fixedImage, to: texture, commandBuffer: buffer, bounds: fixedImage.extent, colorSpace: colorSpace)
+        buffer.asyncCommit(texture: texture, complete: complete)
     }
     
     public func removingExtentOffset() -> CIImage {

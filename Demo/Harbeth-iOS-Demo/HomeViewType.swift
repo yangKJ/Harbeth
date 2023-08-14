@@ -73,7 +73,8 @@ enum ViewControllerType: String {
     case Sketch = "素描效果"
     case CIHS = "coreImage高光阴影"
     case TextHEIC = "测试HEIC类型图片"
-    case MPSGaussian = "测试MPS高斯模糊"
+    case MPSGaussian = "MPS高斯模糊"
+    case CIGaussian = "CI高斯模糊"
 }
 
 extension ViewControllerType {
@@ -99,7 +100,9 @@ extension ViewControllerType {
     
     var overTexture: MTLTexture? {
         let color = UIColor.green.withAlphaComponent(0.5)
-        let texture = Descriptor.destTexture(width: 480, height: 270)
+        guard let texture = Texturior.init(width: 480, height: 270).texture else {
+            return nil
+        }
         let filter = C7SolidColor.init(color: color)
         let dest = BoxxIO(element: texture, filter: filter)
         return try? dest.output()

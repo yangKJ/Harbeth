@@ -138,10 +138,14 @@ extension Queen where Base: CVPixelBuffer {
     ///   - pixelFormat: Specifies the Metal pixel format.
     ///   - planeIndex: Specifies the plane of the CVImageBuffer to map bind.  Ignored for non-planar CVImageBuffers.
     /// - Returns: New metal texture.
-    public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) -> MTLTexture {
+    public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) throws -> MTLTexture {
         let width  = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
         let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
-        let texture = Descriptor.destTexture(pixelFormat, width: width, height: height)
+        guard let texture = Texturior(width: width, height: height, options: [
+            .texturePixelFormat: pixelFormat
+        ]).texture else {
+            throw CustomError.makeTexture
+        }
         base.mt.copyToPixelBuffer(with: texture)
         return texture
     }

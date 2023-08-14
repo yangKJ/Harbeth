@@ -20,7 +20,7 @@ struct ContentView: View {
                 }
                 NavigationLink(destination: CustomViews<C7CombinationBeautiful>(value: 0.0, filtering: {
                     C7CombinationBeautiful.init(smoothDegree: $0)
-                }, min: 0, max: 0.2, inputImage: R.image("SampleImage"))) {
+                }, min: -0.2, max: 0.2, inputImage: R.image("SampleImage"))) {
                     Text("Combination Beauty")
                 }
                 NavigationLink(destination: CoreImageViews()) {
