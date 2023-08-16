@@ -193,8 +193,8 @@ Buy me a coffee or support me on [GitHub](https://github.com/sponsors/yangKJ?fre
 Alipay or WeChat. Thanks.
 
 <p align="left">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG1.jpg" width=35% hspace="1px">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width=35% hspace="15px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG1.jpg" width=30% hspace="1px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width=30% hspace="15px">
 </p>
 
 -----
