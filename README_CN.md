@@ -14,36 +14,27 @@
 [**English**](README.md) | 简体中文
 
 ## 功能清单
- 🟣 目前，[**Metal Moudle**](https://github.com/yangKJ/Harbeth) 最重要的特点可以总结如下：
+- 支持macOS和iOS平台系统，也支持SwiftUI使用；
+- 高性能在如下数据源快速添加过滤器效果：  
+  UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer
+- 支持两种查找滤镜 [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup/C7LookupTable.swift) 和 [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage/CIColorCube.swift) 来定制专属滤镜；
+- 支持相机采集特效和视频播放加入滤镜效果；
+- Metal滤镜部分大致分为以下几个模块：  
+  [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Pixel), [Coordinate](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Coordinate), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape), [Generator](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Generator).
+- 支持使用 [Kakapos](https://github.com/yangKJ/Kakapos) 库对已有视频添加滤镜并导出；
+- 支持系统 MetalPerformanceShaders 和 CoreImage 滤镜混合使用；
 
-- 支持ios系统和macOS系统
-- 支持运算符函数式操作
-- 支持多种模式数据源 UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
-- 支持快速设计滤镜
-- 支持合并多种滤镜效果
-- 支持输出源的快速扩展
-- 支持相机采集特效
-- 支持视频添加滤镜特效
-- 支持已有视频添加滤镜并导出
-- 支持使用系统 MetalPerformanceShaders 和兼容 CoreImage.
-- 滤镜部分大致分为以下几个模块：
-   - [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend)：图像融合技术
-   - [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur)：模糊效果
-   - [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/ColorProcess)：图像的基本像素颜色处理
-   - [Effect](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Effect)：效果处理
-   - [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup)：查找表过滤器
-   - [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix): 矩阵卷积滤波器
-   - [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape)：图像形状大小相关
-   - [Visual](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Visual): 视觉动态特效
-   - [MPS](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/MPS): 系统 MetalPerformanceShaders.
+#### **总结下来目前将近两百种滤镜供您使用。✌️**
 
-#### **总结下来目前共有 `100+` 种滤镜供您使用。✌️**
+当然如果您这边觉得好用对你有所帮助，请给作者一点辛苦的打赏吧。再次感谢！  
+有空我也会一直更新维护优化 😁😁😁
 
 <p align="left">
-<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ab261e06fe3a44deb508f15249cd52bb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="300" hspace="1px">
-<img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6b607add314b4b2180009e2517629be2~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="300" hspace="1px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG1.jpg" width=35% hspace="1px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width=35% hspace="15px">
 </p>
 
+## 如何使用
 - 代码零侵入注入滤镜功能，
 
 ```swift

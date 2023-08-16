@@ -2,14 +2,16 @@
 
 | Animated | Still |
 | :---: | :---: |
-|<img width=230px src="Screenshot/Soul.gif" />|<img width=230px src="Screenshot/Mix2.png" />|
+|<img width=230px src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Soul.gif" />|<img width=230px src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Mix2.png" />|
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
  
-[**Harbeth**](https://github.com/yangKJ/Harbeth) is a tiny set of utils and extensions over Apple's Metal framework dedicated to make your Swift GPU code much cleaner and let you prototype your pipelines faster.
+[**Harbeth**](https://github.com/yangKJ/Harbeth) is a high performance Swift library for GPU-accelerated image processing and realtime camera capture and video smooth playback, and then add filters based on Metal, and also compatible for CoreImage filters and metal performance shaders filters.
+
+This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUImage).
 
 -------
 
@@ -44,19 +46,9 @@ English | [**简体中文**](README_CN.md)
 <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="15px">
 </p>
 
-- 🚗 Original code.
-```swift
-lazy var ImageView: UIImageView = {
-    let imageView = UIImageView(image: originImage)
-    imageView.layer.borderColor = R.color("background2")?.cgColor
-    imageView.layer.borderWidth = 0.5
-    return imageView
-}()
+### Image
 
-ImageView.image = originImage
-```
-
-- 🎷 Code zero intrusion add filter function.
+- 🎷 Code zero intrusion add filter function for image.
 
 ```swift
 let filter1 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
@@ -70,18 +62,23 @@ let dest = BoxxIO.init(element: originImage, filters: filters)
 // Synchronize do something..
 ImageView.image = try? dest.output()
 
-// Asynchronous do something..
-dest.transmitOutput(success: { [weak self] image in
-    DispatchQueue.main.async {
-        self?.ImageView.image = image
-    }
-})
-
 // OR Use:
 ImageView.image = try? originImage.makeGroup(filters: filters)
 
 // OR Use Operator:
 ImageView.image = originImage ->> filter1 ->> filter2 ->> filter3
+```
+
+- Asynchronous do something..
+
+This performance is the best. 🚗🚗
+
+```
+let dest = BoxxIO.init(element: ``Source``, filter: ``filter``)
+
+dest.transmitOutput(success: { [weak self] image in
+    // do something..
+})
 ```
 
 ### Camera
@@ -192,6 +189,13 @@ Buy me a coffee or support me on [GitHub](https://github.com/sponsors/yangKJ?fre
 <a href="https://www.buymeacoffee.com/yangkj3102">
 <img width=25% alt="yellow-button" src="https://user-images.githubusercontent.com/1888355/146226808-eb2e9ee0-c6bd-44a2-a330-3bbc8a6244cf.png">
 </a>
+
+Alipay or WeChat. Thanks.
+
+<p align="left">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG1.jpg" width=35% hspace="1px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width=35% hspace="15px">
+</p>
 
 -----
 
