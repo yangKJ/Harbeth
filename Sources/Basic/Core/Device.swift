@@ -8,6 +8,7 @@
 import Foundation
 import MetalKit
 
+/// Global public information
 internal final class Device: Cacheable {
     
     /// Device information to create other objects
@@ -25,8 +26,10 @@ internal final class Device: Cacheable {
     lazy var textureLoader: MTKTextureLoader = MTKTextureLoader(device: device)
     /// Transform using color space
     lazy var colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
-    
-    lazy var context: CIContext = Device.context(colorSpace: CGColorSpaceCreateDeviceRGB())
+    /// We are likely to encounter images with wider colour than sRGB
+    lazy var workingColorSpace: CGColorSpace? = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+    /// CIContexts
+    lazy var contexts = [CGColorSpace: CIContext]()
     
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -150,24 +153,48 @@ extension Device {
     }
     
     static func context() -> CIContext {
-        return Shared.shared.device!.context
+        Device.context(colorSpace: Device.colorSpace())
     }
     
     static func context(cgImage: CGImage) -> CIContext {
-        let options = [CIContextOption.workingColorSpace: cgImage.colorSpace]
-        return Self.context(options: options as [CIContextOption : Any])
+        let colorSpace = cgImage.colorSpace ?? Device.colorSpace()
+        return Device.context(colorSpace: colorSpace)
     }
     
     static func context(colorSpace: CGColorSpace) -> CIContext {
-        let options = [CIContextOption.workingColorSpace: colorSpace]
-        return Self.context(options: options)
-    }
-    
-    static func context(options: [CIContextOption : Any]) -> CIContext {
-        if #available(iOS 13.0, *, macOS 10.15, *) {
-            return CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-        } else {
-            return CIContext(options: options)
+        if let context = Shared.shared.device?.contexts[colorSpace] {
+            return context
         }
+        var options: [CIContextOption : Any] = [
+            CIContextOption.outputColorSpace: colorSpace,
+            // Caching does provide a minor speed boost without ballooning memory use, so let's have it on
+            CIContextOption.cacheIntermediates: true,
+            // Low GPU priority would make sense for a background operation that isn't performance-critical,
+            // but we are interested in disk-to-display performance
+            CIContextOption.priorityRequestLow: false,
+            // Definitely no CPU rendering, please
+            CIContextOption.useSoftwareRenderer: false,
+            // This is the Apple recommendation, see cgImage(using:) above
+            CIContextOption.workingFormat: CIFormat.RGBAh,
+        ]
+        if #available(iOS 13.0, macOS 10.12, *) {
+            // This option is undocumented, possibly only effective on iOS?
+            // Sounds more like allowLowPerformance, though, so turn it off
+            options[CIContextOption.allowLowPower] = false
+        }
+        if let workingColorSpace = Shared.shared.device?.workingColorSpace {
+            // We are likely to encounter images with wider colour than sRGB
+            options[CIContextOption.workingColorSpace] = workingColorSpace
+        }
+        let context: CIContext
+        if #available(iOS 13.0, *, macOS 10.15, *) {
+            context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
+        } else if #available(iOS 9.0, *, macOS 10.11, *) {
+            context = CIContext(mtlDevice: Device.device(), options: options)
+        } else {
+            context = CIContext(options: options)
+        }
+        Shared.shared.device?.contexts[colorSpace] = context
+        return context
     }
 }

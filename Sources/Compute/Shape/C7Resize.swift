@@ -18,7 +18,7 @@ public struct C7Resize: C7FilterProtocol {
     }
     
     public func resize(input size: C7Size) -> C7Size {
-        return ShapeMode.fitSize.resize(width: width, height: height, size: size)
+        return Placement.fit.resize(width: width, height: height, size: size)
     }
     
     public init(size: CGSize) {

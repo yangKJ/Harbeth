@@ -130,20 +130,18 @@ import CoreVideo
 extension BoxxIO {
     
     private func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
-        guard let texture = pixelBuffer.c7.toMTLTexture() else {
-            throw CustomError.source2Texture
-        }
-        let t = try filtering(texture: texture)
-        pixelBuffer.c7.copyToPixelBuffer(with: t)
+        let inTexture = try TextureLoader.init(with: pixelBuffer).texture
+        let texture = try filtering(texture: inTexture)
+        pixelBuffer.c7.copyToPixelBuffer(with: texture)
         return pixelBuffer
     }
     
     private func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            throw CustomError.source2Texture
+            throw CustomError.CMSampleBufferToCVPixelBuffer
         }
-        let pixelBuffer_ = try filtering(pixelBuffer: pixelBuffer)
-        guard let buffer = pixelBuffer_.c7.toCMSampleBuffer() else {
+        let p = try filtering(pixelBuffer: pixelBuffer)
+        guard let buffer = p.c7.toCMSampleBuffer() else {
             throw CustomError.CVPixelBufferToCMSampleBuffer
         }
         return buffer
@@ -184,25 +182,27 @@ extension BoxxIO {
 extension BoxxIO {
     
     private func filtering(pixelBuffer: CVPixelBuffer, success: @escaping (CVPixelBuffer) -> Void, failed: @escaping (CustomError) -> Void) {
-        guard let texture = pixelBuffer.c7.toMTLTexture() else {
-            failed(CustomError.source2Texture)
-            return
+        func setupTexture(_ texture: MTLTexture) {
+            filtering(texture: texture, success: { t in
+                pixelBuffer.c7.copyToPixelBuffer(with: t)
+                success(pixelBuffer)
+            }, failed: failed)
         }
-        filtering(texture: texture, success: { t in
-            pixelBuffer.c7.copyToPixelBuffer(with: t)
-            success(pixelBuffer)
-        }, failed: failed)
+        do {
+            let texture = try TextureLoader(with: pixelBuffer).texture
+            setupTexture(texture)
+        } catch {
+            failed(CustomError.toCustomError(error))
+        }
     }
     
     private func filtering(sampleBuffer: CMSampleBuffer, success: @escaping (CMSampleBuffer) -> Void, failed: @escaping (CustomError) -> Void) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer((sampleBuffer)),
-              let texture = pixelBuffer.c7.toMTLTexture() else {
-            failed(CustomError.source2Texture)
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer((sampleBuffer)) else {
+            failed(CustomError.CMSampleBufferToCVPixelBuffer)
             return
         }
-        filtering(texture: texture, success: { t in
-            pixelBuffer.c7.copyToPixelBuffer(with: t)
-            guard let buffer = pixelBuffer.c7.toCMSampleBuffer() else {
+        filtering(pixelBuffer: pixelBuffer, success: { p in
+            guard let buffer = p.c7.toCMSampleBuffer() else {
                 failed(CustomError.CVPixelBufferToCMSampleBuffer)
                 return
             }
@@ -312,13 +312,9 @@ extension BoxxIO {
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
         // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-        let texturior = Texturior(width: resize.width, height: resize.height, options: [
+        return try TextureLoader.emptyTexture(width: resize.width, height: resize.height, options: [
             .texturePixelFormat: bufferPixelFormat
         ])
-        guard let destTexture = texturior.texture else {
-            throw CustomError.makeTexture
-        }
-        return destTexture
     }
     
     private func applyCIImage(_ ciImage: CIImage, with texture: MTLTexture) -> CIImage {

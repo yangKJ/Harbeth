@@ -23,7 +23,27 @@ extension C7Image {
     }
     
     public var scale: CGFloat {
-        return 1.0
+        guard let pixelsWide = representations.first?.pixelsWide else {
+            return 1.0
+        }
+        let scale: CGFloat = CGFloat(pixelsWide) / size.width
+        return scale
+    }
+    
+    public func pngData() -> Data? {
+        guard let representation = tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: representation) else {
+            return nil
+        }
+        return bitmap.representation(using: .png, properties: [:])
+    }
+    
+    public func jpegData(compressionQuality: CGFloat) -> Data? {
+        guard let representation = tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: representation) else {
+            return nil
+        }
+        return bitmap.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
     }
 }
 

@@ -1,6 +1,6 @@
 //
 //  C7ChromaKey.metal
-//  ATMetalBand
+//  Harbeth
 //
 //  Created by Condy on 2022/2/15.
 //
@@ -13,10 +13,12 @@ kernel void C7ChromaKey(texture2d<half, access::write> outputTexture [[texture(0
                         constant float *thresholdSensitivity [[buffer(0)]],
                         constant float *smoothing [[buffer(1)]],
                         constant float3 *colorVector [[buffer(2)]],
+                        constant float4 *replaceColorVector [[buffer(3)]],
                         uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
     const half3 color = half3(*colorVector);
+    const half4 replace = half4(*replaceColorVector);
     
     const half maskY  = 0.2989h * color.r + 0.5866h * color.g + 0.1145h * color.b;
     const half maskCr = 0.7132h * (color.r - maskY);
@@ -29,7 +31,10 @@ kernel void C7ChromaKey(texture2d<half, access::write> outputTexture [[texture(0
     const half threshold = half(*thresholdSensitivity);
     const half blendValue = smoothstep(threshold, half(threshold + *smoothing), distance(half2(Cr, Cb), half2(maskCr, maskCb)));
     
-    const half4 outColor = half4(inColor * blendValue);
+    half4 outColor = half4(inColor * blendValue);
+    if (outColor.a == 0 && replace.a != 0) {
+        outColor = replace;
+    }
+    
     outputTexture.write(outColor, grid);
 }
-

@@ -32,7 +32,7 @@ public class C7Crop: C7FilterProtocol {
         return crop(size: size)
     }
     
-    private var cropType: CropType = CropType.size(0,0)
+    private var cropType: CropType = CropType.size(width: 0, height: 0)
     
     /// Specifies the border area clipping initialization.
     /// - Parameter space: Cutting dimension around, Unit of pixel.
@@ -46,13 +46,13 @@ public class C7Crop: C7FilterProtocol {
     
     public required init(origin: C7Point2D = .zero, width: Float, height: Float) {
         self.origin = origin
-        self.cropType = CropType.size(width, height)
+        self.cropType = CropType.size(width: width, height: height)
     }
 }
 
 extension C7Crop {
     enum CropType {
-        case size(Float, Float)
+        case size(width: Float, height: Float)
         case space(Float)
         case rect(CGRect)
     }
@@ -67,7 +67,8 @@ extension C7Crop {
             self.origin = C7Point2D(x: space/Float(size.width), y: space/Float(size.height))
             return C7Size(width: size.width-2*Int(space), height: size.height-2*Int(space))
         case .rect(let rect):
-            self.origin = C7Point2D(x: Float(rect.origin.x)/Float(size.width), y: Float(rect.origin.y)/Float(size.height))
+            self.origin = C7Point2D(x: Float(rect.origin.x) / Float(size.width),
+                                    y: Float(rect.origin.y) / Float(size.height))
             return C7Size(width: Int(rect.size.width), height: Int(rect.size.height))
         }
     }

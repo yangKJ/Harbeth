@@ -57,7 +57,7 @@ public class C7CombinationBeautiful: C7FilterProtocol, CombinationProtocol {
     }
     
     public func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture {
-        let destTexture = try Texturior.copyTexture(with: texture2)
+        let destTexture = try TextureLoader.copyTexture(with: texture2)
         self.blurTexture = try blurFilter.applyAtTexture(form: texture, to: destTexture, commandBuffer: buffer)
         self.edgeTexture = try edgeFilter.applyAtTexture(form: texture, to: destTexture, commandBuffer: buffer)
         return texture

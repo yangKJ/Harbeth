@@ -9,6 +9,9 @@ import Foundation
 import MetalKit
 import CoreImage
 import CoreVideo
+#if !os(macOS)
+import MobileCoreServices
+#endif
 
 extension C7Image: C7Compatible { }
 
@@ -103,6 +106,27 @@ extension Queen where Base == C7Image {
         }
         #else
         return base
+        #endif
+    }
+    
+    public func tiffData() -> Data? {
+        #if os(macOS)
+        return base.tiffRepresentation
+        #else
+        guard let cgImage = base.cgImage else {
+            return nil
+        }
+        let options: NSDictionary = [
+            kCGImagePropertyOrientation: base.imageOrientation,
+            kCGImagePropertyHasAlpha: true
+        ]
+        let data = NSMutableData()
+        guard let imageDestination = CGImageDestinationCreateWithData(data as CFMutableData, kUTTypeTIFF, 1, nil) else {
+            return nil
+        }
+        CGImageDestinationAddImage(imageDestination, cgImage, options)
+        CGImageDestinationFinalize(imageDestination)
+        return data as Data        
         #endif
     }
 }

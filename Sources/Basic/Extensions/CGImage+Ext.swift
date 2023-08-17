@@ -33,9 +33,9 @@ extension Queen where Base: CGImage {
         guard let data = context?.data else {
             return nil
         }
-        guard let texture = Texturior(width: width, height: height, options: [
+        guard let texture = try? TextureLoader.emptyTexture(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
-        ]).texture else {
+        ]) else {
             return nil
         }
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
@@ -47,29 +47,31 @@ extension Queen where Base: CGImage {
         let imageWidth  = Int(base.width)
         let imageHeight = Int(base.height)
         let attributes: [NSObject:AnyObject] = [
+            kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA) as CFNumber,
             kCVPixelBufferCGImageCompatibilityKey : true as AnyObject,
-            kCVPixelBufferCGBitmapContextCompatibilityKey : true as AnyObject
+            kCVPixelBufferCGBitmapContextCompatibilityKey : true as AnyObject,
+            kCVPixelBufferMetalCompatibilityKey: true as AnyObject,
         ]
         var pxbuffer: CVPixelBuffer? = nil
         CVPixelBufferCreate(kCFAllocatorDefault,
                             imageWidth,
                             imageHeight,
-                            kCVPixelFormatType_32ARGB,
+                            kCVPixelFormatType_32BGRA,
                             attributes as CFDictionary?,
                             &pxbuffer)
         guard let pxbuffer = pxbuffer else {
             return nil
         }
         let flags = CVPixelBufferLockFlags(rawValue: 0)
-        CVPixelBufferLockBaseAddress(pxbuffer, flags)
-        let pxdata = CVPixelBufferGetBaseAddress(pxbuffer)
-        let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
-        let context = CGContext(data: pxdata,
+        guard kCVReturnSuccess == CVPixelBufferLockBaseAddress(pxbuffer, flags) else {
+            return nil
+        }
+        let context = CGContext(data: CVPixelBufferGetBaseAddress(pxbuffer),
                                 width: imageWidth,
                                 height: imageHeight,
                                 bitsPerComponent: 8,
                                 bytesPerRow: CVPixelBufferGetBytesPerRow(pxbuffer),
-                                space: rgbColorSpace,
+                                space: CGColorSpaceCreateDeviceRGB(),
                                 bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue)
         if let context = context {
             context.draw(base, in: CGRect.init(x: 0, y: 0, width: imageWidth, height: imageHeight))

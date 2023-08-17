@@ -9,7 +9,10 @@ import Foundation
 
 public struct C7GaussianBlur: C7FilterProtocol {
     
-    public var radius: Float = 1
+    public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 100, value: 10)
+    
+    /// Sets the radius of the blur.
+    public var radius: Float = range.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7GaussianBlur")
@@ -19,7 +22,7 @@ public struct C7GaussianBlur: C7FilterProtocol {
         return [radius]
     }
     
-    public init(radius: Float = 1) {
+    public init(radius: Float = range.value) {
         self.radius = radius
     }
 }

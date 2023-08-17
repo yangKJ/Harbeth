@@ -10,6 +10,7 @@ using namespace metal;
 
 kernel void C7ComicStrip(texture2d<half, access::write> outputTexture [[texture(0)]],
                          texture2d<half, access::read> inputTexture [[texture(1)]],
+                         constant float *intensity [[buffer(0)]],
                          uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     const half r = inColor.r;
@@ -21,6 +22,7 @@ kernel void C7ComicStrip(texture2d<half, access::write> outputTexture [[texture(
     const half B = half(abs(b - g + b + r) * g);
     
     const half4 outColor = half4(R, G, B, inColor.a);
+    const half4 output = mix(inColor, outColor, half(*intensity));
     
-    outputTexture.write(outColor, grid);
+    outputTexture.write(output, grid);
 }

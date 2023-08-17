@@ -141,15 +141,10 @@ extension ViewControllerType {
                 return filter
             })
         case .ChromaKey:
-            var filter = C7ChromaKey()
-            filter.color = UIColor.red
-            filter.smoothing = 0.05
+            let filter = C7ChromaKey(smoothing: 0.05, chroma: .red)
             return (filter, nil, nil)
         case .ReplaceColor:
-            var filter = C7ReplaceRGBA()
-            filter.chroma = UIColor.red
-            filter.replaceColor = UIColor.purple
-            filter.smoothing = 0.1
+            let filter = C7ChromaKey(smoothing: 0.1, chroma: .red, replace: .purple)
             return (filter, nil, nil)
         case .Crop:
             var filter = C7Crop(origin: C7Point2D(x: 0.3, y: 0.3), width: 0, height: 1080)

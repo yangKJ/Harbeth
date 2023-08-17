@@ -86,3 +86,11 @@ struct CoreImageViews: View {
         .inlineNavigationBarTitle("CoreImage")
     }
 }
+
+struct CoreImageViews_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            CoreImageViews()
+        }
+    }
+}

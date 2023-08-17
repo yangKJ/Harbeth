@@ -8,9 +8,14 @@
 import Foundation
 
 /// 均值模糊效果
+/// https://docs.gimp.org/2.10/en/gimp-filter-median-blur.html
 public struct C7MeanBlur: C7FilterProtocol {
     
-    public var radius: Float = 1
+    public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 100, value: 10)
+    
+    /// The radius of the neighborhood. Increasing radius increases blur.
+    /// Contrary to the “Gaussian” filter, edges are not blurred. Corners are rounded and convex surfaces are eroded.
+    public var radius: Float = range.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7MeanBlur")
@@ -20,7 +25,7 @@ public struct C7MeanBlur: C7FilterProtocol {
         return [radius]
     }
     
-    public init(radius: Float = 1) {
+    public init(radius: Float = range.value) {
         self.radius = radius
     }
 }

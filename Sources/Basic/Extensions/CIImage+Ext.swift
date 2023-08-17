@@ -93,17 +93,19 @@ extension Queen where Base: CIImage {
     /// - Parameters:
     ///   - colorSpace: Color space
     ///   - context: An evaluation context for rendering image processing results and performing image analysis.
-    ///   - mirrored: New image representing the original image transformeded.
     /// - Returns: Newly created CGImage.
-    public func toCGImage(colorSpace: CGColorSpace? = nil, context: CIContext? = nil, mirrored: Bool = false) -> CGImage? {
-        if let cgImage = base.cgImage { return cgImage }
-        let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceRGB()
-        let context = context ?? Device.context(colorSpace: colorSpace)
-        var ciImage: CIImage = base
-        if mirrored, #available(iOS 11.0, macOS 10.13, *) {
-            ciImage = ciImage.oriented(.downMirrored)
+    public func toCGImage(colorSpace: CGColorSpace? = nil, context: CIContext? = nil) -> CGImage? {
+        if let cgImage = base.cgImage {
+            // Returns a CGImageRef if the CIImage was created.
+            return cgImage
         }
-        return context.createCGImage(ciImage, from: base.extent)
+        let colorSpace = colorSpace ?? Device.colorSpace()
+        let context = context ?? Device.context(colorSpace: colorSpace)
+        // Pixel format and color space set as discussed around 21:50 in:
+        // The `deferred: false` argument is important, to ensure significant rendering work will not
+        // be performed later _at drawing time_ on the main thread.
+        // See: https://developer.apple.com/videos/play/wwdc2016/505/
+        return context.createCGImage(base, from: base.extent, format: CIFormat.RGBAh, colorSpace: colorSpace, deferred: false)
     }
     
     public var hasIOSurface: Bool {

@@ -9,39 +9,36 @@ import Foundation
 import MetalKit
 import CoreImage
 
-/// Convert to metal texture.
+/// Convert to metal texture Or create empty metal texture.
 public struct TextureLoader {
     
     /// A metal texture.
     public let texture: MTLTexture
+    
+    /// Is it a blank texture?
+    public var isBlank: Bool {
+        texture.c7.isBlank()
+    }
+    
+    public init(with texture: MTLTexture) {
+        self.texture = texture
+    }
     
     /// Creates a new MTLTexture from a given bitmap image.
     /// - Parameters:
     ///   - cgImage: Bitmap image
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        guard let loader = Shared.shared.device?.textureLoader else {
+            throw CustomError.textureLoader
+        }
         let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
         let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
             .textureUsage: NSNumber(value: usage.rawValue),
             .generateMipmaps: NSNumber(value: false),
             .SRGB: NSNumber(value: false)
         ]
-        guard let loader = Shared.shared.device?.textureLoader else {
-            throw CustomError.textureLoader
-        }
         self.texture = try loader.newTexture(cgImage: cgImage, options: textureOptions)
-    }
-    
-    /// Creates a new MTLTexture from a UIImage / NSImage.
-    /// - Parameters:
-    ///   - image: A UIImage / NSImage.
-    ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        guard let cgImage = image.cgImage/*, let texture = cgImage.c7.toTexture() */else {
-            throw CustomError.source2Texture
-        }
-        //self.texture = texture
-        try self.init(with: cgImage, options: options)
     }
     
     /// Creates a new MTLTexture from a CIImage.
@@ -63,6 +60,139 @@ public struct TextureLoader {
         }
         try self.init(with: cgImage, options: options)
     }
+    
+    /// Creates a new MTLTexture from a CVPixelBuffer.
+    /// - Parameters:
+    ///   - ciImage: CVPixelBuffer
+    ///   - options: Dictonary of MTKTextureLoaderOptions.
+    public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        guard let cgImage = pixelBuffer.c7.toCGImage() else {
+            throw CustomError.source2Texture
+        }
+        try self.init(with: cgImage, options: options)
+    }
+    
+    /// Creates a new MTLTexture from a CMSampleBuffer.
+    /// - Parameters:
+    ///   - ciImage: CVPixelBuffer
+    ///   - options: Dictonary of MTKTextureLoaderOptions.
+    public init(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        guard let cgImage = sampleBuffer.c7.toCGImage() else {
+            throw CustomError.source2Texture
+        }
+        try self.init(with: cgImage, options: options)
+    }
+    
+    /// Creates a new MTLTexture from a UIImage / NSImage.
+    /// - Parameters:
+    ///   - image: A UIImage / NSImage.
+    ///   - options: Dictonary of MTKTextureLoaderOptions.
+    public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        guard let data = image.c7.tiffData() else {
+            throw CustomError.source2Texture
+        }
+        try self.init(with: data, options: options)
+    }
+    
+    /// Creates a new MTLTexture from a Data.
+    /// - Parameters:
+    ///   - data: Data.
+    ///   - options: Dictonary of MTKTextureLoaderOptions.
+    public init(with data: Data, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        guard let loader = Shared.shared.device?.textureLoader else {
+            throw CustomError.textureLoader
+        }
+        let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
+        let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
+            .textureUsage: NSNumber(value: usage.rawValue),
+            .generateMipmaps: NSNumber(value: false),
+            .SRGB: NSNumber(value: false)
+        ]
+        self.texture = try loader.newTexture(data: data, options: textureOptions)
+    }
+    
+    #if os(macOS)
+    /// Creates a new MTLTexture from a NSBitmapImageRep.
+    /// - Parameters:
+    ///   - bitmap: NSBitmapImageRep.
+    ///   - pixelFormat: Indicates the pixelFormat, The format of the picture should be consistent with the data.
+    public init(with bitmap: NSBitmapImageRep, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws {
+        guard let data: UnsafeMutablePointer<UInt8> = bitmap.bitmapData else {
+            throw CustomError.bitmapDataNotFound
+        }
+        let texture = try TextureLoader.emptyTexture(width: Int(bitmap.size.width), height: Int(bitmap.size.height), options: [
+            .texturePixelFormat: pixelFormat,
+        ])
+        let region = MTLRegionMake2D(0, 0, bitmap.pixelsWide, bitmap.pixelsHigh)
+        texture.replace(region: region, mipmapLevel: 0, withBytes: data, bytesPerRow: bitmap.bytesPerRow)
+        self.texture = texture
+    }
+    #endif
+}
+
+// MARK: - create empty metal texture
+extension TextureLoader {
+    /// Create a new metal texture with options.
+    public struct Option : Hashable, Equatable, RawRepresentable, @unchecked Sendable {
+        public let rawValue: UInt16
+        public init(rawValue: UInt16) {
+            self.rawValue = rawValue
+        }
+    }
+    
+    /// Create a new MTLTexture for later storage according to the texture parameters.
+    /// - Parameters:
+    ///   - size: The texture size.
+    ///   - options: Configure other parameters about generating metal textures.
+    public static func emptyTexture(at size: CGSize, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
+        try emptyTexture(width: Int(size.width), height: Int(size.height), options: options)
+    }
+    
+    /// Create a new MTLTexture for later storage according to the texture parameters.
+    /// - Parameters:
+    ///   - width: The texture width, must be greater than 0, maximum resolution is 16384.
+    ///   - height: The texture height, must be greater than 0, maximum resolution is 16384.
+    ///   - options: Configure other parameters about generating metal textures.
+    public static func emptyTexture(width: Int, height: Int, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
+        var usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
+        var pixelFormat = MTLPixelFormat.rgba8Unorm
+        var storageMode = MTLStorageMode.shared
+        #if os(macOS)
+        // Texture Descriptor Validation MTLStorageModeShared not allowed for textures.
+        // So macOS need use `managed`.
+        storageMode = MTLStorageMode.managed
+        #endif
+        var sampleCount: Int = 1
+        for (key, value) in (options ?? [TextureLoader.Option: Any]()) {
+            switch (key, value) {
+            case (.texturePixelFormat, let value as MTLPixelFormat):
+                pixelFormat = value
+            case (.textureUsage, let value as MTLTextureUsage):
+                usage = value
+            case (.textureStorageMode, let value as MTLStorageMode):
+                storageMode = value
+            case (.textureSampleCount, let value as Int):
+                sampleCount = value
+            default:
+                break
+            }
+        }
+        // Create a TextureDescriptor for a common 2D texture.
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: pixelFormat,
+            width: min(max(1, width), 16_384),
+            height: min(max(1, height), 16_384),
+            mipmapped: sampleCount == 1
+        )
+        descriptor.usage = usage
+        descriptor.storageMode = storageMode
+        descriptor.sampleCount = sampleCount
+        descriptor.textureType = sampleCount > 1 ? .type2DMultisample : .type2D
+        guard let texture = Device.device().makeTexture(descriptor: descriptor) else {
+            throw CustomError.makeTexture
+        }
+        return texture
+    }
 }
 
 extension TextureLoader {
@@ -75,6 +205,18 @@ extension TextureLoader {
             .SRGB: NSNumber(value: false)
         ])
         return texturior.texture
+    }
+    
+    /// Copy a new metal texture.
+    /// - Parameter texture: Texture to be copied.
+    /// - Returns: New metal texture.
+    public static func copyTexture(with texture: MTLTexture) throws -> MTLTexture {
+        // 纹理最好不要又作为输入纹理又作为输出纹理，否则会出现重复内容，
+        // 所以需要拷贝新的纹理来承载新的内容‼️
+        return try TextureLoader.emptyTexture(width: texture.width, height: texture.height, options: [
+            .texturePixelFormat: texture.pixelFormat,
+            .textureUsage: texture.usage,
+        ])
     }
 }
 
@@ -91,16 +233,16 @@ extension TextureLoader {
                                  options: [MTKTextureLoader.Option: Any]? = nil,
                                  success: @escaping (_ texture: MTLTexture) -> Void,
                                  failed: ((CustomError) -> Void)? = nil) {
+        guard let loader = Shared.shared.device?.textureLoader else {
+            failed?(CustomError.textureLoader)
+            return
+        }
         let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
         let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
             .textureUsage: NSNumber(value: usage.rawValue),
             .generateMipmaps: NSNumber(value: false),
             .SRGB: NSNumber(value: false)
         ]
-        guard let loader = Shared.shared.device?.textureLoader else {
-            failed?(CustomError.textureLoader)
-            return
-        }
         loader.newTexture(cgImage: cgImage, options: textureOptions) { texture, error in
             if let texture = texture {
                 success(texture)
@@ -136,4 +278,26 @@ extension TextureLoader {
 extension MTKTextureLoader.Option {
     /// Shared context.
     static let sharedContext: MTKTextureLoader.Option = .init(rawValue: "condy_context")
+}
+
+extension TextureLoader.Option {
+    
+    /// Indicates the pixelFormat, The format of the picture should be consistent with the data.
+    /// The default is `MTLPixelFormat.rgba8Unorm`.
+    public static let texturePixelFormat: TextureLoader.Option = .init(rawValue: 1 << 1)
+    
+    /// Description of texture usage, default is `shaderRead` and `shaderWrite`.
+    /// MTLTextureUsage declares how the texture will be used over its lifetime (bitwise OR for multiple uses).
+    /// This information may be used by the driver to make optimization decisions.
+    public static let textureUsage: TextureLoader.Option = .init(rawValue: 1 << 2)
+    
+    /// Describes location and CPU mapping of MTLTexture.
+    /// In this mode, CPU and device will nominally both use the same underlying memory when accessing the contents of the texture resource.
+    /// However, coherency is only guaranteed at command buffer boundaries to minimize the required flushing of CPU and GPU caches.
+    /// This is the default storage mode for iOS Textures.
+    public static let textureStorageMode: TextureLoader.Option = .init(rawValue: 1 << 3)
+    
+    /// The number of samples in the texture to create. The default value is 1.
+    /// When creating Buffer textures sampleCount must be 1. Implementations may round sample counts up to the next supported value.
+    public static let textureSampleCount: TextureLoader.Option = .init(rawValue: 1 << 4)
 }

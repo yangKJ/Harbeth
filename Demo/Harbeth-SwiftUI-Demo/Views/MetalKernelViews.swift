@@ -50,7 +50,24 @@ struct MetalKernelViews: View {
                 filter.intensity = $0
                 return filter
             }, min: R.iRange.min, max: R.iRange.max)) {
-                Text("Gray image")
+                Text("C7 Color Convert to Gray image")
+            }
+            NavigationLink(destination: CustomViews<C7ComicStrip>(value: 0.5, filtering: {
+                var filter = C7ComicStrip()
+                filter.intensity = $0
+                return filter
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Comic Strip")
+            }
+            NavigationLink(destination: CustomViews(value: C7CircleBlur.range.value, filtering: {
+                C7CircleBlur.init(radius: $0)
+            }, min: C7CircleBlur.range.min, max: C7CircleBlur.range.max)) {
+                Text("C7 Circle Blur")
+            }
+            NavigationLink(destination: CustomViews(value: C7ChromaKey.range.value, filtering: {
+                C7ChromaKey.init(smoothing: $0, chroma: .red, replace: .purple)
+            }, min: C7ChromaKey.range.min, max: C7ChromaKey.range.max, inputImage: R.image("IMG_2606"))) {
+                Text("C7 Chroma Key red to purple")
             }
         }
         .padding(.bottom)
@@ -58,5 +75,13 @@ struct MetalKernelViews: View {
         .textCase(.none)
         .groupedListStyle()
         .inlineNavigationBarTitle("Metal kernel")
+    }
+}
+
+struct MetalKernelViews_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            MetalKernelViews()
+        }
     }
 }

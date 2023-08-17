@@ -24,9 +24,9 @@ public struct C7Rotate: C7FilterProtocol {
         return mode.rotate(angle: Degree(value: angle).radians, size: size)
     }
     
-    private var mode: ShapeMode = .fitSize
+    private var mode: Placement = .fit
     
-    public init(mode: ShapeMode = .fitSize, angle: Float = 0) {
+    public init(mode: Placement = .fit, angle: Float = 0) {
         self.angle = angle
         self.mode = mode
     }

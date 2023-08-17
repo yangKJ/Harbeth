@@ -35,9 +35,9 @@ public struct C7Transform: C7FilterProtocol, ComputeProtocol {
         computeEncoder.setBytes(&factor, length: MemoryLayout<matrix_float3x2>.size, index: index + 1)
     }
     
-    private var mode: ShapeMode = .fitSize
+    private var mode: Placement = .fit
     
-    public init(mode: ShapeMode = .fitSize, transform: CGAffineTransform) {
+    public init(mode: Placement = .fit, transform: CGAffineTransform) {
         self.transform = transform
         self.mode = mode
     }

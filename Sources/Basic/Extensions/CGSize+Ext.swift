@@ -84,4 +84,10 @@ extension Queen where Base == CGSize {
         let origin = CGRect(origin: .zero, size: base)
         return origin.intersection(r)
     }
+    
+    public func distance(to: CGSize) -> CGFloat {
+        let xDist = to.width - base.width
+        let yDist = to.height - base.height
+        return sqrt((xDist * xDist) + (yDist * yDist))
+    }
 }

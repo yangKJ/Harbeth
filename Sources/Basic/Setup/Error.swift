@@ -20,12 +20,14 @@ public enum CustomError: Swift.Error {
     case texture2CGImage
     case texture2CIImage
     case CVPixelBufferToCMSampleBuffer
+    case CMSampleBufferToCVPixelBuffer
     case outputCIImage(String)
     case cubeResource
     case createCIFilter(String)
     case makeComputeCommandEncoder
     case makeTexture
     case textureLoader
+    case bitmapDataNotFound
 }
 
 extension CustomError: CustomStringConvertible {
@@ -60,6 +62,8 @@ extension CustomError: CustomStringConvertible {
             return "MTLTexture transform to CIImage failed."
         case .CVPixelBufferToCMSampleBuffer:
             return "CVPixelBuffer transform to CMSampleBuffer failed."
+        case .CMSampleBufferToCVPixelBuffer:
+            return "CMSampleBuffer transform to CVPixelBuffer failed."
         case .outputCIImage(let name):
             return "CoreImage \(name) filter bring into being output image failed."
         case .cubeResource:
@@ -72,6 +76,8 @@ extension CustomError: CustomStringConvertible {
             return "Create a new metal texture is failed."
         case .textureLoader:
             return "Using metal texture loader is nil."
+        case .bitmapDataNotFound:
+            return "Bitmap Data Not Found."
         default:
             return "Unknown error occurred."
         }
