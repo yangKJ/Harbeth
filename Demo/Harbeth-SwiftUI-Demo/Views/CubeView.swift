@@ -26,6 +26,7 @@ struct CubeView: View {
                     .textCase(.none)
                     .padding(.all, 20)
                     .foregroundColor(.black)
+                    .shadow(radius: 20)
             } else {
                 Text("loading..")
             }

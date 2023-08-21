@@ -67,7 +67,7 @@ struct BlendView: View {
                             }
                         })
                         .blendModesPickerStyle()
-                        .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.background, lineWidth: 2))
                         
                         VStack(alignment: .leading) {
                             Text("Intensity: \(intensity, specifier: "%.2f")")

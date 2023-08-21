@@ -11,12 +11,12 @@
 
 -------
 
-[**English**](README.md) | 简体中文
+[**中文详细介绍**](https://juejin.cn/post/7066964198596542471)
 
 ## 功能清单
 - 支持macOS和iOS平台系统，也支持SwiftUI使用；
 - 高性能在如下数据源快速添加过滤器效果：  
-  UIImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer
+  UIImage, NSImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer
 - 支持两种查找滤镜 [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup/C7LookupTable.swift) 和 [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage/CIColorCube.swift) 来定制专属滤镜；
 - 支持相机采集特效和视频播放加入滤镜效果；
 - Metal滤镜部分大致分为以下几个模块：  
@@ -26,18 +26,10 @@
 
 #### **总结下来目前将近两百种滤镜供您使用。✌️**
 
-当然如果您这边觉得好用对你有所帮助，请给作者一点辛苦的打赏吧。再次感谢！  
-有空我也会一直更新维护优化 😁😁😁
-
-<p align="left">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG1.jpg" width=30% hspace="1px">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width=30% hspace="15px">
-</p>
-
 ## 如何使用
 - 代码零侵入注入滤镜功能，
 
-```swift
+```
 原始代码：
 ImageView.image = originImage
 
@@ -48,10 +40,9 @@ let filter3 = C7SoulOut(soul: 0.7)
 
 let filters = [filter, filter2, filter3]
 
-简单使用`Outputable`🚗 🚗 🚗
 ImageView.image = try? originImage.makeGroup(filters: filters)
 
-也可数据源模式使用
+// 也可数据源模式使用
 let dest = BoxxIO.init(element: originImage, filters: filters)
 
 // 同步处理
@@ -64,14 +55,14 @@ dest.transmitOutput(success: { [weak self] image in
     }
 })
 
-或者运算符操作
+// 或者运算符操作
 ImageView.image = originImage -->>> filters
 
-甚至函数式编程高级用法
+// 甚至函数式编程高级用法
 filters.forEach { originImage = originImage ->> $0 }
 ImageView.image = originImage
 
-甚至不定参数使用
+// 甚至不定参数使用
 ImageView.image = originImage.filtering(filter, filter2, filter3)
 
 怎么使用就看你的心情了!!!🫤
@@ -79,14 +70,13 @@ ImageView.image = originImage.filtering(filter, filter2, filter3)
 
 - 相机采集生成图片
 
-```swift
-注入边缘检测滤镜:
+```
+// 注入边缘检测滤镜:
 let filter = C7EdgeGlow(lineColor: .red)
-
-注入颗粒感滤镜:
+// 注入颗粒感滤镜:
 let filter2 = C7Granularity(grain: 0.8)
 
-生成相机采集器:
+// 生成相机采集器:
 let camera = C7CollectorCamera.init(delegate: self)
 camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
 camera.filters = [filter, filter2]
@@ -102,7 +92,7 @@ extension CameraViewController: C7CollectorImageDelegate {
   - 🙄 详细请参考[PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/MetalDemo/Modules/PlayerViewController.swift)
   - 您也可以自己去扩展，使用`BoxxIO`对采集的`CVPixelBuffer`进行滤镜注入处理。
 
-```swift
+```
 lazy var video: C7CollectorVideo = {
     let videoURL = URL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
     let asset = AVURLAsset.init(url: videoURL)
@@ -127,147 +117,6 @@ extension PlayerViewController: C7CollectorImageDelegate {
 }
 ```
 
-### 设计滤镜
-- 举个例子，如何设计一款灵魂出窍滤镜🎷
-
-<p align="left">
-<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5f2b0a70ab16426fb36054b32c9bc2a9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="250" hspace="30px">
-</p>
-
-1. 遵循协议 `C7FilterProtocal`
-
-```swift
-public protocol C7FilterProtocol {
-    /// 编码器类型和对应的函数名
-    ///
-    /// 计算需要对应的`kernel`函数名
-    /// 渲染需要一个`vertex`着色器函数名和一个`fragment`着色器函数名
-    var modifier: Modifier { get }
-        
-    /// 制作缓冲区
-    /// 设置修改参数因子，需要转换为`Float`。
-    var factors: [Float] { get }
-        
-    /// 多输入源扩展
-    /// 包含 `MTLTexture` 的数组
-    var otherInputTextures: C7InputTextures { get }
-        
-    /// 改变输出图像的大小
-    func outputSize(input size：C7Size) -> C7Size
-}
-```
-
-2. 配置额外的所需纹理
-
-3. 配置传递参数因子，仅支持`Float`类型
-- 这款滤镜主要需要三个参数：
-    - `soul`：调整后的灵魂，从 0.0 到 1.0，默认为 0.5
-    - `maxScale`：最大灵魂比例
-    - `maxAlpha`：最大灵魂的透明度
-
-4. 编写基于并行计算的核函数着色器
-
-```metal
-kernel void C7SoulOut(texture2d<half, access::write> outputTexture [[texture(0)]],
-                      texture2d<half, access::sample> inputTexture [[texture(1)]],
-                      constant float *soulPointer [[buffer(0)]],
-                      constant float *maxScalePointer [[buffer(1)]],
-                      constant float *maxAlphaPointer [[buffer(2)]],
-                      uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half4 inColor = inputTexture.read(grid);
-    const float x = float(grid.x) / outputTexture.get_width();
-    const float y = float(grid.y) / outputTexture.get_height();
-    
-    const half soul = half(*soulPointer);
-    const half maxScale = half(*maxScalePointer);
-    const half maxAlpha = half(*maxAlphaPointer);
-    
-    const half alpha = maxAlpha * (1.0h - soul);
-    const half scale = 1.0h + (maxScale - 1.0h) * soul;
-    
-    const half soulX = 0.5h + (x - 0.5h) / scale;
-    const half soulY = 0.5h + (y - 0.5h) / scale;
-    
-    // 最终色 = 基色 * (1 - a) + 混合色 * a   
-    const half4 soulMask = inputTexture.sample(quadSampler, float2(soulX, soulY));
-    const half4 outColor = inColor * (1.0h - alpha) + soulMask * alpha;
-    
-    outputTexture.write(outColor, grid);
-}
-```
-
-5. 简单使用，由于我这边设计的是基于并行计算管道，所以可以直接生成图片
-
-```swift
-/// 添加一个灵魂出窍滤镜
-let filter = C7SoulOut(soul: 0.5, maxScale: 2.0)
-
-/// Display directly in ImageView
-ImageView.image = try? originImage.make(filter: filter)
-```
-
-6. 至于上面的动效也很简单，添加一个计时器，然后改变`soul`值就完事，简单嘛 0 0.
-
-----
-
-### 高级用法
-
-<p align="left">
-<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae83280ff32340a889d7d4a61d0af8f6~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="250" hspace="1px">
-</p>
-
-- 运算符链式处理
-
-```swift
-/// 1.转换成BGRA
-let filter1 = C7ColorConvert(with: .color2BGRA)
-
-/// 2.调整颗粒度
-let filter2 = C7Granularity(grain: 0.8)
-
-/// 3.调整白平衡
-let filter3 = C7WhiteBalance(temperature: 5555)
-
-/// 4.调整高光阴影
-let filter4 = C7HighlightShadow(highlights: 0.5, shadows: 0.4)
-
-/// 5.组合操作
-filterImageView.image = originImage ->> filter1 ->> filter2 ->> filter3 ->> filter4
-```
-
------
-
-<p align="left">
-<img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6f454038a958434da8bc26fc3aa1486a~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp" width="250" hspace="1px">
-</p>
-
-- 组合操作
-
-```swift
-/// 1.转换成RBGA
-let filter1 = C7ColorConvert(with: .color2RBGA)
-
-/// 2.调整颗粒度
-let filter2 = C7Granularity(grain: 0.8)
-
-/// 3.配置灵魂效果
-let filter3 = C7SoulOut(soul: 0.7)
-
-/// 4.组合操作
-let group: [C7FilterProtocol] = [filter1, filter2, filter3]
-
-/// 5.获取结果
-filterImageView.image = try? originImage.makeGroup(filters: group)
-```
-
-**两种方式都可以处理多滤镜方案，怎么选择就看你心情。✌️**
-
-----
-
-### 相机采集特效
-
-
 ### CocoaPods Install
 
 - 如果要导入 [Metal](https://github.com/yangKJ/Harbeth) 模块，则需要在 Podfile 中：
@@ -282,6 +131,14 @@ pod 'Harbeth'
 pod 'OpencvQueen'
 ```
 
+### Swift Package Manager
+
+```
+dependencies: [
+    .package(url: "https://github.com/yangKJ/Harbeth.git", branch: "master"),
+]
+```
+
 ### 关于作者
 - 🎷 **邮箱地址：[ykj310@126.com](ykj310@126.com) 🎷**
 - 🎸 **GitHub地址：[yangKJ](https://github.com/yangKJ) 🎸**
@@ -290,7 +147,13 @@ pod 'OpencvQueen'
 
 ----
 
-> <font color=red>**觉得有帮助的老哥们，请帮忙点个星 ⭐..**</font>
+当然如果您这边觉得好用对你有所帮助，请给作者一点辛苦的打赏吧。再次感谢感谢！！！  
+有空我也会一直更新维护优化 😁😁😁
+
+<p align="left">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG1.jpg" width=28% hspace="1px">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width=28% hspace="15px">
+</p>
 
 **救救孩子吧，谢谢各位老板。**
 

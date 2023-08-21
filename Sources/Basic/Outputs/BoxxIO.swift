@@ -378,10 +378,8 @@ extension BoxxIO {
         switch filter.modifier {
         case .coreimage(let name):
             let outputImage = try filter.outputCIImage(with: texture, name: name)
-            let options: [MTKTextureLoader.Option: Any] = [
-                .sharedContext: Device.context(colorSpace: Device.colorSpace()),
-            ]
-            return try TextureLoader(with: outputImage, options: options).texture
+            // It can only be processed synchronously, otherwise it will get stuck.
+            return try outputImage.c7.renderCIImageToTexture(texture)
         case .compute, .mps, .render:
             let destTexture = try createDestTexture(with: texture, filter: filter)
             return try filter.combinationIO(in: texture, to: destTexture, commandBuffer: commandBuffer)

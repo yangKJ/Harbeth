@@ -37,9 +37,10 @@ struct AsyncImageView: View {
     
     func setupImage() {
         let filters: [C7FilterProtocol] = [
-            CIGaussianBlur(radius: 10),
-            C7ColorConvert(with: .gray),
-            C7Storyboard(ranks: 2),
+            C7Pixellated(scale: 0.04),
+            CILookupTable(cubeName: "violet", amount: 0.5),
+            CIGaussianBlur(radius: 20),
+            C7Flip(horizontal: true, vertical: true),
         ]
         let inputImage = R.image("IMG_0020")!
         let dest = BoxxIO(element: inputImage, filters: filters)

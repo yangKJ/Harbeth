@@ -9,7 +9,7 @@
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
  
-[**Harbeth**](https://github.com/yangKJ/Harbeth) is a high performance Swift library for GPU-accelerated image processing and realtime camera capture and video smooth playback, and then add filters based on Metal, and also compatible for CoreImage filters and metal performance shaders filters.
+[**Harbeth**](https://github.com/yangKJ/Harbeth) is a high performance Swift library for GPU accelerated image processing and realtime camera capture and video smooth playback, and then add filters based on Metal, and also compatible for CoreImage filters and using Metal performance shaders filters.
 
 This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUImage).
 
@@ -64,6 +64,9 @@ ImageView.image = try? dest.output()
 
 // OR Use:
 ImageView.image = try? originImage.makeGroup(filters: filters)
+
+// OR Use:
+ImageView.image = originImage.filtering(filter1, filter2, filter3)
 
 // OR Use Operator:
 ImageView.image = originImage ->> filter1 ->> filter2 ->> filter3

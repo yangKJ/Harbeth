@@ -32,7 +32,7 @@ struct MetalKernelViews: View {
         List {
             NavigationLink(destination: CustomViews(value: C7SoulOut.range.value, filtering: {
                 C7SoulOut.init(soul: $0)
-            }, min: C7SoulOut.range.min, max: C7SoulOut.range.max)) {
+            }, min: C7SoulOut.range.min, max: C7SoulOut.range.max, inputImage: R.image("yuan002"))) {
                 Text("C7 Soul out")
             }
             NavigationLink(destination: CustomViews(value: C7Pixellated.range.value, filtering: {
@@ -46,11 +46,11 @@ struct MetalKernelViews: View {
                 Text("C7 Polar Pixellate")
             }
             NavigationLink(destination: CustomViews<C7ColorConvert>(value: R.iRange.value, filtering: {
-                var filter = C7ColorConvert(with: .gray)
+                var filter = C7ColorConvert(with: .bgra)
                 filter.intensity = $0
                 return filter
-            }, min: R.iRange.min, max: R.iRange.max)) {
-                Text("C7 Color Convert to Gray image")
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Color Convert to bgra image")
             }
             NavigationLink(destination: CustomViews<C7ComicStrip>(value: 0.5, filtering: {
                 var filter = C7ComicStrip()
@@ -58,6 +58,20 @@ struct MetalKernelViews: View {
                 return filter
             }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
                 Text("C7 Comic Strip")
+            }
+            NavigationLink(destination: CustomViews<C7ColorMatrix4x4>(value: R.iRange.value, filtering: {
+                var filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.greenDouble)
+                filter.intensity = $0
+                return filter
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Matrix4x4 Green double")
+            }
+            NavigationLink(destination: CustomViews<C7LookupTable>(value: R.iRange.value, filtering: {
+                var filter = C7LookupTable(name: "lut")
+                filter.intensity = $0
+                return filter
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Lookup Table")
             }
             NavigationLink(destination: CustomViews(value: C7CircleBlur.range.value, filtering: {
                 C7CircleBlur.init(radius: $0)

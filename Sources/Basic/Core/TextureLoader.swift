@@ -12,6 +12,14 @@ import CoreImage
 /// Convert to metal texture Or create empty metal texture.
 public struct TextureLoader {
     
+    private static let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
+    /// Default create metal texture parameters.
+    public static let defaultOptions = [
+        .textureUsage: NSNumber(value: TextureLoader.usage.rawValue),
+        .generateMipmaps: NSNumber(value: false),
+        .SRGB: NSNumber(value: false)
+    ] as [MTKTextureLoader.Option: Any]
+    
     /// A metal texture.
     public let texture: MTLTexture
     
@@ -28,28 +36,19 @@ public struct TextureLoader {
     /// - Parameters:
     ///   - cgImage: Bitmap image
     ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+    public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let loader = Shared.shared.device?.textureLoader else {
             throw CustomError.textureLoader
         }
-        let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
-        let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
-            .textureUsage: NSNumber(value: usage.rawValue),
-            .generateMipmaps: NSNumber(value: false),
-            .SRGB: NSNumber(value: false)
-        ]
-        self.texture = try loader.newTexture(cgImage: cgImage, options: textureOptions)
+        self.texture = try loader.newTexture(cgImage: cgImage, options: options)
     }
     
     /// Creates a new MTLTexture from a CIImage.
     /// - Parameters:
     ///   - ciImage: CIImage
     ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with ciImage: CIImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+    public init(with ciImage: CIImage, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         let context: CIContext? = {
-            guard let options = options else {
-                return nil
-            }
             if options.keys.contains(where: { $0 == .sharedContext }) {
                 return options[.sharedContext] as? CIContext
             }
@@ -65,7 +64,7 @@ public struct TextureLoader {
     /// - Parameters:
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+    public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let cgImage = pixelBuffer.c7.toCGImage() else {
             throw CustomError.source2Texture
         }
@@ -76,7 +75,7 @@ public struct TextureLoader {
     /// - Parameters:
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+    public init(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let cgImage = sampleBuffer.c7.toCGImage() else {
             throw CustomError.source2Texture
         }
@@ -87,7 +86,7 @@ public struct TextureLoader {
     /// - Parameters:
     ///   - image: A UIImage / NSImage.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+    public init(with image: C7Image, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let data = image.c7.tiffData() else {
             throw CustomError.source2Texture
         }
@@ -98,17 +97,11 @@ public struct TextureLoader {
     /// - Parameters:
     ///   - data: Data.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with data: Data, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+    public init(with data: Data, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let loader = Shared.shared.device?.textureLoader else {
             throw CustomError.textureLoader
         }
-        let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
-        let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
-            .textureUsage: NSNumber(value: usage.rawValue),
-            .generateMipmaps: NSNumber(value: false),
-            .SRGB: NSNumber(value: false)
-        ]
-        self.texture = try loader.newTexture(data: data, options: textureOptions)
+        self.texture = try loader.newTexture(data: data, options: options)
     }
     
     #if os(macOS)
@@ -229,21 +222,15 @@ extension TextureLoader {
     ///   - success: Successful
     ///   - failed: Failed
     ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public static func toTexture(with cgImage: CGImage,
-                                 options: [MTKTextureLoader.Option: Any]? = nil,
-                                 success: @escaping (_ texture: MTLTexture) -> Void,
-                                 failed: ((CustomError) -> Void)? = nil) {
+    public static func makeTexture(with cgImage: CGImage,
+                                   options: [MTKTextureLoader.Option: Any] = defaultOptions,
+                                   success: @escaping (_ texture: MTLTexture) -> Void,
+                                   failed: ((CustomError) -> Void)? = nil) {
         guard let loader = Shared.shared.device?.textureLoader else {
             failed?(CustomError.textureLoader)
             return
         }
-        let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
-        let textureOptions: [MTKTextureLoader.Option: Any] = options ?? [
-            .textureUsage: NSNumber(value: usage.rawValue),
-            .generateMipmaps: NSNumber(value: false),
-            .SRGB: NSNumber(value: false)
-        ]
-        loader.newTexture(cgImage: cgImage, options: textureOptions) { texture, error in
+        loader.newTexture(cgImage: cgImage, options: options) { texture, error in
             if let texture = texture {
                 success(texture)
             } else if let error = error {
@@ -252,26 +239,32 @@ extension TextureLoader {
         }
     }
     
-    public static func toTexture(with image: C7Image,
-                                 options: [MTKTextureLoader.Option: Any]? = nil,
-                                 success: @escaping (_ texture: MTLTexture) -> Void,
-                                 failed: ((CustomError) -> Void)? = nil) {
+    public static func makeTexture(with image: C7Image,
+                                   options: [MTKTextureLoader.Option: Any] = defaultOptions,
+                                   success: @escaping (_ texture: MTLTexture) -> Void,
+                                   failed: ((CustomError) -> Void)? = nil) {
         guard let cgImage = image.cgImage else {
             failed?(CustomError.source2Texture)
             return
         }
-        toTexture(with: cgImage, options: options, success: success, failed: failed)
+        makeTexture(with: cgImage, options: options, success: success, failed: failed)
     }
     
-    public static func toTexture(with ciImage: CIImage,
-                                 options: [MTKTextureLoader.Option: Any]? = nil,
-                                 success: @escaping (_ texture: MTLTexture) -> Void,
-                                 failed: ((CustomError) -> Void)? = nil) {
-        guard let cgImage = ciImage.cgImage else {
+    public static func makeTexture(with ciImage: CIImage,
+                                   options: [MTKTextureLoader.Option: Any] = defaultOptions,
+                                   success: @escaping (_ texture: MTLTexture) -> Void,
+                                   failed: ((CustomError) -> Void)? = nil) {
+        let context: CIContext? = {
+            if options.keys.contains(where: { $0 == .sharedContext }) {
+                return options[.sharedContext] as? CIContext
+            }
+            return nil
+        }()
+        guard let cgImage = ciImage.c7.toCGImage(context: context) else {
             failed?(CustomError.source2Texture)
             return
         }
-        toTexture(with: cgImage, options: options, success: success, failed: failed)
+        makeTexture(with: cgImage, options: options, success: success, failed: failed)
     }
 }
 
