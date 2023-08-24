@@ -409,8 +409,7 @@ extension BoxxIO {
         case .coreimage(let name):
             let destTexture = try createDestTexture(with: texture, filter: filter)
             let outputImage = try filter.outputCIImage(with: texture, name: name)
-            let _ = try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
-            commandBuffer.commitAndWaitUntilCompleted()
+            try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
             return destTexture
         case .compute, .mps, .render:
             let destTexture = try createDestTexture(with: texture, filter: filter)

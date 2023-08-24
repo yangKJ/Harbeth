@@ -34,19 +34,21 @@ extension Queen where Base: CIImage {
     /// - Parameters:
     ///   - texture: Output the texture and write CIImage to the metal texture.
     ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
-    /// - Returns: An Xcode quicklook of this object will show a graph visualization of the render.
-    public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer? = nil) throws -> CIRenderTask {
+    public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer? = nil) throws {
         guard let commandBuffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
             throw CustomError.commandBuffer
         }
         let colorSpace = Device.colorSpace()
         let ctx = Device.context(colorSpace: colorSpace)
         let fixedImage = base.c7.fixHorizontalFlip()
-        let renderDestination = CIRenderDestination(mtlTexture: texture, commandBuffer: commandBuffer)
-        try ctx.prepareRender(fixedImage, from: fixedImage.extent, to: renderDestination, at: .zero)
-        let task = try ctx.startTask(toRender: fixedImage, to: renderDestination)
-        //try task.waitUntilCompleted()
-        return task
+        if #available(iOS 11.0, macOS 10.13, *) {
+            let renderDestination = CIRenderDestination(mtlTexture: texture, commandBuffer: commandBuffer)
+            //try ctx.prepareRender(fixedImage, from: fixedImage.extent, to: renderDestination, at: .zero)
+            _ = try ctx.startTask(toRender: fixedImage, to: renderDestination)
+        } else {
+            ctx.render(fixedImage, to: texture, commandBuffer: commandBuffer, bounds: fixedImage.extent, colorSpace: colorSpace)
+        }
+        commandBuffer.commitAndWaitUntilCompleted()
     }
     
     /// Asynchronous write CIImage to metal texture.
