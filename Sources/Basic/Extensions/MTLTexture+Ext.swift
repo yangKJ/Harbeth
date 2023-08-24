@@ -76,6 +76,10 @@ public struct MTLTextureCompatible_ {
         return cgImage.c7.toC7Image()
     }
     
+    public func toCIImage() -> CIImage? {
+        CIImage.init(mtlTexture: target)
+    }
+    
     /// Create a CGImage with the data and information we provided.
     /// Each pixel contains of 4 UInt8s or 32 bits, each byte is representing one channel.
     /// The layout of the pixels is described with bitmap info.

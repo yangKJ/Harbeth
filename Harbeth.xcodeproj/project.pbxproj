@@ -16,7 +16,6 @@
 		872660C22994D82200E612C7 /* Filtering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC52994D82100E612C7 /* Filtering.swift */; };
 		872660C32994D82200E612C7 /* Operators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC62994D82100E612C7 /* Operators.swift */; };
 		872660C42994D82200E612C7 /* Compute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC72994D82100E612C7 /* Compute.swift */; };
-		872660C52994D82200E612C7 /* Processed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FC82994D82100E612C7 /* Processed.swift */; };
 		872660C72994D82200E612C7 /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCA2994D82100E612C7 /* Device.swift */; };
 		872660C92994D82200E612C7 /* Matrix3x3.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCD2994D82100E612C7 /* Matrix3x3.swift */; };
 		872660CA2994D82200E612C7 /* R.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FCE2994D82100E612C7 /* R.swift */; };
@@ -283,7 +282,6 @@
 		87265FC52994D82100E612C7 /* Filtering.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Filtering.swift; sourceTree = "<group>"; };
 		87265FC62994D82100E612C7 /* Operators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Operators.swift; sourceTree = "<group>"; };
 		87265FC72994D82100E612C7 /* Compute.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Compute.swift; sourceTree = "<group>"; };
-		87265FC82994D82100E612C7 /* Processed.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Processed.swift; sourceTree = "<group>"; };
 		87265FCA2994D82100E612C7 /* Device.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Device.swift; sourceTree = "<group>"; };
 		87265FCD2994D82100E612C7 /* Matrix3x3.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix3x3.swift; sourceTree = "<group>"; };
 		87265FCE2994D82100E612C7 /* R.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = R.swift; sourceTree = "<group>"; };
@@ -693,7 +691,6 @@
 				87265FC72994D82100E612C7 /* Compute.swift */,
 				87265FCA2994D82100E612C7 /* Device.swift */,
 				87265FC52994D82100E612C7 /* Filtering.swift */,
-				87265FC82994D82100E612C7 /* Processed.swift */,
 				87265FC32994D82100E612C7 /* Rendering.swift */,
 				87265FC42994D82100E612C7 /* Shared.swift */,
 				872A26972A84B6DC00DCA2ED /* TextureLoader.swift */,
@@ -1320,7 +1317,6 @@
 				872660D22994D82200E612C7 /* Size.swift in Sources */,
 				872661192994D82200E612C7 /* C7Sobel.swift in Sources */,
 				872660E02994D82200E612C7 /* Matrix4x4.swift in Sources */,
-				872660C52994D82200E612C7 /* Processed.swift in Sources */,
 				872661942994D82200E612C7 /* C7RedMonochromeBlur.metal in Sources */,
 				872661642994D82200E612C7 /* C7Opacity.metal in Sources */,
 				872661572994D82200E612C7 /* C7LuminanceThreshold.swift in Sources */,

@@ -44,7 +44,7 @@ public struct C7CombinationBilateralBlur: C7FilterProtocol, CombinationProtocol 
     
     public func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture {
         let destTexture = try TextureLoader.copyTexture(with: texture2)
-        try firstBlur.applyAtTexture(form: texture, to: texture2, commandBuffer: buffer)
+        _ = try firstBlur.applyAtTexture(form: texture, to: texture2, for: buffer)
         return destTexture
     }
 }

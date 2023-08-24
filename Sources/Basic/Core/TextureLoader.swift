@@ -209,6 +209,8 @@ extension TextureLoader {
         return try TextureLoader.emptyTexture(width: texture.width, height: texture.height, options: [
             .texturePixelFormat: texture.pixelFormat,
             .textureUsage: texture.usage,
+            .textureSampleCount: texture.sampleCount,
+            .textureStorageMode: texture.storageMode,
         ])
     }
 }

@@ -30,24 +30,23 @@ extension Queen where Base: CIImage {
     }
     
     /// Write CIImage to metal texture synchronously.
-    /// Render `bounds` of `image` to a Metal texture, optionally specifying what command buffer to use.
+    /// Render bounds of CIImage to a Metal texture, optionally specifying what command buffer to use.
     /// - Parameters:
-    ///   - texture: Texture type must be MTLTexture2D.
+    ///   - texture: Output the texture and write CIImage to the metal texture.
     ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
-    public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer? = nil) throws -> MTLTexture {
-        guard let buffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
+    /// - Returns: An Xcode quicklook of this object will show a graph visualization of the render.
+    public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer? = nil) throws -> CIRenderTask {
+        guard let commandBuffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
             throw CustomError.commandBuffer
         }
         let colorSpace = Device.colorSpace()
         let ctx = Device.context(colorSpace: colorSpace)
-        // Fixed image horizontal flip problem.
-        let fixedImage = fixHorizontalFlip()
-        //let origin = CGPoint(x: -scaledImage.extent.origin.x, y: -scaledImage.extent.origin.y)
-        //let bounds = CGRect(origin: origin, size: scaledImage.extent.size)
-        ctx.render(fixedImage, to: texture, commandBuffer: buffer, bounds: fixedImage.extent, colorSpace: colorSpace)
-        // 这俩必须写在`render`同一个方法下面，否则会卡死<很奇怪，没读懂什么意思>
-        buffer.commitAndWaitUntilCompleted()
-        return texture
+        let fixedImage = base.c7.fixHorizontalFlip()
+        let renderDestination = CIRenderDestination(mtlTexture: texture, commandBuffer: commandBuffer)
+        try ctx.prepareRender(fixedImage, from: fixedImage.extent, to: renderDestination, at: .zero)
+        let task = try ctx.startTask(toRender: fixedImage, to: renderDestination)
+        //try task.waitUntilCompleted()
+        return task
     }
     
     /// Asynchronous write CIImage to metal texture.
@@ -110,5 +109,25 @@ extension Queen where Base: CIImage {
     
     public var hasIOSurface: Bool {
         base.debugDescription.contains("IOSurface")
+    }
+}
+
+extension C7FilterProtocol {
+    
+    func outputCIImage(with texture: MTLTexture, name: String) throws -> CIImage {
+        guard let ciFiter = CIFilter.init(name: name) else {
+            throw CustomError.createCIFilter(name)
+        }
+        guard let cgImage = texture.c7.toCGImage() else {
+            throw CustomError.texture2CGImage
+        }
+        let inputCIImage = CIImage.init(cgImage: cgImage)
+        let ciImage = try (self as! CoreImageProtocol).coreImageApply(filter: ciFiter, input: inputCIImage)
+        ciFiter.setValue(ciImage, forKeyPath: kCIInputImageKey)
+        guard let outputImage = ciFiter.outputImage else {
+            throw CustomError.outputCIImage(name)
+        }
+        // Return a new image cropped to a rectangle.
+        return outputImage.cropped(to: inputCIImage.extent)
     }
 }

@@ -56,6 +56,31 @@ extension C7FilterProtocol {
     public var otherInputTextures: C7InputTextures { [] }
     /// The resize of the output texture.
     public func resize(input size: C7Size) -> C7Size { size }
+    
+    /// Add the filter into the output texture with compute, render and mps filter.
+    /// - Parameters:
+    ///   - texture: Input metal texture.
+    ///   - destTexture: Output metal texture content.
+    ///   - buffer: A valid MTLCommandBuffer to receive the encoded filter.
+    /// - Returns: Output texture.
+    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
+        switch self.modifier {
+        case .compute(let kernel):
+            var textures = [destTexture, texture]
+            textures += self.otherInputTextures
+            return try self.drawing(with: kernel, commandBuffer: buffer, textures: textures)
+        case .render(let vertex, let fragment):
+            let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
+            Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
+            return destTexture
+        case .mps:
+            var textures = [destTexture, texture]
+            textures += self.otherInputTextures
+            return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+        default:
+            return destTexture
+        }
+    }
 }
 
 // MARK: - compute filter protocol
