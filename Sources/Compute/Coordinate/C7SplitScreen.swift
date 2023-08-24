@@ -9,22 +9,30 @@ import Foundation
 
 public struct C7SplitScreen: C7FilterProtocol {
 
-    public enum SSType: Int {
+    public enum ScreenType: Int {
         case two = 2
         case three = 3
     }
     
-    public var type: SSType = .two
+    public enum DirectionType: Int {
+        case horizontal
+        case vertical
+    }
+    
+    public var type: ScreenType = .two
+    
+    public var direction: DirectionType = .vertical
     
     public var modifier: Modifier {
         return .compute(kernel: "C7SplitScreen")
     }
     
     public var factors: [Float] {
-        return [Float(type.rawValue)]
+        return [Float(type.rawValue), Float(direction.rawValue)]
     }
     
-    public init(type: C7SplitScreen.SSType = .two) {
+    public init(type: ScreenType = .two, direction: DirectionType = .vertical) {
         self.type = type
+        self.direction = direction
     }
 }
