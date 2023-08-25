@@ -11,11 +11,11 @@ import Combine
 
 struct AsyncImageView: View {
     
-    @State private var outImage: C7Image?
+    @StateObject var dest = AsyncDest<C7Image>()
     
     var body: some View {
         VStack {
-            if let image = outImage {
+            if let image = dest.bookmarks {
                 Image(c7Image: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -28,27 +28,27 @@ struct AsyncImageView: View {
                     .textCase(.none)
                     .padding(.all, 20)
                     .foregroundColor(.black)
+            } else if let error = dest.error {
+                Text(error.localizedDescription)
             } else {
                 Text("loading..")
             }
         }
-        .onAppear(perform: setupImage)
-    }
-    
-    func setupImage() {
-        let filters: [C7FilterProtocol] = [
-            //C7Pixellated(scale: 0.04),
-            CILookupTable(cubeName: "violet", amount: 0.5),
-            CIGaussianBlur(radius: 5),
-            C7Flip(horizontal: true, vertical: false),
-            C7SplitScreen(type: .two, direction: .vertical),
-        ]
-        let inputImage = R.image("IMG_0020")!
-        let dest = BoxxIO(element: inputImage, filters: filters)
-        dest.transmitOutput { img in
-            DispatchQueue.main.async {
-                self.outImage = img
+        .overlay(alignment: .top) {
+            if dest.error != nil {
+                ErrorView(error: $dest.error)
             }
+        }
+        .task {
+            let filters: [C7FilterProtocol] = [
+                //C7Pixellated(scale: 0.04),
+                CILookupTable(cubeName: "violet", amount: 0.5),
+                CIGaussianBlur(radius: 5),
+                C7Flip(horizontal: true, vertical: false),
+                C7SplitScreen(type: .two, direction: .vertical),
+            ]
+            let inputImage = R.image("IMG_0020")!
+            await dest.output(with: inputImage, filters: filters)
         }
     }
 }

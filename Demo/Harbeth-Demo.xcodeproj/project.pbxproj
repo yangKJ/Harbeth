@@ -15,6 +15,7 @@
 		872661CB2994D8CF00E612C7 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 872661C92994D8CF00E612C7 /* Main.storyboard */; };
 		872661DE2994DA4700E612C7 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; };
 		872661DF2994DA4700E612C7 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		874035862A988C07001D0A98 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035852A988C07001D0A98 /* ErrorView.swift */; };
 		875CD59E2A49705400C114C3 /* C7Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59A2A49705400C114C3 /* C7Collector.swift */; };
 		875CD5A02A49705400C114C3 /* C7CollectorCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */; };
 		875CD5A12A49705400C114C3 /* C7CollectorVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59D2A49705400C114C3 /* C7CollectorVideo.swift */; };
@@ -98,6 +99,7 @@
 		872661CA2994D8CF00E612C7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		872661CC2994D8CF00E612C7 /* Harbeth_macOS_Demo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Harbeth_macOS_Demo.entitlements; sourceTree = "<group>"; };
 		872661DD2994DA4700E612C7 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		874035852A988C07001D0A98 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 		875CD59A2A49705400C114C3 /* C7Collector.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Collector.swift; sourceTree = "<group>"; };
 		875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorCamera.swift; sourceTree = "<group>"; };
 		875CD59D2A49705400C114C3 /* C7CollectorVideo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorVideo.swift; sourceTree = "<group>"; };
@@ -299,6 +301,7 @@
 				F75F724C2A742272003478D7 /* Extensions.swift */,
 				87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */,
 				F75F724E2A74227D003478D7 /* Res.swift */,
+				874035852A988C07001D0A98 /* ErrorView.swift */,
 				F7621AA82A7FDFDF00614542 /* violet.CUBE */,
 				F7621A842A7E079200614542 /* vista200 v1.CUBE */,
 			);
@@ -465,6 +468,7 @@
 				F75F72492A7420C8003478D7 /* BlendView.swift in Sources */,
 				F75F724D2A742272003478D7 /* Extensions.swift in Sources */,
 				8769918C2A7CEBDC00551BD3 /* CustomViews.swift in Sources */,
+				874035862A988C07001D0A98 /* ErrorView.swift in Sources */,
 				F75F724F2A74227D003478D7 /* Res.swift in Sources */,
 				87FD88D92A78EEFA00EAC2DD /* AsyncImageView.swift in Sources */,
 			);
