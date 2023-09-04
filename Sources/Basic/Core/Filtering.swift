@@ -73,7 +73,7 @@ extension C7FilterProtocol {
             let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
             Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
             return destTexture
-        case .mps:
+        case .mps where self is MPSKernelProtocol:
             var textures = [destTexture, texture]
             textures += self.otherInputTextures
             return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
@@ -84,7 +84,7 @@ extension C7FilterProtocol {
 }
 
 // MARK: - compute filter protocol
-public protocol ComputeProtocol {
+public protocol ComputeProtocol: C7FilterProtocol {
     /// Special type of parameter factor, such as 4x4 matrix
     /// It is recommended to pass the parameters directly. Don't use this function if you have to.
     ///
@@ -95,7 +95,7 @@ public protocol ComputeProtocol {
 }
 
 // MARK: - coreimage filter protocol
-public protocol CoreImageProtocol {
+public protocol CoreImageProtocol: C7FilterProtocol {
     /// Compatible with CoreImage.
     /// - Parameters:
     ///   - filter: CoreImage CIFilter.
@@ -105,7 +105,7 @@ public protocol CoreImageProtocol {
 }
 
 // MARK: - render filter protocol
-public protocol RenderProtocol {
+public protocol RenderProtocol: C7FilterProtocol {
     /// Setup the vertex shader parameters.
     /// - Parameter device: MTLDevice
     /// - Returns: Vertex uniform buffer.
@@ -113,7 +113,7 @@ public protocol RenderProtocol {
 }
 
 // MARK: - mps filter protocol
-public protocol MPSKernelProtocol {
+public protocol MPSKernelProtocol: C7FilterProtocol {
     /// Encode a MPSKernel into a command buffer. The operation shall proceed out-of-place.
     /// - Parameters:
     ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
@@ -123,7 +123,7 @@ public protocol MPSKernelProtocol {
 }
 
 // MARK: - combination filter protocol
-public protocol CombinationProtocol {
+public protocol CombinationProtocol: C7FilterProtocol {
     
     /// If you need to replace the subsequent input source texture, return to a new texture with copied to dest.
     /// - Parameters:

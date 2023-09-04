@@ -64,6 +64,27 @@ extension C7FilterProtocol {
             throw CustomError.makeComputeCommandEncoder
         }
         let pipelineState = try Compute.makeComputePipelineState(with: kernel)
+        
+        return encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures)
+    }
+    
+    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
+        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
+            complete(.failure(CustomError.makeComputeCommandEncoder))
+            return
+        }
+        Compute.makeComputePipelineState(with: kernel) { res in
+            switch res {
+            case .success(let pipelineState):
+                let destTexture = encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures)
+                complete(.success(destTexture))
+            case .failure(let error):
+                complete(.failure(error))
+            }
+        }
+    }
+    
+    private func encoding(computeEncoder: MTLComputeCommandEncoder, pipelineState: MTLComputePipelineState, textures: [MTLTexture]) -> MTLTexture {
         computeEncoder.setComputePipelineState(pipelineState)
         
         for (i, texture) in textures.enumerated() {

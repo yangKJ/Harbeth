@@ -281,11 +281,6 @@ extension BoxxIO {
         }
     }
     
-    /// Convert to texture and add filters.
-    /// - Parameters:
-    ///   - texture: Input metal texture.
-    ///   - success: Successful callback.
-    ///   - failed: Failed callback.
     private func filtering(texture: MTLTexture, success: @escaping (MTLTexture) -> Void, failed: @escaping (CustomError) -> Void) {
         var result: MTLTexture = texture
         var iterator = filters.makeIterator()
@@ -297,25 +292,21 @@ extension BoxxIO {
                 failed(CustomError.toCustomError(error))
             }
         }
-        // 最后结果处理
-        func handleFinalResult() {
-            if hasCoreImage {
-                success(result)
-            } else {
-                commandBuffer?.asyncCommit(texture: result) { res in
-                    switch res {
-                    case .success(let t):
-                        success(t)
-                    case .failure(let error):
-                        failed(error)
-                    }
-                }
-            }
-        }
         // 递归处理
         func recursion(filter: C7FilterProtocol?, sourceTexture: MTLTexture) {
             guard let filter = filter else {
-                handleFinalResult()
+                if hasCoreImage {
+                    success(result)
+                } else {
+                    commandBuffer?.asyncCommit(texture: result) { res in
+                        switch res {
+                        case .success(let t):
+                            success(t)
+                        case .failure(let error):
+                            failed(error)
+                        }
+                    }
+                }
                 return
             }
             runAsyncIO(with: sourceTexture, filter: filter, complete: { res in
@@ -413,7 +404,14 @@ extension BoxxIO {
             return destTexture
         case .compute, .mps, .render:
             let destTexture = try createDestTexture(with: texture, filter: filter)
-            let finaTexture = try combinationIO(in: texture, to: destTexture, for: commandBuffer, filter: filter)
+            let finaTexture: MTLTexture
+            if let filter = filter as? CombinationProtocol {
+                let beiginTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
+                let outputTexture = try filter.applyAtTexture(form: beiginTexture, to: destTexture, for: commandBuffer)
+                finaTexture = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: texture)
+            } else {
+                finaTexture = try filter.applyAtTexture(form: texture, to: destTexture, for: commandBuffer)
+            }
             if hasCoreImage {
                 commandBuffer.commitAndWaitUntilCompleted()
             }
@@ -440,11 +438,31 @@ extension BoxxIO {
                 outputImage.c7.asyncRenderCIImageToTexture(texture, commandBuffer: commandBuffer, complete: complete)
             case .compute, .mps, .render:
                 let destTexture = try createDestTexture(with: texture, filter: filter)
-                let finaTexture = try combinationIO(in: texture, to: destTexture, for: commandBuffer, filter: filter)
-                if hasCoreImage {
-                    commandBuffer.asyncCommit(texture: finaTexture, complete: complete)
+                let inputTexture: MTLTexture
+                if let filter = filter as? CombinationProtocol {
+                    inputTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
                 } else {
-                    complete(.success(finaTexture))
+                    inputTexture = texture
+                }
+                asyncApplyAtTexture(form: inputTexture, to: destTexture, for: commandBuffer, filter: filter) { res in
+                    switch res {
+                    case .success(let outputTexture):
+                        var finaTexture: MTLTexture = outputTexture
+                        if let filter = filter as? CombinationProtocol {
+                            do {
+                                finaTexture = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: texture)
+                            } catch {
+                                complete(.failure(CustomError.toCustomError(error)))
+                            }
+                        }
+                        if hasCoreImage {
+                            commandBuffer.asyncCommit(texture: finaTexture, complete: complete)
+                        } else {
+                            complete(.success(finaTexture))
+                        }
+                    case .failure(let err):
+                        complete(.failure(err))
+                    }
                 }
             default:
                 break
@@ -454,13 +472,31 @@ extension BoxxIO {
         }
     }
     
-    /// Process combination filters.
-    private func combinationIO(in texture: MTLTexture, to texture2: MTLTexture, for buffer: MTLCommandBuffer, filter: C7FilterProtocol) throws -> MTLTexture {
-        guard let filter__ = self as? CombinationProtocol else {
-            return try filter.applyAtTexture(form: texture, to: texture2, for: buffer)
+    private func asyncApplyAtTexture(form texture: MTLTexture,
+                                     to destTexture: MTLTexture,
+                                     for buffer: MTLCommandBuffer,
+                                     filter: C7FilterProtocol,
+                                     complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
+        do {
+            switch filter.modifier {
+            case .compute(let kernel):
+                var textures = [destTexture, texture]
+                textures += filter.otherInputTextures
+                filter.drawing(with: kernel, commandBuffer: buffer, textures: textures, complete: complete)
+            case .render(let vertex, let fragment):
+                let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
+                Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: filter)
+                complete(.success(destTexture))
+            case .mps where filter is MPSKernelProtocol:
+                var textures = [destTexture, texture]
+                textures += filter.otherInputTextures
+                let finaTexture = try (filter as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+                complete(.success(finaTexture))
+            default:
+                complete(.success(texture))
+            }
+        } catch {
+            complete(.failure(CustomError.toCustomError(error)))
         }
-        let beiginTexture = try filter__.combinationBegin(for: buffer, source: texture, dest: texture2)
-        let outputTexture = try filter.applyAtTexture(form: beiginTexture, to: texture2, for: buffer)
-        return try filter__.combinationAfter(for: buffer, input: outputTexture, source: texture)
     }
 }
