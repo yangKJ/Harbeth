@@ -77,17 +77,18 @@ extension Device {
             }
         }
         #endif
-        /// Compatible with the Bundle address used by CocoaPods to import framework
-        let bundle = getFrameworkBundle(bundleName: resource)
-        if let path = bundle.path(forResource: "default", ofType: "metallib") {
-            if let library = try? device.makeLibrary(filepath: path) {
-                return library
-            }
+        /// Compatible with the Bundle address used by CocoaPods to import framework.
+        guard let bundle = readFrameworkBundle(with: resource) else {
+            return nil
+        }
+        if let path = bundle.path(forResource: "default", ofType: "metallib"),
+           let library = try? device.makeLibrary(filepath: path)  {
+            return library
         }
         return nil
     }
     
-    static func getFrameworkBundle(bundleName: String) -> Bundle {
+    static func readFrameworkBundle(with bundleName: String) -> Bundle? {
         let candidates = [
             // Bundle should be present here when the package is linked into an App.
             Bundle.main.resourceURL,
@@ -102,8 +103,7 @@ extension Device {
                 return bundle
             }
         }
-        // Return whatever bundle this code is in as a last resort.
-        return Bundle(for: Device.self)
+        return nil
     }
 }
 

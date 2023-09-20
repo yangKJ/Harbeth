@@ -23,8 +23,11 @@ public class AsyncDest<Dest>: ObservableObject {
     
     public func output(with source: Dest, filters: [C7FilterProtocol]) async {
         let dest = BoxxIO(element: source, filters: filters)
-        dest.transmitOutput(success: { [weak self] in
-            self?.bookmarks = $0
+        dest.transmitOutput(success: { [weak self] img in
+            guard let `self` = self else { return }
+            DispatchQueue.main.async {
+                self.bookmarks = img
+            }
         }, failed: { [weak self] in
             self?.error = $0
         })

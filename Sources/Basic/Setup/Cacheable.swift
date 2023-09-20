@@ -15,7 +15,9 @@ public typealias CVMetalTexture = AnyClass
 public typealias CVMetalTextureCache = AnyClass
 #endif
 
-public protocol Cacheable {
+public protocol Cacheable: AnyObject {
+    
+    /// Metal texture cache
     var textureCache: CVMetalTextureCache? { get set }
     
     /// Release the CVMetalTextureCache resource
