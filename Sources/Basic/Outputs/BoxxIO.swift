@@ -51,10 +51,20 @@ import CoreVideo
     /// Such as solid color and gradient filters do not need to create an output texture.
     public var createDestTexture: Bool = true
     
+    /// Metal texture transmit output real time commit buffer.
+    /// Fixed camera capture output CMSampleBuffer.
+    public var transmitOutputRealTimeCommit: Bool = false {
+        didSet {
+            if transmitOutputRealTimeCommit {
+                hasCoreImage = transmitOutputRealTimeCommit
+            }
+        }
+    }
+    
     /// 烦死😡，中间加入CoreImage滤镜不能最后才渲染，考虑到性能最大化，这边分开处理。
     /// After adding the CoreImage filter in the middle, it can't be rendered until the end.
     /// Considering the maximization of performance, we will deal with it separately.
-    private let hasCoreImage: Bool
+    private var hasCoreImage: Bool
     
     public init(element: Dest, filter: C7FilterProtocol) {
         self.init(element: element, filters: [filter])

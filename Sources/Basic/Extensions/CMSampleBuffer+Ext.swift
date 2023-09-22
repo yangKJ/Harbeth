@@ -16,4 +16,8 @@ extension Queen where Base: CMSampleBuffer {
         let pixelBuffer = CMSampleBufferGetImageBuffer(base)
         return pixelBuffer?.c7.toCGImage()
     }
+    
+    public func toImage() -> C7Image? {
+        toCGImage()?.c7.toC7Image()
+    }
 }

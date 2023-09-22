@@ -83,6 +83,10 @@ extension Queen where Base: CGImage {
         return pxbuffer
     }
     
+    public func toImage() -> C7Image {
+        toC7Image()
+    }
+    
     public func toC7Image() -> C7Image {
         #if os(iOS) || os(tvOS) || os(watchOS)
         return UIImage.init(cgImage: base)
@@ -114,4 +118,36 @@ extension Queen where Base: CGImage {
         NSSize(width: base.width, height: base.height)
     }
     #endif
+}
+
+extension Queen where Base: CGImage {
+    
+    /// Crop the picture to the specified proportion, and the excess will be automatically deleted.
+    /// - Parameter ratio: Cutting ratio.
+    public func cropping(ratio: CGFloat) -> CGImage {
+        if ratio <= 0 { return base }
+        let width  = CGFloat(base.width)
+        let height = CGFloat(base.height)
+        let size: CGSize
+        if width / height > ratio {
+            size = CGSize(width: height * ratio, height: height)
+        } else {
+            size = CGSize(width: width, height: width / ratio)
+        }
+        let x = abs((size.width - width ) / 2.0)
+        let y = abs((size.height - height ) / 2.0)
+        let rect = CGRect(origin: .init(x: x, y: y), size: size)
+        let finalImageRef = base.cropping(to: rect)
+        return finalImageRef ?? base
+    }
+    
+    /// Crop the edge area
+    /// - Parameter space: Crop the edge area.
+    public func cropping(space: CGFloat) -> CGImage {
+        let width  = CGFloat(base.width)
+        let height = CGFloat(base.height)
+        let rect = CGRect(x: space, y: space, width: width-2*space, height: height-2*space)
+        let finalImageRef = base.cropping(to: rect)
+        return finalImageRef ?? base
+    }
 }
