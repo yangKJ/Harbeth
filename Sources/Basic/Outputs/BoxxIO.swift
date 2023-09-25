@@ -30,8 +30,6 @@ import CoreVideo
     public let element: Dest
     public let filters: [C7FilterProtocol]
     
-    public typealias CompResult<TT> = (Result<TT, CustomError>) -> Void
-    
     /// Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
     /// The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
     public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm
@@ -131,7 +129,7 @@ import CoreVideo
     /// - Parameters:
     ///   - texture: Input metal texture.
     ///   - complete: The conversion is complete.
-    public func filtering(texture: MTLTexture, complete: @escaping CompResult<MTLTexture>) {
+    public func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
         if self.filters.isEmpty {
             complete(.success(texture))
             return
@@ -438,7 +436,10 @@ extension BoxxIO {
     ///   - filter: It must be an object implementing C7FilterProtocol.
     ///   - complete: Add a block to be called when this command buffer has completed execution.
     ///   - buffer: A valid MTLCommandBuffer to receive the encoded filter.
-    private func runAsyncIO(with texture: MTLTexture, filter: C7FilterProtocol, complete: @escaping CompResult<MTLTexture>, buffer: MTLCommandBuffer?) {
+    private func runAsyncIO(with texture: MTLTexture,
+                            filter: C7FilterProtocol,
+                            complete: @escaping (Result<MTLTexture, CustomError>) -> Void,
+                            buffer: MTLCommandBuffer? = nil) {
         do {
             let commandBuffer = try makeCommandBuffer(for: buffer)
             switch filter.modifier {

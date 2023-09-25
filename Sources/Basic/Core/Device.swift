@@ -78,17 +78,20 @@ extension Device {
         }
         #endif
         /// Compatible with the Bundle address used by CocoaPods to import framework.
-        guard let bundle = readFrameworkBundle(with: resource) else {
-            return nil
-        }
-        if let path = bundle.path(forResource: "default", ofType: "metallib"),
+        if let bundle = readFrameworkBundle(with: resource),
+           let path = bundle.path(forResource: "default", ofType: "metallib"),
            let library = try? device.makeLibrary(filepath: path)  {
             return library
         }
+        /// Fixed the read failure of imported local resources was rectified.
+        if let library = try? device.makeDefaultLibrary(bundle: Bundle(for: Device.self)) {
+            return library
+        }
+        
         return nil
     }
     
-    static func readFrameworkBundle(with bundleName: String) -> Bundle? {
+    static func readFrameworkBundle(with resource: String) -> Bundle? {
         let candidates = [
             // Bundle should be present here when the package is linked into an App.
             Bundle.main.resourceURL,
@@ -97,13 +100,20 @@ extension Device {
             // For command-line tools.
             Bundle.main.bundleURL,
         ]
+        let component = resource + ".bundle"
         for candidate in candidates {
-            let bundlePath = candidate?.appendingPathComponent(bundleName + ".bundle")
-            if let bundle = bundlePath.flatMap(Bundle.init(url:)) {
+            let bundleURL: URL?
+            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
+                bundleURL = candidate?.appending(component: component)
+            } else {
+                bundleURL = candidate?.appendingPathComponent(component)
+            }
+            if let bundle = bundleURL.flatMap(Bundle.init(url:)) {
                 return bundle
             }
         }
-        return nil
+        // Return whatever bundle this code is in as a last resort.
+        return Bundle(for: Device.self)
     }
 }
 
