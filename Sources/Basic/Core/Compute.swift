@@ -34,8 +34,6 @@ internal struct Compute {
     }
     
     @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, CustomError>) -> Void) {
-        Shared.shared.lock.lock()
-        defer { Shared.shared.lock.unlock() }
         /// 先读取缓存管线
         if let pipelineState = Shared.shared.device?.pipelines[kernel] {
             complete(.success(pipelineState))
