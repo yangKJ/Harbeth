@@ -10,9 +10,9 @@ import MetalKit
 import CoreGraphics
 import CoreVideo
 
-extension CGImage: C7Compatible { }
+extension CGImage: HarbethCompatible { }
 
-extension Queen where Base: CGImage {
+extension HarbethWrapper where Base: CGImage {
     
     /// CGImage to texture
     ///
@@ -98,7 +98,7 @@ extension Queen where Base: CGImage {
     }
 }
 
-extension Queen where Base: CGImage {
+extension HarbethWrapper where Base: CGImage {
     
     public var hasAlphaChannel: Bool {
         switch base.alphaInfo {
@@ -120,7 +120,7 @@ extension Queen where Base: CGImage {
     #endif
 }
 
-extension Queen where Base: CGImage {
+extension HarbethWrapper where Base: CGImage {
     
     /// Crop the picture to the specified proportion, and the excess will be automatically deleted.
     /// - Parameter ratio: Cutting ratio.
@@ -153,7 +153,7 @@ extension Queen where Base: CGImage {
 }
 
 #if os(iOS) || os(tvOS) || os(watchOS)
-extension Queen where Base: CGImage {
+extension HarbethWrapper where Base: CGImage {
     
     /// Fixed image rotation direction.
     public func fixOrientation(from orientation: UIImage.Orientation) -> CGImage {

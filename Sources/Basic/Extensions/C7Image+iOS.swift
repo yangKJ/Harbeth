@@ -12,7 +12,7 @@ import UIKit
 
 // https://developer.apple.com/documentation/uikit/uiimage
 
-extension Queen where Base: C7Image {
+extension HarbethWrapper where Base: C7Image {
     /// To ensure image orientation is correct, redraw image if image orientation is not up.
     /// See: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
     public var flattened: C7Image {
@@ -98,7 +98,7 @@ extension Queen where Base: C7Image {
     }
 }
 
-extension Queen where Base: C7Image {
+extension HarbethWrapper where Base: C7Image {
     /// 白色背景透明化，色值在[222...255]之间均可祛除
     /// The white background is transparent, and the color value can be removed between [222...255].
     public func imageByMakingWhiteBackgroundTransparent() -> C7Image? {
@@ -165,7 +165,7 @@ extension Queen where Base: C7Image {
     }
 }
 
-extension Queen where Base: C7Image {
+extension HarbethWrapper where Base: C7Image {
     /// Crop the picture to the specified proportion, and the excess will be automatically deleted.
     /// - Parameter ratio: Cutting ratio.
     public func crop(ratio: CGFloat) -> C7Image {

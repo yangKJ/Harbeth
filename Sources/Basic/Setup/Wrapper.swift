@@ -8,20 +8,21 @@
 import Foundation
 
 /// Add the `c7` prefix namespace
-public struct Queen<Base> {
+public struct HarbethWrapper<Base> {
     public let base: Base
 }
 
-public protocol C7Compatible { }
+/// Protocol describing the `c7` extension points for Alamofire extended types.
+public protocol HarbethCompatible { }
 
-extension C7Compatible {
+extension HarbethCompatible {
     
-    public var c7: Queen<Self> {
-        get { return Queen(base: self) }
+    public var c7: HarbethWrapper<Self> {
+        get { return HarbethWrapper(base: self) }
         set { }
     }
     
-    public static var c7: Queen<Self>.Type {
-        Queen<Self>.self
+    public static var c7: HarbethWrapper<Self>.Type {
+        HarbethWrapper<Self>.self
     }
 }

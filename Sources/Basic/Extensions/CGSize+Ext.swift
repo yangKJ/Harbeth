@@ -8,7 +8,7 @@
 import Foundation
 import CoreGraphics
 
-extension CGSize: C7Compatible {
+extension CGSize: HarbethCompatible {
     
     public static let onePixel = CGSizeMake(1.0, 1.0)
     
@@ -25,7 +25,7 @@ extension CGSize: C7Compatible {
     }
 }
 
-extension Queen where Base == CGSize {
+extension HarbethWrapper where Base == CGSize {
     
     public func toC7Size() -> C7Size {
         C7Size(width: Int(base.width), height: Int(base.height))

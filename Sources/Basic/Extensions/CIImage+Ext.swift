@@ -8,9 +8,9 @@
 import Foundation
 import MetalKit
 
-extension CIImage: C7Compatible { }
+extension CIImage: HarbethCompatible { }
 
-extension Queen where Base: CIImage {
+extension HarbethWrapper where Base: CIImage {
     
     public func toCGImage(context: CIContext? = nil) -> CGImage? {
         if let cgImage = base.cgImage {

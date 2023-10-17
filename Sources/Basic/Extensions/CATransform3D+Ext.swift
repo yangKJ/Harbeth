@@ -8,9 +8,9 @@
 import Foundation
 import QuartzCore
 
-extension CATransform3D: C7Compatible { }
+extension CATransform3D: HarbethCompatible { }
 
-extension Queen where Base == CATransform3D {
+extension HarbethWrapper where Base == CATransform3D {
     
     public enum Axis { case x, y, z }
     

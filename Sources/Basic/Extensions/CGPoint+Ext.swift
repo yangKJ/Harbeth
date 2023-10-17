@@ -9,9 +9,9 @@ import Foundation
 import CoreGraphics
 import simd
 
-extension CGPoint: C7Compatible { }
+extension CGPoint: HarbethCompatible { }
 
-extension Queen where Base == CGPoint {
+extension HarbethWrapper where Base == CGPoint {
     
     public func middle(with point: CGPoint) -> CGPoint {
         return CGPoint(x: (base.x + point.x) * 0.5, y: (base.y + point.y) * 0.5)

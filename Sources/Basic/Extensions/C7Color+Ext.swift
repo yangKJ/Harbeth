@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-extension C7Color: C7Compatible {
+extension C7Color: HarbethCompatible {
     /// Empty color, Dooo default. cannot get rgba.
     public static let zero = C7Color.init(white: 0, alpha: 0)
     /// Random color
@@ -63,7 +63,7 @@ extension C7Color: C7Compatible {
     }
 }
 
-extension Queen where Base: C7Color {
+extension HarbethWrapper where Base: C7Color {
     
     /// Convert pixel color value
     public func toPixelColor() -> PixelColor {

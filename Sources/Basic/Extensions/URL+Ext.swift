@@ -7,9 +7,9 @@
 
 import Foundation
 
-extension URL: C7Compatible { }
+extension URL: HarbethCompatible { }
 
-extension Queen where Base == URL {
+extension HarbethWrapper where Base == URL {
     
     public func loadCGImage() -> CGImage? {
         #if os(macOS)

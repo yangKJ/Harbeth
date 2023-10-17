@@ -9,9 +9,9 @@ import Foundation
 import CoreGraphics
 import ImageIO
 
-extension CGContext: C7Compatible { }
+extension CGContext: HarbethCompatible { }
 
-extension Queen where Base: CGContext {
+extension HarbethWrapper where Base: CGContext {
     
     @discardableResult public func perform(_ drawing: (CGContext) -> Void) -> CGContext {
         drawing(base)

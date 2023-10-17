@@ -13,9 +13,9 @@ import CoreVideo
 import MobileCoreServices
 #endif
 
-extension C7Image: C7Compatible { }
+extension C7Image: HarbethCompatible { }
 
-extension Queen where Base == C7Image {
+extension HarbethWrapper where Base == C7Image {
     
     /// Image to texture
     ///
@@ -132,7 +132,7 @@ extension Queen where Base == C7Image {
 }
 
 // MARK: - edit image
-extension Queen where Base: C7Image {
+extension HarbethWrapper where Base: C7Image {
     /// Modify image size.
     /// - Parameters:
     ///   - size: Target size.

@@ -7,9 +7,9 @@
 
 import Foundation
 
-extension CGRect: C7Compatible { }
+extension CGRect: HarbethCompatible { }
 
-extension Queen where Base == CGRect {
+extension HarbethWrapper where Base == CGRect {
     
     public func radius(_ value: Float, max: Float) -> Float {
         let base = Float(sqrt(pow(base.width, 2) + pow(base.height, 2)))

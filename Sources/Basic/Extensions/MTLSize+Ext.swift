@@ -8,9 +8,9 @@
 import Foundation
 import MetalKit
 
-extension MTLSize: C7Compatible { }
+extension MTLSize: HarbethCompatible { }
 
-extension Queen where MTLSize == Base {
+extension HarbethWrapper where MTLSize == Base {
     
     /// Maximum metal texture size that can be processed.
     /// - Parameter device: Device information to create other objects.

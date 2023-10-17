@@ -47,7 +47,7 @@ extension C7Image {
     }
 }
 
-extension Queen where Base: C7Image {
+extension HarbethWrapper where Base: C7Image {
     
     public var size: CGSize {
         return base.representations.reduce(.zero) { (size, rep) in

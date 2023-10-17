@@ -10,9 +10,9 @@ import CoreVideo
 import MetalKit
 import VideoToolbox
 
-extension CVPixelBuffer: C7Compatible { }
+extension CVPixelBuffer: HarbethCompatible { }
 
-extension Queen where Base: CVPixelBuffer {
+extension HarbethWrapper where Base: CVPixelBuffer {
     
     private var size: C7Size {
         let width = CVPixelBufferGetWidthOfPlane(self.base, 0)

@@ -8,9 +8,9 @@
 import Foundation
 import CoreMedia
 
-extension CMSampleBuffer: C7Compatible { }
+extension CMSampleBuffer: HarbethCompatible { }
 
-extension Queen where Base: CMSampleBuffer {
+extension HarbethWrapper where Base: CMSampleBuffer {
     
     public func toCGImage() -> CGImage? {
         let pixelBuffer = CMSampleBufferGetImageBuffer(base)
