@@ -151,3 +151,59 @@ extension Queen where Base: CGImage {
         return finalImageRef ?? base
     }
 }
+
+#if os(iOS) || os(tvOS) || os(watchOS)
+extension Queen where Base: CGImage {
+    
+    /// Fixed image rotation direction.
+    public func fixOrientation(from orientation: UIImage.Orientation) -> CGImage {
+        let width  = CGFloat(base.width)
+        let height = CGFloat(base.height)
+        var transform = CGAffineTransform.identity
+        switch orientation {
+        case .down, .downMirrored:
+            transform = CGAffineTransform(translationX: width, y: height)
+            transform = transform.rotated(by: .pi)
+        case .left, .leftMirrored:
+            transform = CGAffineTransform(translationX: width, y: 0)
+            transform = transform.rotated(by: CGFloat.pi / 2)
+        case .right, .rightMirrored:
+            transform = CGAffineTransform(translationX: 0, y: height)
+            transform = transform.rotated(by: -CGFloat.pi / 2)
+        default:
+            break
+        }
+        
+        switch orientation {
+        case .upMirrored, .downMirrored:
+            transform = transform.translatedBy(x: width, y: 0)
+            transform = transform.scaledBy(x: -1, y: 1)
+        case .leftMirrored, .rightMirrored:
+            transform = transform.translatedBy(x: height, y: 0)
+            transform = transform.scaledBy(x: -1, y: 1)
+        default:
+            break
+        }
+        
+        guard let colorSpace = base.colorSpace else {
+            return base
+        }
+        let context = CGContext(data: nil,
+                                width: Int(width),
+                                height: Int(height),
+                                bitsPerComponent: base.bitsPerComponent,
+                                bytesPerRow: 0,
+                                space: colorSpace,
+                                bitmapInfo: base.bitmapInfo.rawValue)
+        context?.concatenate(transform)
+        switch orientation {
+        case .left, .leftMirrored, .right, .rightMirrored:
+            context?.draw(base, in: CGRect(x: 0, y: 0, width: height, height: width))
+        default:
+            context?.draw(base, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        
+        return context?.makeImage() ?? base
+    }
+}
+#endif

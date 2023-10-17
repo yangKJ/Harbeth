@@ -85,7 +85,7 @@ extension CustomError: CustomStringConvertible {
 }
 
 extension CustomError {
-    static func toCustomError(_ error: Error) -> CustomError {
+    public static func toCustomError(_ error: Error) -> CustomError {
         if let error = error as? CustomError {
             return error
         } else {

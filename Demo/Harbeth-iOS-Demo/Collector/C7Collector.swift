@@ -83,7 +83,8 @@ extension C7Collector {
         guard let texture = pixelBuffer.c7.toMTLTexture(textureCache: textureCache) else {
             return
         }
-        let dest = BoxxIO(element: texture, filters: filters)
+        var dest = BoxxIO(element: texture, filters: filters)
+        dest.transmitOutputRealTimeCommit = true
         dest.transmitOutput(success: { [weak self] desTexture in
             guard let `self` = self else {
                 return

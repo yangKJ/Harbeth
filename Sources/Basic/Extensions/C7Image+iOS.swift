@@ -165,4 +165,39 @@ extension Queen where Base: C7Image {
     }
 }
 
+extension Queen where Base: C7Image {
+    /// Crop the picture to the specified proportion, and the excess will be automatically deleted.
+    /// - Parameter ratio: Cutting ratio.
+    public func crop(ratio: CGFloat) -> C7Image {
+        if ratio == 0 { return base }
+        let width  = base.size.width
+        let height = base.size.height
+        let size: CGSize
+        if width / height > ratio {
+            size = CGSize(width: height * ratio, height: height)
+        } else {
+            size = CGSize(width: width, height: width / ratio)
+        }
+        let rect = CGRectMake((size.width - width ) / 2.0, (size.height - height ) / 2.0, width, height)
+        
+        UIGraphicsBeginImageContext(size)
+        base.draw(in: rect)
+        let scaledImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return scaledImage ?? base
+    }
+    
+    /// Crop the edge area.
+    /// - Parameter space: Edge pixel size.
+    public func crop(space: CGFloat) -> C7Image {
+        let size = base.size
+        let rect = CGRect(x: -space, y: -space, width: size.width+2*space, height: size.height+2*space)
+        UIGraphicsBeginImageContext(size)
+        base.draw(in: rect)
+        let scaledImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return scaledImage ?? base
+    }
+}
+
 #endif

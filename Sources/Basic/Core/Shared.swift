@@ -12,8 +12,6 @@ public final class Shared {
     
     public static let shared = Shared()
     
-    public lazy var lock = NSLock()
-    
     /// 释放`Device`资源
     /// 考虑到`Device`当中存在蛮多比较消耗性能的对象，所以设计单例全局使用
     /// 一旦不再使用Metal之后，就调此方法将之释放掉
