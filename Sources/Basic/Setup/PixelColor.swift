@@ -113,6 +113,18 @@ extension PixelColor {
         pixel.blue = 1.0 - pixel.blue
         return pixel
     }
+    
+    /// Is it a white color?
+    public var isWhite: Bool {
+        let brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000
+        return brightness <= 0.5
+    }
+    
+    /// Is it a black color?
+    public var isBlack: Bool {
+        let brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000
+        return brightness > 0.5
+    }
 }
 
 extension PixelColor: Equatable {
