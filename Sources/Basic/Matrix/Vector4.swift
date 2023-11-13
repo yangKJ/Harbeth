@@ -11,6 +11,8 @@ import simd
 /// 4维向量
 public struct Vector4: Matrix {
     
+    public static let zero: Vector4 = .init(values: [0, 0, 0, 0])
+    
     public typealias MatrixType = vector_float4
     
     public var values: [Float]

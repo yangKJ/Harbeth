@@ -83,6 +83,7 @@ extension C7FilterProtocol {
     private func encoding(computeEncoder: MTLComputeCommandEncoder, pipelineState: MTLComputePipelineState, textures: [MTLTexture]) -> MTLTexture {
         computeEncoder.setComputePipelineState(pipelineState)
         
+        let destTexture = textures[0]
         for (i, texture) in textures.enumerated() {
             computeEncoder.setTexture(texture, index: i)
         }
@@ -101,13 +102,14 @@ extension C7FilterProtocol {
         
         // Too large some Gpus are not supported. Too small gpus have low efficiency
         // 2D texture, depth set to 1
-        let threadGroupCount = MTLSize(width: 16, height: 16, depth: 1)
-        let destTexture = textures[0]
-        // +1 Objective To solve the problem that the edges of images are not drawn
-        let w = max(Int((destTexture.width + threadGroupCount.width - 1) / threadGroupCount.width), 1)
-        let h = max(Int((destTexture.height + threadGroupCount.height - 1) / threadGroupCount.height), 1)
-        let threadGroups = MTLSizeMake(w, h, destTexture.arrayLength)
-        computeEncoder.dispatchThreadgroups(threadGroups, threadsPerThreadgroup: threadGroupCount)
+        let threadgroupSize = MTLSize(width: 16, height: 16, depth: 1)
+        // -1 pixel to solve the problem that the edges of images are not drawn.
+        // Minimum 1 pixel, solve the problem of zero without drawing.
+        let width = max(Int((destTexture.width + threadgroupSize.width - 1) / threadgroupSize.width), 1)
+        let height = max(Int((destTexture.height + threadgroupSize.height - 1) / threadgroupSize.height), 1)
+        //let threadGroups = MTLSizeMake(width, height, destTexture.arrayLength)
+        let threadgroupCount = MTLSize(width: width, height: height, depth: 1)
+        computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
         computeEncoder.endEncoding()
         
         return destTexture
