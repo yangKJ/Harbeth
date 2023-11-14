@@ -30,7 +30,6 @@
 		872660D42994D82200E612C7 /* Typealias.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FD82994D82100E612C7 /* Typealias.swift */; };
 		872660D62994D82200E612C7 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FDA2994D82100E612C7 /* Matrix.swift */; };
 		872660D72994D82200E612C7 /* Matrix4x5.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FDB2994D82100E612C7 /* Matrix4x5.swift */; };
-		872660D82994D82200E612C7 /* PixelColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FDC2994D82100E612C7 /* PixelColor.swift */; };
 		872660D92994D82200E612C7 /* Vector4.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FDD2994D82100E612C7 /* Vector4.swift */; };
 		872660DA2994D82200E612C7 /* ParameterRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FDE2994D82100E612C7 /* ParameterRange.swift */; };
 		872660DB2994D82200E612C7 /* Vector3.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87265FDF2994D82100E612C7 /* Vector3.swift */; };
@@ -298,7 +297,6 @@
 		87265FD82994D82100E612C7 /* Typealias.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Typealias.swift; sourceTree = "<group>"; };
 		87265FDA2994D82100E612C7 /* Matrix.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix.swift; sourceTree = "<group>"; };
 		87265FDB2994D82100E612C7 /* Matrix4x5.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix4x5.swift; sourceTree = "<group>"; };
-		87265FDC2994D82100E612C7 /* PixelColor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PixelColor.swift; sourceTree = "<group>"; };
 		87265FDD2994D82100E612C7 /* Vector4.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Vector4.swift; sourceTree = "<group>"; };
 		87265FDE2994D82100E612C7 /* ParameterRange.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ParameterRange.swift; sourceTree = "<group>"; };
 		87265FDF2994D82100E612C7 /* Vector3.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Vector3.swift; sourceTree = "<group>"; };
@@ -714,7 +712,6 @@
 				87671B7D2A8DAB7800C0A5F0 /* Files.swift */,
 				87265FE12994D82100E612C7 /* Mirrorable.swift */,
 				87265FDE2994D82100E612C7 /* ParameterRange.swift */,
-				87265FDC2994D82100E612C7 /* PixelColor.swift */,
 				87265FD32994D82100E612C7 /* Placement.swift */,
 				87265FD42994D82100E612C7 /* Point2D.swift */,
 				87265FCE2994D82100E612C7 /* R.swift */,
@@ -1095,7 +1092,6 @@
 				F7621A932A7FA45400614542 /* CIGaussianBlur.swift in Sources */,
 				8726614F2994D82200E612C7 /* C7HighlightShadowTint.metal in Sources */,
 				872661272994D82200E612C7 /* C7ThresholdSketch.metal in Sources */,
-				872660D82994D82200E612C7 /* PixelColor.swift in Sources */,
 				872660F62994D82200E612C7 /* C7Rotate.swift in Sources */,
 				8726619F2994D82200E612C7 /* C7ConvolutionMatrix3x3.swift in Sources */,
 				87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */,

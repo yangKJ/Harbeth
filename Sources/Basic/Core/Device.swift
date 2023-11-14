@@ -77,15 +77,28 @@ extension Device {
             }
         }
         #endif
-        /// Compatible with the Bundle address used by CocoaPods to import framework.
-        if let bundle = readFrameworkBundle(with: resource),
-           let path = bundle.path(forResource: "default", ofType: "metallib"),
-           let library = try? device.makeLibrary(filepath: path)  {
-            return library
-        }
+        
         /// Fixed the read failure of imported local resources was rectified.
         if let library = try? device.makeDefaultLibrary(bundle: Bundle(for: Device.self)) {
             return library
+        }
+        
+        let bundle = readFrameworkBundle(with: resource)
+        /// Fixed libraryFile is nil. podspec file `s.static_framework = false`
+        /// https://github.com/CocoaPods/CocoaPods/issues/7967
+        guard let libraryFile = bundle?.path(forResource: "default", ofType: "metallib") else {
+            return nil
+        }
+        
+        /// Compatible with the Bundle address used by CocoaPods to import framework.
+        if let library = try? device.makeLibrary(filepath: libraryFile) {
+            return library
+        }
+        
+        if #available(macOS 10.13, iOS 11.0, *) {
+            if let url = URL(string: libraryFile), let library = try? device.makeLibrary(URL: url) {
+                return library
+            }
         }
         
         return nil

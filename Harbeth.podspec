@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '0.9.7'
+  s.version          = '0.9.8'
   s.summary          = 'About image and video add filter for metal.'
   
   # This description is used to generate tags and improve search results.
@@ -23,11 +23,12 @@ Pod::Spec.new do |s|
   s.source           = { :git => 'https://github.com/yangKJ/Harbeth.git', :tag => s.version }
   
   s.swift_version    = '5.0'
-  s.requires_arc     = true
-  s.static_framework = true
   s.ios.deployment_target = '10.0'
   s.macos.deployment_target = '10.13'
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
+  
+  s.requires_arc = true
+  s.static_framework = false
   
   s.module_name = 'Harbeth'
   s.ios.source_files = 'Sources/Harbeth.h'
@@ -40,10 +41,10 @@ Pod::Spec.new do |s|
   end
   
   s.subspec 'Compute' do |xx|
-    xx.source_files = 'Sources/Compute/**/*.swift'
-    xx.resource_bundles = { s.name => [ 'Sources/Compute/**/*.metal' ] }
-    xx.ios.pod_target_xcconfig = { 'METAL_LIBRARY_OUTPUT_DIR' => '${TARGET_BUILD_DIR}/Harbeth.bundle/' }
-    xx.macos.pod_target_xcconfig = { 'METAL_LIBRARY_OUTPUT_DIR' => '${TARGET_BUILD_DIR}/Harbeth.bundle/Contents/Resources' }
+    xx.source_files = 'Sources/Compute/**/*.{swift,metal}'
+    #xx.resource_bundles = { s.name => [ 'Sources/Compute/**/*.metal' ] }
+    #xx.ios.pod_target_xcconfig = { 'METAL_LIBRARY_OUTPUT_DIR' => '${TARGET_BUILD_DIR}/Harbeth.bundle/' }
+    #xx.macos.pod_target_xcconfig = { 'METAL_LIBRARY_OUTPUT_DIR' => '${TARGET_BUILD_DIR}/Harbeth.bundle/Contents/Resources' }
     xx.pod_target_xcconfig = {
       'SWIFT_ACTIVE_COMPILATION_CONDITIONS' => 'HARBETH_COMPUTE_LIBRARY_IN_BUNDLE',
       'GCC_PREPROCESSOR_DEFINITIONS' => 'HARBETH_COMPUTE_LIBRARY_IN_BUNDLE=1'
