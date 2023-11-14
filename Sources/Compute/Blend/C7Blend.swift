@@ -1,6 +1,6 @@
 //
 //  C7Blend.swift
-//  ATMetalBand
+//  Harbeth
 //
 //  Created by Condy on 2022/2/13.
 //
@@ -84,51 +84,51 @@ extension C7Blend.BlendType: Hashable, Identifiable {
     public var kernel: String {
         switch self {
         case .add:
-            return "C7AddBlend"
+            return "C7BlendColorAdd"
         case .alpha:
-            return "C7AlphaBlend"
+            return "C7BlendColorAlpha"
         case .colorBurn:
-            return "C7ColorBurnBlend"
+            return "C7BlendColorBurn"
         case .colorDodge:
-            return "C7ColorDodgeBlend"
+            return "C7BlendColorDodge"
         case .chromaKey:
-            return "C7ChromaKeyBlend"
+            return "C7BlendChromaKey"
         case .darken:
-            return "C7DarkenBlend"
+            return "C7BlendDarken"
         case .difference:
-            return "C7DifferenceBlend"
+            return "C7BlendDifference"
         case .dissolve:
-            return "C7DissolveBlend"
+            return "C7BlendDissolve"
         case .divide:
-            return "C7DivideBlend"
+            return "C7BlendDivide"
         case .exclusion:
-            return "C7ExclusionBlend"
+            return "C7BlendExclusion"
         case .hardLight:
-            return "C7HardLightBlend"
+            return "C7BlendHardLight"
         case .hue:
-            return "C7HueBlend"
+            return "C7BlendHue"
         case .lighten:
-            return "C7LightenBlend"
+            return "C7BlendLighten"
         case .linearBurn:
-            return "C7LinearBurnBlend"
+            return "C7BlendLinearBurn"
         case .luminosity:
-            return "C7LuminosityBlend"
+            return "C7BlendLuminosity"
         case .mask:
-            return "C7MaskBlend"
+            return "C7BlendMask"
         case .multiply:
-            return "C7MultiplyBlend"
+            return "C7BlendMultiply"
         case .normal:
-            return "C7NormalBlend"
+            return "C7BlendNormal"
         case .overlay:
-            return "C7OverlayBlend"
+            return "C7BlendOverlay"
         case .screen:
-            return "C7ScreenBlend"
+            return "C7BlendScreen"
         case .softLight:
-            return "C7SoftLightBlend"
+            return "C7BlendSoftLight"
         case .sourceOver:
-            return "C7SourceOverBlend"
+            return "C7BlendSourceOver"
         case .subtract:
-            return "C7SubtractBlend"
+            return "C7BlendSubtract"
         }
     }
 }

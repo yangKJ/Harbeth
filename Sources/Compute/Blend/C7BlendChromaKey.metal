@@ -1,5 +1,5 @@
 //
-//  C7ChromaKeyBlend.metal
+//  C7BlendChromaKey.metal
 //  Harbeth
 //
 //  Created by Condy on 2022/2/21.
@@ -8,7 +8,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7ChromaKeyBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
+kernel void C7BlendChromaKey(texture2d<half, access::write> outputTexture [[texture(0)]],
                              texture2d<half, access::read> inputTexture [[texture(1)]],
                              texture2d<half, access::sample> inputTexture2 [[texture(2)]],
                              constant float *threshold [[buffer(0)]],

@@ -1,6 +1,6 @@
 //
-//  C7LightenBlend.metal
-//  ATMetalBand
+//  C7BlendLighten.metal
+//  Harbeth
 //
 //  Created by Condy on 2022/2/13.
 //
@@ -8,7 +8,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7LightenBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
+kernel void C7BlendLighten(texture2d<half, access::write> outputTexture [[texture(0)]],
                            texture2d<half, access::read> inputTexture [[texture(1)]],
                            texture2d<half, access::sample> inputTexture2 [[texture(2)]],
                            constant float *intensity [[buffer(0)]],

@@ -1,6 +1,6 @@
 //
-//  C7HueBlend.metal
-//  ATMetalBand
+//  C7BlendHue.metal
+//  Harbeth
 //
 //  Created by Condy on 2022/2/13.
 //
@@ -11,7 +11,7 @@ using namespace metal;
 half3 C7HueBlendSetlum(half3 c, half tt);
 half3 C7HueBlendSetsat(half3 c, half s);
 
-kernel void C7HueBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
+kernel void C7BlendHue(texture2d<half, access::write> outputTexture [[texture(0)]],
                        texture2d<half, access::read> inputTexture [[texture(1)]],
                        texture2d<half, access::sample> inputTexture2 [[texture(2)]],
                        constant float *intensity [[buffer(0)]],

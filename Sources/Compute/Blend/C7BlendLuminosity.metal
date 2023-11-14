@@ -1,6 +1,6 @@
 //
-//  C7LuminosityBlend.metal
-//  ATMetalBand
+//  C7BlendLuminosity.metal
+//  Harbeth
 //
 //  Created by Condy on 2022/2/13.
 //
@@ -10,7 +10,7 @@ using namespace metal;
 
 half3 C7LuminosityBlendSetlum(half3 c, half tt);
 
-kernel void C7LuminosityBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
+kernel void C7BlendLuminosity(texture2d<half, access::write> outputTexture [[texture(0)]],
                               texture2d<half, access::read> inputTexture [[texture(1)]],
                               texture2d<half, access::sample> inputTexture2 [[texture(2)]],
                               constant float *intensity [[buffer(0)]],
