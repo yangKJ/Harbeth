@@ -13,7 +13,6 @@ struct BlendView: View {
     @State private var intensity: Float = 0.3
     @State private var blendMode: C7Blend.BlendType = .normal
     @State private var inputImage = R.image("AX")!
-    @State private var overTexture = try! Res.rgUVB1Gradient(CGSize(width: 420, height: 270))
     
     private let blends: [C7Blend.BlendType] = [
         .chromaKey(threshold: 0.3, smoothing: 0.4, color: .black),
@@ -87,6 +86,7 @@ struct BlendView: View {
     }
     
     private func setupImage() throws -> C7Image {
+        let overTexture = try! Res.rgUVB1Gradient(CGSize(width: 420, height: 270))
         var filter = C7Blend(with: blendMode, blendTexture: overTexture)
         filter.intensity = intensity
         let dest = BoxxIO(element: inputImage, filter: filter)

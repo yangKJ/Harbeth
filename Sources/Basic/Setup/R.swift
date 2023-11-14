@@ -20,17 +20,16 @@ public struct R {
         let imageblock = { (name: String) -> C7Image? in
             C7Image.init(named: name)
         }
-        guard let bundlePath = Bundle.main.path(forResource: forResource, ofType: "bundle") else {
+        guard let bundle = readFrameworkBundle(with: forResource) else {
             return imageblock(named)
         }
-        let bundle = Bundle.init(path: bundlePath)
         #if os(iOS) || os(tvOS) || os(watchOS)
         guard let image = C7Image(named: named, in: bundle, compatibleWith: nil) else {
             return imageblock(named)
         }
         return image
         #elseif os(macOS)
-        guard let image = bundle?.image(forResource: named) else {
+        guard let image = bundle.image(forResource: named) else {
             return imageblock(named)
         }
         return image
@@ -40,12 +39,11 @@ public struct R {
     }
     
     /// Read color resource
-    @available(iOS 11.0, *, macOS 10.13, *)
+    @available(iOS 11.0, macOS 10.13, *)
     public static func color(_ named: String, forResource: String = "Harbeth") -> C7Color? {
-        guard let bundlePath = Bundle.main.path(forResource: forResource, ofType: "bundle") else {
+        guard let bundle = readFrameworkBundle(with: forResource) else {
             return C7Color.init(named: named)
         }
-        let bundle = Bundle.init(path: bundlePath)
         #if os(iOS) || os(tvOS) || os(watchOS)
         return C7Color.init(named: named, in: bundle, compatibleWith: nil)
         #elseif os(macOS)
@@ -54,7 +52,27 @@ public struct R {
         return nil
         #endif
     }
+    
+    public static func readFrameworkBundle(with bundleName: String) -> Bundle? {
+        let candidates = [
+            // Bundle should be present here when the package is linked into an App.
+            Bundle.main.resourceURL,
+            // Bundle should be present here when the package is linked into a framework.
+            Bundle(for: R__.self).resourceURL,
+            // For command-line tools.
+            Bundle.main.bundleURL,
+        ]
+        for candidate in candidates {
+            let bundlePath = candidate?.appendingPathComponent(bundleName + ".bundle")
+            if let bundle = bundlePath.flatMap(Bundle.init(url:)) {
+                return bundle
+            }
+        }
+        return Bundle(for: R__.self)
+    }
 }
+
+fileprivate final class R__ { }
 
 extension R {
     
