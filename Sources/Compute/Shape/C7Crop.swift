@@ -15,7 +15,7 @@ import Foundation
 /// If your struct is immutable then all automatic copies resulting from being passed by value will be the same.
 /// If you want to change it you have to consciously do it by creating a new instance of the struct with the modified data. (not a copy)
 /// See: https://stackoverflow.com/questions/49253299/cannot-assign-to-property-self-is-immutable-i-know-how-to-fix-but-needs-unde
-public class C7Crop: C7FilterProtocol {
+public final class C7Crop: C7FilterProtocol {
     
     /// The adjusted contrast, from 0 to 1.0, with a default of 0.0
     public var origin: C7Point2D = C7Point2D.zero
