@@ -17,11 +17,13 @@ import UIKit
 public typealias C7View  = UIView
 public typealias C7Color = UIColor
 public typealias C7Image = UIImage
+public typealias C7EdgeInsets = UIEdgeInsets
 #elseif os(macOS)
 import AppKit
 public typealias C7View  = NSView
 public typealias C7Color = NSColor
 public typealias C7Image = NSImage
+public typealias C7EdgeInsets = NSEdgeInsets
 #endif
 
 public typealias C7InputTextures = [MTLTexture]

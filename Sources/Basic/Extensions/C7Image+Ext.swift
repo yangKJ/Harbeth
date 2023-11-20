@@ -173,4 +173,29 @@ extension HarbethWrapper where Base: C7Image {
         return base
         #endif
     }
+    
+    /// Adjust the gap around the image.
+    /// - Parameter padding: around padding.
+    /// - Returns: Return a new image.
+    public func withPadding(_ padding: C7EdgeInsets) -> C7Image {
+        let width = base.size.width + padding.left + padding.right
+        let height = base.size.height + padding.top + padding.bottom
+        let rect = CGRectMake(padding.left, padding.top, width, height)
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = base.scale
+        let renderer = UIGraphicsImageRenderer(size: rect.size, format: format)
+        let image = renderer.image { _ in base.draw(in: rect) }
+        return image
+        #elseif os(macOS)
+        let _rect = NSRect(origin: rect.origin, size: rect.size)
+        let image = NSImage.init(size: _rect.size)
+        image.lockFocus()
+        defer { image.unlockFocus() }
+        base.draw(in: _rect, from: .zero, operation: .sourceOver, fraction: base.scale)
+        return image
+        #else
+        return base
+        #endif
+    }
 }
