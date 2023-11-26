@@ -65,6 +65,9 @@ extension Device {
         #if SWIFT_PACKAGE
         /// Fixed the Swift PM cannot read the `.metal` file.
         /// https://stackoverflow.com/questions/63237395/generating-resource-bundle-accessor-type-bundle-has-no-member-module
+        if let library = try? device.makeDefaultLibrary(bundle: Bundle.module) {
+            return library
+        }
         if let pathURL = Bundle.module.url(forResource: "default", withExtension: "metallib") {
             var path: String
             if #available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
