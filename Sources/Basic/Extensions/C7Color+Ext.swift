@@ -66,16 +66,13 @@ extension C7Color: HarbethCompatible {
 extension HarbethWrapper where Base: C7Color {
     
     public func toCIColor() -> CIColor {
-        let (r, g, b, a) = base.c7.toRGBA()
-        return CIColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: CGFloat(a))
+        let components = base.c7.components
+        return CIColor(red: components[0], green: components[1], blue: components[2], alpha: components[3])
     }
     
     public func toRGBA() -> (red: Float, green: Float, blue: Float, alpha: Float) {
-        if base == C7Color.zero { return (0,0,0,0) }
-        let color = base.c7.usingColorSpace_sRGB()
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        color.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return (Float(r), Float(g), Float(b), Float(a))
+        let components = base.c7.components.map { Float($0) }
+        return (red: components[0], green: components[1], blue: components[2], alpha: components[3])
     }
     
     /// Convert RGBA value, transparent color does not do processing
@@ -131,5 +128,131 @@ extension HarbethWrapper where Base: C7Color {
         #else
         return nil
         #endif
+    }
+}
+
+extension HarbethWrapper where Base: C7Color {
+    
+    /// Return a array with [red, green, blue, alpha].
+    public var components: [CGFloat] {
+        if base == C7Color.zero {
+            return [0, 0, 0, 0]
+        }
+        let color = base.c7.usingColorSpace_sRGB()
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return [r, g, b, a]
+    }
+    
+    /// Returns the HSB (hue, saturation, brightness) components.
+    /// Notes that hue values are between 0 to 360, saturation values are between 0 to 1 and brightness values are between 0 to 1.
+    /// - Returns: return a array with [hue, saturation, brightness].
+    public func toHSBComponents() -> [CGFloat] {
+        let components = base.c7.components
+        let red = components[0]
+        let green = components[1]
+        let blue = components[2]
+        let maximum = max(red, max(green, blue))
+        let minimum = min(red, min(green, blue))
+        var h: CGFloat = 0.0
+        let s: CGFloat
+        let v: CGFloat = maximum
+        if maximum == 0 {
+            s = 0.0
+        } else {
+            s = (maximum - minimum) / maximum
+        }
+        if maximum == minimum {
+            h = 0.0
+        } else if maximum == red && green >= blue {
+            h = 60 * (green - blue) / (maximum - minimum)
+        } else if maximum == red && green < blue {
+            h = 60 * (green - blue) / (maximum - minimum) + 360.0
+        } else if maximum == blue {
+            h = 60 * (red - green) / (maximum - minimum) + 240.0
+        } else if maximum == green {
+            h = 60 * (blue - red) / (maximum - minimum) + 120.0
+        }
+        return [CGFloat(h), CGFloat(s), CGFloat(v)]
+    }
+    
+    /// Returns the HSL (hue, saturation, lightness) components.
+    /// Notes that hue values are between 0 to 360, saturation values are between 0 to 1 and lightness values are between 0 to 1.
+    /// - Returns: return a array with [hue, saturation, lightness].
+    public func toHSLComponents() -> [CGFloat] {
+        let components = base.c7.components
+        let red = components[0]
+        let green = components[1]
+        let blue = components[2]
+        let maximum = max(red, max(green, blue))
+        let minimum = min(red, min(green, blue))
+        let delta = maximum - minimum
+        guard delta != 0.0 else {
+            return [0.0, 0.0, CGFloat(maximum)]
+        }
+        var h: CGFloat = 0.0
+        let s: CGFloat
+        let l: CGFloat = (maximum + minimum) / 2.0
+        if l < 0.5 {
+            s = delta / (maximum + minimum)
+        } else {
+            s = delta / (2.0 - maximum - minimum)
+        }
+        switch maximum {
+        case red:
+            h = ((green - blue) / delta) + (green < blue ? 6.0 : 0.0)
+        case green:
+            h = ((blue - red) / delta) + 2.0
+        case blue:
+            h = ((red - green) / delta) + 4.0
+        default:
+            break
+        }
+        //h /= 6.0
+        return [CGFloat(h) * 60.0, CGFloat(s), CGFloat(l)]
+    }
+    
+    /// Returns the XYZ (mix of cone response curves, luminance, quasi-equal to blue stimulation) components.
+    /// Notes that X values are between 0 to 95.05, Y values are between 0 to 100.0 and Z values are between 0 to 108.9.
+    /// - Returns: return a array with [X, Y, Z].
+    public func toXYZComponents() -> [CGFloat] {
+        let toSRGB = { (c: CGFloat) -> CGFloat in
+            c > 0.04045 ? pow((c + 0.055) / 1.055, 2.4) : c / 12.92
+        }
+        let components = base.c7.components
+        let red = components[0]
+        let green = components[1]
+        let blue = components[2]
+        let r = toSRGB(CGFloat(red))
+        let g = toSRGB(CGFloat(green))
+        let b = toSRGB(CGFloat(blue))
+        let roundDecimal = { (_ x: CGFloat) -> CGFloat in
+            CGFloat(Int(round(x * 10000.0))) / 10000.0
+        }
+        let X = roundDecimal(((r * 0.4124) + (g * 0.3576) + (b * 0.1805)) * 100.0)
+        let Y = roundDecimal(((r * 0.2126) + (g * 0.7152) + (b * 0.0722)) * 100.0)
+        let Z = roundDecimal(((r * 0.0193) + (g * 0.1192) + (b * 0.9505)) * 100.0)
+        return [X, Y, Z]
+    }
+    
+    /// Returns the Lab (lightness, red-green axis, yellow-blue axis) components.
+    /// It is based on the CIE XYZ color space with an observer at 2° and a D65 illuminant.
+    /// Notes that L values are between 0 to 100.0, a values are between -128 to 127.0 and b values are between -128 to 127.0.
+    /// - Returns: return a array with [L, a, b].
+    public func toLabComponents() -> [CGFloat] {
+        let normalized = { (c: CGFloat) -> CGFloat in
+            c > 0.008856 ? pow(c, 1.0 / 3.0) : (7.787 * c) + (16.0 / 116.0)
+        }
+        let xyz = toXYZComponents()
+        let normalizedX = normalized(xyz[0] / 95.05)
+        let normalizedY = normalized(xyz[1] / 100.0)
+        let normalizedZ = normalized(xyz[2] / 108.9)
+        let roundDecimal = { (_ x: CGFloat) -> CGFloat in
+            CGFloat(Int(round(x * 1000.0))) / 1000.0
+        }
+        let L = roundDecimal((116.0 * normalizedY) - 16.0)
+        let a = roundDecimal(500.0 * (normalizedX - normalizedY))
+        let b = roundDecimal(200.0 * (normalizedY - normalizedZ))
+        return [L, a, b]
     }
 }

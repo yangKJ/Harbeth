@@ -216,6 +216,8 @@
 		872661A72994D82200E612C7 /* C7Sepia.metal in Sources */ = {isa = PBXBuildFile; fileRef = 872660B82994D82100E612C7 /* C7Sepia.metal */; };
 		872661A82994D82200E612C7 /* C7ColorMatrix4x4.metal in Sources */ = {isa = PBXBuildFile; fileRef = 872660B92994D82100E612C7 /* C7ColorMatrix4x4.metal */; };
 		872A26982A84B6DC00DCA2ED /* TextureLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872A26972A84B6DC00DCA2ED /* TextureLoader.swift */; };
+		872BBA9A2B1983AE00493F25 /* Color+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA992B1983AE00493F25 /* Color+Ext.swift */; };
+		872BBA9C2B19879700493F25 /* C7Color+Driver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA9B2B19879700493F25 /* C7Color+Driver.swift */; };
 		874035802A983E47001D0A98 /* CISketch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8740357F2A983E47001D0A98 /* CISketch.swift */; };
 		874035822A987F33001D0A98 /* AsyncDest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035812A987F33001D0A98 /* AsyncDest.swift */; };
 		8752597C2A739CF3009085EE /* C7Pow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8752597B2A739CF3009085EE /* C7Pow.swift */; };
@@ -484,6 +486,8 @@
 		872660B82994D82100E612C7 /* C7Sepia.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = C7Sepia.metal; sourceTree = "<group>"; };
 		872660B92994D82100E612C7 /* C7ColorMatrix4x4.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = C7ColorMatrix4x4.metal; sourceTree = "<group>"; };
 		872A26972A84B6DC00DCA2ED /* TextureLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextureLoader.swift; sourceTree = "<group>"; };
+		872BBA992B1983AE00493F25 /* Color+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Ext.swift"; sourceTree = "<group>"; };
+		872BBA9B2B19879700493F25 /* C7Color+Driver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7Color+Driver.swift"; sourceTree = "<group>"; };
 		8740357F2A983E47001D0A98 /* CISketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CISketch.swift; sourceTree = "<group>"; };
 		874035812A987F33001D0A98 /* AsyncDest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncDest.swift; sourceTree = "<group>"; };
 		8752597B2A739CF3009085EE /* C7Pow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Pow.swift; sourceTree = "<group>"; };
@@ -729,6 +733,7 @@
 		87265FE52994D82100E612C7 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				872BBA9B2B19879700493F25 /* C7Color+Driver.swift */,
 				875CA58929B85C08006D4F1D /* C7Color+Ext.swift */,
 				875CA58129B85C08006D4F1D /* C7Image+Ext.swift */,
 				875CA58429B85C08006D4F1D /* C7Image+iOS.swift */,
@@ -986,6 +991,7 @@
 			isa = PBXGroup;
 			children = (
 				874035812A987F33001D0A98 /* AsyncDest.swift */,
+				872BBA992B1983AE00493F25 /* Color+Ext.swift */,
 				8769CE1F2A79F0CF004AB055 /* FilterImage.swift */,
 				87901EEE2A7210B5008FCB47 /* Image+Ext.swift */,
 			);
@@ -1203,6 +1209,7 @@
 				87671B812A8E01B000C0A5F0 /* C7CircleBlur.swift in Sources */,
 				8726615E2994D82200E612C7 /* C7Luminance.metal in Sources */,
 				8752597C2A739CF3009085EE /* C7Pow.swift in Sources */,
+				872BBA9C2B19879700493F25 /* C7Color+Driver.swift in Sources */,
 				872661242994D82200E612C7 /* C7RGBADilation.metal in Sources */,
 				872661712994D82200E612C7 /* C7BlendChromaKey.metal in Sources */,
 				8726614C2994D82200E612C7 /* C7HighlightShadow.metal in Sources */,
@@ -1281,6 +1288,7 @@
 				872661282994D82200E612C7 /* C7Pinch.metal in Sources */,
 				8726615A2994D82200E612C7 /* C7Saturation.metal in Sources */,
 				875CA59529B85C08006D4F1D /* CIImage+Ext.swift in Sources */,
+				872BBA9A2B1983AE00493F25 /* Color+Ext.swift in Sources */,
 				F7621AA52A7FCB1900614542 /* CIVignette.swift in Sources */,
 				87F038D12A835E7D00F67638 /* C7BilateralBlur.metal in Sources */,
 				F7621A992A7FABF300614542 /* CIShadows.swift in Sources */,
