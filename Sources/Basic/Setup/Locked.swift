@@ -7,9 +7,6 @@
 
 import Foundation
 
-/// 如果这里使用`struct`会出现卡死的问题，有大佬能告知一下吗？
-/// See: https://juejin.cn/post/7191406877819797561
-
 /// Define an atomic property decorator through Property Wrappers.
 @propertyWrapper public final class Locked<Value> {
     
