@@ -15,16 +15,16 @@ struct SwiftUIView: View {
     
     var body: some View {
         VStack {
-            let filters: [C7FilterProtocol] = [
+            FilterableView(image: inputImage, filters: [
                 CIHighlight(highlight: intensity),
                 C7WaterRipple(ripple: intensity),
                 CILookupTable(cubeName: "violet", amount: intensity),
                 CIGaussianBlur(radius: 5),
                 C7Storyboard(ranks: 2),
-            ]
-            FilterImage(with: inputImage, filters: filters, builder: {
-                Image(c7Image: $0)
-            })
+            ], content: { image in
+                image.resizable()
+                    .aspectRatio(contentMode: .fit)
+            }, async: false)
             .frame(idealHeight: R.width-30 / 2 * 3)
             .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
             .cornerRadius(15)
