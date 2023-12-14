@@ -132,7 +132,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
 ```
 
 ### SwiftUI Support
-- For the direct use [FilterableView](https://github.com/yangKJ/Harbeth/tree/master/Sources/SwiftUI/FilterableView), it is just a simple implementation.
+- For the direct use [FilterableView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/FilterableView.swift), it is just a simple implementation.
 - The SwiftUI API is still in-progress and may not be production ready. We're looking for help! 🤲
 
 ```swift
