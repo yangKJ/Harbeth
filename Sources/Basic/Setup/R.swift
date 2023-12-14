@@ -17,40 +17,43 @@ public struct R {
     
     /// Read image resources
     public static func image(_ named: String, forResource: String = "Harbeth") -> C7Image? {
-        let imageblock = { (name: String) -> C7Image? in
-            C7Image.init(named: name)
+        let readImageblock = { (bundle: Bundle) -> C7Image? in
+            #if os(iOS) || os(tvOS) || os(watchOS)
+            return C7Image(named: named, in: bundle, compatibleWith: nil)
+            #elseif os(macOS)
+            return bundle.image(forResource: named)
+            #else
+            return nil
+            #endif
+        }
+        if let image = readImageblock(Bundle.main) {
+            return image
         }
         guard let bundle = readFrameworkBundle(with: forResource) else {
-            return imageblock(named)
+            return C7Image.init(named: named)
         }
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        guard let image = C7Image(named: named, in: bundle, compatibleWith: nil) else {
-            return imageblock(named)
-        }
-        return image
-        #elseif os(macOS)
-        guard let image = bundle.image(forResource: named) else {
-            return imageblock(named)
-        }
-        return image
-        #else
-        return nil
-        #endif
+        return readImageblock(bundle)
     }
     
     /// Read color resource
     @available(iOS 11.0, macOS 10.13, *)
     public static func color(_ named: String, forResource: String = "Harbeth") -> C7Color? {
+        let readColorblock = { (bundle: Bundle) -> C7Color? in
+            #if os(iOS) || os(tvOS) || os(watchOS)
+            return C7Color.init(named: named, in: bundle, compatibleWith: nil)
+            #elseif os(macOS)
+            return C7Color.init(named: named, bundle: bundle)
+            #else
+            return nil
+            #endif
+        }
+        if let color = readColorblock(Bundle.main) {
+            return color
+        }
         guard let bundle = readFrameworkBundle(with: forResource) else {
             return C7Color.init(named: named)
         }
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        return C7Color.init(named: named, in: bundle, compatibleWith: nil)
-        #elseif os(macOS)
-        return C7Color.init(named: named, bundle: bundle)
-        #else
-        return nil
-        #endif
+        return readColorblock(bundle)
     }
     
     public static func readFrameworkBundle(with bundleName: String) -> Bundle? {

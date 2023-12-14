@@ -45,7 +45,6 @@ class UnitTestViewController: UIViewController {
         super.viewDidLoad()
         self.setupUI()
         self.unitTest()
-        //self.setupGrayWindow()
     }
     
     func setupUI() {
@@ -62,24 +61,15 @@ class UnitTestViewController: UIViewController {
         ])
     }
     
-    func setupGrayWindow() {
-        guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else {
-            return
-        }
-        window.addSubview(overlay)
-    }
+    private var mourning: Bool = false
     
     @objc func mourningAction() {
-        if #available(iOS 15.0, *) {
-            leftBarButton.isSelected = !leftBarButton.isSelected
-            if leftBarButton.isSelected {
-                self.overlay.removeFromSuperview()
-            } else {
-                self.setupGrayWindow()
-            }
-        } else {
+        if mourning {
             self.overlay.removeFromSuperview()
+        } else {
+            UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.addSubview(overlay)
         }
+        self.mourning = !self.mourning
     }
 }
 

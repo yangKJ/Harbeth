@@ -155,7 +155,7 @@
         <scene sceneID="exH-T0-fje">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="D7T-AE-VIp" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Test" image="figure.outdoor.cycle" catalog="system" id="WNI-CL-ALG"/>
+                    <tabBarItem key="tabBarItem" title="Test" image="photo.on.rectangle.angled" catalog="system" id="WNI-CL-ALG"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="Wvl-p4-8Vd">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
@@ -172,10 +172,10 @@
         </scene>
     </scenes>
     <resources>
-        <image name="camera.metering.center.weighted" catalog="system" width="128" height="93"/>
-        <image name="figure.outdoor.cycle" catalog="system" width="128" height="90"/>
-        <image name="play.tv" catalog="system" width="128" height="95"/>
-        <image name="scribble.variable" catalog="system" width="128" height="119"/>
+        <image name="camera.metering.center.weighted" catalog="system" width="32" height="32"/>
+        <image name="photo.on.rectangle.angled" catalog="system" width="128" height="98"/>
+        <image name="play.tv" catalog="system" width="32" height="32"/>
+        <image name="scribble.variable" catalog="system" width="32" height="32"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

@@ -94,10 +94,10 @@ extension ViewControllerType {
         case .AlphaBlend, .HueBlend, .LuminosityBlend:
             return R.image("P1040808")!
         default:
-            return R.image("timg-2")!
+            return R.image("P1040808")!
         }
     }
-    
+
     var overTexture: MTLTexture? {
         let color = UIColor.green.withAlphaComponent(0.5)
         guard let texture = try? TextureLoader.emptyTexture(width: 480, height: 270) else {

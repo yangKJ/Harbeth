@@ -50,7 +50,6 @@ class HomeViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.white
         view.addSubview(tableView)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         let tabBarHeight = tabBarController?.tabBar.frame.size.height ?? 0
@@ -62,9 +61,15 @@ class HomeViewController: UIViewController {
         ])
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         tabBarController?.tabBar.isHidden = false
+    }
+    
+    var datas: [(key: String, value: [ViewControllerType])] {
+        get {
+            self.viewModel.datas.sorted(by: { $0.0 > $1.0 })
+        }
     }
 }
 
@@ -76,17 +81,14 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
         return datas[section].value.count
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
         return datas[section].key
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
         let element = datas[indexPath.section].value[indexPath.row]
         let cell = UITableViewCell(style: .value1, reuseIdentifier: HomeViewController.identifier)
         cell.selectionStyle = .none
@@ -102,7 +104,6 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let datas = viewModel.datas.sorted(by: { $0.0 < $1.0 })
         let type = datas[indexPath.section].value[indexPath.row]
         let vc = viewModel.setupViewController(type)
         vc.title = type.rawValue

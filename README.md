@@ -132,7 +132,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
 ```
 
 ### SwiftUI Support
-- For the direct use [FiterImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/SwiftUI/FiterImage), it is just a simple implementation.
+- For the direct use [FilterableView](https://github.com/yangKJ/Harbeth/tree/master/Sources/SwiftUI/FilterableView), it is just a simple implementation.
 - The SwiftUI API is still in-progress and may not be production ready. We're looking for help! 🤲
 
 ```swift
@@ -140,9 +140,10 @@ let filters: [C7FilterProtocol] = [
     CIHighlight(highlight: intensity),
     C7WaterRipple(ripple: intensity),
 ]
-FilterImage(with: inputImage, filters: filters, builder: {
-    Image(c7Image: $0)
-})
+FilterableView(image: inputImage, filters: filters, content: { image in
+    image.resizable()
+        .aspectRatio(contentMode: .fit)
+}, async: false)
 ```
 
 ### CocoaPods
