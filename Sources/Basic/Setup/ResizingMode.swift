@@ -30,10 +30,7 @@ extension ResizingMode {
     ///   - image: Image to resize.
     ///   - size: Size to resize the image to. it is `.zero` return original image.
     /// - Returns: Resized image.
-    public func resizeImage(_ image: C7Image?, size: CGSize) -> C7Image? {
-        guard let image = image else {
-            return nil
-        }
+    public func resizeImage(_ image: C7Image, size: CGSize) -> C7Image {
         if case .original = self, size == .zero {
             return image
         }
@@ -52,48 +49,33 @@ extension ResizingMode {
         default:
             return image
         }
-        let omimage = drawImage(image, rect: rect)
-        return cropingImage(omimage, rect: rect, targetSize: size)
+        let result = image.c7.renderer(rect: rect, canvas: rect.size)
+        return cropingImage(result, rect: rect, size: size) ?? image
     }
     
-    private func cropingImage(_ image: C7Image, rect: CGRect, targetSize: CGSize) -> C7Image {
+    private func cropingImage(_ image: C7Image, rect: CGRect, size: CGSize) -> C7Image? {
+        guard let cgImage = image.cgImage else {
+            return image
+        }
         var cropRect: CGRect
         switch self {
         case .scaleAspectFill:
-            let x = (rect.size.width - targetSize.width) * 0.5
-            let y = (rect.size.height - targetSize.height) * 0.5
+            let x = (rect.size.width - size.width) * 0.5
+            let y = (rect.size.height - size.height) * 0.5
             cropRect = CGRect(x: x, y: y, width: rect.size.width - 2 * x, height: rect.size.height - 2 * y)
         case .scaleAspectBottomRight:
-            let x = (rect.size.width - targetSize.width) * 0.5
-            let y = (rect.size.height - targetSize.height) * 0.5
+            let x = (rect.size.width - size.width) * 0.5
+            let y = (rect.size.height - size.height) * 0.5
             cropRect = CGRect(origin: CGPoint(x: x, y: y), size: rect.size)
             cropRect = cropRect.offsetBy(dx: x, dy: y)
         case .scaleAspectTopLeft:
-            let x = (rect.size.width - targetSize.width) * 0.5
-            let y = (rect.size.height - targetSize.height) * 0.5
+            let x = (rect.size.width - size.width) * 0.5
+            let y = (rect.size.height - size.height) * 0.5
             cropRect = CGRect(x: 0, y: 0, width: rect.size.width - 2 * x, height: rect.size.height - 2 * y)
         default:
             return image
         }
-        return (image.cgImage?.cropping(to: cropRect)?.c7.toC7Image()) ?? image
-    }
-    
-    private func drawImage(_ base: C7Image, rect: CGRect) -> C7Image {
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = base.scale
-        let renderer = UIGraphicsImageRenderer(size: rect.size, format: format)
-        let image = renderer.image { _ in base.draw(in: rect) }
-        return image
-        #elseif os(macOS)
-        let _rect = NSRect(origin: rect.origin, size: rect.size)
-        let image = NSImage.init(size: _rect.size)
-        image.lockFocus()
-        defer { image.unlockFocus() }
-        base.draw(in: _rect, from: .zero, operation: .sourceOver, fraction: base.scale)
-        return image
-        #else
-        return base
-        #endif
+        //return image.c7.renderer(rect: cropRect, canvas: size)
+        return cgImage.cropping(to: cropRect)?.c7.toC7Image()
     }
 }

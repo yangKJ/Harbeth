@@ -81,17 +81,6 @@ extension HarbethWrapper where Base: C7Color {
         (red, green, blue, alpha) = base.c7.toRGBA()
     }
     
-    /// RGB to YUV.
-    /// - See: https://en.wikipedia.org/wiki/YUV
-    public var yuv: (y: Float, u: Float, v: Float) {
-        if base == C7Color.zero { return (0,0,0) }
-        let (r, g, b, _) = base.c7.toRGBA()
-        let y = 0.212600 * r + 0.71520 * g + 0.07220 * b
-        let u = -0.09991 * r - 0.33609 * g + 0.43600 * b
-        let v = 0.615000 * r - 0.55861 * g - 0.05639 * b
-        return (Float(y), Float(u), Float(v))
-    }
-    
     public func linearInterpolation(directionColor: C7Color, rate: Float) -> C7Color {
         let rate = min(1, max(0, rate))
         let (fR, fG, fB, fA) = base.c7.toRGBA()
@@ -250,9 +239,23 @@ extension HarbethWrapper where Base: C7Color {
         let roundDecimal = { (_ x: CGFloat) -> CGFloat in
             CGFloat(Int(round(x * 1000.0))) / 1000.0
         }
-        let L = roundDecimal((116.0 * normalizedY) - 16.0)
+        let L = roundDecimal(116.0 * normalizedY - 16.0)
         let a = roundDecimal(500.0 * (normalizedX - normalizedY))
         let b = roundDecimal(200.0 * (normalizedY - normalizedZ))
         return [L, a, b]
+    }
+    
+    /// A color is described as a Y component (luma) and two chroma components U and V.
+    /// - See: https://en.wikipedia.org/wiki/YUV
+    /// - Returns: return a array with [Y, U, V].
+    public func toYUVComponents() -> [CGFloat] {
+        let components = base.c7.components
+        let r = components[0]
+        let g = components[1]
+        let b = components[2]
+        let y = 0.212600 * r + 0.71520 * g + 0.07220 * b
+        let u = -0.09991 * r - 0.33609 * g + 0.43600 * b
+        let v = 0.615000 * r - 0.55861 * g - 0.05639 * b
+        return [y, u, v]
     }
 }

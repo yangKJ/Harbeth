@@ -26,38 +26,24 @@ struct CustomViews<F: C7FilterProtocol>: View {
     }
     
     var body: some View {
-        Group {
-            switch Result(catching: {
-                try setupImage()
-            }) {
-            case .success(let image):
-                VStack {
-                    Image(c7Image: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(idealHeight: R.width-30 / 2 * 3)
-                        .padding()
-                    
-                    VStack(alignment: .leading) {
-                        Text("Parameter Value: \(value, specifier: "%.2f")")
-                        Slider(value: $value, in: min...max)
-                    }
+        VStack {
+            FilterableView(image: inputImage, filters: [filtering(value)], content: { image in
+                image.resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(idealHeight: R.width-30 / 2 * 3)
                     .padding()
-                    .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
-                    .padding()
-                }
-            case .failure(let error):
-                Text(error.localizedDescription)
+            }, async: true)
+            
+            VStack(alignment: .leading) {
+                Text("Parameter Value: \(value, specifier: "%.2f")")
+                Slider(value: $value, in: min...max)
             }
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
+            .padding()
         }
         .padding(.bottom)
         .toolbar(content: { Spacer() })
-    }
-    
-    private func setupImage() throws -> C7Image {
-        let filter = self.filtering(value)
-        let dest = BoxxIO(element: inputImage, filter: filter)
-        return try dest.output()
     }
 }
 

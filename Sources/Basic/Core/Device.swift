@@ -86,7 +86,7 @@ extension Device {
             return library
         }
         
-        let bundle = readFrameworkBundle(with: resource)
+        let bundle = R.readFrameworkBundle(with: resource)
         /// Fixed libraryFile is nil. podspec file `s.static_framework = false`
         /// https://github.com/CocoaPods/CocoaPods/issues/7967
         guard let libraryFile = bundle?.path(forResource: "default", ofType: "metallib") else {
@@ -105,31 +105,6 @@ extension Device {
         }
         
         return nil
-    }
-    
-    static func readFrameworkBundle(with resource: String) -> Bundle? {
-        let candidates = [
-            // Bundle should be present here when the package is linked into an App.
-            Bundle.main.resourceURL,
-            // Bundle should be present here when the package is linked into a framework.
-            Bundle(for: Device.self).resourceURL,
-            // For command-line tools.
-            Bundle.main.bundleURL,
-        ]
-        let component = resource + ".bundle"
-        for candidate in candidates {
-            let bundleURL: URL?
-            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
-                bundleURL = candidate?.appending(component: component)
-            } else {
-                bundleURL = candidate?.appendingPathComponent(component)
-            }
-            if let bundle = bundleURL.flatMap(Bundle.init(url:)) {
-                return bundle
-            }
-        }
-        // Return whatever bundle this code is in as a last resort.
-        return Bundle(for: Device.self)
     }
 }
 

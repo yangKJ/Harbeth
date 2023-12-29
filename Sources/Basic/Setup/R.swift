@@ -15,6 +15,18 @@ import AppKit
 /// 资源文件读取
 public struct R {
     
+    /// Returns the current app's bundle whether it's called from the app or an app extension.
+    public static let app: Bundle = {
+        var components = Bundle.main.bundleURL.path.split(separator: "/")
+        guard let index = (components.lastIndex { $0.hasSuffix(".app") }) else {
+            return Bundle.main
+        }
+        components.removeLast((components.count - 1) - index)
+        return Bundle(path: components.joined(separator: "/")) ?? Bundle.main
+    }()
+    
+    public static var cacheBundles = [String: Bundle]()
+    
     /// Read image resources
     public static func image(_ named: String, forResource: String = "Harbeth") -> C7Image? {
         let readImageblock = { (bundle: Bundle) -> C7Image? in
@@ -57,21 +69,29 @@ public struct R {
     }
     
     public static func readFrameworkBundle(with bundleName: String) -> Bundle? {
+        if let bundle = cacheBundles[bundleName] {
+            return bundle
+        }
+        let bundle__ = Bundle(for: R__.self)
         let candidates = [
             // Bundle should be present here when the package is linked into an App.
             Bundle.main.resourceURL,
+            // Current app's bundle whether it's called from the app or an app extension.
+            R.app.resourceURL,
             // Bundle should be present here when the package is linked into a framework.
-            Bundle(for: R__.self).resourceURL,
+            bundle__.resourceURL,
             // For command-line tools.
             Bundle.main.bundleURL,
         ]
         for candidate in candidates {
             let bundlePath = candidate?.appendingPathComponent(bundleName + ".bundle")
             if let bundle = bundlePath.flatMap(Bundle.init(url:)) {
+                cacheBundles[bundleName] = bundle
                 return bundle
             }
         }
-        return Bundle(for: R__.self)
+        cacheBundles[bundleName] = bundle__
+        return bundle__
     }
 }
 

@@ -139,64 +139,141 @@ extension HarbethWrapper where Base: C7Image {
     }
     
     /// Rotate the picture.
-    /// Fixed `UIImage(cgImage:scale:orientation:)` 在绘制过bitmap之后失效问题
     /// - Parameter degrees: Rotation angle.
     /// - Returns: The picture after rotation.
     public func rotate(degrees: Float) -> C7Image {
-        let radians = CGFloat(degrees) / 180.0 * CGFloat.pi
-        let width  = base.size.width
-        let height = base.size.height
-        var newSize = CGRect(origin: CGPoint.zero, size: base.size)
-            .applying(CGAffineTransform(rotationAngle: radians)).size
-        // Trim off the extremely small float value to prevent core graphics from rounding it up
-        newSize.width = floor(newSize.width)
-        newSize.height = floor(newSize.height)
-        UIGraphicsBeginImageContextWithOptions(newSize, false, base.scale)
+        let radians = CGFloat(degrees) / 180.0 * .pi
+        let tran = CGAffineTransform(rotationAngle: radians)
+        var size = CGRect(origin: .zero, size: base.size).applying(tran).size
+        size.width  = floor(size.width)
+        size.height = floor(size.height)
+        let rect = CGRect(x: -base.size.width/2, y: -base.size.height/2, width: base.size.width, height: base.size.height)
+        UIGraphicsBeginImageContext(size)
         let context = UIGraphicsGetCurrentContext()
-        // Move origin to middle
-        context?.translateBy(x: newSize.width/2, y: newSize.height/2)
-        // Rotate around middle
+        context?.translateBy(x: size.width/2, y: size.height/2)
         context?.rotate(by: radians)
-        // Draw the image at its center
-        base.draw(in: CGRect(x: -width/2, y: -height/2, width: width, height: height))
-        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        base.draw(in: rect)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-        return newImage ?? base
+        return result ?? base
+    }
+    
+    /// Round image.
+    public var circle: C7Image {
+        let min = min(base.size.width, base.size.height)
+        let size = CGSize(width: min, height: min)
+        UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+        let context = UIGraphicsGetCurrentContext()
+        context?.addEllipse(in: .init(origin: .zero, size: size))
+        context?.clip()
+        base.draw(in: .init(origin: .zero, size: base.size))
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result ?? base
+    }
+    
+    
+    /// Modify the line color of the picture.
+    /// - Parameter color: Line color.
+    public func line(color: C7Color) -> C7Image {
+        blend(mode: .destinationIn, tinted: color)
+    }
+    
+    /// Mixing color.
+    public func blend(mode: CGBlendMode, tinted color: C7Color) -> C7Image {
+        UIGraphicsBeginImageContextWithOptions(base.size, false, 0.0)
+        color.setFill()
+        let rect = CGRect(origin: .zero, size: base.size)
+        UIRectFill(rect)
+        base.draw(in: rect, blendMode: mode, alpha: 1.0)
+        if mode != .destinationIn {
+            base.draw(in: rect, blendMode: .destinationIn, alpha: 1.0)
+        }
+        let tintedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return tintedImage ?? base
+    }
+    
+    /// Fill the image on the basis that the image is not deformed.
+    /// - Parameters:
+    ///   - width: Fill image width, Keep the original size at zero.
+    ///   - height: Fill image height, Keep the original size at zero.
+    public func fitFixed(width: CGFloat = 0, height: CGFloat = 0) -> C7Image {
+        guard let cgImage = base.cgImage else {
+            return base
+        }
+        var rect = CGRect(origin: .zero, size: base.size)
+        switch (width, height) {
+        case (0.0, 0.0):
+            return base
+        case (0.0, 0.0000002...):
+            rect.size.width = base.size.width * (height / base.size.height)
+            rect.size.height = height
+        case (0.0000002..., 0.0):
+            rect.size.width = width
+            rect.size.height = base.size.height * (width / base.size.width)
+        default:
+            if base.size.width/base.size.height < width/height {
+                rect.size.height = height
+                rect.size.width = base.size.width * height / base.size.height
+                rect.origin.x = (width - rect.size.width) * 0.5
+            } else {
+                rect.size.width = width
+                rect.size.height = base.size.height * width / base.size.width
+                rect.origin.y = -(height - rect.size.height) * 0.5
+            }
+        }
+        UIGraphicsBeginImageContextWithOptions(rect.size, false, base.scale)
+        let context = UIGraphicsGetCurrentContext()
+        context?.translateBy(x: 0.0, y: rect.size.height)
+        context?.scaleBy(x: 1.0, y: -1.0)
+        context?.setBlendMode(.copy)
+        context?.draw(cgImage, in: rect)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result ?? base
     }
 }
 
 extension HarbethWrapper where Base: C7Image {
-    /// Crop the picture to the specified proportion, and the excess will be automatically deleted.
-    /// - Parameter ratio: Cutting ratio.
-    public func crop(ratio: CGFloat) -> C7Image {
-        if ratio == 0 { return base }
-        let width  = base.size.width
-        let height = base.size.height
-        let size: CGSize
-        if width / height > ratio {
-            size = CGSize(width: height * ratio, height: height)
-        } else {
-            size = CGSize(width: width, height: width / ratio)
+    /// Image path cropping, cropping path outside part.
+    /// - Parameter bezierPath: Crop path.
+    public func cropOuter(bezierPath: UIBezierPath) -> C7Image {
+        guard !bezierPath.isEmpty else {
+            return base
         }
-        let rect = CGRectMake((size.width - width ) / 2.0, (size.height - height ) / 2.0, width, height)
-        
-        UIGraphicsBeginImageContext(size)
+        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
+        UIGraphicsBeginImageContext(rect.size)
+        let context = UIGraphicsGetCurrentContext()
+        let outer = CGMutablePath()
+        outer.addRect(rect, transform: .identity)
+        outer.addPath(bezierPath.cgPath, transform: .identity)
+        context?.addPath(outer)
+        context?.setBlendMode(.clear)
         base.draw(in: rect)
-        let scaledImage = UIGraphicsGetImageFromCurrentImageContext()
+        context?.drawPath(using: .eoFill)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-        return scaledImage ?? base
+        return result ?? base
     }
     
-    /// Crop the edge area.
-    /// - Parameter space: Edge pixel size.
-    public func crop(space: CGFloat) -> C7Image {
-        let size = base.size
-        let rect = CGRect(x: -space, y: -space, width: size.width+2*space, height: size.height+2*space)
-        UIGraphicsBeginImageContext(size)
+    /// Image path cropping, cropping path inner part.
+    /// - Parameter bezierPath: Crop path.
+    public func cropInner(bezierPath: UIBezierPath) -> C7Image {
+        guard !bezierPath.isEmpty else {
+            return base
+        }
+        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
+        //UIGraphicsBeginImageContextWithOptions(rect.size, false, base.scale)
+        UIGraphicsBeginImageContext(rect.size)
+        let context = UIGraphicsGetCurrentContext()
+        context?.setBlendMode(.clear)
         base.draw(in: rect)
-        let scaledImage = UIGraphicsGetImageFromCurrentImageContext()
+        context?.addPath(bezierPath.cgPath)
+        context?.drawPath(using: .eoFill)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-        return scaledImage ?? base
+        return result ?? base
     }
 }
 

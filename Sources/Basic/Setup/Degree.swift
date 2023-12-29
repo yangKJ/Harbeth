@@ -11,6 +11,10 @@ public struct Degree {
     
     public let value: Float
     
+    public init(value: Float) {
+        self.value = value
+    }
+    
     public var radians: Float {
         return Float(value * Float.pi / 180.0)
     }

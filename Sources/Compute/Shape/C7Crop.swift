@@ -7,13 +7,7 @@
 
 import Foundation
 
-/// Use `class`
-/// struct is a value type. For value types, only methods explicitly marked as mutating can modify the properties of self, so this is not possible within a computed property.
-/// If you change struct to be a class then your code compiles without problems.
-/// Structs are value types which means they are copied when they are passed around.
-/// So if you change a copy you are changing only that copy, not the original and not any other copies which might be around.
-/// If your struct is immutable then all automatic copies resulting from being passed by value will be the same.
-/// If you want to change it you have to consciously do it by creating a new instance of the struct with the modified data. (not a copy)
+/// For use class.
 /// See: https://stackoverflow.com/questions/49253299/cannot-assign-to-property-self-is-immutable-i-know-how-to-fix-but-needs-unde
 public final class C7Crop: C7FilterProtocol {
     

@@ -37,7 +37,8 @@ public struct CIColorCube: C7FilterProtocol, CoreImageProtocol {
     private let cubeResource: Resource?
     
     public init(cubeName: String) {
-        self.init(cubeResource: CIColorCube.Resource.readCubeResource(cubeName))
+        let cubeResource = CIColorCube.Resource.readCubeResource(cubeName)
+        self.init(cubeResource: cubeResource)
     }
     
     public init(cubeResource: Resource?) {

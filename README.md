@@ -50,7 +50,7 @@ English | [**简体中文**](README_CN.md)
 
 - 🎷 Code zero intrusion add filter function for image.
 
-```swift
+```
 let filter1 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
 let filter2 = C7Granularity(grain: 0.8)
 let filter3 = C7SoulOut(soul: 0.7)
@@ -88,7 +88,7 @@ dest.transmitOutput(success: { [weak self] image in
 
 - 📸 Camera capture generates pictures.
 
-```swift
+```
 // Add an edge detection filter:
 let filter = C7EdgeGlow(lineColor: .red)
 
@@ -110,7 +110,7 @@ extension CameraViewController: C7CollectorImageDelegate {
   - 🙄 For details, See [PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/Demo/Harbeth-iOS-Demo/Modules/PlayerViewController.swift).
   - You can also extend this by using [BoxxIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/BoxxIO.swift) to filter the collected `CVPixelBuffer`.
 
-```swift
+```
 lazy var video: C7CollectorVideo = {
     let videoURL = URL.init(string: "Link")!
     let asset = AVURLAsset.init(url: videoURL)
@@ -135,7 +135,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
 - For the direct use [FilterableView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/FilterableView.swift), it is just a simple implementation.
 - The SwiftUI API is still in-progress and may not be production ready. We're looking for help! 🤲
 
-```swift
+```
 let filters: [C7FilterProtocol] = [
     CIHighlight(highlight: intensity),
     C7WaterRipple(ripple: intensity),

@@ -221,6 +221,7 @@
 		872BBA9E2B19B1A000493F25 /* ResizingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA9D2B19B1A000493F25 /* ResizingMode.swift */; };
 		874035802A983E47001D0A98 /* CISketch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8740357F2A983E47001D0A98 /* CISketch.swift */; };
 		874035822A987F33001D0A98 /* AsyncDest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035812A987F33001D0A98 /* AsyncDest.swift */; };
+		87418C5A2B3BC5780024D1A7 /* CGPath+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87418C592B3BC5780024D1A7 /* CGPath+Ext.swift */; };
 		8752597C2A739CF3009085EE /* C7Pow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8752597B2A739CF3009085EE /* C7Pow.swift */; };
 		8752597E2A739CFD009085EE /* C7Pow.metal in Sources */ = {isa = PBXBuildFile; fileRef = 8752597D2A739CFD009085EE /* C7Pow.metal */; };
 		875CA58F29B85C08006D4F1D /* C7Image+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CA58129B85C08006D4F1D /* C7Image+Ext.swift */; };
@@ -248,6 +249,7 @@
 		8777826E2A8A0AEB00FE17CC /* CGRect+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8777826D2A8A0AEB00FE17CC /* CGRect+Ext.swift */; };
 		877BBBC72B1F06730009C335 /* FilterableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877BBBC62B1F06730009C335 /* FilterableView.swift */; };
 		877BBBC92B1F10730009C335 /* Published_Image.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877BBBC82B1F10730009C335 /* Published_Image.swift */; };
+		877C24A22B2FE5E600DA6440 /* C7View+iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877C24A12B2FE5E600DA6440 /* C7View+iOS.swift */; };
 		87901EEF2A7210B5008FCB47 /* Image+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EEE2A7210B5008FCB47 /* Image+Ext.swift */; };
 		87901EF12A726588008FCB47 /* C7ColorGradient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF02A726588008FCB47 /* C7ColorGradient.swift */; };
 		87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */; };
@@ -494,6 +496,7 @@
 		872BBA9D2B19B1A000493F25 /* ResizingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizingMode.swift; sourceTree = "<group>"; };
 		8740357F2A983E47001D0A98 /* CISketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CISketch.swift; sourceTree = "<group>"; };
 		874035812A987F33001D0A98 /* AsyncDest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncDest.swift; sourceTree = "<group>"; };
+		87418C592B3BC5780024D1A7 /* CGPath+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGPath+Ext.swift"; sourceTree = "<group>"; };
 		8752597B2A739CF3009085EE /* C7Pow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7Pow.swift; sourceTree = "<group>"; };
 		8752597D2A739CFD009085EE /* C7Pow.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7Pow.metal; sourceTree = "<group>"; };
 		875CA58129B85C08006D4F1D /* C7Image+Ext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "C7Image+Ext.swift"; sourceTree = "<group>"; };
@@ -521,6 +524,7 @@
 		8777826D2A8A0AEB00FE17CC /* CGRect+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGRect+Ext.swift"; sourceTree = "<group>"; };
 		877BBBC62B1F06730009C335 /* FilterableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterableView.swift; sourceTree = "<group>"; };
 		877BBBC82B1F10730009C335 /* Published_Image.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Published_Image.swift; sourceTree = "<group>"; };
+		877C24A12B2FE5E600DA6440 /* C7View+iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7View+iOS.swift"; sourceTree = "<group>"; };
 		87901EEE2A7210B5008FCB47 /* Image+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Image+Ext.swift"; sourceTree = "<group>"; };
 		87901EF02A726588008FCB47 /* C7ColorGradient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorGradient.swift; sourceTree = "<group>"; };
 		87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorGradient.metal; sourceTree = "<group>"; };
@@ -745,9 +749,11 @@
 				875CA58129B85C08006D4F1D /* C7Image+Ext.swift */,
 				875CA58429B85C08006D4F1D /* C7Image+iOS.swift */,
 				875CA58829B85C08006D4F1D /* C7Image+macOS.swift */,
+				877C24A12B2FE5E600DA6440 /* C7View+iOS.swift */,
 				875CA58B29B85C08006D4F1D /* CATransform3D+Ext.swift */,
 				F7621A252A7D42EE00614542 /* CGContext+Ext.swift */,
 				875CA58329B85C08006D4F1D /* CGImage+Ext.swift */,
+				87418C592B3BC5780024D1A7 /* CGPath+Ext.swift */,
 				875CA58629B85C08006D4F1D /* CGPoint+Ext.swift */,
 				8777826D2A8A0AEB00FE17CC /* CGRect+Ext.swift */,
 				875CA58C29B85C08006D4F1D /* CGSize+Ext.swift */,
@@ -1124,6 +1130,7 @@
 				8726619E2994D82200E612C7 /* C7ColorMatrix4x5.swift in Sources */,
 				8726617A2994D82200E612C7 /* C7BlendColorDodge.metal in Sources */,
 				872661012994D82200E612C7 /* C7ChromaKey.metal in Sources */,
+				87418C5A2B3BC5780024D1A7 /* CGPath+Ext.swift in Sources */,
 				872661402994D82200E612C7 /* C7LuminanceThreshold.metal in Sources */,
 				875CA59229B85C08006D4F1D /* C7Image+iOS.swift in Sources */,
 				872660D42994D82200E612C7 /* Typealias.swift in Sources */,
@@ -1167,6 +1174,7 @@
 				872661A42994D82200E612C7 /* C7ColorMatrix4x5.metal in Sources */,
 				872661082994D82200E612C7 /* C7SplitScreen.swift in Sources */,
 				872660D02994D82200E612C7 /* Point2D.swift in Sources */,
+				877C24A22B2FE5E600DA6440 /* C7View+iOS.swift in Sources */,
 				877BBBC72B1F06730009C335 /* FilterableView.swift in Sources */,
 				872661332994D82200E612C7 /* C7DepthLuminance.swift in Sources */,
 				872661362994D82200E612C7 /* C7LookupSplit.metal in Sources */,

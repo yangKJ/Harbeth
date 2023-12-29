@@ -15,7 +15,7 @@ import MobileCoreServices
 
 extension C7Image: HarbethCompatible { }
 
-extension HarbethWrapper where Base == C7Image {
+extension HarbethWrapper where Base: C7Image {
     
     /// Image to texture
     ///
@@ -129,10 +129,45 @@ extension HarbethWrapper where Base == C7Image {
         return data as Data        
         #endif
     }
+    
+    /// 渲染图像，如果中间涉及到Context，则还是需要用`UIGraphicsBeginImageContextWithOptions`
+    /// - Parameters:
+    ///   - rect: Rect for drawing images.
+    ///   - canvas: Canvas size.
+    ///   - scale: Image scale.
+    public func renderer(rect: CGRect, canvas: CGSize, scale: CGFloat? = nil) -> C7Image {
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale ?? base.scale
+        let renderer = UIGraphicsImageRenderer(size: canvas, format: format)
+        let result = renderer.image { _ in base.draw(in: rect) }
+        return result
+        #elseif os(macOS)
+        let result = NSImage(size: canvas)
+        result.lockFocus()
+        let destRect = CGRect(origin: .zero, size: result.size)
+        base.draw(in: destRect, from: rect, operation: .copy, fraction: scale ?? base.scale)
+        //base.draw(in: destRect, from: .zero, operation: .sourceOver, fraction: base.scale)
+        result.unlockFocus()
+        return result
+        #else
+        return base
+        #endif
+    }
 }
 
 // MARK: - edit image
 extension HarbethWrapper where Base: C7Image {
+    /// Resize an image to the specified size. Depending on what fitMode is supplied.
+    /// Note: The display control contentMode must be `.scaleAspectFit`.
+    /// - Parameters:
+    ///   - size: Size to resize the image to. it is zero will return itseff.
+    ///   - mode: Mainly for the image filling content to change the size.
+    /// - Returns: Resized image.
+    public func resized(with size: CGSize, mode: ResizingMode) -> C7Image {
+        mode.resizeImage(base, size: size)
+    }
+    
     /// Modify image size.
     /// - Parameters:
     ///   - size: Target size.
@@ -140,13 +175,10 @@ extension HarbethWrapper where Base: C7Image {
     ///   - scale: Image scale.
     /// - Returns: Return a new image.
     public func zipScale(size: CGSize, equalRatio: Bool = false, scale: CGFloat? = nil) -> C7Image {
-        if __CGSizeEqualToSize(base.size, size) {
-            return base
-        }
+        if __CGSizeEqualToSize(base.size, size) { return base }
         let rect: CGRect
         if size.width / size.height != base.size.width / base.size.height && equalRatio {
-            let scale = size.width / base.size.width
-            var sh = scale * base.size.height
+            var sh = size.width / base.size.width * base.size.height
             var sw = size.width
             if sh < size.height {
                 sw = size.height / sh * size.width
@@ -156,22 +188,7 @@ extension HarbethWrapper where Base: C7Image {
         } else {
             rect = CGRect(origin: .zero, size: size)
         }
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = scale ?? base.scale
-        let renderer = UIGraphicsImageRenderer(size: rect.size, format: format)
-        let image = renderer.image { _ in base.draw(in: rect) }
-        return image
-        #elseif os(macOS)
-        let _rect = NSRect(origin: rect.origin, size: rect.size)
-        let image = NSImage.init(size: _rect.size)
-        image.lockFocus()
-        defer { image.unlockFocus() }
-        base.draw(in: _rect, from: .zero, operation: .sourceOver, fraction: scale ?? base.scale)
-        return image
-        #else
-        return base
-        #endif
+        return base.c7.renderer(rect: rect, canvas: rect.size, scale: scale)
     }
     
     /// Adjust the gap around the image.
@@ -180,22 +197,31 @@ extension HarbethWrapper where Base: C7Image {
     public func withPadding(_ padding: C7EdgeInsets) -> C7Image {
         let width = base.size.width + padding.left + padding.right
         let height = base.size.height + padding.top + padding.bottom
-        let rect = CGRectMake(padding.left, padding.top, width, height)
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = base.scale
-        let renderer = UIGraphicsImageRenderer(size: rect.size, format: format)
-        let image = renderer.image { _ in base.draw(in: rect) }
-        return image
-        #elseif os(macOS)
-        let _rect = NSRect(origin: rect.origin, size: rect.size)
-        let image = NSImage.init(size: _rect.size)
-        image.lockFocus()
-        defer { image.unlockFocus() }
-        base.draw(in: _rect, from: .zero, operation: .sourceOver, fraction: base.scale)
-        return image
-        #else
-        return base
-        #endif
+        let rect = CGRectMake(padding.left, padding.top, base.size.width, base.size.height)
+        return base.c7.renderer(rect: rect, canvas: .init(width: width, height: height))
+    }
+    
+    /// Crop the picture to the specified proportion, and the excess will be automatically deleted.
+    /// - Parameter ratio: Cutting ratio.
+    public func crop(ratio: CGFloat) -> C7Image {
+        if ratio <= 0 { return base }
+        let width  = base.size.width
+        let height = base.size.height
+        let size: CGSize
+        if width / height > ratio {
+            size = CGSize(width: height * ratio, height: height)
+        } else {
+            size = CGSize(width: width, height: width / ratio)
+        }
+        let rect = CGRectMake((size.width - width ) / 2.0, (size.height - height ) / 2.0, width, height)
+        return base.c7.renderer(rect: rect, canvas: size)
+    }
+    
+    /// Crop the edge area.
+    /// - Parameter space: Edge pixel size.
+    public func crop(space: CGFloat) -> C7Image {
+        let size = base.size
+        let rect = CGRect(x: -space, y: -space, width: size.width+2*space, height: size.height+2*space)
+        return base.c7.renderer(rect: rect, canvas: size)
     }
 }
