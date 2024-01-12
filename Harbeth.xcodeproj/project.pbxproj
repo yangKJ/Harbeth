@@ -1062,7 +1062,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 1410;
+				LastUpgradeCheck = 1420;
 				TargetAttributes = {
 					87265FAD2994D7EA00E612C7 = {
 						CreatedOnToolsVersion = 14.1;
@@ -1515,6 +1515,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Apple.Harbeth;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
@@ -1544,6 +1545,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Apple.Harbeth;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";

@@ -18,8 +18,8 @@ class ViewController: NSViewController {
     
     var originImage: C7Image = R.image("AR")!
     
-    private lazy var displayLink: CADisplayLink = {
-        let display = CADisplayLink(target: self, selector: #selector(ViewController.onScreenUpdate(_:)))
+    private lazy var displayLink: Harbeth.CADisplayLink = {
+        let display = Harbeth.CADisplayLink(target: self, selector: #selector(ViewController.onScreenUpdate(_:)))
         display.add(to: .current, forMode: RunLoop.Mode.default)
         display.isPaused = true
         return display
@@ -160,7 +160,7 @@ class ViewController: NSViewController {
     }
     
     lazy var soul = C7SoulOut.init(soul: 0.7)
-    @objc func onScreenUpdate(_ sender: CADisplayLink) {
+    @objc func onScreenUpdate(_ sender: Harbeth.CADisplayLink) {
         soul.soul += 0.025
         if soul.soul == C7SoulOut.range.max {
             soul.soul = C7SoulOut.range.min

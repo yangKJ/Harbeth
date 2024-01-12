@@ -7,9 +7,16 @@
 
 import Foundation
 
-#if os(macOS)
-import AppKit
+//#if __MAC_OS_VERSION_MAX_ALLOWED >= __MAC_14_0
+//#endif
 
+#if os(macOS)
+
+#if __MAC_14_0 || __MAC_14_1 || __MAC_14_2
+import QuartzCore
+public typealias CADisplayLink = QuartzCore.CADisplayLink
+#else
+import AppKit
 public typealias CADisplayLink = Harbeth.DisplayLink
 
 // See: https://developer.apple.com/documentation/quartzcore/cadisplaylink
@@ -215,4 +222,5 @@ extension DisplayLink {
         return source
     }
 }
+#endif
 #endif

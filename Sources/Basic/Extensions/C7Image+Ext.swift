@@ -136,6 +136,9 @@ extension HarbethWrapper where Base: C7Image {
     ///   - canvas: Canvas size.
     ///   - scale: Image scale.
     public func renderer(rect: CGRect, canvas: CGSize, scale: CGFloat? = nil) -> C7Image {
+        if canvas.width <= 0 || canvas.height <= 0 {
+            return base
+        }
         #if os(iOS) || os(tvOS) || os(watchOS)
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = scale ?? base.scale
@@ -146,8 +149,7 @@ extension HarbethWrapper where Base: C7Image {
         let result = NSImage(size: canvas)
         result.lockFocus()
         let destRect = CGRect(origin: .zero, size: result.size)
-        base.draw(in: destRect, from: rect, operation: .copy, fraction: scale ?? base.scale)
-        //base.draw(in: destRect, from: .zero, operation: .sourceOver, fraction: base.scale)
+        base.draw(in: destRect, from: .zero, operation: .sourceOver, fraction: scale ?? base.scale)
         result.unlockFocus()
         return result
         #else
