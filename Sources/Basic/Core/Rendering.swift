@@ -19,7 +19,7 @@ internal struct Rendering {
         descriptor.vertexFunction = try Device.readMTLFunction(vertex)
         descriptor.fragmentFunction = try Device.readMTLFunction(fragment)
         guard let pipelineState = try? Device.device().makeRenderPipelineState(descriptor: descriptor) else {
-            throw CustomError.renderPipelineState(vertex, fragment)
+            throw HarbethError.renderPipelineState(vertex, fragment)
         }
         return pipelineState
     }

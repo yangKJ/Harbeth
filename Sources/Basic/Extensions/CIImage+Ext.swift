@@ -36,7 +36,7 @@ extension HarbethWrapper where Base: CIImage {
     ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
     public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer? = nil) throws {
         guard let commandBuffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
-            throw CustomError.commandBuffer
+            throw HarbethError.commandBuffer
         }
         let colorSpace = Device.colorSpace()
         let ctx = Device.context(colorSpace: colorSpace)
@@ -58,9 +58,9 @@ extension HarbethWrapper where Base: CIImage {
     ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
     public func asyncRenderCIImageToTexture(_ texture: MTLTexture,
                                             commandBuffer: MTLCommandBuffer? = nil,
-                                            complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
+                                            complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
         guard let buffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
-            complete(.failure(CustomError.commandBuffer))
+            complete(.failure(HarbethError.commandBuffer))
             return
         }
         let colorSpace = Device.colorSpace()
@@ -118,16 +118,16 @@ extension C7FilterProtocol {
     
     func outputCIImage(with texture: MTLTexture, name: String) throws -> CIImage {
         guard let ciFiter = CIFilter.init(name: name) else {
-            throw CustomError.createCIFilter(name)
+            throw HarbethError.createCIFilter(name)
         }
         guard let cgImage = texture.c7.toCGImage() else {
-            throw CustomError.texture2CGImage
+            throw HarbethError.texture2CGImage
         }
         let inputCIImage = CIImage.init(cgImage: cgImage)
         let ciImage = try (self as! CoreImageProtocol).coreImageApply(filter: ciFiter, input: inputCIImage)
         ciFiter.setValue(ciImage, forKeyPath: kCIInputImageKey)
         guard let outputImage = ciFiter.outputImage else {
-            throw CustomError.outputCIImage(name)
+            throw HarbethError.outputCIImage(name)
         }
         // Return a new image cropped to a rectangle.
         return outputImage.cropped(to: inputCIImage.extent)

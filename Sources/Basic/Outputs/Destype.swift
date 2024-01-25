@@ -29,8 +29,8 @@ public protocol Destype {
     /// Asynchronous quickly add filters to sources.
     /// - Parameters:
     ///   - success: Successful callback of adding filters to the sources asynchronously.
-    ///   - failed: An error occurred during the conversion process, the error is `CustomError`.
-    func transmitOutput(success: @escaping (Element) -> Void, failed: @escaping (CustomError) -> Void)
+    ///   - failed: An error occurred during the conversion process, the error is `HarbethError`.
+    func transmitOutput(success: @escaping (Element) -> Void, failed: @escaping (HarbethError) -> Void)
 }
 
 extension Destype {

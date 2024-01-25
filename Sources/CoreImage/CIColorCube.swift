@@ -26,7 +26,7 @@ public struct CIColorCube: C7FilterProtocol, CoreImageProtocol {
     
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
         guard let cubeResource = cubeResource else {
-            throw CustomError.cubeResource
+            throw HarbethError.cubeResource
         }
         filter.setValue(cubeResource.data, forKey: "inputCubeData")
         filter.setValue(cubeResource.dimension, forKey: "inputCubeDimension")

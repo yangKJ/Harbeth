@@ -14,7 +14,7 @@ extension MTLCommandBuffer {
     /// - Parameters:
     ///   - texture: Metal texture.
     ///   - complete: Success or failure callback.
-    func asyncCommit(texture: MTLTexture, complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
+    func asyncCommit(texture: MTLTexture, complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
         self.addCompletedHandler { (buffer) in
             switch buffer.status {
             case .completed:

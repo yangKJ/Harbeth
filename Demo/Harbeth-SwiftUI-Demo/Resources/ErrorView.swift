@@ -10,7 +10,7 @@ import SwiftUI
 import Harbeth
 
 struct ErrorView: View {
-    @Binding var error: CustomError?
+    @Binding var error: HarbethError?
     
     var body: some View {
         if let error = error {

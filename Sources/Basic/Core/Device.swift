@@ -117,9 +117,9 @@ extension Device {
             return function
         }
         #if DEBUG
-        fatalError(CustomError.readFunction(name).localizedDescription)
+        fatalError(HarbethError.readFunction(name).localizedDescription)
         #else
-        throw CustomError.readFunction(name)
+        throw HarbethError.readFunction(name)
         #endif
     }
 }

@@ -25,26 +25,26 @@ internal struct Compute {
         /// 同步阻塞编译计算程序来创建管道状态
         let function = try Device.readMTLFunction(kernel)
         guard let pipeline = try? Device.device().makeComputePipelineState(function: function) else {
-            throw CustomError.computePipelineState(kernel)
+            throw HarbethError.computePipelineState(kernel)
         }
         Shared.shared.device?.pipelines[kernel] = pipeline
         return pipeline
     }
     
-    @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, CustomError>) -> Void) {
+    @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
         /// 先读取缓存管线
         if let pipelineState = Shared.shared.device?.pipelines[kernel] {
             complete(.success(pipelineState))
             return
         }
         guard let function = try? Device.readMTLFunction(kernel) else {
-            complete(.failure(CustomError.readFunction(kernel)))
+            complete(.failure(HarbethError.readFunction(kernel)))
             return
         }
         /// 异步创建管道状态
         Device.device().makeComputePipelineState(function: function) { pipelineState, error in
             guard let pipeline = pipelineState else {
-                complete(.failure(CustomError.computePipelineState(kernel)))
+                complete(.failure(HarbethError.computePipelineState(kernel)))
                 return
             }
             complete(.success(pipeline))
@@ -57,16 +57,16 @@ extension C7FilterProtocol {
     
     func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
-            throw CustomError.makeComputeCommandEncoder
+            throw HarbethError.makeComputeCommandEncoder
         }
         let pipelineState = try Compute.makeComputePipelineState(with: kernel)
         
         return encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures)
     }
     
-    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], complete: @escaping (Result<MTLTexture, CustomError>) -> Void) {
+    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
-            complete(.failure(CustomError.makeComputeCommandEncoder))
+            complete(.failure(HarbethError.makeComputeCommandEncoder))
             return
         }
         Compute.makeComputePipelineState(with: kernel) { res in

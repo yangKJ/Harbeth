@@ -23,7 +23,7 @@ public struct CILookupTable: C7FilterProtocol, CoreImageProtocol {
     
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
         guard let cubeResource = cubeResource else {
-            throw CustomError.cubeResource
+            throw HarbethError.cubeResource
         }
         let cubeFilter = CIFilter(name: "CIColorCubeWithColorSpace", parameters: [
             kCIInputImageKey: ciImage,
@@ -32,7 +32,7 @@ public struct CILookupTable: C7FilterProtocol, CoreImageProtocol {
             "inputColorSpace": Device.colorSpace()
         ])
         guard let outputImage = cubeFilter?.outputImage else {
-            throw CustomError.outputCIImage("CIColorCubeWithColorSpace")
+            throw HarbethError.outputCIImage("CIColorCubeWithColorSpace")
         }
         let foreground = outputImage.applyingFilter("CIColorMatrix", parameters: [
             "inputRVector": CIVector(x: 1, y: 0, z: 0, w: 0),

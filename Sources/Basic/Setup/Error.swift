@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum CustomError: Swift.Error {
+public enum HarbethError: Swift.Error {
     case unknown
     case error(Swift.Error)
     case image2Texture
@@ -30,7 +30,7 @@ public enum CustomError: Swift.Error {
     case bitmapDataNotFound
 }
 
-extension CustomError: CustomStringConvertible {
+extension HarbethError: CustomStringConvertible {
     
     /// For each error type return the appropriate description.
     public var description: String {
@@ -84,9 +84,9 @@ extension CustomError: CustomStringConvertible {
     }
 }
 
-extension CustomError {
-    public static func toCustomError(_ error: Error) -> CustomError {
-        if let error = error as? CustomError {
+extension HarbethError {
+    public static func toHarbethError(_ error: Error) -> HarbethError {
+        if let error = error as? HarbethError {
             return error
         } else {
             return .error(error)

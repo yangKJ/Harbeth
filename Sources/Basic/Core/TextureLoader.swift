@@ -38,7 +38,7 @@ public struct TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let loader = Shared.shared.device?.textureLoader else {
-            throw CustomError.textureLoader
+            throw HarbethError.textureLoader
         }
         self.texture = try loader.newTexture(cgImage: cgImage, options: options)
     }
@@ -55,7 +55,7 @@ public struct TextureLoader {
             return nil
         }()
         guard let cgImage = ciImage.c7.toCGImage(context: context) else {
-            throw CustomError.source2Texture
+            throw HarbethError.source2Texture
         }
         try self.init(with: cgImage, options: options)
     }
@@ -66,7 +66,7 @@ public struct TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let cgImage = pixelBuffer.c7.toCGImage() else {
-            throw CustomError.source2Texture
+            throw HarbethError.source2Texture
         }
         try self.init(with: cgImage, options: options)
     }
@@ -77,7 +77,7 @@ public struct TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let cgImage = sampleBuffer.c7.toCGImage() else {
-            throw CustomError.source2Texture
+            throw HarbethError.source2Texture
         }
         try self.init(with: cgImage, options: options)
     }
@@ -88,7 +88,7 @@ public struct TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with image: C7Image, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let data = image.c7.tiffData() else {
-            throw CustomError.source2Texture
+            throw HarbethError.source2Texture
         }
         try self.init(with: data, options: options)
     }
@@ -99,7 +99,7 @@ public struct TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with data: Data, options: [MTKTextureLoader.Option: Any] = defaultOptions) throws {
         guard let loader = Shared.shared.device?.textureLoader else {
-            throw CustomError.textureLoader
+            throw HarbethError.textureLoader
         }
         self.texture = try loader.newTexture(data: data, options: options)
     }
@@ -111,7 +111,7 @@ public struct TextureLoader {
     ///   - pixelFormat: Indicates the pixelFormat, The format of the picture should be consistent with the data.
     public init(with bitmap: NSBitmapImageRep, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws {
         guard let data: UnsafeMutablePointer<UInt8> = bitmap.bitmapData else {
-            throw CustomError.bitmapDataNotFound
+            throw HarbethError.bitmapDataNotFound
         }
         let texture = try TextureLoader.emptyTexture(width: Int(bitmap.size.width), height: Int(bitmap.size.height), options: [
             .texturePixelFormat: pixelFormat,
@@ -182,7 +182,7 @@ extension TextureLoader {
         descriptor.sampleCount = sampleCount
         descriptor.textureType = sampleCount > 1 ? .type2DMultisample : .type2D
         guard let texture = Device.device().makeTexture(descriptor: descriptor) else {
-            throw CustomError.makeTexture
+            throw HarbethError.makeTexture
         }
         return texture
     }
@@ -227,16 +227,16 @@ extension TextureLoader {
     public static func makeTexture(with cgImage: CGImage,
                                    options: [MTKTextureLoader.Option: Any] = defaultOptions,
                                    success: @escaping (_ texture: MTLTexture) -> Void,
-                                   failed: ((CustomError) -> Void)? = nil) {
+                                   failed: ((HarbethError) -> Void)? = nil) {
         guard let loader = Shared.shared.device?.textureLoader else {
-            failed?(CustomError.textureLoader)
+            failed?(HarbethError.textureLoader)
             return
         }
         loader.newTexture(cgImage: cgImage, options: options) { texture, error in
             if let texture = texture {
                 success(texture)
             } else if let error = error {
-                failed?(CustomError.error(error))
+                failed?(HarbethError.error(error))
             }
         }
     }
@@ -244,9 +244,9 @@ extension TextureLoader {
     public static func makeTexture(with image: C7Image,
                                    options: [MTKTextureLoader.Option: Any] = defaultOptions,
                                    success: @escaping (_ texture: MTLTexture) -> Void,
-                                   failed: ((CustomError) -> Void)? = nil) {
+                                   failed: ((HarbethError) -> Void)? = nil) {
         guard let cgImage = image.cgImage else {
-            failed?(CustomError.source2Texture)
+            failed?(HarbethError.source2Texture)
             return
         }
         makeTexture(with: cgImage, options: options, success: success, failed: failed)
@@ -255,7 +255,7 @@ extension TextureLoader {
     public static func makeTexture(with ciImage: CIImage,
                                    options: [MTKTextureLoader.Option: Any] = defaultOptions,
                                    success: @escaping (_ texture: MTLTexture) -> Void,
-                                   failed: ((CustomError) -> Void)? = nil) {
+                                   failed: ((HarbethError) -> Void)? = nil) {
         let context: CIContext? = {
             if options.keys.contains(where: { $0 == .sharedContext }) {
                 return options[.sharedContext] as? CIContext
@@ -263,7 +263,7 @@ extension TextureLoader {
             return nil
         }()
         guard let cgImage = ciImage.c7.toCGImage(context: context) else {
-            failed?(CustomError.source2Texture)
+            failed?(HarbethError.source2Texture)
             return
         }
         makeTexture(with: cgImage, options: options, success: success, failed: failed)

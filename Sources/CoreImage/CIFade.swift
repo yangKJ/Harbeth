@@ -23,7 +23,7 @@ public struct CIFade: C7FilterProtocol, CoreImageProtocol {
             kCIInputColorKey : CIColor(red: 1, green: 1, blue: 1, alpha: CGFloat(intensity))
         ])
         guard let foreground = mFilter?.outputImage else {
-            throw CustomError.outputCIImage("CIConstantColorGenerator")
+            throw HarbethError.outputCIImage("CIConstantColorGenerator")
         }
         filter.setValue(ciImage, forKey: kCIInputBackgroundImageKey)
         return foreground

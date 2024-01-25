@@ -24,13 +24,13 @@ public struct CISketch: C7FilterProtocol, CoreImageProtocol {
             kCIInputImageKey: ciImage
         ])
         guard let monoImage = monoFilter?.outputImage else {
-            throw CustomError.outputCIImage("CIPhotoEffectMono")
+            throw HarbethError.outputCIImage("CIPhotoEffectMono")
         }
         let invertFilter = CIFilter(name: "CIColorInvert", parameters: [
             kCIInputImageKey: monoImage
         ])
         guard let invertImage = invertFilter?.outputImage else {
-            throw CustomError.outputCIImage("CIColorInvert")
+            throw HarbethError.outputCIImage("CIColorInvert")
         }
         let radius = invertImage.extent.c7.radius(radius, max: Self.range.max)
         let blurFilter = CIFilter(name: "CIGaussianBlur", parameters: [
@@ -39,7 +39,7 @@ public struct CISketch: C7FilterProtocol, CoreImageProtocol {
         ])
         blurFilter?.setDefaults()
         guard let blurImage = blurFilter?.outputImage else {
-            throw CustomError.outputCIImage("CIGaussianBlur")
+            throw HarbethError.outputCIImage("CIGaussianBlur")
         }
         filter.setValue(monoImage, forKey: kCIInputBackgroundImageKey)
         return blurImage

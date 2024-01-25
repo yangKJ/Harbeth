@@ -13,7 +13,7 @@ public class AsyncDest<Dest>: ObservableObject {
     /// Output dest
     @Published public private(set) var bookmarks: Dest?
     
-    @Published public var error: CustomError?
+    @Published public var error: HarbethError?
     
     public init() { }
     
