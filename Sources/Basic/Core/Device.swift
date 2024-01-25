@@ -9,7 +9,7 @@ import Foundation
 import MetalKit
 
 /// Global public information
-internal final class Device: Cacheable {
+public final class Device: Cacheable {
     
     /// Device information to create other objects
     /// MTLDevice creation is expensive, time-consuming, and can be used forever, so you only need to create it once
@@ -106,29 +106,6 @@ extension Device {
         
         return nil
     }
-}
-
-extension Device {
-    
-    static func device() -> MTLDevice {
-        return Shared.shared.device!.device
-    }
-    
-    static func colorSpace() -> CGColorSpace {
-        // Unitive the color space, otherwise it will crash.
-        return Shared.shared.device?.colorSpace ?? CGColorSpaceCreateDeviceRGB()
-    }
-    
-    static func bitmapInfo() -> UInt32 {
-        // You can't get `CGImage.bitmapInfo` here, otherwise the heic and heif formats will turn blue.
-        // Fixed draw bitmap after applying filter image color rgba => bgra.
-        // See：https://github.com/yangKJ/Harbeth/issues/12
-        return CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
-    }
-    
-    static func commandQueue() -> MTLCommandQueue {
-        return Shared.shared.device!.commandQueue
-    }
     
     static func readMTLFunction(_ name: String) throws -> MTLFunction {
         // First read the project
@@ -149,20 +126,40 @@ extension Device {
 
 extension Device {
     
-    static func sharedTextureCache() -> CVMetalTextureCache? {
+    public static func device() -> MTLDevice {
+        return Shared.shared.device!.device
+    }
+    
+    public static func colorSpace() -> CGColorSpace {
+        // Unitive the color space, otherwise it will crash.
+        return Shared.shared.device?.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+    }
+    
+    public static func bitmapInfo() -> UInt32 {
+        // You can't get `CGImage.bitmapInfo` here, otherwise the heic and heif formats will turn blue.
+        // Fixed draw bitmap after applying filter image color rgba => bgra.
+        // See：https://github.com/yangKJ/Harbeth/issues/12
+        return CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
+    }
+    
+    public static func commandQueue() -> MTLCommandQueue {
+        return Shared.shared.device!.commandQueue
+    }
+    
+    public static func sharedTextureCache() -> CVMetalTextureCache? {
         return Shared.shared.device?.textureCache
     }
     
-    static func context() -> CIContext {
+    public static func context() -> CIContext {
         Device.context(colorSpace: Device.colorSpace())
     }
     
-    static func context(cgImage: CGImage) -> CIContext {
+    public static func context(cgImage: CGImage) -> CIContext {
         let colorSpace = cgImage.colorSpace ?? Device.colorSpace()
         return Device.context(colorSpace: colorSpace)
     }
     
-    static func context(colorSpace: CGColorSpace) -> CIContext {
+    public static func context(colorSpace: CGColorSpace) -> CIContext {
         if let context = Shared.shared.device?.contexts[colorSpace] {
             return context
         }
