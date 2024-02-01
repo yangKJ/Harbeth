@@ -21,19 +21,6 @@ extension C7Color {
         case average
         /// Maximum method: the maximum value in RGB as gray.
         case maximum
-        
-        func lightness(r: CGFloat, g: CGFloat, b: CGFloat) -> CGFloat {
-            switch self {
-            case .weighted:
-                return (0.299 * r) + (0.587 * g) + (0.114 * b)
-            case .lightness:
-                return 0.5 * (max(r, g, b) + min(r, g, b))
-            case .average:
-                return (r + g + b) / 3.0
-            case .maximum:
-                return max(r, g, b)
-            }
-        }
     }
 }
 
@@ -108,5 +95,20 @@ extension HarbethWrapper where Base: C7Color {
         let g = hueToRGB(m1, m2, h)
         let b = hueToRGB(m1, m2, h - (1.0 / 3.0))
         return C7Color.init(red: r, green: g, blue: b, alpha: components[3])
+    }
+}
+
+extension C7Color.GrayedMode {
+    func lightness(r: CGFloat, g: CGFloat, b: CGFloat) -> CGFloat {
+        switch self {
+        case .weighted:
+            return (0.299 * r) + (0.587 * g) + (0.114 * b)
+        case .lightness:
+            return 0.5 * (max(r, g, b) + min(r, g, b))
+        case .average:
+            return (r + g + b) / 3.0
+        case .maximum:
+            return max(r, g, b)
+        }
     }
 }

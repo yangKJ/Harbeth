@@ -8,12 +8,15 @@
 import SwiftUI
 
 @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+public typealias HarbethView<C: View> = FilterableView<C>
+
+@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct FilterableView<Content>: View where Content: View {
     
     @ObservedObject private var image: Published_Image
     @ViewBuilder private var content: (Image) -> Content
     
-    /// Initializes an `FilterableView`
+    /// Create an instance from the provided value.
     /// - Parameters:
     ///   - image: Will deal image.
     ///   - filters: Need add filters.

@@ -1,15 +1,20 @@
 //
 //  Wrapper.swift
-//  ATMetalBand
+//  Harbeth
 //
 //  Created by Condy on 2022/2/13.
 //
 
 import Foundation
 
-/// Add the `c7` prefix namespace
+/// Add the `c7` prefix namespace.
 public struct HarbethWrapper<Base> {
-    public let base: Base
+    /// Stores the type or meta-type of any extended type.
+    public private(set) var base: Base
+    /// Create an instance from the provided value.
+    public init(base: Base) {
+        self.base = base
+    }
 }
 
 /// Protocol describing the `c7` extension points for Alamofire extended types.

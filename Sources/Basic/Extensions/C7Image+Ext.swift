@@ -166,7 +166,7 @@ extension HarbethWrapper where Base: C7Image {
     ///   - size: Size to resize the image to. it is zero will return itseff.
     ///   - mode: Mainly for the image filling content to change the size.
     /// - Returns: Resized image.
-    public func resized(with size: CGSize, mode: ResizingMode) -> C7Image {
+    public func resized(with size: CGSize, mode: Harbeth.ResizingMode) -> C7Image {
         mode.resizeImage(base, size: size)
     }
     

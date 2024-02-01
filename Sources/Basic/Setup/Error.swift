@@ -9,7 +9,7 @@ import Foundation
 
 public enum HarbethError: Swift.Error {
     case unknown
-    case error(Swift.Error)
+    case error(Error)
     case image2Texture
     case readFunction(String)
     case commandBuffer
@@ -30,10 +30,14 @@ public enum HarbethError: Swift.Error {
     case bitmapDataNotFound
 }
 
-extension HarbethError: CustomStringConvertible {
+extension HarbethError: CustomStringConvertible, LocalizedError {
     
     /// For each error type return the appropriate description.
     public var description: String {
+        localizedDescription
+    }
+    
+    public var errorDescription: String? {
         localizedDescription
     }
     
@@ -82,6 +86,61 @@ extension HarbethError: CustomStringConvertible {
             return "Unknown error occurred."
         }
     }
+    
+    /// Depending on error type, returns an underlying `Error`.
+    internal var underlyingError: Swift.Error? {
+        switch self {
+        case .unknown:
+            return nil
+        case .error(let error):
+            return error
+        case .image2Texture:
+            return nil
+        case .readFunction:
+            return nil
+        case .commandBuffer:
+            return nil
+        case .computePipelineState:
+            return nil
+        case .renderPipelineState:
+            return nil
+        case .source2Texture:
+            return nil
+        case .texture2Image:
+            return nil
+        case .texture2CGImage:
+            return nil
+        case .texture2CIImage:
+            return nil
+        case .CVPixelBufferToCMSampleBuffer:
+            return nil
+        case .CMSampleBufferToCVPixelBuffer:
+            return nil
+        case .outputCIImage:
+            return nil
+        case .cubeResource:
+            return nil
+        case .createCIFilter:
+            return nil
+        case .makeComputeCommandEncoder:
+            return nil
+        case .makeTexture:
+            return nil
+        case .textureLoader:
+            return nil
+        case .bitmapDataNotFound:
+            return nil
+        }
+    }
+}
+
+extension HarbethError: CustomNSError {
+    public var errorUserInfo: [String: Any] {
+        var userInfo: [String: Any] = [:]
+        userInfo[NSLocalizedDescriptionKey] = errorDescription
+        userInfo[NSUnderlyingErrorKey] = underlyingError
+        return userInfo
+    }
 }
 
 extension HarbethError {
@@ -91,5 +150,12 @@ extension HarbethError {
         } else {
             return .error(error)
         }
+    }
+}
+
+extension Error {
+    /// Returns the instance cast as an `HarbethError`.
+    public var asHarbethError: HarbethError? {
+        self as? HarbethError
     }
 }
