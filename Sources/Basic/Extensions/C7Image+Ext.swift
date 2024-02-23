@@ -130,31 +130,49 @@ extension HarbethWrapper where Base: C7Image {
         #endif
     }
     
-    /// 渲染图像，如果中间涉及到Context，则还是需要用`UIGraphicsBeginImageContextWithOptions`
+    /// Render image with rect, scale and inverting.
     /// - Parameters:
     ///   - rect: Rect for drawing images.
-    ///   - canvas: Canvas size.
+    ///   - canvas: Canvas size, If it is empty, rect size is used.
     ///   - scale: Image scale.
-    public func renderer(rect: CGRect, canvas: CGSize, scale: CGFloat? = nil) -> C7Image {
-        if canvas.width <= 0 || canvas.height <= 0 {
-            return base
-        }
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = scale ?? base.scale
-        let renderer = UIGraphicsImageRenderer(size: canvas, format: format)
-        let result = renderer.image { _ in base.draw(in: rect) }
-        return result
-        #elseif os(macOS)
+    ///   - inverting: If drawing a CGImage, we need to make context flipped.
+    /// - Returns: Renderered image.
+    public func renderer(rect: CGRect, canvas: CGSize? = nil, scale: CGFloat? = nil, inverting: Bool = false) -> C7Image {
+        let canvas = {
+            if let canvas = canvas, canvas.width > 0, canvas.height > 0 {
+                return canvas
+            }
+            return rect.size
+        }()
+        #if os(macOS)
         let result = NSImage(size: canvas)
         result.lockFocus()
         let destRect = CGRect(origin: .zero, size: result.size)
+        if inverting {
+            result.c7.flip(horizontal: true, vertical: true)
+        }
         base.draw(in: destRect, from: .zero, operation: .sourceOver, fraction: scale ?? base.scale)
         result.unlockFocus()
         return result
         #else
-        return base
+        let format = UIGraphicsImageRendererFormat.preferred()
+        format.scale = scale ?? base.scale
+        let render = UIGraphicsImageRenderer(size: canvas, format: format)
+        return render.image { rendererContext in
+            let context = rendererContext.cgContext
+            if inverting {
+                context.scaleBy(x: 1.0, y: -1.0)
+                context.translateBy(x: 0, y: -canvas.height)
+            }
+            base.draw(in: rect)
+        }
         #endif
+    }
+    
+    /// Fixed an issue with HEIC flipping after adding filter.
+    /// Make context flipped.
+    public func inverting() -> C7Image {
+        renderer(rect: .init(origin: .zero, size: base.size), scale: base.scale, inverting: true)
     }
 }
 

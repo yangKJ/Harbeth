@@ -140,10 +140,10 @@ let filters: [C7FilterProtocol] = [
     CIHighlight(highlight: intensity),
     C7WaterRipple(ripple: intensity),
 ]
-FilterableView(image: inputImage, filters: filters, content: { image in
+HarbethView(image: inputImage, filters: filters, content: { image in
     image.resizable()
         .aspectRatio(contentMode: .fit)
-}, async: false)
+})
 ```
 
 ### CocoaPods

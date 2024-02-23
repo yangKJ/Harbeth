@@ -7,9 +7,6 @@
 
 import Foundation
 
-//#if __MAC_OS_VERSION_MAX_ALLOWED >= __MAC_14_0
-//#endif
-
 #if os(macOS)
 
 #if __MAC_14_0 || __MAC_14_1 || __MAC_14_2
@@ -68,13 +65,14 @@ public final class DisplayLink: NSObject, DisplayLinkProtocol {
     
     private let target: Any
     private let selector: Selector
-    private let selParameterNumbers: Int
+    //private let selParameterNumbers: Int
     private let timer: CVDisplayLink?
     private var source: DispatchSourceUserDataAdd?
     private var timeStampRef: CVTimeStamp = CVTimeStamp()
+    private var schedulers: [RunLoop: [RunLoop.Mode]] = [:]
     
     /// Use this callback when the Selector parameter exceeds 1.
-    public var callback: Optional<(_ displayLink: DisplayLink) -> ()> = nil
+    //public var callback: Optional<(_ displayLink: DisplayLink) -> ()> = nil
     
     /// The refresh rate of 60HZ is 60 times per second, each refresh takes 1/60 of a second about 16.7 milliseconds.
     public var duration: CFTimeInterval {
@@ -100,7 +98,7 @@ public final class DisplayLink: NSObject, DisplayLinkProtocol {
     public init(target: Any, selector sel: Selector) {
         self.target = target
         self.selector = sel
-        self.selParameterNumbers = DisplayLink.selectorParameterNumbers(sel)
+        //self.selParameterNumbers = DisplayLink.selectorParameterNumbers(sel)
         var timerRef: CVDisplayLink? = nil
         CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
         self.timer = timerRef
@@ -111,11 +109,16 @@ public final class DisplayLink: NSObject, DisplayLinkProtocol {
             return
         }
         self.source = createSource(with: runloop)
+        schedulers[runloop, default: []].append(mode)
     }
     
     public func remove(from runloop: RunLoop, forMode mode: RunLoop.Mode) {
         self.cancel()
         self.source = nil
+        schedulers[runloop]?.removeAll { $0 == mode }
+        if let modes = schedulers[runloop], modes.isEmpty {
+            schedulers.removeValue(forKey: runloop)
+        }
     }
     
     public var isPaused: Bool = false {
@@ -126,6 +129,8 @@ public final class DisplayLink: NSObject, DisplayLinkProtocol {
     
     public func invalidate() {
         cancel()
+        schedulers = [:]
+        isPaused = true
     }
     
     deinit {
@@ -190,7 +195,7 @@ extension DisplayLink {
         }
         let queue: DispatchQueue = runloop == RunLoop.main ? .main : .global()
         let source = DispatchSource.makeUserDataAddSource(queue: queue)
-        var successLink = CVDisplayLinkSetOutputCallback(timer, { (_, _, _, _, _, pointer) -> CVReturn in
+        var successLink = CVDisplayLinkSetOutputCallback(timer, { (_,_,_,_,_, pointer) -> CVReturn in
             if let sourceUnsafeRaw = pointer {
                 let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(sourceUnsafeRaw)
                 sourceUnmanaged.takeUnretainedValue().add(data: 1)
@@ -206,17 +211,11 @@ extension DisplayLink {
         }
         // Timer setup
         source.setEventHandler(handler: { [weak self] in
-            guard let `self` = self, let target = self.target as? NSObjectProtocol else {
+            guard let weakSelf = self else {
                 return
             }
-            switch self.selParameterNumbers {
-            case 0 where self.selector.description.isEmpty == false:
-                target.perform(self.selector)
-            case 1:
-                target.perform(self.selector, with: self)
-            default:
-                self.callback?(self)
-                break
+            for scheduler in weakSelf.schedulers {
+                scheduler.key.perform(weakSelf.selector, target: weakSelf.target, argument: nil, order: 0, modes: scheduler.value)
             }
         })
         return source

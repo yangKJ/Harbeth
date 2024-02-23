@@ -39,12 +39,6 @@ import CoreVideo
     /// Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
     public var mirrored: Bool = false
     
-    #if os(macOS)
-    /// Fixed an issue with HEIC flipping after adding filter.
-    /// If drawing a HEIC, we need to make context flipped.
-    public var heic: Bool = false
-    #endif
-    
     /// Do you need to create an output texture object?
     /// Such as solid color and gradient filters do not need to create an output texture.
     public var createDestTexture: Bool = true
@@ -181,7 +175,7 @@ extension BoxxIO {
     private func filtering(image: C7Image) throws -> C7Image {
         let inTexture = try TextureLoader.init(with: image).texture
         let texture = try filtering(texture: inTexture)
-        return try fixImageOrientation(texture: texture, base: image)
+        return try fixImageOrientation(texture: texture, refImage: image)
     }
     
     private func filtering(texture: MTLTexture) throws -> MTLTexture {
@@ -274,7 +268,7 @@ extension BoxxIO {
         func setupTexture(_ texture: MTLTexture) {
             filtering(texture: texture, success: { t in
                 do {
-                    let image_ = try fixImageOrientation(texture: t, base: image)
+                    let image_ = try fixImageOrientation(texture: t, refImage: image)
                     success(image_)
                 } catch {
                     failed(HarbethError.toHarbethError(error))
@@ -360,24 +354,11 @@ extension BoxxIO {
         return ciImage
     }
     
-    private func fixImageOrientation(texture: MTLTexture, base: C7Image) throws -> C7Image {
+    private func fixImageOrientation(texture: MTLTexture, refImage: C7Image) throws -> C7Image {
         guard let cgImage = texture.c7.toCGImage() else {
             throw HarbethError.texture2Image
         }
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        // Fixed an issue with HEIC flipping after adding filter.
-        return C7Image(cgImage: cgImage, scale: base.scale, orientation: base.imageOrientation)
-        #elseif os(macOS)
-        let fImage = cgImage.c7.toC7Image()
-        let image = C7Image(size: fImage.size)
-        image.lockFocus()
-        if self.heic { image.c7.flip(horizontal: true, vertical: true) }
-        fImage.draw(in: NSRect(origin: .zero, size: fImage.size))
-        image.unlockFocus()
-        return image
-        #else
-        return base
-        #endif
+        return cgImage.c7.drawing(refImage: refImage)
     }
 }
 

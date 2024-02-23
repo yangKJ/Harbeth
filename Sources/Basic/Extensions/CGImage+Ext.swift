@@ -88,12 +88,20 @@ extension HarbethWrapper where Base: CGImage {
     }
     
     public func toC7Image() -> C7Image {
-        #if os(iOS) || os(tvOS) || os(watchOS)
-        return UIImage.init(cgImage: base)
-        #elseif os(macOS)
+        #if os(macOS)
         return NSImage(cgImage: base, size: .init(width: base.width, height: base.height))
         #else
-        #error("Unsupported Platform")
+        return UIImage.init(cgImage: base)
+        #endif
+    }
+    
+    public func drawing(refImage: C7Image) -> C7Image {
+        #if os(macOS)
+        let width  = CGFloat(base.width) * refImage.scale
+        let height = CGFloat(base.height) * refImage.scale
+        return NSImage(cgImage: base, size: .init(width: width, height: height))
+        #else
+        return UIImage(cgImage: base, scale: refImage.scale, orientation: refImage.imageOrientation)
         #endif
     }
 }
@@ -109,13 +117,13 @@ extension HarbethWrapper where Base: CGImage {
         }
     }
     
-    #if os(iOS) || os(tvOS) || os(watchOS)
-    public var size: CGSize {
-        CGSize(width: base.width, height: base.height)
-    }
-    #elseif os(macOS)
+    #if os(macOS)
     public var size: NSSize {
         NSSize(width: base.width, height: base.height)
+    }
+    #else
+    public var size: CGSize {
+        CGSize(width: base.width, height: base.height)
     }
     #endif
 }

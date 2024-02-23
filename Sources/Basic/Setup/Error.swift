@@ -145,7 +145,7 @@ extension HarbethError: CustomNSError {
 
 extension HarbethError {
     public static func toHarbethError(_ error: Error) -> HarbethError {
-        if let error = error as? HarbethError {
+        if let error = error.asHarbethError {
             return error
         } else {
             return .error(error)

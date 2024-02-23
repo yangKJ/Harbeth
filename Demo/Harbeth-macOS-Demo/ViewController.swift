@@ -93,9 +93,12 @@ class ViewController: NSViewController {
         view.addSubview(dynamicButton)
         NSLayoutConstraint.activate([
             ImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
+            ImageView.widthAnchor.constraint(equalToConstant: 600),
             ImageView.heightAnchor.constraint(equalTo: ImageView.widthAnchor, multiplier: 1),
-            ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            ImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            ImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            //ImageView.widthAnchor.constraint(equalTo: view.widthAnchor),
+            //ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
+            //ImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             TextField.topAnchor.constraint(equalTo: ImageView.bottomAnchor, constant: 10),
             TextField.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
             TextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),

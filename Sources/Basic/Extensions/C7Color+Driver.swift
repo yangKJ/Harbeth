@@ -58,7 +58,7 @@ extension HarbethWrapper where Base: C7Color {
     
     /// Returns a float value representing the contrast ratio between 2 pixel colors.
     /// https://www.w3.org/TR/WCAG20-TECHS/G18.html
-    /// - Parameter pixelColor: The other pixel color to compare with.
+    /// - Parameter color: The other pixel color to compare with.
     /// - Returns: A CGFloat representing contrast value.
     public func contrastRatio(with color: C7Color) -> CGFloat {
         let luminance0 = base.c7.luminance
