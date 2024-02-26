@@ -14,13 +14,21 @@ extension CVPixelBuffer: HarbethCompatible { }
 
 extension HarbethWrapper where Base: CVPixelBuffer {
     
+    public var width: Int {
+        CVPixelBufferGetWidth(base)
+    }
+    
+    public var height: Int {
+        CVPixelBufferGetHeight(base)
+    }
+    
     private var size: C7Size {
         let width = CVPixelBufferGetWidthOfPlane(self.base, 0)
         let height = CVPixelBufferGetHeightOfPlane(self.base, 0)
         return C7Size(width: width, height: height)
     }
     
-    /// Convert cached pixel objects into textures that can be used for camera capture and video frame filters
+    /// Convert cached pixel objects into textures that can be used for camera capture and video frame filters.
     /// - Parameters:
     ///   - textureCache: The texture cache object that will manage the texture.
     ///   - pixelFormat: Specifies the Metal pixel format.
@@ -32,8 +40,6 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         guard let textureCache = textureCache else {
             return nil
         }
-        let width  = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
-        let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
         #if !targetEnvironment(simulator)
         var cvmTexture: CVMetalTexture?
         CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
@@ -41,8 +47,8 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                                                   self.base,
                                                   nil,
                                                   pixelFormat,
-                                                  width,
-                                                  height,
+                                                  CVPixelBufferGetWidthOfPlane(base, planeIndex),
+                                                  CVPixelBufferGetHeightOfPlane(base, planeIndex),
                                                   planeIndex,
                                                   &cvmTexture)
         if let cvmTexture = cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) {
@@ -63,8 +69,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     /// Copy the texture to the pixel buffer.
     /// - Parameter texture: metal texture.
     public func copyToPixelBuffer(with texture: MTLTexture) {
-        let flags = CVPixelBufferLockFlags(rawValue: 0)
-        CVPixelBufferLockBaseAddress(base, flags)
+        base.c7.lockBaseAddress(.readOnly)
         if let pixelBufferBytes = CVPixelBufferGetBaseAddress(base) {
             // Fixed if the CVPixelBuffer and MTLTexture size is not equal.
             // If the size is inconsistent, using the modified size filter will crash.
@@ -75,12 +80,11 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                 texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
             }
         }
-        CVPixelBufferUnlockBaseAddress(base, flags)
+        base.c7.unlockBaseAddress(.readOnly)
     }
     
     public func copyToCVPixelBuffer(with texture: MTLTexture) -> CVPixelBuffer {
-        let flags = CVPixelBufferLockFlags(rawValue: 0)
-        CVPixelBufferLockBaseAddress(base, flags)
+        base.c7.lockBaseAddress(.readOnly)
         var outPixelbuffer: CVPixelBuffer? = base
         if let datas = texture.buffer?.contents() {
             CVPixelBufferCreateWithBytes(kCFAllocatorDefault,
@@ -92,7 +96,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                                          nil, nil, nil,
                                          &outPixelbuffer);
         }
-        CVPixelBufferUnlockBaseAddress(base, flags)
+        base.c7.unlockBaseAddress(.readOnly)
         return outPixelbuffer ?? base
     }
     
@@ -116,7 +120,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                                            sampleBufferOut: &newSampleBuffer)
         return newSampleBuffer
     }
-        
+    
     /// Convert textures based on different environments and add CVPixelBuffer.
     /// - Parameters:
     ///   - textureCache: The texture cache object that will manage the texture. Only the real machine used.
@@ -146,5 +150,15 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         ])
         base.c7.copyToPixelBuffer(with: texture)
         return texture
+    }
+    
+    /// Description Locks the BaseAddress of the PixelBuffer to ensure that the memory is accessible.
+    @discardableResult public func lockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
+        return CVPixelBufferLockBaseAddress(base, lockFlags)
+    }
+    
+    /// Description Unlocks the BaseAddress of the PixelBuffer.
+    @discardableResult public func unlockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
+        return CVPixelBufferUnlockBaseAddress(base, lockFlags)
     }
 }

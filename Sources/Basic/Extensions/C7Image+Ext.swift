@@ -153,13 +153,12 @@ extension HarbethWrapper where Base: C7Image {
         result.unlockFocus()
         return result
         #else
-        let format = {
-            if #available(iOS 11.0, *) {
-                return UIGraphicsImageRendererFormat.preferred()
-            } else {
-                return UIGraphicsImageRendererFormat.default()
-            }
-        }()
+        let format: UIGraphicsImageRendererFormat
+        if #available(iOS 11.0, *) {
+            format = UIGraphicsImageRendererFormat.preferred()
+        } else {
+            format = UIGraphicsImageRendererFormat.default()
+        }
         format.scale = scale ?? base.scale
         let render = UIGraphicsImageRenderer(size: canvas, format: format)
         return render.image { rendererContext in
