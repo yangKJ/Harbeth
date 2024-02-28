@@ -75,12 +75,13 @@ enum ViewControllerType: String {
     case TextHEIC = "测试HEIC类型图片"
     case MPSGaussian = "MPS高斯模糊"
     case CIGaussian = "CI高斯模糊"
+    case Grayed = "灰度图像"
 }
 
 extension ViewControllerType {
     var image: UIImage {
         switch self {
-        case .ColorInvert, .Color2Gray, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
+        case .ColorInvert, .Color2BGRA, .Color2BRGA, .Color2GBRA, .Color2GRBA, .Color2RBGA,
                 .ComicStrip, .OilPainting, .Sketch:
             return R.image("yuan002")!
         case .EdgeGlow, .ShiftGlitch:

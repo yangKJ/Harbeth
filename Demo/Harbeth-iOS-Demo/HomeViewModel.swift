@@ -83,7 +83,7 @@ struct HomeViewModel {
         .Saturation, .WhiteBalance, .Vibrance,
         .Granularity, .Levels, .Sobel,
         .ChannelRGBA, .FalseColor, .ColorInvert,
-        .Color2Gray, .Color2BGRA, .Color2BRGA,
+        .Grayed, .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
         .ComicStrip, .OilPainting, .Sketch,
     ]

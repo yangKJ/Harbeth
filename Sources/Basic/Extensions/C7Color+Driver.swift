@@ -15,12 +15,16 @@ extension C7Color {
         /// Because the human eye is sensitive to red, green and blue, it is necessary to calculate the grayscale.
         /// This coefficient is mainly derived according to the sensitivity of the human eye to the three primary colors of R, G and B.
         case weighted
-        /// HSL lightness
+        /// This algorithm is called Luminosity, or brightness algorithm.
+        case luminosity
+        /// The process of desaturation is to convert RGB to HLS and then set the saturation to 0.
         case lightness
         /// Average method: RGB average value as gray.
         case average
         /// Maximum method: the maximum value in RGB as gray.
         case maximum
+        /// Minimum method: the minimum value in RGB as gray.
+        case minimum
     }
 }
 
@@ -101,7 +105,7 @@ extension HarbethWrapper where Base: C7Color {
 extension C7Color.GrayedMode {
     func lightness(r: CGFloat, g: CGFloat, b: CGFloat) -> CGFloat {
         switch self {
-        case .weighted:
+        case .weighted, .luminosity:
             return (0.299 * r) + (0.587 * g) + (0.114 * b)
         case .lightness:
             return 0.5 * (max(r, g, b) + min(r, g, b))
@@ -109,6 +113,8 @@ extension C7Color.GrayedMode {
             return (r + g + b) / 3.0
         case .maximum:
             return max(r, g, b)
+        case .minimum:
+            return min(r, g, b)
         }
     }
 }
