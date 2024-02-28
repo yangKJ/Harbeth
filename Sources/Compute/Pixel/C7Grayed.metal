@@ -29,7 +29,9 @@ kernel void C7GrayedDesaturation(texture2d<half, access::write> outputTexture [[
                                  uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half gray = (max3(inColor.r, inColor.g, inColor.b) + min3(inColor.r, inColor.g, inColor.b)) * 0.5;
+    const half max_ = max(inColor.r, max(inColor.g, inColor.b));
+    const half min_ = min(inColor.r, min(inColor.g, inColor.b));
+    const half gray = (max_ + min_) * 0.5;
     const half4 outColor = half4(half3(gray), 1.0h);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
@@ -57,7 +59,7 @@ kernel void C7GrayedMaximum(texture2d<half, access::write> outputTexture [[textu
                             uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half gray = max3(inColor.r, inColor.g, inColor.b);
+    const half gray = max(inColor.r, max(inColor.g, inColor.b));
     const half4 outColor = half4(half3(gray), 1.0h);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
@@ -71,7 +73,7 @@ kernel void C7GrayedMinimum(texture2d<half, access::write> outputTexture [[textu
                             uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half gray = min3(inColor.r, inColor.g, inColor.b);
+    const half gray = min(inColor.r, min(inColor.g, inColor.b));
     const half4 outColor = half4(half3(gray), 1.0h);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
