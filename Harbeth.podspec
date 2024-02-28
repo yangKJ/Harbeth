@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '1.0.7'
+  s.version          = '1.0.8'
   s.summary          = 'About image and video add filter for metal.'
   
   # This description is used to generate tags and improve search results.
@@ -28,7 +28,7 @@ Pod::Spec.new do |s|
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
   
   s.requires_arc = true
-  #s.static_framework = false
+  s.static_framework = true
   
   s.module_name = 'Harbeth'
   s.ios.source_files = 'Sources/Harbeth.h'
@@ -41,7 +41,8 @@ Pod::Spec.new do |s|
   end
   
   s.subspec 'Compute' do |xx|
-    xx.source_files = 'Sources/Compute/**/*.{swift,metal}'
+    xx.source_files = 'Sources/Compute/**/*.swift'
+    xx.resource_bundles = { s.name => [ 'Sources/Compute/**/*.metal' ] }
     xx.pod_target_xcconfig = {
       'SWIFT_ACTIVE_COMPILATION_CONDITIONS' => 'HARBETH_COMPUTE_LIBRARY_IN_BUNDLE',
       'GCC_PREPROCESSOR_DEFINITIONS' => 'HARBETH_COMPUTE_LIBRARY_IN_BUNDLE=1'
