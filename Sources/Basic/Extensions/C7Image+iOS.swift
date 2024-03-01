@@ -15,15 +15,11 @@ import UIKit
 extension HarbethWrapper where Base: C7Image {
     /// To ensure image orientation is correct, redraw image if image orientation is not up.
     /// See: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
-    public var flattened: C7Image {
+    public func flattened(isOpaque: Bool = true) -> C7Image {
         if base.imageOrientation == .up {
-            return base.copy() as! C7Image
+            return base
         }
-        UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
-        base.draw(in: CGRect(origin: .zero, size: base.size))
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
+        return base.c7.renderer(rect: .init(origin: .zero, size: base.size), isOpaque: isOpaque)
     }
     
     /// Fixed image rotation direction.
@@ -99,6 +95,11 @@ extension HarbethWrapper where Base: C7Image {
 }
 
 extension HarbethWrapper where Base: C7Image {
+    
+    public var original: C7Image {
+        base.withRenderingMode(.alwaysOriginal)
+    }
+    
     /// 白色背景透明化，色值在[222...255]之间均可祛除
     /// The white background is transparent, and the color value can be removed between [222...255].
     public func imageByMakingWhiteBackgroundTransparent() -> C7Image? {
@@ -158,11 +159,19 @@ extension HarbethWrapper where Base: C7Image {
         return result ?? base
     }
     
+    /// Rotation 180.
+    public var revolve180: C7Image {
+        guard let cgImage = base.cgImage else {
+            return base
+        }
+        return C7Image(cgImage: cgImage, scale: base.scale, orientation: .down)
+    }
+    
     /// Round image.
     public var circle: C7Image {
         let min = min(base.size.width, base.size.height)
         let size = CGSize(width: min, height: min)
-        UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
+        UIGraphicsBeginImageContextWithOptions(size, false, base.scale)
         let context = UIGraphicsGetCurrentContext()
         context?.addEllipse(in: .init(origin: .zero, size: size))
         context?.clip()
@@ -181,7 +190,7 @@ extension HarbethWrapper where Base: C7Image {
     
     /// Mixing color.
     public func blend(mode: CGBlendMode, tinted color: C7Color) -> C7Image {
-        UIGraphicsBeginImageContextWithOptions(base.size, false, 0.0)
+        UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
         color.setFill()
         let rect = CGRect(origin: .zero, size: base.size)
         UIRectFill(rect)
@@ -264,7 +273,6 @@ extension HarbethWrapper where Base: C7Image {
             return base
         }
         let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
-        //UIGraphicsBeginImageContextWithOptions(rect.size, false, base.scale)
         UIGraphicsBeginImageContext(rect.size)
         let context = UIGraphicsGetCurrentContext()
         context?.setBlendMode(.clear)

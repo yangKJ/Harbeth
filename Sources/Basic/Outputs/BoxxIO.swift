@@ -12,7 +12,7 @@ import CoreMedia
 import CoreVideo
 
 /// Quickly add filters to sources.
-/// Support use `UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer`
+/// Support use `UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer/CVImageBuffer`
 ///
 /// For example:
 ///
@@ -358,7 +358,7 @@ extension BoxxIO {
         guard let cgImage = texture.c7.toCGImage() else {
             throw HarbethError.texture2Image
         }
-        return cgImage.c7.drawing(refImage: refImage)
+        return cgImage.c7.drawing(refImage: refImage).c7.flattened()
     }
 }
 

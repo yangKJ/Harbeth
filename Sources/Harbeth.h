@@ -42,6 +42,11 @@
 // If you need downloading and caching images or GIFs from the web.
 // You can also use another library [ImageX](https://github.com/YangKJ/ImageX)
 
+// 关于视频添加滤镜并编辑导出，你也可以使用另外的库[Kakapos](https://github.com/YangKJ/Kakapos)
+
+// Add filters about the video and edit export.
+// You can also use another library [Kakapos](https://github.com/YangKJ/Kakapos)
+
 #import <Foundation/Foundation.h>
 
 FOUNDATION_EXPORT double HarbethVersionNumber;
@@ -49,7 +54,7 @@ FOUNDATION_EXPORT double HarbethVersionNumber;
 FOUNDATION_EXPORT const unsigned char HarbethVersionString[];
 
 /// Quickly add filters to sources.
-/// Support use `UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer`
+/// Support use `UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer/CVImageBuffer`
 ///
 /// For example:
 ///
