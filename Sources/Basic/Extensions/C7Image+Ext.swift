@@ -92,7 +92,7 @@ extension HarbethWrapper where Base: C7Image {
         return NSImage.init(size: base.size, flipped: false) { (rect) -> Bool in
             color.set()
             rect.fill()
-            base.draw(in: rect, from: imageRect, operation: .destinationIn, fraction: 1.0)
+            base.draw(in: rect, from: imageRect, operation: .destinationIn, fraction: base.scale)
             return true
         }
         #else
@@ -188,6 +188,33 @@ extension HarbethWrapper where Base: C7Image {
     public func inverting() -> C7Image {
         renderer(rect: .init(origin: .zero, size: base.size), inverting: true)
     }
+    
+    /// To ensure image orientation is correct, redraw image if image orientation is not up.
+    /// See: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
+    public func flattened(isOpaque: Bool = true) -> C7Image {
+        #if os(macOS)
+        //return base.c7.revolve180
+        return base
+        #else
+        if base.imageOrientation == .up {
+            return base
+        }
+        return base.c7.renderer(rect: .init(origin: .zero, size: base.size), isOpaque: isOpaque)
+        #endif
+    }
+    
+    /// Fixed image rotation direction.
+    public func fixOrientation() -> C7Image {
+        #if os(macOS)
+        return base
+        #else
+        let imageOrientation = base.imageOrientation
+        guard imageOrientation != .up, let cgImage = base.cgImage else {
+            return base
+        }
+        return cgImage.c7.fixOrientation(from: imageOrientation).c7.drawing(refImage: base)
+        #endif
+    }
 }
 
 // MARK: - edit image
@@ -257,5 +284,53 @@ extension HarbethWrapper where Base: C7Image {
         let size = base.size
         let rect = CGRect(x: -space, y: -space, width: size.width+2*space, height: size.height+2*space)
         return base.c7.renderer(rect: rect, canvas: size)
+    }
+    
+    /// Rotate the picture.
+    /// - Parameter degrees: Rotation angle.
+    /// - Returns: The picture after rotation.
+    public func rotate(degrees: Float) -> C7Image {
+        #if os(macOS)
+        let img = NSImage(size: base.size, flipped: false, drawingHandler: { (rect) -> Bool in
+            let (width, height) = (rect.size.width, rect.size.height)
+            let transform = NSAffineTransform()
+            transform.translateX(by: width / 2, yBy: height / 2)
+            transform.rotate(byDegrees: CGFloat(degrees))
+            transform.translateX(by: -width / 2, yBy: -height / 2)
+            transform.concat()
+            base.draw(in: rect)
+            return true
+        })
+        img.isTemplate = base.isTemplate // preserve the underlying image's template setting
+        return img
+        #else
+        let radians = CGFloat(degrees) / 180.0 * .pi
+        let tran = CGAffineTransform(rotationAngle: radians)
+        var size = CGRect(origin: .zero, size: base.size).applying(tran).size
+        size.width  = floor(size.width)
+        size.height = floor(size.height)
+        let rect = CGRect(x: -base.size.width/2, y: -base.size.height/2, width: base.size.width, height: base.size.height)
+        UIGraphicsBeginImageContext(size)
+        let context = UIGraphicsGetCurrentContext()
+        context?.translateBy(x: size.width/2, y: size.height/2)
+        context?.rotate(by: radians)
+        base.draw(in: rect)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result ?? base
+        #endif
+    }
+    
+    /// Rotation 180.
+    public var revolve180: C7Image {
+        #if os(macOS)
+        //return NSImage(size: base.size, flipped: true, drawingHandler: { _ in true })
+        return rotate(degrees: 180)
+        #else
+        guard let cgImage = base.cgImage else {
+            return base
+        }
+        return C7Image(cgImage: cgImage, scale: base.scale, orientation: .down)
+        #endif
     }
 }

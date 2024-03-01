@@ -188,4 +188,12 @@ public struct MTLTextureCompatible_ {
             return nil
         }
     }
+    
+    public func bytes() -> UnsafeMutableRawPointer {
+        let rowBytes = target.width * 4
+        let bytes = malloc(target.width * target.height * 4)
+        let reg = MTLRegionMake2D(0, 0, target.width, target.height)
+        target.getBytes(bytes!, bytesPerRow: rowBytes, from: reg, mipmapLevel: 0)
+        return bytes!
+    }
 }

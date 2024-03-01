@@ -14,6 +14,26 @@ extension CGImage: HarbethCompatible { }
 
 extension HarbethWrapper where Base: CGImage {
     
+    /// Whether a transparent channel exists.
+    public var hasAlphaChannel: Bool {
+        switch base.alphaInfo {
+        case .first, .last, .premultipliedFirst, .premultipliedLast:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    #if os(macOS)
+    public var size: NSSize {
+        NSSize(width: base.width, height: base.height)
+    }
+    #else
+    public var size: CGSize {
+        CGSize(width: base.width, height: base.height)
+    }
+    #endif
+    
     /// CGImage to texture
     ///
     /// Texture loader can not load image data to create texture
@@ -104,28 +124,6 @@ extension HarbethWrapper where Base: CGImage {
         return UIImage(cgImage: base, scale: refImage.scale, orientation: refImage.imageOrientation)
         #endif
     }
-}
-
-extension HarbethWrapper where Base: CGImage {
-    
-    public var hasAlphaChannel: Bool {
-        switch base.alphaInfo {
-        case .first, .last, .premultipliedFirst, .premultipliedLast:
-            return true
-        default:
-            return false
-        }
-    }
-    
-    #if os(macOS)
-    public var size: NSSize {
-        NSSize(width: base.width, height: base.height)
-    }
-    #else
-    public var size: CGSize {
-        CGSize(width: base.width, height: base.height)
-    }
-    #endif
 }
 
 extension HarbethWrapper where Base: CGImage {

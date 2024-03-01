@@ -13,73 +13,6 @@ import UIKit
 // https://developer.apple.com/documentation/uikit/uiimage
 
 extension HarbethWrapper where Base: C7Image {
-    /// To ensure image orientation is correct, redraw image if image orientation is not up.
-    /// See: https://stackoverflow.com/questions/42098390/swift-png-image-being-saved-with-incorrect-orientation
-    public func flattened(isOpaque: Bool = true) -> C7Image {
-        if base.imageOrientation == .up {
-            return base
-        }
-        return base.c7.renderer(rect: .init(origin: .zero, size: base.size), isOpaque: isOpaque)
-    }
-    
-    /// Fixed image rotation direction.
-    public func fixOrientation() -> C7Image {
-        if base.imageOrientation == .up {
-            return base
-        }
-        let width  = base.size.width
-        let height = base.size.height
-        var transform = CGAffineTransform.identity
-        
-        switch base.imageOrientation {
-        case .down, .downMirrored:
-            transform = CGAffineTransform(translationX: width, y: height)
-            transform = transform.rotated(by: .pi)
-        case .left, .leftMirrored:
-            transform = CGAffineTransform(translationX: width, y: 0)
-            transform = transform.rotated(by: CGFloat.pi / 2)
-        case .right, .rightMirrored:
-            transform = CGAffineTransform(translationX: 0, y: height)
-            transform = transform.rotated(by: -CGFloat.pi / 2)
-        default:
-            break
-        }
-        
-        switch base.imageOrientation {
-        case .upMirrored, .downMirrored:
-            transform = transform.translatedBy(x: width, y: 0)
-            transform = transform.scaledBy(x: -1, y: 1)
-        case .leftMirrored, .rightMirrored:
-            transform = transform.translatedBy(x: height, y: 0)
-            transform = transform.scaledBy(x: -1, y: 1)
-        default:
-            break
-        }
-        
-        guard let cgImage = base.cgImage, let colorSpace = cgImage.colorSpace else {
-            return base
-        }
-        let context = CGContext(data: nil,
-                                width: Int(width),
-                                height: Int(height),
-                                bitsPerComponent: cgImage.bitsPerComponent,
-                                bytesPerRow: 0,
-                                space: colorSpace,
-                                bitmapInfo: cgImage.bitmapInfo.rawValue)
-        context?.concatenate(transform)
-        switch base.imageOrientation {
-        case .left, .leftMirrored, .right, .rightMirrored:
-            context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: height, height: width))
-        default:
-            context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-        }
-        
-        guard let cgImage_ = context?.makeImage() else {
-            return base
-        }
-        return cgImage_.c7.toC7Image()
-    }
-    
     /// Compressed image data.
     /// - Parameter maxCount: Maximum compression ratio.
     /// - Returns: Compressed content data.
@@ -92,9 +25,6 @@ extension HarbethWrapper where Base: C7Image {
         }
         return jpegData
     }
-}
-
-extension HarbethWrapper where Base: C7Image {
     
     public var original: C7Image {
         base.withRenderingMode(.alwaysOriginal)
@@ -139,49 +69,6 @@ extension HarbethWrapper where Base: C7Image {
         return result
     }
     
-    /// Rotate the picture.
-    /// - Parameter degrees: Rotation angle.
-    /// - Returns: The picture after rotation.
-    public func rotate(degrees: Float) -> C7Image {
-        let radians = CGFloat(degrees) / 180.0 * .pi
-        let tran = CGAffineTransform(rotationAngle: radians)
-        var size = CGRect(origin: .zero, size: base.size).applying(tran).size
-        size.width  = floor(size.width)
-        size.height = floor(size.height)
-        let rect = CGRect(x: -base.size.width/2, y: -base.size.height/2, width: base.size.width, height: base.size.height)
-        UIGraphicsBeginImageContext(size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.translateBy(x: size.width/2, y: size.height/2)
-        context?.rotate(by: radians)
-        base.draw(in: rect)
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
-    }
-    
-    /// Rotation 180.
-    public var revolve180: C7Image {
-        guard let cgImage = base.cgImage else {
-            return base
-        }
-        return C7Image(cgImage: cgImage, scale: base.scale, orientation: .down)
-    }
-    
-    /// Round image.
-    public var circle: C7Image {
-        let min = min(base.size.width, base.size.height)
-        let size = CGSize(width: min, height: min)
-        UIGraphicsBeginImageContextWithOptions(size, false, base.scale)
-        let context = UIGraphicsGetCurrentContext()
-        context?.addEllipse(in: .init(origin: .zero, size: size))
-        context?.clip()
-        base.draw(in: .init(origin: .zero, size: base.size))
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
-    }
-    
-    
     /// Modify the line color of the picture.
     /// - Parameter color: Line color.
     public func line(color: C7Color) -> C7Image {
@@ -201,6 +88,61 @@ extension HarbethWrapper where Base: C7Image {
         let tintedImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         return tintedImage ?? base
+    }
+}
+
+extension HarbethWrapper where Base: C7Image {
+    /// Round image.
+    public var circle: C7Image {
+        let min = min(base.size.width, base.size.height)
+        let size = CGSize(width: min, height: min)
+        UIGraphicsBeginImageContextWithOptions(size, false, base.scale)
+        let context = UIGraphicsGetCurrentContext()
+        context?.addEllipse(in: .init(origin: .zero, size: size))
+        context?.clip()
+        base.draw(in: .init(origin: .zero, size: base.size))
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result ?? base
+    }
+    
+    /// Image path cropping, cropping path outside part.
+    /// - Parameter bezierPath: Crop path.
+    public func cropOuter(bezierPath: UIBezierPath) -> C7Image {
+        guard !bezierPath.isEmpty else {
+            return base
+        }
+        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
+        UIGraphicsBeginImageContext(rect.size)
+        let context = UIGraphicsGetCurrentContext()
+        let outer = CGMutablePath()
+        outer.addRect(rect, transform: .identity)
+        outer.addPath(bezierPath.cgPath, transform: .identity)
+        context?.addPath(outer)
+        context?.setBlendMode(.clear)
+        base.draw(in: rect)
+        context?.drawPath(using: .eoFill)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result ?? base
+    }
+    
+    /// Image path cropping, cropping path inner part.
+    /// - Parameter bezierPath: Crop path.
+    public func cropInner(bezierPath: UIBezierPath) -> C7Image {
+        guard !bezierPath.isEmpty else {
+            return base
+        }
+        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
+        UIGraphicsBeginImageContext(rect.size)
+        let context = UIGraphicsGetCurrentContext()
+        context?.setBlendMode(.clear)
+        base.draw(in: rect)
+        context?.addPath(bezierPath.cgPath)
+        context?.drawPath(using: .eoFill)
+        let result = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return result ?? base
     }
     
     /// Fill the image on the basis that the image is not deformed.
@@ -238,47 +180,6 @@ extension HarbethWrapper where Base: C7Image {
         context?.scaleBy(x: 1.0, y: -1.0)
         context?.setBlendMode(.copy)
         context?.draw(cgImage, in: rect)
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
-    }
-}
-
-extension HarbethWrapper where Base: C7Image {
-    /// Image path cropping, cropping path outside part.
-    /// - Parameter bezierPath: Crop path.
-    public func cropOuter(bezierPath: UIBezierPath) -> C7Image {
-        guard !bezierPath.isEmpty else {
-            return base
-        }
-        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
-        UIGraphicsBeginImageContext(rect.size)
-        let context = UIGraphicsGetCurrentContext()
-        let outer = CGMutablePath()
-        outer.addRect(rect, transform: .identity)
-        outer.addPath(bezierPath.cgPath, transform: .identity)
-        context?.addPath(outer)
-        context?.setBlendMode(.clear)
-        base.draw(in: rect)
-        context?.drawPath(using: .eoFill)
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
-    }
-    
-    /// Image path cropping, cropping path inner part.
-    /// - Parameter bezierPath: Crop path.
-    public func cropInner(bezierPath: UIBezierPath) -> C7Image {
-        guard !bezierPath.isEmpty else {
-            return base
-        }
-        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
-        UIGraphicsBeginImageContext(rect.size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setBlendMode(.clear)
-        base.draw(in: rect)
-        context?.addPath(bezierPath.cgPath)
-        context?.drawPath(using: .eoFill)
         let result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         return result ?? base

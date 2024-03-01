@@ -50,13 +50,10 @@ extension ResizingMode {
             return image
         }
         let result = image.c7.renderer(rect: rect, canvas: rect.size)
-        return cropingImage(result, rect: rect, size: size) ?? image
+        return cropingImage(result, rect: rect, size: size)
     }
     
-    private func cropingImage(_ image: C7Image, rect: CGRect, size: CGSize) -> C7Image? {
-        guard let cgImage = image.cgImage else {
-            return image
-        }
+    private func cropingImage(_ image: C7Image, rect: CGRect, size: CGSize) -> C7Image {
         var cropRect: CGRect
         switch self {
         case .scaleAspectFill:
@@ -75,7 +72,9 @@ extension ResizingMode {
         default:
             return image
         }
-        //return image.c7.renderer(rect: cropRect, canvas: size)
-        return cgImage.cropping(to: cropRect)?.c7.toC7Image()
+        guard let cgImg = image.cgImage?.cropping(to: cropRect) else {
+            return image
+        }
+        return cgImg.c7.drawing(refImage: image)
     }
 }

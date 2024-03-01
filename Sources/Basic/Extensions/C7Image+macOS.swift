@@ -31,8 +31,7 @@ extension C7Image {
     }
     
     public func pngData() -> Data? {
-        guard let representation = tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: representation) else {
+        guard let rep = tiffRepresentation, let bitmap = NSBitmapImageRep(data: rep) else {
             return nil
         }
         return bitmap.representation(using: .png, properties: [:])
@@ -55,15 +54,6 @@ extension HarbethWrapper where Base: C7Image {
             let height = max(size.height, CGFloat(rep.pixelsHigh))
             return CGSize(width: width, height: height)
         }
-    }
-    
-    /// Fixed image rotation direction.
-    public func fixOrientation() -> C7Image {
-        base
-    }
-    
-    public var flattened: C7Image {
-        base
     }
     
     /// Flip image, Need to be used in `base.lockFocus()`
