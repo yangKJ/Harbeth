@@ -46,6 +46,7 @@ struct HomeViewModel {
         switch viewType {
         case .image, .player:
             return [
+                "CImage": coreImage,
                 "查找滤镜": lookup,
                 "效果展示": effect,
                 "颜色处理": color,
@@ -53,7 +54,6 @@ struct HomeViewModel {
                 "模糊处理": blur,
                 "图片融合": blend,
                 "矩阵卷积": matrix,
-                "CoreImage": coreImage,
             ]
         case .camera:
             var filters = color
@@ -112,6 +112,6 @@ struct HomeViewModel {
     ]
     
     let coreImage: [ViewControllerType] = [
-        .CIHS, .CIGaussian,
+        .CIHS, .CIGaussian, .ColorMonochrome,
     ]
 }

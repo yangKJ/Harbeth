@@ -10,6 +10,9 @@ import Foundation
 /// 纯色滤镜
 public struct C7SolidColor: C7FilterProtocol, ComputeProtocol {
     
+    /// There is no need to create a new output texture, just use the input texture.
+    public var needCreateDestTexture: Bool = false
+    
     public var color: C7Color = .white
     
     public var modifier: Modifier {

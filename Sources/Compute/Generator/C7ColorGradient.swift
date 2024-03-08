@@ -16,6 +16,9 @@ public struct C7ColorGradient: C7FilterProtocol {
         case radial
     }
     
+    /// There is no need to create a new output texture, just use the input texture.
+    public var needCreateDestTexture: Bool = false
+    
     public var modifier: Modifier {
         return .compute(kernel: type.kernel)
     }

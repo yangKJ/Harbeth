@@ -393,6 +393,9 @@ extension ViewControllerType {
         case .Grayed:
             let filter = C7Grayed(with: .desaturation)
             return (filter, nil, nil)
+        case .ColorMonochrome:
+            let filter = CIColorMonochrome(color: .random)
+            return (filter, nil, nil)
         }
     }
 }

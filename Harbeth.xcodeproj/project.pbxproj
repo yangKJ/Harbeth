@@ -222,6 +222,7 @@
 		872BBA9A2B1983AE00493F25 /* Color+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA992B1983AE00493F25 /* Color+Ext.swift */; };
 		872BBA9C2B19879700493F25 /* C7Color+Driver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA9B2B19879700493F25 /* C7Color+Driver.swift */; };
 		872BBA9E2B19B1A000493F25 /* ResizingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA9D2B19B1A000493F25 /* ResizingMode.swift */; };
+		872FDC592B98109300A755FD /* MPSBoxBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872FDC582B98109300A755FD /* MPSBoxBlur.swift */; };
 		874035802A983E47001D0A98 /* CISketch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8740357F2A983E47001D0A98 /* CISketch.swift */; };
 		874035822A987F33001D0A98 /* AsyncDest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035812A987F33001D0A98 /* AsyncDest.swift */; };
 		87418C5A2B3BC5780024D1A7 /* CGPath+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87418C592B3BC5780024D1A7 /* CGPath+Ext.swift */; };
@@ -255,6 +256,7 @@
 		87901EEF2A7210B5008FCB47 /* Image+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EEE2A7210B5008FCB47 /* Image+Ext.swift */; };
 		87901EF12A726588008FCB47 /* C7ColorGradient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF02A726588008FCB47 /* C7ColorGradient.swift */; };
 		87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */; };
+		8795CE1A2B96C4C50094BE4F /* CIColorMonochrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8795CE192B96C4C50094BE4F /* CIColorMonochrome.swift */; };
 		87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8B29AF3F0900C4C2E6 /* README_CN.md */; };
 		87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8C29AF3F0900C4C2E6 /* README.md */; };
 		87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */; };
@@ -499,6 +501,7 @@
 		872BBA992B1983AE00493F25 /* Color+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Ext.swift"; sourceTree = "<group>"; };
 		872BBA9B2B19879700493F25 /* C7Color+Driver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7Color+Driver.swift"; sourceTree = "<group>"; };
 		872BBA9D2B19B1A000493F25 /* ResizingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizingMode.swift; sourceTree = "<group>"; };
+		872FDC582B98109300A755FD /* MPSBoxBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPSBoxBlur.swift; sourceTree = "<group>"; };
 		8740357F2A983E47001D0A98 /* CISketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CISketch.swift; sourceTree = "<group>"; };
 		874035812A987F33001D0A98 /* AsyncDest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncDest.swift; sourceTree = "<group>"; };
 		87418C592B3BC5780024D1A7 /* CGPath+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGPath+Ext.swift"; sourceTree = "<group>"; };
@@ -532,6 +535,7 @@
 		87901EEE2A7210B5008FCB47 /* Image+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Image+Ext.swift"; sourceTree = "<group>"; };
 		87901EF02A726588008FCB47 /* C7ColorGradient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorGradient.swift; sourceTree = "<group>"; };
 		87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorGradient.metal; sourceTree = "<group>"; };
+		8795CE192B96C4C50094BE4F /* CIColorMonochrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIColorMonochrome.swift; sourceTree = "<group>"; };
 		87C72F8B29AF3F0900C4C2E6 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = "<group>"; };
 		87C72F8C29AF3F0900C4C2E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Harbeth.podspec; sourceTree = "<group>"; };
@@ -678,6 +682,7 @@
 				F7621A8A2A7F971300614542 /* CIBrightness.swift */,
 				F7621AA62A7FD20600614542 /* CIColorControls.swift */,
 				F7621A272A7DD8EA00614542 /* CIColorCube.swift */,
+				8795CE192B96C4C50094BE4F /* CIColorMonochrome.swift */,
 				F7621A8C2A7FA14B00614542 /* CIContrast.swift */,
 				F7621A8E2A7FA1DD00614542 /* CIExposure.swift */,
 				F7621A902A7FA23200614542 /* CIFade.swift */,
@@ -821,6 +826,7 @@
 		872660092994D82100E612C7 /* MPS */ = {
 			isa = PBXGroup;
 			children = (
+				872FDC582B98109300A755FD /* MPSBoxBlur.swift */,
 				8726600A2994D82100E612C7 /* MPSGaussianBlur.swift */,
 				87C874A02A7BAA2A00EC8093 /* MPSHistogram.swift */,
 			);
@@ -1238,6 +1244,7 @@
 				872BBA9C2B19879700493F25 /* C7Color+Driver.swift in Sources */,
 				872661242994D82200E612C7 /* C7RGBADilation.metal in Sources */,
 				872661712994D82200E612C7 /* C7BlendChromaKey.metal in Sources */,
+				8795CE1A2B96C4C50094BE4F /* CIColorMonochrome.swift in Sources */,
 				8726614C2994D82200E612C7 /* C7HighlightShadow.metal in Sources */,
 				872660CE2994D82200E612C7 /* ZeroOneRange.swift in Sources */,
 				872661152994D82200E612C7 /* C7Toon.metal in Sources */,
@@ -1351,6 +1358,7 @@
 				872660DF2994D82200E612C7 /* Cacheable.swift in Sources */,
 				870D9F022B8EE1D700F279FF /* Pixel.swift in Sources */,
 				872661072994D82200E612C7 /* C7SphereRefraction.metal in Sources */,
+				872FDC592B98109300A755FD /* MPSBoxBlur.swift in Sources */,
 				87C874A12A7BAA2A00EC8093 /* MPSHistogram.swift in Sources */,
 				8726616C2994D82200E612C7 /* C7HighlightShadow.swift in Sources */,
 				872661842994D82200E612C7 /* C7BlendScreen.metal in Sources */,

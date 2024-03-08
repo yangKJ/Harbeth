@@ -40,7 +40,7 @@ import CoreVideo
     public var mirrored: Bool = false
     
     /// Do you need to create an output texture object?
-    /// Such as solid color and gradient filters do not need to create an output texture.
+    /// If you do not create a separate output texture, texture overlay may occur.
     public var createDestTexture: Bool = true
     
     /// Metal texture transmit output real time commit buffer.
@@ -330,6 +330,10 @@ extension BoxxIO {
     
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if self.createDestTexture == false {
+            return sourceTexture
+        }
+        let params = filter.parameterDescription
+        if !(params["needCreateDestTexture"] as? Bool ?? true) {
             // 纯色`C7SolidColor`和渐变色`C7ColorGradient`滤镜不需要创建新的输出纹理，直接使用输入纹理即可
             return sourceTexture
         }
@@ -406,9 +410,8 @@ extension BoxxIO {
             }
             return finaTexture
         default:
-            break
+            return texture
         }
-        return texture
     }
     
     /// Whether to synchronously wait for the execution of the Metal command buffer to complete.

@@ -118,7 +118,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
 ```
 
 ### SwiftUI Support
-- 直接使用即可 [FilterableView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/FilterableView.swift)
+- 直接使用即可 [HarbethView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/FilterableView.swift)
 - 这个API可能也暂时不够稳定，暂时先这样吧！
 - 当然你也可以来完善它，感谢！ 🤲
 
@@ -127,7 +127,7 @@ let filters: [C7FilterProtocol] = [
     CIHighlight(highlight: intensity),
     C7WaterRipple(ripple: intensity),
 ]
-FilterableView(image: inputImage, filters: filters, content: { image in
+HarbethView(image: inputImage, filters: filters, content: { image in
     image.resizable()
         .aspectRatio(contentMode: .fit)
 }, async: false)

@@ -29,6 +29,14 @@ extension HarbethWrapper where Base: C7Image {
         return try? TextureLoader.init(with: cgImage).texture
     }
     
+    public func toCGImage() -> CGImage? {
+        #if os(macOS)
+        return base.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        #else
+        return base.cgImage
+        #endif
+    }
+    
     public func toCIImage() -> CIImage? {
         #if os(macOS)
         if let cgImage = base.cgImage {

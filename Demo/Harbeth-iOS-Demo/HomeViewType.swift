@@ -76,6 +76,7 @@ enum ViewControllerType: String {
     case MPSGaussian = "MPS高斯模糊"
     case CIGaussian = "CI高斯模糊"
     case Grayed = "灰度图像"
+    case ColorMonochrome = "单色滤镜"
 }
 
 extension ViewControllerType {

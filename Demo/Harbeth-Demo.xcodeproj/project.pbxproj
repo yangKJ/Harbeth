@@ -783,6 +783,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera usage description";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -816,6 +817,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera usage description";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;

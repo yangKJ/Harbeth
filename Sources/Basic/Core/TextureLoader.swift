@@ -80,10 +80,10 @@ public struct TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
         let options = options ?? TextureLoader.defaultOptions
-        guard let cgImage = sampleBuffer.c7.toCGImage() else {
-            throw HarbethError.source2Texture
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
-        try self.init(with: cgImage, options: options)
+        try self.init(with: pixelBuffer, options: options)
     }
     
     /// Creates a new MTLTexture from a UIImage / NSImage.
@@ -92,10 +92,10 @@ public struct TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
         let options = options ?? TextureLoader.defaultOptions
-        guard let data = image.c7.tiffData() else {
-            throw HarbethError.source2Texture
+        guard let cgImage = image.c7.toCGImage() else {
+            throw HarbethError.image2CGImage
         }
-        try self.init(with: data, options: options)
+        try self.init(with: cgImage, options: options)
     }
     
     /// Creates a new MTLTexture from a Data.

@@ -79,13 +79,6 @@ extension UnitTestViewController {
         let filter = C7Storyboard(ranks: 2)
         
         let dest = BoxxIO.init(element: originImage, filters: [filter])
-        
-        dest.transmitOutput(success: { [weak self] image in
-            DispatchQueue.main.async {
-                self?.ImageView.image = image
-            }
-        })
-        
-        //ImageView.image = try? dest.output()
+        ImageView.image = try? dest.output()
     }
 }

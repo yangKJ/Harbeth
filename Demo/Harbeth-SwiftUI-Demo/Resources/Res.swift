@@ -14,7 +14,7 @@ struct Res {
         let texture = try TextureLoader.emptyTexture(at: size)
         let filter = C7ColorGradient(with: .rgUVB1)
         var dest = BoxxIO(element: texture, filter: filter)
-        dest.createDestTexture = false
+        //dest.createDestTexture = false
         return try dest.output()
     }
 }

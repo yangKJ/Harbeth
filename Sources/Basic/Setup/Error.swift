@@ -11,6 +11,7 @@ public enum HarbethError: Swift.Error {
     case unknown
     case error(Error)
     case image2Texture
+    case image2CGImage
     case readFunction(String)
     case commandBuffer
     case computePipelineState(String)
@@ -82,6 +83,8 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
             return "Using metal texture loader is nil."
         case .bitmapDataNotFound:
             return "Bitmap Data Not Found."
+        case .image2CGImage:
+            return "Input image transform CGImage failed."
         default:
             return "Unknown error occurred."
         }
@@ -129,6 +132,8 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .textureLoader:
             return nil
         case .bitmapDataNotFound:
+            return nil
+        case .image2CGImage:
             return nil
         }
     }

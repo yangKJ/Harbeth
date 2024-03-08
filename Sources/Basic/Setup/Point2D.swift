@@ -22,6 +22,16 @@ public struct C7Point2D {
         self.x = x
         self.y = y
     }
+    
+    /// Initialize the normalized texture coordinates.
+    /// - Parameters:
+    ///   - point: Current coordinate point.
+    ///   - size: Image size.
+    public init(point: CGPoint, size: CGSize) {
+        let x_ = Float(point.x / size.width)
+        let y_ = Float(point.y / size.height)
+        self.init(x: x_, y: y_)
+    }
 }
 
 extension C7Point2D {
