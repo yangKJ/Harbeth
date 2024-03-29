@@ -16,7 +16,7 @@ public struct Matrix3x3: Matrix {
     
     public init(values: [Float]) {
         if values.count != 9 {
-            C7FailedErrorInDebug("There must be nine values for 3x3 Matrix.")
+            HarbethError.failed("There must be nine values for 3x3 Matrix.")
         }
         self.values = values
     }

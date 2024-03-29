@@ -27,7 +27,7 @@ public final class Device: Cacheable {
     /// Transform using color space
     lazy var colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
     /// We are likely to encounter images with wider colour than sRGB
-    lazy var workingColorSpace: CGColorSpace? = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+    lazy var workingColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
     /// CIContexts
     lazy var contexts = [CGColorSpace: CIContext]()
     
@@ -50,7 +50,7 @@ public final class Device: Cacheable {
         self.harbethLibrary = Device.makeFrameworkLibrary(device, for: "Harbeth")
         
         if defaultLibrary == nil && harbethLibrary == nil {
-            C7FailedErrorInDebug("Could not load library")
+            HarbethError.failed("Could not load library")
         }
     }
     
@@ -61,7 +61,7 @@ public final class Device: Cacheable {
 
 extension Device {
     
-    static func makeFrameworkLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
+    public static func makeFrameworkLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
         #if SWIFT_PACKAGE
         /// Fixed the Swift PM cannot read the `.metal` file.
         /// https://stackoverflow.com/questions/63237395/generating-resource-bundle-accessor-type-bundle-has-no-member-module

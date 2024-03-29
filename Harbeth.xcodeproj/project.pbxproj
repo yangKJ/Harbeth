@@ -245,6 +245,7 @@
 		875EEBAE2994E0C300EC62B3 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBAD2994E0C300EC62B3 /* MetalKit.framework */; };
 		875EEBB02994E0D800EC62B3 /* CoreImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBAF2994E0D700EC62B3 /* CoreImage.framework */; };
 		875EEBB22994E0DF00EC62B3 /* ImageIO.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 875EEBB12994E0DF00EC62B3 /* ImageIO.framework */; };
+		87660ADA2BB25A500065717A /* Renderable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87660AD92BB25A500065717A /* Renderable.swift */; };
 		87671B7E2A8DAB7800C0A5F0 /* Files.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87671B7D2A8DAB7800C0A5F0 /* Files.swift */; };
 		87671B812A8E01B000C0A5F0 /* C7CircleBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87671B802A8E01B000C0A5F0 /* C7CircleBlur.swift */; };
 		87671B832A8E01B800C0A5F0 /* C7CircleBlur.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87671B822A8E01B800C0A5F0 /* C7CircleBlur.metal */; };
@@ -257,12 +258,16 @@
 		87901EF12A726588008FCB47 /* C7ColorGradient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF02A726588008FCB47 /* C7ColorGradient.swift */; };
 		87901EF32A7265A1008FCB47 /* C7ColorGradient.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */; };
 		8795CE1A2B96C4C50094BE4F /* CIColorMonochrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8795CE192B96C4C50094BE4F /* CIColorMonochrome.swift */; };
+		87A249E92BAA75B900AF7D1A /* HugeImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87A249E82BAA75B900AF7D1A /* HugeImage.swift */; };
 		87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8B29AF3F0900C4C2E6 /* README_CN.md */; };
 		87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8C29AF3F0900C4C2E6 /* README.md */; };
 		87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */; };
 		87C874A12A7BAA2A00EC8093 /* MPSHistogram.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87C874A02A7BAA2A00EC8093 /* MPSHistogram.swift */; };
 		87CFF2652A81CD1700330A0B /* C7CombinationBeautiful.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CFF2642A81CD1700330A0B /* C7CombinationBeautiful.swift */; };
 		87CFF2682A81D2B100330A0B /* C7CombinationBeautiful.metal in Sources */ = {isa = PBXBuildFile; fileRef = 87CFF2672A81D2B100330A0B /* C7CombinationBeautiful.metal */; };
+		87DBC3102BB6980900B55909 /* CIPhotoEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DBC30F2BB6980900B55909 /* CIPhotoEffect.swift */; };
+		87DC84722BB10D2A0071D816 /* CINoiseReduction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DC84712BB10D2A0071D816 /* CINoiseReduction.swift */; };
+		87DC84742BB110E40071D816 /* RenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DC84732BB110E40071D816 /* RenderView.swift */; };
 		87F038C92A8322E700F67638 /* MTLSize+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87F038C82A8322E700F67638 /* MTLSize+Ext.swift */; };
 		87F038CB2A833C8400F67638 /* C7CombinationBilateralBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87F038CA2A833C8400F67638 /* C7CombinationBilateralBlur.swift */; };
 		87F038D02A835E7D00F67638 /* C7BilateralBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87F038CE2A835E7D00F67638 /* C7BilateralBlur.swift */; };
@@ -524,6 +529,7 @@
 		875EEBAD2994E0C300EC62B3 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/iOSSupport/System/Library/Frameworks/MetalKit.framework; sourceTree = DEVELOPER_DIR; };
 		875EEBAF2994E0D700EC62B3 /* CoreImage.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreImage.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/Library/Frameworks/CoreImage.framework; sourceTree = DEVELOPER_DIR; };
 		875EEBB12994E0DF00EC62B3 /* ImageIO.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ImageIO.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk/System/Library/Frameworks/ImageIO.framework; sourceTree = DEVELOPER_DIR; };
+		87660AD92BB25A500065717A /* Renderable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderable.swift; sourceTree = "<group>"; };
 		87671B7D2A8DAB7800C0A5F0 /* Files.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Files.swift; sourceTree = "<group>"; };
 		87671B802A8E01B000C0A5F0 /* C7CircleBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7CircleBlur.swift; sourceTree = "<group>"; };
 		87671B822A8E01B800C0A5F0 /* C7CircleBlur.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7CircleBlur.metal; sourceTree = "<group>"; };
@@ -536,12 +542,16 @@
 		87901EF02A726588008FCB47 /* C7ColorGradient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7ColorGradient.swift; sourceTree = "<group>"; };
 		87901EF22A7265A1008FCB47 /* C7ColorGradient.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7ColorGradient.metal; sourceTree = "<group>"; };
 		8795CE192B96C4C50094BE4F /* CIColorMonochrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIColorMonochrome.swift; sourceTree = "<group>"; };
+		87A249E82BAA75B900AF7D1A /* HugeImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HugeImage.swift; sourceTree = "<group>"; };
 		87C72F8B29AF3F0900C4C2E6 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = "<group>"; };
 		87C72F8C29AF3F0900C4C2E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Harbeth.podspec; sourceTree = "<group>"; };
 		87C874A02A7BAA2A00EC8093 /* MPSHistogram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPSHistogram.swift; sourceTree = "<group>"; };
 		87CFF2642A81CD1700330A0B /* C7CombinationBeautiful.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7CombinationBeautiful.swift; sourceTree = "<group>"; };
 		87CFF2672A81D2B100330A0B /* C7CombinationBeautiful.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = C7CombinationBeautiful.metal; sourceTree = "<group>"; };
+		87DBC30F2BB6980900B55909 /* CIPhotoEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIPhotoEffect.swift; sourceTree = "<group>"; };
+		87DC84712BB10D2A0071D816 /* CINoiseReduction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CINoiseReduction.swift; sourceTree = "<group>"; };
+		87DC84732BB110E40071D816 /* RenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderView.swift; sourceTree = "<group>"; };
 		87F038C82A8322E700F67638 /* MTLSize+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MTLSize+Ext.swift"; sourceTree = "<group>"; };
 		87F038CA2A833C8400F67638 /* C7CombinationBilateralBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = C7CombinationBilateralBlur.swift; sourceTree = "<group>"; };
 		87F038CE2A835E7D00F67638 /* C7BilateralBlur.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7BilateralBlur.swift; sourceTree = "<group>"; };
@@ -689,6 +699,8 @@
 				F7621A922A7FA45400614542 /* CIGaussianBlur.swift */,
 				87265FBA2994D82100E612C7 /* CIHighlight.swift */,
 				F7621AAA2A7FE13800614542 /* CILookupTable.swift */,
+				87DC84712BB10D2A0071D816 /* CINoiseReduction.swift */,
+				87DBC30F2BB6980900B55909 /* CIPhotoEffect.swift */,
 				F7621A962A7FABAD00614542 /* CISaturation.swift */,
 				F7621A982A7FABF300614542 /* CIShadows.swift */,
 				F7621A9A2A7FAC7000614542 /* CISharpen.swift */,
@@ -784,8 +796,11 @@
 			children = (
 				87265FF82994D82100E612C7 /* BoxxIO.swift */,
 				87265FF52994D82100E612C7 /* Destype.swift */,
+				87A249E82BAA75B900AF7D1A /* HugeImage.swift */,
 				87265FC62994D82100E612C7 /* Operators.swift */,
 				87265FF62994D82100E612C7 /* Outputable.swift */,
+				87660AD92BB25A500065717A /* Renderable.swift */,
+				87DC84732BB110E40071D816 /* RenderView.swift */,
 			);
 			path = Outputs;
 			sourceTree = "<group>";
@@ -1237,6 +1252,8 @@
 				872661122994D82200E612C7 /* C7Sharpen.metal in Sources */,
 				872660C72994D82200E612C7 /* Device.swift in Sources */,
 				872661612994D82200E612C7 /* C7Posterize.swift in Sources */,
+				87DC84722BB10D2A0071D816 /* CINoiseReduction.swift in Sources */,
+				87DC84742BB110E40071D816 /* RenderView.swift in Sources */,
 				872660D72994D82200E612C7 /* Matrix4x5.swift in Sources */,
 				87671B812A8E01B000C0A5F0 /* C7CircleBlur.swift in Sources */,
 				8726615E2994D82200E612C7 /* C7Luminance.metal in Sources */,
@@ -1368,8 +1385,10 @@
 				872660C92994D82200E612C7 /* Matrix3x3.swift in Sources */,
 				872660D22994D82200E612C7 /* Size.swift in Sources */,
 				872661192994D82200E612C7 /* C7Sobel.swift in Sources */,
+				87DBC3102BB6980900B55909 /* CIPhotoEffect.swift in Sources */,
 				872660E02994D82200E612C7 /* Matrix4x4.swift in Sources */,
 				872661942994D82200E612C7 /* C7RedMonochromeBlur.metal in Sources */,
+				87660ADA2BB25A500065717A /* Renderable.swift in Sources */,
 				872661642994D82200E612C7 /* C7Opacity.metal in Sources */,
 				872661572994D82200E612C7 /* C7LuminanceThreshold.swift in Sources */,
 				872661832994D82200E612C7 /* C7BlendLinearBurn.metal in Sources */,
@@ -1385,6 +1404,7 @@
 				8726619B2994D82200E612C7 /* C7ShiftGlitch.metal in Sources */,
 				872660CC2994D82200E612C7 /* Error.swift in Sources */,
 				872661682994D82200E612C7 /* C7Haze.swift in Sources */,
+				87A249E92BAA75B900AF7D1A /* HugeImage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

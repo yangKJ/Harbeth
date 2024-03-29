@@ -35,7 +35,7 @@ internal struct Rendering {
         renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.65, 0.8, 1)
         
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
-            C7FailedErrorInDebug("Could not create render encoder")
+            HarbethError.failed("Could not create render encoder")
             return
         }
         let device = Device.device()

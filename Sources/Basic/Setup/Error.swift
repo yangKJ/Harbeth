@@ -45,6 +45,8 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
     /// A textual representation of `self`, suitable for debugging.
     public var localizedDescription: String {
         switch self {
+        case .unknown:
+            return "Unknown error occurred."
         case .error(let error):
             return error.localizedDescription
         case .image2Texture:
@@ -85,8 +87,6 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
             return "Bitmap Data Not Found."
         case .image2CGImage:
             return "Input image transform CGImage failed."
-        default:
-            return "Unknown error occurred."
         }
     }
     
@@ -155,6 +155,15 @@ extension HarbethError {
         } else {
             return .error(error)
         }
+    }
+    
+    // Wrong printing.
+    static func failed(_ message: @autoclosure () -> String, file: StaticString = #file, line: UInt = #line) {
+        #if DEBUG
+        fatalError(message(), file: file, line: line)
+        #else
+        print("\(file):\(line): \(message())")
+        #endif
     }
 }
 

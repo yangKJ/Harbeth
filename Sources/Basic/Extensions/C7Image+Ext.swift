@@ -216,11 +216,10 @@ extension HarbethWrapper where Base: C7Image {
         #if os(macOS)
         return base
         #else
-        let imageOrientation = base.imageOrientation
-        guard imageOrientation != .up, let cgImage = base.cgImage else {
+        guard base.imageOrientation != .up, let cgImage = base.cgImage else {
             return base
         }
-        return cgImage.c7.fixOrientation(from: imageOrientation).c7.drawing(refImage: base)
+        return cgImage.c7.drawing(refImage: base)
         #endif
     }
 }

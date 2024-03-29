@@ -12,13 +12,14 @@ class UnitTestViewController: UIViewController {
     
     let originImage = R.image("AX")
     
-    lazy var ImageView: UIImageView = {
-        let imageView = UIImageView(image: originImage)
+    lazy var renderView: RenderView = {
+        let view = RenderView.init(image: originImage)
+        view.keepAroundForSynchronousRender = false
         //imageView.contentMode = .scaleAspectFit
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.borderColor = UIColor.background2?.cgColor
-        imageView.layer.borderWidth = 0.5
-        return imageView
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.layer.borderColor = UIColor.background2?.cgColor
+        view.layer.borderWidth = 0.5
+        return view
     }()
     
     lazy var leftBarButton: UIBarButtonItem = {
@@ -51,13 +52,13 @@ class UnitTestViewController: UIViewController {
         title = "Unit"
         navigationItem.rightBarButtonItem = leftBarButton
         view.backgroundColor = UIColor.background
-        view.addSubview(ImageView)
+        view.addSubview(renderView)
         NSLayoutConstraint.activate([
-            ImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
-            ImageView.heightAnchor.constraint(equalTo: ImageView.widthAnchor, multiplier: 1.0),
-            //ImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
-            ImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            ImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            renderView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
+            renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 1.0),
+            //renderView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
+            renderView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
+            renderView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
         ])
     }
     
@@ -78,7 +79,8 @@ extension UnitTestViewController {
     func unitTest() {
         let filter = C7Storyboard(ranks: 2)
         
-        let dest = BoxxIO.init(element: originImage, filters: [filter])
-        ImageView.image = try? dest.output()
+        //let dest = BoxxIO.init(element: originImage, filters: [filter])
+        //renderView.image = try? dest.output()
+        renderView.filters = [filter]
     }
 }

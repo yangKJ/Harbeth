@@ -15,11 +15,25 @@ import AppKit
 extension C7Image {
     
     public convenience init(cgImage: CGImage) {
+        //self.init(cgImage: cgImage, scale: 1.0, orientation: .up)
         self.init(cgImage: cgImage, size: .zero)
     }
     
+    public convenience init(cgImage: CGImage, scale: CGFloat, orientation: C7ImageOrientation) {
+        let cgImage: CGImage = {
+            orientation != .up ? cgImage.c7.fixOrientation(from: orientation) : cgImage
+        }()
+        let imageRep = NSBitmapImageRep(cgImage: cgImage)
+        let scale = max(1.0, scale)
+        let width = CGFloat(imageRep.pixelsWide) / scale
+        let height = CGFloat(imageRep.pixelsHigh) / scale
+        self.init(cgImage: cgImage, size: .init(width: width, height: height))
+        self.addRepresentation(imageRep)
+    }
+    
     public var cgImage: CGImage? {
-        return self.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        var rect = NSRect(origin: .zero, size: self.size)
+        return self.cgImage(forProposedRect: &rect, context: nil, hints: nil)
     }
     
     public var scale: CGFloat {

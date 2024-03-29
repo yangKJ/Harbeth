@@ -15,7 +15,7 @@ public struct Matrix4x5 {
     
     public init(values: [Float]) {
         if values.count != 20 {
-            C7FailedErrorInDebug("There must be twenty values for 4x5 Matrix.")
+            HarbethError.failed("There must be twenty values for 4x5 Matrix.")
         }
         var matrix = [Float]()
         var vector = [Float]()

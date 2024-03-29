@@ -17,7 +17,7 @@ public struct Vector3: Matrix {
     
     public init(values: [Float]) {
         if values.count != 3 {
-            C7FailedErrorInDebug("There must be three values for Vector3.")
+            HarbethError.failed("There must be three values for Vector3.")
         }
         self.values = values
     }

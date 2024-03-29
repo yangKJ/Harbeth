@@ -19,7 +19,7 @@ public struct Vector4: Matrix {
     
     public init(values: [Float]) {
         if values.count != 4 {
-            C7FailedErrorInDebug("There must be four values for Vector4.")
+            HarbethError.failed("There must be four values for Vector4.")
         }
         self.values = values
     }

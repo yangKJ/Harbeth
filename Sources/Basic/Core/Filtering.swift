@@ -104,6 +104,12 @@ public protocol CoreImageProtocol: C7FilterProtocol {
     func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage
 }
 
+extension CoreImageProtocol {
+    public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
+        return ciImage
+    }
+}
+
 // MARK: - render filter protocol
 public protocol RenderProtocol: C7FilterProtocol {
     /// Setup the vertex shader parameters.

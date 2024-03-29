@@ -156,13 +156,10 @@ extension HarbethWrapper where Base: CGImage {
         let finalImageRef = base.cropping(to: rect)
         return finalImageRef ?? base
     }
-}
-
-#if os(iOS) || os(tvOS) || os(watchOS)
-extension HarbethWrapper where Base: CGImage {
     
-    /// Fixed image rotation direction.
-    public func fixOrientation(from orientation: UIImage.Orientation) -> CGImage {
+    /// We need to calculate the proper transformation to make the image upright.
+    /// We do it in 2 steps: Rotate if Left/Right/Down, and then flip if Mirrored.
+    public func fixTransform(from orientation: C7ImageOrientation) -> CGAffineTransform {
         let width  = CGFloat(base.width)
         let height = CGFloat(base.height)
         var transform = CGAffineTransform.identity
@@ -179,7 +176,6 @@ extension HarbethWrapper where Base: CGImage {
         default:
             break
         }
-        
         switch orientation {
         case .upMirrored, .downMirrored:
             transform = transform.translatedBy(x: width, y: 0)
@@ -190,10 +186,17 @@ extension HarbethWrapper where Base: CGImage {
         default:
             break
         }
-        
+        return transform
+    }
+    
+    /// Fixed image rotation direction.
+    public func fixOrientation(from orientation: C7ImageOrientation) -> CGImage {
         guard let colorSpace = base.colorSpace else {
             return base
         }
+        let width = CGFloat(base.width)
+        let height = CGFloat(base.height)
+        let transform = base.c7.fixTransform(from: orientation)
         let context = CGContext(data: nil,
                                 width: Int(width),
                                 height: Int(height),
@@ -208,8 +211,6 @@ extension HarbethWrapper where Base: CGImage {
         default:
             context?.draw(base, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
-        
         return context?.makeImage() ?? base
     }
 }
-#endif

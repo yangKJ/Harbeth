@@ -84,6 +84,17 @@ dest.transmitOutput(success: { [weak self] image in
 })
 ```
 
+### ImageView
+
+- Just use the [RenderView](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/RenderView.swift) and set the filters.
+
+```
+// It's used the same way as NSImageView.
+let renderView = RenderView.init(image: originImage)
+
+renderView.filters = [C7Storyboard(ranks: 2)]
+```
+
 ### Camera
 
 - 📸 Camera capture generates pictures.

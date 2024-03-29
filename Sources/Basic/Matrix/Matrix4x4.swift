@@ -16,7 +16,7 @@ public struct Matrix4x4: Matrix {
     
     public init(values: [Float]) {
         if values.count != 16 {
-            C7FailedErrorInDebug("There must be 16 values for 4x4 Matrix.")
+            HarbethError.failed("There must be 16 values for 4x4 Matrix.")
         }
         self.values = values
     }
