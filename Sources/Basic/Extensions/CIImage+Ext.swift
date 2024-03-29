@@ -120,13 +120,11 @@ extension C7FilterProtocol {
         guard let ciFiter = CIFilter.init(name: name) else {
             throw HarbethError.createCIFilter(name)
         }
-//        guard let cgImage = texture.c7.toCGImage() else {
-//            throw HarbethError.texture2CGImage
-//        }
-//        let inputCIImage = CIImage.init(cgImage: cgImage)
-        guard let inputCIImage = CIImage.init(mtlTexture: texture) else {
-            throw HarbethError.texture2CIImage
+        guard let cgImage = texture.c7.toCGImage() else {
+            throw HarbethError.texture2CGImage
         }
+        // Fixed coreImage filter has blank or center flip bug.
+        let inputCIImage = CIImage.init(cgImage: cgImage)
         let ciImage = try (self as! CoreImageProtocol).coreImageApply(filter: ciFiter, input: inputCIImage)
         ciFiter.setValue(ciImage, forKeyPath: kCIInputImageKey)
         guard let outputImage = ciFiter.outputImage else {
