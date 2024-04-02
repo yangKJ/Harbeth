@@ -8,7 +8,7 @@
 import Foundation
 import simd
 
-public struct C7Transform: C7FilterProtocol, ComputeProtocol {
+public struct C7Transform: C7FilterProtocol {
     
     public var transform: CGAffineTransform
     public var anchorPoint: C7Point2D = C7Point2D.zero

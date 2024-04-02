@@ -9,7 +9,7 @@ import Foundation
 
 /// 双边模糊
 /// A bilateral blur, which tries to blur similar color values while preserving sharp edges
-public struct C7CombinationBilateralBlur: C7FilterProtocol, CombinationProtocol {
+public struct C7CombinationBilateralBlur: C7FilterProtocol {
     
     /// A normalization factor for the distance between central color and sample color, with a default of 8.0
     public var distanceNormalizationFactor: Float = 8 {

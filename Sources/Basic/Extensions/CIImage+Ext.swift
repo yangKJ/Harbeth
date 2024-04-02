@@ -29,45 +29,21 @@ extension HarbethWrapper where Base: CIImage {
             .transformed(by: CGAffineTransform(translationX: 0, y: base.extent.height))
     }
     
-    /// Write CIImage to metal texture synchronously.
+    /// Write CIImage to metal texture, and then wait for final submission.
     /// Render bounds of CIImage to a Metal texture, optionally specifying what command buffer to use.
     /// - Parameters:
     ///   - texture: Output the texture and write CIImage to the metal texture.
     ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
-    public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer? = nil) throws {
-        guard let commandBuffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
-            throw HarbethError.commandBuffer
-        }
-        let colorSpace = Device.colorSpace()
-        let ctx = Device.context(colorSpace: colorSpace)
-        let fixedImage = base.c7.fixHorizontalFlip()
+    public func renderCIImageToTexture(_ texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws {
+        let ctx = Device.context(colorSpace: Device.colorSpace())
+        let img = fixHorizontalFlip()
         if #available(iOS 11.0, macOS 10.13, *) {
             let renderDestination = CIRenderDestination(mtlTexture: texture, commandBuffer: commandBuffer)
-            //try ctx.prepareRender(fixedImage, from: fixedImage.extent, to: renderDestination, at: .zero)
-            _ = try ctx.startTask(toRender: fixedImage, to: renderDestination)
+            //try ctx.prepareRender(img, from: img.extent, to: renderDestination, at: .zero)
+            _ = try ctx.startTask(toRender: img, to: renderDestination)
         } else {
-            ctx.render(fixedImage, to: texture, commandBuffer: commandBuffer, bounds: fixedImage.extent, colorSpace: colorSpace)
+            ctx.render(img, to: texture, commandBuffer: commandBuffer, bounds: img.extent, colorSpace: Device.colorSpace())
         }
-        commandBuffer.commitAndWaitUntilCompleted()
-    }
-    
-    /// Asynchronous write CIImage to metal texture.
-    /// Render `bounds` of `image` to a Metal texture, optionally specifying what command buffer to use.
-    /// - Parameters:
-    ///   - texture: Texture type must be MTLTexture2D.
-    ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
-    public func asyncRenderCIImageToTexture(_ texture: MTLTexture,
-                                            commandBuffer: MTLCommandBuffer? = nil,
-                                            complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
-        guard let buffer = commandBuffer ?? Device.commandQueue().makeCommandBuffer() else {
-            complete(.failure(HarbethError.commandBuffer))
-            return
-        }
-        let colorSpace = Device.colorSpace()
-        let ctx = Device.context(colorSpace: colorSpace)
-        let fixedImage = fixHorizontalFlip()
-        ctx.render(fixedImage, to: texture, commandBuffer: buffer, bounds: fixedImage.extent, colorSpace: colorSpace)
-        buffer.asyncCommit(texture: texture, complete: complete)
     }
     
     public func removingExtentOffset() -> CIImage {

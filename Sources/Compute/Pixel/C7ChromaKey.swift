@@ -9,7 +9,7 @@ import Foundation
 
 /// 祛除某种色系，有点类似绿幕抠图，被祛除的像素会变透明
 /// Remove the background that has the specified a color. A bit like green screen matting, The removed pixels become transparent.
-public struct C7ChromaKey: C7FilterProtocol, ComputeProtocol {
+public struct C7ChromaKey: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.1)
     

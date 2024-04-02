@@ -8,7 +8,7 @@
 import Foundation
 
 /// 3 x 3卷积
-public struct C7ConvolutionMatrix3x3: C7FilterProtocol, ComputeProtocol {
+public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
     
     public enum ConvolutionType {
         case `default`

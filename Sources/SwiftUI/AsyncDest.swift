@@ -7,6 +7,7 @@
 
 import Foundation
 
+@available(*, deprecated, message: "This is not recommended, please use the `HarbethView`.")
 @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
 public class AsyncDest<Dest>: ObservableObject {
     

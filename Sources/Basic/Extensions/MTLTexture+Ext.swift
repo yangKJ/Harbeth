@@ -80,6 +80,19 @@ public struct MTLTextureCompatible_ {
         CIImage.init(mtlTexture: target)
     }
     
+    public func toCIImage(mirrored: Bool) throws -> CIImage {
+        guard let ciImage = toCIImage() else {
+            throw HarbethError.texture2CIImage
+        }
+        if mirrored, #available(iOS 11.0, macOS 10.13, *) {
+            // When the CIImage is created, it is mirrored and flipped upside down.
+            // But upon inspecting the texture, it still renders the CIImage as expected.
+            // Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
+            return ciImage.oriented(.downMirrored)
+        }
+        return ciImage
+    }
+    
     /// Create a CGImage with the data and information we provided.
     /// Each pixel contains of 4 UInt8s or 32 bits, each byte is representing one channel.
     /// The layout of the pixels is described with bitmap info.

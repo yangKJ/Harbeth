@@ -8,7 +8,7 @@
 import Foundation
 
 /// 渐晕效果，使边缘的图像淡化
-public struct C7Vignette: C7FilterProtocol, ComputeProtocol {
+public struct C7Vignette: C7FilterProtocol {
     
     /// The normalized distance from the center where the vignette effect starts, with a default of 0.3
     public var start: Float = 0.3

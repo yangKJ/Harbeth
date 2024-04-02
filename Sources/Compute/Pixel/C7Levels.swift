@@ -8,7 +8,7 @@
 import Foundation
 
 /// 色阶
-public struct C7Levels: C7FilterProtocol, ComputeProtocol {
+public struct C7Levels: C7FilterProtocol {
     
     public var minimum: C7Color = C7Color.black
     public var middle:  C7Color = C7Color.white

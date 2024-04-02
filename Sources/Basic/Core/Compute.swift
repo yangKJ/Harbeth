@@ -84,28 +84,24 @@ extension C7FilterProtocol {
         computeEncoder.setComputePipelineState(pipelineState)
         
         let destTexture = textures[0]
-        for (i, texture) in textures.enumerated() {
-            computeEncoder.setTexture(texture, index: i)
+        for (index, texture) in textures.enumerated() {
+            computeEncoder.setTexture(texture, index: index)
         }
         
         let size = MemoryLayout<Float>.size
-        let count = self.factors.count
-        for i in 0..<count {
+        for i in 0..<self.factors.count {
             var factor = self.factors[i]
             computeEncoder.setBytes(&factor, length: size, index: i)
         }
-        
-        if let filter = self as? ComputeProtocol {
-            /// 配置特殊参数非`Float`类型，例如4x4矩阵
-            filter.setupSpecialFactors(for: computeEncoder, index: count - 1)
-        }
+        /// 配置特殊参数非`Float`类型，例如4x4矩阵
+        self.setupSpecialFactors(for: computeEncoder, index: self.factors.count - 1)
         
         // Too large some Gpus are not supported. Too small gpus have low efficiency
         // 2D texture, depth set to 1
         let threadgroupSize = MTLSize(width: 16, height: 16, depth: 1)
         // -1 pixel to solve the problem that the edges of images are not drawn.
         // Minimum 1 pixel, solve the problem of zero without drawing.
-        let width = max(Int((destTexture.width + threadgroupSize.width - 1) / threadgroupSize.width), 1)
+        let width  = max(Int((destTexture.width + threadgroupSize.width - 1) / threadgroupSize.width), 1)
         let height = max(Int((destTexture.height + threadgroupSize.height - 1) / threadgroupSize.height), 1)
         //let threadGroups = MTLSizeMake(width, height, destTexture.arrayLength)
         let threadgroupCount = MTLSize(width: width, height: height, depth: 1)

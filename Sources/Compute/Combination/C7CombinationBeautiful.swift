@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class C7CombinationBeautiful: C7FilterProtocol, CombinationProtocol {
+public class C7CombinationBeautiful: C7FilterProtocol {
     
     @ZeroOneRange public var intensity: Float = R.iRange.value
     

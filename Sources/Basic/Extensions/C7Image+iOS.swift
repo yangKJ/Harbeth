@@ -30,6 +30,14 @@ extension HarbethWrapper where Base: C7Image {
         base.withRenderingMode(.alwaysOriginal)
     }
     
+    // 解决前面有绘制过Bitmap《UIGraphicsGetCurrentContext》，导致失效问题
+    public func copy(compressionQuality: CGFloat) -> C7Image? {
+        if let data = base.jpegData(compressionQuality: compressionQuality) {
+            return C7Image.init(data: data)
+        }
+        return nil
+    }
+    
     /// 白色背景透明化，色值在[222...255]之间均可祛除
     /// The white background is transparent, and the color value can be removed between [222...255].
     public func imageByMakingWhiteBackgroundTransparent() -> C7Image? {
@@ -50,18 +58,13 @@ extension HarbethWrapper where Base: C7Image {
     ///   - compressionQuality: Compression ratio.
     /// - Returns: Remove the picture of the background.
     public func transparentColor(colorMasking: [CGFloat], compressionQuality: CGFloat = 1.0) -> C7Image? {
-        // 解决前面有绘制过Bitmap《UIGraphicsGetCurrentContext》，导致失效问题
-        guard let data = base.jpegData(compressionQuality: compressionQuality),
-              let image = C7Image(data: data) else {
+        UIGraphicsBeginImageContext(base.size)
+        guard let maskedImageRef = base.cgImage?.copy(maskingColorComponents: colorMasking) else {
             return nil
         }
-        UIGraphicsBeginImageContext(image.size)
-        guard let maskedImageRef = image.cgImage?.copy(maskingColorComponents: colorMasking) else {
-            return nil
-        }
-        let rect = CGRect(x: 0, y: 0, width: image.size.width, height: image.size.height)
+        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
         let context = UIGraphicsGetCurrentContext()
-        context?.translateBy(x: 0.0, y: image.size.height)
+        context?.translateBy(x: 0.0, y: base.size.height)
         context?.scaleBy(x: 1.0, y: -1.0)
         context?.draw(maskedImageRef, in: rect)
         let result = UIGraphicsGetImageFromCurrentImageContext()

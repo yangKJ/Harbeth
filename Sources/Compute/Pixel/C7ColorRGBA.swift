@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct C7ColorRGBA: C7FilterProtocol, ComputeProtocol {
+public struct C7ColorRGBA: C7FilterProtocol {
     
     /// Specifies the intensity of the operation.
     @ZeroOneRange public var intensity: Float = R.iRange.value

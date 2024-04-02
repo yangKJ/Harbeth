@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct C7EdgeGlow: C7FilterProtocol, ComputeProtocol {
+public struct C7EdgeGlow: C7FilterProtocol {
     
     /// The adjusted time, from 0.0 to 1.0, with a default of 0.5
     public var time: Float = 0.5
