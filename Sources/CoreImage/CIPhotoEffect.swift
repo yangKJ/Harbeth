@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CIPhotoEffect: C7FilterProtocol, CoreImageProtocol {
+public struct CIPhotoEffect: CoreImageProtocol {
     public enum EffectType {
         /// Imitate vintage photography film with exaggerated color.
         case chrome

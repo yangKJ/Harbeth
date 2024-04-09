@@ -10,7 +10,7 @@ import MetalPerformanceShaders
 import simd
 
 /// 直方图均衡化
-public struct MPSHistogram: C7FilterProtocol, MPSKernelProtocol {
+public struct MPSHistogram: MPSKernelProtocol {
     
     public static let range: ParameterRange<Int, Self> = .init(min: 0, max: 8, value: 2)
     

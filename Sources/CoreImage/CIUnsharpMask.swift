@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CIUnsharpMask: C7FilterProtocol, CoreImageProtocol {
+public struct CIUnsharpMask: CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 0.3, value: 0.0)
     

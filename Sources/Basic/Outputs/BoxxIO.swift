@@ -141,7 +141,7 @@ import CoreVideo
                 if hasCoreImage {
                     complete(.success(result))
                 } else {
-                    commandBuffer?.asyncCommit(texture: result, complete: complete)
+                    commandBuffer?.asyncCommit { complete($0.map({ result })) }
                 }
                 return
             }
@@ -197,7 +197,7 @@ extension BoxxIO {
     private func filtering(image: C7Image) throws -> C7Image {
         let inTexture = try TextureLoader.init(with: image).texture
         let texture = try filtering(texture: inTexture)
-        return try fixImageOrientation(texture: texture, refImage: image)
+        return try texture.c7.fixImageOrientation(refImage: image)
     }
     
     private func filtering(texture: MTLTexture) throws -> MTLTexture {
@@ -302,7 +302,7 @@ extension BoxxIO {
                 switch res {
                 case .success(let t):
                     do {
-                        let result = try fixImageOrientation(texture: t, refImage: image)
+                        let result = try t.c7.fixImageOrientation(refImage: image)
                         complete(.success(result))
                     } catch {
                         complete(.failure(HarbethError.toHarbethError(error)))
@@ -337,13 +337,6 @@ extension BoxxIO {
         ])
     }
     
-    private func fixImageOrientation(texture: MTLTexture, refImage: C7Image) throws -> C7Image {
-        guard let cgImage = texture.c7.toCGImage() else {
-            throw HarbethError.texture2Image
-        }
-        return cgImage.c7.drawing(refImage: refImage).c7.flattened()
-    }
-    
     /// Do you need to create a new metal texture command buffer.
     /// - Parameter buffer: Old command buffer.
     /// - Returns: A command buffer.
@@ -366,24 +359,21 @@ extension BoxxIO {
     /// - Returns: Output texture after processing
     private func textureIO(with texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer?) throws -> MTLTexture {
         let commandBuffer = try makeCommandBuffer(for: buffer)
-        let destTexture = try createDestTexture(with: texture, filter: filter)
+        var destTexture = try createDestTexture(with: texture, filter: filter)
+        let inputTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
         switch filter.modifier {
-        case .coreimage(let name):
-            let outputImage = try filter.outputCIImage(with: texture, name: name)
+        case .coreimage(let name) where filter is CoreImageProtocol:
+            let outputImage = try (filter as! CoreImageProtocol).outputCIImage(with: inputTexture, name: name)
             try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
-            commandBuffer.commitAndWaitUntilCompleted()
-            return destTexture
         case .compute, .mps, .render:
-            let beiginTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
-            let outputTexture = try filter.applyAtTexture(form: beiginTexture, to: destTexture, for: commandBuffer)
-            let finalTexture = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: texture)
-            if hasCoreImage {
-                commandBuffer.commitAndWaitUntilCompleted()
-            }
-            return finalTexture
+            destTexture = try filter.applyAtTexture(form: inputTexture, to: destTexture, for: commandBuffer)
         default:
             return texture
         }
+        if hasCoreImage {
+            commandBuffer.commitAndWaitUntilCompleted()
+        }
+        return try filter.combinationAfter(for: commandBuffer, input: destTexture, source: texture)
     }
     
     /// Whether to synchronously wait for the execution of the Metal command buffer to complete.
@@ -396,64 +386,38 @@ extension BoxxIO {
                             filter: C7FilterProtocol,
                             complete: @escaping (Result<MTLTexture, HarbethError>) -> Void,
                             buffer: MTLCommandBuffer?) {
+        func combinationAfter(for buffer: MTLCommandBuffer, inputTexture: MTLTexture) {
+            do {
+                let finalTexture = try filter.combinationAfter(for: buffer, input: inputTexture, source: texture)
+                if hasCoreImage {
+                    buffer.asyncCommit { complete($0.map({ finalTexture })) }
+                } else {
+                    complete(.success(finalTexture))
+                }
+            } catch {
+                complete(.failure(HarbethError.toHarbethError(error)))
+            }
+        }
         do {
             let commandBuffer = try makeCommandBuffer(for: buffer)
+            let destTexture = try createDestTexture(with: texture, filter: filter)
+            let inputTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
             switch filter.modifier {
-            case .coreimage(let name):
-                let outputImage = try filter.outputCIImage(with: texture, name: name)
-                //let finaTexture = try TextureLoader(with: outputImage).texture
-                try outputImage.c7.renderCIImageToTexture(texture, commandBuffer: commandBuffer)
-                commandBuffer.asyncCommit(texture: texture, complete: complete)
+            case .coreimage(let name) where filter is CoreImageProtocol:
+                let outputImage = try (filter as! CoreImageProtocol).outputCIImage(with: inputTexture, name: name)
+                try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
+                combinationAfter(for: commandBuffer, inputTexture: destTexture)
             case .compute, .mps, .render:
-                let destTexture = try createDestTexture(with: texture, filter: filter)
-                let inputTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
-                asyncApplyAtTexture(form: inputTexture, to: destTexture, for: commandBuffer, filter: filter) { res in
+                filter.asyncApplyAtTexture(form: inputTexture, to: destTexture, for: commandBuffer) { res in
                     switch res {
                     case .success(let outTexture):
-                        do {
-                            let finalTexture = try filter.combinationAfter(for: commandBuffer, input: outTexture, source: texture)
-                            if hasCoreImage {
-                                commandBuffer.asyncCommit(texture: finalTexture, complete: complete)
-                            } else {
-                                complete(.success(finalTexture))
-                            }
-                        } catch {
-                            complete(.failure(HarbethError.toHarbethError(error)))
-                        }
+                        combinationAfter(for: commandBuffer, inputTexture: outTexture)
                     case .failure(let err):
                         complete(.failure(err))
                     }
                 }
             default:
                 break
-            }
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
-        }
-    }
-    
-    private func asyncApplyAtTexture(form texture: MTLTexture,
-                                     to destTexture: MTLTexture,
-                                     for buffer: MTLCommandBuffer,
-                                     filter: C7FilterProtocol,
-                                     complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
-        do {
-            switch filter.modifier {
-            case .compute(let kernel):
-                var textures = [destTexture, texture]
-                textures += filter.otherInputTextures
-                filter.drawing(with: kernel, commandBuffer: buffer, textures: textures, complete: complete)
-            case .render(let vertex, let fragment):
-                let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
-                Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: filter)
-                complete(.success(destTexture))
-            case .mps where filter is MPSKernelProtocol:
-                var textures = [destTexture, texture]
-                textures += filter.otherInputTextures
-                let finaTexture = try (filter as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
-                complete(.success(finaTexture))
-            default:
-                complete(.success(texture))
             }
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))

@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CINoiseReduction: C7FilterProtocol, CoreImageProtocol {
+public struct CINoiseReduction: CoreImageProtocol {
     
     public var noiseLevel: Float = 0.02
     

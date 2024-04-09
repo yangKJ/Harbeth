@@ -9,7 +9,7 @@ import Foundation
 import MetalPerformanceShaders
 
 /// 高斯模糊
-public struct MPSGaussianBlur: C7FilterProtocol, MPSKernelProtocol {
+public struct MPSGaussianBlur: MPSKernelProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 100, value: 10)
     

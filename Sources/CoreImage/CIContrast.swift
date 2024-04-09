@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CIContrast: C7FilterProtocol, CoreImageProtocol {
+public struct CIContrast: CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: -1.0, max: 1.0, value: 0.0)
     

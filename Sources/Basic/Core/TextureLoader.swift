@@ -37,10 +37,10 @@ public struct TextureLoader {
     ///   - cgImage: Bitmap image
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let options = options ?? TextureLoader.defaultOptions
         guard let loader = Shared.shared.device?.textureLoader else {
             throw HarbethError.textureLoader
         }
+        let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(cgImage: cgImage, options: options)
     }
     
@@ -67,10 +67,10 @@ public struct TextureLoader {
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let options = options ?? TextureLoader.defaultOptions
         guard let cgImage = pixelBuffer.c7.toCGImage() else {
             throw HarbethError.source2Texture
         }
+        let options = options ?? TextureLoader.defaultOptions
         try self.init(with: cgImage, options: options)
     }
     
@@ -79,10 +79,10 @@ public struct TextureLoader {
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let options = options ?? TextureLoader.defaultOptions
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
+        let options = options ?? TextureLoader.defaultOptions
         try self.init(with: pixelBuffer, options: options)
     }
     
@@ -91,10 +91,10 @@ public struct TextureLoader {
     ///   - image: A UIImage / NSImage.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let options = options ?? TextureLoader.defaultOptions
         guard let cgImage = image.c7.toCGImage() else {
             throw HarbethError.image2CGImage
         }
+        let options = options ?? TextureLoader.defaultOptions
         try self.init(with: cgImage, options: options)
     }
     
@@ -103,10 +103,10 @@ public struct TextureLoader {
     ///   - data: Data.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with data: Data, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let options = options ?? TextureLoader.defaultOptions
         guard let loader = Shared.shared.device?.textureLoader else {
             throw HarbethError.textureLoader
         }
+        let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(data: data, options: options)
     }
     

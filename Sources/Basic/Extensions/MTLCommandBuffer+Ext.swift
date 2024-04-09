@@ -11,14 +11,11 @@ import MetalKit
 extension MTLCommandBuffer {
     
     /// Asynchronous submission of texture drawing.
-    /// - Parameters:
-    ///   - texture: Metal texture.
-    ///   - complete: Success or failure callback.
-    func asyncCommit(texture: MTLTexture, complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
+    func asyncCommit(complete: @escaping (Result<Void, HarbethError>) -> Void) {
         self.addCompletedHandler { (buffer) in
             switch buffer.status {
             case .completed:
-                complete(.success(texture))
+                complete(.success(()))
             case .error where buffer.error != nil:
                 complete(.failure(.error(buffer.error!)))
             default:

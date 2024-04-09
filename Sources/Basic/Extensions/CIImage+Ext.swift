@@ -23,6 +23,14 @@ extension HarbethWrapper where Base: CIImage {
         return cgImage
     }
     
+    public func toImage() -> C7Image? {
+        if let cgImage = base.cgImage {
+            return C7Image(cgImage: cgImage, scale: 1.0, orientation: .up)
+        } else {
+            return C7Image(ciImage: base, scale: 1.0, orientation: .up)
+        }
+    }
+    
     /// Fixed image horizontal flip problem.
     public func fixHorizontalFlip() -> CIImage {
         return base.transformed(by: CGAffineTransform(scaleX: 1, y: -1))
@@ -90,10 +98,12 @@ extension HarbethWrapper where Base: CIImage {
     }
 }
 
-extension C7FilterProtocol {
+extension CoreImageProtocol {
     
     func outputCIImage(with texture: MTLTexture, name: String) throws -> CIImage {
-        guard let ciFiter = CIFilter.init(name: name) else {
+        guard let ciFilter = (self as? CIImageDisplaying)?.ciFilter ?? {
+            CIFilter.init(name: name)
+        }() else {
             throw HarbethError.createCIFilter(name)
         }
         guard let cgImage = texture.c7.toCGImage() else {
@@ -101,12 +111,16 @@ extension C7FilterProtocol {
         }
         // Fixed coreImage filter has blank or center flip bug.
         let inputCIImage = CIImage.init(cgImage: cgImage)
-        let ciImage = try (self as! CoreImageProtocol).coreImageApply(filter: ciFiter, input: inputCIImage)
-        ciFiter.setValue(ciImage, forKeyPath: kCIInputImageKey)
-        guard let outputImage = ciFiter.outputImage else {
+        // Series connection other filters and finally output to the main filter.
+        let middleImage = try self.coreImageApply(filter: ciFilter, input: inputCIImage)
+        ciFilter.setValue(middleImage, forKeyPath: kCIInputImageKey)
+        guard let outputImage = ciFilter.outputImage else {
             throw HarbethError.outputCIImage(name)
         }
-        // Return a new image cropped to a rectangle.
-        return outputImage.cropped(to: inputCIImage.extent)
+        if self.croppedOutputImage {
+            // Return a new image cropped to a rectangle.
+            return outputImage.cropped(to: inputCIImage.extent)
+        }
+        return outputImage
     }
 }

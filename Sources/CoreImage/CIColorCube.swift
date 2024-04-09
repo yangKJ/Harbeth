@@ -9,7 +9,7 @@ import Foundation
 import CoreImage
 
 /// 读取Cube文件的查找滤镜
-public struct CIColorCube: C7FilterProtocol, CoreImageProtocol {
+public struct CIColorCube: CoreImageProtocol {
     
     public struct Resource {
         let dimension: Int

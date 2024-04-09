@@ -9,7 +9,7 @@ import Foundation
 import CoreImage
 
 /// 素描滤镜，包含去色、反色、高斯模糊和混合叠加几种滤镜
-public struct CISketch: C7FilterProtocol, CoreImageProtocol {
+public struct CISketch: CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 100, value: 10.0)
     
@@ -17,6 +17,10 @@ public struct CISketch: C7FilterProtocol, CoreImageProtocol {
     
     public var modifier: Modifier {
         return .coreimage(CIName: "CIColorDodgeBlendMode")
+    }
+    
+    public var croppedOutputImage: Bool {
+        return true
     }
     
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {

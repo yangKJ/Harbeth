@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CIGaussianBlur: C7FilterProtocol, CoreImageProtocol {
+public struct CIGaussianBlur: CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 100, value: 10.0)
     
@@ -16,6 +16,10 @@ public struct CIGaussianBlur: C7FilterProtocol, CoreImageProtocol {
     
     public var modifier: Modifier {
         return .coreimage(CIName: "CIGaussianBlur")
+    }
+    
+    public var croppedOutputImage: Bool {
+        return true
     }
     
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {

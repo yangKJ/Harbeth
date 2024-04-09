@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CIBrightness: C7FilterProtocol, CoreImageProtocol {
+public struct CIBrightness: CoreImageProtocol {
     
     /// The adjusted brightness, from -1.0 to 1.0, with a default of 0.0 being the original picture.
     public static let range: ParameterRange<Float, Self> = .init(min: -1.0, max: 1.0, value: 0.0)

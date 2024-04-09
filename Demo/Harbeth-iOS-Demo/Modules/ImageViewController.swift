@@ -37,8 +37,9 @@ class ImageViewController: UIViewController {
         return imageView
     }()
     
-    lazy var filterImageView: UIImageView = {
-        let imageView = UIImageView()
+    lazy var renderView: RenderView = {
+        let imageView = RenderView()
+        imageView.keepAroundForSynchronousRender = false
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.borderColor = UIColor.background2?.cgColor
@@ -85,25 +86,25 @@ class ImageViewController: UIViewController {
         navigationItem.rightBarButtonItem = autoBarButton
         view.backgroundColor = UIColor.background
         view.addSubview(originImageView)
-        view.addSubview(filterImageView)
+        view.addSubview(renderView)
         view.addSubview(slider)
         view.addSubview(leftLabel)
         view.addSubview(rightLabel)
         view.addSubview(currentLabel)
         NSLayoutConstraint.activate([
             originImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
-            filterImageView.topAnchor.constraint(equalTo: originImageView.bottomAnchor, constant: 15),
-            filterImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            filterImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            leftLabel.topAnchor.constraint(equalTo: filterImageView.bottomAnchor, constant: 20),
+            renderView.topAnchor.constraint(equalTo: originImageView.bottomAnchor, constant: 15),
+            renderView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
+            renderView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
+            leftLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
             leftLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             leftLabel.widthAnchor.constraint(equalToConstant: 100),
             leftLabel.heightAnchor.constraint(equalToConstant: 30),
-            rightLabel.topAnchor.constraint(equalTo: filterImageView.bottomAnchor, constant: 20),
+            rightLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
             rightLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             rightLabel.widthAnchor.constraint(equalToConstant: 100),
             rightLabel.heightAnchor.constraint(equalToConstant: 30),
-            currentLabel.topAnchor.constraint(equalTo: filterImageView.bottomAnchor, constant: 20),
+            currentLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
             currentLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             currentLabel.widthAnchor.constraint(equalToConstant: 100),
             currentLabel.heightAnchor.constraint(equalToConstant: 30),
@@ -114,15 +115,15 @@ class ImageViewController: UIViewController {
         ])
         if slider.isHidden {
             NSLayoutConstraint.activate([
-                filterImageView.heightAnchor.constraint(equalTo: filterImageView.widthAnchor, multiplier: 3/4),
-                originImageView.centerXAnchor.constraint(equalTo: filterImageView.centerXAnchor),
-                originImageView.widthAnchor.constraint(equalTo: filterImageView.widthAnchor),
-                originImageView.heightAnchor.constraint(equalTo: filterImageView.heightAnchor),
+                renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 3/4),
+                originImageView.centerXAnchor.constraint(equalTo: renderView.centerXAnchor),
+                originImageView.widthAnchor.constraint(equalTo: renderView.widthAnchor),
+                originImageView.heightAnchor.constraint(equalTo: renderView.heightAnchor),
             ])
         } else {
             originImageView.layer.borderWidth = 0
             NSLayoutConstraint.activate([
-                filterImageView.heightAnchor.constraint(equalTo: filterImageView.widthAnchor, multiplier: 3.5/4),
+                renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 3.5/4),
                 originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
                 originImageView.widthAnchor.constraint(equalToConstant: 100),
                 originImageView.heightAnchor.constraint(equalToConstant: 100),
@@ -130,14 +131,14 @@ class ImageViewController: UIViewController {
         }
         let bg = UIColor.background2?.withAlphaComponent(0.3)
         originImageView.backgroundColor = bg
-        filterImageView.backgroundColor = bg
+        renderView.backgroundColor = bg
         leftLabel.backgroundColor = bg
         rightLabel.backgroundColor = bg
         currentLabel.backgroundColor = bg
         leftLabel.text  = "\(slider.minimumValue)"
         rightLabel.text = "\(slider.maximumValue)"
         currentLabel.text = "\(slider.value)"
-        filterImageView.image = originImage
+        renderView.image = originImage
         originImageView.image = originImage
         leftLabel.isHidden = slider.isHidden
         rightLabel.isHidden = slider.isHidden
@@ -205,11 +206,6 @@ extension ImageViewController {
         guard let filter = filter else {
             return
         }
-        let dest = BoxxIO(element: self.originImage, filter: filter)
-        dest.transmitOutput(success: { [weak self] img in
-            DispatchQueue.main.async {
-                self?.filterImageView.image = img
-            }
-        })
+        self.renderView.filters = [filter]
     }
 }

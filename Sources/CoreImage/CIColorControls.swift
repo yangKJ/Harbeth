@@ -9,7 +9,7 @@ import Foundation
 import CoreImage
 
 /// 调整亮度、饱和度和对比度
-public struct CIColorControls: C7FilterProtocol, CoreImageProtocol {
+public struct CIColorControls: CoreImageProtocol {
     
     /// The adjusted brightness, from -1.0 to 1.0, with a default of 0.0.
     @Clamping(CIBrightness.range.min...CIBrightness.range.max) public var brightness: Float = CIBrightness.range.value

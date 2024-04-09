@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CITemperature: C7FilterProtocol, CoreImageProtocol {
+public struct CITemperature: CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: -3000, max: 3000, value: 0.0)
     

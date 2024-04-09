@@ -223,6 +223,7 @@
 		872BBA9C2B19879700493F25 /* C7Color+Driver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA9B2B19879700493F25 /* C7Color+Driver.swift */; };
 		872BBA9E2B19B1A000493F25 /* ResizingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872BBA9D2B19B1A000493F25 /* ResizingMode.swift */; };
 		872FDC592B98109300A755FD /* MPSBoxBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872FDC582B98109300A755FD /* MPSBoxBlur.swift */; };
+		8738251D2BC38EE3005F1133 /* CIResizedSmooth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8738251C2BC38EE3005F1133 /* CIResizedSmooth.swift */; };
 		874035802A983E47001D0A98 /* CISketch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8740357F2A983E47001D0A98 /* CISketch.swift */; };
 		874035822A987F33001D0A98 /* AsyncDest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035812A987F33001D0A98 /* AsyncDest.swift */; };
 		87418C5A2B3BC5780024D1A7 /* CGPath+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87418C592B3BC5780024D1A7 /* CGPath+Ext.swift */; };
@@ -507,6 +508,7 @@
 		872BBA9B2B19879700493F25 /* C7Color+Driver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "C7Color+Driver.swift"; sourceTree = "<group>"; };
 		872BBA9D2B19B1A000493F25 /* ResizingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizingMode.swift; sourceTree = "<group>"; };
 		872FDC582B98109300A755FD /* MPSBoxBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPSBoxBlur.swift; sourceTree = "<group>"; };
+		8738251C2BC38EE3005F1133 /* CIResizedSmooth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIResizedSmooth.swift; sourceTree = "<group>"; };
 		8740357F2A983E47001D0A98 /* CISketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CISketch.swift; sourceTree = "<group>"; };
 		874035812A987F33001D0A98 /* AsyncDest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncDest.swift; sourceTree = "<group>"; };
 		87418C592B3BC5780024D1A7 /* CGPath+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGPath+Ext.swift"; sourceTree = "<group>"; };
@@ -701,6 +703,7 @@
 				F7621AAA2A7FE13800614542 /* CILookupTable.swift */,
 				87DC84712BB10D2A0071D816 /* CINoiseReduction.swift */,
 				87DBC30F2BB6980900B55909 /* CIPhotoEffect.swift */,
+				8738251C2BC38EE3005F1133 /* CIResizedSmooth.swift */,
 				F7621A962A7FABAD00614542 /* CISaturation.swift */,
 				F7621A982A7FABF300614542 /* CIShadows.swift */,
 				F7621A9A2A7FAC7000614542 /* CISharpen.swift */,
@@ -1140,6 +1143,7 @@
 				872661772994D82200E612C7 /* C7BlendMask.metal in Sources */,
 				F7621AA32A7FC9EF00614542 /* CIUnsharpMask.swift in Sources */,
 				872661A02994D82200E612C7 /* C7Nostalgic.metal in Sources */,
+				8738251D2BC38EE3005F1133 /* CIResizedSmooth.swift in Sources */,
 				872660BB2994D82200E612C7 /* CIWhitePoint.swift in Sources */,
 				F7621A932A7FA45400614542 /* CIGaussianBlur.swift in Sources */,
 				8726614F2994D82200E612C7 /* C7HighlightShadowTint.metal in Sources */,

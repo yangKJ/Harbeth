@@ -117,11 +117,42 @@ extension C7FilterProtocol {
             return destTexture
         }
     }
+    
+    public func asyncApplyAtTexture(form texture: MTLTexture,
+                                    to destTexture: MTLTexture,
+                                    for buffer: MTLCommandBuffer,
+                                    complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
+        do {
+            switch self.modifier {
+            case .compute(let kernel):
+                var textures = [destTexture, texture]
+                textures += self.otherInputTextures
+                self.drawing(with: kernel, commandBuffer: buffer, textures: textures, complete: complete)
+            case .render(let vertex, let fragment):
+                let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
+                Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
+                complete(.success(destTexture))
+            case .mps where self is MPSKernelProtocol:
+                var textures = [destTexture, texture]
+                textures += self.otherInputTextures
+                let finaTexture = try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+                complete(.success(finaTexture))
+            default:
+                complete(.success(texture))
+            }
+        } catch {
+            complete(.failure(HarbethError.toHarbethError(error)))
+        }
+    }
 }
 
 // MARK: - coreimage filter protocol
 public protocol CoreImageProtocol: C7FilterProtocol {
-    /// Compatible with CoreImage.
+    
+    /// Return a new image cropped to a rectangle.
+    var croppedOutputImage: Bool { get }
+    
+    /// Series connection other filters and finally output to the main filter.
     /// - Parameters:
     ///   - filter: CoreImage CIFilter.
     ///   - ciImage: Input source
@@ -129,7 +160,16 @@ public protocol CoreImageProtocol: C7FilterProtocol {
     func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage
 }
 
+public protocol CIImageDisplaying: CoreImageProtocol {
+    var ciFilter: CIFilter? { get set }
+}
+
 extension CoreImageProtocol {
+    
+    public var croppedOutputImage: Bool {
+        false
+    }
+    
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
         return ciImage
     }

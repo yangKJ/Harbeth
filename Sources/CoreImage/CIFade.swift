@@ -8,7 +8,7 @@
 import Foundation
 import CoreImage
 
-public struct CIFade: C7FilterProtocol, CoreImageProtocol {
+public struct CIFade: CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.0)
     

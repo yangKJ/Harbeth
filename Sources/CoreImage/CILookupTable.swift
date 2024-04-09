@@ -11,7 +11,7 @@ import CoreImage
 /// Read cube data and dimension, and then apply to CIImage.
 /// A Filter using LUT Image (backed by CIColorCubeWithColorSpace)
 /// About LUT Image -> https://en.wikipedia.org/wiki/Lookup_table
-public struct CILookupTable: C7FilterProtocol, CoreImageProtocol {
+public struct CILookupTable: CoreImageProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: -5.0, max: 5.0, value: 1.0)
     

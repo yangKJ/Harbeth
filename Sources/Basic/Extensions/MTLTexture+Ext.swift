@@ -93,6 +93,13 @@ public struct MTLTextureCompatible_ {
         return ciImage
     }
     
+    public func fixImageOrientation(refImage: C7Image) throws -> C7Image {
+        guard let cgImage = target.c7.toCGImage() else {
+            throw HarbethError.texture2Image
+        }
+        return cgImage.c7.drawing(refImage: refImage).c7.flattened()
+    }
+    
     /// Create a CGImage with the data and information we provided.
     /// Each pixel contains of 4 UInt8s or 32 bits, each byte is representing one channel.
     /// The layout of the pixels is described with bitmap info.

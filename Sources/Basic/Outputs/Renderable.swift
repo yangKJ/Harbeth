@@ -7,6 +7,7 @@
 
 import Foundation
 import ObjectiveC
+import MetalKit
 
 public protocol Renderable: AnyObject {
     associatedtype Element
@@ -15,15 +16,13 @@ public protocol Renderable: AnyObject {
     
     var keepAroundForSynchronousRender: Bool { get set }
     
-    var inputSource: Element? { get set }
+    var inputSource: MTLTexture? { get set }
     
     func setupInputSource()
     
-    func changedInputSource()
-    
     func filtering()
     
-    func setupOutputDest(_ dest: Element)
+    func setupOutputDest(_ dest: MTLTexture)
 }
 
 fileprivate var C7ATRenderableSetFiltersContext: UInt8 = 0
@@ -70,10 +69,10 @@ extension Renderable {
         }
     }
     
-    public var inputSource: Element? {
+    public weak var inputSource: MTLTexture? {
         get {
             synchronizedRenderable {
-                objc_getAssociatedObject(self, &C7ATRenderableInputSourceContext) as? Element
+                objc_getAssociatedObject(self, &C7ATRenderableInputSourceContext) as? MTLTexture
             }
         }
         set {
@@ -84,44 +83,34 @@ extension Renderable {
     }
     
     public func filtering() {
-        guard let image = inputSource, filters.count > 0 else {
+        guard let texture = inputSource, filters.count > 0 else {
             return
         }
-        let dest = BoxxIO(element: image, filters: filters)
+        let dest = BoxxIO(element: texture, filters: filters)
         if self.keepAroundForSynchronousRender {
-            if let image_ = try? dest.output() {
+            if let result = try? dest.output() {
                 self.lockedSource = true
-                self.setupOutputDest(image_)
+                self.setupOutputDest(result)
                 self.lockedSource = false
             }
         } else {
-            dest.transmitOutput { [weak self] image_ in
-                DispatchQueue.main.async {
-                    self?.lockedSource = true
-                    self?.setupOutputDest(image_)
-                    self?.lockedSource = false
-                }
-            }
+            dest.transmitOutput(success: { [weak self] result in
+                self?.lockedSource = true
+                self?.setupOutputDest(result)
+                self?.lockedSource = false
+            })
         }
-    }
-    
-    public func changedInputSource() {
-        if lockedSource {
-            return
-        }
-        self.setupInputSource()
-        self.filtering()
     }
 }
 
 fileprivate var C7ATRenderableLockedSourceContext: UInt8 = 0
 
 extension Renderable {
-    private var lockedSource: Bool {
+    var lockedSource: Bool {
         get {
             return synchronizedRenderable {
-                if let object = objc_getAssociatedObject(self, &C7ATRenderableLockedSourceContext) as? Bool {
-                    return object
+                if let locked = objc_getAssociatedObject(self, &C7ATRenderableLockedSourceContext) as? Bool {
+                    return locked
                 } else {
                     objc_setAssociatedObject(self, &C7ATRenderableLockedSourceContext, false, .OBJC_ASSOCIATION_ASSIGN)
                     return false
@@ -140,19 +129,5 @@ extension Renderable {
         let result = action()
         objc_sync_exit(self)
         return result
-    }
-}
-
-// MARK: - image view
-extension Renderable where Self: C7ImageView, Element == C7Image {
-    
-    public func setupInputSource() {
-        if inputSource == nil {
-            self.inputSource = image
-        }
-    }
-    
-    public func setupOutputDest(_ dest: C7Image) {
-        self.image = dest
     }
 }
