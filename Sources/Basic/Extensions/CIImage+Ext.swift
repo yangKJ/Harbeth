@@ -27,7 +27,11 @@ extension HarbethWrapper where Base: CIImage {
         if let cgImage = base.cgImage {
             return C7Image(cgImage: cgImage, scale: 1.0, orientation: .up)
         } else {
+            #if os(macOS)
+            return nil
+            #else
             return C7Image(ciImage: base, scale: 1.0, orientation: .up)
+            #endif
         }
     }
     
