@@ -86,11 +86,11 @@ dest.transmitOutput(success: { [weak self] image in
 
 ### ImageView
 
-- Just use the [RenderView](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/RenderView.swift) and set the filters.
+- Just use the [RenderImageView](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/RenderImageView.swift) and set the filters.
 
 ```
 // It's used the same way as NSImageView.
-let renderView = RenderView.init(image: originImage)
+let renderView = RenderImageView.init(image: originImage)
 
 renderView.filters = [C7Storyboard(ranks: 2)]
 ```

@@ -37,8 +37,8 @@ class ImageViewController: UIViewController {
         return imageView
     }()
     
-    lazy var renderView: RenderView = {
-        let imageView = RenderView()
+    lazy var renderView: RenderImageView = {
+        let imageView = RenderImageView()
         imageView.keepAroundForSynchronousRender = false
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false

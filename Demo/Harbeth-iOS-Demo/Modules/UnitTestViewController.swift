@@ -12,8 +12,8 @@ class UnitTestViewController: UIViewController {
     
     let originImage = R.image("AX")
     
-    lazy var renderView: RenderView = {
-        let view = RenderView.init(image: originImage)
+    lazy var renderView: RenderImageView = {
+        let view = RenderImageView.init(image: originImage)
         view.keepAroundForSynchronousRender = false
         //imageView.contentMode = .scaleAspectFit
         view.translatesAutoresizingMaskIntoConstraints = false

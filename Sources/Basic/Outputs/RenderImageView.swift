@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-public final class RenderView: C7ImageView, Renderable {
+public final class RenderImageView: C7ImageView, Renderable {
     
     public typealias Element = C7Image
     
