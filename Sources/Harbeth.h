@@ -59,7 +59,7 @@ FOUNDATION_EXPORT const unsigned char HarbethVersionString[];
 /// For example:
 ///
 ///     let filter = C7Storyboard(ranks: 2)
-///     let dest = BoxxIO.init(element: originImage, filter: filter)
+///     let dest = HarbethIO.init(element: originImage, filter: filter)
 ///     ImageView.image = try? dest.output()
 ///
 ///     // Asynchronous add filters to sources.

@@ -58,7 +58,7 @@ let filter3 = C7SoulOut(soul: 0.7)
 let filters = [filter1, filter2, filter3]
 
 // Use:
-let dest = BoxxIO.init(element: originImage, filters: filters)
+let dest = HarbethIO.init(element: originImage, filters: filters)
 // Synchronize do something..
 ImageView.image = try? dest.output()
 
@@ -77,7 +77,7 @@ ImageView.image = originImage ->> filter1 ->> filter2 ->> filter3
 This performance is the best. 🚗🚗
 
 ```
-let dest = BoxxIO.init(element: ``Source``, filter: ``filter``)
+let dest = HarbethIO.init(element: ``Source``, filter: ``filter``)
 
 dest.transmitOutput(success: { [weak self] image in
     // do something..
@@ -119,7 +119,7 @@ extension CameraViewController: C7CollectorImageDelegate {
 
 - 📺 Local video or Network video are simply apply with filters.
   - 🙄 For details, See [PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/Demo/Harbeth-iOS-Demo/Modules/PlayerViewController.swift).
-  - You can also extend this by using [BoxxIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/BoxxIO.swift) to filter the collected `CVPixelBuffer`.
+  - You can also extend this by using [HarbethIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/HarbethIO.swift) to filter the collected `CVPixelBuffer`.
 
 ```
 lazy var video: C7CollectorVideo = {
@@ -143,7 +143,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
 ```
 
 ### SwiftUI Support
-- For the direct use [HarbethView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/FilterableView.swift), it is just a simple implementation.
+- For the direct use [HarbethView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/HarbethView.swift), it is just a simple implementation.
 - The SwiftUI API is still in-progress and may not be production ready. We're looking for help! 🤲
 
 ```

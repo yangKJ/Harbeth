@@ -30,7 +30,7 @@ public struct HarbethView<Content>: View where Content: View {
     }
     
     func setup(filters: [C7FilterProtocol], async: Bool) {
-        let dest = BoxxIO(element: image.image, filters: filters)
+        let dest = HarbethIO(element: image.image, filters: filters)
         if async {
             dest.transmitOutput(success: { img in
                 DispatchQueue.main.async {

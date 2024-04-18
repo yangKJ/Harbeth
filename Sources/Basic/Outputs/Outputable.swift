@@ -33,21 +33,22 @@ public protocol Outputable {
 extension Outputable {
     
     public func filtering<T>(_ filter: C7FilterProtocol?...) -> T where T : Outputable {
-        let filters = filter.compactMap { $0 }
-        let dest = BoxxIO.init(element: self, filters: filters)
-        guard let result = try? dest.output() else {
+        do {
+            let filters = filter.compactMap { $0 }
+            let dest = HarbethIO.init(element: self, filters: filters)
+            return try dest.output() as! T
+        } catch {
             return self as! T
         }
-        return result as! T
     }
     
     public func make<T>(filter: C7FilterProtocol) throws -> T where T : Outputable {
-        let dest = BoxxIO.init(element: self, filter: filter)
+        let dest = HarbethIO.init(element: self, filter: filter)
         return try dest.output() as! T
     }
     
     public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : Outputable {
-        let dest = BoxxIO.init(element: self, filters: filters)
+        let dest = HarbethIO.init(element: self, filters: filters)
         return try dest.output() as! T
     }
 }

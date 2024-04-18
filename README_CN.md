@@ -43,7 +43,7 @@ let filters = [filter, filter2, filter3]
 ImageView.image = try? originImage.makeGroup(filters: filters)
 
 // 也可数据源模式使用
-let dest = BoxxIO.init(element: originImage, filters: filters)
+let dest = HarbethIO.init(element: originImage, filters: filters)
 
 // 同步处理
 ImageView.image = try? dest.output()
@@ -90,7 +90,7 @@ extension CameraViewController: C7CollectorImageDelegate {
 
 - 本地视频 or 网络视频简单注入滤镜
   - 🙄 详细请参考[PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/MetalDemo/Modules/PlayerViewController.swift)
-  - 您也可以自己去扩展，使用`BoxxIO`对采集的`CVPixelBuffer`进行滤镜注入处理。
+  - 您也可以自己去扩展，使用`HarbethIO`对采集的`CVPixelBuffer`进行滤镜注入处理。
 
 ```
 lazy var video: C7CollectorVideo = {
@@ -118,7 +118,7 @@ extension PlayerViewController: C7CollectorImageDelegate {
 ```
 
 ### SwiftUI Support
-- 直接使用即可 [HarbethView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/FilterableView.swift)
+- 直接使用即可 [HarbethView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/HarbethView.swift)
 - 这个API可能也暂时不够稳定，暂时先这样吧！
 - 当然你也可以来完善它，感谢！ 🤲
 

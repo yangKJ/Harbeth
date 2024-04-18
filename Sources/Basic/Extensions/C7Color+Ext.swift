@@ -111,7 +111,7 @@ extension HarbethWrapper where Base: C7Color {
         #if HARBETH_COMPUTE_LIBRARY_IN_BUNDLE
         let texture = try? TextureLoader.emptyTexture(at: size)
         let filter = C7SolidColor(color: base)
-        let dest = BoxxIO(element: texture, filter: filter)
+        let dest = HarbethIO(element: texture, filter: filter)
         let image = (try? dest.output())?.c7.toImage()
         return image
         #else

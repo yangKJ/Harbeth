@@ -13,7 +13,7 @@ struct Res {
     public static func rgUVB1Gradient(_ size: CGSize = .onePixel) throws -> MTLTexture {
         let texture = try TextureLoader.emptyTexture(at: size)
         let filter = C7ColorGradient(with: .rgUVB1)
-        var dest = BoxxIO(element: texture, filter: filter)
+        var dest = HarbethIO(element: texture, filter: filter)
         //dest.createDestTexture = false
         return try dest.output()
     }

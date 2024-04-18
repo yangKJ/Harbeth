@@ -16,6 +16,9 @@ public protocol Renderable: AnyObject {
     
     var keepAroundForSynchronousRender: Bool { get set }
     
+    /// Frequent changes require this to be set to true.
+    var transmitOutputRealTimeCommit: Bool { get set }
+    
     var inputSource: MTLTexture? { get set }
     
     func setupInputSource()
@@ -27,6 +30,7 @@ public protocol Renderable: AnyObject {
 
 fileprivate var C7ATRenderableSetFiltersContext: UInt8 = 0
 fileprivate var C7ATRenderableInputSourceContext: UInt8 = 0
+fileprivate var C7ATRenderableTransmitOutputRealTimeCommitContext: UInt8 = 0
 fileprivate var C7ATRenderableKeepAroundForSynchronousRenderContext: UInt8 = 0
 
 extension Renderable {
@@ -69,6 +73,24 @@ extension Renderable {
         }
     }
     
+    public var transmitOutputRealTimeCommit: Bool {
+        get {
+            return synchronizedRenderable {
+                if let object = objc_getAssociatedObject(self, &C7ATRenderableTransmitOutputRealTimeCommitContext) as? Bool {
+                    return object
+                } else {
+                    objc_setAssociatedObject(self, &C7ATRenderableTransmitOutputRealTimeCommitContext, false, .OBJC_ASSOCIATION_ASSIGN)
+                    return false
+                }
+            }
+        }
+        set {
+            synchronizedRenderable {
+                objc_setAssociatedObject(self, &C7ATRenderableTransmitOutputRealTimeCommitContext, newValue, .OBJC_ASSOCIATION_ASSIGN)
+            }
+        }
+    }
+    
     public weak var inputSource: MTLTexture? {
         get {
             synchronizedRenderable {
@@ -86,12 +108,16 @@ extension Renderable {
         guard let texture = inputSource, filters.count > 0 else {
             return
         }
-        let dest = BoxxIO(element: texture, filters: filters)
+        var dest = HarbethIO(element: texture, filters: filters)
+        dest.transmitOutputRealTimeCommit = transmitOutputRealTimeCommit
         if self.keepAroundForSynchronousRender {
-            if let result = try? dest.output() {
+            do {
                 self.lockedSource = true
+                let result = try dest.output()
                 self.setupOutputDest(result)
                 self.lockedSource = false
+            } catch { 
+                return
             }
         } else {
             dest.transmitOutput(success: { [weak self] result in

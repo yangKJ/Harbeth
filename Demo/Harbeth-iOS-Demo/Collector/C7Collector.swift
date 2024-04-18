@@ -67,7 +67,7 @@ extension C7Collector {
         }
         delegate?.captureOutput?(self, pixelBuffer: pixelBuffer)
         let texture = pixelBuffer.c7.toMTLTexture(textureCache: textureCache)
-        let dest = BoxxIO(element: texture, filters: filters)
+        let dest = HarbethIO(element: texture, filters: filters)
         guard let texture = try? dest.output() else {
             return nil
         }
@@ -83,7 +83,7 @@ extension C7Collector {
         guard let texture = pixelBuffer.c7.toMTLTexture(textureCache: textureCache) else {
             return
         }
-        var dest = BoxxIO(element: texture, filters: filters)
+        var dest = HarbethIO(element: texture, filters: filters)
         dest.transmitOutputRealTimeCommit = true
         dest.transmitOutput(success: { [weak self] desTexture in
             guard let `self` = self else {

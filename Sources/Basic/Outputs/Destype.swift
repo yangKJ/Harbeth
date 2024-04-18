@@ -18,6 +18,8 @@ public protocol Destype {
     
     init(element: Element, filters: [C7FilterProtocol])
     
+    func filtered() -> Element
+    
     /// Add filters to sources synchronously.
     /// - Returns: Added filter source.
     func output() throws -> Element
@@ -34,10 +36,20 @@ public protocol Destype {
 }
 
 extension Destype {
-    /// Asynchronous quickly add filters to sources.
-    /// - Parameters:
-    ///   - success: Successful callback of adding filters to the sources asynchronously.
-    ///   - failed: An error occurred during the conversion process, the error is `HarbethError`.
+    
+    public init(element: Element, filter: C7FilterProtocol) {
+        self.init(element: element, filters: [filter])
+    }
+    
+    public func filtered() -> Element {
+        do {
+            let dest = HarbethIO.init(element: element, filters: filters)
+            return try dest.output()
+        } catch {
+            return element
+        }
+    }
+    
     public func transmitOutput(success: @escaping (Element) -> Void, failed: ((HarbethError) -> Void)? = nil) {
         transmitOutput { res in
             switch res {

@@ -21,32 +21,32 @@ infix operator -->>> : AppendPrecedence
 
 @discardableResult @inlinable
 public func ->> (left: MTLTexture, right: C7FilterProtocol) -> MTLTexture {
-    (try? BoxxIO.init(element: left, filters: [right]).output()) ?? left
+    HarbethIO(element: left, filter: right).filtered()
 }
 
 @discardableResult @inlinable
 public func ->> (left: C7Image, right: C7FilterProtocol) -> C7Image {
-    (try? BoxxIO.init(element: left, filters: [right]).output()) ?? left
+    HarbethIO(element: left, filter: right).filtered()
 }
 
 @discardableResult @inlinable
 public func ->> (left: CGImage, right: C7FilterProtocol) -> CGImage {
-    (try? BoxxIO.init(element: left, filters: [right]).output()) ?? left
+    HarbethIO(element: left, filter: right).filtered()
 }
 
 @discardableResult @inlinable
 public func ->> (left: CIImage, right: C7FilterProtocol) -> CIImage {
-    (try? BoxxIO.init(element: left, filters: [right]).output()) ?? left
+    HarbethIO(element: left, filter: right).filtered()
 }
 
 @discardableResult @inlinable
 public func ->> (left: CMSampleBuffer, right: C7FilterProtocol) -> CMSampleBuffer {
-    (try? BoxxIO.init(element: left, filters: [right]).output()) ?? left
+    HarbethIO(element: left, filter: right).filtered()
 }
 
 @discardableResult @inlinable
 public func ->> (left: CVPixelBuffer, right: C7FilterProtocol) -> CVPixelBuffer {
-    (try? BoxxIO.init(element: left, filters: [right]).output()) ?? left
+    HarbethIO(element: left, filter: right).filtered()
 }
 
 
@@ -54,30 +54,30 @@ public func ->> (left: CVPixelBuffer, right: C7FilterProtocol) -> CVPixelBuffer 
 
 @discardableResult @inlinable
 public func -->>> (left: MTLTexture, right: [C7FilterProtocol]) -> MTLTexture {
-    (try? BoxxIO.init(element: left, filters: right).output()) ?? left
+    HarbethIO(element: left, filters: right).filtered()
 }
 
 @discardableResult @inlinable
 public func -->>> (left: C7Image, right: [C7FilterProtocol]) -> C7Image {
-    (try? BoxxIO.init(element: left, filters: right).output()) ?? left
+    HarbethIO(element: left, filters: right).filtered()
 }
 
 @discardableResult @inlinable
 public func -->>> (left: CGImage, right: [C7FilterProtocol]) -> CGImage {
-    (try? BoxxIO.init(element: left, filters: right).output()) ?? left
+    HarbethIO(element: left, filters: right).filtered()
 }
 
 @discardableResult @inlinable
 public func -->>> (left: CIImage, right: [C7FilterProtocol]) -> CIImage {
-    (try? BoxxIO.init(element: left, filters: right).output()) ?? left
+    HarbethIO(element: left, filters: right).filtered()
 }
 
 @discardableResult @inlinable
 public func -->>> (left: CMSampleBuffer, right: [C7FilterProtocol]) -> CMSampleBuffer {
-    (try? BoxxIO.init(element: left, filters: right).output()) ?? left
+    HarbethIO(element: left, filters: right).filtered()
 }
 
 @discardableResult @inlinable
 public func -->>> (left: CVPixelBuffer, right: [C7FilterProtocol]) -> CVPixelBuffer {
-    (try? BoxxIO.init(element: left, filters: right).output()) ?? left
+    HarbethIO(element: left, filters: right).filtered()
 }

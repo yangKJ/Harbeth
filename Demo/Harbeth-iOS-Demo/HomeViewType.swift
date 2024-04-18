@@ -106,7 +106,7 @@ extension ViewControllerType {
             return nil
         }
         let filter = C7SolidColor.init(color: color)
-        let dest = BoxxIO(element: texture, filter: filter)
+        let dest = HarbethIO(element: texture, filter: filter)
         return try? dest.output()
     }
 }

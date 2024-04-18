@@ -1,5 +1,5 @@
 //
-//  BoxxIO.swift
+//  HarbethIO.swift
 //  Harbeth
 //
 //  Created by Condy on 2022/10/22.
@@ -11,13 +11,16 @@ import CoreImage
 import CoreMedia
 import CoreVideo
 
+@available(*, deprecated, message: "Typo. Use `HarbethIO` instead", renamed: "HarbethIO")
+public typealias BoxxIO<Dest> = HarbethIO<Dest>
+
 /// Quickly add filters to sources.
 /// Support use `UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer/CVImageBuffer`
 ///
 /// For example:
 ///
 ///     let filter = C7Storyboard(ranks: 2)
-///     let dest = BoxxIO.init(element: originImage, filter: filter)
+///     let dest = HarbethIO.init(element: originImage, filter: filter)
 ///     ImageView.image = try? dest.output()
 ///
 ///     // Asynchronous add filters to sources.
@@ -25,7 +28,7 @@ import CoreVideo
 ///         // do somthing..
 ///     })
 ///
-@frozen public struct BoxxIO<Dest> : Destype {
+@frozen public struct HarbethIO<Dest> : Destype {
     public typealias Element = Dest
     public let element: Dest
     public let filters: [C7FilterProtocol]
@@ -57,10 +60,6 @@ import CoreVideo
     /// After adding the CoreImage filter in the middle, it can't be rendered until the end.
     /// Considering the maximization of performance, we will deal with it separately.
     private var hasCoreImage: Bool
-    
-    public init(element: Dest, filter: C7FilterProtocol) {
-        self.init(element: element, filters: [filter])
-    }
     
     public init(element: Dest, filters: [C7FilterProtocol]) {
         self.element = element
@@ -125,16 +124,17 @@ import CoreVideo
             complete(.success(texture))
             return
         }
-        var result: MTLTexture = texture
-        var iterator = self.filters.makeIterator()
         var commandBuffer: MTLCommandBuffer?
         if self.hasCoreImage == false {
             do {
                 commandBuffer = try makeCommandBuffer()
             } catch {
                 complete(.failure(HarbethError.toHarbethError(error)))
+                return
             }
         }
+        var result: MTLTexture = texture
+        var iterator = self.filters.makeIterator()
         // 递归处理
         func recursion(filter: C7FilterProtocol?, sourceTexture: MTLTexture) {
             guard let filter = filter else {
@@ -155,12 +155,12 @@ import CoreVideo
                 }
             }, buffer: commandBuffer)
         }
-        recursion(filter: iterator.next(), sourceTexture: texture)
+        recursion(filter: iterator.next(), sourceTexture: result)
     }
 }
 
 // MARK: - filtering methods
-extension BoxxIO {
+extension HarbethIO {
     
     private func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
         let inTexture = try TextureLoader.init(with: pixelBuffer).texture
@@ -219,7 +219,7 @@ extension BoxxIO {
 }
 
 // MARK: - asynchronous filtering methods
-extension BoxxIO {
+extension HarbethIO {
     
     private func filtering(pixelBuffer: CVPixelBuffer, complete: @escaping (Result<CVPixelBuffer, HarbethError>) -> Void) {
         do {
@@ -319,7 +319,7 @@ extension BoxxIO {
 }
 
 // MARK: - private methods
-extension BoxxIO {
+extension HarbethIO {
     
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if self.createDestTexture == false {
@@ -371,10 +371,11 @@ extension BoxxIO {
         default:
             return texture
         }
+        let outputTexture = try filter.combinationAfter(for: commandBuffer, input: destTexture, source: texture)
         if hasCoreImage {
             commandBuffer.commitAndWaitUntilCompleted()
         }
-        return try filter.combinationAfter(for: commandBuffer, input: destTexture, source: texture)
+        return outputTexture
     }
     
     /// Whether to synchronously wait for the execution of the Metal command buffer to complete.

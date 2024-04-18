@@ -89,7 +89,7 @@ struct BlendView: View {
         let overTexture = try! Res.rgUVB1Gradient(CGSize(width: 420, height: 270))
         var filter = C7Blend(with: blendMode, blendTexture: overTexture)
         filter.intensity = intensity
-        let dest = BoxxIO(element: inputImage, filter: filter)
+        let dest = HarbethIO(element: inputImage, filter: filter)
         return try dest.output()
     }
 }

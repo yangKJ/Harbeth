@@ -37,7 +37,7 @@ struct CubeView: View {
     func setupImage() {
         let inputImage = R.image("IMG_0020")!
         let filter = CIColorCube(cubeName: "vista200 v1")
-        let dest = BoxxIO(element: inputImage, filter: filter)
+        let dest = HarbethIO(element: inputImage, filter: filter)
         dest.transmitOutput { img in
             DispatchQueue.main.async {
                 self.outImage = img

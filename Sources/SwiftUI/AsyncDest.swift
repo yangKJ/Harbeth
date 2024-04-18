@@ -23,7 +23,7 @@ public class AsyncDest<Dest>: ObservableObject {
     }
     
     public func output(with source: Dest, filters: [C7FilterProtocol]) async {
-        let dest = BoxxIO(element: source, filters: filters)
+        let dest = HarbethIO(element: source, filters: filters)
         dest.transmitOutput(success: { [weak self] img in
             guard let `self` = self else { return }
             DispatchQueue.main.async {
@@ -39,7 +39,7 @@ public class AsyncDest<Dest>: ObservableObject {
     }
     
     public static func transmitOutput(with source: Dest, filters: [C7FilterProtocol]) async throws -> Dest {
-        let dest = BoxxIO(element: source, filters: filters)
+        let dest = HarbethIO(element: source, filters: filters)
         return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<Dest, Error>) in
             dest.transmitOutput { image in
                 continuation.resume(returning: image)
