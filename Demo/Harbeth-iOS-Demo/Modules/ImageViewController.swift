@@ -37,9 +37,8 @@ class ImageViewController: UIViewController {
         return imageView
     }()
     
-    lazy var renderView: RenderImageView = {
-        let imageView = RenderImageView()
-        imageView.keepAroundForSynchronousRender = false
+    lazy var renderView: UIImageView = {
+        let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.layer.borderColor = UIColor.background2?.cgColor
@@ -150,8 +149,7 @@ class ImageViewController: UIViewController {
 extension ImageViewController {
     func setupFilter() {
         if slider.isHidden {
-            //filterImageView.image = originImage ->> filter!
-            self.setupFiltedImage(with: filter)
+            self.asynchronousProcessingImage(with: filter)
             return
         }
         autoTestAction()
@@ -181,11 +179,8 @@ extension ImageViewController {
                     self.slider.value -= (self.slider.maximumValue - self.slider.minimumValue) / 77
                 }
                 self.currentLabel.text = String(format: "%.2f", self.slider.value)
-                if let callback = self.callback {
-                    let filter = callback(self.slider.value)
-                    //self.filterImageView.image = try? self.originImage.make(filter: filter)
-                    self.setupFiltedImage(with: filter)
-                }
+                let filter = self.callback?(self.slider.value)
+                self.asynchronousProcessingImage(with: filter)
             })
             RunLoop.current.add(timer, forMode: .common)
             timer.fire()
@@ -194,18 +189,21 @@ extension ImageViewController {
     }
     
     @objc func sliderDidchange(_ slider: UISlider) {
-        currentLabel.text = String(format: "%.2f", slider.value)
-        if let callback = callback {
-            let filter = callback(slider.value)
-            //filterImageView.image = try? originImage.makeGroup(filters: [filter])
-            self.setupFiltedImage(with: filter)
-        }
+        self.currentLabel.text = String(format: "%.2f", slider.value)
+        let filter = self.callback?(slider.value)
+        self.asynchronousProcessingImage(with: filter)
     }
     
-    func setupFiltedImage(with filter: C7FilterProtocol?) {
+    /// 异步处理图像
+    func asynchronousProcessingImage(with filter: C7FilterProtocol?) {
         guard let filter = filter else {
             return
         }
-        self.renderView.filters = [filter]
+        let dest = BoxxIO(element: originImage, filter: filter)
+        dest.transmitOutput { [weak self] image in
+            DispatchQueue.main.async {
+                self?.renderView.image = image
+            }
+        }
     }
 }

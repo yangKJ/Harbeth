@@ -14,7 +14,11 @@ public final class RenderImageView: C7ImageView, Renderable {
     
     public override var image: C7Image? {
         didSet {
-            setupInputSource()
+            if lockedSource {
+                return
+            }
+            self.setupInputSource()
+            self.filtering()
         }
     }
 }
@@ -25,16 +29,17 @@ extension Renderable where Self: C7ImageView {
         if lockedSource {
             return
         }
-        if inputSource == nil, let image = self.image {
+        if let image = self.image {
             self.inputSource = try? TextureLoader(with: image).texture
         }
-        self.filtering()
     }
     
     public func setupOutputDest(_ dest: MTLTexture) {
         DispatchQueue.main.async {
             if let image = self.image {
+                self.lockedSource = true
                 self.image = try? dest.c7.fixImageOrientation(refImage: image)
+                self.lockedSource = false
             }
         }
     }
