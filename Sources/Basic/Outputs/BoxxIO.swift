@@ -146,12 +146,13 @@ import CoreVideo
                 return
             }
             runAsyncIO(with: sourceTexture, filter: filter, complete: { res in
-                let ress = res.map {
-                    result = $0
+                switch res {
+                case .success(let t):
+                    result = t
                     recursion(filter: iterator.next(), sourceTexture: result)
-                    return $0
+                case .failure(let error):
+                    complete(.failure(HarbethError.toHarbethError(error)))
                 }
-                complete(ress)
             }, buffer: commandBuffer)
         }
         recursion(filter: iterator.next(), sourceTexture: texture)
