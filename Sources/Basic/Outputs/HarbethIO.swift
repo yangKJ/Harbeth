@@ -115,7 +115,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         }
     }
     
-    /// Convert to texture and add filters.
+    /// Asynchronous convert to texture and add filters.
     /// - Parameters:
     ///   - texture: Input metal texture.
     ///   - complete: The conversion is complete.

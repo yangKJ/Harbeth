@@ -19,7 +19,11 @@ extension MTLTexture {
 
 public struct MTLTextureCompatible_ {
     
-    public let target: MTLTexture
+    weak var target: MTLTexture!
+    
+    init(target: MTLTexture) {
+        self.target = target
+    }
     
     public var size: MTLSize {
         .init(width: target.width, height: target.height, depth: target.depth)

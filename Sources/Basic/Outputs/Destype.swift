@@ -27,12 +27,6 @@ public protocol Destype {
     /// Asynchronous quickly add filters to sources.
     /// - Parameter complete: The conversion is complete of adding filters to the sources asynchronously.
     func transmitOutput(complete: @escaping (Result<Element, HarbethError>) -> Void)
-    
-    /// Asynchronous convert to texture and add filters.
-    /// - Parameters:
-    ///   - texture: Input metal texture.
-    ///   - complete: The conversion is complete.
-    func filtering(texture: MTLTexture, complete: @escaping (Result<MTLTexture, HarbethError>) -> Void)
 }
 
 extension Destype {
@@ -43,8 +37,7 @@ extension Destype {
     
     public func filtered() -> Element {
         do {
-            let dest = HarbethIO.init(element: element, filters: filters)
-            return try dest.output()
+            return try self.output()
         } catch {
             return element
         }

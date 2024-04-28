@@ -153,16 +153,18 @@ extension TextureLoader {
     ///   - height: The texture height, must be greater than 0, maximum resolution is 16384.
     ///   - options: Configure other parameters about generating metal textures.
     public static func emptyTexture(width: Int, height: Int, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
+        let options = options ?? [TextureLoader.Option: Any]()
         var usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
         var pixelFormat = MTLPixelFormat.rgba8Unorm
         var storageMode = MTLStorageMode.shared
+        var allowGPUOptimizedContents = true
         #if os(macOS)
         // Texture Descriptor Validation MTLStorageModeShared not allowed for textures.
         // So macOS need use `managed`.
         storageMode = MTLStorageMode.managed
         #endif
         var sampleCount: Int = 1
-        for (key, value) in (options ?? [TextureLoader.Option: Any]()) {
+        for (key, value) in options {
             switch (key, value) {
             case (.texturePixelFormat, let value as MTLPixelFormat):
                 pixelFormat = value
@@ -172,6 +174,8 @@ extension TextureLoader {
                 storageMode = value
             case (.textureSampleCount, let value as Int):
                 sampleCount = value
+            case (.textureAllowGPUOptimizedContents, let value as Bool):
+                allowGPUOptimizedContents = value
             default:
                 break
             }
@@ -187,6 +191,9 @@ extension TextureLoader {
         descriptor.storageMode = storageMode
         descriptor.sampleCount = sampleCount
         descriptor.textureType = sampleCount > 1 ? .type2DMultisample : .type2D
+        if #available(iOS 12.0, macOS 10.14, *) {
+            descriptor.allowGPUOptimizedContents = allowGPUOptimizedContents
+        }
         guard let texture = Device.device().makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
@@ -304,4 +311,7 @@ extension TextureLoader.Option {
     /// The number of samples in the texture to create. The default value is 1.
     /// When creating Buffer textures sampleCount must be 1. Implementations may round sample counts up to the next supported value.
     public static let textureSampleCount: TextureLoader.Option = .init(rawValue: 1 << 4)
+    
+    /// Allow GPU-optimization for the contents of this texture. The default value is true.
+    public static let textureAllowGPUOptimizedContents: TextureLoader.Option = .init(rawValue: 1 << 5)
 }
