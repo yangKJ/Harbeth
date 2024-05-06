@@ -1,102 +1,210 @@
 
-目录结构：
+// tree -l
 
+目录结构：
 .
 ├── Basic
 │   ├── Core
 │   │   ├── Compute.swift
-│   │   ├── CoreImage+.swift
 │   │   ├── Device.swift
 │   │   ├── Filtering.swift
-│   │   ├── Operators.swift
-│   │   ├── Processed.swift
 │   │   ├── Rendering.swift
-│   │   └── Shared.swift
+│   │   ├── Shared.swift
+│   │   └── TextureLoader.swift
+│   ├── Extensions
+│   │   ├── C7Color+Driver.swift
+│   │   ├── C7Color+Ext.swift
+│   │   ├── C7Image+Ext.swift
+│   │   ├── C7Image+iOS.swift
+│   │   ├── C7Image+macOS.swift
+│   │   ├── C7View+iOS.swift
+│   │   ├── CATransform3D+Ext.swift
+│   │   ├── CGContext+Ext.swift
+│   │   ├── CGImage+Ext.swift
+│   │   ├── CGPath+Ext.swift
+│   │   ├── CGPoint+Ext.swift
+│   │   ├── CGRect+Ext.swift
+│   │   ├── CGSize+Ext.swift
+│   │   ├── CIImage+Ext.swift
+│   │   ├── CMSampleBuffer+Ext.swift
+│   │   ├── CVPixelBuffer+Ext.swift
+│   │   ├── Data+Ext.swift
+│   │   ├── MTLCommandBuffer+Ext.swift
+│   │   ├── MTLSize+Ext.swift
+│   │   ├── MTLTexture+Ext.swift
+│   │   └── URL+Ext.swift
+│   ├── Matrix
+│   │   ├── Matrix.swift
+│   │   ├── Matrix3x3.swift
+│   │   ├── Matrix4x4.swift
+│   │   ├── Matrix4x5.swift
+│   │   ├── Vector3.swift
+│   │   └── Vector4.swift
 │   ├── Outputs
-│   │   ├── BoxxIO+Filtering.swift
-│   │   ├── BoxxIO.swift
-│   │   ├── C7Collector.swift
-│   │   ├── C7CollectorCamera.swift
-│   │   ├── C7CollectorVideo.swift
-│   │   ├── Collectorable.swift
 │   │   ├── Destype.swift
-│   │   └── Outputable.swift
+│   │   ├── HarbethIO.swift // 核心对外开放文件
+│   │   ├── HugeImage.swift
+│   │   ├── Operators.swift
+│   │   ├── Outputable.swift
+│   │   ├── RenderImageView.swift
+│   │   └── Renderable.swift
 │   └── Setup
-│       ├── C7Color+Ext.swift
-│       ├── C7Image+Ext.swift
-│       ├── C7Image+macOS.swift
-│       ├── CGImage+Ext.swift
-│       ├── CIImage+Ext.swift
-│       ├── CMSampleBuffer+Ext.swift
-│       ├── CVPixelBuffer+Ext.swift
 │       ├── Cacheable.swift
-│       ├── Color.swift
-│       ├── Convertible.swift
-│       ├── Data+Ext.swift
+│       ├── Clamping.swift
+│       ├── Degree.swift
+│       ├── DisplayLink.swift
 │       ├── Error.swift
-│       ├── ImageFormat.swift
-│       ├── MTLTexture+Ext.swift
-│       ├── MathAngle.swift
-│       ├── Matrix.swift
-│       ├── Matrix3x3.swift
-│       ├── Matrix4x4.swift
+│       ├── Files.swift
+│       ├── Locked.swift
+│       ├── Mirrorable.swift
 │       ├── ParameterRange.swift
+│       ├── Pixel.swift
+│       ├── Placement.swift
 │       ├── Point2D.swift
 │       ├── R.swift
+│       ├── ResizingMode.swift
 │       ├── Size.swift
-│       ├── TimeFormat.swift
 │       ├── Typealias.swift
-│       └── Wrapper.swift
+│       ├── Wrapper.swift
+│       └── ZeroOneRange.swift
 ├── Compute
 │   ├── Blend
-│   │   ├── C7BlendFilter.swift
-│   │   ├── C7ChromaKeyBlend.metal
-│   │   ├── C7ColorAddBlend.metal
-│   │   ├── C7ColorAlphaBlend.metal
-│   │   ├── C7ColorBurnBlend.metal
-│   │   ├── C7ColorDodgeBlend.metal
-│   │   ├── C7DarkenBlend.metal
-│   │   ├── C7DifferenceBlend.metal
-│   │   ├── C7DissolveBlend.metal
-│   │   ├── C7DivideBlend.metal
-│   │   ├── C7ExclusionBlend.metal
-│   │   ├── C7HardLightBlend.metal
-│   │   ├── C7HueBlend.metal
-│   │   ├── C7LightenBlend.metal
-│   │   ├── C7LinearBurnBlend.metal
-│   │   ├── C7LuminosityBlend.metal
-│   │   ├── C7MaskBlend.metal
-│   │   ├── C7MultiplyBlend.metal
-│   │   ├── C7NormalBlend.metal
-│   │   ├── C7OverlayBlend.metal
-│   │   ├── C7ScreenBlend.metal
-│   │   ├── C7SoftLightBlend.metal
-│   │   ├── C7SourceOverBlend.metal
-│   │   └── C7SubtractBlend.metal
+│   │   ├── C7Blend.swift
+│   │   ├── C7BlendChromaKey.metal
+│   │   ├── C7BlendColorAdd.metal
+│   │   ├── C7BlendColorAlpha.metal
+│   │   ├── C7BlendColorBurn.metal
+│   │   ├── C7BlendColorDodge.metal
+│   │   ├── C7BlendDarken.metal
+│   │   ├── C7BlendDifference.metal
+│   │   ├── C7BlendDissolve.metal
+│   │   ├── C7BlendDivide.metal
+│   │   ├── C7BlendExclusion.metal
+│   │   ├── C7BlendHardLight.metal
+│   │   ├── C7BlendHue.metal
+│   │   ├── C7BlendLighten.metal
+│   │   ├── C7BlendLinearBurn.metal
+│   │   ├── C7BlendLuminosity.metal
+│   │   ├── C7BlendMask.metal
+│   │   ├── C7BlendMultiply.metal
+│   │   ├── C7BlendNormal.metal
+│   │   ├── C7BlendOverlay.metal
+│   │   ├── C7BlendScreen.metal
+│   │   ├── C7BlendSoftLight.metal
+│   │   ├── C7BlendSourceOver.metal
+│   │   └── C7BlendSubtract.metal
 │   ├── Blur
 │   │   ├── C7BilateralBlur.metal
 │   │   ├── C7BilateralBlur.swift
+│   │   ├── C7CircleBlur.metal
+│   │   ├── C7CircleBlur.swift
 │   │   ├── C7GaussianBlur.metal
 │   │   ├── C7GaussianBlur.swift
 │   │   ├── C7MeanBlur.metal
 │   │   ├── C7MeanBlur.swift
-│   │   ├── C7MonochromeDilation.metal
-│   │   ├── C7MonochromeDilation.swift
 │   │   ├── C7MotionBlur.metal
 │   │   ├── C7MotionBlur.swift
+│   │   ├── C7RedMonochromeBlur.metal
+│   │   ├── C7RedMonochromeBlur.swift
 │   │   ├── C7ZoomBlur.metal
 │   │   └── C7ZoomBlur.swift
-│   ├── ColorProcess
+│   ├── Combination
+│   │   ├── C7CombinationBeautiful.metal
+│   │   ├── C7CombinationBeautiful.swift
+│   │   └── C7CombinationBilateralBlur.swift
+│   ├── Coordinate
+│   │   ├── C7Bulge.metal
+│   │   ├── C7Bulge.swift
+│   │   ├── C7ColorCGASpace.metal
+│   │   ├── C7ColorCGASpace.swift
+│   │   ├── C7ColorPacking.metal
+│   │   ├── C7ColorPacking.swift
+│   │   ├── C7Fluctuate.metal
+│   │   ├── C7Fluctuate.swift
+│   │   ├── C7GlassSphere.metal
+│   │   ├── C7GlassSphere.swift
+│   │   ├── C7Glitch.metal
+│   │   ├── C7Glitch.swift
+│   │   ├── C7Halftone.metal
+│   │   ├── C7Halftone.swift
+│   │   ├── C7Kuwahara.metal
+│   │   ├── C7Kuwahara.swift
+│   │   ├── C7OilPainting.metal
+│   │   ├── C7OilPainting.swift
+│   │   ├── C7Pinch.metal
+│   │   ├── C7Pinch.swift
+│   │   ├── C7Pixellated.metal
+│   │   ├── C7Pixellated.swift
+│   │   ├── C7PolarPixellate.metal
+│   │   ├── C7PolarPixellate.swift
+│   │   ├── C7PolkaDot.metal
+│   │   ├── C7PolkaDot.swift
+│   │   ├── C7RGBADilation.metal
+│   │   ├── C7RGBADilation.swift
+│   │   ├── C7Sharpen.metal
+│   │   ├── C7Sharpen.swift
+│   │   ├── C7Sketch.metal
+│   │   ├── C7Sketch.swift
+│   │   ├── C7SoulOut.metal
+│   │   ├── C7SoulOut.swift
+│   │   ├── C7SphereRefraction.metal
+│   │   ├── C7SphereRefraction.swift
+│   │   ├── C7SplitScreen.metal
+│   │   ├── C7SplitScreen.swift
+│   │   ├── C7Storyboard.metal
+│   │   ├── C7Storyboard.swift
+│   │   ├── C7Swirl.metal
+│   │   ├── C7Swirl.swift
+│   │   ├── C7ThresholdSketch.metal
+│   │   ├── C7ThresholdSketch.swift
+│   │   ├── C7Toon.metal
+│   │   ├── C7Toon.swift
+│   │   ├── C7WaterRipple.metal
+│   │   └── C7WaterRipple.swift
+│   ├── Generator
+│   │   ├── C7ColorGradient.metal
+│   │   ├── C7ColorGradient.swift
+│   │   ├── C7SolidColor.metal
+│   │   └── C7SolidColor.swift
+│   ├── Lookup
+│   │   ├── C7LookupSplit.metal
+│   │   ├── C7LookupSplit.swift
+│   │   ├── C7LookupTable.metal
+│   │   └── C7LookupTable.swift
+│   ├── Matrix
+│   │   ├── C7ColorMatrix4x4.metal
+│   │   ├── C7ColorMatrix4x4.swift
+│   │   ├── C7ColorMatrix4x5.metal
+│   │   ├── C7ColorMatrix4x5.swift
+│   │   ├── C7ColorVector4.metal
+│   │   ├── C7ColorVector4.swift
+│   │   ├── C7ConvolutionMatrix3x3.metal
+│   │   ├── C7ConvolutionMatrix3x3.swift
+│   │   ├── C7EdgeGlow.metal
+│   │   ├── C7EdgeGlow.swift
+│   │   ├── C7Nostalgic.metal
+│   │   ├── C7Nostalgic.swift
+│   │   ├── C7Sepia.metal
+│   │   └── C7Sepia.swift
+│   ├── Pixel
 │   │   ├── C7Brightness.metal
 │   │   ├── C7Brightness.swift
+│   │   ├── C7ChromaKey.metal
+│   │   ├── C7ChromaKey.swift
 │   │   ├── C7ColorConvert.metal
 │   │   ├── C7ColorConvert.swift
 │   │   ├── C7ColorRGBA.metal
 │   │   ├── C7ColorRGBA.swift
+│   │   ├── C7ColorSpace.metal
+│   │   ├── C7ColorSpace.swift
 │   │   ├── C7ComicStrip.metal
 │   │   ├── C7ComicStrip.swift
 │   │   ├── C7Contrast.metal
 │   │   ├── C7Contrast.swift
+│   │   ├── C7Crosshatch.metal
+│   │   ├── C7Crosshatch.swift
+│   │   ├── C7DepthLuminance.metal
+│   │   ├── C7DepthLuminance.swift
 │   │   ├── C7Exposure.metal
 │   │   ├── C7Exposure.swift
 │   │   ├── C7FalseColor.metal
@@ -105,6 +213,8 @@
 │   │   ├── C7Gamma.swift
 │   │   ├── C7Granularity.metal
 │   │   ├── C7Granularity.swift
+│   │   ├── C7Grayed.metal
+│   │   ├── C7Grayed.swift
 │   │   ├── C7Haze.metal
 │   │   ├── C7Haze.swift
 │   │   ├── C7HighlightShadow.metal
@@ -123,94 +233,26 @@
 │   │   ├── C7LuminanceThreshold.swift
 │   │   ├── C7Monochrome.metal
 │   │   ├── C7Monochrome.swift
-│   │   ├── C7OilPainting.metal
-│   │   ├── C7OilPainting.swift
 │   │   ├── C7Opacity.metal
 │   │   ├── C7Opacity.swift
 │   │   ├── C7Posterize.metal
 │   │   ├── C7Posterize.swift
+│   │   ├── C7Pow.metal
+│   │   ├── C7Pow.swift
 │   │   ├── C7Saturation.metal
 │   │   ├── C7Saturation.swift
-│   │   ├── C7Vibrance.metal
-│   │   ├── C7Vibrance.swift
-│   │   ├── C7WhiteBalance.metal
-│   │   └── C7WhiteBalance.swift
-│   ├── Effect
-│   │   ├── C7Bulge.metal
-│   │   ├── C7Bulge.swift
-│   │   ├── C7ChromaKey.metal
-│   │   ├── C7ChromaKey.swift
-│   │   ├── C7Crosshatch.metal
-│   │   ├── C7Crosshatch.swift
-│   │   ├── C7DepthLuminance.metal
-│   │   ├── C7DepthLuminance.swift
-│   │   ├── C7GlassSphere.metal
-│   │   ├── C7GlassSphere.swift
-│   │   ├── C7Halftone.metal
-│   │   ├── C7Halftone.swift
-│   │   ├── C7Kuwahara.metal
-│   │   ├── C7Kuwahara.swift
-│   │   ├── C7Pinch.metal
-│   │   ├── C7Pinch.swift
-│   │   ├── C7Pixellated.metal
-│   │   ├── C7Pixellated.swift
-│   │   ├── C7PolarPixellate.metal
-│   │   ├── C7PolarPixellate.swift
-│   │   ├── C7PolkaDot.metal
-│   │   ├── C7PolkaDot.swift
-│   │   ├── C7RGBADilation.metal
-│   │   ├── C7RGBADilation.swift
-│   │   ├── C7ReplaceRGBA.metal
-│   │   ├── C7ReplaceRGBA.swift
-│   │   ├── C7Sharpen.metal
-│   │   ├── C7Sharpen.swift
-│   │   ├── C7Sketch.metal
-│   │   ├── C7Sketch.swift
-│   │   ├── C7Sobel.metal
-│   │   ├── C7Sobel.swift
-│   │   ├── C7SoulOut.metal
-│   │   ├── C7SoulOut.swift
-│   │   ├── C7SphereRefraction.metal
-│   │   ├── C7SphereRefraction.swift
-│   │   ├── C7SplitScreen.metal
-│   │   ├── C7SplitScreen.swift
-│   │   ├── C7Storyboard.metal
-│   │   ├── C7Storyboard.swift
-│   │   ├── C7Swirl.metal
-│   │   ├── C7Swirl.swift
-│   │   ├── C7ThresholdSketch.metal
-│   │   ├── C7ThresholdSketch.swift
-│   │   ├── C7Toon.metal
-│   │   ├── C7Toon.swift
-│   │   ├── C7Vignette.metal
-│   │   ├── C7Vignette.swift
-│   │   ├── C7WaterRipple.metal
-│   │   └── C7WaterRipple.swift
-│   ├── Lookup
-│   │   ├── C7LookupFilter.metal
-│   │   ├── C7LookupFilter.swift
-│   │   ├── C7LookupSplitFilter.metal
-│   │   └── C7LookupSplitFilter.swift
-│   ├── MPS
-│   │   └── MPSGaussianBlur.swift
-│   ├── Matrix
-│   │   ├── C7ColorMatrix4x4.metal
-│   │   ├── C7ColorMatrix4x4.swift
-│   │   ├── C7Convolution3x3.metal
-│   │   ├── C7Convolution3x3.swift
-│   │   ├── C7Nostalgic.metal
-│   │   ├── C7Nostalgic.swift
-│   │   ├── C7Sepia.metal
-│   │   └── C7Sepia.swift
-│   ├── Shadertoy
-│   │   ├── C7EdgeGlow.metal
-│   │   ├── C7EdgeGlow.swift
-│   │   ├── C7Glitch.metal
-│   │   ├── C7Glitch.swift
 │   │   ├── C7ShiftGlitch.metal
 │   │   ├── C7ShiftGlitch.swift
+│   │   ├── C7Sobel.metal
+│   │   ├── C7Sobel.swift
+│   │   ├── C7Vibrance.metal
+│   │   ├── C7Vibrance.swift
+│   │   ├── C7Vignette.metal
+│   │   ├── C7Vignette.swift
 │   │   ├── C7VoronoiOverlay.metal
-│   │   └── C7VoronoiOverlay.swift
+│   │   ├── C7VoronoiOverlay.swift
+│   │   ├── C7WhiteBalance.metal
+│   │   └── C7WhiteBalance.swift
 │   └── Shape
 │       ├── C7Crop.metal
 │       ├── C7Crop.swift
@@ -222,7 +264,38 @@
 │       ├── C7Rotate.swift
 │       ├── C7Transform.metal
 │       └── C7Transform.swift
-└── CoreImage
-    └── CIHighlight.swift
+├── CoreImage
+│   ├── CIBrightness.swift
+│   ├── CIColorControls.swift
+│   ├── CIColorCube.swift
+│   ├── CIColorMonochrome.swift
+│   ├── CIContrast.swift
+│   ├── CIExposure.swift
+│   ├── CIFade.swift
+│   ├── CIGaussianBlur.swift
+│   ├── CIHighlight.swift
+│   ├── CILookupTable.swift
+│   ├── CINoiseReduction.swift
+│   ├── CIPhotoEffect.swift
+│   ├── CIResizedSmooth.swift
+│   ├── CISaturation.swift
+│   ├── CIShadows.swift
+│   ├── CISharpen.swift
+│   ├── CISketch.swift
+│   ├── CITemperature.swift
+│   ├── CIUnsharpMask.swift
+│   ├── CIVignette.swift
+│   └── CIWhitePoint.swift
+├── Harbeth.h
+├── MPS
+│   ├── MPSBoxBlur.swift
+│   ├── MPSGaussianBlur.swift
+│   └── MPSHistogram.swift
+└── SwiftUI
+    ├── AsyncDest.swift
+    ├── Color+Ext.swift
+    ├── HarbethView.swift
+    ├── Image+Ext.swift
+    └── Published_Image.swift
 
-15 directories, 207 files
+19 directories, 275 files

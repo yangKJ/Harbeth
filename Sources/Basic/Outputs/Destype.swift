@@ -12,13 +12,12 @@ public protocol Destype {
     associatedtype Element
     
     var element: Element { get }
+    
     var filters: [C7FilterProtocol] { get }
     
     init(element: Element, filter: C7FilterProtocol)
     
     init(element: Element, filters: [C7FilterProtocol])
-    
-    func filtered() -> Element
     
     /// Add filters to sources synchronously.
     /// - Returns: Added filter source.
@@ -35,6 +34,8 @@ extension Destype {
         self.init(element: element, filters: [filter])
     }
     
+    /// Add filters to sources synchronously.
+    /// If it fails, it returns element.
     public func filtered() -> Element {
         do {
             return try self.output()
@@ -43,6 +44,7 @@ extension Destype {
         }
     }
     
+    /// Asynchronous quickly add filters to sources.
     public func transmitOutput(success: @escaping (Element) -> Void, failed: ((HarbethError) -> Void)? = nil) {
         transmitOutput { res in
             switch res {
