@@ -9,7 +9,7 @@ import Foundation
 
 #if os(macOS)
 
-#if __MAC_14_0 || __MAC_14_1 || __MAC_14_2 || __MAC_14_3 || __MAC_14_4
+#if __MAC_14_0 || __MAC_14_1 || __MAC_14_2 || __MAC_14_3 || __MAC_14_4 || __MAC_14_5
 import QuartzCore
 public typealias CADisplayLink = QuartzCore.CADisplayLink
 #else
