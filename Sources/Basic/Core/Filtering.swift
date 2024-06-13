@@ -45,6 +45,10 @@ public protocol C7FilterProtocol: Mirrorable {
     /// Multiple input source extensions, an array containing the `MTLTexture`.
     var otherInputTextures: C7InputTextures { get }
     
+    /// Do you need the total number of pixels factor,
+    /// before the special factor and after the factors.
+    var hasCount: Bool { get }
+    
     /// The resize of the output texture.
     func resize(input size: C7Size) -> C7Size
     
@@ -78,6 +82,8 @@ extension C7FilterProtocol {
     public var factors: [Float] { [] }
     /// Multiple input source extensions, an array containing the `MTLTexture`.
     public var otherInputTextures: C7InputTextures { [] }
+    /// Do you need the total number of pixels factor.
+    public var hasCount: Bool { false }
     /// The resize of the output texture.
     public func resize(input size: C7Size) -> C7Size { size }
     /// Special type of parameter factor, such as 4x4 matrix.

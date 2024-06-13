@@ -93,8 +93,15 @@ extension C7FilterProtocol {
             var factor = self.factors[i]
             computeEncoder.setBytes(&factor, length: size, index: i)
         }
+        /// 配置像素总数参数
+        var index: Int = self.factors.count - 1
+        if self.hasCount {
+            var count = destTexture.width * destTexture.height
+            computeEncoder.setBytes(&count, length: size, index: index)
+            index += 1
+        }
         /// 配置特殊参数非`Float`类型，例如4x4矩阵
-        self.setupSpecialFactors(for: computeEncoder, index: self.factors.count - 1)
+        self.setupSpecialFactors(for: computeEncoder, index: index)
         
         // Too large some Gpus are not supported. Too small gpus have low efficiency
         // 2D texture, depth set to 1
