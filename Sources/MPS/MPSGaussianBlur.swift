@@ -31,7 +31,11 @@ public struct MPSGaussianBlur: MPSKernelProtocol {
         return destinationTexture
     }
     
-    private var gaussian: MPSImageGaussianBlur
+    private var gaussian: MPSImageGaussianBlur {
+        didSet {
+            gaussian.edgeMode = .clamp
+        }
+    }
     
     public init(radius: Float = range.value) {
         self.gaussian = MPSImageGaussianBlur(device: Device.device(), sigma: ceil(radius))
