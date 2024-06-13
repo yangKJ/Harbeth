@@ -58,6 +58,19 @@ extension C7Image {
         }
         return bitmap.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
     }
+    
+    public func heic() -> Data? {
+        guard let mutableData = CFDataCreateMutable(nil, 0),
+              let destination = CGImageDestinationCreateWithData(mutableData, "public.heic" as CFString, 1, nil),
+              let cgImage = cgImage else {
+            return nil
+        }
+        CGImageDestinationAddImage(destination, cgImage, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            return nil
+        }
+        return mutableData as Data
+    }
 }
 
 extension HarbethWrapper where Base: C7Image {

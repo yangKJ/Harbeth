@@ -27,7 +27,7 @@ struct AsyncImageView: View {
                     .font(.body)
                     .textCase(.none)
                     .padding(.all, 20)
-                    .foregroundColor(.black)
+                    //.foregroundColor(.black)
             } else if let error = dest.error {
                 Text(error.localizedDescription)
             } else {
@@ -41,11 +41,11 @@ struct AsyncImageView: View {
         }
         .task {
             let filters: [C7FilterProtocol] = [
-                //C7Pixellated(scale: 0.04),
+                C7Pixellated(scale: 0.02),
                 CILookupTable(cubeName: "violet", amount: 0.5),
                 CIGaussianBlur(radius: 5),
                 C7Flip(horizontal: true, vertical: false),
-                C7SplitScreen(type: .two, direction: .vertical),
+                //C7SplitScreen(type: .two, direction: .vertical),
             ]
             let inputImage = R.image("IMG_0020")!
             await dest.output(with: inputImage, filters: filters)
