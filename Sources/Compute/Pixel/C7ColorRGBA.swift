@@ -9,8 +9,8 @@ import Foundation
 
 public struct C7ColorRGBA: C7FilterProtocol {
     
-    /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = R.iRange.value
+    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     /// Transparent colors are not processed, Will directly modify the overall color scheme
     public var color: C7Color = .white

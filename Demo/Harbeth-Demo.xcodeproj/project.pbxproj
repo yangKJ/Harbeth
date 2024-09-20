@@ -15,6 +15,7 @@
 		872661CB2994D8CF00E612C7 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 872661C92994D8CF00E612C7 /* Main.storyboard */; };
 		872661DE2994DA4700E612C7 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; };
 		872661DF2994DA4700E612C7 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		873F37872C9BAF7F00173C28 /* DisplayLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873F37862C9BAF7F00173C28 /* DisplayLink.swift */; };
 		874035862A988C07001D0A98 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035852A988C07001D0A98 /* ErrorView.swift */; };
 		875CD59E2A49705400C114C3 /* C7Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59A2A49705400C114C3 /* C7Collector.swift */; };
 		875CD5A02A49705400C114C3 /* C7CollectorCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */; };
@@ -99,6 +100,7 @@
 		872661CA2994D8CF00E612C7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		872661CC2994D8CF00E612C7 /* Harbeth_macOS_Demo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Harbeth_macOS_Demo.entitlements; sourceTree = "<group>"; };
 		872661DD2994DA4700E612C7 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		873F37862C9BAF7F00173C28 /* DisplayLink.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DisplayLink.swift; sourceTree = "<group>"; };
 		874035852A988C07001D0A98 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 		875CD59A2A49705400C114C3 /* C7Collector.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Collector.swift; sourceTree = "<group>"; };
 		875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorCamera.swift; sourceTree = "<group>"; };
@@ -193,6 +195,7 @@
 			children = (
 				872661C32994D8CE00E612C7 /* AppDelegate.swift */,
 				872661C52994D8CE00E612C7 /* ViewController.swift */,
+				873F37862C9BAF7F00173C28 /* DisplayLink.swift */,
 				872661C72994D8CF00E612C7 /* Assets.xcassets */,
 				872661C92994D8CF00E612C7 /* Main.storyboard */,
 				872661CC2994D8CF00E612C7 /* Harbeth_macOS_Demo.entitlements */,
@@ -450,6 +453,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				872661C62994D8CE00E612C7 /* ViewController.swift in Sources */,
+				873F37872C9BAF7F00173C28 /* DisplayLink.swift in Sources */,
 				872661C42994D8CE00E612C7 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

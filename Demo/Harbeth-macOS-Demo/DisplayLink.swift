@@ -14,7 +14,7 @@ import QuartzCore
 public typealias CADisplayLink = QuartzCore.CADisplayLink
 #else
 import AppKit
-public typealias CADisplayLink = Harbeth.DisplayLink
+public typealias CADisplayLink = DisplayLink
 
 // See: https://developer.apple.com/documentation/quartzcore/cadisplaylink
 public protocol DisplayLinkProtocol: NSObjectProtocol {

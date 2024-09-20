@@ -21,8 +21,8 @@ public struct C7ColorConvert: C7FilterProtocol {
         case y = "C7Color2Y"
     }
     
-    /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = R.iRange.value
+    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     private let type: ColorType
     

@@ -27,8 +27,8 @@ public struct C7Grayed: C7FilterProtocol {
         case singleChannel(Pixel.Channel)
     }
     
-    /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = R.iRange.value
+    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     private let mode: GrayedMode
     

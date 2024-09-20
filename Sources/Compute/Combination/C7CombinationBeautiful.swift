@@ -9,7 +9,8 @@ import Foundation
 
 public class C7CombinationBeautiful: C7FilterProtocol {
     
-    @ZeroOneRange public var intensity: Float = R.iRange.value
+    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     public var smoothDegree: Float = 0.0
     

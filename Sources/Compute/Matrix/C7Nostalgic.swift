@@ -10,8 +10,8 @@ import Foundation
 /// 怀旧滤镜
 public struct C7Nostalgic: C7FilterProtocol {
     
-    /// The degree to which tan replaces normal image color, from 0.0 to 1.0
-    @ZeroOneRange public var intensity: Float = R.iRange.value
+    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7Nostalgic")
@@ -21,7 +21,7 @@ public struct C7Nostalgic: C7FilterProtocol {
         return [intensity]
     }
     
-    public init(intensity: Float = R.iRange.value) {
+    public init(intensity: Float = R.intensityRange.value) {
         self.intensity = intensity
     }
 }

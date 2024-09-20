@@ -85,9 +85,8 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
             return try filtering(sampleBuffer: ee as! CMSampleBuffer) as! Dest
         default:
-            break
+            return element            
         }
-        return element
     }
     
     /// Convert to texture and add filters.
@@ -237,7 +236,7 @@ extension HarbethIO {
     }
     
     private func filtering(sampleBuffer: CMSampleBuffer, complete: @escaping (Result<CMSampleBuffer, HarbethError>) -> Void) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer((sampleBuffer)) else {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             complete(.failure(HarbethError.CMSampleBufferToCVPixelBuffer))
             return
         }

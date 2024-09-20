@@ -17,6 +17,8 @@ public protocol Destype {
     
     init(element: Element, filter: C7FilterProtocol)
     
+    init(element: Element, filters: C7FilterProtocol...)
+    
     init(element: Element, filters: [C7FilterProtocol])
     
     /// Add filters to sources synchronously.
@@ -32,6 +34,10 @@ extension Destype {
     
     public init(element: Element, filter: C7FilterProtocol) {
         self.init(element: element, filters: [filter])
+    }
+    
+    public init(element: Element, filters: C7FilterProtocol...) {
+        self.init(element: element, filters: filters)
     }
     
     /// Add filters to sources synchronously.

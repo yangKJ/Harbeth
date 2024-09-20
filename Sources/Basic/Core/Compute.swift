@@ -81,8 +81,10 @@ extension C7FilterProtocol {
     }
     
     private func encoding(computeEncoder: MTLComputeCommandEncoder, pipelineState: MTLComputePipelineState, textures: [MTLTexture]) -> MTLTexture {
+        if case .compute(let kernel) = self.modifier {
+            computeEncoder.label = kernel + " encoder"
+        }
         computeEncoder.setComputePipelineState(pipelineState)
-        
         let destTexture = textures[0]
         for (index, texture) in textures.enumerated() {
             computeEncoder.setTexture(texture, index: index)

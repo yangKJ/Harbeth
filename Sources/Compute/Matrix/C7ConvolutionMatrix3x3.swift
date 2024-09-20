@@ -27,8 +27,8 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
     public var convolutionPixel: Int = 1
     private var matrix: Matrix3x3
     
-    /// Specifies the intensity of the operation.
-    @ZeroOneRange public var intensity: Float = R.iRange.value
+    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     public var modifier: Modifier {
         return .compute(kernel: "C7ConvolutionMatrix3x3")

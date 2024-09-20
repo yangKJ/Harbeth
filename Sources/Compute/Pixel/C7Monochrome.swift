@@ -11,7 +11,7 @@ import Foundation
 public struct C7Monochrome: C7FilterProtocol {
     
     /// The degree to which the specific color replaces the normal image color
-    @ZeroOneRange public var intensity: Float = R.iRange.value
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     /// Keep the color scheme
     public var color: C7Color = .zero
@@ -25,7 +25,7 @@ public struct C7Monochrome: C7FilterProtocol {
         return [intensity] + [rgb.red, rgb.green, rgb.blue]
     }
     
-    public init(intensity: Float = R.iRange.value, color: C7Color = .zero) {
+    public init(intensity: Float = R.intensityRange.value, color: C7Color = .zero) {
         self.intensity = intensity
         self.color = color
     }
