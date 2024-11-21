@@ -44,7 +44,6 @@
 		8784451A2994DE81001D856B /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445162994DE81001D856B /* CameraViewController.swift */; };
 		8784451B2994DE81001D856B /* UnitTestViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445172994DE81001D856B /* UnitTestViewController.swift */; };
 		8784451C2994DE81001D856B /* ImageViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445182994DE81001D856B /* ImageViewController.swift */; };
-		87FD88D92A78EEFA00EAC2DD /* AsyncImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */; };
 		87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */; };
 		F75F72492A7420C8003478D7 /* BlendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F72482A7420C8003478D7 /* BlendView.swift */; };
 		F75F724D2A742272003478D7 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F724C2A742272003478D7 /* Extensions.swift */; };
@@ -130,7 +129,6 @@
 		878445162994DE81001D856B /* CameraViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CameraViewController.swift; sourceTree = "<group>"; };
 		878445172994DE81001D856B /* UnitTestViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UnitTestViewController.swift; sourceTree = "<group>"; };
 		878445182994DE81001D856B /* ImageViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewController.swift; sourceTree = "<group>"; };
-		87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncImageView.swift; sourceTree = "<group>"; };
 		87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
 		F748B7262A7D2F3C00D7B3F1 /* Harbeth-SwiftUI-Demo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Harbeth-SwiftUI-Demo.entitlements"; sourceTree = "<group>"; };
 		F75F72482A7420C8003478D7 /* BlendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendView.swift; sourceTree = "<group>"; };
@@ -286,7 +284,6 @@
 		F75F724A2A7420CF003478D7 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				87FD88D82A78EEFA00EAC2DD /* AsyncImageView.swift */,
 				F75F72482A7420C8003478D7 /* BlendView.swift */,
 				870B80AB2A80E40200614660 /* CoreImageViews.swift */,
 				F7621A882A7E7DA200614542 /* CubeView.swift */,
@@ -474,7 +471,6 @@
 				8769918C2A7CEBDC00551BD3 /* CustomViews.swift in Sources */,
 				874035862A988C07001D0A98 /* ErrorView.swift in Sources */,
 				F75F724F2A74227D003478D7 /* Res.swift in Sources */,
-				87FD88D92A78EEFA00EAC2DD /* AsyncImageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -656,10 +652,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Harbeth-macOS-Demo/Harbeth_macOS_Demo.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -685,10 +682,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Harbeth-macOS-Demo/Harbeth_macOS_Demo.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -717,7 +715,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Harbeth-SwiftUI-Demo/Preview Content\"";
-				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -725,13 +723,13 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "appletvos appletvsimulator iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
@@ -751,7 +749,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Harbeth-SwiftUI-Demo/Preview Content\"";
-				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -759,13 +757,13 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-SwiftUI-Demo2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "appletvos appletvsimulator iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;

@@ -78,8 +78,6 @@ extension HarbethWrapper where Base: C7Color {
     public func grayscaled(mode: C7Color.GrayedMode = .weighted) -> C7Color {
         let components = base.c7.components
         let lightness = mode.lightness(r: components[0], g: components[1], b: components[2])
-        let h = 0.0
-        let s = 0.0
         let l = min(max(lightness, 0.0), 1.0)
         /// Hue to RGB helper function
         let hueToRGB = { (m1: CGFloat, m2: CGFloat, h: CGFloat) -> CGFloat in
@@ -93,11 +91,11 @@ extension HarbethWrapper where Base: C7Color {
             }
             return m1
         }
-        let m2 = l <= 0.5 ? l * (s + 1.0) : (l + s) - (l * s)
-        let m1 = (l * 2.0) - m2
-        let r = hueToRGB(m1, m2, h + (1.0 / 3.0))
-        let g = hueToRGB(m1, m2, h)
-        let b = hueToRGB(m1, m2, h - (1.0 / 3.0))
+        let m2 = l <= 0.5 ? l : 0.0
+        let m1 = l * 2.0 - m2
+        let r = hueToRGB(m1, m2, 1.0/3.0)
+        let g = hueToRGB(m1, m2, 0.0)
+        let b = hueToRGB(m1, m2, -1.0/3.0)
         return C7Color.init(red: r, green: g, blue: b, alpha: components[3])
     }
 }

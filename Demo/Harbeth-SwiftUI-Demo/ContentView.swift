@@ -10,11 +10,12 @@ import Harbeth
 
 struct ContentView: View {
     var body: some View {
+        setupContentView()
+    }
+    
+    func setupContentView() -> some View {
         NavigationView {
             List {
-                NavigationLink(destination: AsyncImageView()) {
-                    Text("Async Load Image")
-                }
                 NavigationLink(destination: BlendView()) {
                     Text("Blend Modes")
                 }
@@ -22,6 +23,11 @@ struct ContentView: View {
                     C7CombinationBeautiful.init(smoothDegree: $0)
                 }, min: -0.2, max: 0.2, inputImage: R.image("SampleImage"))) {
                     Text("Combination Beauty")
+                }
+                NavigationLink(destination: CustomViews<C7Brightness>(value: 0.0, filtering: {
+                    C7Brightness.init(brightness: $0)
+                }, min: 0.0, max: 1.0, inputImage: R.image("SP"))) {
+                    Text("Brightness")
                 }
                 NavigationLink(destination: CoreImageViews()) {
                     Text("CoreImage filters")
@@ -47,13 +53,15 @@ struct ContentView: View {
             .textCase(.none)
             .groupedListStyle()
             .inlineNavigationBarTitle("Harbeth Examples")
-            
-            VStack(spacing: 6) {
-                Text("Welcome to Harbeth examples.")
-                Text("Select a topic to begin.").font(Font.caption).foregroundColor(.secondary)
-            }.toolbar(content: { Spacer() })
         }
         .stackNavigationViewStyle()
+    }
+    
+    func setupWelcome() -> some View {
+        VStack(spacing: 5) {
+            Text("Welcome to Harbeth examples.")
+            Text("Select a topic to begin.").font(Font.caption).foregroundColor(.secondary)
+        }.toolbar(content: { Spacer() })
     }
 }
 

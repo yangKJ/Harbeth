@@ -12,7 +12,7 @@ struct BlendView: View {
     
     @State private var intensity: Float = 0.3
     @State private var blendMode: C7Blend.BlendType = .normal
-    @State private var inputImage = R.image("IMG_0020")!
+    @State private var inputImage = R.image("yuan002")!
     
     private let blends: [C7Blend.BlendType] = [
         .chromaKey(threshold: 0.3, smoothing: 0.4, color: .black),

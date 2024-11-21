@@ -285,6 +285,22 @@ extension HarbethWrapper where Base: C7Image {
         return base.c7.renderer(rect: rect, canvas: size)
     }
     
+    /// Scale the picture to the specified size, and the excess is automatically deleted.
+    /// - Parameter newSize: Cut size.
+    public func scaled(to newSize: CGSize) -> C7Image {
+        if newSize.width == base.size.width, newSize.height == base.size.height {
+            return base
+        }
+        let aspectWidth = newSize.width / base.size.width
+        let aspectHeight = newSize.height / base.size.height
+        let aspectRatio = max(aspectWidth, aspectHeight)
+        let rect = CGRect(x: (newSize.width - base.size.width * aspectRatio) / 2.0,
+                          y: (newSize.height - base.size.height * aspectRatio) / 2.0,
+                          width: base.size.width * aspectRatio,
+                          height: base.size.height * aspectRatio)
+        return base.c7.renderer(rect: rect, canvas: newSize)
+    }
+    
     /// Crop the edge area.
     /// - Parameter space: Edge pixel size.
     public func crop(space: CGFloat) -> C7Image {

@@ -109,6 +109,12 @@ extension HarbethWrapper where Base: C7Image {
         return result ?? base
     }
     
+    /// Pull up picture.
+    /// - Parameter edges: Specify an area for stretching.
+    public func stretchImage(edges: UIEdgeInsets) -> C7Image {
+        base.resizableImage(withCapInsets: edges, resizingMode: .stretch)
+    }
+    
     /// Image path cropping, cropping path outside part.
     /// - Parameter bezierPath: Crop path.
     public func cropOuter(bezierPath: UIBezierPath) -> C7Image {

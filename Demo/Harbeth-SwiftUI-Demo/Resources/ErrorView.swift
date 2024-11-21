@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import Harbeth
 
+@available(iOS 15.0, *)
 struct ErrorView: View {
     @Binding var error: HarbethError?
     
@@ -32,6 +33,7 @@ struct ErrorView: View {
     }
 }
 
+@available(iOS 15.0, *)
 class RefreshActionPerformer: ObservableObject {
     @Published private(set) var isPerforming = false
     
@@ -43,6 +45,7 @@ class RefreshActionPerformer: ObservableObject {
     }
 }
 
+@available(iOS 15.0, *)
 struct RetryButton: View {
     var title: LocalizedStringKey = "Retry"
     

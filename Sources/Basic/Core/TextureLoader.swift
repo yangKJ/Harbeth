@@ -17,7 +17,15 @@ public struct TextureLoader {
     public static let defaultOptions = [
         .textureUsage: NSNumber(value: TextureLoader.usage.rawValue),
         .generateMipmaps: NSNumber(value: false),
-        .SRGB: NSNumber(value: false)
+        .SRGB: NSNumber(value: false),
+        .textureCPUCacheMode: NSNumber(value: true),
+    ] as [MTKTextureLoader.Option: Any]
+    
+    public static let shaderReadTextureOptions = [
+        .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+        .generateMipmaps: NSNumber(value: false),
+        .SRGB: NSNumber(value: false),
+        .textureCPUCacheMode: NSNumber(value: true),
     ] as [MTKTextureLoader.Option: Any]
     
     /// A metal texture.
@@ -205,12 +213,7 @@ extension TextureLoader {
     /// Creates a new only read metal texture from a given bitmap image.
     /// - Parameter cgImage: Bitmap image
     public static func shaderReadTexture(with cgImage: CGImage) throws -> MTLTexture {
-        let texturior = try TextureLoader.init(with: cgImage, options: [
-            .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
-            .generateMipmaps: NSNumber(value: false),
-            .SRGB: NSNumber(value: false)
-        ])
-        return texturior.texture
+        try TextureLoader.init(with: cgImage, options: TextureLoader.shaderReadTextureOptions).texture
     }
     
     /// Copy a new metal texture.
