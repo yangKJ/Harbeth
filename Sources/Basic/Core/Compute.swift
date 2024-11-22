@@ -117,6 +117,12 @@ extension C7FilterProtocol {
         computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
         computeEncoder.endEncoding()
         
+        #if targetEnvironment(macCatalyst)
+        let blitEncoder = commandBuffer.makeBlitCommandEncoder()
+        blitEncoder?.synchronize(resource: outputTexture)
+        blitEncoder?.endEncoding()
+        #endif
+        
         return destTexture
     }
 }

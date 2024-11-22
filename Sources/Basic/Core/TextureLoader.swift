@@ -151,8 +151,8 @@ extension TextureLoader {
     /// - Parameters:
     ///   - size: The texture size.
     ///   - options: Configure other parameters about generating metal textures.
-    public static func emptyTexture(at size: CGSize, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
-        try emptyTexture(width: Int(size.width), height: Int(size.height), options: options)
+    public static func makeTexture(at size: CGSize, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
+        try makeTexture(width: Int(size.width), height: Int(size.height), options: options)
     }
     
     /// Create a new MTLTexture for later storage according to the texture parameters.
@@ -160,13 +160,13 @@ extension TextureLoader {
     ///   - width: The texture width, must be greater than 0, maximum resolution is 16384.
     ///   - height: The texture height, must be greater than 0, maximum resolution is 16384.
     ///   - options: Configure other parameters about generating metal textures.
-    public static func emptyTexture(width: Int, height: Int, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
+    public static func makeTexture(width: Int, height: Int, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
         let options = options ?? [TextureLoader.Option: Any]()
         var usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
         var pixelFormat = MTLPixelFormat.rgba8Unorm
         var storageMode = MTLStorageMode.shared
         var allowGPUOptimizedContents = true
-        #if os(macOS)
+        #if os(macOS) || targetEnvironment(macCatalyst)
         // Texture Descriptor Validation MTLStorageModeShared not allowed for textures.
         // So macOS need use `managed`.
         storageMode = MTLStorageMode.managed
@@ -207,6 +207,14 @@ extension TextureLoader {
         }
         return texture
     }
+    
+    public static func emptyTexture(at size: CGSize, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
+        try makeTexture(at: size, options: options)
+    }
+    
+    public static func emptyTexture(width: Int, height: Int, options: [TextureLoader.Option: Any]? = nil) throws -> MTLTexture {
+        try makeTexture(width: width, height: height, options: options)
+    }
 }
 
 extension TextureLoader {
@@ -222,7 +230,7 @@ extension TextureLoader {
     public static func copyTexture(with texture: MTLTexture) throws -> MTLTexture {
         // 纹理最好不要又作为输入纹理又作为输出纹理，否则会出现重复内容，
         // 所以需要拷贝新的纹理来承载新的内容‼️
-        return try TextureLoader.emptyTexture(width: texture.width, height: texture.height, options: [
+        return try TextureLoader.makeTexture(width: texture.width, height: texture.height, options: [
             .texturePixelFormat: texture.pixelFormat,
             .textureUsage: texture.usage,
             .textureSampleCount: texture.sampleCount,

@@ -151,7 +151,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) throws -> MTLTexture {
         let width  = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
         let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
-        let texture = try TextureLoader.emptyTexture(width: width, height: height, options: [
+        let texture = try TextureLoader.makeTexture(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
         ])
         base.c7.copyToPixelBuffer(with: texture)

@@ -96,7 +96,7 @@ extension HarbethWrapper where Base: C7Image {
 
 extension HarbethWrapper where Base: C7Image {
     /// Round image.
-    public var circle: C7Image {
+    public var circled: C7Image {
         let min = min(base.size.width, base.size.height)
         let size = CGSize(width: min, height: min)
         UIGraphicsBeginImageContextWithOptions(size, false, base.scale)
@@ -107,6 +107,19 @@ extension HarbethWrapper where Base: C7Image {
         let result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         return result ?? base
+    }
+    
+    /// Square image.
+    public var squared: C7Image {
+        let edge = min(base.size.width, base.size.height)
+        let difference = base.size.width - base.size.height
+        let x = difference > 0 ? abs(difference/2) : 0.0
+        let y = difference < 0 ? abs(difference/2) : 0.0
+        let cropSquare = CGRect(x: x, y: y, width: edge, height: edge)
+        guard let imageRef = base.cgImage?.cropping(to: cropSquare) else {
+            return base
+        }
+        return C7Image(cgImage: imageRef, scale: base.scale, orientation: base.imageOrientation)
     }
     
     /// Pull up picture.

@@ -102,7 +102,7 @@ extension ViewControllerType {
 
     var overTexture: MTLTexture? {
         let color = UIColor.green.withAlphaComponent(0.5)
-        guard let texture = try? TextureLoader.emptyTexture(width: 480, height: 270) else {
+        guard let texture = try? TextureLoader.makeTexture(width: 480, height: 270) else {
             return nil
         }
         let filter = C7SolidColor.init(color: color)

@@ -53,7 +53,7 @@ extension HarbethWrapper where Base: CGImage {
         guard let data = context?.data else {
             return nil
         }
-        guard let texture = try? TextureLoader.emptyTexture(width: width, height: height, options: [
+        guard let texture = try? TextureLoader.makeTexture(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
         ]) else {
             return nil

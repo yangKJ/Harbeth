@@ -332,7 +332,7 @@ extension HarbethIO {
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
         // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-        return try TextureLoader.emptyTexture(width: resize.width, height: resize.height, options: [
+        return try TextureLoader.makeTexture(width: resize.width, height: resize.height, options: [
             .texturePixelFormat: bufferPixelFormat
         ])
     }
