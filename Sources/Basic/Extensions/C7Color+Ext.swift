@@ -113,17 +113,14 @@ extension HarbethWrapper where Base: C7Color {
         let blue = components[2]
         let maximum = max(red, max(green, blue))
         let minimum = min(red, min(green, blue))
-        var h: CGFloat = 0.0
+        let h: CGFloat
         let s: CGFloat
-        let v: CGFloat = maximum
         if maximum == 0 {
             s = 0.0
         } else {
             s = (maximum - minimum) / maximum
         }
-        if maximum == minimum {
-            h = 0.0
-        } else if maximum == red && green >= blue {
+        if maximum == red && green >= blue {
             h = 60 * (green - blue) / (maximum - minimum)
         } else if maximum == red && green < blue {
             h = 60 * (green - blue) / (maximum - minimum) + 360.0
@@ -131,8 +128,10 @@ extension HarbethWrapper where Base: C7Color {
             h = 60 * (red - green) / (maximum - minimum) + 240.0
         } else if maximum == green {
             h = 60 * (blue - red) / (maximum - minimum) + 120.0
+        } else {
+            h = 0.0
         }
-        return [CGFloat(h), CGFloat(s), CGFloat(v)]
+        return [h, s, maximum]
     }
     
     /// Returns the HSL (hue, saturation, lightness) components.
@@ -149,7 +148,7 @@ extension HarbethWrapper where Base: C7Color {
         guard delta != 0.0 else {
             return [0.0, 0.0, CGFloat(maximum)]
         }
-        var h: CGFloat = 0.0
+        let h: CGFloat
         let s: CGFloat
         let l: CGFloat = (maximum + minimum) / 2.0
         if l < 0.5 {
@@ -165,10 +164,10 @@ extension HarbethWrapper where Base: C7Color {
         case blue:
             h = ((red - green) / delta) + 4.0
         default:
-            break
+            h = 0.0
         }
         //h /= 6.0
-        return [CGFloat(h) * 60.0, CGFloat(s), CGFloat(l)]
+        return [h * 60.0, s, l]
     }
     
     /// Returns the XYZ (mix of cone response curves, luminance, quasi-equal to blue stimulation) components.

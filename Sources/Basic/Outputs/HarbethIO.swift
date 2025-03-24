@@ -33,9 +33,14 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     public let element: Dest
     public let filters: [C7FilterProtocol]
     
+    private var setupedBufferPixelFormat = false
     /// Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
     /// The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-    public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm
+    public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm {
+        didSet {
+            setupedBufferPixelFormat = true
+        }
+    }
     
     /// When the CIImage is created, it is mirrored and flipped upside down.
     /// But upon inspecting the texture, it still renders the CIImage as expected.
@@ -320,6 +325,26 @@ extension HarbethIO {
 // MARK: - private methods
 extension HarbethIO {
     
+    /// The default setting for MTLPixelFormat is rgba8Unorm.
+    private var rgba8UnormTexture: Bool {
+        switch element {
+        case _ as MTLTexture:
+            return true
+        case _ as C7Image:
+            return true
+        case _ as CIImage:
+            return true
+        case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
+            return true
+        case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
+            return false
+        case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
+            return false
+        default:
+            return false
+        }
+    }
+    
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if self.createDestTexture == false {
             return sourceTexture
@@ -330,6 +355,10 @@ extension HarbethIO {
             return sourceTexture
         }
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
+        var bufferPixelFormat: MTLPixelFormat = bufferPixelFormat
+        if !setupedBufferPixelFormat, rgba8UnormTexture {
+            bufferPixelFormat = .rgba8Unorm
+        }
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
         // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
         return try TextureLoader.makeTexture(width: resize.width, height: resize.height, options: [

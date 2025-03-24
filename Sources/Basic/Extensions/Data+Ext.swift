@@ -21,16 +21,6 @@ extension HarbethWrapper where Base == Data {
     /// - Parameter options: Dictonary of MTKTextureLoaderOptions
     /// - Returns: MTLTexture
     public func toTexture(options: [MTKTextureLoader.Option: Any]? = nil) -> MTLTexture? {
-        let usage: MTLTextureUsage = [.shaderRead, .shaderWrite]
-        let options: [MTKTextureLoader.Option: Any] = options ?? [
-            .textureUsage: NSNumber(value: usage.rawValue),
-            .generateMipmaps: NSNumber(value: false),
-            .SRGB: NSNumber(value: false)
-        ]
-        let loader = Shared.shared.device?.textureLoader
-        if let texture = try? loader?.newTexture(data: base, options: options) {
-            return texture
-        }
-        return C7Image.init(data: base)?.c7.toTexture()
+        return try? TextureLoader.init(with: base, options: options).texture
     }
 }
