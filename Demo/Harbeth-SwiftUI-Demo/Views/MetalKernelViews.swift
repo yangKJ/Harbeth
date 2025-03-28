@@ -30,6 +30,11 @@ struct MetalKernelViews: View {
     
     func setupContentView() -> some View {
         List {
+            NavigationLink(destination: CustomViews(value: 90, filtering: {
+                C7Rotate.init(angle: $0)
+            }, min: 0, max: 360, inputImage: R.image("yuan002"))) {
+                Text("C7 Rotate")
+            }
             NavigationLink(destination: CustomViews(value: C7SoulOut.range.value, filtering: {
                 C7SoulOut.init(soul: $0)
             }, min: C7SoulOut.range.min, max: C7SoulOut.range.max, inputImage: R.image("yuan002"))) {

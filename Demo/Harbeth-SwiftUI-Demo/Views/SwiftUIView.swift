@@ -15,13 +15,19 @@ struct SwiftUIView: View {
     
     var body: some View {
         VStack {
-            HarbethView(image: inputImage, filters: [
-                CIHighlight(highlight: intensity),
-                C7WaterRipple(ripple: intensity),
-                CILookupTable(cubeName: "violet", amount: intensity),
-                CIGaussianBlur(radius: 5),
-                C7Storyboard(ranks: 2),
-            ], content: { image in
+            HarbethView(input: {
+                var input = HarbethViewInput(image: inputImage)
+                input.filters = [
+                    CIHighlight(highlight: intensity),
+                    C7WaterRipple(ripple: intensity),
+                    CILookupTable(cubeName: "violet", amount: intensity),
+                    CIGaussianBlur(radius: 5),
+                    C7Storyboard(ranks: 2),
+                ]
+                input.asynchronousProcessing = true
+                input.placeholder = R.image("IMG_4931")
+                return input
+            }(), content: { image in
                 image.resizable()
                     .aspectRatio(contentMode: .fit)
             })

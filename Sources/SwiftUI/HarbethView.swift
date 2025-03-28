@@ -14,8 +14,10 @@ public typealias FilterableView<C: View> = HarbethView<C>
 @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct HarbethView<Content>: View where Content: View {
     
-    @ObservedObject private var image: Published_Image
-    @ViewBuilder private var content: (Image) -> Content
+    public typealias Block = (Image) -> Content
+    
+    @ObservedObject private var source: Published_Source<C7Image>
+    @ViewBuilder private var content: Block
     
     /// Create an instance from the provided value.
     /// - Parameters:
@@ -23,26 +25,56 @@ public struct HarbethView<Content>: View where Content: View {
     ///   - filters: Need add filters.
     ///   - content: Callback a Image.
     ///   - async: Whether to use asynchronous processing, the UI will not be updated in real time.
-    public init(image: C7Image, filters: [C7FilterProtocol], @ViewBuilder content: @escaping (Image) -> Content, async: Bool = false) {
-        self.image = Published_Image(image)
-        self.content = content
-        self.setup(filters: filters, async: async)
+    public init(image: C7Image, filters: [C7FilterProtocol], @ViewBuilder content: @escaping Block, async: Bool = false) {
+        var input = HarbethViewInput(image: image)
+        input.asynchronousProcessing = async
+        input.filters = filters
+        input.placeholder = image
+        self.init(input: input, content: content)
     }
     
-    func setup(filters: [C7FilterProtocol], async: Bool) {
-        let dest = HarbethIO(element: image.image, filters: filters)
-        if async {
-            dest.transmitOutput(success: { img in
-                DispatchQueue.main.async {
-                    self.image.image = img
+    /// Create an instance from the provided value.
+    /// - Parameters:
+    ///   - input: Input source.
+    ///   - content: Callback a Image.
+    public init(input: HarbethViewInput, @ViewBuilder content: @escaping Block) {
+        self.content = content
+        if let placeholder = input.placeholder {
+            self.source = Published_Source(placeholder)
+            self.setup(input: input)
+        } else if let image = input.texture?.c7.toImage() {
+            self.source = Published_Source(image)
+            self.setup(input: input)
+        } else {
+            self.source = Published_Source(C7Image())
+        }
+    }
+    
+    func setup(input: HarbethViewInput) {
+        guard !input.filters.isEmpty, let texture = input.texture else {
+            return
+        }
+        let dest = HarbethIO(element: texture, filters: input.filters)
+        if input.asynchronousProcessing {
+            dest.transmitOutput(success: { source in
+                if let image = source.c7.toImage() {
+                    DispatchQueue.main.async {
+                        self.source.source = image
+                    }
                 }
             })
-        } else if let image_ = try? dest.output() {
-            self.image.image = image_
+        } else if let image = try? dest.output().c7.toImage() {
+            self.source.source = image
         }
     }
     
     public var body: some View {
-        self.content(Image.init(c7Image: image.image))
+        self.content(disImage)
+    }
+    
+    public var disImage: Image {
+        get {
+            Image.init(c7Image: source.source)
+        }
     }
 }

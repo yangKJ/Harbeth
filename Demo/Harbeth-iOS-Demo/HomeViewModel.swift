@@ -58,6 +58,8 @@ struct HomeViewModel {
         case .camera:
             var filters = color
             filters.insert(.Storyboard, at: 0)
+            filters.insert(.Rotate, at: 1)
+            filters.insert(.Flip, at: 2)
             return ["相机特效 - 真机测试": filters]
         }
     }()
