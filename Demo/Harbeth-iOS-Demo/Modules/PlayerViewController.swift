@@ -22,7 +22,9 @@ class PlayerViewController: UIViewController {
     
     lazy var video: C7CollectorVideo = {
         //let videoURL = URL.init(string: "https://mp4.vjshi.com/2017-06-03/076f1b8201773231ca2f65e38c34033c.mp4")!
-        let videoURL = URL.init(string: "https://mp4.vjshi.com/2018-03-30/1f36dd9819eeef0bc508414494d34ad9.mp4")!
+        //let videoURL = URL.init(string: "https://mp4.vjshi.com/2018-03-30/1f36dd9819eeef0bc508414494d34ad9.mp4")!
+        let path = Bundle.main.path(forResource: "Skateboarding", ofType: "mp4")!
+        let videoURL = NSURL.init(fileURLWithPath: path) as URL
         let asset = AVURLAsset.init(url: videoURL)
         let playerItem = AVPlayerItem(asset: asset)
         let player = AVPlayer.init(playerItem: playerItem)

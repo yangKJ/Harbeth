@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		68A25FD72D5DEB5C006FBFC8 /* Skateboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 68A25FD62D5DEB5C006FBFC8 /* Skateboarding.mp4 */; };
 		870B80AC2A80E40200614660 /* CoreImageViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870B80AB2A80E40200614660 /* CoreImageViews.swift */; };
 		870B80AE2A80E51B00614660 /* MetalKernelViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870B80AD2A80E51B00614660 /* MetalKernelViews.swift */; };
 		872661C42994D8CE00E612C7 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872661C32994D8CE00E612C7 /* AppDelegate.swift */; };
@@ -90,6 +91,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		68A25FD62D5DEB5C006FBFC8 /* Skateboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = Skateboarding.mp4; sourceTree = "<group>"; };
 		870B80AB2A80E40200614660 /* CoreImageViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreImageViews.swift; sourceTree = "<group>"; };
 		870B80AD2A80E51B00614660 /* MetalKernelViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalKernelViews.swift; sourceTree = "<group>"; };
 		872661C12994D8CE00E612C7 /* Harbeth-macOS-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-macOS-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -271,6 +273,7 @@
 		8784451D2994DE9F001D856B /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				68A25FD62D5DEB5C006FBFC8 /* Skateboarding.mp4 */,
 				878444FD2994DDA1001D856B /* Assets.xcassets */,
 				8784450A2994DE12001D856B /* Color.xcassets */,
 				878445022994DDA1001D856B /* Info.plist */,
@@ -437,6 +440,7 @@
 			files = (
 				878445012994DDA1001D856B /* LaunchScreen.storyboard in Resources */,
 				8784450B2994DE12001D856B /* Color.xcassets in Resources */,
+				68A25FD72D5DEB5C006FBFC8 /* Skateboarding.mp4 in Resources */,
 				878444FE2994DDA1001D856B /* Assets.xcassets in Resources */,
 				878444FC2994DDA0001D856B /* Main.storyboard in Resources */,
 			);
@@ -781,7 +785,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
@@ -797,7 +801,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo2";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo3";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -815,7 +819,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AAHMKJNWLX;
+				DEVELOPMENT_TEAM = 66T6NB6T4J;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
@@ -831,7 +835,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo2";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo3";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

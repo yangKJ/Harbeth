@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6820D5922D45C65300A8DE5E /* HarbethViewInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6820D5912D45C65300A8DE5E /* HarbethViewInput.swift */; };
 		68C4A0E52CEEC6A5006BF7CA /* String+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68C4A0E42CEEC6A5006BF7CA /* String+Ext.swift */; };
 		8708A1202A85C56D006106BC /* MTLCommandBuffer+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8708A11F2A85C56D006106BC /* MTLCommandBuffer+Ext.swift */; };
 		8708D21E29BF2268004621AE /* Harbeth.h in Headers */ = {isa = PBXBuildFile; fileRef = 8708D21D29BF2268004621AE /* Harbeth.h */; };
@@ -292,6 +293,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		6820D5912D45C65300A8DE5E /* HarbethViewInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarbethViewInput.swift; sourceTree = "<group>"; };
 		68C4A0E42CEEC6A5006BF7CA /* String+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Ext.swift"; sourceTree = "<group>"; };
 		8708A11F2A85C56D006106BC /* MTLCommandBuffer+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MTLCommandBuffer+Ext.swift"; sourceTree = "<group>"; };
 		8708D21D29BF2268004621AE /* Harbeth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Harbeth.h; sourceTree = "<group>"; };
@@ -1040,6 +1042,7 @@
 			children = (
 				872BBA992B1983AE00493F25 /* Color+Ext.swift */,
 				877BBBC62B1F06730009C335 /* HarbethView.swift */,
+				6820D5912D45C65300A8DE5E /* HarbethViewInput.swift */,
 				87901EEE2A7210B5008FCB47 /* Image+Ext.swift */,
 				877BBBC82B1F10730009C335 /* Published_Image.swift */,
 			);
@@ -1280,6 +1283,7 @@
 				8726614B2994D82200E612C7 /* C7OilPainting.metal in Sources */,
 				F7621A8D2A7FA14B00614542 /* CIContrast.swift in Sources */,
 				872661312994D82200E612C7 /* C7Sharpen.swift in Sources */,
+				6820D5922D45C65300A8DE5E /* HarbethViewInput.swift in Sources */,
 				8726616D2994D82200E612C7 /* C7ColorPacking.metal in Sources */,
 				8726613F2994D82200E612C7 /* C7Gamma.metal in Sources */,
 				872661952994D82200E612C7 /* C7Glitch.metal in Sources */,
