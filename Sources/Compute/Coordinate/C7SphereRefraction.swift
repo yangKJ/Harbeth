@@ -14,7 +14,7 @@ public struct C7SphereRefraction: C7FilterProtocol {
     public var aspectRatio: Float = 1
     public var center: C7Point2D = C7Point2D.center
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7SphereRefraction")
     }
     

@@ -14,7 +14,7 @@ public struct CIContrast: CoreImageProtocol {
     
     @Clamping(range.min...range.max) public var contrast: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIColorControls")
     }
     

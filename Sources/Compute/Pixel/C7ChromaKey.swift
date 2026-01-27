@@ -23,7 +23,7 @@ public struct C7ChromaKey: C7FilterProtocol {
     /// If the alpha is 0, it will not be replaced.
     public var replace: C7Color = .zero
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ChromaKey")
     }
     

@@ -17,7 +17,7 @@ public struct C7MeanBlur: C7FilterProtocol {
     /// Contrary to the “Gaussian” filter, edges are not blurred. Corners are rounded and convex surfaces are eroded.
     public var radius: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7MeanBlur")
     }
     

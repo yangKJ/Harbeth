@@ -12,7 +12,7 @@ public struct C7Rotate: C7FilterProtocol {
     /// Angle to rotate, unit is degree
     @DegreeRange public var angle: Float
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Rotate")
     }
     

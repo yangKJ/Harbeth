@@ -105,16 +105,20 @@ extension HarbethWrapper where Base: CIImage {
 extension CoreImageProtocol {
     
     func outputCIImage(with texture: MTLTexture, name: String) throws -> CIImage {
-        guard let ciFilter = (self as? CIImageDisplaying)?.ciFilter ?? {
-            CIFilter.init(name: name)
-        }() else {
-            throw HarbethError.createCIFilter(name)
-        }
         guard let cgImage = texture.c7.toCGImage() else {
             throw HarbethError.texture2CGImage
         }
         // Fixed coreImage filter has blank or center flip bug.
         let inputCIImage = CIImage.init(cgImage: cgImage)
+        return try outputCIImage(with: inputCIImage, name: name)
+    }
+    
+    func outputCIImage(with inputCIImage: CIImage, name: String) throws -> CIImage {
+        guard let ciFilter = (self as? CIImageDisplaying)?.ciFilter ?? {
+            CIFilter.init(name: name)
+        }() else {
+            throw HarbethError.createCIFilter(name)
+        }
         // Series connection other filters and finally output to the main filter.
         let middleImage = try self.coreImageApply(filter: ciFilter, input: inputCIImage)
         ciFilter.setValue(middleImage, forKeyPath: kCIInputImageKey)

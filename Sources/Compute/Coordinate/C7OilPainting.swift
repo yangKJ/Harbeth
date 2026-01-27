@@ -13,7 +13,7 @@ public struct C7OilPainting: C7FilterProtocol {
     public var radius: Float = 3.0
     public var pixel: Int = 1
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7OilPainting")
     }
     

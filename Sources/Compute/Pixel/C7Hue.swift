@@ -12,7 +12,7 @@ public struct C7Hue: C7FilterProtocol {
     /// Hue adjustment, unit is degree
     @DegreeRange public var hue: Float = 90.0
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Hue")
     }
     

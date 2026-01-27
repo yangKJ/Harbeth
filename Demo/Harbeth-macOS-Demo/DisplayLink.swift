@@ -5,221 +5,172 @@
 //  Created by Condy on 2023/1/6.
 //
 
-import Foundation
-
 #if os(macOS)
 
-#if __MAC_14_0 || __MAC_14_1 || __MAC_14_2 || __MAC_14_3 || __MAC_14_4 || __MAC_14_5
-import QuartzCore
-public typealias CADisplayLink = QuartzCore.CADisplayLink
-#else
+import Foundation
 import AppKit
-public typealias CADisplayLink = DisplayLink
+import CoreVideo
 
-// See: https://developer.apple.com/documentation/quartzcore/cadisplaylink
-public protocol DisplayLinkProtocol: NSObjectProtocol {
+public final class CADisplayLink: NSObject {
+    private let impl: DisplayLinkImpl
     
-    /// The refresh rate of 60HZ is 60 times per second, each refresh takes 1/60 of a second about 16.7 milliseconds.
-    var duration: CFTimeInterval { get }
+    /// Creates a display link with the target and selector.
+    public init(target: Any, selector: Selector) {
+        self.impl = DisplayLinkImpl(target: target, selector: selector)
+        super.init()
+    }
     
-    /// Returns the time between each frame, that is, the time interval between each screen refresh.
-    var timestamp: CFTimeInterval { get }
+    public override init() {
+        fatalError("Use init(target:selector:)")
+    }
     
-    /// Sets how many frames between calls to the selector method, defult 1
-    var frameInterval: Int { get }
+    /// The duration between frames (in seconds).
+    public var duration: CFTimeInterval {
+        impl.duration
+    }
     
-    /// A Boolean value that indicates whether the system suspends the display link’s notifications to the target.
-    var isPaused: Bool { get set }
+    /// The timestamp of the last frame.
+    public var timestamp: CFTimeInterval {
+        impl.timestamp
+    }
     
-    /// Creates a display link with the target and selector you specify.
-    /// It will invoke the method called `sel` on `target`, the method has the signature ``(void)selector:(CADisplayLink *)sender``.
-    /// - Parameters:
-    ///   - target: An object the system notifies to update the screen.
-    ///   - sel: The method to call on the target.
-    init(target: Any, selector sel: Selector)
+    /// Number of frames to skip between callbacks (default: 1).
+    /// Note: This implementation ignores frameInterval for simplicity.
+    public var frameInterval: Int {
+        get { impl.frameInterval }
+        set { impl.frameInterval = newValue }
+    }
     
-    /// Adds the receiver to the given run-loop and mode.
-    /// - Parameters:
-    ///   - runloop: The run loop to associate with the display link.
-    ///   - mode: The mode in which to add the display link to the run loop.
-    func add(to runloop: RunLoop, forMode mode: RunLoop.Mode)
+    /// Pauses or resumes the display link.
+    public var isPaused: Bool {
+        get { impl.isPaused }
+        set { impl.isPaused = newValue }
+    }
     
-    /// Removes the receiver from the given mode of the runloop.
-    /// This will implicitly release it when removed from the last mode it has been registered for.
-    /// - Parameters:
-    ///   - runloop: The run loop to associate with the display link.
-    ///   - mode: The mode in which to remove the display link to the run loop.
-    func remove(from runloop: RunLoop, forMode mode: RunLoop.Mode)
+    /// Adds the display link to a run loop.
+    public func add(to runloop: RunLoop, forMode mode: RunLoop.Mode) {
+        impl.add(to: runloop, forMode: mode)
+    }
     
-    /// Removes the object from all runloop modes and releases the `target` object.
-    func invalidate()
+    /// Removes the display link from a run loop.
+    public func remove(from runloop: RunLoop, forMode mode: RunLoop.Mode) {
+        impl.remove(from: runloop, forMode: mode)
+    }
+    
+    /// Invalidates the display link.
+    public func invalidate() {
+        impl.invalidate()
+    }
 }
 
-/// Analog to the CADisplayLink in iOS.
-public final class DisplayLink: NSObject, DisplayLinkProtocol {
-    
-    // This is the value of CADisplayLink.
-    private static let duration = 0.016666667
-    private static let frameInterval = 1
-    private static let timestamp = 0.0 // 该值随时会变，就取个开始值吧!
-    
+private final class DisplayLinkImpl: NSObject {
     private let target: Any
     private let selector: Selector
-    //private let selParameterNumbers: Int
-    private let timer: CVDisplayLink?
+    private var cvLink: CVDisplayLink?
     private var source: DispatchSourceUserDataAdd?
-    private var timeStampRef: CVTimeStamp = CVTimeStamp()
-    private var schedulers: [RunLoop: [RunLoop.Mode]] = [:]
+    private var timeRef = CVTimeStamp()
+    private var registeredRunLoops: [RunLoop: Set<RunLoop.Mode>] = [:]
     
-    /// Use this callback when the Selector parameter exceeds 1.
-    //public var callback: Optional<(_ displayLink: DisplayLink) -> ()> = nil
-    
-    /// The refresh rate of 60HZ is 60 times per second, each refresh takes 1/60 of a second about 16.7 milliseconds.
-    public var duration: CFTimeInterval {
-        guard let timer = timer else { return DisplayLink.duration }
-        CVDisplayLinkGetCurrentTime(timer, &timeStampRef)
-        return CFTimeInterval(timeStampRef.videoRefreshPeriod) / CFTimeInterval(timeStampRef.videoTimeScale)
-    }
-    
-    /// Returns the time between each frame, that is, the time interval between each screen refresh.
-    public var timestamp: CFTimeInterval {
-        guard let timer = timer else { return DisplayLink.timestamp }
-        CVDisplayLinkGetCurrentTime(timer, &timeStampRef)
-        return CFTimeInterval(timeStampRef.videoTime) / CFTimeInterval(timeStampRef.videoTimeScale)
-    }
-    
-    /// Sets how many frames between calls to the selector method, defult 1
-    public var frameInterval: Int {
-        guard let timer = timer else { return DisplayLink.frameInterval }
-        CVDisplayLinkGetCurrentTime(timer, &timeStampRef)
-        return Int(timeStampRef.rateScalar)
-    }
-    
-    public init(target: Any, selector sel: Selector) {
-        self.target = target
-        self.selector = sel
-        //self.selParameterNumbers = DisplayLink.selectorParameterNumbers(sel)
-        var timerRef: CVDisplayLink? = nil
-        CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
-        self.timer = timerRef
-    }
-    
-    public func add(to runloop: RunLoop, forMode mode: RunLoop.Mode) {
-        if let _ = self.source {
-            return
+    var duration: CFTimeInterval {
+        guard let link = cvLink else { return 1.0 / 60.0 }
+        CVDisplayLinkGetCurrentTime(link, &timeRef)
+        if timeRef.videoTimeScale > 0, timeRef.videoRefreshPeriod > 0 {
+            return CFTimeInterval(timeRef.videoRefreshPeriod) / CFTimeInterval(timeRef.videoTimeScale)
         }
-        self.source = createSource(with: runloop)
-        schedulers[runloop, default: []].append(mode)
+        return 1.0 / 60.0
     }
     
-    public func remove(from runloop: RunLoop, forMode mode: RunLoop.Mode) {
-        self.cancel()
-        self.source = nil
-        schedulers[runloop]?.removeAll { $0 == mode }
-        if let modes = schedulers[runloop], modes.isEmpty {
-            schedulers.removeValue(forKey: runloop)
+    var timestamp: CFTimeInterval {
+        guard let link = cvLink else { return CACurrentMediaTime() }
+        CVDisplayLinkGetCurrentTime(link, &timeRef)
+        if timeRef.videoTimeScale > 0 {
+            return CFTimeInterval(timeRef.videoTime) / CFTimeInterval(timeRef.videoTimeScale)
         }
+        return CACurrentMediaTime()
     }
     
-    public var isPaused: Bool = false {
+    var frameInterval: Int = 1 // Basic implementation; could be enhanced
+    var isPaused: Bool = false {
         didSet {
-            isPaused ? suspend() : start()
+            if isPaused { suspend() } else { resume() }
         }
     }
     
-    public func invalidate() {
-        cancel()
-        schedulers = [:]
-        isPaused = true
+    init(target: Any, selector: Selector) {
+        self.target = target
+        self.selector = selector
+        super.init()
+        var link: CVDisplayLink?
+        if CVDisplayLinkCreateWithActiveCGDisplays(&link) == kCVReturnSuccess {
+            self.cvLink = link
+        }
     }
     
     deinit {
-        if running() {
-            cancel()
+        invalidate()
+    }
+    
+    func add(to runloop: RunLoop, forMode mode: RunLoop.Mode) {
+        if source == nil {
+            setupDispatchSource(for: runloop)
         }
+        registeredRunLoops[runloop, default: []].insert(mode)
+        if !isPaused {
+            resume()
+        }
+    }
+    
+    func remove(from runloop: RunLoop, forMode mode: RunLoop.Mode) {
+        registeredRunLoops[runloop]?.remove(mode)
+        if let modes = registeredRunLoops[runloop], modes.isEmpty {
+            registeredRunLoops.removeValue(forKey: runloop)
+        }
+        if registeredRunLoops.isEmpty {
+            suspend()
+        }
+    }
+    
+    func invalidate() {
+        suspend()
+        source?.cancel()
+        source = nil
+        registeredRunLoops.removeAll()
+        isPaused = true
+    }
+    
+    private func setupDispatchSource(for runloop: RunLoop) {
+        let queue = runloop == .main ? DispatchQueue.main : DispatchQueue.global(qos: .userInteractive)
+        let src = DispatchSource.makeUserDataAddSource(queue: queue)
+        self.source = src
+        if let link = cvLink {
+            CVDisplayLinkSetOutputCallback(link, { (_, _, _, _, _, ptr) -> CVReturn in
+                if let p = ptr {
+                    let s = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(p).takeUnretainedValue()
+                    s.add(data: 1)
+                }
+                return kCVReturnSuccess
+            }, Unmanaged.passUnretained(src).toOpaque())
+        }
+        src.setEventHandler { [weak self] in
+            guard let self else { return }
+            for (rl, modes) in self.registeredRunLoops {
+                for mode in modes {
+                    rl.perform(self.selector, target: self.target, argument: self, order: 0, modes: [mode])
+                }
+            }
+        }
+        src.resume()
+    }
+    
+    private func resume() {
+        guard let link = cvLink, !CVDisplayLinkIsRunning(link) else { return }
+        CVDisplayLinkStart(link)
+    }
+    
+    private func suspend() {
+        guard let link = cvLink, CVDisplayLinkIsRunning(link) else { return }
+        CVDisplayLinkStop(link)
     }
 }
 
-extension DisplayLink {
-    /// Get the number of parameters contained in the Selector method.
-    private class func selectorParameterNumbers(_ sel: Selector) -> Int {
-        var number: Int = 0
-        for x in sel.description where x == ":" {
-            number += 1
-        }
-        return number
-    }
-    
-    /// Starts the timer.
-    private func start() {
-        guard !running(), let timer = timer else {
-            return
-        }
-        CVDisplayLinkStart(timer)
-        if source?.isCancelled ?? false {
-            source?.activate()
-        } else {
-            source?.resume()
-        }
-    }
-    
-    /// Suspend the timer.
-    private func suspend() {
-        guard running(), let timer = timer else {
-            return
-        }
-        CVDisplayLinkStop(timer)
-        source?.suspend()
-    }
-    
-    /// Cancels the timer, can be restarted aftewards.
-    private func cancel() {
-        guard running(), let timer = timer else {
-            return
-        }
-        CVDisplayLinkStop(timer)
-        if source?.isCancelled ?? false {
-            return
-        }
-        source?.cancel()
-    }
-    
-    private func running() -> Bool {
-        guard let timer = timer else { return false }
-        return CVDisplayLinkIsRunning(timer)
-    }
-    
-    private func createSource(with runloop: RunLoop) -> DispatchSourceUserDataAdd? {
-        guard let timer = timer else {
-            return nil
-        }
-        let queue: DispatchQueue = runloop == RunLoop.main ? .main : .global()
-        let source = DispatchSource.makeUserDataAddSource(queue: queue)
-        var successLink = CVDisplayLinkSetOutputCallback(timer, { (_,_,_,_,_, pointer) -> CVReturn in
-            if let sourceUnsafeRaw = pointer {
-                let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(sourceUnsafeRaw)
-                sourceUnmanaged.takeUnretainedValue().add(data: 1)
-            }
-            return kCVReturnSuccess
-        }, Unmanaged.passUnretained(source).toOpaque())
-        guard successLink == kCVReturnSuccess else {
-            return nil
-        }
-        successLink = CVDisplayLinkSetCurrentCGDisplay(timer, CGMainDisplayID())
-        guard successLink == kCVReturnSuccess else {
-            return nil
-        }
-        // Timer setup
-        source.setEventHandler(handler: { [weak self] in
-            guard let weakSelf = self else {
-                return
-            }
-            for scheduler in weakSelf.schedulers {
-                scheduler.key.perform(weakSelf.selector, target: weakSelf.target, argument: nil, order: 0, modes: scheduler.value)
-            }
-        })
-        return source
-    }
-}
-#endif
 #endif

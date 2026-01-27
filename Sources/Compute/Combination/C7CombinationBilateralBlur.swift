@@ -24,7 +24,7 @@ public struct C7CombinationBilateralBlur: C7FilterProtocol {
         }
     }
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7BilateralBlur")
     }
     

@@ -16,7 +16,7 @@ public struct CIHighlight: CoreImageProtocol {
     
     @ZeroOneRange public var highlight: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIHighlightShadowAdjust")
     }
     

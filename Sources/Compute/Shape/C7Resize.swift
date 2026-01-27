@@ -13,7 +13,7 @@ public struct C7Resize: C7FilterProtocol {
     public var width: Float
     public var height: Float
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Resize")
     }
     

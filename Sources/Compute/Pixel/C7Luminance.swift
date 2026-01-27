@@ -14,7 +14,7 @@ public struct C7Luminance: C7FilterProtocol {
     
     @ZeroOneRange public var luminance: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Luminance")
     }
     

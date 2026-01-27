@@ -15,7 +15,7 @@ public struct C7Haze: C7FilterProtocol {
     /// Amount of color change.
     public var slope: Float = 0
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Haze")
     }
     

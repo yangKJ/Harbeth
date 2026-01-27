@@ -13,7 +13,7 @@ public struct C7Sketch: C7FilterProtocol {
     /// Higher values lead to stronger edges, but can saturate the intensity colorspace.
     public var edgeStrength: Float = 1
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Sketch")
     }
     

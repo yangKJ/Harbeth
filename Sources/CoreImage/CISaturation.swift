@@ -14,7 +14,7 @@ public struct CISaturation: CoreImageProtocol {
     
     @Clamping(range.min...range.max) public var saturation: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIColorControls")
     }
     

@@ -14,7 +14,7 @@ public struct CIExposure: CoreImageProtocol {
     
     @Clamping(range.min...range.max) public var exposure: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIExposureAdjust")
     }
     

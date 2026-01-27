@@ -16,7 +16,7 @@ public struct C7Bulge: C7FilterProtocol {
     /// The amount of distortion to apply, from -1.0 to 1.0, with a default of 0.5
     public var scale: Float = 0.5
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Bulge")
     }
     

@@ -10,7 +10,7 @@ import CoreImage
 
 public struct CIResizedSmooth: CIImageDisplaying {
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CILanczosScaleTransform")
     }
     

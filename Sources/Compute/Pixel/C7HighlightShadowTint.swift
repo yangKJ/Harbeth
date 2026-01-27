@@ -19,7 +19,7 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
     @ZeroOneRange public var highlights: Float = range.value
     public var highlightsColor: C7Color = .zero
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7HighlightShadowTint")
     }
     

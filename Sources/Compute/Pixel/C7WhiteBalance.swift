@@ -18,7 +18,7 @@ public struct C7WhiteBalance: C7FilterProtocol {
     /// Note that the scale between 4000 and 5000 is nearly as visually significant as that between 5000 and 7000.
     @Clamping(range.min...range.max) public var temperature: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7WhiteBalance")
     }
     

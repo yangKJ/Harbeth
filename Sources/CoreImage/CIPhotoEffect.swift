@@ -28,7 +28,7 @@ public struct CIPhotoEffect: CoreImageProtocol {
         case transfer
     }
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: effectType.kernel)
     }
     

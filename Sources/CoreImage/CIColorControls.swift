@@ -20,7 +20,7 @@ public struct CIColorControls: CoreImageProtocol {
     /// The adjusted contrast, from -0.18 to 0.18, with a default of 0.0.
     @Clamping(CIContrast.range.min...CIContrast.range.max) public var contrast: Float = CIContrast.range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIColorControls")
     }
     

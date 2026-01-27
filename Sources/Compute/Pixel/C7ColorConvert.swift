@@ -26,7 +26,7 @@ public struct C7ColorConvert: C7FilterProtocol {
     
     private let type: ColorType
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: type.rawValue)
     }
     

@@ -15,7 +15,7 @@ public struct C7Contrast: C7FilterProtocol {
     /// The adjusted contrast, from 0 to 2.0, with a default of 1.0 being the original picture.
     public var contrast: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Contrast")
     }
     

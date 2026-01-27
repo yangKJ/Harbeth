@@ -13,7 +13,7 @@ public struct C7Storyboard: C7FilterProtocol {
     /// It is divided into `ranks²` screens.
     @Clamping(1...Int.max) public var ranks: Int = 2
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Storyboard")
     }
     

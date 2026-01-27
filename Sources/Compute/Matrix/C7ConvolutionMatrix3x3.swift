@@ -30,7 +30,7 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ConvolutionMatrix3x3")
     }
     

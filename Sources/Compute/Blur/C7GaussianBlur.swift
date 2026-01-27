@@ -14,7 +14,7 @@ public struct C7GaussianBlur: C7FilterProtocol {
     /// Sets the radius of the blur.
     public var radius: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7GaussianBlur")
     }
     

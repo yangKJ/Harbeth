@@ -1,5 +1,5 @@
 //
-//  Typealias.swift
+//  TypeAliasWrapper.swift
 //  ATMetalBand
 //
 //  Created by Condy on 2022/2/16.
@@ -33,6 +33,7 @@ public typealias C7ImageOrientation = CGImagePropertyOrientation
 
 public typealias C7InputTextures = [MTLTexture]
 public typealias C7FilterImageCallback = (_ image: C7Image) -> Void
+public typealias C7TextureResultBlock = (Result<MTLTexture, HarbethError>) -> Void
 
 typealias C7KernelFunction = String
 

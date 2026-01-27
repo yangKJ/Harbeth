@@ -15,7 +15,10 @@ import MetalKit
 import CoreImage
 import MetalPerformanceShaders
 
-public enum Modifier {
+@available(*, deprecated, message: "Typo. Use `ModifierEnum` instead", renamed: "ModifierEnum")
+public typealias Modifier = ModifierEnum
+
+public enum ModifierEnum: Equatable {
     /// 基于`MTLComputeCommandEncoder`并行计算编码器，可直接生成图片
     /// Based on parallel computing encoder, Pictures can be generated directly.
     case compute(kernel: String)
@@ -32,12 +35,29 @@ public enum Modifier {
     /// 基于`MetalPerformanceShaders`着色器
     /// Based on the MetalPerformanceShaders shader.
     case mps(performance: MPSKernel)
+    
+    public static func ==(lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
+        switch (lhs, rhs) {
+        case (.compute(let lhsKernel), .compute(let rhsKernel)):
+            return lhsKernel == rhsKernel
+        case (.render(let lhsVertex, let lhsFragment), .render(let rhsVertex, let rhsFragment)):
+            return lhsVertex == rhsVertex && lhsFragment == rhsFragment
+        case (.blit, .blit):
+            return true
+        case (.coreimage(let lhsName), .coreimage(let rhsName)):
+            return lhsName == rhsName
+        case (.mps(let lhsKernel), .mps(let rhsKernel)):
+            return lhsKernel === rhsKernel
+        default:
+            return false
+        }
+    }
 }
 
 public protocol C7FilterProtocol: Mirrorable {
     
     /// Encoder type and corresponding function name.
-    var modifier: Modifier { get }
+    var modifier: ModifierEnum { get }
     
     /// The supports a maximum of 16 `Float` parameters.
     var factors: [Float] { get }
@@ -96,44 +116,27 @@ extension C7FilterProtocol {
     public func combinationAfter(for buffer: MTLCommandBuffer, input texture: MTLTexture, source texture2: MTLTexture) throws -> MTLTexture {
         return texture
     }
-}
-
-extension C7FilterProtocol {
+    /// Add the filter into the output texture with compute, render and mps filter.
+    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
+        try applyAtTexture(form: texture, to: destTexture, for: buffer, complete: nil)
+    }
+    
     /// Add the filter into the output texture with compute, render and mps filter.
     /// - Parameters:
     ///   - texture: Input metal texture.
     ///   - destTexture: Output metal texture content.
     ///   - buffer: A valid MTLCommandBuffer to receive the encoded filter.
+    ///   - complete: Add a block to be called, asynchronous apply at metal texture.
     /// - Returns: Output texture.
-    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
-        switch self.modifier {
-        case .compute(let kernel):
-            var textures = [destTexture, texture]
-            textures += self.otherInputTextures
-            return try self.drawing(with: kernel, commandBuffer: buffer, textures: textures)
-        case .render(let vertex, let fragment):
-            let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
-            Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
-            return destTexture
-        case .mps where self is MPSKernelProtocol:
-            var textures = [destTexture, texture]
-            textures += self.otherInputTextures
-            return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
-        default:
-            return destTexture
-        }
-    }
-    
-    public func asyncApplyAtTexture(form texture: MTLTexture,
-                                    to destTexture: MTLTexture,
-                                    for buffer: MTLCommandBuffer,
-                                    complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
-        do {
+    @discardableResult
+    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer, complete: C7TextureResultBlock?) throws -> MTLTexture {
+        /// Asynchronous apply at texture.
+        if let complete = complete {
             switch self.modifier {
             case .compute(let kernel):
                 var textures = [destTexture, texture]
                 textures += self.otherInputTextures
-                self.drawing(with: kernel, commandBuffer: buffer, textures: textures, complete: complete)
+                drawing(with: kernel, commandBuffer: buffer, textures: textures, complete: complete)
             case .render(let vertex, let fragment):
                 let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
                 Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
@@ -146,9 +149,26 @@ extension C7FilterProtocol {
             default:
                 complete(.success(texture))
             }
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
+            return destTexture
         }
+        
+        /// Sync apply at texture.
+        switch self.modifier {
+        case .compute(let kernel):
+            var textures = [destTexture, texture]
+            textures += self.otherInputTextures
+            return try drawing(with: kernel, commandBuffer: buffer, textures: textures)
+        case .render(let vertex, let fragment):
+            let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
+            Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
+        case .mps where self is MPSKernelProtocol:
+            var textures = [destTexture, texture]
+            textures += self.otherInputTextures
+            return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+        default:
+            break
+        }
+        return destTexture
     }
 }
 

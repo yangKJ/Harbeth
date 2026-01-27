@@ -13,7 +13,7 @@ public struct C7Kuwahara: C7FilterProtocol {
     /// The larger the radius, the slower the filter.
     public var radius: Int = 3
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Kuwahara")
     }
     

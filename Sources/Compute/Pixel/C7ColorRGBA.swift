@@ -15,7 +15,7 @@ public struct C7ColorRGBA: C7FilterProtocol {
     /// Transparent colors are not processed, Will directly modify the overall color scheme
     public var color: C7Color = .white
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorRGBA")
     }
     

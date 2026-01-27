@@ -10,12 +10,10 @@ import Foundation
 #if os(iOS) || os(tvOS) || os(watchOS)
 import UIKit
 
-// https://developer.apple.com/documentation/uikit/uiimage
-
 extension HarbethWrapper where Base: C7Image {
-    /// Compressed image data.
-    /// - Parameter maxCount: Maximum compression ratio.
-    /// - Returns: Compressed content data.
+    /// Generate compressed JPEG data with optional maximum size constraint
+    /// - Parameter maxCount: Maximum allowed file size in bytes (0 means unlimited)
+    /// - Returns: Compressed JPEG data
     public func jpegData(maxCount: Int = 0) -> Data? {
         var quality = CGFloat(1)
         var jpegData = base.jpegData(compressionQuality: quality)
@@ -26,163 +24,149 @@ extension HarbethWrapper where Base: C7Image {
         return jpegData
     }
     
+    /// Returns image with original rendering mode (prevents tint color application)
     public var original: C7Image {
         base.withRenderingMode(.alwaysOriginal)
     }
     
-    // 解决前面有绘制过Bitmap《UIGraphicsGetCurrentContext》，导致失效问题
+    /// Create a copy with specified JPEG compression quality
+    /// - Parameter compressionQuality: Compression quality (0.0 to 1.0)
+    /// - Returns: New image instance with applied compression
     public func copy(compressionQuality: CGFloat) -> C7Image? {
-        if let data = base.jpegData(compressionQuality: compressionQuality) {
-            return C7Image.init(data: data)
-        }
-        return nil
+        base.jpegData(compressionQuality: compressionQuality).flatMap { C7Image(data: $0) }
     }
     
-    /// 白色背景透明化，色值在[222...255]之间均可祛除
-    /// The white background is transparent, and the color value can be removed between [222...255].
+    /// Remove white background by making pixels in range [222...255] transparent
+    /// - Returns: Image with transparent white background
     public func imageByMakingWhiteBackgroundTransparent() -> C7Image? {
-        // RGB color range to mask (make transparent) R-Low, R-High, G-Low, G-High, B-Low, B-High
-        let colorMasking: [CGFloat] = [222, 255, 222, 255, 222, 255]
-        return transparentColor(colorMasking: colorMasking)
+        transparentColor(colorMasking: [222, 255, 222, 255, 222, 255])
     }
     
-    /// 黑色背景透明化，色值在[0...32]之间均可祛除
+    /// Remove black background by making pixels in range [0...32] transparent
+    /// - Returns: Image with transparent black background
     public func imageByRemoveBlackBg() -> C7Image? {
-        let colorMasking: [CGFloat] = [0, 32, 0, 32, 0, 32]
-        return transparentColor(colorMasking: colorMasking)
+        transparentColor(colorMasking: [0, 32, 0, 32, 0, 32])
     }
     
-    /// Transparent background.
+    /// Make specified color ranges transparent
     /// - Parameters:
-    ///   - colorMasking: RGB color range to mask [R-Low, R-High, G-Low, G-High, B-Low, B-High]
-    ///   - compressionQuality: Compression ratio.
-    /// - Returns: Remove the picture of the background.
+    ///   - colorMasking: Color component ranges [R-min, R-max, G-min, G-max, B-min, B-max]
+    ///   - compressionQuality: JPEG compression quality (default: 1.0)
+    /// - Returns: Image with transparent background
     public func transparentColor(colorMasking: [CGFloat], compressionQuality: CGFloat = 1.0) -> C7Image? {
         UIGraphicsBeginImageContext(base.size)
-        guard let maskedImageRef = base.cgImage?.copy(maskingColorComponents: colorMasking) else {
-            return nil
-        }
-        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
-        let context = UIGraphicsGetCurrentContext()
-        context?.translateBy(x: 0.0, y: base.size.height)
-        context?.scaleBy(x: 1.0, y: -1.0)
-        context?.draw(maskedImageRef, in: rect)
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result
+        defer { UIGraphicsEndImageContext() }
+        
+        guard let maskedImageRef = base.cgImage?.copy(maskingColorComponents: colorMasking),
+              let context = UIGraphicsGetCurrentContext() else { return nil }
+        
+        let rect = CGRect(origin: .zero, size: base.size)
+        context.translateBy(x: 0, y: base.size.height)
+        context.scaleBy(x: 1, y: -1)
+        context.draw(maskedImageRef, in: rect)
+        
+        return UIGraphicsGetImageFromCurrentImageContext()
     }
     
-    /// Modify the line color of the picture.
-    /// - Parameter color: Line color.
+    /// Change image line color while preserving transparency
+    /// - Parameter color: Target line color
+    /// - Returns: Recolored image
     public func line(color: C7Color) -> C7Image {
         blend(mode: .destinationIn, tinted: color)
     }
     
-    /// Mixing color.
+    /// Blend image with color using specified blend mode
+    /// - Parameters:
+    ///   - mode: CGBlendMode to apply
+    ///   - color: Tint color
+    /// - Returns: Blended image
     public func blend(mode: CGBlendMode, tinted color: C7Color) -> C7Image {
-        UIGraphicsBeginImageContextWithOptions(base.size, false, base.scale)
-        color.setFill()
         let rect = CGRect(origin: .zero, size: base.size)
-        UIRectFill(rect)
-        base.draw(in: rect, blendMode: mode, alpha: 1.0)
-        if mode != .destinationIn {
-            base.draw(in: rect, blendMode: .destinationIn, alpha: 1.0)
+        return UIGraphicsImageRenderer(size: base.size).image { _ in
+            color.setFill()
+            UIRectFill(rect)
+            base.draw(in: rect, blendMode: mode, alpha: 1)
+            if mode != .destinationIn {
+                base.draw(in: rect, blendMode: .destinationIn, alpha: 1)
+            }
         }
-        let tintedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return tintedImage ?? base
-    }
-}
-
-extension HarbethWrapper where Base: C7Image {
-    /// Round image.
-    public var circled: C7Image {
-        let min = min(base.size.width, base.size.height)
-        let size = CGSize(width: min, height: min)
-        UIGraphicsBeginImageContextWithOptions(size, false, base.scale)
-        let context = UIGraphicsGetCurrentContext()
-        context?.addEllipse(in: .init(origin: .zero, size: size))
-        context?.clip()
-        base.draw(in: .init(origin: .zero, size: base.size))
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
     }
     
-    /// Square image.
+    /// Circular crop to smallest dimension
+    public var circled: C7Image {
+        let minEdge = min(base.size.width, base.size.height)
+        let size = CGSize(width: minEdge, height: minEdge)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            context.cgContext.addEllipse(in: CGRect(origin: .zero, size: size))
+            context.cgContext.clip()
+            base.draw(in: CGRect(origin: .zero, size: base.size))
+        }
+    }
+    
+    /// Crop to square from center
     public var squared: C7Image {
         let edge = min(base.size.width, base.size.height)
         let difference = base.size.width - base.size.height
-        let x = difference > 0 ? abs(difference/2) : 0.0
-        let y = difference < 0 ? abs(difference/2) : 0.0
+        let x = difference > 0 ? abs(difference/2) : 0
+        let y = difference < 0 ? abs(difference/2) : 0
         let cropSquare = CGRect(x: x, y: y, width: edge, height: edge)
-        guard let imageRef = base.cgImage?.cropping(to: cropSquare) else {
-            return base
-        }
+        guard let imageRef = base.cgImage?.cropping(to: cropSquare) else { return base }
         return C7Image(cgImage: imageRef, scale: base.scale, orientation: base.imageOrientation)
     }
     
-    /// Pull up picture.
-    /// - Parameter edges: Specify an area for stretching.
+    /// Create resizable image with stretchable edges
+    /// - Parameter edges: Cap insets for stretching
+    /// - Returns: Resizable image
     public func stretchImage(edges: UIEdgeInsets) -> C7Image {
         base.resizableImage(withCapInsets: edges, resizingMode: .stretch)
     }
     
-    /// Image path cropping, cropping path outside part.
-    /// - Parameter bezierPath: Crop path.
+    /// Crop outside of bezier path
+    /// - Parameter bezierPath: Path to preserve
+    /// - Returns: Cropped image
     public func cropOuter(bezierPath: UIBezierPath) -> C7Image {
-        guard !bezierPath.isEmpty else {
-            return base
+        guard !bezierPath.isEmpty else { return base }
+        let rect = CGRect(origin: .zero, size: base.size)
+        return UIGraphicsImageRenderer(size: rect.size).image { context in
+            let outer = CGMutablePath()
+            outer.addRect(rect)
+            outer.addPath(bezierPath.cgPath)
+            context.cgContext.addPath(outer)
+            context.cgContext.setBlendMode(.clear)
+            base.draw(in: rect)
+            context.cgContext.drawPath(using: .eoFill)
         }
-        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
-        UIGraphicsBeginImageContext(rect.size)
-        let context = UIGraphicsGetCurrentContext()
-        let outer = CGMutablePath()
-        outer.addRect(rect, transform: .identity)
-        outer.addPath(bezierPath.cgPath, transform: .identity)
-        context?.addPath(outer)
-        context?.setBlendMode(.clear)
-        base.draw(in: rect)
-        context?.drawPath(using: .eoFill)
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
     }
     
-    /// Image path cropping, cropping path inner part.
-    /// - Parameter bezierPath: Crop path.
+    /// Crop inside of bezier path
+    /// - Parameter bezierPath: Path to remove
+    /// - Returns: Cropped image
     public func cropInner(bezierPath: UIBezierPath) -> C7Image {
-        guard !bezierPath.isEmpty else {
-            return base
+        guard !bezierPath.isEmpty else { return base }
+        let rect = CGRect(origin: .zero, size: base.size)
+        return UIGraphicsImageRenderer(size: rect.size).image { context in
+            context.cgContext.setBlendMode(.clear)
+            base.draw(in: rect)
+            context.cgContext.addPath(bezierPath.cgPath)
+            context.cgContext.drawPath(using: .eoFill)
         }
-        let rect = CGRect(x: 0, y: 0, width: base.size.width, height: base.size.height)
-        UIGraphicsBeginImageContext(rect.size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setBlendMode(.clear)
-        base.draw(in: rect)
-        context?.addPath(bezierPath.cgPath)
-        context?.drawPath(using: .eoFill)
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
     }
     
-    /// Fill the image on the basis that the image is not deformed.
+    /// Fit image to target dimensions while preserving aspect ratio
     /// - Parameters:
-    ///   - width: Fill image width, Keep the original size at zero.
-    ///   - height: Fill image height, Keep the original size at zero.
+    ///   - width: Target width (0 preserves original)
+    ///   - height: Target height (0 preserves original)
+    /// - Returns: Fitted image
     public func fitFixed(width: CGFloat = 0, height: CGFloat = 0) -> C7Image {
-        guard let cgImage = base.cgImage else {
-            return base
-        }
+        guard let cgImage = base.cgImage else { return base }
+        
         var rect = CGRect(origin: .zero, size: base.size)
         switch (width, height) {
-        case (0.0, 0.0):
-            return base
-        case (0.0, 0.0000002...):
+        case (0, 0): return base
+        case (0, _) where height > 0:
             rect.size.width = base.size.width * (height / base.size.height)
             rect.size.height = height
-        case (0.0000002..., 0.0):
+        case (_, 0) where width > 0:
             rect.size.width = width
             rect.size.height = base.size.height * (width / base.size.width)
         default:
@@ -196,15 +180,13 @@ extension HarbethWrapper where Base: C7Image {
                 rect.origin.y = -(height - rect.size.height) * 0.5
             }
         }
-        UIGraphicsBeginImageContextWithOptions(rect.size, false, base.scale)
-        let context = UIGraphicsGetCurrentContext()
-        context?.translateBy(x: 0.0, y: rect.size.height)
-        context?.scaleBy(x: 1.0, y: -1.0)
-        context?.setBlendMode(.copy)
-        context?.draw(cgImage, in: rect)
-        let result = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return result ?? base
+        
+        return UIGraphicsImageRenderer(size: rect.size).image { context in
+            context.cgContext.translateBy(x: 0, y: rect.size.height)
+            context.cgContext.scaleBy(x: 1, y: -1)
+            context.cgContext.setBlendMode(.copy)
+            context.cgContext.draw(cgImage, in: rect)
+        }
     }
 }
 

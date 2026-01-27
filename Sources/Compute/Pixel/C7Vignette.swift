@@ -18,7 +18,7 @@ public struct C7Vignette: C7FilterProtocol {
     /// Keep the color scheme
     public var color: C7Color = .zero
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Vignette")
     }
     

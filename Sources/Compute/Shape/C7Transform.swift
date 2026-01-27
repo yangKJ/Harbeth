@@ -13,7 +13,7 @@ public struct C7Transform: C7FilterProtocol {
     public var transform: CGAffineTransform
     public var anchorPoint: C7Point2D = C7Point2D.zero
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7AffineTransform")
     }
     

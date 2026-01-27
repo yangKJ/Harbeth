@@ -11,7 +11,6 @@ import Foundation
 @propertyWrapper public final class Locked<Value> {
     
     private var value: Value
-    //@available(iOS 10.0, OSX 10.12, watchOS 3.0, tvOS 10.0, *)
     private var unfairLock = os_unfair_lock_s()
     
     public init(wrappedValue value: Value) {
@@ -35,22 +34,26 @@ import Foundation
         value = newValue
     }
     
-    private func withValue(_ closure: (Value) -> Value) {
+    public func modify(_ closure: (inout Value) -> Void) {
         os_unfair_lock_lock(&unfairLock)
         defer { os_unfair_lock_unlock(&unfairLock) }
-        value = closure(value)
+        closure(&value)
+    }
+    
+    public func withValue<T>(_ closure: (Value) -> T) -> T {
+        os_unfair_lock_lock(&unfairLock)
+        defer { os_unfair_lock_unlock(&unfairLock) }
+        return closure(value)
     }
 }
 
 extension Locked where Value: Equatable {
-    
     public static func == (left: Locked, right: Value) -> Bool {
         return left.wrappedValue == right
     }
 }
 
 extension Locked where Value: Comparable {
-    
     public static func < (left: Locked, right: Value) -> Bool {
         return left.wrappedValue < right
     }
@@ -61,25 +64,49 @@ extension Locked where Value: Comparable {
 }
 
 extension Locked where Value == Int {
-    
     static func += (left: Locked, right: Value) {
-        left.withValue { (value) -> Value in
-            return value + right
-        }
+        left.modify { $0 += right }
     }
     
     static func -= (left: Locked, right: Value) {
-        left.withValue { (value) -> Value in
-            return value - right
-        }
+        left.modify { $0 -= right }
     }
     
     static prefix func ++ (atomic: Locked) -> Value {
-        var newValue: Value = 0
-        atomic.withValue { (value) -> Value in
-            newValue = value + 1
-            return newValue
+        return atomic.withValue { value in
+            atomic.modify { $0 += 1 }
+            return value + 1
         }
-        return newValue
+    }
+    
+    static postfix func ++ (atomic: Locked) -> Value {
+        return atomic.withValue { value in
+            atomic.modify { $0 += 1 }
+            return value
+        }
+    }
+}
+
+extension Locked where Value: RangeReplaceableCollection {
+    public func append(_ element: Value.Element) {
+        modify { $0.append(element) }
+    }
+    
+    public func append(contentsOf elements: [Value.Element]) {
+        modify { $0.append(contentsOf: elements) }
+    }
+    
+    public func removeAll() {
+        modify { $0.removeAll() }
+    }
+}
+
+extension Locked where Value == [String: Any] {
+    public func setValue(_ value: Any, forKey key: String) {
+        modify { $0[key] = value }
+    }
+    
+    public func value(forKey key: String) -> Any? {
+        return withValue { $0[key] }
     }
 }

@@ -16,7 +16,7 @@ public struct C7EdgeGlow: C7FilterProtocol {
     
     public var lineColor: C7Color = C7Color.green
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7EdgeGlow")
     }
     

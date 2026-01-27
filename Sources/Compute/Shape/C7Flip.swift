@@ -14,7 +14,7 @@ public struct C7Flip: C7FilterProtocol {
     /// Whether to flip vertically or not
     public var vertical: Bool = false
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Flip")
     }
     

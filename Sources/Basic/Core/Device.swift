@@ -21,7 +21,7 @@ public final class Device: Cacheable {
     /// Metal file in ``Harbeth Framework``
     let harbethLibrary: MTLLibrary?
     /// Cache pipe state
-    lazy var pipelines = [C7KernelFunction: MTLComputePipelineState]()
+    @Locked var pipelines = [C7KernelFunction: MTLComputePipelineState]()
     /// Load the texture tool
     lazy var textureLoader: MTKTextureLoader = MTKTextureLoader(device: device)
     /// Transform using color space
@@ -164,6 +164,7 @@ extension Device {
             return context
         }
         var options: [CIContextOption : Any] = [
+            // Specify the default destination color space for rendering.
             CIContextOption.outputColorSpace: colorSpace,
             // Caching does provide a minor speed boost without ballooning memory use, so let's have it on
             CIContextOption.cacheIntermediates: true,
@@ -174,6 +175,8 @@ extension Device {
             CIContextOption.useSoftwareRenderer: false,
             // This is the Apple recommendation, see cgImage(using:) above
             CIContextOption.workingFormat: CIFormat.RGBAh,
+            /// Render produces alpha-premultiplied pixels.
+            CIContextOption.outputPremultiplied: true,
         ]
         if #available(iOS 13.0, macOS 10.12, *) {
             // This option is undocumented, possibly only effective on iOS?
@@ -187,7 +190,7 @@ extension Device {
         let context: CIContext
         if #available(iOS 13.0, *, macOS 10.15, *) {
             context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-        } else if #available(iOS 9.0, *, macOS 10.11, *) {
+        } else if #available(iOS 9.0, *) {
             context = CIContext(mtlDevice: Device.device(), options: options)
         } else {
             context = CIContext(options: options)

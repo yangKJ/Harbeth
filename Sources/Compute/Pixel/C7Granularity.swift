@@ -16,7 +16,7 @@ public struct C7Granularity: C7FilterProtocol {
     /// Where 0.0 represents the original image,
     public var grain: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Granularity")
     }
     

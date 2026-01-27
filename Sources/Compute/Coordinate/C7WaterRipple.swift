@@ -19,7 +19,7 @@ public struct C7WaterRipple: C7FilterProtocol {
     /// The wave size
     public var boundary: Float = 0.06
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7WaterRipple")
     }
     

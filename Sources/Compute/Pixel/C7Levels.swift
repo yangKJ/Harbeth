@@ -16,7 +16,7 @@ public struct C7Levels: C7FilterProtocol {
     public var minOutput: C7Color = C7Color.black
     public var maxOutput: C7Color = C7Color.white
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7LevelsFilter")
     }
     

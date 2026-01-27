@@ -15,7 +15,7 @@ public struct C7RGBADilation: C7FilterProtocol {
     
     public var vertical: Bool = false
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7RGBADilation")
     }
     

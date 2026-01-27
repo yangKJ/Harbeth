@@ -33,7 +33,7 @@ public class C7CombinationBeautiful: C7FilterProtocol {
         }
     }
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7CombinationBeautiful")
     }
     

@@ -13,7 +13,7 @@ public struct C7LuminanceThreshold: C7FilterProtocol {
     
     public var threshold: Float = 0.5
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7LuminanceThreshold")
     }
     

@@ -15,7 +15,7 @@ public struct C7Sobel: C7FilterProtocol {
     /// Higher values lead to stronger edges, but can saturate the intensity colorspace.
     public var edgeStrength: Float = 1.0
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Sobel")
     }
     

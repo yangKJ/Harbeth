@@ -8,73 +8,97 @@
 import Foundation
 
 /// Mainly for the image filling content to change the size.
-public enum ResizingMode: Int, @unchecked Sendable  {
-    /// Dimensions of the original image. do nothing with it.
+public enum ResizingMode: Int, @unchecked Sendable {
+    /// Deprecated. Use `.own` instead.
+    @available(*, deprecated, message: "Typo. Use `own` instead", renamed: "own")
     case original = 0
-    /// The option to scale the content to fit the size of itself by changing the aspect ratio of the content if necessary.
+    
+    /// Scale the content to fill the size, possibly changing aspect ratio.
     case scaleToFill = 1
-    /// Contents scaled to fit with fixed aspect. remainder is transparent.
+    
+    /// Scale to fit with fixed aspect ratio; remainder is transparent (letterboxing).
     case scaleAspectFit = 2
-    /// Contents scaled to fill with fixed aspect. some portion of content may be clipped.
+    
+    /// Scale to fill with fixed aspect ratio; center-crop (some content clipped).
     case scaleAspectFill = 3
-    /// Contents scaled to fill with fixed aspect. top or left portion of content may be clipped.
+    
+    /// Scale to fill with fixed aspect ratio; align to bottom-right (top/left clipped).
     case scaleAspectBottomRight = 4
-    /// Contents scaled to fill with fixed aspect. bottom or right portion of content may be clipped.
+    
+    /// Scale to fill with fixed aspect ratio; align to top-left (bottom/right clipped).
     case scaleAspectTopLeft = 5
+    
+    /// Do nothing — keep original image as-is.
+    case own = 6
 }
 
 extension ResizingMode {
     
-    /// Resize an image to the specified size. Depending on what fitMode is supplied
+    /// Resize an image to the specified size based on the resizing mode.
     /// - Parameters:
-    ///   - image: Image to resize.
-    ///   - size: Size to resize the image to. it is `.zero` return original image.
-    /// - Returns: Resized image.
+    ///   - image: The input image.
+    ///   - size: Target size. If `.zero`, returns the original image.
+    /// - Returns: Resized (and possibly cropped) image.
     public func resizeImage(_ image: C7Image, size: CGSize) -> C7Image {
-        if case .original = self, size == .zero {
+        if size == .zero || self == .own || self == .original {
             return image
         }
-        let horizontalRatio = size.width / image.size.width
-        let verticalRatio = size.height / image.size.height
-        var rect = CGRect(origin: .zero, size: image.size)
-        switch self {
-        case .scaleToFill:
-            rect.size = size
-        case .scaleAspectFit:
-            let ratio = min(horizontalRatio, verticalRatio)
-            rect.size = CGSize(width: rect.size.width * ratio, height: rect.size.height * ratio)
-        case .scaleAspectFill, .scaleAspectBottomRight, .scaleAspectTopLeft:
-            let ratio = max(horizontalRatio, verticalRatio)
-            rect.size = CGSize(width: rect.size.width * ratio, height: rect.size.height * ratio)
-        default:
+        let imageSize = image.size
+        let renderRect = setupRenderRect(targetSize: size, sourceSize: imageSize)
+        guard !renderRect.isEmpty else {
             return image
         }
-        let result = image.c7.renderer(rect: rect, canvas: rect.size)
-        return cropingImage(result, rect: rect, size: size)
+        let scaledImage = image.c7.renderer(rect: renderRect, canvas: renderRect.size)
+        return cropIfNeeded(scaledImage, renderRect: renderRect, targetSize: size)
     }
     
-    private func cropingImage(_ image: C7Image, rect: CGRect, size: CGSize) -> C7Image {
-        var cropRect: CGRect
+    /// Computes the rectangle (in points) that the source image should be rendered into,
+    /// before optional cropping to `targetSize`.
+    private func setupRenderRect(targetSize: CGSize, sourceSize: CGSize) -> CGRect {
         switch self {
-        case .scaleAspectFill:
-            let x = (rect.size.width - size.width) * 0.5
-            let y = (rect.size.height - size.height) * 0.5
-            cropRect = CGRect(x: x, y: y, width: rect.size.width - 2 * x, height: rect.size.height - 2 * y)
-        case .scaleAspectBottomRight:
-            let x = (rect.size.width - size.width) * 0.5
-            let y = (rect.size.height - size.height) * 0.5
-            cropRect = CGRect(origin: CGPoint(x: x, y: y), size: rect.size)
-            cropRect = cropRect.offsetBy(dx: x, dy: y)
-        case .scaleAspectTopLeft:
-            let x = (rect.size.width - size.width) * 0.5
-            let y = (rect.size.height - size.height) * 0.5
-            cropRect = CGRect(x: 0, y: 0, width: rect.size.width - 2 * x, height: rect.size.height - 2 * y)
+        case .scaleToFill:
+            return CGRect(origin: .zero, size: targetSize)
+        case .scaleAspectFit:
+            let scale = min(targetSize.width / sourceSize.width, targetSize.height / sourceSize.height)
+            let newSize = CGSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
+            return CGRect(origin: .zero, size: newSize)
+        case .scaleAspectFill, .scaleAspectBottomRight, .scaleAspectTopLeft:
+            let scale = max(targetSize.width / sourceSize.width, targetSize.height / sourceSize.height)
+            let newSize = CGSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
+            return CGRect(origin: .zero, size: newSize)
         default:
+            return .zero
+        }
+    }
+    
+    /// Applies final cropping based on alignment mode.
+    private func cropIfNeeded(_ image: C7Image, renderRect: CGRect, targetSize: CGSize) -> C7Image {
+        guard let cgImage = image.cgImage else { return image }
+        guard [.scaleAspectFill, .scaleAspectBottomRight, .scaleAspectTopLeft].contains(self) else {
             return image
         }
-        guard let cgImg = image.cgImage?.cropping(to: cropRect) else {
+        let renderedSize = renderRect.size
+        guard renderedSize.width >= targetSize.width && renderedSize.height >= targetSize.height else {
             return image
         }
-        return cgImg.c7.drawing(refImage: image)
+        let dx = renderedSize.width - targetSize.width
+        let dy = renderedSize.height - targetSize.height
+        let origin: CGPoint = {
+            switch self {
+            case .scaleAspectFill:
+                return CGPoint(x: dx * 0.5, y: dy * 0.5)
+            case .scaleAspectBottomRight:
+                return CGPoint(x: dx, y: dy) // align bottom-right → crop top-left
+            case .scaleAspectTopLeft:
+                return .zero // align top-left → crop bottom-right
+            default:
+                return .zero
+            }
+        }()
+        let cropRect = CGRect(origin: origin, size: targetSize)
+        guard let croppedCG = cgImage.cropping(to: cropRect) else {
+            return image
+        }
+        return croppedCG.c7.drawing(refImage: image)
     }
 }

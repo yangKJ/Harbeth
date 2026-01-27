@@ -20,7 +20,7 @@ public struct CIColorCube: CoreImageProtocol {
         }
     }
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIColorCubeWithColorSpace")
     }
     

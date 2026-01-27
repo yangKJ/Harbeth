@@ -15,7 +15,7 @@ public struct C7Swirl: C7FilterProtocol {
     /// The amount of twist to apply to the image
     public var angle: Float = 1
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Swirl")
     }
     

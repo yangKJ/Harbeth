@@ -18,7 +18,7 @@ public struct C7HighlightShadow: C7FilterProtocol {
     /// Decrease to darken highlights, from 1.0 to 0.0, with 1.0 as the default.
     @ZeroOneRange public var highlights: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7HighlightShadow")
     }
     

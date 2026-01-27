@@ -16,7 +16,7 @@ public struct C7MotionBlur: C7FilterProtocol {
     /// The angular direction of the blur, in degrees, with a default of 0.0
     public var blurAngle: Float = 0
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7MotionBlur")
     }
     

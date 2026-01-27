@@ -22,7 +22,7 @@ public struct CIColorMonochrome: CoreImageProtocol {
         }
     }
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIColorMonochrome")
     }
     

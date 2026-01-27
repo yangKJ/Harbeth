@@ -15,7 +15,7 @@ public struct C7Crosshatch: C7FilterProtocol {
     /// A relative width for the crosshatch lines, default of 0.003
     public var lineWidth: Float = 0.003
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Crosshatch")
     }
     

@@ -19,7 +19,7 @@ public struct CIWhitePoint: CoreImageProtocol {
         }
     }
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIWhitePointAdjust")
     }
     

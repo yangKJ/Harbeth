@@ -13,7 +13,7 @@ public struct C7ShiftGlitch: C7FilterProtocol {
     /// The adjusted time, from 0.0 to 1.0, with a default of 0.5
     public var time: Float = 0.5
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ShiftGlitch")
     }
     

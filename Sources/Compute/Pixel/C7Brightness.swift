@@ -15,7 +15,7 @@ public struct C7Brightness: C7FilterProtocol {
     
     @Clamping(range.min...range.max) public var brightness: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Brightness")
     }
     

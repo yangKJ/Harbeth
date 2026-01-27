@@ -15,7 +15,7 @@ public struct C7Glitch: C7FilterProtocol {
     /// Maximum jitter ratio.
     public var maxJitter: Float = 0.06
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Glitch")
     }
     

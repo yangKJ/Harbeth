@@ -39,7 +39,7 @@ public struct C7Blend: C7FilterProtocol {
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: blendType.kernel)
     }
     

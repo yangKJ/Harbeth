@@ -19,7 +19,7 @@ public struct C7ColorSpace: C7FilterProtocol {
     
     private let type: SwapType
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: type.rawValue)
     }
     

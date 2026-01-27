@@ -15,7 +15,7 @@ public struct C7LookupTable: C7FilterProtocol {
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7LookupTable")
     }
     
@@ -27,11 +27,9 @@ public struct C7LookupTable: C7FilterProtocol {
         return lookupTexture == nil ? [] : [lookupTexture!]
     }
     
-    private let lookupImage: C7Image?
     private let lookupTexture: MTLTexture?
     
     public init(image: C7Image?) {
-        self.lookupImage = image
         self.lookupTexture = image?.cgImage?.c7.toTexture()
     }
     
@@ -40,7 +38,6 @@ public struct C7LookupTable: C7FilterProtocol {
     }
     
     public init(lookupTexture: MTLTexture) {
-        self.lookupImage = nil
         self.lookupTexture = lookupTexture
     }
 }

@@ -17,7 +17,7 @@ public struct C7Saturation: C7FilterProtocol {
     /// The greater the saturation is, the brighter the colors are. Otherwise, the more monotonous the colors are.
     public var saturation: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Saturation")
     }
     

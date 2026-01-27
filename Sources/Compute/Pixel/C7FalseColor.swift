@@ -16,7 +16,7 @@ public struct C7FalseColor: C7FilterProtocol {
     
     public var secondColor: C7Color = .zero
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7FalseColor")
     }
     

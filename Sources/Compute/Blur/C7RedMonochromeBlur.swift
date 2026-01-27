@@ -20,7 +20,7 @@ public struct C7RedMonochromeBlur: C7FilterProtocol {
     /// Whether to blurred in vertical direction.
     public var vertical: Bool = true
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7RedMonochromeBlur")
     }
     

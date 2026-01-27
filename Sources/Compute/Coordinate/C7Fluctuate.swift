@@ -16,7 +16,7 @@ public struct C7Fluctuate: C7FilterProtocol {
     public var extent: Float = 50.0
     public var fluctuate: Float = 0.5
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Fluctuate")
     }
     

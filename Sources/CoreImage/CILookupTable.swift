@@ -17,7 +17,7 @@ public struct CILookupTable: CoreImageProtocol {
     
     public var amount: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CISourceOverCompositing")
     }
     

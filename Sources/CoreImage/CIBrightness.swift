@@ -15,7 +15,7 @@ public struct CIBrightness: CoreImageProtocol {
     
     @Clamping(range.min...range.max) public var brightness: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIColorControls")
     }
     

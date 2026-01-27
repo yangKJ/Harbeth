@@ -16,7 +16,7 @@ public struct C7Posterize: C7FilterProtocol {
     /// This ranges from 1 to 256, with a default of 10
     @Clamping(range.min...range.max) public var colorLevels: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Posterize")
     }
     

@@ -16,7 +16,7 @@ public struct CISharpen: CoreImageProtocol {
     
     public var radius: Float = 0.0
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CISharpenLuminance")
     }
     

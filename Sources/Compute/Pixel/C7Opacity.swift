@@ -15,7 +15,7 @@ public struct C7Opacity: C7FilterProtocol {
     /// Change the opacity of an image, from 0.0 to 1.0, with a default of 1.0
     @ZeroOneRange public var opacity: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Opacity")
     }
     

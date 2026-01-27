@@ -16,7 +16,7 @@ public struct C7ColorMatrix4x4: C7FilterProtocol {
     public var offset: Vector4 = .zero
     public var matrix: Matrix4x4
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorMatrix4x4")
     }
     

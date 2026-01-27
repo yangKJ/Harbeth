@@ -17,7 +17,7 @@ public struct C7Toon: C7FilterProtocol {
     /// The number of color levels to represent in the final image. Default is 10.0
     public var quantizationLevels: Float = 10
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Toon")
     }
     

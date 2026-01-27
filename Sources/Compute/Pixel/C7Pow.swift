@@ -11,7 +11,7 @@ public struct C7Pow: C7FilterProtocol {
     
     public var value: Float = 0.2
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Pow")
     }
     

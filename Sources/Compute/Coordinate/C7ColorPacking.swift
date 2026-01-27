@@ -16,7 +16,7 @@ public struct C7ColorPacking: C7FilterProtocol {
     /// The larger the vertical offset, the more the blue contour shadow offset downward.
     public var verticalTexel: Float
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorPacking")
     }
     

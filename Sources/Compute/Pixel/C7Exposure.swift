@@ -16,7 +16,7 @@ public struct C7Exposure: C7FilterProtocol {
     /// The adjusted exposure, from -10.0 to 10.0, with a default of 0.0
     public var exposure: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Exposure")
     }
     

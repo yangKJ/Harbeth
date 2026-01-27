@@ -16,7 +16,7 @@ public struct C7PolarPixellate: C7FilterProtocol {
     /// The fractional pixel size, from 0.0 to 1.0, with a default of 0.05
     @ZeroOneRange public var scale: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7PolarPixellate")
     }
     

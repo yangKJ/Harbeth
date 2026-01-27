@@ -32,7 +32,7 @@ public struct C7Grayed: C7FilterProtocol {
     
     private let mode: GrayedMode
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: mode.kernel)
     }
     

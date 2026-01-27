@@ -15,7 +15,7 @@ public struct C7ColorMatrix4x5: C7FilterProtocol {
     
     public var matrix: Matrix4x5
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorMatrix4x5")
     }
     

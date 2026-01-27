@@ -19,7 +19,7 @@ public struct C7CircleBlur: C7FilterProtocol {
     /// Sets the amount of the blur.
     public var amount: Int = 20
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7CircleBlur")
     }
     

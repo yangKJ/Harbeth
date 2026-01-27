@@ -20,7 +20,7 @@ public struct MPSGaussianBlur: MPSKernelProtocol {
         }
     }
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .mps(performance: self.gaussian)
     }
     

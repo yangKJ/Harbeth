@@ -12,7 +12,7 @@ public struct CINoiseReduction: CoreImageProtocol {
     
     public var noiseLevel: Float = 0.02
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CINoiseReduction")
     }
     

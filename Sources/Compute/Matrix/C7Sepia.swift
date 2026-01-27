@@ -13,7 +13,7 @@ public struct C7Sepia: C7FilterProtocol {
     /// The degree to which tan replaces normal image color, from 0.0 to 1.0
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Sepia")
     }
     

@@ -12,7 +12,7 @@ public struct C7DepthLuminance: C7FilterProtocol {
     public var offect: Float = 0
     public var range: Float = 0
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7DepthLuminance")
     }
     

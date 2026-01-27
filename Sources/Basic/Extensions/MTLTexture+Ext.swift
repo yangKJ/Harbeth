@@ -19,7 +19,7 @@ extension MTLTexture {
 
 public struct MTLTextureCompatible_ {
     
-    weak var target: MTLTexture!
+    let target: MTLTexture
     
     init(target: MTLTexture) {
         self.target = target
@@ -81,7 +81,10 @@ public struct MTLTextureCompatible_ {
     }
     
     public func toCIImage() -> CIImage? {
-        CIImage.init(mtlTexture: target)
+        guard let cgImage = target.c7.toCGImage() else {
+            return CIImage.init(mtlTexture: target)
+        }
+        return CIImage.init(cgImage: cgImage)
     }
     
     public func toCIImage(mirrored: Bool) throws -> CIImage {

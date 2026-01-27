@@ -15,7 +15,7 @@ public struct C7Gamma: C7FilterProtocol {
     /// The adjusted gamma, from 0 to 3.0, with a default of 1.0
     public var gamma: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Gamma")
     }
     

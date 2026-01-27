@@ -23,7 +23,7 @@ public struct C7SplitScreen: C7FilterProtocol {
     
     public var direction: DirectionType = .vertical
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7SplitScreen")
     }
     

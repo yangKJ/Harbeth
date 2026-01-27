@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '1.2.2'
+  s.version          = '1.2.3'
   s.summary          = 'About image and video add filter for metal.'
   
   # This description is used to generate tags and improve search results.
@@ -24,7 +24,7 @@ Pod::Spec.new do |s|
   
   s.swift_version    = '5.0'
   s.ios.deployment_target = '10.0'
-  s.macos.deployment_target = '10.13'
+  s.macos.deployment_target = '12.0'
   s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
   
   s.requires_arc = true

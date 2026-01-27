@@ -14,7 +14,7 @@ public final class C7Crop: C7FilterProtocol {
     /// The adjusted contrast, from 0 to 1.0, with a default of 0.0
     public var origin: C7Point2D = C7Point2D.zero
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Crop")
     }
     

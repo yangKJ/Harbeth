@@ -14,21 +14,24 @@ extension CVPixelBuffer: HarbethCompatible { }
 
 extension HarbethWrapper where Base: CVPixelBuffer {
     
+    /// Width of the pixel buffer
     public var width: Int {
         CVPixelBufferGetWidth(base)
     }
     
+    /// Height of the pixel buffer
     public var height: Int {
         CVPixelBufferGetHeight(base)
     }
     
+    /// Calculated size based on plane 0
     private var size: C7Size {
         let width = CVPixelBufferGetWidthOfPlane(self.base, 0)
         let height = CVPixelBufferGetHeightOfPlane(self.base, 0)
         return C7Size(width: width, height: height)
     }
     
-    /// Convert cached pixel objects into textures that can be used for camera capture and video frame filters.
+    /// Converts pixel buffer to Metal texture
     /// - Parameters:
     ///   - textureCache: The texture cache object that will manage the texture.
     ///   - pixelFormat: Specifies the Metal pixel format.
@@ -58,39 +61,49 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         return nil
     }
     
-    /// Creates a CGImage using the provided CVPixelBuffer.
-    /// - Returns: Newly created CGImage.
+    /// Creates CGImage from pixel buffer
+    /// - Returns: CGImage or nil
     public func toCGImage() -> CGImage? {
         var cgImage: CGImage?
         VTCreateCGImageFromCVPixelBuffer(base, options: nil, imageOut: &cgImage)
         return cgImage
     }
     
-    /// Creates a CIImage using the provided CVPixelBuffer.
-    /// - Returns: Newly created CIImage.
+    /// Creates CIImage from pixel buffer
+    /// - Returns: CIImage or nil
     public func toCIImage() -> CIImage? {
-        CIImage.init(cvPixelBuffer: base)
+        CIImage(cvPixelBuffer: base)
     }
     
-    /// Copy the texture to the pixel buffer.
-    /// - Parameter texture: metal texture.
-    public func copyToPixelBuffer(with texture: MTLTexture) {
-        base.c7.lockBaseAddress(.readOnly)
-        if let pixelBufferBytes = CVPixelBufferGetBaseAddress(base) {
-            // Fixed if the CVPixelBuffer and MTLTexture size is not equal.
-            // If the size is inconsistent, using the modified size filter will crash.
-            // Such as: C7Resize, C7Crop and so on Shape filter.
-            if base.c7.size == texture.c7.toC7Size() {
-                let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
-                let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
-                texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
-            }
+    /// Copies texture data to pixel buffer
+    /// - Parameter texture: Source Metal texture
+    @discardableResult
+    public func copyToPixelBuffer(with texture: MTLTexture) -> Bool {
+        lockBaseAddress(.readOnly)
+        defer { unlockBaseAddress(.readOnly) }
+        
+        guard let pixelBufferBytes = CVPixelBufferGetBaseAddress(base) else {
+            return false
         }
-        base.c7.unlockBaseAddress(.readOnly)
+        // Fixed if the CVPixelBuffer and MTLTexture size is not equal.
+        // If the size is inconsistent, using the modified size filter will crash.
+        // Such as: C7Resize, C7Crop and so on Shape filter.
+        guard base.c7.size == texture.c7.toC7Size() else {
+            return false
+        }
+        
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
+        let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
+        texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+        return true
     }
     
+    /// Creates new pixel buffer from texture
+    /// - Parameter texture: Source Metal texture
+    /// - Returns: New pixel buffer
     public func copyToCVPixelBuffer(with texture: MTLTexture) -> CVPixelBuffer {
-        base.c7.lockBaseAddress(.readOnly)
+        lockBaseAddress(.readOnly)
+        defer { unlockBaseAddress(.readOnly) }
         var outPixelbuffer: CVPixelBuffer? = base
         if let datas = texture.buffer?.contents() {
             CVPixelBufferCreateWithBytes(kCFAllocatorDefault,
@@ -102,16 +115,16 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                                          nil, nil, nil,
                                          &outPixelbuffer);
         }
-        base.c7.unlockBaseAddress(.readOnly)
         return outPixelbuffer ?? base
     }
     
-    /// Creates a CMSampleBuffer that contains a CVImageBuffer instead of a CMBlockBuffer.
-    /// - Returns: CMSampleBuffer
+    /// Creates CMSampleBuffer from pixel buffer
+    /// - Returns: CMSampleBuffer or nil
     public func toCMSampleBuffer() -> CMSampleBuffer? {
-        var newSampleBuffer: CMSampleBuffer? = nil
-        var timimgInfo: CMSampleTimingInfo = CMSampleTimingInfo.invalid
-        var videoInfo: CMVideoFormatDescription? = nil
+        var newSampleBuffer: CMSampleBuffer?
+        var timimgInfo = CMSampleTimingInfo.invalid
+        var videoInfo: CMVideoFormatDescription?
+        
         CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: base, formatDescriptionOut: &videoInfo)
         guard let videoInfo = videoInfo else {
             return nil
@@ -127,44 +140,55 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         return newSampleBuffer
     }
     
-    /// Convert textures based on different environments and add CVPixelBuffer.
-    /// - Parameters:
-    ///   - textureCache: The texture cache object that will manage the texture. Only the real machine used.
-    /// - Returns: Metal texture.
+    /// Converts to Metal texture based on environment
+    /// - Parameter textureCache: Texture cache (real device only)
+    /// - Returns: Metal texture or nil
     public func toMTLTexture(textureCache: CVMetalTextureCache? = nil) -> MTLTexture? {
-        let texture: MTLTexture?
         #if targetEnvironment(simulator)
-        // The simulator needs to be fixed to `rgba8Unorm`.
+        // Simulator requires rgba8Unorm format
         let pixelFormat: MTLPixelFormat = .rgba8Unorm
-        texture = base.c7.toCGImage()?.c7.toTexture(pixelFormat: pixelFormat)
+        return base.c7.toCGImage()?.c7.toTexture(pixelFormat: pixelFormat)
         #else
-        texture = base.c7.convert2MTLTexture(textureCache: textureCache ?? Device.sharedTextureCache())
+        let cache = textureCache ?? Device.sharedTextureCache()
+        return base.c7.convert2MTLTexture(textureCache: cache)
         #endif
-        return texture
     }
     
-    /// Create a new MTLTexture and add CVPixelBuffer.
+    /// Creates new Metal texture from pixel buffer
     /// - Parameters:
-    ///   - pixelFormat: Specifies the Metal pixel format.
-    ///   - planeIndex: Specifies the plane of the CVImageBuffer to map bind.  Ignored for non-planar CVImageBuffers.
-    /// - Returns: New metal texture.
+    ///   - pixelFormat: Metal pixel format
+    ///   - planeIndex: Plane index for planar buffers
+    /// - Returns: New Metal texture
+    /// - Throws: Texture creation error
     public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) throws -> MTLTexture {
-        let width  = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
+        let width = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
         let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
         let texture = try TextureLoader.makeTexture(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
         ])
-        base.c7.copyToPixelBuffer(with: texture)
+        
+        let success = base.c7.copyToPixelBuffer(with: texture)
+        if !success {
+            throw NSError(domain: "Harbeth", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Failed to copy pixel buffer"])
+        }
+        
         return texture
     }
     
-    /// Description Locks the BaseAddress of the PixelBuffer to ensure that the memory is accessible.
-    @discardableResult public func lockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
+    /// Locks pixel buffer memory for access
+    /// - Parameter lockFlags: Lock flags
+    /// - Returns: Lock status
+    @discardableResult
+    public func lockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
         return CVPixelBufferLockBaseAddress(base, lockFlags)
     }
     
-    /// Description Unlocks the BaseAddress of the PixelBuffer.
-    @discardableResult public func unlockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
+    /// Unlocks pixel buffer memory
+    /// - Parameter lockFlags: Lock flags
+    /// - Returns: Unlock status
+    @discardableResult
+    public func unlockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
         return CVPixelBufferUnlockBaseAddress(base, lockFlags)
     }
 }

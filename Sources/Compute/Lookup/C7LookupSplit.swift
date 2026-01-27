@@ -26,7 +26,7 @@ public struct C7LookupSplit: C7FilterProtocol {
     
     public var orientation: Orientation = .center
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7LookupSplit")
     }
     

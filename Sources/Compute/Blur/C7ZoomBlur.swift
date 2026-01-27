@@ -18,7 +18,7 @@ public struct C7ZoomBlur: C7FilterProtocol {
     /// Sets the position of the center of the blur. Drag the Center onscreen control in the canvas to adjust the center position.
     public var blurCenter: C7Point2D = C7Point2D.center
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7ZoomBlur")
     }
     

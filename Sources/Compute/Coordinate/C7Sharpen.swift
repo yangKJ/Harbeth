@@ -14,7 +14,7 @@ public struct C7Sharpen: C7FilterProtocol {
     /// Change the opacity of an image, from -4.0 to 4.0, with a default of 0.0
     public var sharpeness: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7Sharpen")
     }
     

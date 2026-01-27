@@ -14,7 +14,7 @@ extension CGImage: HarbethCompatible { }
 
 extension HarbethWrapper where Base: CGImage {
     
-    /// Whether a transparent channel exists.
+    /// Check if the image has an alpha channel
     public var hasAlphaChannel: Bool {
         switch base.alphaInfo {
         case .first, .last, .premultipliedFirst, .premultipliedLast:
@@ -34,28 +34,26 @@ extension HarbethWrapper where Base: CGImage {
     }
     #endif
     
-    /// CGImage to texture
-    ///
-    /// Texture loader can not load image data to create texture
-    /// Draw image and create texture
-    /// - Parameter pixelFormat: Indicates the pixelFormat, The format of the picture should be consistent with the data.
-    /// - Returns: MTLTexture
+    /// Convert CGImage to MTLTexture
+    /// - Parameter pixelFormat: Target pixel format for the texture
+    /// - Returns: Created MTLTexture or nil if conversion fails
     public func toTexture(pixelFormat: MTLPixelFormat = .rgba8Unorm) -> MTLTexture? {
         let width = base.width, height = base.height
-        let bytesPerPixel: Int = 4
+        let bytesPerPixel = 4
         let bytesPerRow = width * bytesPerPixel
-        let context = CGContext(data: nil, width: width, height: height,
-                                bitsPerComponent: 8,
-                                bytesPerRow: bytesPerRow,
-                                space: Device.colorSpace(),
-                                bitmapInfo: Device.bitmapInfo())
-        context?.draw(base, in: CGRect(x: 0, y: 0, width: width, height: height))
-        guard let data = context?.data else {
+        // Create context with optimized parameters
+        guard let context = CGContext(data: nil, width: width, height: height,
+                                      bitsPerComponent: 8, bytesPerRow: bytesPerRow,
+                                      space: Device.colorSpace(),
+                                      bitmapInfo: Device.bitmapInfo()) else {
             return nil
         }
-        guard let texture = try? TextureLoader.makeTexture(width: width, height: height, options: [
-            .texturePixelFormat: pixelFormat
-        ]) else {
+        context.draw(base, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        guard let data = context.data,
+              let texture = try? TextureLoader.makeTexture(width: width, height: height, options: [
+                .texturePixelFormat: pixelFormat
+              ]) else {
             return nil
         }
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
@@ -63,63 +61,60 @@ extension HarbethWrapper where Base: CGImage {
         return texture
     }
     
+    /// Convert CGImage to CVPixelBuffer for video processing
+    /// - Returns: Created CVPixelBuffer or nil if conversion fails
     public func toPixelBuffer() -> CVPixelBuffer? {
-        let imageWidth  = Int(base.width)
-        let imageHeight = Int(base.height)
-        let attributes: [NSObject:AnyObject] = [
-            kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA) as CFNumber,
-            kCVPixelBufferCGImageCompatibilityKey : true as AnyObject,
-            kCVPixelBufferCGBitmapContextCompatibilityKey : true as AnyObject,
-            kCVPixelBufferMetalCompatibilityKey: true as AnyObject,
+        let imageWidth = Int(base.width), imageHeight = Int(base.height)
+        let attributes: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+            kCVPixelBufferMetalCompatibilityKey as String: true
         ]
-        var pxbuffer: CVPixelBuffer? = nil
-        CVPixelBufferCreate(kCFAllocatorDefault,
-                            imageWidth,
-                            imageHeight,
-                            kCVPixelFormatType_32BGRA,
-                            attributes as CFDictionary?,
-                            &pxbuffer)
-        guard let pxbuffer = pxbuffer else {
+        var pxbuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault, imageWidth, imageHeight,
+            kCVPixelFormatType_32BGRA, attributes as CFDictionary, &pxbuffer
+        )
+        guard status == kCVReturnSuccess, let buffer = pxbuffer else {
             return nil
         }
         let flags = CVPixelBufferLockFlags(rawValue: 0)
-        guard kCVReturnSuccess == CVPixelBufferLockBaseAddress(pxbuffer, flags) else {
+        guard CVPixelBufferLockBaseAddress(buffer, flags) == kCVReturnSuccess else {
             return nil
         }
-        let context = CGContext(data: CVPixelBufferGetBaseAddress(pxbuffer),
-                                width: imageWidth,
-                                height: imageHeight,
-                                bitsPerComponent: 8,
-                                bytesPerRow: CVPixelBufferGetBytesPerRow(pxbuffer),
+        defer { CVPixelBufferUnlockBaseAddress(buffer, flags) }
+        
+        guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else { return nil }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+        
+        let context = CGContext(data: baseAddress, width: imageWidth, height: imageHeight,
+                                bitsPerComponent: 8, bytesPerRow: bytesPerRow,
                                 space: CGColorSpaceCreateDeviceRGB(),
                                 bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue)
-        if let context = context {
-            context.draw(base, in: CGRect.init(x: 0, y: 0, width: imageWidth, height: imageHeight))
-        } else {
-            CVPixelBufferUnlockBaseAddress(pxbuffer, flags);
-            return nil
-        }
-        CVPixelBufferUnlockBaseAddress(pxbuffer, flags);
-        return pxbuffer
+        context?.draw(base, in: CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
+        return buffer
     }
     
+    /// Convert CGImage to platform-specific image (UIImage/NSImage)
     public func toImage() -> C7Image {
         toC7Image()
     }
     
     public func toC7Image() -> C7Image {
         #if os(macOS)
-        return NSImage(cgImage: base, size: .init(width: base.width, height: base.height))
+        return NSImage(cgImage: base, size: CGSize(width: base.width, height: base.height))
         #else
-        return UIImage.init(cgImage: base)
+        return UIImage(cgImage: base)
         #endif
     }
     
+    /// Create image with reference image's scale and orientation
     public func drawing(refImage: C7Image) -> C7Image {
         #if os(macOS)
-        let width  = CGFloat(base.width) * refImage.scale
+        let width = CGFloat(base.width) * refImage.scale
         let height = CGFloat(base.height) * refImage.scale
-        return NSImage(cgImage: base, size: .init(width: width, height: height))
+        return NSImage(cgImage: base, size: CGSize(width: width, height: height))
         #else
         return UIImage(cgImage: base, scale: refImage.scale, orientation: refImage.imageOrientation)
         #endif
@@ -128,74 +123,68 @@ extension HarbethWrapper where Base: CGImage {
 
 extension HarbethWrapper where Base: CGImage {
     
-    /// Crop the picture to the specified proportion, and the excess will be automatically deleted.
-    /// - Parameter ratio: Cutting ratio.
+    /// Crop image to specified aspect ratio, removing excess parts
+    /// - Parameter ratio: Target aspect ratio (width/height)
+    /// - Returns: Cropped CGImage
     public func cropping(ratio: CGFloat) -> CGImage {
-        if ratio <= 0 { return base }
-        let width  = CGFloat(base.width)
-        let height = CGFloat(base.height)
+        guard ratio > 0 else { return base }
+        let width = CGFloat(base.width), height = CGFloat(base.height)
         let size: CGSize
         if width / height > ratio {
             size = CGSize(width: height * ratio, height: height)
         } else {
             size = CGSize(width: width, height: width / ratio)
         }
-        let x = abs((size.width - width ) / 2.0)
-        let y = abs((size.height - height ) / 2.0)
-        let rect = CGRect(origin: .init(x: x, y: y), size: size)
-        let finalImageRef = base.cropping(to: rect)
-        return finalImageRef ?? base
+        let x = abs((size.width - width) / 2.0)
+        let y = abs((size.height - height) / 2.0)
+        let rect = CGRect(x: x, y: y, width: size.width, height: size.height)
+        return base.cropping(to: rect) ?? base
     }
     
-    /// Crop the edge area
-    /// - Parameter space: Crop the edge area.
+    /// Crop edges by specified amount
+    /// - Parameter space: Amount to crop from each edge
+    /// - Returns: Cropped CGImage
     public func cropping(space: CGFloat) -> CGImage {
-        let width  = CGFloat(base.width)
-        let height = CGFloat(base.height)
-        let rect = CGRect(x: space, y: space, width: width-2*space, height: height-2*space)
-        let finalImageRef = base.cropping(to: rect)
-        return finalImageRef ?? base
+        let width = CGFloat(base.width), height = CGFloat(base.height)
+        let rect = CGRect(x: space, y: space, width: width - 2 * space, height: height - 2 * space)
+        return base.cropping(to: rect) ?? base
     }
     
-    /// We need to calculate the proper transformation to make the image upright.
-    /// We do it in 2 steps: Rotate if Left/Right/Down, and then flip if Mirrored.
+    /// Calculate transformation matrix to fix image orientation
+    /// - Parameter orientation: Target image orientation
+    /// - Returns: CGAffineTransform for correction
     public func fixTransform(from orientation: C7ImageOrientation) -> CGAffineTransform {
-        let width  = CGFloat(base.width)
-        let height = CGFloat(base.height)
+        let width = CGFloat(base.width), height = CGFloat(base.height)
         var transform = CGAffineTransform.identity
         switch orientation {
         case .down, .downMirrored:
-            transform = CGAffineTransform(translationX: width, y: height)
-            transform = transform.rotated(by: .pi)
+            transform = CGAffineTransform(translationX: width, y: height).rotated(by: .pi)
         case .left, .leftMirrored:
-            transform = CGAffineTransform(translationX: width, y: 0)
-            transform = transform.rotated(by: CGFloat.pi / 2)
+            transform = CGAffineTransform(translationX: width, y: 0).rotated(by: .pi / 2)
         case .right, .rightMirrored:
-            transform = CGAffineTransform(translationX: 0, y: height)
-            transform = transform.rotated(by: -CGFloat.pi / 2)
+            transform = CGAffineTransform(translationX: 0, y: height).rotated(by: -.pi / 2)
         default:
             break
         }
         switch orientation {
         case .upMirrored, .downMirrored:
-            transform = transform.translatedBy(x: width, y: 0)
-            transform = transform.scaledBy(x: -1, y: 1)
+            transform = transform.translatedBy(x: width, y: 0).scaledBy(x: -1, y: 1)
         case .leftMirrored, .rightMirrored:
-            transform = transform.translatedBy(x: height, y: 0)
-            transform = transform.scaledBy(x: -1, y: 1)
+            transform = transform.translatedBy(x: height, y: 0).scaledBy(x: -1, y: 1)
         default:
             break
         }
         return transform
     }
     
-    /// Fixed image rotation direction.
+    /// Fix image orientation using transformation
+    /// - Parameter orientation: Target orientation
+    /// - Returns: Corrected CGImage
     public func fixOrientation(from orientation: C7ImageOrientation) -> CGImage {
         guard let colorSpace = base.colorSpace else {
             return base
         }
-        let width = CGFloat(base.width)
-        let height = CGFloat(base.height)
+        let width = CGFloat(base.width), height = CGFloat(base.height)
         let transform = base.c7.fixTransform(from: orientation)
         let context = CGContext(data: nil,
                                 width: Int(width),

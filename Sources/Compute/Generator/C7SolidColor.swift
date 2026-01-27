@@ -15,12 +15,14 @@ public struct C7SolidColor: C7FilterProtocol {
     
     public var color: C7Color = .white
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7SolidColor")
     }
     
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
+        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else {
+            return
+        }
         var factor = Vector4.init(color: color).to_factor()
         computeEncoder.setBytes(&factor, length: Vector4.size, index: index + 1)
     }

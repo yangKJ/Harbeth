@@ -14,7 +14,7 @@ public struct C7PolkaDot: C7FilterProtocol {
     /// What fraction of each grid space is taken up by a dot, default of 0.9
     public var dotScaling: Float = 0.9
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7PolkaDot")
     }
     

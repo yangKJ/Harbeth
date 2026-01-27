@@ -14,7 +14,7 @@ public struct CITemperature: CoreImageProtocol {
     
     @Clamping(range.min...range.max) public var temperature: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CITemperatureAndTint")
     }
     

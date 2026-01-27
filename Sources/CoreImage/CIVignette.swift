@@ -14,7 +14,7 @@ public struct CIVignette: CoreImageProtocol {
     
     @Clamping(range.min...range.max) public var vignette: Float = range.value
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .coreimage(CIName: "CIVignette")
     }
     

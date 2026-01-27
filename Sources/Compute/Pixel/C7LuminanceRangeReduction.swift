@@ -11,7 +11,7 @@ public struct C7LuminanceRangeReduction: C7FilterProtocol {
     
     public var rangeReductionFactor: Float = 0.6
     
-    public var modifier: Modifier {
+    public var modifier: ModifierEnum {
         return .compute(kernel: "C7LuminanceRangeReduction")
     }
     
