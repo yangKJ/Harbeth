@@ -52,6 +52,36 @@ public enum ModifierEnum: Equatable {
             return false
         }
     }
+    
+    var isCoreImage: Bool {
+        switch self {
+        case .compute:
+            return false
+        case .render:
+            return false
+        case .blit:
+            return false
+        case .coreimage:
+            return true
+        case .mps:
+            return false
+        }
+    }
+    
+    var name: String {
+        switch self {
+        case .compute(let kernel):
+            return kernel
+        case .render(let vertex, _):
+            return vertex
+        case .blit:
+            return ""
+        case .coreimage(let CIName):
+            return CIName
+        case .mps(let performance):
+            return performance.label ?? ""
+        }
+    }
 }
 
 public protocol C7FilterProtocol: Mirrorable {

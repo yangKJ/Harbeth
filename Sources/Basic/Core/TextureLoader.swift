@@ -118,7 +118,7 @@ extension TextureLoader {
     ///   - image: A UIImage / NSImage.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        if let ciImage = image.ciImage {
+        if let ciImage = image.c7.toCIImage() {
             try self.init(with: ciImage, options: options)
         } else if let cgImage = image.cgImage {
             try self.init(with: cgImage, options: options)
@@ -192,9 +192,9 @@ extension TextureLoader {
             #endif
         }()
         // Try texture pool first
-        if let pooled = TexturePool.shared.dequeueTexture(width: width, height: height, pixelFormat: pixelFormat) {
+        if let texture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: pixelFormat) {
             PerformanceMonitor.shared.recordTextureCreation("texture_pool", created: false)
-            return pooled
+            return texture
         }
         // Create new descriptor
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
@@ -231,7 +231,7 @@ extension TextureLoader {
     
     /// High-performance path: always uses pooling and minimal options.
     public static func makeOptimizedTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture {
-        if let texture = TexturePool.shared.dequeueTexture(width: width, height: height, pixelFormat: pixelFormat) {
+        if let texture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: pixelFormat) {
             PerformanceMonitor.shared.recordTextureCreation("texture_pool", created: false)
             return texture
         }
@@ -292,7 +292,7 @@ extension TextureLoader {
             } else if let error = error {
                 failed?(.error(error))
             } else {
-                failed?(.error(NSError(domain: "Harbeth", code: -1, userInfo: nil)))
+                failed?(.error(HarbethError.makeTexture))
             }
         }
     }

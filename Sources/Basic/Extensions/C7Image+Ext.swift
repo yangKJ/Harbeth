@@ -145,14 +145,12 @@ extension HarbethWrapper where Base: C7Image {
     ///   - isOpaque: Whether it is opaque.
     ///   - drawContext: Changed renderer context, Only available on ios.
     /// - Returns: Renderered image.
-    public func renderer(
-        rect: CGRect,
-        canvas: CGSize? = nil,
-        scale: CGFloat? = nil,
-        inverting: Bool = false,
-        isOpaque: Bool = true,
-        drawContext: ((CGContext) -> Void)? = nil
-    ) -> C7Image {
+    public func renderer(rect: CGRect,
+                         canvas: CGSize? = nil,
+                         scale: CGFloat? = nil,
+                         inverting: Bool = false,
+                         isOpaque: Bool = true,
+                         drawContext: ((CGContext) -> Void)? = nil) -> C7Image {
         let canvas = {
             if let canvas = canvas, canvas.width > 0, canvas.height > 0 {
                 return canvas

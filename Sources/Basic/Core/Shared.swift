@@ -12,37 +12,32 @@ public final class Shared {
     
     public static let shared = Shared()
     
-    /// 释放`Device`资源
-    /// 考虑到`Device`当中存在蛮多比较消耗性能的对象，所以设计单例全局使用
-    /// 一旦不再使用Metal之后，就调此方法将之释放掉
-    ///
+    private init() { }
+    
     /// Release the Device resource
     /// Considering that there are quite a lot of performance-consuming objects in `Device`, design a singleton for global use.
     /// Once Metal is no longer used, call this method to release it.
     public func deinitDevice() {
         device = nil
+        texturePool = nil
     }
     
-    /// 是否已经初始化`Device`资源
-    /// Whether the Device resource has been initialized.
+    public func advanceSetupDevice() {
+        let _ = self.device
+    }
+    
     public var hasDevice: Bool {
         return synchronizedDevice {
-            if let _ = objc_getAssociatedObject(self, &C7ATSharedContext) {
+            if let _ = objc_getAssociatedObject(self, &C7ATSharedDeviceContext) {
                 return true
             }
             return false
         }
     }
-    
-    /// 提前加载`Device`资源
-    public func advanceSetupDevice() {
-        let _ = self.device
-    }
-    
-    private init() { }
 }
 
-fileprivate var C7ATSharedContext: UInt8 = 0
+private var C7ATSharedDeviceContext: UInt8 = 0
+private var C7ATSharedTexturePoolContext: UInt8 = 0
 
 extension Shared {
     
@@ -50,18 +45,37 @@ extension Shared {
     weak var device: Device? {
         get {
             return synchronizedDevice {
-                if let object = objc_getAssociatedObject(self, &C7ATSharedContext) {
+                if let object = objc_getAssociatedObject(self, &C7ATSharedDeviceContext) {
                     return object as? Device
                 } else {
                     let object = Device()
-                    objc_setAssociatedObject(self, &C7ATSharedContext, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                    objc_setAssociatedObject(self, &C7ATSharedDeviceContext, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
                     return object
                 }
             }
         }
         set {
             synchronizedDevice {
-                objc_setAssociatedObject(self, &C7ATSharedContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                objc_setAssociatedObject(self, &C7ATSharedDeviceContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            }
+        }
+    }
+    
+    weak var texturePool: TexturePool? {
+        get {
+            return synchronizedDevice {
+                if let object = objc_getAssociatedObject(self, &C7ATSharedTexturePoolContext) {
+                    return object as? TexturePool
+                } else {
+                    let object = TexturePool()
+                    objc_setAssociatedObject(self, &C7ATSharedTexturePoolContext, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                    return object
+                }
+            }
+        }
+        set {
+            synchronizedDevice {
+                objc_setAssociatedObject(self, &C7ATSharedTexturePoolContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
         }
     }

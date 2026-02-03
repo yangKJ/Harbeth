@@ -23,8 +23,6 @@ final class TexturePool {
         }
     }
     
-    static let shared = TexturePool()
-    
     /// Max memory usage: 10% of physical RAM, capped at 512 MB.
     private let maxMemoryUsage: Int
     /// Allow reuse of textures within ±8 pixels to improve hit rate (e.g., 1920x1080 can reuse 1928x1080).
@@ -38,6 +36,10 @@ final class TexturePool {
     private var textureToKey: [ObjectIdentifier: TextureKey] = [:]
     /// Current estimated GPU memory usage in bytes.
     private var currentMemoryUsage: Int = 0
+    
+    #if os(macOS)
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
+    #endif
     
     #if canImport(os)
     private var lock = os_unfair_lock_s()
@@ -55,11 +57,10 @@ final class TexturePool {
     }
     #endif
     
-    private init() {
+    init() {
         let physicalMemory = ProcessInfo.processInfo.physicalMemory
         let limitMB = min(physicalMemory / 1024 / 1024 / 10, 512)
         self.maxMemoryUsage = Int(limitMB * 1024 * 1024)
-        // Register memory pressure handlers
         #if os(iOS)
         NotificationCenter.default.addObserver(
             self,
@@ -68,21 +69,26 @@ final class TexturePool {
             object: nil
         )
         #elseif os(macOS)
-        // macOS uses memory pressure notifications
-        let center = NotificationCenter.default
-        center.addObserver(
-            self,
-            selector: #selector(handleMemoryPressure),
-            name: .NSMemoryPressureCritical,
-            object: nil
-        )
+        let source = DispatchSource.makeMemoryPressureSource(eventMask: [.critical, .warning])
+        source.setEventHandler { [weak self] in
+            let currentPressure = source.mask
+            if currentPressure.contains(.critical) {
+                self?.purgeAllTextures()
+            }
+        }
+        source.resume()
+        self.memoryPressureSource = source
         #endif
     }
     
     deinit {
-        #if os(iOS) || os(macOS)
+        #if os(iOS)
         NotificationCenter.default.removeObserver(self)
+        #elseif os(macOS)
+        memoryPressureSource?.cancel()
+        memoryPressureSource = nil
         #endif
+        print("TexturePool is deinit.")
     }
     
     /// Attempts to dequeue a reusable texture matching the given specs.
