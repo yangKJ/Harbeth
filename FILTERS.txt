@@ -1,0 +1,125 @@
+// Metal滤镜
+
+
+├── Color Adjustment（颜色调整）- 需要颜色调整时查看此类
+│   ├── C7Brightness（亮度）
+│   ├── C7Contrast（对比度）
+│   ├── C7Saturation（饱和度）
+│   ├── C7Exposure（曝光）
+│   ├── C7Gamma（伽马校正）
+│   ├── C7Hue（色调）
+│   ├── C7Vibrance（自然饱和度）
+│   ├── C7WhiteBalance（白平衡）
+│   ├── C7Sepia（棕褐色调）
+│   ├── C7Monochrome（单色）
+│   ├── C7FalseColor（伪色）
+│   ├── C7ColorConvert（色彩转换）
+│   ├── C7ColorSpace（色彩空间）
+│   ├── C7ColorRGBA（RGBA调整）
+│   ├── C7Posterize（色调分离）
+│   ├── C7Nostalgic（怀旧色调）
+│   ├── C7Opacity（不透明度）
+│   ├── C7Grayed（灰度化）
+│   ├── C7Haze（雾霾）
+│   └── C7Pow（幂次调整）
+├── Blur Effects（模糊效果) - 需要模糊效果时查看此类
+│   ├── C7GaussianBlur（高斯模糊）
+│   ├── C7MeanBlur（均值模糊）
+│   ├── C7BilateralBlur（双边模糊）
+│   ├── C7MotionBlur（运动模糊）
+│   ├── C7ZoomBlur（缩放模糊）
+│   ├── C7CircleBlur（圆形模糊）
+│   └── C7RedMonochromeBlur（红色单色模糊）
+├── Blend Modes（混合模式) - 需要混合图层时查看此类
+│   ├── C7BlendNormal（正常混合）
+│   ├── C7BlendMultiply（正片叠底）
+│   ├── C7BlendScreen（滤色）
+│   ├── C7BlendOverlay（叠加）
+│   ├── C7BlendDarken（变暗）
+│   ├── C7BlendLighten（变亮）
+│   ├── C7BlendColorDodge（颜色减淡）
+│   ├── C7BlendColorBurn（颜色加深）
+│   ├── C7BlendSoftLight（柔光）
+│   ├── C7BlendHardLight（强光）
+│   ├── C7BlendDifference（差值）
+│   ├── C7BlendExclusion（排除）
+│   ├── C7BlendChromaKey（色度键控）
+│   ├── C7BlendMask（蒙版混合）
+│   ├── C7BlendColorAdd（颜色添加）
+│   ├── C7BlendColorAlpha（颜色透明度混合）
+│   ├── C7BlendDivide（分割）
+│   ├── C7BlendDissolve（溶解）
+│   ├── C7BlendHue（色调混合）
+│   ├── C7BlendLinearBurn（线性加深）
+│   ├── C7BlendLuminosity（亮度混合）
+│   ├── C7BlendSourceOver（源覆盖）
+│   ├── C7BlendSubtract（减去）
+│   └── C7Blend（混合基类）
+├── Edge & Detail（边缘与细节） - 需要边缘检测时查看此类
+│   ├── C7Canny（Canny边缘检测）
+│   ├── C7Sobel（索贝尔边缘检测）
+│   ├── C7Crosshatch（交叉线效果）
+│   ├── C7Sketch（素描效果）
+│   ├── C7ThresholdSketch（阈值素描）
+│   ├── C7ComicStrip（漫画效果）
+│   ├── C7Sharpen（锐化）
+│   └── C7Granularity（颗粒感）
+├── Distortion & Warp（扭曲与变形) - 需要变形扭曲时查看此类
+│   ├── C7Bulge（凸起效果）
+│   ├── C7Pinch（收缩效果）
+│   ├── C7Swirl（漩涡效果）
+│   ├── C7WaterRipple（水波纹）
+│   ├── C7SphereRefraction（球面折射）
+│   ├── C7GlassSphere（玻璃球效果）
+│   ├── C7Pixellated（像素化）
+│   ├── C7PolarPixellate（极坐标像素化）
+│   ├── C7PolkaDot（圆点花纹）
+│   ├── C7Halftone（半色调）
+│   ├── C7ColorPacking（颜色打包）
+│   ├── C7ColorCGASpace（CGA色彩空间）
+│   └── C7Fluctuate（波动效果）
+├── Stylization（风格化效果) - 需要艺术风格时查看此类
+│   ├── C7Toon（卡通效果）
+│   ├── C7OilPainting（油画效果）
+│   ├── C7Kuwahara（桑原滤波）
+│   ├── C7VoronoiOverlay（维诺图叠加）
+│   ├── C7Glitch（故障效果）
+│   ├── C7ShiftGlitch（移位故障）
+│   ├── C7SoulOut（灵魂出窍）
+│   ├── C7Storyboard（故事板）
+│   ├── C7SplitScreen（分屏效果）
+│   └── C7RGBADilation（RGBA扩张）
+├── Matrix Processing（矩阵处理) - 需要矩阵运算时查看此类
+│   ├── C7ColorMatrix4x4（4x4颜色矩阵）
+│   ├── C7ColorMatrix4x5（4x5颜色矩阵）
+│   ├── C7ColorVector4（4维颜色向量）
+│   ├── C7ConvolutionMatrix3x3（3x3卷积矩阵）
+│   └── C7EdgeGlow（边缘发光）
+├── Utility（实用工具) - 需要遮罩和范围控制时查看此类
+│   ├── C7Levels（色阶调整）
+│   ├── C7LuminanceThreshold（亮度阈值）
+│   ├── C7LuminanceRangeReduction（亮度范围压缩）
+│   ├── C7HighlightShadow（高光阴影）
+│   ├── C7HighlightShadowTint（高光阴影色调）
+│   ├── C7ChromaKey（色度键控）
+│   ├── C7Luminance（亮度）
+│   └── C7DepthLuminance（深度亮度）
+├── Geometric Transform（几何变换) - 需要几何变换时查看此类
+│   ├── C7Crop（裁剪）
+│   ├── C7Flip（翻转）
+│   ├── C7Mirror（镜像）
+│   ├── C7Resize（调整大小）
+│   ├── C7Rotate（旋转）
+│   └── C7Transform（变换）
+├── Generators（生成器) - 需要生成颜色时查看此类
+│   ├── C7SolidColor（纯色生成）
+│   └── C7ColorGradient（颜色渐变）
+├── Lookup Tables（查找表) - 需要查找表时查看此类
+│   ├── C7LookupTable（查找表）
+│   └── C7LookupSplit（分屏查找表）
+├── Combination（组合效果) - 需要组合效果时查看此类
+│   ├── C7CombinationBeautiful（美颜组合）
+│   └── C7CombinationBilateralBlur（双边模糊组合）
+└── Other Effects（其他效果) - 其他未分类效果
+    └── C7Vignette（暗角效果）
+

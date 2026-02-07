@@ -396,6 +396,13 @@ extension ViewControllerType {
         case .ColorMonochrome:
             let filter = CIColorMonochrome(color: .random)
             return (filter, nil, nil)
+        case .Canny:
+            var filter = C7Canny()
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.threshold1 = $0
+                filter.threshold2 = $0
+                return filter
+            })
         }
     }
 }

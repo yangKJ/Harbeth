@@ -20,7 +20,7 @@
 - 支持两种查找滤镜 [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup/C7LookupTable.swift) 和 [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage/CIColorCube.swift) 来定制专属滤镜；
 - 支持相机采集特效和视频播放加入滤镜效果；
 - Metal滤镜部分大致分为以下几个模块：  
-  [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Pixel), [Coordinate](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Coordinate), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape), [Generator](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Generator).
+  [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Color](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Color), [Combination](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Combination), [DistortionWarp](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/DistortionWarp), [EdgeDetail](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/EdgeDetail), [Generators](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Generators), [Geometric Transform](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Geometric), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Other](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Other), [Stylization](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Stylization), [Utility](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Utility).
 - 支持使用 [Kakapos](https://github.com/yangKJ/Kakapos) 库对已有视频添加滤镜并导出；
 - 支持系统 MetalPerformanceShaders 和 CoreImage 滤镜混合使用；
 
@@ -132,6 +132,141 @@ HarbethView(image: inputImage, filters: filters, content: { image in
         .aspectRatio(contentMode: .fit)
 }, async: false)
 ```
+
+### Metal 滤镜分组
+
+#### 🎨 颜色调整
+- C7Brightness（亮度）
+- C7ColorConvert（色彩转换）
+- C7ColorRGBA（RGBA调整）
+- C7ColorSpace（色彩空间）
+- C7Contrast（对比度）
+- C7Exposure（曝光）
+- C7FalseColor（伪色）
+- C7Gamma（伽马校正）
+- C7Hue（色调）
+- C7Monochrome（单色）
+- C7Nostalgic（怀旧色调）
+- C7Posterize（色调分离）
+- C7Saturation（饱和度）
+- C7Sepia（棕褐色调）
+- C7Vibrance（自然饱和度）
+- C7WhiteBalance（白平衡）
+
+#### 🌫️ 模糊效果
+- C7BilateralBlur（双边模糊）
+- C7CircleBlur（圆形模糊）
+- C7GaussianBlur（高斯模糊）
+- C7MeanBlur（均值模糊）
+- C7MotionBlur（运动模糊）
+- C7RedMonochromeBlur（红色单色模糊）
+- C7ZoomBlur（缩放模糊）
+
+#### 🔄 混合模式
+- C7BlendChromaKey（色度键控）
+- C7BlendColorBurn（颜色加深）
+- C7BlendColorDodge（颜色减淡）
+- C7BlendDarken（变暗）
+- C7BlendDifference（差值）
+- C7BlendExclusion（排除）
+- C7BlendHardLight（强光）
+- C7BlendLighten（变亮）
+- C7BlendMask（蒙版混合）
+- C7BlendMultiply（正片叠底）
+- C7BlendNormal（正常）
+- C7BlendOverlay（叠加）
+- C7BlendScreen（滤色）
+- C7BlendSoftLight（柔光）
+
+#### 🔍 边缘与细节
+- C7Canny（边缘检测）
+- C7ComicStrip（漫画效果）
+- C7Crosshatch（交叉线）
+- C7Granularity（颗粒感）
+- C7Sobel（索贝尔边缘检测）
+- C7Sharpen（锐化）
+- C7Sketch（素描）
+- C7ThresholdSketch（阈值素描）
+
+#### 🌀 扭曲与变形
+- C7Bulge（凸起）
+- C7ColorPacking（颜色打包）
+- C7GlassSphere（玻璃球）
+- C7Halftone（半色调）
+- C7Pinch（收缩）
+- C7Pixellated（像素化）
+- C7PolarPixellate（极坐标像素化）
+- C7PolkaDot（圆点花纹）
+- C7SphereRefraction（球面折射）
+- C7Swirl（漩涡）
+- C7WaterRipple（水波纹）
+
+#### 🎭 风格化效果
+- C7ColorCGASpace（CGA色彩空间）
+- C7Fluctuate（波动）
+- C7Glitch（故障效果）
+- C7Kuwahara（桑原滤波）
+- C7OilPainting（油画）
+- C7ShiftGlitch（移位故障）
+- C7SoulOut（灵魂出窍）
+- C7SplitScreen（分屏）
+- C7Storyboard（故事板）
+- C7Toon（卡通）
+- C7VoronoiOverlay（维诺图叠加）
+
+#### 📊 矩阵处理
+- C7ColorMatrix4x4（4x4颜色矩阵）
+- C7ColorMatrix4x5（4x5颜色矩阵）
+- C7ColorVector4（4维颜色向量）
+- C7ConvolutionMatrix3x3（3x3卷积矩阵）
+- C7EdgeGlow（边缘发光）
+- C7RGBADilation（RGBA扩张）
+
+#### 🎛️ 实用工具
+- C7ChromaKey（色度键控）
+- C7DepthLuminance（深度亮度）
+- C7HighlightShadow（高光阴影）
+- C7HighlightShadowTint（高光阴影色调）
+- C7Levels（色阶）
+- C7Luminance（亮度）
+- C7LuminanceRangeReduction（亮度范围压缩）
+- C7LuminanceThreshold（亮度阈值）
+- C7Opacity（不透明度）
+
+#### 📐 几何变形
+- C7Crop（裁剪）
+- C7Flip（翻转）
+- C7Mirror（镜像）
+- C7Resize（调整大小）
+- C7Rotate（旋转）
+- C7Transform（变换）
+
+#### 🎨 生成器
+- C7ColorGradient（颜色渐变）
+- C7SolidColor（纯色）
+
+#### 📋 查找表
+- C7LookupSplit（分屏查找表）
+- C7LookupTable（查找表）
+
+#### 🔗 组合滤镜
+- C7CombinationBeautiful（美颜组合）
+- C7CombinationBilateralBlur（双边模糊组合）
+
+#### 🎚️ 其他效果
+- C7Grayed（灰度化）
+- C7Haze（雾霾）
+- C7Pow（幂次调整）
+- C7Vignette（暗角）
+
+查找建议：
+1. 需要颜色调整 → 查看颜色调整分类
+2. 需要模糊效果 → 查看模糊效果分类
+3. 需要混合图层 → 查看混合模式分类
+4. 需要艺术风格 → 查看风格化效果分类
+5. 需要变形扭曲 → 查看扭曲与变形分类
+6. 需要边缘检测 → 查看边缘与细节分类
+7. 需要几何变换 → 查看几何变换分类
 
 ### CocoaPods Install
 

@@ -24,7 +24,7 @@ English | [**简体中文**](README_CN.md)
 - High performance quickly add filters at these sources:    
   - UIImage, NSImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
 - The built-in metal kernel filters is roughly divided into the following modules:    
-  - [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Pixel](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Pixel), [Coordinate](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Coordinate), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Shape](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Shape), [Generator](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Generator).
+  - [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Color](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Color), [Combination](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Combination), [DistortionWarp](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/DistortionWarp), [EdgeDetail](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/EdgeDetail), [Generators](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Generators), [Geometric Transform](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Geometric), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Other](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Other), [Stylization](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Stylization), [Utility](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Utility).
 - Setup [MetalPerformanceShaders](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) filters And also compatible for [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters.
 - Previews and rendering backed with the power of Metal.
 - Drop-in support for your own custom filters using [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup/C7LookupTable.swift) or using [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage/CIColorCube.swift).
@@ -145,6 +145,143 @@ HarbethView(image: inputImage, filters: filters, content: { image in
         .aspectRatio(contentMode: .fit)
 })
 ```
+
+### Filters Group
+
+#### 🎨 Color Adjustment
+- C7Brightness（亮度）
+- C7ColorConvert（色彩转换）
+- C7ColorRGBA（RGBA调整）
+- C7ColorSpace（色彩空间）
+- C7Contrast（对比度）
+- C7Exposure（曝光）
+- C7FalseColor（伪色）
+- C7Gamma（伽马校正）
+- C7Hue（色调）
+- C7Monochrome（单色）
+- C7Nostalgic（怀旧色调）
+- C7Posterize（色调分离）
+- C7Saturation（饱和度）
+- C7Sepia（棕褐色调）
+- C7Vibrance（自然饱和度）
+- C7WhiteBalance（白平衡）
+
+#### 🌫️ Blur Effects
+- C7BilateralBlur（双边模糊）
+- C7CircleBlur（圆形模糊）
+- C7GaussianBlur（高斯模糊）
+- C7MeanBlur（均值模糊）
+- C7MotionBlur（运动模糊）
+- C7RedMonochromeBlur（红色单色模糊）
+- C7ZoomBlur（缩放模糊）
+
+#### 🔄 Blend Modes
+- C7BlendChromaKey（色度键控）
+- C7BlendColorBurn（颜色加深）
+- C7BlendColorDodge（颜色减淡）
+- C7BlendDarken（变暗）
+- C7BlendDifference（差值）
+- C7BlendExclusion（排除）
+- C7BlendHardLight（强光）
+- C7BlendLighten（变亮）
+- C7BlendMask（蒙版混合）
+- C7BlendMultiply（正片叠底）
+- C7BlendNormal（正常）
+- C7BlendOverlay（叠加）
+- C7BlendScreen（滤色）
+- C7BlendSoftLight（柔光）
+
+#### 🔍 Edge & Detail
+- C7Canny（边缘检测）
+- C7ComicStrip（漫画效果）
+- C7Crosshatch（交叉线）
+- C7Granularity（颗粒感）
+- C7Sobel（索贝尔边缘检测）
+- C7Sharpen（锐化）
+- C7Sketch（素描）
+- C7ThresholdSketch（阈值素描）
+
+#### 🌀 Distortion & Warp
+- C7Bulge（凸起）
+- C7ColorPacking（颜色打包）
+- C7GlassSphere（玻璃球）
+- C7Halftone（半色调）
+- C7Pinch（收缩）
+- C7Pixellated（像素化）
+- C7PolarPixellate（极坐标像素化）
+- C7PolkaDot（圆点花纹）
+- C7SphereRefraction（球面折射）
+- C7Swirl（漩涡）
+- C7WaterRipple（水波纹）
+
+#### 🎭 Stylization
+- C7ColorCGASpace（CGA色彩空间）
+- C7Fluctuate（波动）
+- C7Glitch（故障效果）
+- C7Kuwahara（桑原滤波）
+- C7OilPainting（油画）
+- C7ShiftGlitch（移位故障）
+- C7SoulOut（灵魂出窍）
+- C7SplitScreen（分屏）
+- C7Storyboard（故事板）
+- C7Toon（卡通）
+- C7VoronoiOverlay（维诺图叠加）
+
+#### 📊 Matrix Processing
+- C7ColorMatrix4x4（4x4颜色矩阵）
+- C7ColorMatrix4x5（4x5颜色矩阵）
+- C7ColorVector4（4维颜色向量）
+- C7ConvolutionMatrix3x3（3x3卷积矩阵）
+- C7EdgeGlow（边缘发光）
+- C7RGBADilation（RGBA扩张）
+
+#### 🎛️ Utility
+- C7ChromaKey（色度键控）
+- C7DepthLuminance（深度亮度）
+- C7HighlightShadow（高光阴影）
+- C7HighlightShadowTint（高光阴影色调）
+- C7Levels（色阶）
+- C7Luminance（亮度）
+- C7LuminanceRangeReduction（亮度范围压缩）
+- C7LuminanceThreshold（亮度阈值）
+- C7Opacity（不透明度）
+
+#### 📐 Geometric Transform
+- C7Crop（裁剪）
+- C7Flip（翻转）
+- C7Mirror（镜像）
+- C7Resize（调整大小）
+- C7Rotate（旋转）
+- C7Transform（变换）
+
+#### 🎨 Generators
+- C7ColorGradient（颜色渐变）
+- C7SolidColor（纯色）
+
+#### 📋 Lookup Tables
+- C7LookupSplit（分屏查找表）
+- C7LookupTable（查找表）
+
+#### 🔗 Combination
+- C7CombinationBeautiful（美颜组合）
+- C7CombinationBilateralBlur（双边模糊组合）
+
+#### 🎚️ Other Effects
+- C7Grayed（灰度化）
+- C7Haze（雾霾）
+- C7Pow（幂次调整）
+- C7Vignette（暗角）
+
+---
+
+**Find suggestions：**
+1. Need color adjustment → Check **Color adjustment** classification
+2. Need blur effect → View **Blur effect** classification
+3. Need to blend layers → View **Mixed Mode** Classification
+4. Need artistic style → View **Stylized effect** classification
+Five. Need to deform and twist → Check the classification of **Tortion and deformation**
+6. Edge detection is required → View **Edge and Details** Classification
+7. Need geometric transformation → View **Geometric transformation** classification
 
 ### CocoaPods
 

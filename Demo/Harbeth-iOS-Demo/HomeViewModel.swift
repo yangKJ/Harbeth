@@ -76,7 +76,7 @@ struct HomeViewModel {
         .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl, .SplitScreen, .Storyboard,
         .Monochrome, .ReplaceColor, .ChromaKey,
-        .VoronoiOverlay,
+        .VoronoiOverlay, .Canny
     ]
     
     let color: [ViewControllerType] = [
