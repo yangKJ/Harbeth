@@ -13,7 +13,7 @@ import UIKit
 #endif
 
 /// Enhanced texture pool with LRU, precise memory tracking, and cross-platform memory pressure handling.
-final class TexturePool {
+public final class TexturePool {
     private struct TextureKey: Hashable {
         let width: Int, height: Int, pixelFormat: MTLPixelFormat
         func hash(into hasher: inout Hasher) {

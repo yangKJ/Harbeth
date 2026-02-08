@@ -42,7 +42,7 @@ private var C7ATSharedTexturePoolContext: UInt8 = 0
 extension Shared {
     
     /// Device instantiation
-    weak var device: Device? {
+    public weak var device: Device? {
         get {
             return synchronizedDevice {
                 if let object = objc_getAssociatedObject(self, &C7ATSharedDeviceContext) {
@@ -61,7 +61,7 @@ extension Shared {
         }
     }
     
-    weak var texturePool: TexturePool? {
+    public weak var texturePool: TexturePool? {
         get {
             return synchronizedDevice {
                 if let object = objc_getAssociatedObject(self, &C7ATSharedTexturePoolContext) {
