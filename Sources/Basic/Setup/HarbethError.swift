@@ -15,6 +15,7 @@ public enum HarbethError: Swift.Error {
     case unknown
     case error(Swift.Error)
     case commandBuffer
+    case makeBlitCommandEncoder
     case makeComputeCommandEncoder
     case makeTexture
     case textureLoader
@@ -105,6 +106,7 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .unknown: return "Unknown error occurred."
         case .error(let error): return error.localizedDescription
         case .commandBuffer: return "Make command buffer failed."
+        case .makeBlitCommandEncoder:  return "Create a blit command encoder to encode into this command buffer failed."
         case .makeComputeCommandEncoder: return "Create a compute command encoder to encode into this command buffer failed."
         case .makeTexture: return "Create a new metal texture is failed."
         case .textureLoader: return "Using metal texture loader is nil."
@@ -268,10 +270,11 @@ extension HarbethError {
         case .unknown: return 1000
         case .error: return 1001
         case .commandBuffer: return 1002
-        case .makeComputeCommandEncoder: return 1003
-        case .makeTexture: return 1004
-        case .textureLoader: return 1005
-        case .bitmapDataNotFound: return 1006
+        case .makeBlitCommandEncoder: return 1003
+        case .makeComputeCommandEncoder: return 1004
+        case .makeTexture: return 1005
+        case .textureLoader: return 1006
+        case .bitmapDataNotFound: return 1007
         case .image2Texture: return 1100
         case .image2CGImage: return 1101
         case .imageCropFailed: return 1102

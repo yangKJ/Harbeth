@@ -93,7 +93,7 @@ public final class TexturePool {
     
     /// Attempts to dequeue a reusable texture matching the given specs.
     /// Uses size tolerance to improve hit rate.
-    func dequeueTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
+    public func dequeueTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
         let exactKey = TextureKey(width: width, height: height, pixelFormat: pixelFormat)
         return withLock {
             // 1. Try exact match
@@ -114,7 +114,7 @@ public final class TexturePool {
     
     /// Returns a texture to the pool for reuse.
     /// Silently ignores invalid or already-pooled textures.
-    func enqueueTexture(_ texture: MTLTexture) {
+    public func enqueueTexture(_ texture: MTLTexture) {
         let key = TextureKey(width: texture.width, height: texture.height, pixelFormat: texture.pixelFormat)
         let oid = ObjectIdentifier(texture)
         withLock {

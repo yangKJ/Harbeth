@@ -8,6 +8,7 @@
 import Foundation
 
 /// 将图像转换为单色版本，根据每个像素的亮度进行着色
+/// Convert the image into a monochrome version and color it according to the brightness of each pixel.
 public struct C7Monochrome: C7FilterProtocol {
     
     /// The degree to which the specific color replaces the normal image color

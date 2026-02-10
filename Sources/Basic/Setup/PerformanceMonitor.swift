@@ -18,20 +18,6 @@ public final class PerformanceMonitor {
         public var autoCleanupInterval: TimeInterval = 300
         public var gpuTimeWarningThreshold: TimeInterval = 0.016
         public var enablePerformanceCounters: Bool = false
-        
-        public init(enabled: Bool = true,
-                    logLevel: LogLevel = .info,
-                    maxStoredMetrics: Int = 100,
-                    autoCleanupInterval: TimeInterval = 300,
-                    gpuTimeWarningThreshold: TimeInterval = 0.016,
-                    enablePerformanceCounters: Bool = false) {
-            self.enabled = enabled
-            self.logLevel = logLevel
-            self.maxStoredMetrics = maxStoredMetrics
-            self.autoCleanupInterval = autoCleanupInterval
-            self.gpuTimeWarningThreshold = gpuTimeWarningThreshold
-            self.enablePerformanceCounters = enablePerformanceCounters
-        }
     }
     
     public enum LogLevel: Int, Comparable {

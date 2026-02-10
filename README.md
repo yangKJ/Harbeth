@@ -9,7 +9,9 @@
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
  
-[**Harbeth**](https://github.com/yangKJ/Harbeth) is a high performance Swift library for GPU accelerated image processing and realtime camera capture and video smooth playback, and then add filters based on Metal, and also compatible for CoreImage filters and using Metal performance shaders filters.
+[**Harbeth**](https://github.com/yangKJ/Harbeth) is a high-performance Swift library focused on GPU-accelerated real-time image processing, camera capture, and video processing. Built on Metal technology, it also integrates with CoreImage and Metal Performance Shaders, providing developers with a powerful and easy-to-integrate image processing solution.
+
+Harbeth is designed to address the performance bottlenecks of traditional CPU-based image processing. By fully leveraging GPU parallel computing capabilities, it achieves real-time, smooth image processing effects. Whether for simple color adjustments or complex real-time video effects, Harbeth handles them with ease.
 
 This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUImage).
 
@@ -23,15 +25,36 @@ English | [**简体中文**](README_CN.md)
 - Support more platform system, macOS and iOS, both UIKit/AppKit and SwiftUI.
 - High performance quickly add filters at these sources:    
   - UIImage, NSImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
-- The built-in metal kernel filters is roughly divided into the following modules:    
-  - [Blend](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blend), [Blur](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Blur), [Color](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Color), [Combination](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Combination), [DistortionWarp](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/DistortionWarp), [EdgeDetail](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/EdgeDetail), [Generators](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Generators), [Geometric Transform](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Geometric), [Lookup](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup), [Matrix](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Matrix), [Other](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Other), [Stylization](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Stylization), [Utility](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Utility).
+- The built-in metal kernel filters is roughly divided into the following modules.
 - Setup [MetalPerformanceShaders](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) filters And also compatible for [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters.
 - Previews and rendering backed with the power of Metal.
 - Drop-in support for your own custom filters using [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup/C7LookupTable.swift) or using [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage/CIColorCube.swift).
 - Realtime camera capture and video smooth playback with filters.
 - Video source processing video file by [Kakapos](https://github.com/yangKJ/Kakapos) library.
 
-#### **A total of 100+ kinds of built-in filters are currently available.✌️**
+### 🎨 Filter System
+Harbeth offers a comprehensive filter classification to meet various image processing needs:
+- **Color Adjustment**: Brightness, contrast, saturation, exposure, white balance, etc.
+- **Blur Effects**: Gaussian blur, bilateral blur, motion blur, zoom blur, etc.
+- **Blend Modes**: Normal, multiply, screen, overlay, hard light, etc.
+- **Edge & Detail**: Sharpen, edge detection, sketch, comic strip effect, etc.
+- **Distortion & Warp**: Bulge, pinch, swirl, water ripple, glass sphere, etc.
+- **Stylization**: Oil painting, cartoon, glitch effect, split screen, soul out, etc.
+- **Geometric Transform**: Crop, flip, rotate, resize, etc.
+- **Matrix Processing**: 3x3 convolution matrix, 4x4 color matrix, 4x5 color matrix, etc.
+- **Utility**: Chroma key, highlight shadow, levels, luminance threshold, etc.
+- **Generators**: Solid color, color gradient, etc.
+- **Lookup Tables**: LUT-based color adjustments
+
+#### **A total of 200+ kinds of built-in filters are currently available.✌️**
+
+### 🔧 Technical Advantages
+- **Metal Acceleration**: Fully leverages GPU parallel computing power
+- **Multi-encoder Support**: Automatically selects optimal command encoder based on filter type
+- **Intelligent Memory Management**: Automatic texture pooling and memory limit mechanisms
+- **Performance Monitoring**: Built-in performance monitoring tools to help optimize processing workflows
+- **Seamless Integration**: Integrates with CoreImage and Metal Performance Shaders
+- **Type Safety**: Pure Swift implementation with complete type safety
 
 ## Requirements
 
@@ -146,131 +169,136 @@ HarbethView(image: inputImage, filters: filters, content: { image in
 })
 ```
 
-### Filters Group
+### 🎨 Filter List
 
 #### 🎨 Color Adjustment
-- C7Brightness（亮度）
-- C7ColorConvert（色彩转换）
-- C7ColorRGBA（RGBA调整）
-- C7ColorSpace（色彩空间）
-- C7Contrast（对比度）
-- C7Exposure（曝光）
-- C7FalseColor（伪色）
-- C7Gamma（伽马校正）
-- C7Hue（色调）
-- C7Monochrome（单色）
-- C7Nostalgic（怀旧色调）
-- C7Posterize（色调分离）
-- C7Saturation（饱和度）
-- C7Sepia（棕褐色调）
-- C7Vibrance（自然饱和度）
-- C7WhiteBalance（白平衡）
+- **C7Brightness**: Brightness adjustment
+- **C7ColorConvert**: Color space conversion
+- **C7ColorRGBA**: RGBA channel adjustment
+- **C7ColorSpace**: Advanced color space operations
+- **C7Contrast**: Contrast adjustment
+- **C7Exposure**: Exposure adjustment
+- **C7FalseColor**: Uses the luminance of the image to mix between two user-specified colors.
+- **C7Gamma**: Gamma correction
+- **C7Hue**: Hue adjustment
+- **C7LuminanceAdaptiveContrast**: Adaptive contrast adjustment based on pixel brightness, dark part enhances contrast, bright part reduces contrast
+- **C7Monochrome**: Convert the image into a monochrome version and color it according to the brightness of each pixel.
+- **C7Nostalgic**: Nostalgic tone
+- **C7Opacity**: Transparency adjustment, similar to changing alpha.
+- **C7Posterize**: Posterization effect
+- **C7Saturation**: Saturation adjustment
+- **C7Sepia**: Sepia tone
+- **C7Vibrance**: Vibrance adjustment
+- **C7WhiteBalance**: Adjust the white balance based on color temperature.
 
 #### 🌫️ Blur Effects
-- C7BilateralBlur（双边模糊）
-- C7CircleBlur（圆形模糊）
-- C7GaussianBlur（高斯模糊）
-- C7MeanBlur（均值模糊）
-- C7MotionBlur（运动模糊）
-- C7RedMonochromeBlur（红色单色模糊）
-- C7ZoomBlur（缩放模糊）
+- **C7BilateralBlur**: Bilateral blur (edge-preserving blur)
+- **C7CircleBlur**: Circle blur
+- **C7DetailPreservingBlur**: Keep the details as much as possible while reducing noise to avoid the loss of details caused by traditional blur.
+- **C7GaussianBlur**: Gaussian blur
+- **C7MeanBlur**: Mean blur
+- **C7MotionBlur**: Motion blur
+- **C7RedMonochromeBlur**: Red monochrome blur effect, single channel expansion.
+- **C7ZoomBlur**: Zoom blur
 
 #### 🔄 Blend Modes
-- C7BlendChromaKey（色度键控）
-- C7BlendColorBurn（颜色加深）
-- C7BlendColorDodge（颜色减淡）
-- C7BlendDarken（变暗）
-- C7BlendDifference（差值）
-- C7BlendExclusion（排除）
-- C7BlendHardLight（强光）
-- C7BlendLighten（变亮）
-- C7BlendMask（蒙版混合）
-- C7BlendMultiply（正片叠底）
-- C7BlendNormal（正常）
-- C7BlendOverlay（叠加）
-- C7BlendScreen（滤色）
-- C7BlendSoftLight（柔光）
+- **C7BlendChromaKey**: Chroma key (green screen)
+- **C7BlendColorBurn**: Color burn
+- **C7BlendColorDodge**: Color dodge
+- **C7BlendDarken**: Darken
+- **C7BlendDifference**: Difference
+- **C7BlendExclusion**: Exclusion
+- **C7BlendHardLight**: Hard light
+- **C7BlendLighten**: Lighten
+- **C7BlendMask**: Mask blend
+- **C7BlendMultiply**: Multiply
+- **C7BlendNormal**: Normal
+- **C7BlendOverlay**: Overlay
+- **C7BlendScreen**: Screen
+- **C7BlendSoftLight**: Soft light
+- ** C7BlendWithMask**: Replace CoreImage filter CIBlendWithMask
 
 #### 🔍 Edge & Detail
-- C7Canny（边缘检测）
-- C7ComicStrip（漫画效果）
-- C7Crosshatch（交叉线）
-- C7Granularity（颗粒感）
-- C7Sobel（索贝尔边缘检测）
-- C7Sharpen（锐化）
-- C7Sketch（素描）
-- C7ThresholdSketch（阈值素描）
+- **C7Canny**: Canny edge detection filter.
+- **C7ComicStrip**: Comic strip effect
+- **C7Crosshatch**: Crosshatch effect
+- **C7DetailEnhancer**: Use non-sharpening mask technology to enhance image details, which is more natural than ordinary sharpening.
+- **C7EdgeAwareSharpen**: Sharpen only in the edge area to avoid noise amplification.
+- **C7Granularity**: Adjust the graininess of the film.
+- **C7Sharpen**: Sharpen
+- **C7Sketch**: Sketch effect
+- **C7Sobel**: Feature extraction, based on Sobel operator.
+- **C7ThresholdSketch**: Threshold sketch
 
 #### 🌀 Distortion & Warp
-- C7Bulge（凸起）
-- C7ColorPacking（颜色打包）
-- C7GlassSphere（玻璃球）
-- C7Halftone（半色调）
-- C7Pinch（收缩）
-- C7Pixellated（像素化）
-- C7PolarPixellate（极坐标像素化）
-- C7PolkaDot（圆点花纹）
-- C7SphereRefraction（球面折射）
-- C7Swirl（漩涡）
-- C7WaterRipple（水波纹）
+- **C7Bulge**: Bulge effect
+- **C7ColorPacking**: Color loss/blur effect.
+- **C7GlassSphere**: Glass sphere effect
+- **C7Halftone**: Halftone effect
+- **C7Pinch**: Pinch effect
+- **C7Pixellated**: Mosaic pixelation
+- **C7PolarPixellate**: Polar pixelation
+- **C7PolkaDot**: Polka dot pattern
+- **C7SphereRefraction**: Sphere refraction
+- **C7Swirl**: Swirl effect
+- **C7WaterRipple**: Water ripple effect
 
 #### 🎭 Stylization
-- C7ColorCGASpace（CGA色彩空间）
-- C7Fluctuate（波动）
-- C7Glitch（故障效果）
-- C7Kuwahara（桑原滤波）
-- C7OilPainting（油画）
-- C7ShiftGlitch（移位故障）
-- C7SoulOut（灵魂出窍）
-- C7SplitScreen（分屏）
-- C7Storyboard（故事板）
-- C7Toon（卡通）
-- C7VoronoiOverlay（维诺图叠加）
+- **C7ColorCGASpace**: Image CGA color filter to form black, light blue and purple blocks.
+- **C7Fluctuate**: The fluctuation effect can also be similar to the graffiti effect.
+- **C7Glitch**: Glitch art effect
+- **C7Kuwahara**: Kuwahara filter (oil painting effect)
+- **C7OilPainting**: Oil painting effect
+- **C7RGBADilation**: Find the maximum value of each color channel in the range of radius, and set the maximum value to the current pixel.
+- **C7ShiftGlitch**: RGB shift glitch effect
+- **C7SoulOut**: The effect of soul out of the trick.
+- **C7SplitScreen**: Split screen effect
+- **C7Storyboard**: Storyboard effect
+- **C7Toon**: Cartoon effect
+- **C7VoronoiOverlay**: Tyson polygon superposition effect, Change the distance measurement in the voronoi mode to get different shapes.
 
 #### 📊 Matrix Processing
-- C7ColorMatrix4x4（4x4颜色矩阵）
-- C7ColorMatrix4x5（4x5颜色矩阵）
-- C7ColorVector4（4维颜色向量）
-- C7ConvolutionMatrix3x3（3x3卷积矩阵）
-- C7EdgeGlow（边缘发光）
-- C7RGBADilation（RGBA扩张）
+- **C7ColorMatrix4x4**: 4x4 color matrix
+- **C7ColorMatrix4x5**: 4x5 color matrix
+- **C7ColorVector4**: 4D color vector
+- **C7ConvolutionMatrix3x3**: 3x3 convolution matrix
+- **C7EdgeGlow**: Edge glow
 
 #### 🎛️ Utility
-- C7ChromaKey（色度键控）
-- C7DepthLuminance（深度亮度）
-- C7HighlightShadow（高光阴影）
-- C7HighlightShadowTint（高光阴影色调）
-- C7Levels（色阶）
-- C7Luminance（亮度）
-- C7LuminanceRangeReduction（亮度范围压缩）
-- C7LuminanceThreshold（亮度阈值）
-- C7Opacity（不透明度）
+- **C7ChromaKey**: Remove the background that has the specified a color. A bit like green screen matting, The removed pixels become transparent.
+- **C7DepthLuminance**: Depth luminance
+- **C7HighlightShadow**: Highlight shadow
+- **C7HighlightShadowTint**: Highlight shadow tint
+- **C7Levels**: Levels adjustment
+- **C7Luminance**: Luminance extraction
+- **C7LuminanceRangeReduction**: Luminance range reduction
+- **C7LuminanceThreshold**: Threshold filter threshold size is dynamic (according to the image)
 
 #### 📐 Geometric Transform
-- C7Crop（裁剪）
-- C7Flip（翻转）
-- C7Mirror（镜像）
-- C7Resize（调整大小）
-- C7Rotate（旋转）
-- C7Transform（变换）
+- **C7Crop**: Crop
+- **C7Flip**: Flip
+- **C7Mirror**: Mirror
+- **C7Resize**: Resize
+- **C7Rotate**: Rotate
+- **C7Transform**: Affine transform
 
 #### 🎨 Generators
-- C7ColorGradient（颜色渐变）
-- C7SolidColor（纯色）
+- **C7ColorGradient**: Color gradient
+- **C7SolidColor**: Solid color
 
 #### 📋 Lookup Tables
-- C7LookupSplit（分屏查找表）
-- C7LookupTable（查找表）
+- **C7LookupSplit**: Split screen lookup table
+- **C7LookupTable**: Color lookup table (LUT)
 
-#### 🔗 Combination
-- C7CombinationBeautiful（美颜组合）
-- C7CombinationBilateralBlur（双边模糊组合）
+#### 🔗 Combination Effects
+- **C7CombinationBeautiful**: Beauty combination
+- **C7CombinationBilateralBlur**: Bilateral blur combination
 
 #### 🎚️ Other Effects
-- C7Grayed（灰度化）
-- C7Haze（雾霾）
-- C7Pow（幂次调整）
-- C7Vignette（暗角）
+- **C7Grayed**: Grayscale
+- **C7Haze**: Haze effect
+- **C7Pow**: Power adjustment
+- **C7Vignette**: Vignette effect
 
 ---
 
@@ -344,3 +372,26 @@ Alipay or WeChat. Thanks.
 Harbeth is available under the [MIT](LICENSE) license. See the [LICENSE](LICENSE) file for more info.
 
 -----
+
+### 📞 Technical Support
+
+#### Frequently Asked Questions
+
+**Q: Which platforms does Harbeth support?**
+A: Harbeth supports iOS 10.0+, macOS 10.13+, tvOS 12.0+, and watchOS 5.0+.
+
+**Q: How is Harbeth's performance?**
+A: Harbeth is built on Metal, fully leveraging GPU acceleration, which is several times faster than CPU processing, especially suitable for real-time processing scenarios.
+
+**Q: How to create custom filters?**
+A: You can create custom filters by implementing the `C7FilterProtocol` protocol, or create custom color adjustment filters using LUT files.
+
+**Q: What advantages does Harbeth have compared to CoreImage?**
+A: Harbeth provides a cleaner API, more built-in filters, and better performance monitoring functionality. At the same time, Harbeth is also compatible with CoreImage filters.
+
+**Q: How to handle memory issues?**
+A: You can limit Harbeth's memory usage by adjusting the `memoryLimitMB` property, or use asynchronous processing to avoid memory peaks.
+
+<p align="center">
+  <em>Thank you for using Harbeth! I hope it can help with your projects.</em>
+</p>

@@ -8,6 +8,7 @@
 import Foundation
 
 /// 图像CGA色彩滤镜，形成黑、浅蓝、紫色块的画面
+/// Image CGA color filter to form black, light blue and purple blocks
 public struct C7ColorCGASpace: C7FilterProtocol {
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
