@@ -403,6 +403,70 @@ extension ViewControllerType {
                 filter.threshold2 = $0
                 return filter
             })
+        case .VignetteNormal:
+            var filter = C7VignetteBlend(blendMode: .normal)
+            filter.color = UIColor.black
+            return (filter, (0.3, 0.1, 0.75), {
+                filter.start = $0
+                return filter
+            })
+        case .VignetteMultiply:
+            var filter = C7VignetteBlend(blendMode: .multiply)
+            filter.color = UIColor.darkGray
+            return (filter, (0.3, 0.1, 0.75), {
+                filter.start = $0
+                return filter
+            })
+        case .VignetteOverlay:
+            var filter = C7VignetteBlend(blendMode: .overlay)
+            filter.color = UIColor.brown
+            return (filter, (0.3, 0.1, 0.75), {
+                filter.start = $0
+                return filter
+            })
+        case .VignetteSoftLight:
+            var filter = C7VignetteBlend(blendMode: .softLight)
+            filter.color = UIColor.blue.withAlphaComponent(0.5)
+            return (filter, (0.3, 0.1, 0.75), {
+                filter.start = $0
+                return filter
+            })
+        case .CombinationBeautiful:
+            let filter = C7CombinationBeautiful()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationCinematic:
+            let filter = C7CombinationCinematic()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationModernHDR:
+            let filter = C7CombinationModernHDR()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationVintage:
+            let filter = C7CombinationVintage()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .BlitCrop:
+            let cropRect = CGRect(x: 100, y: 100, width: 200, height: 200)
+            let filter = C7CropBlit(rect: cropRect)
+            return (filter, nil, nil)
+        case .BlitCopyRegion:
+            let sourceRect = CGRect(x: 50, y: 50, width: 100, height: 100)
+            let destOrigin = MTLOrigin(x: 150, y: 150, z: 0)
+            let filter = C7CopyRegionBlit(sourceRect: sourceRect, destOrigin: destOrigin)
+            return (filter, nil, nil)
+        case .BlitGenerateMipmaps:
+            let filter = C7GenerateMipmapsBlit()
+            return (filter, nil, nil)
         }
     }
 }

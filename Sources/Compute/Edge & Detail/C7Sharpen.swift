@@ -25,4 +25,8 @@ public struct C7Sharpen: C7FilterProtocol {
     public init(sharpeness: Float = range.value) {
         self.sharpeness = sharpeness
     }
+    
+    public init(sharpness: Float = range.value) {
+        self.sharpeness = sharpness
+    }
 }

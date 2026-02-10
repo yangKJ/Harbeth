@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class C7CombinationBeautiful: C7FilterProtocol {
+public final class C7CombinationBeautiful: C7CombinationBase {
     
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
@@ -33,34 +33,52 @@ public class C7CombinationBeautiful: C7FilterProtocol {
         }
     }
     
-    public var modifier: ModifierEnum {
+    public override var modifier: ModifierEnum {
         return .compute(kernel: "C7CombinationBeautiful")
     }
     
-    public var factors: [Float] {
+    public override var factors: [Float] {
         return [intensity, smoothDegree]
     }
     
-    public var otherInputTextures: C7InputTextures {
-        [blurTexture, edgeTexture]
+    public override var otherInputTextures: C7InputTextures {
+        // Return the first two textures from intermediateTextures
+        // These should be the blur and edge textures
+        return Array(intermediateTextures.prefix(2))
     }
     
-    private var blurTexture: MTLTexture!
-    private var edgeTexture: MTLTexture!
-    
-    private var blurFilter: C7CombinationBilateralBlur
+    private var blurFilter: C7BilateralBlur
     private var edgeFilter: C7Sobel
     
     public init(smoothDegree: Float = 0.0) {
         self.smoothDegree = smoothDegree
-        self.blurFilter = C7CombinationBilateralBlur(distanceNormalizationFactor: 8, stepOffset: 4)
+        self.blurFilter = C7BilateralBlur(distanceNormalizationFactor: 8, stepOffset: 4)
         self.edgeFilter = C7Sobel(edgeStrength: 1.0)
+        super.init()
     }
     
-    public func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture {
-        let destTexture = try TextureLoader.copyTexture(with: texture2)
-        self.blurTexture = try blurFilter.applyAtTexture(form: texture, to: destTexture, for: buffer)
-        self.edgeTexture = try edgeFilter.applyAtTexture(form: texture, to: destTexture, for: buffer)
-        return texture
+    /// Prepare intermediate textures for the beautiful filter
+    public override func prepareIntermediateTextures(buffer: MTLCommandBuffer, source: MTLTexture) throws -> [MTLTexture] {
+        let destTexture = try TextureLoader.copyTexture(with: source)
+        
+        // Apply blur filter
+        let blurTexture = try blurFilter.applyAtTexture(form: source, to: destTexture, for: buffer)
+        intermediateTextures.append(blurTexture)
+        
+        // Apply edge filter
+        let edgeDestTexture = try TextureLoader.copyTexture(with: source)
+        let edgeTexture = try edgeFilter.applyAtTexture(form: source, to: edgeDestTexture, for: buffer)
+        intermediateTextures.append(edgeTexture)
+        
+        return intermediateTextures
+    }
+    
+    /// Cleanup resources after processing
+    public override func cleanupIntermediateTextures() {
+        // Return textures to pool if possible
+        for texture in intermediateTextures {
+            Shared.shared.texturePool?.enqueueTexture(texture)
+        }
+        super.cleanupIntermediateTextures()
     }
 }

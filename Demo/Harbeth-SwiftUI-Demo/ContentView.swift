@@ -16,6 +16,9 @@ struct ContentView: View {
     func setupContentView() -> some View {
         NavigationView {
             List {
+                NavigationLink(destination: CubeView()) {
+                    Text("Cube")
+                }
                 NavigationLink(destination: BlendView()) {
                     Text("Blend Modes")
                 }

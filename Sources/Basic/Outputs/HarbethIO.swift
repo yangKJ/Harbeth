@@ -43,19 +43,20 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     /// But upon inspecting the texture, it still renders the CIImage as expected.
     /// Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
     public var mirrored: Bool = false
-    
     /// Do you need to create an output texture object?
     /// If you do not create a separate output texture, texture overlay may occur.
     public var createDestTexture: Bool = true
-    
     /// Metal texture transmit output real time commit buffer.
     /// Fixed camera capture output CMSampleBuffer.
     public var transmitOutputRealTimeCommit: Bool = false
-    
     /// Enable performance monitoring
     public var enablePerformanceMonitor: Bool = false
     /// Memory limit for texture processing in MB
     public var memoryLimitMB: Int = 512
+    /// Scale factor for intermediate textures (0.0-1.0), default is 1.0 (no scaling)
+    public var scaleFactor: Float = 1.0 {
+        didSet { scaleFactor = min(max(0.0, scaleFactor), 1.0) }
+    }
     
     private var hasCoreImage: Bool
     private var setupedBufferPixelFormat = false
@@ -89,8 +90,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         self.filters = filters//Self.optimizeFilters(filters)
     }
     
-    /// Add filters to sources synchronously.
-    /// If it fails, it returns element.
+    /// Add filters to sources synchronously. If it fails, it returns element.
     public func filtered() -> Dest {
         return (try? self.output()) ?? element
     }
@@ -113,7 +113,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
             return try filtering(sampleBuffer: ee as! CMSampleBuffer) as! Dest
         default:
-            return element            
+            return element
         }
     }
     
@@ -180,6 +180,71 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
 }
 
 extension HarbethIO {
+    /// Set the buffer pixel format
+    /// - Parameter pixelFormat: Pixel format to use
+    /// - Returns: Self for method chaining
+    @discardableResult
+    public mutating func withBufferPixelFormat(_ pixelFormat: MTLPixelFormat) -> Self {
+        self.bufferPixelFormat = pixelFormat
+        return self
+    }
+    
+    /// Set whether to mirror the output
+    /// - Parameter mirrored: Whether to mirror
+    /// - Returns: Self for method chaining
+    @discardableResult
+    public mutating func withMirrored(_ mirrored: Bool) -> Self {
+        self.mirrored = mirrored
+        return self
+    }
+    
+    /// Set whether to create a destination texture
+    /// - Parameter create: Whether to create
+    /// - Returns: Self for method chaining
+    @discardableResult
+    public mutating func withCreateDestTexture(_ create: Bool) -> Self {
+        self.createDestTexture = create
+        return self
+    }
+    
+    /// Set whether to transmit output real time commit
+    /// - Parameter commit: Whether to commit in real time
+    /// - Returns: Self for method chaining
+    @discardableResult
+    public mutating func withTransmitOutputRealTimeCommit(_ commit: Bool) -> Self {
+        self.transmitOutputRealTimeCommit = commit
+        return self
+    }
+    
+    /// Set whether to enable performance monitoring
+    /// - Parameter enable: Whether to enable
+    /// - Returns: Self for method chaining
+    @discardableResult
+    public mutating func withEnablePerformanceMonitor(_ enable: Bool) -> Self {
+        self.enablePerformanceMonitor = enable
+        return self
+    }
+    
+    /// Set the memory limit for texture processing
+    /// - Parameter limit: Memory limit in MB
+    /// - Returns: Self for method chaining
+    @discardableResult
+    public mutating func withMemoryLimitMB(_ limit: Int) -> Self {
+        self.memoryLimitMB = limit
+        return self
+    }
+    
+    /// Set the scale factor for intermediate textures
+    /// - Parameter scaleFactor: Scale factor (0.0-1.0)
+    /// - Returns: Self for method chaining
+    @discardableResult
+    public mutating func withScaleFactor(_ scaleFactor: Float) -> Self {
+        self.scaleFactor = scaleFactor
+        return self
+    }
+}
+
+extension HarbethIO {
     
     private func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
         let inTexture = try TextureLoader.init(with: pixelBuffer).texture
@@ -233,16 +298,25 @@ extension HarbethIO {
     
     private func processPureMetalFilters(input: MTLTexture) throws -> MTLTexture {
         let commandBuffer = try makeCommandBuffer(for: nil)
+        var temporaryTextures: [MTLTexture] = []
         let outputTexture = try filters.reduce(input) { texture, filter in
-            try textureIO(input: texture, filter: filter, for: commandBuffer)
+            let tempTexture = try textureIO(input: texture, filter: filter, for: commandBuffer)
+            if tempTexture !== input {
+                temporaryTextures.append(tempTexture)
+            }
+            return tempTexture
         }
         commandBuffer.commitAndWaitUntilCompleted()
+        for texture in temporaryTextures where texture !== input && texture !== outputTexture {
+            TextureLoader.returnTexture(toPool: texture)
+        }
         return outputTexture
     }
     
     private func processBatchedFilters(input: MTLTexture) throws -> MTLTexture {
         let filterGroups = groupConsecutiveFilters(by: { $0.modifier.isCoreImage })
         var outputTexture = input
+        var temporaryTextures: [MTLTexture] = []
         for group in filterGroups {
             if group.first?.modifier.isCoreImage ?? false {
                 guard var inputCIImage = outputTexture.c7.toCIImage() else {
@@ -253,26 +327,43 @@ extension HarbethIO {
                 }
                 let commandBuffer = try makeCommandBuffer(for: nil)
                 let destTexture = try TextureLoader.makeTexture(at: inputCIImage.extent.size)
+                temporaryTextures.append(destTexture)
                 try inputCIImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
                 outputTexture = destTexture
                 commandBuffer.commitAndWaitUntilCompleted()
             } else {
                 let commandBuffer = try makeCommandBuffer(for: nil)
                 outputTexture = try group.reduce(outputTexture) { texture, filter in
-                    try textureIO(input: texture, filter: filter, for: commandBuffer)
+                    let tempTexture = try textureIO(input: texture, filter: filter, for: commandBuffer)
+                    if tempTexture !== texture {
+                        temporaryTextures.append(tempTexture)
+                    }
+                    return tempTexture
                 }
                 commandBuffer.commitAndWaitUntilCompleted()
             }
+        }
+        for texture in temporaryTextures where texture !== input && texture !== outputTexture {
+            TextureLoader.returnTexture(toPool: texture)
         }
         return outputTexture
     }
     
     private func processInterleavedFilters(input: MTLTexture) throws -> MTLTexture {
         var outputTexture = input
+        var temporaryTextures: [MTLTexture] = []
         for filter in filters {
             let commandBuffer = try makeCommandBuffer(for: nil)
-            outputTexture = try textureIO(input: outputTexture, filter: filter, for: commandBuffer)
+            let tempTexture = try textureIO(input: outputTexture, filter: filter, for: commandBuffer)
+            if tempTexture !== outputTexture {
+                temporaryTextures.append(tempTexture)
+            }
+            outputTexture = tempTexture
             commandBuffer.commitAndWaitUntilCompleted()
+        }
+        // Return temporary textures to the pool to exclude input and output textures.
+        for texture in temporaryTextures where texture !== input && texture !== outputTexture {
+            TextureLoader.returnTexture(toPool: texture)
         }
         return outputTexture
     }
@@ -379,26 +470,43 @@ extension HarbethIO {
     private func processPureMetalFilters(texture: MTLTexture, complete: @escaping C7TextureResultBlock) {
         do {
             let commandBuffer = try makeCommandBuffer()
-            try runAsyncIO(input: texture, index: 0, commandBuffer: commandBuffer)
+            try runAsyncIO(input: texture, index: 0, commandBuffer: commandBuffer, temporaryTextures: [])
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
         }
-        func runAsyncIO(input: MTLTexture, index: Int, commandBuffer: MTLCommandBuffer) throws {
+        func runAsyncIO(input: MTLTexture, index: Int, commandBuffer: MTLCommandBuffer, temporaryTextures: [MTLTexture]) throws {
             if index >= filters.count {
-                commandBuffer.asyncCommit { complete($0.map({ input })) }
+                commandBuffer.asyncCommit { result in
+                    switch result {
+                    case .success:
+                        for tempTexture in temporaryTextures where tempTexture !== texture && tempTexture !== input {
+                            TextureLoader.returnTexture(toPool: tempTexture)
+                        }
+                        complete(.success(input))
+                    case .failure(let error):
+                        complete(.failure(HarbethError.toHarbethError(error)))
+                    }
+                }
                 return
             }
             let filter = filters[index]
             switch filter.modifier {
             case .compute, .mps, .render:
                 let dest = try createDestTexture(with: input, filter: filter)
+                var newTemporaryTextures = temporaryTextures
+                if dest !== input {
+                    newTemporaryTextures.append(dest)
+                }
                 let preparedInput = try filter.combinationBegin(for: commandBuffer, source: input, dest: dest)
                 try filter.applyAtTexture(form: preparedInput, to: dest, for: commandBuffer) { result in
                     do {
                         switch result {
                         case .success(let t):
                             let output = try filter.combinationAfter(for: commandBuffer, input: t, source: input)
-                            try runAsyncIO(input: output, index: index+1, commandBuffer: commandBuffer)
+                            if output !== dest {
+                                newTemporaryTextures.append(output)
+                            }
+                            try runAsyncIO(input: output, index: index+1, commandBuffer: commandBuffer, temporaryTextures: newTemporaryTextures)
                         case .failure(let error):
                             throw HarbethError.toHarbethError(error)
                         }
@@ -406,16 +514,32 @@ extension HarbethIO {
                         complete(.failure(HarbethError.toHarbethError(error)))
                     }
                 }
-            case .blit, .coreimage:
-                try runAsyncIO(input: input, index: index+1, commandBuffer: commandBuffer)
+            case .blit:
+                let dest = try createDestTexture(with: input, filter: filter)
+                var newTemporaryTextures = temporaryTextures
+                if dest !== input {
+                    newTemporaryTextures.append(dest)
+                }
+                let preparedInput = try filter.combinationBegin(for: commandBuffer, source: input, dest: dest)
+                let output = try filter.applyAtTexture(form: preparedInput, to: dest, for: commandBuffer)
+                let finalOutput = try filter.combinationAfter(for: commandBuffer, input: output, source: input)
+                if finalOutput !== output {
+                    newTemporaryTextures.append(finalOutput)
+                }
+                try runAsyncIO(input: finalOutput, index: index+1, commandBuffer: commandBuffer, temporaryTextures: newTemporaryTextures)
+            case .coreimage:
+                try runAsyncIO(input: input, index: index+1, commandBuffer: commandBuffer, temporaryTextures: temporaryTextures)
             }
         }
     }
     
     private func processBatchedFilters(texture: MTLTexture, complete: @escaping C7TextureResultBlock) {
         let filterGroups = groupConsecutiveFilters(by: { $0.modifier.isCoreImage })
-        func processGroup(at index: Int, inputTexture: MTLTexture) {
+        func processGroup(at index: Int, inputTexture: MTLTexture, temporaryTextures: [MTLTexture]) {
             guard index < filterGroups.count else {
+                for tempTexture in temporaryTextures where tempTexture !== texture && tempTexture !== inputTexture {
+                    TextureLoader.returnTexture(toPool: tempTexture)
+                }
                 complete(.success(inputTexture))
                 return
             }
@@ -433,11 +557,15 @@ extension HarbethIO {
                         let destTexture = try TextureLoader.makeTexture(at: inputCIImage.extent.size, options: [
                             .texturePixelFormat: self.rgba8UnormTexture ? .rgba8Unorm : self.bufferPixelFormat
                         ])
+                        var newTemporaryTextures = temporaryTextures
+                        if destTexture !== inputTexture {
+                            newTemporaryTextures.append(destTexture)
+                        }
                         try inputCIImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
                         commandBuffer.asyncCommit { result in
                             switch result {
                             case .success:
-                                processGroup(at: index + 1, inputTexture: destTexture)
+                                processGroup(at: index + 1, inputTexture: destTexture, temporaryTextures: newTemporaryTextures)
                             case .failure(let error):
                                 complete(.failure(HarbethError.toHarbethError(error)))
                             }
@@ -449,16 +577,24 @@ extension HarbethIO {
             } else {
                 do {
                     let commandBuffer = try self.makeCommandBuffer()
+                    var newTemporaryTextures = temporaryTextures
                     let outputTexture = try group.reduce(inputTexture) { tex, filter in
                         let dest = try self.createDestTexture(with: tex, filter: filter)
+                        if dest !== tex {
+                            newTemporaryTextures.append(dest)
+                        }
                         let prepared = try filter.combinationBegin(for: commandBuffer, source: tex, dest: dest)
                         let out = try filter.applyAtTexture(form: prepared, to: dest, for: commandBuffer)
-                        return try filter.combinationAfter(for: commandBuffer, input: out, source: tex)
+                        let finalOutput = try filter.combinationAfter(for: commandBuffer, input: out, source: tex)
+                        if finalOutput !== out {
+                            newTemporaryTextures.append(finalOutput)
+                        }
+                        return finalOutput
                     }
                     commandBuffer.asyncCommit { result in
                         switch result {
                         case .success:
-                            processGroup(at: index + 1, inputTexture: outputTexture)
+                            processGroup(at: index + 1, inputTexture: outputTexture, temporaryTextures: newTemporaryTextures)
                         case .failure(let error):
                             complete(.failure(HarbethError.toHarbethError(error)))
                         }
@@ -468,26 +604,33 @@ extension HarbethIO {
                 }
             }
         }
-        processGroup(at: 0, inputTexture: texture)
+        processGroup(at: 0, inputTexture: texture, temporaryTextures: [])
     }
     
     private func processInterleavedFilters(texture: MTLTexture, complete: @escaping C7TextureResultBlock) {
         var iterator = self.filters.makeIterator()
-        func recursion(filter: C7FilterProtocol?, sourceTexture: MTLTexture) {
+        func recursion(filter: C7FilterProtocol?, sourceTexture: MTLTexture, temporaryTextures: [MTLTexture]) {
             guard let filter = filter else {
+                for tempTexture in temporaryTextures where tempTexture !== texture && tempTexture !== sourceTexture {
+                    TextureLoader.returnTexture(toPool: tempTexture)
+                }
                 complete(.success(sourceTexture))
                 return
             }
             runAsyncIO(with: sourceTexture, filter: filter, complete: {
                 switch $0 {
                 case .success(let t):
-                    recursion(filter: iterator.next(), sourceTexture: t)
+                    var newTemporaryTextures = temporaryTextures
+                    if t !== sourceTexture {
+                        newTemporaryTextures.append(t)
+                    }
+                    recursion(filter: iterator.next(), sourceTexture: t, temporaryTextures: newTemporaryTextures)
                 case .failure(let error):
                     complete(.failure(HarbethError.toHarbethError(error)))
                 }
             })
         }
-        recursion(filter: iterator.next(), sourceTexture: texture)
+        recursion(filter: iterator.next(), sourceTexture: texture, temporaryTextures: [])
     }
 }
 
@@ -588,12 +731,18 @@ extension HarbethIO {
             targetPixelFormat = .rgba8Unorm
         }
         let resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
+        
+        // Apply scale factor if set
+        let scaledWidth = Int(Float(resize.width) * scaleFactor)
+        let scaledHeight = Int(Float(resize.height) * scaleFactor)
+        let finalSize = C7Size(width: max(1, scaledWidth), height: max(1, scaledHeight))
+        
         if enablePerformanceMonitor {
             PerformanceMonitor.shared.recordTextureCreation(identifier, created: false)
         }
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
         // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
-        let texture = try TextureLoader.makeTexture(width: resize.width, height: resize.height, options: [
+        let texture = try TextureLoader.makeTexture(width: finalSize.width, height: finalSize.height, options: [
             .texturePixelFormat: targetPixelFormat
         ])
         if enablePerformanceMonitor {
@@ -679,7 +828,13 @@ extension HarbethIO {
                     }
                 }
             case .blit:
-                complete(.success(texture))
+                do {
+                    let output = try filter.applyAtTexture(form: inputTexture, to: destTexture, for: commandBuffer)
+                    let finalTexture = try filter.combinationAfter(for: commandBuffer, input: output, source: texture)
+                    commandBuffer.asyncCommit { complete($0.map({ finalTexture })) }
+                } catch {
+                    complete(.failure(HarbethError.toHarbethError(error)))
+                }
             }
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))

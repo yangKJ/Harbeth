@@ -246,13 +246,36 @@ extension TextureLoader {
     }
     
     public static func copyTexture(with texture: MTLTexture) throws -> MTLTexture {
+        // 优先从纹理池获取合适的纹理
+        let width = texture.width, height = texture.height
+        if let pooledTexture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: texture.pixelFormat) {
+            PerformanceMonitor.shared.recordTextureCreation("texture_pool_copy", created: false)
+            return pooledTexture
+        }
         // 纹理最好不要又作为输入纹理又作为输出纹理，否则会出现重复内容，
         // 所以需要拷贝新的纹理来承载新的内容‼️
-        try makeTexture(width: texture.width, height: texture.height, options: [
+        let newTexture = try makeTexture(width: width, height: height, options: [
             .texturePixelFormat: texture.pixelFormat,
             .textureUsage: texture.usage,
             .textureSampleCount: texture.sampleCount,
         ])
+        PerformanceMonitor.shared.recordTextureCreation("texture_pool_copy", created: true)
+        return newTexture
+    }
+    
+    /// Returns a texture to the pool for reuse.
+    /// Silently ignores nil textures or textures that can't be pooled.
+    public static func returnTexture(toPool texture: MTLTexture?) {
+        guard let texture = texture else { return }
+        Shared.shared.texturePool?.enqueueTexture(texture)
+    }
+    
+    /// Returns multiple textures to the pool for reuse.
+    /// Silently ignores nil textures or textures that can't be pooled.
+    public static func returnTextures(toPool textures: [MTLTexture]) {
+        for texture in textures {
+            Shared.shared.texturePool?.enqueueTexture(texture)
+        }
     }
     
     private static func pixelFormat(from cvFormat: OSType) -> MTLPixelFormat {

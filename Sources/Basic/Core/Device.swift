@@ -18,6 +18,10 @@ public final class Device: Cacheable {
     let commandQueue: MTLCommandQueue
     /// Metal file in your local project
     let defaultLibrary: MTLLibrary?
+    #if SWIFT_PACKAGE
+    /// Metal file in your local SPM project
+    let spmModuleLibrary: MTLLibrary?
+    #endif
     /// Metal file in ``Harbeth Framework``
     let harbethLibrary: MTLLibrary?
     /// Cache pipe state
@@ -42,15 +46,20 @@ public final class Device: Cacheable {
         }
         self.commandQueue = queue
         
-        if #available(iOS 10.0, macOS 10.12, *) {
-            self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
-        } else {
-            self.defaultLibrary = device.makeDefaultLibrary()
-        }
+        self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
+        #if SWIFT_PACKAGE
+        self.spmModuleLibrary = try? device.makeDefaultLibrary(bundle: Bundle.module)
+        #endif
         self.harbethLibrary = Device.makeFrameworkLibrary(device, for: "Harbeth")
         
         if defaultLibrary == nil && harbethLibrary == nil {
+            #if SWIFT_PACKAGE
+            if spmModuleLibrary == nil {
+                HarbethError.failed("Could not load library")
+            }
+            #else
             HarbethError.failed("Could not load library")
+            #endif
         }
     }
     
@@ -112,7 +121,13 @@ extension Device {
         if let libray = Shared.shared.device?.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
-        // Then read from ``Harbeth Framework``
+        #if SWIFT_PACKAGE
+        /// Then read the local spm project
+        if let libray = Shared.shared.device?.spmModuleLibrary, let function = libray.makeFunction(name: name) {
+            return function
+        }
+        #endif
+        // Last read from ``Harbeth Framework``
         if let libray = Shared.shared.device?.harbethLibrary, let function = libray.makeFunction(name: name) {
             return function
         }

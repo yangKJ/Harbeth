@@ -142,12 +142,15 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7ColorGradient**（颜色渐变）- 创建渐变色背景
 
 #### 📋 查找表
-- **C7LookupTable**（查找表）- 使用LUT文件创建自定义滤镜
-- **C7LookupSplit**（分屏查找表）- 应用多个LUT效果
+- **C7ColorCube**（颜色立方体）- 使用CUBE文件创建3D LUT滤镜，通过Metal实现高性能色彩转换，支持专业级色彩调整
+- **C7LookupTable**（查找表）- 使用LUT文件创建自定义滤镜，通过预设的颜色映射实现快速色彩风格转换
+- **C7LookupSplit**（分屏查找表）- 应用多个LUT效果，可在同一图像上展示不同滤镜效果的对比
 
 #### 🔗 组合滤镜
-- **C7CombinationBeautiful**（美颜组合）- 综合美颜效果
-- **C7CombinationBilateralBlur**（双边模糊组合）- 高级模糊效果
+- **C7CombinationBeautiful**（美颜组合）- 综合美颜效果，包含磨皮、美白、提亮等多种美颜处理，打造自然清透的肌肤效果
+- **C7CombinationCinematic**（电影风格组合）- 电影风格效果，模拟电影级色彩分级，增强画面对比度和层次感，营造专业电影氛围
+- **C7CombinationModernHDR**（现代HDR组合）- 现代HDR效果，提升画面动态范围，增强暗部细节和高光层次，呈现更具冲击力的视觉效果
+- **C7CombinationVintage**（复古风格组合）- 复古风格效果，模拟胶片质感，添加怀旧色调和颗粒感，重现经典老照片的韵味
 
 #### 🎚️ 其他效果
 - **C7Grayed**（灰度化）- 转换为黑白图像

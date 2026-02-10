@@ -54,6 +54,7 @@ struct HomeViewModel {
                 "模糊处理": blur,
                 "图片融合": blend,
                 "矩阵卷积": matrix,
+                "Blit操作": blit,
             ]
         case .camera:
             var filters = color
@@ -71,12 +72,12 @@ struct HomeViewModel {
     ]
     
     let effect: [ViewControllerType] = [
-        .TextHEIC, .ZoomBlur, .Vignette, .WaterRipple,
+        .TextHEIC, .ZoomBlur, .Vignette, .VignetteNormal, .VignetteMultiply, .VignetteOverlay, .VignetteSoftLight, .WaterRipple,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot,
         .Posterize, .Swirl, .SplitScreen, .Storyboard,
         .Monochrome, .ReplaceColor, .ChromaKey,
-        .VoronoiOverlay, .Canny
+        .VoronoiOverlay, .Canny, .CombinationBeautiful, .CombinationCinematic, .CombinationModernHDR, .CombinationVintage
     ]
     
     let color: [ViewControllerType] = [
@@ -115,5 +116,9 @@ struct HomeViewModel {
     
     let coreImage: [ViewControllerType] = [
         .CIHS, .CIGaussian, .ColorMonochrome,
+    ]
+    
+    let blit: [ViewControllerType] = [
+        .BlitCrop, .BlitCopyRegion, .BlitGenerateMipmaps,
     ]
 }

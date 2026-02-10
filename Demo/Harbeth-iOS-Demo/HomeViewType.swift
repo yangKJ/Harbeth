@@ -78,6 +78,17 @@ enum ViewControllerType: String {
     case Grayed = "灰度图像"
     case ColorMonochrome = "单色滤镜"
     case Canny = "边缘检测滤镜"
+    case VignetteNormal = "暗角-正常混合"
+    case VignetteMultiply = "暗角-正片叠底"
+    case VignetteOverlay = "暗角-叠加"
+    case VignetteSoftLight = "暗角-柔和光"
+    case CombinationBeautiful = "美颜组合"
+    case CombinationCinematic = "电影级色调"
+    case CombinationModernHDR = "现代HDR"
+    case CombinationVintage = "复古胶片"
+    case BlitCrop = "裁剪"
+    case BlitCopyRegion = "复制区域"
+    case BlitGenerateMipmaps = "生成Mipmaps"
 }
 
 extension ViewControllerType {

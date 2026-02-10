@@ -24,10 +24,7 @@ kernel void C7BlendWithMask(texture2d<half, access::write> outputTexture [[textu
     const half4 foreground = foregroundTexture.sample(quadSampler, uv);
     const half4 mask = maskTexture.sample(quadSampler, uv);
     
-    // 直接使用红色通道作为掩码值（假设是单通道纹理）
-    half maskValue = mask.r;
-    // 使用掩码混合前景和背景
-    half4 blended = mix(background, foreground, maskValue);
+    half4 blended = mix(background, foreground, mask.r);
     
     const half4 output = mix(background, blended, half(*intensity));
     outputTexture.write(output, grid);
