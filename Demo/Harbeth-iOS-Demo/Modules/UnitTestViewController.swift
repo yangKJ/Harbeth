@@ -76,10 +76,11 @@ class UnitTestViewController: UIViewController {
 extension UnitTestViewController {
     
     func unitTest() {
-        let filter = C7Storyboard(ranks: 2)
-        let filter2 = MPSGaussianBlur(radius: 10)
+        let filter1 = C7Storyboard(ranks: 2)
+        let filter2 = MPSGaussianBlur(radius: 3)
+        let filter3 = C7CombinationModernHDR(intensity: 8)
         
-        let dest = HarbethIO.init(element: originImage, filters: [filter, filter2])
+        let dest = HarbethIO.init(element: originImage, filters: [filter1, filter2, filter3])
         renderView.image = try? dest.output()
     }
 }

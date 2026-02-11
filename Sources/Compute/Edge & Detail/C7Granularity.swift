@@ -11,9 +11,9 @@ import Foundation
 /// Adjust the graininess of the film
 public struct C7Granularity: C7FilterProtocol {
     
-    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 0.5, value: 0.3)
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 0.3)
     
-    /// The grain size is adjusted by adjusting the grain parameter. The grain size ranges from 0.0 to 0.5,
+    /// The grain size is adjusted by adjusting the grain parameter. The grain size ranges from 0.0 to 1.0,
     /// Where 0.0 represents the original image,
     @Clamping(range.min...range.max) public var grain: Float = range.value
     

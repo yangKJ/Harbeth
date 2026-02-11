@@ -9,10 +9,6 @@ import Foundation
 
 /// Mainly for the image filling content to change the size.
 public enum ResizingMode: Int, @unchecked Sendable {
-    /// Deprecated. Use `.own` instead.
-    @available(*, deprecated, message: "Typo. Use `own` instead", renamed: "own")
-    case original = 0
-    
     /// Scale the content to fill the size, possibly changing aspect ratio.
     case scaleToFill = 1
     
@@ -40,9 +36,7 @@ extension ResizingMode {
     ///   - size: Target size. If `.zero`, returns the original image.
     /// - Returns: Resized (and possibly cropped) image.
     public func resizeImage(_ image: C7Image, size: CGSize) -> C7Image {
-        if size == .zero || self == .own || self == .original {
-            return image
-        }
+        if size == .zero || self == .own { return image }
         let imageSize = image.size
         let renderRect = setupRenderRect(targetSize: size, sourceSize: imageSize)
         guard !renderRect.isEmpty else {

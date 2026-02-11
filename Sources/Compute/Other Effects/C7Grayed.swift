@@ -43,6 +43,10 @@ public struct C7Grayed: C7FilterProtocol {
     public init(with mode: GrayedMode) {
         self.mode = mode
     }
+    
+    public init() {
+        self.mode = .luminosity
+    }
 }
 
 extension C7Grayed.GrayedMode {

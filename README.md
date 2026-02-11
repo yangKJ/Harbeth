@@ -45,6 +45,9 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 - **Utility**: Chroma key, highlight shadow, levels, luminance threshold, etc.
 - **Generators**: Solid color, color gradient, etc.
 - **Lookup Tables**: LUT-based color adjustments and CUBE file support
+- **Blit Operations**: Copy region, crop, generate mipmaps
+- **CoreImage Integration**: Access to CoreImage filters
+- **Metal Performance Shaders**: High-performance MPS filters
 
 #### **A total of 200+ kinds of built-in filters are currently available.✌️**
 
@@ -55,6 +58,8 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 - **Performance Monitoring**: Built-in performance monitoring tools to help optimize processing workflows
 - **Seamless Integration**: Integrates with CoreImage and Metal Performance Shaders
 - **Type Safety**: Pure Swift implementation with complete type safety
+- **Combination Filters**: Create complex effects by combining multiple filters
+- **Extensibility**: Easy to add custom filters using Metal shaders or LUT files
 
 ## Requirements
 
@@ -171,149 +176,205 @@ HarbethView(image: inputImage, filters: filters, content: { image in
 
 ### 🎨 Filter List
 
+#### 🔗 Combination Filters
+Combination filters allow you to create complex effects by combining multiple individual filters. These filters are designed to work together to achieve specific visual styles or effects that would be difficult to create with a single filter.
+
+**Advantages of Combination Filters:**
+- **Simplified Usage**: Apply multiple effects with a single filter
+- **Optimized Performance**: Filters are applied in a single pass when possible
+- **Consistent Results**: Pre-configured combinations ensure predictable outcomes
+- **Customizable**: Many combination filters allow adjustment of individual parameters
+
+**Examples of Combination Filters:**
+- **C7CombinationBeautiful**: Enhances facial features and skin tone for beauty effects
+- **C7CombinationCinematic**: Creates a cinematic look with enhanced contrast and color grading
+- **C7CombinationModernHDR**: Achieves modern HDR effects with improved dynamic range
+- **C7CombinationVintage**: Applies vintage film effects with warm tones and grain
+
 #### 🎨 Color Adjustment
-- **C7Brightness**: Brightness adjustment, ranging from -1.0 to 1.0
-- **C7ColorConvert**: Color space conversion
-- **C7ColorRGBA**: RGBA channel adjustment
-- **C7ColorSpace**: Advanced color space operations
-- **C7Contrast**: Contrast adjustment, ranging from 0.0 to 2.0
-- **C7Exposure**: Exposure adjustment, ranging from -10.0 to 10.0
-- **C7FalseColor**: Uses the luminance of the image to mix between two user-specified colors
-- **C7Gamma**: Gamma correction, ranging from 0.0 to 3.0
-- **C7Grayed**: Grayscale conversion
-- **C7Haze**: Haze effect
-- **C7Hue**: Hue adjustment, in degrees
-- **C7LuminanceAdaptiveContrast**: Adaptive contrast adjustment based on pixel brightness
-- **C7Monochrome**: Convert the image into a monochrome version and color it according to the brightness of each pixel
-- **C7Nostalgic**: Nostalgic tone effect
-- **C7Opacity**: Transparency adjustment, similar to changing alpha
-- **C7Posterize**: Posterization effect, reduces the number of colors in the image
-- **C7Pow**: Power adjustment
-- **C7Saturation**: Saturation adjustment, ranging from 0.0 to 2.0
-- **C7Sepia**: Sepia tone effect
-- **C7Vibrance**: Vibrance adjustment, ranging from -1.2 to 1.2
-- **C7WhiteBalance**: Adjust the white balance based on color temperature
+- **C7Brightness**: Adjusts the overall brightness of the image, with values ranging from -1.0 (darkest) to 1.0 (brightest), where 0.0 represents the original image
+- **C7ColorConvert**: Converts colors between different color spaces, such as RGB to YUV or other color space transformations
+- **C7ColorRGBA**: Independently adjusts the red, green, blue, and alpha channels of the image, allowing for precise color control
+- **C7ColorSpace**: Performs advanced color space operations, enabling complex color manipulations and transformations
+- **C7Contrast**: Adjusts the contrast of the image, with values ranging from 0.0 (no contrast) to 2.0 (maximum contrast), where 1.0 is the original image
+- **C7Exposure**: Simulates camera exposure adjustments, with values ranging from -10.0 (underexposed) to 10.0 (overexposed), where 0.0 is the original exposure
+- **C7FalseColor**: Uses the luminance values of the original image to mix between two user-specified colors, creating artistic false color effects
+- **C7Gamma**: Applies gamma correction to the image, with values ranging from 0.0 (high contrast) to 3.0 (low contrast), where 1.0 is the original image
+- **C7Grayed**: Converts the image to grayscale, removing all color information while preserving luminance
+- **C7Haze**: Applies a haze effect to the image, reducing contrast and adding a foggy or misty appearance
+- **C7Hue**: Adjusts the overall hue of the image in degrees, rotating the color wheel to shift all colors uniformly
+- **C7LuminanceAdaptiveContrast**: Dynamically adjusts contrast based on local pixel brightness, enhancing details in both dark and bright areas
+- **C7Monochrome**: Converts the image to a monochrome version, tinting it with a specific color based on the brightness of each pixel
+- **C7Nostalgic**: Applies a nostalgic color tone effect, reminiscent of vintage photographs with warm, aged colors
+- **C7Opacity**: Adjusts the transparency of the image, making it more or less see-through
+- **C7Posterize**: Reduces the number of colors in the image, creating a stylized, poster-like effect with distinct color blocks
+- **C7Saturation**: Adjusts the color saturation of the image, with values ranging from 0.0 (grayscale) to 2.0 (highly saturated), where 1.0 is the original image
+- **C7Sepia**: Applies a sepia tone effect to the image, giving it a warm, brownish vintage appearance similar to old photographs
+- **C7Vibrance**: Intelligently adjusts the vibrance of the image, enhancing muted colors while preserving skin tones, with values ranging from -1.2 (desaturated) to 1.2 (highly vibrant)
+- **C7WhiteBalance**: Adjusts the white balance of the image based on color temperature, allowing correction of color casts from different lighting conditions
 
 #### 🌫️ Blur Effects
-- **C7BilateralBlur**: Bilateral blur (edge-preserving blur)
-- **C7CircleBlur**: Circle blur
-- **C7DetailPreservingBlur**: Keep the details as much as possible while reducing noise
-- **C7GaussianBlur**: Gaussian blur
-- **C7MeanBlur**: Mean blur
-- **C7MotionBlur**: Motion blur
-- **C7RedMonochromeBlur**: Red monochrome blur effect
-- **C7ZoomBlur**: Zoom blur
+- **C7BilateralBlur**: Applies a bilateral blur effect that preserves edges while blurring flat areas, creating a smooth appearance without losing important details
+- **C7CircleBlur**: Creates a circular blur effect that radiates from a central point, with blur intensity decreasing outward from the center
+- **C7DetailPreservingBlur**: Applies a blur that reduces noise and smooths the image while preserving important details and edges
+- **C7GaussianBlur**: Applies a classic Gaussian blur effect, creating a smooth, natural-looking blur by averaging pixel values with a Gaussian distribution
+- **C7MeanBlur**: Applies a mean (box) blur effect, averaging pixel values within the blur radius for a simple but effective blur
+- **C7MotionBlur**: Simulates motion blur in a specified direction, creating the illusion of movement or camera shake
+- **C7RedMonochromeBlur**: Applies a blur effect that affects only the red channel while converting the rest of the image to monochrome
+- **C7ZoomBlur**: Creates a zoom blur effect that simulates the camera zooming in or out, with radial blur lines emanating from a central point
 
 #### 🔄 Blend Modes
-- **C7Blend**: Base class for blend modes
-- **C7BlendChromaKey**: Chroma key (green screen)
-- **C7BlendColorAdd**: Color add blending mode
-- **C7BlendColorAlpha**: Color alpha blending mode
-- **C7BlendColorBurn**: Color burn blending mode
-- **C7BlendColorDodge**: Color dodge blending mode
-- **C7BlendDarken**: Darken blending mode
-- **C7BlendDifference**: Difference blending mode
-- **C7BlendDissolve**: Dissolve blending mode
-- **C7BlendDivide**: Divide blending mode
-- **C7BlendExclusion**: Exclusion blending mode
-- **C7BlendHardLight**: Hard light blending mode
-- **C7BlendHue**: Hue blending mode
-- **C7BlendLighten**: Lighten blending mode
-- **C7BlendLinearBurn**: Linear burn blending mode
-- **C7BlendLuminosity**: Luminosity blending mode
-- **C7BlendMask**: Mask blend
-- **C7BlendMultiply**: Multiply blending mode
-- **C7BlendNormal**: Normal blending mode
-- **C7BlendOverlay**: Overlay blending mode
-- **C7BlendScreen**: Screen blending mode
-- **C7BlendSoftLight**: Soft light blending mode
-- **C7BlendSourceOver**: Source over blending mode
-- **C7BlendSubtract**: Subtract blending mode
-- **C7BlendWithMask**: Blending with mask
+- **C7Blend**: Base class for all blend modes, providing common functionality for blending operations
+- **C7BlendChromaKey**: Implements chroma key (green screen) functionality, allowing replacement of a specific color with another image or transparency
+- **C7BlendColorAdd**: Adds the color values of the blend layer to the base layer, resulting in a brighter image
+- **C7BlendColorAlpha**: Blends layers based on the alpha channel values, creating semi-transparent effects
+- **C7BlendColorBurn**: Darkens the base layer by increasing contrast, creating a rich, dark blending effect
+- **C7BlendColorDodge**: Brightens the base layer by decreasing contrast, creating a lightening effect
+- **C7BlendDarken**: Keeps the darker pixel values from either layer, resulting in an overall darker image
+- **C7BlendDifference**: Subtracts the darker color from the lighter one, creating a high-contrast effect
+- **C7BlendDissolve**: Randomly replaces pixels from the base layer with pixels from the blend layer, creating a dissolve effect
+- **C7BlendDivide**: Divides the base layer colors by the blend layer colors, resulting in a brighter image
+- **C7BlendExclusion**: Similar to difference mode but with lower contrast, creating a softer effect
+- **C7BlendHardLight**: Combines multiply and screen modes, creating a strong lighting effect
+- **C7BlendHue**: Uses the hue of the blend layer with the saturation and luminance of the base layer
+- **C7BlendLighten**: Keeps the lighter pixel values from either layer, resulting in an overall brighter image
+- **C7BlendLinearBurn**: Linearly darkens the base layer by the blend layer values
+- **C7BlendLuminosity**: Uses the luminance of the blend layer with the hue and saturation of the base layer
+- **C7BlendMask**: Uses a mask to control which areas of the blend layer are visible
+- **C7BlendMultiply**: Multiplies the color values of the two layers, resulting in a darker image
+- **C7BlendNormal**: The standard blending mode where the blend layer simply covers the base layer
+- **C7BlendOverlay**: Combines multiply and screen modes, enhancing contrast while preserving highlights and shadows
+- **C7BlendScreen**: Inverts both layers, multiplies them, then inverts the result, creating a lighter image
+- **C7BlendSoftLight**: Gently lightens or darkens the base layer based on the blend layer values
+- **C7BlendSourceOver**: The default blending mode where the blend layer is drawn over the base layer
+- **C7BlendSubtract**: Subtracts the blend layer colors from the base layer colors, resulting in a darker image
+- **C7BlendWithMask**: Uses a separate mask texture to control the blending of two layers
 
 #### 🔍 Edge & Detail
-- **C7Canny**: Canny edge detection
-- **C7ComicStrip**: Comic strip effect
-- **C7Crosshatch**: Crosshatch effect
-- **C7DetailEnhancer**: Enhances image details
-- **C7EdgeAwareSharpen**: Sharpens only edge areas
-- **C7Granularity**: Adjusts film graininess
-- **C7Sharpen**: Sharpens the image
-- **C7Sketch**: Sketch effect
-- **C7Sobel**: Sobel edge detection
-- **C7ThresholdSketch**: Threshold-based sketch effect
+- **C7Canny**: Applies the Canny edge detection algorithm, a multi-stage process that identifies edges with high accuracy and low noise
+- **C7ComicStrip**: Creates a comic strip effect, with bold outlines and flat colors reminiscent of comic book art
+- **C7Crosshatch**: Applies a crosshatch pattern to the image, creating a sketch-like appearance with intersecting lines
+- **C7DetailEnhancer**: Enhances fine details in the image without amplifying noise, resulting in a sharper appearance
+- **C7EdgeAwareSharpen**: Sharpens only the edge areas of the image while preserving smooth regions, avoiding the amplification of noise
+- **C7Granularity**: Adjusts the film graininess of the image, adding or reducing texture for a more cinematic or vintage appearance
+- **C7Sharpen**: Sharpens the entire image by increasing contrast at edges, making details more pronounced
+- **C7Sketch**: Converts the image into a pencil sketch effect, emphasizing edges and reducing color information
+- **C7Sobel**: Applies the Sobel edge detection algorithm, which calculates gradients to identify edges in the image
+- **C7ThresholdSketch**: Creates a sketch effect using edge detection with thresholding, resulting in a high-contrast, line-based representation
 
 #### 🌀 Distortion & Warp
-- **C7Bulge**: Bulge distortion effect
-- **C7ColorCGASpace**: CGA color space effect
-- **C7ColorPacking**: Color packing effect
-- **C7Fluctuate**: Fluctuation effect
-- **C7GlassSphere**: Glass sphere effect
-- **C7Halftone**: Halftone effect
-- **C7Pinch**: Pinch distortion effect
-- **C7Pixellated**: Pixelation effect
-- **C7PolarPixellate**: Polar coordinate pixelation effect
-- **C7PolkaDot**: Polka dot pattern
-- **C7SphereRefraction**: Sphere refraction effect
-- **C7Swirl**: Swirl distortion effect
-- **C7WaterRipple**: Water ripple effect
+- **C7Bulge**: Creates a bulge distortion effect that pushes pixels outward from a central point, creating a convex appearance
+- **C7ColorCGASpace**: Applies a CGA (Color Graphics Adapter) color space effect, limiting colors to a palette of 16 colors for a retro computer appearance
+- **C7ColorPacking**: Applies a color packing effect that reduces color depth, creating a stylized, low-color appearance
+- **C7Fluctuate**: Creates a fluctuation effect that distorts the image in a wavelike pattern, similar to a heat haze or water distortion
+- **C7GlassSphere**: Simulates the effect of looking through a glass sphere, combining refraction and reflection for a spherical distortion
+- **C7Halftone**: Creates a halftone printing effect, replacing continuous tones with dots of varying size and density
+- **C7Morphology**: Applies morphological operations such as erosion and dilation, useful for edge detection and noise reduction
+- **C7Pinch**: Creates a pinch distortion effect that pulls pixels inward toward a central point, creating a concave appearance
+- **C7Pixellated**: Applies a pixelation effect, reducing the image resolution to create large, visible pixels
+- **C7PolarPixellate**: Converts the image to polar coordinates and applies pixelation, creating a circular, distorted appearance
+- **C7PolkaDot**: Overlays a polka dot pattern on the image, replacing pixels with dots of varying size and color
+- **C7SphereRefraction**: Simulates light refraction through a sphere, creating a distorted view of the image
+- **C7Swirl**: Creates a swirl distortion effect that rotates pixels around a central point, creating a vortex appearance
+- **C7WaterRipple**: Simulates water ripple effects, creating concentric waves that distort the image
 
 #### 🎭 Stylization
-- **C7ColorCGASpace**: Image CGA color filter to form black, light blue and purple blocks
-- **C7Fluctuate**: The fluctuation effect can also be similar to the graffiti effect
-- **C7Glitch**: Glitch art effect
-- **C7Kuwahara**: Kuwahara filter (oil painting effect)
-- **C7OilPainting**: Oil painting effect
-- **C7RGBADilation**: Find the maximum value of each color channel in the range of radius
-- **C7ShiftGlitch**: RGB shift glitch effect
-- **C7SoulOut**: The effect of soul out of the trick
-- **C7SplitScreen**: Split screen effect
-- **C7Storyboard**: Storyboard effect
-- **C7Toon**: Cartoon effect
-- **C7VoronoiOverlay**: Voronoi diagram overlay effect
+- **C7ColorCGASpace**: Applies a CGA (Color Graphics Adapter) color filter, limiting colors to a retro palette of black, light blue, and purple blocks
+- **C7Fluctuate**: Creates a fluctuation effect that distorts the image in a wavelike pattern, similar to graffiti or heat distortion
+- **C7Glitch**: Applies a glitch art effect, simulating digital errors such as horizontal displacement and color corruption
+- **C7Kuwahara**: Applies the Kuwahara filter, creating an oil painting effect by averaging pixel values within a neighborhood
+- **C7OilPainting**: Creates an oil painting effect with brush strokes and texture, simulating the appearance of traditional oil paint
+- **C7RGBADilation**: Finds the maximum value of each color channel within a specified radius, creating a color expansion effect
+- **C7ShiftGlitch**: Applies an RGB shift glitch effect, separating the red, green, and blue color channels for a trippy appearance
+- **C7SoulOut**: Creates a "soul out" effect, duplicating and offsetting the image to create a ghostly double image
+- **C7SplitScreen**: Creates a split screen effect, dividing the image into multiple sections with different treatments
+- **C7Storyboard**: Applies a storyboard effect, giving the image the appearance of a comic book panel
+- **C7Toon**: Creates a cartoon effect with simplified colors and bold outlines, resembling animated characters
+- **C7VoronoiOverlay**: Overlays a Voronoi diagram on the image, creating cellular patterns with sharp edges
 
 #### 📊 Matrix Processing
-- **C7ColorMatrix4x4**: 4x4 color matrix transformation
-- **C7ColorMatrix4x5**: 4x5 color matrix transformation
-- **C7ColorVector4**: 4D color vector transformation
-- **C7ConvolutionMatrix3x3**: 3x3 convolution matrix
-- **C7EdgeGlow**: Edge glow effect
+- **C7ColorMatrix4x4**: Applies a 4x4 color matrix transformation to the image, allowing for complex color adjustments and transformations
+- **C7ColorMatrix4x5**: Applies a 4x5 color matrix transformation, providing an additional offset value for more flexible color adjustments
+- **C7ColorVector4**: Applies a 4D color vector transformation, modifying the red, green, blue, and alpha components of the image
+- **C7ConvolutionMatrix3x3**: Applies a 3x3 convolution matrix to the image, useful for edge detection, sharpening, and other image processing operations
+- **C7EdgeGlow**: Detects edges in the image and adds a glow effect to them, creating a dramatic, outlined appearance
 
 #### 🎛️ Utility
-- **C7ChromaKey**: Remove the background that has the specified color
-- **C7DepthLuminance**: Depth-based luminance
-- **C7HighlightShadow**: Adjusts highlights and shadows
-- **C7HighlightShadowTint**: Tints highlights and shadows
-- **C7Levels**: Levels adjustment
-- **C7Luminance**: Extracts luminance from the image
-- **C7LuminanceRangeReduction**: Reduces luminance range
-- **C7LuminanceThreshold**: Threshold filter with dynamic threshold size
+- **C7ChromaKey**: Removes the background that matches a specified color, similar to green screen effects in video production
+- **C7DepthLuminance**: Adjusts luminance based on depth information, creating a more realistic lighting effect
+- **C7HighlightShadow**: Independently adjusts the highlights and shadows of the image, allowing for precise tonal control
+- **C7HighlightShadowTint**: Tints the highlights and shadows of the image with specified colors, creating a color graded appearance
+- **C7Highlights**: Specifically adjusts only the highlight areas of the image, brightening or darkening them as needed
+- **C7Levels**: Adjusts the image levels, controlling the shadows, midtones, and highlights for better tonal range
+- **C7Luminance**: Extracts the luminance (brightness) component from the image, creating a grayscale representation
+- **C7LuminanceRangeReduction**: Reduces the luminance range of the image, compressing the difference between bright and dark areas
+- **C7LuminanceThreshold**: Applies a threshold to the luminance values, creating a high-contrast black and white image
+- **C7Shadows**: Specifically adjusts only the shadow areas of the image, brightening or darkening them as needed
 
 #### 📐 Geometric Transform
-- **C7Crop**: Crop the image
-- **C7Flip**: Flip the image
-- **C7Mirror**: Mirror the image
-- **C7Resize**: Resize the image
-- **C7Rotate**: Rotate the image
-- **C7Transform**: Applies affine transformation
+- **C7Crop**: Crops the image to a specified rectangular region, removing unwanted areas
+- **C7Flip**: Flips the image horizontally or vertically, creating a mirror image along one axis
+- **C7Mirror**: Creates a mirror effect by duplicating and flipping a portion of the image
+- **C7Resize**: Resizes the image to a specified width and height, optionally maintaining aspect ratio
+- **C7Rotate**: Rotates the image by a specified angle, around a center point
+- **C7Transform**: Applies an affine transformation to the image, allowing for rotation, scaling, and translation in a single operation
 
 #### 🎨 Generators
-- **C7ColorGradient**: Color gradient
-- **C7SolidColor**: Solid color
+- **C7ColorGradient**: Generates a color gradient, creating a smooth transition between two or more colors, useful for backgrounds or overlays
+- **C7SolidColor**: Generates a solid color image, useful for backgrounds, masks, or as a base for other effects
 
 #### 📋 Lookup Tables
-- **C7ColorCube**: 3D LUT color cube filter for CUBE files
-- **C7LookupSplit**: Split screen lookup table
-- **C7LookupTable**: Color lookup table (LUT)
+- **C7ColorCube**: Applies a 3D LUT (Look-Up Table) from CUBE files, allowing for professional color grading and complex color transformations
+- **C7LookupSplit**: Applies split screen lookup tables, allowing different color treatments in different parts of the image
+- **C7LookupTable**: Applies a color lookup table (LUT) from image files, used for color grading and stylization
 
 #### 🔗 Combination Effects
-- **C7CombinationBeautiful**: Beauty combination effect
-- **C7CombinationCinematic**: Cinematic combination effect
-- **C7CombinationModernHDR**: Modern HDR combination effect
-- **C7CombinationVintage**: Vintage combination effect
+- **C7CombinationBeautiful**: A beauty combination effect that enhances facial features and skin tone, combining multiple beauty-enhancing filters for a polished appearance
+- **C7CombinationCinematic**: A cinematic combination effect that creates a film-like appearance with enhanced contrast, saturation, and subtle vignette
+- **C7CombinationModernHDR**: A modern HDR combination effect that improves dynamic range, enhancing both shadow detail and highlight information
+- **C7CombinationVintage**: A vintage combination effect that simulates old film stock with warm tones, subtle grain, and reduced contrast
 
 #### 🎚️ Other Effects
-- **C7Vignette**: Vignette effect
+- **C7Grayed**: Converts the image to grayscale using various methods, including luminosity, average, and desaturation
+- **C7Haze**: Applies a haze effect to the image, reducing contrast and adding a foggy or misty appearance
+- **C7Pow**: Applies a power function to the image, creating non-linear brightness adjustments
+- **C7Vignette**: Applies a vignette effect that darkens the edges of the image, drawing attention to the center
+- **C7VignetteBlend**: Applies a vignette effect with multiple blend modes, allowing for different styles of edge darkening
+
+#### 🖼️ Blit Operations
+- **C7CopyRegionBlit**: Copies a specific region from one texture to another
+- **C7CropBlit**: Crops the image to a specified region
+- **C7GenerateMipmapsBlit**: Generates mipmaps for a texture, useful for efficient downsampling
+
+#### 🎯 CoreImage Integration
+- **CIBrightness**: CoreImage brightness adjustment
+- **CIColorControls**: CoreImage color controls (brightness, contrast, saturation)
+- **CIColorCube**: CoreImage color cube filter
+- **CIColorMonochrome**: CoreImage monochrome effect
+- **CIContrast**: CoreImage contrast adjustment
+- **CIExposure**: CoreImage exposure adjustment
+- **CIFade**: CoreImage fade effect
+- **CIGaussianBlur**: CoreImage Gaussian blur
+- **CIHighlight**: CoreImage highlight adjustment
+- **CILookupTable**: CoreImage lookup table filter
+- **CINoiseReduction**: CoreImage noise reduction
+- **CIPhotoEffect**: CoreImage photo effects (chrome, fade, instant, mono, noir, process, tonal, transfer)
+- **CIResizedSmooth**: CoreImage smooth resizing
+- **CISaturation**: CoreImage saturation adjustment
+- **CIShadows**: CoreImage shadow adjustment
+- **CISharpen**: CoreImage sharpening
+- **CISketch**: CoreImage sketch effect
+- **CITemperature**: CoreImage temperature adjustment
+- **CIUnsharpMask**: CoreImage unsharp mask sharpening
+- **CIVignette**: CoreImage vignette effect
+- **CIWhitePoint**: CoreImage white point adjustment
+
+#### ⚡ Metal Performance Shaders
+- **MPSBoxBlur**: Metal Performance Shaders box blur
+- **MPSGaussianBlur**: Metal Performance Shaders Gaussian blur
+- **MPSHistogram**: Metal Performance Shaders histogram calculation
+- **MPSMedian**: Metal Performance Shaders median filter
+- **MPSCanny**: Metal Performance Shaders Canny edge detection
 
 ---
 

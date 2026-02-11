@@ -96,7 +96,7 @@ extension C7FilterProtocol {
             computeEncoder.setBytes(&factor, length: size, index: i)
         }
         /// 配置像素总数参数
-        var index: Int = self.factors.count - 1
+        var index: Int = self.factors.count
         if self.hasCount {
             var count = destTexture.width * destTexture.height
             computeEncoder.setBytes(&count, length: size, index: index)

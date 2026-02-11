@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import simd
 
 public struct C7Bulge: C7FilterProtocol {
     
@@ -25,6 +26,12 @@ public struct C7Bulge: C7FilterProtocol {
     }
     
     public init(radius: Float = 0.25, scale: Float = 0.5) {
+        self.radius = radius
+        self.scale = scale
+    }
+    
+    public init(center: vector_float2, radius: Float, scale: Float) {
+        self.center = C7Point2D(x: center.x, y: center.y)
         self.radius = radius
         self.scale = scale
     }

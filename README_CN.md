@@ -158,6 +158,41 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7Pow**（幂次调整）- 应用幂函数变换
 - **C7Vignette**（暗角）- 添加照片暗角效果
 
+#### 🖼️ Blit 操作
+- **C7CopyRegionBlit**（区域复制）- 从一个纹理复制特定区域到另一个纹理
+- **C7CropBlit**（裁剪）- 将图像裁剪到指定区域
+- **C7GenerateMipmapsBlit**（生成Mipmaps）- 为纹理生成mipmaps，用于高效下采样
+
+#### 🎯 CoreImage 集成
+- **CIBrightness**（CoreImage亮度）- CoreImage亮度调整
+- **CIColorControls**（CoreImage颜色控制）- CoreImage颜色控制（亮度、对比度、饱和度）
+- **CIColorCube**（CoreImage颜色立方体）- CoreImage颜色立方体滤镜
+- **CIColorMonochrome**（CoreImage单色）- CoreImage单色效果
+- **CIContrast**（CoreImage对比度）- CoreImage对比度调整
+- **CIExposure**（CoreImage曝光）- CoreImage曝光调整
+- **CIFade**（CoreImage淡出）- CoreImage淡出效果
+- **CIGaussianBlur**（CoreImage高斯模糊）- CoreImage高斯模糊
+- **CIHighlight**（CoreImage高光）- CoreImage高光调整
+- **CILookupTable**（CoreImage查找表）- CoreImage查找表滤镜
+- **CINoiseReduction**（CoreImage降噪）- CoreImage降噪
+- **CIPhotoEffect**（CoreImage照片效果）- CoreImage照片效果（chrome, fade, instant, mono, noir, process, tonal, transfer）
+- **CIResizedSmooth**（CoreImage平滑调整大小）- CoreImage平滑调整大小
+- **CISaturation**（CoreImage饱和度）- CoreImage饱和度调整
+- **CIShadows**（CoreImage阴影）- CoreImage阴影调整
+- **CISharpen**（CoreImage锐化）- CoreImage锐化
+- **CISketch**（CoreImage素描）- CoreImage素描效果
+- **CITemperature**（CoreImage色温）- CoreImage色温调整
+- **CIUnsharpMask**（CoreImage非锐化遮罩）- CoreImage非锐化遮罩锐化
+- **CIVignette**（CoreImage暗角）- CoreImage暗角效果
+- **CIWhitePoint**（CoreImage白点）- CoreImage白点调整
+
+#### ⚡ Metal Performance Shaders
+- **MPSBoxBlur**（MPS盒式模糊）- Metal Performance Shaders盒式模糊
+- **MPSGaussianBlur**（MPS高斯模糊）- Metal Performance Shaders高斯模糊
+- **MPSHistogram**（MPS直方图）- Metal Performance Shaders直方图计算
+- **MPSMedian**（MPS中值模糊）- Metal Performance Shaders中值模糊
+- **MPSCanny**（MPS边缘检测）- Metal Performance Shaders Canny边缘检测
+
 ### 📱 相机与视频支持
 
 Harbeth 提供了内置的相机采集和视频处理功能：

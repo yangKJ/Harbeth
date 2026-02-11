@@ -37,4 +37,10 @@ public struct C7Vignette: C7FilterProtocol {
         self.end = end
         self.color = color
     }
+    
+    public init(vignette: Float) {
+        self.start = vignette
+        self.end = vignette * 2.5
+        self.color = .zero
+    }
 }

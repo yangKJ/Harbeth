@@ -10,6 +10,7 @@
 │   │   ├── Matrix/      # 矩阵运算支持
 │   │   ├── Outputs/     # 输出相关功能
 │   │   └── Setup/       # 配置选项和工具类
+│   ├── Blit/            # Blit 操作实现
 │   ├── Compute/         # Metal 滤镜实现
 │   │   ├── Blend Modes/     # 混合模式滤镜
 │   │   ├── Blur Effects/    # 模糊效果滤镜
@@ -36,4 +37,5 @@
 ├── Harbeth.xcodeproj/   # Xcode 项目文件
 ├── Harbeth.podspec/     # CocoaPods 配置
 ├── Package.swift/       # Swift Package Manager 配置
-└── README.md            # 项目说明文档
+├── README.md            # 项目说明文档
+└── README_CN.md         # 项目中文说明文档

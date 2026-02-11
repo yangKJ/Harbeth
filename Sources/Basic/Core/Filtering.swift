@@ -11,6 +11,8 @@ import CoreImage
 
 public protocol C7FilterProtocol: Mirrorable {
     
+    var identifier: String { get }
+    
     /// Encoder type and corresponding function name.
     var modifier: ModifierEnum { get }
     
@@ -53,6 +55,11 @@ public protocol C7FilterProtocol: Mirrorable {
 }
 
 extension C7FilterProtocol {
+    public var identifier: String {
+        let typeName = String(describing: type(of: self))
+        let factorsDes = factors.map { String(format: "%.4f", $0) }.joined(separator: ",")
+        return "\(typeName)-\(factorsDes)-\(otherInputTextures.count)"
+    }
     /// The supports a maximum of 16 `Float` parameters.
     public var factors: [Float] { [] }
     /// Multiple input source extensions, an array containing the `MTLTexture`.
@@ -73,37 +80,31 @@ extension C7FilterProtocol {
     }
     /// Add the filter into the output texture with compute, render and mps filter.
     public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
-        try applyAtTexture(form: texture, to: destTexture, for: buffer, complete: nil)
+        try apply(form: texture, to: destTexture, for: buffer, complete: nil)
     }
-    
-    /// Add the filter into the output texture with compute, render and mps filter.
-    /// - Parameters:
-    ///   - texture: Input metal texture.
-    ///   - destTexture: Output metal texture content.
-    ///   - buffer: A valid MTLCommandBuffer to receive the encoded filter.
-    ///   - complete: Add a block to be called, asynchronous apply at metal texture.
-    /// - Returns: Output texture.
+}
+
+extension C7FilterProtocol {
     @discardableResult
-    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer, complete: C7TextureResultBlock?) throws -> MTLTexture {
+    func apply(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer, complete: C7TextureResultBlock?) throws -> MTLTexture {
         /// Asynchronous apply at texture.
         if let complete = complete {
             switch self.modifier {
             case .compute(let kernel):
-                var textures = [destTexture, texture]
-                textures += self.otherInputTextures
+                let textures = [destTexture, texture] + self.otherInputTextures
                 drawing(with: kernel, commandBuffer: buffer, textures: textures, complete: complete)
             case .render(let vertex, let fragment):
                 let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
                 Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
                 complete(.success(destTexture))
             case .blit where self is BlitProtocol:
-                let blitTexture = try (self as! BlitProtocol).encode(commandBuffer: buffer, sourceTexture: texture, destTexture: destTexture)
+                let textures = [destTexture, texture] + self.otherInputTextures
+                let blitTexture = try (self as! BlitProtocol).encode(commandBuffer: buffer, textures: textures)
                 complete(.success(blitTexture))
             case .mps where self is MPSKernelProtocol:
-                var textures = [destTexture, texture]
-                textures += self.otherInputTextures
-                let finaTexture = try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
-                complete(.success(finaTexture))
+                let textures = [destTexture, texture] + self.otherInputTextures
+                let mpsTexture = try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+                complete(.success(mpsTexture))
             default:
                 complete(.success(texture))
             }
@@ -113,17 +114,16 @@ extension C7FilterProtocol {
         /// Sync apply at texture.
         switch self.modifier {
         case .compute(let kernel):
-            var textures = [destTexture, texture]
-            textures += self.otherInputTextures
+            let textures = [destTexture, texture] + self.otherInputTextures
             return try drawing(with: kernel, commandBuffer: buffer, textures: textures)
         case .render(let vertex, let fragment):
             let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
             Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
         case .blit where self is BlitProtocol:
-            return try (self as! BlitProtocol).encode(commandBuffer: buffer, sourceTexture: texture, destTexture: destTexture)
+            let textures = [destTexture, texture] + self.otherInputTextures
+            return try (self as! BlitProtocol).encode(commandBuffer: buffer, textures: textures)
         case .mps where self is MPSKernelProtocol:
-            var textures = [destTexture, texture]
-            textures += self.otherInputTextures
+            let textures = [destTexture, texture] + self.otherInputTextures
             return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
         default:
             break
@@ -134,6 +134,9 @@ extension C7FilterProtocol {
 
 // MARK: - coreimage filter protocol
 public protocol CoreImageProtocol: C7FilterProtocol {
+    /// Put out the CIFilter instance in advance to avoid repeated generation
+    /// when the filter is applied, which will affect the efficiency.
+    var inputCIFilter: CIFilter? { get }
     
     /// Return a new image cropped to a rectangle.
     var croppedOutputImage: Bool { get }
@@ -146,15 +149,11 @@ public protocol CoreImageProtocol: C7FilterProtocol {
     func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage
 }
 
-public protocol CIImageDisplaying: CoreImageProtocol {
-    var ciFilter: CIFilter? { get set }
-}
-
 extension CoreImageProtocol {
     
-    public var croppedOutputImage: Bool {
-        false
-    }
+    public var inputCIFilter: CIFilter? { nil }
+    
+    public var croppedOutputImage: Bool { false }
     
     public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
         return ciImage
@@ -187,5 +186,5 @@ public protocol BlitProtocol: C7FilterProtocol {
     ///   - sourceTexture: Input source texture.
     ///   - destTexture: Output destination texture.
     /// - Returns: Return output metal texture.
-    func encode(commandBuffer: MTLCommandBuffer, sourceTexture: MTLTexture, destTexture: MTLTexture) throws -> MTLTexture
+    func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
 }

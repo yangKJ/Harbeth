@@ -1,13 +1,13 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7CombinationCinematic(texture2d<half, access::read> inputTexture [[texture(0)]],
-                                   texture2d<half, access::read> processedTexture [[texture(1)]],
-                                   texture2d<half, access::write> outputTexture [[texture(2)]],
+kernel void C7CombinationCinematic(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                   texture2d<half, access::read> inputTexture [[texture(1)]],
+                                   texture2d<half, access::read> processedTexture [[texture(2)]],
                                    constant float *intensity [[buffer(0)]],
                                    uint2 gid [[thread_position_in_grid]]) {
     // Get the dimensions of the input texture
-    uint2 dimensions = inputTexture.get_width() * uint2(1, 1);
+    uint2 dimensions = uint2(inputTexture.get_width(), inputTexture.get_height());
     if (gid.x >= dimensions.x || gid.y >= dimensions.y) {
         return;
     }

@@ -40,7 +40,7 @@ let package = Package(
             name: "Harbeth",
             path: "Sources",
             resources: [
-                .process("Sources/Compute") // Import .metal file.
+                .process("Sources")
             ]
         ),
     ],

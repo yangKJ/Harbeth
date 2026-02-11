@@ -18,7 +18,8 @@ public struct C7GenerateMipmapsBlit: C7FilterProtocol, BlitProtocol {
     
     public init() { }
     
-    public func encode(commandBuffer: MTLCommandBuffer, sourceTexture: MTLTexture, destTexture: MTLTexture) throws -> MTLTexture {
+    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
+        let destTexture = textures[0], sourceTexture = textures[1]
         // First, copy the source texture to the destination texture if they are different
         if sourceTexture !== destTexture {
             guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {

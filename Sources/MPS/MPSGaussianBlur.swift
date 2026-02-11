@@ -25,10 +25,9 @@ public struct MPSGaussianBlur: MPSKernelProtocol {
     }
     
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
-        let destinationTexture = textures[0]
-        let sourceTexture = textures[1]
-        self.gaussian.encode(commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: destinationTexture)
-        return destinationTexture
+        let destTexture = textures[0], sourceTexture = textures[1]
+        self.gaussian.encode(commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: destTexture)
+        return destTexture
     }
     
     private var gaussian: MPSImageGaussianBlur {

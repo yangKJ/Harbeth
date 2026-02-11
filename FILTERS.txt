@@ -1,133 +1,145 @@
 // Metal滤镜
 
 
-├── Color Adjustment（颜色调整）- 需要颜色调整时查看此类
-│   ├── C7Brightness（亮度）- Adjusts the brightness of the image, ranging from -1.0 (darkest) to 1.0 (brightest), with 0.0 being the original
-│   ├── C7Contrast（对比度）- Adjusts the contrast of the image, ranging from 0.0 (no contrast) to 2.0 (maximum contrast), with 1.0 being the original
-│   ├── C7Saturation（饱和度）- Adjusts the saturation of the image, ranging from 0.0 (grayscale) to 2.0 (highly saturated), with 1.0 being the original
-│   ├── C7Exposure（曝光）- Adjusts the exposure of the image, ranging from -10.0 (underexposed) to 10.0 (overexposed), with 0.0 being the original
-│   ├── C7Gamma（伽马校正）- Adjusts the gamma of the image, ranging from 0.0 (high contrast) to 3.0 (low contrast), with 1.0 being the original
-│   ├── C7Hue（色调）- Adjusts the hue of the image in degrees, ranging from 0.0 to 360.0, rotating the color wheel
-│   ├── C7Vibrance（自然饱和度）- Adjusts the vibrance of the image, ranging from -1.2 (desaturated) to 1.2 (enhanced), preserving skin tones
-│   ├── C7WhiteBalance（白平衡）- Adjusts the white balance based on color temperature, ranging from 4000K (cool) to 7000K (warm)
-│   ├── C7Sepia（棕褐色调）- Applies a sepia tone effect to the image, giving it a warm, vintage appearance
-│   ├── C7Monochrome（单色）- Converts the image to monochrome with a specific tint color, based on pixel brightness
-│   ├── C7FalseColor（伪色）- Uses the luminance of the image to mix between two user-specified colors, creating a false color effect
-│   ├── C7ColorConvert（色彩转换）- Converts colors between different color spaces, such as RGB to YUV
-│   ├── C7ColorSpace（色彩空间）- Performs advanced color space operations, allowing for precise color manipulation
-│   ├── C7ColorRGBA（RGBA调整）- Adjusts individual RGBA channels independently, providing fine-grained color control
-│   ├── C7Posterize（色调分离）- Reduces the number of colors in the image, creating a stylized, poster-like effect
-│   ├── C7Nostalgic（怀旧色调）- Applies a nostalgic color tone effect, reminiscent of old photographs
-│   ├── C7Opacity（不透明度）- Adjusts the opacity of the image, making it more or less transparent
-│   ├── C7Grayed（灰度化）- Converts the image to grayscale, removing all color information
-│   ├── C7Haze（雾霾）- Applies a haze effect to the image, reducing contrast and adding a foggy appearance
-│   └── C7Pow（幂次调整）- Adjusts the image using a power function, allowing for non-linear brightness changes
-├── Blur Effects（模糊效果) - 需要模糊效果时查看此类
-│   ├── C7GaussianBlur（高斯模糊）- Applies a Gaussian blur effect, creating a smooth, natural-looking blur
-│   ├── C7MeanBlur（均值模糊）- Applies a mean blur effect, averaging pixel values in the blur radius
-│   ├── C7BilateralBlur（双边模糊）- Applies a bilateral blur that preserves edges while blurring flat areas
-│   ├── C7MotionBlur（运动模糊）- Applies a motion blur effect in a specified direction, simulating movement
-│   ├── C7ZoomBlur（缩放模糊）- Applies a zoom blur effect, creating the illusion of camera zoom
-│   ├── C7CircleBlur（圆形模糊）- Applies a circular blur effect, with blur intensity decreasing from the center
-│   ├── C7DetailPreservingBlur（细节保留模糊）- Blurs while preserving details, ideal for noise reduction
-│   └── C7RedMonochromeBlur（红色单色模糊）- Applies a red monochrome blur effect, enhancing red channel details
-├── Blend Modes（混合模式) - 需要混合图层时查看此类
-│   ├── C7BlendNormal（正常混合）- Normal blending mode, simply overlaying the top layer
-│   ├── C7BlendMultiply（正片叠底）- Multiply blending mode, darkening the image by multiplying pixel values
-│   ├── C7BlendScreen（滤色）- Screen blending mode, lightening the image by inverting and multiplying
-│   ├── C7BlendOverlay（叠加）- Overlay blending mode, combining multiply and screen effects
-│   ├── C7BlendDarken（变暗）- Darken blending mode, using the darker pixel from either layer
-│   ├── C7BlendLighten（变亮）- Lighten blending mode, using the lighter pixel from either layer
-│   ├── C7BlendColorDodge（颜色减淡）- Color dodge blending mode, brightening the base color
-│   ├── C7BlendColorBurn（颜色加深）- Color burn blending mode, darkening the base color
-│   ├── C7BlendSoftLight（柔光）- Soft light blending mode, gently lightening or darkening based on the blend color
-│   ├── C7BlendHardLight（强光）- Hard light blending mode, strongly lightening or darkening based on the blend color
-│   ├── C7BlendDifference（差值）- Difference blending mode, subtracting the darker color from the lighter
-│   ├── C7BlendExclusion（排除）- Exclusion blending mode, similar to difference but with lower contrast
-│   ├── C7BlendChromaKey（色度键控）- Chroma key blending mode, removing a specific color (green screen effect)
-│   ├── C7BlendMask（蒙版混合）- Mask blending mode, using a mask to control blend intensity
-│   ├── C7BlendColorAdd（颜色添加）- Color add blending mode, adding pixel values together
-│   ├── C7BlendColorAlpha（颜色透明度混合）- Color alpha blending mode, blending based on alpha channel
-│   ├── C7BlendDivide（分割）- Divide blending mode, dividing the base color by the blend color
-│   ├── C7BlendDissolve（溶解）- Dissolve blending mode, randomly replacing pixels with the blend color
-│   ├── C7BlendHue（色调混合）- Hue blending mode, using the hue of the blend color with the base color's saturation and luminance
-│   ├── C7BlendLinearBurn（线性加深）- Linear burn blending mode, darkening the base color linearly
-│   ├── C7BlendLuminosity（亮度混合）- Luminosity blending mode, using the luminance of the blend color with the base color's hue and saturation
-│   ├── C7BlendSourceOver（源覆盖）- Source over blending mode, drawing the blend color over the base color
-│   ├── C7BlendSubtract（减去）- Subtract blending mode, subtracting the blend color from the base color
-│   ├── C7BlendWithMask（蒙版混合）- Blending with mask, using a separate mask texture to control blending
-│   └── C7Blend（混合基类）- Base class for blend modes, providing common functionality
-├── Edge & Detail（边缘与细节） - 需要边缘检测时查看此类
-│   ├── C7Canny（Canny边缘检测）- Applies Canny edge detection, a multi-stage edge detection algorithm
-│   ├── C7Sobel（索贝尔边缘检测）- Applies Sobel edge detection, using gradient approximation to find edges
-│   ├── C7Crosshatch（交叉线效果）- Applies a crosshatch effect, creating a sketch-like appearance with intersecting lines
-│   ├── C7Sketch（素描效果）- Applies a sketch effect, converting the image to a pencil sketch
-│   ├── C7ThresholdSketch（阈值素描）- Applies a threshold-based sketch effect, using edge detection with thresholding
-│   ├── C7ComicStrip（漫画效果）- Applies a comic strip effect, with bold outlines and flat colors
-│   ├── C7Sharpen（锐化）- Sharpens the image, increasing contrast at edges
-│   ├── C7DetailEnhancer（细节增强）- Enhances image details without amplifying noise
-│   ├── C7EdgeAwareSharpen（边缘感知锐化）- Sharpens only edge areas, preserving flat regions
-│   └── C7Granularity（颗粒感）- Adjusts film graininess, adding or reducing texture
-├── Distortion & Warp（扭曲与变形) - 需要变形扭曲时查看此类
-│   ├── C7Bulge（凸起效果）- Applies a bulge distortion effect, pushing pixels outward from a center point
-│   ├── C7Pinch（收缩效果）- Applies a pinch distortion effect, pulling pixels inward toward a center point
-│   ├── C7Swirl（漩涡效果）- Applies a swirl distortion effect, rotating pixels around a center point
-│   ├── C7WaterRipple（水波纹）- Applies a water ripple effect, creating concentric waves
-│   ├── C7SphereRefraction（球面折射）- Applies a sphere refraction effect, simulating refraction through a sphere
-│   ├── C7GlassSphere（玻璃球效果）- Applies a glass sphere effect, combining refraction and reflection
-│   ├── C7Pixellated（像素化）- Applies a pixelation effect, reducing the image resolution
-│   ├── C7PolarPixellate（极坐标像素化）- Applies a polar coordinate pixelation effect, converting Cartesian to polar coordinates
-│   ├── C7PolkaDot（圆点花纹）- Applies a polka dot pattern, replacing pixels with dots
-│   ├── C7Halftone（半色调）- Applies a halftone effect, simulating print halftone dots
-│   ├── C7ColorPacking（颜色打包）- Applies a color packing effect, reducing color depth
-│   ├── C7ColorCGASpace（CGA色彩空间）- Applies CGA color space effect, limiting colors to 16 CGA colors
-│   └── C7Fluctuate（波动效果）- Applies a fluctuation effect, creating a wavy distortion
-├── Stylization（风格化效果) - 需要艺术风格时查看此类
-│   ├── C7Toon（卡通效果）- Applies a cartoon effect, with simplified colors and bold outlines
-│   ├── C7OilPainting（油画效果）- Applies an oil painting effect, with brush strokes and texture
-│   ├── C7Kuwahara（桑原滤波）- Applies a Kuwahara filter effect, creating a painterly appearance
-│   ├── C7VoronoiOverlay（维诺图叠加）- Applies a Voronoi diagram overlay, creating cellular patterns
-│   ├── C7Glitch（故障效果）- Applies a glitch art effect, simulating digital errors
-│   ├── C7ShiftGlitch（移位故障）- Applies a shift glitch effect, offsetting color channels
-│   ├── C7SoulOut（灵魂出窍）- Applies a soul out effect, creating a ghostly double image
-│   ├── C7SplitScreen（分屏效果）- Applies a split screen effect, dividing the image into sections
-│   ├── C7Storyboard（故事板）- Applies a storyboard effect, creating a comic book panel appearance
-│   └── C7RGBADilation（RGBA扩张）- Applies RGBA dilation effect, expanding color channels
-├── Matrix Processing（矩阵处理) - 需要矩阵运算时查看此类
-│   ├── C7ColorMatrix4x4（4x4颜色矩阵）- Applies a 4x4 color matrix transformation, allowing for complex color adjustments
-│   ├── C7ColorMatrix4x5（4x5颜色矩阵）- Applies a 4x5 color matrix transformation, including offset values
-│   ├── C7ColorVector4（4维颜色向量）- Applies a 4D color vector transformation, modifying color components
-│   ├── C7ConvolutionMatrix3x3（3x3卷积矩阵）- Applies a 3x3 convolution matrix, used for edge detection, sharpening, etc.
-│   └── C7EdgeGlow（边缘发光）- Applies an edge glow effect, detecting edges and adding a glow
-├── Utility（实用工具) - 需要遮罩和范围控制时查看此类
-│   ├── C7Levels（色阶调整）- Adjusts image levels, controlling shadows, midtones, and highlights
-│   ├── C7LuminanceThreshold（亮度阈值）- Applies a luminance threshold, converting the image to black and white based on brightness
-│   ├── C7LuminanceRangeReduction（亮度范围压缩）- Reduces luminance range, compressing bright and dark areas
-│   ├── C7HighlightShadow（高光阴影）- Adjusts highlights and shadows independently
-│   ├── C7HighlightShadowTint（高光阴影色调）- Tints highlights and shadows with specified colors
-│   ├── C7ChromaKey（色度键控）- Removes background of a specific color, similar to green screen
-│   ├── C7Luminance（亮度）- Extracts luminance from the image, creating a grayscale representation
-│   └── C7DepthLuminance（深度亮度）- Applies depth-based luminance, using depth information to adjust brightness
-├── Geometric Transform（几何变换) - 需要几何变换时查看此类
-│   ├── C7Crop（裁剪）- Crops the image to a specified region
-│   ├── C7Flip（翻转）- Flips the image horizontally or vertically
-│   ├── C7Mirror（镜像）- Mirrors the image across a central axis
-│   ├── C7Resize（调整大小）- Resizes the image to a specified width and height
-│   ├── C7Rotate（旋转）- Rotates the image by a specified angle
-│   └── C7Transform（变换）- Applies affine transformation, including rotation, scaling, and translation
-├── Generators（生成器) - 需要生成颜色时查看此类
-│   ├── C7SolidColor（纯色生成）- Generates a solid color, useful for backgrounds or masks
-│   └── C7ColorGradient（颜色渐变）- Generates a color gradient, creating smooth transitions between colors
-├── Lookup Tables（查找表) - 需要查找表时查看此类
-│   ├── C7LookupTable（查找表）- Applies color lookup table (LUT), used for color grading
-│   ├── C7LookupSplit（分屏查找表）- Applies split screen lookup table, creating split-toning effects
-│   └── C7ColorCube（颜色立方体）- Applies 3D LUT from CUBE file format, used for professional color grading
-├── Combination（组合效果) - 需要组合效果时查看此类
-│   ├── C7CombinationBeautiful（美颜组合）- Beauty combination effect, combining multiple beauty-enhancing filters
-│   ├── C7CombinationBilateralBlur（双边模糊组合）- Bilateral blur combination effect, combining edge-preserving blur with other effects
-│   ├── C7CombinationCinematic（电影级色调）- Cinematic tone combination filter with enhanced contrast, saturation, and vignette
-│   ├── C7CombinationVintage（复古胶片）- Vintage film effect combination filter with sepia tone, vignette, and grain
-│   └── C7CombinationModernHDR（现代HDR）- Modern HDR effect combination filter with enhanced contrast, saturation, and clarity
-└── Other Effects（其他效果) - 其他未分类效果
-    ├── C7Vignette（暗角效果）- Applies a vignette effect, darkening the edges of the image
-    └── C7VignetteBlend（暗角混合）- Applies a vignette effect with multiple blend modes (normal, multiply, overlay, soft light)
+├── 颜色调整 - 需要颜色调整时查看此类
+│   ├── C7Brightness - 调整图像亮度
+│   ├── C7ColorConvert - 转换不同颜色空间
+│   ├── C7ColorRGBA - 独立调整RGBA通道
+│   ├── C7ColorSpace - 高级色彩空间操作
+│   ├── C7Contrast - 调整图像对比度
+│   ├── C7Exposure - 调整图像曝光
+│   ├── C7FalseColor - 使用图像亮度混合两种颜色
+│   ├── C7Gamma - 调整图像伽马值
+│   ├── C7Hue - 调整图像色调
+│   ├── C7LuminanceAdaptiveContrast - 基于亮度的自适应对比度
+│   ├── C7Monochrome - 转换为带有特定色调的单色图像
+│   ├── C7Nostalgic - 应用怀旧色调效果
+│   ├── C7Opacity - 调整图像不透明度
+│   ├── C7Posterize - 减少图像颜色数量，创建风格化效果
+│   ├── C7Saturation - 调整图像饱和度
+│   ├── C7Sepia - 应用棕褐色调效果
+│   ├── C7Vibrance - 调整图像自然饱和度
+│   └── C7WhiteBalance - 基于色温调整白平衡
+├── 模糊效果 - 需要模糊效果时查看此类
+│   ├── C7BilateralBlur - 应用双边模糊，保留边缘
+│   ├── C7CircleBlur - 应用圆形模糊效果
+│   ├── C7DetailPreservingBlur - 模糊同时保留细节
+│   ├── C7GaussianBlur - 应用高斯模糊效果
+│   ├── C7MeanBlur - 应用均值模糊效果
+│   ├── C7MotionBlur - 应用指定方向的运动模糊
+│   ├── C7RedMonochromeBlur - 应用红色单色模糊效果
+│   └── C7ZoomBlur - 应用缩放模糊效果
+├── 混合模式 - 需要混合图层时查看此类
+│   ├── C7Blend - 混合模式基类
+│   ├── C7BlendChromaKey - 色度键控混合模式
+│   ├── C7BlendColorAdd - 颜色添加混合模式
+│   ├── C7BlendColorAlpha - 基于透明度的颜色混合
+│   ├── C7BlendColorBurn - 颜色加深混合模式
+│   ├── C7BlendColorDodge - 颜色减淡混合模式
+│   ├── C7BlendDarken - 变暗混合模式
+│   ├── C7BlendDifference - 差值混合模式
+│   ├── C7BlendDissolve - 溶解混合模式
+│   ├── C7BlendDivide - 分割混合模式
+│   ├── C7BlendExclusion - 排除混合模式
+│   ├── C7BlendHardLight - 强光混合模式
+│   ├── C7BlendHue - 色调混合模式
+│   ├── C7BlendLighten - 变亮混合模式
+│   ├── C7BlendLinearBurn - 线性加深混合模式
+│   ├── C7BlendLuminosity - 亮度混合模式
+│   ├── C7BlendMask - 蒙版混合模式
+│   ├── C7BlendMultiply - 正片叠底混合模式
+│   ├── C7BlendNormal - 正常混合模式
+│   ├── C7BlendOverlay - 叠加混合模式
+│   ├── C7BlendScreen - 滤色混合模式
+│   ├── C7BlendSoftLight - 柔光混合模式
+│   ├── C7BlendSourceOver - 源覆盖混合模式
+│   ├── C7BlendSubtract - 减去混合模式
+│   └── C7BlendWithMask - 使用蒙版控制混合
+├── 边缘与细节 - 需要边缘检测时查看此类
+│   ├── C7Canny - Canny边缘检测
+│   ├── C7ComicStrip - 漫画效果
+│   ├── C7Crosshatch - 交叉线效果
+│   ├── C7DetailEnhancer - 增强图像细节
+│   ├── C7EdgeAwareSharpen - 边缘感知锐化
+│   ├── C7Granularity - 调整胶片颗粒感
+│   ├── C7Sharpen - 锐化图像
+│   ├── C7Sketch - 素描效果
+│   ├── C7Sobel - 索贝尔边缘检测
+│   └── C7ThresholdSketch - 阈值素描效果
+├── 扭曲与变形 - 需要变形扭曲时查看此类
+│   ├── C7Bulge - 凸起效果
+│   ├── C7ColorPacking - 颜色打包效果
+│   ├── C7GlassSphere - 玻璃球效果
+│   ├── C7Halftone - 半色调效果
+│   ├── C7Morphology - 形态学操作
+│   ├── C7Pinch - 收缩效果
+│   ├── C7Pixellated - 像素化效果
+│   ├── C7PolarPixellate - 极坐标像素化
+│   ├── C7PolkaDot - 圆点花纹效果
+│   ├── C7SphereRefraction - 球面折射效果
+│   ├── C7Swirl - 漩涡效果
+│   └── C7WaterRipple - 水波纹效果
+├── 风格化效果 - 需要艺术风格时查看此类
+│   ├── C7ColorCGASpace - CGA色彩空间效果
+│   ├── C7Fluctuate - 波动效果
+│   ├── C7Glitch - 故障艺术效果
+│   ├── C7Kuwahara - 桑原滤波效果
+│   ├── C7OilPainting - 油画效果
+│   ├── C7RGBADilation - RGBA扩张效果
+│   ├── C7ShiftGlitch - 移位故障效果
+│   ├── C7SoulOut - 灵魂出窍效果
+│   ├── C7SplitScreen - 分屏效果
+│   ├── C7Storyboard - 故事板效果
+│   ├── C7Toon - 卡通效果
+│   └── C7VoronoiOverlay - 维诺图叠加效果
+├── 矩阵处理 - 需要矩阵运算时查看此类
+│   ├── C7ColorMatrix4x4 - 4x4颜色矩阵变换
+│   ├── C7ColorMatrix4x5 - 4x5颜色矩阵变换
+│   ├── C7ColorVector4 - 4维颜色向量变换
+│   ├── C7ConvolutionMatrix3x3 - 3x3卷积矩阵
+│   └── C7EdgeGlow - 边缘发光效果
+├── 实用工具 - 需要遮罩和范围控制时查看此类
+│   ├── C7ChromaKey - 色度键控，移除特定颜色
+│   ├── C7DepthLuminance - 基于深度的亮度调整
+│   ├── C7HighlightShadow - 独立调整高光和阴影
+│   ├── C7HighlightShadowTint - 为高光和阴影添加色调
+│   ├── C7Highlights - 调整图像高光
+│   ├── C7Levels - 调整图像色阶
+│   ├── C7Luminance - 提取图像亮度
+│   ├── C7LuminanceRangeReduction - 压缩亮度范围
+│   ├── C7LuminanceThreshold - 基于亮度的阈值效果
+│   └── C7Shadows - 调整图像阴影
+├── 几何变换 - 需要几何变换时查看此类
+│   ├── C7Crop - 裁剪图像
+│   ├── C7Flip - 水平或垂直翻转图像
+│   ├── C7Mirror - 镜像图像
+│   ├── C7Resize - 调整图像大小
+│   ├── C7Rotate - 旋转图像
+│   └── C7Transform - 应用仿射变换
+├── 生成器 - 需要生成颜色时查看此类
+│   ├── C7ColorGradient - 生成颜色渐变
+│   └── C7SolidColor - 生成纯色
+├── 查找表 - 需要查找表时查看此类
+│   ├── C7ColorCube - 应用3D LUT颜色立方体
+│   ├── C7LookupSplit - 分屏查找表效果
+│   └── C7LookupTable - 应用颜色查找表
+├── 组合效果 - 需要组合效果时查看此类
+│   ├── C7CombinationBeautiful - 美颜组合效果
+│   ├── C7CombinationCinematic - 电影级色调效果
+│   ├── C7CombinationModernHDR - 现代HDR效果
+│   └── C7CombinationVintage - 复古胶片效果
+├── 其他效果 - 其他未分类效果
+│   ├── C7Grayed - 灰度化图像
+│   ├── C7Haze - 雾霾效果
+│   ├── C7Pow - 幂次调整效果
+│   ├── C7Vignette - 暗角效果
+│   └── C7VignetteBlend - 多种混合模式的暗角效果
+├── Blit操作 - 需要Blit操作时查看此类
+│   ├── C7CopyRegionBlit - 复制特定区域
+│   ├── C7CropBlit - 裁剪图像
+│   └── C7GenerateMipmapsBlit - 生成Mipmaps
+└── Metal Performance Shaders - 需要高性能MPS滤镜时查看此类
+    ├── MPSBoxBlur - MPS盒式模糊
+    ├── MPSGaussianBlur - MPS高斯模糊
+    ├── MPSHistogram - MPS直方图计算
+    └── MPSMedian - MPS中值模糊

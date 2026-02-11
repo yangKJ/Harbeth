@@ -8,13 +8,15 @@
 import Foundation
 import CoreImage
 
-public struct CIResizedSmooth: CIImageDisplaying {
+public struct CIResizedSmooth: CoreImageProtocol {
     
     public var modifier: ModifierEnum {
         return .coreimage(CIName: "CILanczosScaleTransform")
     }
     
-    public var ciFilter: CIFilter?
+    public var inputCIFilter: CIFilter? {
+        return filter
+    }
     
     public var postProcessing: (CIImage) -> CIImage = { $0 }
     
@@ -28,8 +30,10 @@ public struct CIResizedSmooth: CIImageDisplaying {
     
     public var targetSize: CGSize
     
+    private let filter: CIFilter?
+    
     public init(targetSize: CGSize) {
         self.targetSize = targetSize
-        self.ciFilter = CIFilter(name: "CILanczosScaleTransform")
+        self.filter = CIFilter(name: "CILanczosScaleTransform")
     }
 }

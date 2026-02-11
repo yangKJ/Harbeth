@@ -13,6 +13,8 @@ open class C7CombinationBase: C7FilterProtocol {
     /// Intermediate textures used by the combination filter
     public var intermediateTextures: [MTLTexture] = []
     
+    public init() { }
+    
     /// Encoder type and corresponding function name.
     open var modifier: ModifierEnum {
         fatalError("Subclasses must override")

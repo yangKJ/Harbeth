@@ -30,4 +30,9 @@ public struct C7Monochrome: C7FilterProtocol {
         self.intensity = intensity
         self.color = color
     }
+    
+    public init(red: Float, green: Float, blue: Float, intensity: Float) {
+        self.intensity = intensity
+        self.color = C7Color(red: CGFloat(red), green: CGFloat(green), blue: CGFloat(blue), alpha: 1.0)
+    }
 }

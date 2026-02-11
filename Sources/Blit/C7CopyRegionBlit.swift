@@ -27,7 +27,8 @@ public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
         self.destOrigin = destOrigin
     }
     
-    public func encode(commandBuffer: MTLCommandBuffer, sourceTexture: MTLTexture, destTexture: MTLTexture) throws -> MTLTexture {
+    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
+        let destTexture = textures[0], sourceTexture = textures[1]
         let x = Int(sourceRect.origin.x)
         let y = Int(sourceRect.origin.y)
         let width = Int(sourceRect.width)

@@ -52,6 +52,7 @@
 		F7621A852A7E079200614542 /* vista200 v1.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F7621A842A7E079200614542 /* vista200 v1.CUBE */; };
 		F7621A892A7E7DA200614542 /* CubeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7621A882A7E7DA200614542 /* CubeView.swift */; };
 		F7621AA92A7FDFDF00614542 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F7621AA82A7FDFDF00614542 /* violet.CUBE */; };
+		F7A068852F3C3C9900D7AA52 /* TestManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A068842F3C3C9900D7AA52 /* TestManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -139,6 +140,7 @@
 		F7621A842A7E079200614542 /* vista200 v1.CUBE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vista200 v1.CUBE"; sourceTree = "<group>"; };
 		F7621A882A7E7DA200614542 /* CubeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CubeView.swift; sourceTree = "<group>"; };
 		F7621AA82A7FDFDF00614542 /* violet.CUBE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
+		F7A068842F3C3C9900D7AA52 /* TestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -229,6 +231,7 @@
 				F748B7262A7D2F3C00D7B3F1 /* Harbeth-SwiftUI-Demo.entitlements */,
 				8767F20F29C95CE600FB5301 /* HarbethExamples.swift */,
 				8767F21129C95CE600FB5301 /* ContentView.swift */,
+				F7A068842F3C3C9900D7AA52 /* TestManager.swift */,
 				F75F724A2A7420CF003478D7 /* Views */,
 				F75F724B2A7420D8003478D7 /* Resources */,
 				8767F21529C95CE700FB5301 /* Preview Content */,
@@ -473,6 +476,7 @@
 				F75F72492A7420C8003478D7 /* BlendView.swift in Sources */,
 				F75F724D2A742272003478D7 /* Extensions.swift in Sources */,
 				8769918C2A7CEBDC00551BD3 /* CustomViews.swift in Sources */,
+				F7A068852F3C3C9900D7AA52 /* TestManager.swift in Sources */,
 				874035862A988C07001D0A98 /* ErrorView.swift in Sources */,
 				F75F724F2A74227D003478D7 /* Res.swift in Sources */,
 			);
@@ -727,7 +731,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -761,7 +765,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

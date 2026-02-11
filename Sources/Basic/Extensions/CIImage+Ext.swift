@@ -114,7 +114,7 @@ extension CoreImageProtocol {
     }
     
     func outputCIImage(with inputCIImage: CIImage) throws -> CIImage {
-        guard let ciFilter = (self as? CIImageDisplaying)?.ciFilter ?? {
+        guard let ciFilter = self.inputCIFilter ?? {
             CIFilter.init(name: modifier.name)
         }() else {
             throw HarbethError.createCIFilter(modifier.name)
