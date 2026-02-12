@@ -13,6 +13,7 @@
 		87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8B29AF3F0900C4C2E6 /* README_CN.md */; };
 		87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8C29AF3F0900C4C2E6 /* README.md */; };
 		87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */; };
+		F790C89A2F3C8BE900A4B1F2 /* FILTERS.txt in Resources */ = {isa = PBXBuildFile; fileRef = F790C8992F3C8BE900A4B1F2 /* FILTERS.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,7 @@
 		87C72F8B29AF3F0900C4C2E6 /* README_CN.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README_CN.md; sourceTree = "<group>"; };
 		87C72F8C29AF3F0900C4C2E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Harbeth.podspec; sourceTree = "<group>"; };
+		F790C8992F3C8BE900A4B1F2 /* FILTERS.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = FILTERS.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -46,6 +48,7 @@
 		87265FA42994D7EA00E612C7 = {
 			isa = PBXGroup;
 			children = (
+				F790C8992F3C8BE900A4B1F2 /* FILTERS.txt */,
 				87C72F8F29AF3F1800C4C2E6 /* Harbeth.podspec */,
 				87C72F8B29AF3F0900C4C2E6 /* README_CN.md */,
 				87C72F8C29AF3F0900C4C2E6 /* README.md */,
@@ -146,6 +149,7 @@
 			files = (
 				87C72F8E29AF3F0900C4C2E6 /* README.md in Resources */,
 				87C72F8D29AF3F0900C4C2E6 /* README_CN.md in Resources */,
+				F790C89A2F3C8BE900A4B1F2 /* FILTERS.txt in Resources */,
 				87C72F9029AF3F1800C4C2E6 /* Harbeth.podspec in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

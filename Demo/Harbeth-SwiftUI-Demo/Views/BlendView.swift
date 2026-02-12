@@ -15,7 +15,6 @@ struct BlendView: View {
     @State private var inputImage = R.image("yuan002")!
     
     private let blends: [C7Blend.BlendType] = [
-        .chromaKey(threshold: 0.3, smoothing: 0.4, color: .black),
         .add,
         .alpha,
         .colorBurn,

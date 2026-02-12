@@ -11,13 +11,17 @@ class ImageViewController: UIViewController {
     
     var filter: C7FilterProtocol?
     var callback: FilterCallback?
-    var originImage: UIImage!
+    var originImage: UIImage! {
+        didSet {
+            inputTexture = originImage.c7.toTexture()
+        }
+    }
+    
+    private var inputTexture: MTLTexture!
+    
     weak var timer: Timer?
     lazy var autoBarButton: UIBarButtonItem = {
-        let barButton = UIBarButtonItem(title: "Auto",
-                                        style: .plain,
-                                        target: self,
-                                        action: #selector(autoTestAction))
+        let barButton = UIBarButtonItem(title: "Auto", style: .plain, target: self, action: #selector(autoTestAction))
         return barButton
     }()
     
@@ -25,15 +29,18 @@ class ImageViewController: UIViewController {
         let slider = UISlider()
         slider.translatesAutoresizingMaskIntoConstraints = false
         slider.addTarget(self, action:#selector(sliderDidchange(_:)), for: .valueChanged)
+        slider.tintColor = UIColor.systemBlue
         return slider
     }()
     
-    lazy var originImageView: UIImageView = {
+    lazy var imageView: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.borderColor = UIColor.background2?.cgColor
+        imageView.layer.borderColor = UIColor.systemBlue.cgColor
         imageView.layer.borderWidth = 0.5
+        imageView.layer.cornerRadius = 2
+        imageView.clipsToBounds = true
         return imageView
     }()
     
@@ -41,15 +48,18 @@ class ImageViewController: UIViewController {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.borderColor = UIColor.background2?.cgColor
+        imageView.layer.borderColor = UIColor.systemBlue.cgColor
         imageView.layer.borderWidth = 0.5
+        imageView.layer.cornerRadius = 2
+        imageView.clipsToBounds = true
         return imageView
     }()
     
     lazy var leftLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .left
-        label.textColor = UIColor.background2
+        label.textColor = UIColor.systemBlue
+        label.font = UIFont.systemFont(ofSize: 12)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -57,7 +67,8 @@ class ImageViewController: UIViewController {
     lazy var rightLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .right
-        label.textColor = UIColor.background2
+        label.textColor = UIColor.systemBlue
+        label.font = UIFont.systemFont(ofSize: 12)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -65,14 +76,25 @@ class ImageViewController: UIViewController {
     lazy var currentLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
-        label.textColor = UIColor.background2
+        label.textColor = UIColor.systemBlue
+        label.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    lazy var originTitleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "原图"
+        label.textAlignment = .left
+        label.textColor = UIColor.systemBlue
+        label.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
     deinit {
         print("ImageViewController is Deinit.")
-        Shared.shared.deinitDevice()
+        //Shared.shared.deinitDevice()
     }
     
     override func viewDidLoad() {
@@ -82,70 +104,93 @@ class ImageViewController: UIViewController {
     }
     
     func setupUI() {
-        navigationItem.rightBarButtonItem = autoBarButton
-        view.backgroundColor = UIColor.background
-        view.addSubview(originImageView)
+        view.backgroundColor = UIColor.systemBackground
+        view.addSubview(originTitleLabel)
+        view.addSubview(imageView)
         view.addSubview(renderView)
         view.addSubview(slider)
         view.addSubview(leftLabel)
         view.addSubview(rightLabel)
         view.addSubview(currentLabel)
-        NSLayoutConstraint.activate([
-            originImageView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
-            renderView.topAnchor.constraint(equalTo: originImageView.bottomAnchor, constant: 15),
-            renderView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            renderView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            leftLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
-            leftLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            leftLabel.widthAnchor.constraint(equalToConstant: 100),
-            leftLabel.heightAnchor.constraint(equalToConstant: 30),
-            rightLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
-            rightLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            rightLabel.widthAnchor.constraint(equalToConstant: 100),
-            rightLabel.heightAnchor.constraint(equalToConstant: 30),
-            currentLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
-            currentLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            currentLabel.widthAnchor.constraint(equalToConstant: 100),
-            currentLabel.heightAnchor.constraint(equalToConstant: 30),
-            slider.topAnchor.constraint(equalTo: leftLabel.bottomAnchor, constant: 20),
-            slider.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-            slider.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            slider.heightAnchor.constraint(equalToConstant: 30),
-        ])
-        if slider.isHidden {
-            NSLayoutConstraint.activate([
-                renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 3/4),
-                originImageView.centerXAnchor.constraint(equalTo: renderView.centerXAnchor),
-                originImageView.widthAnchor.constraint(equalTo: renderView.widthAnchor),
-                originImageView.heightAnchor.constraint(equalTo: renderView.heightAnchor),
-            ])
-        } else {
-            originImageView.layer.borderWidth = 0
-            NSLayoutConstraint.activate([
-                renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 3.5/4),
-                originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
-                originImageView.widthAnchor.constraint(equalToConstant: 100),
-                originImageView.heightAnchor.constraint(equalToConstant: 100),
-            ])
-        }
-        let bg = UIColor.background2?.withAlphaComponent(0.3)
-        originImageView.backgroundColor = bg
+        
+        let bg = UIColor.systemBlue.withAlphaComponent(0.2)
+        imageView.backgroundColor = bg
         renderView.backgroundColor = bg
-        leftLabel.backgroundColor = bg
-        rightLabel.backgroundColor = bg
-        currentLabel.backgroundColor = bg
+        
         leftLabel.text  = "\(slider.minimumValue)"
         rightLabel.text = "\(slider.maximumValue)"
-        currentLabel.text = "\(slider.value)"
+        currentLabel.text = String(format: "%.2f", slider.value)
+        
         renderView.image = originImage
-        originImageView.image = originImage
-        leftLabel.isHidden = slider.isHidden
-        rightLabel.isHidden = slider.isHidden
-        currentLabel.isHidden = slider.isHidden
+        imageView.image = originImage
+        
+        let safeArea = view.safeAreaLayoutGuide
+        if slider.isHidden {
+            navigationItem.rightBarButtonItem = nil
+            leftLabel.isHidden = true
+            rightLabel.isHidden = true
+            currentLabel.isHidden = true
+            originTitleLabel.isHidden = true
+            NSLayoutConstraint.activate([
+                imageView.topAnchor.constraint(equalTo: safeArea.topAnchor, constant: 20),
+                imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+                imageView.heightAnchor.constraint(equalTo: imageView.widthAnchor, multiplier: 3/4),
+                
+                renderView.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 20),
+                renderView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                renderView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+                renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 3/4),
+                renderView.bottomAnchor.constraint(lessThanOrEqualTo: safeArea.bottomAnchor, constant: -20),
+            ])
+        } else {
+            navigationItem.rightBarButtonItem = autoBarButton
+            leftLabel.isHidden = false
+            rightLabel.isHidden = false
+            currentLabel.isHidden = false
+            originTitleLabel.isHidden = false
+            NSLayoutConstraint.activate([
+                originTitleLabel.centerYAnchor.constraint(equalTo: imageView.centerYAnchor),
+                originTitleLabel.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 20),
+                originTitleLabel.widthAnchor.constraint(equalToConstant: 100),
+                originTitleLabel.heightAnchor.constraint(equalToConstant: 24),
+                
+                imageView.topAnchor.constraint(equalTo: safeArea.topAnchor, constant: 20),
+                imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                imageView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.5, constant: -16),
+                imageView.heightAnchor.constraint(equalTo: imageView.widthAnchor),
+                
+                renderView.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 20),
+                renderView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                renderView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+                renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 3/4),
+                
+                leftLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
+                leftLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                leftLabel.widthAnchor.constraint(equalToConstant: 80),
+                leftLabel.heightAnchor.constraint(equalToConstant: 24),
+                
+                rightLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
+                rightLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+                rightLabel.widthAnchor.constraint(equalToConstant: 80),
+                rightLabel.heightAnchor.constraint(equalToConstant: 24),
+                
+                currentLabel.topAnchor.constraint(equalTo: renderView.bottomAnchor, constant: 20),
+                currentLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                currentLabel.widthAnchor.constraint(equalToConstant: 80),
+                currentLabel.heightAnchor.constraint(equalToConstant: 24),
+                
+                slider.topAnchor.constraint(equalTo: leftLabel.bottomAnchor, constant: 2),
+                slider.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                slider.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+                slider.heightAnchor.constraint(equalToConstant: 40),
+                
+                slider.bottomAnchor.constraint(lessThanOrEqualTo: safeArea.bottomAnchor, constant: -20),
+            ])
+        }
     }
 }
 
-// MARK: - filter process
 extension ImageViewController {
     func setupFilter() {
         if slider.isHidden {
@@ -194,16 +239,17 @@ extension ImageViewController {
         self.asynchronousProcessingImage(with: filter)
     }
     
-    /// 异步处理图像
     func asynchronousProcessingImage(with filter: C7FilterProtocol?) {
         guard let filter = filter else {
             return
         }
-        let dest = HarbethIO(element: originImage, filter: filter)
-        dest.transmitOutput { [weak self] image in
+        PerformanceMonitor.shared.beginMonitoring("Render")
+        let dest = HarbethIO(element: inputTexture, filter: filter)
+        dest.transmitOutput { [weak self] t in
             DispatchQueue.main.async {
-                self?.renderView.image = image
+                self?.renderView.image = t?.c7.toImage()
             }
+            PerformanceMonitor.shared.endMonitoring("Render")
         }
     }
 }

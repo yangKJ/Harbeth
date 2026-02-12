@@ -56,6 +56,7 @@ public final class PerformanceMonitor {
         self.configuration = config
     }
     
+    @discardableResult
     public func beginMonitoring(_ identifier: String) -> Metrics {
         guard configuration.enabled else { return Metrics() }
         let metrics = Metrics(startTime: CACurrentMediaTime())
@@ -66,6 +67,7 @@ public final class PerformanceMonitor {
         return metrics
     }
     
+    @discardableResult
     public func endMonitoring(_ identifier: String) -> Metrics? {
         guard configuration.enabled else { return nil }
         cacheLock.lock()

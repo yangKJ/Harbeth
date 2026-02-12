@@ -36,7 +36,6 @@
 		878445012994DDA1001D856B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 878444FF2994DDA1001D856B /* LaunchScreen.storyboard */; };
 		878445072994DDC0001D856B /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 878445062994DDC0001D856B /* Harbeth.framework */; };
 		878445082994DDC0001D856B /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 878445062994DDC0001D856B /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		8784450B2994DE12001D856B /* Color.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8784450A2994DE12001D856B /* Color.xcassets */; };
 		878445102994DE4A001D856B /* HomeViewType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8784450C2994DE4A001D856B /* HomeViewType.swift */; };
 		878445112994DE4A001D856B /* HomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8784450D2994DE4A001D856B /* HomeViewController.swift */; };
 		878445122994DE4A001D856B /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8784450E2994DE4A001D856B /* HomeViewModel.swift */; };
@@ -123,7 +122,6 @@
 		878445002994DDA1001D856B /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		878445022994DDA1001D856B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		878445062994DDC0001D856B /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		8784450A2994DE12001D856B /* Color.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Color.xcassets; sourceTree = "<group>"; };
 		8784450C2994DE4A001D856B /* HomeViewType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HomeViewType.swift; sourceTree = "<group>"; };
 		8784450D2994DE4A001D856B /* HomeViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HomeViewController.swift; sourceTree = "<group>"; };
 		8784450E2994DE4A001D856B /* HomeViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
@@ -278,7 +276,6 @@
 			children = (
 				68A25FD62D5DEB5C006FBFC8 /* Skateboarding.mp4 */,
 				878444FD2994DDA1001D856B /* Assets.xcassets */,
-				8784450A2994DE12001D856B /* Color.xcassets */,
 				878445022994DDA1001D856B /* Info.plist */,
 				878444FF2994DDA1001D856B /* LaunchScreen.storyboard */,
 				878444FA2994DDA0001D856B /* Main.storyboard */,
@@ -442,7 +439,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				878445012994DDA1001D856B /* LaunchScreen.storyboard in Resources */,
-				8784450B2994DE12001D856B /* Color.xcassets in Resources */,
 				68A25FD72D5DEB5C006FBFC8 /* Skateboarding.mp4 in Resources */,
 				878444FE2994DDA1001D856B /* Assets.xcassets in Resources */,
 				878444FC2994DDA0001D856B /* Main.storyboard in Resources */,

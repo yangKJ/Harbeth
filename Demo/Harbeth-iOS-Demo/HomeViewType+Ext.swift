@@ -87,8 +87,170 @@ extension ViewControllerType {
                 filter.intensity = $0
                 return filter
             })
-        case .LuminosityBlend:
+        case .LuminanceBlend:
             var filter = C7Blend(with: .luminosity, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .ColorBlend:
+            var filter = C7Blend(with: .color, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .SaturationBlend:
+            var filter = C7Blend(with: .saturation, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .NormalBlend:
+            var filter = C7Blend(with: .normal, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .AddBlend:
+            var filter = C7Blend(with: .add, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .ColorBurnBlend:
+            var filter = C7Blend(with: .colorBurn, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .ColorDodgeBlend:
+            var filter = C7Blend(with: .colorDodge, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .DarkenBlend:
+            var filter = C7Blend(with: .darken, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .DarkerColorBlend:
+            var filter = C7Blend(with: .darkerColor, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .DifferenceBlend:
+            var filter = C7Blend(with: .difference, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .DissolveBlend:
+            var filter = C7Blend(with: .dissolve, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .DivideBlend:
+            var filter = C7Blend(with: .divide, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .ExclusionBlend:
+            var filter = C7Blend(with: .exclusion, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .HardLightBlend:
+            var filter = C7Blend(with: .hardLight, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .HardMixBlend:
+            var filter = C7Blend(with: .hardMix, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .LightenBlend:
+            var filter = C7Blend(with: .lighten, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .LighterColorBlend:
+            var filter = C7Blend(with: .lighterColor, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .LinearBurnBlend:
+            var filter = C7Blend(with: .linearBurn, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .LinearLightBlend:
+            var filter = C7Blend(with: .linearLight, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .MaskBlend:
+            var filter = C7Blend(with: .mask, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .MultiplyBlend:
+            var filter = C7Blend(with: .multiply, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .OverlayBlend:
+            var filter = C7Blend(with: .overlay, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .PinLightBlend:
+            var filter = C7Blend(with: .pinLight, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .ScreenBlend:
+            var filter = C7Blend(with: .screen, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .SoftLightBlend:
+            var filter = C7Blend(with: .softLight, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .SourceOverBlend:
+            var filter = C7Blend(with: .sourceOver, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .SubtractBlend:
+            var filter = C7Blend(with: .subtract, blendTexture: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .VividLightBlend:
+            var filter = C7Blend(with: .vividLight, blendTexture: overTexture)
             return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
@@ -466,6 +628,201 @@ extension ViewControllerType {
             return (filter, nil, nil)
         case .BlitGenerateMipmaps:
             let filter = C7GenerateMipmapsBlit()
+            return (filter, nil, nil)
+        case .SurfaceBlur:
+            var filter = C7SurfaceBlur()
+            filter.radius = 8.0
+            filter.threshold = 0.1
+            return (filter, (8.0, 1.0, 20.0), {
+                filter.radius = $0
+                return filter
+            })
+        case .ColorLookup512x512:
+            var filter = C7ColorLookup512x512(lookupImage: R.image("lut_abao")!)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .Brightness:
+            var filter = C7Brightness()
+            filter.brightness = 0.5
+            return (filter, (0.5, -1, 1), {
+                filter.brightness = $0
+                return filter
+            })
+        case .Gamma:
+            var filter = C7Gamma()
+            filter.gamma = 1.5
+            return (filter, (1.5, 0.1, 3), {
+                filter.gamma = $0
+                return filter
+            })
+        case .ColorSpace:
+            let filter = C7ColorSpace(with: .rgb_to_yiq)
+            return (filter, nil, nil)
+        case .LuminanceAdaptiveContrast:
+            var filter = C7LuminanceAdaptiveContrast(amount: 2)
+            return (filter, (2, 0, 2), {
+                filter.amount = $0
+                return filter
+            })
+        case .Nostalgic:
+            var filter = C7Nostalgic()
+            filter.intensity = 0.8
+            return (filter, (0.8, 0, 1), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CircleBlur:
+            var filter = C7CircleBlur()
+            filter.radius = 10
+            return (filter, (10, 1, 20), {
+                filter.radius = $0
+                return filter
+            })
+        case .DetailPreservingBlur:
+            var filter = C7DetailPreservingBlur(strength: 2)
+            return (filter, (2, 0, 10), {
+                filter.strength = $0
+                return filter
+            })
+        case .DetailEnhancer:
+            var filter = C7DetailEnhancer(amount: 2)
+            return (filter, (2, 0, 2), {
+                filter.amount = $0
+                return filter
+            })
+        case .EdgeAwareSharpen:
+            var filter = C7EdgeAwareSharpen(amount: 2)
+            return (filter, (2, 0, 2), {
+                filter.amount = $0
+                return filter
+            })
+        case .ThresholdSketch:
+            var filter = C7ThresholdSketch()
+            filter.threshold = 0.5
+            return (filter, (0.5, 0, 1), {
+                filter.threshold = $0
+                return filter
+            })
+        case .Halftone:
+            var filter = C7Halftone()
+            filter.fractionalWidth = 0.05
+            return (filter, (0.05, 0.01, 0.2), {
+                filter.fractionalWidth = $0
+                return filter
+            })
+        case .PolarPixellate:
+            var filter = C7PolarPixellate()
+            filter.scale = 0.25
+            return (filter, (0.25, 0, 1), {
+                filter.scale = $0
+                return filter
+            })
+        case .SphereRefraction:
+            var filter = C7SphereRefraction()
+            filter.radius = 0.5
+            return (filter, (0.5, 0.1, 1), {
+                filter.radius = $0
+                return filter
+            })
+        case .Mirror:
+            let filter = C7Mirror()
+            return (filter, nil, nil)
+        case .ColorCube:
+            var filter = C7ColorCube(cubeName: "violet")
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .ColorMatrix4x5:
+            let identityMatrix = Matrix4x5(values: [
+                1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, 1, 0
+            ])
+            var filter = C7ColorMatrix4x5(matrix: identityMatrix)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .ColorVector4:
+            var filter = C7ColorVector4(vector: Vector4.Color.warm)
+            return (filter, nil, nil)
+        case .ColorCGASpace:
+            var filter = C7ColorCGASpace()
+            return (filter, nil, nil)
+        case .Fluctuate:
+            var filter = C7Fluctuate()
+            filter.fluctuate = 0.5
+            return (filter, (0.5, 0, 1), {
+                filter.fluctuate = $0
+                return filter
+            })
+        case .Glitch:
+            var filter = C7Glitch()
+            filter.glitch = 0.5
+            return (filter, (0.5, 0, 1), {
+                filter.glitch = $0
+                return filter
+            })
+        case .Kuwahara:
+            var filter = C7Kuwahara()
+            filter.radius = 3
+            return (filter, (3, 1, 10), {
+                filter.radius = Int($0)
+                return filter
+            })
+        case .Toon:
+            var filter = C7Toon()
+            filter.threshold = 0.5
+            return (filter, (0.5, 0, 1), {
+                filter.threshold = $0
+                return filter
+            })
+        case .Haze:
+            var filter = C7Haze()
+            filter.distance = 0.05
+            return (filter, (0.05, 0, 0.5), {
+                filter.distance = $0
+                return filter
+            })
+        case .Pow:
+            var filter = C7Pow()
+            filter.value = 0.2
+            return (filter, (0.2, 0, 1), {
+                filter.value = $0
+                return filter
+            })
+        case .HighlightShadowTint:
+            var filter = C7HighlightShadowTint()
+            filter.highlights = 0.5
+            filter.shadows = 0.5
+            return (filter, (0.5, 0, 1), {
+                filter.highlights = $0
+                filter.shadows = $0
+                return filter
+            })
+        case .Highlights:
+            var filter = C7Highlights()
+            filter.highlight = 0.5
+            return (filter, (0.5, -1, 1), {
+                filter.highlight = $0
+                return filter
+            })
+        case .Shadows:
+            var filter = C7Shadows()
+            filter.shadow = 0.5
+            return (filter, (0.5, -1, 1), {
+                filter.shadow = $0
+                return filter
+            })
+        case .ColorGradient:
+            var filter = C7ColorGradient(with: .radial)
+            return (filter, nil, nil)
+        case .SolidColor:
+            var filter = C7SolidColor(color: .red)
             return (filter, nil, nil)
         }
     }

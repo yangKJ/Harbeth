@@ -24,7 +24,7 @@ public struct C7DetailEnhancer: C7FilterProtocol {
         return [amount, detailThreshold]
     }
     
-    public init(amount: Float, detailThreshold: Float = 0.05) {
+    public init(amount: Float = 0.0, detailThreshold: Float = 0.05) {
         self.amount = amount
         self.detailThreshold = detailThreshold
     }

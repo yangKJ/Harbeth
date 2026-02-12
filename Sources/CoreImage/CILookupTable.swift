@@ -45,14 +45,14 @@ public struct CILookupTable: CoreImageProtocol {
         return foreground
     }
     
-    private let cubeResource: CIColorCube.Resource?
+    private let cubeResource: C7ColorCube.Resource?
     
     public init(cubeName: String, amount: Float = range.value) {
-        let resource = CIColorCube.Resource.readCubeResource(cubeName)
+        let resource = C7ColorCube.Resource.readCubeResource(cubeName)
         self.init(cubeResource: resource, amount: amount)
     }
     
-    public init(cubeResource: CIColorCube.Resource?, amount: Float = range.value) {
+    public init(cubeResource: C7ColorCube.Resource?, amount: Float = range.value) {
         self.cubeResource = cubeResource
         self.amount = amount
     }

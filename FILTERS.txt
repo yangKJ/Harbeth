@@ -91,7 +91,23 @@
 │   ├── C7SplitScreen - 分屏效果
 │   ├── C7Storyboard - 故事板效果
 │   ├── C7Toon - 卡通效果
-│   └── C7VoronoiOverlay - 维诺图叠加效果
+│   ├── C7VoronoiOverlay - 维诺图叠加效果
+│   ├── 艺术风格滤镜
+│   │   ├── C7PastelDream - 柔和的pastel dream效果
+│   │   ├── C7NeonPunk - 霓虹朋克效果
+│   │   └── C7PaperCut - 剪纸艺术效果
+│   ├── 科幻与未来主义滤镜
+│   │   ├── C7Hologram - 全息图效果
+│   │   ├── C7DigitalGlitch - 数字故障效果
+│   │   └── C7QuantumDistortion - 量子扭曲效果
+│   ├── 自然与有机滤镜
+│   │   ├── C7Watercolor - 水彩画效果
+│   │   ├── C7OrganicGrowth - 有机生长效果
+│   │   └── C7LensFlare - 镜头光晕效果
+│   └── 复古与怀旧滤镜
+│       ├── C7VintageFilmGrain - 复古胶片颗粒效果
+│       ├── C7ComicBook - 漫画书风格效果
+│       └── C780sSynthwave - 80年代合成波效果
 ├── 矩阵处理 - 需要矩阵运算时查看此类
 │   ├── C7ColorMatrix4x4 - 4x4颜色矩阵变换
 │   ├── C7ColorMatrix4x5 - 4x5颜色矩阵变换

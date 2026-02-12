@@ -11,29 +11,36 @@ import MetalKit
 public struct C7Blend: C7FilterProtocol {
     
     public enum BlendType {
-        case chromaKey(threshold: Float = 0.4, smoothing: Float = 0.1, color: C7Color = .white)
         case add
         case alpha
         case colorBurn
         case colorDodge
         case darken
+        case darkerColor
         case difference
         case dissolve
         case divide
         case exclusion
         case hardLight
+        case hardMix
         case hue
         case lighten
+        case lighterColor
         case linearBurn
+        case linearLight
         case luminosity
         case mask
         case multiply
         case normal
         case overlay
+        case pinLight
+        case saturation
         case screen
         case softLight
         case sourceOver
         case subtract
+        case vividLight
+        case color
     }
     
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
@@ -44,13 +51,7 @@ public struct C7Blend: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        switch blendType {
-        case .chromaKey(let threshold, let smoothing, let color):
-            let (red, green, blue, _) = color.c7.toRGBA()
-            return [threshold, smoothing, red, green, blue, intensity]
-        default:
-            return [intensity]
-        }
+        return [intensity]
     }
     
     public var otherInputTextures: C7InputTextures {
@@ -91,10 +92,10 @@ extension C7Blend.BlendType: Hashable, Identifiable {
             return "C7BlendColorBurn"
         case .colorDodge:
             return "C7BlendColorDodge"
-        case .chromaKey:
-            return "C7BlendChromaKey"
         case .darken:
             return "C7BlendDarken"
+        case .darkerColor:
+            return "C7BlendDarkerColor"
         case .difference:
             return "C7BlendDifference"
         case .dissolve:
@@ -105,12 +106,18 @@ extension C7Blend.BlendType: Hashable, Identifiable {
             return "C7BlendExclusion"
         case .hardLight:
             return "C7BlendHardLight"
+        case .hardMix:
+            return "C7BlendHardMix"
         case .hue:
             return "C7BlendHue"
         case .lighten:
             return "C7BlendLighten"
+        case .lighterColor:
+            return "C7BlendLighterColor"
         case .linearBurn:
             return "C7BlendLinearBurn"
+        case .linearLight:
+            return "C7BlendLinearLight"
         case .luminosity:
             return "C7BlendLuminosity"
         case .mask:
@@ -121,6 +128,10 @@ extension C7Blend.BlendType: Hashable, Identifiable {
             return "C7BlendNormal"
         case .overlay:
             return "C7BlendOverlay"
+        case .pinLight:
+            return "C7BlendPinLight"
+        case .saturation:
+            return "C7BlendSaturation"
         case .screen:
             return "C7BlendScreen"
         case .softLight:
@@ -129,6 +140,10 @@ extension C7Blend.BlendType: Hashable, Identifiable {
             return "C7BlendSourceOver"
         case .subtract:
             return "C7BlendSubtract"
+        case .vividLight:
+            return "C7BlendVividLight"
+        case .color:
+            return "C7BlendColor"
         }
     }
 }

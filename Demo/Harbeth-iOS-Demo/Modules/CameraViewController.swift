@@ -15,7 +15,7 @@ class CameraViewController: UIViewController {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
+        imageView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.3)
         imageView.frame = self.view.frame
         return imageView
     }()
@@ -39,7 +39,7 @@ class CameraViewController: UIViewController {
     }
     
     func setupUI() {
-        view.backgroundColor = UIColor.background
+        view.backgroundColor = UIColor.systemBackground
         view.addSubview(originImageView)
     }
 }

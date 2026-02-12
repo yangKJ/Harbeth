@@ -292,6 +292,26 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7Toon**: Creates a cartoon effect with simplified colors and bold outlines, resembling animated characters
 - **C7VoronoiOverlay**: Overlays a Voronoi diagram on the image, creating cellular patterns with sharp edges
 
+##### 🎨 Artistic Style Filters
+- **C7PastelDream**: Creates a soft pastel dream effect with gentle colors, subtle blur, and a warm glow, perfect for creating ethereal, dreamlike images
+- **C7NeonPunk**: Applies a neon punk effect with vibrant colors, glowing edges, and high contrast, capturing the energetic and rebellious aesthetic of punk culture
+- **C7PaperCut**: Creates a paper cut art effect with sharp edges, layered appearance, and subtle shadows, simulating the look of intricate paper cut designs
+
+##### 🚀 Sci-fi and Futurism Filters
+- **C7Hologram**: Creates a holographic effect with cyan tint, scan lines, and subtle glitch elements, simulating futuristic holographic displays
+- **C7DigitalGlitch**: Applies a digital glitch effect with random row offsets, RGB channel separation, and noise, creating the appearance of digital data corruption
+- **C7QuantumDistortion**: Creates a quantum distortion effect with wave-like pixel offsets, color aberration, and glow, simulating the warping of space-time
+
+##### 🌿 Natural and Organic Filters
+- **C7Watercolor**: Applies a watercolor painting effect with soft edges, color bleeding, and paper texture, capturing the fluid and transparent qualities of watercolor art
+- **C7OrganicGrowth**: Creates an organic growth effect with noise-based patterns, natural color shifts, and edge enhancement, simulating the appearance of organic forms and textures
+- **C7LensFlare**: Applies a lens flare effect with light spots, hexagonal artifacts, and color dispersion, simulating the optical flares created by camera lenses
+
+##### 📼 Retro and Nostalgic Filters
+- **C7VintageFilmGrain**: Applies a vintage film grain effect with warm tones, subtle grain noise, desaturation, and vignette, simulating the look of old film stock
+- **C7ComicBook**: Creates a comic book style effect with bold black outlines, color quantization, and high contrast, resembling hand-drawn comic book art
+- **C780sSynthwave**: Applies an 80s synthwave effect with neon colors, purple-blue tint, high contrast, and subtle glow, capturing the nostalgic aesthetic of 1980s synthwave culture
+
 #### 📊 Matrix Processing
 - **C7ColorMatrix4x4**: Applies a 4x4 color matrix transformation to the image, allowing for complex color adjustments and transformations
 - **C7ColorMatrix4x5**: Applies a 4x5 color matrix transformation, providing an additional offset value for more flexible color adjustments
@@ -305,6 +325,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7HighlightShadow**: Independently adjusts the highlights and shadows of the image, allowing for precise tonal control
 - **C7HighlightShadowTint**: Tints the highlights and shadows of the image with specified colors, creating a color graded appearance
 - **C7Highlights**: Specifically adjusts only the highlight areas of the image, brightening or darkening them as needed
+- **C7HighPassSkinSmoothing**: Performs skin smoothing using frequency separation, preserving details while smoothing skin texture
 - **C7Levels**: Adjusts the image levels, controlling the shadows, midtones, and highlights for better tonal range
 - **C7Luminance**: Extracts the luminance (brightness) component from the image, creating a grayscale representation
 - **C7LuminanceRangeReduction**: Reduces the luminance range of the image, compressing the difference between bright and dark areas
@@ -324,7 +345,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7SolidColor**: Generates a solid color image, useful for backgrounds, masks, or as a base for other effects
 
 #### 📋 Lookup Tables
-- **C7ColorCube**: Applies a 3D LUT (Look-Up Table) from CUBE files, allowing for professional color grading and complex color transformations
+- **C7ColorCube**: Applies a 3D LUT (Look-Up Table) from CUBE files, allowing for professional color grading and complex color transformations. Supports multiple initialization methods including from file name, URL, or raw data.
 - **C7LookupSplit**: Applies split screen lookup tables, allowing different color treatments in different parts of the image
 - **C7LookupTable**: Applies a color lookup table (LUT) from image files, used for color grading and stylization
 
@@ -332,6 +353,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7CombinationBeautiful**: A beauty combination effect that enhances facial features and skin tone, combining multiple beauty-enhancing filters for a polished appearance
 - **C7CombinationCinematic**: A cinematic combination effect that creates a film-like appearance with enhanced contrast, saturation, and subtle vignette
 - **C7CombinationModernHDR**: A modern HDR combination effect that improves dynamic range, enhancing both shadow detail and highlight information
+- **C7CombinationSkinSmoothing**: A skin smoothing combination effect that uses frequency separation to smooth skin while preserving details
 - **C7CombinationVintage**: A vintage combination effect that simulates old film stock with warm tones, subtle grain, and reduced contrast
 
 #### 🎚️ Other Effects

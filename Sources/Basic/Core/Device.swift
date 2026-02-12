@@ -18,10 +18,6 @@ public final class Device: Cacheable {
     let commandQueue: MTLCommandQueue
     /// Metal file in your local project
     let defaultLibrary: MTLLibrary?
-    #if SWIFT_PACKAGE
-    /// Metal file in your local SPM project
-    let spmModuleLibrary: MTLLibrary?
-    #endif
     /// Metal file in ``Harbeth Framework``
     let harbethLibrary: MTLLibrary?
     /// Cache pipe state
@@ -47,19 +43,11 @@ public final class Device: Cacheable {
         self.commandQueue = queue
         
         self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
-        #if SWIFT_PACKAGE
-        self.spmModuleLibrary = try? device.makeDefaultLibrary(bundle: Bundle.module)
-        #endif
+        
         self.harbethLibrary = Device.makeFrameworkLibrary(device, for: "Harbeth")
         
         if defaultLibrary == nil && harbethLibrary == nil {
-            #if SWIFT_PACKAGE
-            if spmModuleLibrary == nil {
-                HarbethError.failed("Could not load library")
-            }
-            #else
             HarbethError.failed("Could not load library")
-            #endif
         }
     }
     
@@ -117,22 +105,28 @@ extension Device {
     }
     
     static func readMTLFunction(_ name: String) throws -> MTLFunction {
-        // First read the project
+        /// Read external libraries
+        if let device = Shared.shared.device {
+            for library in device.externalLibraries() {
+                if let function = library.makeFunction(name: name) {
+                    return function
+                }
+            }
+        }
+        // And then read the project
         if let libray = Shared.shared.device?.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
-        #if SWIFT_PACKAGE
-        /// Then read the local spm project
-        if let libray = Shared.shared.device?.spmModuleLibrary, let function = libray.makeFunction(name: name) {
-            return function
-        }
-        #endif
         // Last read from ``Harbeth Framework``
         if let libray = Shared.shared.device?.harbethLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         #if DEBUG
-        fatalError(HarbethError.readFunction(name).localizedDescription)
+        var errorMessage = "Could not find Metal function '\(name)' in any library.\nAvailable libraries:\n"
+        errorMessage += "- Default Library: \(Shared.shared.device?.defaultLibrary != nil ? "Available" : "Not available")\n"
+        errorMessage += "- Harbeth Library: \(Shared.shared.device?.harbethLibrary != nil ? "Available" : "Not available")\n"
+        errorMessage += "- External Library Registry: \(Shared.shared.device?.externalLibraries().count ?? 0) libraries registered"
+        fatalError(errorMessage)
         #else
         throw HarbethError.readFunction(name)
         #endif

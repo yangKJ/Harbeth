@@ -10,13 +10,13 @@ import Harbeth
 
 class UnitTestViewController: UIViewController {
     
-    let originImage = R.image("yuan003")
+    let originImage = R.image("IMG_6781")
     
     lazy var renderView: UIImageView = {
         let view = UIImageView.init(image: originImage)
         view.contentMode = .scaleAspectFit
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.layer.borderColor = UIColor.background2?.cgColor
+        view.layer.borderColor = UIColor.systemBlue.cgColor
         view.layer.borderWidth = 0.5
         return view
     }()
@@ -50,11 +50,11 @@ class UnitTestViewController: UIViewController {
     func setupUI() {
         title = "Unit"
         navigationItem.rightBarButtonItem = leftBarButton
-        view.backgroundColor = UIColor.background
+        view.backgroundColor = UIColor.systemBackground
         view.addSubview(renderView)
         NSLayoutConstraint.activate([
             renderView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
-            renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 1.0),
+            renderView.heightAnchor.constraint(equalTo: renderView.widthAnchor, multiplier: 1.5),
             //renderView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
             renderView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             renderView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
@@ -77,10 +77,12 @@ extension UnitTestViewController {
     
     func unitTest() {
         let filter1 = C7Storyboard(ranks: 2)
-        let filter2 = MPSGaussianBlur(radius: 3)
+        let filter2 = MPSGaussianBlur(radius: 10)
         let filter3 = C7CombinationModernHDR(intensity: 8)
         
+        PerformanceMonitor.shared.beginMonitoring("unitTest")
         let dest = HarbethIO.init(element: originImage, filters: [filter1, filter2, filter3])
         renderView.image = try? dest.output()
+        PerformanceMonitor.shared.endMonitoring("unitTest")
     }
 }

@@ -16,7 +16,7 @@ class PlayerViewController: UIViewController {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.backgroundColor = UIColor.background2?.withAlphaComponent(0.3)
+        imageView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.3)
         return imageView
     }()
     
@@ -59,7 +59,7 @@ class PlayerViewController: UIViewController {
     }
     
     func setupUI() {
-        view.backgroundColor = UIColor.background
+        view.backgroundColor = UIColor.systemBackground
         view.addSubview(originImageView)
         NSLayoutConstraint.activate([
             originImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),

@@ -33,7 +33,7 @@ class HomeViewController: UIViewController {
         table.delegate = self
         table.dataSource = self
         table.register(UITableViewCell.self, forCellReuseIdentifier: HomeViewController.identifier)
-        table.backgroundColor = UIColor.background?.withAlphaComponent(0.1)
+        table.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.1)
         table.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
         table.contentInsetAdjustmentBehavior = .never
         table.rowHeight = UITableView.automaticDimension
@@ -95,8 +95,8 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         cell.accessoryType = .disclosureIndicator
         cell.textLabel?.text = "\(indexPath.row + 1). " + "\(element)"
         cell.textLabel?.font = UIFont.systemFont(ofSize: 14)
-        cell.textLabel?.textColor = UIColor.defaultTint
-        cell.detailTextLabel?.textColor = UIColor.defaultTint?.withAlphaComponent(0.5)
+        cell.textLabel?.textColor = UIColor.systemBlue
+        cell.detailTextLabel?.textColor = UIColor.systemBlue.withAlphaComponent(0.5)
         cell.detailTextLabel?.text = element.rawValue
         cell.detailTextLabel?.font = UIFont.systemFont(ofSize: 13)
         return cell
@@ -110,10 +110,4 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         tabBarController?.tabBar.isHidden = true
         navigationController?.pushViewController(vc, animated: true)
     }
-}
-
-extension UIColor {
-    static let background  = R.color("background")//UIColor(named: "background")
-    static let background2 = R.color("background2")
-    static let defaultTint = R.color("defaultTint")
 }
