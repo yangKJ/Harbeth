@@ -23,7 +23,6 @@ kernel void C7BlendSaturation(texture2d<half, access::write> outputTexture [[tex
     // Saturation: 使用上层颜色的饱和度，底层颜色的色相和亮度
     half3 inGray = half3(dot(inColor.rgb, half3(0.299, 0.587, 0.114)));
     half3 overlayGray = half3(dot(overlay.rgb, half3(0.299, 0.587, 0.114)));
-    half3 inSaturation = inColor.rgb - inGray;
     half3 overlaySaturation = overlay.rgb - overlayGray;
     
     outColor.rgb = inGray + overlaySaturation;

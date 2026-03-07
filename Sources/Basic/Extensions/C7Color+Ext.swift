@@ -19,12 +19,12 @@ extension C7Color: HarbethCompatible {
                 alpha: 1.0)
     }()
     
-    public convenience init(hex: Int) {
+    public convenience init(hex: Int, alpha: CGFloat = 1.0) {
         let mask = 0xFF
         let r = CGFloat((hex >> 16) & mask) / 255
         let g = CGFloat((hex >> 8) & mask) / 255
         let b = CGFloat((hex) & mask) / 255
-        self.init(red: r, green: g, blue: b, alpha: 1)
+        self.init(red: r, green: g, blue: b, alpha: alpha)
     }
     
     public convenience init(hex: String) {
