@@ -14,7 +14,8 @@ kernel void C7Glitch(texture2d<half, access::write> outputTexture [[texture(0)]]
                      constant float *maxJitterPointer [[buffer(1)]],
                      uint2 grid [[thread_position_in_grid]]) {
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half4 inColor = inputTexture.read(grid);
+    const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const half4 inColor = inputTexture.sample(quadSampler, textureCoordinate);
     const float x = float(grid.x) / outputTexture.get_width();
     const float y = float(grid.y) / outputTexture.get_height();
     

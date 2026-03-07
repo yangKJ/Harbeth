@@ -34,14 +34,14 @@ public struct C7ChromaKey: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var chromaFactor = Vector3.init(color: chroma).to_factor()
-        computeEncoder.setBytes(&chromaFactor, length: Vector3.size, index: index + 1)
+        computeEncoder.setBytes(&chromaFactor, length: Vector3.size, index: index)
         var replaceFactor = Vector4(color: replace).to_factor()
-        computeEncoder.setBytes(&replaceFactor, length: Vector4.size, index: index + 2)
+        computeEncoder.setBytes(&replaceFactor, length: Vector4.size, index: index + 1)
     }
     
     public init(thresholdSensitivity: Float = 0.4,
                 smoothing: Float = range.value,
-                chroma: C7Color = .zero,
+                chroma: C7Color = .green,
                 replace: C7Color = .zero) {
         self.thresholdSensitivity = thresholdSensitivity
         self.smoothing = smoothing
