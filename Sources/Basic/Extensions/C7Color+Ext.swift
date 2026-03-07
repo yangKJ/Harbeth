@@ -19,7 +19,7 @@ extension C7Color: HarbethCompatible {
                 alpha: 1.0)
     }()
     
-    public convenience init(hex: Int, alpha: CGFloat = 1.0) {
+    public convenience init(hex: Int, alpha: CGFloat) {
         let mask = 0xFF
         let r = CGFloat((hex >> 16) & mask) / 255
         let g = CGFloat((hex >> 8) & mask) / 255
