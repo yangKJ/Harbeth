@@ -27,12 +27,11 @@ public struct C7Levels: C7FilterProtocol {
         var _maximum = Vector3(color: maximum).to_factor()
         var _minOutput = Vector3(color: minOutput).to_factor()
         var _maxOutput = Vector3(color: maxOutput).to_factor()
-        let size = Vector3.size
-        computeEncoder.setBytes(&_minimum, length: size, index: index + 1)
-        computeEncoder.setBytes(&_middle, length: size, index: index + 2)
-        computeEncoder.setBytes(&_maximum, length: size, index: index + 3)
-        computeEncoder.setBytes(&_minOutput, length: size, index: index + 4)
-        computeEncoder.setBytes(&_maxOutput, length: size, index: index + 5)
+        computeEncoder.setBytes(&_minimum, length: Vector3.size, index: index)
+        computeEncoder.setBytes(&_middle, length: Vector3.size, index: index + 1)
+        computeEncoder.setBytes(&_maximum, length: Vector3.size, index: index + 2)
+        computeEncoder.setBytes(&_minOutput, length: Vector3.size, index: index + 3)
+        computeEncoder.setBytes(&_maxOutput, length: Vector3.size, index: index + 4)
     }
     
     public init() { }

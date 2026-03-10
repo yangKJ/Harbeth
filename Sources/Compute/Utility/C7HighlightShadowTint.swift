@@ -30,9 +30,9 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var shadowsFactor = Vector3.init(color: shadowsColor).to_factor()
-        computeEncoder.setBytes(&shadowsFactor, length: Vector3.size, index: index + 1)
+        computeEncoder.setBytes(&shadowsFactor, length: Vector3.size, index: index)
         var highlightsFactor = Vector3(color: highlightsColor).to_factor()
-        computeEncoder.setBytes(&highlightsFactor, length: Vector3.size, index: index + 2)
+        computeEncoder.setBytes(&highlightsFactor, length: Vector3.size, index: index + 1)
     }
     
     public init(highlights: Float = range.value,

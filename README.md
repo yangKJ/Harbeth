@@ -197,11 +197,13 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7ColorRGBA**: Independently adjusts the red, green, blue, and alpha channels of the image, allowing for precise color control
 - **C7ColorSpace**: Performs advanced color space operations, enabling complex color manipulations and transformations
 - **C7Contrast**: Adjusts the contrast of the image, with values ranging from 0.0 (no contrast) to 2.0 (maximum contrast), where 1.0 is the original image
+- **C7Curves**: Allows precise adjustment of the image's tonal curve, providing detailed control over brightness and contrast across different tonal ranges
 - **C7Exposure**: Simulates camera exposure adjustments, with values ranging from -10.0 (underexposed) to 10.0 (overexposed), where 0.0 is the original exposure
 - **C7FalseColor**: Uses the luminance values of the original image to mix between two user-specified colors, creating artistic false color effects
 - **C7Gamma**: Applies gamma correction to the image, with values ranging from 0.0 (high contrast) to 3.0 (low contrast), where 1.0 is the original image
 - **C7Grayed**: Converts the image to grayscale, removing all color information while preserving luminance
 - **C7Haze**: Applies a haze effect to the image, reducing contrast and adding a foggy or misty appearance
+- **C7HSL**: Adjusts the hue, saturation, and lightness of the image independently, providing comprehensive color control
 - **C7Hue**: Adjusts the overall hue of the image in degrees, rotating the color wheel to shift all colors uniformly
 - **C7LuminanceAdaptiveContrast**: Dynamically adjusts contrast based on local pixel brightness, enhancing details in both dark and bright areas
 - **C7Monochrome**: Converts the image to a monochrome version, tinting it with a specific color based on the brightness of each pixel
@@ -249,6 +251,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7BlendSourceOver**: The default blending mode where the blend layer is drawn over the base layer
 - **C7BlendSubtract**: Subtracts the blend layer colors from the base layer colors, resulting in a darker image
 - **C7BlendWithMask**: Uses a separate mask texture to control the blending of two layers
+- **C7XORBlendWithMask**: XOR hybrid filter is used to achieve the effect of odd and even
 
 #### 🔍 Edge & Detail
 - **C7Canny**: Applies the Canny edge detection algorithm, a multi-stage process that identifies edges with high accuracy and low noise
@@ -393,10 +396,10 @@ Combination filters allow you to create complex effects by combining multiple in
 
 #### ⚡ Metal Performance Shaders
 - **MPSBoxBlur**: Metal Performance Shaders box blur
+- **MPSCanny**: Metal Performance Shaders Canny edge detection
 - **MPSGaussianBlur**: Metal Performance Shaders Gaussian blur
 - **MPSHistogram**: Metal Performance Shaders histogram calculation
 - **MPSMedian**: Metal Performance Shaders median filter
-- **MPSCanny**: Metal Performance Shaders Canny edge detection
 
 ---
 

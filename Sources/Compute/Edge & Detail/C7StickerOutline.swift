@@ -24,7 +24,7 @@ public struct C7StickerOutline: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = Vector4.init(color: outlineColor).to_factor()
-        computeEncoder.setBytes(&factor, length: Vector4.size, index: index + 1)
+        computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
     }
     
     public init(outlineColor: C7Color = C7Color.black, outlineThickness: Float = 0.02, outlineBlur: Float = 0.1) {

@@ -27,7 +27,7 @@ public struct C7EdgeGlow: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = Vector4.init(color: lineColor).to_factor()
-        computeEncoder.setBytes(&factor, length: Vector4.size, index: index + 1)
+        computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
     }
     
     public init(time: Float = 0.5, spacing: Float = 0.5, lineColor: C7Color = .green) {

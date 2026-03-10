@@ -3,12 +3,13 @@ using namespace metal;
 
 kernel void C7StickerOutline(texture2d<half, access::write> outputTexture [[texture(0)]],
                              texture2d<half, access::read> inputTexture [[texture(1)]],
-                             constant float *factors [[buffer(0)]],
-                             constant float *colorFactor [[buffer(1)]],
+                             constant float *outlineThickness [[buffer(0)]],
+                             constant float *outlineBlur [[buffer(1)]],
+                             constant float4 *colorVector [[buffer(2)]],
                              uint2 grid [[thread_position_in_grid]]) {
-    const float thickness = factors[0];
-    const float blur = factors[1];
-    const float4 outlineColor = float4(colorFactor[0], colorFactor[1], colorFactor[2], colorFactor[3]);
+    const float thickness = *outlineThickness;
+    const float blur = *outlineBlur;
+    const float4 outlineColor = float4(*colorVector);
     
     const uint width = inputTexture.get_width();
     const uint height = inputTexture.get_height();
@@ -27,7 +28,7 @@ kernel void C7StickerOutline(texture2d<half, access::write> outputTexture [[text
     bool isEdge = false;
     float edgeStrength = 0.0;
     
-    const int kernelSize = max(1, int(thickness * float(width))); // 确保 kernelSize 至少为 1
+    const int kernelSize = max(1, int(thickness * float(width)));
     const float colorThreshold = 0.3; // 颜色差异阈值
     
     for (int x = -kernelSize; x <= kernelSize; x++) {

@@ -27,7 +27,7 @@ public struct C7ColorMatrix4x4: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = matrix.to_factor()
-        computeEncoder.setBytes(&factor, length: Matrix4x4.size, index: index + 1)
+        computeEncoder.setBytes(&factor, length: Matrix4x4.size, index: index)
     }
     
     public init(matrix: Matrix4x4) {

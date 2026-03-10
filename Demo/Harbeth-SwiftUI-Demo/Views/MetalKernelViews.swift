@@ -30,6 +30,15 @@ struct MetalKernelViews: View {
     
     func setupContentView() -> some View {
         List {
+            NavigationLink(destination: ColorRGBAView()) {
+                Text("C7 Color RGBA Test")
+            }
+            NavigationLink(destination: CurvesView()) {
+                Text("C7 Curves Test")
+            }
+            NavigationLink(destination: HSLView()) {
+                Text("C7 HSL Test")
+            }
             NavigationLink(destination: CustomViews(value: 90, filtering: {
                 C7Rotate.init(angle: $0)
             }, min: 0, max: 360, inputImage: R.image("yuan002"))) {
@@ -83,17 +92,17 @@ struct MetalKernelViews: View {
             }, min: C7CircleBlur.range.min, max: C7CircleBlur.range.max)) {
                 Text("C7 Circle Blur")
             }
-            NavigationLink(destination: CustomViews(value: C7ChromaKey.range.value, filtering: {
-                C7ChromaKey.init(smoothing: $0, chroma: .red, replace: .purple)
-            }, min: C7ChromaKey.range.min, max: C7ChromaKey.range.max, inputImage: R.image("IMG_2606"))) {
-                Text("C7 Chroma Key red to purple")
+            NavigationLink(destination: CustomViews(value: 0.2, filtering: {
+                C7StickerOutline(outlineColor: .red, outlineThickness: 0.015, outlineBlur: $0)
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Sticker Outline Test")
             }
         }
         .padding(.bottom)
         .listStyle(.sidebar)
         .textCase(.none)
         .groupedListStyle()
-        .inlineNavigationBarTitle("Metal kernel")
+        .inlineNavigationBarTitle("Metal Filters")
     }
 }
 

@@ -26,7 +26,7 @@ public struct C7ColorVector4: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = vector.to_factor()
-        computeEncoder.setBytes(&factor, length: Vector4.size, index: index + 1)
+        computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
     }
     
     public init(vector: Vector4) {

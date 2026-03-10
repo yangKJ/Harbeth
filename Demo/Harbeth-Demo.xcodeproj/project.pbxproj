@@ -51,6 +51,9 @@
 		F7621A852A7E079200614542 /* vista200 v1.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F7621A842A7E079200614542 /* vista200 v1.CUBE */; };
 		F7621A892A7E7DA200614542 /* CubeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7621A882A7E7DA200614542 /* CubeView.swift */; };
 		F7621AA92A7FDFDF00614542 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F7621AA82A7FDFDF00614542 /* violet.CUBE */; };
+		F78A110E2F5FEA3D00FFC2B6 /* ColorRGBAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A110D2F5FEA3D00FFC2B6 /* ColorRGBAView.swift */; };
+		F78A11252F6010C300FFC2B6 /* CurvesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A11232F6010C300FFC2B6 /* CurvesView.swift */; };
+		F78A11262F6010C300FFC2B6 /* HSLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A11242F6010C300FFC2B6 /* HSLView.swift */; };
 		F7A068852F3C3C9900D7AA52 /* TestManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A068842F3C3C9900D7AA52 /* TestManager.swift */; };
 /* End PBXBuildFile section */
 
@@ -138,6 +141,9 @@
 		F7621A842A7E079200614542 /* vista200 v1.CUBE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vista200 v1.CUBE"; sourceTree = "<group>"; };
 		F7621A882A7E7DA200614542 /* CubeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CubeView.swift; sourceTree = "<group>"; };
 		F7621AA82A7FDFDF00614542 /* violet.CUBE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
+		F78A110D2F5FEA3D00FFC2B6 /* ColorRGBAView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorRGBAView.swift; sourceTree = "<group>"; };
+		F78A11232F6010C300FFC2B6 /* CurvesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurvesView.swift; sourceTree = "<group>"; };
+		F78A11242F6010C300FFC2B6 /* HSLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSLView.swift; sourceTree = "<group>"; };
 		F7A068842F3C3C9900D7AA52 /* TestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -288,9 +294,12 @@
 			isa = PBXGroup;
 			children = (
 				F75F72482A7420C8003478D7 /* BlendView.swift */,
+				F78A110D2F5FEA3D00FFC2B6 /* ColorRGBAView.swift */,
 				870B80AB2A80E40200614660 /* CoreImageViews.swift */,
 				F7621A882A7E7DA200614542 /* CubeView.swift */,
+				F78A11232F6010C300FFC2B6 /* CurvesView.swift */,
 				8769918B2A7CEBDC00551BD3 /* CustomViews.swift */,
+				F78A11242F6010C300FFC2B6 /* HSLView.swift */,
 				870B80AD2A80E51B00614660 /* MetalKernelViews.swift */,
 				8769CE212A79F4ED004AB055 /* SwiftUIView.swift */,
 			);
@@ -462,12 +471,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F78A110E2F5FEA3D00FFC2B6 /* ColorRGBAView.swift in Sources */,
 				870B80AC2A80E40200614660 /* CoreImageViews.swift in Sources */,
 				8769CE222A79F4ED004AB055 /* SwiftUIView.swift in Sources */,
 				87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */,
 				870B80AE2A80E51B00614660 /* MetalKernelViews.swift in Sources */,
 				8767F21229C95CE600FB5301 /* ContentView.swift in Sources */,
 				F7621A892A7E7DA200614542 /* CubeView.swift in Sources */,
+				F78A11252F6010C300FFC2B6 /* CurvesView.swift in Sources */,
+				F78A11262F6010C300FFC2B6 /* HSLView.swift in Sources */,
 				8767F21029C95CE600FB5301 /* HarbethExamples.swift in Sources */,
 				F75F72492A7420C8003478D7 /* BlendView.swift in Sources */,
 				F75F724D2A742272003478D7 /* Extensions.swift in Sources */,

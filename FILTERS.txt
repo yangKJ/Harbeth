@@ -7,9 +7,11 @@
 │   ├── C7ColorRGBA - 独立调整RGBA通道
 │   ├── C7ColorSpace - 高级色彩空间操作
 │   ├── C7Contrast - 调整图像对比度
+│   ├── C7Curves - 精确调整图像的色调曲线
 │   ├── C7Exposure - 调整图像曝光
 │   ├── C7FalseColor - 使用图像亮度混合两种颜色
 │   ├── C7Gamma - 调整图像伽马值
+│   ├── C7HSL - 独立调整色相、饱和度和亮度
 │   ├── C7Hue - 调整图像色调
 │   ├── C7LuminanceAdaptiveContrast - 基于亮度的自适应对比度
 │   ├── C7Monochrome - 转换为带有特定色调的单色图像
@@ -54,7 +56,8 @@
 │   ├── C7BlendSoftLight - 柔光混合模式
 │   ├── C7BlendSourceOver - 源覆盖混合模式
 │   ├── C7BlendSubtract - 减去混合模式
-│   └── C7BlendWithMask - 使用蒙版控制混合
+│   ├── C7BlendWithMask - 使用蒙版控制混合
+│   └── C7XORBlendWithMask - 使用XOR蒙版控制混合
 ├── 边缘与细节 - 需要边缘检测时查看此类
 │   ├── C7Canny - Canny边缘检测
 │   ├── C7ComicStrip - 漫画效果
@@ -156,6 +159,7 @@
 │   └── C7GenerateMipmapsBlit - 生成Mipmaps
 └── Metal Performance Shaders - 需要高性能MPS滤镜时查看此类
     ├── MPSBoxBlur - MPS盒式模糊
+    ├── MPSCanny - Canny边缘检测
     ├── MPSGaussianBlur - MPS高斯模糊
     ├── MPSHistogram - MPS直方图计算
     └── MPSMedian - MPS中值模糊

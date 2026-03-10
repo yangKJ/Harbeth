@@ -16,30 +16,26 @@ struct ContentView: View {
     func setupContentView() -> some View {
         NavigationView {
             List {
+                NavigationLink(destination: CurvesView()) {
+                    Text("Curves")
+                }
+                NavigationLink(destination: HSLView()) {
+                    Text("HSL")
+                }
                 NavigationLink(destination: CubeView()) {
                     Text("Cube")
                 }
                 NavigationLink(destination: BlendView()) {
-                    Text("Blend Modes")
-                }
-                NavigationLink(destination: CustomViews<C7CombinationBeautiful>(value: 0.0, filtering: {
-                    C7CombinationBeautiful.init(smoothDegree: $0)
-                }, min: -0.2, max: 0.2, inputImage: R.image("SampleImage"))) {
-                    Text("Combination Beauty")
-                }
-                NavigationLink(destination: CustomViews<C7Brightness>(value: 0.0, filtering: {
-                    C7Brightness.init(brightness: $0)
-                }, min: 0.0, max: 1.0, inputImage: R.image("SP"))) {
-                    Text("Brightness")
+                    Text("Blend")
                 }
                 NavigationLink(destination: CoreImageViews()) {
                     Text("CoreImage filters")
                 }
                 NavigationLink(destination: MetalKernelViews()) {
-                    Text("Metal kernel filters")
+                    Text("Metal filters")
                 }
                 NavigationLink(destination: SwiftUIView()) {
-                    Text("Use of SwiftUI")
+                    Text("Test")
                 }
                 Section {
                     NavigationLink(destination: CustomViews(value: MPSGaussianBlur.range.value, filtering: {

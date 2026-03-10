@@ -28,11 +28,11 @@ public struct C7Transform: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = matrix_float3x2(columns: (
-            simd_float2(x: Float(transform.a ), y: Float(transform.b )),
-            simd_float2(x: Float(transform.c ), y: Float(transform.d )),
+            simd_float2(x: Float(transform.a), y: Float(transform.b)),
+            simd_float2(x: Float(transform.c), y: Float(transform.d)),
             simd_float2(x: Float(transform.tx), y: Float(transform.ty))
         ))
-        computeEncoder.setBytes(&factor, length: MemoryLayout<matrix_float3x2>.size, index: index + 1)
+        computeEncoder.setBytes(&factor, length: MemoryLayout<matrix_float3x2>.size, index: index)
     }
     
     private var mode: Placement = .fit

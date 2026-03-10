@@ -38,7 +38,7 @@ public struct C7VignetteBlend: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = Vector3.init(color: color).to_factor()
-        computeEncoder.setBytes(&factor, length: Vector3.size, index: index + 1)
+        computeEncoder.setBytes(&factor, length: Vector3.size, index: index)
     }
     
     public init(start: Float = 0.3, end: Float = 0.75, color: C7Color = .zero, blendMode: BlendMode = .normal) {

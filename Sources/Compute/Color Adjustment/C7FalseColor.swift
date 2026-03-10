@@ -23,9 +23,9 @@ public struct C7FalseColor: C7FilterProtocol {
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var fristFactor = Vector3.init(color: fristColor).to_factor()
-        computeEncoder.setBytes(&fristFactor, length: Vector3.size, index: index + 1)
+        computeEncoder.setBytes(&fristFactor, length: Vector3.size, index: index)
         var secondFactor = Vector3(color: secondColor).to_factor()
-        computeEncoder.setBytes(&secondFactor, length: Vector3.size, index: index + 2)
+        computeEncoder.setBytes(&secondFactor, length: Vector3.size, index: index + 1)
     }
     
     public init(fristColor: C7Color = .zero, secondColor: C7Color = .zero) {
