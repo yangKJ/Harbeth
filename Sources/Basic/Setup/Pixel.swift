@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Pixel {
+public struct Pixel: Codable {
     /// 颜色通道
     public enum Channel: Int {
         case red = 0

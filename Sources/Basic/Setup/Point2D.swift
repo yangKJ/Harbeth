@@ -9,7 +9,7 @@ import Foundation
 
 /// 对于 2D 纹理，采用归一化之后的纹理坐标, 在 x 轴和 y 轴方向上都是从 0.0 到 1.0
 /// 2D textures, normalized texture coordinates are used, from 0.0 to 1.0 in both x and y directions
-public struct C7Point2D {
+public struct C7Point2D: Codable {
     
     public static let maximum = C7Point2D(x: 1.0, y: 1.0)
     public static let center  = C7Point2D(x: 0.5, y: 0.5)
@@ -31,6 +31,23 @@ public struct C7Point2D {
         let x_ = Float(point.x / size.width)
         let y_ = Float(point.y / size.height)
         self.init(x: x_, y: y_)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case x
+        case y
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.x = try container.decode(Float.self, forKey: .x)
+        self.y = try container.decode(Float.self, forKey: .y)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(x, forKey: .x)
+        try container.encode(y, forKey: .y)
     }
 }
 

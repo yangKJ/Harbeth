@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Degree {
+public struct Degree: Codable {
     
     public let value: Float
     
@@ -17,6 +17,17 @@ public struct Degree {
     
     public var radians: Float {
         return Float(value * Float.pi / 180.0)
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(Float.self)
+        self.value = min(360.0, max(0.0, value))
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
     }
 }
 

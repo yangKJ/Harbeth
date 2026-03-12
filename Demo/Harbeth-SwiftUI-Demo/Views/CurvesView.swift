@@ -13,9 +13,6 @@ struct CurvesView: View {
     @State private var selectedChannel: Channel = .rgb
     @State private var controlPoints: [C7Point2D] = [
         C7Point2D(x: 0.0, y: 0.0),
-        C7Point2D(x: 0.4, y: 0.1),
-        C7Point2D(x: 0.6, y: 0.6),
-        C7Point2D(x: 0.8, y: 0.8),
         C7Point2D(x: 1.0, y: 1.0)
     ]
     

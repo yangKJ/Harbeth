@@ -123,3 +123,6 @@ extension RGBA: CustomStringConvertible, CustomDebugStringConvertible {
         }
     }
 }
+
+extension RGBA: Codable where Channel: Codable { }
+
