@@ -27,6 +27,16 @@ public struct Vector3: Matrix {
         self.init(values: [red, green, blue])
     }
     
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.values = try container.decode([Float].self)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(values)
+    }
+    
     public func to_factor() -> vector_float3 {
         vector_float3.init(values[0], values[1], values[2])
     }

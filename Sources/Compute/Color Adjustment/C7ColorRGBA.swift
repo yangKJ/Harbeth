@@ -32,4 +32,10 @@ public struct C7ColorRGBA: C7FilterProtocol {
     public init(color: C7Color = .white) {
         self.color = color
     }
+    
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
+    }
 }

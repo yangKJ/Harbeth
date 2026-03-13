@@ -369,15 +369,6 @@ extension ViewControllerType {
             filter.fristColor = UIColor.black
             filter.secondColor = UIColor.systemPink
             return (filter, nil, nil)
-        case .Split:
-            var filter = C7LookupSplit(R.image("lut_abao")!, lookupImage2: R.image("ll")!)
-            filter.progress = 0.5
-            filter.intensity = 0
-            return (filter, (0.5, 0, 1), {
-                filter.progress = $0
-                filter.intensity = $0 * 2 - 2
-                return filter
-            })
         case .Sobel:
             var filter = C7Sobel()
             return (filter, (1, 0, 5), {
@@ -431,10 +422,9 @@ extension ViewControllerType {
             let filter = C7SplitScreen()
             return (filter, nil, nil)
         case .Sharpen3x3:
-            var filter = C7ConvolutionMatrix3x3(convolutionType: .sharpen(iterations: 1))
+            let filter = C7ConvolutionMatrix3x3(convolutionType: .sharpen(iterations: 1))
             return (filter, (1, 0, 7), {
-                filter.updateConvolutionType(.sharpen(iterations: $0))
-                return filter
+                return filter.updateConvolutionType(.sharpen(iterations: $0))
             })
         case .Granularity:
             var filter = C7Granularity()
@@ -730,10 +720,9 @@ extension ViewControllerType {
             let filter = C7Mirror()
             return (filter, nil, nil)
         case .ColorCube:
-            var filter = C7ColorCube(cubeName: "violet")
+            let filter = C7ColorCube(cubeName: "violet")
             return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
-                filter.intensity = $0
-                return filter
+                return filter.updateIntensity(CGFloat($0))
             })
         case .ColorMatrix4x5:
             let identityMatrix = Matrix4x5(values: [
@@ -748,10 +737,10 @@ extension ViewControllerType {
                 return filter
             })
         case .ColorVector4:
-            var filter = C7ColorVector4(vector: Vector4.Color.warm)
+            let filter = C7ColorVector4(vector: Vector4.Color.warm)
             return (filter, nil, nil)
         case .ColorCGASpace:
-            var filter = C7ColorCGASpace()
+            let filter = C7ColorCGASpace()
             return (filter, nil, nil)
         case .Fluctuate:
             var filter = C7Fluctuate()
@@ -819,11 +808,162 @@ extension ViewControllerType {
                 return filter
             })
         case .ColorGradient:
-            var filter = C7ColorGradient(with: .radial)
+            let filter = C7ColorGradient(with: .radial)
             return (filter, nil, nil)
         case .SolidColor:
-            var filter = C7SolidColor(color: .red)
+            let filter = C7SolidColor(color: .red)
             return (filter, nil, nil)
+        case .CombinationColorGrading:
+            let filter = C7CombinationColorGrading()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationCreativeAtmosphere:
+            let filter = C7CombinationCreativeAtmosphere()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationFilmSimulation:
+            let filter = C7CombinationFilmSimulation()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationHDRBoost:
+            let filter = C7CombinationHDRBoost()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationPortraitEnhancement:
+            let filter = C7CombinationPortraitEnhancement()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .Temperature:
+            var filter = C7Temperature()
+            return (filter, (0.0, -1.0, 1.0), {
+                filter.temperature = $0
+                filter.tint = $0
+                filter.colorShift = $0
+                return filter
+            })
+        case .HSL:
+            var filter = C7HSL()
+            return (filter, (0.5, 0, 1), {
+                filter.hue = $0
+                filter.saturation = $0
+                filter.lightness = $0
+                return filter
+            })
+        case .Curves:
+            let filter = C7Curves()
+            return (filter, nil, nil)
+        case .ColorBalanceEnhanced:
+            var filter = C7ColorBalanceEnhanced()
+            return (filter, (0.5, 0, 1), {
+                filter.strength = $0
+                return filter
+            })
+        case .LocalBlur:
+            var filter = C7LocalBlur()
+            return (filter, (5, 1, 20), {
+                filter.radius = $0
+                return filter
+            })
+        case .Sharpen:
+            var filter = C7Sharpen(sharpness: 1)
+            return (filter, (1, -4, 4), {
+                filter.sharpeness = $0
+                return filter
+            })
+        case .SharpenEnhanced:
+            var filter = C7SharpenEnhanced()
+            return (filter, (0.5, 0, 5), {
+                filter.intensity = $0
+                return filter
+            })
+        case .StickerOutline:
+            var filter = C7StickerOutline(outlineColor: .red, outlineThickness: 0.015, outlineBlur: 0.2)
+            return (filter, (0.2, 0, 1), {
+                filter.outlineBlur = $0
+                return filter
+            })
+        case .Morphology:
+            var filter = C7Morphology(operation: .dilation)
+            return (filter, (3, 1, 10), {
+                filter.kernelSize = $0
+                return filter
+            })
+        case .ColorPacking:
+            let filter = C7ColorPacking()
+            return (filter, nil, nil)
+        case .ColorBurnEnhancedBlend:
+            var filter = C7ColorBurnEnhancedBlend(with: overTexture)
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .BlendChromaKey:
+            var filter = C7BlendChromaKey()
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .LookupTable:
+            var filter = C7LookupTable(name: "lut")
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .OilPaintingEnhanced:
+            var filter = C7OilPaintingEnhanced()
+            return (filter, (0.5, 0, 1), {
+                filter.intensity = $0
+                return filter
+            })
+        case .RGBADilation:
+            let filter = C7RGBADilation()
+            return (filter, nil, nil)
+        case .LuminanceThreshold:
+            var filter = C7LuminanceThreshold()
+            return (filter, (0.5, 0, 1), {
+                filter.threshold = $0
+                return filter
+            })
+        case .LuminanceRangeReduction:
+            let filter = C7LuminanceRangeReduction()
+            return (filter, (0.5, 0, 1), nil)
+        case .DepthLuminance:
+            let filter = C7DepthLuminance()
+            return (filter, (0.5, 0, 1), nil)
+        case .Fade:
+            var filter = C7Fade()
+            return (filter, (C7Fade.range.value, C7Fade.range.min, C7Fade.range.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .TiltShift:
+            var filter = C7TiltShift()
+            return (filter, (C7TiltShift.range.value, C7TiltShift.range.min, C7TiltShift.range.max), {
+                filter.blurRadius = $0
+                return filter
+            })
+        case .Warmth:
+            var filter = C7Warmth()
+            return (filter, (C7Warmth.range.value, C7Warmth.range.min, C7Warmth.range.max), {
+                filter.warmth = $0
+                return filter
+            })
+        case .Clarity:
+            var filter = C7Clarity()
+            return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
         }
     }
 }

@@ -31,7 +31,20 @@ public struct C7ColorMatrix4x5: C7FilterProtocol {
         computeEncoder.setBytes(&factor2, length: Vector4.size, index: index + 1)
     }
     
-    public init(matrix: Matrix4x5) {
+    public init(matrix: Matrix4x5, intensity: Float = 1.0) {
         self.matrix = matrix
+        self.intensity = intensity
+    }
+    
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
+    }
+    
+    public func updateMatrix4x5(_ matrix: Matrix4x5) -> Self {
+        var copy = self
+        copy.matrix = matrix
+        return copy
     }
 }

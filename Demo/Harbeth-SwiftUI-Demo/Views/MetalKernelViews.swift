@@ -51,12 +51,12 @@ struct MetalKernelViews: View {
             }
             NavigationLink(destination: CustomViews(value: C7Pixellated.range.value, filtering: {
                 C7Pixellated.init(scale: $0)
-            }, min: C7Pixellated.range.min, max: C7Pixellated.range.max)) {
+            }, min: C7Pixellated.range.min, max: C7Pixellated.range.max, inputImage: R.image("yuan002"))) {
                 Text("C7 Pixellated")
             }
             NavigationLink(destination: CustomViews(value: C7PolarPixellate.range.value, filtering: {
                 C7PolarPixellate.init(scale: $0)
-            }, min: C7PolarPixellate.range.min, max: C7PolarPixellate.range.max)) {
+            }, min: C7PolarPixellate.range.min, max: C7PolarPixellate.range.max, inputImage: R.image("yuan002"))) {
                 Text("C7 Polar Pixellate")
             }
             NavigationLink(destination: CustomViews<C7ColorConvert>(value: R.iRange.value, filtering: {
@@ -89,13 +89,32 @@ struct MetalKernelViews: View {
             }
             NavigationLink(destination: CustomViews(value: C7CircleBlur.range.value, filtering: {
                 C7CircleBlur.init(radius: $0)
-            }, min: C7CircleBlur.range.min, max: C7CircleBlur.range.max)) {
+            }, min: C7CircleBlur.range.min, max: C7CircleBlur.range.max, inputImage: R.image("yuan002"))) {
                 Text("C7 Circle Blur")
             }
             NavigationLink(destination: CustomViews(value: 0.2, filtering: {
                 C7StickerOutline(outlineColor: .red, outlineThickness: 0.015, outlineBlur: $0)
             }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
                 Text("C7 Sticker Outline Test")
+            }
+            NavigationLink(destination: CustomViews(value: C7Temperature.range.value, filtering: {
+                var filter = C7Temperature()
+                filter.temperature = $0
+                filter.tint = $0
+                filter.colorShift = $0
+                return filter
+            }, min: C7Temperature.range.min, max: C7Temperature.range.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Temperature Test")
+            }
+            NavigationLink(destination: CustomViews(value: C7Fade.range.value, filtering: {
+                C7Fade.init(intensity: $0)
+            }, min: C7Fade.range.min, max: C7Fade.range.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Fade Test")
+            }
+            NavigationLink(destination: CustomViews(value: C7Warmth.range.value, filtering: {
+                C7Warmth.init(warmth: $0)
+            }, min: C7Warmth.range.min, max: C7Warmth.range.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Warmth Test")
             }
         }
         .padding(.bottom)

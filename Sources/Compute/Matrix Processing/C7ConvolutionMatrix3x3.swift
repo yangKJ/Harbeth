@@ -44,20 +44,31 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
         computeEncoder.setBytes(&factor, length: Matrix3x3.size, index: index)
     }
     
-    public init(matrix: Matrix3x3) {
+    public init(matrix: Matrix3x3, intensity: Float = 1.0) {
         self.matrix = matrix
+        self.intensity = intensity
     }
     
-    public init(convolutionType: ConvolutionType) {
-        self.init(matrix: convolutionType.matrix)
+    public init(convolutionType: C7ConvolutionMatrix3x3.ConvolutionType, intensity: Float = 1.0) {
+        self.init(matrix: convolutionType.matrix, intensity: intensity)
     }
     
-    public mutating func updateConvolutionType(_ convolutionType: ConvolutionType) {
-        self.matrix = convolutionType.matrix
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
     }
     
-    public mutating func updateMatrix3x3(_ matrix: Matrix3x3) {
-        self.matrix = matrix
+    public func updateConvolutionType(_ convolutionType: C7ConvolutionMatrix3x3.ConvolutionType) -> Self {
+        var copy = self
+        copy.matrix = convolutionType.matrix
+        return copy
+    }
+    
+    public func updateMatrix3x3(_ matrix: Matrix3x3) -> Self {
+        var copy = self
+        copy.matrix = matrix
+        return copy
     }
 }
 

@@ -27,17 +27,35 @@ public struct C7LookupTable: C7FilterProtocol {
         return lookupTexture == nil ? [] : [lookupTexture!]
     }
     
-    private let lookupTexture: MTLTexture?
+    private var lookupTexture: MTLTexture?
     
-    public init(image: C7Image?) {
-        self.lookupTexture = image?.cgImage?.c7.toTexture()
+    public init(lookupImage: C7Image?, intensity: Float = 1.0) {
+        self.lookupTexture = lookupImage?.cgImage?.c7.toTexture()
+        self.intensity = intensity
     }
     
-    public init(name: String) {
-        self.init(image: R.image(name))
+    public init(image: C7Image?, intensity: Float = 1.0) {
+        self.init(lookupImage: image, intensity: intensity)
     }
     
-    public init(lookupTexture: MTLTexture) {
+    public init(name: String, intensity: Float = 1.0) {
+        self.init(lookupImage: R.image(name), intensity: intensity)
+    }
+    
+    public init(lookupTexture: MTLTexture, intensity: Float = 1.0) {
         self.lookupTexture = lookupTexture
+        self.intensity = intensity
+    }
+    
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
+    }
+    
+    public func updateLookupImage(_ image: C7Image?) -> Self {
+        var copy = self
+        copy.lookupTexture = image?.cgImage?.c7.toTexture()
+        return copy
     }
 }

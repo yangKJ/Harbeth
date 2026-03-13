@@ -20,7 +20,9 @@
 │   ├── C7Posterize - 减少图像颜色数量，创建风格化效果
 │   ├── C7Saturation - 调整图像饱和度
 │   ├── C7Sepia - 应用棕褐色调效果
+│   ├── C7Temperature - 调整图像的色温、色调和色彩偏移
 │   ├── C7Vibrance - 调整图像自然饱和度
+│   ├── C7Warmth - 调整图像的色温，从冷色调到暖色调
 │   └── C7WhiteBalance - 基于色温调整白平衡
 ├── 模糊效果 - 需要模糊效果时查看此类
 │   ├── C7BilateralBlur - 应用双边模糊，保留边缘
@@ -30,6 +32,7 @@
 │   ├── C7MeanBlur - 应用均值模糊效果
 │   ├── C7MotionBlur - 应用指定方向的运动模糊
 │   ├── C7RedMonochromeBlur - 应用红色单色模糊效果
+│   ├── C7TiltShift - 应用移轴模糊效果，创建选择性聚焦区域
 │   └── C7ZoomBlur - 应用缩放模糊效果
 ├── 混合模式 - 需要混合图层时查看此类
 │   ├── C7Blend - 混合模式基类
@@ -57,9 +60,11 @@
 │   ├── C7BlendSourceOver - 源覆盖混合模式
 │   ├── C7BlendSubtract - 减去混合模式
 │   ├── C7BlendWithMask - 使用蒙版控制混合
+│   ├── C7ColorBurnEnhancedBlend - 增强版颜色加深混合模式
 │   └── C7XORBlendWithMask - 使用XOR蒙版控制混合
 ├── 边缘与细节 - 需要边缘检测时查看此类
 │   ├── C7Canny - Canny边缘检测
+│   ├── C7Clarity - 增强图像清晰度，通过增加中间调对比度
 │   ├── C7ComicStrip - 漫画效果
 │   ├── C7Crosshatch - 交叉线效果
 │   ├── C7DetailEnhancer - 增强图像细节
@@ -140,14 +145,20 @@
 │   └── C7SolidColor - 生成纯色
 ├── 查找表 - 需要查找表时查看此类
 │   ├── C7ColorCube - 应用3D LUT颜色立方体
-│   ├── C7LookupSplit - 分屏查找表效果
-│   └── C7LookupTable - 应用颜色查找表
+│   ├── C7LookupTable - 应用颜色查找表
+│   └── C7LookupTable512x512 - 512x512颜色查找表滤镜
 ├── 组合效果 - 需要组合效果时查看此类
 │   ├── C7CombinationBeautiful - 美颜组合效果
 │   ├── C7CombinationCinematic - 电影级色调效果
+│   ├── C7CombinationColorGrading - 专业色彩分级效果
+│   ├── C7CombinationCreativeAtmosphere - 创意氛围效果
+│   ├── C7CombinationFilmSimulation - 现代胶片模拟效果
+│   ├── C7CombinationHDRBoost - HDR增强效果
 │   ├── C7CombinationModernHDR - 现代HDR效果
+│   ├── C7CombinationPortraitEnhancement - 智能人像增强效果
 │   └── C7CombinationVintage - 复古胶片效果
 ├── 其他效果 - 其他未分类效果
+│   ├── C7Fade - 应用淡入淡出效果，使图像逐渐过渡到白色
 │   ├── C7Grayed - 灰度化图像
 │   ├── C7Haze - 雾霾效果
 │   ├── C7Pow - 幂次调整效果

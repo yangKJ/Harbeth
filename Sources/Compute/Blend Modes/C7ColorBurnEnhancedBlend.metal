@@ -1,5 +1,5 @@
 //
-//  C7BlendColorBurnEnhanced.metal
+//  C7ColorBurnEnhancedBlend.metal
 //  Harbeth
 //
 //  Created by Condy on 2026/3/7.
@@ -8,7 +8,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7BlendColorBurnEnhanced(texture2d<half, access::write> outputTexture [[texture(0)]],
+kernel void C7ColorBurnEnhancedBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
                                      texture2d<half, access::read> inputTexture [[texture(1)]],
                                      texture2d<half, access::read> blendTexture [[texture(2)]],
                                      constant float *intensity [[buffer(0)]],

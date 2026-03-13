@@ -9,13 +9,14 @@
 using namespace metal;
 
 // Helper function to calculate 2D texture coordinates from 3D LUT coordinates
-uint2 calculateTextureCoord(int3 coord, int dimension, int textureWidth) {
+uint2 cubeCalculateTextureCoord(int3 coord, int dimension, int textureWidth) {
     // Ensure coordinates are within bounds
     coord = clamp(coord, int3(0), int3(dimension - 1));
     
-    // Layout: each row is a G slice, each column is R + B * dimension
-    int x = coord.x + coord.z * dimension;
-    int y = coord.y;
+    // Try different LUT layout to match CoreImage
+    // Layout: each row is a B slice, each column is R + G * dimension
+    int x = coord.x + coord.y * dimension;
+    int y = coord.z;
     
     // Ensure coordinates are within texture bounds
     x = min(x, textureWidth - 1);
@@ -62,14 +63,14 @@ kernel void C7ColorCube(texture2d<half, access::write> outputTexture [[texture(0
     const int3 coord111 = intCoord + int3(1, 1, 1);
     
     // Read all eight corner colors
-    const float4 c000 = lutTexture.read(calculateTextureCoord(coord000, lutDimension, textureWidth));
-    const float4 c100 = lutTexture.read(calculateTextureCoord(coord100, lutDimension, textureWidth));
-    const float4 c010 = lutTexture.read(calculateTextureCoord(coord010, lutDimension, textureWidth));
-    const float4 c110 = lutTexture.read(calculateTextureCoord(coord110, lutDimension, textureWidth));
-    const float4 c001 = lutTexture.read(calculateTextureCoord(coord001, lutDimension, textureWidth));
-    const float4 c101 = lutTexture.read(calculateTextureCoord(coord101, lutDimension, textureWidth));
-    const float4 c011 = lutTexture.read(calculateTextureCoord(coord011, lutDimension, textureWidth));
-    const float4 c111 = lutTexture.read(calculateTextureCoord(coord111, lutDimension, textureWidth));
+    const float4 c000 = lutTexture.read(cubeCalculateTextureCoord(coord000, lutDimension, textureWidth));
+    const float4 c100 = lutTexture.read(cubeCalculateTextureCoord(coord100, lutDimension, textureWidth));
+    const float4 c010 = lutTexture.read(cubeCalculateTextureCoord(coord010, lutDimension, textureWidth));
+    const float4 c110 = lutTexture.read(cubeCalculateTextureCoord(coord110, lutDimension, textureWidth));
+    const float4 c001 = lutTexture.read(cubeCalculateTextureCoord(coord001, lutDimension, textureWidth));
+    const float4 c101 = lutTexture.read(cubeCalculateTextureCoord(coord101, lutDimension, textureWidth));
+    const float4 c011 = lutTexture.read(cubeCalculateTextureCoord(coord011, lutDimension, textureWidth));
+    const float4 c111 = lutTexture.read(cubeCalculateTextureCoord(coord111, lutDimension, textureWidth));
     
     // Trilinear interpolation
     // Interpolate along R axis

@@ -26,6 +26,10 @@ enum ViewControllerType: String {
     case ColorSpace = "色彩空间"
     case LuminanceAdaptiveContrast = "亮度自适应对比度"
     case Nostalgic = "怀旧效果"
+    case Temperature = "色温调整"
+    case HSL = "HSL调整"
+    case Curves = "曲线调整"
+    case ColorBalanceEnhanced = "增强色彩平衡"
     
     // 颜色转换
     case ColorInvert = "颜色反转"
@@ -46,6 +50,7 @@ enum ViewControllerType: String {
     case CircleBlur = "圆形模糊"
     case DetailPreservingBlur = "细节保留模糊"
     case MonochromeDilation = "黑白模糊"
+    case LocalBlur = "局部模糊"
     
     // 边缘和细节
     case Crosshatch = "绘制阴影线"
@@ -57,6 +62,10 @@ enum ViewControllerType: String {
     case DetailEnhancer = "细节增强"
     case EdgeAwareSharpen = "边缘感知锐化"
     case ThresholdSketch = "阈值素描"
+    case EdgeGlow = "边缘发光特效"
+    case Sharpen = "锐化"
+    case SharpenEnhanced = "增强锐化"
+    case StickerOutline = "贴纸轮廓"
     
     // 扭曲和变形
     case Bulge = "大胸效果"
@@ -69,6 +78,8 @@ enum ViewControllerType: String {
     case Halftone = "半色调"
     case PolarPixellate = "极坐标像素化"
     case SphereRefraction = "球体折射"
+    case Morphology = "形态学处理"
+    case ColorPacking = "颜色打包"
     
     // 几何变换
     case Crop = "图形延展补齐"
@@ -100,7 +111,7 @@ enum ViewControllerType: String {
     case LighterColorBlend = "更亮颜色融合"
     case LinearBurnBlend = "线性加深融合"
     case LinearLightBlend = "线性光融合"
-    case MaskBlend = "蒙版融合"
+    case MaskBlend = "蒙版融合模式"
     case MultiplyBlend = "正片叠底融合"
     case OverlayBlend = "叠加融合"
     case PinLightBlend = "点光融合"
@@ -111,12 +122,14 @@ enum ViewControllerType: String {
     case VividLightBlend = "艳光融合"
     case ChromaKey = "类似绿幕抠图"
     case ReplaceColor = "扣掉红色替换背景"
+    case ColorBurnEnhancedBlend = "增强颜色加深融合"
+    case BlendChromaKey = "色度键融合"
     
     // 查找表
     case abao = "阿宝色滤镜"
-    case Split = "分割滤镜"
     case ColorLookup512x512 = "512颜色查找表"
     case ColorCube = "颜色立方体"
+    case LookupTable = "查找表"
     
     // 矩阵处理
     case Convolution3x3 = "3x3卷积运算"
@@ -124,7 +137,6 @@ enum ViewControllerType: String {
     case ColorMatrix4x4 = "4x4颜色矩阵"
     case ColorMatrix4x5 = "4x5颜色矩阵"
     case ColorVector4 = "颜色向量4"
-    case EdgeGlow = "边缘发光特效"
     
     // 风格化
     case SoulOut = "灵魂出窍"
@@ -138,6 +150,8 @@ enum ViewControllerType: String {
     case Glitch = "故障效果"
     case Kuwahara = "桑原效果"
     case Toon = "卡通效果"
+    case OilPaintingEnhanced = "增强油画效果"
+    case RGBADilation = "RGBA膨胀"
     
     // 其他效果
     case Vignette = "渐进效果"
@@ -154,6 +168,13 @@ enum ViewControllerType: String {
     case HighlightShadowTint = "高光阴影色调"
     case Highlights = "高光"
     case Shadows = "阴影"
+    case LuminanceThreshold = "亮度阈值"
+    case LuminanceRangeReduction = "亮度范围减少"
+    case DepthLuminance = "深度亮度"
+    case Fade = "淡入淡出效果"
+    case TiltShift = "移轴效果"
+    case Warmth = "色温"
+    case Clarity = "清晰度"
     
     // 生成器
     case ColorGradient = "颜色渐变"
@@ -162,7 +183,12 @@ enum ViewControllerType: String {
     // 组合效果
     case CombinationBeautiful = "美颜组合"
     case CombinationCinematic = "电影级色调"
+    case CombinationColorGrading = "专业色彩分级"
+    case CombinationCreativeAtmosphere = "创意氛围"
+    case CombinationFilmSimulation = "现代胶片模拟"
+    case CombinationHDRBoost = "HDR增强"
     case CombinationModernHDR = "现代HDR"
+    case CombinationPortraitEnhancement = "智能人像增强"
     case CombinationVintage = "复古胶片"
     
     // Blit操作

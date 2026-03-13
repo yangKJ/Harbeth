@@ -58,21 +58,36 @@ public struct C7Blend: C7FilterProtocol {
         return blendTexture == nil ? [] : [blendTexture!]
     }
     
-    private let blendTexture: MTLTexture?
-    private var blendType: BlendType
+    private var blendTexture: MTLTexture?
+    private var blendType: C7Blend.BlendType
     
-    public init(with type: BlendType, image: C7Image) {
+    public init(with type: C7Blend.BlendType, image: C7Image, intensity: Float = 1.0) {
         let overTexture = image.cgImage?.c7.toTexture()
-        self.init(with: type, blendTexture: overTexture)
+        self.init(with: type, blendTexture: overTexture, intensity: intensity)
     }
     
-    public init(with type: BlendType, blendTexture: MTLTexture?) {
+    public init(with type: C7Blend.BlendType, blendTexture: MTLTexture?, intensity: Float = 1.0) {
         self.blendType = type
         self.blendTexture = blendTexture
+        self.intensity = intensity
     }
     
-    public mutating func updateBlend(_ type: BlendType) {
-        self.blendType = type
+    public func updateBlend(_ type: C7Blend.BlendType) -> Self {
+        var copy = self
+        copy.blendType = type
+        return copy
+    }
+    
+    public func updateBlendImage(_ image: C7Image) -> Self {
+        var copy = self
+        copy.blendTexture = image.cgImage?.c7.toTexture()
+        return copy
+    }
+    
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
     }
 }
 

@@ -87,27 +87,27 @@ struct HomeViewModel {
     
     // 艺术风格滤镜
     let artStyle: [ViewControllerType] = [
-        .ComicStrip, .OilPainting, .Sketch, .Crosshatch
+        .ComicStrip, .OilPainting, .OilPaintingEnhanced, .Sketch, .Crosshatch, .Toon, .Kuwahara
     ]
     
     // 边缘与细节
     let edgeDetail: [ViewControllerType] = [
         .Sharpen3x3, .Sobel, .Canny, .Luminance,
-        .DetailEnhancer, .EdgeAwareSharpen, .ThresholdSketch
+        .DetailEnhancer, .EdgeAwareSharpen, .ThresholdSketch, .EdgeGlow, .Sharpen, .SharpenEnhanced, .StickerOutline
     ]
     
     // 风格化效果
     let stylization: [ViewControllerType] = [
         .ShiftGlitch, .SoulOut, .EdgeGlow, .VoronoiOverlay, .Storyboard,
         .WaterRipple, .Swirl, .SplitScreen, .ColorCGASpace,
-        .Fluctuate, .Glitch, .Kuwahara, .Toon
+        .Fluctuate, .Glitch, .Kuwahara, .Toon, .OilPainting, .OilPaintingEnhanced, .RGBADilation
     ]
     
     // 实用工具
     let utility: [ViewControllerType] = [
         .Opacity, .Levels, .HighlightShadow, .WhiteBalance, .Vibrance,
-        .Granularity, .FalseColor, .ColorInvert, .Grayed, .Haze, .Pow,
-        .HighlightShadowTint, .Highlights, .Shadows
+        .Granularity, .FalseColor, .ColorInvert, .Grayed, .Haze, .Pow, .Fade,
+        .HighlightShadowTint, .Highlights, .Shadows, .LuminanceThreshold, .LuminanceRangeReduction, .DepthLuminance
     ]
     
     let visual: [ViewControllerType] = [
@@ -118,11 +118,13 @@ struct HomeViewModel {
     
     let effect: [ViewControllerType] = [
         .CombinationCinematic, .CombinationModernHDR, .CombinationVintage,
+        .CombinationColorGrading, .CombinationCreativeAtmosphere, .CombinationFilmSimulation,
+        .CombinationHDRBoost, .CombinationPortraitEnhancement,
         .TextHEIC, .ZoomBlur, .Vignette,
         .VignetteNormal, .VignetteMultiply, .VignetteOverlay,
         .VignetteSoftLight, .WaterRipple,
         .Pixellated, .Crosshatch, .GlassSphere,
-        .Bulge, .Pinch, .PolkaDot, .Halftone, .PolarPixellate, .SphereRefraction,
+        .Bulge, .Pinch, .PolkaDot, .Halftone, .PolarPixellate, .SphereRefraction, .Morphology, .ColorPacking,
         .Posterize, .Swirl, .SplitScreen, .Storyboard,
         .Monochrome, .ReplaceColor, .ChromaKey,
         .VoronoiOverlay, .Canny, .CombinationBeautiful,
@@ -133,7 +135,8 @@ struct HomeViewModel {
         .Opacity, .Exposure, .Luminance,
         .Hue, .Contrast, .HighlightShadow,
         .Saturation, .WhiteBalance, .Vibrance,
-        .Granularity, .Levels, .Sobel,
+        .Temperature, .HSL, .Curves, .ColorBalanceEnhanced,
+        .Warmth, .Clarity, .Granularity, .Levels, .Sobel,
         .ChannelRGBA, .FalseColor, .ColorInvert,
         .Grayed, .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
@@ -151,7 +154,7 @@ struct HomeViewModel {
         .MonochromeDilation, .MotionBlur, .MeanBlur,
         .GaussianBlur, .BilateralBlur, .MPSGaussian,
         .CircleBlur, .DetailPreservingBlur, .ZoomBlur,
-        .SurfaceBlur
+        .SurfaceBlur, .LocalBlur, .TiltShift
     ]
     
     let blend: [ViewControllerType] = [
@@ -165,15 +168,16 @@ struct HomeViewModel {
         .MaskBlend, .MultiplyBlend, .OverlayBlend,
         .PinLightBlend, .ScreenBlend, .SoftLightBlend,
         .SourceOverBlend, .SubtractBlend, .VividLightBlend,
+        .ColorBurnEnhancedBlend, .BlendChromaKey
     ]
     
     let lookup: [ViewControllerType] = [
-        .abao, .Split, .ColorCube, .ColorLookup512x512,
+        .abao, .ColorCube, .ColorLookup512x512, .LookupTable
     ]
     
     let matrix: [ViewControllerType] = [
         .ColorMatrix4x4, .ColorMatrix4x5, .ColorVector4, .Convolution3x3, .Sharpen3x3,
-        .Sepia, .EdgeGlow
+        .Sepia
     ]
     
     let coreImage: [ViewControllerType] = [

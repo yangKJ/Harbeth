@@ -36,8 +36,8 @@ public struct C7ColorCube: C7FilterProtocol {
         return lutTexture == nil ? [] : [lutTexture!]
     }
     
-    private let lutTexture: MTLTexture?
-    private let dimension: Int
+    private var lutTexture: MTLTexture?
+    private var dimension: Int
     
     public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0) {
         let resource = C7ColorCube.Resource.readCubeResource(cubeName, bundle: bundle)
@@ -63,6 +63,24 @@ public struct C7ColorCube: C7FilterProtocol {
             self.dimension = 0
             self.lutTexture = nil
         }
+    }
+    
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
+    }
+    
+    public func updateCubeResource(_ cubeResource: C7ColorCube.Resource?) -> Self {
+        var copy = self
+        if let resource = cubeResource {
+            copy.dimension = resource.dimension
+            copy.lutTexture = C7ColorCube.Resource.createLUTTexture(from: resource)
+        } else {
+            copy.dimension = 0
+            copy.lutTexture = nil
+        }
+        return copy
     }
 }
 

@@ -105,9 +105,9 @@ kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]]
     
     // 应用调整
     half4 outColor;
-    outColor.r = half(redAdjustment);
-    outColor.g = half(greenAdjustment);
-    outColor.b = half(blueAdjustment);
+    outColor.r = half(redAdjustment * rgbAdjustment);
+    outColor.g = half(greenAdjustment * rgbAdjustment);
+    outColor.b = half(blueAdjustment * rgbAdjustment);
     outColor.a = inColor.a;
     
     outputTexture.write(outColor, grid);

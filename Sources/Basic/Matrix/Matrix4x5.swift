@@ -29,4 +29,23 @@ public struct Matrix4x5 {
         self.matrix4x4 = Matrix4x4(values: matrix)
         self.vector4 = Vector4(values: vector)
     }
+    
+    private enum CodingKeys: String, CodingKey {
+        case matrix4x4
+        case vector4
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let matrix4x4Values = try container.decode([Float].self, forKey: .matrix4x4)
+        let vector4Values = try container.decode([Float].self, forKey: .vector4)
+        self.matrix4x4 = Matrix4x4(values: matrix4x4Values)
+        self.vector4 = Vector4(values: vector4Values)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(matrix4x4.values, forKey: .matrix4x4)
+        try container.encode(vector4.values, forKey: .vector4)
+    }
 }

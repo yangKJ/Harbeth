@@ -21,12 +21,15 @@ public struct C7XORBlendWithMask: C7FilterProtocol {
     private let foregroundTexture: MTLTexture
     private let maskTexture: MTLTexture
     
-    public init(foregroundTexture: MTLTexture, maskTexture: MTLTexture) {
+    public init(foregroundTexture: MTLTexture, maskTexture: MTLTexture, intensity: Float = 1.0) {
         self.foregroundTexture = foregroundTexture
         self.maskTexture = maskTexture
+        self.intensity = intensity
     }
     
-    public mutating func updateIntensity(_ value: Float) {
-        self.intensity = value
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
     }
 }

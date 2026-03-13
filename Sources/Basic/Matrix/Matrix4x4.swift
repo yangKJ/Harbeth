@@ -36,6 +36,16 @@ public struct Matrix4x4: Matrix {
         self.init(transform3D: CATransform3DMakeAffineTransform(transform))
     }
     
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.values = try container.decode([Float].self)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(values)
+    }
+    
     public func to_factor() -> matrix_float4x4 {
         return matrix_float4x4(rows: [
             SIMD4<Float>(values[0], values[4], values[8],  values[12]),

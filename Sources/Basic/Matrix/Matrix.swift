@@ -8,7 +8,7 @@
 import Foundation
 import QuartzCore
 
-public protocol Matrix {
+public protocol Matrix: Codable {
     associatedtype MatrixType
     
     static var size: Int { get }

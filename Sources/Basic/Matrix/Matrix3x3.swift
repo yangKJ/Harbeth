@@ -21,6 +21,16 @@ public struct Matrix3x3: Matrix {
         self.values = values
     }
     
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.values = try container.decode([Float].self)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(values)
+    }
+    
     public func to_factor() -> matrix_float3x3 {
         return matrix_float3x3([
             SIMD3<Float>(values[0], values[1], values[2]),

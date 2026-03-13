@@ -188,7 +188,12 @@ Combination filters allow you to create complex effects by combining multiple in
 **Examples of Combination Filters:**
 - **C7CombinationBeautiful**: Enhances facial features and skin tone for beauty effects
 - **C7CombinationCinematic**: Creates a cinematic look with enhanced contrast and color grading
+- **C7CombinationColorGrading**: Professional color grading with temperature, tint, and tone adjustments
+- **C7CombinationCreativeAtmosphere**: Adds creative atmosphere effects like warm glow, cool blue, golden hour, and moody
+- **C7CombinationFilmSimulation**: Simulates modern film effects with grain and color characteristics
+- **C7CombinationHDRBoost**: Enhances dynamic range with improved highlight and shadow details
 - **C7CombinationModernHDR**: Achieves modern HDR effects with improved dynamic range
+- **C7CombinationPortraitEnhancement**: Smart portrait enhancement with skin smoothing and eye enhancement
 - **C7CombinationVintage**: Applies vintage film effects with warm tones and grain
 
 #### 🎨 Color Adjustment
@@ -213,6 +218,8 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7Saturation**: Adjusts the color saturation of the image, with values ranging from 0.0 (grayscale) to 2.0 (highly saturated), where 1.0 is the original image
 - **C7Sepia**: Applies a sepia tone effect to the image, giving it a warm, brownish vintage appearance similar to old photographs
 - **C7Vibrance**: Intelligently adjusts the vibrance of the image, enhancing muted colors while preserving skin tones, with values ranging from -1.2 (desaturated) to 1.2 (highly vibrant)
+- **C7Temperature**: Adjusts the color temperature, tint, and color shift of the image
+- **C7Warmth**: Adjusts the color temperature of the image, with values ranging from -1.0 (cooler) to 1.0 (warmer)
 - **C7WhiteBalance**: Adjusts the white balance of the image based on color temperature, allowing correction of color casts from different lighting conditions
 
 #### 🌫️ Blur Effects
@@ -223,6 +230,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7MeanBlur**: Applies a mean (box) blur effect, averaging pixel values within the blur radius for a simple but effective blur
 - **C7MotionBlur**: Simulates motion blur in a specified direction, creating the illusion of movement or camera shake
 - **C7RedMonochromeBlur**: Applies a blur effect that affects only the red channel while converting the rest of the image to monochrome
+- **C7TiltShift**: Applies a tilt-shift effect, creating a selective focus area with blur outside the focus region, simulating the shallow depth of field of tilt-shift lenses
 - **C7ZoomBlur**: Creates a zoom blur effect that simulates the camera zooming in or out, with radial blur lines emanating from a central point
 
 #### 🔄 Blend Modes
@@ -251,10 +259,12 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7BlendSourceOver**: The default blending mode where the blend layer is drawn over the base layer
 - **C7BlendSubtract**: Subtracts the blend layer colors from the base layer colors, resulting in a darker image
 - **C7BlendWithMask**: Uses a separate mask texture to control the blending of two layers
+- **C7ColorBurnEnhancedBlend**: Enhanced color burn blend mode
 - **C7XORBlendWithMask**: XOR hybrid filter is used to achieve the effect of odd and even
 
 #### 🔍 Edge & Detail
 - **C7Canny**: Applies the Canny edge detection algorithm, a multi-stage process that identifies edges with high accuracy and low noise
+- **C7Clarity**: Enhances the clarity of the image by increasing contrast in midtones, making details more pronounced without amplifying noise
 - **C7ComicStrip**: Creates a comic strip effect, with bold outlines and flat colors reminiscent of comic book art
 - **C7Crosshatch**: Applies a crosshatch pattern to the image, creating a sketch-like appearance with intersecting lines
 - **C7DetailEnhancer**: Enhances fine details in the image without amplifying noise, resulting in a sharper appearance
@@ -349,8 +359,8 @@ Combination filters allow you to create complex effects by combining multiple in
 
 #### 📋 Lookup Tables
 - **C7ColorCube**: Applies a 3D LUT (Look-Up Table) from CUBE files, allowing for professional color grading and complex color transformations. Supports multiple initialization methods including from file name, URL, or raw data.
-- **C7LookupSplit**: Applies split screen lookup tables, allowing different color treatments in different parts of the image
 - **C7LookupTable**: Applies a color lookup table (LUT) from image files, used for color grading and stylization
+- **C7LookupTable512x512**: 512x512 color search table filter for high-quality color
 
 #### 🔗 Combination Effects
 - **C7CombinationBeautiful**: A beauty combination effect that enhances facial features and skin tone, combining multiple beauty-enhancing filters for a polished appearance
@@ -360,6 +370,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7CombinationVintage**: A vintage combination effect that simulates old film stock with warm tones, subtle grain, and reduced contrast
 
 #### 🎚️ Other Effects
+- **C7Fade**: Applies a fade effect to the image, gradually transitioning between the original image and a white overlay
 - **C7Grayed**: Converts the image to grayscale using various methods, including luminosity, average, and desaturation
 - **C7Haze**: Applies a haze effect to the image, reducing contrast and adding a foggy or misty appearance
 - **C7Pow**: Applies a power function to the image, creating non-linear brightness adjustments

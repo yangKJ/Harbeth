@@ -29,7 +29,20 @@ public struct C7ColorVector4: C7FilterProtocol {
         computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
     }
     
-    public init(vector: Vector4) {
+    public init(vector: Vector4, intensity: Float = 1.0) {
         self.vector = vector
+        self.intensity = intensity
+    }
+    
+    public func updateIntensity(_ intensity: CGFloat) -> Self {
+        var copy = self
+        copy.intensity = Float(intensity)
+        return copy
+    }
+    
+    public func updateVector4(_ vector: Vector4) -> Self {
+        var copy = self
+        copy.vector = vector
+        return copy
     }
 }
