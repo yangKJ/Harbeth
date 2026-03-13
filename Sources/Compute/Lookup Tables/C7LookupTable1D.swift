@@ -1,22 +1,22 @@
 //
-//  C7LookupTable.swift
-//  MetalQueenDemo
+//  C7LookupTable1D.swift
+//  Harbeth
 //
-//  Created by Condy on 2021/8/9.
+//  Created by Condy on 2026/3/13.
 //
 
 import Foundation
-import MetalKit
 
-/// LUT映射滤镜（2D LUT）
-/// See: https://juejin.cn/post/7169096223100829709
-public struct C7LookupTable: C7FilterProtocol {
+/// 一维查找表滤镜，使用一维查找表（1D LUT）来调整图像的色彩
+/// One-dimensional lookup table filter
+public struct C7LookupTable1D: C7FilterProtocol {
     
-    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+    /// 调整效果的强度 (0.0 ~ 1.0)
+    /// Adjustment intensity (0.0 ~ 1.0)
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     public var modifier: ModifierEnum {
-        return .compute(kernel: "C7LookupTable")
+        return .compute(kernel: "C7LookupTable1D")
     }
     
     public var factors: [Float] {

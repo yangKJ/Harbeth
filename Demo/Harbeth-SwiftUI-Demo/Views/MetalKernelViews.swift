@@ -10,15 +10,15 @@ import Harbeth
 
 struct MetalKernelViews: View {
     var body: some View {
-#if os(macOS)
+        #if os(macOS)
         NavigationView {
             setupContentView()
             setupWelcome()
         }.stackNavigationViewStyle()
-#else
+        #else
         setupContentView()
         setupWelcome()
-#endif
+        #endif
     }
     
     func setupWelcome() -> some View {
@@ -81,11 +81,14 @@ struct MetalKernelViews: View {
                 Text("C7 Matrix4x4 Green double")
             }
             NavigationLink(destination: CustomViews<C7LookupTable>(value: R.iRange.value, filtering: {
-                var filter = C7LookupTable(name: "lut")
-                filter.intensity = $0
-                return filter
+                return C7LookupTable(name: "lut", intensity: $0)
             }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
                 Text("C7 Lookup Table")
+            }
+            NavigationLink(destination: CustomViews<C7LookupTable1D>(value: R.iRange.value, filtering: {
+                return C7LookupTable1D(name: "bw_vintage_curves1", intensity: $0)
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+                Text("C7 Lookup Table 1D")
             }
             NavigationLink(destination: CustomViews(value: C7CircleBlur.range.value, filtering: {
                 C7CircleBlur.init(radius: $0)
@@ -128,9 +131,6 @@ struct MetalKernelViews: View {
             }, min: 0.0, max: 1.0, inputImage: R.image("yuan002"))) {
                 Text("C7 Clarity Test")
             }
-            NavigationLink(destination: ToneAdjustmentView()) {
-                Text("C7 Tone Adjustment Test")
-            }
             NavigationLink(destination: SharpenDetailView()) {
                 Text("C7 Sharpen Detail Test")
             }
@@ -139,6 +139,9 @@ struct MetalKernelViews: View {
             }
             NavigationLink(destination: ChannelControlView()) {
                 Text("C7 Channel Control Test")
+            }
+            NavigationLink(destination: HighlightShadowToneView()) {
+                Text("C7 Highlight Shadow Tone Test")
             }
         }
         .padding(.bottom)
@@ -149,15 +152,7 @@ struct MetalKernelViews: View {
     }
 }
 
-struct MetalKernelViews_Previews: PreviewProvider {
-    static var previews: some View {
-        NavigationView {
-            MetalKernelViews()
-        }
-    }
-}
-
-struct ToneAdjustmentView: View {
+struct HighlightShadowToneView: View {
     @State private var shadows: Float = 0.0
     @State private var highlights: Float = 0.0
     @State private var midtones: Float = 0.0
@@ -166,11 +161,11 @@ struct ToneAdjustmentView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("C7 Tone Adjustment Test")
+            Text("C7 Highlight Shadow Tone Test")
                 .font(.title)
                 .bold()
             
-            HarbethView(image: inputImage, filters: [C7ToneAdjustment(
+            HarbethView(image: inputImage, filters: [C7HighlightShadowTone(
                 shadows: shadows,
                 highlights: highlights,
                 midtones: midtones,
@@ -233,13 +228,21 @@ struct ToneAdjustmentView: View {
             .cornerRadius(10)
         }
         .padding()
-        .navigationTitle("Tone Adjustment")
+        .navigationTitle("Highlight Shadow Tone")
     }
 }
 
-struct ToneAdjustmentView_Previews: PreviewProvider {
+struct HighlightShadowToneView_Previews: PreviewProvider {
     static var previews: some View {
-        ToneAdjustmentView()
+        HighlightShadowToneView()
+    }
+}
+
+struct MetalKernelViews_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            MetalKernelViews()
+        }
     }
 }
 

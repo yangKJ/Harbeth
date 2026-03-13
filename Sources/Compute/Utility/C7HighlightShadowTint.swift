@@ -35,10 +35,7 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
         computeEncoder.setBytes(&highlightsFactor, length: Vector3.size, index: index + 1)
     }
     
-    public init(highlights: Float = range.value,
-                highlightsColor: C7Color = .zero,
-                shadows: Float = range.value,
-                shadowsColor: C7Color = .zero) {
+    public init(highlights: Float = range.value, highlightsColor: C7Color = .zero, shadows: Float = range.value, shadowsColor: C7Color = .zero) {
         self.highlights = highlights
         self.shadows = shadows
         self.highlightsColor = highlightsColor

@@ -1,15 +1,16 @@
 //
-//  C7ToneAdjustment.swift
+//  C7HighlightShadowTone.swift
 //  Harbeth
 //
 //  Created by Condy on 2026/3/13.
 //
 
 import Foundation
+import Metal
 
-/// 高光/阴影/中间调/对比度综合调整滤镜
-/// Tone adjustment filter with highlights, shadows, midtones and contrast controls
-public struct C7ToneAdjustment: C7FilterProtocol {
+/// 高光阴影色调调整滤镜，使用 YIQ 颜色空间进行调整
+/// Highlight and shadow tone adjustment filter, use YIQ color space to adjust
+public struct C7HighlightShadowTone: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: -1.0, max: 1.0, value: 0.0)
     
@@ -30,7 +31,7 @@ public struct C7ToneAdjustment: C7FilterProtocol {
     @Clamping(range.min...range.max) public var contrast: Float = range.value
     
     public var modifier: ModifierEnum {
-        return .compute(kernel: "C7ToneAdjustment")
+        return .compute(kernel: "C7HighlightShadowTone")
     }
     
     public var factors: [Float] {
