@@ -13,6 +13,9 @@ struct CurvesView: View {
     @State private var selectedChannel: Channel = .rgb
     @State private var controlPoints: [C7Point2D] = [
         C7Point2D(x: 0.0, y: 0.0),
+        C7Point2D(x: 0.2, y: 0.8),
+        C7Point2D(x: 0.6, y: 0.4),
+        C7Point2D(x: 0.8, y: 0.6),
         C7Point2D(x: 1.0, y: 1.0)
     ]
     
@@ -133,20 +136,23 @@ struct CurvesView: View {
     }
     
     func createFilter() -> C7Curves {
-        var rgbPoints = controlPoints
-        var redPoints = controlPoints
-        var greenPoints = controlPoints
-        var bluePoints = controlPoints
+        // 创建默认的直线曲线
+        let defaultPoints = [C7Point2D(x: 0.0, y: 0.0), C7Point2D(x: 1.0, y: 1.0)]
+        
+        var rgbPoints = defaultPoints
+        var redPoints = defaultPoints
+        var greenPoints = defaultPoints
+        var bluePoints = defaultPoints
         
         switch selectedChannel {
+        case .rgb:
+            rgbPoints = controlPoints
         case .red:
             redPoints = controlPoints
         case .green:
             greenPoints = controlPoints
         case .blue:
             bluePoints = controlPoints
-        default:
-            rgbPoints = controlPoints
         }
         
         return C7Curves(
@@ -184,9 +190,6 @@ struct CurvesView: View {
     func resetToDefault() {
         controlPoints = [
             C7Point2D(x: 0.0, y: 0.0),
-            C7Point2D(x: 0.4, y: 0.1),
-            C7Point2D(x: 0.6, y: 0.6),
-            C7Point2D(x: 0.8, y: 0.8),
             C7Point2D(x: 1.0, y: 1.0)
         ]
     }

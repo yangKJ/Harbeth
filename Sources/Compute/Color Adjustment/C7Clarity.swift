@@ -25,7 +25,7 @@ public struct C7Clarity: C7FilterProtocol {
         return [intensity, radius]
     }
     
-    public init(intensity: Float = R.intensityRange.value, radius: Float = 0.12) {
+    public init(intensity: Float = 1.0, radius: Float = 0.12) {
         self.intensity = intensity
         self.radius = radius
     }

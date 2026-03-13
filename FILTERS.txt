@@ -23,7 +23,8 @@
 │   ├── C7Temperature - 调整图像的色温、色调和色彩偏移
 │   ├── C7Vibrance - 调整图像自然饱和度
 │   ├── C7Warmth - 调整图像的色温，从冷色调到暖色调
-│   └── C7WhiteBalance - 基于色温调整白平衡
+│   ├── C7WhiteBalance - 基于色温调整白平衡
+│   └── C7ColorCorrection - 综合色彩校正滤镜，包含色阶、曲线、色彩平衡三个参数调节
 ├── 模糊效果 - 需要模糊效果时查看此类
 │   ├── C7BilateralBlur - 应用双边模糊，保留边缘
 │   ├── C7CircleBlur - 应用圆形模糊效果
@@ -71,6 +72,7 @@
 │   ├── C7EdgeAwareSharpen - 边缘感知锐化
 │   ├── C7Granularity - 调整胶片颗粒感
 │   ├── C7Sharpen - 锐化图像
+│   ├── C7SharpenDetail - 综合锐化滤镜，结合锐化、清晰度和细节增强
 │   ├── C7Sketch - 素描效果
 │   ├── C7Sobel - 索贝尔边缘检测
 │   └── C7ThresholdSketch - 阈值素描效果
@@ -132,7 +134,8 @@
 │   ├── C7Luminance - 提取图像亮度
 │   ├── C7LuminanceRangeReduction - 压缩亮度范围
 │   ├── C7LuminanceThreshold - 基于亮度的阈值效果
-│   └── C7Shadows - 调整图像阴影
+│   ├── C7Shadows - 调整图像阴影
+│   └── C7ToneAdjustment - 综合调整阴影、高光、中间调和对比度
 ├── 几何变换 - 需要几何变换时查看此类
 │   ├── C7Crop - 裁剪图像
 │   ├── C7Flip - 水平或垂直翻转图像

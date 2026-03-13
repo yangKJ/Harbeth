@@ -221,6 +221,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7Temperature**: Adjusts the color temperature, tint, and color shift of the image
 - **C7Warmth**: Adjusts the color temperature of the image, with values ranging from -1.0 (cooler) to 1.0 (warmer)
 - **C7WhiteBalance**: Adjusts the white balance of the image based on color temperature, allowing correction of color casts from different lighting conditions
+- **C7ColorCorrection**: Comprehensive color correction filter with levels, curves, and color balance controls
 
 #### 🌫️ Blur Effects
 - **C7BilateralBlur**: Applies a bilateral blur effect that preserves edges while blurring flat areas, creating a smooth appearance without losing important details
@@ -271,6 +272,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7EdgeAwareSharpen**: Sharpens only the edge areas of the image while preserving smooth regions, avoiding the amplification of noise
 - **C7Granularity**: Adjusts the film graininess of the image, adding or reducing texture for a more cinematic or vintage appearance
 - **C7Sharpen**: Sharpens the entire image by increasing contrast at edges, making details more pronounced
+- **C7SharpenDetail**: Comprehensive sharpening filter combining sharpen, clarity, and detail enhancement for professional image sharpening
 - **C7Sketch**: Converts the image into a pencil sketch effect, emphasizing edges and reducing color information
 - **C7Sobel**: Applies the Sobel edge detection algorithm, which calculates gradients to identify edges in the image
 - **C7ThresholdSketch**: Creates a sketch effect using edge detection with thresholding, resulting in a high-contrast, line-based representation
@@ -344,6 +346,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7LuminanceRangeReduction**: Reduces the luminance range of the image, compressing the difference between bright and dark areas
 - **C7LuminanceThreshold**: Applies a threshold to the luminance values, creating a high-contrast black and white image
 - **C7Shadows**: Specifically adjusts only the shadow areas of the image, brightening or darkening them as needed
+- **C7ToneAdjustment**: Comprehensive tone adjustment filter with controls for shadows, highlights, midtones, and contrast
 
 #### 📐 Geometric Transform
 - **C7Crop**: Crops the image to a specified rectangular region, removing unwanted areas

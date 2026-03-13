@@ -7,12 +7,11 @@
 
 import Foundation
 
-/// 色温调整滤镜
+/// 色温调整滤镜，使用 YIQ 色彩空间，色彩调整更符合人眼感知
 /// Temperature adjustment filter
 public struct C7Temperature: C7FilterProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: -1.0, max: 1.0, value: 0.0)
-    public static let intensityRange: ParameterRange<Float, Self> = .init(min: 0.0, max: 1.0, value: 1.0)
     
     /// Temperature adjustment, ranging from -1.0 to 1.0, with 0.0 being the original
     /// -1.0 is cooler (bluer), 1.0 is warmer (yellower)
@@ -27,7 +26,7 @@ public struct C7Temperature: C7FilterProtocol {
     @Clamping(range.min...range.max) public var colorShift: Float = range.value
     
     /// Intensity of the effect, ranging from 0.0 to 1.0, with 1.0 being full effect
-    @ZeroOneRange public var intensity: Float = intensityRange.value
+    @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7Temperature")

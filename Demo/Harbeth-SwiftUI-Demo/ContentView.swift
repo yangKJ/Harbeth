@@ -28,6 +28,9 @@ struct ContentView: View {
                 NavigationLink(destination: BlendView()) {
                     Text("Blend")
                 }
+                NavigationLink(destination: ToneAdjustmentView()) {
+                    Text("Tone")
+                }
                 NavigationLink(destination: CoreImageViews()) {
                     Text("CoreImage filters")
                 }

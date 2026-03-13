@@ -29,8 +29,17 @@ public struct C7ColorRGBA: C7FilterProtocol {
         computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
     }
     
-    public init(color: C7Color = .white) {
+    public init(color: C7Color = .white, intensity: Float = 1.0) {
         self.color = color
+        self.intensity = intensity
+    }
+    
+    public init(hex: Int, alpha: CGFloat = 1.0, intensity: Float = 1.0) {
+        self.init(color: C7Color(hex: hex, alpha: alpha), intensity: intensity)
+    }
+    
+    public init(hexString: String, intensity: Float = 1.0) {
+        self.init(color: C7Color(hex: hexString), intensity: intensity)
     }
     
     public func updateIntensity(_ intensity: CGFloat) -> Self {

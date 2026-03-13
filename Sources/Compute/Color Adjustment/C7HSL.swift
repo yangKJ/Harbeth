@@ -32,7 +32,7 @@ public struct C7HSL: C7FilterProtocol {
         return [hue, saturation, lightness]
     }
     
-    public init(hue: Float = hueRange.value, saturation: Float = saturationRange.value, lightness: Float = lightnessRange.value) {
+    public init(hue: Float = 0, saturation: Float = 0, lightness: Float = 0) {
         self.hue = hue
         self.saturation = saturation
         self.lightness = lightness

@@ -89,8 +89,5 @@ fastlane/test_output
 
 iOSInjectionProject/
 
-# Metal shader files
-*.metal
-
 # Metal folder
 Metal/
