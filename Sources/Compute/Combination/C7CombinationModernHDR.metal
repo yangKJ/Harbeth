@@ -13,13 +13,7 @@ kernel void C7CombinationModernHDR(texture2d<half, access::write> outputTexture 
         return;
     }
     
-    // Read the original and processed pixels
-    half4 originalColor = inputTexture.read(gid);
     half4 processedColor = processedTexture.read(gid);
-    
-    // Blend the original and processed colors based on intensity
-    half blendIntensity = half(*intensity);
-    half4 finalColor = mix(originalColor, processedColor, blendIntensity);
     
     // Add clarity effect (local contrast enhancement)
     half clarityValue = half(*clarity);
@@ -46,10 +40,17 @@ kernel void C7CombinationModernHDR(texture2d<half, access::write> outputTexture 
             half4 difference = processedColor - localAverage;
             
             // Enhance the difference based on clarity value
-            finalColor = localAverage + difference * (half(1.0) + clarityValue);
-            finalColor = clamp(finalColor, half4(0.0), half4(1.0));
+            processedColor = localAverage + difference * (half(1.0) + clarityValue);
+            processedColor = clamp(processedColor, half4(0.0), half4(1.0));
         }
     }
+    
+    // Read the original and processed pixels
+    half4 originalColor = inputTexture.read(gid);
+    
+    // Blend the original and processed colors based on intensity
+    half blendIntensity = half(*intensity);
+    half4 finalColor = mix(originalColor, processedColor, blendIntensity);
     
     // Write the result to the output texture
     outputTexture.write(finalColor, gid);

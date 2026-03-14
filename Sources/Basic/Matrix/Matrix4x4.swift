@@ -67,13 +67,33 @@ extension Matrix4x4 {
 }
 
 extension Matrix4x4.Color {
-    
+    /// 单位矩阵，无效果
     public static let identity = Matrix4x4(values: [
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
         0.0, 0.0, 1.0, 0.0,
         0.0, 0.0, 0.0, 1.0,
     ])
+    
+    // MARK: - 灰度与黑白效果
+    
+    /// 灰度图矩阵，平均值法
+    public static let gray = Matrix4x4(values: [
+        0.33, 0.33, 0.33, 0.0,
+        0.33, 0.33, 0.33, 0.0,
+        0.33, 0.33, 0.33, 0.0,
+        0.00, 0.00, 0.00, 1.0,
+    ])
+    
+    /// 黑白效果，基于人眼敏感度
+    public static let blackAndWhite = Matrix4x4(values: [
+        0.299, 0.587, 0.114, 0.0,
+        0.299, 0.587, 0.114, 0.0,
+        0.299, 0.587, 0.114, 0.0,
+        0.000, 0.000, 0.000, 1.0,
+    ])
+    
+    // MARK: - 复古与怀旧效果
     
     /// 棕褐色，老照片
     public static let sepia = Matrix4x4(values: [
@@ -107,6 +127,74 @@ extension Matrix4x4.Color {
         -0.030, 0.0500, -0.020, 1.0,
     ])
     
+    // MARK: - 颜色调整
+    
+    /// 反相效果
+    public static let invert = Matrix4x4(values: [
+        -1.0,  0.0,  0.0, 0.0,
+         0.0, -1.0,  0.0, 0.0,
+         0.0,  0.0, -1.0, 0.0,
+         1.0,  1.0,  1.0, 1.0,
+    ])
+    
+    /// 负片效果
+    public static let negative = Matrix4x4(values: [
+        -1.0,  0.0,  0.0, 0.0,
+         0.0, -1.0,  0.0, 0.0,
+         0.0,  0.0, -1.0, 0.0,
+         1.0,  1.0,  1.0, 1.0,
+    ])
+    
+    /// 暖色调
+    public static let warm = Matrix4x4(values: [
+        1.0, 0.0,  0.0,  0.0,
+        0.0, 0.95, 0.0,  0.0,
+        0.0, 0.0,  0.85, 0.0,
+        0.0, 0.05, 0.15, 1.0,
+    ])
+    
+    /// 冷色调
+    public static let cool = Matrix4x4(values: [
+        0.85, 0.0,  0.0, 0.0,
+        0.0,  0.95, 0.0, 0.0,
+        1.0,  0.0,  1.0, 0.0,
+        0.15, 0.05, 0.0, 1.0,
+    ])
+    
+    /// 蓝调效果
+    public static let blueTint = Matrix4x4(values: [
+        0.8, 0.0, 0.0, 0.0,
+        0.0, 0.8, 0.0, 0.0,
+        1.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.1, 1.0,
+    ])
+    
+    /// 日落效果
+    public static let sunset = Matrix4x4(values: [
+        1.0, 0.0,  0.0, 0.0,
+        0.5, 1.0,  0.0, 0.0,
+        0.0, 0.0,  0.5, 0.0,
+        0.1, 0.05, 0.0, 1.0,
+    ])
+    
+    /// 肤色增强
+    public static let skinToneEnhance = Matrix4x4(values: [
+        1.0, 0.0,  0.0,  0.0,
+        0.0, 1.05, 0.0,  0.0,
+        0.0, 0.0,  0.95, 0.0,
+        0.0, 0.02, 0.0,  1.0,
+    ])
+    
+    /// 鲜艳效果
+    public static let vibrance = Matrix4x4(values: [
+        1.4,  -0.1, -0.1, 0.0,
+        -0.1, 1.4,  -0.1, 0.0,
+        -0.1, -0.1, 1.4,  0.0,
+        0.0,  0.0,  0.0,  1.0,
+    ])
+    
+    // MARK: - 通道操作
+    
     /// 绿色通道加倍
     public static let greenDouble = Matrix4x4(values: [
         1.0, 0.0, 0.0, 0.0,
@@ -121,14 +209,6 @@ extension Matrix4x4.Color {
         0.0, 1.0, 0.0, 0.0,
         0.0, 0.0, 0.0, 0.0,
         0.0, 0.0, 0.0, 1.0,
-    ])
-    
-    /// 灰度图矩阵，平均值法
-    public static let gray = Matrix4x4(values: [
-        0.33, 0.33, 0.33, 0.0,
-        0.33, 0.33, 0.33, 0.0,
-        0.33, 0.33, 0.33, 0.0,
-        0.00, 0.00, 0.00, 1.0,
     ])
     
     /// 去掉绿色和蓝色
@@ -147,6 +227,16 @@ extension Matrix4x4.Color {
         0.0, 0.0, 0.0, 1.0,
     ])
     
+    /// maps RGB to BGR (rows permuted)
+    public static let rgb_to_bgr = Matrix4x4(values: [
+        0.22, 0.22, 0.90, 0.0,
+        0.11, 0.70, 0.44, 0.0,
+        0.90, 0.11, 0.11, 0.0,
+        0.00, 0.00, 0.00, 1.0
+    ])
+    
+    // MARK: - 特殊效果
+    
     /// 白色剪影
     /// In case you have to produce a white silhouette you need to supply data to the last column of the color matrix.
     public static let white_silhouette = Matrix4x4(values: [
@@ -154,14 +244,6 @@ extension Matrix4x4.Color {
         0.0, 0.0, 0.0, 1.0,
         0.0, 0.0, 0.0, 1.0,
         0.0, 0.0, 0.0, 1.0,
-    ])
-    
-    /// maps RGB to BGR (rows permuted)
-    public static let rgb_to_bgr = Matrix4x4(values: [
-        0.22, 0.22, 0.90, 0.0,
-        0.11, 0.70, 0.44, 0.0,
-        0.90, 0.11, 0.11, 0.0,
-        0.00, 0.00, 0.00, 1.0
     ])
     
     /// When you have a premultiplied image, where RGB is multiplied by Alpha, decreasing A value you decrease a whole opacity of RGB.

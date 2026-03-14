@@ -13,13 +13,7 @@ kernel void C7CombinationVintage(texture2d<half, access::write> outputTexture [[
         return;
     }
     
-    // Read the original and processed pixels
-    half4 originalColor = inputTexture.read(gid);
     half4 processedColor = processedTexture.read(gid);
-    
-    // Blend the original and processed colors based on intensity
-    half blendIntensity = half(*intensity);
-    half4 finalColor = mix(originalColor, processedColor, blendIntensity);
     
     // Add subtle dust and scratches effect
     half dust = half(*dustIntensity);
@@ -30,16 +24,22 @@ kernel void C7CombinationVintage(texture2d<half, access::write> outputTexture [[
         
         // Add dust spots
         if (noise < dust * 0.01) {
-            finalColor = finalColor * half(0.3) + half4(0.7, 0.7, 0.7, 1.0) * half(0.7);
+            processedColor = processedColor * half(0.3) + half4(0.7, 0.7, 0.7, 1.0) * half(0.7);
         }
         
         // Add scratches
         if (fract(sin(dot(float2(gid), float2(43.34, 76.54))) * 12345.6789) < dust * 0.005) {
             if (gid.y % 2 == 0) {
-                finalColor = finalColor * half(0.5) + half4(0.9, 0.9, 0.9, 1.0) * half(0.5);
+                processedColor = processedColor * half(0.5) + half4(0.9, 0.9, 0.9, 1.0) * half(0.5);
             }
         }
     }
+    
+    // Read the original and processed pixels
+    half4 originalColor = inputTexture.read(gid);
+    // Blend the original and processed colors based on intensity
+    half blendIntensity = half(*intensity);
+    half4 finalColor = mix(originalColor, processedColor, blendIntensity);
     
     // Write the result to the output texture
     outputTexture.write(finalColor, gid);

@@ -41,63 +41,63 @@ struct MetalKernelViews: View {
             }
             NavigationLink(destination: CustomViews(value: 90, filtering: {
                 C7Rotate.init(angle: $0)
-            }, min: 0, max: 360, inputImage: R.image("yuan002"))) {
+            }, min: 0, max: 360, inputImage: R.image("Bear"))) {
                 Text("C7 Rotate")
             }
             NavigationLink(destination: CustomViews(value: C7SoulOut.range.value, filtering: {
                 C7SoulOut.init(soul: $0)
-            }, min: C7SoulOut.range.min, max: C7SoulOut.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7SoulOut.range.min, max: C7SoulOut.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Soul out")
             }
             NavigationLink(destination: CustomViews(value: C7Pixellated.range.value, filtering: {
                 C7Pixellated.init(scale: $0)
-            }, min: C7Pixellated.range.min, max: C7Pixellated.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7Pixellated.range.min, max: C7Pixellated.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Pixellated")
             }
             NavigationLink(destination: CustomViews(value: C7PolarPixellate.range.value, filtering: {
                 C7PolarPixellate.init(scale: $0)
-            }, min: C7PolarPixellate.range.min, max: C7PolarPixellate.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7PolarPixellate.range.min, max: C7PolarPixellate.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Polar Pixellate")
             }
             NavigationLink(destination: CustomViews<C7ColorConvert>(value: R.iRange.value, filtering: {
                 var filter = C7ColorConvert(with: .bgra)
                 filter.intensity = $0
                 return filter
-            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("Bear"))) {
                 Text("C7 Color Convert to bgra image")
             }
             NavigationLink(destination: CustomViews<C7ComicStrip>(value: 0.5, filtering: {
                 var filter = C7ComicStrip()
                 filter.intensity = $0
                 return filter
-            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("Bear"))) {
                 Text("C7 Comic Strip")
             }
             NavigationLink(destination: CustomViews<C7ColorMatrix4x4>(value: R.iRange.value, filtering: {
                 var filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.greenDouble)
                 filter.intensity = $0
                 return filter
-            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("Bear"))) {
                 Text("C7 Matrix4x4 Green double")
             }
             NavigationLink(destination: CustomViews<C7LookupTable>(value: R.iRange.value, filtering: {
                 return C7LookupTable(name: "lut", intensity: $0)
-            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("Bear"))) {
                 Text("C7 Lookup Table")
             }
             NavigationLink(destination: CustomViews<C7LookupTable1D>(value: R.iRange.value, filtering: {
                 return C7LookupTable1D(name: "bw_vintage_curves1", intensity: $0)
-            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("Bear"))) {
                 Text("C7 Lookup Table 1D")
             }
             NavigationLink(destination: CustomViews(value: C7CircleBlur.range.value, filtering: {
                 C7CircleBlur.init(radius: $0)
-            }, min: C7CircleBlur.range.min, max: C7CircleBlur.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7CircleBlur.range.min, max: C7CircleBlur.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Circle Blur")
             }
             NavigationLink(destination: CustomViews(value: 0.2, filtering: {
                 C7StickerOutline(outlineColor: .red, outlineThickness: 0.015, outlineBlur: $0)
-            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("yuan002"))) {
+            }, min: R.iRange.min, max: R.iRange.max, inputImage: R.image("Bear"))) {
                 Text("C7 Sticker Outline Test")
             }
             NavigationLink(destination: CustomViews(value: C7Temperature.range.value, filtering: {
@@ -106,29 +106,29 @@ struct MetalKernelViews: View {
                 filter.tint = $0
                 filter.colorShift = $0
                 return filter
-            }, min: C7Temperature.range.min, max: C7Temperature.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7Temperature.range.min, max: C7Temperature.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Temperature Test")
             }
             NavigationLink(destination: CustomViews(value: C7Fade.range.value, filtering: {
                 C7Fade.init(intensity: $0)
-            }, min: C7Fade.range.min, max: C7Fade.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7Fade.range.min, max: C7Fade.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Fade Test")
             }
             NavigationLink(destination: CustomViews(value: C7Warmth.range.value, filtering: {
                 C7Warmth.init(warmth: $0)
-            }, min: C7Warmth.range.min, max: C7Warmth.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7Warmth.range.min, max: C7Warmth.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Warmth Test")
             }
             NavigationLink(destination: CustomViews(value: C7TiltShift.range.value, filtering: {
                 C7TiltShift.init(blurRadius: $0)
-            }, min: C7TiltShift.range.min, max: C7TiltShift.range.max, inputImage: R.image("yuan002"))) {
+            }, min: C7TiltShift.range.min, max: C7TiltShift.range.max, inputImage: R.image("Bear"))) {
                 Text("C7 Tilt Shift Test")
             }
             NavigationLink(destination: CustomViews(value: 0.5, filtering: {
                 var filter = C7Clarity()
                 filter.intensity = $0
                 return filter
-            }, min: 0.0, max: 1.0, inputImage: R.image("yuan002"))) {
+            }, min: 0.0, max: 1.0, inputImage: R.image("Bear"))) {
                 Text("C7 Clarity Test")
             }
             NavigationLink(destination: SharpenDetailView()) {
@@ -136,12 +136,6 @@ struct MetalKernelViews: View {
             }
             NavigationLink(destination: ColorCorrectionView()) {
                 Text("C7 Color Correction Test")
-            }
-            NavigationLink(destination: ChannelControlView()) {
-                Text("C7 Channel Control Test")
-            }
-            NavigationLink(destination: HighlightShadowToneView()) {
-                Text("C7 Highlight Shadow Tone Test")
             }
         }
         .padding(.bottom)
@@ -153,24 +147,22 @@ struct MetalKernelViews: View {
 }
 
 struct HighlightShadowToneView: View {
-    @State private var shadows: Float = 0.0
-    @State private var highlights: Float = 0.0
+    @State private var shadows: Float = -0.5
+    @State private var highlights: Float = 1.0
     @State private var midtones: Float = 0.0
-    @State private var contrast: Float = 0.0
+    @State private var contrast: Float = 1.0
     @State private var inputImage = R.image("Bear")!
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("C7 Highlight Shadow Tone Test")
-                .font(.title)
-                .bold()
-            
-            HarbethView(image: inputImage, filters: [C7HighlightShadowTone(
-                shadows: shadows,
-                highlights: highlights,
-                midtones: midtones,
-                contrast: contrast
-            )]) {
+            HarbethView(image: inputImage, filters: [
+                C7HighlightShadowTone(
+                    shadows: shadows,
+                    highlights: highlights,
+                    midtones: midtones,
+                    contrast: contrast
+                )
+            ]) {
                 $0.resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: 400)
@@ -389,104 +381,5 @@ struct ColorCorrectionView: View {
 struct ColorCorrectionView_Previews: PreviewProvider {
     static var previews: some View {
         ColorCorrectionView()
-    }
-}
-
-struct ChannelControlView: View {
-    @State private var red: Float = 0.0
-    @State private var green: Float = 0.0
-    @State private var blue: Float = 0.0
-    @State private var alpha: Float = 1.0
-    @State private var blend: Float = 0.0
-    @State private var inputImage = R.image("Bear")!
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("C7 Channel Control Test")
-                .font(.title)
-                .bold()
-            
-            HarbethView(image: inputImage, filters: [C7ChannelControl(
-                red: red,
-                green: green,
-                blue: blue,
-                alpha: alpha,
-                blend: blend
-            )]) {
-                $0.resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: .infinity, maxHeight: 400)
-                    .cornerRadius(10)
-                    .shadow(radius: 5)
-            }
-            
-            VStack(spacing: 15) {
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("Red: \(String(format: "%.2f", red))")
-                        Spacer()
-                        Text("-1")
-                        Spacer()
-                        Text("1")
-                    }
-                    Slider(value: $red, in: -1.0...1.0)
-                }
-                
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("Green: \(String(format: "%.2f", green))")
-                        Spacer()
-                        Text("-1")
-                        Spacer()
-                        Text("1")
-                    }
-                    Slider(value: $green, in: -1.0...1.0)
-                }
-                
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("Blue: \(String(format: "%.2f", blue))")
-                        Spacer()
-                        Text("-1")
-                        Spacer()
-                        Text("1")
-                    }
-                    Slider(value: $blue, in: -1.0...1.0)
-                }
-                
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("Alpha: \(String(format: "%.2f", alpha))")
-                        Spacer()
-                        Text("0")
-                        Spacer()
-                        Text("1")
-                    }
-                    Slider(value: $alpha, in: 0.0...1.0)
-                }
-                
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("Blend: \(String(format: "%.2f", blend))")
-                        Spacer()
-                        Text("-1")
-                        Spacer()
-                        Text("1")
-                    }
-                    Slider(value: $blend, in: -1.0...1.0)
-                }
-            }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
-        }
-        .padding()
-        .navigationTitle("Channel Control")
-    }
-}
-
-struct ChannelControlView_Previews: PreviewProvider {
-    static var previews: some View {
-        ChannelControlView()
     }
 }

@@ -16,10 +16,17 @@ public struct C7GenerateMipmapsBlit: C7FilterProtocol, BlitProtocol {
         return .blit
     }
     
+    public var needCreateDestTexture: Bool = false
+    
     public init() { }
     
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         let destTexture = textures[0], sourceTexture = textures[1]
+        
+        guard destTexture.mipmapLevelCount > 1 else {
+            throw HarbethError.textureNotMipmapped
+        }
+        
         // First, copy the source texture to the destination texture if they are different
         if sourceTexture !== destTexture {
             guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {

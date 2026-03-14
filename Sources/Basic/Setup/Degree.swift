@@ -37,7 +37,7 @@ public prefix func -(degree: Degree) -> Degree {
 }
 
 /// `0.0 ..< 360.0` 范围角度区间属性包装器
-@propertyWrapper public struct DegreeRange {
+@propertyWrapper public struct DegreeRange: Codable {
     
     public var wrappedValue: Float {
         didSet {
@@ -49,5 +49,17 @@ public prefix func -(degree: Degree) -> Degree {
     public init(wrappedValue: Float) {
         let value = wrappedValue.truncatingRemainder(dividingBy: 360.0)
         self.wrappedValue = value >= 0 ? value : 360 + value
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(Float.self)
+        let normalizedValue = value.truncatingRemainder(dividingBy: 360.0)
+        self.wrappedValue = normalizedValue >= 0 ? normalizedValue : 360 + normalizedValue
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(wrappedValue)
     }
 }

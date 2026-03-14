@@ -12,7 +12,7 @@ struct BlendView: View {
     
     @State private var intensity: Float = 0.3
     @State private var blendMode: C7Blend.BlendType = .normal
-    @State private var inputImage = R.image("yuan002")!
+    @State private var inputImage = R.image("Bear")!
     
     private let blends: [C7Blend.BlendType] = [
         .add,
@@ -46,16 +46,9 @@ struct BlendView: View {
             }) {
             case .success(let image):
                 VStack {
-                    Text("\(blendMode.kernel) filter")
-                        .font(.body)
-                        .textCase(.uppercase)
-                        .padding(.all, 20)
-                        //.foregroundColor(.black)
-                    
                     Image(c7Image: image)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(idealHeight: R.width-30 / 2 * 3)
                         .padding()
                     
                     VStack(alignment: .leading) {
@@ -85,7 +78,7 @@ struct BlendView: View {
     }
     
     private func setupImage() throws -> C7Image {
-        let overTexture = try! Res.rgUVB1Gradient(CGSize(width: 420, height: 270))
+        let overTexture = try Res.rgUVB1Gradient(CGSize(width: 420, height: 270))
         var filter = C7Blend(with: blendMode, blendTexture: overTexture)
         filter.intensity = intensity
         let dest = HarbethIO(element: inputImage, filter: filter)

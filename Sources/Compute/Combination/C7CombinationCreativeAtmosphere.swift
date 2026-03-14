@@ -54,13 +54,13 @@ public final class C7CombinationCreativeAtmosphere: C7CombinationBase {
         return intermediateTextures
     }
     
-    private var gaussianBlurFilter: C7GaussianBlur
+    private var gaussianBlurFilter: MPSGaussianBlur
     private var contrastFilter: C7Contrast
     private var vignetteFilter: C7Vignette
     
-    public init(intensity: Float = 0.7) {
+    public init(intensity: Float = 1.0) {
         self.intensity = intensity
-        self.gaussianBlurFilter = C7GaussianBlur(radius: 0.9)
+        self.gaussianBlurFilter = MPSGaussianBlur(radius: 0.9)
         self.contrastFilter = C7Contrast(contrast: 1.0)
         self.vignetteFilter = C7Vignette(start: 0.3, end: 0.8, color: .zero)
         super.init()

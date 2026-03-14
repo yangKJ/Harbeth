@@ -10,8 +10,8 @@ import Harbeth
 
 struct ColorRGBAView: View {
     @State private var intensity: Float = R.intensityRange.value
-    @State private var selectedColor: Color = .red
-    @State private var inputImage: UIImage = R.image("yuan002")!
+    @State private var selectedColor: Color = .yellow
+    @State private var inputImage: UIImage = R.image("Bear")!
     
     let colors: [Color] = [
         .red, .green, .blue, .yellow, .purple, .orange, .pink, .teal
@@ -57,10 +57,15 @@ struct ColorRGBAView: View {
                 // 颜色预览
                 HStack {
                     Text("Current Color:")
-                    Rectangle()
-                        .fill(selectedColor)
-                        .frame(width: 50, height: 30)
-                        .cornerRadius(5)
+                    ZStack {
+                        ColorPicker("", selection: $selectedColor)
+                            .labelsHidden()
+                        Rectangle()
+                            .fill(selectedColor)
+                            .frame(width: 50, height: 30)
+                            .cornerRadius(5)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
             .padding()

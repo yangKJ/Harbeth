@@ -16,7 +16,7 @@ class PlayerViewController: UIViewController {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.3)
+        imageView.backgroundColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 0.3)
         return imageView
     }()
     
@@ -65,7 +65,7 @@ class PlayerViewController: UIViewController {
             originImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             originImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15),
             originImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
-            originImageView.heightAnchor.constraint(equalTo: originImageView.widthAnchor, multiplier: 1),
+            originImageView.heightAnchor.constraint(equalTo: originImageView.widthAnchor, multiplier: 4/3),
         ])
     }
     

@@ -63,7 +63,7 @@ public final class C7CombinationFilmSimulation: C7CombinationBase {
     private var saturationFilter: C7Saturation
     private var vignetteFilter: C7Vignette
     
-    public init(intensity: Float = 0.8) {
+    public init(intensity: Float = 1.0) {
         self.intensity = intensity
         self.grainFilter = C7Granularity(grain: 0.3)
         self.contrastFilter = C7Contrast(contrast: 1.1)

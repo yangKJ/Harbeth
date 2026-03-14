@@ -1,8 +1,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7Shadows(texture2d<half, access::read> inputTexture [[texture(0)]],
-                      texture2d<half, access::write> outputTexture [[texture(1)]],
+kernel void C7Shadows(texture2d<half, access::write> outputTexture [[texture(0)]],
+                      texture2d<half, access::read> inputTexture [[texture(1)]],
                       constant float *shadowAmount [[buffer(0)]],
                       uint2 gid [[thread_position_in_grid]]) {
     // Get the dimensions of the input texture

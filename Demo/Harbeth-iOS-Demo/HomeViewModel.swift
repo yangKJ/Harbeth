@@ -19,7 +19,8 @@ struct HomeViewModel {
         switch viewType {
         case .image:
             let vc = ImageViewController()
-            let tuple = type.setupFilterObject()
+            let image = type.image
+            let tuple = type.setupFilterObject(with: image)
             vc.filter = tuple.filter
             vc.callback = tuple.callback
             if let maxmin = tuple.maxminValue {
@@ -29,7 +30,7 @@ struct HomeViewModel {
             } else {
                 vc.slider.isHidden = true
             }
-            vc.originImage = type.image
+            vc.originImage = image
             return vc
         case .camera:
             let vc = CameraViewController()
@@ -48,7 +49,7 @@ struct HomeViewModel {
             return [
                 "🖼️ 测试用例": test,
                 "📱 相机风格滤镜": cameraStyle,
-                "🌅 场景风格滤镜": sceneStyle,
+                "🤡 场景风格滤镜": sceneStyle,
                 "🎨 艺术风格滤镜": artStyle,
                 "🔍 边缘与细节": edgeDetail,
                 "🌫️ 模糊效果": blur,
@@ -59,9 +60,11 @@ struct HomeViewModel {
                 "📊 矩阵处理": matrix,
                 "🔧 实用工具": utility,
                 "📋 查找滤镜": lookup,
-                "🎯 Blit操作": blit,
-                "🔌 CoreImage集成": coreImage,
-            ]
+                "🌅 效果滤镜": effect,
+                "🎯 视觉效果": visual,
+                "🔬 Blit操作": blit,
+                "🔌 CoreImage": coreImage,
+            ].filter { $0.value.count > 0 }
         case .camera:
             var filters = color
             filters.insert(.Storyboard, at: 0)
@@ -82,7 +85,10 @@ struct HomeViewModel {
     
     // 场景风格滤镜
     let sceneStyle: [ViewControllerType] = [
-        
+        .CombinationCinematic, .CombinationModernHDR, .CombinationVintage,
+        .CombinationColorGrading, .CombinationCreativeAtmosphere, .CombinationFilmSimulation,
+        .CombinationHDRBoost, .CombinationCyberpunk, .CombinationDreamy,
+        .CombinationVintageFilm,
     ]
     
     // 艺术风格滤镜
@@ -117,11 +123,7 @@ struct HomeViewModel {
     ]
     
     let effect: [ViewControllerType] = [
-        .CombinationCinematic, .CombinationModernHDR, .CombinationVintage,
-        .CombinationColorGrading, .CombinationCreativeAtmosphere, .CombinationFilmSimulation,
-        .CombinationHDRBoost, .CombinationPortraitEnhancement,
-        .TextHEIC, .ZoomBlur, .Vignette,
-        .VignetteNormal, .VignetteMultiply, .VignetteOverlay,
+        .ZoomBlur, .Vignette, .VignetteNormal, .VignetteMultiply, .VignetteOverlay,
         .VignetteSoftLight, .WaterRipple,
         .Pixellated, .Crosshatch, .GlassSphere,
         .Bulge, .Pinch, .PolkaDot, .Halftone, .PolarPixellate, .SphereRefraction, .Morphology, .ColorPacking,
@@ -185,6 +187,6 @@ struct HomeViewModel {
     ]
     
     let blit: [ViewControllerType] = [
-        .BlitCrop, .BlitCopyRegion, .BlitGenerateMipmaps,
+        .BlitCopyRegion, .BlitGenerateMipmaps, .BlitCrop,
     ]
 }

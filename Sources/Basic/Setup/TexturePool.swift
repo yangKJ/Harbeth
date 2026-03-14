@@ -7,6 +7,7 @@
 
 import Foundation
 import Metal
+import Darwin
 
 #if os(iOS)
 import UIKit
@@ -24,7 +25,7 @@ public final class TexturePool {
     }
     
     /// Max memory usage: 10% of physical RAM, capped at 512 MB.
-    private let maxMemoryUsage: Int
+    private var maxMemoryUsage: Int
     /// Allow reuse of textures within ±8 pixels to improve hit rate (e.g., 1920x1080 can reuse 1928x1080).
     private let sizeTolerance: Int = 8
     
@@ -37,24 +38,32 @@ public final class TexturePool {
     /// Current estimated GPU memory usage in bytes.
     private var currentMemoryUsage: Int = 0
     
+    /// Dynamic memory management
+    private var memoryPressureLevel: Int = 0 // 0: normal, 1: warning, 2: critical
+    private let memoryMonitoringInterval: TimeInterval = 5.0
+    private var memoryMonitorTimer: Timer?
+    
+    private let queue = DispatchQueue(label: "com.harbeth.texturepool.concurrent", attributes: .concurrent)
+    
+    public struct Statistics {
+        public var totalTexturesCreated: Int = 0
+        public var totalTexturesReused: Int = 0
+        public var totalMemorySaved: Int = 0
+        public var hitRate: Double {
+            totalTexturesReused > 0 ? Double(totalTexturesReused) / Double(totalTexturesCreated + totalTexturesReused) : 0
+        }
+        public var currentTextureCount: Int = 0
+        public var currentMemoryUsage: Int = 0
+        public var maxMemoryUsage: Int = 0
+    }
+    
+    public private(set) var statistics = Statistics()
+    
+    /// Commonly used resolution cache to improve matching efficiency
+    private var commonResolutions: Set<TextureKey> = []
+    
     #if os(macOS)
     private var memoryPressureSource: DispatchSourceMemoryPressure?
-    #endif
-    
-    #if canImport(os)
-    private var lock = os_unfair_lock_s()
-    private func withLock<T>(_ work: () -> T) -> T {
-        os_unfair_lock_lock(&lock)
-        defer { os_unfair_lock_unlock(&lock) }
-        return work()
-    }
-    #else
-    private let lock = NSLock()
-    private func withLock<T>(_ work: () -> T) -> T {
-        lock.lock()
-        defer { lock.unlock() }
-        return work()
-    }
     #endif
     
     init() {
@@ -79,6 +88,8 @@ public final class TexturePool {
         source.resume()
         self.memoryPressureSource = source
         #endif
+        
+        startMemoryMonitoring()
     }
     
     deinit {
@@ -88,28 +99,106 @@ public final class TexturePool {
         memoryPressureSource?.cancel()
         memoryPressureSource = nil
         #endif
+        memoryMonitorTimer?.invalidate()
         print("TexturePool is deinit.")
+    }
+    
+    private func startMemoryMonitoring() {
+        #if os(iOS)
+        memoryMonitorTimer = Timer.scheduledTimer(
+            timeInterval: memoryMonitoringInterval,
+            target: self,
+            selector: #selector(checkMemoryPressure),
+            userInfo: nil,
+            repeats: true
+        )
+        #endif
+    }
+    
+    @objc private func checkMemoryPressure() {
+        #if os(iOS)
+        let currentUsage = Double(currentMemoryUsage)
+        let maxUsage = Double(maxMemoryUsage)
+        let memoryPressure = currentUsage / maxUsage
+        if memoryPressure > 0.9 {
+            memoryPressureLevel = 2
+            purgeAllTextures()
+        } else if memoryPressure > 0.7 {
+            memoryPressureLevel = 1
+            purgeLeastUsedTextures()
+        } else {
+            memoryPressureLevel = 0
+        }
+        #endif
+    }
+    
+    private func purgeLeastUsedTextures() {
+        queue.async(flags: .barrier) {
+            let releaseCount = min(self.accessQueue.count, 3)
+            for _ in 0..<releaseCount {
+                if !self.accessQueue.isEmpty {
+                    let oldestKey = self.accessQueue.removeFirst()
+                    if let textures = self.cache[oldestKey] {
+                        for texture in textures {
+                            let oid = ObjectIdentifier(texture)
+                            self.textureToKey[oid] = nil
+                            self.currentMemoryUsage -= self.estimatedByteSize(of: texture)
+                        }
+                        self.cache[oldestKey] = nil
+                        self.commonResolutions.remove(oldestKey)
+                    }
+                }
+            }
+            self.statistics.currentTextureCount = self.cache.values.reduce(0) { $0 + $1.count }
+            self.statistics.currentMemoryUsage = self.currentMemoryUsage
+        }
     }
     
     /// Attempts to dequeue a reusable texture matching the given specs.
     /// Uses size tolerance to improve hit rate.
     public func dequeueTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
         let exactKey = TextureKey(width: width, height: height, pixelFormat: pixelFormat)
-        return withLock {
+        var result: MTLTexture? = nil
+        
+        queue.sync {
             // 1. Try exact match
             if let texture = popFromCache(forKey: exactKey) {
-                return texture
+                statistics.totalTexturesReused += 1
+                statistics.totalMemorySaved += estimatedByteSize(of: texture)
+                result = texture
+                return
             }
-            // 2. Try tolerant match (within ±sizeTolerance)
-            for (key, textures) in cache where key.pixelFormat == pixelFormat && !textures.isEmpty {
+            
+            // 2. Try common resolutions first (optimized path)
+            for key in commonResolutions where key.pixelFormat == pixelFormat {
                 if abs(key.width - width) <= sizeTolerance && abs(key.height - height) <= sizeTolerance {
                     if let texture = popFromCache(forKey: key) {
-                        return texture
+                        statistics.totalTexturesReused += 1
+                        statistics.totalMemorySaved += estimatedByteSize(of: texture)
+                        result = texture
+                        return
                     }
                 }
             }
-            return nil
+            
+            // 3. Try tolerant match for all textures
+            for (key, textures) in cache where key.pixelFormat == pixelFormat && !textures.isEmpty {
+                if abs(key.width - width) <= sizeTolerance && abs(key.height - height) <= sizeTolerance {
+                    if let texture = popFromCache(forKey: key) {
+                        statistics.totalTexturesReused += 1
+                        statistics.totalMemorySaved += estimatedByteSize(of: texture)
+                        // Add to common resolutions
+                        commonResolutions.insert(key)
+                        result = texture
+                        return
+                    }
+                }
+            }
+            
+            statistics.totalTexturesCreated += 1
         }
+        
+        return result
     }
     
     /// Returns a texture to the pool for reuse.
@@ -117,46 +206,104 @@ public final class TexturePool {
     public func enqueueTexture(_ texture: MTLTexture) {
         let key = TextureKey(width: texture.width, height: texture.height, pixelFormat: texture.pixelFormat)
         let oid = ObjectIdentifier(texture)
-        withLock {
-            if textureToKey[oid] != nil {
+        
+        queue.async(flags: .barrier) {
+            if self.textureToKey[oid] != nil {
                 return
             }
-            let textureSize = estimatedByteSize(of: texture)
-            let newTotal = currentMemoryUsage + textureSize
+            let textureSize = self.estimatedByteSize(of: texture)
+            let newTotal = self.currentMemoryUsage + textureSize
             // Evict until under memory limit
-            while newTotal > maxMemoryUsage && !accessQueue.isEmpty {
-                let oldestKey = accessQueue.removeFirst()
-                if var oldList = cache[oldestKey], !oldList.isEmpty {
+            while newTotal > self.maxMemoryUsage && !self.accessQueue.isEmpty {
+                let oldestKey = self.accessQueue.removeFirst()
+                if var oldList = self.cache[oldestKey], !oldList.isEmpty {
                     let oldTexture = oldList.removeLast()
-                    cache[oldestKey] = oldList.isEmpty ? nil : oldList
+                    self.cache[oldestKey] = oldList.isEmpty ? nil : oldList
                     let oldOid = ObjectIdentifier(oldTexture)
-                    textureToKey[oldOid] = nil
-                    currentMemoryUsage -= estimatedByteSize(of: oldTexture)
+                    self.textureToKey[oldOid] = nil
+                    self.currentMemoryUsage -= self.estimatedByteSize(of: oldTexture)
+                    self.statistics.currentTextureCount -= 1
                 }
             }
             // Only enqueue if still under limit
-            if currentMemoryUsage + textureSize <= maxMemoryUsage {
-                cache[key, default: []].append(texture)
-                textureToKey[oid] = key
-                if !accessQueue.contains(key) {
-                    accessQueue.append(key)
+            if self.currentMemoryUsage + textureSize <= self.maxMemoryUsage {
+                self.cache[key, default: []].append(texture)
+                self.textureToKey[oid] = key
+                if !self.accessQueue.contains(key) {
+                    self.accessQueue.append(key)
                 }
-                currentMemoryUsage += textureSize
+                self.currentMemoryUsage += textureSize
+                self.statistics.currentTextureCount += 1
+                self.statistics.currentMemoryUsage = self.currentMemoryUsage
+                self.statistics.maxMemoryUsage = max(self.statistics.maxMemoryUsage, self.currentMemoryUsage)
             }
         }
     }
     
+
+    
+    public func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
+        guard count > 0 else { return }
+        
+        let device = Device.device()
+        queue.async(flags: .barrier) {
+            for (width, height, pixelFormat) in resolutions {
+                let key = TextureKey(width: width, height: height, pixelFormat: pixelFormat)
+                let existingCount = self.cache[key]?.count ?? 0
+                if existingCount >= count {
+                    continue
+                }
+                let neededCount = count - existingCount
+                for _ in 0..<neededCount {
+                    let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                        pixelFormat: pixelFormat,
+                        width: width,
+                        height: height,
+                        mipmapped: false
+                    )
+                    descriptor.usage = [.shaderRead, .shaderWrite]
+                    descriptor.storageMode = .shared
+                    if let texture = device.makeTexture(descriptor: descriptor) {
+                        let textureSize = self.estimatedByteSize(of: texture)
+                        let newTotal = self.currentMemoryUsage + textureSize
+                        if newTotal <= self.maxMemoryUsage {
+                            self.cache[key, default: []].append(texture)
+                            self.textureToKey[ObjectIdentifier(texture)] = key
+                            if !self.accessQueue.contains(key) {
+                                self.accessQueue.append(key)
+                            }
+                            self.currentMemoryUsage += textureSize
+                            self.statistics.currentTextureCount += 1
+                            self.statistics.currentMemoryUsage = self.currentMemoryUsage
+                            self.statistics.maxMemoryUsage = max(self.statistics.maxMemoryUsage, self.currentMemoryUsage)
+                            self.commonResolutions.insert(key)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    public func resetStatistics() {
+        queue.async(flags: .barrier) {
+            self.statistics = Statistics()
+            self.statistics.currentTextureCount = self.cache.values.reduce(0) { $0 + $1.count }
+            self.statistics.currentMemoryUsage = self.currentMemoryUsage
+            self.statistics.maxMemoryUsage = max(self.statistics.maxMemoryUsage, self.currentMemoryUsage)
+        }
+    }
+    
     private func popFromCache(forKey key: TextureKey) -> MTLTexture? {
-        guard var list = cache[key], !list.isEmpty else { return nil }
+        guard var list = self.cache[key], !list.isEmpty else { return nil }
         let texture = list.removeLast()
-        cache[key] = list.isEmpty ? nil : list
-        if let index = accessQueue.firstIndex(of: key) {
-            accessQueue.remove(at: index)
-            accessQueue.append(key)
+        self.cache[key] = list.isEmpty ? nil : list
+        if let index = self.accessQueue.firstIndex(of: key) {
+            self.accessQueue.remove(at: index)
+            self.accessQueue.append(key)
         }
         let oid = ObjectIdentifier(texture)
-        textureToKey[oid] = nil
-        currentMemoryUsage -= estimatedByteSize(of: texture)
+        self.textureToKey[oid] = nil
+        self.currentMemoryUsage -= self.estimatedByteSize(of: texture)
         return texture
     }
     
@@ -191,11 +338,14 @@ public final class TexturePool {
     }
     
     private func purgeAllTextures() {
-        withLock {
-            cache.removeAll()
-            accessQueue.removeAll()
-            textureToKey.removeAll()
-            currentMemoryUsage = 0
+        queue.async(flags: .barrier) {
+            self.cache.removeAll()
+            self.accessQueue.removeAll()
+            self.textureToKey.removeAll()
+            self.commonResolutions.removeAll()
+            self.currentMemoryUsage = 0
+            self.statistics.currentTextureCount = 0
+            self.statistics.currentMemoryUsage = 0
         }
         PerformanceMonitor.shared.recordTextureCreation("texture_pool_purged", created: false)
     }

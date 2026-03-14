@@ -11,8 +11,6 @@
  
 [**Harbeth**](https://github.com/yangKJ/Harbeth) is a high-performance Swift library focused on GPU-accelerated real-time image processing, camera capture, and video processing. Built on Metal technology, it also integrates with CoreImage and Metal Performance Shaders, providing developers with a powerful and easy-to-integrate image processing solution.
 
-Harbeth is designed to address the performance bottlenecks of traditional CPU-based image processing. By fully leveraging GPU parallel computing capabilities, it achieves real-time, smooth image processing effects. Whether for simple color adjustments or complex real-time video effects, Harbeth handles them with ease.
-
 This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUImage).
 
 -------
@@ -28,7 +26,7 @@ English | [**简体中文**](README_CN.md)
 - The built-in metal kernel filters is roughly divided into the following modules.
 - Setup [MetalPerformanceShaders](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) filters And also compatible for [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters.
 - Previews and rendering backed with the power of Metal.
-- Drop-in support for your own custom filters using [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup/C7LookupTable.swift) or using [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7ColorCube.swift) files.
+- Drop-in support for your own custom filters using [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7LookupTable.swift) or using [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7ColorCube.swift) files.
 - Realtime camera capture and video smooth playback with filters.
 - Video source processing video file by [Kakapos](https://github.com/yangKJ/Kakapos) library.
 
@@ -190,11 +188,13 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7CombinationCinematic**: Creates a cinematic look with enhanced contrast and color grading
 - **C7CombinationColorGrading**: Professional color grading with temperature, tint, and tone adjustments
 - **C7CombinationCreativeAtmosphere**: Adds creative atmosphere effects like warm glow, cool blue, golden hour, and moody
+- **C7CombinationCyberpunk**: Creates a cyberpunk style with neon glow, color shifting, and edge detection
+- **C7CombinationDreamy**: Achieves a dreamy, soft look with Gaussian blur, warmth, and reduced saturation
 - **C7CombinationFilmSimulation**: Simulates modern film effects with grain and color characteristics
 - **C7CombinationHDRBoost**: Enhances dynamic range with improved highlight and shadow details
 - **C7CombinationModernHDR**: Achieves modern HDR effects with improved dynamic range
-- **C7CombinationPortraitEnhancement**: Smart portrait enhancement with skin smoothing and eye enhancement
 - **C7CombinationVintage**: Applies vintage film effects with warm tones and grain
+- **C7CombinationVintageFilm**: Simulates vintage film stock with grain, vignette, and sepia tone effects
 
 #### 🎨 Color Adjustment
 - **C7Brightness**: Adjusts the overall brightness of the image, with values ranging from -1.0 (darkest) to 1.0 (brightest), where 0.0 represents the original image
@@ -222,6 +222,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7Warmth**: Adjusts the color temperature of the image, with values ranging from -1.0 (cooler) to 1.0 (warmer)
 - **C7WhiteBalance**: Adjusts the white balance of the image based on color temperature, allowing correction of color casts from different lighting conditions
 - **C7ColorCorrection**: Comprehensive color correction filter with levels, curves, and color balance controls
+- **C7AppleLogDecode**: Decodes Apple Log encoded images to linear space, used for processing HDR content
 
 #### 🌫️ Blur Effects
 - **C7BilateralBlur**: Applies a bilateral blur effect that preserves edges while blurring flat areas, creating a smooth appearance without losing important details
@@ -327,6 +328,23 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7ComicBook**: Creates a comic book style effect with bold black outlines, color quantization, and high contrast, resembling hand-drawn comic book art
 - **C780sSynthwave**: Applies an 80s synthwave effect with neon colors, purple-blue tint, high contrast, and subtle glow, capturing the nostalgic aesthetic of 1980s synthwave culture
 
+##### 📷 Camera Style Filters
+- **C7FujiNC**: Simulates Fuji film NC style, natural colors, suitable for portraits and daily shooting
+- **C7FujiNN**: Simulates Fuji film NN style, high contrast black and white effect, suitable for documentary and art photography
+- **C7FujiFlash**: Simulates Fuji film flash mode, bright and transparent, suitable for sunny and outdoor scenes
+- **C7FujiX100V**: Simulates Fuji X100V camera style, classic vintage tone, suitable for street and humanistic photography
+- **C7FujiCC**: Simulates Fuji Classic Chrome style, low saturation high texture, suitable for landscape and architectural photography
+- **C7RicohPositive**: Simulates Ricoh positive film style, vibrant colors, rich layers
+- **C7RicohNegative**: Simulates Ricoh negative film style, high contrast, rich dark details
+- **C7Universal400**: Simulates universal 400 film style, strong adaptability, suitable for various scenes
+- **C7CPM35**: Simulates CPM35 film style, warm vintage, suitable for portraits and street photography
+- **C7Polaroid**: Simulates Polaroid camera style, with border effect, vintage and cute
+
+##### 🌅 Scene Style Filters
+- **C7DarkToneEnhance**: Enhances dark tone colors, improves picture layering, suitable for low light environment shooting
+- **C7Sunset**: Simulates warm tone effect at sunset, suitable for黄昏 and sunrise scenes
+- **C7GrayRemoval**: Removes picture haze, brightens and whitens, suitable for cloudy and hazy weather shooting
+
 #### 📊 Matrix Processing
 - **C7ColorMatrix4x4**: Applies a 4x4 color matrix transformation to the image, allowing for complex color adjustments and transformations
 - **C7ColorMatrix4x5**: Applies a 4x5 color matrix transformation, providing an additional offset value for more flexible color adjustments
@@ -337,16 +355,16 @@ Combination filters allow you to create complex effects by combining multiple in
 #### 🎛️ Utility
 - **C7ChromaKey**: Removes the background that matches a specified color, similar to green screen effects in video production
 - **C7DepthLuminance**: Adjusts luminance based on depth information, creating a more realistic lighting effect
+- **C7Highlights**: Specifically adjusts only the highlight areas of the image, brightening or darkening them as needed
 - **C7HighlightShadow**: Independently adjusts the highlights and shadows of the image, allowing for precise tonal control
 - **C7HighlightShadowTint**: Tints the highlights and shadows of the image with specified colors, creating a color graded appearance
-- **C7Highlights**: Specifically adjusts only the highlight areas of the image, brightening or darkening them as needed
+- **C7HighlightShadowTone**: Comprehensive tone adjustment filter with controls for shadows, highlights, midtones, contrast
 - **C7HighPassSkinSmoothing**: Performs skin smoothing using frequency separation, preserving details while smoothing skin texture
 - **C7Levels**: Adjusts the image levels, controlling the shadows, midtones, and highlights for better tonal range
 - **C7Luminance**: Extracts the luminance (brightness) component from the image, creating a grayscale representation
 - **C7LuminanceRangeReduction**: Reduces the luminance range of the image, compressing the difference between bright and dark areas
 - **C7LuminanceThreshold**: Applies a threshold to the luminance values, creating a high-contrast black and white image
 - **C7Shadows**: Specifically adjusts only the shadow areas of the image, brightening or darkening them as needed
-- **C7ToneAdjustment**: Comprehensive tone adjustment filter with controls for shadows, highlights, midtones, and contrast
 
 #### 📐 Geometric Transform
 - **C7Crop**: Crops the image to a specified rectangular region, removing unwanted areas

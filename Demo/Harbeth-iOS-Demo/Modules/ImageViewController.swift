@@ -29,7 +29,7 @@ class ImageViewController: UIViewController {
         let slider = UISlider()
         slider.translatesAutoresizingMaskIntoConstraints = false
         slider.addTarget(self, action:#selector(sliderDidchange(_:)), for: .valueChanged)
-        slider.tintColor = UIColor.systemBlue
+        slider.tintColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0)
         return slider
     }()
     
@@ -37,7 +37,7 @@ class ImageViewController: UIViewController {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.borderColor = UIColor.systemBlue.cgColor
+        imageView.layer.borderColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0).cgColor
         imageView.layer.borderWidth = 0.5
         imageView.layer.cornerRadius = 2
         imageView.clipsToBounds = true
@@ -48,7 +48,7 @@ class ImageViewController: UIViewController {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.layer.borderColor = UIColor.systemBlue.cgColor
+        imageView.layer.borderColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0).cgColor
         imageView.layer.borderWidth = 0.5
         imageView.layer.cornerRadius = 2
         imageView.clipsToBounds = true
@@ -58,7 +58,7 @@ class ImageViewController: UIViewController {
     lazy var leftLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .left
-        label.textColor = UIColor.systemBlue
+        label.textColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0)
         label.font = UIFont.systemFont(ofSize: 12)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -67,7 +67,7 @@ class ImageViewController: UIViewController {
     lazy var rightLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .right
-        label.textColor = UIColor.systemBlue
+        label.textColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0)
         label.font = UIFont.systemFont(ofSize: 12)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -76,7 +76,7 @@ class ImageViewController: UIViewController {
     lazy var currentLabel: UILabel = {
         let label = UILabel()
         label.textAlignment = .center
-        label.textColor = UIColor.systemBlue
+        label.textColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0)
         label.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -86,7 +86,7 @@ class ImageViewController: UIViewController {
         let label = UILabel()
         label.text = "原图"
         label.textAlignment = .left
-        label.textColor = UIColor.systemBlue
+        label.textColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0)
         label.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -113,7 +113,7 @@ class ImageViewController: UIViewController {
         view.addSubview(rightLabel)
         view.addSubview(currentLabel)
         
-        let bg = UIColor.systemBlue.withAlphaComponent(0.2)
+        let bg = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 0.2)
         imageView.backgroundColor = bg
         renderView.backgroundColor = bg
         

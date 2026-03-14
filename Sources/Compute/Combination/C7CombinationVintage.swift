@@ -73,7 +73,7 @@ public final class C7CombinationVintage: C7CombinationBase {
     private var saturationFilter: C7Saturation
     private var grainFilter: C7Granularity
     
-    public init(intensity: Float = 0.8) {
+    public init(intensity: Float = 1.0) {
         self.intensity = intensity
         self.sepiaFilter = C7Sepia(intensity: 0.8)
         self.vignetteFilter = C7Vignette(start: 0.2, end: 0.8, color: .zero)

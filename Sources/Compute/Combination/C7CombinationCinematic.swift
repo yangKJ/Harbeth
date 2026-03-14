@@ -68,15 +68,15 @@ public final class C7CombinationCinematic: C7CombinationBase {
     private var saturationFilter: C7Saturation
     private var exposureFilter: C7Exposure
     private var vignetteFilter: C7Vignette
-    private var blurFilter: C7GaussianBlur
+    private var blurFilter: MPSGaussianBlur
     
-    public init(intensity: Float = 0.7) {
+    public init(intensity: Float = 1.0) {
         self.intensity = intensity
         self.contrastFilter = C7Contrast(contrast: 1.2)
         self.saturationFilter = C7Saturation(saturation: 0.8)
         self.exposureFilter = C7Exposure(exposure: 0.1)
         self.vignetteFilter = C7Vignette(start: 0.3, end: 0.75, color: .zero)
-        self.blurFilter = C7GaussianBlur(radius: 0.5)
+        self.blurFilter = MPSGaussianBlur(radius: 0.5)
         super.init()
     }
     

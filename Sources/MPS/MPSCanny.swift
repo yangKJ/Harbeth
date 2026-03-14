@@ -9,7 +9,7 @@ import Foundation
 import MetalPerformanceShaders
 
 /// Canny边缘检测
-@available(iOS 14.0, *)
+@available(iOS 14.0, macOS 11.0, *)
 public struct MPSCanny: MPSKernelProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 1, value: 0.1)

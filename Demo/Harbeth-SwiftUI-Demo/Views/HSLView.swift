@@ -9,17 +9,12 @@ import SwiftUI
 import Harbeth
 
 struct HSLView: View {
-    @State private var inputImage: UIImage = R.image("yuan002") ?? UIImage()
-    @State private var hue: Float = 0.0
-    @State private var saturation: Float = 0.0
+    @State private var inputImage: UIImage = R.image("Bear")!
+    @State private var hue: Float = 50.0
+    @State private var saturation: Float = 0.3
     @State private var lightness: Float = 0.0
     @State private var selectedParameter: Parameter = .saturation
     @State private var currentValue: Float = 0.0
-    
-    init() {
-        // 初始化时设置 currentValue 为默认参数的值
-        _currentValue = State(initialValue: 0.0)
-    }
     
     enum Parameter: String, CaseIterable {
         case hue = "Hue"
@@ -36,6 +31,7 @@ struct HSLView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: .infinity, minHeight: 200, maxHeight: 400)
                 }
+                .padding()
                 .onAppear {
                     // 视图出现时设置 currentValue 为当前选择的参数的值
                     switch selectedParameter {

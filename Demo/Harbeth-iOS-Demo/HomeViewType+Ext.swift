@@ -12,7 +12,7 @@ typealias FilterCallback = (_ value: Float) -> C7FilterProtocol
 typealias FilterResult = (filter: C7FilterProtocol, maxminValue: maxminTuple, callback: FilterCallback?)
 
 extension ViewControllerType {
-    func setupFilterObject() -> FilterResult {
+    func setupFilterObject(with image: C7Image? = nil) -> FilterResult {
         switch self {
         case .ColorInvert:
             let filter = C7ColorConvert(with: .invert)
@@ -612,9 +612,7 @@ extension ViewControllerType {
             let filter = C7CropBlit(rect: cropRect)
             return (filter, nil, nil)
         case .BlitCopyRegion:
-            let sourceRect = CGRect(x: 50, y: 50, width: 100, height: 100)
-            let destOrigin = MTLOrigin(x: 150, y: 150, z: 0)
-            let filter = C7CopyRegionBlit(sourceRect: sourceRect, destOrigin: destOrigin)
+            let filter = C7CopyRegionBlit(destOrigin: MTLOrigin(x: 0, y: 0, z: 0))
             return (filter, nil, nil)
         case .BlitGenerateMipmaps:
             let filter = C7GenerateMipmapsBlit()
@@ -837,12 +835,6 @@ extension ViewControllerType {
                 filter.intensity = $0
                 return filter
             })
-        case .CombinationPortraitEnhancement:
-            let filter = C7CombinationPortraitEnhancement()
-            return (filter, (0.8, 0.1, 1.0), {
-                filter.intensity = $0
-                return filter
-            })
         case .Temperature:
             var filter = C7Temperature()
             return (filter, (0.0, -1.0, 1.0), {
@@ -929,17 +921,23 @@ extension ViewControllerType {
             let filter = C7RGBADilation()
             return (filter, nil, nil)
         case .LuminanceThreshold:
-            var filter = C7LuminanceThreshold()
-            return (filter, (0.5, 0, 1), {
-                filter.threshold = $0
-                return filter
-            })
+            if let image = image {
+                let threshold = C7LuminanceThreshold.calculateThreshold(from: image)
+                let filter = C7LuminanceThreshold(threshold: threshold)
+                return (filter, nil, nil)
+            } else {
+                var filter = C7LuminanceThreshold()
+                return (filter, (0.5, 0, 1), {
+                    filter.threshold = $0
+                    return filter
+                })
+            }
         case .LuminanceRangeReduction:
             let filter = C7LuminanceRangeReduction()
-            return (filter, (0.5, 0, 1), nil)
+            return (filter, nil, nil)
         case .DepthLuminance:
             let filter = C7DepthLuminance()
-            return (filter, (0.5, 0, 1), nil)
+            return (filter, nil, nil)
         case .Fade:
             var filter = C7Fade()
             return (filter, (C7Fade.range.value, C7Fade.range.min, C7Fade.range.max), {
@@ -961,6 +959,24 @@ extension ViewControllerType {
         case .Clarity:
             var filter = C7Clarity()
             return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationCyberpunk:
+            let filter = C7CombinationCyberpunk()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationDreamy:
+            let filter = C7CombinationDreamy()
+            return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .CombinationVintageFilm:
+            let filter = C7CombinationVintageFilm()
+            return (filter, (0.8, 0.1, 1.0), {
                 filter.intensity = $0
                 return filter
             })

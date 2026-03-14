@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-/// 使用Blit操作复制纹理的特定区域到另一个位置
+/// 复制纹理的特定区域到另一个位置
 /// Copy a specific region of the texture to another location using Blit operation
 public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
     
@@ -16,19 +16,22 @@ public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
         return .blit
     }
     
+    public var needCreateDestTexture: Bool = false
+    
     /// The source rectangle to copy from.
-    private let sourceRect: CGRect
+    private let sourceRect: CGRect?
     
     /// The destination origin to copy to.
     private let destOrigin: MTLOrigin
     
-    public init(sourceRect: CGRect, destOrigin: MTLOrigin) {
+    public init(sourceRect: CGRect? = nil, destOrigin: MTLOrigin) {
         self.sourceRect = sourceRect
         self.destOrigin = destOrigin
     }
     
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         let destTexture = textures[0], sourceTexture = textures[1]
+        let sourceRect = sourceRect ?? CGRect(x: 0, y: 0, width: sourceTexture.width, height: sourceTexture.height)
         let x = Int(sourceRect.origin.x)
         let y = Int(sourceRect.origin.y)
         let width = Int(sourceRect.width)

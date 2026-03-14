@@ -34,6 +34,7 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 
 #### 🎨 颜色调整
 - **C7Brightness**（亮度）- 调整图像亮度
+- **C7ColorConvert**（颜色转换）- 在不同颜色空间之间转换颜色，如RGB到YUV等
 - **C7ColorRGBA**（RGBA调整）- 单独调整红、绿、蓝和透明度通道
 - **C7ColorSpace**（色彩空间）- 转换图像色彩空间
 - **C7Contrast**（对比度）- 增强或降低图像对比度
@@ -41,10 +42,14 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7Exposure**（曝光）- 模拟相机曝光效果
 - **C7FalseColor**（伪色）- 创建特殊色彩效果
 - **C7Gamma**（伽马校正）- 调整图像灰度曲线
+- **C7Grayed**（灰度化）- 将图像转换为灰度，移除所有颜色信息同时保留亮度
+- **C7Haze**（雾霾）- 应用雾霾效果，降低对比度并添加朦胧或雾气外观
 - **C7HSL**（色相饱和度亮度）- 独立调整图像的色相、饱和度和亮度，提供全面的色彩控制
 - **C7Hue**（色调）- 改变图像整体色调
+- **C7LuminanceAdaptiveContrast**（亮度自适应对比度）- 根据局部像素亮度动态调整对比度，增强暗部和亮部细节
 - **C7Monochrome**（单色）- 转换为单色调效果
 - **C7Nostalgic**（怀旧色调）- 创建复古照片效果
+- **C7Opacity**（不透明度）- 调整图像透明度，使其或多或少透明
 - **C7Posterize**（色调分离）- 减少色彩数量，创建艺术效果
 - **C7Saturation**（饱和度）- 调整色彩鲜艳程度
 - **C7Sepia**（棕褐色调）- 创建老照片效果
@@ -53,41 +58,48 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7Warmth**（色温）- 调整图像的色温，从冷色调到暖色调
 - **C7WhiteBalance**（白平衡）- 校正图像色温
 - **C7ColorCorrection**（色彩校正）- 综合色彩校正滤镜，包含色阶、曲线、色彩平衡三个参数调节
+- **C7AppleLogDecode**（Apple Log解码）- 将Apple Log编码的图像转换为线性空间，用于处理HDR内容
 
 #### 🌫️ 模糊效果
-- **C7GaussianBlur**（高斯模糊）- 经典平滑模糊效果
 - **C7BilateralBlur**（双边模糊）- 保持边缘清晰的同时模糊图像
-- **C7MotionBlur**（运动模糊）- 模拟物体运动轨迹
-- **C7ZoomBlur**（缩放模糊）- 模拟相机缩放效果
 - **C7CircleBlur**（圆形模糊）- 从中心向外模糊
+- **C7DetailPreservingBlur**（细节保留模糊）- 模糊的同时保留细节
+- **C7GaussianBlur**（高斯模糊）- 经典平滑模糊效果
 - **C7MeanBlur**（均值模糊）- 简单平均模糊
+- **C7MotionBlur**（运动模糊）- 模拟物体运动轨迹
 - **C7RedMonochromeBlur**（红色单色模糊）- 仅模糊红色通道
 - **C7TiltShift**（移轴模糊）- 创建选择性聚焦区域，模拟移轴镜头的浅景深效果
+- **C7ZoomBlur**（缩放模糊）- 模拟相机缩放效果
 
 #### 🔍 边缘与细节
-- **C7Sharpen**（锐化）- 增强图像细节
-- **C7SharpenDetail**（锐化细节）- 综合锐化滤镜，结合锐化、清晰度和细节增强，实现专业图像锐化
 - **C7Canny**（边缘检测）- 检测图像边缘
 - **C7Clarity**（清晰度）- 通过增加中间调对比度来增强图像清晰度，使细节更加突出
-- **C7Sobel**（索贝尔边缘检测）- 高级边缘检测算法
-- **C7Sketch**（素描）- 将图像转换为素描效果
-- **C7ThresholdSketch**（阈值素描）- 基于阈值的素描效果
 - **C7ComicStrip**（漫画效果）- 创建漫画风格图像
 - **C7Crosshatch**（交叉线）- 添加交叉线条效果
+- **C7DetailEnhancer**（细节增强）- 增强图像细节而不放大噪声，使图像更清晰
+- **C7EdgeAwareSharpen**（边缘感知锐化）- 仅锐化图像的边缘区域，同时保留平滑区域，避免放大噪声
 - **C7Granularity**（颗粒感）- 添加胶片颗粒效果
+- **C7Sharpen**（锐化）- 增强图像细节
+- **C7SharpenDetail**（锐化细节）- 综合锐化滤镜，结合锐化、清晰度和细节增强，实现专业图像锐化
+- **C7Sketch**（素描）- 将图像转换为素描效果
+- **C7Sobel**（索贝尔边缘检测）- 高级边缘检测算法
+- **C7ThresholdSketch**（阈值素描）- 基于阈值的素描效果
 
 #### 🌀 扭曲与变形
 - **C7Bulge**（凸起）- 创建中心凸起效果
-- **C7Pinch**（收缩）- 收缩图像中心
-- **C7Swirl**（漩涡）- 创建漩涡扭曲效果
-- **C7WaterRipple**（水波纹）- 模拟水面波纹效果
+- **C7ColorCGASpace**（CGA色彩空间）- 应用CGA（Color Graphics Adapter）色彩空间效果，将颜色限制为16色的复古计算机外观
+- **C7ColorPacking**（颜色打包）- 特殊色彩处理效果
+- **C7Fluctuate**（波动）- 创建波动效果，以波浪状图案扭曲图像，类似于热雾或水扭曲
 - **C7GlassSphere**（玻璃球）- 模拟通过玻璃球观察的效果
-- **C7SphereRefraction**（球面折射）- 模拟光线折射效果
+- **C7Halftone**（半色调）- 模拟印刷半色调效果
+- **C7Morphology**（形态学）- 应用形态学操作，如腐蚀和膨胀，对边缘检测和噪声减少很有用
+- **C7Pinch**（收缩）- 收缩图像中心
 - **C7Pixellated**（像素化）- 创建低分辨率像素效果
 - **C7PolarPixellate**（极坐标像素化）- 从中心向外像素化
 - **C7PolkaDot**（圆点花纹）- 添加圆点图案效果
-- **C7Halftone**（半色调）- 模拟印刷半色调效果
-- **C7ColorPacking**（颜色打包）- 特殊色彩处理效果
+- **C7SphereRefraction**（球面折射）- 模拟光线折射效果
+- **C7Swirl**（漩涡）- 创建漩涡扭曲效果
+- **C7WaterRipple**（水波纹）- 模拟水面波纹效果
 
 #### 🎭 风格化效果
 - **C7OilPainting**（油画）- 模拟油画笔触效果
@@ -148,34 +160,48 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7RGBADilation**（RGBA扩张）- 扩展颜色通道范围
 
 #### 🔗 混合模式
-- **C7BlendNormal**（正常）- 标准混合模式
+- **C7Blend**（混合模式基类）- 所有混合模式的基类，为混合操作提供通用功能
+- **C7BlendChromaKey**（色度键控）- 实现色度键（绿幕）功能，允许用另一个图像或透明度替换特定颜色
+- **C7BlendColorAdd**（颜色添加）- 将混合层的颜色值添加到基础层，产生更亮的图像
+- **C7BlendColorAlpha**（颜色透明度）- 基于透明度值混合图层，创建半透明效果
+- **C7BlendColorBurn**（颜色加深）- 通过增加对比度使基础层变暗，创建丰富的深色混合效果
+- **C7BlendColorDodge**（颜色减淡）- 通过降低对比度使基础层变亮，创建提亮效果
+- **C7BlendDarken**（变暗）- 保留两个图层中较暗的像素值，产生整体较暗的图像
+- **C7BlendDifference**（差值）- 从较亮的颜色中减去较暗的颜色，创建高对比度效果
+- **C7BlendDissolve**（溶解）- 随机用混合层的像素替换基础层的像素，创建溶解效果
+- **C7BlendDivide**（分割）- 用基础层颜色除以混合层颜色，产生更亮的图像
+- **C7BlendExclusion**（排除）- 类似于差值模式但对比度更低，创建更柔和的效果
+- **C7BlendHardLight**（强光）- 结合正片叠底和滤色模式，创建强烈的光照效果
+- **C7BlendHue**（色相）- 使用混合层的色相和基础层的饱和度和亮度
+- **C7BlendLighten**（变亮）- 保留两个图层中较亮的像素值，产生整体较亮的图像
+- **C7BlendLinearBurn**（线性加深）- 通过混合层值线性变暗基础层
+- **C7BlendLuminosity**（亮度）- 使用混合层的亮度和基础层的色相和饱和度
+- **C7BlendMask**（蒙版混合）- 使用蒙版控制混合层的可见区域
 - **C7BlendMultiply**（正片叠底）- 模拟颜料混合效果
-- **C7BlendScreen**（滤色）- 提亮图像并混合颜色
+- **C7BlendNormal**（正常）- 标准混合模式
 - **C7BlendOverlay**（叠加）- 结合正片叠底和滤色效果
-- **C7BlendDarken**（变暗）- 保留较暗的像素值
-- **C7BlendLighten**（变亮）- 保留较亮的像素值
-- **C7BlendHardLight**（强光）- 强烈的混合效果
+- **C7BlendScreen**（滤色）- 提亮图像并混合颜色
 - **C7BlendSoftLight**（柔光）- 柔和的混合效果
-- **C7BlendDifference**（差值）- 计算像素差值
-- **C7BlendExclusion**（排除）- 柔和的差值效果
-- **C7BlendColorBurn**（颜色加深）- 加深颜色对比度
-- **C7BlendColorDodge**（颜色减淡）- 减淡颜色对比度
-- **C7BlendChromaKey**（色度键控）- 基于颜色的抠图效果
-- **C7BlendMask**（蒙版混合）- 使用蒙版控制混合区域
-- **C7ColorBurnEnhancedBlend**（蒙版混合）- 增强版颜色加深混合模式
-- **C7XORBlendWithMask** （XOR蒙版混合）- 使用蒙版进行XOR混合
+- **C7BlendSourceOver**（源覆盖）- 默认混合模式，混合层绘制在基础层之上
+- **C7BlendSubtract**（减去）- 从基础层颜色中减去混合层颜色，产生更暗的图像
+- **C7BlendWithMask**（带蒙版混合）- 使用单独的蒙版纹理控制两个图层的混合
+- **C7ColorBurnEnhancedBlend**（增强版颜色加深混合模式）- 增强版颜色加深混合模式
+- **C7XORBlendWithMask**（XOR蒙版混合）- 使用蒙版进行XOR混合
 
 #### 🎛️ 实用工具
-- **C7Opacity**（不透明度）- 调整图像透明度
-- **C7Levels**（色阶）- 调整图像明暗范围
-- **C7Luminance**（亮度）- 提取或调整图像亮度
-- **C7LuminanceThreshold**（亮度阈值）- 基于亮度创建黑白图像
-- **C7LuminanceRangeReduction**（亮度范围压缩）- 压缩亮度动态范围
+- **C7ChromaKey**（色度键控）- 绿幕抠图效果
+- **C7DepthLuminance**（深度亮度）- 基于深度信息调整亮度
 - **C7HighlightShadow**（高光阴影）- 单独调整高光和阴影
 - **C7HighlightShadowTint**（高光阴影色调）- 为高光和阴影添加色调
-- **C7DepthLuminance**（深度亮度）- 基于深度信息调整亮度
-- **C7ChromaKey**（色度键控）- 绿幕抠图效果
-- **C7ToneAdjustment**（色调调整）- 综合调整阴影、高光、中间调和对比度
+- **C7HighlightShadowTone**（高光阴影色调调整）- 综合调整阴影、高光、中间调和对比度
+- **C7Highlights**（高光）- 专门调整图像的高光区域，根据需要增亮或变暗它们
+- **C7HighPassSkinSmoothing**（高通皮肤平滑）- 使用频率分离执行皮肤平滑，在平滑皮肤纹理的同时保留细节
+- **C7Levels**（色阶）- 调整图像明暗范围
+- **C7Luminance**（亮度）- 提取或调整图像亮度
+- **C7LuminanceRangeReduction**（亮度范围压缩）- 压缩亮度动态范围
+- **C7LuminanceThreshold**（亮度阈值）- 基于亮度创建黑白图像
+- **C7Opacity**（不透明度）- 调整图像透明度
+- **C7Shadows**（阴影）- 专门调整图像的阴影区域，根据需要增亮或变暗它们
 
 #### 📐 几何变形
 - **C7Crop**（裁剪）- 裁剪图像特定区域
@@ -199,11 +225,13 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7CombinationCinematic**（电影风格组合）- 电影风格效果，模拟电影级色彩分级，增强画面对比度和层次感，营造专业电影氛围
 - **C7CombinationColorGrading**（色彩分级组合）- 专业色彩分级效果，包含色温、色调和色调调整，实现电影级色彩控制
 - **C7CombinationCreativeAtmosphere**（创意氛围组合）- 创意氛围效果，添加暖光、冷蓝、黄金时段和忧郁等氛围效果
+- **C7CombinationCyberpunk**（赛博朋克组合）- 赛博朋克风格效果，带有霓虹光晕、色彩偏移和边缘检测，营造未来科技感
+- **C7CombinationDreamy**（梦幻组合）- 梦幻柔和效果，通过高斯模糊、暖色调和降低饱和度，创造出梦幻般的视觉效果
 - **C7CombinationFilmSimulation**（胶片模拟组合）- 现代胶片模拟效果，模拟不同类型胶片的色彩和颗粒特性
 - **C7CombinationHDRBoost**（HDR增强组合）- HDR增强效果，提升动态范围，增强高光和阴影细节
 - **C7CombinationModernHDR**（现代HDR组合）- 现代HDR效果，提升画面动态范围，增强暗部细节和高光层次，呈现更具冲击力的视觉效果
-- **C7CombinationPortraitEnhancement**（人像增强组合）- 智能人像增强效果，包含皮肤平滑、眼睛增强和面部提亮等处理
 - **C7CombinationVintage**（复古风格组合）- 复古风格效果，模拟胶片质感，添加怀旧色调和颗粒感，重现经典老照片的韵味
+- **C7CombinationVintageFilm**（复古胶片组合）- 复古胶片效果，模拟老胶片质感，添加颗粒、暗角和棕褐色调，重现经典胶片摄影的魅力
 
 #### 🎚️ 其他效果
 - **C7Fade**（淡入淡出）- 应用淡入淡出效果，使图像逐渐过渡到白色
@@ -211,6 +239,7 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7Haze**（雾霾）- 创建雾霾效果
 - **C7Pow**（幂次调整）- 应用幂函数变换
 - **C7Vignette**（暗角）- 添加照片暗角效果
+- **C7VignetteBlend**（暗角混合）- 应用带有多种混合模式的暗角效果，允许不同风格的边缘变暗
 
 #### 🖼️ Blit 操作
 - **C7CopyRegionBlit**（区域复制）- 从一个纹理复制特定区域到另一个纹理

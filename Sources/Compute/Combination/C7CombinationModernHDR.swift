@@ -74,7 +74,7 @@ public final class C7CombinationModernHDR: C7CombinationBase {
     private var sharpenFilter: C7Sharpen
     private var highlightShadowFilter: C7HighlightShadow
     
-    public init(intensity: Float = 0.8) {
+    public init(intensity: Float = 1.0) {
         self.intensity = intensity
         self.contrastFilter = C7Contrast(contrast: 1.8)
         self.saturationFilter = C7Saturation(saturation: 1.3)

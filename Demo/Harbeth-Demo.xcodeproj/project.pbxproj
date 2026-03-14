@@ -28,7 +28,6 @@
 		8767F21C29C95D0A00FB5301 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8767F21B29C95D0A00FB5301 /* Harbeth.framework */; };
 		8767F21D29C95D0A00FB5301 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8767F21B29C95D0A00FB5301 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8769918C2A7CEBDC00551BD3 /* CustomViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8769918B2A7CEBDC00551BD3 /* CustomViews.swift */; };
-		8769CE222A79F4ED004AB055 /* SwiftUIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8769CE212A79F4ED004AB055 /* SwiftUIView.swift */; };
 		878444F52994DDA0001D856B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878444F42994DDA0001D856B /* AppDelegate.swift */; };
 		878444F72994DDA0001D856B /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878444F62994DDA0001D856B /* SceneDelegate.swift */; };
 		878444FC2994DDA0001D856B /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 878444FA2994DDA0001D856B /* Main.storyboard */; };
@@ -56,6 +55,8 @@
 		F78A11252F6010C300FFC2B6 /* CurvesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A11232F6010C300FFC2B6 /* CurvesView.swift */; };
 		F78A11262F6010C300FFC2B6 /* HSLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A11242F6010C300FFC2B6 /* HSLView.swift */; };
 		F7A068852F3C3C9900D7AA52 /* TestManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A068842F3C3C9900D7AA52 /* TestManager.swift */; };
+		F7E3231D2F651C7D002ACD7B /* ChromaKeyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */; };
+		F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -117,7 +118,6 @@
 		8767F21629C95CE700FB5301 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		8767F21B29C95D0A00FB5301 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		8769918B2A7CEBDC00551BD3 /* CustomViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomViews.swift; sourceTree = "<group>"; };
-		8769CE212A79F4ED004AB055 /* SwiftUIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftUIView.swift; sourceTree = "<group>"; };
 		878444F22994DDA0001D856B /* Harbeth-iOS-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-iOS-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		878444F42994DDA0001D856B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		878444F62994DDA0001D856B /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -147,6 +147,8 @@
 		F78A11232F6010C300FFC2B6 /* CurvesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurvesView.swift; sourceTree = "<group>"; };
 		F78A11242F6010C300FFC2B6 /* HSLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSLView.swift; sourceTree = "<group>"; };
 		F7A068842F3C3C9900D7AA52 /* TestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestManager.swift; sourceTree = "<group>"; };
+		F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaKeyView.swift; sourceTree = "<group>"; };
+		F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelControlView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -297,6 +299,8 @@
 			isa = PBXGroup;
 			children = (
 				F75F72482A7420C8003478D7 /* BlendView.swift */,
+				F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */,
+				F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */,
 				F78A110D2F5FEA3D00FFC2B6 /* ColorRGBAView.swift */,
 				870B80AB2A80E40200614660 /* CoreImageViews.swift */,
 				F7621A882A7E7DA200614542 /* CubeView.swift */,
@@ -304,7 +308,6 @@
 				8769918B2A7CEBDC00551BD3 /* CustomViews.swift */,
 				F78A11242F6010C300FFC2B6 /* HSLView.swift */,
 				870B80AD2A80E51B00614660 /* MetalKernelViews.swift */,
-				8769CE212A79F4ED004AB055 /* SwiftUIView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -477,8 +480,8 @@
 			files = (
 				F78A110E2F5FEA3D00FFC2B6 /* ColorRGBAView.swift in Sources */,
 				870B80AC2A80E40200614660 /* CoreImageViews.swift in Sources */,
-				8769CE222A79F4ED004AB055 /* SwiftUIView.swift in Sources */,
 				87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */,
+				F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */,
 				870B80AE2A80E51B00614660 /* MetalKernelViews.swift in Sources */,
 				8767F21229C95CE600FB5301 /* ContentView.swift in Sources */,
 				F7621A892A7E7DA200614542 /* CubeView.swift in Sources */,
@@ -487,6 +490,7 @@
 				8767F21029C95CE600FB5301 /* HarbethExamples.swift in Sources */,
 				F75F72492A7420C8003478D7 /* BlendView.swift in Sources */,
 				F75F724D2A742272003478D7 /* Extensions.swift in Sources */,
+				F7E3231D2F651C7D002ACD7B /* ChromaKeyView.swift in Sources */,
 				8769918C2A7CEBDC00551BD3 /* CustomViews.swift in Sources */,
 				F7A068852F3C3C9900D7AA52 /* TestManager.swift in Sources */,
 				874035862A988C07001D0A98 /* ErrorView.swift in Sources */,

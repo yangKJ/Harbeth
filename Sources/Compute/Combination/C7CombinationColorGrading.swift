@@ -76,7 +76,7 @@ public final class C7CombinationColorGrading: C7CombinationBase {
     private var saturationFilter: C7Saturation
     private var highlightShadowFilter: C7HighlightShadow
     
-    public init(intensity: Float = 0.8) {
+    public init(intensity: Float = 1.0) {
         self.intensity = intensity
         self.temperatureFilter = C7Temperature(temperature: 0.0, tint: 0.0)
         self.contrastFilter = C7Contrast(contrast: 1.2)

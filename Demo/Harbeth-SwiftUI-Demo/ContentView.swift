@@ -22,6 +22,9 @@ struct ContentView: View {
                 NavigationLink(destination: HSLView()) {
                     Text("HSL")
                 }
+                NavigationLink(destination: ColorRGBAView()) {
+                    Text("Color")
+                }
                 NavigationLink(destination: CubeView()) {
                     Text("Cube")
                 }
@@ -29,17 +32,24 @@ struct ContentView: View {
                     Text("Blend")
                 }
                 NavigationLink(destination: HighlightShadowToneView()) {
-                    Text("HighlightShadow")
+                    Text("Highlight Shadow")
                 }
-                NavigationLink(destination: CoreImageViews()) {
-                    Text("CoreImage filters")
+                NavigationLink(destination: ChromaKeyView()) {
+                    Text("Chroma Key")
                 }
-                NavigationLink(destination: MetalKernelViews()) {
-                    Text("Metal filters")
+                NavigationLink(destination: ChannelControlView()) {
+                    Text("Channel Control")
                 }
-                NavigationLink(destination: SwiftUIView()) {
-                    Text("Test")
+                
+                Section {
+                    NavigationLink(destination: MetalKernelViews()) {
+                        Text("Metal filters")
+                    }
+                    NavigationLink(destination: CoreImageViews()) {
+                        Text("CoreImage filters")
+                    }
                 }
+                
                 Section {
                     NavigationLink(destination: CustomViews(value: MPSGaussianBlur.range.value, filtering: {
                         MPSGaussianBlur.init(radius: $0)

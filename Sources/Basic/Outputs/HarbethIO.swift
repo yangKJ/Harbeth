@@ -56,12 +56,14 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     public var memoryLimitMB: Int = 512
     
     private var hasCoreImage: Bool
+    private var hasAppleLogDecode: Bool
     private var setupedBufferPixelFormat = false
     private let identifier: String
+    private let renderSemaphore = DispatchSemaphore(value: 4)
     private let renderQueue = DispatchQueue(
         label: "com.harbeth.run.async.render",
         qos: .userInteractive,
-        attributes: [],
+        attributes: .concurrent,
         autoreleaseFrequency: .workItem
     )
     
@@ -81,6 +83,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         self.element = element
         self.identifier = UUID().uuidString
         self.hasCoreImage = filters.contains { $0.modifier.isCoreImage }
+        self.hasAppleLogDecode = filters.contains { $0 is C7AppleLogDecode }
         self.filters = filters//Self.optimizeFilters(filters)
     }
     
@@ -462,6 +465,10 @@ extension HarbethIO {
             let group = filterGroups[index]
             if group.first is CoreImageProtocol {
                 self.renderQueue.async {
+                    self.renderSemaphore.wait()
+                    defer {
+                        self.renderSemaphore.signal()
+                    }
                     do {
                         guard var inputCIImage = inputTexture.c7.toCIImage() else {
                             return
@@ -470,8 +477,9 @@ extension HarbethIO {
                             inputCIImage = try filter.outputCIImage(with: inputCIImage)
                         }
                         let commandBuffer = try self.makeCommandBuffer()
+                        let pixelFormat = self.setupBufferPixelFormat(with: inputTexture)
                         let destTexture = try TextureLoader.makeTexture(at: inputCIImage.extent.size, options: [
-                            .texturePixelFormat: self.rgba8UnormTexture ? .rgba8Unorm : self.bufferPixelFormat
+                            .texturePixelFormat: pixelFormat
                         ])
                         var newTemporaryTextures = temporaryTextures
                         if destTexture !== inputTexture {
@@ -620,34 +628,22 @@ extension HarbethIO {
         return groups
     }
     
-    /// The default setting for MTLPixelFormat is rgba8Unorm.
-    private var rgba8UnormTexture: Bool {
-        switch element {
-        case _ as MTLTexture:
-            return true
-        case _ as C7Image:
-            return true
-        case _ as CIImage:
-            return true
-        case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
-            return true
-        case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
-            return false
-        case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
-            return false
-        default:
-            return false
+    private func setupBufferPixelFormat(with sourceTexture: MTLTexture) -> MTLPixelFormat {
+        if !setupedBufferPixelFormat {
+            if hasAppleLogDecode {
+                return .rgba16Float
+            } else {
+                return sourceTexture.pixelFormat
+            }
         }
+        return bufferPixelFormat
     }
     
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if !createDestTexture || !(filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true) {
             return sourceTexture
         }
-        var targetPixelFormat = bufferPixelFormat
-        if !setupedBufferPixelFormat && rgba8UnormTexture {
-            targetPixelFormat = .rgba8Unorm
-        }
+        let targetPixelFormat = setupBufferPixelFormat(with: sourceTexture)
         var resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
         // Apply scale factor if set
         let scaleFactor_ = min(max(0.0, scaleFactor), 1.0)
@@ -724,6 +720,10 @@ extension HarbethIO {
             switch filter.modifier {
             case .coreimage:
                 self.renderQueue.async {
+                    self.renderSemaphore.wait()
+                    defer {
+                        self.renderSemaphore.signal()
+                    }
                     do {
                         let outputImage = try (filter as! CoreImageProtocol).outputCIImage(with: inputTexture)
                         try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)

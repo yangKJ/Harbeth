@@ -29,9 +29,9 @@ public struct C7ChannelControl: C7FilterProtocol {
     /// Alpha channel intensity (0.0 ~ 1.0)
     @ZeroOneRange public var alpha: Float = R.iRange.value
     
-    /// 混合强度 (-1.0 ~ 1.0)，0.0代表原图
-    /// Blend intensity (-1.0 ~ 1.0), 0.0 represents original image
-    @Clamping(range.min...range.max) public var blend: Float = range.value
+    /// 混合强度 (0.0 ~ 1.0)，0.0代表原图
+    /// Blend intensity (0.0 ~ 1.0), 0.0 represents original image
+    @ZeroOneRange public var blend: Float = 0.0
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7ChannelControl")

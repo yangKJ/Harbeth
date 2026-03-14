@@ -8,8 +8,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7Morphology(texture2d<half, access::read> inputTexture [[texture(0)]],
-                         texture2d<half, access::write> outputTexture [[texture(1)]],
+kernel void C7Morphology(texture2d<half, access::write> outputTexture [[texture(0)]],
+                         texture2d<half, access::read> inputTexture [[texture(1)]],
                          constant float &operation [[buffer(0)]],
                          constant float &kernelSize [[buffer(1)]],
                          uint2 gid [[thread_position_in_grid]]) {

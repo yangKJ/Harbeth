@@ -7,6 +7,7 @@
 
 import Foundation
 import ObjectiveC
+import Metal
 
 public final class Shared {
     
@@ -78,6 +79,24 @@ extension Shared {
                 objc_setAssociatedObject(self, &C7ATSharedTexturePoolContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
         }
+    }
+    
+    /// 预热纹理池
+    /// - Parameters:
+    ///   - resolutions: 常用分辨率列表 [(width, height, pixelFormat)]
+    ///   - count: 每种分辨率预创建的纹理数量
+    public func prewarmTexturePool(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
+        texturePool?.prewarm(resolutions: resolutions, count: count)
+    }
+    
+    /// 获取纹理池统计信息
+    public var texturePoolStatistics: TexturePool.Statistics? {
+        return texturePool?.statistics
+    }
+    
+    /// 重置纹理池统计信息
+    public func resetTexturePoolStatistics() {
+        texturePool?.resetStatistics()
     }
     
     func synchronizedDevice<T>( _ action: () -> T) -> T {

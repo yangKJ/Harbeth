@@ -168,7 +168,7 @@ enum ViewControllerType: String {
     case HighlightShadowTint = "高光阴影色调"
     case Highlights = "高光"
     case Shadows = "阴影"
-    case LuminanceThreshold = "亮度阈值"
+    case LuminanceThreshold = "自动计算最佳阈值"
     case LuminanceRangeReduction = "亮度范围减少"
     case DepthLuminance = "深度亮度"
     case Fade = "淡入淡出效果"
@@ -188,8 +188,10 @@ enum ViewControllerType: String {
     case CombinationFilmSimulation = "现代胶片模拟"
     case CombinationHDRBoost = "HDR增强"
     case CombinationModernHDR = "现代HDR"
-    case CombinationPortraitEnhancement = "智能人像增强"
     case CombinationVintage = "复古胶片"
+    case CombinationCyberpunk = "赛博朋克风格"
+    case CombinationDreamy = "梦幻风格"
+    case CombinationVintageFilm = "复古电影风格"
     
     // Blit操作
     case BlitCrop = "裁剪"
@@ -215,14 +217,12 @@ extension ViewControllerType {
             return R.image("IMG_2606")!
         case .SoulOut:
             return R.image("IMG_2623")!
-        case .BlitGenerateMipmaps:
+        case .BlitGenerateMipmaps, .BlitCopyRegion:
             return [R.image("wechat0")!, R.image("wechat1")!].randomElement()!
         default:
             let images = [
-                R.image("wechat0")!, R.image("wechat1")!, R.image("P104080")!,
                 R.image("yuan000")!, R.image("yuan001")!, R.image("yuan002")!,
                 R.image("yuan003")!, R.image("yuan004")!, R.image("yuan005")!,
-                R.image("IMG_6781")!,
             ]
             return images.randomElement()!
         }

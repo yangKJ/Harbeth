@@ -38,6 +38,7 @@ public enum HarbethError: Swift.Error {
     case textureCopyPixelBufferFailed
     case textureFormatNotSupported
     case textureSizeMismatch
+    case textureNotMipmapped
     
     case readFunction(String)
     case computePipelineState(String)
@@ -127,6 +128,7 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .textureCopyPixelBufferFailed: return "Failed to copy pixel buffer."
         case .textureFormatNotSupported: return "Texture format not supported."
         case .textureSizeMismatch: return "Texture size mismatch."
+        case .textureNotMipmapped: return "Texture does not support mipmaps."
         case .readFunction(let name): return "Read MTL Function failed with \(name)."
         case .computePipelineState(let name): return "Make compute pipeline state failed with \(name)."
         case .renderPipelineState(let vertex, let fragment): return "Make rendering pipeline state failed with \(vertex) and \(fragment)."
@@ -291,6 +293,7 @@ extension HarbethError {
         case .textureCopyPixelBufferFailed: return 1206
         case .textureFormatNotSupported: return 1207
         case .textureSizeMismatch: return 1208
+        case .textureNotMipmapped: return 1209
         case .readFunction: return 1300
         case .computePipelineState: return 1301
         case .renderPipelineState: return 1302

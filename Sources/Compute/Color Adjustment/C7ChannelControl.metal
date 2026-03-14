@@ -18,26 +18,22 @@ kernel void C7ChannelControl(texture2d<half, access::write> outputTexture [[text
                              uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    // 解析参数
     const float redValue = *red;
     const float greenValue = *green;
     const float blueValue = *blue;
     const float alphaValue = *alpha;
     const float blendValue = *blend;
     
-    // 应用通道控制（0 代表原图）
     float4 adjustedColor;
-    adjustedColor.r = float(inColor.r) * (redValue + 1.0); // -1.0~1.0 映射到 0.0~2.0
+    adjustedColor.r = float(inColor.r) * (redValue + 1.0);
     adjustedColor.g = float(inColor.g) * (greenValue + 1.0);
     adjustedColor.b = float(inColor.b) * (blueValue + 1.0);
     adjustedColor.a = float(inColor.a) * alphaValue;
     
-    // 应用混合强度（0 代表原图）
     float4 originalColor = float4(inColor);
-    float blendFactor = (blendValue + 1.0) / 2.0; // -1.0~1.0 映射到 0.0~1.0
+    float blendFactor = blendValue;
     float4 finalColor = originalColor * (1.0 - blendFactor) + adjustedColor * blendFactor;
     
-    // 确保值在有效范围内
     half4 outColor;
     outColor.r = half(clamp(finalColor.r, 0.0, 1.0));
     outColor.g = half(clamp(finalColor.g, 0.0, 1.0));
