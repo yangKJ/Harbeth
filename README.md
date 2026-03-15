@@ -18,17 +18,20 @@ This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUI
 English | [**简体中文**](README_CN.md)
 
 ## Features
-🟣 At the moment, the most important features of metal moudle can be summarized as follows:
+🟣 Harbeth offers a comprehensive set of features designed to make image and video processing fast, efficient, and easy to implement:
 
-- Support more platform system, macOS and iOS, both UIKit/AppKit and SwiftUI.
-- High performance quickly add filters at these sources:    
-  - UIImage, NSImage, CIImage, CGImage, CMSampleBuffer, CVPixelBuffer.
-- The built-in metal kernel filters is roughly divided into the following modules.
-- Setup [MetalPerformanceShaders](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) filters And also compatible for [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters.
-- Previews and rendering backed with the power of Metal.
-- Drop-in support for your own custom filters using [LUTs](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7LookupTable.swift) or using [Cube](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7ColorCube.swift) files.
-- Realtime camera capture and video smooth playback with filters.
-- Video source processing video file by [Kakapos](https://github.com/yangKJ/Kakapos) library.
+- **Cross-Platform Support**: Runs seamlessly on iOS, macOS, tvOS, and watchOS, supporting both UIKit/AppKit and SwiftUI frameworks.
+- **Versatile Input Sources**: Apply filters to a wide range of image and video sources including MTLTexture, UIImage, NSImage, CIImage, CGImage, CMSampleBuffer, and CVPixelBuffer.
+- **Rich Filter Ecosystem**: Over 200+ built-in filters organized into intuitive categories, covering everything from basic color adjustments to advanced artistic effects.
+- **Advanced Integration**: Leverage the power of [Metal Performance Shaders (MPS)](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) for high-performance filtering, while maintaining compatibility with [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters for maximum flexibility.
+- **Metal-Powered Rendering**: All previews and rendering operations are accelerated by Metal, ensuring smooth, real-time performance even with complex filter chains.
+- **Custom Filter Support**: Easily create and integrate custom filters using LUTs has [1D Lookup Tables](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7LookupTable1D.swift)、[2D Lookup Tables](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7LookupTable.swift)、 [3D Cube Files](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7ColorCube.swift), And [Multi Zone Tables](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7MultiZoneLookup.swift), or custom Metal shaders. Create advanced combination filters by subclassing `C7CombinationBase` for complex, multi-step effects.
+- **Real-Time Processing**: Achieve smooth, real-time camera capture and video playback with live filter application.
+- **Video Processing**: Seamlessly process both local and network video files using the integrated [Kakapos](https://github.com/yangKJ/Kakapos) library.
+- **Intuitive API**: Enjoy a clean, Swift-friendly API with chainable filter operations and operator overloading for concise, expressive code.
+- **Performance Optimization**: Benefit from automatic texture pooling, memory management, and multi-encoder support for optimal performance across devices.
+- **Extensive Documentation**: Comprehensive documentation and demo projects to help you get started quickly and make the most of Harbeth's capabilities.
+- **SwiftUI integration**: Native support for SwiftUI framework.
 
 ### 🎨 Filter System
 Harbeth offers a comprehensive filter classification to meet various image processing needs:
@@ -42,22 +45,12 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 - **Matrix Processing**: 3x3 convolution matrix, 4x4 color matrix, 4x5 color matrix, etc.
 - **Utility**: Chroma key, highlight shadow, levels, luminance threshold, etc.
 - **Generators**: Solid color, color gradient, etc.
-- **Lookup Tables**: LUT-based color adjustments and CUBE file support
-- **Blit Operations**: Copy region, crop, generate mipmaps
+- **Lookup Tables**: LUT-based color adjustments and CUBE file support.
+- **Blit Operations**: Copy region, crop, generate mipmaps.
 - **CoreImage Integration**: Access to CoreImage filters
 - **Metal Performance Shaders**: High-performance MPS filters
 
 #### **A total of 200+ kinds of built-in filters are currently available.✌️**
-
-### 🔧 Technical Advantages
-- **Metal Acceleration**: Fully leverages GPU parallel computing power
-- **Multi-encoder Support**: Automatically selects optimal command encoder based on filter type
-- **Intelligent Memory Management**: Automatic texture pooling and memory limit mechanisms
-- **Performance Monitoring**: Built-in performance monitoring tools to help optimize processing workflows
-- **Seamless Integration**: Integrates with CoreImage and Metal Performance Shaders
-- **Type Safety**: Pure Swift implementation with complete type safety
-- **Combination Filters**: Create complex effects by combining multiple filters
-- **Extensibility**: Easy to add custom filters using Metal shaders or LUT files
 
 ## Requirements
 

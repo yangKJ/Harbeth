@@ -14,9 +14,9 @@
 		872661C62994D8CE00E612C7 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872661C52994D8CE00E612C7 /* ViewController.swift */; };
 		872661C82994D8CF00E612C7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 872661C72994D8CF00E612C7 /* Assets.xcassets */; };
 		872661CB2994D8CF00E612C7 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 872661C92994D8CF00E612C7 /* Main.storyboard */; };
+		872661D12994D8CE00E612C7 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872661D02994D8CE00E612C7 /* main.swift */; };
 		872661DE2994DA4700E612C7 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; };
 		872661DF2994DA4700E612C7 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		873F37872C9BAF7F00173C28 /* DisplayLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873F37862C9BAF7F00173C28 /* DisplayLink.swift */; };
 		874035862A988C07001D0A98 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035852A988C07001D0A98 /* ErrorView.swift */; };
 		875CD59E2A49705400C114C3 /* C7Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59A2A49705400C114C3 /* C7Collector.swift */; };
 		875CD5A02A49705400C114C3 /* C7CollectorCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */; };
@@ -45,6 +45,8 @@
 		8784451C2994DE81001D856B /* ImageViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445182994DE81001D856B /* ImageViewController.swift */; };
 		87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */; };
 		F72C46B52F63EA94000396E0 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F72C46B42F63EA94000396E0 /* violet.CUBE */; };
+		F73F89442F6646D600F83584 /* FilterItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F73F89432F6646D600F83584 /* FilterItem.swift */; };
+		F73F89462F665B2700F83584 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F73F89452F665B2700F83584 /* violet.CUBE */; };
 		F75F72492A7420C8003478D7 /* BlendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F72482A7420C8003478D7 /* BlendView.swift */; };
 		F75F724D2A742272003478D7 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F724C2A742272003478D7 /* Extensions.swift */; };
 		F75F724F2A74227D003478D7 /* Res.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75F724E2A74227D003478D7 /* Res.swift */; };
@@ -105,8 +107,8 @@
 		872661C72994D8CF00E612C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		872661CA2994D8CF00E612C7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		872661CC2994D8CF00E612C7 /* Harbeth_macOS_Demo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Harbeth_macOS_Demo.entitlements; sourceTree = "<group>"; };
+		872661D02994D8CE00E612C7 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		872661DD2994DA4700E612C7 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		873F37862C9BAF7F00173C28 /* DisplayLink.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DisplayLink.swift; sourceTree = "<group>"; };
 		874035852A988C07001D0A98 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 		875CD59A2A49705400C114C3 /* C7Collector.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Collector.swift; sourceTree = "<group>"; };
 		875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorCamera.swift; sourceTree = "<group>"; };
@@ -136,6 +138,8 @@
 		878445182994DE81001D856B /* ImageViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewController.swift; sourceTree = "<group>"; };
 		87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
 		F72C46B42F63EA94000396E0 /* violet.CUBE */ = {isa = PBXFileReference; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
+		F73F89432F6646D600F83584 /* FilterItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterItem.swift; sourceTree = "<group>"; };
+		F73F89452F665B2700F83584 /* violet.CUBE */ = {isa = PBXFileReference; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
 		F748B7262A7D2F3C00D7B3F1 /* Harbeth-SwiftUI-Demo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Harbeth-SwiftUI-Demo.entitlements"; sourceTree = "<group>"; };
 		F75F72482A7420C8003478D7 /* BlendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendView.swift; sourceTree = "<group>"; };
 		F75F724C2A742272003478D7 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
@@ -205,8 +209,10 @@
 			children = (
 				872661C32994D8CE00E612C7 /* AppDelegate.swift */,
 				872661C52994D8CE00E612C7 /* ViewController.swift */,
-				873F37862C9BAF7F00173C28 /* DisplayLink.swift */,
+				F73F89432F6646D600F83584 /* FilterItem.swift */,
+				872661D02994D8CE00E612C7 /* main.swift */,
 				872661C72994D8CF00E612C7 /* Assets.xcassets */,
+				F73F89452F665B2700F83584 /* violet.CUBE */,
 				872661C92994D8CF00E612C7 /* Main.storyboard */,
 				872661CC2994D8CF00E612C7 /* Harbeth_macOS_Demo.entitlements */,
 			);
@@ -434,6 +440,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				872661C82994D8CF00E612C7 /* Assets.xcassets in Resources */,
+				F73F89462F665B2700F83584 /* violet.CUBE in Resources */,
 				872661CB2994D8CF00E612C7 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -468,9 +475,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F73F89442F6646D600F83584 /* FilterItem.swift in Sources */,
 				872661C62994D8CE00E612C7 /* ViewController.swift in Sources */,
-				873F37872C9BAF7F00173C28 /* DisplayLink.swift in Sources */,
 				872661C42994D8CE00E612C7 /* AppDelegate.swift in Sources */,
+				872661D12994D8CE00E612C7 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -684,13 +692,12 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-macOS-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -714,13 +721,12 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-macOS-Demo";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -821,7 +827,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo5";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo6";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -855,7 +861,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo5";
+				PRODUCT_BUNDLE_IDENTIFIER = "Apple.Harbeth-iOS-Demo6";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

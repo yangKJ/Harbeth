@@ -9,11 +9,10 @@
 using namespace metal;
 
 kernel void C7PolkaDot(texture2d<half, access::write> outputTexture [[texture(0)]],
-                       texture2d<half, access::sample> inputTexture [[texture(1)]],
+                       texture2d<half, access::read> inputTexture [[texture(1)]],
                        constant float *fractionalWidth [[buffer(0)]],
                        constant float *dotScaling [[buffer(1)]],
                        uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const float fractionalWidthOfPixel = float(*fractionalWidth);
     const float aspectRatio = float(inputTexture.get_height()) / float(inputTexture.get_width());
@@ -25,7 +24,9 @@ kernel void C7PolkaDot(texture2d<half, access::write> outputTexture [[texture(0)
     const float2 adjustedSamplePos = float2(samplePos.x, (samplePos.y * aspectRatio + 0.5 - 0.5 * aspectRatio));
     const float distanceFromSamplePoint = distance(adjustedSamplePos, textureCoordinateToUse);
     const float checkForPresenceWithinDot = step(distanceFromSamplePoint, (fractionalWidthOfPixel * 0.5) * float(*dotScaling));
-    half4 outColor = inputTexture.sample(quadSampler, samplePos);
+    float2 clampedSamplePos = clamp(samplePos, 0.0, 1.0);
+    uint2 texCoord = uint2(clampedSamplePos * float2(inputTexture.get_width(), inputTexture.get_height()));
+    half4 outColor = inputTexture.read(texCoord);
     outColor = half4(outColor.rgb * half(checkForPresenceWithinDot), outColor.a);
     
     outputTexture.write(outColor, grid);

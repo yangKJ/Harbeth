@@ -11,42 +11,33 @@ import Foundation
 /// A bilateral blur, which tries to blur similar color values while preserving sharp edges
 public struct C7BilateralBlur: C7FilterProtocol {
     
-    /// A normalization factor for the distance between central color and sample color, with a default of 8.0
-    public var distanceNormalizationFactor: Float = 8
+    /// 空间域标准差，控制模糊范围，默认值为15.0
+    /// Spatial domain standard deviation, control fuzzy range
+    public var sigmaSpace: Float = 15.0
     
-    /// Step offset for the blur calculation
-    public var stepOffset: Float = 0
+    /// 颜色域标准差，控制颜色相似性阈值，默认值为0.3
+    /// Color domain standard deviation, control color similarity threshold
+    public var sigmaColor: Float = 0.3
     
-    /// Radius for the blur effect
-    public var radius: Float = 8 {
-        didSet {
-            distanceNormalizationFactor = radius
-        }
-    }
-    
-    /// Offset for the blur calculation
-    public var offect: C7Point2D = .zero {
-        didSet {
-            stepOffset = offect.x
-        }
-    }
+    /// 模糊半径，控制采样范围，默认值为7
+    /// Fuzzy radius, control sampling range
+    public var radius: Float = 7
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7BilateralBlur")
     }
     
     public var factors: [Float] {
-        return [distanceNormalizationFactor, 0, stepOffset]
+        return [sigmaSpace, sigmaColor, radius]
     }
     
-    public init(distanceNormalizationFactor: Float = 8, stepOffset: Float = 0) {
-        self.distanceNormalizationFactor = distanceNormalizationFactor
-        self.stepOffset = stepOffset
-        self.radius = distanceNormalizationFactor
-        self.offect = C7Point2D(x: stepOffset, y: 0)
+    public init(sigmaSpace: Float = 15.0, sigmaColor: Float = 0.3, radius: Float = 7) {
+        self.sigmaSpace = sigmaSpace
+        self.sigmaColor = sigmaColor
+        self.radius = radius
     }
     
-    public init(radius: Float = 8) {
-        self.init(distanceNormalizationFactor: radius, stepOffset: 0)
+    public init(radius: Float = 7) {
+        self.init(sigmaSpace: 15.0, sigmaColor: 0.3, radius: radius)
     }
 }

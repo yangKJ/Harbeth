@@ -72,14 +72,14 @@ public enum ModifierEnum: Equatable, Hashable {
         switch self {
         case .compute(let kernel):
             return kernel
-        case .render(let vertex, _):
-            return vertex
+        case .render(let vertex, let fragment):
+            return vertex + "_" + fragment
         case .blit:
-            return ""
+            return UUID().uuidString
         case .coreimage(let CIName):
             return CIName
         case .mps(let performance):
-            return performance.label ?? ""
+            return performance.label ?? UUID().uuidString
         }
     }
 }

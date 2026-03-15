@@ -9,34 +9,51 @@
 using namespace metal;
 
 kernel void C7ThresholdSketch(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::sample> inputTexture [[texture(1)]],
+                              texture2d<half, access::read> inputTexture [[texture(1)]],
                               constant float *edgeStrength [[buffer(0)]],
                               constant float *threshold [[buffer(1)]],
                               uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const float x = float(grid.x);
     const float y = float(grid.y);
     const float width = float(inputTexture.get_width());
     const float height = float(inputTexture.get_height());
     
-    const float2 leftCoordinate = float2((x - 1) / width, y / height);
-    const float2 rightCoordinate = float2((x + 1) / width, y / height);
-    const float2 topCoordinate = float2(x / width, (y - 1) / height);
-    const float2 bottomCoordinate = float2(x / width, (y + 1) / height);
-    const float2 topLeftCoordinate = float2((x - 1) / width, (y - 1) / height);
-    const float2 topRightCoordinate = float2((x + 1) / width, (y - 1) / height);
-    const float2 bottomLeftCoordinate = float2((x - 1) / width, (y + 1) / height);
-    const float2 bottomRightCoordinate = float2((x + 1) / width, (y + 1) / height);
+    float2 leftCoordinate = float2((x - 1) / width, y / height);
+    float2 rightCoordinate = float2((x + 1) / width, y / height);
+    float2 topCoordinate = float2(x / width, (y - 1) / height);
+    float2 bottomCoordinate = float2(x / width, (y + 1) / height);
+    float2 topLeftCoordinate = float2((x - 1) / width, (y - 1) / height);
+    float2 topRightCoordinate = float2((x + 1) / width, (y - 1) / height);
+    float2 bottomLeftCoordinate = float2((x - 1) / width, (y + 1) / height);
+    float2 bottomRightCoordinate = float2((x + 1) / width, (y + 1) / height);
     
-    const half leftIntensity = inputTexture.sample(quadSampler, leftCoordinate).r;
-    const half rightIntensity = inputTexture.sample(quadSampler, rightCoordinate).r;
-    const half topIntensity = inputTexture.sample(quadSampler, topCoordinate).r;
-    const half bottomIntensity = inputTexture.sample(quadSampler, bottomCoordinate).r;
-    const half topLeftIntensity = inputTexture.sample(quadSampler, topLeftCoordinate).r;
-    const half topRightIntensity = inputTexture.sample(quadSampler, topRightCoordinate).r;
-    const half bottomLeftIntensity = inputTexture.sample(quadSampler, bottomLeftCoordinate).r;
-    const half bottomRightIntensity = inputTexture.sample(quadSampler, bottomRightCoordinate).r;
+    leftCoordinate = clamp(leftCoordinate, 0.0, 1.0);
+    rightCoordinate = clamp(rightCoordinate, 0.0, 1.0);
+    topCoordinate = clamp(topCoordinate, 0.0, 1.0);
+    bottomCoordinate = clamp(bottomCoordinate, 0.0, 1.0);
+    topLeftCoordinate = clamp(topLeftCoordinate, 0.0, 1.0);
+    topRightCoordinate = clamp(topRightCoordinate, 0.0, 1.0);
+    bottomLeftCoordinate = clamp(bottomLeftCoordinate, 0.0, 1.0);
+    bottomRightCoordinate = clamp(bottomRightCoordinate, 0.0, 1.0);
+    
+    uint2 leftCoord = uint2(leftCoordinate * float2(width, height));
+    uint2 rightCoord = uint2(rightCoordinate * float2(width, height));
+    uint2 topCoord = uint2(topCoordinate * float2(width, height));
+    uint2 bottomCoord = uint2(bottomCoordinate * float2(width, height));
+    uint2 topLeftCoord = uint2(topLeftCoordinate * float2(width, height));
+    uint2 topRightCoord = uint2(topRightCoordinate * float2(width, height));
+    uint2 bottomLeftCoord = uint2(bottomLeftCoordinate * float2(width, height));
+    uint2 bottomRightCoord = uint2(bottomRightCoordinate * float2(width, height));
+    
+    const half leftIntensity = inputTexture.read(leftCoord).r;
+    const half rightIntensity = inputTexture.read(rightCoord).r;
+    const half topIntensity = inputTexture.read(topCoord).r;
+    const half bottomIntensity = inputTexture.read(bottomCoord).r;
+    const half topLeftIntensity = inputTexture.read(topLeftCoord).r;
+    const half topRightIntensity = inputTexture.read(topRightCoord).r;
+    const half bottomLeftIntensity = inputTexture.read(bottomLeftCoord).r;
+    const half bottomRightIntensity = inputTexture.read(bottomRightCoord).r;
     
     half h = -topLeftIntensity - 2.0h * topIntensity - topRightIntensity + bottomLeftIntensity + 2.0h * bottomIntensity + bottomRightIntensity;
     h = max(0.0h, h);

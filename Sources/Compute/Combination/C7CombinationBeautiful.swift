@@ -14,16 +14,24 @@ public final class C7CombinationBeautiful: C7CombinationBase {
     
     public var smoothDegree: Float = 0.0
     
-    /// A normalization factor for the distance between central color and sample color, with a default of 8.0
-    public var distanceNormalizationFactor: Float = 8 {
+    /// 空间域标准差，控制模糊范围，默认值为10.0
+    public var sigmaSpace: Float = 10.0 {
         didSet {
-            blurFilter.distanceNormalizationFactor = distanceNormalizationFactor
+            blurFilter.sigmaSpace = sigmaSpace
         }
     }
     
-    public var stepOffset: Float = 4 {
+    /// 颜色域标准差，控制颜色相似性阈值，默认值为0.1
+    public var sigmaColor: Float = 0.1 {
         didSet {
-            blurFilter.stepOffset = stepOffset
+            blurFilter.sigmaColor = sigmaColor
+        }
+    }
+    
+    /// 模糊半径，控制采样范围，默认值为5
+    public var radius: Float = 5 {
+        didSet {
+            blurFilter.radius = radius
         }
     }
     
@@ -50,9 +58,10 @@ public final class C7CombinationBeautiful: C7CombinationBase {
     private var blurFilter: C7BilateralBlur
     private var edgeFilter: C7Sobel
     
-    public init(smoothDegree: Float = 0.0) {
+    public init(smoothDegree: Float = 0.0, intensity: Float = 1.0) {
+        self.intensity = intensity
         self.smoothDegree = smoothDegree
-        self.blurFilter = C7BilateralBlur(distanceNormalizationFactor: 8, stepOffset: 4)
+        self.blurFilter = C7BilateralBlur(sigmaSpace: 15.0, sigmaColor: 0.3, radius: 7)
         self.edgeFilter = C7Sobel(edgeStrength: 1.0)
         super.init()
     }

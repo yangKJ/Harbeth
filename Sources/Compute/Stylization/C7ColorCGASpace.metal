@@ -9,15 +9,16 @@
 using namespace metal;
 
 kernel void C7ColorCGASpace(texture2d<half, access::write> outputTexture [[texture(0)]],
-                            texture2d<half, access::sample> inputTexture [[texture(1)]],
+                            texture2d<half, access::read> inputTexture [[texture(1)]],
                             constant float *intensity [[buffer(0)]],
                             uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     const float2 sampleDivisor = float2(1.0 / 200.0, 1.0 / 320.0);
     
     const float2 samplePos = textureCoordinate - fmod(textureCoordinate, sampleDivisor);
-    const half4 inColor = inputTexture.sample(quadSampler, samplePos);
+    float2 clampedSamplePos = clamp(samplePos, 0.0, 1.0);
+    uint2 texCoord = uint2(clampedSamplePos * float2(inputTexture.get_width(), inputTexture.get_height()));
+    const half4 inColor = inputTexture.read(texCoord);
     
     const half4 colorCyan = half4(85.0 / 255.0, 1.0, 1.0, 1.0);
     const half4 colorMagenta = half4(1.0, 85.0 / 255.0, 1.0, 1.0);

@@ -10,8 +10,8 @@ import Foundation
 /// Find the maximum value of each color channel in the range of radius, and set the maximum value to the current pixel.
 public struct C7RGBADilation: C7FilterProtocol {
     
-    /// Radius in pixel, with a default of 0.0
-    public var pixelRadius: Int = 0
+    /// Radius in pixel, with a default of 3.0
+    public var pixelRadius: Int = 3
     
     public var vertical: Bool = false
     
@@ -23,7 +23,7 @@ public struct C7RGBADilation: C7FilterProtocol {
         return [Float(pixelRadius), vertical ? 1 : 0]
     }
     
-    public init(pixelRadius: Int = 0) {
+    public init(pixelRadius: Int = 3) {
         self.pixelRadius = pixelRadius
     }
 }

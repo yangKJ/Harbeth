@@ -9,17 +9,18 @@
 using namespace metal;
 
 kernel void C7MotionBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
-                         texture2d<half, access::sample> inputTexture [[texture(1)]],
+                         texture2d<half, access::read> inputTexture [[texture(1)]],
                          constant float *radius [[buffer(0)]],
                          constant float *blurAngle [[buffer(1)]],
                          uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float pi = 3.14159265358979323846264338327950288;
+    const float width = float(inputTexture.get_width());
+    const float height = float(inputTexture.get_height());
     
-    const float aspectRatio = float(inputTexture.get_height()) / float(inputTexture.get_width());
+    const float aspectRatio = height / width;
     float2 directionalTexelStep;
-    directionalTexelStep.x = float(*radius) * cos(float(*blurAngle) * pi / 180.0) * aspectRatio / inputTexture.get_width();
-    directionalTexelStep.y = float(*radius) * sin(float(*blurAngle) * pi / 180.0) / inputTexture.get_width();
+    directionalTexelStep.x = float(*radius) * cos(float(*blurAngle) * pi / 180.0) * aspectRatio / width;
+    directionalTexelStep.y = float(*radius) * sin(float(*blurAngle) * pi / 180.0) / width;
     
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     const float2 oneStepBackTextureCoordinate = textureCoordinate.xy - directionalTexelStep;
@@ -31,16 +32,60 @@ kernel void C7MotionBlur(texture2d<half, access::write> outputTexture [[texture(
     const float2 threeStepsForwardTextureCoordinate = textureCoordinate.xy + 3.0 * directionalTexelStep;
     const float2 fourStepsForwardTextureCoordinate = textureCoordinate.xy + 4.0 * directionalTexelStep;
     
-    half4 outColor = inputTexture.sample(quadSampler, textureCoordinate) * 0.18;
+    // Direct texture reading with bounds checking
+    float2 coord = textureCoordinate * float2(width, height);
+    uint2 pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    half4 outColor = inputTexture.read(pixel) * 0.18;
     
-    outColor += inputTexture.sample(quadSampler, oneStepBackTextureCoordinate) * 0.15;
-    outColor += inputTexture.sample(quadSampler, twoStepsBackTextureCoordinate) *  0.12;
-    outColor += inputTexture.sample(quadSampler, threeStepsBackTextureCoordinate) * 0.09;
-    outColor += inputTexture.sample(quadSampler, fourStepsBackTextureCoordinate) * 0.05;
-    outColor += inputTexture.sample(quadSampler, oneStepForwardTextureCoordinate) * 0.15;
-    outColor += inputTexture.sample(quadSampler, twoStepsForwardTextureCoordinate) *  0.12;
-    outColor += inputTexture.sample(quadSampler, threeStepsForwardTextureCoordinate) * 0.09;
-    outColor += inputTexture.sample(quadSampler, fourStepsForwardTextureCoordinate) * 0.05;
+    coord = oneStepBackTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.15;
+    
+    coord = twoStepsBackTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.12;
+    
+    coord = threeStepsBackTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.09;
+    
+    coord = fourStepsBackTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.05;
+    
+    coord = oneStepForwardTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.15;
+    
+    coord = twoStepsForwardTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.12;
+    
+    coord = threeStepsForwardTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.09;
+    
+    coord = fourStepsForwardTextureCoordinate * float2(width, height);
+    pixel = uint2(coord.x, coord.y);
+    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
+    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
+    outColor += inputTexture.read(pixel) * 0.05;
     
     outputTexture.write(outColor, grid);
 }

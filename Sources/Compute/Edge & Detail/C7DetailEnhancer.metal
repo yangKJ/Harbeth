@@ -8,11 +8,11 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7UnsharpMask(texture2d<half, access::write> outputTexture [[texture(0)]],
-                          texture2d<half, access::read> inputTexture [[texture(1)]],
-                          constant float &amount [[buffer(0)]],
-                          constant float &detailThreshold [[buffer(1)]],
-                          uint2 grid [[thread_position_in_grid]]) {
+kernel void C7DetailEnhancer(texture2d<half, access::write> outputTexture [[texture(0)]],
+                             texture2d<half, access::read> inputTexture [[texture(1)]],
+                             constant float &amount [[buffer(0)]],
+                             constant float &detailThreshold [[buffer(1)]],
+                             uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }

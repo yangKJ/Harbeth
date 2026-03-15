@@ -46,31 +46,43 @@ struct HomeViewModel {
     lazy var datas: [String: [ViewControllerType]] = {
         switch viewType {
         case .image, .player:
-            return [
-                "🖼️ 测试用例": test,
-                "📱 相机风格滤镜": cameraStyle,
-                "🤡 场景风格滤镜": sceneStyle,
+            var filters = [
+                "🖼️ 基础测试用例": test,
+                "🤡 组合效果滤镜": sceneStyle,
                 "🎨 艺术风格滤镜": artStyle,
                 "🔍 边缘与细节": edgeDetail,
                 "🌫️ 模糊效果": blur,
                 "🎭 风格化效果": stylization,
                 "🌈 颜色调整": color,
-                "🔄 形状变化": shape,
+                "🔄 几何变换": shape,
                 "🔗 混合模式": blend,
                 "📊 矩阵处理": matrix,
                 "🔧 实用工具": utility,
                 "📋 查找滤镜": lookup,
-                "🌅 效果滤镜": effect,
-                "🎯 视觉效果": visual,
                 "🔬 Blit操作": blit,
                 "🔌 CoreImage": coreImage,
+                "⚡ MPS": mps,
+                "🎲 扭曲与变形": distortionWarp,
+                "✨ 生成器": generators,
+                "🌟 其他效果": otherEffects,
             ].filter { $0.value.count > 0 }
+            if viewType == .player {
+                filters["😈 动效滤镜"] = [
+                    .ShiftGlitch, .SoulOut, .WaterRipple, .Swirl,
+                    .SplitScreen, .Fluctuate, .Glitch, .Pinch,
+                ]
+            }
+            return filters
         case .camera:
-            var filters = color
-            filters.insert(.Storyboard, at: 0)
-            filters.insert(.Rotate, at: 1)
-            filters.insert(.Flip, at: 2)
+            #if targetEnvironment(simulator)
+            return ["❌ 模拟器不支持，请用真机测试": []]
+            #else
+            var filters = sceneStyle + color + blur + mps + artStyle +
+            edgeDetail + lookup + matrix + blend + utility + stylization +
+            otherEffects + distortionWarp
+            filters.append(contentsOf: [.Storyboard, .Rotate, .Flip])
             return ["📷 相机特效 - 真机测试": filters]
+            #endif
         }
     }()
     
@@ -93,44 +105,30 @@ struct HomeViewModel {
     
     // 艺术风格滤镜
     let artStyle: [ViewControllerType] = [
-        .ComicStrip, .OilPainting, .OilPaintingEnhanced, .Sketch, .Crosshatch, .Toon, .Kuwahara
+        .ComicStrip, .OilPainting, .OilPaintingEnhanced,
+        .Sketch, .Crosshatch, .Toon, .Kuwahara,
     ]
     
     // 边缘与细节
     let edgeDetail: [ViewControllerType] = [
         .Sharpen3x3, .Sobel, .Canny, .Luminance,
-        .DetailEnhancer, .EdgeAwareSharpen, .ThresholdSketch, .EdgeGlow, .Sharpen, .SharpenEnhanced, .StickerOutline
+        .DetailEnhancer, .EdgeAwareSharpen, .ThresholdSketch,
+        .EdgeGlow, .Sharpen, .SharpenEnhanced, .StickerOutline,
+        .Clarity, .SharpenDetail,
     ]
     
     // 风格化效果
     let stylization: [ViewControllerType] = [
-        .ShiftGlitch, .SoulOut, .EdgeGlow, .VoronoiOverlay, .Storyboard,
-        .WaterRipple, .Swirl, .SplitScreen, .ColorCGASpace,
-        .Fluctuate, .Glitch, .Kuwahara, .Toon, .OilPainting, .OilPaintingEnhanced, .RGBADilation
+        .ShiftGlitch, .SoulOut, .VoronoiOverlay,
+        .Storyboard, .SplitScreen, .ColorCGASpace,
+        .Fluctuate, .Glitch, .RGBADilation,
     ]
     
     // 实用工具
     let utility: [ViewControllerType] = [
-        .Opacity, .Levels, .HighlightShadow, .WhiteBalance, .Vibrance,
-        .Granularity, .FalseColor, .ColorInvert, .Grayed, .Haze, .Pow, .Fade,
-        .HighlightShadowTint, .Highlights, .Shadows, .LuminanceThreshold, .LuminanceRangeReduction, .DepthLuminance
-    ]
-    
-    let visual: [ViewControllerType] = [
-        .ShiftGlitch, .SoulOut, .EdgeGlow,
-        .Luminance, .ColorMatrix4x4, .Monochrome,
-        .VoronoiOverlay, .Storyboard,
-    ]
-    
-    let effect: [ViewControllerType] = [
-        .ZoomBlur, .Vignette, .VignetteNormal, .VignetteMultiply, .VignetteOverlay,
-        .VignetteSoftLight, .WaterRipple,
-        .Pixellated, .Crosshatch, .GlassSphere,
-        .Bulge, .Pinch, .PolkaDot, .Halftone, .PolarPixellate, .SphereRefraction, .Morphology, .ColorPacking,
-        .Posterize, .Swirl, .SplitScreen, .Storyboard,
-        .Monochrome, .ReplaceColor, .ChromaKey,
-        .VoronoiOverlay, .Canny, .CombinationBeautiful,
-        .ColorGradient, .SolidColor
+        .HighlightShadowTint, .Highlights, .Shadows,
+        .LuminanceThreshold, .LuminanceRangeReduction, .DepthLuminance,
+        .ChromaKey, .ReplaceColor,
     ]
     
     let color: [ViewControllerType] = [
@@ -138,13 +136,12 @@ struct HomeViewModel {
         .Hue, .Contrast, .HighlightShadow,
         .Saturation, .WhiteBalance, .Vibrance,
         .Temperature, .HSL, .Curves, .ColorBalanceEnhanced,
-        .Warmth, .Clarity, .Granularity, .Levels, .Sobel,
+        .Warmth, .Clarity, .Granularity, .Levels,
         .ChannelRGBA, .FalseColor, .ColorInvert,
-        .Grayed, .Color2Gray, .Color2BGRA, .Color2BRGA,
+        .Color2Gray, .Color2BGRA, .Color2BRGA,
         .Color2GBRA, .Color2GRBA, .Color2RBGA,
-        .ComicStrip, .OilPainting, .Sketch,
         .Brightness, .Gamma, .ColorSpace, .LuminanceAdaptiveContrast,
-        .Nostalgic
+        .Nostalgic,
     ]
     
     let shape: [ViewControllerType] = [
@@ -154,9 +151,9 @@ struct HomeViewModel {
     
     let blur: [ViewControllerType] = [
         .MonochromeDilation, .MotionBlur, .MeanBlur,
-        .GaussianBlur, .BilateralBlur, .MPSGaussian,
-        .CircleBlur, .DetailPreservingBlur, .ZoomBlur,
-        .SurfaceBlur, .LocalBlur, .TiltShift
+        .GaussianBlur, .BilateralBlur, .CircleBlur,
+        .DetailPreservingBlur, .ZoomBlur, .SurfaceBlur,
+        .LocalBlur, .TiltShift, .RedMonochromeBlur,
     ]
     
     let blend: [ViewControllerType] = [
@@ -174,19 +171,45 @@ struct HomeViewModel {
     ]
     
     let lookup: [ViewControllerType] = [
-        .abao, .ColorCube, .ColorLookup512x512, .LookupTable
+        .abao, .ColorCube, .ColorLookup512x512, .LookupTable,
     ]
     
     let matrix: [ViewControllerType] = [
-        .ColorMatrix4x4, .ColorMatrix4x5, .ColorVector4, .Convolution3x3, .Sharpen3x3,
-        .Sepia
+        .ColorMatrix4x4, .ColorMatrix4x5, .ColorVector4,
+        .Convolution3x3, .Sharpen3x3, .Sepia,
     ]
     
     let coreImage: [ViewControllerType] = [
-        .CIHS, .CIGaussian, .ColorMonochrome,
+        .CIHS, .CIGaussianCase, .CIVignetteCase,
+        .CIColorMonochromeCase,
+    ]
+    
+    // MPS测试用例
+    let mps: [ViewControllerType] = [
+        .MPSBoxBlurCase, .MPSMedianBlurCase, .MPSGaussianBlurCase,
     ]
     
     let blit: [ViewControllerType] = [
         .BlitCopyRegion, .BlitGenerateMipmaps, .BlitCrop,
+    ]
+    
+    // 扭曲与变形
+    let distortionWarp: [ViewControllerType] = [
+        .Bulge, .ColorPacking, .GlassSphere, .Halftone,
+        .Morphology, .Pinch, .Pixellated,
+        .PolarPixellate, .PolkaDot, .SphereRefraction,
+        .Swirl, .WaterRipple,
+    ]
+    
+    // 生成器
+    let generators: [ViewControllerType] = [
+        .ColorGradient, .SolidColor,
+    ]
+    
+    // 其他效果
+    let otherEffects: [ViewControllerType] = [
+        .Fade, .Grayed, .Haze, .Pow,
+        .Vignette, .VignetteNormal, .VignetteMultiply,
+        .VignetteOverlay, .VignetteSoftLight,
     ]
 }

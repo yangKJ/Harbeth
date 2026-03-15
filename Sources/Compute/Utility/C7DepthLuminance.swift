@@ -9,19 +9,21 @@ import Foundation
 
 public struct C7DepthLuminance: C7FilterProtocol {
     
-    public var offect: Float = 0
-    public var range: Float = 0
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.1, max: 2.0, value: 1.0)
+    
+    public var offset: Float = 0.0
+    @Clamping(range.min...range.max) public var depthRange: Float = range.value
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7DepthLuminance")
     }
     
     public var factors: [Float] {
-        return [offect, range]
+        return [offset, depthRange]
     }
     
-    public init(offect: Float = 0, range: Float = 0) {
-        self.offect = offect
-        self.range = range
+    public init(offset: Float = 0.0, depthRange: Float = range.value) {
+        self.offset = offset
+        self.depthRange = depthRange
     }
 }

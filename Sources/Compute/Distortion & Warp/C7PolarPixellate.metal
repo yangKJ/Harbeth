@@ -9,12 +9,11 @@
 using namespace metal;
 
 kernel void C7PolarPixellate(texture2d<half, access::write> outputTexture [[texture(0)]],
-                             texture2d<half, access::sample> inputTexture [[texture(1)]],
+                             texture2d<half, access::read> inputTexture [[texture(1)]],
                              constant float *pixelScale [[buffer(0)]],
                              constant float *centerX [[buffer(1)]],
                              constant float *centerY [[buffer(2)]],
                              uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     float2 normCoord = 2.0 * textureCoordinate - 1.0;
@@ -37,7 +36,9 @@ kernel void C7PolarPixellate(texture2d<half, access::write> outputTexture [[text
     normCoord += normCenter;
     
     const float2 textureCoordinateToUse = normCoord / 2.0 + 0.5;
-    const half4 outColor = inputTexture.sample(quadSampler, textureCoordinateToUse);
+    float2 clampedCoord = clamp(textureCoordinateToUse, 0.0, 1.0);
+    uint2 texCoord = uint2(clampedCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
+    const half4 outColor = inputTexture.read(texCoord);
     
     outputTexture.write(outColor, grid);
 }

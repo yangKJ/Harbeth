@@ -9,13 +9,12 @@
 using namespace metal;
 
 kernel void C7ConvolutionMatrix3x3(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                   texture2d<half, access::sample> inputTexture [[texture(1)]],
+                                   texture2d<half, access::read> inputTexture [[texture(1)]],
                                    constant float *intensity [[buffer(0)]],
                                    constant float *pixel [[buffer(1)]],
                                    constant float3x3 *matrix3x3 [[buffer(2)]],
                                    uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     const float x = float(grid.x);
     const float y = float(grid.y);
     const float w = float(inputTexture.get_width());
@@ -25,28 +24,50 @@ kernel void C7ConvolutionMatrix3x3(texture2d<half, access::write> outputTexture 
     const float t = float(y - *pixel);
     const float b = float(y + *pixel);
     
-    // Normalization
-    const float2 m11Coordinate = float2(l / w, t / h);
-    const float2 m12Coordinate = float2(x / w, t / h);
-    const float2 m13Coordinate = float2(r / w, t / h);
-    const float2 m21Coordinate = float2(l / w, y / h);
-    const float2 m22Coordinate = float2(x / w, y / h);
-    const float2 m23Coordinate = float2(r / w, y / h);
-    const float2 m31Coordinate = float2(l / w, b / h);
-    const float2 m32Coordinate = float2(x / w, b / h);
-    const float2 m33Coordinate = float2(r / w, b / h);
+    // Normalization and clamping
+    float2 m11Coordinate = float2(l / w, t / h);
+    float2 m12Coordinate = float2(x / w, t / h);
+    float2 m13Coordinate = float2(r / w, t / h);
+    float2 m21Coordinate = float2(l / w, y / h);
+    float2 m22Coordinate = float2(x / w, y / h);
+    float2 m23Coordinate = float2(r / w, y / h);
+    float2 m31Coordinate = float2(l / w, b / h);
+    float2 m32Coordinate = float2(x / w, b / h);
+    float2 m33Coordinate = float2(r / w, b / h);
     
-    const half4 centerColor = inputTexture.sample(quadSampler, m22Coordinate);
+    // Clamp coordinates to [0, 1]
+    m11Coordinate = clamp(m11Coordinate, 0.0, 1.0);
+    m12Coordinate = clamp(m12Coordinate, 0.0, 1.0);
+    m13Coordinate = clamp(m13Coordinate, 0.0, 1.0);
+    m21Coordinate = clamp(m21Coordinate, 0.0, 1.0);
+    m22Coordinate = clamp(m22Coordinate, 0.0, 1.0);
+    m23Coordinate = clamp(m23Coordinate, 0.0, 1.0);
+    m31Coordinate = clamp(m31Coordinate, 0.0, 1.0);
+    m32Coordinate = clamp(m32Coordinate, 0.0, 1.0);
+    m33Coordinate = clamp(m33Coordinate, 0.0, 1.0);
     
-    const half3 m11Color = inputTexture.sample(quadSampler, m11Coordinate).rgb;
-    const half3 m12Color = inputTexture.sample(quadSampler, m12Coordinate).rgb;
-    const half3 m13Color = inputTexture.sample(quadSampler, m13Coordinate).rgb;
-    const half3 m21Color = inputTexture.sample(quadSampler, m21Coordinate).rgb;
+    // Convert to texture coordinates
+    uint2 m11Coord = uint2(m11Coordinate * float2(w, h));
+    uint2 m12Coord = uint2(m12Coordinate * float2(w, h));
+    uint2 m13Coord = uint2(m13Coordinate * float2(w, h));
+    uint2 m21Coord = uint2(m21Coordinate * float2(w, h));
+    uint2 m22Coord = uint2(m22Coordinate * float2(w, h));
+    uint2 m23Coord = uint2(m23Coordinate * float2(w, h));
+    uint2 m31Coord = uint2(m31Coordinate * float2(w, h));
+    uint2 m32Coord = uint2(m32Coordinate * float2(w, h));
+    uint2 m33Coord = uint2(m33Coordinate * float2(w, h));
+    
+    const half4 centerColor = inputTexture.read(m22Coord);
+    
+    const half3 m11Color = inputTexture.read(m11Coord).rgb;
+    const half3 m12Color = inputTexture.read(m12Coord).rgb;
+    const half3 m13Color = inputTexture.read(m13Coord).rgb;
+    const half3 m21Color = inputTexture.read(m21Coord).rgb;
     const half3 m22Color = centerColor.rgb;
-    const half3 m23Color = inputTexture.sample(quadSampler, m23Coordinate).rgb;
-    const half3 m31Color = inputTexture.sample(quadSampler, m31Coordinate).rgb;
-    const half3 m32Color = inputTexture.sample(quadSampler, m32Coordinate).rgb;
-    const half3 m33Color = inputTexture.sample(quadSampler, m33Coordinate).rgb;
+    const half3 m23Color = inputTexture.read(m23Coord).rgb;
+    const half3 m31Color = inputTexture.read(m31Coord).rgb;
+    const half3 m32Color = inputTexture.read(m32Coord).rgb;
+    const half3 m33Color = inputTexture.read(m33Coord).rgb;
     
     const float3x3 matrix = (*matrix3x3);
     half3 resultColor = half3(0.0h);

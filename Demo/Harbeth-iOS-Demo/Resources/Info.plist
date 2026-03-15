@@ -21,5 +21,9 @@
 			</array>
 		</dict>
 	</dict>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>此应用需要访问相册以保存拍摄的照片</string>
+	<key>NSCameraUsageDescription</key>
+	<string>此应用需要访问相机以进行拍照</string>
 </dict>
 </plist>

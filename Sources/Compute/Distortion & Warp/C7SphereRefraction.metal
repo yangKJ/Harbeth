@@ -9,14 +9,13 @@
 using namespace metal;
 
 kernel void C7SphereRefraction(texture2d<half, access::write> outputTexture [[texture(0)]],
-                               texture2d<half, access::sample> inputTexture [[texture(1)]],
+                               texture2d<half, access::read> inputTexture [[texture(1)]],
                                constant float *radius [[buffer(0)]],
                                constant float *refractiveIndex [[buffer(1)]],
                                constant float *aspectRatio [[buffer(2)]],
                                constant float *centerX [[buffer(3)]],
                                constant float *centerY [[buffer(4)]],
                                uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const float _aspectRatio = float(*aspectRatio);
     const float _radius = float(*radius);
@@ -34,6 +33,10 @@ kernel void C7SphereRefraction(texture2d<half, access::write> outputTexture [[te
     
     float3 refractedVector = refract(float3(0.0, 0.0, -1.0), sphereNormal, (*refractiveIndex));
     
-    const half4 outColor = half4(inputTexture.sample(quadSampler, (refractedVector.xy + 1.0) * 0.5) * checkForPresenceWithinSphere);
+    float2 sampleCoord = (refractedVector.xy + 1.0) * 0.5;
+    sampleCoord = clamp(sampleCoord, 0.0, 1.0);
+    uint2 texCoord = uint2(sampleCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
+    const half4 outColor = half4(inputTexture.read(texCoord) * checkForPresenceWithinSphere);
+    
     outputTexture.write(outColor, grid);
 }

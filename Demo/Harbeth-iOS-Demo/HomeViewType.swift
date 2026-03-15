@@ -8,6 +8,9 @@
 import Harbeth
 
 enum ViewControllerType: String {
+    // 测试
+    case TextHEIC = "测试HEIC类型图片"
+    
     // 颜色调整
     case Luminance = "亮度"
     case Opacity = "透明度"
@@ -51,6 +54,8 @@ enum ViewControllerType: String {
     case DetailPreservingBlur = "细节保留模糊"
     case MonochromeDilation = "黑白模糊"
     case LocalBlur = "局部模糊"
+    case RedMonochromeBlur = "红色单色模糊"
+    case TiltShift = "移轴模糊"
     
     // 边缘和细节
     case Crosshatch = "绘制阴影线"
@@ -66,6 +71,8 @@ enum ViewControllerType: String {
     case Sharpen = "锐化"
     case SharpenEnhanced = "增强锐化"
     case StickerOutline = "贴纸轮廓"
+    case Clarity = "清晰度"
+    case SharpenDetail = "细节锐化"
     
     // 扭曲和变形
     case Bulge = "大胸效果"
@@ -128,8 +135,8 @@ enum ViewControllerType: String {
     // 查找表
     case abao = "阿宝色滤镜"
     case ColorLookup512x512 = "512颜色查找表"
-    case ColorCube = "颜色立方体"
-    case LookupTable = "查找表"
+    case ColorCube = "LUT 3D颜色立方体"
+    case LookupTable = "64x64 2D查找表"
     
     // 矩阵处理
     case Convolution3x3 = "3x3卷积运算"
@@ -172,9 +179,7 @@ enum ViewControllerType: String {
     case LuminanceRangeReduction = "亮度范围减少"
     case DepthLuminance = "深度亮度"
     case Fade = "淡入淡出效果"
-    case TiltShift = "移轴效果"
     case Warmth = "色温"
-    case Clarity = "清晰度"
     
     // 生成器
     case ColorGradient = "颜色渐变"
@@ -198,12 +203,16 @@ enum ViewControllerType: String {
     case BlitCopyRegion = "复制区域"
     case BlitGenerateMipmaps = "生成Mipmaps"
     
-    // 测试
-    case CIHS = "coreImage高光阴影"
-    case TextHEIC = "测试HEIC类型图片"
-    case MPSGaussian = "MPS高斯模糊"
-    case CIGaussian = "CI高斯模糊"
-    case ColorMonochrome = "单色滤镜"
+    // MPS测试
+    case MPSBoxBlurCase = "MPS盒式模糊"
+    case MPSMedianBlurCase = "MPS中值模糊"
+    case MPSGaussianBlurCase = "MPS高斯模糊"
+    
+    // CoreImage测试
+    case CIHS = "CI高光阴影"
+    case CIGaussianCase = "CI高斯模糊"
+    case CIVignetteCase = "CI暗角"
+    case CIColorMonochromeCase = "CI单色"
 }
 
 extension ViewControllerType {
@@ -223,13 +232,14 @@ extension ViewControllerType {
             let images = [
                 R.image("yuan000")!, R.image("yuan001")!, R.image("yuan002")!,
                 R.image("yuan003")!, R.image("yuan004")!, R.image("yuan005")!,
+                R.image("yuan006")!, R.image("yuan007")!, R.image("yuan008")!,
             ]
             return images.randomElement()!
         }
     }
     
     var overTexture: MTLTexture? {
-        let color = UIColor.green.withAlphaComponent(0.5)
+        let color = UIColor(hex: "#5C48FA").withAlphaComponent(0.5)
         guard let texture = try? TextureLoader.makeTexture(width: 480, height: 270) else {
             return nil
         }

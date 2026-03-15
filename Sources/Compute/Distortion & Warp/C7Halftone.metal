@@ -9,10 +9,9 @@
 using namespace metal;
 
 kernel void C7Halftone(texture2d<half, access::write> outputTexture [[texture(0)]],
-                       texture2d<half, access::sample> inputTexture [[texture(1)]],
+                       texture2d<half, access::read> inputTexture [[texture(1)]],
                        constant float *fractionalWidth [[buffer(0)]],
                        uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const float fractionalWidthOfPixel = float(*fractionalWidth);
     const float aspectRatio = float(inputTexture.get_height()) / float(inputTexture.get_width());
@@ -25,7 +24,9 @@ kernel void C7Halftone(texture2d<half, access::write> outputTexture [[texture(0)
     const float2 adjustedSamplePos = float2(samplePos.x, (samplePos.y * aspectRatio + 0.5 - 0.5 * aspectRatio));
     const float distanceFromSamplePoint = distance(adjustedSamplePos, textureCoordinateToUse);
     
-    const half3 sampledColor = inputTexture.sample(quadSampler, samplePos).rgb;
+    float2 clampedSamplePos = clamp(samplePos, 0.0, 1.0);
+    uint2 texCoord = uint2(clampedSamplePos * float2(inputTexture.get_width(), inputTexture.get_height()));
+    const half3 sampledColor = inputTexture.read(texCoord).rgb;
     const half3 luminanceWeighting = half3(0.2125, 0.7154, 0.0721);
     const float dotScaling = 1.0 - dot(float3(sampledColor), float3(luminanceWeighting));
     

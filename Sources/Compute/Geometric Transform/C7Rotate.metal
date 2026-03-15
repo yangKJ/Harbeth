@@ -9,9 +9,10 @@
 using namespace metal;
 
 kernel void C7Rotate(texture2d<half, access::write> outputTexture [[texture(0)]],
-                     texture2d<half, access::sample> inputTexture [[texture(1)]],
+                     texture2d<half, access::read> inputTexture [[texture(1)]],
                      constant float *angle [[buffer(0)]],
                      uint2 grid [[thread_position_in_grid]]) {
+    
     const float outX = float(grid.x) - outputTexture.get_width() / 2.0f;
     const float outY = float(grid.y) - outputTexture.get_height() / 2.0f;
     const float dd = distance(float2(outX, outY), float2(0, 0));
@@ -25,12 +26,15 @@ kernel void C7Rotate(texture2d<half, access::write> outputTexture [[texture(0)]]
     const float inY = (sin(inAngle) * dd + h / 2.0f) / h;
     
     // Set empty pixel when out of range
-    if (inX * w < -1 || inX * w > w + 1 || inY * h < -1 || inY * h > h + 1) {
+    if (inX < 0 || inX > 1 || inY < 0 || inY > 1) {
         outputTexture.write(half4(0), grid);
         return;
     }
     
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half4 outColor = inputTexture.sample(quadSampler, float2(inX, inY));
+    float2 sampleCoord = float2(inX, inY);
+    sampleCoord = clamp(sampleCoord, 0.0, 1.0);
+    uint2 texCoord = uint2(sampleCoord * float2(w, h));
+    const half4 outColor = inputTexture.read(texCoord);
+    
     outputTexture.write(outColor, grid);
 }

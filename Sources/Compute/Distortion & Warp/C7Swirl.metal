@@ -9,13 +9,12 @@
 using namespace metal;
 
 kernel void C7Swirl(texture2d<half, access::write> outputTexture [[texture(0)]],
-                    texture2d<half, access::sample> inputTexture [[texture(1)]],
+                    texture2d<half, access::read> inputTexture [[texture(1)]],
                     constant float *centerPointerX [[buffer(0)]],
                     constant float *centerPointerY [[buffer(1)]],
                     constant float *radiusPointer [[buffer(2)]],
                     constant float *anglePointer [[buffer(3)]],
                     uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     
     const float2 center = float2(*centerPointerX, *centerPointerY);
     const float radius = float(*radiusPointer);
@@ -34,6 +33,9 @@ kernel void C7Swirl(texture2d<half, access::write> outputTexture [[texture(0)]],
         textureCoordinate += center;
     }
     
-    const half4 outColor = inputTexture.sample(quadSampler, textureCoordinate);
+    float2 clampedCoord = clamp(textureCoordinate, 0.0, 1.0);
+    uint2 texCoord = uint2(clampedCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
+    const half4 outColor = inputTexture.read(texCoord);
+    
     outputTexture.write(outColor, grid);
 }

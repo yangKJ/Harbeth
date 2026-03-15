@@ -11,13 +11,14 @@ using namespace metal;
 kernel void C7DepthLuminance(texture2d<half, access::write> outputTexture [[texture(0)]],
                              texture2d<half, access::read> inputTexture [[texture(1)]],
                              constant float *offset [[buffer(0)]],
-                             constant float *range [[buffer(1)]],
+                             constant float *depthRange [[buffer(1)]],
                              uint2 grid [[thread_position_in_grid]]) {
-    const half4 textureCoordinate = inputTexture.read(grid);
+    const half4 inputColor = inputTexture.read(grid);
     
-    half depth = textureCoordinate.x;
-    // Normalize the value between 0 and 1.
-    depth = (depth - half(*offset)) / half(*range);
+    half luminance = 0.2126 * inputColor.r + 0.7152 * inputColor.g + 0.0722 * inputColor.b;
+    half depth = (luminance - half(*offset)) / half(*depthRange);
+    depth = clamp(depth, 0.0h, 1.0h);
+    depth = 1.0h - depth;
     
     const half4 outputColor = half4(half3(depth), 1.0h);
     

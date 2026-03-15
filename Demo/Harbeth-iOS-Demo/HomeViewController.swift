@@ -103,7 +103,7 @@ class HomeTableViewCell: UITableViewCell {
     private let numberLabel: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        label.textColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0)
+        label.textColor = UIColor(hex: "#5C48FA")
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -197,7 +197,7 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
         if let headerView = view as? UITableViewHeaderFooterView {
             headerView.textLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-            headerView.textLabel?.textColor = UIColor(red: 0.36, green: 0.28, blue: 0.98, alpha: 1.0)
+            headerView.textLabel?.textColor = UIColor(hex: "#5C48FA")
         }
     }
     

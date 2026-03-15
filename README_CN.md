@@ -11,22 +11,22 @@
 
 **Harbeth** 是一款基于 GPU 加速的高性能图像处理框架，专为 iOS 和 macOS 平台设计，通过 Metal 着色器技术实现实时图像和视频滤镜效果。
 
-- **高性能**：利用 Metal 底层 API 实现硬件加速，处理速度远超 CPU 方案
-- **功能丰富**：提供 200+ 种内置滤镜效果，涵盖颜色调整、模糊、风格化等多个类别
-- **易于集成**：代码零侵入设计，支持多种数据源和使用方式
-- **灵活扩展**：支持自定义滤镜、查找表 (LUT) 和立方体贴图 (Cube) 滤镜
-- **多平台支持**：兼容 iOS、macOS 和 watchOS 平台
-- **SwiftUI 集成**：原生支持 SwiftUI 框架
-
 ## 🚀 核心特性
 
-### 🔄 多数据源支持
+Harbeth 提供了一系列强大的特性，旨在使图像和视频处理变得快速、高效且易于实现：
 
-Harbeth 支持多种数据源的图像处理，包括：
-
-- **静态图像**：UIImage、NSImage、CGImage、CIImage
-- **视频帧**：CMSampleBuffer、CVPixelBuffer
-- **Metal 纹理**：MTLTexture
+- **跨平台支持**：在 iOS、macOS、tvOS 和 watchOS 上无缝运行，支持 UIKit/AppKit 和 SwiftUI 框架。
+- **多数据源支持**：应用滤镜到多种图像和视频源，包括 MTLTexture、UIImage、NSImage、CIImage、CGImage、CMSampleBuffer 和 CVPixelBuffer。
+- **丰富的滤镜生态系统**：超过 200+ 内置滤镜，组织成直观的类别，涵盖从基本颜色调整到高级艺术效果的各种功能。
+- **高级集成**：利用 Metal Performance Shaders (MPS) 实现高性能过滤，同时保持与 CoreImage 滤镜的兼容性，以获得最大的灵活性。
+- **Metal 驱动渲染**：所有预览和渲染操作都由 Metal 加速，确保即使使用复杂的滤镜链也能实现流畅的实时性能。
+- **自定义滤镜支持**：使用查找表 LUT、Cube 文件或自定义 Metal 着色器轻松创建和集成自定义滤镜。通过继承 `C7CombinationBase` 创建高级组合滤镜，实现复杂的多步骤效果。
+- **实时处理**：实现流畅的实时相机捕获和视频播放，带有实时滤镜应用。
+- **视频处理**：使用集成的 [Kakapos](https://github.com/yangKJ/Kakapos) 库无缝处理本地和网络视频文件。
+- **直观的 API**：享受干净、Swift 友好的 API，具有可链接的滤镜操作和运算符重载，以实现简洁、富有表现力的代码。
+- **SwiftUI 集成**：原生支持 SwiftUI 框架。
+- **性能优化**：受益于自动纹理池、内存管理和多编码器支持，以在各种设备上获得最佳性能。
+- **广泛的文档**：全面的文档和演示项目，帮助您快速入门并充分利用 Harbeth 的功能。
 
 ### 🎨 丰富的滤镜效果
 
@@ -276,6 +276,23 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **MPSMedian**（MPS中值模糊）- Metal Performance Shaders中值模糊
 - **MPSCanny**（MPS边缘检测）- Metal Performance Shaders Canny边缘检测
 
+### 🔍 滤镜查找指南
+
+根据您的需求，选择合适的滤镜类别：
+
+1. **颜色调整** - 改变图像的色彩属性
+2. **模糊效果** - 创建各种模糊和柔化效果
+3. **边缘与细节** - 增强或检测图像细节
+4. **扭曲与变形** - 创建特殊几何效果
+5. **风格化效果** - 应用艺术风格处理
+6. **矩阵处理** - 使用数学矩阵变换图像
+7. **混合模式** - 混合多个图像或效果
+8. **实用工具** - 各种图像处理工具
+9. **几何变形** - 改变图像几何属性
+10. **生成器** - 创建新的图像效果
+11. **查找表** - 使用预设的颜色映射
+12. **组合滤镜** - 综合多种效果
+
 ### 📱 相机与视频支持
 
 Harbeth 提供了内置的相机采集和视频处理功能：
@@ -304,12 +321,6 @@ Harbeth 支持多种自定义滤镜方式：
 pod 'Harbeth'
 ```
 
-然后执行：
-
-```bash
-pod install
-```
-
 #### Swift Package Manager
 
 在 Package.swift 文件中添加依赖：
@@ -321,20 +332,6 @@ dependencies: [
 ```
 
 或者在 Xcode 中通过 "File > Swift Packages > Add Package Dependency" 添加。
-
-#### Carthage
-
-在 Cartfile 中添加：
-
-```
-github "yangKJ/Harbeth"
-```
-
-然后执行：
-
-```bash
-carthage update
-```
 
 ### 🚀 快速开始
 
@@ -488,56 +485,6 @@ struct FilterView: View {
 }
 ```
 
-## 📚 高级用法
-
-### 🔧 自定义滤镜
-
-Harbeth 支持通过实现 `C7FilterProtocol` 协议创建自定义滤镜：
-
-```swift
-public struct CustomFilter: C7FilterProtocol {
-    public var modifier: ModifierEnum {
-        return .compute(kernel: "customKernel")
-    }
-    
-    public var factors: [Float] {
-        return [factor1, factor2]
-    }
-    
-    public var otherInputTextures: C7InputTextures {
-        return []
-    }
-    
-    public var hasCount: Bool {
-        return false
-    }
-    
-    private let factor1: Float
-    private let factor2: Float
-    
-    public init(factor1: Float = 1.0, factor2: Float = 0.0) {
-        self.factor1 = factor1
-        self.factor2 = factor2
-    }
-}
-```
-
-### 🎨 查找表 (LUT) 滤镜
-
-使用 LUT 文件创建自定义滤镜：
-
-```swift
-// 从文件加载 LUT
-let lutURL = Bundle.main.url(forResource: "vintage", withExtension: "png")!
-let lutImage = UIImage(contentsOfFile: lutURL.path)!
-
-// 创建 LUT 滤镜
-let lutFilter = C7LookupTable(image: lutImage)
-
-// 应用滤镜
-let filteredImage = try? originalImage ->> lutFilter
-```
-
 ### 📊 性能优化
 
 Harbeth 内置了多种性能优化机制：
@@ -562,23 +509,6 @@ let result = try? io.output()
 // 查看性能统计
 print(PerformanceMonitor.shared.getStatistics())
 ```
-
-## 🔍 滤镜查找指南
-
-根据您的需求，选择合适的滤镜类别：
-
-1. **颜色调整** - 改变图像的色彩属性
-2. **模糊效果** - 创建各种模糊和柔化效果
-3. **边缘与细节** - 增强或检测图像细节
-4. **扭曲与变形** - 创建特殊几何效果
-5. **风格化效果** - 应用艺术风格处理
-6. **矩阵处理** - 使用数学矩阵变换图像
-7. **混合模式** - 混合多个图像或效果
-8. **实用工具** - 各种图像处理工具
-9. **几何变形** - 改变图像几何属性
-10. **生成器** - 创建新的图像效果
-11. **查找表** - 使用预设的颜色映射
-12. **组合滤镜** - 综合多种效果
 
 ## 📖 API 参考
 
@@ -623,27 +553,31 @@ public protocol C7FilterProtocol {
 }
 ```
 
-### 扩展方法
+#### C7CombinationBase
 
-Harbeth 为各种类型提供了扩展方法：
-
-#### UIImage / NSImage 扩展
+通过继承 `C7CombinationBase` 创建自定义组合滤镜，实现复杂的多步骤效果：
 
 ```swift
-extension C7Image {
-    func makeGroup(filters: [C7FilterProtocol]) throws -> C7Image
-    static func create(from pixelBuffer: CVPixelBuffer) throws -> C7Image
+class CustomCombinationFilter: C7CombinationBase {
+    public var modifier: ModifierEnum {
+        return .compute(kernel: "customCombinationKernel")
+    }
+    
+    public func prepareIntermediateTextures(buffer: MTLCommandBuffer, source: MTLTexture) throws -> [MTLTexture] {
+        // 准备中间纹理
+        let intermediateTexture = try TextureLoader.makeTexture(width: source.width, height: source.height)
+        intermediateTextures.append(intermediateTexture)
+        return intermediateTextures
+    }
+    
+    public func combinationAfter(for buffer: MTLCommandBuffer, input texture: MTLTexture, source texture2: MTLTexture) throws -> MTLTexture {
+        // 实现多步骤处理逻辑
+        // 使用中间纹理进行复杂的滤镜组合
+        
+        cleanupIntermediateTextures()
+        return texture
+    }
 }
-```
-
-#### 运算符重载
-
-```swift
-// 应用单个滤镜
-let result = image ->> filter
-
-// 应用多个滤镜
-let result = image -->>> filters
 ```
 
 ## 🤝 贡献指南

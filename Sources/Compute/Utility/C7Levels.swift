@@ -34,5 +34,11 @@ public struct C7Levels: C7FilterProtocol {
         computeEncoder.setBytes(&_maxOutput, length: Vector3.size, index: index + 4)
     }
     
-    public init() { }
+    public init(minimum: C7Color = .black, middle: C7Color = .white, maximum: C7Color = .white, minOutput: C7Color = .black, maxOutput: C7Color = .white) {
+        self.minimum = minimum
+        self.middle = middle
+        self.maximum = maximum
+        self.minOutput = minOutput
+        self.maxOutput = maxOutput
+    }
 }

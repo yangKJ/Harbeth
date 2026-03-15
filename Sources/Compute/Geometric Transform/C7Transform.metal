@@ -17,11 +17,12 @@ namespace transform {
 }
 
 kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::sample> inputTexture [[texture(1)]],
+                              texture2d<half, access::read> inputTexture [[texture(1)]],
                               constant float *anchorPointX [[buffer(0)]],
                               constant float *anchorPointY [[buffer(1)]],
                               constant float3x2 *transformMatrix [[buffer(2)]],
                               uint2 grid [[thread_position_in_grid]]) {
+    
     const float3x2 matrix = *transformMatrix;
     const float a = matrix[0][0], b = matrix[0][1];
     const float c = matrix[1][0], d = matrix[1][1];
@@ -44,22 +45,15 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
     const float inY = (b * outX - a * outY - b * tx + a * ty) / (b * c - a * d) / h + anchorY;
     
     // Set empty pixel when out of range
-    if (inX * w < -1 || inX * w > w + 1 || inY * h < -1 || inY * h > h + 1) {
+    if (inX < 0 || inX > 1 || inY < 0 || inY > 1) {
         outputTexture.write(half4(0), grid);
         return;
     }
     
-    #if defined(__HAVE_BICUBIC_FILTERING__)
-    // If rotation angle is 90 * N degrees (N is integer), use bicubic
-    if (transform::zeroOrOne(a) && transform::zeroOrOne(b) && transform::zeroOrOne(c) && transform::zeroOrOne(d)) {
-        constexpr sampler quadSampler(mag_filter::bicubic, min_filter::bicubic);
-        const half4 color = inputTexture.sample(quadSampler, float2(inX, inY));
-        outputTexture.write(color, grid);
-        return;
-    }
-    #endif
+    float2 sampleCoord = float2(inX, inY);
+    sampleCoord = clamp(sampleCoord, 0.0, 1.0);
+    uint2 texCoord = uint2(sampleCoord * float2(w, h));
+    const half4 outColor = inputTexture.read(texCoord);
     
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const half4 outColor = inputTexture.sample(quadSampler, float2(inX, inY));
     outputTexture.write(outColor, grid);
 }

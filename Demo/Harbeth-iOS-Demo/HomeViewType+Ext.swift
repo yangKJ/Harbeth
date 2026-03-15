@@ -14,6 +14,9 @@ typealias FilterResult = (filter: C7FilterProtocol, maxminValue: maxminTuple, ca
 extension ViewControllerType {
     func setupFilterObject(with image: C7Image? = nil) -> FilterResult {
         switch self {
+        case .TextHEIC:
+            let filter = C7Granularity(grain: 0.8)
+            return (filter, nil, nil)
         case .ColorInvert:
             let filter = C7ColorConvert(with: .invert)
             return (filter, nil, nil)
@@ -282,7 +285,7 @@ extension ViewControllerType {
                 return filter
             })
         case .ChannelRGBA:
-            var filter = C7ColorRGBA(color: .red)
+            var filter = C7ColorRGBA(color: .init(hex: "#5C48FA"))
             return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
@@ -303,10 +306,10 @@ extension ViewControllerType {
                 return filter
             })
         case .ChromaKey:
-            let filter = C7ChromaKey(smoothing: 0.05, chroma: .red)
+            let filter = C7ChromaKey(smoothing: 0.05, chroma: .init(hex: "#5C48FA"))
             return (filter, nil, nil)
         case .ReplaceColor:
-            let filter = C7ChromaKey(smoothing: 0.1, chroma: .red, replace: .purple)
+            let filter = C7ChromaKey(smoothing: 0.1, chroma: .red, replace: .init(hex: "#5C48FA"))
             return (filter, nil, nil)
         case .Crop:
             let filter = C7Crop(origin: C7Point2D(x: 0.3, y: 0.3), width: 0, height: 1080)
@@ -365,9 +368,7 @@ extension ViewControllerType {
                 return filter
             })
         case .FalseColor:
-            var filter = C7FalseColor()
-            filter.fristColor = UIColor.black
-            filter.secondColor = UIColor.systemPink
+            let filter = C7FalseColor(fristColor: .black, secondColor: .init(hex: "#5C48FA"))
             return (filter, nil, nil)
         case .Sobel:
             var filter = C7Sobel()
@@ -433,8 +434,7 @@ extension ViewControllerType {
                 return filter
             })
         case .Vignette:
-            var filter = C7Vignette()
-            filter.color = UIColor.systemPink
+            var filter = C7Vignette(color: .init(hex: "#5C48FA"))
             return (filter, (0.3, 0.1, filter.end), {
                 filter.start = $0
                 return filter
@@ -446,8 +446,7 @@ extension ViewControllerType {
                 return filter
             })
         case .Levels:
-            var filter = C7Levels()
-            filter.minimum = UIColor.purple
+            let filter = C7Levels(minimum: .init(hex: "#5C48FA"))
             return (filter, nil, nil)
         case .Transform:
             let transform = CGAffineTransform(scaleX: 0.8, y: 1).rotated(by: .pi / 6)
@@ -520,33 +519,8 @@ extension ViewControllerType {
                 filter.intensity = $0
                 return filter
             })
-        case .CIHS:
-            var filter = CIHighlight()
-            return (filter, (CIHighlight.range.value, CIHighlight.range.min, CIHighlight.range.max), {
-                filter.highlight = $0
-                return filter
-            })
-        case .TextHEIC:
-            var filter = C7Granularity()
-            filter.grain = 0.8
-            return (filter, nil, nil)
-        case .MPSGaussian:
-            var filter = MPSGaussianBlur()
-            return (filter, (MPSGaussianBlur.range.value, MPSGaussianBlur.range.min, MPSGaussianBlur.range.max), {
-                filter.radius = $0
-                return filter
-            })
-        case .CIGaussian:
-            var filter = CIGaussianBlur()
-            return (filter, (CIGaussianBlur.range.value, CIGaussianBlur.range.min, CIGaussianBlur.range.max), {
-                filter.radius = $0
-                return filter
-            })
         case .Grayed:
             let filter = C7Grayed(with: .desaturation)
-            return (filter, nil, nil)
-        case .ColorMonochrome:
-            let filter = CIColorMonochrome(color: .random)
             return (filter, nil, nil)
         case .Canny:
             var filter = C7Canny()
@@ -556,53 +530,49 @@ extension ViewControllerType {
                 return filter
             })
         case .VignetteNormal:
-            var filter = C7VignetteBlend(blendMode: .normal)
-            filter.color = UIColor.black
+            var filter = C7VignetteBlend(color: .init(hex: "#5C48FA"), blendMode: .normal)
             return (filter, (0.3, 0.1, 0.75), {
                 filter.start = $0
                 return filter
             })
         case .VignetteMultiply:
-            var filter = C7VignetteBlend(blendMode: .multiply)
-            filter.color = UIColor.darkGray
+            var filter = C7VignetteBlend(color: .init(hex: "#5C48FA"), blendMode: .multiply)
             return (filter, (0.3, 0.1, 0.75), {
                 filter.start = $0
                 return filter
             })
         case .VignetteOverlay:
-            var filter = C7VignetteBlend(blendMode: .overlay)
-            filter.color = UIColor.brown
+            var filter = C7VignetteBlend(color: .init(hex: "#5C48FA"), blendMode: .overlay)
             return (filter, (0.3, 0.1, 0.75), {
                 filter.start = $0
                 return filter
             })
         case .VignetteSoftLight:
-            var filter = C7VignetteBlend(blendMode: .softLight)
-            filter.color = UIColor.blue.withAlphaComponent(0.5)
+            var filter = C7VignetteBlend(color: .init(hex: "#5C48FA"), blendMode: .softLight)
             return (filter, (0.3, 0.1, 0.75), {
                 filter.start = $0
                 return filter
             })
         case .CombinationBeautiful:
-            let filter = C7CombinationBeautiful()
+            let filter = C7CombinationBeautiful(intensity: 0.8)
             return (filter, (0.8, 0.1, 1.0), {
                 filter.intensity = $0
                 return filter
             })
         case .CombinationCinematic:
-            let filter = C7CombinationCinematic()
+            let filter = C7CombinationCinematic(intensity: 0.8)
             return (filter, (0.8, 0.1, 1.0), {
                 filter.intensity = $0
                 return filter
             })
         case .CombinationModernHDR:
-            let filter = C7CombinationModernHDR()
+            let filter = C7CombinationModernHDR(intensity: 0.8)
             return (filter, (0.8, 0.1, 1.0), {
                 filter.intensity = $0
                 return filter
             })
         case .CombinationVintage:
-            let filter = C7CombinationVintage()
+            let filter = C7CombinationVintage(intensity: 0.8)
             return (filter, (0.8, 0.1, 1.0), {
                 filter.intensity = $0
                 return filter
@@ -735,15 +705,14 @@ extension ViewControllerType {
                 return filter
             })
         case .ColorVector4:
-            let filter = C7ColorVector4(vector: Vector4.Color.warm)
+            let filter = C7ColorVector4(vector: Vector4.Color.sunset)
             return (filter, nil, nil)
         case .ColorCGASpace:
             let filter = C7ColorCGASpace()
             return (filter, nil, nil)
         case .Fluctuate:
             var filter = C7Fluctuate()
-            filter.fluctuate = 0.5
-            return (filter, (0.5, 0, 1), {
+            return (filter, (C7Fluctuate.range.value, C7Fluctuate.range.min, C7Fluctuate.range.max), {
                 filter.fluctuate = $0
                 return filter
             })
@@ -756,8 +725,7 @@ extension ViewControllerType {
             })
         case .Kuwahara:
             var filter = C7Kuwahara()
-            filter.radius = 3
-            return (filter, (3, 1, 10), {
+            return (filter, (Float(C7Kuwahara.range.value), Float(C7Kuwahara.range.min), Float(C7Kuwahara.range.max)), {
                 filter.radius = Int($0)
                 return filter
             })
@@ -809,7 +777,7 @@ extension ViewControllerType {
             let filter = C7ColorGradient(with: .radial)
             return (filter, nil, nil)
         case .SolidColor:
-            let filter = C7SolidColor(color: .red)
+            let filter = C7SolidColor(color: .init(hex: "#5C48FA"))
             return (filter, nil, nil)
         case .CombinationColorGrading:
             let filter = C7CombinationColorGrading()
@@ -852,7 +820,13 @@ extension ViewControllerType {
                 return filter
             })
         case .Curves:
-            let filter = C7Curves()
+            let filter = C7Curves(rgbPoints: [
+                C7Point2D(x: 0.0, y: 0.0),
+                C7Point2D(x: 0.2, y: 0.8),
+                C7Point2D(x: 0.6, y: 0.4),
+                C7Point2D(x: 0.8, y: 0.6),
+                C7Point2D(x: 1.0, y: 1.0)
+            ])
             return (filter, nil, nil)
         case .ColorBalanceEnhanced:
             var filter = C7ColorBalanceEnhanced()
@@ -879,7 +853,7 @@ extension ViewControllerType {
                 return filter
             })
         case .StickerOutline:
-            var filter = C7StickerOutline(outlineColor: .red, outlineThickness: 0.015, outlineBlur: 0.2)
+            var filter = C7StickerOutline(outlineColor: .init(hex: "#5C48FA"), outlineThickness: 0.015, outlineBlur: 0.2)
             return (filter, (0.2, 0, 1), {
                 filter.outlineBlur = $0
                 return filter
@@ -906,7 +880,7 @@ extension ViewControllerType {
                 return filter
             })
         case .LookupTable:
-            var filter = C7LookupTable(name: "lut")
+            var filter = C7LookupTable(name: "ll")
             return (filter, (R.iRange.value, R.iRange.min, R.iRange.max), {
                 filter.intensity = $0
                 return filter
@@ -936,8 +910,11 @@ extension ViewControllerType {
             let filter = C7LuminanceRangeReduction()
             return (filter, nil, nil)
         case .DepthLuminance:
-            let filter = C7DepthLuminance()
-            return (filter, nil, nil)
+            var filter = C7DepthLuminance()
+            return (filter, (C7DepthLuminance.range.value, C7DepthLuminance.range.min, C7DepthLuminance.range.max), {
+                filter.depthRange = $0
+                return filter
+            })
         case .Fade:
             var filter = C7Fade()
             return (filter, (C7Fade.range.value, C7Fade.range.min, C7Fade.range.max), {
@@ -977,6 +954,61 @@ extension ViewControllerType {
         case .CombinationVintageFilm:
             let filter = C7CombinationVintageFilm()
             return (filter, (0.8, 0.1, 1.0), {
+                filter.intensity = $0
+                return filter
+            })
+        case .RedMonochromeBlur:
+            var filter = C7RedMonochromeBlur()
+            filter.pixelRadius = 1
+            return (filter, (1, 0, 10), {
+                filter.pixelRadius = Int($0)
+                return filter
+            })
+        case .SharpenDetail:
+            var filter = C7SharpenDetail()
+            return (filter, (0.5, 0, 1), {
+                filter.sharpen = $0
+                return filter
+            })
+        case .MPSBoxBlurCase:
+            var filter = MPSBoxBlur()
+            return (filter, (5, 1, 20), {
+                filter.radius = $0
+                return filter
+            })
+        case .MPSMedianBlurCase:
+            var filter = MPSMedian()
+            return (filter, (3, 1, 25), {
+                filter.radius = $0
+                return filter
+            })
+        case .MPSGaussianBlurCase:
+            var filter = MPSGaussianBlur()
+            return (filter, (MPSGaussianBlur.range.value, MPSGaussianBlur.range.min, MPSGaussianBlur.range.max), {
+                filter.radius = $0
+                return filter
+            })
+        case .CIHS:
+            var filter = CIHighlight()
+            return (filter, (CIHighlight.range.value, CIHighlight.range.min, CIHighlight.range.max), {
+                filter.highlight = $0
+                return filter
+            })
+        case .CIGaussianCase:
+            var filter = CIGaussianBlur()
+            return (filter, (CIGaussianBlur.range.value, CIGaussianBlur.range.min, CIGaussianBlur.range.max), {
+                filter.radius = $0
+                return filter
+            })
+        case .CIVignetteCase:
+            var filter = CIVignette()
+            return (filter, (0.3, 0, 2), {
+                filter.vignette = $0
+                return filter
+            })
+        case .CIColorMonochromeCase:
+            var filter = CIColorMonochrome()
+            return (filter, (1, 0, 1), {
                 filter.intensity = $0
                 return filter
             })

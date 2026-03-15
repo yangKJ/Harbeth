@@ -11,13 +11,19 @@
 using namespace metal;
 
 kernel void C7OilPainting(texture2d<half, access::write> outputTexture [[texture(0)]],
-                          texture2d<half, access::sample> inputTexture [[texture(1)]],
+                          texture2d<half, access::read> inputTexture [[texture(1)]],
                           constant float *radius [[buffer(0)]],
                           constant float *pixel [[buffer(1)]],
                           uint2 grid [[thread_position_in_grid]]) {
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    const float2 size = float2(*pixel) / float2(outputTexture.get_width(), outputTexture.get_height());
-    const float2 textureCoordinate = float2(grid) / float2(outputTexture.get_width(), outputTexture.get_height());
+    int width = inputTexture.get_width();
+    int height = inputTexture.get_height();
+    uint2 pos = grid;
+    
+    if (int(pos.x) >= width || int(pos.y) >= height) {
+        outputTexture.write(half4(0.0h), grid);
+        return;
+    }
+    
     const float r = float(*radius);
     const float n = float((r + 1.0) * (r + 1.0));
     
@@ -25,19 +31,24 @@ kernel void C7OilPainting(texture2d<half, access::write> outputTexture [[texture
     float3 m1 = float3(0.0);
     float3 s0 = float3(0.0);
     float3 s1 = float3(0.0);
-    float3 color = float3(0.0);
     
-    for (float j = -r; j <= 0.0; ++j)  {
-        for (float k = -r; k <= 0.0; ++k)  {
-            color = float3(inputTexture.sample(quadSampler, textureCoordinate + float2(k,j) * size).rgb);
+    for (int j = -int(r); j <= 0; ++j)  {
+        for (int k = -int(r); k <= 0; ++k)  {
+            int2 offset = int2(k, j);
+            uint2 samplePos = uint2(clamp(int(pos.x) + offset.x, 0, width - 1), 
+                                  clamp(int(pos.y) + offset.y, 0, height - 1));
+            float3 color = float3(inputTexture.read(samplePos).rgb);
             m0 += color;
             s0 += color * color;
         }
     }
     
-    for (float j = -r; j <= 0.0; ++j)  {
-        for (float k = 0.0; k <= r; ++k)  {
-            color = float3(inputTexture.sample(quadSampler, textureCoordinate + float2(k,j) * size).rgb);
+    for (int j = -int(r); j <= 0; ++j)  {
+        for (int k = 0; k <= int(r); ++k)  {
+            int2 offset = int2(k, j);
+            uint2 samplePos = uint2(clamp(int(pos.x) + offset.x, 0, width - 1), 
+                                  clamp(int(pos.y) + offset.y, 0, height - 1));
+            float3 color = float3(inputTexture.read(samplePos).rgb);
             m1 += color;
             s1 += color * color;
         }

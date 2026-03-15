@@ -12,11 +12,13 @@ import MetalKit
 /// Enhanced color burn blend mode
 public struct C7ColorBurnEnhancedBlend: C7FilterProtocol {
     
+    public static let range: ParameterRange<Float, Self> = .init(min: 0.1, max: 2.0, value: 1.0)
+    
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
-    /// Strength of the color burn effect, from 0.0 to 2.0, default 1.0
-    public var strength: Float = 1.0
+    /// Strength of the color burn effect, from 0.1 to 2.0, default 1.0
+    @Clamping(range.min...range.max) public var strength: Float = range.value
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorBurnEnhancedBlend")
@@ -32,12 +34,12 @@ public struct C7ColorBurnEnhancedBlend: C7FilterProtocol {
     
     private let blendTexture: MTLTexture?
     
-    public init(with image: C7Image, strength: Float = 1.0, intensity: Float = 1.0) {
+    public init(with image: C7Image, strength: Float = range.value, intensity: Float = 1.0) {
         let overTexture = image.cgImage?.c7.toTexture()
         self.init(with: overTexture, strength: strength, intensity: intensity)
     }
     
-    public init(with blendTexture: MTLTexture?, strength: Float = 1.0, intensity: Float = 1.0) {
+    public init(with blendTexture: MTLTexture?, strength: Float = range.value, intensity: Float = 1.0) {
         self.blendTexture = blendTexture
         self.strength = strength
         self.intensity = intensity
@@ -46,6 +48,12 @@ public struct C7ColorBurnEnhancedBlend: C7FilterProtocol {
     public func updateIntensity(_ intensity: CGFloat) -> Self {
         var copy = self
         copy.intensity = Float(intensity)
+        return copy
+    }
+    
+    public func updateStrength(_ strength: CGFloat) -> Self {
+        var copy = self
+        copy.strength = Float(strength)
         return copy
     }
 }
