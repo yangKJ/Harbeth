@@ -24,7 +24,7 @@ public final class TexturePool {
         }
     }
     
-    /// Max memory usage: 10% of physical RAM, capped at 512 MB.
+    /// Max memory usage: Dynamic based on device memory, capped at 512 MB.
     private var maxMemoryUsage: Int
     /// Allow reuse of textures within ±8 pixels to improve hit rate (e.g., 1920x1080 can reuse 1928x1080).
     private let sizeTolerance: Int = 8
@@ -55,6 +55,9 @@ public final class TexturePool {
         public var currentTextureCount: Int = 0
         public var currentMemoryUsage: Int = 0
         public var maxMemoryUsage: Int = 0
+        public var peakMemoryUsage: Int = 0
+        public var averageMemoryUsage: Double = 0
+        public var memoryUsageSamples: [Int] = []
     }
     
     public private(set) var statistics = Statistics()
@@ -68,7 +71,17 @@ public final class TexturePool {
     
     init() {
         let physicalMemory = ProcessInfo.processInfo.physicalMemory
-        let limitMB = min(physicalMemory / 1024 / 1024 / 10, 512)
+        let physicalMemoryMB = physicalMemory / 1024 / 1024
+        // Dynamic memory limit based on device memory
+        var memoryPercentage: Double
+        if physicalMemoryMB < 2048 { // < 2GB
+            memoryPercentage = 0.05 // 5%
+        } else if physicalMemoryMB < 4096 { // < 4GB
+            memoryPercentage = 0.07 // 7%
+        } else { // >= 4GB
+            memoryPercentage = 0.10 // 10%
+        }
+        let limitMB = min(Int(Double(physicalMemoryMB) * memoryPercentage), 512)
         self.maxMemoryUsage = Int(limitMB * 1024 * 1024)
         #if os(iOS)
         NotificationCenter.default.addObserver(
@@ -83,6 +96,8 @@ public final class TexturePool {
             let currentPressure = source.mask
             if currentPressure.contains(.critical) {
                 self?.purgeAllTextures()
+            } else if currentPressure.contains(.warning) {
+                self?.purgeLeastUsedTextures()
             }
         }
         source.resume()
@@ -150,7 +165,7 @@ public final class TexturePool {
                 }
             }
             self.statistics.currentTextureCount = self.cache.values.reduce(0) { $0 + $1.count }
-            self.statistics.currentMemoryUsage = self.currentMemoryUsage
+            self.updateMemoryUsageStatistics()
         }
     }
     
@@ -160,7 +175,7 @@ public final class TexturePool {
         let exactKey = TextureKey(width: width, height: height, pixelFormat: pixelFormat)
         var result: MTLTexture? = nil
         
-        queue.sync {
+        queue.sync(flags: .barrier) {
             // 1. Try exact match
             if let texture = popFromCache(forKey: exactKey) {
                 statistics.totalTexturesReused += 1
@@ -234,8 +249,7 @@ public final class TexturePool {
                 }
                 self.currentMemoryUsage += textureSize
                 self.statistics.currentTextureCount += 1
-                self.statistics.currentMemoryUsage = self.currentMemoryUsage
-                self.statistics.maxMemoryUsage = max(self.statistics.maxMemoryUsage, self.currentMemoryUsage)
+                self.updateMemoryUsageStatistics()
             }
         }
     }
@@ -293,10 +307,54 @@ public final class TexturePool {
         }
     }
     
+    private func updateMemoryUsageStatistics() {
+        queue.async(flags: .barrier) {
+            self.statistics.currentMemoryUsage = self.currentMemoryUsage
+            self.statistics.peakMemoryUsage = max(self.statistics.peakMemoryUsage, self.currentMemoryUsage)
+            
+            // Update memory usage samples (keep last 100 samples)
+            self.statistics.memoryUsageSamples.append(self.currentMemoryUsage)
+            if self.statistics.memoryUsageSamples.count > 100 {
+                self.statistics.memoryUsageSamples.removeFirst()
+            }
+            
+            // Calculate average memory usage
+            if !self.statistics.memoryUsageSamples.isEmpty {
+                let total = self.statistics.memoryUsageSamples.reduce(0, +)
+                self.statistics.averageMemoryUsage = Double(total) / Double(self.statistics.memoryUsageSamples.count)
+            }
+        }
+    }
+    
+    /// Dumps current texture pool statistics for debugging
+    public func dumpStatistics() {
+        queue.sync {
+            let stats = self.statistics
+            print("=== TexturePool Statistics ===")
+            print("Total textures created: \(stats.totalTexturesCreated)")
+            print("Total textures reused: \(stats.totalTexturesReused)")
+            print("Hit rate: \(String(format: "%.2f%%", stats.hitRate * 100))")
+            print("Total memory saved: \(stats.totalMemorySaved / 1024 / 1024) MB")
+            print("Current texture count: \(stats.currentTextureCount)")
+            print("Current memory usage: \(stats.currentMemoryUsage / 1024 / 1024) MB")
+            print("Peak memory usage: \(stats.peakMemoryUsage / 1024 / 1024) MB")
+            print("Average memory usage: \(String(format: "%.2f", stats.averageMemoryUsage / 1024 / 1024)) MB")
+            print("Max memory limit: \(self.maxMemoryUsage / 1024 / 1024) MB")
+            print("Cache entries: \(self.cache.count)")
+            print("Common resolutions: \(self.commonResolutions.count)")
+            print("==============================")
+        }
+    }
+    
     private func popFromCache(forKey key: TextureKey) -> MTLTexture? {
-        guard var list = self.cache[key], !list.isEmpty else { return nil }
-        let texture = list.removeLast()
-        self.cache[key] = list.isEmpty ? nil : list
+        guard let list = self.cache[key], !list.isEmpty else {
+            return nil
+        }
+        var mutableList = list
+        let texture = mutableList.removeLast()
+        
+        self.cache[key] = mutableList.isEmpty ? nil : mutableList
+        
         if let index = self.accessQueue.firstIndex(of: key) {
             self.accessQueue.remove(at: index)
             self.accessQueue.append(key)
@@ -304,6 +362,9 @@ public final class TexturePool {
         let oid = ObjectIdentifier(texture)
         self.textureToKey[oid] = nil
         self.currentMemoryUsage -= self.estimatedByteSize(of: texture)
+        self.statistics.currentTextureCount -= 1
+        self.updateMemoryUsageStatistics()
+        
         return texture
     }
     
@@ -345,7 +406,7 @@ public final class TexturePool {
             self.commonResolutions.removeAll()
             self.currentMemoryUsage = 0
             self.statistics.currentTextureCount = 0
-            self.statistics.currentMemoryUsage = 0
+            self.updateMemoryUsageStatistics()
         }
         PerformanceMonitor.shared.recordTextureCreation("texture_pool_purged", created: false)
     }
