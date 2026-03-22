@@ -35,7 +35,7 @@ public typealias C7InputTextures = [MTLTexture]
 public typealias C7FilterImageCallback = (_ image: C7Image) -> Void
 public typealias C7TextureResultBlock = (Result<MTLTexture, HarbethError>) -> Void
 
-typealias C7KernelFunction = String
+public typealias C7KernelFunction = String
 
 // Make sure to run on the main thread.
 //@inline(__always) func make_run_on_main_thread() {

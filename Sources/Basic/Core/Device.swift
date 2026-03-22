@@ -20,8 +20,6 @@ public final class Device: Cacheable {
     let defaultLibrary: MTLLibrary?
     /// Metal file in ``Harbeth Framework``
     let harbethLibrary: MTLLibrary?
-    /// Cache pipe state
-    @Locked var pipelines = [C7KernelFunction: MTLComputePipelineState]()
     /// Load the texture tool
     lazy var textureLoader: MTKTextureLoader = MTKTextureLoader(device: device)
     /// Transform using color space
@@ -30,6 +28,24 @@ public final class Device: Cacheable {
     lazy var workingColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
     /// CIContexts
     lazy var contexts = [CGColorSpace: CIContext]()
+    
+    /// Cache pipe state
+    private var pipelines = [C7KernelFunction: MTLComputePipelineState]()
+    /// Lock for thread safety
+    private let pipelineLock = NSLock()
+    
+    /// Render semaphore for controlling concurrency
+    private var _renderSemaphore: DispatchSemaphore
+    /// Maximum concurrent render tasks
+    private var _maxConcurrentRenderTasks: Int = 4
+    
+    /// Render queue for asynchronous processing
+    private let renderQueue = DispatchQueue(
+        label: "com.harbeth.run.async.render",
+        qos: .userInteractive,
+        attributes: .concurrent,
+        autoreleaseFrequency: .workItem
+    )
     
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -41,6 +57,8 @@ public final class Device: Cacheable {
             fatalError("Could not create command queue")
         }
         self.commandQueue = queue
+        
+        self._renderSemaphore = DispatchSemaphore(value: _maxConcurrentRenderTasks)
         
         self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
         
@@ -57,6 +75,34 @@ public final class Device: Cacheable {
 }
 
 extension Device {
+    
+    /// Get pipeline state for kernel function with thread safety
+    public func pipelineState(for kernel: C7KernelFunction) -> MTLComputePipelineState? {
+        pipelineLock.lock()
+        defer { pipelineLock.unlock() }
+        return pipelines[kernel]
+    }
+    
+    /// Set pipeline state for kernel function with thread safety
+    public func setPipelineState(_ pipeline: MTLComputePipelineState, for kernel: C7KernelFunction) {
+        pipelineLock.lock()
+        defer { pipelineLock.unlock() }
+        pipelines[kernel] = pipeline
+    }
+    
+    /// Get maximum concurrent render tasks
+    public var maxConcurrentRenderTasks: Int {
+        return _maxConcurrentRenderTasks
+    }
+    
+    /// Set maximum concurrent render tasks
+    /// - Parameter value: Maximum number of concurrent tasks
+    public func setMaxConcurrentRenderTasks(_ value: Int) {
+        // Update the max concurrent tasks value
+        _maxConcurrentRenderTasks = value
+        // Replace the semaphore with a new one with the specified value
+        _renderSemaphore = DispatchSemaphore(value: value)
+    }
     
     public static func makeFrameworkLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
         #if SWIFT_PACKAGE
@@ -157,6 +203,14 @@ extension Device {
     
     public static func sharedTextureCache() -> CVMetalTextureCache? {
         return Shared.shared.device?.textureCache
+    }
+    
+    public static var renderQueue: DispatchQueue {
+        return Shared.shared.device!.renderQueue
+    }
+    
+    public static var renderSemaphore: DispatchSemaphore {
+        return Shared.shared.device!._renderSemaphore
     }
     
     public static func context() -> CIContext {

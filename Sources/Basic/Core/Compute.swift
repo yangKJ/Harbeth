@@ -19,7 +19,7 @@ internal struct Compute {
     /// - Returns: MTLComputePipelineState
     @inlinable static func makeComputePipelineState(with kernel: String) throws -> MTLComputePipelineState {
         /// 先读取缓存管线
-        if let pipelineState = Shared.shared.device?.pipelines[kernel] {
+        if let pipelineState = Shared.shared.device?.pipelineState(for: kernel) {
             return pipelineState
         }
         /// 同步阻塞编译计算程序来创建管道状态
@@ -27,13 +27,13 @@ internal struct Compute {
         guard let pipeline = try? Device.device().makeComputePipelineState(function: function) else {
             throw HarbethError.computePipelineState(kernel)
         }
-        Shared.shared.device?.pipelines[kernel] = pipeline
+        Shared.shared.device?.setPipelineState(pipeline, for: kernel)
         return pipeline
     }
     
     @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
         /// 先读取缓存管线
-        if let pipelineState = Shared.shared.device?.pipelines[kernel] {
+        if let pipelineState = Shared.shared.device?.pipelineState(for: kernel) {
             complete(.success(pipelineState))
             return
         }
@@ -48,7 +48,7 @@ internal struct Compute {
                 return
             }
             complete(.success(pipeline))
-            Shared.shared.device?.pipelines[kernel] = pipeline
+            Shared.shared.device?.setPipelineState(pipeline, for: kernel)
         }
     }
 }

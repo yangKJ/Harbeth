@@ -59,13 +59,6 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     private var hasAppleLogDecode: Bool
     private var setupedBufferPixelFormat = false
     private let identifier: String
-    private let renderSemaphore = DispatchSemaphore(value: 4)
-    private let renderQueue = DispatchQueue(
-        label: "com.harbeth.run.async.render",
-        qos: .userInteractive,
-        attributes: .concurrent,
-        autoreleaseFrequency: .workItem
-    )
     
     private enum CoreImageStrategy {
         case none, batched, interleaved
@@ -84,7 +77,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         self.identifier = UUID().uuidString
         self.hasCoreImage = filters.contains { $0.modifier.isCoreImage }
         self.hasAppleLogDecode = filters.contains { $0 is C7AppleLogDecode }
-        self.filters = filters//Self.optimizeFilters(filters)
+        self.filters = filters
     }
     
     /// Add filters to sources synchronously. If it fails, it returns element.
@@ -464,11 +457,9 @@ extension HarbethIO {
             }
             let group = filterGroups[index]
             if group.first is CoreImageProtocol {
-                self.renderQueue.async {
-                    self.renderSemaphore.wait()
-                    defer {
-                        self.renderSemaphore.signal()
-                    }
+                Device.renderQueue.async {
+                    Device.renderSemaphore.wait()
+                    defer { Device.renderSemaphore.signal() }
                     do {
                         guard var inputCIImage = inputTexture.c7.toCIImage() else {
                             return
@@ -561,41 +552,6 @@ extension HarbethIO {
 }
 
 extension HarbethIO {
-    private static func optimizeFilters(_ filters: [C7FilterProtocol]) -> [C7FilterProtocol] {
-        guard filters.count > 1 else {
-            return filters
-        }
-        var optimized: [C7FilterProtocol] = []
-        var currentGroup: [C7FilterProtocol] = []
-        for filter in filters {
-            if case .compute = filter.modifier, currentGroup.count >= 1, currentGroup.allSatisfy({
-                if case .compute = $0.modifier {
-                    return true
-                }
-                return false
-            }) {
-                currentGroup.append(filter)
-            } else {
-                if !currentGroup.isEmpty {
-                    if currentGroup.count == 1 {
-                        optimized.append(currentGroup[0])
-                    } else {
-                        optimized.append(contentsOf: currentGroup)
-                    }
-                    currentGroup = []
-                }
-                currentGroup.append(filter)
-            }
-        }
-        if !currentGroup.isEmpty {
-            if currentGroup.count == 1 {
-                optimized.append(currentGroup[0])
-            } else {
-                optimized.append(contentsOf: currentGroup)
-            }
-        }
-        return optimized
-    }
     
     private var coreImageStrategy: CoreImageStrategy {
         if !hasCoreImage { return .none }
@@ -719,11 +675,9 @@ extension HarbethIO {
             let inputTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
             switch filter.modifier {
             case .coreimage:
-                self.renderQueue.async {
-                    self.renderSemaphore.wait()
-                    defer {
-                        self.renderSemaphore.signal()
-                    }
+                Device.renderQueue.async {
+                    Device.renderSemaphore.wait()
+                    defer { Device.renderSemaphore.signal() }
                     do {
                         let outputImage = try (filter as! CoreImageProtocol).outputCIImage(with: inputTexture)
                         try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
