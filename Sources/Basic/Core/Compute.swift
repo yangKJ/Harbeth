@@ -10,9 +10,8 @@
 
 import Foundation
 import MetalKit
-import Metal
 
-internal struct Compute {
+struct Compute {
     /// Create a parallel computation pipeline.
     /// Performance intensive operations should not be invoked frequently
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
@@ -51,28 +50,25 @@ internal struct Compute {
             Shared.shared.device?.setPipelineState(pipeline, for: kernel)
         }
     }
-}
-
-extension C7FilterProtocol {
     
-    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
+    static func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], filter: C7FilterProtocol) throws -> MTLTexture {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
         }
-        let pipelineState = try Compute.makeComputePipelineState(with: kernel)
+        let pipelineState = try makeComputePipelineState(with: kernel)
         
-        return encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures)
+        return encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures, filter: filter)
     }
     
-    func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
+    static func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], filter: C7FilterProtocol, complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             complete(.failure(HarbethError.makeComputeCommandEncoder))
             return
         }
-        Compute.makeComputePipelineState(with: kernel) { res in
+        makeComputePipelineState(with: kernel) { res in
             switch res {
             case .success(let pipelineState):
-                let destTexture = encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures)
+                let destTexture = encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures, filter: filter)
                 complete(.success(destTexture))
             case .failure(let error):
                 complete(.failure(error))
@@ -80,8 +76,8 @@ extension C7FilterProtocol {
         }
     }
     
-    private func encoding(computeEncoder: MTLComputeCommandEncoder, pipelineState: MTLComputePipelineState, textures: [MTLTexture]) -> MTLTexture {
-        if case .compute(let kernel) = self.modifier {
+    private static func encoding(computeEncoder: MTLComputeCommandEncoder, pipelineState: MTLComputePipelineState, textures: [MTLTexture], filter: C7FilterProtocol) -> MTLTexture {
+        if case .compute(let kernel) = filter.modifier {
             computeEncoder.label = kernel + " encoder"
         }
         computeEncoder.setComputePipelineState(pipelineState)
@@ -91,19 +87,19 @@ extension C7FilterProtocol {
         }
         
         let size = MemoryLayout<Float>.size
-        for i in 0..<self.factors.count {
-            var factor = self.factors[i]
+        for i in 0..<filter.factors.count {
+            var factor = filter.factors[i]
             computeEncoder.setBytes(&factor, length: size, index: i)
         }
         /// 配置像素总数参数
-        var index: Int = self.factors.count
-        if self.hasCount {
+        var index: Int = filter.factors.count
+        if filter.hasCount {
             var count = destTexture.width * destTexture.height
             computeEncoder.setBytes(&count, length: size, index: index)
             index += 1
         }
         /// 配置特殊参数非`Float`类型，例如4x4矩阵
-        self.setupSpecialFactors(for: computeEncoder, index: index)
+        filter.setupSpecialFactors(for: computeEncoder, index: index)
         
         // Too large some Gpus are not supported. Too small gpus have low efficiency
         // 2D texture, depth set to 1
@@ -118,8 +114,8 @@ extension C7FilterProtocol {
         computeEncoder.endEncoding()
         
         #if targetEnvironment(macCatalyst)
-        let blitEncoder = commandBuffer.makeBlitCommandEncoder()
-        blitEncoder?.synchronize(resource: outputTexture)
+        let blitEncoder = computeEncoder.commandBuffer?.makeBlitCommandEncoder()
+        blitEncoder?.synchronize(resource: destTexture)
         blitEncoder?.endEncoding()
         #endif
         

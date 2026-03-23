@@ -92,10 +92,10 @@ extension C7FilterProtocol {
             switch self.modifier {
             case .compute(let kernel):
                 let textures = [destTexture, texture] + self.otherInputTextures
-                drawing(with: kernel, commandBuffer: buffer, textures: textures, complete: complete)
+                Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self, complete: complete)
             case .render(let vertex, let fragment):
                 let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
-                Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
+                Rendering.drawing(pipelineState, commandBuffer: buffer, texture: texture, destTexture: destTexture, filter: self)
                 complete(.success(destTexture))
             case .blit where self is BlitProtocol:
                 let textures = [destTexture, texture] + self.otherInputTextures
@@ -105,6 +105,10 @@ extension C7FilterProtocol {
                 let textures = [destTexture, texture] + self.otherInputTextures
                 let mpsTexture = try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
                 complete(.success(mpsTexture))
+            case .mesh where self is MeshKernelProtocol:
+                let textures = [destTexture, texture] + self.otherInputTextures
+                let meshTexture = try (self as! MeshKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+                complete(.success(meshTexture))
             default:
                 complete(.success(texture))
             }
@@ -115,16 +119,19 @@ extension C7FilterProtocol {
         switch self.modifier {
         case .compute(let kernel):
             let textures = [destTexture, texture] + self.otherInputTextures
-            return try drawing(with: kernel, commandBuffer: buffer, textures: textures)
+            return try Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self)
         case .render(let vertex, let fragment):
             let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment)
-            Rendering.drawingProcess(pipelineState, commandBuffer: buffer, texture: texture, filter: self)
+            Rendering.drawing(pipelineState, commandBuffer: buffer, texture: texture, destTexture: destTexture, filter: self)
         case .blit where self is BlitProtocol:
             let textures = [destTexture, texture] + self.otherInputTextures
             return try (self as! BlitProtocol).encode(commandBuffer: buffer, textures: textures)
         case .mps where self is MPSKernelProtocol:
             let textures = [destTexture, texture] + self.otherInputTextures
             return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+        case .mesh where self is MeshKernelProtocol:
+            let textures = [destTexture, texture] + self.otherInputTextures
+            return try (self as! MeshKernelProtocol).encode(commandBuffer: buffer, textures: textures)
         default:
             break
         }
@@ -187,4 +194,20 @@ public protocol BlitProtocol: C7FilterProtocol {
     ///   - destTexture: Output destination texture.
     /// - Returns: Return output metal texture.
     func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
+}
+
+// MARK: - mesh kernel protocol
+public protocol MeshKernelProtocol: C7FilterProtocol {
+    /// Encode a mesh kernel into a command buffer.
+    /// - Parameters:
+    ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
+    ///   - textures: Texture array, The first is the output texture, the second is the input texture, and other input textures.
+    /// - Returns: Return output metal texture.
+    func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
+    
+    /// Setup mesh parameters for the encoder.
+    /// - Parameters:
+    ///   - encoder: MTLCommandEncoder
+    ///   - textures: Texture array
+    func setupMeshParameters(for encoder: MTLCommandEncoder, textures: [MTLTexture])
 }

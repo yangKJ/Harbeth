@@ -35,6 +35,9 @@ public enum ModifierEnum: Equatable, Hashable {
     /// 基于`MetalPerformanceShaders`着色器
     /// Based on the MetalPerformanceShaders shader.
     case mps(performance: MPSKernel)
+    /// 基于`Metal`网格着色器
+    /// Based on the Metal mesh shader.
+    case mesh(function: String)
     
     public static func ==(lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
         switch (lhs, rhs) {
@@ -48,6 +51,8 @@ public enum ModifierEnum: Equatable, Hashable {
             return lhsName == rhsName
         case (.mps(let lhsKernel), .mps(let rhsKernel)):
             return lhsKernel === rhsKernel
+        case (.mesh(let lhsFunction), .mesh(let rhsFunction)):
+            return lhsFunction == rhsFunction
         default:
             return false
         }
@@ -65,6 +70,8 @@ public enum ModifierEnum: Equatable, Hashable {
             return true
         case .mps:
             return false
+        case .mesh:
+            return false
         }
     }
     
@@ -80,6 +87,8 @@ public enum ModifierEnum: Equatable, Hashable {
             return CIName
         case .mps(let performance):
             return performance.label ?? UUID().uuidString
+        case .mesh(let function):
+            return function
         }
     }
 }

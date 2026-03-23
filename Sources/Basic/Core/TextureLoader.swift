@@ -140,6 +140,19 @@ extension TextureLoader {
         PerformanceMonitor.shared.recordTextureCreation("data", created: true)
     }
     
+    public init(with bundleURL: URL, name: String, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        guard let loader = Shared.shared.device?.textureLoader else {
+            throw HarbethError.textureLoader
+        }
+        guard let assetBundle = Bundle(url: bundleURL),
+              let imageURL = assetBundle.url(forResource: name, withExtension: nil) else {
+            throw HarbethError.makeTexture
+        }
+        let options = options ?? TextureLoader.defaultOptions
+        self.texture = try loader.newTexture(URL: imageURL, options: options)
+        PerformanceMonitor.shared.recordTextureCreation("imageURL", created: true)
+    }
+    
     #if os(macOS)
     /// Creates a new MTLTexture from a NSBitmapImageRep.
     /// - Parameters:

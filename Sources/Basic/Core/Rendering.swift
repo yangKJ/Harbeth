@@ -8,9 +8,7 @@
 import Foundation
 import MetalKit
 
-internal struct Rendering {
-    public static let kOneInputVertex: String = "oneInputVertex"
-    public static let kTwoInputVertex: String = "twoInputVertex"
+struct Rendering {
     
     static func makeRenderPipelineState(with vertex: String, fragment: String) throws -> MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
@@ -24,10 +22,7 @@ internal struct Rendering {
         return pipelineState
     }
     
-    static func drawingProcess(_ pipelineState: MTLRenderPipelineState,
-                               commandBuffer: MTLCommandBuffer,
-                               texture: MTLTexture,
-                               filter: C7FilterProtocol) {
+    static func drawing(_ pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer, texture: MTLTexture, destTexture: MTLTexture, filter: C7FilterProtocol) {
         let renderPass = MTLRenderPassDescriptor()
         renderPass.colorAttachments[0].texture = texture
         renderPass.colorAttachments[0].loadAction = MTLLoadAction.clear
@@ -44,34 +39,37 @@ internal struct Rendering {
         renderEncoder.setFrontFacing(MTLWinding.counterClockwise)
         renderEncoder.setRenderPipelineState(pipelineState)
         
-        /// 纹理坐标，左下角为坐标原点
-        let standard: [Float] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
-        let textureBuffer = device.makeBuffer(bytes: standard, length: standard.count * size, options: [])!
-        renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: 0)
-        //renderEncoder.setFragmentTexture(texture, index: 0)
+        /// The origin of Metal texture coordinates is in the upper left corner, so the y-axis needs to be flipped.
+        let vertices: [Float] = [
+            -1.0, -1.0, 0.0, 1.0,
+             1.0, -1.0, 1.0, 1.0,
+            -1.0,  1.0, 0.0, 0.0,
+             1.0,  1.0, 1.0, 0.0,
+        ]
+        let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * size, options: [])!
+        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
         
-        var vertexCount: Int = 1
+        /// Set the input texture
+        renderEncoder.setFragmentTexture(destTexture, index: 0)
+        
+        /// Handle other input textures
+        for (i, inputTexture) in filter.otherInputTextures.enumerated() {
+            renderEncoder.setFragmentTexture(inputTexture, index: i + 1)
+        }
+        
+        var bufferIndex: Int = 1
         if let filter = filter as? RenderProtocol, let buffer = filter.setupVertexUniformBuffer(for: device) {
-            renderEncoder.setVertexBuffer(buffer, offset: 0, index: vertexCount)
-            vertexCount += 1
+            renderEncoder.setVertexBuffer(buffer, offset: 0, index: bufferIndex)
+            bufferIndex += 1
         }
         
-        if filter.factors.isEmpty == false,
-           let uniformBuffer = device.makeBuffer(bytes: filter.factors, length: filter.factors.count * size, options: []) {
-            renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: vertexCount)
-            vertexCount += 1
+        let length = filter.factors.count * size
+        if !filter.factors.isEmpty, let uniformBuffer = device.makeBuffer(bytes: filter.factors, length: length, options: []) {
+            renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: 0)
         }
         
-//        var inTextures = textures; inTextures.removeFirst()
-//        for (i, texture) in inTextures.enumerated() {
-//            renderEncoder.setVertexBuffer(textureBuffer, offset: 0, index: i + 1)
-//            renderEncoder.setFragmentTexture(texture, index: i)
-//        }
-//
-//        let uniformBuffer = device.makeBuffer(bytes: factors, length: factors.count * size, options: [])!
-//        renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: 1)
-        
-        renderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: vertexCount, instanceCount: 1)
+        /// Draw a quadrilateral (two triangles)
+        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: 1)
         renderEncoder.endEncoding()
     }
 }
