@@ -19,7 +19,7 @@ extension MTLCommandBuffer {
             case .error where buffer.error != nil:
                 complete(.failure(.error(buffer.error!)))
             default:
-                break
+                complete(.failure(.commandBufferAsyncCommit(buffer.status)))
             }
         }
         self.commit()

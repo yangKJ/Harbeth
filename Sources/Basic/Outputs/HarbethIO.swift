@@ -50,18 +50,17 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     public var scaleFactor: Float = 1.0
     /// Fixed camera capture output CMSampleBuffer.
     public var transmitOutputRealTimeCommit: Bool = false
-    /// Enable performance monitoring
-    public var enablePerformanceMonitor: Bool = false
-    /// Memory limit for texture processing in MB
-    public var memoryLimitMB: Int = 512
+    /// Enable double buffer optimization for metal filters
+    /// When there are less than 4 filters, the traditional(singleBuffer) mode is better.
+    public var enableDoubleBuffer: Bool = true
     
-    private var hasCoreImage: Bool
-    private var hasAppleLogDecode: Bool
     private var setupedBufferPixelFormat = false
     private let identifier: String
+    private let hasCoreImage: Bool
+    private let hasAppleLogDecode: Bool
     
-    private enum CoreImageStrategy {
-        case none, batched, interleaved
+    private enum GroupStrategy {
+        case batched, interleaved
     }
     
     public init(element: Dest, filter: C7FilterProtocol) {
@@ -75,9 +74,22 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     public init(element: Dest, filters: [C7FilterProtocol]) {
         self.element = element
         self.identifier = UUID().uuidString
-        self.hasCoreImage = filters.contains { $0.modifier.isCoreImage }
-        self.hasAppleLogDecode = filters.contains { $0 is C7AppleLogDecode }
         self.filters = filters
+        var hasCoreImage = false
+        var hasAppleLogDecode = false
+        for filter in filters {
+            if !hasCoreImage && filter.modifier.isCoreImage {
+                hasCoreImage = true
+            }
+            if !hasAppleLogDecode && filter is C7AppleLogDecode {
+                hasAppleLogDecode = true
+            }
+            if hasCoreImage && hasAppleLogDecode {
+                break
+            }
+        }
+        self.hasCoreImage = hasCoreImage
+        self.hasAppleLogDecode = hasAppleLogDecode
     }
     
     /// Add filters to sources synchronously. If it fails, it returns element.
@@ -85,6 +97,8 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         return (try? self.output()) ?? element
     }
     
+    /// Add filters to sources asynchronously.
+    /// - Returns: The result of adding filters to the sources asynchronously.
     public func output() throws -> Dest {
         if self.filters.isEmpty {
             return element
@@ -154,17 +168,33 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
             complete(.success(texture))
             return
         }
-        switch coreImageStrategy {
-        case .none:
-            processPureMetalFilters(texture: texture, complete: complete)
-        case .batched:
-            if transmitOutputRealTimeCommit {
-                processInterleavedFilters(texture: texture, complete: complete)
-            } else {
-                processBatchedFilters(texture: texture, complete: complete)
+        Device.renderQueue.async {
+            Device.renderSemaphore.wait()
+            defer { Device.renderSemaphore.signal() }
+            do {
+                if hasCoreImage || transmitOutputRealTimeCommit {
+                    let outputTexture = try filtering(texture: texture)
+                    complete(.success(outputTexture))
+                } else {
+                    let commandBuffer = try makeCommandBuffer()
+                    let outputTexture: MTLTexture
+                    if enableDoubleBuffer && filters.count > 3 {
+                        outputTexture = try doubleBuffering(input: texture, filters: filters, commandBuffer: commandBuffer)
+                    } else {
+                        outputTexture = try singleBuffer(input: texture, filters: filters, commandBuffer: commandBuffer)
+                    }
+                    commandBuffer.asyncCommit { result in
+                        switch result {
+                        case .success:
+                            complete(.success(outputTexture))
+                        case .failure(let error):
+                            complete(.failure(HarbethError.toHarbethError(error)))
+                        }
+                    }
+                }
+            } catch {
+                complete(.failure(HarbethError.toHarbethError(error)))
             }
-        case .interleaved:
-            processInterleavedFilters(texture: texture, complete: complete)
         }
     }
 }
@@ -211,9 +241,7 @@ extension HarbethIO {
     }
     
     private func filtering(texture: MTLTexture) throws -> MTLTexture {
-        switch coreImageStrategy {
-        case .none:
-            return try processPureMetalFilters(input: texture)
+        switch groupStrategy {
         case .batched:
             return try processBatchedFilters(input: texture)
         case .interleaved:
@@ -221,29 +249,17 @@ extension HarbethIO {
         }
     }
     
-    private func processPureMetalFilters(input: MTLTexture) throws -> MTLTexture {
-        let commandBuffer = try makeCommandBuffer(for: nil)
-        var temporaryTextures: [MTLTexture] = []
-        let outputTexture = try filters.reduce(input) { texture, filter in
-            let tempTexture = try textureIO(input: texture, filter: filter, for: commandBuffer)
-            if tempTexture !== input {
-                temporaryTextures.append(tempTexture)
-            }
-            return tempTexture
-        }
-        commandBuffer.commitAndWaitUntilCompleted()
-        for texture in temporaryTextures where texture !== input && texture !== outputTexture {
-            TextureLoader.returnTexture(toPool: texture)
-        }
-        return outputTexture
-    }
-    
     private func processBatchedFilters(input: MTLTexture) throws -> MTLTexture {
-        let filterGroups = groupConsecutiveFilters(by: { $0.modifier.isCoreImage })
+        let filterGroups = groupFilters(by: { $0.modifier.isCoreImage })
         var outputTexture = input
-        var temporaryTextures: [MTLTexture] = []
+        var currentCommandBuffer: MTLCommandBuffer? = nil
+        
         for group in filterGroups {
             if group.first?.modifier.isCoreImage ?? false {
+                if let commandBuffer = currentCommandBuffer {
+                    commandBuffer.commitAndWaitUntilCompleted()
+                    currentCommandBuffer = nil
+                }
                 guard var inputCIImage = outputTexture.c7.toCIImage() else {
                     continue
                 }
@@ -252,24 +268,24 @@ extension HarbethIO {
                 }
                 let commandBuffer = try makeCommandBuffer(for: nil)
                 let destTexture = try TextureLoader.makeTexture(at: inputCIImage.extent.size)
-                temporaryTextures.append(destTexture)
                 try inputCIImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
                 outputTexture = destTexture
                 commandBuffer.commitAndWaitUntilCompleted()
             } else {
-                let commandBuffer = try makeCommandBuffer(for: nil)
-                outputTexture = try group.reduce(outputTexture) { texture, filter in
-                    let tempTexture = try textureIO(input: texture, filter: filter, for: commandBuffer)
-                    if tempTexture !== texture {
-                        temporaryTextures.append(tempTexture)
-                    }
-                    return tempTexture
+                if currentCommandBuffer == nil {
+                    currentCommandBuffer = try makeCommandBuffer(for: nil)
                 }
-                commandBuffer.commitAndWaitUntilCompleted()
+                if enableDoubleBuffer {
+                    outputTexture = try doubleBuffering(input: outputTexture, filters: group, commandBuffer: currentCommandBuffer!)
+                } else {
+                    outputTexture = try singleBuffer(input: outputTexture, filters: group, commandBuffer: currentCommandBuffer!)
+                }
             }
         }
-        for texture in temporaryTextures where texture !== input && texture !== outputTexture {
-            TextureLoader.returnTexture(toPool: texture)
+        
+        // Submit the last Metal command buffer.
+        if let commandBuffer = currentCommandBuffer {
+            commandBuffer.commitAndWaitUntilCompleted()
         }
         return outputTexture
     }
@@ -391,179 +407,19 @@ extension HarbethIO {
             complete(.failure(HarbethError.toHarbethError(error)))
         }
     }
-    
-    private func processPureMetalFilters(texture: MTLTexture, complete: @escaping C7TextureResultBlock) {
-        do {
-            let commandBuffer = try makeCommandBuffer()
-            try runAsyncIO(input: texture, index: 0, commandBuffer: commandBuffer, temporaryTextures: [])
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
-        }
-        func runAsyncIO(input: MTLTexture, index: Int, commandBuffer: MTLCommandBuffer, temporaryTextures: [MTLTexture]) throws {
-            if index >= filters.count {
-                commandBuffer.asyncCommit { result in
-                    switch result {
-                    case .success:
-                        for tempTexture in temporaryTextures where tempTexture !== texture && tempTexture !== input {
-                            TextureLoader.returnTexture(toPool: tempTexture)
-                        }
-                        complete(.success(input))
-                    case .failure(let error):
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
-                }
-                return
-            }
-            let filter = filters[index]
-            switch filter.modifier {
-            case .compute, .mps, .render, .blit:
-                let dest = try createDestTexture(with: input, filter: filter)
-                var newTemporaryTextures = temporaryTextures
-                if dest !== input {
-                    newTemporaryTextures.append(dest)
-                }
-                let preparedInput = try filter.combinationBegin(for: commandBuffer, source: input, dest: dest)
-                try filter.apply(form: preparedInput, to: dest, for: commandBuffer) { result in
-                    do {
-                        switch result {
-                        case .success(let t):
-                            let output = try filter.combinationAfter(for: commandBuffer, input: t, source: input)
-                            if output !== dest {
-                                newTemporaryTextures.append(output)
-                            }
-                            try runAsyncIO(input: output, index: index+1, commandBuffer: commandBuffer, temporaryTextures: newTemporaryTextures)
-                        case .failure(let error):
-                            throw HarbethError.toHarbethError(error)
-                        }
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
-                }
-            case .coreimage:
-                try runAsyncIO(input: input, index: index+1, commandBuffer: commandBuffer, temporaryTextures: temporaryTextures)
-            }
-        }
-    }
-    
-    private func processBatchedFilters(texture: MTLTexture, complete: @escaping C7TextureResultBlock) {
-        let filterGroups = groupConsecutiveFilters(by: { $0.modifier.isCoreImage })
-        func processGroup(at index: Int, inputTexture: MTLTexture, temporaryTextures: [MTLTexture]) {
-            guard index < filterGroups.count else {
-                for tempTexture in temporaryTextures where tempTexture !== texture && tempTexture !== inputTexture {
-                    TextureLoader.returnTexture(toPool: tempTexture)
-                }
-                complete(.success(inputTexture))
-                return
-            }
-            let group = filterGroups[index]
-            if group.first is CoreImageProtocol {
-                Device.renderQueue.async {
-                    Device.renderSemaphore.wait()
-                    defer { Device.renderSemaphore.signal() }
-                    do {
-                        guard var inputCIImage = inputTexture.c7.toCIImage() else {
-                            return
-                        }
-                        for filter in group.map({ $0 as! CoreImageProtocol }) {
-                            inputCIImage = try filter.outputCIImage(with: inputCIImage)
-                        }
-                        let commandBuffer = try self.makeCommandBuffer()
-                        let pixelFormat = self.setupBufferPixelFormat(with: inputTexture)
-                        let destTexture = try TextureLoader.makeTexture(at: inputCIImage.extent.size, options: [
-                            .texturePixelFormat: pixelFormat
-                        ])
-                        var newTemporaryTextures = temporaryTextures
-                        if destTexture !== inputTexture {
-                            newTemporaryTextures.append(destTexture)
-                        }
-                        try inputCIImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
-                        commandBuffer.asyncCommit { result in
-                            switch result {
-                            case .success:
-                                processGroup(at: index + 1, inputTexture: destTexture, temporaryTextures: newTemporaryTextures)
-                            case .failure(let error):
-                                complete(.failure(HarbethError.toHarbethError(error)))
-                            }
-                        }
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
-                }
-            } else {
-                do {
-                    let commandBuffer = try self.makeCommandBuffer()
-                    var newTemporaryTextures = temporaryTextures
-                    let outputTexture = try group.reduce(inputTexture) { tex, filter in
-                        let dest = try self.createDestTexture(with: tex, filter: filter)
-                        if dest !== tex {
-                            newTemporaryTextures.append(dest)
-                        }
-                        let prepared = try filter.combinationBegin(for: commandBuffer, source: tex, dest: dest)
-                        let out = try filter.apply(form: prepared, to: dest, for: commandBuffer, complete: nil)
-                        let finalOutput = try filter.combinationAfter(for: commandBuffer, input: out, source: tex)
-                        if finalOutput !== out {
-                            newTemporaryTextures.append(finalOutput)
-                        }
-                        return finalOutput
-                    }
-                    commandBuffer.asyncCommit { result in
-                        switch result {
-                        case .success:
-                            processGroup(at: index + 1, inputTexture: outputTexture, temporaryTextures: newTemporaryTextures)
-                        case .failure(let error):
-                            complete(.failure(HarbethError.toHarbethError(error)))
-                        }
-                    }
-                } catch {
-                    complete(.failure(HarbethError.toHarbethError(error)))
-                }
-            }
-        }
-        processGroup(at: 0, inputTexture: texture, temporaryTextures: [])
-    }
-    
-    private func processInterleavedFilters(texture: MTLTexture, complete: @escaping C7TextureResultBlock) {
-        var iterator = self.filters.makeIterator()
-        func recursion(sourceTexture: MTLTexture, temporaryTextures: [MTLTexture]) {
-            guard let filter = iterator.next() else {
-                for tempTexture in temporaryTextures {
-                    if tempTexture !== texture && tempTexture !== sourceTexture {
-                        TextureLoader.returnTexture(toPool: tempTexture)
-                    }
-                }
-                complete(.success(sourceTexture))
-                return
-            }
-            runAsyncIO(with: sourceTexture, filter: filter, complete: {
-                switch $0 {
-                case .success(let t):
-                    var newTemporaryTextures = temporaryTextures
-                    if t !== sourceTexture {
-                        newTemporaryTextures.append(t)
-                    }
-                    recursion(sourceTexture: t, temporaryTextures: newTemporaryTextures)
-                case .failure(let error):
-                    complete(.failure(HarbethError.toHarbethError(error)))
-                }
-            })
-        }
-        recursion(sourceTexture: texture, temporaryTextures: [])
-    }
 }
 
 extension HarbethIO {
     
-    private var coreImageStrategy: CoreImageStrategy {
-        if !hasCoreImage { return .none }
-        let filterGroups = groupConsecutiveFilters(by: { $0.modifier.isCoreImage })
-        let coreImageGroups = filterGroups.filter { $0.first?.modifier.isCoreImage == true }
-        for group in coreImageGroups where group.count > 1 {
+    private var groupStrategy: GroupStrategy {
+        let filterGroups = groupFilters(by: { $0.modifier.isCoreImage })
+        for group in filterGroups where group.count > 1 {
             return .batched
         }
         return .interleaved
     }
     
-    private func groupConsecutiveFilters(by predicate: (C7FilterProtocol) -> Bool) -> [[C7FilterProtocol]] {
+    private func groupFilters(by predicate: (C7FilterProtocol) -> Bool) -> [[C7FilterProtocol]] {
         var groups: [[C7FilterProtocol]] = []
         var currentGroup: [C7FilterProtocol] = []
         var currentType: Bool?
@@ -609,7 +465,7 @@ extension HarbethIO {
             resize = C7Size(width: max(1, scaledWidth), height: max(1, scaledHeight))
         }
         
-        if enablePerformanceMonitor {
+        if Device.enablePerformanceMonitor {
             PerformanceMonitor.shared.recordTextureCreation(identifier, created: false)
         }
         // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
@@ -617,38 +473,30 @@ extension HarbethIO {
         let texture = try TextureLoader.makeTexture(width: resize.width, height: resize.height, options: [
             .texturePixelFormat: targetPixelFormat
         ])
-        if enablePerformanceMonitor {
+        if Device.enablePerformanceMonitor {
             PerformanceMonitor.shared.recordTextureCreation(identifier, created: true)
         }
         return texture
     }
     
     /// Do you need to create a new metal texture command buffer.
-    /// - Parameter buffer: Old command buffer.
-    /// - Returns: A command buffer.
     private func makeCommandBuffer(for buffer: MTLCommandBuffer? = nil) throws -> MTLCommandBuffer {
         if let commandBuffer = buffer {
             return commandBuffer
         }
-        if enablePerformanceMonitor {
+        if Device.enablePerformanceMonitor {
             PerformanceMonitor.shared.recordCommandBufferCreation(identifier, created: false)
         }
         guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
             throw HarbethError.commandBuffer
         }
-        if enablePerformanceMonitor {
+        if Device.enablePerformanceMonitor {
             PerformanceMonitor.shared.recordCommandBufferCreation(identifier, created: true)
         }
         return commandBuffer
     }
     
     /// Create a new texture based on the filter content.
-    /// Synchronously wait for the execution of the Metal command buffer to complete.
-    /// - Parameters:
-    ///   - texture: Input texture
-    ///   - filter: It must be an object implementing C7FilterProtocol
-    ///   - buffer: A valid MTLCommandBuffer to receive the encoded filter.
-    /// - Returns: Output texture after processing
     private func textureIO(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> MTLTexture {
         let destTexture = try createDestTexture(with: texture, filter: filter)
         let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
@@ -663,47 +511,51 @@ extension HarbethIO {
         return try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
     }
     
-    /// Whether to synchronously wait for the execution of the Metal command buffer to complete.
-    /// - Parameters:
-    ///   - texture: Input texture
-    ///   - filter: It must be an object implementing C7FilterProtocol.
-    ///   - complete: Add a block to be called when this command buffer has completed execution.
-    private func runAsyncIO(with texture: MTLTexture, filter: C7FilterProtocol, complete: @escaping C7TextureResultBlock) {
-        do {
-            let commandBuffer = try makeCommandBuffer(for: nil)
-            let destTexture = try createDestTexture(with: texture, filter: filter)
-            let inputTexture = try filter.combinationBegin(for: commandBuffer, source: texture, dest: destTexture)
-            switch filter.modifier {
-            case .coreimage:
-                Device.renderQueue.async {
-                    Device.renderSemaphore.wait()
-                    defer { Device.renderSemaphore.signal() }
-                    do {
-                        let outputImage = try (filter as! CoreImageProtocol).outputCIImage(with: inputTexture)
-                        try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
-                        let finalTexture = try filter.combinationAfter(for: commandBuffer, input: destTexture, source: texture)
-                        commandBuffer.asyncCommit { complete($0.map({ finalTexture })) }
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
-                }
-            case .compute, .mps, .render, .blit:
-                try filter.apply(form: inputTexture, to: destTexture, for: commandBuffer) { res in
-                    switch res {
-                    case .success(let destTexture):
-                        do {
-                            let finalTexture = try filter.combinationAfter(for: commandBuffer, input: destTexture, source: texture)
-                            commandBuffer.asyncCommit { complete($0.map({ finalTexture })) }
-                        } catch {
-                            complete(.failure(HarbethError.toHarbethError(error)))
-                        }
-                    case .failure(let error):
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
+    private func singleBuffer(input: MTLTexture, filters: [C7FilterProtocol], commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
+        var temporaryTextures: [MTLTexture] = []
+        let outputTexture = try filters.reduce(input) { texture, filter in
+            let tempTexture = try textureIO(input: texture, filter: filter, for: commandBuffer)
+            if tempTexture !== input {
+                temporaryTextures.append(tempTexture)
+            }
+            return tempTexture
+        }
+        for texture in temporaryTextures where texture !== input && texture !== outputTexture {
+            TextureLoader.returnTexture(toPool: texture)
+        }
+        return outputTexture
+    }
+    
+    /// Use double buffer technology to handle filter chains.
+    private func doubleBuffering(input: MTLTexture, filters: [C7FilterProtocol], commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
+        let width = input.width
+        let height = input.height
+        let pixelFormat = input.pixelFormat
+        
+        Shared.shared.prewarmTexturePool(resolutions: [(width: width, height: height, pixelFormat: pixelFormat)], count: 2)
+        
+        let textureA = try TextureLoader.makeOptimizedTexture(width: width, height: height, pixelFormat: pixelFormat)
+        let textureB = try TextureLoader.makeOptimizedTexture(width: width, height: height, pixelFormat: pixelFormat)
+        
+        var currentInput = input
+        var currentOutput = textureA
+        
+        for (index, filter) in filters.enumerated() {
+            if let _ = filter as? C7CombinationBase {
+                currentInput = try textureIO(input: currentInput, filter: filter, for: commandBuffer)
+            } else {
+                let preparedInput = try filter.combinationBegin(for: commandBuffer, source: currentInput, dest: currentOutput)
+                let outputTexture = try filter.apply(form: preparedInput, to: currentOutput, for: commandBuffer, complete: nil)
+                currentInput = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: currentInput)
+                if index < filters.count - 1 {
+                    currentOutput = currentOutput === textureA ? textureB : textureA
                 }
             }
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
         }
+        
+        TextureLoader.returnTexture(toPool: textureA)
+        TextureLoader.returnTexture(toPool: textureB)
+        
+        return currentInput
     }
 }

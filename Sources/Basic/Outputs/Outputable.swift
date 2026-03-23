@@ -47,6 +47,11 @@ extension Outputable {
         return try dest.output() as! T
     }
     
+    public func make<T>(filters: [C7FilterProtocol]) throws -> T where T : Outputable {
+        let dest = HarbethIO.init(element: self, filters: filters)
+        return try dest.output() as! T
+    }
+    
     public func makeGroup<T>(filters: [C7FilterProtocol]) throws -> T where T : Outputable {
         let dest = HarbethIO.init(element: self, filters: filters)
         return try dest.output() as! T

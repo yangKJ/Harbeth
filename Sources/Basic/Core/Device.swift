@@ -34,13 +34,18 @@ public final class Device: Cacheable {
     /// Lock for thread safety
     private let pipelineLock = NSLock()
     
-    /// Render semaphore for controlling concurrency
-    private var _renderSemaphore: DispatchSemaphore
+    /// Enable performance monitoring
+    private var _enablePerformanceMonitor: Bool = false
+    /// Memory limit for texture processing in MB
+    private var _memoryLimitMB: Int = 512
+    
     /// Maximum concurrent render tasks
     private var _maxConcurrentRenderTasks: Int = 4
+    /// Render semaphore for controlling concurrency
+    private lazy var _renderSemaphore: DispatchSemaphore = DispatchSemaphore(value: 4)
     
     /// Render queue for asynchronous processing
-    private let renderQueue = DispatchQueue(
+    private lazy var _renderQueue = DispatchQueue(
         label: "com.harbeth.run.async.render",
         qos: .userInteractive,
         attributes: .concurrent,
@@ -57,8 +62,6 @@ public final class Device: Cacheable {
             fatalError("Could not create command queue")
         }
         self.commandQueue = queue
-        
-        self._renderSemaphore = DispatchSemaphore(value: _maxConcurrentRenderTasks)
         
         self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
         
@@ -206,11 +209,27 @@ extension Device {
     }
     
     public static var renderQueue: DispatchQueue {
-        return Shared.shared.device!.renderQueue
+        return Shared.shared.device!._renderQueue
     }
     
     public static var renderSemaphore: DispatchSemaphore {
         return Shared.shared.device!._renderSemaphore
+    }
+    
+    public static var enablePerformanceMonitor: Bool {
+        return Shared.shared.device!._enablePerformanceMonitor
+    }
+    
+    public static func setEnablePerformanceMonitor(_ value: Bool) {
+        Shared.shared.device!._enablePerformanceMonitor = value
+    }
+    
+    public static var memoryLimitMB: Int {
+        return Shared.shared.device!._memoryLimitMB
+    }
+    
+    public static func setMemoryLimitMB(_ value: Int) {
+        Shared.shared.device!._memoryLimitMB = value
     }
     
     public static func context() -> CIContext {

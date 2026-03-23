@@ -81,28 +81,30 @@ extension Shared {
         }
     }
     
-    /// 预热纹理池
-    /// - Parameters:
-    ///   - resolutions: 常用分辨率列表 [(width, height, pixelFormat)]
-    ///   - count: 每种分辨率预创建的纹理数量
-    public func prewarmTexturePool(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
-        texturePool?.prewarm(resolutions: resolutions, count: count)
-    }
-    
-    /// 获取纹理池统计信息
-    public var texturePoolStatistics: TexturePool.Statistics? {
-        return texturePool?.statistics
-    }
-    
-    /// 重置纹理池统计信息
-    public func resetTexturePoolStatistics() {
-        texturePool?.resetStatistics()
-    }
-    
-    func synchronizedDevice<T>( _ action: () -> T) -> T {
+    private func synchronizedDevice<T>( _ action: () -> T) -> T {
         objc_sync_enter(self)
         let result = action()
         objc_sync_exit(self)
         return result
+    }
+}
+
+extension Shared {
+    /// Preheat the texture pool
+    /// - Parameters:
+    ///   - resolutions: List of commonly used resolutions [(width, height, pixelFormat)]
+    ///   - count: The number of pre-created textures for each resolution.
+    public func prewarmTexturePool(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
+        texturePool?.prewarm(resolutions: resolutions, count: count)
+    }
+    
+    /// Get the statistics of the texture pool
+    public var texturePoolStatistics: TexturePool.Statistics? {
+        return texturePool?.statistics
+    }
+    
+    /// Reset the statistics of the texture pool
+    public func resetTexturePoolStatistics() {
+        texturePool?.resetStatistics()
     }
 }

@@ -57,6 +57,7 @@
 		F78A11252F6010C300FFC2B6 /* CurvesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A11232F6010C300FFC2B6 /* CurvesView.swift */; };
 		F78A11262F6010C300FFC2B6 /* HSLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A11242F6010C300FFC2B6 /* HSLView.swift */; };
 		F7A068852F3C3C9900D7AA52 /* TestManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A068842F3C3C9900D7AA52 /* TestManager.swift */; };
+		F7CBC1E02F6FD4AF00F75991 /* DoubleBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */; };
 		F7E3231D2F651C7D002ACD7B /* ChromaKeyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */; };
 		F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */; };
 /* End PBXBuildFile section */
@@ -151,6 +152,7 @@
 		F78A11232F6010C300FFC2B6 /* CurvesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurvesView.swift; sourceTree = "<group>"; };
 		F78A11242F6010C300FFC2B6 /* HSLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSLView.swift; sourceTree = "<group>"; };
 		F7A068842F3C3C9900D7AA52 /* TestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestManager.swift; sourceTree = "<group>"; };
+		F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleBufferView.swift; sourceTree = "<group>"; };
 		F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaKeyView.swift; sourceTree = "<group>"; };
 		F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelControlView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -312,6 +314,7 @@
 				F7621A882A7E7DA200614542 /* CubeView.swift */,
 				F78A11232F6010C300FFC2B6 /* CurvesView.swift */,
 				8769918B2A7CEBDC00551BD3 /* CustomViews.swift */,
+				F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */,
 				F78A11242F6010C300FFC2B6 /* HSLView.swift */,
 				870B80AD2A80E51B00614660 /* MetalKernelViews.swift */,
 			);
@@ -487,6 +490,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F78A110E2F5FEA3D00FFC2B6 /* ColorRGBAView.swift in Sources */,
+				F7CBC1E02F6FD4AF00F75991 /* DoubleBufferView.swift in Sources */,
 				870B80AC2A80E40200614660 /* CoreImageViews.swift in Sources */,
 				87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */,
 				F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */,

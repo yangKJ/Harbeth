@@ -516,7 +516,64 @@ print(PerformanceMonitor.shared.getStatistics())
 
 #### HarbethIO
 
-`HarbethIO` 是 Harbeth 的核心处理类，负责管理滤镜应用过程：
+`HarbethIO` 是 Harbeth 的核心处理类，负责管理滤镜应用过程。以下是其详细属性说明：
+
+| 属性 | 类型 | 默认值 | 描述 |
+| :--- | :--- | :--- | :--- |
+| `element` | `Dest` | - | 要应用滤镜的输入元素。支持 UIImage/NSImage、CGImage、CIImage、MTLTexture、CMSampleBuffer 和 CVPixelBuffer。 |
+| `filters` | `[C7FilterProtocol]` | - | 要应用到输入元素的滤镜数组。 |
+| `bufferPixelFormat` | `MTLPixelFormat` | `.bgra8Unorm` | 输出缓冲区的像素格式。对于相机捕获尤为重要，通常使用 `kCVPixelFormatType_32BGRA` 以避免蓝色 tint 问题。 |
+| `mirrored` | `Bool` | `false` | 是否镜像输出图像。修复从纹理创建 CIImage 时的上下颠倒镜像问题。 |
+| `createDestTexture` | `Bool` | `true` | 是否创建单独的输出纹理。禁用此选项可能会导致纹理覆盖问题。 |
+| `scaleFactor` | `Float` | `1.0` | 中间纹理的缩放因子（0.0-1.0）。减小此值可以提高性能，但会降低质量。 |
+| `transmitOutputRealTimeCommit` | `Bool` | `false` | 是否对 Metal 纹理输出使用实时提交。启用 `MTLCommandBuffer.asyncCommit` 以获得更快的处理速度。 |
+| `enableDoubleBuffer` | `Bool` | `true` | 是否为金属滤镜启用双缓冲优化。减少内存使用并提高纹理池效率。 |
+
+**使用示例：**
+
+```swift
+// 基本用法
+let dest = HarbethIO(element: image, filters: [filter1, filter2])
+
+// 自定义配置
+var dest = HarbethIO(element: image, filters: [filter1, filter2])
+dest.bufferPixelFormat = .rgba8Unorm
+dest.scaleFactor = 0.8
+dest.enableDoubleBuffer = true
+
+// 带有自定义配置的异步处理
+var dest = HarbethIO(element: image, filters: [filter1, filter2])
+dest.transmitOutputRealTimeCommit = true
+dest.transmitOutput { result in
+    switch result {
+    case .success(let output):
+        // 处理成功输出
+    case .failure(let error):
+        // 处理错误
+    }
+}
+```
+
+**性能优化技巧：**
+
+1. **对于实时处理**（例如相机捕获）：
+   - 设置 `transmitOutputRealTimeCommit = true`
+   - 考虑降低 `scaleFactor` 以获得更快的处理速度
+   - 启用 `enableDoubleBuffer` 以更好地管理内存
+
+2. **对于内存受限设备**：
+   - 使用 `Device.setMemoryLimitMB(value)` 设置较低的内存限制
+   - 确保 `enableDoubleBuffer = true`
+   - 使用异步处理以避免内存峰值
+
+3. **对于高质量输出**：
+   - 保持 `scaleFactor = 1.0`
+   - 设置 `createDestTexture = true` 以避免纹理覆盖
+   - 根据输出需求使用适当的 `bufferPixelFormat`
+
+4. **对于性能监控**：
+   - 使用 `Device.setEnablePerformanceMonitor(true)` 启用性能监控
+   - 使用 `PerformanceMonitor.shared.getStatistics()` 查看性能统计
 
 ```swift
 public struct HarbethIO<Dest> {
@@ -525,9 +582,9 @@ public struct HarbethIO<Dest> {
     public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm
     public var mirrored: Bool = false
     public var createDestTexture: Bool = true
+    public var scaleFactor: Float = 1.0
     public var transmitOutputRealTimeCommit: Bool = false
-    public var enablePerformanceMonitor: Bool = false
-    public var memoryLimitMB: Int = 512
+    public var enableDoubleBuffer: Bool = true
     
     public func output() throws -> Dest
     public func transmitOutput(success: @escaping (Dest) -> Void, failed: ((HarbethError) -> Void)? = nil)

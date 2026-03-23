@@ -20,6 +20,7 @@ public enum HarbethError: Swift.Error {
     case makeTexture
     case textureLoader
     case bitmapDataNotFound
+    case commandBufferAsyncCommit(MTLCommandBufferStatus)
     
     case image2Texture
     case image2CGImage
@@ -112,6 +113,7 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .makeTexture: return "Create a new metal texture is failed."
         case .textureLoader: return "Using metal texture loader is nil."
         case .bitmapDataNotFound: return "Bitmap Data Not Found."
+        case .commandBufferAsyncCommit(let status): return "Command Buffer Async Commit Other Status \(status)."
         case .image2Texture: return "Input image transform texture failed."
         case .image2CGImage: return "Input image transform CGImage failed."
         case .imageCropFailed: return "Image crop failed."
@@ -277,6 +279,7 @@ extension HarbethError {
         case .makeTexture: return 1005
         case .textureLoader: return 1006
         case .bitmapDataNotFound: return 1007
+        case .commandBufferAsyncCommit: return 1008
         case .image2Texture: return 1100
         case .image2CGImage: return 1101
         case .imageCropFailed: return 1102

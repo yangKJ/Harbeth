@@ -16,6 +16,9 @@ struct ContentView: View {
     func setupContentView() -> some View {
         NavigationView {
             List {
+                NavigationLink(destination: DoubleBufferView()) {
+                    Text("Double Buffer")
+                }
                 NavigationLink(destination: CurvesView()) {
                     Text("Curves")
                 }
