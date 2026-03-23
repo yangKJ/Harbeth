@@ -58,7 +58,7 @@ open class C7CombinationBase: C7FilterProtocol {
     
     /// Prepare intermediate textures for the combination filter
     open func prepareIntermediateTextures(buffer: MTLCommandBuffer, source: MTLTexture) throws -> [MTLTexture] {
-        []
+        fatalError("Subclasses must override")
     }
     
     /// Cleanup intermediate textures

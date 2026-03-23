@@ -49,15 +49,16 @@ public final class TexturePool {
         public var totalTexturesCreated: Int = 0
         public var totalTexturesReused: Int = 0
         public var totalMemorySaved: Int = 0
-        public var hitRate: Double {
-            totalTexturesReused > 0 ? Double(totalTexturesReused) / Double(totalTexturesCreated + totalTexturesReused) : 0
-        }
         public var currentTextureCount: Int = 0
         public var currentMemoryUsage: Int = 0
         public var maxMemoryUsage: Int = 0
         public var peakMemoryUsage: Int = 0
         public var averageMemoryUsage: Double = 0
         public var memoryUsageSamples: [Int] = []
+        
+        public var hitRate: Double {
+            totalTexturesReused > 0 ? Double(totalTexturesReused) / Double(totalTexturesCreated + totalTexturesReused) : 0
+        }
     }
     
     public private(set) var statistics = Statistics()
@@ -253,8 +254,6 @@ public final class TexturePool {
             }
         }
     }
-    
-
     
     public func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
         guard count > 0 else { return }

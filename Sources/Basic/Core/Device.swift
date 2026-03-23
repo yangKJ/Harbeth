@@ -42,15 +42,18 @@ public final class Device: Cacheable {
     /// Maximum concurrent render tasks
     private var _maxConcurrentRenderTasks: Int = 4
     /// Render semaphore for controlling concurrency
-    private lazy var _renderSemaphore: DispatchSemaphore = DispatchSemaphore(value: 4)
+    private var _renderSemaphore: DispatchSemaphore
     
     /// Render queue for asynchronous processing
-    private lazy var _renderQueue = DispatchQueue(
+    private let _renderQueue = DispatchQueue(
         label: "com.harbeth.run.async.render",
         qos: .userInteractive,
         attributes: .concurrent,
         autoreleaseFrequency: .workItem
     )
+    
+    /// Command buffer pool for reusing command buffers
+    private var _commandBufferPool: CommandBufferPool
     
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -70,6 +73,9 @@ public final class Device: Cacheable {
         if defaultLibrary == nil && harbethLibrary == nil {
             HarbethError.failed("Could not load library")
         }
+        
+        self._renderSemaphore = DispatchSemaphore(value: _maxConcurrentRenderTasks)
+        self._commandBufferPool = CommandBufferPool(maxSize: 4, commandQueue: queue)
     }
     
     deinit {
@@ -230,6 +236,16 @@ extension Device {
     
     public static func setMemoryLimitMB(_ value: Int) {
         Shared.shared.device!._memoryLimitMB = value
+    }
+    
+    /// Get a command buffer from the pool
+    public static func getCommandBuffer() -> MTLCommandBuffer? {
+        return Shared.shared.device?._commandBufferPool.get()
+    }
+    
+    /// Return a command buffer to the pool
+    public static func returnCommandBuffer(_ buffer: MTLCommandBuffer) {
+        Shared.shared.device!._commandBufferPool.put(buffer)
     }
     
     public static func context() -> CIContext {

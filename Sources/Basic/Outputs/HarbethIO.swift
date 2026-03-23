@@ -184,6 +184,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                         outputTexture = try singleBuffer(input: texture, filters: filters, commandBuffer: commandBuffer)
                     }
                     commandBuffer.asyncCommit { result in
+                        Device.returnCommandBuffer(commandBuffer)
                         switch result {
                         case .success:
                             complete(.success(outputTexture))
@@ -258,6 +259,7 @@ extension HarbethIO {
             if group.first?.modifier.isCoreImage ?? false {
                 if let commandBuffer = currentCommandBuffer {
                     commandBuffer.commitAndWaitUntilCompleted()
+                    Device.returnCommandBuffer(commandBuffer)
                     currentCommandBuffer = nil
                 }
                 guard var inputCIImage = outputTexture.c7.toCIImage() else {
@@ -271,6 +273,7 @@ extension HarbethIO {
                 try inputCIImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
                 outputTexture = destTexture
                 commandBuffer.commitAndWaitUntilCompleted()
+                Device.returnCommandBuffer(commandBuffer)
             } else {
                 if currentCommandBuffer == nil {
                     currentCommandBuffer = try makeCommandBuffer(for: nil)
@@ -286,6 +289,7 @@ extension HarbethIO {
         // Submit the last Metal command buffer.
         if let commandBuffer = currentCommandBuffer {
             commandBuffer.commitAndWaitUntilCompleted()
+            Device.returnCommandBuffer(commandBuffer)
         }
         return outputTexture
     }
@@ -301,6 +305,7 @@ extension HarbethIO {
             }
             outputTexture = tempTexture
             commandBuffer.commitAndWaitUntilCompleted()
+            Device.returnCommandBuffer(commandBuffer)
         }
         // Return temporary textures to the pool to exclude input and output textures.
         for texture in temporaryTextures where texture !== input && texture !== outputTexture {
@@ -487,7 +492,7 @@ extension HarbethIO {
         if Device.enablePerformanceMonitor {
             PerformanceMonitor.shared.recordCommandBufferCreation(identifier, created: false)
         }
-        guard let commandBuffer = Device.commandQueue().makeCommandBuffer() else {
+        guard let commandBuffer = Device.getCommandBuffer() else {
             throw HarbethError.commandBuffer
         }
         if Device.enablePerformanceMonitor {

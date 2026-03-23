@@ -143,8 +143,14 @@ class UnitTestViewController: UIViewController {
 extension UnitTestViewController {
     
     func unitTest() {
-        let filter2 = C7CombinationColorGrading()
-        let dest = HarbethIO.init(element: inputImage, filters: [filter2])
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.2),
+            C7Contrast(contrast: 1.2),
+            C7Saturation(saturation: 1.1),
+            C7Sharpen(sharpness: 0.5),
+            C7CombinationColorGrading()
+        ]
+        let dest = HarbethIO.init(element: inputImage, filters: filters)
         dest.transmitOutput(success: { image in
             DispatchQueue.main.async {
                 self.renderView.image = image
