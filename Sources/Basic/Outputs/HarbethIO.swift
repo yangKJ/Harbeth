@@ -168,13 +168,14 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
             complete(.success(texture))
             return
         }
-        Device.renderQueue.async {
-            Device.renderSemaphore.wait()
-            defer { Device.renderSemaphore.signal() }
+        
+        let operation = BlockOperation {
             do {
                 if hasCoreImage || transmitOutputRealTimeCommit {
                     let outputTexture = try filtering(texture: texture)
-                    complete(.success(outputTexture))
+                    DispatchQueue.main.async {
+                        complete(.success(outputTexture))
+                    }
                 } else {
                     let commandBuffer = try makeCommandBuffer()
                     let outputTexture: MTLTexture
@@ -197,6 +198,8 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                 complete(.failure(HarbethError.toHarbethError(error)))
             }
         }
+        
+        Device.renderOperationQueue.addOperation(operation)
     }
 }
 

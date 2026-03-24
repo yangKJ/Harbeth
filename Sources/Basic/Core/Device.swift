@@ -39,18 +39,14 @@ public final class Device: Cacheable {
     /// Memory limit for texture processing in MB
     private var _memoryLimitMB: Int = 512
     
-    /// Maximum concurrent render tasks
-    private var _maxConcurrentRenderTasks: Int = 4
-    /// Render semaphore for controlling concurrency
-    private var _renderSemaphore: DispatchSemaphore
-    
-    /// Render queue for asynchronous processing
-    private let _renderQueue = DispatchQueue(
-        label: "com.harbeth.run.async.render",
-        qos: .userInteractive,
-        attributes: .concurrent,
-        autoreleaseFrequency: .workItem
-    )
+    /// Render operation queue for managing concurrent tasks with QoS
+    private let _renderOperationQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "com.harbeth.render.operation"
+        queue.qualityOfService = .userInteractive
+        queue.maxConcurrentOperationCount = 4
+        return queue
+    }()
     
     /// Command buffer pool for reusing command buffers
     private var _commandBufferPool: CommandBufferPool
@@ -61,10 +57,10 @@ public final class Device: Cacheable {
         }
         self.device = device
         
-        guard let queue = device.makeCommandQueue() else {
+        guard let commandQueue = device.makeCommandQueue() else {
             fatalError("Could not create command queue")
         }
-        self.commandQueue = queue
+        self.commandQueue = commandQueue
         
         self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
         
@@ -74,8 +70,7 @@ public final class Device: Cacheable {
             HarbethError.failed("Could not load library")
         }
         
-        self._renderSemaphore = DispatchSemaphore(value: _maxConcurrentRenderTasks)
-        self._commandBufferPool = CommandBufferPool(maxSize: 4, commandQueue: queue)
+        self._commandBufferPool = CommandBufferPool(maxSize: 4, commandQueue: commandQueue)
     }
     
     deinit {
@@ -101,16 +96,13 @@ extension Device {
     
     /// Get maximum concurrent render tasks
     public var maxConcurrentRenderTasks: Int {
-        return _maxConcurrentRenderTasks
+        return _renderOperationQueue.maxConcurrentOperationCount
     }
     
     /// Set maximum concurrent render tasks
     /// - Parameter value: Maximum number of concurrent tasks
     public func setMaxConcurrentRenderTasks(_ value: Int) {
-        // Update the max concurrent tasks value
-        _maxConcurrentRenderTasks = value
-        // Replace the semaphore with a new one with the specified value
-        _renderSemaphore = DispatchSemaphore(value: value)
+        _renderOperationQueue.maxConcurrentOperationCount = value
     }
     
     public static func makeFrameworkLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
@@ -214,12 +206,8 @@ extension Device {
         return Shared.shared.device?.textureCache
     }
     
-    public static var renderQueue: DispatchQueue {
-        return Shared.shared.device!._renderQueue
-    }
-    
-    public static var renderSemaphore: DispatchSemaphore {
-        return Shared.shared.device!._renderSemaphore
+    public static var renderOperationQueue: OperationQueue {
+        return Shared.shared.device!._renderOperationQueue
     }
     
     public static var enablePerformanceMonitor: Bool {
