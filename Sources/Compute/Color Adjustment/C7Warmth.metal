@@ -31,10 +31,6 @@ kernel void C7Warmth(texture2d<half, access::write> outputTexture [[texture(0)]]
         outColor.b += half(absWarmth * 0.3);
     }
     
-    // 确保颜色值在有效范围内
-    outColor.r = clamp(outColor.r, half(0.0), half(1.0));
-    outColor.g = clamp(outColor.g, half(0.0), half(1.0));
-    outColor.b = clamp(outColor.b, half(0.0), half(1.0));
     outColor.a = inColor.a;
     
     outputTexture.write(outColor, grid);

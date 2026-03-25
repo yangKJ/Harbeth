@@ -35,11 +35,7 @@ kernel void C7LookupTable1D(texture2d<half, access::write> outputTexture [[textu
     
     half4 finalColor = mix(inColor, lookupColor, half(strength));
     
-    half4 outColor;
-    outColor.r = clamp(finalColor.r, 0.0h, 1.0h);
-    outColor.g = clamp(finalColor.g, 0.0h, 1.0h);
-    outColor.b = clamp(finalColor.b, 0.0h, 1.0h);
-    outColor.a = clamp(finalColor.a, 0.0h, 1.0h);
+    half4 outColor = finalColor;
     
     outputTexture.write(outColor, grid);
 }

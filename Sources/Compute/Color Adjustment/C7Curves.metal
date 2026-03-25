@@ -94,9 +94,9 @@ kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]]
     }
     
     half4 outColor;
-    outColor.r = half(clamp(red, 0.0, 1.0));
-    outColor.g = half(clamp(green, 0.0, 1.0));
-    outColor.b = half(clamp(blue, 0.0, 1.0));
+    outColor.r = half(red);
+    outColor.g = half(green);
+    outColor.b = half(blue);
     outColor.a = inColor.a;
     
     outputTexture.write(outColor, grid);

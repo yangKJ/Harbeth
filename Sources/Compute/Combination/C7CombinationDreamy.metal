@@ -62,7 +62,6 @@ kernel void C7CombinationDreamy(texture2d<half, access::write> outputTexture [[t
     
     processedColor.r *= 1.05;
     processedColor.g *= 1.02;
-    processedColor.rgb = clamp(processedColor.rgb, half3(0.0), half3(1.0));
     
     // Read the original and processed pixels
     half4 originalColor = inputTexture.read(gid);

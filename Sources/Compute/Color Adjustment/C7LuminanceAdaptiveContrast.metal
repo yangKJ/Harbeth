@@ -25,7 +25,7 @@ kernel void C7LuminanceAdaptiveContrast(texture2d<half, access::write> outputTex
     
     half finalContrast = mix(1.0h, baseContrast, half(adaptivity));
     half3 adjustedRGB = (inColor.rgb - 0.5h) * finalContrast + 0.5h;
-    half4 outColor = half4(clamp(adjustedRGB, 0.0h, 1.0h), inColor.a);
+    half4 outColor = half4(adjustedRGB, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

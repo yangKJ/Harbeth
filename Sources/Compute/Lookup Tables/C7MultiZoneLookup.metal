@@ -98,9 +98,9 @@ kernel void C7MultiZoneLookup(texture2d<half, access::write> outputTexture [[tex
     float4 highlightColor = sampleLookupTable(highlightLookupTexture, color);
     float4 finalColor = shadowColor * weights.shadow + midtoneColor * weights.midtone + highlightColor * weights.highlight;
     half4 outColor;
-    outColor.r = clamp(finalColor.r, 0.0, 1.0);
-    outColor.g = clamp(finalColor.g, 0.0, 1.0);
-    outColor.b = clamp(finalColor.b, 0.0, 1.0);
+    outColor.r = half(finalColor.r);
+    outColor.g = half(finalColor.g);
+    outColor.b = half(finalColor.b);
     outColor.a = inColor.a;
     
     outputTexture.write(outColor, grid);

@@ -58,7 +58,6 @@ kernel void C7SharpenEnhanced(texture2d<half, access::write> outputTexture [[tex
     // Apply sharpening
     float sharpenIntensity = float(*intensity);
     float4 sharpenedColor = originalColor + edge * sharpenIntensity;
-    sharpenedColor.rgb = clamp(sharpenedColor.rgb, 0.0, 1.0);
     
     outputTexture.write(half4(sharpenedColor), grid);
 }

@@ -46,7 +46,6 @@ kernel void C7DetailEnhancer(texture2d<half, access::write> outputTexture [[text
     }
     
     half4 sharpenedColor = centerColor + mask * adaptiveAmount;
-    sharpenedColor = clamp(sharpenedColor, 0.0h, 1.0h);
     sharpenedColor.a = centerColor.a;
     
     outputTexture.write(sharpenedColor, grid);

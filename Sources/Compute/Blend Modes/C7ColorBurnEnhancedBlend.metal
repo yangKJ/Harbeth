@@ -30,9 +30,6 @@ kernel void C7ColorBurnEnhancedBlend(texture2d<half, access::write> outputTextur
     outColor.b = 1.0h - min(1.0h, (1.0h - inColor.b) / max(blendColor.b * strengthHalf, epsilon));
     outColor.a = inColor.a;
     
-    outColor.r = clamp(outColor.r, 0.0h, 1.0h);
-    outColor.g = clamp(outColor.g, 0.0h, 1.0h);
-    outColor.b = clamp(outColor.b, 0.0h, 1.0h);
     outColor = mix(inColor, outColor, half(*intensity));
     
     outputTexture.write(outColor, grid);

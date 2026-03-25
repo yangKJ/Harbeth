@@ -48,7 +48,6 @@ kernel void C7EdgeAwareSharpen(texture2d<half, access::write> outputTexture [[te
     }
     
     half4 sharpenedColor = centerColor - laplacianSum * sharpenIntensity * 0.25h;
-    sharpenedColor = clamp(sharpenedColor, half4(0.0h), half4(1.0h));
     sharpenedColor.a = centerColor.a;
     
     outputTexture.write(sharpenedColor, grid);

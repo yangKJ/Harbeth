@@ -41,7 +41,6 @@ kernel void C7CombinationModernHDR(texture2d<half, access::write> outputTexture 
             
             // Enhance the difference based on clarity value
             processedColor = localAverage + difference * (half(1.0) + clarityValue);
-            processedColor = clamp(processedColor, half4(0.0), half4(1.0));
         }
     }
     

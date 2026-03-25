@@ -35,10 +35,9 @@ kernel void C7SharpenDetail(texture2d<half, access::write> outputTexture [[textu
                 sharpenedColor += sample * half(sharpenKernel[x + 1][y + 1]);
             }
         }
-        sharpenedColor = clamp(sharpenedColor, 0.0h, 1.0h);
         color = mix(color, sharpenedColor, sharpenAmount);
     }
-    
+
     if (clarityAmount > 0.0h) {
         const half3 luminanceWeighting = half3(0.2125h, 0.7154h, 0.0721h);
         const half luminance = dot(color, luminanceWeighting);
@@ -52,10 +51,9 @@ kernel void C7SharpenDetail(texture2d<half, access::write> outputTexture [[textu
                 clarityColor[i] -= clarityAdjustment * clarityColor[i];
             }
         }
-        clarityColor = clamp(clarityColor, 0.0h, 1.0h);
         color = mix(color, clarityColor, clarityAmount);
     }
-    
+
     if (detailAmount > 0.0h) {
         const float3x3 detailKernel = float3x3(0.0, -0.25, 0.0,
                                                -0.25, 2.0, -0.25,
@@ -69,11 +67,8 @@ kernel void C7SharpenDetail(texture2d<half, access::write> outputTexture [[textu
                 detailedColor += sample * half(detailKernel[x + 1][y + 1]);
             }
         }
-        detailedColor = clamp(detailedColor, 0.0h, 1.0h);
         color = mix(color, detailedColor, detailAmount * 0.5h);
     }
-    
-    color = clamp(color, 0.0h, 1.0h);
     const half4 outColor = half4(color, inColor.a);
     
     outputTexture.write(outColor, grid);

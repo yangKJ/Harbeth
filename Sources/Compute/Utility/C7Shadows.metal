@@ -32,8 +32,8 @@ kernel void C7Shadows(texture2d<half, access::write> outputTexture [[texture(0)]
         color.rgb += adjustment;
     }
     
-    // Clamp the color to valid range
-    color = clamp(color, half4(0.0), half4(1.0));
+    // Preserve alpha
+    color.a = inputTexture.read(gid).a;
     
     // Write the result to the output texture
     outputTexture.write(color, gid);

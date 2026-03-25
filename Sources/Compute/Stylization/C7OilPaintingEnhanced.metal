@@ -61,7 +61,6 @@ kernel void C7OilPaintingEnhanced(texture2d<half, access::write> outputTexture [
     
     // Apply intensity
     averageColor.rgb *= float(*intensity);
-    averageColor.rgb = clamp(averageColor.rgb, 0.0, 1.0);
     
     // Apply smoothing
     float4 originalColor = float4(inputTexture.read(grid));
@@ -71,7 +70,6 @@ kernel void C7OilPaintingEnhanced(texture2d<half, access::write> outputTexture [
     float2 uv = float2(float(x) / float(width), float(y) / float(height));
     float brushNoise = sin(uv.x * 100.0) * cos(uv.y * 100.0) * 0.02;
     finalColor.rgb += brushNoise;
-    finalColor.rgb = clamp(finalColor.rgb, 0.0, 1.0);
     
     outputTexture.write(half4(finalColor), grid);
 }

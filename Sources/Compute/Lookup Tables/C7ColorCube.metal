@@ -86,12 +86,9 @@ kernel void C7ColorCube(texture2d<half, access::write> outputTexture [[texture(0
     // Interpolate along B axis
     const float4 lutColor = mix(c0, c1, fracCoord.z);
     
-    // Clamp LUT color to [0,1] range
-    const float4 clampedLutColor = clamp(lutColor, 0.0, 1.0);
-    
     // Mix with original color based on intensity
     const float mixFactor = clamp(*intensity, 0.0, 1.0);
-    const half3 rgb = mix(inColor.rgb, half3(clampedLutColor.rgb), half(mixFactor));
+    const half3 rgb = mix(inColor.rgb, half3(lutColor.rgb), half(mixFactor));
     const half4 outColor = half4(rgb, inColor.a);
     
     outputTexture.write(outColor, grid);

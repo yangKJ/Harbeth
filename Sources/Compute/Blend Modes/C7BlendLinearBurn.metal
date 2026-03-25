@@ -18,7 +18,7 @@ kernel void C7BlendLinearBurn(texture2d<half, access::write> outputTexture [[tex
     float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
     const half4 overlay = inputTexture2.sample(quadSampler, textureCoordinate);
     
-    const half4 outColor = half4(clamp(inColor.rgb + overlay.rgb - half3(1.0h), half3(0.0h), half3(1.0h)), inColor.a);
+    const half4 outColor = half4(inColor.rgb + overlay.rgb - half3(1.0h), inColor.a);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
     outputTexture.write(output, grid);
