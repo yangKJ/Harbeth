@@ -85,6 +85,7 @@ class ImageViewController: UIViewController {
     lazy var originTitleLabel: UILabel = {
         let label = UILabel()
         label.text = "原图"
+        label.numberOfLines = 2
         label.textAlignment = .left
         label.textColor = UIColor(hex: "#5C48FA")
         label.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
@@ -120,6 +121,7 @@ class ImageViewController: UIViewController {
         leftLabel.text  = "\(slider.minimumValue)"
         rightLabel.text = "\(slider.maximumValue)"
         currentLabel.text = String(format: "%.2f", slider.value)
+        originTitleLabel.text = "原图尺寸\n\(Int(originImage.size.width))x\(Int(originImage.size.height))"
         
         renderView.image = originImage
         imageView.image = originImage
@@ -152,8 +154,7 @@ class ImageViewController: UIViewController {
             NSLayoutConstraint.activate([
                 originTitleLabel.centerYAnchor.constraint(equalTo: imageView.centerYAnchor),
                 originTitleLabel.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 20),
-                originTitleLabel.widthAnchor.constraint(equalToConstant: 100),
-                originTitleLabel.heightAnchor.constraint(equalToConstant: 24),
+                originTitleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 20),
                 
                 imageView.topAnchor.constraint(equalTo: safeArea.topAnchor, constant: 20),
                 imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
@@ -243,13 +244,7 @@ extension ImageViewController {
         guard let filter = filter else {
             return
         }
-        PerformanceMonitor.shared.beginMonitoring("Render")
         let dest = HarbethIO(element: inputTexture, filter: filter)
-        dest.transmitOutput { [weak self] t in
-            DispatchQueue.main.async {
-                self?.renderView.image = t?.c7.toImage()
-            }
-            PerformanceMonitor.shared.endMonitoring("Render")
-        }
+        self.renderView.image = (try? dest.output())?.c7.toImage() ?? originImage
     }
 }

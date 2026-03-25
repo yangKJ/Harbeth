@@ -177,7 +177,7 @@ struct DoubleBufferView: View {
     }
     
     private func processImages() {
-//        isProcessing = true
+        isProcessing = true
         var filters: [C7FilterProtocol] = []
         for i in 0..<filterCount {
             switch i % 5 {
@@ -202,7 +202,7 @@ struct DoubleBufferView: View {
         // 处理传统方式
         processWithTraditionalMethod(filters: filters)
         
-//        isProcessing = false
+        isProcessing = false
     }
     
     private func processWithDoubleBuffer(filters: [C7FilterProtocol]) {

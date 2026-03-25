@@ -122,6 +122,7 @@ class CameraViewController: UIViewController {
     }
     
     func setupUI() {
+        title = ""
         view.backgroundColor = .black
         view.addSubview(originImageView)
         let controlContainer = UIView()
@@ -421,22 +422,24 @@ extension CameraViewController: AVCapturePhotoCaptureDelegate {
             showAlert(title: "拍照失败", message: "拍照失败，请重试")
             return
         }
-        guard let imageData = photo.fileDataRepresentation(),
-              let image = UIImage(data: imageData) else {
-            showAlert(title: "拍照失败", message: "无法处理拍摄的照片")
-            return
+        if let imageData = photo.fileDataRepresentation(), let image = UIImage(data: imageData) {
+            let harbethIO = HarbethIO(element: image, filters: camera.filters)
+            harbethIO.transmitOutput(success: { [weak self] image in
+                guard let self else { return }
+                Shared.shared.performanceMonitor?.recordPerformanceCounter(harbethIO.identifier, name: "FPS", value: self.fps)
+                DispatchQueue.main.async {
+                    UIImageWriteToSavedPhotosAlbum(image, self, #selector(self.image(_:didFinishSavingWithError:contextInfo:)), nil)
+                }
+            })
         }
-        UIImageWriteToSavedPhotosAlbum(image, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
     }
 }
 
 extension CameraViewController: C7CollectorImageDelegate {
     
     func preview(_ collector: C7Collector, fliter image: C7Image) {
-        PerformanceMonitor.shared.beginMonitoring("camera_preview")
         self.originImageView.image = image
         calculateFPS()
-        PerformanceMonitor.shared.endMonitoring("camera_preview")
         updatePerformanceView()
     }
     
@@ -460,8 +463,8 @@ extension CameraViewController: C7CollectorImageDelegate {
     
     private func updatePerformanceView() {
         let fpsText = String(format: "%.1f FPS", fps)
-        let summary = PerformanceMonitor.shared.getSummary()
-        let avgTime = String(format: "%.2fms", summary.averageProcessingTime * 1000)
+        let summary = Shared.shared.performanceMonitor?.getSummary()
+        let avgTime = String(format: "%.2fms", (summary?.averageProcessingTime ?? 0) * 1000)
         performanceView.text = "\(fpsText)\nCPU: \(avgTime)"
     }
 }

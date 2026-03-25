@@ -49,7 +49,7 @@ public enum HarbethError: Swift.Error {
     case cubeResource
     case createCIFilter(String)
     case outputCIImage(String)
-    case ciContextCreationFailed
+    case contextCreationFailed
     case ciImageCreationFailed
     
     case CVPixelBufferToCMSampleBuffer
@@ -138,7 +138,7 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .cubeResource: return "Read the contents of the cube file failed."
         case .createCIFilter(let name): return "Create the filter \(name) is failed."
         case .outputCIImage(let name): return "CoreImage \(name) filter bring into being output image failed."
-        case .ciContextCreationFailed: return "Core Image context creation failed."
+        case .contextCreationFailed: return "CIContext creation failed."
         case .ciImageCreationFailed: return "Core Image creation failed."
         case .CVPixelBufferToCMSampleBuffer: return "CVPixelBuffer transform to CMSampleBuffer failed."
         case .CMSampleBufferToCVPixelBuffer: return "CMSampleBuffer transform to CVPixelBuffer failed."
@@ -304,7 +304,7 @@ extension HarbethError {
         case .cubeResource: return 1400
         case .createCIFilter: return 1401
         case .outputCIImage: return 1402
-        case .ciContextCreationFailed: return 1403
+        case .contextCreationFailed: return 1403
         case .ciImageCreationFailed: return 1404
         case .CVPixelBufferToCMSampleBuffer: return 1500
         case .CMSampleBufferToCVPixelBuffer: return 1501

@@ -10,6 +10,8 @@ import Foundation
 /// Base class for combination filters, providing common functionality
 open class C7CombinationBase: C7FilterProtocol {
     
+    public var identifier: String = "Render"
+    
     /// Intermediate textures used by the combination filter
     public var intermediateTextures: [MTLTexture] = []
     

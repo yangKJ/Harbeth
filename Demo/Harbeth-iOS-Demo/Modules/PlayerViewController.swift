@@ -91,6 +91,7 @@ class PlayerViewController: UIViewController {
     }
     
     func setupUI() {
+        title = ""
         view.backgroundColor = .black
         
         view.addSubview(originImageView)

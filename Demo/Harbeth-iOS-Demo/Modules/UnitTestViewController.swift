@@ -10,12 +10,8 @@ import Harbeth
 
 class UnitTestViewController: UIViewController {
     
-    let inputImage = [
-        R.image("wechat0")!, R.image("wechat1")!
-    ].randomElement()
-    
     lazy var renderView: UIImageView = {
-        let view = UIImageView(image: inputImage)
+        let view = UIImageView()
         view.contentMode = .scaleAspectFit
         view.translatesAutoresizingMaskIntoConstraints = false
         view.clipsToBounds = false
@@ -52,10 +48,14 @@ class UnitTestViewController: UIViewController {
         return view
     }()
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        self.unitTest()
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         self.setupUI()
-        self.unitTest()
     }
     
     func setupUI() {
@@ -150,6 +150,9 @@ extension UnitTestViewController {
             C7Sharpen(sharpness: 0.5),
             C7CombinationColorGrading()
         ]
+        let inputImage = [
+            R.image("wechat0")!, R.image("wechat1")!,
+        ].randomElement()
         let dest = HarbethIO.init(element: inputImage, filters: filters)
         dest.transmitOutput(success: { image in
             DispatchQueue.main.async {

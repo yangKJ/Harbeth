@@ -16,35 +16,50 @@ extension HarbethWrapper where MTLSize == Base {
     /// - Parameter device: Device information to create other objects.
     /// - Returns: New metal texture size.
     public func maxTextureSize(device: MTLDevice? = nil) -> MTLSize {
-        func supportsOnly8K() -> Bool {
+        func getMaxTextureDimensions() -> (width: Int, height: Int) {
             let device = device ?? Device.device()
             #if targetEnvironment(macCatalyst)
-            return !device.supportsFamily(.apple3)
+            if device.supportsFamily(.apple3) {
+                return (131072, 65536)
+            } else {
+                return (8192, 8192)
+            }
             #elseif os(macOS)
-            return false
+            return (131072, 65536)
             #else
             if #available(iOS 13.0, *) {
-                return !device.supportsFamily(.apple3)
+                if device.supportsFamily(.apple3) {
+                    return (65536, 65536)
+                } else {
+                    return (16384, 16384)
+                }
             } else if #available(iOS 11.0, *)  {
-                return !device.supportsFeatureSet(.iOS_GPUFamily3_v3)
+                if device.supportsFeatureSet(.iOS_GPUFamily3_v3) {
+                    return (16384, 16384)
+                } else {
+                    return (8192, 8192)
+                }
             } else {
-                return false
+                return (8192, 8192)
             }
             #endif
         }
-        let maxSide: Int = supportsOnly8K() ? 8192 : 16_384
+        
+        let (maxWidth, maxHeight) = getMaxTextureDimensions()
+        
         guard base.width > 0, base.height > 0 else {
             return .init(width: 0, height: 0, depth: 0)
         }
+        
         let aspectRatio = Float(base.width) / Float(base.height)
         if aspectRatio > 1 {
-            let resultWidth = min(base.width, maxSide)
+            let resultWidth = min(base.width, maxWidth)
             let resultHeight = Float(resultWidth) / aspectRatio
-            return MTLSize(width: resultWidth, height: Int(resultHeight.rounded()), depth: 0)
+            return MTLSize(width: resultWidth, height: min(Int(resultHeight.rounded()), maxHeight), depth: 0)
         } else {
-            let resultHeight = min(base.height, maxSide)
+            let resultHeight = min(base.height, maxHeight)
             let resultWidth = Float(resultHeight) * aspectRatio
-            return MTLSize(width: Int(resultWidth.rounded()), height: resultHeight, depth: 0)
+            return MTLSize(width: min(Int(resultWidth.rounded()), maxWidth), height: resultHeight, depth: 0)
         }
     }
 }

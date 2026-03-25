@@ -525,7 +525,6 @@ print(PerformanceMonitor.shared.getStatistics())
 | `bufferPixelFormat` | `MTLPixelFormat` | `.bgra8Unorm` | 输出缓冲区的像素格式。对于相机捕获尤为重要，通常使用 `kCVPixelFormatType_32BGRA` 以避免蓝色 tint 问题。 |
 | `mirrored` | `Bool` | `false` | 是否镜像输出图像。修复从纹理创建 CIImage 时的上下颠倒镜像问题。 |
 | `createDestTexture` | `Bool` | `true` | 是否创建单独的输出纹理。禁用此选项可能会导致纹理覆盖问题。 |
-| `scaleFactor` | `Float` | `1.0` | 中间纹理的缩放因子（0.0-1.0）。减小此值可以提高性能，但会降低质量。 |
 | `transmitOutputRealTimeCommit` | `Bool` | `false` | 是否对 Metal 纹理输出使用实时提交。启用 `MTLCommandBuffer.asyncCommit` 以获得更快的处理速度。 |
 | `enableDoubleBuffer` | `Bool` | `true` | 是否为金属滤镜启用双缓冲优化。减少内存使用并提高纹理池效率。 |
 
@@ -538,7 +537,6 @@ let dest = HarbethIO(element: image, filters: [filter1, filter2])
 // 自定义配置
 var dest = HarbethIO(element: image, filters: [filter1, filter2])
 dest.bufferPixelFormat = .rgba8Unorm
-dest.scaleFactor = 0.8
 dest.enableDoubleBuffer = true
 
 // 带有自定义配置的异步处理
@@ -558,7 +556,6 @@ dest.transmitOutput { result in
 
 1. **对于实时处理**（例如相机捕获）：
    - 设置 `transmitOutputRealTimeCommit = true`
-   - 考虑降低 `scaleFactor` 以获得更快的处理速度
    - 启用 `enableDoubleBuffer` 以更好地管理内存
 
 2. **对于内存受限设备**：
@@ -567,7 +564,6 @@ dest.transmitOutput { result in
    - 使用异步处理以避免内存峰值
 
 3. **对于高质量输出**：
-   - 保持 `scaleFactor = 1.0`
    - 设置 `createDestTexture = true` 以避免纹理覆盖
    - 根据输出需求使用适当的 `bufferPixelFormat`
 
@@ -582,7 +578,6 @@ public struct HarbethIO<Dest> {
     public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm
     public var mirrored: Bool = false
     public var createDestTexture: Bool = true
-    public var scaleFactor: Float = 1.0
     public var transmitOutputRealTimeCommit: Bool = false
     public var enableDoubleBuffer: Bool = true
     

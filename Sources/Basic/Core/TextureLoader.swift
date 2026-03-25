@@ -50,12 +50,15 @@ extension TextureLoader {
     ///   - cgImage: Bitmap image
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        guard let loader = Shared.shared.device?.textureLoader else {
-            throw HarbethError.textureLoader
+        if let loader = Shared.shared.device?.textureLoader {
+            let options = options ?? TextureLoader.defaultOptions
+            if let texture = try? loader.newTexture(cgImage: cgImage, options: options) {
+                self.texture = texture
+                return
+            }
         }
-        let options = options ?? TextureLoader.defaultOptions
-        self.texture = try loader.newTexture(cgImage: cgImage, options: options)
-        PerformanceMonitor.shared.recordTextureCreation("texture_loader", created: true)
+        // 降级策略：手动创建纹理并复制像素数据
+        self.texture = try TextureLoader.drawCGImageToTexture(cgImage)
     }
     
     /// Creates a new MTLTexture from a CIImage.
@@ -99,7 +102,6 @@ extension TextureLoader {
         let region = MTLRegionMake2D(0, 0, width, height)
         texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddress!, bytesPerRow: bytesPerRow)
         self.texture = texture
-        PerformanceMonitor.shared.recordTextureCreation("pixelbuffer", created: true)
     }
     
     /// Creates a new MTLTexture from a CMSampleBuffer.
@@ -118,9 +120,7 @@ extension TextureLoader {
     ///   - image: A UIImage / NSImage.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        if let ciImage = image.c7.toCIImage() {
-            try self.init(with: ciImage, options: options)
-        } else if let cgImage = image.cgImage {
+        if let cgImage = image.cgImage {
             try self.init(with: cgImage, options: options)
         } else {
             throw HarbethError.image2CGImage
@@ -137,7 +137,6 @@ extension TextureLoader {
         }
         let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(data: data, options: options)
-        PerformanceMonitor.shared.recordTextureCreation("data", created: true)
     }
     
     public init(with bundleURL: URL, name: String, options: [MTKTextureLoader.Option: Any]? = nil) throws {
@@ -150,7 +149,6 @@ extension TextureLoader {
         }
         let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(URL: imageURL, options: options)
-        PerformanceMonitor.shared.recordTextureCreation("imageURL", created: true)
     }
     
     #if os(macOS)
@@ -162,15 +160,14 @@ extension TextureLoader {
         guard let data = bitmap.bitmapData else {
             throw HarbethError.bitmapDataNotFound
         }
-        let texture = try TextureLoader.emptyTexture(
+        let texture = try TextureLoader.makeTexture(
             width: bitmap.pixelsWide,
             height: bitmap.pixelsHigh,
-            options: [.texturePixelFormat: pixelFormat]
+            options: [TextureLoader.Option.texturePixelFormat: pixelFormat]
         )
         let region = MTLRegionMake2D(0, 0, bitmap.pixelsWide, bitmap.pixelsHigh)
         texture.replace(region: region, mipmapLevel: 0, withBytes: data, bytesPerRow: bitmap.bytesPerRow)
         self.texture = texture
-        PerformanceMonitor.shared.recordTextureCreation("bitmap_rep", created: true)
     }
     #endif
 }
@@ -189,7 +186,7 @@ extension TextureLoader {
     ///   - width: The texture width, must be greater than 0, maximum resolution is 16384.
     ///   - height: The texture height, must be greater than 0, maximum resolution is 16384.
     ///   - options: Configure other parameters about generating metal textures.
-    public static func makeTexture(width: Int, height: Int, options: [Option: Any]? = nil) throws -> MTLTexture {
+    public static func makeTexture(width: Int, height: Int, options: [Option: Any]? = nil, identifier: String = "Render") throws -> MTLTexture {
         let opts = options ?? [:]
         let pixelFormat = opts[.texturePixelFormat] as? MTLPixelFormat ?? .rgba8Unorm
         let usage = opts[.textureUsage] as? MTLTextureUsage ?? defaultUsage
@@ -204,16 +201,21 @@ extension TextureLoader {
             return usage.contains(.shaderWrite) ? .managed : .private
             #endif
         }()
-        // Try texture pool first
-        if let texture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: pixelFormat) {
-            PerformanceMonitor.shared.recordTextureCreation("texture_pool", created: false)
+        
+        // Calculate size considering device limits
+        let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
+        
+        // Try texture pool with calculated size
+        if let texture = Shared.shared.texturePool?.dequeueTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat) {
+            Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
             return texture
         }
+        
         // Create new descriptor
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: pixelFormat,
-            width: min(max(1, width), 16_384),
-            height: min(max(1, height), 16_384),
+            width: max(maxWidth, 1),
+            height: max(maxHeight, 1),
             mipmapped: sampleCount == 1
         )
         descriptor.usage = usage
@@ -226,29 +228,12 @@ extension TextureLoader {
         guard let texture = Device.device().makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
-        PerformanceMonitor.shared.recordTextureCreation("texture_pool", created: true)
+        Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
         return texture
     }
     
-    public static func makeTexture(at size: CGSize, options: [Option: Any]? = nil) throws -> MTLTexture {
-        return try makeTexture(width: Int(size.width), height: Int(size.height), options: options)
-    }
-    
-    public static func emptyTexture(width: Int, height: Int, options: [Option: Any]? = nil) throws -> MTLTexture {
-        try makeTexture(width: width, height: height, options: options)
-    }
-    
-    public static func emptyTexture(at size: CGSize, options: [Option: Any]? = nil) throws -> MTLTexture {
-        try makeTexture(at: size, options: options)
-    }
-    
-    /// High-performance path: always uses pooling and minimal options.
-    public static func makeOptimizedTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture {
-        if let texture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: pixelFormat) {
-            PerformanceMonitor.shared.recordTextureCreation("texture_pool", created: false)
-            return texture
-        }
-        return try makeTexture(width: width, height: height, options: [.texturePixelFormat: pixelFormat])
+    public static func makeTexture(at size: CGSize, options: [Option: Any]? = nil, identifier: String = "Render") throws -> MTLTexture {
+        return try makeTexture(width: Int(size.width), height: Int(size.height), options: options, identifier: identifier)
     }
 }
 
@@ -258,11 +243,10 @@ extension TextureLoader {
         try TextureLoader(with: cgImage, options: shaderReadTextureOptions).texture
     }
     
-    public static func copyTexture(with texture: MTLTexture) throws -> MTLTexture {
-        // 优先从纹理池获取合适的纹理
+    public static func copyTexture(with texture: MTLTexture, identifier: String = "Render") throws -> MTLTexture {
         let width = texture.width, height = texture.height
         if let pooledTexture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: texture.pixelFormat) {
-            PerformanceMonitor.shared.recordTextureCreation("texture_pool_copy", created: false)
+            Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
             return pooledTexture
         }
         // 纹理最好不要又作为输入纹理又作为输出纹理，否则会出现重复内容，
@@ -271,24 +255,9 @@ extension TextureLoader {
             .texturePixelFormat: texture.pixelFormat,
             .textureUsage: texture.usage,
             .textureSampleCount: texture.sampleCount,
-        ])
-        PerformanceMonitor.shared.recordTextureCreation("texture_pool_copy", created: true)
+        ], identifier: identifier)
+        Shared.shared.texturePool?.enqueueTextureSync(newTexture)
         return newTexture
-    }
-    
-    /// Returns a texture to the pool for reuse.
-    /// Silently ignores nil textures or textures that can't be pooled.
-    public static func returnTexture(toPool texture: MTLTexture?) {
-        guard let texture = texture else { return }
-        Shared.shared.texturePool?.enqueueTexture(texture)
-    }
-    
-    /// Returns multiple textures to the pool for reuse.
-    /// Silently ignores nil textures or textures that can't be pooled.
-    public static func returnTextures(toPool textures: [MTLTexture]) {
-        for texture in textures {
-            Shared.shared.texturePool?.enqueueTexture(texture)
-        }
     }
     
     private static func pixelFormat(from cvFormat: OSType) -> MTLPixelFormat {
@@ -303,6 +272,49 @@ extension TextureLoader {
             return .bgra8Unorm
         }
     }
+    
+    /// Downgrade strategy: manually create textures and copy pixel data
+    private static func drawCGImageToTexture(_ cgImage: CGImage) throws -> MTLTexture {
+        let (width, height) = Device.makeTexture2DMaxSize(width: Int(cgImage.width), height: Int(cgImage.height))
+        
+        // Try texture pool first with original size
+        if let texture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: .rgba8Unorm) {
+            return texture
+        }
+        
+        // 降级策略：手动创建纹理并复制像素数据
+        let texture = try makeTexture(width: width, height: height, options: [
+            .textureSampleCount: 1,
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
+            .textureUsage: defaultUsage,
+            .textureAllowGPUOptimizedContents: true,
+        ])
+        
+        let bytesPerRow = width * 4
+        let dataSize = bytesPerRow * height
+        let data = UnsafeMutableRawPointer.allocate(byteCount: dataSize, alignment: 4)
+        defer { data.deallocate() }
+        
+        guard let context = CGContext(
+            data: data,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: Device.colorSpace(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            throw HarbethError.contextCreationFailed
+        }
+        
+        let rect = CGRect(x: 0, y: 0, width: width, height: height)
+        context.draw(cgImage, in: rect)
+        
+        // Copy data to texture
+        let region = MTLRegionMake2D(0, 0, width, height)
+        texture.replace(region: region, mipmapLevel: 0, withBytes: data, bytesPerRow: bytesPerRow)
+        
+        return texture
+    }
 }
 
 extension TextureLoader {
@@ -315,6 +327,7 @@ extension TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public static func makeTexture(with cgImage: CGImage,
                                    options: [MTKTextureLoader.Option: Any]? = nil,
+                                   identifier: String = "Render",
                                    success: @escaping (_ texture: MTLTexture) -> Void,
                                    failed: ((HarbethError) -> Void)? = nil) {
         guard let loader = Shared.shared.device?.textureLoader else {
@@ -323,7 +336,7 @@ extension TextureLoader {
         }
         loader.newTexture(cgImage: cgImage, options: options ?? defaultOptions) { texture, error in
             if let texture = texture {
-                PerformanceMonitor.shared.recordTextureCreation("async_texture", created: true)
+                Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
                 success(texture)
             } else if let error = error {
                 failed?(.error(error))

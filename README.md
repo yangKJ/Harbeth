@@ -173,7 +173,6 @@ HarbethIO provides several properties to customize the image processing behavior
 | `bufferPixelFormat` | The pixel format for the output buffer. Important for camera capture which typically uses `kCVPixelFormatType_32BGRA` to avoid blue tint issues. |
 | `mirrored` | Whether to mirror the output image. Fixes the upside-down mirroring issue when creating CIImage from texture. |
 | `createDestTexture` | Whether to create a separate output texture. Disabling this may cause texture overlay issues. |
-| `scaleFactor` | Scale factor for intermediate textures (0.0-1.0). Reducing this can improve performance at the cost of quality. |
 | `transmitOutputRealTimeCommit` | Whether to use real-time commit for Metal texture output. Enables `MTLCommandBuffer.asyncCommit` for faster processing. |
 | `enableDoubleBuffer` | Whether to enable double buffer optimization for metal filters. Reduces memory usage and improves texture pool efficiency. |
 
@@ -183,7 +182,6 @@ HarbethIO provides several properties to customize the image processing behavior
 // Custom configuration
 var dest = HarbethIO(element: image, filters: [filter1, filter2])
 dest.bufferPixelFormat = .rgba8Unorm
-dest.scaleFactor = 0.8
 dest.enableDoubleBuffer = true
 _ = try? dest.output()
 
@@ -204,7 +202,6 @@ dest.transmitOutput { result in
 
 1. **For real-time processing** (e.g., camera capture):
    - Set `transmitOutputRealTimeCommit = true`
-   - Consider reducing `scaleFactor` for faster processing
    - Enable `enableDoubleBuffer` for better memory management
 
 2. **For memory-constrained devices**:
@@ -213,7 +210,6 @@ dest.transmitOutput { result in
    - Use asynchronous processing to avoid memory peaks
 
 3. **For high-quality output**:
-   - Keep `scaleFactor = 1.0`
    - Set `createDestTexture = true` to avoid texture overlay
    - Use appropriate `bufferPixelFormat` for your output needs
 

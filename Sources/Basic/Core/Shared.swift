@@ -13,6 +13,19 @@ public final class Shared {
     
     public static let shared = Shared()
     
+    /// Enable performance monitoring
+    public var enablePerformanceMonitor: Bool = false {
+        didSet {
+            if enablePerformanceMonitor {
+                self.performanceMonitor?.setupEnablePerformanceMonitor(enablePerformanceMonitor)
+            } else {
+                if let _ = objc_getAssociatedObject(self, &C7ATSharedPerformanceMonitorContext) {
+                    self.performanceMonitor = nil
+                }
+            }
+        }
+    }
+    
     private init() { }
     
     /// Release the Device resource
@@ -21,6 +34,7 @@ public final class Shared {
     public func deinitDevice() {
         device = nil
         texturePool = nil
+        performanceMonitor = nil
     }
     
     public func advanceSetupDevice() {
@@ -39,6 +53,7 @@ public final class Shared {
 
 private var C7ATSharedDeviceContext: UInt8 = 0
 private var C7ATSharedTexturePoolContext: UInt8 = 0
+private var C7ATSharedPerformanceMonitorContext: UInt8 = 0
 
 extension Shared {
     
@@ -81,6 +96,28 @@ extension Shared {
         }
     }
     
+    public var performanceMonitor: PerformanceMonitor? {
+        get {
+            if !enablePerformanceMonitor {
+                return nil
+            }
+            return synchronizedDevice {
+                if let object = objc_getAssociatedObject(self, &C7ATSharedPerformanceMonitorContext) {
+                    return object as? PerformanceMonitor
+                } else {
+                    let object = PerformanceMonitor(enabled: enablePerformanceMonitor)
+                    objc_setAssociatedObject(self, &C7ATSharedPerformanceMonitorContext, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                    return object
+                }
+            }
+        }
+        set {
+            synchronizedDevice {
+                objc_setAssociatedObject(self, &C7ATSharedPerformanceMonitorContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            }
+        }
+    }
+    
     private func synchronizedDevice<T>( _ action: () -> T) -> T {
         objc_sync_enter(self)
         let result = action()
@@ -105,6 +142,6 @@ extension Shared {
     
     /// Reset the statistics of the texture pool
     public func resetTexturePoolStatistics() {
-        texturePool?.resetStatistics()
+        texturePool?.resetStatisticsSync()
     }
 }

@@ -19,6 +19,10 @@ public struct C7Size: Codable {
         self.height = height
     }
     
+    public init(cgSize: CGSize) {
+        self.init(width: Int(cgSize.width), height: Int(cgSize.height))
+    }
+    
     private enum CodingKeys: String, CodingKey {
         case width
         case height

@@ -34,8 +34,6 @@ public final class Device: Cacheable {
     /// Lock for thread safety
     private let pipelineLock = NSLock()
     
-    /// Enable performance monitoring
-    private var _enablePerformanceMonitor: Bool = false
     /// Memory limit for texture processing in MB
     private var _memoryLimitMB: Int = 512
     
@@ -210,14 +208,6 @@ extension Device {
         return Shared.shared.device!._renderOperationQueue
     }
     
-    public static var enablePerformanceMonitor: Bool {
-        return Shared.shared.device!._enablePerformanceMonitor
-    }
-    
-    public static func setEnablePerformanceMonitor(_ value: Bool) {
-        Shared.shared.device!._enablePerformanceMonitor = value
-    }
-    
     public static var memoryLimitMB: Int {
         return Shared.shared.device!._memoryLimitMB
     }
@@ -283,5 +273,49 @@ extension Device {
         }
         Shared.shared.device?.contexts[colorSpace] = context
         return context
+    }
+    
+    public static func makeTexture2DMaxSize(width: Int, height: Int) -> (width: Int, height: Int) {
+        func getMaxTextureDimensions() -> (width: Int, height: Int) {
+            #if targetEnvironment(macCatalyst)
+            if Device.device().supportsFamily(.apple3) {
+                return (131072, 65536)
+            } else {
+                return (8192, 8192)
+            }
+            #elseif os(macOS)
+            return (131072, 65536)
+            #else
+            if #available(iOS 13.0, *) {
+                if Device.device().supportsFamily(.apple3) {
+                    return (65536, 65536)
+                } else {
+                    return (16384, 16384)
+                }
+            } else if #available(iOS 11.0, *)  {
+                if Device.device().supportsFeatureSet(.iOS_GPUFamily3_v3) {
+                    return (16384, 16384)
+                } else {
+                    return (8192, 8192)
+                }
+            } else {
+                return (8192, 8192)
+            }
+            #endif
+        }
+        guard width > 0, height > 0 else {
+            return (0, 0)
+        }
+        let (maxWidth, maxHeight) = getMaxTextureDimensions()
+        let aspectRatio = Float(width) / Float(height)
+        if aspectRatio > 1 {
+            let resultWidth = min(width, maxWidth)
+            let resultHeight = Float(resultWidth) / aspectRatio
+            return (width: resultWidth, height: min(Int(resultHeight.rounded()), maxHeight))
+        } else {
+            let resultHeight = min(height, maxHeight)
+            let resultWidth = Float(resultHeight) * aspectRatio
+            return (width: min(Int(resultWidth.rounded()), maxWidth), height: resultHeight)
+        }
     }
 }

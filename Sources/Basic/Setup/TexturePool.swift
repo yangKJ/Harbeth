@@ -255,6 +255,70 @@ public final class TexturePool {
         }
     }
     
+    public func enqueueTexturesSync(_ textures: [MTLTexture]) {
+        if !textures.isEmpty {
+            for texture in textures {
+                enqueueTextureSync(texture)
+            }
+        }
+    }
+    
+    /// Synchronous variant for deterministic statistics updates.
+    /// Intended for GPU completion handlers where we want pool statistics to be visible immediately.
+    public func enqueueTextureSync(_ texture: MTLTexture) {
+        let key = TextureKey(width: texture.width, height: texture.height, pixelFormat: texture.pixelFormat)
+        let oid = ObjectIdentifier(texture)
+        
+        queue.sync(flags: .barrier) {
+            if self.textureToKey[oid] != nil {
+                return
+            }
+            
+            let textureSize = self.estimatedByteSize(of: texture)
+            let newTotal = self.currentMemoryUsage + textureSize
+            
+            // Evict until under memory limit
+            var mutableNewTotal = newTotal
+            while mutableNewTotal > self.maxMemoryUsage && !self.accessQueue.isEmpty {
+                let oldestKey = self.accessQueue.removeFirst()
+                if var oldList = self.cache[oldestKey], !oldList.isEmpty {
+                    let oldTexture = oldList.removeLast()
+                    self.cache[oldestKey] = oldList.isEmpty ? nil : oldList
+                    let oldOid = ObjectIdentifier(oldTexture)
+                    self.textureToKey[oldOid] = nil
+                    self.currentMemoryUsage -= self.estimatedByteSize(of: oldTexture)
+                    self.statistics.currentTextureCount -= 1
+                    mutableNewTotal = self.currentMemoryUsage + textureSize
+                } else {
+                    break
+                }
+            }
+            
+            // Only enqueue if still under limit
+            guard self.currentMemoryUsage + textureSize <= self.maxMemoryUsage else { return }
+            
+            self.cache[key, default: []].append(texture)
+            self.textureToKey[oid] = key
+            if !self.accessQueue.contains(key) {
+                self.accessQueue.append(key)
+            }
+            self.currentMemoryUsage += textureSize
+            self.statistics.currentTextureCount += 1
+            
+            // Update statistics immediately
+            self.statistics.currentMemoryUsage = self.currentMemoryUsage
+            self.statistics.peakMemoryUsage = max(self.statistics.peakMemoryUsage, self.currentMemoryUsage)
+            self.statistics.memoryUsageSamples.append(self.currentMemoryUsage)
+            if self.statistics.memoryUsageSamples.count > 100 {
+                self.statistics.memoryUsageSamples.removeFirst()
+            }
+            if !self.statistics.memoryUsageSamples.isEmpty {
+                let total = self.statistics.memoryUsageSamples.reduce(0, +)
+                self.statistics.averageMemoryUsage = Double(total) / Double(self.statistics.memoryUsageSamples.count)
+            }
+        }
+    }
+    
     public func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
         guard count > 0 else { return }
         
@@ -305,6 +369,16 @@ public final class TexturePool {
             self.statistics.maxMemoryUsage = max(self.statistics.maxMemoryUsage, self.currentMemoryUsage)
         }
     }
+
+    /// Synchronous variant for deterministic reads after reset.
+    public func resetStatisticsSync() {
+        queue.sync(flags: .barrier) {
+            self.statistics = Statistics()
+            self.statistics.currentTextureCount = self.cache.values.reduce(0) { $0 + $1.count }
+            self.statistics.currentMemoryUsage = self.currentMemoryUsage
+            self.statistics.maxMemoryUsage = max(self.statistics.maxMemoryUsage, self.currentMemoryUsage)
+        }
+    }
     
     private func updateMemoryUsageStatistics() {
         queue.async(flags: .barrier) {
@@ -346,13 +420,16 @@ public final class TexturePool {
     }
     
     private func popFromCache(forKey key: TextureKey) -> MTLTexture? {
-        guard let list = self.cache[key], !list.isEmpty else {
+        guard var mutableList = self.cache[key] else {
             return nil
         }
-        var mutableList = list
-        let texture = mutableList.removeLast()
+        guard !mutableList.isEmpty else {
+            self.cache[key] = nil
+            return nil
+        }
         
-        self.cache[key] = mutableList.isEmpty ? nil : mutableList
+        let texture = mutableList.removeLast()
+        self.cache[key] = mutableList
         
         if let index = self.accessQueue.firstIndex(of: key) {
             self.accessQueue.remove(at: index)
@@ -407,6 +484,5 @@ public final class TexturePool {
             self.statistics.currentTextureCount = 0
             self.updateMemoryUsageStatistics()
         }
-        PerformanceMonitor.shared.recordTextureCreation("texture_pool_purged", created: false)
     }
 }
