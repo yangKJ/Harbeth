@@ -31,9 +31,21 @@ kernel void C7CombinationBeautiful(texture2d<half, access::write> outputTexture 
     } else {
         outColor = inColor;
     }
-    outColor.r = log(1.0 + 0.2 * outColor.r) / log(1.2);
-    outColor.g = log(1.0 + 0.2 * outColor.g) / log(1.2);
-    outColor.b = log(1.0 + 0.2 * outColor.b) / log(1.2);
+    // Soft tone curve: log(1 + 0.2x) / log(1.2).
+    // For HDR values > 1.0, extrapolate linearly to preserve extended range.
+    const half logScale = 1.0h / log(1.2h);
+    for (int i = 0; i < 3; i++) {
+        half v = outColor[i];
+        if (v >= 0.0h && v <= 1.0h) {
+            outColor[i] = log(1.0h + 0.2h * v) * logScale;
+        } else if (v > 1.0h) {
+            // Linear extrapolation from the curve's slope at 1.0
+            const half slopeAt1 = (0.2h / 1.2h) * logScale;  // derivative at v=1
+            const half valueAt1 = log(1.2h) * logScale;        // = 1.0
+            outColor[i] = valueAt1 + slopeAt1 * (v - 1.0h);
+        }
+        // Negative values pass through unchanged (shouldn't occur normally)
+    }
     
     const half4 output = mix(inColor, outColor, half(*intensity));
     
