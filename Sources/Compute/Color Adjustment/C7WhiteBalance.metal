@@ -23,9 +23,26 @@ kernel void C7WhiteBalance(texture2d<half, access::write> outputTexture [[textur
     const half3 rgb = YIQtoRGB * yiq;
     
     const half3 warm = half3(0.93, 0.54, 0.0);
-    const half r = rgb.r < 0.5 ? (2.0 * rgb.r * warm.r) : (1.0 - 2.0 * (1.0 - rgb.r) * (1.0 - warm.r));
-    const half g = rgb.g < 0.5 ? (2.0 * rgb.g * warm.g) : (1.0 - 2.0 * (1.0 - rgb.g) * (1.0 - warm.g));
-    const half b = rgb.b < 0.5 ? (2.0 * rgb.b * warm.b) : (1.0 - 2.0 * (1.0 - rgb.b) * (1.0 - warm.b));
+    // Overlay blend, HDR-safe: extrapolate linearly outside [0,1].
+    half3 blended;
+    for (int i = 0; i < 3; i++) {
+        half v = rgb[i];
+        half w = warm[i];
+        if (v < 0.0h || v > 1.0h) {
+            if (v < 0.0h) {
+                blended[i] = v * (2.0h * w);
+            } else {
+                blended[i] = 1.0h + 2.0h * (1.0h - w) * (v - 1.0h);
+            }
+        } else if (v < 0.5h) {
+            blended[i] = 2.0h * v * w;
+        } else {
+            blended[i] = 1.0h - 2.0h * (1.0h - v) * (1.0h - w);
+        }
+    }
+    const half r = blended.r;
+    const half g = blended.g;
+    const half b = blended.b;
     
     half temperature = half(*temperature_);
     temperature = temperature < 5000 ? 0.0004 * (temperature - 5000) : 0.00006 * (temperature - 5000);

@@ -35,7 +35,6 @@ kernel void C7ColorBalanceEnhanced(texture2d<half, access::write> outputTexture 
     // Apply adjustment to color
     float4 outColor = color;
     outColor.rgb += finalAdjustment;
-    outColor.rgb = clamp(outColor.rgb, 0.0, 1.0);
     
     outputTexture.write(half4(outColor), grid);
 }

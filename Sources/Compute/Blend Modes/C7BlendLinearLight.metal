@@ -23,7 +23,6 @@ kernel void C7BlendLinearLight(texture2d<half, access::write> outputTexture [[te
     // Linear Light: 结合了 Linear Burn 和 Linear Dodge
     outColor.rgb = inColor.rgb + 2.0 * overlay.rgb - 1.0;
     outColor.a = inColor.a;
-    outColor.rgb = clamp(outColor.rgb, half3(0.0), half3(1.0));
     
     const half4 output = mix(inColor, outColor, half(*intensity));
     

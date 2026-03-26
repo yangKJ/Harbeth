@@ -58,7 +58,8 @@ extension C7LuminanceThreshold {
             let r = pixelData[i]
             let g = pixelData[i + 1]
             let b = pixelData[i + 2]
-            let luminance = UInt8(0.2125 * Float(r) + 0.7154 * Float(g) + 0.0721 * Float(b))
+            let lum = 0.2125 * Float(r) + 0.7154 * Float(g) + 0.0721 * Float(b)
+            let luminance = UInt8(lum)
             histogram[Int(luminance)] += 1
         }
         

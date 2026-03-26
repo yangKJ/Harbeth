@@ -62,10 +62,6 @@ kernel void C7Clarity(texture2d<half, access::write> outputTexture [[texture(0)]
     // 增强细节并加回原始图像
     float4 outColor = inColor + detail * clarityIntensity;
     
-    // 确保颜色值在有效范围内
-    outColor.r = clamp(outColor.r, 0.0, 1.0);
-    outColor.g = clamp(outColor.g, 0.0, 1.0);
-    outColor.b = clamp(outColor.b, 0.0, 1.0);
     outColor.a = inColor.a;
     
     outputTexture.write(half4(outColor), grid);

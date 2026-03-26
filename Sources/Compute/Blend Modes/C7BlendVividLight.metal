@@ -29,7 +29,6 @@ kernel void C7BlendVividLight(texture2d<half, access::write> outputTexture [[tex
         }
     }
     outColor.a = inColor.a;
-    outColor.rgb = clamp(outColor.rgb, half3(0.0), half3(1.0));
     
     const half4 output = mix(inColor, outColor, half(*intensity));
     

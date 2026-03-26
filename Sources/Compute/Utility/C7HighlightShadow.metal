@@ -17,9 +17,14 @@ kernel void C7HighlightShadow(texture2d<half, access::write> outputTexture [[tex
     
     const half3 luminanceWeighting = half3(0.2125, 0.7154, 0.0721);
     const half luminance = dot(inColor.rgb, luminanceWeighting);
-    const half shadow = clamp((pow(luminance, 1.0h / (half(*shadows) + 1.0h)) + (-0.76) * pow(luminance, 2.0h / (half(*shadows) + 1.0h))) - luminance, 0.0, 1.0);
-    const half highlight = clamp((1.0 - (pow(1.0 - luminance, 1.0 / (2.0 - half(*highlights))) + (-0.8) * pow(1.0 - luminance, 2.0 / (2.0 - half(*highlights))))) - luminance, -1.0, 0.0);
-    const half3 result = half3(0.0, 0.0, 0.0) + ((luminance + shadow + highlight) - 0.0) * ((inColor.rgb - half3(0.0, 0.0, 0.0)) / (luminance - 0.0));
+    // Clamp luminance for pow() stability, but preserve HDR via the ratio (inColor / luminance).
+    const half lumSDR = clamp(luminance, 0.001h, 1.0h);
+    // Shadow adjustment must be non-negative (only lifts), highlight must be non-positive (only pulls down).
+    // These clamps constrain adjustment direction, not color output.
+    const half shadow = clamp((pow(lumSDR, 1.0h / (half(*shadows) + 1.0h)) + (-0.76h) * pow(lumSDR, 2.0h / (half(*shadows) + 1.0h))) - lumSDR, 0.0h, 1.0h);
+    const half highlight = clamp((1.0h - (pow(1.0h - lumSDR, 1.0h / (2.0h - half(*highlights))) + (-0.8h) * pow(1.0h - lumSDR, 2.0h / (2.0h - half(*highlights))))) - lumSDR, -1.0h, 0.0h);
+    // Scale original color proportionally — preserves HDR headroom via inColor/lumSDR ratio.
+    const half3 result = (lumSDR + shadow + highlight) * (inColor.rgb / lumSDR);
     const half4 outColor = half4(result.rgb, inColor.a);
     
     outputTexture.write(outColor, grid);

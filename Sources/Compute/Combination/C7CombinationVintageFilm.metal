@@ -61,7 +61,6 @@ kernel void C7CombinationVintageFilm(texture2d<half, access::write> outputTextur
     
     finalColor.r += 0.05 * blendIntensity;
     finalColor.g -= 0.02 * blendIntensity;
-    finalColor.rgb = clamp(finalColor.rgb, half3(0.0), half3(1.0));
     
     // Write the result to the output texture
     outputTexture.write(finalColor, gid);

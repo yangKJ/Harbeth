@@ -34,11 +34,7 @@ kernel void C7ChannelControl(texture2d<half, access::write> outputTexture [[text
     float blendFactor = blendValue;
     float4 finalColor = originalColor * (1.0 - blendFactor) + adjustedColor * blendFactor;
     
-    half4 outColor;
-    outColor.r = half(clamp(finalColor.r, 0.0, 1.0));
-    outColor.g = half(clamp(finalColor.g, 0.0, 1.0));
-    outColor.b = half(clamp(finalColor.b, 0.0, 1.0));
-    outColor.a = half(clamp(finalColor.a, 0.0, 1.0));
+    half4 outColor = half4(finalColor);
     
     outputTexture.write(outColor, grid);
 }

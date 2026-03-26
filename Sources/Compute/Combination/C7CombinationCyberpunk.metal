@@ -58,8 +58,7 @@ kernel void C7CombinationCyberpunk(texture2d<half, access::write> outputTexture 
         }
     }
     
-    processedColor.rgb = pow(processedColor.rgb, half3(0.8));
-    processedColor.rgb = clamp(processedColor.rgb, half3(0.0), half3(1.0));
+    processedColor.rgb = pow(max(processedColor.rgb, half3(0.0h)), half3(0.8));
     
     half4 originalColor = inputTexture.read(gid);
     half4 finalColor = mix(originalColor, processedColor, blendIntensity);
