@@ -276,6 +276,10 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **MPSMedian**（MPS中值模糊）- Metal Performance Shaders中值模糊
 - **MPSCanny**（MPS边缘检测）- Metal Performance Shaders Canny边缘检测
 
+#### 🖼️ Render 模块
+- **RenderGrayscale**: 灰度渲染滤镜
+- **RenderSepia**: 棕褐色渲染滤镜
+
 ### 🔍 滤镜查找指南
 
 根据您的需求，选择合适的滤镜类别：

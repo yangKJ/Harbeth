@@ -49,6 +49,7 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 - **Blit Operations**: Copy region, crop, generate mipmaps.
 - **CoreImage Integration**: Access to CoreImage filters
 - **Metal Performance Shaders**: High-performance MPS filters
+- **Render Vertex Fragment**: The Render module provides low-level rendering capabilities using vertex and fragment shaders.
 
 #### **A total of 200+ kinds of built-in filters are currently available.✌️**
 
@@ -166,7 +167,7 @@ HarbethView(image: inputImage, filters: filters, content: { image in
 
 HarbethIO provides several properties to customize the image processing behavior. Here's a detailed explanation of each property:
 
-| Property | Type | Default Value | Description |
+| Property | Description |
 | :--- | :--- |
 | `element` | The input element to apply filters to. Supports UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, and CVPixelBuffer. |
 | `filters` | An array of filters to apply to the input element. |
@@ -238,6 +239,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7CombinationFilmSimulation**: Simulates modern film effects with grain and color characteristics
 - **C7CombinationHDRBoost**: Enhances dynamic range with improved highlight and shadow details
 - **C7CombinationModernHDR**: Achieves modern HDR effects with improved dynamic range
+- **C7CombinationSkinSmoothing**: A skin smoothing combination effect that uses frequency separation to smooth skin while preserving details
 - **C7CombinationVintage**: Applies vintage film effects with warm tones and grain
 - **C7CombinationVintageFilm**: Simulates vintage film stock with grain, vignette, and sepia tone effects
 
@@ -428,13 +430,6 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7LookupTable**: Applies a color lookup table (LUT) from image files, used for color grading and stylization
 - **C7LookupTable512x512**: 512x512 color search table filter for high-quality color
 
-#### 🔗 Combination Effects
-- **C7CombinationBeautiful**: A beauty combination effect that enhances facial features and skin tone, combining multiple beauty-enhancing filters for a polished appearance
-- **C7CombinationCinematic**: A cinematic combination effect that creates a film-like appearance with enhanced contrast, saturation, and subtle vignette
-- **C7CombinationModernHDR**: A modern HDR combination effect that improves dynamic range, enhancing both shadow detail and highlight information
-- **C7CombinationSkinSmoothing**: A skin smoothing combination effect that uses frequency separation to smooth skin while preserving details
-- **C7CombinationVintage**: A vintage combination effect that simulates old film stock with warm tones, subtle grain, and reduced contrast
-
 #### 🎚️ Other Effects
 - **C7Fade**: Applies a fade effect to the image, gradually transitioning between the original image and a white overlay
 - **C7Grayed**: Converts the image to grayscale using various methods, including luminosity, average, and desaturation
@@ -477,6 +472,17 @@ Combination filters allow you to create complex effects by combining multiple in
 - **MPSGaussianBlur**: Metal Performance Shaders Gaussian blur
 - **MPSHistogram**: Metal Performance Shaders histogram calculation
 - **MPSMedian**: Metal Performance Shaders median filter
+
+#### 📌 Render Module
+- **RenderGrayscale**: Grayscale rendering filter
+- **RenderSepia**: Tan rendering filter
+
+**Use Cases:**
+- Custom UI effects and transitions
+- Advanced visualizations
+- 3D-like effects in 2D space
+- Complex compositing operations
+- Performance-critical rendering tasks
 
 ---
 
@@ -555,14 +561,17 @@ A: Harbeth supports iOS 10.0+, macOS 10.13+, tvOS 12.0+, and watchOS 5.0+.
 **Q: How is Harbeth's performance?**
 A: Harbeth is built on Metal, fully leveraging GPU acceleration, which is several times faster than CPU processing, especially suitable for real-time processing scenarios.
 
-**Q: How to create custom filters?**
-A: You can create custom filters by implementing the `C7FilterProtocol` protocol, or create custom color adjustment filters using LUT files.
+**Q: How to integrate Harbeth with SwiftUI?**
+A: Use the HarbethView component, which provides a SwiftUI-friendly interface for applying filters to images.
 
-**Q: What advantages does Harbeth have compared to CoreImage?**
-A: Harbeth provides a cleaner API, more built-in filters, and better performance monitoring functionality. At the same time, Harbeth is also compatible with CoreImage filters.
+**Q: How to handle different input source types?**
+A: HarbethIO supports various input types including UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, and CVPixelBuffer. Simply pass your input to the HarbethIO initializer.
 
-**Q: How to handle memory issues?**
-A: You can limit Harbeth's memory usage by adjusting the `memoryLimitMB` property, or use asynchronous processing to avoid memory peaks.
+**Q: How to debug filter issues?** 
+A: Enable performance monitoring to check for errors, verify input/output texture sizes, and ensure your filters are compatible with each other.
+
+**Q: How to handle different pixel formats?**
+A: Set the bufferPixelFormat property in HarbethIO to match your input/output requirements, especially important for camera capture which typically uses kCVPixelFormatType_32BGRA .
 
 <p align="center">
   <em>Thank you for using Harbeth! I hope it can help with your projects.</em>

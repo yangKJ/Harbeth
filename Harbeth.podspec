@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '1.3.1'
+  s.version          = '2.0.0'
   s.summary          = 'About image and video add filter for metal.'
   
   # This description is used to generate tags and improve search results.
@@ -35,36 +35,8 @@ Pod::Spec.new do |s|
   s.macos.source_files = 'Sources/Harbeth.h'
   s.prefix_header_file = false
   
-  s.subspec 'Basic' do |xx|
-    xx.source_files = 'Sources/Basic/**/*.swift'
-    xx.weak_frameworks = 'ImageIO', 'MetalKit', 'AVFoundation'
-  end
-  
-  s.subspec 'Compute' do |xx|
-    xx.source_files = 'Sources/Compute/**/*.swift'
-    xx.resource_bundles = { s.name => [ 'Sources/Compute/**/*.metal' ] }
-    xx.pod_target_xcconfig = {
-      'SWIFT_ACTIVE_COMPILATION_CONDITIONS' => 'HARBETH_COMPUTE_LIBRARY_IN_BUNDLE',
-      'GCC_PREPROCESSOR_DEFINITIONS' => 'HARBETH_COMPUTE_LIBRARY_IN_BUNDLE=1'
-    }
-    xx.dependency 'Harbeth/Basic'
-  end
-  
-  s.subspec 'CoreImage' do |xx|
-    xx.source_files = 'Sources/CoreImage/**/*.swift'
-    xx.weak_frameworks = 'CoreImage'
-    xx.dependency 'Harbeth/Basic'
-  end
-  
-  s.subspec 'MPS' do |xx|
-    xx.source_files = 'Sources/MPS/*.swift'
-    xx.weak_frameworks = 'MetalPerformanceShaders'
-    xx.dependency 'Harbeth/Basic'
-  end
-  
-  s.subspec 'SwiftUI' do |xx|
-    xx.source_files = 'Sources/SwiftUI/*.swift'
-    xx.dependency 'Harbeth/Basic'
-  end
+  s.source_files = 'Sources/**/**/*.swift'
+  s.resource_bundles = { s.name => [ 'Sources/**/**/*.metal' ] }
+  s.weak_frameworks = 'ImageIO', 'MetalKit', 'AVFoundation', 'MetalPerformanceShaders', 'CoreImage'
   
 end

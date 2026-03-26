@@ -78,15 +78,11 @@ extension HarbethWrapper where Base: C7Color {
     /// - Parameter size: Image size.
     /// - Returns: C7Image.
     public func colorImage(with size: CGSize = .onePixel) -> C7Image? {
-        #if HARBETH_COMPUTE_LIBRARY_IN_BUNDLE
-        let texture = try? TextureLoader.emptyTexture(at: size)
+        let texture = try? TextureLoader.makeTexture(at: size)
         let filter = C7SolidColor(color: base)
         let dest = HarbethIO(element: texture, filter: filter)
         let image = (try? dest.output())?.c7.toImage()
         return image
-        #else
-        return nil
-        #endif
     }
 }
 

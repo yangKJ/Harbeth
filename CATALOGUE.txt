@@ -27,12 +27,12 @@
 │   │   └── Utility/         # 实用工具滤镜
 │   ├── CoreImage/       # CoreImage 滤镜支持
 │   ├── MPS/             # Metal Performance Shaders 支持
+│   ├── Render/          # 顶点和片元着色器滤镜支持
 │   └── SwiftUI/         # SwiftUI 支持
 ├── Demo/                # 示例应用
 │   ├── Harbeth-iOS-Demo/     # iOS 示例
 │   ├── Harbeth-macOS-Demo/   # macOS 示例
 │   └── Harbeth-SwiftUI-Demo/ # SwiftUI 示例
-├── Language/            # Metal 着色器文件
 ├── Screenshot/          # 截图和效果展示
 ├── Harbeth.xcodeproj/   # Xcode 项目文件
 ├── Harbeth.podspec/     # CocoaPods 配置
