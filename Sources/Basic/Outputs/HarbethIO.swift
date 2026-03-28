@@ -45,7 +45,9 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     /// Do you need to create an output texture object?
     /// If you do not create a separate output texture, texture overlay may occur.
     public var createDestTexture: Bool = true
-    /// Fixed camera capture output CMSampleBuffer.
+    /// Whether to use real-time commit for Metal texture output.
+    /// on the GPU but not until it's completed, providing faster response for real-time scenarios.
+    /// Recommended for camera capture, live video processing, and other real-time applications.
     public var transmitOutputRealTimeCommit: Bool = false
     /// Enable double buffer optimization for metal filters
     /// When there are less than 4 filters, the traditional(singleBuffer) mode is better.
@@ -195,13 +197,19 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         }
         let operation = BlockOperation {
             do {
-                if self.hasCoreImage || self.transmitOutputRealTimeCommit {
+                // CoreImage filters need synchronous processing
+                if self.hasCoreImage {
                     let outputTexture = try self.filtering(texture: texture)
                     complete(.success(outputTexture))
-                } else {
+                    return
+                }
+                
+                // Real-time mode: wait until scheduled, not completed
+                if self.transmitOutputRealTimeCommit {
                     let commandBuffer = try self.makeCommandBuffer()
                     var outputTexture: MTLTexture
                     var texturesToEnqueue: [MTLTexture] = []
+                    
                     if self.enableDoubleBuffer && self.filters.count > 3 {
                         outputTexture = try self.doubleBuffering(input: texture, filters: self.filters, commandBuffer: commandBuffer)
                     } else {
@@ -209,6 +217,38 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                         outputTexture = result.0
                         texturesToEnqueue = result.1
                     }
+                    
+                    // Ensure textures are returned after GPU completion
+                    if !texturesToEnqueue.isEmpty {
+                        commandBuffer.addCompletedHandler { _ in
+                            Shared.shared.texturePool?.enqueueTexturesSync(texturesToEnqueue)
+                        }
+                    }
+                    
+                    // Real-time commit: wait until scheduled, not completed
+                    commandBuffer.realTimeCommit(identifier: self.identifier) {
+                        complete(.success(outputTexture))
+                    }
+                    
+                    // Return command buffer in background
+                    DispatchQueue.global().async {
+                        commandBuffer.waitUntilCompleted()
+                        Device.returnCommandBuffer(commandBuffer)
+                    }
+                } else {
+                    // Normal async mode
+                    let commandBuffer = try self.makeCommandBuffer()
+                    var outputTexture: MTLTexture
+                    var texturesToEnqueue: [MTLTexture] = []
+                    
+                    if self.enableDoubleBuffer && self.filters.count > 3 {
+                        outputTexture = try self.doubleBuffering(input: texture, filters: self.filters, commandBuffer: commandBuffer)
+                    } else {
+                        let result = try self.singleBuffer(input: texture, filters: self.filters, commandBuffer: commandBuffer)
+                        outputTexture = result.0
+                        texturesToEnqueue = result.1
+                    }
+                    
                     commandBuffer.asyncCommit(identifier: self.identifier) { result in
                         switch result {
                         case .success:

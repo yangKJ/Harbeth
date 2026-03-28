@@ -62,4 +62,27 @@ extension MTLCommandBuffer {
         }
         self.commit()
     }
+    
+    /// Real-time submission: commit and wait until scheduled, not completed.
+    /// Used for real-time scenarios like camera preview and video playback.
+    func realTimeCommit(identifier: String, complete: @escaping () -> Void) {
+        // GPU time recording for performance monitoring
+        if Shared.shared.enablePerformanceMonitor {
+            let startTime = CACurrentMediaTime()
+            self.addCompletedHandler { _ in
+                let endTime = CACurrentMediaTime()
+                let gpuTimeNanoseconds = UInt64((endTime - startTime) * 1e9)
+                Shared.shared.performanceMonitor?.recordGPUTime(identifier, nanoseconds: gpuTimeNanoseconds)
+                complete()
+            }
+        } else {
+            // Return immediately without waiting for GPU completion
+            complete()
+        }
+        
+        // Commit and wait until scheduled (not completed)
+        self.commit()
+        // Just wait for the dispatch, not for the completion of the command buffer
+        self.waitUntilScheduled()
+    }
 }

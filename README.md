@@ -112,20 +112,20 @@ let filter3 = C7SoulOut(soul: 0.7)
 let filters = [filter1, filter2, filter3]
 
 // Synchronous processing
-let dest = HarbethIO(element: originImage, filters: filters)
+let dest = HarbethIO(element: inputImage, filters: filters)
 ImageView.image = try? dest.output()
 ```
 
 **Method 2: Direct Extension (Most concise)**
 ```swift
 // Apply filters directly to image
-ImageView.image = try? originImage.make(filters: filters)
+ImageView.image = try? inputImage.make(filters: filters)
 ```
 
 **Method 3: Operator Chaining (Most expressive)**
 ```swift
 // Chain filters with intuitive operators
-ImageView.image = originImage ->> filter1 ->> filter2 ->> filter3
+ImageView.image = inputImage ->> filter1 ->> filter2 ->> filter3
 ```
 
 #### ⚡ Asynchronous Processing (Best Performance)
@@ -306,13 +306,6 @@ class ImageProcessingViewController: NSViewController {
 }
 ```
 
-#### 💡 macOS Best Practices
-- **For large images**: Use asynchronous processing to avoid blocking the main thread
-- **For batch processing**: Leverage HarbethIO's efficient texture pooling
-- **For real-time preview**: Enable `transmitOutputRealTimeCommit` for smoother interactions
-- **For memory management**: Set appropriate memory limits using `Device.setMemoryLimitMB()`
-- **For multi-monitor setups**: Consider screen scale factors when processing images
-
 ### 📝 HarbethIO Properties
 
 HarbethIO provides several properties to customize the image processing behavior. Here's a detailed explanation of each property:
@@ -324,7 +317,7 @@ HarbethIO provides several properties to customize the image processing behavior
 | `bufferPixelFormat` | The pixel format for the output buffer. Important for camera capture which typically uses `kCVPixelFormatType_32BGRA` to avoid blue tint issues. |
 | `mirrored` | Whether to mirror the output image. Fixes the upside-down mirroring issue when creating CIImage from texture. |
 | `createDestTexture` | Whether to create a separate output texture. Disabling this may cause texture overlay issues. |
-| `transmitOutputRealTimeCommit` | Whether to use real-time commit for Metal texture output. Enables `MTLCommandBuffer.asyncCommit` for faster processing. |
+| `transmitOutputRealTimeCommit` | Whether to use real-time commit for Metal texture output. Enables `MTLCommandBuffer.realTimeCommit` for faster processing by only waiting until scheduled, not completed. |
 | `enableDoubleBuffer` | Whether to enable double buffer optimization for metal filters. Reduces memory usage and improves texture pool efficiency. |
 
 #### Usage Examples
