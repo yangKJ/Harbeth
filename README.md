@@ -1,12 +1,12 @@
 # Harbeth
 
-| Animated | Still |
+| Soul | Combination |
 | :---: | :---: |
 |<img width=230px src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Soul.gif" />|<img width=230px src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Mix2.png" />|
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
-[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
+[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Kakapos.svg?style=flat&label=Kakapos&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Kakapos)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
  
 [**Harbeth**](https://github.com/yangKJ/Harbeth) is a high-performance Swift library focused on GPU-accelerated real-time image processing, camera capture, and video processing. Built on Metal technology, it also integrates with CoreImage and Metal Performance Shaders, providing developers with a powerful and easy-to-integrate image processing solution.
@@ -25,13 +25,27 @@ English | [**简体中文**](README_CN.md)
 - **Rich Filter Ecosystem**: Over 200+ built-in filters organized into intuitive categories, covering everything from basic color adjustments to advanced artistic effects.
 - **Advanced Integration**: Leverage the power of [Metal Performance Shaders (MPS)](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) for high-performance filtering, while maintaining compatibility with [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters for maximum flexibility.
 - **Metal-Powered Rendering**: All previews and rendering operations are accelerated by Metal, ensuring smooth, real-time performance even with complex filter chains.
-- **Custom Filter Support**: Easily create and integrate custom filters using LUTs has [1D Lookup Tables](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7LookupTable1D.swift)、[2D Lookup Tables](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7LookupTable.swift)、 [3D Cube Files](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7ColorCube.swift), And [Multi Zone Tables](https://github.com/yangKJ/Harbeth/tree/master/Sources/Compute/Lookup%20Tables/C7MultiZoneLookup.swift), or custom Metal shaders. Create advanced combination filters by subclassing `C7CombinationBase` for complex, multi-step effects.
+- **Custom Filter Support**: Easily create and integrate custom filters using LUTs has `1D Lookup Tables`、`2D Lookup Tables`、`3D Cube Files` And `Multi Zone Tables`, or custom Metal shaders. Create advanced combination filters by subclassing `C7CombinationBase` for complex, multi-step effects.
 - **Real-Time Processing**: Achieve smooth, real-time camera capture and video playback with live filter application.
-- **Video Processing**: Seamlessly process both local and network video files using the integrated [Kakapos](https://github.com/yangKJ/Kakapos) library.
+- **Video Processing**: Seamlessly process both local and network video files using the integrated [Kakapos](https://github.com/yangKJ/Kakapos) library, integrated editing and export.
 - **Intuitive API**: Enjoy a clean, Swift-friendly API with chainable filter operations and operator overloading for concise, expressive code.
 - **Performance Optimization**: Benefit from automatic texture pooling, memory management, and multi-encoder support for optimal performance across devices.
 - **Extensive Documentation**: Comprehensive documentation and demo projects to help you get started quickly and make the most of Harbeth's capabilities.
 - **SwiftUI integration**: Native support for SwiftUI framework.
+
+### ⚡ Performance Advantage
+
+Harbeth leverages Metal GPU acceleration to deliver exceptional performance, especially when processing complex filter chains:
+
+<p align="left">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/FilterChainPerformance.png" width=75% />
+</p>
+
+**Key Performance Benefits:**
+- **5x Faster**: GPU processing is up to 5x faster than CPU for complex filter chains
+- **Excellent Scalability**: GPU time grows slowly (3.2ms → 15.8ms) while CPU time increases linearly (12.5ms → 96.8ms)
+- **Real-time Capable**: Process up to 10 filters while maintaining 60 FPS (16.67ms threshold)
+- **Efficient Resource Usage**: Automatic texture pooling and memory management optimize performance across devices
 
 ### 🎨 Filter System
 Harbeth offers a comprehensive filter classification to meet various image processing needs:
@@ -61,107 +75,252 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 
 ## Usage
 
-<p align="left">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/ShiftGlitch.gif" width=35% hspace="1px">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="15px">
+### 🎨 Real-time Filter Effects
+
+Harbeth delivers stunning visual effects with GPU-accelerated real-time processing:
+
+<p align="center">
+<b>RGB Shift Glitch Effect</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Edge Glow Detection</b>
+</p>
+<p align="center">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/ShiftGlitch.gif" width=35% hspace="15px" title="C7ShiftGlitch: Creates dynamic RGB channel separation with glitch art aesthetics">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="15px" title="C7EdgeGlow: Detects edges and adds neon glow effects in real-time">
 </p>
 
-### Image
+**✨ Featured Filters:**
 
-- 🎷 Code zero intrusion add filter function for image.
+| Filter | Effect | Use Case |
+|--------|--------|----------|
+| **C7ShiftGlitch** | RGB channel displacement with horizontal shift | Digital art, retro VHS effects, creative transitions |
+| **C7EdgeGlow** | Edge detection + neon glow overlay | Photo enhancement, artistic portraits, night photography |
 
-```
+**🚀 Key Advantages:**
+- **Zero-latency rendering** - Effects applied in real-time at 60 FPS
+- **Chainable effects** - Combine multiple filters without performance degradation
+- **GPU-optimized** - Metal-powered processing for smooth animations
+- **One-line implementation** - Simple API for complex visual effects
+
+### Image Processing
+
+Apply stunning filters to images with an elegant, zero-intrusion API design:
+
+#### ✨ Quick Start - Three Ways to Apply Filters
+
+**Method 1: HarbethIO (Recommended for batch processing)**
+```swift
 let filter1 = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
 let filter2 = C7Granularity(grain: 0.8)
 let filter3 = C7SoulOut(soul: 0.7)
 
 let filters = [filter1, filter2, filter3]
 
-// Use:
-let dest = HarbethIO.init(element: originImage, filters: filters)
-// Synchronize do something..
+// Synchronous processing
+let dest = HarbethIO(element: originImage, filters: filters)
 ImageView.image = try? dest.output()
+```
 
-// OR Use:
+**Method 2: Direct Extension (Most concise)**
+```swift
+// Apply filters directly to image
 ImageView.image = try? originImage.make(filters: filters)
+```
 
-// OR Use Operator:
+**Method 3: Operator Chaining (Most expressive)**
+```swift
+// Chain filters with intuitive operators
 ImageView.image = originImage ->> filter1 ->> filter2 ->> filter3
 ```
 
-- Asynchronous do something..
+#### ⚡ Asynchronous Processing (Best Performance)
 
-This performance is the best. 🚗🚗
+For large images or real-time scenarios, use async processing to avoid blocking the main thread:
 
-```
-let dest = HarbethIO.init(element: ``Source``, filter: ``filter``)
+```swift
+let dest = HarbethIO(element: sourceImage, filters: filters)
 
-dest.transmitOutput(success: { [weak self] image in
-    // do something..
-})
-```
-
-### Camera
-
-- 📸 Camera capture generates pictures.
-
-```
-// Add an edge detection filter:
-let filter = C7EdgeGlow(lineColor: .red)
-
-// Generate camera collector:
-let camera = C7CollectorCamera.init(delegate: self)
-camera.captureSession.sessionPreset = AVCaptureSession.Preset.hd1280x720
-camera.filters = [filter]
-
-extension CameraViewController: C7CollectorImageDelegate {
-    func preview(_ collector: C7Collector, fliter image: C7Image) {
-        // do something..
+dest.transmitOutput { [weak self] result in
+    switch result {
+    case .success(let image):
+        DispatchQueue.main.async {
+            self?.imageView.image = image
+        }
+    case .failure(let error):
+        print("Processing failed: \(error)")
     }
 }
 ```
 
-### Video
+**💡 Pro Tips:**
+- Use `transmitOutputRealTimeCommit = true` for camera/video streams
+- Enable `enableDoubleBuffer` for better memory efficiency
+- Set `bufferPixelFormat` to match your input format for optimal performance
 
-- 📺 Local video or Network video are simply apply with filters.
-  - 🙄 For details, See [PlayerViewController](https://github.com/yangKJ/Harbeth/blob/master/Demo/Harbeth-iOS-Demo/Modules/PlayerViewController.swift).
-  - You can also extend this by using [HarbethIO](https://github.com/yangKJ/Harbeth/blob/master/Sources/Basic/Outputs/HarbethIO.swift) to filter the collected `CVPixelBuffer`.
+### 📸 Camera
 
-```
-lazy var video: C7CollectorVideo = {
-    let videoURL = URL.init(string: "Link")!
-    let asset = AVURLAsset.init(url: videoURL)
-    let playerItem = AVPlayerItem.init(asset: asset)
-    let player = AVPlayer.init(playerItem: playerItem)
-    let video = C7CollectorVideo.init(player: player, delegate: self)
-    let filter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
-    video.filters = [filter]
-    return video
-}()
+Harbeth provides seamless camera integration with real-time filter application, making it easy to create professional-quality camera apps:
 
-self.video.play()
+#### ✨ Key Features
+- **Real-time filtering** - Apply filters to camera feed at 60 FPS
+- **High-quality capture** - Supports multiple camera resolutions and orientations
+- **Easy integration** - Simple delegate pattern for receiving filtered frames
+- **Flexible filter chain** - Apply multiple filters simultaneously
+- **Performance optimized** - Metal-powered processing with texture pooling
 
-extension PlayerViewController: C7CollectorImageDelegate {
-    func preview(_ collector: C7Collector, fliter image: C7Image) {
-        // do something..
+### 📺 Video
+
+Harbeth makes video processing simple and efficient, supporting both local and network videos with real-time filter application:
+
+#### ✨ Key Features
+- **Universal video support** - Works with both local files and network streams
+- **Real-time filtering** - Apply filters during video playback
+- **Seamless integration** - Built-in AVPlayer integration
+- **Customizable processing** - Use HarbethIO for advanced video frame processing
+- **Performance optimized** - Metal acceleration for smooth playback
+
+
+### ⛺️ SwiftUI Support
+
+First-class SwiftUI integration with native `View` components:
+
+#### HarbethView - Native SwiftUI Component
+
+```swift
+import SwiftUI
+import Harbeth
+struct FilteredImageView: View {
+    @State private var inputImage: UIImage = UIImage(named: "sample")!
+    @State private var intensity: Float = 0.5
+    
+    var body: some View {
+        VStack {
+            HarbethView(image: inputImage, filters: [
+                CIHighlight(highlight: intensity),
+                C7WaterRipple(ripple: intensity),
+            ]) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .cornerRadius(12)
+                    .shadow(radius: 5)
+            }
+            
+            Slider(value: $intensity, in: 0...1)
+                .padding()
+        }
+        .padding()
     }
 }
 ```
 
-### SwiftUI Support
-- For the direct use [HarbethView](https://github.com/yangKJ/Harbeth/blob/master/Sources/SwiftUI/HarbethView.swift), it is just a simple implementation.
-- The SwiftUI API is still in-progress and may not be production ready. We're looking for help! 🤲
+**✨ SwiftUI Features:**
+- **Native View integration** - Works seamlessly with SwiftUI view hierarchy
+- **State-driven updates** - Filters update automatically when `@State` changes
+- **Declarative syntax** - Clean, expressive API matching SwiftUI patterns
+- **Performance optimized** - Efficient re-rendering with minimal overhead
 
+**💡 SwiftUI Best Practices:**
+- Use `@State` for filter parameters to enable real-time adjustments
+- Wrap `HarbethView` in `VStack` or `ZStack` for complex layouts
+- Apply SwiftUI modifiers (`.cornerRadius()`, `.shadow()`) to the output image
+- Consider using `@Binding` to share filter state between views
+
+### 🖥️ macOS Support
+
+Harbeth fully supports macOS platform, providing powerful image processing capabilities for desktop applications with a native, optimized experience:
+
+#### 🎨 macOS Gallery
+
+Explore Harbeth's macOS capabilities with these featured use cases:
+
+<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
+  <table style="border-collapse: collapse; width: 100%;">
+    <tr style="height: 100%;">
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac1.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Cinematic Color</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">Brightness, contrast, saturation</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac2.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Film Simulation</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">Blur, edge detection, artistic effects</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac3.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Combination Effects</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">Multiple filters applied simultaneously</p>
+      </td>
+    </tr>
+    <tr style="height: 100%;">
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac4.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Real-time Preview</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">Live filter adjustments</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac5.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Batch Processing</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">Process multiple images efficiently</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac6.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Custom Settings</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">Fine-tuned filter parameters</p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+#### 🌟 macOS Experience
+
+#### ✨ Key Features
+- **Native AppKit integration** - Works seamlessly with NSImage and AppKit components
+- **High-resolution support** - Optimized for Retina displays and large image processing
+- **Drag & Drop support** - Easy integration with macOS drag and drop functionality
+- **Performance optimized** - Leverages full GPU power available on Mac devices
+- **Multi-window support** - Process multiple images across different windows simultaneously
+
+#### 🚀 Implementation Example
+
+```swift
+import Cocoa
+import Harbeth
+
+class ImageProcessingViewController: NSViewController {
+    @IBOutlet weak var imageView: NSImageView!
+    
+    func applyFilter(to image: NSImage) {
+        // Create filter chain
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.1),
+            C7Contrast(contrast: 1.2),
+            C7Saturation(saturation: 1.1)
+        ]
+        
+        // Process image using HarbethIO
+        let dest = HarbethIO(element: image, filters: filters)
+        
+        // Asynchronous processing for large images
+        dest.transmitOutput { [weak self] result in
+            switch result {
+            case .success(let output):
+                DispatchQueue.main.async {
+                    self?.imageView.image = output
+                }
+            case .failure(let error):
+                print("Filter application failed: \(error)")
+            }
+        }
+    }
+}
 ```
-let filters: [C7FilterProtocol] = [
-    CIHighlight(highlight: intensity),
-    C7WaterRipple(ripple: intensity),
-]
-HarbethView(image: inputImage, filters: filters, content: { image in
-    image.resizable()
-        .aspectRatio(contentMode: .fit)
-})
-```
+
+#### 💡 macOS Best Practices
+- **For large images**: Use asynchronous processing to avoid blocking the main thread
+- **For batch processing**: Leverage HarbethIO's efficient texture pooling
+- **For real-time preview**: Enable `transmitOutputRealTimeCommit` for smoother interactions
+- **For memory management**: Set appropriate memory limits using `Device.setMemoryLimitMB()`
+- **For multi-monitor setups**: Consider screen scale factors when processing images
 
 ### 📝 HarbethIO Properties
 

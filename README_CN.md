@@ -489,6 +489,104 @@ struct FilterView: View {
 }
 ```
 
+### 🖥️ macOS 支持
+
+Harbeth 完全支持 macOS 平台，为桌面应用提供强大的图像处理能力，打造原生、优化的用户体验：
+
+#### 🎨 macOS 展示
+
+探索 Harbeth 在 macOS 上的强大功能：
+
+<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
+  <table style="border-collapse: collapse; width: 100%;">
+    <tr style="height: 100%;">
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac1.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">基础色彩调整</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">亮度、对比度和饱和度控制</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac2.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">高级滤镜</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">模糊、边缘检测和艺术效果</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac3.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">组合效果</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">同时应用多种滤镜</p>
+      </td>
+    </tr>
+    <tr style="height: 100%;">
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac4.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">实时预览</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">实时滤镜调整</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac5.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">批量处理</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">高效处理多张图像</p>
+      </td>
+      <td align="center" style="padding: 10px 5px; height: 100%;">
+        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac6.png" width=98% style="display: block;" />
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">自定义设置</p>
+        <p style="margin-top: 4px; font-size: 12px; color: #666;">精细调整滤镜参数</p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+#### 🌟 macOS 体验
+
+#### ✨ 核心特性
+- **原生 AppKit 集成** - 与 NSImage 和 AppKit 组件无缝协作
+- **高分辨率支持** - 针对 Retina 显示器和大图像处理进行优化
+- **拖拽支持** - 轻松集成 macOS 拖拽功能
+- **性能优化** - 充分利用 Mac 设备的 GPU 性能
+- **多窗口支持** - 可同时处理多个窗口的图像
+
+#### 🚀 实现示例
+
+```swift
+import Cocoa
+import Harbeth
+
+class ImageProcessingViewController: NSViewController {
+    @IBOutlet weak var imageView: NSImageView!
+    
+    func applyFilter(to image: NSImage) {
+        // 创建滤镜链
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.1),
+            C7Contrast(contrast: 1.2),
+            C7Saturation(saturation: 1.1)
+        ]
+        
+        // 使用 HarbethIO 处理图像
+        let dest = HarbethIO(element: image, filters: filters)
+        
+        // 对于大图像使用异步处理
+        dest.transmitOutput { [weak self] result in
+            switch result {
+            case .success(let output):
+                DispatchQueue.main.async {
+                    self?.imageView.image = output
+                }
+            case .failure(let error):
+                print("滤镜应用失败: \(error)")
+            }
+        }
+    }
+}
+```
+
+#### 💡 macOS 最佳实践
+- **对于大图像**：使用异步处理避免阻塞主线程
+- **对于批量处理**：利用 HarbethIO 的高效纹理池
+- **对于实时预览**：启用 `transmitOutputRealTimeCommit` 获得更流畅的交互体验
+- **对于内存管理**：使用 `Device.setMemoryLimitMB()` 设置适当的内存限制
+- **对于多显示器设置**：处理图像时考虑屏幕缩放因子
+
 ### 📊 性能优化
 
 Harbeth 内置了多种性能优化机制：
