@@ -17,6 +17,10 @@ public struct C7Resize: C7FilterProtocol {
         return .compute(kernel: "C7Resize")
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func resize(input size: C7Size) -> C7Size {
         return Placement.fit.resize(width: width, height: height, size: size)
     }

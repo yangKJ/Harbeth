@@ -25,6 +25,10 @@ public struct C7MeanBlur: C7FilterProtocol {
         return [radius]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(radius: Float = range.value) {
         self.radius = radius
     }

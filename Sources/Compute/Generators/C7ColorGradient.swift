@@ -23,6 +23,10 @@ public struct C7ColorGradient: C7FilterProtocol {
         return .compute(kernel: type.kernel)
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     let type: GradientType
     
     public init(with type: GradientType) {

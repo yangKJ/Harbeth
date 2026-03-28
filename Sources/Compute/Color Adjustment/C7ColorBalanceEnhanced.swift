@@ -31,6 +31,10 @@ public struct C7ColorBalanceEnhanced: C7FilterProtocol {
         return [strength]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         

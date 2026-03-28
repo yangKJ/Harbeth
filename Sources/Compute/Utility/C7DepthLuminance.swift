@@ -22,6 +22,10 @@ public struct C7DepthLuminance: C7FilterProtocol {
         return [offset, depthRange]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(offset: Float = 0.0, depthRange: Float = range.value) {
         self.offset = offset
         self.depthRange = depthRange

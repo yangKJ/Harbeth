@@ -31,6 +31,10 @@ public struct C7LocalBlur: C7FilterProtocol {
         return [radius, center.x, center.y, size, softness]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(radius: Float = 10.0, center: C7Point2D = C7Point2D.center, size: Float = 0.5, softness: Float = 0.3) {
         self.radius = radius
         self.center = center

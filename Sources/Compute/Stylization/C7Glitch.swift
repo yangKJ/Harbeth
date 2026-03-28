@@ -23,6 +23,10 @@ public struct C7Glitch: C7FilterProtocol {
         return [glitch, maxJitter]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(glitch: Float = 0.5, maxJitter: Float = 0.06) {
         self.glitch = glitch
         self.maxJitter = maxJitter

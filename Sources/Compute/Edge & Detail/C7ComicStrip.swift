@@ -21,5 +21,9 @@ public struct C7ComicStrip: C7FilterProtocol {
         return [intensity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init() { }
 }

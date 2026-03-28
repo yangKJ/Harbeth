@@ -22,6 +22,10 @@ public struct C7Luminance: C7FilterProtocol {
         return [luminance]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(luminance: Float = range.value) {
         self.luminance = luminance
     }

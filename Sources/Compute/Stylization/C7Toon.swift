@@ -25,6 +25,10 @@ public struct C7Toon: C7FilterProtocol {
         return [threshold, quantizationLevels]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(quantizationLevels: Float = 10, threshold: Float = thresholdRange.value) {
         self.quantizationLevels = quantizationLevels
         self.threshold = threshold

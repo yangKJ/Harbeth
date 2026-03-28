@@ -24,6 +24,10 @@ public struct C7ColorMatrix4x4: C7FilterProtocol {
         return [intensity] + offset.values
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = matrix.to_factor()

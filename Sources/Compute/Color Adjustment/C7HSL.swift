@@ -32,6 +32,10 @@ public struct C7HSL: C7FilterProtocol {
         return [hue, saturation, lightness]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(hue: Float = 0, saturation: Float = 0, lightness: Float = 0) {
         self.hue = hue
         self.saturation = saturation

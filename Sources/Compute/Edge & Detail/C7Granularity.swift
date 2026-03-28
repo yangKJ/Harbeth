@@ -25,6 +25,10 @@ public struct C7Granularity: C7FilterProtocol {
         return [grain]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(grain: Float = range.value) {
         self.grain = grain
     }

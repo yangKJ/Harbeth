@@ -19,6 +19,10 @@ public struct C7LuminanceRangeReduction: C7FilterProtocol {
         return [rangeReductionFactor]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(rangeReductionFactor: Float = 0.6) {
         self.rangeReductionFactor = rangeReductionFactor
     }

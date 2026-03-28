@@ -58,6 +58,10 @@ public struct C7Blend: C7FilterProtocol {
         return blendTexture == nil ? [] : [blendTexture!]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .dualTexture
+    }
+    
     private var blendTexture: MTLTexture?
     private var blendType: C7Blend.BlendType
     

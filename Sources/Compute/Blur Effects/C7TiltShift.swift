@@ -41,6 +41,10 @@ public struct C7TiltShift: C7FilterProtocol {
         return [blurRadius, center, size, transition, mode == .linear ? 1.0 : 0.0]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(blurRadius: Float = range.value, center: Float = 0.5, size: Float = 0.3, transition: Float = 0.1, mode: TiltShiftMode = .linear) {
         self.blurRadius = blurRadius
         self.center = center

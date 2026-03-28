@@ -20,6 +20,10 @@ public struct C7Hue: C7FilterProtocol {
         return [Degree(value: hue).radians]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(hue: Float = 90.0) {
         self.hue = hue
     }

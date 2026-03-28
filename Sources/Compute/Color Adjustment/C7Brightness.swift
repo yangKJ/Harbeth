@@ -23,6 +23,10 @@ public struct C7Brightness: C7FilterProtocol {
         return [brightness]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(brightness: Float = range.value) {
         self.brightness = brightness
     }

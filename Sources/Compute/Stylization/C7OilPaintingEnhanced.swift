@@ -28,6 +28,10 @@ public struct C7OilPaintingEnhanced: C7FilterProtocol {
         return [brushSize, intensity, smoothing]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(brushSize: Float = 3.0, intensity: Float = 1.0, smoothing: Float = 0.5) {
         self.brushSize = brushSize
         self.intensity = intensity

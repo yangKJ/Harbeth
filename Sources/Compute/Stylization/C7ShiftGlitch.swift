@@ -21,6 +21,10 @@ public struct C7ShiftGlitch: C7FilterProtocol {
         return [time]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(time: Float = 0.5) {
         self.time = time
     }

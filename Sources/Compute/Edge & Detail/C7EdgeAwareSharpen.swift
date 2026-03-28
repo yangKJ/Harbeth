@@ -23,6 +23,10 @@ public struct C7EdgeAwareSharpen: C7FilterProtocol {
         return [amount, edgeThreshold]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(amount: Float, edgeThreshold: Float = 0.3) {
         self.amount = amount
         self.edgeThreshold = edgeThreshold

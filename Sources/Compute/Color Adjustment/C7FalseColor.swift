@@ -20,6 +20,10 @@ public struct C7FalseColor: C7FilterProtocol {
         return .compute(kernel: "C7FalseColor")
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var fristFactor = Vector3.init(color: fristColor).to_factor()

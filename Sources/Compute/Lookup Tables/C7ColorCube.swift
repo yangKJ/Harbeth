@@ -36,6 +36,10 @@ public struct C7ColorCube: C7FilterProtocol {
         return lutTexture == nil ? [] : [lutTexture!]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .dualTexture
+    }
+    
     private var lutTexture: MTLTexture?
     private var dimension: Int
     

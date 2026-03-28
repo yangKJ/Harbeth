@@ -13,5 +13,9 @@ public struct C7Mirror: C7FilterProtocol {
         return .compute(kernel: "C7Mirror")
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init() { }
 }

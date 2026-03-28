@@ -23,6 +23,10 @@ public struct C7ColorRGBA: C7FilterProtocol {
         return [intensity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = Vector4.init(color: color).to_factor()

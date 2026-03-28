@@ -31,6 +31,10 @@ public struct C7BilateralBlur: C7FilterProtocol {
         return [sigmaSpace, sigmaColor, radius]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(sigmaSpace: Float = 15.0, sigmaColor: Float = 0.3, radius: Float = 7) {
         self.sigmaSpace = sigmaSpace
         self.sigmaColor = sigmaColor

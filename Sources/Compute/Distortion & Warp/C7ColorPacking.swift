@@ -24,6 +24,10 @@ public struct C7ColorPacking: C7FilterProtocol {
         return [horizontalTexel, verticalTexel]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(horizontalTexel: Float = 0, verticalTexel: Float = 0) {
         self.horizontalTexel = horizontalTexel
         self.verticalTexel = verticalTexel

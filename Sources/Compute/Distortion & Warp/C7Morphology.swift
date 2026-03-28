@@ -31,6 +31,10 @@ public struct C7Morphology: C7FilterProtocol {
         return [operationValue, kernelSize]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(operation: OperationType, kernelSize: Float = range.value) {
         self.operation = operation
         self.kernelSize = kernelSize

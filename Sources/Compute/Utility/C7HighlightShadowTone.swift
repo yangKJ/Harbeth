@@ -38,6 +38,10 @@ public struct C7HighlightShadowTone: C7FilterProtocol {
         return [shadows, highlights, midtones, contrast]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(shadows: Float = 0, highlights: Float = 0, midtones: Float = 0, contrast: Float = 0) {
         self.shadows = shadows
         self.highlights = highlights

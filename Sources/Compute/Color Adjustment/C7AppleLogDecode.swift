@@ -16,5 +16,9 @@ public struct C7AppleLogDecode: C7FilterProtocol {
         return .compute(kernel: "C7AppleLogDecode")
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init() { }
 }

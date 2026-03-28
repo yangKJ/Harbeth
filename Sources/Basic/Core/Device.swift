@@ -180,6 +180,21 @@ extension Device {
 
 extension Device {
     
+    public enum GPUArchitecture {
+        case appleSilicon, intel, unknown
+    }
+    
+    public static func detectGPUArchitecture() -> GPUArchitecture {
+        let device = Device.device()
+        if device.name.contains("Apple") {
+            return .appleSilicon
+        } else if device.name.contains("Intel") {
+            return .intel
+        } else {
+            return .unknown
+        }
+    }
+    
     public static func device() -> MTLDevice {
         return Shared.shared.device!.device
     }

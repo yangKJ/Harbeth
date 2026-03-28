@@ -30,6 +30,10 @@ public struct C7Bulge: C7FilterProtocol {
         self.scale = scale
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(center: vector_float2, radius: Float, scale: Float) {
         self.center = C7Point2D(x: center.x, y: center.y)
         self.radius = radius

@@ -21,6 +21,10 @@ public struct C7Storyboard: C7FilterProtocol {
         return [Float(ranks)]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(ranks: Int = 2) {
         self.ranks = ranks
     }

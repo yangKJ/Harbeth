@@ -23,6 +23,10 @@ public struct C7Contrast: C7FilterProtocol {
         return [contrast]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(contrast: Float = range.value) {
         self.contrast = contrast
     }

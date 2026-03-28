@@ -25,6 +25,10 @@ public struct C7Fade: C7FilterProtocol {
         return [intensity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(intensity: Float = range.value) {
         self.intensity = intensity
     }

@@ -34,6 +34,10 @@ public struct C7ColorConvert: C7FilterProtocol {
         return [intensity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(with type: ColorType) {
         self.type = type
     }

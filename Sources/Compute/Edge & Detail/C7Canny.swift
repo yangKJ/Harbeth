@@ -22,6 +22,10 @@ public struct C7Canny: C7FilterProtocol {
         return [threshold1, threshold2]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(threshold1: Float = 0.2, threshold2: Float = 0.4) {
         self.threshold1 = max(0.01, min(0.99, threshold1))
         self.threshold2 = max(self.threshold1 + 0.01, min(1.0, threshold2))

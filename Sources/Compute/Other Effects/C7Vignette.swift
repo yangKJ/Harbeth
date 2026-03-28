@@ -26,6 +26,10 @@ public struct C7Vignette: C7FilterProtocol {
         return [center.x, center.y, start, end]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = Vector3.init(color: color).to_factor()

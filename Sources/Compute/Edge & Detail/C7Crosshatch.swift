@@ -23,6 +23,10 @@ public struct C7Crosshatch: C7FilterProtocol {
         return [crosshatchSpacing, lineWidth]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(crosshatchSpacing: Float = 0.03, lineWidth: Float = 0.003) {
         self.crosshatchSpacing = crosshatchSpacing
         self.lineWidth = lineWidth

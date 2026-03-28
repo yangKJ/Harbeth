@@ -24,6 +24,10 @@ public struct C7Shadows: C7FilterProtocol {
         return [shadow]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(shadow: Float = range.value) {
         self.shadow = shadow
     }

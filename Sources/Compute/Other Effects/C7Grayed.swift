@@ -40,6 +40,10 @@ public struct C7Grayed: C7FilterProtocol {
         return mode.factors(with: intensity)
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(with mode: GrayedMode) {
         self.mode = mode
     }

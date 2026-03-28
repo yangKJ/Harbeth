@@ -24,6 +24,10 @@ public struct C7MotionBlur: C7FilterProtocol {
         return [radius, blurAngle]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(radius: Float = 0, blurAngle: Float = 0) {
         self.radius = radius
         self.blurAngle = blurAngle

@@ -25,6 +25,10 @@ public struct C7Saturation: C7FilterProtocol {
         return [saturation]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(saturation: Float = range.value) {
         self.saturation = saturation
     }

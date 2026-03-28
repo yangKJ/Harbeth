@@ -20,6 +20,10 @@ public struct C7Halftone: C7FilterProtocol {
         return [fractionalWidth]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(fractionalWidth: Float = 0.01) {
         self.fractionalWidth = fractionalWidth
     }

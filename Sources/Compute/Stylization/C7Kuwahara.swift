@@ -23,6 +23,10 @@ public struct C7Kuwahara: C7FilterProtocol {
         return [Float(radius)]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(radius: Int = range.value) {
         self.radius = radius
     }

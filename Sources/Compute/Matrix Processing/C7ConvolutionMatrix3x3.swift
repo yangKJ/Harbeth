@@ -38,6 +38,10 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
         return [intensity, Float(convolutionPixel)]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = matrix.to_factor()

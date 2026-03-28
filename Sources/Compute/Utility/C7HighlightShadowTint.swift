@@ -27,6 +27,10 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
         return [shadows, highlights]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var shadowsFactor = Vector3.init(color: shadowsColor).to_factor()

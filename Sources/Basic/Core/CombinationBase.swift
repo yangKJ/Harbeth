@@ -38,6 +38,11 @@ open class C7CombinationBase: C7FilterProtocol {
         false
     }
     
+    /// Memory access pattern for threadgroup optimization
+    open var memoryAccessPattern: MemoryAccessPattern {
+        .multiTexture
+    }
+    
     /// The resize of the output texture.
     open func resize(input size: C7Size) -> C7Size {
         size

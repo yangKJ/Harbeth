@@ -23,6 +23,10 @@ public struct C7RGBADilation: C7FilterProtocol {
         return [Float(pixelRadius), vertical ? 1 : 0]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(pixelRadius: Int = 3) {
         self.pixelRadius = pixelRadius
     }

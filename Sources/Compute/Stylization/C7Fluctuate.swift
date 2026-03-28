@@ -33,6 +33,10 @@ public struct C7Fluctuate: C7FilterProtocol {
         return [frequency, amplitude, fluctuate]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(frequency: Float = 10.0, amplitude: Float = 0.05, fluctuate: Float = range.value) {
         self.frequency = frequency
         self.amplitude = amplitude

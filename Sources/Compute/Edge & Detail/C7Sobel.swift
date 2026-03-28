@@ -23,6 +23,10 @@ public struct C7Sobel: C7FilterProtocol {
         return [edgeStrength]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(edgeStrength: Float = 1.0) {
         self.edgeStrength = edgeStrength
     }

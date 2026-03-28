@@ -23,6 +23,10 @@ public struct C7BlendWithMask: C7FilterProtocol {
         return [foregroundTexture, maskTexture]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .multiTexture
+    }
+    
     private let foregroundTexture: MTLTexture
     private let maskTexture: MTLTexture
     

@@ -24,6 +24,10 @@ public struct C7Exposure: C7FilterProtocol {
         return [exposure]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(exposure: Float = range.value) {
         self.exposure = exposure
     }

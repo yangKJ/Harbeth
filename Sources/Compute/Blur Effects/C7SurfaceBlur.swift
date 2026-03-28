@@ -25,6 +25,10 @@ public struct C7SurfaceBlur: C7FilterProtocol {
         return [radius, threshold, intensity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(radius: Float = 8.0, threshold: Float = 0.1) {
         self.radius = radius
         self.threshold = threshold

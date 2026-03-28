@@ -29,6 +29,10 @@ public struct C7BlendChromaKey: C7FilterProtocol {
         return [threshold, smoothing, red, green, blue, intensity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(threshold: Float = 0.4, smoothing: Float = 0.1, color: C7Color = .white) {
         self.threshold = threshold
         self.smoothing = smoothing

@@ -24,6 +24,10 @@ public struct C7DetailPreservingBlur: C7FilterProtocol {
         return [strength, detailPreservation]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(strength: Float, detailPreservation: Float = 0.7) {
         self.strength = strength
         self.detailPreservation = detailPreservation

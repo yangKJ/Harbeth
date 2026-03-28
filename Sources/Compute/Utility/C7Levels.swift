@@ -20,6 +20,10 @@ public struct C7Levels: C7FilterProtocol {
         return .compute(kernel: "C7LevelsFilter")
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var _minimum = Vector3(color: minimum).to_factor()

@@ -31,6 +31,10 @@ public struct C7SplitScreen: C7FilterProtocol {
         return [Float(type.rawValue), Float(direction.rawValue)]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(type: ScreenType = .two, direction: DirectionType = .vertical) {
         self.type = type
         self.direction = direction

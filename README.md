@@ -79,12 +79,9 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 
 Harbeth delivers stunning visual effects with GPU-accelerated real-time processing:
 
-<p align="center">
-<b>RGB Shift Glitch Effect</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Edge Glow Detection</b>
-</p>
-<p align="center">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/ShiftGlitch.gif" width=35% hspace="15px" title="C7ShiftGlitch: Creates dynamic RGB channel separation with glitch art aesthetics">
-<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="15px" title="C7EdgeGlow: Detects edges and adds neon glow effects in real-time">
+<p align="left">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/ShiftGlitch.gif" width=35% hspace="10px" title="C7ShiftGlitch: Creates dynamic RGB channel separation with glitch art aesthetics">
+<img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/EdgeGlow.gif" width=35% hspace="10px" title="C7EdgeGlow: Detects edges and adds neon glow effects in real-time">
 </p>
 
 **✨ Featured Filters:**
@@ -177,7 +174,6 @@ Harbeth makes video processing simple and efficient, supporting both local and n
 - **Customizable processing** - Use HarbethIO for advanced video frame processing
 - **Performance optimized** - Metal acceleration for smooth playback
 
-
 ### ⛺️ SwiftUI Support
 
 First-class SwiftUI integration with native `View` components:
@@ -187,6 +183,7 @@ First-class SwiftUI integration with native `View` components:
 ```swift
 import SwiftUI
 import Harbeth
+
 struct FilteredImageView: View {
     @State private var inputImage: UIImage = UIImage(named: "sample")!
     @State private var intensity: Float = 0.5
@@ -238,34 +235,28 @@ Explore Harbeth's macOS capabilities with these featured use cases:
       <td align="center" style="padding: 10px 5px; height: 100%;">
         <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac1.png" width=98% style="display: block;" />
         <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Cinematic Color</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">Brightness, contrast, saturation</p>
       </td>
       <td align="center" style="padding: 10px 5px; height: 100%;">
         <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac2.png" width=98% style="display: block;" />
         <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Film Simulation</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">Blur, edge detection, artistic effects</p>
       </td>
       <td align="center" style="padding: 10px 5px; height: 100%;">
         <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac3.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Combination Effects</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">Multiple filters applied simultaneously</p>
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Vignette Effects</p>
       </td>
     </tr>
     <tr style="height: 100%;">
       <td align="center" style="padding: 10px 5px; height: 100%;">
         <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac4.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Real-time Preview</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">Live filter adjustments</p>
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Pinch Preview</p>
       </td>
       <td align="center" style="padding: 10px 5px; height: 100%;">
         <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac5.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Batch Processing</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">Process multiple images efficiently</p>
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Gaussion Blur</p>
       </td>
       <td align="center" style="padding: 10px 5px; height: 100%;">
         <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac6.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Custom Settings</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">Fine-tuned filter parameters</p>
+        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">Luminance Adaptive Contrast</p>
       </td>
     </tr>
   </table>
@@ -376,6 +367,23 @@ dest.transmitOutput { result in
 4. **For performance monitoring**:
    - Enable performance monitoring using `Device.setEnablePerformanceMonitor(true)`
    - Check performance statistics with `PerformanceMonitor.shared.getStatistics()`
+
+### 🚀 Threadgroup Optimization Strategy
+
+Harbeth implements advanced threadgroup optimization based on memory access patterns to maximize GPU performance:
+
+| Memory Access Pattern | Description | Typical Use Cases | Apple Silicon Threadgroup Size | Intel Threadgroup Size |
+| :--- | :--- | :--- | :--- | :--- |
+| **Point** | Accesses only the current pixel | Brightness, Contrast, Saturation, Hue, HSL, Color Balance, Geometric Transforms | 32x32 | 16x16 |
+| **Neighborhood** | Accesses surrounding pixels | Gaussian Blur, Edge Detection, Morphology, Clarity | 8x8 | 8x8 |
+| **Dual Texture** | Accesses two textures | Blend Modes, Lookup Tables | 24x24 | 16x16 |
+| **Multi Texture** | Accesses multiple textures | Combination Filters, Blend with Mask | 16x16 | 16x16 |
+
+**Optimization Benefits:**
+- **Dynamic Threadgroup Sizing**: Automatically adjusts based on GPU architecture and memory access pattern
+- **Aspect Ratio Optimization**: Adapts threadgroup shape to match texture dimensions for better memory coalescing
+- **Architecture-Aware**: Uses larger threadgroups on Apple Silicon for better utilization
+- **Memory Coalescing**: Optimizes memory access patterns to reduce GPU memory latency
 
 ### 🎨 Filter List
 
@@ -703,7 +711,13 @@ Alipay or WeChat. Thanks.
 <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width=30% hspace="15px">
 </p>
 
------
+If you find Harbeth helpful, please consider supporting the project:
+
+<a href="https://github.com/sponsors/yangKJ">
+  <img src="https://img.shields.io/badge/GitHub-Sponsors-blue?style=for-the-badge" alt="GitHub Sponsors">
+</a>
+
+Your support helps keep the project active and enables new features!
 
 ### License
 Harbeth is available under the [MIT](LICENSE) license. See the [LICENSE](LICENSE) file for more info.

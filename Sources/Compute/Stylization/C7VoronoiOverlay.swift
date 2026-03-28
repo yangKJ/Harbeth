@@ -23,6 +23,10 @@ public struct C7VoronoiOverlay: C7FilterProtocol {
         return [time, alpha, iResolution.x, iResolution.y]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(time: Float = 0.5, alpha: Float = 0.05) {
         self.time = time
         self.alpha = alpha

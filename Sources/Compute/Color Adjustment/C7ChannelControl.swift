@@ -41,6 +41,10 @@ public struct C7ChannelControl: C7FilterProtocol {
         return [red, green, blue, alpha, blend]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(red: Float = 0, green: Float = 0, blue: Float = 0, alpha: Float = 1.0, blend: Float = 0) {
         self.red = red
         self.green = green

@@ -25,6 +25,10 @@ public struct C7SoulOut: C7FilterProtocol {
         return [soul, maxScale, maxAlpha]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(soul: Float = range.value, maxScale: Float = 1.5, maxAlpha: Float = 0.5) {
         self.soul = soul
         self.maxScale = maxScale

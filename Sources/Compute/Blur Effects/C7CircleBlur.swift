@@ -27,6 +27,10 @@ public struct C7CircleBlur: C7FilterProtocol {
         return [radius, Float(amount)]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(radius: Float = range.value, amount: Int = 20) {
         self.radius = radius
         self.amount = amount

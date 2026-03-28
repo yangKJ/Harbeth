@@ -24,6 +24,10 @@ public struct C7LuminanceAdaptiveContrast: C7FilterProtocol {
         return [amount, adaptivity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(amount: Float, adaptivity: Float = 0.5) {
         self.amount = amount
         self.adaptivity = adaptivity

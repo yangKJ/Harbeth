@@ -28,6 +28,10 @@ public struct C7RedMonochromeBlur: C7FilterProtocol {
         return [Float(pixelRadius), vertical ? 1:0, horizontal ? 1:0]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(pixelRadius: Int = 0) {
         self.pixelRadius = pixelRadius
     }

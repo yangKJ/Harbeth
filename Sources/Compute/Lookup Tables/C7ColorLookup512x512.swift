@@ -26,6 +26,10 @@ public struct C7ColorLookup512x512: C7FilterProtocol {
         return lookupTexture == nil ? [] : [lookupTexture!]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .dualTexture
+    }
+    
     private var lookupTexture: MTLTexture?
     
     public init(lookupImage: C7Image?, intensity: Float = 1.0) {

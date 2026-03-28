@@ -22,6 +22,10 @@ public struct C7Flip: C7FilterProtocol {
         return [horizontal ? 1.0 : 0.0, vertical ? 1.0 : 0.0]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(horizontal: Bool = false, vertical: Bool = false) {
         self.horizontal = horizontal
         self.vertical = vertical

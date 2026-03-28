@@ -23,6 +23,10 @@ public struct C7Pixellated: C7FilterProtocol {
         return [scale]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(scale: Float = range.value) {
         self.scale = scale
     }

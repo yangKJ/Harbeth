@@ -31,6 +31,10 @@ public struct C7ChromaKey: C7FilterProtocol {
         return [thresholdSensitivity, smoothing]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var chromaFactor = Vector3.init(color: chroma).to_factor()

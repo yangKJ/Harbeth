@@ -26,6 +26,10 @@ public struct C7ZoomBlur: C7FilterProtocol {
         return [blurCenter.x, blurCenter.y, radius]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public init(radius: Float = 0) {
         self.radius = radius
     }

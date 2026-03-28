@@ -24,6 +24,10 @@ public struct C7Highlights: C7FilterProtocol {
         return [highlight]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(highlight: Float = range.value) {
         self.highlight = highlight
     }

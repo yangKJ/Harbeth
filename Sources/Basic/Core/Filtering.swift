@@ -9,6 +9,15 @@ import Foundation
 import MetalKit
 import CoreImage
 
+/// Memory access pattern for compute shaders
+public enum MemoryAccessPattern {
+    case point         // Point access (e.g., Brightness)
+    case neighborhood  // Neighborhood access (e.g., GaussianBlur)
+    case dualTexture   // Dual texture access (e.g., Blend)
+    case multiTexture  // Multi-texture access (e.g., Combination)
+    case auto          // Auto detection
+}
+
 public protocol C7FilterProtocol: Mirrorable {
     
     var identifier: String { get }
@@ -25,6 +34,9 @@ public protocol C7FilterProtocol: Mirrorable {
     /// Do you need the total number of pixels factor,
     /// before the special factor and after the factors.
     var hasCount: Bool { get }
+    
+    /// Memory access pattern for threadgroup optimization
+    var memoryAccessPattern: MemoryAccessPattern { get }
     
     /// The resize of the output texture.
     func resize(input size: C7Size) -> C7Size
@@ -66,6 +78,8 @@ extension C7FilterProtocol {
     public var otherInputTextures: C7InputTextures { [] }
     /// Do you need the total number of pixels factor.
     public var hasCount: Bool { false }
+    /// Memory access pattern for threadgroup optimization
+    public var memoryAccessPattern: MemoryAccessPattern { .auto }
     /// The resize of the output texture.
     public func resize(input size: C7Size) -> C7Size { size }
     /// Special type of parameter factor, such as 4x4 matrix.

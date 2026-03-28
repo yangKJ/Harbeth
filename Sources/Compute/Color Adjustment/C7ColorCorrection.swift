@@ -33,6 +33,10 @@ public struct C7ColorCorrection: C7FilterProtocol {
         return [levels, curves, colorBalance]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(levels: Float = 0.0, curves: Float = 0.0, colorBalance: Float = 0.0) {
         self.levels = levels
         self.curves = curves

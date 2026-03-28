@@ -21,5 +21,9 @@ public struct C7ColorCGASpace: C7FilterProtocol {
         return [intensity]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init() { }
 }

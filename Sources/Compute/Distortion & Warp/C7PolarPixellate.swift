@@ -24,6 +24,10 @@ public struct C7PolarPixellate: C7FilterProtocol {
         return [scale, center.x, center.y]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(scale: Float = range.value) {
         self.scale = scale
     }

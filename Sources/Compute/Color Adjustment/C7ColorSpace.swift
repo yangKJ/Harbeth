@@ -23,6 +23,10 @@ public struct C7ColorSpace: C7FilterProtocol {
         return .compute(kernel: type.rawValue)
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(with type: SwapType) {
         self.type = type
     }

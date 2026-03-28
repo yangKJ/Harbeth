@@ -23,6 +23,10 @@ public struct C7Gamma: C7FilterProtocol {
         return [gamma]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(gamma: Float = range.value) {
         self.gamma = gamma
     }

@@ -22,6 +22,10 @@ public final class C7Crop: C7FilterProtocol {
         return origin.toXY()
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func resize(input size: C7Size) -> C7Size {
         return crop(size: size)
     }

@@ -24,6 +24,10 @@ public struct C7EdgeGlow: C7FilterProtocol {
         return [time, spacing]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var factor = Vector4.init(color: lineColor).to_factor()

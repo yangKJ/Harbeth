@@ -19,6 +19,10 @@ public struct C7Pow: C7FilterProtocol {
         return [value]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(value: Float = 0.2) {
         self.value = value
     }

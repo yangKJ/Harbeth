@@ -46,6 +46,10 @@ public struct C7Curves: C7FilterProtocol {
         ]
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
         guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
         var rgbData: [Float] = []

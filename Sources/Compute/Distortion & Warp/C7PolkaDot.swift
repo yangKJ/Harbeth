@@ -27,6 +27,10 @@ public struct C7PolkaDot: C7FilterProtocol {
         self.dotScaling = dotScaling
     }
     
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+    
     public init(dotRadius: Float, softness: Float) {
         self.fractionalWidth = dotRadius * 2.0
         self.dotScaling = 1.0 - softness
