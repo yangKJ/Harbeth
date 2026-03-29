@@ -189,6 +189,10 @@ public protocol RenderProtocol: C7FilterProtocol {
     func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer?
 }
 
+extension RenderProtocol {
+    public func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer? { nil }
+}
+
 // MARK: - mps filter protocol
 public protocol MPSKernelProtocol: C7FilterProtocol {
     /// Encode a MPSKernel into a command buffer. The operation shall proceed out-of-place.

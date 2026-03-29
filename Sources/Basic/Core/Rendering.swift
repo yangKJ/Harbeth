@@ -24,10 +24,10 @@ struct Rendering {
     
     static func drawing(_ pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer, texture: MTLTexture, destTexture: MTLTexture, filter: C7FilterProtocol) {
         let renderPass = MTLRenderPassDescriptor()
-        renderPass.colorAttachments[0].texture = texture
+        renderPass.colorAttachments[0].texture = destTexture
         renderPass.colorAttachments[0].loadAction = MTLLoadAction.clear
         renderPass.colorAttachments[0].storeAction = MTLStoreAction.store
-        renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.65, 0.8, 1)
+        renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0)
         
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
             HarbethError.failed("Could not create render encoder")
@@ -50,7 +50,7 @@ struct Rendering {
         renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
         
         /// Set the input texture
-        renderEncoder.setFragmentTexture(destTexture, index: 0)
+        renderEncoder.setFragmentTexture(texture, index: 0)
         
         /// Handle other input textures
         for (i, inputTexture) in filter.otherInputTextures.enumerated() {
@@ -58,7 +58,7 @@ struct Rendering {
         }
         
         var bufferIndex: Int = 1
-        if let filter = filter as? RenderProtocol, let buffer = filter.setupVertexUniformBuffer(for: device) {
+        if let buffer = (filter as? RenderProtocol)?.setupVertexUniformBuffer(for: device) {
             renderEncoder.setVertexBuffer(buffer, offset: 0, index: bufferIndex)
             bufferIndex += 1
         }

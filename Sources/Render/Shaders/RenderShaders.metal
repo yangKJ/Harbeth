@@ -19,6 +19,13 @@ vertex VertexOut basicVertex(uint vertexID [[vertex_id]], constant float *vertic
     return vertexOut;
 }
 
+// 线性到sRGB转换
+float3 linearToSRGB(float3 color) {
+    return float3(color.r < 0.0031308 ? 12.92 * color.r : 1.055 * pow(color.r, 1.0/2.4) - 0.055,
+                  color.g < 0.0031308 ? 12.92 * color.g : 1.055 * pow(color.g, 1.0/2.4) - 0.055,
+                  color.b < 0.0031308 ? 12.92 * color.b : 1.055 * pow(color.b, 1.0/2.4) - 0.055);
+}
+
 fragment float4 basicFragment(VertexOut vertexOut [[stage_in]],
                               texture2d<float, access::sample> inputTexture [[texture(0)]],
                               sampler textureSampler [[sampler(0)]]) {

@@ -146,19 +146,22 @@ public struct MTLTextureCompatible_ {
     ///   - pixelFormat: Current Metal texture pixel format.
     /// - Returns: CGImage
     public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil) -> CGImage? {
-        let width  = target.width
+        let width = target.width
         let height = target.height
-        let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-        switch pixelFormat ?? self.target.pixelFormat {
+        let currentFormat = pixelFormat ?? target.pixelFormat
+        
+        // For non-float formats, use the original direct approach
+        switch currentFormat {
         case .a8Unorm, .r8Unorm, .r8Uint:
             let rowBytes = width
             let length = rowBytes * height
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { rgbaBytes.deallocate() }
+            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
             target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceGray()
-            let rawV = pixelFormat == .a8Unorm ? CGImageAlphaInfo.alphaOnly.rawValue : CGImageAlphaInfo.none.rawValue
+            let rawV = currentFormat == .a8Unorm ? CGImageAlphaInfo.alphaOnly.rawValue : CGImageAlphaInfo.none.rawValue
             let bitmapInfo = CGBitmapInfo(rawValue: rawV)
             guard let data = CFDataCreate(nil, rgbaBytes, length),
                   let dataProvider = CGDataProvider(data: data),
@@ -183,6 +186,7 @@ public struct MTLTextureCompatible_ {
             let bgraBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { bgraBytes.deallocate(); rgbaBytes.deallocate() }
+            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
             target.getBytes(bgraBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             // use Accelerate framework to convert from BGRA to RGBA
@@ -221,6 +225,7 @@ public struct MTLTextureCompatible_ {
             let length = rowBytes * height
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { rgbaBytes.deallocate() }
+            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
             target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             let colorSpace = colorSpace ?? Device.colorSpace()
@@ -241,6 +246,9 @@ public struct MTLTextureCompatible_ {
                 return nil
             }
             return cgImage
+        case .rgba16Float, .rgba32Float:
+            // HDR has been converted to rgba8Unorm and HDRToSDR for processing
+            return nil
         default:
             return nil
         }

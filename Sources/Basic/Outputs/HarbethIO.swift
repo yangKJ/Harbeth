@@ -58,7 +58,6 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     
     private var setupedBufferPixelFormat = false
     private let hasCoreImage: Bool
-    private let hasAppleLogDecode: Bool
     
     private enum GroupStrategy {
         case batched, interleaved
@@ -76,21 +75,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         self.element = element
         self.identifier = UUID().uuidString
         self.filters = filters
-        var hasCoreImage = false
-        var hasAppleLogDecode = false
-        for filter in filters {
-            if !hasCoreImage && filter.modifier.isCoreImage {
-                hasCoreImage = true
-            }
-            if !hasAppleLogDecode && filter is C7AppleLogDecode {
-                hasAppleLogDecode = true
-            }
-            if hasCoreImage && hasAppleLogDecode {
-                break
-            }
-        }
-        self.hasCoreImage = hasCoreImage
-        self.hasAppleLogDecode = hasAppleLogDecode
+        self.hasCoreImage = filters.contains(where: { $0.modifier.isCoreImage })
     }
     
     /// Add filters to sources synchronously. If it fails, it returns element.
@@ -514,11 +499,7 @@ extension HarbethIO {
     
     private func setupBufferPixelFormat(with sourceTexture: MTLTexture) -> MTLPixelFormat {
         if !setupedBufferPixelFormat {
-            if hasAppleLogDecode {
-                return .rgba16Float
-            } else {
-                return sourceTexture.pixelFormat
-            }
+            return sourceTexture.pixelFormat
         }
         return bufferPixelFormat
     }
