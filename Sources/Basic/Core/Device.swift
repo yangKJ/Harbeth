@@ -149,7 +149,7 @@ extension Device {
         return nil
     }
     
-    static func readMTLFunction(_ name: String) throws -> MTLFunction {
+    public static func readMTLFunction(_ name: String) throws -> MTLFunction {
         /// Read external libraries
         if let device = Shared.shared.device {
             for library in device.externalLibraries() {
