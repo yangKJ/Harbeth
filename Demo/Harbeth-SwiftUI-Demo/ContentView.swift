@@ -16,32 +16,50 @@ struct ContentView: View {
     func setupContentView() -> some View {
         NavigationView {
             List {
-                NavigationLink(destination: DoubleBufferView()) {
-                    Text("Double Buffer")
+                Section {
+                    NavigationLink(destination: CubeView()) {
+                        ShowcaseRow(title: "Cinematic Color Grading", subtitle: "CUBE LUT with Metal and CoreImage paths")
+                    }
+                    NavigationLink(destination: DoubleBufferView()) {
+                        ShowcaseRow(title: "Real-time Frame Processing", subtitle: "Filter chains, texture reuse, and double buffering")
+                    }
+                    NavigationLink(destination: MetalKernelViews()) {
+                        ShowcaseRow(title: "Video / LUT / HDR Pipeline", subtitle: "Metal kernels for frame-oriented effects")
+                    }
+                } header: {
+                    Text("Showcase").bold().textCase(.none)
                 }
-                NavigationLink(destination: CurvesView()) {
-                    Text("Curves")
-                }
-                NavigationLink(destination: HSLView()) {
-                    Text("HSL")
-                }
-                NavigationLink(destination: ColorRGBAView()) {
-                    Text("Color")
-                }
-                NavigationLink(destination: CubeView()) {
-                    Text("Cube")
-                }
-                NavigationLink(destination: BlendView()) {
-                    Text("Blend")
-                }
-                NavigationLink(destination: HighlightShadowToneView()) {
-                    Text("Highlight Shadow")
-                }
-                NavigationLink(destination: ChromaKeyView()) {
-                    Text("Chroma Key")
-                }
-                NavigationLink(destination: ChannelControlView()) {
-                    Text("Channel Control")
+
+                Section {
+                    NavigationLink(destination: DoubleBufferView()) {
+                        Text("Double Buffer")
+                    }
+                    NavigationLink(destination: CurvesView()) {
+                        Text("Curves")
+                    }
+                    NavigationLink(destination: HSLView()) {
+                        Text("HSL")
+                    }
+                    NavigationLink(destination: ColorRGBAView()) {
+                        Text("Color")
+                    }
+                    NavigationLink(destination: CubeView()) {
+                        Text("Cube")
+                    }
+                    NavigationLink(destination: BlendView()) {
+                        Text("Blend")
+                    }
+                    NavigationLink(destination: HighlightShadowToneView()) {
+                        Text("Highlight Shadow")
+                    }
+                    NavigationLink(destination: ChromaKeyView()) {
+                        Text("Chroma Key")
+                    }
+                    NavigationLink(destination: ChannelControlView()) {
+                        Text("Channel Control")
+                    }
+                } header: {
+                    Text("Examples").bold().textCase(.none)
                 }
                 
                 Section {
@@ -77,6 +95,23 @@ struct ContentView: View {
             Text("Welcome to Harbeth examples.")
             Text("Select a topic to begin.").font(Font.caption).foregroundColor(.secondary)
         }.toolbar(content: { Spacer() })
+    }
+}
+
+private struct ShowcaseRow: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .textCase(.none)
+        }
+        .padding(.vertical, 4)
     }
 }
 

@@ -39,9 +39,11 @@ let package = Package(
         .target(
             name: "Harbeth",
             path: "Sources",
-            resources: [
-                .process("Sources")
-            ]
+        ),
+        .testTarget(
+            name: "HarbethTests",
+            dependencies: ["Harbeth"],
+            path: "Tests/HarbethTests"
         ),
     ],
     swiftLanguageVersions: [.v5]

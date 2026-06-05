@@ -121,6 +121,9 @@ extension Device {
                 return library
             }
         }
+        if let library = makeSourceLibrary(device, bundle: Bundle.module) {
+            return library
+        }
         #endif
         
         /// Fixed the read failure of imported local resources was rectified.
@@ -148,6 +151,43 @@ extension Device {
         
         return nil
     }
+
+    #if SWIFT_PACKAGE
+    private static func makeSourceLibrary(_ device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
+        guard let resourceURL = bundle.resourceURL,
+              let enumerator = FileManager.default.enumerator(
+                at: resourceURL,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+              ) else {
+            return nil
+        }
+
+        var source = ""
+        for case let fileURL as URL in enumerator where fileURL.pathExtension == "metal" {
+            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                  values.isRegularFile == true,
+                  let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
+                continue
+            }
+            source += "\n// MARK: - \(fileURL.lastPathComponent)\n"
+            source += content
+            source += "\n"
+        }
+
+        guard source.isEmpty == false else {
+            return nil
+        }
+        do {
+            return try device.makeLibrary(source: source, options: nil)
+        } catch {
+            #if DEBUG
+            print("Harbeth Metal source library compile failed: \(error)")
+            #endif
+            return nil
+        }
+    }
+    #endif
     
     public static func readMTLFunction(_ name: String) throws -> MTLFunction {
         /// Read external libraries

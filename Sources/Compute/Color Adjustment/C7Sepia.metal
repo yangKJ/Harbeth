@@ -14,10 +14,10 @@ kernel void C7Sepia(texture2d<half, access::write> outputTexture [[texture(0)]],
                     uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half4x4 matrix = half4x4({0.3588, 0.7044, 0.1368, 0.0},
-                                   {0.2990, 0.5870, 0.1140, 0.0},
-                                   {0.2392, 0.4696, 0.0912, 0.0},
-                                   {0.0000, 0.0000, 0.0000, 1.0});
+    const half4x4 matrix = half4x4(half4(0.3588h, 0.7044h, 0.1368h, 0.0h),
+                                   half4(0.2990h, 0.5870h, 0.1140h, 0.0h),
+                                   half4(0.2392h, 0.4696h, 0.0912h, 0.0h),
+                                   half4(0.0000h, 0.0000h, 0.0000h, 1.0h));
     const half4 outColor = half(*intensity) * (inColor * matrix) + (1.0h - half(*intensity)) * inColor;
     
     outputTexture.write(outColor, grid);

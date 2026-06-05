@@ -23,7 +23,7 @@ kernel void C7GaussianBlur(texture2d<half, access::write> outputTexture [[textur
     const float h = float(inputTexture.get_height());
     
     // 高斯模糊卷积核
-    const half3x3 matrix = half3x3({1.0, 2.0, 1.0}, {2.0, 4.0, 2.0}, {1.0, 2.0, 1.0});
+    const half3x3 matrix = half3x3(half3(1.0h, 2.0h, 1.0h), half3(2.0h, 4.0h, 2.0h), half3(1.0h, 2.0h, 1.0h));
     half4 result = half4(0.0h);
     for (int i = 0; i < 9; i++) {
         int a = i % 3; int b = i / 3;

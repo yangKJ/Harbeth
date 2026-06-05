@@ -149,6 +149,7 @@ public struct MTLTextureCompatible_ {
         let width = target.width
         let height = target.height
         let currentFormat = pixelFormat ?? target.pixelFormat
+        synchronizeForCPUReadIfNeeded()
         
         // For non-float formats, use the original direct approach
         switch currentFormat {
@@ -260,6 +261,7 @@ public struct MTLTextureCompatible_ {
         guard target.pixelFormat == .bgra8Unorm || target.pixelFormat == .rgba8Unorm else {
             return nil
         }
+        synchronizeForCPUReadIfNeeded()
         let width = target.width
         let height = target.height
         let rowBytes = width * 4
@@ -276,5 +278,20 @@ public struct MTLTextureCompatible_ {
             vImagePermuteChannels_ARGB8888(&src, &dst, map, vImage_Flags(0))
         }
         return Data(bytes: buffer, count: totalBytes)
+    }
+
+    private func synchronizeForCPUReadIfNeeded() {
+        #if os(macOS)
+        guard target.storageMode == .managed,
+              let commandQueue = target.device.makeCommandQueue(),
+              let commandBuffer = commandQueue.makeCommandBuffer(),
+              let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
+            return
+        }
+        blitEncoder.synchronize(resource: target)
+        blitEncoder.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        #endif
     }
 }

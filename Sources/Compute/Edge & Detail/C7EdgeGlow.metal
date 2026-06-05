@@ -24,7 +24,7 @@ kernel void C7EdgeGlow(texture2d<half, access::write> outputTexture [[texture(0)
     const half spacing = half(*spacingPointer);
     
     // 边缘检测矩阵卷积核
-    const half3x3 matrix = half3x3({-1.0, -1.0, -1.0}, {-1.0,  8.0, -1.0}, {-1.0, -1.0, -1.0});
+    const half3x3 matrix = half3x3(half3(-1.0h, -1.0h, -1.0h), half3(-1.0h, 8.0h, -1.0h), half3(-1.0h, -1.0h, -1.0h));
     half4 result = half4(0.0h);
     for (int i = 0; i < 9; i++) {
         int a = i % 3; int b = i / 3;

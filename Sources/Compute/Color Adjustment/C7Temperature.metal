@@ -18,8 +18,8 @@ kernel void C7Temperature(texture2d<half, access::write> outputTexture [[texture
     const half4 source = inputTexture.read(grid);
     
     // YIQ color space conversion matrices
-    const half3x3 RGBtoYIQ = half3x3({0.299, 0.587, 0.114}, {0.596, -0.274, -0.322}, {0.212, -0.523, 0.311});
-    const half3x3 YIQtoRGB = half3x3({1.0, 0.956, 0.621}, {1.0, -0.272, -0.647}, {1.0, -1.105, 1.702});
+    const half3x3 RGBtoYIQ = half3x3(half3(0.299h, 0.587h, 0.114h), half3(0.596h, -0.274h, -0.322h), half3(0.212h, -0.523h, 0.311h));
+    const half3x3 YIQtoRGB = half3x3(half3(1.0h, 0.956h, 0.621h), half3(1.0h, -0.272h, -0.647h), half3(1.0h, -1.105h, 1.702h));
     
     // Warm filter for temperature adjustment
     const half3 warmFilter = half3(0.93, 0.54, 0.0);

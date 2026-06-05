@@ -79,8 +79,10 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     /// - Parameter texture: Source Metal texture
     @discardableResult
     public func copyToPixelBuffer(with texture: MTLTexture) -> Bool {
-        lockBaseAddress(.readOnly)
-        defer { unlockBaseAddress(.readOnly) }
+        guard lockBaseAddress([]) == kCVReturnSuccess else {
+            return false
+        }
+        defer { unlockBaseAddress([]) }
         guard let pixelBufferBytes = CVPixelBufferGetBaseAddress(base) else {
             return false
         }

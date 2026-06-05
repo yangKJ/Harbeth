@@ -94,3 +94,9 @@ Metal/
 
 # HarbethMetal3 folder
 HarbethMetal3/
+
+.agents/
+.codex/
+.claude/
+AGENTS.md
+CLAUDE.md

@@ -15,8 +15,8 @@ kernel void C7WhiteBalance(texture2d<half, access::write> outputTexture [[textur
                            uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half3x3 RGBtoYIQ = half3x3({0.299, 0.587, 0.114}, {0.596, -0.274, -0.322}, {0.212, -0.523, 0.311});
-    const half3x3 YIQtoRGB = half3x3({1.000, 0.956, 0.621}, {1.000, -0.272, -0.647}, {1.000, -1.105, 1.702});
+    const half3x3 RGBtoYIQ = half3x3(half3(0.299h, 0.587h, 0.114h), half3(0.596h, -0.274h, -0.322h), half3(0.212h, -0.523h, 0.311h));
+    const half3x3 YIQtoRGB = half3x3(half3(1.000h, 0.956h, 0.621h), half3(1.000h, -0.272h, -0.647h), half3(1.000h, -1.105h, 1.702h));
     
     half3 yiq = RGBtoYIQ * inColor.rgb;
     yiq.b = clamp(yiq.b + half(*tint/100) * 0.5226 * 0.1, -0.5226, 0.5226);

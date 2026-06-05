@@ -11,6 +11,10 @@
  
 [**Harbeth**](https://github.com/yangKJ/Harbeth) is a high-performance Swift library focused on GPU-accelerated real-time image processing, camera capture, and video processing. Built on Metal technology, it also integrates with CoreImage and Metal Performance Shaders, providing developers with a powerful and easy-to-integrate image processing solution.
 
+Harbeth is best understood as a GPU image and frame processing core for Apple platforms. It works with still images, Metal textures, pixel buffers, and sample buffers, so it can be embedded into real product pipelines such as photo editing, camera preview, video playback, and frame-by-frame video processing.
+
+The camera and video examples in this repository are integration demos: Harbeth provides the processing core and reference wiring, while your app remains responsible for camera session management, recording, timeline editing, and export product logic.
+
 This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUImage).
 
 -------
@@ -66,6 +70,12 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 - **Render Vertex Fragment**: The Render module provides low-level rendering capabilities using vertex and fragment shaders.
 
 #### **A total of 200+ kinds of built-in filters are currently available.✌️**
+
+### Integration Scope
+
+- **Harbeth provides**: GPU filters, filter chaining, texture / image / pixelBuffer / sampleBuffer processing, LUT pipelines, CoreImage / MPS / Metal integration, SwiftUI previews, and demo integrations for camera and video workflows.
+- **Your app provides**: full camera session policy, recording UX, video timeline editing, export orchestration, media library management, and product-specific business logic.
+- **Commercial integration**: If you need private LUTs, branded filter packs, real-time camera/video tuning, or custom Metal kernels, use the open-source examples as the technical baseline and discuss a private integration scope with the maintainer.
 
 ## Requirements
 

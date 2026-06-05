@@ -14,7 +14,7 @@ kernel void C7ColorSpaceRGB2YIQ(texture2d<half, access::write> outputTexture [[t
                                 uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half3x3 RGBtoYIQ = half3x3({0.299, 0.587, 0.114}, {0.596, -0.274, -0.322}, {0.212, -0.523, 0.311});
+    const half3x3 RGBtoYIQ = half3x3(half3(0.299h, 0.587h, 0.114h), half3(0.596h, -0.274h, -0.322h), half3(0.212h, -0.523h, 0.311h));
     const half3 yiq = RGBtoYIQ * inColor.rgb;
     const half4 outColor = half4(yiq, inColor.a);
     
@@ -26,7 +26,7 @@ kernel void C7ColorSpaceYIQ2RGB(texture2d<half, access::write> outputTexture [[t
                                 uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half3x3 YIQtoRGB = half3x3({1.0, 0.956, 0.621}, {1.0, -0.272, -0.647}, {1.0, -1.105, 1.702});
+    const half3x3 YIQtoRGB = half3x3(half3(1.0h, 0.956h, 0.621h), half3(1.0h, -0.272h, -0.647h), half3(1.0h, -1.105h, 1.702h));
     const half3 rgb = YIQtoRGB * inColor.rgb;
     const half4 outColor = half4(rgb, inColor.a);
     
@@ -39,7 +39,7 @@ kernel void C7ColorSpaceRGB2YUV(texture2d<half, access::write> outputTexture [[t
                                 uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half3x3 RGBtoYUV = half3x3({0.2126, 0.7152, 0.0722}, {-0.09991, -0.33609, 0.436}, {0.615, -0.55861, -0.05639});
+    const half3x3 RGBtoYUV = half3x3(half3(0.2126h, 0.7152h, 0.0722h), half3(-0.09991h, -0.33609h, 0.436h), half3(0.615h, -0.55861h, -0.05639h));
     const half3 yuv = RGBtoYUV * inColor.rgb;
     const half4 outColor = half4(yuv, inColor.a);
     
@@ -51,7 +51,7 @@ kernel void C7ColorSpaceYUV2RGB(texture2d<half, access::write> outputTexture [[t
                                 uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half3x3 YUVtoRGB = half3x3({1.0, 0.0, 1.28033}, {1.0, -0.21482, -0.38059}, {1.0, 2.21798, 0.0});
+    const half3x3 YUVtoRGB = half3x3(half3(1.0h, 0.0h, 1.28033h), half3(1.0h, -0.21482h, -0.38059h), half3(1.0h, 2.21798h, 0.0h));
     const half3 rgb = YUVtoRGB * inColor.rgb;
     const half4 outColor = half4(rgb, inColor.a);
     
