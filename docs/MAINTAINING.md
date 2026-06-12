@@ -1,6 +1,6 @@
 # Harbeth Maintaining Guide
 
-Harbeth is maintained as an Apple-platform GPU image and frame processing core. Camera and video examples are supported integration demos, but the library should not absorb full camera session, recording, timeline editing, or export product responsibilities.
+Harbeth is maintained as a multi-platform Apple GPU image and frame processing core across iOS, iPadOS, macOS, tvOS, and watchOS where the underlying APIs are available. Camera and video examples are supported integration demos, but the library should not absorb full camera session, recording, timeline editing, or export product responsibilities.
 
 ## Maintenance Baseline
 
@@ -26,11 +26,18 @@ pod lib lint Harbeth.podspec
 
 If CocoaPods is unavailable, run a static podspec review and verify that Swift sources and Metal resources are still included.
 
+Platform checks:
+
+- Validate SwiftPM on macOS because it is the fastest host-side build and test loop.
+- Validate the Demo through `Harbeth.xcworkspace` for iOS Simulator before release.
+- Treat macOS-only texture synchronization tests as regression coverage, not as the full platform boundary.
+- Keep iOS/iPadOS behavior first-class when changing camera frame, `CVPixelBuffer`, `CMSampleBuffer`, UIKit, SwiftUI, or video playback/export paths.
+
 ## Issue Triage
 
 - Reproduce with the smallest input type first: `CGImage`, `MTLTexture`, `CVPixelBuffer`, then `CMSampleBuffer`.
 - For camera/video issues, record pixel format, dimensions, bytes per row, platform, device/simulator, and whether the output texture is `.managed`, `.shared`, or private.
-- For transparent or blank output, inspect alpha bytes after `MTLTexture.c7.toCGImage()` and verify macOS managed texture synchronization before CPU readback.
+- For transparent or blank output, inspect alpha bytes after `MTLTexture.c7.toCGImage()`, verify pixel format and row stride on iOS/macOS frame sources, and check macOS managed texture synchronization before CPU readback when the storage mode requires it.
 
 ## Demo Policy
 
@@ -42,6 +49,7 @@ If CocoaPods is unavailable, run a static podspec review and verify that Swift s
 
 - `Package.swift` builds with SwiftPM and exposes the `Harbeth` library target.
 - `Harbeth.podspec` includes Swift sources and `.metal` resources.
+- The iOS Simulator Demo builds from `Harbeth.xcworkspace`; macOS host tests still pass.
 - `Device.makeFrameworkLibrary` can load or compile the Harbeth Metal library in SwiftPM.
 - README.md and README_CN.md describe the same positioning and integration boundary.
 - Open issues are either fixed, reproduced with notes, or explicitly marked as needing more reporter detail.

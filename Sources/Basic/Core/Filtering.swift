@@ -119,10 +119,10 @@ extension C7FilterProtocol {
                 let textures = [destTexture, texture] + self.otherInputTextures
                 let mpsTexture = try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
                 complete(.success(mpsTexture))
-            case .mesh where self is MeshKernelProtocol:
+            case .advancedMetal where self is C7AdvancedMetalKernelProtocol:
                 let textures = [destTexture, texture] + self.otherInputTextures
-                let meshTexture = try (self as! MeshKernelProtocol).encode(commandBuffer: buffer, textures: textures)
-                complete(.success(meshTexture))
+                let advancedTexture = try (self as! C7AdvancedMetalKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+                complete(.success(advancedTexture))
             default:
                 complete(.success(texture))
             }
@@ -143,9 +143,9 @@ extension C7FilterProtocol {
         case .mps where self is MPSKernelProtocol:
             let textures = [destTexture, texture] + self.otherInputTextures
             return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
-        case .mesh where self is MeshKernelProtocol:
+        case .advancedMetal where self is C7AdvancedMetalKernelProtocol:
             let textures = [destTexture, texture] + self.otherInputTextures
-            return try (self as! MeshKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+            return try (self as! C7AdvancedMetalKernelProtocol).encode(commandBuffer: buffer, textures: textures)
         default:
             break
         }
@@ -212,20 +212,4 @@ public protocol BlitProtocol: C7FilterProtocol {
     ///   - destTexture: Output destination texture.
     /// - Returns: Return output metal texture.
     func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
-}
-
-// MARK: - mesh kernel protocol
-public protocol MeshKernelProtocol: C7FilterProtocol {
-    /// Encode a mesh kernel into a command buffer.
-    /// - Parameters:
-    ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
-    ///   - textures: Texture array, The first is the output texture, the second is the input texture, and other input textures.
-    /// - Returns: Return output metal texture.
-    func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
-    
-    /// Setup mesh parameters for the encoder.
-    /// - Parameters:
-    ///   - encoder: MTLCommandEncoder
-    ///   - textures: Texture array
-    func setupMeshParameters(for encoder: MTLCommandEncoder, textures: [MTLTexture])
 }

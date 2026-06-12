@@ -35,9 +35,9 @@ public enum ModifierEnum: Equatable, Hashable {
     /// 基于`MetalPerformanceShaders`着色器
     /// Based on the MetalPerformanceShaders shader.
     case mps(performance: MPSKernel)
-    /// 基于`Metal`网格着色器
-    /// Based on the Metal mesh shader.
-    case mesh(function: String)
+    /// 高级 Metal 自定义编码入口，由具体滤镜自行实现能力检查和 fallback。
+    /// Advanced Metal custom encoder. Concrete filters own availability checks and fallback.
+    case advancedMetal(capability: C7MetalCapability, function: String)
     
     public static func ==(lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
         switch (lhs, rhs) {
@@ -51,8 +51,8 @@ public enum ModifierEnum: Equatable, Hashable {
             return lhsName == rhsName
         case (.mps(let lhsKernel), .mps(let rhsKernel)):
             return lhsKernel === rhsKernel
-        case (.mesh(let lhsFunction), .mesh(let rhsFunction)):
-            return lhsFunction == rhsFunction
+        case (.advancedMetal(let lhsCapability, let lhsFunction), .advancedMetal(let rhsCapability, let rhsFunction)):
+            return lhsCapability == rhsCapability && lhsFunction == rhsFunction
         default:
             return false
         }
@@ -70,7 +70,7 @@ public enum ModifierEnum: Equatable, Hashable {
             return true
         case .mps:
             return false
-        case .mesh:
+        case .advancedMetal:
             return false
         }
     }
@@ -87,7 +87,7 @@ public enum ModifierEnum: Equatable, Hashable {
             return CIName
         case .mps(let performance):
             return performance.label ?? UUID().uuidString
-        case .mesh(let function):
+        case .advancedMetal(_, let function):
             return function
         }
     }

@@ -23,6 +23,8 @@ public struct C7ColorCube: C7FilterProtocol {
     
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
+    public private(set) var resourceName: String?
+    public private(set) var resourceBundleName: String?
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorCube")
@@ -46,20 +48,35 @@ public struct C7ColorCube: C7FilterProtocol {
     public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0) {
         let resource = C7ColorCube.Resource.readCubeResource(cubeName, bundle: bundle)
         self.init(cubeResource: resource, intensity: intensity)
+        self.resourceName = cubeName
+        self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
+    }
+
+    public init(cubeName: String, forResource resource: String, intensity: Float = 1.0) {
+        let bundle = R.readFrameworkBundle(with: resource) ?? .main
+        self.init(cubeName: cubeName, bundle: bundle, intensity: intensity)
+        self.resourceName = cubeName
+        self.resourceBundleName = resource
     }
     
     public init(cubeURL: URL, intensity: Float = 1.0) {
         let resource = C7ColorCube.Resource.readCubeResource(from: cubeURL)
         self.init(cubeResource: resource, intensity: intensity)
+        self.resourceName = nil
+        self.resourceBundleName = nil
     }
     
     public init(cubeData: Data, dimension: Int, intensity: Float = 1.0) {
         let resource = C7ColorCube.Resource(dimension: dimension, data: cubeData)
         self.init(cubeResource: resource, intensity: intensity)
+        self.resourceName = nil
+        self.resourceBundleName = nil
     }
     
     public init(cubeResource: C7ColorCube.Resource?, intensity: Float = 1.0) {
         self.intensity = intensity
+        self.resourceName = nil
+        self.resourceBundleName = nil
         if let resource = cubeResource {
             self.dimension = resource.dimension
             self.lutTexture = C7ColorCube.Resource.createLUTTexture(from: resource)

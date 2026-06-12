@@ -78,6 +78,144 @@ public final class Device: Cacheable {
 
 extension Device {
     
+    public static func metalCapabilityReport(_ capability: C7MetalCapability, on device: MTLDevice? = nil) -> C7MetalCapabilityReport {
+        guard let device = device ?? Shared.shared.device?.device else {
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "Metal device required",
+                reason: "No available MTLDevice."
+            )
+        }
+        
+        #if os(watchOS)
+        return C7MetalCapabilityReport(
+            capability: capability,
+            status: .unsupported,
+            minimumPlatform: "Unavailable on watchOS baseline",
+            reason: "Advanced Metal feature probing is not exposed for Harbeth watchOS baseline."
+        )
+        #else
+        switch capability {
+        case .customAdvancedEncoder:
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .requiresConcreteImplementationCheck,
+                minimumPlatform: "Implementation-defined",
+                reason: "Higher packages must provide their own availability and device checks."
+            )
+        case .meshShaders:
+            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: .requiresConcreteImplementationCheck,
+                    minimumPlatform: "iOS 16 / macOS 13 / tvOS 16",
+                    reason: "Object/mesh shader APIs are available; concrete pipeline creation must still be checked by the implementation."
+                )
+            }
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "iOS 16 / macOS 13 / tvOS 16",
+                reason: "Object/mesh shader APIs are newer than the current runtime."
+            )
+        case .metalFX:
+            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: .requiresConcreteImplementationCheck,
+                    minimumPlatform: "iOS 16 / macOS 13",
+                    reason: "MetalFX belongs to the MetalFX framework; higher packages must call framework-specific support checks."
+                )
+            }
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "iOS 16 / macOS 13",
+                reason: "MetalFX is newer than the current runtime."
+            )
+        case .metalIO:
+            #if os(iOS) || os(macOS)
+            if #available(macOS 13.0, iOS 16.0, *) {
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: .requiresConcreteImplementationCheck,
+                    minimumPlatform: "iOS 16 / macOS 13",
+                    reason: "Metal IO APIs are available; concrete streaming strategy must be checked by the implementation."
+                )
+            }
+            #endif
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "iOS 16 / macOS 13",
+                reason: "Metal IO is not available for this platform or runtime."
+            )
+        case .renderDynamicLibraries:
+            if #available(macOS 12.0, iOS 15.0, tvOS 16.0, *) {
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: device.supportsRenderDynamicLibraries ? .supported : .unsupported,
+                    minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
+                    reason: device.supportsRenderDynamicLibraries ? "Device reports render dynamic library support." : "Device does not support render dynamic libraries."
+                )
+            }
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
+                reason: "Render dynamic libraries are newer than the current runtime."
+            )
+        case .renderFunctionPointers:
+            if #available(macOS 12.0, iOS 15.0, tvOS 16.0, *) {
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: device.supportsFunctionPointersFromRender ? .supported : .unsupported,
+                    minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
+                    reason: device.supportsFunctionPointersFromRender ? "Device reports render function pointer support." : "Device does not support render function pointers."
+                )
+            }
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
+                reason: "Render function pointers are newer than the current runtime."
+            )
+        case .rayTracing:
+            if #available(macOS 11.0, iOS 14.0, tvOS 16.0, *) {
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: device.supportsRaytracing ? .supported : .unsupported,
+                    minimumPlatform: "iOS 14 / macOS 11 / tvOS 16",
+                    reason: device.supportsRaytracing ? "Device reports ray tracing support." : "Device does not support ray tracing."
+                )
+            }
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "iOS 14 / macOS 11 / tvOS 16",
+                reason: "Ray tracing APIs are newer than the current runtime."
+            )
+        case .sparseTextures:
+            if #available(macOS 11.0, iOS 13.0, tvOS 16.0, *) {
+                let isSupported = device.sparseTileSizeInBytes > 0
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: isSupported ? .supported : .unsupported,
+                    minimumPlatform: "iOS 13 / macOS 11 / tvOS 16",
+                    reason: isSupported ? "Device reports sparse texture tile size." : "Device does not report sparse texture support."
+                )
+            }
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: "iOS 13 / macOS 11 / tvOS 16",
+                reason: "Sparse texture APIs are newer than the current runtime."
+            )
+        }
+        #endif
+    }
+    
     /// Get pipeline state for kernel function with thread safety
     public func pipelineState(for kernel: C7KernelFunction) -> MTLComputePipelineState? {
         pipelineLock.lock()
@@ -151,7 +289,7 @@ extension Device {
         
         return nil
     }
-
+    
     #if SWIFT_PACKAGE
     private static func makeSourceLibrary(_ device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
         guard let resourceURL = bundle.resourceURL,
@@ -162,7 +300,7 @@ extension Device {
               ) else {
             return nil
         }
-
+        
         var source = ""
         for case let fileURL as URL in enumerator where fileURL.pathExtension == "metal" {
             guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
@@ -174,7 +312,7 @@ extension Device {
             source += content
             source += "\n"
         }
-
+        
         guard source.isEmpty == false else {
             return nil
         }
