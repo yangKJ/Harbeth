@@ -24,8 +24,9 @@ kernel void C7BlendWithMask(texture2d<half, access::write> outputTexture [[textu
     const half4 foreground = foregroundTexture.sample(quadSampler, uv);
     const half4 mask = maskTexture.sample(quadSampler, uv);
     
-    half4 blended = mix(background, foreground, mask.r);
+    const half blendAmount = clamp(mask.r * half(*intensity), half(0.0), half(1.0));
+    const half3 blendedRGB = mix(background.rgb, foreground.rgb, blendAmount);
+    const half4 output(blendedRGB, background.a);
     
-    const half4 output = mix(background, blended, half(*intensity));
     outputTexture.write(output, grid);
 }

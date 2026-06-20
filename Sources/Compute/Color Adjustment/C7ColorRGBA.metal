@@ -15,8 +15,11 @@ kernel void C7ColorRGBA(texture2d<half, access::write> outputTexture [[texture(0
                         uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    const half4 outColor(inColor * half4(*colorVector));
-    const half4 output = mix(inColor, outColor, half(*intensity));
+    const half4 color = half4(*colorVector);
+    const half tintAmount = clamp(half(*intensity), half(0.0), half(1.0));
+    const half3 outRGB = inColor.rgb * color.rgb;
+    const half3 outputRGB = mix(inColor.rgb, outRGB, tintAmount);
+    const half4 output(outputRGB, inColor.a);
     
     outputTexture.write(output, grid);
 }

@@ -17,9 +17,8 @@ kernel void C7XORBlendWithMask(texture2d<half, access::write> outputTexture [[te
     const half4 foreground = foregroundTexture.sample(quadSampler, uv);
     const half4 mask = maskTexture.sample(quadSampler, uv);
     
-    // XOR混合逻辑：当蒙版值为1时使用前景颜色，否则使用背景颜色
-    half4 blended = mask.r > 0.5 ? foreground : background;
-    
-    const half4 output = mix(background, blended, half(*intensity));
+    const half blendAmount = clamp(mask.r * half(*intensity), half(0.0), half(1.0));
+    const half3 blendedRGB = mix(background.rgb, foreground.rgb, blendAmount);
+    const half4 output(blendedRGB, background.a);
     outputTexture.write(output, grid);
 }
