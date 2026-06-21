@@ -33,6 +33,28 @@ extension HarbethIO {
             .output()
     }
 
+    /// 将单帧渲染结果输出为新的 `CVPixelBuffer`，不修改输入 pixel buffer。
+    public func renderPixelBuffer(profile: RenderProfile = .stablePreview,
+                                  derivative: ImageDerivativeSpec? = nil,
+                                  pool: HarbethPixelBufferPool? = nil,
+                                  pixelFormatType: OSType = kCVPixelFormatType_32BGRA) throws -> CVPixelBuffer {
+        let texture = try renderTexture(profile: profile, derivative: derivative)
+        let outputPool = try pool ?? HarbethPixelBufferPool(
+            width: texture.width,
+            height: texture.height,
+            pixelFormatType: pixelFormatType
+        )
+        let pixelBuffer = try outputPool.makePixelBuffer()
+        guard CVPixelBufferGetWidth(pixelBuffer) == texture.width,
+              CVPixelBufferGetHeight(pixelBuffer) == texture.height else {
+            throw HarbethError.textureSizeMismatch
+        }
+        guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
+            throw HarbethError.pixelBufferCopyFailed
+        }
+        return pixelBuffer
+    }
+
     /// texture-first task output for callers that need to observe GPU completion.
     public func startRenderTextureTask(profile: RenderProfile = .stablePreview,
                                        derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderTask<MTLTexture> {

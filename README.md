@@ -110,6 +110,7 @@ Harbeth supports multiple source types and more than one output shape:
 - Use `UIImage`, `NSImage`, `CGImage`, `MTLTexture`, `CVPixelBuffer`, or `CMSampleBuffer` as processing inputs.
 - Use `output()` for the primitive image path.
 - Use `renderTexture(profile:)` / `renderFrame(profile:)` for the frame-first filters path.
+- Use `renderPixelBuffer(profile:)` when the output needs a new `CVPixelBuffer` instead of mutating the input buffer.
 - Use `renderTexture(recipe:)` / `renderFrame(recipe:)` for recipe-driven execution.
 - Use `renderTransitionTexture(_:)` / `renderTransitionFrame(_:)` for transition primitives.
 
@@ -142,6 +143,7 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths.
 - `HarbethKernelDescriptor`: lightweight technical metadata for function identity, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
 - `HarbethRenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
+- `HarbethPixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
 - `RenderOutputContract`: explicit alpha, color-space, and pixel-format intent for diagnostics and conservative planning.
 - `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, estimated texture cost, readback boundaries, and format conversion decisions. The texture-first execution path can use the plan to prewarm reusable render targets without changing visual output.
 
@@ -166,6 +168,12 @@ task.observeCompletion { task in
 
 let outputTexture = try task.output()
 let diagnostics = task.diagnostics
+```
+
+```swift
+let pixelBufferPool = try HarbethPixelBufferPool(width: 1920, height: 1080)
+let outputPixelBuffer = try HarbethIO(element: inputTexture, filters: filters)
+    .renderPixelBuffer(profile: .stablePreview, pool: pixelBufferPool)
 ```
 
 ```swift

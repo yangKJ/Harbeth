@@ -39,6 +39,7 @@ Execution contract checks:
 - When touching `HarbethImageNode`, `HarbethKernelDescriptor`, `LayerCompositeRecipe`, or `RenderOutputContract`, run the node graph tests and verify that diagnostics still explain compilation source, optimizer decisions, and output contract fields.
 - Treat `RenderPlanDiagnostics`, `RenderStage`, and `RenderedFrame` metadata as stable contracts; if a field changes, update tests in the same slice.
 - Treat `HarbethRenderTask` as a texture-first GPU execution contract. Changes to command-buffer status, completion observation, or task diagnostics should update `RenderTaskTests` and must not introduce camera, timeline, export, or media lifecycle policy.
+- Treat `HarbethPixelBufferPool` and `renderPixelBuffer(...)` as single-frame output contracts. They may allocate reusable `CVPixelBuffer` render targets, but must not absorb recorder, exporter, timing, or sample scheduling responsibilities.
 - Keep `RenderOptimizationPlan` conservative. It can report texture reuse, lifecycle decisions, persistent outputs, readback boundaries, and conversion decisions, but it must not silently change visual output or absorb product workflow policy.
 - Treat `HarbethKernelDescriptor.fingerprint`, `HarbethKernelResourceDescriptor`, and `RenderOutputContract.fingerprint` as public technical contracts. New kernel metadata should be deterministic and testable.
 - Execution may use `RenderOptimizationPlan` to prewarm or reuse render targets, but optimizer decisions must remain explainable through diagnostics and covered by contract tests.

@@ -346,6 +346,7 @@ Harbeth 不只支持“直接出图”，也支持更适合真实工程链路的
 - 输入可使用 `UIImage`、`NSImage`、`CGImage`、`MTLTexture`、`CVPixelBuffer`、`CMSampleBuffer`。
 - 需要 primitive 级直接出图时，使用 `output()`。
 - 需要 filters 路径的 texture-first / frame-first 输出时，使用 `renderTexture(profile:)` / `renderFrame(profile:)`。
+- 需要输出到新的 `CVPixelBuffer`，且不原地修改输入 buffer 时，使用 `renderPixelBuffer(profile:)`。
 - 需要 recipe-driven execution 时，使用 `renderTexture(recipe:)` / `renderFrame(recipe:)`。
 - 需要转场 primitive 时，使用 `renderTransitionTexture(_:)` / `renderTransitionFrame(_:)`。
 
@@ -378,6 +379,7 @@ Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定
 - `HarbethImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径
 - `HarbethKernelDescriptor`：提供 function identity、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
 - `HarbethRenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
+- `HarbethPixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
 - `RenderOutputContract`：显式描述 alpha、color-space、pixel-format 意图，供 diagnostics 和保守执行计划使用
 - `RenderOptimizationPlan`：以保守方式描述 transient texture 复用、persistent output、纹理成本估算、readback boundary 和格式转换决策。texture-first 执行路径可据此预热可复用 render target，但不改变视觉输出
 
@@ -402,6 +404,12 @@ task.observeCompletion { task in
 
 let outputTexture = try task.output()
 let diagnostics = task.diagnostics
+```
+
+```swift
+let pixelBufferPool = try HarbethPixelBufferPool(width: 1920, height: 1080)
+let outputPixelBuffer = try HarbethIO(element: inputTexture, filters: filters)
+    .renderPixelBuffer(profile: .stablePreview, pool: pixelBufferPool)
 ```
 
 ```swift
