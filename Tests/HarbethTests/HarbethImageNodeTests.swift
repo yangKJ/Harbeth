@@ -246,6 +246,27 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertNil(opacity.passes.first?.renderPass)
     }
 
+    func testKernelDescriptorCanBuildCompatibleInvocation() {
+        let filter = C7Brightness(brightness: 0.2)
+        let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 4, height: 4))
+        let invocation = descriptor.makeInvocation(filter: filter, inputSize: C7Size(width: 4, height: 4))
+
+        XCTAssertTrue(invocation.isCompatible)
+        XCTAssertEqual(invocation.compatibilitySummary, "compatible")
+        XCTAssertTrue(invocation.fingerprint.contains("filter=C7Brightness"))
+        XCTAssertTrue(descriptor.matches(filter, inputSize: C7Size(width: 4, height: 4)))
+    }
+
+    func testKernelDescriptorDetectsIncompatibleInvocation() {
+        let descriptor = C7Brightness(brightness: 0.2).kernelDescriptor(inputSize: C7Size(width: 4, height: 4))
+        let incompatibleFilter = C7Contrast(contrast: 1.1)
+        let invocation = descriptor.makeInvocation(filter: incompatibleFilter, inputSize: C7Size(width: 4, height: 4))
+
+        XCTAssertFalse(invocation.isCompatible)
+        XCTAssertEqual(invocation.compatibilitySummary, "functionIdentityMismatch")
+        XCTAssertFalse(descriptor.matches(incompatibleFilter, inputSize: C7Size(width: 4, height: 4)))
+    }
+
     func testRenderKernelDescriptorExposesRenderPassContract() {
         let basicDescriptor = RenderBasicFilter().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
         let projectiveDescriptor = RenderTransform3D().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
@@ -352,6 +373,48 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(diagnostics.compilationSource, .layerComposite)
         XCTAssertEqual(diagnostics.nodes.first?.name.contains("C7LayerComposite"), true)
         XCTAssertEqual(diagnostics.optimizationPlan.destinationTextureCreationCount, 1)
+    }
+
+    func testNodeRenderPlanAndRenderRecipeExposeStableContracts() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [80, 40, 20, 255])
+        let node = HarbethImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+            .withCachePolicy(.persistent)
+            .withSamplerDescriptor(.nearest)
+
+        let plan = try node.makeRenderPlan(
+            profile: .responseLatency,
+            derivative: ImageDerivativeSpec(
+                name: "nodeThumb",
+                renderIntent: .responsive,
+                sourceTier: .stableReusable,
+                semantic: RenderProfile.responseLatency.defaultImageSemantic,
+                outputSizePolicy: .maxPixelSize(2)
+            )
+        )
+        let recipe = try node.makeRenderRecipe(
+            profile: .responseLatency,
+            derivative: ImageDerivativeSpec(
+                name: "nodeThumb",
+                renderIntent: .responsive,
+                sourceTier: .stableReusable,
+                semantic: RenderProfile.responseLatency.defaultImageSemantic,
+                outputSizePolicy: .maxPixelSize(2)
+            )
+        )
+
+        XCTAssertEqual(plan.diagnostics.compilationSource, .nodeGraph)
+        XCTAssertEqual(plan.diagnostics.imageCachePolicy, .persistent)
+        XCTAssertEqual(plan.diagnostics.samplerDescriptor, .nearest)
+        XCTAssertEqual(plan.diagnostics.derivative.name, "nodeThumb")
+        XCTAssertFalse(plan.diagnostics.graphFingerprint.isEmpty)
+        XCTAssertTrue(plan.diagnostics.summary.contains("graph="))
+        XCTAssertEqual(recipe.outputDerivative.name, "nodeThumb")
+        XCTAssertEqual(recipe.outputCachePolicy, .persistent)
+        XCTAssertEqual(recipe.source.kind, "texture")
+        XCTAssertEqual(recipe.filters.count, 1)
+        XCTAssertTrue(recipe.filters.first?.stableTypeID.contains("C7Brightness") == true)
     }
 
     func testLayerCompositeSupportsDifferenceBlendAndClampsFrame() throws {

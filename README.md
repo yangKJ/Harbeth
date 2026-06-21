@@ -142,6 +142,7 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
 - `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths, including explicit transient/persistent image cache policy and sampler descriptors.
 - `HarbethKernelDescriptor`: lightweight technical metadata for function identity, library source lookup identity, function-constant specialization, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
+- `HarbethKernelInvocation`: bridges a stable kernel descriptor to an executable filter instance, exposing compatibility summary and deterministic fingerprinting for node-graph execution.
 - `HarbethRenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
 - `HarbethPixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
 - `RenderOutputContract`: explicit alpha, color-space, wide-gamut, pixel-format, and high-precision output intent for diagnostics and conservative planning.
@@ -188,6 +189,23 @@ let nodeFrame = try HarbethIO(element: inputTexture, filters: [])
     .renderFrame(node: node, profile: .stablePreview)
 let nodeDiagnostics = try HarbethIO(element: inputTexture, filters: [])
     .renderDiagnostics(node: node)
+let nodePlan = try node.makeRenderPlan(profile: .stablePreview)
+let nodeRecipe = try node.makeRenderRecipe(profile: .stablePreview)
+```
+
+```swift
+let filter = C7Brightness(brightness: 0.1)
+let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 1920, height: 1080))
+let invocation = descriptor.makeInvocation(
+    filter: filter,
+    inputSize: C7Size(width: 1920, height: 1080)
+)
+let kernelNode = HarbethImageNode
+    .texture(inputTexture)
+    .applying(invocation)
+
+let kernelDiagnostics = try kernelNode.makeDiagnostics(profile: .stablePreview)
+let kernelPlan = try kernelNode.makeRenderPlan(profile: .stablePreview)
 ```
 
 ### Geometry, Local Mask, and Transition Primitives

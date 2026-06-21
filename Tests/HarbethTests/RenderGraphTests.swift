@@ -97,6 +97,10 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.nodes.first?.inputSize, C7Size(width: 640, height: 480))
         XCTAssertEqual(plan.diagnostics.nodes[2].outputSize, C7Size(width: 320, height: 240))
         XCTAssertEqual(plan.diagnostics.nodes[2].parameterSummary["width"], "320.0")
+        XCTAssertFalse(plan.diagnostics.graphFingerprint.isEmpty)
+        XCTAssertTrue(plan.diagnostics.summary.contains("graph="))
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.transientStageCount, 2)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.renderStageCount, 0)
     }
 
     func testConfiguredProfilePropagatesIntoRenderPlan() throws {
@@ -152,6 +156,8 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(diagnostics.compilationSource, .filtersPrimitive)
         XCTAssertTrue(diagnostics.summary.contains("output=6x5"))
         XCTAssertTrue(diagnostics.summary.contains("source=filtersPrimitive"))
+        XCTAssertTrue(diagnostics.summary.contains("transientStages="))
+        XCTAssertFalse(diagnostics.graphFingerprint.isEmpty)
     }
 
     func testOptimizerKeepsNeighborhoodComputeInSeparateStage() {
@@ -198,5 +204,20 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.nodes.last?.parameterSummary["derivative"], "panelThumbnail")
         XCTAssertTrue(plan.diagnostics.containsDerivativeResize)
         XCTAssertTrue(plan.diagnostics.stages.last?.containsDerivativeResize ?? false)
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("keepDerivativeResizeAtTerminalStage"))
+    }
+
+    func testRenderStageDiagnosticsCountRenderStages() {
+        let plan = GraphCompiler.compile(
+            filters: [RenderBasicFilter()],
+            inputSize: C7Size(width: 32, height: 24),
+            profile: .stablePreview
+        )
+
+        XCTAssertEqual(plan.optimizedStages.count, 1)
+        XCTAssertEqual(plan.optimizedStages.first?.stageKind, .render)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.renderStageCount, 1)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.transientStageCount, 0)
+        XCTAssertTrue(plan.diagnostics.graphFingerprint.contains("source=filtersPrimitive"))
     }
 }

@@ -95,6 +95,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public let persistentOutputCount: Int
     public let mergedStageCount: Int
     public let fusionEligibleNodeCount: Int
+    public let transientStageCount: Int
+    public let renderStageCount: Int
     public let estimatedTransientByteCount: Int
     public let estimatedPersistentByteCount: Int
     public let readbackBoundaryCount: Int
@@ -108,6 +110,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
                 persistentOutputCount: Int,
                 mergedStageCount: Int,
                 fusionEligibleNodeCount: Int,
+                transientStageCount: Int,
+                renderStageCount: Int,
                 estimatedTransientByteCount: Int,
                 estimatedPersistentByteCount: Int,
                 readbackBoundaryCount: Int,
@@ -120,6 +124,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
         self.persistentOutputCount = persistentOutputCount
         self.mergedStageCount = mergedStageCount
         self.fusionEligibleNodeCount = fusionEligibleNodeCount
+        self.transientStageCount = transientStageCount
+        self.renderStageCount = renderStageCount
         self.estimatedTransientByteCount = estimatedTransientByteCount
         self.estimatedPersistentByteCount = estimatedPersistentByteCount
         self.readbackBoundaryCount = readbackBoundaryCount
@@ -215,6 +221,7 @@ public struct RenderNodeDiagnostic: Sendable, Equatable {
 public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let profile: RenderProfile
     public let derivative: ImageDerivativeSpec
+    public let graphFingerprint: String
     public let inputSize: C7Size
     public let outputSize: C7Size
     public let containsBoundary: Bool
@@ -236,6 +243,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
 
     public init(profile: RenderProfile,
                 derivative: ImageDerivativeSpec,
+                graphFingerprint: String,
                 inputSize: C7Size,
                 outputSize: C7Size,
                 containsBoundary: Bool,
@@ -256,6 +264,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
                 stages: [RenderStage]) {
         self.profile = profile
         self.derivative = derivative
+        self.graphFingerprint = graphFingerprint
         self.inputSize = inputSize
         self.outputSize = outputSize
         self.containsBoundary = containsBoundary
@@ -288,6 +297,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "derivative=\(derivative.name)",
             "input=\(inputSize.width)x\(inputSize.height)",
             "output=\(outputSize.width)x\(outputSize.height)",
+            "graph=\(graphFingerprint)",
             "nodes=\(nodes.count)",
             "stages=\(stageCount)",
             "boundary=\(containsBoundary ? 1 : 0)",
@@ -299,6 +309,8 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
             "mergedStages=\(optimizationPlan.mergedStageCount)",
             "fusionEligibleNodes=\(optimizationPlan.fusionEligibleNodeCount)",
+            "transientStages=\(optimizationPlan.transientStageCount)",
+            "renderStages=\(optimizationPlan.renderStageCount)",
             "transientBytes=\(optimizationPlan.estimatedTransientByteCount)",
             "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
@@ -321,6 +333,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         return RenderPlanDiagnostics(
             profile: profile,
             derivative: derivative,
+            graphFingerprint: graphFingerprint,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -346,6 +359,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         RenderPlanDiagnostics(
             profile: profile,
             derivative: derivative,
+            graphFingerprint: graphFingerprint,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -406,6 +420,11 @@ public struct RenderPlan {
         self.diagnostics = RenderPlanDiagnostics(
             profile: profile,
             derivative: derivative,
+            graphFingerprint: RenderPlanDiagnostics.makeGraphFingerprint(
+                nodes: nodeDiagnostics,
+                stages: optimizedStages,
+                compilationSource: compilationSource
+            ),
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -445,6 +464,10 @@ public enum GraphOptimizer {
         let fusionEligibleNodeCount = stages
             .filter { $0.mergeClass != nil }
             .reduce(0) { $0 + $1.filterCount }
+        let transientStageCount = stages.filter { stage in
+            stage.createsDestinationTexture && stage.index < stages.count - 1
+        }.count
+        let renderStageCount = stages.filter { $0.stageKind == .render }.count
         let lifecycleDecisions = makeLifecycleDecisions(stages: stages)
         let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
         let estimatedTransientByteCount = lifecycleDecisions
@@ -484,6 +507,8 @@ public enum GraphOptimizer {
             persistentOutputCount: 1,
             mergedStageCount: mergedStageCount,
             fusionEligibleNodeCount: fusionEligibleNodeCount,
+            transientStageCount: transientStageCount,
+            renderStageCount: renderStageCount,
             estimatedTransientByteCount: estimatedTransientByteCount,
             estimatedPersistentByteCount: estimatedPersistentByteCount,
             readbackBoundaryCount: readbackBoundaryCount,
@@ -648,6 +673,22 @@ public enum GraphOptimizer {
 
         flushStage()
         return stages
+    }
+}
+
+private extension RenderPlanDiagnostics {
+    static func makeGraphFingerprint(nodes: [RenderNodeDiagnostic],
+                                     stages: [RenderStage],
+                                     compilationSource: RenderCompilationSource) -> String {
+        let nodePart = nodes
+            .map { "\($0.index):\($0.name):\($0.kind.rawValue):\($0.outputSize.width)x\($0.outputSize.height)" }
+            .joined(separator: "|")
+        let stagePart = stages
+            .map { stage in
+                "s\(stage.index):\(stage.stageKind.rawValue):\(stage.nodeIndices.map(String.init).joined(separator: ",")):\(stage.outputSize.width)x\(stage.outputSize.height)"
+            }
+            .joined(separator: "|")
+        return "source=\(compilationSource.rawValue)#nodes[\(nodePart)]#stages[\(stagePart)]"
     }
 }
 

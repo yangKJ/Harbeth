@@ -378,6 +378,7 @@ Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定
 - `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
 - `HarbethImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径，并显式表达 transient/persistent 图像缓存语义和采样描述
 - `HarbethKernelDescriptor`：提供 function identity、library source lookup identity、function constant specialization、稳定 argument descriptor、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
+- `HarbethKernelInvocation`：把稳定的 kernel descriptor 桥接到可执行 filter 实例，显式暴露兼容性摘要和稳定 fingerprint，便于 node graph 执行与验证
 - `HarbethRenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
 - `HarbethPixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
 - `RenderOutputContract`：显式描述 alpha、color-space、wide-gamut、pixel-format 和 high-precision 输出意图，供 diagnostics 和保守执行计划使用
@@ -424,6 +425,23 @@ let nodeFrame = try HarbethIO(element: inputTexture, filters: [])
     .renderFrame(node: node, profile: .stablePreview)
 let nodeDiagnostics = try HarbethIO(element: inputTexture, filters: [])
     .renderDiagnostics(node: node)
+let nodePlan = try node.makeRenderPlan(profile: .stablePreview)
+let nodeRecipe = try node.makeRenderRecipe(profile: .stablePreview)
+```
+
+```swift
+let filter = C7Brightness(brightness: 0.1)
+let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 1920, height: 1080))
+let invocation = descriptor.makeInvocation(
+    filter: filter,
+    inputSize: C7Size(width: 1920, height: 1080)
+)
+let kernelNode = HarbethImageNode
+    .texture(inputTexture)
+    .applying(invocation)
+
+let kernelDiagnostics = try kernelNode.makeDiagnostics(profile: .stablePreview)
+let kernelPlan = try kernelNode.makeRenderPlan(profile: .stablePreview)
 ```
 
 ### 几何、局部蒙版与转场 Primitive

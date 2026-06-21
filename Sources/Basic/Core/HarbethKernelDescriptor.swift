@@ -472,6 +472,36 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
+public extension HarbethKernelDescriptor {
+    func compatibilitySummary(with filter: C7FilterProtocol,
+                              inputSize: C7Size? = nil) -> String {
+        let runtimeDescriptor = filter.kernelDescriptor(inputSize: inputSize)
+        if functionIdentity != runtimeDescriptor.functionIdentity {
+            return "functionIdentityMismatch"
+        }
+        if resourceUsage != runtimeDescriptor.resourceUsage {
+            return "resourceUsageMismatch"
+        }
+        if resources.inputTextureCount != runtimeDescriptor.resources.inputTextureCount {
+            return "inputTextureCountMismatch"
+        }
+        return "compatible"
+    }
+
+    func matches(_ filter: C7FilterProtocol, inputSize: C7Size? = nil) -> Bool {
+        compatibilitySummary(with: filter, inputSize: inputSize) == "compatible"
+    }
+
+    func makeInvocation(filter: C7FilterProtocol,
+                        inputSize: C7Size? = nil) -> HarbethKernelInvocation {
+        HarbethKernelInvocation(
+            descriptor: self,
+            executableFilter: filter,
+            inputSize: inputSize
+        )
+    }
+}
+
 public extension C7FilterProtocol {
     func kernelDescriptor(inputSize: C7Size? = nil) -> HarbethKernelDescriptor {
         let outputSize = inputSize.map { resize(input: $0) }

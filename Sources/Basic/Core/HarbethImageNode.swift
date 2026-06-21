@@ -7,6 +7,9 @@
 
 import Foundation
 import Metal
+import CoreGraphics
+import CoreVideo
+import CoreMedia
 
 public protocol HarbethImagePromise {
     var compilationSource: RenderCompilationSource { get }
@@ -28,12 +31,52 @@ public indirect enum HarbethImageNode {
         .filters(input: .source(source), filters: filters)
     }
 
+    public static func texture(_ texture: MTLTexture) -> HarbethImageNode {
+        .source(.texture(texture))
+    }
+
+    public static func image(_ image: C7Image) -> HarbethImageNode {
+        .source(.image(image))
+    }
+
+    public static func cgImage(_ image: CGImage) -> HarbethImageNode {
+        .source(.cgImage(image))
+    }
+
+    public static func pixelBuffer(_ pixelBuffer: CVPixelBuffer) -> HarbethImageNode {
+        .source(.pixelBuffer(pixelBuffer))
+    }
+
+    public static func sampleBuffer(_ sampleBuffer: CMSampleBuffer) -> HarbethImageNode {
+        .source(.sampleBuffer(sampleBuffer))
+    }
+
+    public static func data(_ data: Data) -> HarbethImageNode {
+        .source(.data(data))
+    }
+
+    public static func asset(_ asset: HarbethImageAsset) -> HarbethImageNode {
+        .source(.asset(asset))
+    }
+
     public func withCachePolicy(_ policy: ImageCachePolicy) -> HarbethImageNode {
         .cachePolicy(input: self, policy: policy)
     }
 
     public func withSamplerDescriptor(_ descriptor: ImageSamplerDescriptor) -> HarbethImageNode {
         .samplerDescriptor(input: self, descriptor: descriptor)
+    }
+
+    public func applying(_ filter: C7FilterProtocol) -> HarbethImageNode {
+        .filters(input: self, filters: [filter])
+    }
+
+    public func applying(filters: [C7FilterProtocol]) -> HarbethImageNode {
+        .filters(input: self, filters: filters)
+    }
+
+    public func applying(_ invocation: HarbethKernelInvocation) -> HarbethImageNode {
+        .kernel(input: self, descriptor: invocation.descriptor, filter: invocation.executableFilter)
     }
 }
 
@@ -135,6 +178,11 @@ extension HarbethImageNode: HarbethImagePromise {
 
     public func makeDiagnostics(profile: RenderProfile = .stablePreview,
                                 derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+        try makeRenderPlan(profile: profile, derivative: derivative).diagnostics
+    }
+
+    public func makeRenderPlan(profile: RenderProfile = .stablePreview,
+                               derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
         switch self {
         case .source(let source):
             let texture = try source.makeTexture()
@@ -145,7 +193,7 @@ extension HarbethImageNode: HarbethImagePromise {
                 derivative: derivative ?? profile.defaultDerivativeSpec,
                 compilationSource: .nodeGraph,
                 imageCachePolicy: source.cachePolicy
-            ).diagnostics
+            )
         case .filters(let input, let filters):
             let texture = try input.makeTexture(profile: profile, derivative: nil)
             return GraphCompiler.compile(
@@ -154,7 +202,7 @@ extension HarbethImageNode: HarbethImagePromise {
                 profile: profile,
                 derivative: derivative ?? profile.defaultDerivativeSpec,
                 compilationSource: .nodeGraph
-            ).diagnostics
+            )
         case .kernel(let input, let descriptor, let filter):
             let texture = try input.makeTexture(profile: profile, derivative: nil)
             return GraphCompiler.compile(
@@ -164,7 +212,7 @@ extension HarbethImageNode: HarbethImagePromise {
                 derivative: derivative ?? profile.defaultDerivativeSpec,
                 compilationSource: .nodeGraph,
                 outputContract: descriptor.outputContract
-            ).diagnostics
+            )
         case .recipe(let source, let recipe, let mode):
             let texture = try recipe.resolvedSource(source).makeTexture()
             let contract = recipe.contract(for: mode)
@@ -181,7 +229,7 @@ extension HarbethImageNode: HarbethImagePromise {
                 profile: contract.profile,
                 derivative: effectiveDerivative,
                 compilationSource: .editRecipe
-            ).diagnostics
+            )
         case .transition(let recipe):
             let texture = try recipe.from.makeTexture()
             return GraphCompiler.compile(
@@ -190,17 +238,68 @@ extension HarbethImageNode: HarbethImagePromise {
                 profile: recipe.profile,
                 derivative: derivative ?? recipe.derivative,
                 compilationSource: .transition
-            ).diagnostics
+            )
         case .layerComposite(let recipe):
-            return try recipe.makeDiagnostics(derivative: derivative)
+            return try recipe.makeRenderPlan(derivative: derivative)
         case .cachePolicy(let input, let policy):
-            return try input.makeDiagnostics(profile: profile, derivative: derivative)
-                .withImageCachePolicy(policy)
+            let plan = try input.makeRenderPlan(profile: profile, derivative: derivative)
+            return RenderPlan(
+                graph: plan.graph,
+                profile: plan.profile,
+                derivative: plan.diagnostics.derivative,
+                inputSize: plan.diagnostics.inputSize,
+                outputSize: plan.diagnostics.outputSize,
+                nodeDiagnostics: plan.diagnostics.nodes,
+                compilationSource: plan.diagnostics.compilationSource,
+                outputContract: plan.diagnostics.outputContract,
+                imageCachePolicy: policy,
+                samplerDescriptor: plan.diagnostics.samplerDescriptor
+            )
         case .samplerDescriptor(let input, let descriptor):
             _ = Shared.shared.defaultContext.makeSamplerState(descriptor)
-            return try input.makeDiagnostics(profile: profile, derivative: derivative)
-                .withSamplerDescriptor(descriptor)
+            let plan = try input.makeRenderPlan(profile: profile, derivative: derivative)
+            return RenderPlan(
+                graph: plan.graph,
+                profile: plan.profile,
+                derivative: plan.diagnostics.derivative,
+                inputSize: plan.diagnostics.inputSize,
+                outputSize: plan.diagnostics.outputSize,
+                nodeDiagnostics: plan.diagnostics.nodes,
+                compilationSource: plan.diagnostics.compilationSource,
+                outputContract: plan.diagnostics.outputContract,
+                imageCachePolicy: plan.diagnostics.imageCachePolicy,
+                samplerDescriptor: descriptor
+            )
         }
+    }
+
+    public func makeRenderRecipe(profile: RenderProfile = .stablePreview,
+                                 derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
+        let plan = try makeRenderPlan(profile: profile, derivative: derivative)
+        let primarySource = try resolvedPrimarySource()
+        return RenderRecipe(
+            renderProfile: String(describing: plan.profile),
+            renderIntent: plan.diagnostics.derivative.renderIntent,
+            source: primarySource.descriptor,
+            outputDerivative: plan.diagnostics.derivative,
+            outputCachePolicy: resolvedCachePolicy,
+            outputSemantic: plan.diagnostics.derivative.semantic,
+            alphaType: primarySource.alphaType,
+            orientation: primarySource.orientation,
+            filters: plan.diagnostics.nodes
+                .filter { $0.name != "DerivativeResize" }
+                .map { diagnostic in
+                    FilterRecipeDescriptor(
+                        stableTypeID: diagnostic.name,
+                        modifier: diagnostic.kind.rawValue,
+                        parameterValues: diagnostic.parameterSummary
+                            .sorted { $0.key < $1.key }
+                            .map { "\($0.key)=\($0.value)" },
+                        otherInputTextureCount: 0,
+                        hasCount: false
+                    )
+                }
+        )
     }
 
     public func makeFrame(profile: RenderProfile = .stablePreview,
@@ -308,9 +407,49 @@ extension HarbethImageNode: HarbethImagePromise {
             return "\(input.nodeFingerprint)|samplerOverride=\(descriptor.fingerprint)"
         }
     }
+
+    private func resolvedPrimarySource() throws -> HarbethSource {
+        switch self {
+        case .source(let source):
+            return source
+        case .filters(let input, _), .kernel(let input, _, _), .cachePolicy(let input, _), .samplerDescriptor(let input, _):
+            return try input.resolvedPrimarySource()
+        case .recipe(let source, _, _):
+            return source
+        case .transition(let recipe):
+            return recipe.from
+        case .layerComposite(let recipe):
+            return recipe.background
+        }
+    }
 }
 
 extension LayerCompositeRecipe {
+    func makeRenderPlan(derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
+        let backgroundTexture = try background.makeTexture()
+        let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
+        let placeholderTexture = backgroundTexture
+        let filters = layers.map { layer in
+            C7LayerComposite(
+                layerTexture: placeholderTexture,
+                mask: layer.mask,
+                compositingMask: layer.compositingMask,
+                normalizedFrame: layer.normalizedFrame,
+                opacity: layer.opacity,
+                blendMode: layer.blendMode,
+                cornerRadius: layer.cornerRadius
+            )
+        }
+        return GraphCompiler.compile(
+            filters: filters,
+            inputSize: backgroundSize,
+            profile: profile,
+            derivative: derivative ?? self.derivative,
+            compilationSource: .layerComposite,
+            outputContract: outputContract
+        )
+    }
+
     func makeTexture(derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
         var current = try background.makeTexture()
         guard layers.isEmpty == false else {
@@ -351,28 +490,7 @@ extension LayerCompositeRecipe {
     }
 
     func makeDiagnostics(derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
-        let backgroundTexture = try background.makeTexture()
-        let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
-        let placeholderTexture = backgroundTexture
-        let filters = layers.map { layer in
-            C7LayerComposite(
-                layerTexture: placeholderTexture,
-                mask: layer.mask,
-                compositingMask: layer.compositingMask,
-                normalizedFrame: layer.normalizedFrame,
-                opacity: layer.opacity,
-                blendMode: layer.blendMode,
-                cornerRadius: layer.cornerRadius
-            )
-        }
-        return GraphCompiler.compile(
-            filters: filters,
-            inputSize: backgroundSize,
-            profile: profile,
-            derivative: derivative ?? self.derivative,
-            compilationSource: .layerComposite,
-            outputContract: outputContract
-        ).diagnostics
+        try makeRenderPlan(derivative: derivative).diagnostics
     }
 
     private func resizeTextureIfNeeded(_ texture: MTLTexture,
