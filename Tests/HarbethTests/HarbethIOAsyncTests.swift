@@ -107,6 +107,26 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertTrue(recipe.fingerprint.contains("output=maxPixel:160"))
     }
 
+    func testRenderRequestCarriesStableContractsAndDeferredExecution() throws {
+        let image = try makeFixtureCGImage()
+        let io = HarbethIO<CGImage>(
+            element: image,
+            filters: [C7Brightness(brightness: 0.2)]
+        )
+
+        let request = try io.makeRenderRequest(profile: .stablePreview)
+        let frame = try request.renderFrame(metadata: ["request": "deferred"])
+
+        XCTAssertEqual(request.compilationSource, .filtersPrimitive)
+        XCTAssertEqual(request.profile, .stablePreview)
+        XCTAssertEqual(request.derivative.renderIntent, .stable)
+        XCTAssertEqual(request.source.kind, "cgImage")
+        XCTAssertEqual(request.outputCachePolicy, .transient)
+        XCTAssertEqual(request.renderRecipe?.renderIntent, .stable)
+        XCTAssertEqual(frame.metadata["request"], "deferred")
+        XCTAssertEqual(frame.profile, .stablePreview)
+    }
+
     private func makeFixtureCGImage() throws -> CGImage {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bytes: [UInt8] = [255, 0, 0, 255]

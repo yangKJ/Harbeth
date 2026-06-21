@@ -417,6 +417,25 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertTrue(recipe.filters.first?.stableTypeID.contains("C7Brightness") == true)
     }
 
+    func testNodeRenderRequestCarriesDeferredExecutionContract() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [40, 80, 120, 255])
+        let node = HarbethImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+
+        let request = try node.makeRenderRequest(profile: .stablePreview)
+        let texture = try request.renderTexture()
+        let frame = try request.renderFrame(metadata: ["node": "request"])
+
+        XCTAssertEqual(request.compilationSource, .nodeGraph)
+        XCTAssertEqual(request.profile, .stablePreview)
+        XCTAssertEqual(request.source.kind, "texture")
+        XCTAssertEqual(request.renderRecipe?.renderIntent, .stable)
+        XCTAssertEqual(texture.width, 2)
+        XCTAssertEqual(frame.metadata["node"], "request")
+        XCTAssertEqual(frame.profile, .stablePreview)
+    }
+
     func testLayerCompositeSupportsDifferenceBlendAndClampsFrame() throws {
         let background = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 255, 0, 255])

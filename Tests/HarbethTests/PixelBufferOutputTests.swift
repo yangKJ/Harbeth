@@ -1,6 +1,7 @@
 import XCTest
 import Metal
 import CoreVideo
+import CoreMedia
 @testable import Harbeth
 
 final class PixelBufferOutputTests: XCTestCase {
@@ -127,6 +128,67 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(bridgePlan.loadStrategy, .cgImageFallback)
         XCTAssertFalse(bridgePlan.preservesOwnerReference)
         XCTAssertTrue(bridgePlan.requiresColorConversion)
+    }
+
+    func testRenderRequestTracksPixelBufferSourceContract() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 3,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, 4, 3, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &pixelBuffer),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create BGRA pixel buffer.")
+            return
+        }
+
+        let request = try HarbethIO(element: pixelBuffer, filter: C7Brightness(brightness: 0.1))
+            .makeRenderRequest(profile: .stablePreview)
+        let renderRecipe = try XCTUnwrap(request.renderRecipe)
+
+        XCTAssertEqual(request.source.kind, "pixelBuffer")
+        XCTAssertEqual(request.source.cachePolicy, .persistent)
+        XCTAssertEqual(request.compilationSource, .filtersPrimitive)
+        XCTAssertEqual(renderRecipe.source.kind, "pixelBuffer")
+        XCTAssertEqual(renderRecipe.alphaType, .premultiplied)
+        XCTAssertEqual(renderRecipe.orientation, .up)
+    }
+
+    func testNodeRenderRecipeTracksSampleBufferSourceContract() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: 2,
+            kCVPixelBufferHeightKey: 2,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, 2, 2, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &pixelBuffer),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer,
+              let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let node = HarbethImageNode.sampleBuffer(sampleBuffer)
+            .applying(C7Brightness(brightness: 0.1))
+        let request = try node.makeRenderRequest(profile: .stablePreview)
+        let renderRecipe = try XCTUnwrap(request.renderRecipe)
+
+        XCTAssertEqual(request.source.kind, "sampleBuffer")
+        XCTAssertEqual(renderRecipe.source.kind, "sampleBuffer")
+        XCTAssertEqual(renderRecipe.alphaType, .premultiplied)
+        XCTAssertEqual(renderRecipe.orientation, .up)
+        XCTAssertEqual(request.diagnostics.compilationSource, .nodeGraph)
     }
 
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {

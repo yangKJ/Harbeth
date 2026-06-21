@@ -380,6 +380,7 @@ Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定
 - `HarbethKernelDescriptor`：提供 function identity、library source lookup identity、function constant specialization、稳定 argument descriptor、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
 - `HarbethKernelInvocation`：把稳定的 kernel descriptor 桥接到可执行 filter 实例，显式暴露兼容性摘要和稳定 fingerprint，便于 node graph 执行与验证
 - `HarbethRenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
+- `HarbethRenderRequest`：延迟单帧渲染合同。宿主可以先编译 diagnostics、source semantic 和 recipe metadata，再按需要真正 materialize texture/frame 输出
 - `HarbethPixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
 - `RenderOutputContract`：显式描述 alpha、color-space、wide-gamut、pixel-format 和 high-precision 输出意图，供 diagnostics 和保守执行计划使用
 - texture/node 执行路径可以按 `RenderOutputContract` materialize 目标 `MTLPixelFormat`；color-space 仍作为 diagnostics/planning 的显式 contract，除非调用方接入具体转换滤镜
@@ -444,6 +445,8 @@ let kernelDiagnostics = try kernelNode.makeDiagnostics(profile: .stablePreview)
 let kernelPlan = try kernelNode.makeRenderPlan(profile: .stablePreview)
 let recipePlan = try recipe.makeRenderPlan(source: .texture(inputTexture), mode: .preview)
 let recipeDescriptor = try recipe.makeRenderRecipe(source: .texture(inputTexture), mode: .preview)
+let request = try kernelNode.makeRenderRequest(profile: .stablePreview)
+let deferredFrame = try request.renderFrame(metadata: ["mode": "deferred"])
 ```
 
 ### 几何、局部蒙版与转场 Primitive

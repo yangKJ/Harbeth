@@ -115,6 +115,26 @@ public struct LayerCompositeRecipe {
     public func makeNode() -> HarbethImageNode {
         .layerComposite(self)
     }
+
+    public func makeRenderRequest(derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+        let effectiveDerivative = derivative ?? self.derivative
+        let node = makeNode()
+        let diagnostics = try node.makeDiagnostics(profile: profile, derivative: effectiveDerivative)
+        let recipeDescriptor = try node.makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
+        return HarbethRenderRequest(
+            compilationSource: .layerComposite,
+            profile: profile,
+            derivative: effectiveDerivative,
+            source: background.descriptor,
+            outputCachePolicy: .transient,
+            diagnostics: diagnostics,
+            renderRecipe: recipeDescriptor,
+            renderTexture: { try makeTexture(derivative: effectiveDerivative) },
+            renderFrame: { metadata in
+                try node.makeFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+            }
+        )
+    }
 }
 
 public struct C7LayerComposite: C7FilterProtocol {

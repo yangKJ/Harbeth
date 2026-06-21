@@ -144,6 +144,7 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `HarbethKernelDescriptor`: lightweight technical metadata for function identity, library source lookup identity, function-constant specialization, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
 - `HarbethKernelInvocation`: bridges a stable kernel descriptor to an executable filter instance, exposing compatibility summary and deterministic fingerprinting for node-graph execution.
 - `HarbethRenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
+- `HarbethRenderRequest`: deferred single-frame render contract that lets host apps compile diagnostics, source semantics, and recipe metadata first, then materialize texture/frame output later.
 - `HarbethPixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
 - `RenderOutputContract`: explicit alpha, color-space, wide-gamut, pixel-format, and high-precision output intent for diagnostics and conservative planning.
 - Texture/node execution can materialize a target `MTLPixelFormat` from `RenderOutputContract`; color-space metadata remains an explicit contract for diagnostics/planning unless a concrete conversion filter is supplied.
@@ -208,6 +209,8 @@ let kernelDiagnostics = try kernelNode.makeDiagnostics(profile: .stablePreview)
 let kernelPlan = try kernelNode.makeRenderPlan(profile: .stablePreview)
 let recipePlan = try recipe.makeRenderPlan(source: .texture(inputTexture), mode: .preview)
 let recipeDescriptor = try recipe.makeRenderRecipe(source: .texture(inputTexture), mode: .preview)
+let request = try kernelNode.makeRenderRequest(profile: .stablePreview)
+let deferredFrame = try request.renderFrame(metadata: ["mode": "deferred"])
 ```
 
 ### Geometry, Local Mask, and Transition Primitives

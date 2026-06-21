@@ -152,6 +152,78 @@ public struct EditRecipe {
         )
     }
 
+    public func makeRenderRequest(source: HarbethSource,
+                                  mode: EditRecipeMode = .preview,
+                                  extraFilters: [C7FilterProtocol] = [],
+                                  derivative: ImageDerivativeSpec? = nil,
+                                  identifier: String = UUID().uuidString) throws -> HarbethRenderRequest {
+        let compiled = try compileExecution(
+            source: source,
+            mode: mode,
+            extraFilters: extraFilters,
+            derivative: derivative
+        )
+        let plan = try makeRenderPlan(
+            source: source,
+            mode: mode,
+            extraFilters: extraFilters,
+            derivative: derivative
+        )
+        let recipeDescriptor = try makeRenderRecipe(
+            source: source,
+            mode: mode,
+            extraFilters: extraFilters,
+            derivative: derivative
+        )
+        return HarbethRenderRequest(
+            compilationSource: .editRecipe,
+            profile: compiled.profile,
+            derivative: compiled.derivative,
+            source: compiled.source.descriptor,
+            outputCachePolicy: compiled.outputCachePolicy,
+            diagnostics: plan.diagnostics,
+            renderRecipe: recipeDescriptor,
+            renderTexture: {
+                let renderTexture: (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture = { input, filters, profile in
+                    guard filters.isEmpty == false else { return input }
+                    return try HarbethIO(element: input, filters: filters)
+                        .configured(for: profile)
+                        .output()
+                }
+                var currentTexture = try renderTexture(compiled.inputTexture, compiled.baseFilters, compiled.profile)
+                for localEffect in compiled.localEffects {
+                    let effectTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
+                    currentTexture = try renderTexture(
+                        currentTexture,
+                        [C7MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
+                        compiled.profile
+                    )
+                }
+                let targetSize = compiled.derivative.resolvedOutputSize(for: C7Size(width: currentTexture.width, height: currentTexture.height))
+                guard targetSize.width != currentTexture.width || targetSize.height != currentTexture.height else {
+                    return currentTexture
+                }
+                return try HarbethIO(
+                    element: currentTexture,
+                    filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height))
+                )
+                .configured(for: compiled.profile)
+                .output()
+            },
+            renderFrame: { metadata in
+                try FrameRenderer(
+                    source: compiled.source,
+                    recipe: self,
+                    mode: mode,
+                    filters: extraFilters,
+                    identifier: identifier,
+                    metadata: metadata,
+                    derivative: compiled.derivative
+                ).renderFrame()
+            }
+        )
+    }
+
     func resolvedSource(_ source: HarbethSource) -> HarbethSource {
         switch source {
         case .asset(let asset):

@@ -253,6 +253,32 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(diagnostics.nodes.first?.name.contains("C7LayerComposite"), true)
     }
 
+    func testRecipeAndCompositeRenderRequestsExposeDeferredContracts() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 2, height: 2, pixel: [120, 120, 120, 255])
+        let recipe = EditRecipe(filters: [C7Brightness(brightness: 0.1)])
+        let recipeRequest = try recipe.makeRenderRequest(source: .texture(input), mode: .preview)
+
+        XCTAssertEqual(recipeRequest.compilationSource, .editRecipe)
+        XCTAssertEqual(recipeRequest.source.kind, "texture")
+        XCTAssertEqual(recipeRequest.renderRecipe?.renderIntent, .stable)
+        XCTAssertEqual(try recipeRequest.renderTexture().width, 2)
+
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 255, 0, 255])
+        let composite = LayerCompositeRecipe(
+            background: .texture(input),
+            layers: [ImageLayer(content: .texture(layer), normalizedFrame: CGRect(x: 0, y: 0, width: 0.5, height: 1))]
+        )
+        let compositeRequest = try composite.makeRenderRequest()
+
+        XCTAssertEqual(compositeRequest.compilationSource, .layerComposite)
+        XCTAssertEqual(compositeRequest.source.kind, "texture")
+        XCTAssertEqual(compositeRequest.renderRecipe?.source.kind, "texture")
+        XCTAssertEqual(try compositeRequest.renderFrame(metadata: ["kind": "composite"]).metadata["kind"], "composite")
+    }
+
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

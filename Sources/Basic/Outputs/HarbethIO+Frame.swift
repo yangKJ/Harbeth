@@ -116,6 +116,27 @@ extension HarbethIO {
         )
     }
 
+    public func makeRenderRequest(profile: RenderProfile = .stablePreview,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let renderRecipe = try renderRecipe(profile: profile, derivative: effectiveDerivative)
+        let diagnostics = try renderDiagnostics(profile: profile, derivative: effectiveDerivative)
+        let source = try makeHarbethSource()
+        return HarbethRenderRequest(
+            compilationSource: .filtersPrimitive,
+            profile: profile,
+            derivative: effectiveDerivative,
+            source: source.descriptor,
+            outputCachePolicy: renderRecipe.outputCachePolicy,
+            diagnostics: diagnostics,
+            renderRecipe: renderRecipe,
+            renderTexture: { try renderTexture(profile: profile, derivative: effectiveDerivative) },
+            renderFrame: { metadata in
+                try renderFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+            }
+        )
+    }
+
     public func renderTexture(recipe: EditRecipe,
                               mode: EditRecipeMode = .preview,
                               derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
@@ -159,6 +180,18 @@ extension HarbethIO {
         try recipe.makeTexture(derivative: derivative)
     }
 
+    public func makeRenderRequest(recipe: EditRecipe,
+                                  mode: EditRecipeMode = .preview,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+        try recipe.makeRenderRequest(
+            source: makeHarbethSource(),
+            mode: mode,
+            extraFilters: filters,
+            derivative: derivative,
+            identifier: identifier
+        )
+    }
+
     public func renderDiagnostics(composite recipe: LayerCompositeRecipe,
                                   derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
         let diagnostics = try recipe.makeDiagnostics(derivative: derivative)
@@ -179,6 +212,11 @@ extension HarbethIO {
             derivative: derivative ?? recipe.derivative,
             metadata: metadata
         )
+    }
+
+    public func makeRenderRequest(composite recipe: LayerCompositeRecipe,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+        try recipe.makeRenderRequest(derivative: derivative)
     }
 
     public func renderDiagnostics(node: HarbethImageNode,

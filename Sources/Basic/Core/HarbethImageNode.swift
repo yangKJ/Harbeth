@@ -304,6 +304,27 @@ extension HarbethImageNode: HarbethImagePromise {
         ).renderFrame()
     }
 
+    public func makeRenderRequest(profile: RenderProfile = .stablePreview,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
+        let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
+        let source = try resolvedPrimarySource()
+        return HarbethRenderRequest(
+            compilationSource: diagnostics.compilationSource,
+            profile: profile,
+            derivative: effectiveDerivative,
+            source: source.descriptor,
+            outputCachePolicy: resolvedCachePolicy,
+            diagnostics: diagnostics,
+            renderRecipe: renderRecipe,
+            renderTexture: { try makeTexture(profile: profile, derivative: effectiveDerivative) },
+            renderFrame: { metadata in
+                try makeFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+            }
+        )
+    }
+
     private func resizeTextureIfNeeded(_ texture: MTLTexture,
                                        derivative: ImageDerivativeSpec,
                                        profile: RenderProfile) throws -> MTLTexture {
