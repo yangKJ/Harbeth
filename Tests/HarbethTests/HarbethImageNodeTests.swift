@@ -440,6 +440,59 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(RenderOutputContract.preserveInput.alpha, .preserveInput)
     }
 
+    func testRenderOutputContractTracksWideGamutAndHighPrecisionOutput() {
+        let displayP3 = RenderOutputContract.displayP3Texture
+        let highPrecision = RenderOutputContract.highPrecisionLinearTexture
+
+        XCTAssertTrue(displayP3.isWideGamutOutput)
+        XCTAssertFalse(displayP3.isHighPrecisionOutput)
+        XCTAssertTrue(displayP3.isHDRFriendlyOutput)
+        XCTAssertEqual(displayP3.colorSpace.gamut, .displayP3)
+        XCTAssertEqual(displayP3.colorSpace.transferFunction, .sRGB)
+        XCTAssertEqual(displayP3.pixelFormat.precision, .unorm8)
+
+        XCTAssertTrue(highPrecision.isWideGamutOutput)
+        XCTAssertTrue(highPrecision.isHighPrecisionOutput)
+        XCTAssertTrue(highPrecision.isHDRFriendlyOutput)
+        XCTAssertEqual(highPrecision.colorSpace.transferFunction, .linear)
+        XCTAssertEqual(highPrecision.pixelFormat.precision, .float16)
+        XCTAssertTrue(highPrecision.fingerprint.contains("gamut=extendedLinearSRGB"))
+        XCTAssertTrue(highPrecision.fingerprint.contains("precision=float16"))
+    }
+
+    func testRenderDiagnosticsExposeOutputQualityContract() {
+        let plan = GraphCompiler.compile(
+            filters: [C7Brightness(brightness: 0.1)],
+            inputSize: C7Size(width: 2, height: 2),
+            outputContract: .highPrecisionLinearTexture
+        )
+
+        XCTAssertEqual(plan.diagnostics.colorConversionCount, 1)
+        XCTAssertEqual(plan.diagnostics.pixelFormatConversionCount, 1)
+        XCTAssertTrue(plan.diagnostics.summary.contains("colorGamut=extendedLinearSRGB"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("transfer=linear"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("pixelPrecision=float16"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("hdrFriendly=1"))
+    }
+
+    func testRenderOutputContractDecodesOlderColorAndPixelFormatPayloads() throws {
+        let colorData = Data("""
+        {"name":"sRGB","preservesInput":false}
+        """.utf8)
+        let pixelData = Data("""
+        {"name":"rgba8Unorm","preservesInput":false}
+        """.utf8)
+
+        let color = try JSONDecoder().decode(ImageColorSpaceContract.self, from: colorData)
+        let pixel = try JSONDecoder().decode(PixelFormatContract.self, from: pixelData)
+
+        XCTAssertEqual(color.name, "sRGB")
+        XCTAssertEqual(color.gamut, .preserveInput)
+        XCTAssertEqual(color.transferFunction, .preserveInput)
+        XCTAssertEqual(pixel.name, "rgba8Unorm")
+        XCTAssertEqual(pixel.precision, .custom)
+    }
+
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {
         let bytes = Array(repeating: pixel, count: width * height)
         return try makeTexture(width: width, height: height, pixels: bytes)

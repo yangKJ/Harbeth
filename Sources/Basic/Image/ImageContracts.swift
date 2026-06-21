@@ -66,28 +66,178 @@ public enum ImageAlphaContract: Sendable, Codable, Equatable, Hashable {
     }
 }
 
+public enum ImageColorGamut: String, Sendable, Codable, Equatable, Hashable {
+    case preserveInput
+    case sRGB
+    case displayP3
+    case extendedLinearSRGB
+    case custom
+}
+
+public enum ImageTransferFunction: String, Sendable, Codable, Equatable, Hashable {
+    case preserveInput
+    case sRGB
+    case linear
+    case perceptualQuantizer
+    case hybridLogGamma
+    case custom
+}
+
 public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let preservesInput: Bool
+    public let gamut: ImageColorGamut
+    public let transferFunction: ImageTransferFunction
 
-    public init(name: String = "preserveInput", preservesInput: Bool = true) {
+    public init(name: String = "preserveInput",
+                preservesInput: Bool = true,
+                gamut: ImageColorGamut = .preserveInput,
+                transferFunction: ImageTransferFunction = .preserveInput) {
         self.name = name
         self.preservesInput = preservesInput
+        self.gamut = gamut
+        self.transferFunction = transferFunction
     }
 
     public static let preserveInput = ImageColorSpaceContract()
+    public static let sRGB = ImageColorSpaceContract(
+        name: "sRGB",
+        preservesInput: false,
+        gamut: .sRGB,
+        transferFunction: .sRGB
+    )
+    public static let displayP3 = ImageColorSpaceContract(
+        name: "DisplayP3",
+        preservesInput: false,
+        gamut: .displayP3,
+        transferFunction: .sRGB
+    )
+    public static let extendedLinearSRGB = ImageColorSpaceContract(
+        name: "extendedLinearSRGB",
+        preservesInput: false,
+        gamut: .extendedLinearSRGB,
+        transferFunction: .linear
+    )
+
+    public var isWideGamut: Bool {
+        switch gamut {
+        case .displayP3, .extendedLinearSRGB:
+            return true
+        case .preserveInput, .sRGB, .custom:
+            return false
+        }
+    }
+
+    public var isHDRTransfer: Bool {
+        switch transferFunction {
+        case .perceptualQuantizer, .hybridLogGamma:
+            return true
+        case .preserveInput, .sRGB, .linear, .custom:
+            return false
+        }
+    }
+
+    public var fingerprint: String {
+        [
+            "color=\(name)",
+            "gamut=\(gamut.rawValue)",
+            "transfer=\(transferFunction.rawValue)",
+            "preserve=\(preservesInput ? 1 : 0)"
+        ].joined(separator: "|")
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case preservesInput
+        case gamut
+        case transferFunction
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.preservesInput = try container.decode(Bool.self, forKey: .preservesInput)
+        self.gamut = try container.decodeIfPresent(ImageColorGamut.self, forKey: .gamut) ?? .preserveInput
+        self.transferFunction = try container.decodeIfPresent(ImageTransferFunction.self, forKey: .transferFunction) ?? .preserveInput
+    }
+}
+
+public enum PixelPrecision: String, Sendable, Codable, Equatable, Hashable {
+    case preserveInput
+    case unorm8
+    case float16
+    case float32
+    case custom
 }
 
 public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let preservesInput: Bool
+    public let metalPixelFormatRawValue: UInt?
+    public let precision: PixelPrecision
 
-    public init(pixelFormat: MTLPixelFormat? = nil, preservesInput: Bool = true) {
+    public init(pixelFormat: MTLPixelFormat? = nil,
+                preservesInput: Bool = true,
+                precision: PixelPrecision? = nil) {
         self.name = pixelFormat.map { String(describing: $0) } ?? "preserveInput"
         self.preservesInput = preservesInput
+        self.metalPixelFormatRawValue = pixelFormat?.rawValue
+        self.precision = precision ?? PixelFormatContract.precision(for: pixelFormat)
     }
 
     public static let preserveInput = PixelFormatContract()
+    public static let rgba8Unorm = PixelFormatContract(pixelFormat: .rgba8Unorm, preservesInput: false)
+    public static let bgra8Unorm = PixelFormatContract(pixelFormat: .bgra8Unorm, preservesInput: false)
+    public static let rgba16Float = PixelFormatContract(pixelFormat: .rgba16Float, preservesInput: false)
+    public static let rgba32Float = PixelFormatContract(pixelFormat: .rgba32Float, preservesInput: false)
+
+    public var isHighPrecision: Bool {
+        switch precision {
+        case .float16, .float32:
+            return true
+        case .preserveInput, .unorm8, .custom:
+            return false
+        }
+    }
+
+    public var fingerprint: String {
+        [
+            "pixelFormat=\(name)",
+            "raw=\(metalPixelFormatRawValue.map(String.init) ?? "preserve")",
+            "precision=\(precision.rawValue)",
+            "preserve=\(preservesInput ? 1 : 0)"
+        ].joined(separator: "|")
+    }
+
+    private static func precision(for pixelFormat: MTLPixelFormat?) -> PixelPrecision {
+        switch pixelFormat {
+        case .none:
+            return .preserveInput
+        case .some(.rgba8Unorm), .some(.bgra8Unorm), .some(.rgba8Unorm_srgb), .some(.bgra8Unorm_srgb):
+            return .unorm8
+        case .some(.rgba16Float), .some(.r16Float), .some(.rg16Float):
+            return .float16
+        case .some(.rgba32Float), .some(.r32Float), .some(.rg32Float):
+            return .float32
+        default:
+            return .custom
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case preservesInput
+        case metalPixelFormatRawValue
+        case precision
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.preservesInput = try container.decode(Bool.self, forKey: .preservesInput)
+        self.metalPixelFormatRawValue = try container.decodeIfPresent(UInt.self, forKey: .metalPixelFormatRawValue)
+        self.precision = try container.decodeIfPresent(PixelPrecision.self, forKey: .precision) ?? .custom
+    }
 }
 
 public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
@@ -108,6 +258,16 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
 
     public static let preserveInput = RenderOutputContract()
 
+    public static let displayP3Texture = RenderOutputContract(
+        colorSpace: .displayP3,
+        pixelFormat: .rgba8Unorm
+    )
+
+    public static let highPrecisionLinearTexture = RenderOutputContract(
+        colorSpace: .extendedLinearSRGB,
+        pixelFormat: .rgba16Float
+    )
+
     public var requiresAlphaConversion: Bool {
         switch alpha {
         case .opaque, .premultiplied, .nonPremultiplied, .forcePremultiply, .forceUnpremultiply:
@@ -125,11 +285,23 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         pixelFormat.preservesInput == false
     }
 
+    public var isWideGamutOutput: Bool {
+        colorSpace.isWideGamut
+    }
+
+    public var isHighPrecisionOutput: Bool {
+        pixelFormat.isHighPrecision
+    }
+
+    public var isHDRFriendlyOutput: Bool {
+        colorSpace.isWideGamut || colorSpace.isHDRTransfer || pixelFormat.isHighPrecision
+    }
+
     public var fingerprint: String {
         [
             "alpha=\(alpha)",
-            "color=\(colorSpace.name)",
-            "pixelFormat=\(pixelFormat.name)",
+            colorSpace.fingerprint,
+            pixelFormat.fingerprint,
             "orientation=\(preservesOrientation ? "preserve" : "reset")"
         ].joined(separator: "|")
     }

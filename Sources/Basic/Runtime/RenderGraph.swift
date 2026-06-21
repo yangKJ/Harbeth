@@ -286,6 +286,10 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
             "alphaContract=\(outputContract.alpha)",
+            "colorGamut=\(outputContract.colorSpace.gamut.rawValue)",
+            "transfer=\(outputContract.colorSpace.transferFunction.rawValue)",
+            "pixelPrecision=\(outputContract.pixelFormat.precision.rawValue)",
+            "hdrFriendly=\(outputContract.isHDRFriendlyOutput ? 1 : 0)",
             "plan=\(stageSummary)"
         ].joined(separator: " ")
     }
