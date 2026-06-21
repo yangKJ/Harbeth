@@ -141,7 +141,7 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `HarbethContext.shared`: the default execution context facade for render pipeline cache, sampler cache, lazy image resolution cache, and execution diagnostics.
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
 - `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths, including explicit transient/persistent image cache policy and sampler descriptors.
-- `HarbethKernelDescriptor`: lightweight technical metadata for function identity, function-constant specialization, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
+- `HarbethKernelDescriptor`: lightweight technical metadata for function identity, library source lookup identity, function-constant specialization, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
 - `HarbethRenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
 - `HarbethPixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
 - `RenderOutputContract`: explicit alpha, color-space, and pixel-format intent for diagnostics and conservative planning.

@@ -33,6 +33,32 @@ public enum HarbethKernelFunctionKind: String, Sendable, Codable, Equatable, Has
     case advancedMetal
 }
 
+public enum HarbethKernelLibrarySource: Sendable, Codable, Equatable, Hashable {
+    case automatic
+    case defaultLibrary
+    case harbethFramework
+    case externalProvider(String)
+    case metallibURL(String)
+    case sourceFallback(String)
+
+    public var fingerprint: String {
+        switch self {
+        case .automatic:
+            return "library=automatic"
+        case .defaultLibrary:
+            return "library=default"
+        case .harbethFramework:
+            return "library=harbethFramework"
+        case .externalProvider(let identifier):
+            return "library=externalProvider:\(identifier)"
+        case .metallibURL(let url):
+            return "library=metallibURL:\(url)"
+        case .sourceFallback(let identifier):
+            return "library=sourceFallback:\(identifier)"
+        }
+    }
+}
+
 public enum HarbethKernelFunctionConstantValue: Sendable, Codable, Equatable, Hashable {
     case bool(Bool)
     case int(Int)
@@ -79,15 +105,18 @@ public struct HarbethKernelFunctionIdentity: Sendable, Codable, Equatable, Hasha
     public let kind: HarbethKernelFunctionKind
     public let primaryName: String
     public let secondaryName: String?
+    public let librarySource: HarbethKernelLibrarySource
     public let functionConstants: [HarbethKernelFunctionConstantDescriptor]
 
     public init(kind: HarbethKernelFunctionKind,
                 primaryName: String,
                 secondaryName: String? = nil,
+                librarySource: HarbethKernelLibrarySource = .automatic,
                 functionConstants: [HarbethKernelFunctionConstantDescriptor] = []) {
         self.kind = kind
         self.primaryName = primaryName
         self.secondaryName = secondaryName
+        self.librarySource = librarySource
         self.functionConstants = functionConstants
     }
 
@@ -105,8 +134,24 @@ public struct HarbethKernelFunctionIdentity: Sendable, Codable, Equatable, Hasha
             "kind=\(kind.rawValue)",
             "primary=\(primaryName)",
             "secondary=\(secondaryName ?? "none")",
+            librarySource.fingerprint,
             "constants=\(constants.isEmpty ? "none" : constants)"
         ].joined(separator: "|")
+    }
+}
+
+public extension HarbethKernelFunctionIdentity {
+    func makeMetalFunctionConstantValues() -> MTLFunctionConstantValues? {
+        guard functionConstants.isEmpty == false else {
+            return nil
+        }
+        let values = MTLFunctionConstantValues()
+        for constant in functionConstants {
+            guard constant.apply(to: values) else {
+                return nil
+            }
+        }
+        return values
     }
 }
 
@@ -138,6 +183,39 @@ public enum HarbethKernelParameterValue: Sendable, Codable, Equatable, Hashable 
             return "ints:\(values.map(String.init).joined(separator: ","))"
         case .stringArray(let values):
             return "strings:\(values.joined(separator: ","))"
+        }
+    }
+}
+
+private extension HarbethKernelFunctionConstantDescriptor {
+    func apply(to values: MTLFunctionConstantValues) -> Bool {
+        switch value {
+        case .bool(let constant):
+            var typedValue = constant
+            if let index {
+                values.setConstantValue(&typedValue, type: .bool, index: index)
+            } else {
+                values.setConstantValue(&typedValue, type: .bool, withName: name)
+            }
+            return true
+        case .int(let constant):
+            var typedValue = Int32(constant)
+            if let index {
+                values.setConstantValue(&typedValue, type: .int, index: index)
+            } else {
+                values.setConstantValue(&typedValue, type: .int, withName: name)
+            }
+            return true
+        case .float(let constant):
+            var typedValue = constant
+            if let index {
+                values.setConstantValue(&typedValue, type: .float, index: index)
+            } else {
+                values.setConstantValue(&typedValue, type: .float, withName: name)
+            }
+            return true
+        case .string:
+            return false
         }
     }
 }

@@ -43,6 +43,7 @@ Execution contract checks:
 - Keep `RenderOptimizationPlan` conservative. It can report texture reuse, lifecycle decisions, persistent outputs, readback boundaries, and conversion decisions, but it must not silently change visual output or absorb product workflow policy.
 - Treat `HarbethKernelDescriptor.fingerprint`, `HarbethKernelResourceDescriptor`, and `RenderOutputContract.fingerprint` as public technical contracts. New kernel metadata should be deterministic and testable.
 - Treat `HarbethKernelArgumentDescriptor` ordering, role, data type, and value fingerprint as shader-authoring contracts. Do not derive them from unstable dictionary iteration order.
+- Treat `HarbethKernelLibrarySource` and `Device.readMTLFunction(_ identity:)` as shader lookup/cache identity. External provider identifiers and metallib URLs must remain technical source descriptors, not product asset or preset names.
 - Treat `HarbethKernelFunctionConstantDescriptor` as shader specialization metadata. Function constants must participate in the function identity fingerprint and remain separate from product presets or style decisions.
 - Treat `HarbethImageNode.withCachePolicy(_:)` as lazy graph execution metadata. It can influence diagnostics and conservative reuse planning, but must not become product-level cache orchestration.
 - Treat `ImageSamplerDescriptor` as an image sampling contract and sampler-cache key. It should stay deterministic, inspectable, and independent from UI preview policy.

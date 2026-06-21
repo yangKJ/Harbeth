@@ -67,7 +67,16 @@ extension Device {
         }
     }
 
+    func externalLibraries(matching identifier: String? = nil) -> [MTLLibrary] {
+        Device.externalLibraryProviders.compactMap { provider in
+            if let identifier, provider.providerIdentifier != identifier {
+                return nil
+            }
+            return provider.provideLibrary(for: device)
+        }
+    }
+
     func externalLibraries() -> [MTLLibrary] {
-        Device.externalLibraryProviders.compactMap { $0.provideLibrary(for: device) }
+        externalLibraries(matching: nil)
     }
 }

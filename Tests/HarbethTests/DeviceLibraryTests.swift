@@ -76,6 +76,21 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertTrue(description.contains("Default Library"))
         XCTAssertTrue(description.contains("External Registry"))
     }
+
+    func testReadMetalFunctionByKernelIdentityUsesLibrarySource() throws {
+        let identity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "C7Brightness",
+            librarySource: .automatic
+        )
+
+        let function = try Device.readMTLFunction(identity)
+        let description = Device.metalFunctionLookupFailureDescription(identity)
+
+        XCTAssertEqual(function.name, "C7Brightness")
+        XCTAssertTrue(description.contains("C7Brightness"))
+        XCTAssertTrue(description.contains("library=automatic"))
+    }
 }
 
 private final class MockExternalLibraryProvider: ExternalMTLLibraryProvider {

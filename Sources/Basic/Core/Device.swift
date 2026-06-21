@@ -465,12 +465,89 @@ extension Device {
         #endif
     }
 
+    public static func readMTLFunction(_ identity: HarbethKernelFunctionIdentity) throws -> MTLFunction {
+        guard identity.kind != .blit else {
+            throw HarbethError.readFunction(identity.primaryName)
+        }
+
+        let functionName = identity.primaryName
+        let constantValues = identity.makeMetalFunctionConstantValues()
+        let resolvedDevice = existingSharedDevice ?? Shared.shared.defaultDevice
+
+        func makeFunction(from library: MTLLibrary) -> MTLFunction? {
+            if let constantValues {
+                return try? library.makeFunction(name: functionName, constantValues: constantValues)
+            }
+            return library.makeFunction(name: functionName)
+        }
+
+        let candidateLibraries: [MTLLibrary] = {
+            switch identity.librarySource {
+            case .automatic:
+                var libraries = resolvedDevice.externalLibraries()
+                if let library = resolvedDevice.defaultLibrary {
+                    libraries.append(library)
+                }
+                if let library = resolvedDevice.harbethLibrary {
+                    libraries.append(library)
+                }
+                if let fallbackLibrary = makeSourceFallbackLibrary(resolvedDevice.device, functionName: functionName) {
+                    libraries.append(fallbackLibrary)
+                }
+                return libraries
+            case .defaultLibrary:
+                return resolvedDevice.defaultLibrary.map { [$0] } ?? []
+            case .harbethFramework:
+                return resolvedDevice.harbethLibrary.map { [$0] } ?? []
+            case .externalProvider(let identifier):
+                return resolvedDevice.externalLibraries(matching: identifier)
+            case .metallibURL(let path):
+                let url: URL
+                if let parsedURL = URL(string: path), let scheme = parsedURL.scheme {
+                    guard scheme == "file" else {
+                        return []
+                    }
+                    url = parsedURL
+                } else {
+                    url = URL(fileURLWithPath: path)
+                }
+                let library: MTLLibrary?
+                if url.isFileURL {
+                    library = try? resolvedDevice.device.makeLibrary(URL: url)
+                } else {
+                    library = nil
+                }
+                return library.map { [$0] } ?? []
+            case .sourceFallback:
+                return makeSourceFallbackLibrary(resolvedDevice.device, functionName: functionName).map { [$0] } ?? []
+            }
+        }()
+
+        for library in candidateLibraries {
+            if let function = makeFunction(from: library) {
+                return function
+            }
+        }
+
+        #if DEBUG
+        fatalError(metalFunctionLookupFailureDescription(identity))
+        #else
+        throw HarbethError.readFunction(functionName)
+        #endif
+    }
+
     public static func metalFunctionLookupFailureDescription(_ name: String) -> String {
         let sharedDevice = existingSharedDevice
         var errorMessage = "Could not find Metal function '\(name)' in any library.\nCandidate sources:\n"
         errorMessage += "- Default Library: \(sharedDevice?.defaultLibrary != nil ? "Available" : "Not available")\n"
         errorMessage += "- Harbeth Library: \(sharedDevice?.harbethLibrary != nil ? "Available" : "Not available")\n"
         errorMessage += "- External Registry:\n\(Device.externalLibraryRegistryDebugDescription())"
+        return errorMessage
+    }
+
+    public static func metalFunctionLookupFailureDescription(_ identity: HarbethKernelFunctionIdentity) -> String {
+        var errorMessage = metalFunctionLookupFailureDescription(identity.primaryName)
+        errorMessage += "\nRequested identity: \(identity.fingerprint)"
         return errorMessage
     }
 }

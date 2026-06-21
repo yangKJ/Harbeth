@@ -158,6 +158,78 @@ final class HarbethImageNodeTests: XCTestCase {
         }))
     }
 
+    func testKernelFunctionIdentityIncludesLibrarySource() {
+        let defaultIdentity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "customKernel",
+            librarySource: .defaultLibrary
+        )
+        let externalIdentity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "customKernel",
+            librarySource: .externalProvider("tests.external.library")
+        )
+        let metallibIdentity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "customKernel",
+            librarySource: .metallibURL("file:///tmp/custom.metallib"),
+            functionConstants: [
+                HarbethKernelFunctionConstantDescriptor(
+                    name: "harbeth::usesLinearSampling",
+                    value: .bool(true)
+                )
+            ]
+        )
+        let descriptor = HarbethKernelDescriptor(
+            filterName: "customKernel",
+            functionIdentity: metallibIdentity
+        )
+
+        XCTAssertNotEqual(defaultIdentity.fingerprint, externalIdentity.fingerprint)
+        XCTAssertTrue(defaultIdentity.fingerprint.contains("library=default"))
+        XCTAssertTrue(externalIdentity.fingerprint.contains("library=externalProvider:tests.external.library"))
+        XCTAssertTrue(metallibIdentity.fingerprint.contains("library=metallibURL:file:///tmp/custom.metallib"))
+        XCTAssertEqual(descriptor.functionIdentity.librarySource, .metallibURL("file:///tmp/custom.metallib"))
+        XCTAssertTrue(descriptor.fingerprint.contains("library=metallibURL:file:///tmp/custom.metallib"))
+        XCTAssertTrue(descriptor.passes[0].fingerprint.contains("library=metallibURL:file:///tmp/custom.metallib"))
+    }
+
+    func testKernelFunctionIdentityBuildsMetalFunctionConstantValues() {
+        let identity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "customKernel",
+            functionConstants: [
+                HarbethKernelFunctionConstantDescriptor(
+                    name: "harbeth::flag",
+                    value: .bool(true)
+                ),
+                HarbethKernelFunctionConstantDescriptor(
+                    name: "harbeth::mode",
+                    index: 1,
+                    value: .int(2)
+                ),
+                HarbethKernelFunctionConstantDescriptor(
+                    name: "harbeth::amount",
+                    index: 2,
+                    value: .float(0.75)
+                )
+            ]
+        )
+        let metadataOnlyIdentity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "customKernel",
+            functionConstants: [
+                HarbethKernelFunctionConstantDescriptor(
+                    name: "harbeth::debugLabel",
+                    value: .string("metadata-only")
+                )
+            ]
+        )
+
+        XCTAssertNotNil(identity.makeMetalFunctionConstantValues())
+        XCTAssertNil(metadataOnlyIdentity.makeMetalFunctionConstantValues())
+    }
+
     func testKernelDescriptorTracksAlphaAndResourceContracts() {
         let premultiply = C7PremultiplyAlpha().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
         let unpremultiply = C7UnpremultiplyAlpha().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
