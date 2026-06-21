@@ -143,7 +143,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         let pixelFormat: MTLPixelFormat = .rgba8Unorm
         return base.c7.toCGImage()?.c7.toTexture(pixelFormat: pixelFormat)
         #else
-        let cache = textureCache ?? Device.sharedTextureCache()
+        let cache = textureCache ?? Shared.shared.sharedTextureCache
         return base.c7.convert2MTLTexture(textureCache: cache)
         #endif
     }

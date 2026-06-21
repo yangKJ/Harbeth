@@ -371,12 +371,14 @@ let exportTexture = try io.renderTexture(profile: .exportQuality)
 
 Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定 contract，而不是只把它当成“一次性出图”的工具：
 
-- `HarbethContext.shared`：统一持有 `MTLDevice`、`MTLCommandQueue`、pipeline cache、sampler cache、texture pool 和 `CVMetalTextureCache`
+- `Shared.shared`：默认全局 runtime owner，统一管理 `Device`、`HarbethContext`、texture pool、command queue 和生命周期 reset
+- `HarbethContext.shared`：默认执行上下文 facade，负责 render pipeline cache、sampler cache 和执行期诊断
 - `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
 - `KernelContractDescriptor`：提供滤镜执行路径、function identity、多输入资源使用和 alpha 行为的技术元数据
 
 ```swift
-let context = HarbethContext.shared
+let runtime = Shared.shared
+let context = runtime.defaultContext
 let frame = try HarbethIO(element: inputTexture, filters: filters)
     .renderFrame(profile: .stablePreview)
 

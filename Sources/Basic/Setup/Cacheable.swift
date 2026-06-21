@@ -35,7 +35,7 @@ extension Cacheable {
                 } else {
                     var textureCache: CVMetalTextureCache?
                     #if !targetEnvironment(simulator)
-                    CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Device.device(), nil, &textureCache)
+                    CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, Shared.shared.metalDevice, nil, &textureCache)
                     #endif
                     objc_setAssociatedObject(self, &C7ATCacheContext, textureCache, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
                     return textureCache

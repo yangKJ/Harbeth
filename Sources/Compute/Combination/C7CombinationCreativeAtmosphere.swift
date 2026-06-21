@@ -90,7 +90,7 @@ public final class C7CombinationCreativeAtmosphere: C7CombinationBase {
     public override func cleanupIntermediateTextures() {
         // Return textures to pool if possible
         for texture in intermediateTextures {
-            Shared.shared.texturePool?.enqueueTexture(texture)
+            Shared.shared.defaultTexturePool.enqueueTexture(texture)
         }
         super.cleanupIntermediateTextures()
     }

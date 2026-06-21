@@ -48,7 +48,7 @@ extension HarbethWrapper where Base: CGImage {
         // Create context with optimized parameters
         guard let context = CGContext(data: nil, width: width, height: height,
                                       bitsPerComponent: 8, bytesPerRow: bytesPerRow,
-                                      space: Device.colorSpace(),
+                                      space: Shared.shared.defaultDevice.colorSpace,
                                       bitmapInfo: Device.bitmapInfo()) else {
             return nil
         }

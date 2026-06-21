@@ -368,7 +368,7 @@ public final class TexturePool {
     public func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
         guard count > 0 else { return }
 
-        let device = Device.device()
+        let device = Shared.shared.metalDevice
         queue.async(flags: .barrier) {
             for (width, height, pixelFormat) in resolutions {
                 let key = TextureKey(width: width, height: height, pixelFormat: pixelFormat)

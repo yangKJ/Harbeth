@@ -132,7 +132,7 @@ extension C7ColorCube.Resource {
         textureDescriptor.storageMode = .shared
         textureDescriptor.cpuCacheMode = .writeCombined
         
-        guard let texture = Device.device().makeTexture(descriptor: textureDescriptor) else {
+        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: textureDescriptor) else {
             return nil
         }
         

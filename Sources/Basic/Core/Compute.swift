@@ -17,25 +17,27 @@ struct Compute {
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
     @inlinable static func makeComputePipelineState(with kernel: String) throws -> MTLComputePipelineState {
+        let context = Shared.shared.defaultContext
         /// 先读取缓存管线
-        if let pipelineState = HarbethContext.shared.computePipelineState(for: kernel) {
+        if let pipelineState = context.computePipelineState(for: kernel) {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: true)
             return pipelineState
         }
         /// 同步阻塞编译计算程序来创建管道状态
         let function = try Device.readMTLFunction(kernel)
-        guard let pipeline = try? Device.device().makeComputePipelineState(function: function) else {
+        guard let pipeline = try? Shared.shared.metalDevice.makeComputePipelineState(function: function) else {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
             throw HarbethError.computePipelineState(kernel)
         }
-        HarbethContext.shared.setComputePipelineState(pipeline, for: kernel)
+        context.setComputePipelineState(pipeline, for: kernel)
         Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
         return pipeline
     }
     
     @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
+        let context = Shared.shared.defaultContext
         /// 先读取缓存管线
-        if let pipelineState = HarbethContext.shared.computePipelineState(for: kernel) {
+        if let pipelineState = context.computePipelineState(for: kernel) {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: true)
             complete(.success(pipelineState))
             return
@@ -45,14 +47,14 @@ struct Compute {
             return
         }
         /// 异步创建管道状态
-        Device.device().makeComputePipelineState(function: function) { pipelineState, error in
+        Shared.shared.metalDevice.makeComputePipelineState(function: function) { pipelineState, error in
             guard let pipeline = pipelineState else {
                 Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
                 complete(.failure(HarbethError.computePipelineState(kernel)))
                 return
             }
             complete(.success(pipeline))
-            HarbethContext.shared.setComputePipelineState(pipeline, for: kernel)
+            context.setComputePipelineState(pipeline, for: kernel)
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
         }
     }

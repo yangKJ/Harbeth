@@ -181,7 +181,7 @@ public struct MTLTextureCompatible_ {
             vImagePermuteChannels_ARGB8888(&bgraBuffer, &rgbaBuffer, map, 0)
             
             // create CGImage with RGBA Flipped Bytes
-            let colorSpace = colorSpace ?? Device.colorSpace()
+            let colorSpace = colorSpace ?? Shared.shared.defaultDevice.colorSpace
             let bitmapInfo = CGBitmapInfo(rawValue: alphaType.cgImageAlphaInfoForRGBA.rawValue)
             guard let data = CFDataCreate(nil, rgbaBytes, length),
                   let dataProvider = CGDataProvider(data: data),
@@ -207,7 +207,7 @@ public struct MTLTextureCompatible_ {
             let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
             target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
-            let colorSpace = colorSpace ?? Device.colorSpace()
+            let colorSpace = colorSpace ?? Shared.shared.defaultDevice.colorSpace
             let bitmapInfo = CGBitmapInfo(rawValue: alphaType.cgImageAlphaInfoForRGBA.rawValue)
             guard let data = CFDataCreate(nil, rgbaBytes, length),
                   let dataProvider = CGDataProvider(data: data),

@@ -16,7 +16,7 @@ public struct MPSBoxBlur: MPSKernelProtocol {
     @Clamping(range.min...range.max) public var radius: Float = range.value {
         didSet {
             let kernelSize = MPSBoxBlur.roundToOdd(radius)
-            self.boxBlur = MPSImageBox(device: Device.device(), kernelWidth: kernelSize, kernelHeight: kernelSize)
+            self.boxBlur = MPSImageBox(device: Shared.shared.metalDevice, kernelWidth: kernelSize, kernelHeight: kernelSize)
         }
     }
     
@@ -34,7 +34,7 @@ public struct MPSBoxBlur: MPSKernelProtocol {
     
     public init(radius: Float = range.value) {
         let kernelSize = MPSBoxBlur.roundToOdd(radius)
-        self.boxBlur = MPSImageBox(device: Device.device(), kernelWidth: kernelSize, kernelHeight: kernelSize)
+        self.boxBlur = MPSImageBox(device: Shared.shared.metalDevice, kernelWidth: kernelSize, kernelHeight: kernelSize)
     }
     
     // MPS box blur kernels need to be odd

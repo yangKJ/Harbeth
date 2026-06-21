@@ -7,11 +7,12 @@
 
 import Foundation
 import Metal
-import ObjectiveC
 
 public final class HarbethContext {
 
-    public static let shared = HarbethContext()
+    public static var shared: HarbethContext {
+        Shared.shared.defaultContext
+    }
 
     private let legacyDevice: Device
     private let renderPipelineLock = NSLock()
@@ -19,17 +20,8 @@ public final class HarbethContext {
     private var renderPipelines: [RenderPipelineCacheKey: MTLRenderPipelineState] = [:]
     private var samplerStates: [SamplerCacheKey: MTLSamplerState] = [:]
 
-    private init(device: Device? = nil) {
-        if let device {
-            self.legacyDevice = device
-        } else if let existing = Shared.shared.device {
-            self.legacyDevice = existing
-        } else {
-            let created = Device()
-            Shared.shared.device = created
-            self.legacyDevice = created
-        }
-        Shared.shared.context = self
+    init(device: Device) {
+        self.legacyDevice = device
     }
 
     public var device: MTLDevice {
@@ -41,12 +33,7 @@ public final class HarbethContext {
     }
 
     public var texturePool: TexturePool {
-        if let pool = Shared.shared.texturePool {
-            return pool
-        }
-        let pool = TexturePool()
-        Shared.shared.texturePool = pool
-        return pool
+        Shared.shared.defaultTexturePool
     }
 
     public var cvMetalTextureCache: CVMetalTextureCache? {
@@ -161,7 +148,7 @@ public final class HarbethContext {
             computePipelineCount: legacyDevice.pipelineCount,
             renderPipelineCount: renderCount,
             samplerCount: samplerCount,
-            hasTexturePool: Shared.shared.texturePool != nil,
+            hasTexturePool: true,
             hasCVMetalTextureCache: cvMetalTextureCache != nil
         )
     }
@@ -190,28 +177,4 @@ private struct SamplerCacheKey: Hashable {
     let mipFilter: Int
     let sAddressMode: Int
     let tAddressMode: Int
-}
-
-private var C7ATSharedContext: UInt8 = 0
-
-extension Shared {
-    public var context: HarbethContext? {
-        get {
-            synchronizedContext {
-                objc_getAssociatedObject(self, &C7ATSharedContext) as? HarbethContext
-            }
-        }
-        set {
-            synchronizedContext {
-                objc_setAssociatedObject(self, &C7ATSharedContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            }
-        }
-    }
-
-    private func synchronizedContext<T>(_ action: () -> T) -> T {
-        objc_sync_enter(self)
-        let result = action()
-        objc_sync_exit(self)
-        return result
-    }
 }

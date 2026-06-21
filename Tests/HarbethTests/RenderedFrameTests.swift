@@ -154,7 +154,7 @@ final class RenderedFrameTests: XCTestCase {
         ], identifier: "copy-source")
         let copied = try TextureLoader.copyTexture(with: source, identifier: "copy-dest")
 
-        let dequeued = Shared.shared.texturePool?.dequeueTexture(width: copied.width, height: copied.height, pixelFormat: copied.pixelFormat)
+        let dequeued = Shared.shared.defaultTexturePool.dequeueTexture(width: copied.width, height: copied.height, pixelFormat: copied.pixelFormat)
 
         XCTAssertFalse(copied === source)
         XCTAssertNil(dequeued, "A texture returned to the caller must not be immediately available for reuse from the pool.")
@@ -168,7 +168,7 @@ final class RenderedFrameTests: XCTestCase {
         let pooled = try TextureLoader.makeTexture(width: 12, height: 12, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "pool-exact-source")
-        Shared.shared.texturePool?.enqueueTextureSync(pooled)
+        Shared.shared.defaultTexturePool.enqueueTextureSync(pooled)
 
         let exact = try TextureLoader.makeTexture(width: 10, height: 10, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -186,7 +186,7 @@ final class RenderedFrameTests: XCTestCase {
         let pooled = try TextureLoader.makeTexture(width: 12, height: 12, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "pool-tolerance-source")
-        Shared.shared.texturePool?.enqueueTextureSync(pooled)
+        Shared.shared.defaultTexturePool.enqueueTextureSync(pooled)
 
         let tolerant = try TextureLoader.makeTexture(width: 10, height: 10, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
@@ -207,11 +207,11 @@ final class RenderedFrameTests: XCTestCase {
         ], identifier: "lease-return")
         let texture = lease.texture
 
-        XCTAssertNil(Shared.shared.texturePool?.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm))
 
         lease.release()
 
-        let reused = Shared.shared.texturePool?.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm)
+        let reused = Shared.shared.defaultTexturePool.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm)
         XCTAssertTrue(reused === texture)
     }
 

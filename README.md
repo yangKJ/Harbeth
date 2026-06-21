@@ -135,12 +135,14 @@ let exportTexture = try io.renderTexture(profile: .exportQuality)
 
 Harbeth now exposes a more explicit execution core for host apps that need stable contracts instead of one-off image output:
 
-- `HarbethContext.shared`: unified access to `MTLDevice`, `MTLCommandQueue`, pipeline caches, sampler cache, texture pool, and `CVMetalTextureCache`.
+- `Shared.shared`: the default global runtime owner for `Device`, `HarbethContext`, texture pooling, command queue access, and lifecycle reset.
+- `HarbethContext.shared`: the default execution context facade for render pipeline cache, sampler cache, and execution diagnostics.
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
 - `KernelContractDescriptor`: lightweight technical metadata for a filter's execution path, function identity, multi-input usage, and alpha behavior.
 
 ```swift
-let context = HarbethContext.shared
+let runtime = Shared.shared
+let context = runtime.defaultContext
 let frame = try HarbethIO(element: inputTexture, filters: filters)
     .renderFrame(profile: .stablePreview)
 

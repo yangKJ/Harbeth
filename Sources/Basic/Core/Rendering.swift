@@ -14,7 +14,7 @@ struct Rendering {
                                         fragment: String,
                                         pixelFormat: MTLPixelFormat,
                                         sampleCount: Int = 1) throws -> MTLRenderPipelineState {
-        try HarbethContext.shared.makeRenderPipelineState(
+        try Shared.shared.defaultContext.makeRenderPipelineState(
             vertex: vertex,
             fragment: fragment,
             pixelFormat: pixelFormat,
@@ -33,7 +33,7 @@ struct Rendering {
             HarbethError.failed("Could not create render encoder")
             return
         }
-        let device = HarbethContext.shared.device
+        let device = Shared.shared.metalDevice
         let size = MemoryLayout<Float>.size
         
         renderEncoder.setFrontFacing(MTLWinding.counterClockwise)

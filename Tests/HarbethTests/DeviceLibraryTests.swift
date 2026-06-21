@@ -33,6 +33,17 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertNotNil(R.cacheBundles["Harbeth"])
     }
 
+    func testDeprecatedDeviceAccessorsStillResolveToSharedDefaultRuntime() {
+        Shared.shared.deinitDevice()
+
+        let owner = Shared.shared.defaultDevice
+
+        XCTAssertTrue(Device.device() === owner.device)
+        XCTAssertTrue(Device.commandQueue() === owner.commandQueue)
+        XCTAssertEqual(Device.colorSpace(), owner.colorSpace)
+        XCTAssertEqual(Device.sharedTextureCache() != nil, owner.textureCache != nil)
+    }
+
     func testLookupAndCubeKeepResourceOwnerMetadataWhenResourcesAreMissing() {
         let lookup = C7LookupTable(name: "missing_lookup", forResource: "Harbeth", intensity: 0.42)
         let cube = C7ColorCube(cubeName: "missing_cube", forResource: "Harbeth", intensity: 0.73)

@@ -188,7 +188,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                     // Ensure textures are returned after GPU completion
                     if !texturesToEnqueue.isEmpty {
                         commandBuffer.addCompletedHandler { _ in
-                            Shared.shared.texturePool?.enqueueTexturesSync(texturesToEnqueue)
+                            Shared.shared.defaultTexturePool.enqueueTexturesSync(texturesToEnqueue)
                         }
                     }
                     
@@ -200,7 +200,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                     // Return command buffer in background
                     DispatchQueue.global().async {
                         commandBuffer.waitUntilCompleted()
-                        Device.returnCommandBuffer(commandBuffer)
+                        Shared.shared.returnCommandBuffer(commandBuffer)
                     }
                 } else {
                     // Normal async mode
@@ -219,11 +219,11 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                     commandBuffer.asyncCommit(identifier: self.identifier) { result in
                         switch result {
                         case .success:
-                            Shared.shared.texturePool?.enqueueTexturesSync(texturesToEnqueue)
-                            Device.returnCommandBuffer(commandBuffer)
+                            Shared.shared.defaultTexturePool.enqueueTexturesSync(texturesToEnqueue)
+                            Shared.shared.returnCommandBuffer(commandBuffer)
                             complete(.success(outputTexture))
                         case .failure(let error):
-                            Device.returnCommandBuffer(commandBuffer)
+                            Shared.shared.returnCommandBuffer(commandBuffer)
                             complete(.failure(HarbethError.toHarbethError(error)))
                         }
                     }
@@ -232,7 +232,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                 complete(.failure(HarbethError.toHarbethError(error)))
             }
         }
-        Device.renderOperationQueue.addOperation(operation)
+        Shared.shared.renderOperationQueue.addOperation(operation)
     }
 }
 
@@ -270,8 +270,8 @@ extension HarbethIO {
             texturesToEnqueue = result.1
         }
         commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-        Shared.shared.texturePool?.enqueueTexturesSync(texturesToEnqueue)
-        Device.returnCommandBuffer(commandBuffer)
+        Shared.shared.defaultTexturePool.enqueueTexturesSync(texturesToEnqueue)
+        Shared.shared.returnCommandBuffer(commandBuffer)
         return outputTexture
     }
     
@@ -282,7 +282,7 @@ extension HarbethIO {
             let commandBuffer = try makeCommandBuffer(for: nil)
             outputTexture = try textureIO(input: outputTexture, filter: filter, for: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-            Device.returnCommandBuffer(commandBuffer)
+            Shared.shared.returnCommandBuffer(commandBuffer)
         }
         return outputTexture
     }
@@ -379,7 +379,7 @@ extension HarbethIO {
         if let commandBuffer = buffer {
             return commandBuffer
         }
-        guard let commandBuffer = Device.getCommandBuffer() else {
+        guard let commandBuffer = Shared.shared.getCommandBuffer() else {
             throw HarbethError.commandBuffer
         }
         return commandBuffer
@@ -478,8 +478,8 @@ extension HarbethIO {
         let shouldEnqueueA = finalTexture !== textureA
         let shouldEnqueueB = finalTexture !== textureB
         commandBuffer.addCompletedHandler { _ in
-            if shouldEnqueueA { Shared.shared.texturePool?.enqueueTextureSync(textureA) }
-            if shouldEnqueueB { Shared.shared.texturePool?.enqueueTextureSync(textureB) }
+            if shouldEnqueueA { Shared.shared.defaultTexturePool.enqueueTextureSync(textureA) }
+            if shouldEnqueueB { Shared.shared.defaultTexturePool.enqueueTextureSync(textureB) }
         }
         
         return finalTexture
@@ -547,19 +547,19 @@ extension HarbethIO where Dest == MTLTexture {
                     }
                     DispatchQueue.global().async {
                         commandBuffer.waitUntilCompleted()
-                        Device.returnCommandBuffer(commandBuffer)
+                        Shared.shared.returnCommandBuffer(commandBuffer)
                     }
                 } else {
                     commandBuffer.asyncCommit(identifier: self.identifier) { callbackResult in
                         switch callbackResult {
                         case .success:
                             releaseIntermediates()
-                            Device.returnCommandBuffer(commandBuffer)
+                            Shared.shared.returnCommandBuffer(commandBuffer)
                             complete(.success(result))
                         case .failure(let error):
                             releaseIntermediates()
                             result.lease?.release()
-                            Device.returnCommandBuffer(commandBuffer)
+                            Shared.shared.returnCommandBuffer(commandBuffer)
                             complete(.failure(HarbethError.toHarbethError(error)))
                         }
                     }
@@ -568,7 +568,7 @@ extension HarbethIO where Dest == MTLTexture {
                 complete(.failure(HarbethError.toHarbethError(error)))
             }
         }
-        Device.renderOperationQueue.addOperation(operation)
+        Shared.shared.renderOperationQueue.addOperation(operation)
     }
 
     private func processManagedBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
@@ -581,7 +581,7 @@ extension HarbethIO where Dest == MTLTexture {
         }
         commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
         managed.intermediateLeases.forEach { $0.release() }
-        Device.returnCommandBuffer(commandBuffer)
+        Shared.shared.returnCommandBuffer(commandBuffer)
         return managed.result
     }
 
@@ -594,7 +594,7 @@ extension HarbethIO where Dest == MTLTexture {
             let commandBuffer = try makeCommandBuffer(for: nil)
             let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-            Device.returnCommandBuffer(commandBuffer)
+            Shared.shared.returnCommandBuffer(commandBuffer)
 
             if let previousLease = currentLease, previousLease.texture !== stage.texture {
                 previousLease.release()

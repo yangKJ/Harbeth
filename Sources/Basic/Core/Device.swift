@@ -71,12 +71,28 @@ public final class Device: Cacheable {
 }
 
 extension Device {
+    var sharedRenderOperationQueue: OperationQueue {
+        _renderOperationQueue
+    }
+
+    var sharedMemoryLimitMB: Int {
+        get { _memoryLimitMB }
+        set { _memoryLimitMB = newValue }
+    }
+
+    func dequeueCommandBuffer() -> MTLCommandBuffer? {
+        _commandBufferPool.get()
+    }
+
+    func enqueueCommandBuffer(_ buffer: MTLCommandBuffer) {
+        _commandBufferPool.put(buffer)
+    }
+
     private static var fallbackLibraries: [String: MTLLibrary] = [:]
     private static let fallbackLibraryLock = NSLock()
 
     private static var existingSharedDevice: Device? {
-        guard Shared.shared.hasDevice else { return nil }
-        return Shared.shared.device
+        Shared.shared.hasDevice ? Shared.shared.defaultDevice : nil
     }
     
     public static func metalCapabilityReport(_ capability: C7MetalCapability, on device: MTLDevice? = nil) -> C7MetalCapabilityReport {
@@ -466,7 +482,7 @@ extension Device {
     }
     
     public static func detectGPUArchitecture() -> GPUArchitecture {
-        let device = Device.device()
+        let device = Shared.shared.metalDevice
         if device.name.contains("Apple") {
             return .appleSilicon
         } else if device.name.contains("Intel") {
@@ -476,13 +492,15 @@ extension Device {
         }
     }
     
+    @available(*, deprecated, message: "Use Shared.shared.metalDevice instead.")
     public static func device() -> MTLDevice {
-        return Shared.shared.device!.device
+        return Shared.shared.metalDevice
     }
     
+    @available(*, deprecated, message: "Use Shared.shared.defaultDevice.colorSpace instead.")
     public static func colorSpace() -> CGColorSpace {
         // Unitive the color space, otherwise it will crash.
-        return Shared.shared.device?.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+        return Shared.shared.defaultDevice.colorSpace
     }
     
     public static func bitmapInfo() -> UInt32 {
@@ -492,41 +510,48 @@ extension Device {
         return CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
     }
     
+    @available(*, deprecated, message: "Use Shared.shared.commandQueue instead.")
     public static func commandQueue() -> MTLCommandQueue {
-        return Shared.shared.device!.commandQueue
+        return Shared.shared.commandQueue
     }
     
+    @available(*, deprecated, message: "Use Shared.shared.sharedTextureCache instead.")
     public static func sharedTextureCache() -> CVMetalTextureCache? {
-        return Shared.shared.device?.textureCache
+        return Shared.shared.sharedTextureCache
     }
     
+    @available(*, deprecated, message: "Use Shared.shared.defaultDevice.renderOperationQueue compatibility through Shared instead.")
     public static var renderOperationQueue: OperationQueue {
-        return Shared.shared.device!._renderOperationQueue
+        return Shared.shared.defaultDevice._renderOperationQueue
     }
     
+    @available(*, deprecated, message: "Use Shared.shared.defaultDevice-backed settings through Shared instead.")
     public static var memoryLimitMB: Int {
-        return Shared.shared.device!._memoryLimitMB
+        return Shared.shared.defaultDevice._memoryLimitMB
     }
     
+    @available(*, deprecated, message: "Use Shared.shared.defaultDevice-backed settings through Shared instead.")
     public static func setMemoryLimitMB(_ value: Int) {
-        Shared.shared.device!._memoryLimitMB = value
+        Shared.shared.defaultDevice._memoryLimitMB = value
     }
     
     /// Get a command buffer from the pool
+    @available(*, deprecated, message: "Use Shared.shared.defaultDevice command buffer pool through Shared instead.")
     public static func getCommandBuffer() -> MTLCommandBuffer? {
-        return Shared.shared.device?._commandBufferPool.get()
+        return Shared.shared.defaultDevice._commandBufferPool.get()
     }
     
     /// Return a command buffer to the pool
+    @available(*, deprecated, message: "Use Shared.shared.defaultDevice command buffer pool through Shared instead.")
     public static func returnCommandBuffer(_ buffer: MTLCommandBuffer) {
-        Shared.shared.device!._commandBufferPool.put(buffer)
+        Shared.shared.defaultDevice._commandBufferPool.put(buffer)
     }
     
     
     public static func makeTexture2DMaxSize(width: Int, height: Int) -> (width: Int, height: Int) {
         func getMaxTextureDimensions() -> (width: Int, height: Int) {
             #if targetEnvironment(macCatalyst)
-            if Device.device().supportsFamily(.apple3) {
+            if Shared.shared.metalDevice.supportsFamily(.apple3) {
                 return (131072, 65536)
             } else {
                 return (8192, 8192)
@@ -535,13 +560,13 @@ extension Device {
             return (131072, 65536)
             #else
             if #available(iOS 13.0, *) {
-                if Device.device().supportsFamily(.apple3) {
+                if Shared.shared.metalDevice.supportsFamily(.apple3) {
                     return (65536, 65536)
                 } else {
                     return (16384, 16384)
                 }
             } else if #available(iOS 11.0, *)  {
-                if Device.device().supportsFeatureSet(.iOS_GPUFamily3_v3) {
+                if Shared.shared.metalDevice.supportsFeatureSet(.iOS_GPUFamily3_v3) {
                     return (16384, 16384)
                 } else {
                     return (8192, 8192)

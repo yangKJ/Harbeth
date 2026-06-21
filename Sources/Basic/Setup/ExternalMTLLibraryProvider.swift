@@ -48,7 +48,7 @@ extension Device {
     }
 
     public static func externalLibraryRegistryDebugDescription(on device: MTLDevice? = nil) -> String {
-        let activeDevice = device ?? (Shared.shared.hasDevice ? Shared.shared.device?.device : nil)
+        let activeDevice = device ?? Shared.shared.currentMetalDevice
         let snapshots = externalLibraryRegistrySnapshot(on: activeDevice)
         if snapshots.isEmpty {
             return "External Library Registry: empty"

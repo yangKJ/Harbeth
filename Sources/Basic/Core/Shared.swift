@@ -32,23 +32,30 @@ public final class Shared {
     /// Considering that there are quite a lot of performance-consuming objects in `Device`, design a singleton for global use.
     /// Once Metal is no longer used, call this method to release it.
     public func deinitDevice() {
-        context?.resetCaches()
-        context = nil
-        device = nil
-        texturePool = nil
-        performanceMonitor = nil
+        synchronizedDevice {
+            if let context = existingContext {
+                context.resetCaches()
+            }
+            existingContext = nil
+            existingDevice = nil
+            existingTexturePool = nil
+            performanceMonitor = nil
+        }
     }
     
     public func advanceSetupDevice() {
-        let _ = self.device
+        let _ = self.defaultDevice
     }
     
     public var hasDevice: Bool {
         return synchronizedDevice {
-            if let _ = objc_getAssociatedObject(self, &C7ATSharedDeviceContext) {
-                return true
-            }
-            return false
+            existingDevice != nil
+        }
+    }
+
+    public var hasContext: Bool {
+        synchronizedDevice {
+            existingContext != nil
         }
     }
 }
@@ -56,44 +63,166 @@ public final class Shared {
 private var C7ATSharedDeviceContext: UInt8 = 0
 private var C7ATSharedTexturePoolContext: UInt8 = 0
 private var C7ATSharedPerformanceMonitorContext: UInt8 = 0
+private var C7ATSharedContext: UInt8 = 0
 
 extension Shared {
+
+    fileprivate var existingDevice: Device? {
+        get { objc_getAssociatedObject(self, &C7ATSharedDeviceContext) as? Device }
+        set { objc_setAssociatedObject(self, &C7ATSharedDeviceContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+
+    fileprivate var existingTexturePool: TexturePool? {
+        get { objc_getAssociatedObject(self, &C7ATSharedTexturePoolContext) as? TexturePool }
+        set { objc_setAssociatedObject(self, &C7ATSharedTexturePoolContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+
+    fileprivate var existingContext: HarbethContext? {
+        get { objc_getAssociatedObject(self, &C7ATSharedContext) as? HarbethContext }
+        set { objc_setAssociatedObject(self, &C7ATSharedContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
     
-    /// Device instantiation
+    public var defaultDevice: Device {
+        synchronizedDevice {
+            if let device = existingDevice {
+                return device
+            }
+            let device = Device()
+            existingDevice = device
+            return device
+        }
+    }
+
+    public var defaultContext: HarbethContext {
+        synchronizedDevice {
+            if let context = existingContext {
+                return context
+            }
+            let device: Device
+            if let existingDevice {
+                device = existingDevice
+            } else {
+                let created = Device()
+                existingDevice = created
+                device = created
+            }
+            let context = HarbethContext(device: device)
+            existingContext = context
+            return context
+        }
+    }
+
+    public var metalDevice: MTLDevice {
+        defaultDevice.device
+    }
+
+    public var commandQueue: MTLCommandQueue {
+        defaultDevice.commandQueue
+    }
+
+    public var sharedTextureCache: CVMetalTextureCache? {
+        defaultDevice.textureCache
+    }
+
+    public var currentMetalDevice: MTLDevice? {
+        synchronizedDevice {
+            existingDevice?.device
+        }
+    }
+
+    public var renderOperationQueue: OperationQueue {
+        defaultDevice.sharedRenderOperationQueue
+    }
+
+    public var memoryLimitMB: Int {
+        get { defaultDevice.sharedMemoryLimitMB }
+        set { defaultDevice.sharedMemoryLimitMB = newValue }
+    }
+
+    public func getCommandBuffer() -> MTLCommandBuffer? {
+        defaultDevice.dequeueCommandBuffer()
+    }
+
+    public func returnCommandBuffer(_ buffer: MTLCommandBuffer) {
+        defaultDevice.enqueueCommandBuffer(buffer)
+    }
+
+    public var defaultTexturePool: TexturePool {
+        synchronizedDevice {
+            if let pool = existingTexturePool {
+                return pool
+            }
+            let pool = TexturePool()
+            existingTexturePool = pool
+            return pool
+        }
+    }
+
+    /// Compatibility surface. Use `defaultDevice` for the default runtime owner.
+    @available(*, deprecated, message: "Use Shared.shared.defaultDevice instead.")
     public weak var device: Device? {
         get {
-            return synchronizedDevice {
-                if let object = objc_getAssociatedObject(self, &C7ATSharedDeviceContext) {
-                    return object as? Device
-                } else {
-                    let object = Device()
-                    objc_setAssociatedObject(self, &C7ATSharedDeviceContext, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-                    return object
+            synchronizedDevice {
+                if let device = existingDevice {
+                    return device
                 }
+                let device = Device()
+                existingDevice = device
+                return device
             }
         }
         set {
             synchronizedDevice {
-                objc_setAssociatedObject(self, &C7ATSharedDeviceContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                existingDevice = newValue
+                existingContext = nil
             }
         }
     }
     
+    /// Compatibility surface. Use `defaultTexturePool` for the default runtime owner.
+    @available(*, deprecated, message: "Use Shared.shared.defaultTexturePool instead.")
     public weak var texturePool: TexturePool? {
         get {
-            return synchronizedDevice {
-                if let object = objc_getAssociatedObject(self, &C7ATSharedTexturePoolContext) {
-                    return object as? TexturePool
-                } else {
-                    let object = TexturePool()
-                    objc_setAssociatedObject(self, &C7ATSharedTexturePoolContext, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-                    return object
+            synchronizedDevice {
+                if let pool = existingTexturePool {
+                    return pool
                 }
+                let pool = TexturePool()
+                existingTexturePool = pool
+                return pool
             }
         }
         set {
             synchronizedDevice {
-                objc_setAssociatedObject(self, &C7ATSharedTexturePoolContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                existingTexturePool = newValue
+            }
+        }
+    }
+
+    /// Compatibility surface. Use `defaultContext` for the default execution context.
+    @available(*, deprecated, message: "Use Shared.shared.defaultContext instead.")
+    public var context: HarbethContext? {
+        get {
+            synchronizedDevice {
+                if let context = existingContext {
+                    return context
+                }
+                let device: Device
+                if let existingDevice {
+                    device = existingDevice
+                } else {
+                    let created = Device()
+                    existingDevice = created
+                    device = created
+                }
+                let context = HarbethContext(device: device)
+                existingContext = context
+                return context
+            }
+        }
+        set {
+            synchronizedDevice {
+                existingContext = newValue
             }
         }
     }
@@ -134,16 +263,16 @@ extension Shared {
     ///   - resolutions: List of commonly used resolutions [(width, height, pixelFormat)]
     ///   - count: The number of pre-created textures for each resolution.
     public func prewarmTexturePool(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
-        texturePool?.prewarm(resolutions: resolutions, count: count)
+        defaultTexturePool.prewarm(resolutions: resolutions, count: count)
     }
     
     /// Get the statistics of the texture pool
     public var texturePoolStatistics: TexturePool.Statistics? {
-        return texturePool?.statistics
+        return defaultTexturePool.statistics
     }
     
     /// Reset the statistics of the texture pool
     public func resetTexturePoolStatistics() {
-        texturePool?.resetStatisticsSync()
+        defaultTexturePool.resetStatisticsSync()
     }
 }

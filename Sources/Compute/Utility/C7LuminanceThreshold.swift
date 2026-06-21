@@ -52,7 +52,7 @@ extension C7LuminanceThreshold {
             height: height,
             bitsPerComponent: 8,
             bytesPerRow: bytesPerRow,
-            space: Shared.shared.device?.colorSpace ?? Device.colorSpace(),
+            space: Shared.shared.defaultDevice.colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )
         context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))

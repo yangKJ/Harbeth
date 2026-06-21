@@ -52,12 +52,11 @@ extension TextureLoader {
     ///   - cgImage: Bitmap image
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        if let loader = Shared.shared.device?.textureLoader {
-            let options = options ?? TextureLoader.defaultOptions
-            if let texture = try? loader.newTexture(cgImage: cgImage, options: options) {
-                self.texture = texture
-                return
-            }
+        let loader = Shared.shared.defaultDevice.textureLoader
+        let options = options ?? TextureLoader.defaultOptions
+        if let texture = try? loader.newTexture(cgImage: cgImage, options: options) {
+            self.texture = texture
+            return
         }
         // 降级策略：手动创建纹理并复制像素数据
         self.texture = try TextureLoader.drawCGImageToTexture(cgImage)
@@ -76,7 +75,7 @@ extension TextureLoader {
         let pixelFormat = TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
-        guard let texture = Device.device().makeTexture(descriptor: .texture2DDescriptor(
+        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: .texture2DDescriptor(
             pixelFormat: pixelFormat,
             width: width,
             height: height,
@@ -124,9 +123,7 @@ extension TextureLoader {
     ///   - data: Data.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with data: Data, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        guard let loader = Shared.shared.device?.textureLoader else {
-            throw HarbethError.textureLoader
-        }
+        let loader = Shared.shared.defaultDevice.textureLoader
         let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(data: data, options: options)
     }
@@ -166,9 +163,7 @@ extension TextureLoader {
     }
     
     public init(with bundleURL: URL, name: String, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        guard let loader = Shared.shared.device?.textureLoader else {
-            throw HarbethError.textureLoader
-        }
+        let loader = Shared.shared.defaultDevice.textureLoader
         guard let assetBundle = Bundle(url: bundleURL),
               let imageURL = assetBundle.url(forResource: name, withExtension: nil) else {
             throw HarbethError.makeTexture
@@ -235,9 +230,9 @@ extension TextureLoader {
         // Try texture pool with calculated size
         let pooledTexture: MTLTexture?
         if allowsSizeTolerance {
-            pooledTexture = Shared.shared.texturePool?.dequeueTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat)
+            pooledTexture = Shared.shared.defaultTexturePool.dequeueTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat)
         } else {
-            pooledTexture = Shared.shared.texturePool?.dequeueExactTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat)
+            pooledTexture = Shared.shared.defaultTexturePool.dequeueExactTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat)
         }
         if let texture = pooledTexture {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
@@ -259,7 +254,7 @@ extension TextureLoader {
         if #available(iOS 12.0, macOS 10.14, *) {
             descriptor.allowGPUOptimizedContents = allowGPUOptimized
         }
-        guard let texture = Device.device().makeTexture(descriptor: descriptor) else {
+        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
         Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
@@ -280,7 +275,7 @@ extension TextureLoader {
         let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
         let logicalExtent = C7Size(width: max(maxWidth, 1), height: max(maxHeight, 1))
 
-        if let lease = Shared.shared.texturePool?.dequeueTextureLease(
+        if let lease = Shared.shared.defaultTexturePool.dequeueTextureLease(
             width: logicalExtent.width,
             height: logicalExtent.height,
             pixelFormat: pixelFormat,
@@ -298,10 +293,10 @@ extension TextureLoader {
             options: options,
             identifier: identifier
         )
-        return Shared.shared.texturePool?.makeLease(
+        return Shared.shared.defaultTexturePool.makeLease(
             for: texture,
             logicalExtent: logicalExtent
-        ) ?? TextureLease(texture: texture, logicalExtent: logicalExtent)
+        )
     }
     
     public static func makeTexture(at size: CGSize, options: [Option: Any]? = nil, identifier: String = "Render") throws -> MTLTexture {
@@ -317,7 +312,7 @@ extension TextureLoader {
     
     public static func copyTexture(with texture: MTLTexture, identifier: String = "Render") throws -> MTLTexture {
         let width = texture.width, height = texture.height
-        if let pooledTexture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: texture.pixelFormat) {
+        if let pooledTexture = Shared.shared.defaultTexturePool.dequeueTexture(width: width, height: height, pixelFormat: texture.pixelFormat) {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
             return pooledTexture
         }
@@ -408,7 +403,7 @@ extension TextureLoader {
             height: outputHeight,
             bitsPerComponent: 8,
             bytesPerRow: 0,
-            space: cgImage.colorSpace ?? Device.colorSpace(),
+            space: cgImage.colorSpace ?? Shared.shared.defaultDevice.colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
             throw HarbethError.contextCreationFailed
@@ -449,7 +444,7 @@ extension TextureLoader {
             height: height,
             bitsPerComponent: 8,
             bytesPerRow: bytesPerRow,
-            space: Device.colorSpace(),
+            space: Shared.shared.defaultDevice.colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
             throw HarbethError.contextCreationFailed
         }
@@ -478,10 +473,7 @@ extension TextureLoader {
                                    identifier: String = "Render",
                                    success: @escaping (_ texture: MTLTexture) -> Void,
                                    failed: ((HarbethError) -> Void)? = nil) {
-        guard let loader = Shared.shared.device?.textureLoader else {
-            failed?(.textureLoader)
-            return
-        }
+        let loader = Shared.shared.defaultDevice.textureLoader
         loader.newTexture(cgImage: cgImage, options: options ?? defaultOptions) { texture, error in
             if let texture = texture {
                 Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)

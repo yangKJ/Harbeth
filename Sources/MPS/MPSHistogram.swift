@@ -17,8 +17,8 @@ public struct MPSHistogram: MPSKernelProtocol {
     @Clamping(range.min...range.max) public var histogramEntries: Int = range.value {
         didSet {
             var histogramInfo = MPSHistogram.createMPSImageHistogramInfo(histogramEntries)
-            self.histogram = MPSImageHistogram(device: Device.device(), histogramInfo: &histogramInfo)
-            self.equalization = MPSImageHistogramEqualization(device: Device.device(), histogramInfo: &histogramInfo)
+            self.histogram = MPSImageHistogram(device: Shared.shared.metalDevice, histogramInfo: &histogramInfo)
+            self.equalization = MPSImageHistogramEqualization(device: Shared.shared.metalDevice, histogramInfo: &histogramInfo)
         }
     }
     
@@ -29,7 +29,7 @@ public struct MPSHistogram: MPSKernelProtocol {
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         let destTexture = textures[0], sourceTexture = textures[1]
         let bufferLength = histogram.histogramSize(forSourceFormat: sourceTexture.pixelFormat)
-        guard let histogramBuffer = Device.device().makeBuffer(length: bufferLength, options: [.storageModePrivate]) else {
+        guard let histogramBuffer = Shared.shared.metalDevice.makeBuffer(length: bufferLength, options: [.storageModePrivate]) else {
             return destTexture
         }
         histogram.encode(to: commandBuffer, sourceTexture: sourceTexture, histogram: histogramBuffer, histogramOffset: 0)
@@ -45,9 +45,9 @@ public struct MPSHistogram: MPSKernelProtocol {
     
     public init(histogramEntries: Int = range.value) {
         var histogramInfo = MPSHistogram.createMPSImageHistogramInfo(histogramEntries)
-        self.histogram = MPSImageHistogram(device: Device.device(), histogramInfo: &histogramInfo)
+        self.histogram = MPSImageHistogram(device: Shared.shared.metalDevice, histogramInfo: &histogramInfo)
         self.histogram.zeroHistogram = false
-        self.equalization = MPSImageHistogramEqualization(device: Device.device(), histogramInfo: &histogramInfo)
+        self.equalization = MPSImageHistogramEqualization(device: Shared.shared.metalDevice, histogramInfo: &histogramInfo)
     }
 }
 

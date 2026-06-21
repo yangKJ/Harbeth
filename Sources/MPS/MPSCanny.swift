@@ -17,7 +17,7 @@ public struct MPSCanny: MPSKernelProtocol {
     /// 低阈值
     @Clamping(range.min...range.max) public var lowThreshold: Float = range.value {
         didSet {
-            self.canny = MPSImageCanny(device: Device.device(), linearToGrayScaleTransform: &lowThreshold, sigma: highThreshold)
+            self.canny = MPSImageCanny(device: Shared.shared.metalDevice, linearToGrayScaleTransform: &lowThreshold, sigma: highThreshold)
             self.canny.edgeMode = .clamp
         }
     }
@@ -25,7 +25,7 @@ public struct MPSCanny: MPSKernelProtocol {
     /// 高阈值
     @Clamping(range.min...range.max) public var highThreshold: Float = range.value * 3 {
         didSet {
-            self.canny = MPSImageCanny(device: Device.device(), linearToGrayScaleTransform: &lowThreshold, sigma: highThreshold)
+            self.canny = MPSImageCanny(device: Shared.shared.metalDevice, linearToGrayScaleTransform: &lowThreshold, sigma: highThreshold)
             self.canny.edgeMode = .clamp
         }
     }
@@ -44,7 +44,7 @@ public struct MPSCanny: MPSKernelProtocol {
     
     public init(lowThreshold: Float = range.value, highThreshold: Float = range.value * 3) {
         var threshold = lowThreshold
-        self.canny = MPSImageCanny(device: Device.device(), linearToGrayScaleTransform: &threshold, sigma: highThreshold)
+        self.canny = MPSImageCanny(device: Shared.shared.metalDevice, linearToGrayScaleTransform: &threshold, sigma: highThreshold)
         self.canny.edgeMode = .clamp
         self.lowThreshold = lowThreshold
         self.highThreshold = highThreshold

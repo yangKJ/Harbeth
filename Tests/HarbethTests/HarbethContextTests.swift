@@ -9,7 +9,7 @@ final class HarbethContextTests: XCTestCase {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
-        let context = HarbethContext.shared
+        let context = Shared.shared.defaultContext
         context.resetCaches()
 
         _ = context.makeSamplerState()
@@ -22,9 +22,43 @@ final class HarbethContextTests: XCTestCase {
 
     func testTexturePoolReusesExactTexture() throws {
         let texture = try TextureLoader.makeTexture(width: 4, height: 4, identifier: "context-pool")
-        Shared.shared.texturePool?.enqueueTextureSync(texture)
+        Shared.shared.defaultTexturePool.enqueueTextureSync(texture)
         let reused = try TextureLoader.makeTexture(width: 4, height: 4, identifier: "context-pool")
         XCTAssertTrue(texture === reused)
+    }
+
+    func testSharedOwnsDefaultRuntimeAndContextBridgesToIt() {
+        Shared.shared.deinitDevice()
+
+        let device = Shared.shared.defaultDevice
+        let context = Shared.shared.defaultContext
+
+        XCTAssertTrue(Shared.shared.hasDevice)
+        XCTAssertTrue(Shared.shared.hasContext)
+        XCTAssertTrue(context === HarbethContext.shared)
+        XCTAssertTrue(context.device === device.device)
+        XCTAssertTrue(context.commandQueue === device.commandQueue)
+        XCTAssertTrue(context.texturePool === Shared.shared.defaultTexturePool)
+    }
+
+    func testSharedDeinitDeviceResetsDefaultRuntime() {
+        _ = Shared.shared.defaultDevice
+        _ = Shared.shared.defaultContext
+        _ = Shared.shared.defaultTexturePool
+
+        XCTAssertTrue(Shared.shared.hasDevice)
+        XCTAssertTrue(Shared.shared.hasContext)
+
+        Shared.shared.deinitDevice()
+
+        XCTAssertFalse(Shared.shared.hasDevice)
+        XCTAssertFalse(Shared.shared.hasContext)
+
+        let newDevice = Shared.shared.defaultDevice
+        let newContext = Shared.shared.defaultContext
+        XCTAssertTrue(Shared.shared.hasDevice)
+        XCTAssertTrue(Shared.shared.hasContext)
+        XCTAssertTrue(newContext.device === newDevice.device)
     }
 
     func testPixelBufferBackedTextureRetainsOwnerReference() throws {
