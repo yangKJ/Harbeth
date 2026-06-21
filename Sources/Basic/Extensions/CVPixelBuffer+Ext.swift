@@ -180,17 +180,14 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     /// - Parameter texture: Source Metal texture
     @discardableResult
     public func copyToPixelBuffer(with texture: MTLTexture) -> Bool {
+        guard textureCopyCompatibilityError(for: texture) == nil else {
+            return false
+        }
         guard lockBaseAddress([]) == kCVReturnSuccess else {
             return false
         }
         defer { unlockBaseAddress([]) }
         guard let pixelBufferBytes = CVPixelBufferGetBaseAddress(base) else {
-            return false
-        }
-        // Fixed if the CVPixelBuffer and MTLTexture size is not equal.
-        // If the size is inconsistent, using the modified size filter will crash.
-        // Such as: C7Resize, C7Crop and so on Shape filter.
-        guard base.c7.size == texture.c7.toC7Size() else {
             return false
         }
         let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
@@ -200,7 +197,28 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     }
 
     public func canCopyTextureData(from texture: MTLTexture) -> Bool {
-        base.c7.size == texture.c7.toC7Size()
+        textureCopyCompatibilityError(for: texture) == nil
+    }
+
+    public func textureCopyCompatibilityError(for texture: MTLTexture) -> HarbethError? {
+        guard base.c7.size == texture.c7.toC7Size() else {
+            return .textureSizeMismatch
+        }
+        let contract = self.contract
+        guard contract.planar == false else {
+            return .configurationInvalid("Pixel buffer copy-back only supports non-planar outputs.")
+        }
+        guard let expectedPixelFormat = contract.preferredMetalPixelFormat else {
+            return .configurationInvalid(
+                "Pixel buffer copy-back does not support CV pixel format type \(contract.cvPixelFormatType)."
+            )
+        }
+        guard texture.pixelFormat == expectedPixelFormat else {
+            return .configurationInvalid(
+                "Pixel buffer copy-back pixel format mismatch. Texture pixelFormat=\(texture.pixelFormat), expected \(expectedPixelFormat)."
+            )
+        }
+        return nil
     }
     
     /// Creates new pixel buffer from texture
@@ -310,7 +328,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
 
     private static func colorModel(for pixelFormatType: OSType, planeCount: Int) -> PixelBufferColorModel {
         switch pixelFormatType {
-        case kCVPixelFormatType_32BGRA, kCVPixelFormatType_32RGBA, kCVPixelFormatType_32ARGB:
+        case kCVPixelFormatType_32BGRA, kCVPixelFormatType_32RGBA, kCVPixelFormatType_32ARGB, kCVPixelFormatType_64RGBAHalf:
             return .rgba
         case kCVPixelFormatType_OneComponent8:
             return .monochrome
@@ -334,6 +352,8 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                 return .bgra8Unorm
             case kCVPixelFormatType_32RGBA, kCVPixelFormatType_32ARGB:
                 return .rgba8Unorm
+            case kCVPixelFormatType_64RGBAHalf:
+                return .rgba16Float
             case kCVPixelFormatType_OneComponent8:
                 return .r8Unorm
             default:

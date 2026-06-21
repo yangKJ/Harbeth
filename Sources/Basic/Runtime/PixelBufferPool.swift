@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreVideo
+import Metal
 
 public struct RenderPixelBufferDescriptor: Sendable, Equatable, Hashable {
     public let width: Int
@@ -46,6 +47,21 @@ public struct RenderPixelBufferDescriptor: Sendable, Equatable, Hashable {
             "cg=\(cgImageCompatible ? 1 : 0)",
             "bitmap=\(bitmapContextCompatible ? 1 : 0)"
         ].joined(separator: "|")
+    }
+
+    public static func pixelFormatType(for metalPixelFormat: MTLPixelFormat) -> OSType? {
+        switch metalPixelFormat {
+        case .bgra8Unorm, .bgra8Unorm_srgb:
+            return kCVPixelFormatType_32BGRA
+        case .rgba8Unorm, .rgba8Unorm_srgb:
+            return kCVPixelFormatType_32RGBA
+        case .r8Unorm:
+            return kCVPixelFormatType_OneComponent8
+        case .rgba16Float:
+            return kCVPixelFormatType_64RGBAHalf
+        default:
+            return nil
+        }
     }
 
     var poolAttributes: [String: Any] {

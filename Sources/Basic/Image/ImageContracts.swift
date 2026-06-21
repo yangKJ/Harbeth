@@ -732,7 +732,7 @@ public struct SampleBufferFrameContract: Sendable, Codable, Equatable, Hashable 
 }
 
 /// 图像采样合同，用于 lazy graph、render diagnostics 和 sampler cache。
-public struct ImageSamplerDescriptor: Sendable, Equatable, Hashable {
+public struct ImageSamplerDescriptor: Sendable, Codable, Equatable, Hashable {
     public let minFilter: MTLSamplerMinMagFilter
     public let magFilter: MTLSamplerMinMagFilter
     public let mipFilter: MTLSamplerMipFilter
@@ -766,6 +766,34 @@ public struct ImageSamplerDescriptor: Sendable, Equatable, Hashable {
             "s=\(sAddressMode.rawValue)",
             "t=\(tAddressMode.rawValue)"
         ].joined(separator: "|")
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case minFilter
+        case magFilter
+        case mipFilter
+        case sAddressMode
+        case tAddressMode
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            minFilter: MTLSamplerMinMagFilter(rawValue: try container.decode(UInt.self, forKey: .minFilter)) ?? .linear,
+            magFilter: MTLSamplerMinMagFilter(rawValue: try container.decode(UInt.self, forKey: .magFilter)) ?? .linear,
+            mipFilter: MTLSamplerMipFilter(rawValue: try container.decode(UInt.self, forKey: .mipFilter)) ?? .notMipmapped,
+            sAddressMode: MTLSamplerAddressMode(rawValue: try container.decode(UInt.self, forKey: .sAddressMode)) ?? .clampToEdge,
+            tAddressMode: MTLSamplerAddressMode(rawValue: try container.decode(UInt.self, forKey: .tAddressMode)) ?? .clampToEdge
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(minFilter.rawValue, forKey: .minFilter)
+        try container.encode(magFilter.rawValue, forKey: .magFilter)
+        try container.encode(mipFilter.rawValue, forKey: .mipFilter)
+        try container.encode(sAddressMode.rawValue, forKey: .sAddressMode)
+        try container.encode(tAddressMode.rawValue, forKey: .tAddressMode)
     }
 }
 

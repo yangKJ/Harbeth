@@ -15,8 +15,8 @@ extension HarbethIO {
     func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
         let inTexture = try TextureLoader(with: pixelBuffer).texture
         let texture = try filtering(texture: inTexture)
-        guard pixelBuffer.c7.canCopyTextureData(from: texture) else {
-            throw HarbethError.textureSizeMismatch
+        if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
+            throw compatibilityError
         }
         guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
             throw HarbethError.pixelBufferCopyFailed
@@ -56,8 +56,8 @@ extension HarbethIO {
             filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let outputTexture):
-                    guard pixelBuffer.c7.canCopyTextureData(from: outputTexture) else {
-                        complete(.failure(.textureSizeMismatch))
+                    if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: outputTexture) {
+                        complete(.failure(compatibilityError))
                         return
                     }
                     guard pixelBuffer.c7.copyToPixelBuffer(with: outputTexture) else {

@@ -85,6 +85,42 @@ final class MaskPrimitiveTests: XCTestCase {
         XCTAssertEqual(try firstPixel(in: greenOutput).red, 255)
     }
 
+    func testMaskBlendAddModeAddsEffectThroughOpaqueMask() throws {
+        let base = try makeTexture(pixel: [100, 50, 25, 255])
+        let effect = try makeTexture(pixel: [80, 100, 120, 128])
+        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
+        let descriptor = MaskDescriptor(texture: maskTexture, blendMode: .add, opacity: 1)
+
+        let output: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+        ).output()
+
+        let pixel = try firstPixel(in: output)
+        XCTAssertEqual(pixel.red, 180, accuracy: 2)
+        XCTAssertEqual(pixel.green, 150, accuracy: 2)
+        XCTAssertEqual(pixel.blue, 145, accuracy: 2)
+        XCTAssertEqual(pixel.alpha, 255)
+    }
+
+    func testMaskBlendMultiplyModeMultipliesEffectThroughOpaqueMask() throws {
+        let base = try makeTexture(pixel: [100, 50, 25, 255])
+        let effect = try makeTexture(pixel: [80, 100, 120, 128])
+        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
+        let descriptor = MaskDescriptor(texture: maskTexture, blendMode: .multiply, opacity: 1)
+
+        let output: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+        ).output()
+
+        let pixel = try firstPixel(in: output)
+        XCTAssertEqual(pixel.red, 31, accuracy: 2)
+        XCTAssertEqual(pixel.green, 20, accuracy: 2)
+        XCTAssertEqual(pixel.blue, 12, accuracy: 2)
+        XCTAssertEqual(pixel.alpha, 128, accuracy: 2)
+    }
+
     func testMaskDescriptorFactorsExposeComponentAndFeather() throws {
         let maskTexture = try makeTexture(pixel: [255, 128, 0, 255])
         let descriptor = MaskDescriptor(

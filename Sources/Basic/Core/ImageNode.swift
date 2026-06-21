@@ -200,6 +200,22 @@ extension ImageNode: ImagePromise {
         )
     }
 
+    public func makeDebugSnapshotJSONData(profile: RenderProfile = .stablePreview,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          prettyPrinted: Bool = false,
+                                          sortedKeys: Bool = true) throws -> Data {
+        try makeDebugSnapshot(profile: profile, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func makeDebugSnapshotJSONString(profile: RenderProfile = .stablePreview,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> String {
+        try makeDebugSnapshot(profile: profile, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
     public func makeRenderPlan(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
         switch self {

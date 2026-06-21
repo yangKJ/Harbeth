@@ -6,7 +6,7 @@
 //
 import Foundation
 
-public enum RenderNodeKind: String, Sendable, Equatable {
+public enum RenderNodeKind: String, Sendable, Codable, Equatable, Hashable {
     case compute
     case render
     case blit
@@ -44,20 +44,20 @@ public struct RenderGraph {
     }
 }
 
-public enum RenderStageKind: String, Sendable, Equatable {
+public enum RenderStageKind: String, Sendable, Codable, Equatable, Hashable {
     case compute
     case render
     case blit
     case boundary
 }
 
-public enum RenderStageBoundaryReason: String, Sendable, Equatable {
+public enum RenderStageBoundaryReason: String, Sendable, Codable, Equatable, Hashable {
     case externalBoundary
     case fusionBoundary
     case readbackReady
 }
 
-public enum RenderCompilationSource: String, Sendable, Equatable {
+public enum RenderCompilationSource: String, Sendable, Codable, Equatable, Hashable {
     case filtersPrimitive
     case editRecipe
     case transition
@@ -65,20 +65,20 @@ public enum RenderCompilationSource: String, Sendable, Equatable {
     case layerComposite
 }
 
-public enum RenderTextureLifecycleAction: String, Sendable, Equatable {
+public enum RenderTextureLifecycleAction: String, Sendable, Codable, Equatable, Hashable {
     case allocatePersistentOutput
     case allocateTransient
     case reuseTransient
     case preserveForReadback
 }
 
-public enum RenderTextureReservationReason: String, Sendable, Equatable {
+public enum RenderTextureReservationReason: String, Sendable, Codable, Equatable, Hashable {
     case transientReuse
     case persistentOutput
     case readbackOutput
 }
 
-public struct RenderTextureReservation: Sendable, Equatable {
+public struct RenderTextureReservation: Sendable, Codable, Equatable, Hashable {
     public let stageIndices: [Int]
     public let size: C7Size
     public let pixelFormat: PixelFormatContract
@@ -98,7 +98,7 @@ public struct RenderTextureReservation: Sendable, Equatable {
     }
 }
 
-public struct RenderTextureLifecycleDecision: Sendable, Equatable {
+public struct RenderTextureLifecycleDecision: Sendable, Codable, Equatable, Hashable {
     public let stageIndex: Int
     public let action: RenderTextureLifecycleAction
     public let size: C7Size
@@ -115,7 +115,7 @@ public struct RenderTextureLifecycleDecision: Sendable, Equatable {
     }
 }
 
-public struct RenderOptimizationPlan: Sendable, Equatable {
+public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
     public let intermediateTextureCount: Int
     public let reusableTextureCount: Int
     public let persistentOutputCount: Int
@@ -178,15 +178,25 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
         self.decisions = decisions
         self.allocatorDecisions = allocatorDecisions
     }
+
+    public var textureReuseHitRatio: Double {
+        TextureAllocatorSnapshot(
+            allocationStrategy: allocationStrategy,
+            textureRequestCount: textureRequestCount,
+            textureReuseHitCount: textureReuseHitCount,
+            heapBackedAllocationCount: heapBackedAllocationCount,
+            allocatorDecisions: allocatorDecisions
+        ).textureReuseHitRatio
+    }
 }
 
-public enum RenderStageMergeClass: String, Sendable, Equatable {
+public enum RenderStageMergeClass: String, Sendable, Codable, Equatable, Hashable {
     case pointCompute
     case renderPipeline
     case blitPass
 }
 
-public struct RenderStage: Sendable, Equatable {
+public struct RenderStage: Sendable, Codable, Equatable, Hashable {
     public let index: Int
     public let stageKind: RenderStageKind
     public let mergeClass: RenderStageMergeClass?
@@ -236,7 +246,7 @@ public struct RenderStage: Sendable, Equatable {
     }
 }
 
-public struct RenderNodeDiagnostic: Sendable, Equatable {
+public struct RenderNodeDiagnostic: Sendable, Codable, Equatable, Hashable {
     public let index: Int
     public let name: String
     public let kind: RenderNodeKind
@@ -262,7 +272,7 @@ public struct RenderNodeDiagnostic: Sendable, Equatable {
     }
 }
 
-public struct RenderPlanDiagnostics: Sendable, Equatable {
+public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     public let profile: RenderProfile
     public let derivative: ImageDerivativeSpec
     public let graphFingerprint: String
@@ -422,6 +432,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "allocator=\(optimizationPlan.allocationStrategy.rawValue)",
             "textureRequests=\(optimizationPlan.textureRequestCount)",
             "textureReuseHits=\(optimizationPlan.textureReuseHitCount)",
+            "textureReuseRatio=\(String(format: "%.3f", optimizationPlan.textureReuseHitRatio))",
             "heapBacked=\(optimizationPlan.heapBackedAllocationCount)",
             "inputColorConversions=\(inputColorConversionCount)",
             "inputPixelFormatConversions=\(inputPixelFormatConversionCount)",
@@ -432,6 +443,8 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
             "outputAlpha=\(outputAlphaType?.rawValue ?? "none")",
             "inputPixel=\(inputPixelFormat.name)",
+            "inputPixelPrecision=\(inputPixelPrecision.rawValue)",
+            "inputHDRFriendly=\(inputIsHDRFriendly ? 1 : 0)",
             "outputPixel=\(outputPixelFormat.name)",
             "alphaContract=\(outputContract.alpha)",
             "colorGamut=\(outputContract.colorSpace.gamut.rawValue)",
@@ -443,12 +456,25 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         ].joined(separator: " ")
     }
 
+    public var inputPixelPrecision: PixelPrecision {
+        inputPixelFormat.precision
+    }
+
+    public var inputIsHighPrecision: Bool {
+        inputPixelFormat.isHighPrecision
+    }
+
+    public var inputIsHDRFriendly: Bool {
+        inputPixelFormat.isHighPrecision || inputColorSpace.isWideGamut || inputColorSpace.isHDRTransfer
+    }
+
     public func withImageCachePolicy(_ policy: ImageCachePolicy) -> RenderPlanDiagnostics {
         let plan = GraphOptimizer.makeOptimizationPlan(
             stages: stages,
             nodeDiagnostics: nodes,
             outputContract: outputContract,
-            imageCachePolicy: policy
+            imageCachePolicy: policy,
+            inputPixelFormat: inputPixelFormat
         )
         return RenderPlanDiagnostics(
             profile: profile,
@@ -536,6 +562,27 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             stages: stages
         )
     }
+
+    public func jsonData(prettyPrinted: Bool = false,
+                         sortedKeys: Bool = true) throws -> Data {
+        let encoder = JSONEncoder()
+        if prettyPrinted {
+            encoder.outputFormatting.insert(.prettyPrinted)
+        }
+        if sortedKeys {
+            encoder.outputFormatting.insert(.sortedKeys)
+        }
+        return try encoder.encode(self)
+    }
+
+    public func jsonString(prettyPrinted: Bool = false,
+                           sortedKeys: Bool = true) throws -> String {
+        let data = try jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+        guard let string = String(data: data, encoding: .utf8) else {
+            throw HarbethError.configurationInvalid("RenderPlanDiagnostics JSON encoding is not valid UTF-8.")
+        }
+        return string
+    }
 }
 
 public struct RenderPlan {
@@ -574,12 +621,6 @@ public struct RenderPlan {
             nodeDiagnostics: nodeDiagnostics,
             profile: profile
         )
-        let optimizationPlan = GraphOptimizer.makeOptimizationPlan(
-            stages: optimizedStages,
-            nodeDiagnostics: nodeDiagnostics,
-            outputContract: outputContract,
-            imageCachePolicy: imageCachePolicy
-        )
         let sourceDerivedInputColorConversions = RenderPlan.resolveInputColorConversionCount(from: sourceDescriptor)
         let sourceDerivedInputPixelFormatConversions = RenderPlan.resolveInputPixelFormatConversionCount(from: sourceDescriptor)
         let sourceDirectPlaneBridgeCount = RenderPlan.resolveInputDirectPlaneBridgeCount(from: sourceDescriptor)
@@ -594,6 +635,13 @@ public struct RenderPlan {
             ? ImageColorSpaceContract(name: "YCbCr", preservesInput: true, gamut: .custom, transferFunction: .custom)
             : .preserveInput
         let resolvedInputPixelFormat = RenderPlan.resolveInputPixelFormat(from: sourceDescriptor)
+        let optimizationPlan = GraphOptimizer.makeOptimizationPlan(
+            stages: optimizedStages,
+            nodeDiagnostics: nodeDiagnostics,
+            outputContract: outputContract,
+            imageCachePolicy: imageCachePolicy,
+            inputPixelFormat: resolvedInputPixelFormat
+        )
         let resolvedOutputPixelFormat = outputContract.pixelFormat.preservesInput
             ? (resolvedInputPixelFormat.preservesInput ? .rgba8Unorm : resolvedInputPixelFormat)
             : outputContract.pixelFormat
@@ -709,7 +757,8 @@ public enum GraphOptimizer {
     public static func makeOptimizationPlan(stages: [RenderStage],
                                             nodeDiagnostics: [RenderNodeDiagnostic],
                                             outputContract: RenderOutputContract = .preserveInput,
-                                            imageCachePolicy: ImageCachePolicy = .transient) -> RenderOptimizationPlan {
+                                            imageCachePolicy: ImageCachePolicy = .transient,
+                                            inputPixelFormat: PixelFormatContract = .preserveInput) -> RenderOptimizationPlan {
         let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
         let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
         let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
@@ -725,15 +774,34 @@ public enum GraphOptimizer {
         let lifecycleDecisions = makeLifecycleDecisions(stages: stages)
         let prewarmReservations = makePrewarmReservations(
             lifecycleDecisions: lifecycleDecisions,
-            outputContract: outputContract
+            outputContract: outputContract,
+            inputPixelFormat: inputPixelFormat
         )
         let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
         let estimatedTransientByteCount = lifecycleDecisions
             .filter { $0.action == .reuseTransient || $0.action == .allocateTransient }
-            .reduce(0) { $0 + estimatedByteCount(for: $1.size) }
+            .reduce(0) { partial, decision in
+                partial + estimatedByteCount(
+                    for: decision.size,
+                    pixelFormat: pixelFormat(
+                        for: decision,
+                        outputContract: outputContract,
+                        inputPixelFormat: inputPixelFormat
+                    )
+                )
+            }
         let estimatedPersistentByteCount = lifecycleDecisions
             .filter { $0.action == .allocatePersistentOutput || $0.action == .preserveForReadback }
-            .reduce(0) { $0 + estimatedByteCount(for: $1.size) }
+            .reduce(0) { partial, decision in
+                partial + estimatedByteCount(
+                    for: decision.size,
+                    pixelFormat: pixelFormat(
+                        for: decision,
+                        outputContract: outputContract,
+                        inputPixelFormat: inputPixelFormat
+                    )
+                )
+            }
         var decisions: [String] = []
         if intermediateTextureCount > 0 {
             decisions.append("reuseTransientIntermediateTextures")
@@ -755,6 +823,15 @@ public enum GraphOptimizer {
         }
         if imageCachePolicy == .persistent {
             decisions.append("preservePersistentImageNode")
+        }
+        if inputPixelFormat.isHighPrecision,
+           prewarmReservations.contains(where: {
+               resolvedReservationPixelFormat(
+                   preferred: $0.pixelFormat,
+                   fallback: inputPixelFormat
+               ).metalPixelFormat == inputPixelFormat.metalPixelFormat
+           }) {
+            decisions.append("preserveInputPixelFormatForReservations")
         }
         if decisions.isEmpty {
             decisions.append("singleStageNoOptimizationNeeded")
@@ -821,12 +898,14 @@ public enum GraphOptimizer {
         }
     }
 
-    private static func estimatedByteCount(for size: C7Size) -> Int {
-        max(size.width, 0) * max(size.height, 0) * 4
+    private static func estimatedByteCount(for size: C7Size,
+                                           pixelFormat: PixelFormatContract) -> Int {
+        max(size.width, 0) * max(size.height, 0) * bytesPerPixel(for: pixelFormat)
     }
 
     private static func makePrewarmReservations(lifecycleDecisions: [RenderTextureLifecycleDecision],
-                                                outputContract: RenderOutputContract) -> [RenderTextureReservation] {
+                                                outputContract: RenderOutputContract,
+                                                inputPixelFormat: PixelFormatContract) -> [RenderTextureReservation] {
         var grouped: [String: RenderTextureReservation] = [:]
         for decision in lifecycleDecisions {
             let reason: RenderTextureReservationReason?
@@ -834,16 +913,28 @@ public enum GraphOptimizer {
             switch decision.action {
             case .reuseTransient:
                 reason = .transientReuse
-                pixelFormat = .preserveInput
+                pixelFormat = resolvedReservationPixelFormat(
+                    preferred: .preserveInput,
+                    fallback: inputPixelFormat
+                )
             case .allocatePersistentOutput:
                 reason = .persistentOutput
-                pixelFormat = outputContract.pixelFormat
+                pixelFormat = resolvedReservationPixelFormat(
+                    preferred: outputContract.pixelFormat,
+                    fallback: inputPixelFormat
+                )
             case .preserveForReadback:
                 reason = .readbackOutput
-                pixelFormat = outputContract.pixelFormat
+                pixelFormat = resolvedReservationPixelFormat(
+                    preferred: outputContract.pixelFormat,
+                    fallback: inputPixelFormat
+                )
             case .allocateTransient:
                 reason = nil
-                pixelFormat = .preserveInput
+                pixelFormat = resolvedReservationPixelFormat(
+                    preferred: .preserveInput,
+                    fallback: inputPixelFormat
+                )
             }
             guard let reason else { continue }
             let key = [
@@ -876,6 +967,63 @@ public enum GraphOptimizer {
                 return lhs.size.width < rhs.size.width
             }
             return lhs.size.height < rhs.size.height
+        }
+    }
+
+    private static func pixelFormat(for decision: RenderTextureLifecycleDecision,
+                                    outputContract: RenderOutputContract,
+                                    inputPixelFormat: PixelFormatContract) -> PixelFormatContract {
+        switch decision.action {
+        case .reuseTransient, .allocateTransient:
+            return resolvedReservationPixelFormat(
+                preferred: .preserveInput,
+                fallback: inputPixelFormat
+            )
+        case .allocatePersistentOutput, .preserveForReadback:
+            return resolvedReservationPixelFormat(
+                preferred: outputContract.pixelFormat,
+                fallback: inputPixelFormat
+            )
+        }
+    }
+
+    private static func resolvedReservationPixelFormat(preferred: PixelFormatContract,
+                                                       fallback: PixelFormatContract) -> PixelFormatContract {
+        guard preferred.preservesInput else {
+            return preferred
+        }
+        return concreteReservationPixelFormat(from: fallback) ?? fallback
+    }
+
+    private static func concreteReservationPixelFormat(from contract: PixelFormatContract) -> PixelFormatContract? {
+        guard let metalPixelFormat = contract.metalPixelFormat else {
+            return nil
+        }
+        return PixelFormatContract(pixelFormat: metalPixelFormat, preservesInput: false)
+    }
+
+    private static func bytesPerPixel(for pixelFormat: PixelFormatContract) -> Int {
+        switch pixelFormat.precision {
+        case .float32:
+            return 16
+        case .float16:
+            return 8
+        case .unorm8, .preserveInput, .custom:
+            if let metalPixelFormat = pixelFormat.metalPixelFormat {
+                switch metalPixelFormat {
+                case .r8Unorm:
+                    return 1
+                case .rg8Unorm:
+                    return 2
+                case .rgba16Float:
+                    return 8
+                case .rgba32Float:
+                    return 16
+                default:
+                    return 4
+                }
+            }
+            return 4
         }
     }
 

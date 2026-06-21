@@ -37,22 +37,103 @@ extension HarbethIO {
     public func renderPixelBuffer(profile: RenderProfile = .stablePreview,
                                   derivative: ImageDerivativeSpec? = nil,
                                   pool: PixelBufferPool? = nil,
-                                  pixelFormatType: OSType = kCVPixelFormatType_32BGRA) throws -> CVPixelBuffer {
-        let texture = try renderTexture(profile: profile, derivative: derivative)
+                                  pixelFormatType: OSType = kCVPixelFormatType_32BGRA,
+                                  outputPixelFormat: PixelFormatContract = .preserveInput) throws -> CVPixelBuffer {
+        let texture = try renderTextureForPixelBuffer(
+            profile: profile,
+            derivative: derivative,
+            requestedPixelFormatType: pixelFormatType,
+            outputPixelFormat: outputPixelFormat
+        )
+        let resolvedPixelFormatType = try resolvePixelBufferFormatType(
+            requestedPixelFormatType: pixelFormatType,
+            outputPixelFormat: outputPixelFormat,
+            renderedTexture: texture
+        )
         let outputPool = try pool ?? PixelBufferPool(
             width: texture.width,
             height: texture.height,
-            pixelFormatType: pixelFormatType
+            pixelFormatType: resolvedPixelFormatType
         )
         let pixelBuffer = try outputPool.makePixelBuffer()
-        guard CVPixelBufferGetWidth(pixelBuffer) == texture.width,
-              CVPixelBufferGetHeight(pixelBuffer) == texture.height else {
-            throw HarbethError.textureSizeMismatch
+        if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
+            throw compatibilityError
         }
         guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
             throw HarbethError.pixelBufferCopyFailed
         }
         return pixelBuffer
+    }
+
+    private func renderTextureForPixelBuffer(profile: RenderProfile,
+                                             derivative: ImageDerivativeSpec?,
+                                             requestedPixelFormatType: OSType,
+                                             outputPixelFormat: PixelFormatContract) throws -> MTLTexture {
+        let sourceObject = try makeImageSource()
+        let source = try sourceObject.makeTexture()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        var effectiveFilters = makeEffectiveFilters(
+            inputSize: C7Size(width: source.width, height: source.height),
+            derivative: effectiveDerivative
+        )
+        let targetPixelFormat: MTLPixelFormat? = {
+            if outputPixelFormat.preservesInput {
+                return Self.preferredMetalPixelFormat(for: requestedPixelFormatType)
+            }
+            return outputPixelFormat.metalPixelFormat
+        }()
+        if effectiveFilters.isEmpty,
+           let targetPixelFormat,
+           source.pixelFormat != targetPixelFormat {
+            effectiveFilters = [C7Brightness(brightness: 0)]
+        }
+        guard effectiveFilters.isEmpty == false else {
+            return source
+        }
+        var io = HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+            .configured(for: profile)
+        if let targetPixelFormat {
+            io.bufferPixelFormat = targetPixelFormat
+            io.createDestTexture = true
+        }
+        return try io.output()
+    }
+
+    private static func preferredMetalPixelFormat(for pixelFormatType: OSType) -> MTLPixelFormat? {
+        switch pixelFormatType {
+        case kCVPixelFormatType_32BGRA:
+            return .bgra8Unorm
+        case kCVPixelFormatType_32RGBA, kCVPixelFormatType_32ARGB:
+            return .rgba8Unorm
+        case kCVPixelFormatType_64RGBAHalf:
+            return .rgba16Float
+        case kCVPixelFormatType_OneComponent8:
+            return .r8Unorm
+        default:
+            return nil
+        }
+    }
+
+    private func resolvePixelBufferFormatType(requestedPixelFormatType: OSType,
+                                              outputPixelFormat: PixelFormatContract,
+                                              renderedTexture: MTLTexture) throws -> OSType {
+        if outputPixelFormat.preservesInput {
+            return requestedPixelFormatType
+        }
+        guard let targetPixelFormat = outputPixelFormat.metalPixelFormat else {
+            throw HarbethError.configurationInvalid("Pixel buffer output pixel format contract must resolve to a Metal pixel format.")
+        }
+        guard let resolvedType = RenderPixelBufferDescriptor.pixelFormatType(for: targetPixelFormat) else {
+            throw HarbethError.configurationInvalid(
+                "Pixel buffer output does not support Metal pixel format \(targetPixelFormat)."
+            )
+        }
+        if renderedTexture.pixelFormat != targetPixelFormat {
+            throw HarbethError.configurationInvalid(
+                "Rendered texture pixel format mismatch for pixel buffer output. Texture pixelFormat=\(renderedTexture.pixelFormat), expected \(targetPixelFormat)."
+            )
+        }
+        return resolvedType
     }
 
     /// texture-first task output for callers that need to observe GPU completion.
@@ -100,6 +181,22 @@ extension HarbethIO {
             }
         }
         return plan.diagnostics
+    }
+
+    public func renderDiagnosticsJSONData(profile: RenderProfile = .stablePreview,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          prettyPrinted: Bool = false,
+                                          sortedKeys: Bool = true) throws -> Data {
+        try renderDiagnostics(profile: profile, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDiagnosticsJSONString(profile: RenderProfile = .stablePreview,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> String {
+        try renderDiagnostics(profile: profile, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
     public func renderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
@@ -178,6 +275,24 @@ extension HarbethIO {
         return plan.diagnostics
     }
 
+    public func renderDiagnosticsJSONData(recipe: EditRecipe,
+                                          mode: EditRecipeMode = .preview,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          prettyPrinted: Bool = false,
+                                          sortedKeys: Bool = true) throws -> Data {
+        try renderDiagnostics(recipe: recipe, mode: mode, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDiagnosticsJSONString(recipe: EditRecipe,
+                                            mode: EditRecipeMode = .preview,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> String {
+        try renderDiagnostics(recipe: recipe, mode: mode, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
     public func renderTexture(composite recipe: LayerCompositeRecipe,
                               derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
         try recipe.makeTexture(derivative: derivative)
@@ -205,6 +320,22 @@ extension HarbethIO {
             }
         }
         return diagnostics
+    }
+
+    public func renderDiagnosticsJSONData(composite recipe: LayerCompositeRecipe,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          prettyPrinted: Bool = false,
+                                          sortedKeys: Bool = true) throws -> Data {
+        try renderDiagnostics(composite: recipe, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDiagnosticsJSONString(composite recipe: LayerCompositeRecipe,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> String {
+        try renderDiagnostics(composite: recipe, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
     public func renderFrame(composite recipe: LayerCompositeRecipe,
@@ -235,10 +366,54 @@ extension HarbethIO {
         return diagnostics
     }
 
+    public func renderDiagnosticsJSONData(node: ImageNode,
+                                          profile: RenderProfile = .stablePreview,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          prettyPrinted: Bool = false,
+                                          sortedKeys: Bool = true) throws -> Data {
+        try renderDiagnostics(node: node, profile: profile, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDiagnosticsJSONString(node: ImageNode,
+                                            profile: RenderProfile = .stablePreview,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> String {
+        try renderDiagnostics(node: node, profile: profile, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
     public func renderDebugSnapshot(node: ImageNode,
                                     profile: RenderProfile = .stablePreview,
                                     derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
         try node.makeDebugSnapshot(profile: profile, derivative: derivative)
+    }
+
+    public func renderDebugSnapshotJSONData(node: ImageNode,
+                                            profile: RenderProfile = .stablePreview,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> Data {
+        try node.makeDebugSnapshotJSONData(
+            profile: profile,
+            derivative: derivative,
+            prettyPrinted: prettyPrinted,
+            sortedKeys: sortedKeys
+        )
+    }
+
+    public func renderDebugSnapshotJSONString(node: ImageNode,
+                                              profile: RenderProfile = .stablePreview,
+                                              derivative: ImageDerivativeSpec? = nil,
+                                              prettyPrinted: Bool = false,
+                                              sortedKeys: Bool = true) throws -> String {
+        try node.makeDebugSnapshotJSONString(
+            profile: profile,
+            derivative: derivative,
+            prettyPrinted: prettyPrinted,
+            sortedKeys: sortedKeys
+        )
     }
 
     public func renderDebugSnapshot(recipe: EditRecipe,
@@ -249,13 +424,61 @@ extension HarbethIO {
             .makeDebugSnapshot(profile: recipe.contract(for: mode).profile, derivative: derivative)
     }
 
+    public func renderDebugSnapshotJSONData(recipe: EditRecipe,
+                                            mode: EditRecipeMode = .preview,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> Data {
+        try renderDebugSnapshot(recipe: recipe, mode: mode, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDebugSnapshotJSONString(recipe: EditRecipe,
+                                              mode: EditRecipeMode = .preview,
+                                              derivative: ImageDerivativeSpec? = nil,
+                                              prettyPrinted: Bool = false,
+                                              sortedKeys: Bool = true) throws -> String {
+        try renderDebugSnapshot(recipe: recipe, mode: mode, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
     public func renderDebugSnapshot(composite recipe: LayerCompositeRecipe,
                                     derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
         try recipe.makeNode().makeDebugSnapshot(profile: recipe.profile, derivative: derivative ?? recipe.derivative)
     }
 
+    public func renderDebugSnapshotJSONData(composite recipe: LayerCompositeRecipe,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> Data {
+        try renderDebugSnapshot(composite: recipe, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDebugSnapshotJSONString(composite recipe: LayerCompositeRecipe,
+                                              derivative: ImageDerivativeSpec? = nil,
+                                              prettyPrinted: Bool = false,
+                                              sortedKeys: Bool = true) throws -> String {
+        try renderDebugSnapshot(composite: recipe, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
     public func renderDebugSnapshot(transition recipe: TransitionRecipe) throws -> RenderGraphDebugSnapshot {
         try ImageNode.transition(recipe).makeDebugSnapshot(profile: recipe.profile, derivative: recipe.derivative)
+    }
+
+    public func renderDebugSnapshotJSONData(transition recipe: TransitionRecipe,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> Data {
+        try renderDebugSnapshot(transition: recipe)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDebugSnapshotJSONString(transition recipe: TransitionRecipe,
+                                              prettyPrinted: Bool = false,
+                                              sortedKeys: Bool = true) throws -> String {
+        try renderDebugSnapshot(transition: recipe)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
     /// texture-first 同步帧输出，携带稳定元数据。
@@ -366,6 +589,20 @@ extension HarbethIO {
             }
         }
         return plan.diagnostics
+    }
+
+    public func renderTransitionDiagnosticsJSONData(_ recipe: TransitionRecipe,
+                                                    prettyPrinted: Bool = false,
+                                                    sortedKeys: Bool = true) throws -> Data {
+        try renderTransitionDiagnostics(recipe)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderTransitionDiagnosticsJSONString(_ recipe: TransitionRecipe,
+                                                      prettyPrinted: Bool = false,
+                                                      sortedKeys: Bool = true) throws -> String {
+        try renderTransitionDiagnostics(recipe)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
     public func renderTransitionFrame(_ recipe: TransitionRecipe,

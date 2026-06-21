@@ -83,7 +83,8 @@ extension TextureLoader {
             return
         }
 
-        let pixelFormat = TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
+        let pixelFormat = bridgePlan.contract.preferredMetalPixelFormat
+            ?? TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
         guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: .texture2DDescriptor(
@@ -348,6 +349,10 @@ extension TextureLoader {
             return .bgra8Unorm
         case kCVPixelFormatType_32RGBA:
             return .rgba8Unorm
+        case kCVPixelFormatType_64RGBAHalf:
+            return .rgba16Float
+        case kCVPixelFormatType_OneComponent8:
+            return .r8Unorm
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
             return .bgra8Unorm
         default:

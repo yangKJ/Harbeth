@@ -86,8 +86,7 @@ public struct EditRecipe {
         makeBaseFilterChain(inputSize: inputSize, prefersQualityResize: prefersQualityResize)
     }
 
-    public func makeNode(source: ImageSource,
-                         mode: EditRecipeMode = .preview) -> ImageNode {
+    public func makeNode(source: ImageSource, mode: EditRecipeMode = .preview) -> ImageNode {
         .recipe(source: source, recipe: self, mode: mode)
     }
 

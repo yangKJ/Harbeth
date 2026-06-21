@@ -148,6 +148,70 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === Shared.shared.defaultTexturePool)
     }
 
+    func testTolerantTextureAllocatorStillReusesOversizedUnormTexture() throws {
+        let pool = TexturePool()
+        let allocator = TolerantTextureAllocator(texturePool: pool)
+        let texture = try TextureLoader.makeTexture(width: 12, height: 12, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "allocator-unorm-tolerance")
+        pool.enqueueTextureSync(texture)
+
+        let reused = allocator.dequeueTexture(
+            width: 10,
+            height: 10,
+            pixelFormat: .rgba8Unorm,
+            allowsSizeTolerance: true
+        )
+
+        XCTAssertTrue(reused === texture)
+        XCTAssertEqual(allocator.makeSnapshot().allocatorDecisions, ["dequeueToleranceMatch"])
+    }
+
+    func testTolerantTextureAllocatorForcesExactMatchForHighPrecisionTexture() throws {
+        let pool = TexturePool()
+        let allocator = TolerantTextureAllocator(texturePool: pool)
+        let texture = try TextureLoader.makeTexture(width: 12, height: 12, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba16Float
+        ], identifier: "allocator-high-precision-exact")
+        pool.enqueueTextureSync(texture)
+
+        let reused = allocator.dequeueTexture(
+            width: 10,
+            height: 10,
+            pixelFormat: .rgba16Float,
+            allowsSizeTolerance: true
+        )
+
+        XCTAssertNil(reused)
+        XCTAssertEqual(
+            allocator.makeSnapshot().allocatorDecisions,
+            ["highPrecisionForcesExactMatch", "dequeueExactMatch"]
+        )
+    }
+
+    func testTolerantTextureAllocatorLeaseForcesExactMatchForHighPrecisionTexture() throws {
+        let pool = TexturePool()
+        let allocator = TolerantTextureAllocator(texturePool: pool)
+        let texture = try TextureLoader.makeTexture(width: 12, height: 12, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba16Float
+        ], identifier: "allocator-high-precision-lease")
+        pool.enqueueTextureSync(texture)
+
+        let lease = allocator.dequeueTextureLease(
+            width: 10,
+            height: 10,
+            pixelFormat: .rgba16Float,
+            allowsSizeTolerance: true,
+            logicalExtent: C7Size(width: 10, height: 10)
+        )
+
+        XCTAssertNil(lease)
+        XCTAssertEqual(
+            allocator.makeSnapshot().allocatorDecisions,
+            ["highPrecisionForcesExactMatch", "leaseExactMatch"]
+        )
+    }
+
     func testSharedDeinitDeviceResetsDefaultRuntime() {
         _ = Shared.shared.defaultDevice
         _ = Shared.shared.defaultContext

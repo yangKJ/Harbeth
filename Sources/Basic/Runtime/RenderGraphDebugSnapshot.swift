@@ -20,27 +20,97 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let persistentBoundaryCount: Int
         public let transientReuseCandidateCount: Int
         public let inputDirectPlaneBridgeCount: Int
+        public let inputPixelPrecision: String
+        public let inputHDRFriendly: Bool
+        public let optimizationPlan: RenderOptimizationPlan
+        public let allocationStrategy: String
+        public let textureRequestCount: Int
+        public let textureReuseHitCount: Int
+        public let textureReuseHitRatio: Double
+        public let heapBackedAllocationCount: Int
+        public let allocatorDecisions: [String]
         public let stageCount: Int
         public let compilationSource: String
         public let inputSize: String
         public let outputSize: String
 
+        public init(summary: String,
+                    profile: String,
+                    derivative: String,
+                    graphFingerprint: String,
+                    graphNodeCount: Int,
+                    graphEdgeCount: Int,
+                    optimizedGraphNodeCount: Int,
+                    graphOptimizationDecisions: [String],
+                    persistentBoundaryCount: Int,
+                    transientReuseCandidateCount: Int,
+                    inputDirectPlaneBridgeCount: Int,
+                    inputPixelPrecision: String,
+                    inputHDRFriendly: Bool,
+                    optimizationPlan: RenderOptimizationPlan,
+                    allocationStrategy: String,
+                    textureRequestCount: Int,
+                    textureReuseHitCount: Int,
+                    textureReuseHitRatio: Double,
+                    heapBackedAllocationCount: Int,
+                    allocatorDecisions: [String],
+                    stageCount: Int,
+                    compilationSource: String,
+                    inputSize: String,
+                    outputSize: String) {
+            self.summary = summary
+            self.profile = profile
+            self.derivative = derivative
+            self.graphFingerprint = graphFingerprint
+            self.graphNodeCount = graphNodeCount
+            self.graphEdgeCount = graphEdgeCount
+            self.optimizedGraphNodeCount = optimizedGraphNodeCount
+            self.graphOptimizationDecisions = graphOptimizationDecisions
+            self.persistentBoundaryCount = persistentBoundaryCount
+            self.transientReuseCandidateCount = transientReuseCandidateCount
+            self.inputDirectPlaneBridgeCount = inputDirectPlaneBridgeCount
+            self.inputPixelPrecision = inputPixelPrecision
+            self.inputHDRFriendly = inputHDRFriendly
+            self.optimizationPlan = optimizationPlan
+            self.allocationStrategy = allocationStrategy
+            self.textureRequestCount = textureRequestCount
+            self.textureReuseHitCount = textureReuseHitCount
+            self.textureReuseHitRatio = textureReuseHitRatio
+            self.heapBackedAllocationCount = heapBackedAllocationCount
+            self.allocatorDecisions = allocatorDecisions
+            self.stageCount = stageCount
+            self.compilationSource = compilationSource
+            self.inputSize = inputSize
+            self.outputSize = outputSize
+        }
+
         public init(diagnostics: RenderPlanDiagnostics) {
-            self.summary = diagnostics.summary
-            self.profile = String(describing: diagnostics.profile)
-            self.derivative = diagnostics.derivative.name
-            self.graphFingerprint = diagnostics.graphFingerprint
-            self.graphNodeCount = diagnostics.graphNodeCount
-            self.graphEdgeCount = diagnostics.graphEdgeCount
-            self.optimizedGraphNodeCount = diagnostics.optimizedGraphNodeCount
-            self.graphOptimizationDecisions = diagnostics.graphOptimizationDecisions
-            self.persistentBoundaryCount = diagnostics.persistentBoundaryCount
-            self.transientReuseCandidateCount = diagnostics.transientReuseCandidateCount
-            self.inputDirectPlaneBridgeCount = diagnostics.inputDirectPlaneBridgeCount
-            self.stageCount = diagnostics.stageCount
-            self.compilationSource = diagnostics.compilationSource.rawValue
-            self.inputSize = "\(diagnostics.inputSize.width)x\(diagnostics.inputSize.height)"
-            self.outputSize = "\(diagnostics.outputSize.width)x\(diagnostics.outputSize.height)"
+            self.init(
+                summary: diagnostics.summary,
+                profile: String(describing: diagnostics.profile),
+                derivative: diagnostics.derivative.name,
+                graphFingerprint: diagnostics.graphFingerprint,
+                graphNodeCount: diagnostics.graphNodeCount,
+                graphEdgeCount: diagnostics.graphEdgeCount,
+                optimizedGraphNodeCount: diagnostics.optimizedGraphNodeCount,
+                graphOptimizationDecisions: diagnostics.graphOptimizationDecisions,
+                persistentBoundaryCount: diagnostics.persistentBoundaryCount,
+                transientReuseCandidateCount: diagnostics.transientReuseCandidateCount,
+                inputDirectPlaneBridgeCount: diagnostics.inputDirectPlaneBridgeCount,
+                inputPixelPrecision: diagnostics.inputPixelPrecision.rawValue,
+                inputHDRFriendly: diagnostics.inputIsHDRFriendly,
+                optimizationPlan: diagnostics.optimizationPlan,
+                allocationStrategy: diagnostics.optimizationPlan.allocationStrategy.rawValue,
+                textureRequestCount: diagnostics.optimizationPlan.textureRequestCount,
+                textureReuseHitCount: diagnostics.optimizationPlan.textureReuseHitCount,
+                textureReuseHitRatio: diagnostics.optimizationPlan.textureReuseHitRatio,
+                heapBackedAllocationCount: diagnostics.optimizationPlan.heapBackedAllocationCount,
+                allocatorDecisions: diagnostics.optimizationPlan.allocatorDecisions,
+                stageCount: diagnostics.stageCount,
+                compilationSource: diagnostics.compilationSource.rawValue,
+                inputSize: "\(diagnostics.inputSize.width)x\(diagnostics.inputSize.height)",
+                outputSize: "\(diagnostics.outputSize.width)x\(diagnostics.outputSize.height)"
+            )
         }
     }
 
@@ -120,6 +190,27 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             optimizationDecisions: optimizationDecisions,
             dotGraph: RenderGraphDebugSnapshot.makeDOTGraph(nodes: nodes, edges: edges)
         )
+    }
+
+    public func jsonData(prettyPrinted: Bool = false,
+                         sortedKeys: Bool = true) throws -> Data {
+        let encoder = JSONEncoder()
+        if prettyPrinted {
+            encoder.outputFormatting.insert(.prettyPrinted)
+        }
+        if sortedKeys {
+            encoder.outputFormatting.insert(.sortedKeys)
+        }
+        return try encoder.encode(self)
+    }
+
+    public func jsonString(prettyPrinted: Bool = false,
+                           sortedKeys: Bool = true) throws -> String {
+        let data = try jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+        guard let string = String(data: data, encoding: .utf8) else {
+            throw HarbethError.configurationInvalid("RenderGraphDebugSnapshot JSON encoding is not valid UTF-8.")
+        }
+        return string
     }
 
     private static func makeDOTGraph(nodes: [Node], edges: [Edge]) -> String {

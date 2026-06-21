@@ -76,8 +76,7 @@ struct Transform3DLayout {
         ]
     }
 
-    private static func transformedCorners(of imageRect: CGRect,
-                                           matrix: simd_float4x4) -> [simd_float4] {
+    private static func transformedCorners(of imageRect: CGRect, matrix: simd_float4x4) -> [simd_float4] {
         let tl = simd_float4(Float(imageRect.minX), Float(imageRect.minY), 0, 1)
         let tr = simd_float4(Float(imageRect.maxX), Float(imageRect.minY), 0, 1)
         let bl = simd_float4(Float(imageRect.minX), Float(imageRect.maxY), 0, 1)

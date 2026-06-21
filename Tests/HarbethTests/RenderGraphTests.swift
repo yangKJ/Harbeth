@@ -144,6 +144,7 @@ final class RenderGraphTests: XCTestCase {
         )
 
         let diagnostics = try io.renderDiagnostics(profile: .inspectionQuality)
+        let diagnosticsString = try io.renderDiagnosticsJSONString(profile: .inspectionQuality, sortedKeys: true)
 
         XCTAssertEqual(diagnostics.profile, .inspectionQuality)
         XCTAssertEqual(diagnostics.inputSize, C7Size(width: 12, height: 10))
@@ -160,6 +161,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertFalse(diagnostics.graphFingerprint.isEmpty)
         XCTAssertGreaterThanOrEqual(diagnostics.optimizationPlan.prewarmReservations.count, 2)
         XCTAssertTrue(diagnostics.optimizationPlan.prewarmReservations.contains(where: { $0.reason == .transientReuse }))
+        XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 
     func testOptimizerKeepsNeighborhoodComputeInSeparateStage() {
@@ -244,6 +246,106 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("prewarm="))
     }
 
+    func testOptimizationPlanPreservesHighPrecisionInputPixelFormatForReservations() {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf,
+            kCVPixelBufferWidthKey: 32,
+            kCVPixelBufferHeightKey: 24,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                32,
+                24,
+                kCVPixelFormatType_64RGBAHalf,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            return XCTFail("Failed to create RGBA16F pixel buffer.")
+        }
+        let plan = GraphCompiler.compile(
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.1)
+            ],
+            inputSize: C7Size(width: 32, height: 24),
+            sourceDescriptor: ImageSource.pixelBuffer(pixelBuffer).descriptor
+        )
+
+        let reservations = plan.diagnostics.optimizationPlan.prewarmReservations
+
+        XCTAssertFalse(reservations.isEmpty)
+        XCTAssertTrue(reservations.contains(where: { $0.reason == .persistentOutput && $0.pixelFormat == .rgba16Float }))
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("preserveInputPixelFormatForReservations"))
+    }
+
+    func testOptimizationPlanEstimatesMoreBytesForHighPrecisionInputReservations() {
+        var bgraPixelBuffer: CVPixelBuffer?
+        var halfPixelBuffer: CVPixelBuffer?
+        let sharedAttributes: [CFString: Any] = [
+            kCVPixelBufferWidthKey: 32,
+            kCVPixelBufferHeightKey: 24,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                32,
+                24,
+                kCVPixelFormatType_32BGRA,
+                (sharedAttributes.merging([kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA]) { $1 }) as CFDictionary,
+                &bgraPixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                32,
+                24,
+                kCVPixelFormatType_64RGBAHalf,
+                (sharedAttributes.merging([kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf]) { $1 }) as CFDictionary,
+                &halfPixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let bgraPixelBuffer, let halfPixelBuffer else {
+            return XCTFail("Failed to create pixel buffer fixtures.")
+        }
+
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.1),
+            C7Resize(width: 16, height: 12),
+            C7Contrast(contrast: 1.1)
+        ]
+        let bgraPlan = GraphCompiler.compile(
+            filters: filters,
+            inputSize: C7Size(width: 32, height: 24),
+            sourceDescriptor: ImageSource.pixelBuffer(bgraPixelBuffer).descriptor
+        )
+        let halfPlan = GraphCompiler.compile(
+            filters: filters,
+            inputSize: C7Size(width: 32, height: 24),
+            sourceDescriptor: ImageSource.pixelBuffer(halfPixelBuffer).descriptor
+        )
+
+        XCTAssertGreaterThan(
+            halfPlan.diagnostics.optimizationPlan.estimatedTransientByteCount,
+            bgraPlan.diagnostics.optimizationPlan.estimatedTransientByteCount
+        )
+        XCTAssertGreaterThan(
+            halfPlan.diagnostics.optimizationPlan.estimatedPersistentByteCount,
+            bgraPlan.diagnostics.optimizationPlan.estimatedPersistentByteCount
+        )
+    }
+
     func testDiagnosticsExposeAllocatorAndGraphMetrics() {
         Shared.shared.defaultTextureAllocator = ExactTextureAllocator(texturePool: Shared.shared.defaultTexturePool)
         let plan = GraphCompiler.compile(
@@ -258,6 +360,531 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(plan.diagnostics.graphEdgeCount, 1)
         XCTAssertEqual(plan.diagnostics.optimizationPlan.allocationStrategy, .exact)
         XCTAssertTrue(plan.diagnostics.summary.contains("allocator=exact"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("textureReuseRatio="))
+    }
+
+    func testOptimizationPlanReportsTextureReuseHitRatio() {
+        let plan = RenderOptimizationPlan(
+            intermediateTextureCount: 2,
+            reusableTextureCount: 1,
+            persistentOutputCount: 1,
+            mergedStageCount: 0,
+            fusionEligibleNodeCount: 0,
+            transientStageCount: 1,
+            renderStageCount: 0,
+            estimatedTransientByteCount: 128,
+            estimatedPersistentByteCount: 64,
+            readbackBoundaryCount: 0,
+            formatConversionCount: 0,
+            destinationTextureCreationCount: 1,
+            allocationStrategy: .tolerant,
+            textureRequestCount: 4,
+            textureReuseHitCount: 2,
+            heapBackedAllocationCount: 0,
+            prewarmReservations: [],
+            lifecycleDecisions: [],
+            decisions: ["planTransientTextureReuse"],
+            allocatorDecisions: ["leaseToleranceMatch"]
+        )
+
+        XCTAssertEqual(plan.textureReuseHitRatio, 0.5, accuracy: 0.0001)
+    }
+
+    func testTextureAllocatorSnapshotReportsBoundedReuseHitRatio() {
+        let empty = TextureAllocatorSnapshot(
+            allocationStrategy: .exact,
+            textureRequestCount: 0,
+            textureReuseHitCount: 0,
+            heapBackedAllocationCount: 0,
+            allocatorDecisions: []
+        )
+        let saturated = TextureAllocatorSnapshot(
+            allocationStrategy: .tolerant,
+            textureRequestCount: 2,
+            textureReuseHitCount: 4,
+            heapBackedAllocationCount: 0,
+            allocatorDecisions: ["leaseToleranceMatch"]
+        )
+
+        XCTAssertEqual(empty.textureReuseHitRatio, 0)
+        XCTAssertEqual(saturated.textureReuseHitRatio, 1)
+    }
+
+    func testRenderOptimizationPlanSupportsCodableRoundTrip() throws {
+        let plan = RenderOptimizationPlan(
+            intermediateTextureCount: 2,
+            reusableTextureCount: 1,
+            persistentOutputCount: 1,
+            mergedStageCount: 1,
+            fusionEligibleNodeCount: 2,
+            transientStageCount: 1,
+            renderStageCount: 0,
+            estimatedTransientByteCount: 128,
+            estimatedPersistentByteCount: 64,
+            readbackBoundaryCount: 0,
+            formatConversionCount: 1,
+            destinationTextureCreationCount: 1,
+            allocationStrategy: .heapBacked,
+            textureRequestCount: 4,
+            textureReuseHitCount: 2,
+            heapBackedAllocationCount: 1,
+            prewarmReservations: [
+                RenderTextureReservation(
+                    stageIndices: [0, 1],
+                    size: C7Size(width: 16, height: 12),
+                    pixelFormat: .rgba16Float,
+                    reason: .transientReuse
+                )
+            ],
+            lifecycleDecisions: [
+                RenderTextureLifecycleDecision(
+                    stageIndex: 0,
+                    action: .reuseTransient,
+                    size: C7Size(width: 16, height: 12),
+                    reason: "safeTransientAfterStage"
+                )
+            ],
+            decisions: ["planTransientTextureReuse"],
+            allocatorDecisions: ["heapBackedAllocation"]
+        )
+
+        let data = try JSONEncoder().encode(plan)
+        let decoded = try JSONDecoder().decode(RenderOptimizationPlan.self, from: data)
+
+        XCTAssertEqual(decoded, plan)
+        XCTAssertEqual(decoded.textureReuseHitRatio, 0.5, accuracy: 0.0001)
+    }
+
+    func testRenderPlanDiagnosticsSupportsCodableRoundTrip() throws {
+        let derivative = ImageDerivativeSpec(
+            name: "previewDisplay",
+            renderIntent: .stable,
+            sourceTier: .stableReusable,
+            semantic: RenderProfile.stablePreview.defaultImageSemantic,
+            outputSizePolicy: .source
+        )
+        let diagnostics = RenderPlanDiagnostics(
+            profile: .stablePreview,
+            derivative: derivative,
+            graphFingerprint: "graph=fingerprint",
+            sourceKind: "texture",
+            graphNodeCount: 2,
+            graphEdgeCount: 1,
+            optimizedGraphNodeCount: 2,
+            graphOptimizationDecisions: ["preservePersistentImageNode"],
+            persistentBoundaryCount: 1,
+            transientReuseCandidateCount: 1,
+            inputSize: C7Size(width: 16, height: 12),
+            outputSize: C7Size(width: 16, height: 12),
+            containsBoundary: true,
+            requiresCompletedGPUWork: false,
+            stageCount: 2,
+            compilationSource: .nodeGraph,
+            imageCachePolicy: .persistent,
+            samplerDescriptor: ImageSamplerDescriptor.nearest,
+            containsLocalEffectComposite: false,
+            containsTransitionKernel: false,
+            containsDerivativeResize: false,
+            optimizationPlan: RenderOptimizationPlan(
+                intermediateTextureCount: 2,
+                reusableTextureCount: 1,
+                persistentOutputCount: 1,
+                mergedStageCount: 1,
+                fusionEligibleNodeCount: 2,
+                transientStageCount: 1,
+                renderStageCount: 0,
+                estimatedTransientByteCount: 128,
+                estimatedPersistentByteCount: 64,
+                readbackBoundaryCount: 0,
+                formatConversionCount: 1,
+                destinationTextureCreationCount: 1,
+                allocationStrategy: .heapBacked,
+                textureRequestCount: 4,
+                textureReuseHitCount: 2,
+                heapBackedAllocationCount: 1,
+                prewarmReservations: [
+                    RenderTextureReservation(
+                        stageIndices: [0, 1],
+                        size: C7Size(width: 16, height: 12),
+                        pixelFormat: .rgba16Float,
+                        reason: .transientReuse
+                    )
+                ],
+                lifecycleDecisions: [
+                    RenderTextureLifecycleDecision(
+                        stageIndex: 0,
+                        action: .reuseTransient,
+                        size: C7Size(width: 16, height: 12),
+                        reason: "safeTransientAfterStage"
+                    )
+                ],
+                decisions: ["planTransientTextureReuse"],
+                allocatorDecisions: ["heapBackedAllocation"]
+            ),
+            outputContract: .highPrecisionLinearTexture,
+            inputColorSpace: .preserveInput,
+            outputColorSpace: .extendedLinearSRGB,
+            inputAlphaType: .premultiplied,
+            outputAlphaType: .premultiplied,
+            inputPixelFormat: .preserveInput,
+            outputPixelFormat: .rgba16Float,
+            inputColorConversionCount: 0,
+            inputPixelFormatConversionCount: 1,
+            inputAlphaConversionCount: 0,
+            inputDirectPlaneBridgeCount: 0,
+            alphaConversionCount: 0,
+            colorConversionCount: 1,
+            pixelFormatConversionCount: 1,
+            lossyConversionCount: 0,
+            nodes: [
+                RenderNodeDiagnostic(
+                    index: 0,
+                    name: "Input",
+                    kind: .compute,
+                    inputSize: C7Size(width: 16, height: 12),
+                    outputSize: C7Size(width: 16, height: 12),
+                    breaksFusion: false,
+                    parameterSummary: [:]
+                )
+            ],
+            stages: [
+                RenderStage(
+                    index: 0,
+                    stageKind: .compute,
+                    mergeClass: .pointCompute,
+                    nodeIndices: [0],
+                    kinds: [.compute],
+                    filterCount: 1,
+                    breaksFusion: false,
+                    inputSize: C7Size(width: 16, height: 12),
+                    outputSize: C7Size(width: 16, height: 12),
+                    boundaryReason: nil,
+                    containsReadbackBoundary: false,
+                    createsDestinationTexture: true,
+                    containsLocalEffectComposite: false,
+                    containsTransitionKernel: false,
+                    containsDerivativeResize: false
+                )
+            ]
+        )
+
+        let data = try JSONEncoder().encode(diagnostics)
+        let decoded = try JSONDecoder().decode(RenderPlanDiagnostics.self, from: data)
+
+        XCTAssertEqual(decoded, diagnostics)
+        XCTAssertEqual(decoded.samplerDescriptor, ImageSamplerDescriptor.nearest)
+        XCTAssertEqual(decoded.optimizationPlan.textureReuseHitRatio, 0.5, accuracy: 0.0001)
+        XCTAssertFalse(decoded.inputIsHDRFriendly)
+        XCTAssertEqual(decoded.inputPixelPrecision, .preserveInput)
+    }
+
+    func testRenderPlanDiagnosticsExportsStableJSONSurface() throws {
+        let derivative = ImageDerivativeSpec(
+            name: "previewDisplay",
+            renderIntent: .stable,
+            sourceTier: .stableReusable,
+            semantic: RenderProfile.stablePreview.defaultImageSemantic,
+            outputSizePolicy: .source
+        )
+        let diagnostics = RenderPlanDiagnostics(
+            profile: .stablePreview,
+            derivative: derivative,
+            graphFingerprint: "graph=fingerprint",
+            sourceKind: "texture",
+            graphNodeCount: 1,
+            graphEdgeCount: 0,
+            optimizedGraphNodeCount: 1,
+            graphOptimizationDecisions: [],
+            persistentBoundaryCount: 0,
+            transientReuseCandidateCount: 0,
+            inputSize: C7Size(width: 8, height: 8),
+            outputSize: C7Size(width: 8, height: 8),
+            containsBoundary: false,
+            requiresCompletedGPUWork: false,
+            stageCount: 1,
+            compilationSource: .filtersPrimitive,
+            imageCachePolicy: .transient,
+            samplerDescriptor: ImageSamplerDescriptor.nearest,
+            containsLocalEffectComposite: false,
+            containsTransitionKernel: false,
+            containsDerivativeResize: false,
+            optimizationPlan: RenderOptimizationPlan(
+                intermediateTextureCount: 1,
+                reusableTextureCount: 1,
+                persistentOutputCount: 1,
+                mergedStageCount: 0,
+                fusionEligibleNodeCount: 1,
+                transientStageCount: 1,
+                renderStageCount: 0,
+                estimatedTransientByteCount: 64,
+                estimatedPersistentByteCount: 64,
+                readbackBoundaryCount: 0,
+                formatConversionCount: 0,
+                destinationTextureCreationCount: 1,
+                allocationStrategy: .exact,
+                textureRequestCount: 2,
+                textureReuseHitCount: 1,
+                heapBackedAllocationCount: 0,
+                prewarmReservations: [],
+                lifecycleDecisions: [],
+                decisions: ["singleStageNoOptimizationNeeded"],
+                allocatorDecisions: ["dequeueExactMatch"]
+            ),
+            outputContract: .preserveInput,
+            inputColorSpace: .preserveInput,
+            outputColorSpace: .preserveInput,
+            inputAlphaType: .premultiplied,
+            outputAlphaType: .premultiplied,
+            inputPixelFormat: .preserveInput,
+            outputPixelFormat: .preserveInput,
+            inputColorConversionCount: 0,
+            inputPixelFormatConversionCount: 0,
+            inputAlphaConversionCount: 0,
+            inputDirectPlaneBridgeCount: 0,
+            alphaConversionCount: 0,
+            colorConversionCount: 0,
+            pixelFormatConversionCount: 0,
+            lossyConversionCount: 0,
+            nodes: [],
+            stages: []
+        )
+
+        let data = try diagnostics.jsonData(sortedKeys: true)
+        let string = try diagnostics.jsonString(sortedKeys: true)
+
+        XCTAssertEqual(String(data: data, encoding: .utf8), string)
+        XCTAssertTrue(string.contains("\"optimizationPlan\""))
+        XCTAssertTrue(string.contains("\"samplerDescriptor\""))
+        XCTAssertTrue(string.contains("\"textureReuseHitCount\":1"))
+        XCTAssertFalse(diagnostics.inputIsHDRFriendly)
+        XCTAssertEqual(diagnostics.inputPixelPrecision, .preserveInput)
+    }
+
+    func testRenderGraphDebugSnapshotSupportsCodableRoundTrip() throws {
+        let optimizationPlan = RenderOptimizationPlan(
+            intermediateTextureCount: 2,
+            reusableTextureCount: 1,
+            persistentOutputCount: 1,
+            mergedStageCount: 1,
+            fusionEligibleNodeCount: 2,
+            transientStageCount: 1,
+            renderStageCount: 0,
+            estimatedTransientByteCount: 128,
+            estimatedPersistentByteCount: 64,
+            readbackBoundaryCount: 0,
+            formatConversionCount: 1,
+            destinationTextureCreationCount: 1,
+            allocationStrategy: .heapBacked,
+            textureRequestCount: 4,
+            textureReuseHitCount: 2,
+            heapBackedAllocationCount: 1,
+            prewarmReservations: [
+                RenderTextureReservation(
+                    stageIndices: [0, 1],
+                    size: C7Size(width: 16, height: 12),
+                    pixelFormat: .rgba16Float,
+                    reason: .transientReuse
+                )
+            ],
+            lifecycleDecisions: [
+                RenderTextureLifecycleDecision(
+                    stageIndex: 0,
+                    action: .reuseTransient,
+                    size: C7Size(width: 16, height: 12),
+                    reason: "safeTransientAfterStage"
+                )
+            ],
+            decisions: ["planTransientTextureReuse"],
+            allocatorDecisions: ["heapBackedAllocation"]
+        )
+        let diagnostics = RenderGraphDebugSnapshot.Diagnostics(
+            summary: "allocator=heapBacked textureReuseRatio=0.500",
+            profile: "stablePreview",
+            derivative: "Original",
+            graphFingerprint: "graph=fingerprint",
+            graphNodeCount: 2,
+            graphEdgeCount: 1,
+            optimizedGraphNodeCount: 2,
+            graphOptimizationDecisions: ["preservePersistentImageNode"],
+            persistentBoundaryCount: 1,
+            transientReuseCandidateCount: 1,
+            inputDirectPlaneBridgeCount: 0,
+            inputPixelPrecision: "preserveInput",
+            inputHDRFriendly: false,
+            optimizationPlan: optimizationPlan,
+            allocationStrategy: "heapBacked",
+            textureRequestCount: 4,
+            textureReuseHitCount: 2,
+            textureReuseHitRatio: 0.5,
+            heapBackedAllocationCount: 1,
+            allocatorDecisions: ["heapBackedAllocation"],
+            stageCount: 2,
+            compilationSource: "nodeGraph",
+            inputSize: "16x12",
+            outputSize: "16x12"
+        )
+        let snapshot = RenderGraphDebugSnapshot(
+            summary: diagnostics.summary,
+            diagnostics: diagnostics,
+            nodes: [
+                .init(id: 0, kind: "source", name: "Input", cachePolicy: "transient", filterCount: 0, sourceKind: "texture"),
+                .init(id: 1, kind: "compute", name: "Brightness", cachePolicy: "persistent", filterCount: 1, sourceKind: nil)
+            ],
+            edges: [
+                .init(from: 0, to: 1, label: "input")
+            ],
+            optimizationDecisions: ["mergeCompatibleStages"],
+            dotGraph: "digraph ImageGraph {\n  n0 -> n1 [label=\"input\"];\n}"
+        )
+
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(RenderGraphDebugSnapshot.self, from: data)
+
+        XCTAssertEqual(decoded, snapshot)
+        XCTAssertEqual(decoded.diagnostics.textureReuseHitRatio, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(decoded.diagnostics.allocatorDecisions, ["heapBackedAllocation"])
+        XCTAssertEqual(decoded.diagnostics.optimizationPlan, optimizationPlan)
+        XCTAssertEqual(decoded.diagnostics.inputPixelPrecision, "preserveInput")
+        XCTAssertFalse(decoded.diagnostics.inputHDRFriendly)
+        XCTAssertTrue(decoded.dotGraph.contains("digraph ImageGraph"))
+    }
+
+    func testRenderGraphDebugSnapshotExportsStableJSONSurface() throws {
+        let optimizationPlan = RenderOptimizationPlan(
+            intermediateTextureCount: 1,
+            reusableTextureCount: 1,
+            persistentOutputCount: 1,
+            mergedStageCount: 0,
+            fusionEligibleNodeCount: 1,
+            transientStageCount: 1,
+            renderStageCount: 0,
+            estimatedTransientByteCount: 64,
+            estimatedPersistentByteCount: 64,
+            readbackBoundaryCount: 0,
+            formatConversionCount: 0,
+            destinationTextureCreationCount: 1,
+            allocationStrategy: .exact,
+            textureRequestCount: 2,
+            textureReuseHitCount: 1,
+            heapBackedAllocationCount: 0,
+            prewarmReservations: [],
+            lifecycleDecisions: [],
+            decisions: ["singleStageNoOptimizationNeeded"],
+            allocatorDecisions: ["dequeueExactMatch"]
+        )
+        let snapshot = RenderGraphDebugSnapshot(
+            summary: "allocator=exact textureReuseRatio=0.500",
+            diagnostics: .init(
+                summary: "allocator=exact textureReuseRatio=0.500",
+                profile: "stablePreview",
+                derivative: "Original",
+                graphFingerprint: "graph=fingerprint",
+                graphNodeCount: 1,
+                graphEdgeCount: 0,
+                optimizedGraphNodeCount: 1,
+                graphOptimizationDecisions: [],
+                persistentBoundaryCount: 0,
+                transientReuseCandidateCount: 0,
+                inputDirectPlaneBridgeCount: 0,
+                inputPixelPrecision: "preserveInput",
+                inputHDRFriendly: false,
+                optimizationPlan: optimizationPlan,
+                allocationStrategy: "exact",
+                textureRequestCount: 2,
+                textureReuseHitCount: 1,
+                textureReuseHitRatio: 0.5,
+                heapBackedAllocationCount: 0,
+                allocatorDecisions: ["dequeueExactMatch"],
+                stageCount: 1,
+                compilationSource: "filtersPrimitive",
+                inputSize: "8x8",
+                outputSize: "8x8"
+            ),
+            nodes: [
+                .init(id: 0, kind: "source", name: "Input", cachePolicy: "transient", filterCount: 0, sourceKind: "texture")
+            ],
+            edges: [],
+            optimizationDecisions: ["singleStageNoOptimizationNeeded"],
+            dotGraph: "digraph ImageGraph {\n  n0 [label=\"Input\"];\n}"
+        )
+
+        let data = try snapshot.jsonData(sortedKeys: true)
+        let string = try snapshot.jsonString(sortedKeys: true)
+
+        XCTAssertEqual(String(data: data, encoding: .utf8), string)
+        XCTAssertTrue(string.contains("\"optimizationPlan\""))
+        XCTAssertTrue(string.contains("\"allocationStrategy\":\"exact\""))
+        XCTAssertTrue(string.contains("\"textureReuseHitRatio\":0.5"))
+        XCTAssertTrue(string.contains("\"allocatorDecisions\":[\"dequeueExactMatch\"]"))
+        XCTAssertTrue(string.contains("\"inputPixelPrecision\":\"preserveInput\""))
+        XCTAssertTrue(string.contains("\"inputHDRFriendly\":false"))
+    }
+
+    func testRenderGraphDebugSnapshotPrettyPrintedJSONIsStable() throws {
+        let snapshot = RenderGraphDebugSnapshot(
+            summary: "allocator=exact textureReuseRatio=0.500",
+            diagnostics: .init(
+                summary: "allocator=exact textureReuseRatio=0.500",
+                profile: "stablePreview",
+                derivative: "Original",
+                graphFingerprint: "graph=fingerprint",
+                graphNodeCount: 1,
+                graphEdgeCount: 0,
+                optimizedGraphNodeCount: 1,
+                graphOptimizationDecisions: [],
+                persistentBoundaryCount: 0,
+                transientReuseCandidateCount: 0,
+                inputDirectPlaneBridgeCount: 0,
+                inputPixelPrecision: "preserveInput",
+                inputHDRFriendly: false,
+                optimizationPlan: RenderOptimizationPlan(
+                    intermediateTextureCount: 1,
+                    reusableTextureCount: 1,
+                    persistentOutputCount: 1,
+                    mergedStageCount: 0,
+                    fusionEligibleNodeCount: 1,
+                    transientStageCount: 1,
+                    renderStageCount: 0,
+                    estimatedTransientByteCount: 64,
+                    estimatedPersistentByteCount: 64,
+                    readbackBoundaryCount: 0,
+                    formatConversionCount: 0,
+                    destinationTextureCreationCount: 1,
+                    allocationStrategy: .exact,
+                    textureRequestCount: 2,
+                    textureReuseHitCount: 1,
+                    heapBackedAllocationCount: 0,
+                    prewarmReservations: [],
+                    lifecycleDecisions: [],
+                    decisions: ["singleStageNoOptimizationNeeded"],
+                    allocatorDecisions: ["dequeueExactMatch"]
+                ),
+                allocationStrategy: "exact",
+                textureRequestCount: 2,
+                textureReuseHitCount: 1,
+                textureReuseHitRatio: 0.5,
+                heapBackedAllocationCount: 0,
+                allocatorDecisions: ["dequeueExactMatch"],
+                stageCount: 1,
+                compilationSource: "filtersPrimitive",
+                inputSize: "8x8",
+                outputSize: "8x8"
+            ),
+            nodes: [
+                .init(id: 0, kind: "source", name: "Input", cachePolicy: "transient", filterCount: 0, sourceKind: "texture")
+            ],
+            edges: [],
+            optimizationDecisions: ["singleStageNoOptimizationNeeded"],
+            dotGraph: "digraph ImageGraph {\n  n0 [label=\"Input\"];\n}"
+        )
+
+        let string = try snapshot.jsonString(prettyPrinted: true, sortedKeys: true)
+
+        XCTAssertTrue(string.contains("\n"))
+        XCTAssertTrue(string.contains("\"diagnostics\""))
+        XCTAssertTrue(string.contains("\"optimizationPlan\""))
+        XCTAssertTrue(string.contains("\"summary\" : \"allocator=exact textureReuseRatio=0.500\""))
+        XCTAssertTrue(string.contains("\"inputPixelPrecision\" : \"preserveInput\""))
     }
 
     func testDebugSnapshotBuildsDOTGraphForNodePath() throws {
@@ -270,9 +897,65 @@ final class RenderGraphTests: XCTestCase {
             .applying(C7Contrast(contrast: 1.1))
 
         let snapshot = try HarbethIO(element: input, filters: []).renderDebugSnapshot(node: node)
+        let jsonString = try HarbethIO(element: input, filters: []).renderDebugSnapshotJSONString(
+            node: node,
+            prettyPrinted: false,
+            sortedKeys: true
+        )
+        let diagnosticsString = try HarbethIO(element: input, filters: []).renderDiagnosticsJSONString(
+            node: node,
+            prettyPrinted: false,
+            sortedKeys: true
+        )
 
         XCTAssertTrue(snapshot.dotGraph.contains("digraph ImageGraph"))
         XCTAssertFalse(snapshot.nodes.isEmpty)
         XCTAssertFalse(snapshot.optimizationDecisions.isEmpty)
+        XCTAssertEqual(snapshot.diagnostics.allocationStrategy, Shared.shared.defaultTextureAllocator.strategy.rawValue)
+        XCTAssertGreaterThanOrEqual(snapshot.diagnostics.textureRequestCount, 0)
+        XCTAssertGreaterThanOrEqual(snapshot.diagnostics.textureReuseHitCount, 0)
+        XCTAssertGreaterThanOrEqual(snapshot.diagnostics.textureReuseHitRatio, 0)
+        XCTAssertLessThanOrEqual(snapshot.diagnostics.textureReuseHitRatio, 1)
+        XCTAssertGreaterThanOrEqual(snapshot.diagnostics.heapBackedAllocationCount, 0)
+        XCTAssertFalse(snapshot.diagnostics.allocatorDecisions.contains(where: \.isEmpty))
+        XCTAssertEqual(snapshot.diagnostics.optimizationPlan.allocationStrategy.rawValue, snapshot.diagnostics.allocationStrategy)
+        XCTAssertEqual(snapshot.diagnostics.inputPixelPrecision, "preserveInput")
+        XCTAssertFalse(snapshot.diagnostics.inputHDRFriendly)
+        XCTAssertTrue(jsonString.contains("\"optimizationPlan\""))
+        XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
+    }
+
+    func testDebugSnapshotTracksHalfFloatPixelBufferInputPrecision() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_64RGBAHalf,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create RGBA16F pixel buffer.")
+            return
+        }
+
+        let node = ImageNode.source(.pixelBuffer(pixelBuffer))
+        let snapshot = try node.makeDebugSnapshot()
+
+        XCTAssertEqual(snapshot.diagnostics.inputPixelPrecision, "float16")
+        XCTAssertTrue(snapshot.diagnostics.inputHDRFriendly)
+        XCTAssertTrue(snapshot.summary.contains("inputPixelPrecision=float16"))
+        XCTAssertTrue(snapshot.summary.contains("inputHDRFriendly=1"))
     }
 }

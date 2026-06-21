@@ -6,6 +6,77 @@ import CoreVideo
 
 final class TextureReadbackTests: XCTestCase {
 
+    func testHalfFloatPixelBufferTextureLoaderPrefersRGBA16Float() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf,
+            kCVPixelBufferWidthKey: 2,
+            kCVPixelBufferHeightKey: 2,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            2,
+            2,
+            kCVPixelFormatType_64RGBAHalf,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        XCTAssertEqual(status, kCVReturnSuccess)
+        guard let pixelBuffer else {
+            XCTFail("Failed to create RGBA16F pixel buffer.")
+            return
+        }
+
+        let contract = pixelBuffer.c7.contract
+        XCTAssertEqual(contract.preferredMetalPixelFormat, .rgba16Float)
+
+        let texture = try TextureLoader(with: pixelBuffer).texture
+        #if targetEnvironment(simulator)
+        XCTAssertTrue(texture.pixelFormat == .rgba8Unorm || texture.pixelFormat == .rgba16Float)
+        #else
+        XCTAssertEqual(texture.pixelFormat, .rgba16Float)
+        #endif
+    }
+
+    func testHalfFloatPixelBufferDirectMetalBridgeUsesRGBA16FloatWhenAvailable() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct CVMetalTexture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf,
+            kCVPixelBufferWidthKey: 2,
+            kCVPixelBufferHeightKey: 2,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            2,
+            2,
+            kCVPixelFormatType_64RGBAHalf,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        XCTAssertEqual(status, kCVReturnSuccess)
+        guard let pixelBuffer else {
+            XCTFail("Failed to create RGBA16F pixel buffer.")
+            return
+        }
+
+        var cache: CVMetalTextureCache?
+        XCTAssertEqual(CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, device!, nil, &cache), kCVReturnSuccess)
+        let texture = pixelBuffer.c7.convert2MTLTexture(textureCache: cache, pixelFormat: .rgba16Float)
+
+        XCTAssertEqual(texture?.pixelFormat, .rgba16Float)
+        #endif
+    }
+
     func testBGRAContainingPixelBufferTextureProducesVisibleCGImage() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

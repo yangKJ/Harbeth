@@ -199,6 +199,8 @@ final class EditRecipeTests: XCTestCase {
 
         let diagnostics = try HarbethIO(element: input, filters: [])
             .renderDiagnostics(recipe: recipe, mode: .preview)
+        let diagnosticsString = try HarbethIO(element: input, filters: [])
+            .renderDiagnosticsJSONString(recipe: recipe, mode: .preview, sortedKeys: true)
 
         XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
         XCTAssertTrue(diagnostics.containsLocalEffectComposite)
@@ -206,6 +208,7 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("source=editRecipe"))
         XCTAssertFalse(diagnostics.summary.contains("preview"))
         XCTAssertFalse(diagnostics.summary.contains("presentation"))
+        XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 
     func testRecipeCompilationPlanAndNodePathStayAligned() throws {
@@ -245,12 +248,14 @@ final class EditRecipeTests: XCTestCase {
         let directTexture = try io.renderTexture(composite: composite)
         let nodeTexture = try io.renderTexture(node: composite.makeNode())
         let diagnostics = try io.renderDiagnostics(composite: composite)
+        let diagnosticsString = try io.renderDiagnosticsJSONString(composite: composite, sortedKeys: true)
 
         XCTAssertEqual(directTexture.width, nodeTexture.width)
         XCTAssertEqual(directTexture.height, nodeTexture.height)
         XCTAssertEqual(try firstPixel(in: directTexture).green, try firstPixel(in: nodeTexture).green)
         XCTAssertEqual(diagnostics.compilationSource, .layerComposite)
         XCTAssertEqual(diagnostics.nodes.first?.name.contains("C7LayerComposite"), true)
+        XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 
     func testRecipeAndCompositeRenderRequestsExposeDeferredContracts() throws {

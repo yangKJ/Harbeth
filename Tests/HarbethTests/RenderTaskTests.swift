@@ -62,6 +62,100 @@ final class RenderTaskTests: XCTestCase {
         XCTAssertTrue(task.diagnostics?.containsDerivativeResize == true)
     }
 
+    func testCompletedRenderTaskCanExportDiagnosticsJSON() throws {
+        let derivative = ImageDerivativeSpec(
+            name: "previewDisplay",
+            renderIntent: .stable,
+            sourceTier: .stableReusable,
+            semantic: RenderProfile.stablePreview.defaultImageSemantic,
+            outputSizePolicy: .source
+        )
+        let diagnostics = RenderPlanDiagnostics(
+            profile: .stablePreview,
+            derivative: derivative,
+            graphFingerprint: "graph=fingerprint",
+            sourceKind: "texture",
+            graphNodeCount: 1,
+            graphEdgeCount: 0,
+            optimizedGraphNodeCount: 1,
+            graphOptimizationDecisions: [],
+            persistentBoundaryCount: 0,
+            transientReuseCandidateCount: 0,
+            inputSize: C7Size(width: 8, height: 8),
+            outputSize: C7Size(width: 8, height: 8),
+            containsBoundary: false,
+            requiresCompletedGPUWork: false,
+            stageCount: 1,
+            compilationSource: .filtersPrimitive,
+            imageCachePolicy: .transient,
+            samplerDescriptor: ImageSamplerDescriptor.nearest,
+            containsLocalEffectComposite: false,
+            containsTransitionKernel: false,
+            containsDerivativeResize: false,
+            optimizationPlan: RenderOptimizationPlan(
+                intermediateTextureCount: 1,
+                reusableTextureCount: 1,
+                persistentOutputCount: 1,
+                mergedStageCount: 0,
+                fusionEligibleNodeCount: 1,
+                transientStageCount: 1,
+                renderStageCount: 0,
+                estimatedTransientByteCount: 64,
+                estimatedPersistentByteCount: 64,
+                readbackBoundaryCount: 0,
+                formatConversionCount: 0,
+                destinationTextureCreationCount: 1,
+                allocationStrategy: .exact,
+                textureRequestCount: 2,
+                textureReuseHitCount: 1,
+                heapBackedAllocationCount: 0,
+                prewarmReservations: [],
+                lifecycleDecisions: [],
+                decisions: ["singleStageNoOptimizationNeeded"],
+                allocatorDecisions: ["dequeueExactMatch"]
+            ),
+            outputContract: .preserveInput,
+            inputColorSpace: .preserveInput,
+            outputColorSpace: .preserveInput,
+            inputAlphaType: .premultiplied,
+            outputAlphaType: .premultiplied,
+            inputPixelFormat: .preserveInput,
+            outputPixelFormat: .preserveInput,
+            inputColorConversionCount: 0,
+            inputPixelFormatConversionCount: 0,
+            inputAlphaConversionCount: 0,
+            inputDirectPlaneBridgeCount: 0,
+            alphaConversionCount: 0,
+            colorConversionCount: 0,
+            pixelFormatConversionCount: 0,
+            lossyConversionCount: 0,
+            nodes: [],
+            stages: []
+        )
+        let task = RenderTask<MTLTexture>.completed(
+            identifier: "completed-task",
+            output: try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255]),
+            diagnostics: diagnostics
+        )
+
+        let data = try task.diagnosticsJSONData(sortedKeys: true)
+        let string = try task.diagnosticsJSONString(sortedKeys: true)
+
+        XCTAssertEqual(String(data: data ?? Data(), encoding: .utf8), string)
+        XCTAssertTrue(string?.contains("\"optimizationPlan\"") == true)
+    }
+
+    func testRenderTaskReturnsNilDiagnosticsJSONWhenAbsent() throws {
+        let task = RenderTask<MTLTexture>.completed(
+            identifier: "no-diagnostics",
+            output: try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255]),
+            diagnostics: nil
+        )
+
+        XCTAssertNil(try task.diagnosticsJSONData())
+        XCTAssertNil(try task.diagnosticsJSONString())
+    }
+
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .rgba8Unorm,

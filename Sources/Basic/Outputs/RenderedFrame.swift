@@ -26,7 +26,7 @@ public enum FrameOrientation: String, Sendable, Equatable, Codable {
 
 /// 渲染输出档位。档位描述调度和读回语义，
 /// 不描述视觉滤镜参数。
-public enum RenderProfile: Sendable, Equatable {
+public enum RenderProfile: String, Sendable, Codable, Equatable, Hashable {
     /// 面向高频交互回路的最低延迟纹理输出。
     case interactiveLatency
     /// 面向离散参数变更的快速首帧反馈。

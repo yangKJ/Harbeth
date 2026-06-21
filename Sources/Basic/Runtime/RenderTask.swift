@@ -36,9 +36,7 @@ public final class RenderTask<Output> {
         }
     }
 
-    private init(identifier: String,
-                 output: Output,
-                 diagnostics: RenderPlanDiagnostics?) {
+    private init(identifier: String, output: Output, diagnostics: RenderPlanDiagnostics?) {
         self.identifier = identifier
         self.commandBuffer = nil
         self.outputValue = output
@@ -63,6 +61,16 @@ public final class RenderTask<Output> {
     public var isCompleted: Bool {
         if commandBuffer == nil { return true }
         return commandBufferStatus == .completed || commandBufferStatus == .error
+    }
+
+    public func diagnosticsJSONData(prettyPrinted: Bool = false,
+                                    sortedKeys: Bool = true) throws -> Data? {
+        try diagnostics?.jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func diagnosticsJSONString(prettyPrinted: Bool = false,
+                                      sortedKeys: Bool = true) throws -> String? {
+        try diagnostics?.jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
     public func waitUntilCompleted() {

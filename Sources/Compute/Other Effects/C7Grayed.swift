@@ -24,7 +24,7 @@ public struct C7Grayed: C7FilterProtocol {
         /// Minimum method: the minimum value in rgb as gray.
         case minimum
         /// Take the value of a channel directly as the gray value. Alpha channel are not supported.
-        case singleChannel(Pixel.Channel)
+        case singleChannel(ColorChannel)
     }
     
     /// Intensity range, used to adjust the mixing ratio of filters and sources.

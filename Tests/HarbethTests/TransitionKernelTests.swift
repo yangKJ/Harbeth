@@ -68,6 +68,7 @@ final class TransitionKernelTests: XCTestCase {
         let io = HarbethIO(element: from, filters: [])
         let frame = try io.renderTransitionFrame(recipe, metadata: ["path": "transition"])
         let diagnostics = try io.renderTransitionDiagnostics(recipe)
+        let diagnosticsString = try io.renderTransitionDiagnosticsJSONString(recipe, sortedKeys: true)
 
         XCTAssertEqual(frame.profile, .stablePreview)
         XCTAssertEqual(frame.size.width, 3)
@@ -77,6 +78,7 @@ final class TransitionKernelTests: XCTestCase {
         XCTAssertEqual(diagnostics.stageCount, diagnostics.stages.count)
         XCTAssertEqual(diagnostics.stages.first?.stageKind, .compute)
         XCTAssertEqual(diagnostics.outputSize, C7Size(width: 3, height: 2))
+        XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 
     func testTransitionRecipeClampsProgressAndKeepsDefaultsStable() throws {

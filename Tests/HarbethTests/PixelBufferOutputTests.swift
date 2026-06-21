@@ -57,6 +57,44 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(CVPixelBufferGetHeight(output), 3)
     }
 
+    func testRenderPixelBufferCanMaterializeRGBA16FloatOutput() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [120, 40, 20, 255])
+
+        let output = try HarbethIO(
+            element: input,
+            filters: []
+        ).renderPixelBuffer(
+            profile: .stablePreview,
+            outputPixelFormat: .rgba16Float
+        )
+
+        XCTAssertEqual(CVPixelBufferGetWidth(output), 2)
+        XCTAssertEqual(CVPixelBufferGetHeight(output), 2)
+        XCTAssertEqual(CVPixelBufferGetPixelFormatType(output), kCVPixelFormatType_64RGBAHalf)
+        XCTAssertEqual(output.c7.contract.colorModel, .rgba)
+        XCTAssertEqual(output.c7.contract.nativeTextureLayout, .directSingleTexture)
+        XCTAssertEqual(output.c7.contract.preferredMetalPixelFormat, .rgba16Float)
+    }
+
+    func testRenderPixelBufferRejectsUnsupportedPixelFormatContract() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [120, 40, 20, 255])
+
+        XCTAssertThrowsError(
+            try HarbethIO(
+                element: input,
+                filters: []
+            ).renderPixelBuffer(
+                profile: .stablePreview,
+                outputPixelFormat: PixelFormatContract(pixelFormat: .rgba32Float, preservesInput: false)
+            )
+        ) { error in
+            guard case .configurationInvalid(let message)? = error.asHarbethError else {
+                return XCTFail("Expected configurationInvalid, got \(error)")
+            }
+            XCTAssertTrue(message.contains("does not support"))
+        }
+    }
+
     func testBGRAPixelBufferContractPrefersDirectSingleTextureBridge() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
@@ -87,6 +125,59 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(bridgePlan.planes.count, 1)
         XCTAssertEqual(bridgePlan.planes.first?.conversionStrategy, .directMetalTexture)
         XCTAssertTrue(bridgePlan.planes.first?.preservesOwnerReference ?? false)
+    }
+
+    func testRGBA16FloatPixelBufferContractPrefersDirectSingleTextureBridge() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 3,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, 4, 3, kCVPixelFormatType_64RGBAHalf, attributes as CFDictionary, &pixelBuffer),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create RGBA16F pixel buffer.")
+            return
+        }
+
+        let contract = pixelBuffer.c7.contract
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        XCTAssertFalse(contract.planar)
+        XCTAssertEqual(contract.colorModel, .rgba)
+        XCTAssertEqual(contract.nativeTextureLayout, .directSingleTexture)
+        XCTAssertEqual(contract.preferredMetalPixelFormat, .rgba16Float)
+        XCTAssertEqual(bridgePlan.loadStrategy, .directMetalTexture)
+        XCTAssertEqual(bridgePlan.planes.first?.metalPixelFormat, .rgba16Float)
+    }
+
+    func testPixelBufferCopyCompatibilityRejectsPixelFormatMismatch() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf,
+            kCVPixelBufferWidthKey: 2,
+            kCVPixelBufferHeightKey: 2,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, 2, 2, kCVPixelFormatType_64RGBAHalf, attributes as CFDictionary, &pixelBuffer),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create RGBA16F pixel buffer.")
+            return
+        }
+        let texture = try makeTexture(width: 2, height: 2, pixel: [120, 40, 20, 255])
+
+        XCTAssertFalse(pixelBuffer.c7.canCopyTextureData(from: texture))
+        let output = try HarbethIO(element: pixelBuffer, filter: C7Brightness(brightness: 0.1)).output() as CVPixelBuffer
+        XCTAssertEqual(CVPixelBufferGetPixelFormatType(output), kCVPixelFormatType_64RGBAHalf)
     }
 
     func testBiPlanarPixelBufferContractExposesFallbackTopLevelAndDirectPlaneBridge() throws {
@@ -350,9 +441,49 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 0)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
         XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 1)
+        XCTAssertEqual(diagnostics.inputPixelPrecision, .unorm8)
+        XCTAssertFalse(diagnostics.inputIsHDRFriendly)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=1"))
+    }
+
+    func testRenderDiagnosticsTracksHalfFloatPixelBufferInputPrecision() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_64RGBAHalf,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_64RGBAHalf,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create RGBA16F pixel buffer.")
+            return
+        }
+
+        let diagnostics = try HarbethIO(element: pixelBuffer).renderDiagnostics()
+
+        XCTAssertEqual(diagnostics.inputPixelFormat, .init(pixelFormat: .rgba16Float, preservesInput: true))
+        XCTAssertEqual(diagnostics.inputPixelPrecision, .float16)
+        XCTAssertTrue(diagnostics.inputIsHighPrecision)
+        XCTAssertTrue(diagnostics.inputIsHDRFriendly)
+        XCTAssertTrue(diagnostics.summary.contains("inputPixel=rgba16Float"))
+        XCTAssertTrue(diagnostics.summary.contains("inputPixelPrecision=float16"))
+        XCTAssertTrue(diagnostics.summary.contains("inputHDRFriendly=1"))
+        XCTAssertTrue(diagnostics.optimizationPlan.prewarmReservations.isEmpty)
+        XCTAssertTrue(diagnostics.optimizationPlan.decisions.contains("singleStageNoOptimizationNeeded"))
     }
 
     func testRenderDiagnosticsTracksSampleBufferBiPlanarInputConversions() throws {
