@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Metal
 
 public enum EditRecipeMode: String, Sendable, Codable, Equatable, Hashable {
     case preview
@@ -85,6 +86,72 @@ public struct EditRecipe {
         makeBaseFilterChain(inputSize: inputSize, prefersQualityResize: prefersQualityResize)
     }
 
+    public func makeNode(source: HarbethSource,
+                         mode: EditRecipeMode = .preview) -> HarbethImageNode {
+        .recipe(source: source, recipe: self, mode: mode)
+    }
+
+    public func makeRenderPlan(source: HarbethSource,
+                               mode: EditRecipeMode = .preview,
+                               extraFilters: [C7FilterProtocol] = [],
+                               derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
+        let compiled = try compileExecution(
+            source: source,
+            mode: mode,
+            extraFilters: extraFilters,
+            derivative: derivative
+        )
+        return GraphCompiler.compile(
+            filters: compiled.diagnosticFilters,
+            inputSize: compiled.inputSize,
+            profile: compiled.profile,
+            derivative: compiled.derivative,
+            compilationSource: .editRecipe
+        )
+    }
+
+    public func makeRenderRecipe(source: HarbethSource,
+                                 mode: EditRecipeMode = .preview,
+                                 extraFilters: [C7FilterProtocol] = [],
+                                 derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
+        let compiled = try compileExecution(
+            source: source,
+            mode: mode,
+            extraFilters: extraFilters,
+            derivative: derivative
+        )
+        let plan = GraphCompiler.compile(
+            filters: compiled.diagnosticFilters,
+            inputSize: compiled.inputSize,
+            profile: compiled.profile,
+            derivative: compiled.derivative,
+            compilationSource: .editRecipe
+        )
+        return RenderRecipe(
+            renderProfile: String(describing: compiled.profile),
+            renderIntent: compiled.derivative.renderIntent,
+            source: compiled.source.descriptor,
+            outputDerivative: compiled.derivative,
+            outputCachePolicy: compiled.outputCachePolicy,
+            outputSemantic: compiled.derivative.semantic,
+            alphaType: compiled.source.alphaType,
+            orientation: compiled.source.orientation,
+            filters: plan.diagnostics.nodes
+                .filter { $0.name != "DerivativeResize" }
+                .map { diagnostic in
+                    FilterRecipeDescriptor(
+                        stableTypeID: diagnostic.name,
+                        modifier: diagnostic.kind.rawValue,
+                        parameterValues: diagnostic.parameterSummary
+                            .sorted { $0.key < $1.key }
+                            .map { "\($0.key)=\($0.value)" },
+                        otherInputTextureCount: 0,
+                        hasCount: false
+                    )
+                }
+        )
+    }
+
     func resolvedSource(_ source: HarbethSource) -> HarbethSource {
         switch source {
         case .asset(let asset):
@@ -134,5 +201,60 @@ public struct EditRecipe {
             )
         )
         return compiled
+    }
+
+    func compileExecution(source: HarbethSource,
+                          mode: EditRecipeMode,
+                          extraFilters: [C7FilterProtocol] = [],
+                          derivative: ImageDerivativeSpec? = nil) throws -> CompiledEditRecipeExecution {
+        let resolvedSource = resolvedSource(source)
+        let input = try resolvedSource.makeTexture()
+        let inputSize = C7Size(width: input.width, height: input.height)
+        let contract = contract(for: mode)
+        let effectiveDerivative = derivative ?? contract.derivative
+        let baseFilters = makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)
+        let diagnosticFilters = makeExecutionPreviewChain(
+            inputSize: inputSize,
+            mode: mode,
+            derivative: effectiveDerivative,
+            appending: extraFilters
+        )
+        let outputCachePolicy: ImageCachePolicy =
+            (geometry.isIdentity && filters.isEmpty && localEffects.isEmpty && extraFilters.isEmpty)
+            ? resolvedSource.cachePolicy
+            : .transient
+        return CompiledEditRecipeExecution(
+            source: resolvedSource,
+            contract: contract,
+            derivative: effectiveDerivative,
+            inputTexture: input,
+            inputSize: inputSize,
+            baseFilters: baseFilters,
+            localEffects: localEffects,
+            diagnosticFilters: diagnosticFilters,
+            outputCachePolicy: outputCachePolicy
+        )
+    }
+}
+
+struct CompiledEditRecipeExecution {
+    let source: HarbethSource
+    let contract: EditRecipeContract
+    let derivative: ImageDerivativeSpec
+    let inputTexture: MTLTexture
+    let inputSize: C7Size
+    let baseFilters: [C7FilterProtocol]
+    let localEffects: [LocalEffectRecipe]
+    let diagnosticFilters: [C7FilterProtocol]
+    let outputCachePolicy: ImageCachePolicy
+
+    var profile: RenderProfile {
+        contract.profile
+    }
+
+    var resolvedOutputSize: C7Size {
+        diagnosticFilters.reduce(inputSize) { size, filter in
+            filter.resize(input: size)
+        }
     }
 }

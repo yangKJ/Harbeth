@@ -283,6 +283,20 @@ extension Shared {
     public func prewarmTexturePool(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
         defaultTexturePool.prewarm(resolutions: resolutions, count: count)
     }
+
+    public func prewarmTexturePool(reservations: [RenderTextureReservation],
+                                   fallbackPixelFormat: MTLPixelFormat,
+                                   defaultCount: Int = 1) {
+        let resolutions = reservations.map { reservation in
+            (
+                width: reservation.size.width,
+                height: reservation.size.height,
+                pixelFormat: reservation.pixelFormat.metalPixelFormat ?? fallbackPixelFormat
+            )
+        }
+        let count = max(defaultCount, reservations.map(\.count).max() ?? defaultCount)
+        defaultTexturePool.prewarm(resolutions: resolutions, count: count)
+    }
     
     /// Get the statistics of the texture pool
     public var texturePoolStatistics: TexturePool.Statistics? {

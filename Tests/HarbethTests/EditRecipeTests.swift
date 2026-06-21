@@ -208,6 +208,51 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertFalse(diagnostics.summary.contains("presentation"))
     }
 
+    func testRecipeCompilationPlanAndNodePathStayAligned() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 4, height: 4, pixel: [120, 90, 60, 255])
+        let recipe = EditRecipe(
+            geometry: ImageTransformRecipe(targetSize: CGSize(width: 2, height: 2), aspectPolicy: .fit),
+            filters: [C7Brightness(brightness: 0.1)]
+        )
+
+        let directPlan = try recipe.makeRenderPlan(source: .texture(input), mode: .preview)
+        let nodePlan = try recipe.makeNode(source: .texture(input)).makeRenderPlan()
+        let renderRecipe = try recipe.makeRenderRecipe(source: .texture(input), mode: .preview)
+
+        XCTAssertEqual(directPlan.diagnostics.outputSize, nodePlan.diagnostics.outputSize)
+        XCTAssertEqual(directPlan.diagnostics.stageCount, nodePlan.diagnostics.stageCount)
+        XCTAssertEqual(directPlan.diagnostics.compilationSource, .editRecipe)
+        XCTAssertEqual(renderRecipe.renderIntent, .stable)
+        XCTAssertEqual(renderRecipe.source.kind, "texture")
+        XCTAssertTrue(renderRecipe.filters.contains(where: { $0.stableTypeID.contains("C7Brightness") }))
+    }
+
+    func testLayerCompositeDirectPathMatchesNodePath() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let background = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 255, 0, 255])
+        let composite = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [ImageLayer(content: .texture(layer), normalizedFrame: CGRect(x: 0, y: 0, width: 0.5, height: 1))]
+        )
+        let io = HarbethIO(element: background, filters: [])
+
+        let directTexture = try io.renderTexture(composite: composite)
+        let nodeTexture = try io.renderTexture(node: composite.makeNode())
+        let diagnostics = try io.renderDiagnostics(composite: composite)
+
+        XCTAssertEqual(directTexture.width, nodeTexture.width)
+        XCTAssertEqual(directTexture.height, nodeTexture.height)
+        XCTAssertEqual(try firstPixel(in: directTexture).green, try firstPixel(in: nodeTexture).green)
+        XCTAssertEqual(diagnostics.compilationSource, .layerComposite)
+        XCTAssertEqual(diagnostics.nodes.first?.name.contains("C7LayerComposite"), true)
+    }
+
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

@@ -72,6 +72,32 @@ public enum RenderTextureLifecycleAction: String, Sendable, Equatable {
     case preserveForReadback
 }
 
+public enum RenderTextureReservationReason: String, Sendable, Equatable {
+    case transientReuse
+    case persistentOutput
+    case readbackOutput
+}
+
+public struct RenderTextureReservation: Sendable, Equatable {
+    public let stageIndices: [Int]
+    public let size: C7Size
+    public let pixelFormat: PixelFormatContract
+    public let reason: RenderTextureReservationReason
+    public let count: Int
+
+    public init(stageIndices: [Int],
+                size: C7Size,
+                pixelFormat: PixelFormatContract,
+                reason: RenderTextureReservationReason,
+                count: Int = 1) {
+        self.stageIndices = stageIndices
+        self.size = size
+        self.pixelFormat = pixelFormat
+        self.reason = reason
+        self.count = count
+    }
+}
+
 public struct RenderTextureLifecycleDecision: Sendable, Equatable {
     public let stageIndex: Int
     public let action: RenderTextureLifecycleAction
@@ -102,6 +128,7 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public let readbackBoundaryCount: Int
     public let formatConversionCount: Int
     public let destinationTextureCreationCount: Int
+    public let prewarmReservations: [RenderTextureReservation]
     public let lifecycleDecisions: [RenderTextureLifecycleDecision]
     public let decisions: [String]
 
@@ -117,6 +144,7 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
                 readbackBoundaryCount: Int,
                 formatConversionCount: Int,
                 destinationTextureCreationCount: Int,
+                prewarmReservations: [RenderTextureReservation],
                 lifecycleDecisions: [RenderTextureLifecycleDecision],
                 decisions: [String]) {
         self.intermediateTextureCount = intermediateTextureCount
@@ -131,6 +159,7 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
         self.readbackBoundaryCount = readbackBoundaryCount
         self.formatConversionCount = formatConversionCount
         self.destinationTextureCreationCount = destinationTextureCreationCount
+        self.prewarmReservations = prewarmReservations
         self.lifecycleDecisions = lifecycleDecisions
         self.decisions = decisions
     }
@@ -312,6 +341,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "transientStages=\(optimizationPlan.transientStageCount)",
             "renderStages=\(optimizationPlan.renderStageCount)",
             "transientBytes=\(optimizationPlan.estimatedTransientByteCount)",
+            "prewarm=\(optimizationPlan.prewarmReservations.count)",
             "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
             "alphaContract=\(outputContract.alpha)",
@@ -469,6 +499,10 @@ public enum GraphOptimizer {
         }.count
         let renderStageCount = stages.filter { $0.stageKind == .render }.count
         let lifecycleDecisions = makeLifecycleDecisions(stages: stages)
+        let prewarmReservations = makePrewarmReservations(
+            lifecycleDecisions: lifecycleDecisions,
+            outputContract: outputContract
+        )
         let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
         let estimatedTransientByteCount = lifecycleDecisions
             .filter { $0.action == .reuseTransient || $0.action == .allocateTransient }
@@ -514,6 +548,7 @@ public enum GraphOptimizer {
             readbackBoundaryCount: readbackBoundaryCount,
             formatConversionCount: formatConversionCount,
             destinationTextureCreationCount: destinationTextureCreationCount,
+            prewarmReservations: prewarmReservations,
             lifecycleDecisions: lifecycleDecisions,
             decisions: decisions
         )
@@ -558,6 +593,60 @@ public enum GraphOptimizer {
 
     private static func estimatedByteCount(for size: C7Size) -> Int {
         max(size.width, 0) * max(size.height, 0) * 4
+    }
+
+    private static func makePrewarmReservations(lifecycleDecisions: [RenderTextureLifecycleDecision],
+                                                outputContract: RenderOutputContract) -> [RenderTextureReservation] {
+        var grouped: [String: RenderTextureReservation] = [:]
+        for decision in lifecycleDecisions {
+            let reason: RenderTextureReservationReason?
+            let pixelFormat: PixelFormatContract
+            switch decision.action {
+            case .reuseTransient:
+                reason = .transientReuse
+                pixelFormat = .preserveInput
+            case .allocatePersistentOutput:
+                reason = .persistentOutput
+                pixelFormat = outputContract.pixelFormat
+            case .preserveForReadback:
+                reason = .readbackOutput
+                pixelFormat = outputContract.pixelFormat
+            case .allocateTransient:
+                reason = nil
+                pixelFormat = .preserveInput
+            }
+            guard let reason else { continue }
+            let key = [
+                reason.rawValue,
+                "\(decision.size.width)x\(decision.size.height)",
+                pixelFormat.fingerprint
+            ].joined(separator: "|")
+            if let existing = grouped[key] {
+                grouped[key] = RenderTextureReservation(
+                    stageIndices: existing.stageIndices + [decision.stageIndex],
+                    size: existing.size,
+                    pixelFormat: existing.pixelFormat,
+                    reason: existing.reason,
+                    count: existing.count + 1
+                )
+            } else {
+                grouped[key] = RenderTextureReservation(
+                    stageIndices: [decision.stageIndex],
+                    size: decision.size,
+                    pixelFormat: pixelFormat,
+                    reason: reason
+                )
+            }
+        }
+        return grouped.values.sorted { lhs, rhs in
+            if lhs.reason != rhs.reason {
+                return lhs.reason.rawValue < rhs.reason.rawValue
+            }
+            if lhs.size.width != rhs.size.width {
+                return lhs.size.width < rhs.size.width
+            }
+            return lhs.size.height < rhs.size.height
+        }
     }
 
     public static func optimize(graph: RenderGraph, nodeDiagnostics: [RenderNodeDiagnostic], profile: RenderProfile) -> [RenderStage] {

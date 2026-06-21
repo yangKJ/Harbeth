@@ -111,6 +111,10 @@ public struct LayerCompositeRecipe {
             outputContract.fingerprint
         ].joined(separator: "|")
     }
+
+    public func makeNode() -> HarbethImageNode {
+        .layerComposite(self)
+    }
 }
 
 public struct C7LayerComposite: C7FilterProtocol {

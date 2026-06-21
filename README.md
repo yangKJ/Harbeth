@@ -206,6 +206,8 @@ let kernelNode = HarbethImageNode
 
 let kernelDiagnostics = try kernelNode.makeDiagnostics(profile: .stablePreview)
 let kernelPlan = try kernelNode.makeRenderPlan(profile: .stablePreview)
+let recipePlan = try recipe.makeRenderPlan(source: .texture(inputTexture), mode: .preview)
+let recipeDescriptor = try recipe.makeRenderRecipe(source: .texture(inputTexture), mode: .preview)
 ```
 
 ### Geometry, Local Mask, and Transition Primitives
@@ -274,7 +276,9 @@ let composite = LayerCompositeRecipe(
 )
 
 let compositeTexture = try HarbethIO(element: backgroundTexture, filters: [])
-    .renderTexture(node: .layerComposite(composite))
+    .renderTexture(composite: composite)
+let compositeDiagnostics = try HarbethIO(element: backgroundTexture, filters: [])
+    .renderDiagnostics(composite: composite)
 ```
 
 ### 🎨 Real-time Filter Effects

@@ -531,12 +531,14 @@ public struct FrameRenderer {
 
     private func compiledRecipeExecution(_ recipe: EditRecipe,
                                          mode: EditRecipeMode) throws -> CompiledRecipeExecution {
-        try CompiledRecipeExecution(
-            source: recipe.resolvedSource(source),
-            recipe: recipe,
+        let compiled = try recipe.compileExecution(
+            source: source,
             mode: mode,
             extraFilters: filters,
-            outputDerivative: outputDerivative,
+            derivative: outputDerivative
+        )
+        return try CompiledRecipeExecution(
+            compiled: compiled,
             renderTexture: renderTexture(input:filters:profile:),
             resizeTextureIfNeeded: resizeTextureIfNeeded(_:derivative:profile:)
         )
@@ -561,40 +563,24 @@ private struct CompiledRecipeExecution {
     let resolvedOutputSize: C7Size
     let renderTextureClosure: () throws -> MTLTexture
 
-    init(source: HarbethSource,
-         recipe: EditRecipe,
-         mode: EditRecipeMode,
-         extraFilters: [C7FilterProtocol],
-         outputDerivative: ImageDerivativeSpec,
+    init(compiled: CompiledEditRecipeExecution,
          renderTexture: @escaping (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture,
          resizeTextureIfNeeded: @escaping (MTLTexture, ImageDerivativeSpec, RenderProfile) throws -> MTLTexture) throws {
-        let input = try source.makeTexture()
-        let inputSize = C7Size(width: input.width, height: input.height)
-        let contract = recipe.contract(for: mode)
-        let baseFilters = recipe.makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)
-        let diagnosticFilters = recipe.makeExecutionPreviewChain(
-            inputSize: inputSize,
-            mode: mode,
-            derivative: outputDerivative,
-            appending: extraFilters
-        )
-        self.source = source
-        self.profile = contract.profile
-        self.diagnosticFilters = diagnosticFilters
-        self.resolvedOutputSize = diagnosticFilters.reduce(inputSize) { size, filter in
-            filter.resize(input: size)
-        }
+        self.source = compiled.source
+        self.profile = compiled.profile
+        self.diagnosticFilters = compiled.diagnosticFilters
+        self.resolvedOutputSize = compiled.resolvedOutputSize
         self.renderTextureClosure = {
-            var currentTexture = try renderTexture(input, baseFilters, contract.profile)
-            for localEffect in recipe.localEffects {
-                let effectTexture = try renderTexture(currentTexture, localEffect.filters, contract.profile)
+            var currentTexture = try renderTexture(compiled.inputTexture, compiled.baseFilters, compiled.profile)
+            for localEffect in compiled.localEffects {
+                let effectTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
                 currentTexture = try renderTexture(
                     currentTexture,
                     [C7MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
-                    contract.profile
+                    compiled.profile
                 )
             }
-            return try resizeTextureIfNeeded(currentTexture, outputDerivative, contract.profile)
+            return try resizeTextureIfNeeded(currentTexture, compiled.derivative, compiled.profile)
         }
     }
 

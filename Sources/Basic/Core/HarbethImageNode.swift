@@ -214,22 +214,7 @@ extension HarbethImageNode: HarbethImagePromise {
                 outputContract: descriptor.outputContract
             )
         case .recipe(let source, let recipe, let mode):
-            let texture = try recipe.resolvedSource(source).makeTexture()
-            let contract = recipe.contract(for: mode)
-            let effectiveDerivative = derivative ?? contract.derivative
-            let filters = recipe.makeExecutionPreviewChain(
-                inputSize: C7Size(width: texture.width, height: texture.height),
-                mode: mode,
-                derivative: effectiveDerivative,
-                includeDerivativeResize: false
-            )
-            return GraphCompiler.compile(
-                filters: filters,
-                inputSize: C7Size(width: texture.width, height: texture.height),
-                profile: contract.profile,
-                derivative: effectiveDerivative,
-                compilationSource: .editRecipe
-            )
+            return try recipe.makeRenderPlan(source: source, mode: mode, derivative: derivative)
         case .transition(let recipe):
             let texture = try recipe.from.makeTexture()
             return GraphCompiler.compile(

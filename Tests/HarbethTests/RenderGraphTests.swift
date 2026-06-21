@@ -158,6 +158,8 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("source=filtersPrimitive"))
         XCTAssertTrue(diagnostics.summary.contains("transientStages="))
         XCTAssertFalse(diagnostics.graphFingerprint.isEmpty)
+        XCTAssertGreaterThanOrEqual(diagnostics.optimizationPlan.prewarmReservations.count, 2)
+        XCTAssertTrue(diagnostics.optimizationPlan.prewarmReservations.contains(where: { $0.reason == .transientReuse }))
     }
 
     func testOptimizerKeepsNeighborhoodComputeInSeparateStage() {
@@ -219,5 +221,26 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.optimizationPlan.renderStageCount, 1)
         XCTAssertEqual(plan.diagnostics.optimizationPlan.transientStageCount, 0)
         XCTAssertTrue(plan.diagnostics.graphFingerprint.contains("source=filtersPrimitive"))
+    }
+
+    func testOptimizationPlanExposesExecutablePrewarmReservations() {
+        let plan = GraphCompiler.compile(
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Resize(width: 16, height: 12),
+                C7Contrast(contrast: 1.1)
+            ],
+            inputSize: C7Size(width: 32, height: 24),
+            profile: .stablePreview,
+            outputContract: .highPrecisionLinearTexture
+        )
+
+        let reservations = plan.diagnostics.optimizationPlan.prewarmReservations
+
+        XCTAssertFalse(reservations.isEmpty)
+        XCTAssertTrue(reservations.contains(where: { $0.reason == .transientReuse }))
+        XCTAssertTrue(reservations.contains(where: { $0.reason == .persistentOutput }))
+        XCTAssertTrue(reservations.contains(where: { $0.pixelFormat == .rgba16Float }))
+        XCTAssertTrue(plan.diagnostics.summary.contains("prewarm="))
     }
 }

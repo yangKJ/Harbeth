@@ -139,23 +139,11 @@ extension HarbethIO {
     public func renderDiagnostics(recipe: EditRecipe,
                                   mode: EditRecipeMode = .preview,
                                   derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
-        let source = recipe.resolvedSource(try makeHarbethSource())
-        let input = try source.makeTexture()
-        let contract = recipe.contract(for: mode)
-        let effectiveDerivative = derivative ?? contract.derivative
-        let compiled = recipe.makeExecutionPreviewChain(
-            inputSize: C7Size(width: input.width, height: input.height),
+        let plan = try recipe.makeRenderPlan(
+            source: makeHarbethSource(),
             mode: mode,
-            derivative: effectiveDerivative,
-            appending: filters,
-            includeDerivativeResize: false
-        )
-        let plan = GraphCompiler.compile(
-            filters: compiled,
-            inputSize: C7Size(width: input.width, height: input.height),
-            profile: contract.profile,
-            derivative: effectiveDerivative,
-            compilationSource: .editRecipe
+            extraFilters: filters,
+            derivative: derivative
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
@@ -164,6 +152,33 @@ extension HarbethIO {
             }
         }
         return plan.diagnostics
+    }
+
+    public func renderTexture(composite recipe: LayerCompositeRecipe,
+                              derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+        try recipe.makeTexture(derivative: derivative)
+    }
+
+    public func renderDiagnostics(composite recipe: LayerCompositeRecipe,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+        let diagnostics = try recipe.makeDiagnostics(derivative: derivative)
+        if Shared.shared.enablePerformanceMonitor {
+            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: diagnostics.stageCount)
+            if diagnostics.requiresCompletedGPUWork {
+                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+            }
+        }
+        return diagnostics
+    }
+
+    public func renderFrame(composite recipe: LayerCompositeRecipe,
+                            derivative: ImageDerivativeSpec? = nil,
+                            metadata: [String: String] = [:]) throws -> RenderedFrame {
+        try recipe.makeNode().makeFrame(
+            profile: recipe.profile,
+            derivative: derivative ?? recipe.derivative,
+            metadata: metadata
+        )
     }
 
     public func renderDiagnostics(node: HarbethImageNode,

@@ -318,16 +318,13 @@ extension HarbethIO {
     }
 
     private func prepareTextureLifecycle(for plan: RenderPlan, inputPixelFormat: MTLPixelFormat) {
-        let prewarmTargets = plan.diagnostics.optimizationPlan.lifecycleDecisions.compactMap { decision -> (width: Int, height: Int, pixelFormat: MTLPixelFormat)? in
-            switch decision.action {
-            case .reuseTransient, .allocatePersistentOutput:
-                return (width: decision.size.width, height: decision.size.height, pixelFormat: inputPixelFormat)
-            case .allocateTransient, .preserveForReadback:
-                return nil
-            }
-        }
-        guard prewarmTargets.isEmpty == false else { return }
-        Shared.shared.prewarmTexturePool(resolutions: prewarmTargets, count: 1)
+        let reservations = plan.diagnostics.optimizationPlan.prewarmReservations
+        guard reservations.isEmpty == false else { return }
+        Shared.shared.prewarmTexturePool(
+            reservations: reservations,
+            fallbackPixelFormat: inputPixelFormat,
+            defaultCount: 1
+        )
     }
 
     private func groupStrategy(for plan: RenderPlan) -> GroupStrategy {
