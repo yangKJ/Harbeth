@@ -76,8 +76,13 @@ extension TextureLoader {
             return
         }
         if bridgePlan.loadStrategy == .cgImageFallback {
-            throw HarbethError.source2Texture
+            guard let cgImage = pixelBuffer.c7.toCGImage() else {
+                throw HarbethError.source2Texture
+            }
+            self.texture = try TextureLoader(with: cgImage, options: options).texture
+            return
         }
+
         let pixelFormat = TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)

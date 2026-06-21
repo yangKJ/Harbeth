@@ -130,6 +130,40 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertTrue(bridgePlan.requiresColorConversion)
     }
 
+    func testBiPlanarPixelBufferCanRenderThroughTextureLoader() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create bi-planar pixel buffer.")
+            return
+        }
+
+        let output: MTLTexture = try HarbethIO(
+            element: pixelBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).renderTexture()
+
+        XCTAssertEqual(output.width, 4)
+        XCTAssertEqual(output.height, 4)
+    }
+
     func testRenderRequestTracksPixelBufferSourceContract() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
