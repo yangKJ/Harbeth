@@ -71,6 +71,9 @@ public final class Device: Cacheable {
 }
 
 extension Device {
+    private static var fallbackLibraries: [String: MTLLibrary] = [:]
+    private static let fallbackLibraryLock = NSLock()
+
     private static var existingSharedDevice: Device? {
         guard Shared.shared.hasDevice else { return nil }
         return Shared.shared.device
@@ -282,9 +285,6 @@ extension Device {
                 return library
             }
         }
-        if let library = makeSourceLibrary(device, bundle: Bundle.module) {
-            return library
-        }
         #endif
 
         let candidateBundles: [Bundle] = {
@@ -308,11 +308,6 @@ extension Device {
                     return library
                 }
             }
-            #if SWIFT_PACKAGE
-            if let library = makeSourceLibrary(device, bundle: bundle) {
-                return library
-            }
-            #endif
         }
 
         let bundle = R.readFrameworkBundle(with: resource)
@@ -330,99 +325,99 @@ extension Device {
         return nil
     }
     
-    private static func makeSourceLibrary(_ device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
-        guard let resourceURL = bundle.resourceURL,
-              let enumerator = FileManager.default.enumerator(
-                at: resourceURL,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles]
-              ) else {
+    private static func makeSourceLibrary(_ device: MTLDevice, fileURL: URL) -> MTLLibrary? {
+        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
             return nil
         }
-        
-        var source = ""
-        for case let fileURL as URL in enumerator where fileURL.pathExtension == "metal" {
-            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
-                  values.isRegularFile == true,
-                  let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
-                continue
-            }
-            source += "\n// MARK: - \(fileURL.lastPathComponent)\n"
-            source += content
-            source += "\n"
-        }
-        
-        guard source.isEmpty == false else {
-            return nil
-        }
-        do {
-            return try device.makeLibrary(source: source, options: nil)
-        } catch {
-            #if DEBUG
-            print("Harbeth Metal source library compile failed: \(error)")
-            #endif
-            return nil
-        }
+        return try? device.makeLibrary(source: content, options: nil)
     }
 
     private static func makeSourceFallbackLibrary(_ device: MTLDevice, functionName: String) -> MTLLibrary? {
-        #if SWIFT_PACKAGE
-        if let library = makeSourceLibrary(device, bundle: Bundle.module),
-           library.makeFunction(name: functionName) != nil {
-            return library
+        fallbackLibraryLock.lock()
+        if let cached = fallbackLibraries[functionName] {
+            fallbackLibraryLock.unlock()
+            return cached
         }
-        #endif
+        fallbackLibraryLock.unlock()
 
-        let candidateBundles: [Bundle] = {
-            var bundles: [Bundle] = [Bundle(for: Device.self), Bundle.main]
-            bundles.append(contentsOf: Bundle.allFrameworks)
-            bundles.append(contentsOf: Bundle.allBundles)
-            return Array(NSOrderedSet(array: bundles)) as? [Bundle] ?? bundles
-        }()
-
-        for bundle in candidateBundles {
-            if let library = makeSourceLibrary(device, bundle: bundle),
-               library.makeFunction(name: functionName) != nil {
-                return library
-            }
-        }
-        if let library = makeSourceTreeLibrary(device),
-           library.makeFunction(name: functionName) != nil {
+        if let library = makeSourceLibraryForFunction(device, functionName: functionName) {
+            fallbackLibraryLock.lock()
+            fallbackLibraries[functionName] = library
+            fallbackLibraryLock.unlock()
             return library
         }
         return nil
     }
 
-    private static func makeSourceTreeLibrary(_ device: MTLDevice) -> MTLLibrary? {
+    private static func makeSourceLibraryForFunction(_ device: MTLDevice, functionName: String) -> MTLLibrary? {
+        for fileURL in candidateMetalFiles() {
+            guard let content = try? String(contentsOf: fileURL, encoding: .utf8),
+                  sourceFile(content, containsFunctionNamed: functionName) else {
+                continue
+            }
+            if let library = makeSourceLibrary(device, fileURL: fileURL),
+               library.makeFunction(name: functionName) != nil {
+                return library
+            }
+        }
+        return nil
+    }
+
+    private static func sourceFile(_ content: String, containsFunctionNamed functionName: String) -> Bool {
+        let patterns = [
+            "kernel void \(functionName)",
+            "vertex ",
+            "fragment ",
+            "kernel ",
+            "visible "
+        ]
+        if content.contains("kernel void \(functionName)") ||
+            content.contains("vertex \(functionName)") ||
+            content.contains("fragment \(functionName)") {
+            return true
+        }
+        return content.contains("\(functionName)(") && patterns.contains { content.contains($0) }
+    }
+
+    private static func candidateMetalFiles() -> [URL] {
         let fileURL = URL(fileURLWithPath: #filePath)
         let sourcesRoot = fileURL
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        guard let enumerator = FileManager.default.enumerator(
-            at: sourcesRoot,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return nil
-        }
 
-        var source = ""
-        for case let fileURL as URL in enumerator where fileURL.pathExtension == "metal" {
-            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
-                  values.isRegularFile == true,
-                  let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
+        var directories: [URL] = []
+        directories.append(sourcesRoot)
+        #if SWIFT_PACKAGE
+        if let resourceURL = Bundle.module.resourceURL {
+            directories.append(resourceURL)
+        }
+        #endif
+        let bundles: [Bundle] = {
+            var bundles: [Bundle] = [Bundle(for: Device.self), Bundle.main]
+            bundles.append(contentsOf: Bundle.allFrameworks)
+            bundles.append(contentsOf: Bundle.allBundles)
+            return Array(NSOrderedSet(array: bundles)) as? [Bundle] ?? bundles
+        }()
+        directories.append(contentsOf: bundles.compactMap(\.resourceURL))
+
+        var seen = Set<String>()
+        var files: [URL] = []
+        for directory in directories {
+            guard let enumerator = FileManager.default.enumerator(
+                at: directory,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            ) else {
                 continue
             }
-            source += "\n// MARK: - \(fileURL.lastPathComponent)\n"
-            source += content
-            source += "\n"
+            for case let fileURL as URL in enumerator where fileURL.pathExtension == "metal" {
+                let path = fileURL.path
+                guard seen.insert(path).inserted else { continue }
+                files.append(fileURL)
+            }
         }
-
-        guard source.isEmpty == false else {
-            return nil
-        }
-        return try? device.makeLibrary(source: source, options: nil)
+        return files
     }
     
     public static func readMTLFunction(_ name: String) throws -> MTLFunction {

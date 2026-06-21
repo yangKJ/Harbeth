@@ -14,7 +14,9 @@ float luminance(float3 color) {
 
 kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[texture(0)]],
                              texture2d<half, access::read> inputTexture [[texture(1)]],
-                             constant float *factors [[buffer(0)]],
+                             constant float *radiusPointer [[buffer(0)]],
+                             constant float *amountPointer [[buffer(1)]],
+                             constant float *edgePreservationPointer [[buffer(2)]],
                              uint2 grid [[thread_position_in_grid]]) {
     const uint width = outputTexture.get_width();
     const uint height = outputTexture.get_height();
@@ -22,15 +24,17 @@ kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[text
         return;
     }
 
-    const int radius = max(int(round(factors[0])), 1);
-    const float amount = clamp(factors[1], 0.0f, 1.0f);
-    const float edgePreservation = clamp(factors[2], 0.0f, 1.0f);
-    const float colorSigma = mix(0.25f, 0.03f, edgePreservation);
+    const int radius = max(int(round(*radiusPointer)), 1);
+    const float amount = clamp(*amountPointer, 0.0f, 1.0f);
+    const float edgePreservation = clamp(*edgePreservationPointer, 0.0f, 1.0f);
+    const float colorSigma = mix(0.35f, 0.08f, edgePreservation);
 
     const float4 center = float4(inputTexture.read(grid));
     const float centerLuma = luminance(center.rgb);
     float4 accumulated = float4(0.0f);
     float weightSum = 0.0f;
+    float4 spatialAccumulated = float4(0.0f);
+    float spatialWeightSum = 0.0f;
 
     for (int y = -radius; y <= radius; y++) {
         for (int x = -radius; x <= radius; x++) {
@@ -44,13 +48,25 @@ kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[text
             const float weight = spatialWeight * colorWeight;
             accumulated += sample * weight;
             weightSum += weight;
+            spatialAccumulated += sample * spatialWeight;
+            spatialWeightSum += spatialWeight;
         }
     }
 
     float4 denoised = center;
+    float4 spatialMean = center;
     if (weightSum > 0.0f) {
         denoised = accumulated / weightSum;
     }
+    if (spatialWeightSum > 0.0f) {
+        spatialMean = spatialAccumulated / spatialWeightSum;
+    }
+    denoised.a = center.a;
+
+    const float impulseDelta = fabs(centerLuma - luminance(spatialMean.rgb));
+    const float impulseBlend = clamp((impulseDelta - colorSigma * 0.5f) / max(1.0f - colorSigma * 0.5f, 1e-5f), 0.0f, 1.0f);
+    const float impulseStrength = amount * impulseBlend * mix(0.45f, 0.8f, 1.0f - edgePreservation);
+    denoised = mix(denoised, spatialMean, impulseStrength);
     denoised.a = center.a;
 
     outputTexture.write(half4(mix(center, denoised, amount)), grid);

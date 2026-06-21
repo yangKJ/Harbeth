@@ -51,15 +51,17 @@ float4 surfaceBlur(texture2d<half, access::read> texture, uint2 coord, uint2 siz
 
 kernel void C7SurfaceBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
                          texture2d<half, access::read> inputTexture [[texture(1)]],
-                         constant float *factors [[buffer(0)]],
+                         constant float *radiusPointer [[buffer(0)]],
+                         constant float *thresholdPointer [[buffer(1)]],
+                         constant float *intensityPointer [[buffer(2)]],
                          uint2 grid [[thread_position_in_grid]]) {
     uint2 size = uint2(outputTexture.get_width(), outputTexture.get_height());
     if (grid.x >= size.x || grid.y >= size.y) {
         return;
     }
-    float radius = factors[0];
-    float threshold = factors[1];
-    float intensity = factors[2];
+    float radius = *radiusPointer;
+    float threshold = *thresholdPointer;
+    float intensity = *intensityPointer;
     
     float4 originalColor = float4(inputTexture.read(grid));
     float4 blurredColor = surfaceBlur(inputTexture, grid, size, radius, threshold);

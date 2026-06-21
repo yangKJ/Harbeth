@@ -10,36 +10,39 @@ using namespace metal;
 
 kernel void C7UnsharpMask(texture2d<half, access::write> outputTexture [[texture(0)]],
                           texture2d<half, access::read> inputTexture [[texture(1)]],
-                          constant float *factors [[buffer(0)]],
+                          constant float *radiusPointer [[buffer(0)]],
+                          constant float *intensityPointer [[buffer(1)]],
+                          constant float *thresholdPointer [[buffer(2)]],
                           uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
 
-    const float radius = max(factors[0], 0.0f) / 100.0f;
-    const float intensity = max(factors[1], 0.0f);
-    const float threshold = clamp(factors[2], 0.0f, 1.0f);
+    const int radius = max(int(round(*radiusPointer)), 1);
+    const float intensity = max(*intensityPointer, 0.0f);
+    const float threshold = clamp(*thresholdPointer, 0.0f, 1.0f);
 
-    const float2 uv = float2(grid) / float2(outputTexture.get_width(), outputTexture.get_height());
-    const float2 inputSize = float2(inputTexture.get_width(), inputTexture.get_height());
+    const int width = int(inputTexture.get_width());
+    const int height = int(inputTexture.get_height());
+    const float sigma = max(float(radius) * 0.5f, 0.75f);
     half4 blurred = half4(0.0h);
-    const float weights[9] = {
-        1.0f, 2.0f, 1.0f,
-        2.0f, 4.0f, 2.0f,
-        1.0f, 2.0f, 1.0f
-    };
+    float weightSum = 0.0f;
 
-    for (int y = 0; y < 3; y++) {
-        for (int x = 0; x < 3; x++) {
-            const float2 offset = float2(x - 1, y - 1) * radius;
-            const float2 sampleUV = clamp(uv + offset, 0.0f, 1.0f);
-            const uint2 coord = uint2(sampleUV * inputSize);
-            blurred += inputTexture.read(coord) * half(weights[y * 3 + x]);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            const int sampleX = clamp(int(grid.x) + x, 0, width - 1);
+            const int sampleY = clamp(int(grid.y) + y, 0, height - 1);
+            const float distance2 = float(x * x + y * y);
+            const float weight = exp(-distance2 / (2.0f * sigma * sigma));
+            blurred += inputTexture.read(uint2(sampleX, sampleY)) * half(weight);
+            weightSum += weight;
         }
     }
 
     const half4 center = inputTexture.read(grid);
-    blurred /= 16.0h;
+    if (weightSum > 0.0f) {
+        blurred /= half(weightSum);
+    }
 
     const half3 detail = center.rgb - blurred.rgb;
     const half luminanceDelta = max(max(fabs(detail.r), fabs(detail.g)), fabs(detail.b));
