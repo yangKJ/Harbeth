@@ -380,6 +380,227 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertNil(bundle)
     }
 
+    func testHarbethIORenderAttachmentSetReturnsNilForNonRenderChain() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 1, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.noRenderAttachmentSet")
+
+        let attachmentSet = try HarbethIO(element: texture, filters: [C7Brightness(brightness: 0)])
+            .renderAttachmentSet()
+
+        XCTAssertNil(attachmentSet)
+    }
+
+    func testHarbethIORenderAttachmentSetUsesFinalRenderPrimitive() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet")
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+
+        let attachmentSet = try XCTUnwrap(
+            HarbethIO(
+                element: texture,
+                filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()]
+            ).renderAttachmentSet()
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(attachmentSet.attachments.count, 2)
+        XCTAssertEqual(attachmentSet.primary?.semantic, .primaryColor)
+        XCTAssertEqual(attachmentSet.attachment(for: .luminance)?.semantic, .luminance)
+        XCTAssertNotNil(attachmentSet.texture(for: .luminance))
+    }
+
+    func testHarbethIORenderAttachmentSetForNodeUsesFinalRenderPrimitive() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet.node")
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+        let node = ImageNode
+            .texture(texture)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+            .withCachePolicy(.persistent)
+
+        let attachmentSet = try XCTUnwrap(
+            HarbethIO(element: texture, filters: []).renderAttachmentSet(node: node)
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(attachmentSet.attachments.count, 2)
+        XCTAssertEqual(attachmentSet.primary?.semantic, .primaryColor)
+        XCTAssertEqual(attachmentSet.attachment(for: .luminance)?.semantic, .luminance)
+    }
+
+    func testHarbethIORenderAttachmentSetForRecipeUsesFinalRenderPrimitive() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet.recipe")
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+        let mask = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet.recipe.mask")
+        mask.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                255, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+        let recipe = EditRecipe(localEffects: [
+            LocalEffectRecipe(
+                filters: [RenderAuxiliaryLuminance()],
+                mask: MaskDescriptor(texture: mask, component: .red)
+            )
+        ])
+
+        let attachmentSet = try XCTUnwrap(
+            HarbethIO(element: texture, filters: []).renderAttachmentSet(
+                recipe: recipe,
+                finalRenderFilter: RenderAuxiliaryLuminance()
+            )
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(attachmentSet.attachments.count, 2)
+        XCTAssertEqual(attachmentSet.primary?.semantic, .primaryColor)
+        XCTAssertEqual(
+            attachmentSet.attachment(for: RenderOutputAttachmentSemantic.luminance)?.semantic,
+            RenderOutputAttachmentSemantic.luminance
+        )
+    }
+
+    func testHarbethIORenderAttachmentSetForCompositeUsesFinalRenderPrimitive() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let background = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet.composite.background")
+        background.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+        let layer = try TextureLoader.makeTexture(width: 1, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet.composite.layer")
+        layer.replace(
+            region: MTLRegionMake2D(0, 0, 1, 1),
+            mipmapLevel: 0,
+            withBytes: [255, 255, 255, 255],
+            bytesPerRow: 4
+        )
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(content: .texture(layer))
+            ]
+        )
+        let attachmentSet = try XCTUnwrap(
+            HarbethIO(element: background, filters: []).renderAttachmentSet(
+                composite: recipe,
+                finalRenderFilter: RenderAuxiliaryLuminance()
+            )
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(attachmentSet.attachments.count, 2)
+        XCTAssertEqual(attachmentSet.primary?.semantic, .primaryColor)
+        XCTAssertEqual(attachmentSet.attachment(for: .luminance)?.semantic, .luminance)
+    }
+
+    func testHarbethIORenderAttachmentSetForTransitionUsesFinalRenderPrimitive() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let from = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet.transition.from")
+        let to = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.renderAttachmentSet.transition.to")
+        from.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+        to.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 255, 255,
+                255, 255, 255, 255
+            ],
+            bytesPerRow: 8
+        )
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .dissolve,
+            progress: 0.5
+        )
+        let attachmentSet = try XCTUnwrap(
+            HarbethIO(element: from, filters: []).renderAttachmentSet(
+                transition: recipe,
+                finalRenderFilter: RenderAuxiliaryLuminance()
+            )
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(attachmentSet.attachments.count, 2)
+        XCTAssertEqual(attachmentSet.primary?.semantic, .primaryColor)
+        XCTAssertEqual(
+            attachmentSet.attachment(for: RenderOutputAttachmentSemantic.luminance)?.semantic,
+            RenderOutputAttachmentSemantic.luminance
+        )
+    }
+
     func testHarbethIORenderAttachmentAnalysisBundleUsesFinalRenderPrimitive() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

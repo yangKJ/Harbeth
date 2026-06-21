@@ -458,6 +458,39 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertNil(bundle)
     }
 
+    func testImageNodeAttachmentSetReturnsNilForNonRenderPath() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
+        let node = ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+
+        let attachmentSet = try node.makeAttachmentSet()
+
+        XCTAssertNil(attachmentSet)
+    }
+
+    func testImageNodeAttachmentSetUsesFinalRenderPrimitiveThroughWrappers() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+            .withCachePolicy(.persistent)
+            .withSamplerDescriptor(.nearest)
+
+        let attachmentSet = try XCTUnwrap(
+            node.makeAttachmentSet()
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(attachmentSet.attachments.count, 2)
+        XCTAssertEqual(attachmentSet.primary?.semantic, .primaryColor)
+        XCTAssertEqual(attachmentSet.attachment(for: .luminance)?.semantic, .luminance)
+        XCTAssertNotNil(attachmentSet.texture(for: .luminance))
+    }
+
     func testImageNodeAttachmentAnalysisBundleUsesFinalRenderPrimitiveThroughWrappers() throws {
         let input = try makeTexture(width: 2, height: 1, pixels: [
             [0, 0, 0, 255],
@@ -1487,6 +1520,45 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(outputPixel.alpha, 255)
     }
 
+    func testRGBColorSpaceConversionSupportsDisplayP3Contracts() {
+        XCTAssertEqual(
+            ImageColorSpaceContract.displayP3.colorConversionMode(from: .sRGB),
+            .sRGBToDisplayP3
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.sRGB.colorConversionMode(from: .displayP3),
+            .displayP3ToSRGB
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.extendedLinearSRGB.colorConversionMode(from: .displayP3),
+            .displayP3ToExtendedLinearSRGB
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.displayP3.colorConversionMode(from: .extendedLinearSRGB),
+            .extendedLinearSRGBToDisplayP3
+        )
+        XCTAssertNil(ImageColorSpaceContract.displayP3.colorConversionMode(from: .preserveInput))
+        XCTAssertNil(ImageColorSpaceContract.sRGB.colorConversionMode(from: .sRGB))
+    }
+
+    func testRGBColorSpaceConversionRoundTripsSRGBAndDisplayP3() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [64, 128, 192, 255])
+        let displayP3 = try HarbethIO(
+            element: input,
+            filter: C7RGBColorSpaceConversion(mode: .sRGBToDisplayP3)
+        ).output()
+        let restored = try HarbethIO(
+            element: displayP3,
+            filter: C7RGBColorSpaceConversion(mode: .displayP3ToSRGB)
+        ).output()
+        let restoredPixel = try pixel(in: restored, x: 0, y: 0)
+
+        XCTAssertEqual(restoredPixel.red, 64, accuracy: 3)
+        XCTAssertEqual(restoredPixel.green, 128, accuracy: 3)
+        XCTAssertEqual(restoredPixel.blue, 192, accuracy: 3)
+        XCTAssertEqual(restoredPixel.alpha, 255)
+    }
+
     func testKernelNodeExecutesExplicitColorTransferOutputContract() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [128, 128, 128, 255])
         let descriptor = KernelDescriptor(
@@ -1507,6 +1579,34 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(descriptor.fingerprint.contains("inputColor=color=sRGB"))
         XCTAssertLessThan(outputPixel.red, 80)
         XCTAssertGreaterThan(outputPixel.red, 40)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testKernelNodeExecutesDisplayP3OutputContract() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [64, 128, 192, 255])
+        let descriptor = KernelDescriptor(
+            filterName: "identityDisplayP3Output",
+            functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            inputColorSpace: .sRGB,
+            outputContract: RenderOutputContract(colorSpace: .displayP3)
+        )
+        let node = ImageNode.kernel(
+            input: .source(.texture(input)),
+            descriptor: descriptor,
+            filter: C7Brightness(brightness: 0)
+        )
+
+        let output = try node.makeTexture(profile: .stablePreview)
+        let manual = try HarbethIO(
+            element: input,
+            filter: C7RGBColorSpaceConversion(mode: .sRGBToDisplayP3)
+        ).output()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+        let manualPixel = try pixel(in: manual, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, manualPixel.red, accuracy: 2)
+        XCTAssertEqual(outputPixel.green, manualPixel.green, accuracy: 2)
+        XCTAssertEqual(outputPixel.blue, manualPixel.blue, accuracy: 2)
         XCTAssertEqual(outputPixel.alpha, 255)
     }
 

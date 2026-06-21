@@ -183,6 +183,32 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         C7RGBTransferConversion(from: source, to: self)
     }
 
+    public func colorConversionMode(from source: ImageColorSpaceContract) -> C7RGBColorSpaceConversion.Mode? {
+        guard preservesInput == false,
+              source.preservesInput == false else {
+            return nil
+        }
+        switch (source.gamut, source.transferFunction, gamut, transferFunction) {
+        case (.sRGB, .sRGB, .displayP3, .sRGB):
+            return .sRGBToDisplayP3
+        case (.displayP3, .sRGB, .sRGB, .sRGB):
+            return .displayP3ToSRGB
+        case (.displayP3, .sRGB, .extendedLinearSRGB, .linear):
+            return .displayP3ToExtendedLinearSRGB
+        case (.extendedLinearSRGB, .linear, .displayP3, .sRGB):
+            return .extendedLinearSRGBToDisplayP3
+        default:
+            return nil
+        }
+    }
+
+    public func makeColorConversionFilter(from source: ImageColorSpaceContract) -> C7FilterProtocol? {
+        if let filter = C7RGBColorSpaceConversion(from: source, to: self) {
+            return filter
+        }
+        return C7RGBTransferConversion(from: source, to: self)
+    }
+
     private func supportsTransferOnlyConversion(from source: ImageColorSpaceContract) -> Bool {
         switch (source.gamut, gamut) {
         case (.sRGB, .sRGB),

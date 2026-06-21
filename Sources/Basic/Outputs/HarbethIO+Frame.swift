@@ -471,6 +471,16 @@ extension HarbethIO {
             .makeAttachmentDebugPolicies(profile: recipe.contract(for: mode).profile, derivative: derivative)
     }
 
+    public func renderAttachmentSet(recipe: EditRecipe,
+                                    mode: EditRecipeMode = .preview,
+                                    derivative: ImageDerivativeSpec? = nil,
+                                    finalRenderFilter: any RenderProtocol) throws -> RenderedAttachmentSet? {
+        let source = try makeImageSource()
+        return try ImageNode.recipe(source: source, recipe: recipe, mode: mode)
+            .applying(finalRenderFilter)
+            .makeAttachmentSet(profile: recipe.contract(for: mode).profile)
+    }
+
     public func renderDebugSnapshot(composite recipe: LayerCompositeRecipe,
                                     derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
         try recipe.makeNode().makeDebugSnapshot(profile: recipe.profile, derivative: derivative ?? recipe.derivative)
@@ -497,6 +507,14 @@ extension HarbethIO {
         try recipe.makeNode().makeAttachmentDebugPolicies(profile: recipe.profile, derivative: derivative ?? recipe.derivative)
     }
 
+    public func renderAttachmentSet(composite recipe: LayerCompositeRecipe,
+                                    derivative: ImageDerivativeSpec? = nil,
+                                    finalRenderFilter: any RenderProtocol) throws -> RenderedAttachmentSet? {
+        try recipe.makeNode()
+            .applying(finalRenderFilter)
+            .makeAttachmentSet(profile: recipe.profile)
+    }
+
     public func renderDebugSnapshot(transition recipe: TransitionRecipe) throws -> RenderGraphDebugSnapshot {
         try ImageNode.transition(recipe).makeDebugSnapshot(profile: recipe.profile, derivative: recipe.derivative)
     }
@@ -517,6 +535,13 @@ extension HarbethIO {
 
     public func renderAttachmentDebugPolicies(transition recipe: TransitionRecipe) throws -> [RenderOutputAttachmentDebugPolicy] {
         try ImageNode.transition(recipe).makeAttachmentDebugPolicies(profile: recipe.profile, derivative: recipe.derivative)
+    }
+
+    public func renderAttachmentSet(transition recipe: TransitionRecipe,
+                                    finalRenderFilter: any RenderProtocol) throws -> RenderedAttachmentSet? {
+        try ImageNode.transition(recipe)
+            .applying(finalRenderFilter)
+            .makeAttachmentSet(profile: recipe.profile)
     }
 
     /// 直接渲染 filters 路径最终结果并输出 histogram。
@@ -756,6 +781,11 @@ extension HarbethIO {
         )
     }
 
+    public func renderAttachmentSet(node: ImageNode,
+                                    profile: RenderProfile = .readbackQuality) throws -> RenderedAttachmentSet? {
+        try node.makeAttachmentSet(profile: profile)
+    }
+
     public func renderTransitionHistogramAttachment(_ recipe: TransitionRecipe,
                                                     channel: TextureHistogramChannel = .luminance,
                                                     bins: Int = 256,
@@ -791,6 +821,34 @@ extension HarbethIO {
             histogram: histogram,
             histogramAttachment: histogramAttachment,
             attachmentDebugPolicies: try renderAttachmentDebugPolicies(transition: recipe)
+        )
+    }
+
+    /// 当 filter 链最后一个节点是真正的 render primitive 时，
+    /// 直接返回多 attachment 的轻量输出集合。
+    ///
+    /// 这个入口不会把普通 filter 链强行提升成 MRT runtime；
+    /// 只有末端是 `RenderProtocol` 时才返回 attachment set。
+    public func renderAttachmentSet(profile: RenderProfile = .readbackQuality) throws -> RenderedAttachmentSet? {
+        guard let finalFilter = filters.last as? any RenderProtocol else {
+            return nil
+        }
+        let source = try makeImageSource()
+        let inputTexture: MTLTexture
+        if filters.count > 1 {
+            let preFilters = Array(filters.dropLast())
+            inputTexture = try HarbethIO<MTLTexture>(
+                element: try source.makeTexture(),
+                filters: preFilters
+            )
+            .configured(for: profile)
+            .output()
+        } else {
+            inputTexture = try source.makeTexture()
+        }
+        return try finalFilter.renderAttachmentSet(
+            from: inputTexture,
+            identifier: "\(identifier).attachmentSet"
         )
     }
 

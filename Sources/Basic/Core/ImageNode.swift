@@ -373,6 +373,23 @@ extension ImageNode: ImagePromise {
     }
 
     /// 当 node 最终收敛到单个 `RenderProtocol` primitive 时，
+    /// 直接导出多 attachment 的轻量输出集合。
+    ///
+    /// 这个入口不会把所有 node 都抬成 MRT runtime。
+    /// 如果当前 node 不满足“最终一步是 render primitive”的条件，则返回 `nil`。
+    public func makeAttachmentSet(profile: RenderProfile = .readbackQuality) throws -> RenderedAttachmentSet? {
+        guard let bridge = try resolvedAttachmentAnalysisBridge(
+            profile: profile
+        ) else {
+            return nil
+        }
+        return try bridge.filter.renderAttachmentSet(
+            from: bridge.inputTexture,
+            identifier: "ImageNode.AttachmentSet.\(UUID().uuidString)"
+        )
+    }
+
+    /// 当 node 最终收敛到单个 `RenderProtocol` primitive 时，
     /// 直接导出多 attachment 的轻量分析 bundle。
     ///
     /// 这个入口不会把所有 node 都抬成 MRT runtime。
@@ -912,7 +929,7 @@ extension ImageNode {
                                             sourceColorSpace: ImageColorSpaceContract = .preserveInput,
                                             profile: RenderProfile) throws -> MTLTexture {
         var output = texture
-        if let colorFilter = contract.colorSpace.makeTransferConversionFilter(from: sourceColorSpace) {
+        if let colorFilter = contract.colorSpace.makeColorConversionFilter(from: sourceColorSpace) {
             output = try HarbethIO(element: output, filter: colorFilter)
                 .configured(for: profile)
                 .output()
