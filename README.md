@@ -37,6 +37,15 @@ English | [**简体中文**](README_CN.md)
 - **Extensive Documentation**: Comprehensive documentation and demo projects to help you get started quickly and make the most of Harbeth's capabilities.
 - **SwiftUI integration**: Native support for SwiftUI framework.
 
+### Core Capabilities
+
+Harbeth is designed as a capability-first processing core. The current repository is best understood as four composable layers:
+
+- **Source ingestion**: image, texture, pixel buffer, and sample buffer inputs can enter the same Metal-based processing pipeline.
+- **Filter execution**: color, blur, blend, geometry, optics, LUT, and MPS-backed operations can be chained as reusable technical capabilities.
+- **Frame rendering**: texture-first and frame-first outputs support interactive rendering, stable reusable derivatives, export outputs, and readback-oriented delivery.
+- **Correction and replay**: render profiles, frame metadata, cache identity, and reusable derivative contracts support repeated rendering and higher-level host workflows.
+
 ### ⚡ Performance Advantage
 
 Harbeth leverages Metal GPU acceleration to deliver exceptional performance, especially when processing complex filter chains:
@@ -58,6 +67,7 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 - **Blend Modes**: Normal, multiply, screen, overlay, hard light, etc.
 - **Edge & Detail**: Sharpen, unsharp mask, edge detection, sketch, comic strip effect, etc.
 - **Distortion & Warp**: Bulge, pinch, swirl, water ripple, glass sphere, etc.
+- **Geometry & Optics**: Lens distortion correction, chromatic aberration correction, vignette correction, defringe, diffraction correction, quad rectification, perspective and 3D transforms.
 - **Stylization**: Oil painting, cartoon, glitch effect, split screen, soul out, etc.
 - **Geometric Transform**: Crop, flip, rotate, resize, Lanczos resize, etc.
 - **Matrix Processing**: 3x3 convolution matrix, 4x4 color matrix, 4x5 color matrix, etc.
@@ -76,6 +86,15 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 - **Your app provides**: source acquisition policy, media orchestration, persistence, presentation surfaces, and all product-specific business logic.
 - **Commercial integration**: If you need private LUTs, branded filter packs, real-time camera/video tuning, or custom Metal kernels, use the open-source examples as the technical baseline and discuss a private integration scope with the maintainer.
 
+### Geometry and Optics
+
+Harbeth also provides a reusable correction and transform layer for editor-grade geometry and optics workflows:
+
+- **Lens correction**: distortion, chromatic aberration, vignette, diffraction, defringe, and sharpness-falloff compensation.
+- **Transform correction**: affine, perspective, quad rectify, quad warp, and 3D projection transforms.
+- **Profile-driven composition**: `LensProfile` and `OpticsSettings` can assemble multiple optics corrections into a stable pipeline.
+- **Guide-driven upright**: `GuidedUpright` can turn vertical and horizontal guide lines into a recommended rectify transform.
+
 ## Requirements
 
 | iOS Target | macOS Target | Xcode Version | Swift Version |
@@ -83,6 +102,34 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 | iOS 10.0+ | macOS 10.13+ | Xcode 10.0+ | Swift 5.0+ |
 
 ## Usage
+
+### Source and Output Types
+
+Harbeth supports multiple source types and more than one output shape:
+
+- Use `UIImage`, `NSImage`, `CGImage`, `MTLTexture`, `CVPixelBuffer`, or `CMSampleBuffer` as processing inputs.
+- Use `output()` when you want an image result.
+- Use `renderTexture(profile:)` when you want to keep the pipeline texture-first.
+- Use `renderFrame(profile:)` when you need a reusable `RenderedFrame` with metadata, semantic contract, and replay-oriented context.
+
+### Render Profiles and Frame Rendering
+
+The render profile expresses technical intent instead of product UI state:
+
+- `interactiveLatency`: lowest-latency rendering for interactive adjustment loops.
+- `responseLatency`: fast first useful response with reusable texture output.
+- `stablePreview`: stable reusable derivative for display and repeated viewing.
+- `inspectionQuality`: higher-fidelity derivative for closer inspection.
+- `exportQuality`: full-quality output for export pipelines.
+- `readbackQuality`: full-quality output optimized for CPU-side readback.
+
+```swift
+let io = HarbethIO(element: inputImage, filters: filters)
+
+let interactiveTexture = try io.renderTexture(profile: .interactiveLatency)
+let stableFrame = try io.renderFrame(profile: .stablePreview)
+let exportTexture = try io.renderTexture(profile: .exportQuality)
+```
 
 ### 🎨 Real-time Filter Effects
 
@@ -137,6 +184,74 @@ ImageView.image = try? inputImage.make(filters: filters)
 ImageView.image = inputImage ->> filter1 ->> filter2 ->> filter3
 ```
 
+#### 🧱 Frame-First Rendering
+
+Use frame rendering when the host app needs metadata, replay, or profile-based output control:
+
+```swift
+let filters: [C7FilterProtocol] = [
+    C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75),
+    C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
+]
+
+let io = HarbethIO(element: inputImage, filters: filters)
+let frame = try io.renderFrame(profile: .stablePreview)
+
+let renderedImage = frame.image
+let semantic = frame.semantic
+let replayContract = frame.replayBaseContract
+```
+
+#### 📷 Geometry and Optics Pipeline
+
+Geometry and optics corrections can be assembled as a normal filter chain:
+
+```swift
+let filters: [C7FilterProtocol] = [
+    C7LensDistortionCorrection(
+        amount: -0.18,
+        cubicDistortion: 0.03,
+        scale: 1.02
+    ),
+    C7ChromaticAberrationCorrection(intensity: 0.45),
+    C7LensVignetteCorrection(intensity: 0.3),
+    C7DefringeCorrection(amount: 0.4),
+    C7SharpnessFalloffCorrection(intensity: 0.25)
+]
+
+let corrected = try inputImage.make(filters: filters)
+```
+
+You can also build profile-driven correction from `LensProfile` and `OpticsSettings`:
+
+```swift
+let profile = LensProfile(
+    distortion: .init(amount: -0.2, cubic: 0.04, scale: 1.01),
+    vignette: .init(intensity: 0.2),
+    chromaticAberration: .init(intensity: 0.35)
+)
+
+let settings = OpticsSettings(
+    lensProfile: profile,
+    enablesDefringe: true,
+    enablesSharpnessFalloffCorrection: true
+)
+
+let corrected = try inputImage.make(filters: settings.filters)
+```
+
+For guided perspective correction:
+
+```swift
+let upright = GuidedUpright(
+    verticalGuides: [leftEdge, rightEdge],
+    horizontalGuides: [roofLine]
+)
+
+let transform = upright.recommendedTransform()
+let corrected = try inputImage ->> transform
+```
+
 #### ⚡ Asynchronous Processing (Best Performance)
 
 For large images or real-time scenarios, use async processing to avoid blocking the main thread:
@@ -160,6 +275,14 @@ dest.transmitOutput { [weak self] result in
 - Use `transmitOutputRealTimeCommit = true` for low-latency frame streams
 - Enable `enableDoubleBuffer` for better memory efficiency
 - Set `bufferPixelFormat` to match your input format for optimal performance
+
+### Recommended Workflows
+
+- **Photo editing pipeline**: start with `stablePreview`, then switch to `inspectionQuality` or `exportQuality` for final output.
+- **Live frame pipeline**: use texture-first rendering, `interactiveLatency`, and a compact filter chain.
+- **Video frame processing**: treat camera and player integrations as host-side frame providers, and keep Harbeth focused on per-frame processing.
+- **Geometry or optics correction**: perform correction early in the chain, then apply color and stylization filters on the corrected result.
+- **Readback-heavy workflows**: use `readbackQuality` when CPU-side analysis, export composition, or host-side pixel inspection is required.
 
 ### 📸 Camera
 
@@ -588,6 +711,21 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7Resize**: Resizes the image to a specified width and height, optionally maintaining aspect ratio
 - **C7Rotate**: Rotates the image by a specified angle, around a center point
 - **C7Transform**: Applies an affine transformation to the image, allowing for rotation, scaling, and translation in a single operation
+- **C7LanczosResize**: High-quality Lanczos3 resize for fine rendering and export paths
+
+#### 📷 Geometry & Optics Correction
+- **C7LensDistortionCorrection**: Corrects barrel or pincushion lens distortion with optional cubic distortion and scale compensation
+- **C7ChromaticAberrationCorrection**: Reduces red/cyan and blue/yellow color fringing near high-contrast edges
+- **C7LensVignetteCorrection**: Lifts edge falloff caused by lens shading while preserving the image center
+- **C7DefringeCorrection**: Suppresses purple and green fringe artifacts along strong contrast transitions
+- **C7DiffractionCorrection**: Recovers edge definition softened by diffraction-like blur
+- **C7SharpnessFalloffCorrection**: Boosts edge sharpness progressively toward image corners
+- **RenderTransform3D**: Applies 3D projection transforms with configurable viewport behavior
+- **RenderQuadTransform**: Warps an image using a destination quad
+- **RenderQuadRectifyTransform**: Rectifies a source quad back into a regular output frame
+- **GuidedUpright**: Builds a recommended perspective or quad rectify transform from vertical and horizontal guides
+- **LensProfile**: Describes reusable lens correction coefficients for a device or lens
+- **OpticsSettings**: Composes profile-driven optics corrections with strength overrides into a filter pipeline
 
 #### 🎨 Generators
 - **C7ColorGradient**: Generates a color gradient, creating a smooth transition between two or more colors, useful for backgrounds or overlays

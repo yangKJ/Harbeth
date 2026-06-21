@@ -32,11 +32,29 @@ Harbeth 提供了一系列强大的特性，用于构建快速、稳定、可复
 - **性能优化**：受益于自动纹理池、内存管理和多编码器支持，以在各种设备上获得最佳性能。
 - **广泛的文档**：全面的文档和演示项目，帮助您快速入门并充分利用 Harbeth 的功能。
 
+### 🧱 核心能力分层
+
+Harbeth 现在更适合被理解成一个能力底座，而不是单纯的滤镜列表。当前仓库可以分成四层可组合能力：
+
+- **输入接入层**：image、texture、pixelBuffer、sampleBuffer 等多种输入可进入同一条 Metal 处理链。
+- **滤镜执行层**：颜色、模糊、混合、几何、光学、LUT 和 MPS 能力都以技术能力的方式组合。
+- **帧渲染层**：同时支持 texture-first 和 frame-first 输出，可面向交互、稳定复用、导出和读回场景选择不同 contract。
+- **复用与重放层**：render profile、frame metadata、cache identity 和 reusable derivative contract 让上层宿主可以稳定重放与复用结果。
+
 ### 🔌 集成边界
 
 - **Harbeth 提供**：GPU 滤镜、链式处理、texture / image / pixelBuffer / sampleBuffer 处理、LUT 管线、MPS / Metal 集成、SwiftUI 渲染承载，以及面向帧链路的参考接线方式。
 - **业务 App 提供**：数据采集策略、媒体编排、持久化、展示承载以及全部产品业务逻辑。
 - **商业承接**：如果你需要私有 LUT、品牌滤镜包、实时相机/视频调优或定制 Metal kernel，可以基于开源示例确认技术基线，再与维护者讨论私有集成范围。
+
+### 📐 几何与光学能力
+
+Harbeth 现在也提供一层可复用的几何与光学校正能力，适合更接近编辑器内核的处理链路：
+
+- **镜头校正**：覆盖畸变、色差、暗角、衍射、去边和边缘锐度衰减补偿。
+- **几何校正**：覆盖仿射、透视、quad 矫正、quad warp 和 3D 投影变换。
+- **配置化组合**：`LensProfile` 和 `OpticsSettings` 可把多项光学校正稳定组合成一条处理链。
+- **引导式拉正**：`GuidedUpright` 可根据垂直/水平引导线生成推荐的矫正变换。
 
 ### 🎨 丰富的滤镜效果
 
@@ -223,6 +241,20 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7Mirror**（镜像）- 创建镜像效果
 - **C7Transform**（变换）- 应用仿射变换
 
+#### 📷 几何与光学校正
+- **C7LensDistortionCorrection**（镜头畸变校正）- 校正桶形或枕形畸变，并可附加 cubic distortion 与 scale 补偿
+- **C7ChromaticAberrationCorrection**（色差校正）- 压制高反差边缘附近的红青、蓝黄彩边
+- **C7LensVignetteCorrection**（镜头暗角校正）- 提升镜头边缘衰减造成的暗角，同时保留中心区域稳定性
+- **C7DefringeCorrection**（去边校正）- 抑制强对比边缘的紫边和绿边伪影
+- **C7DiffractionCorrection**（衍射补偿）- 补偿类似衍射模糊造成的边缘软化
+- **C7SharpnessFalloffCorrection**（边缘锐度衰减补偿）- 向图像边缘和角落逐步增加锐度补偿
+- **RenderTransform3D**（3D 变换）- 应用 3D 投影变换，并可配置输出视口策略
+- **RenderQuadTransform**（Quad 变换）- 按目标四边形对图像做 warp 变换
+- **RenderQuadRectifyTransform**（Quad 矫正）- 将源四边形区域矫正回规则输出画幅
+- **GuidedUpright**（引导式拉正）- 根据垂直/水平引导线生成推荐的透视或 quad 矫正变换
+- **LensProfile**（镜头配置）- 描述设备或镜头可复用的光学校正参数
+- **OpticsSettings**（光学校正配置）- 把 profile 驱动的多项光学校正按强度组合成一条处理链
+
 #### 🎨 生成器
 - **C7SolidColor**（纯色）- 创建纯色图像
 - **C7ColorGradient**（颜色渐变）- 创建渐变色背景
@@ -306,6 +338,34 @@ Harbeth 支持多种自定义滤镜方式：
 - **自定义 Metal 着色器**：通过编写 Metal 着色器创建完全自定义的滤镜效果
 
 ## 📖 使用指南
+
+### 输出方式选择
+
+Harbeth 不只支持“直接出图”，也支持更适合真实工程链路的多种输出方式：
+
+- 输入可使用 `UIImage`、`NSImage`、`CGImage`、`MTLTexture`、`CVPixelBuffer`、`CMSampleBuffer`。
+- 需要直接得到图片结果时，使用 `output()`。
+- 需要保持 texture-first 链路时，使用 `renderTexture(profile:)`。
+- 需要带 metadata、semantic contract、replay context 的输出时，使用 `renderFrame(profile:)`。
+
+### 渲染档位与帧渲染
+
+`RenderProfile` 表达的是技术语义，而不是页面场景：
+
+- `interactiveLatency`：适合交互调参和低延迟链路。
+- `responseLatency`：适合快速给出首个稳定可用结果。
+- `stablePreview`：适合作为稳定可复用派生结果。
+- `inspectionQuality`：适合更高保真的检查型输出。
+- `exportQuality`：适合导出链路。
+- `readbackQuality`：适合需要 CPU 读回的完整质量输出。
+
+```swift
+let io = HarbethIO(element: originalImage, filters: filters)
+
+let interactiveTexture = try io.renderTexture(profile: .interactiveLatency)
+let stableFrame = try io.renderFrame(profile: .stablePreview)
+let exportTexture = try io.renderTexture(profile: .exportQuality)
+```
 
 ### 🔧 安装方式
 
@@ -395,6 +455,82 @@ io.transmitOutput { [weak self] image in
     }
 }
 ```
+
+#### 6. Frame-First 渲染
+
+当宿主需要 profile、metadata、replay contract 或稳定复用输出时，优先使用 frame-first：
+
+```swift
+let filters: [C7FilterProtocol] = [
+    C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75),
+    C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
+]
+
+let io = HarbethIO(element: originalImage, filters: filters)
+let frame = try io.renderFrame(profile: .stablePreview)
+
+let renderedImage = frame.image
+let semantic = frame.semantic
+let replayContract = frame.replayBaseContract
+```
+
+#### 7. 几何与光学校正链路
+
+几何与光学能力和普通滤镜一样，可以直接组合进处理链：
+
+```swift
+let correctionFilters: [C7FilterProtocol] = [
+    C7LensDistortionCorrection(
+        amount: -0.18,
+        cubicDistortion: 0.03,
+        scale: 1.02
+    ),
+    C7ChromaticAberrationCorrection(intensity: 0.45),
+    C7LensVignetteCorrection(intensity: 0.3),
+    C7DefringeCorrection(amount: 0.4),
+    C7SharpnessFalloffCorrection(intensity: 0.25)
+]
+
+let correctedImage = try originalImage.make(filters: correctionFilters)
+```
+
+也可以通过 `LensProfile` 和 `OpticsSettings` 做 profile 驱动的组合校正：
+
+```swift
+let profile = LensProfile(
+    distortion: .init(amount: -0.2, cubic: 0.04, scale: 1.01),
+    vignette: .init(intensity: 0.2),
+    chromaticAberration: .init(intensity: 0.35)
+)
+
+let settings = OpticsSettings(
+    lensProfile: profile,
+    enablesDefringe: true,
+    enablesSharpnessFalloffCorrection: true
+)
+
+let correctedImage = try originalImage.make(filters: settings.filters)
+```
+
+对于引导式透视拉正：
+
+```swift
+let upright = GuidedUpright(
+    verticalGuides: [leftEdge, rightEdge],
+    horizontalGuides: [roofLine]
+)
+
+let transform = upright.recommendedTransform()
+let correctedImage = try originalImage ->> transform
+```
+
+### 推荐工作流
+
+- **图片编辑链路**：先使用 `stablePreview` 做稳定预览，最终切到 `inspectionQuality` 或 `exportQuality`。
+- **实时帧链路**：优先保持 texture-first，并使用 `interactiveLatency` 和更紧凑的滤镜链。
+- **视频逐帧处理**：把相机/播放器当作宿主侧帧提供者，Harbeth 只负责逐帧处理能力。
+- **几何或光学校正**：尽量先做校正，再叠加调色和风格化滤镜。
+- **重读回链路**：涉及 CPU 分析、导出拼装或宿主侧像素检查时，优先使用 `readbackQuality`。
 
 ### 📱 相机采集示例
 
