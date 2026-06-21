@@ -468,6 +468,40 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertFalse(snapshot.optimizationDecisions.isEmpty)
     }
 
+    func testNodeDebugSnapshotExposesDirectPlaneBridgeDiagnostics() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create bi-planar pixel buffer.")
+            return
+        }
+        let node = ImageNode
+            .pixelBuffer(pixelBuffer)
+            .applying(C7Brightness(brightness: 0.1))
+
+        let snapshot = try node.makeDebugSnapshot()
+
+        XCTAssertEqual(snapshot.diagnostics.inputDirectPlaneBridgeCount, 2)
+        XCTAssertTrue(snapshot.summary.contains("inputDirectPlanes=2"))
+    }
+
     func testLayerCompositeFingerprintTracksExtendedLayerContracts() throws {
         let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])

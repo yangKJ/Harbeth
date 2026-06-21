@@ -19,6 +19,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let graphOptimizationDecisions: [String]
         public let persistentBoundaryCount: Int
         public let transientReuseCandidateCount: Int
+        public let inputDirectPlaneBridgeCount: Int
         public let stageCount: Int
         public let compilationSource: String
         public let inputSize: String
@@ -35,6 +36,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.graphOptimizationDecisions = diagnostics.graphOptimizationDecisions
             self.persistentBoundaryCount = diagnostics.persistentBoundaryCount
             self.transientReuseCandidateCount = diagnostics.transientReuseCandidateCount
+            self.inputDirectPlaneBridgeCount = diagnostics.inputDirectPlaneBridgeCount
             self.stageCount = diagnostics.stageCount
             self.compilationSource = diagnostics.compilationSource.rawValue
             self.inputSize = "\(diagnostics.inputSize.width)x\(diagnostics.inputSize.height)"
@@ -98,9 +100,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         self.dotGraph = dotGraph
     }
 
-    public init(graph: ImageGraph,
-                diagnostics: RenderPlanDiagnostics,
-                optimizationDecisions: [String]) {
+    public init(graph: ImageGraph, diagnostics: RenderPlanDiagnostics, optimizationDecisions: [String]) {
         let nodes = graph.nodes.map {
             Node(
                 id: $0.id.rawValue,

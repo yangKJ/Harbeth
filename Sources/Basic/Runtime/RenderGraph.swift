@@ -295,6 +295,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let inputColorConversionCount: Int
     public let inputPixelFormatConversionCount: Int
     public let inputAlphaConversionCount: Int
+    public let inputDirectPlaneBridgeCount: Int
     public let alphaConversionCount: Int
     public let colorConversionCount: Int
     public let pixelFormatConversionCount: Int
@@ -334,6 +335,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
                 inputColorConversionCount: Int,
                 inputPixelFormatConversionCount: Int,
                 inputAlphaConversionCount: Int,
+                inputDirectPlaneBridgeCount: Int = 0,
                 alphaConversionCount: Int,
                 colorConversionCount: Int,
                 pixelFormatConversionCount: Int,
@@ -372,6 +374,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         self.inputColorConversionCount = inputColorConversionCount
         self.inputPixelFormatConversionCount = inputPixelFormatConversionCount
         self.inputAlphaConversionCount = inputAlphaConversionCount
+        self.inputDirectPlaneBridgeCount = inputDirectPlaneBridgeCount
         self.alphaConversionCount = alphaConversionCount
         self.colorConversionCount = colorConversionCount
         self.pixelFormatConversionCount = pixelFormatConversionCount
@@ -423,6 +426,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "inputColorConversions=\(inputColorConversionCount)",
             "inputPixelFormatConversions=\(inputPixelFormatConversionCount)",
             "inputAlphaConversions=\(inputAlphaConversionCount)",
+            "inputDirectPlanes=\(inputDirectPlaneBridgeCount)",
             "inputColor=\(inputColorSpace.name)",
             "outputColor=\(outputColorSpace.name)",
             "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
@@ -479,6 +483,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             inputColorConversionCount: inputColorConversionCount,
             inputPixelFormatConversionCount: inputPixelFormatConversionCount,
             inputAlphaConversionCount: inputAlphaConversionCount,
+            inputDirectPlaneBridgeCount: inputDirectPlaneBridgeCount,
             alphaConversionCount: alphaConversionCount,
             colorConversionCount: colorConversionCount,
             pixelFormatConversionCount: pixelFormatConversionCount,
@@ -522,6 +527,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             inputColorConversionCount: inputColorConversionCount,
             inputPixelFormatConversionCount: inputPixelFormatConversionCount,
             inputAlphaConversionCount: inputAlphaConversionCount,
+            inputDirectPlaneBridgeCount: inputDirectPlaneBridgeCount,
             alphaConversionCount: alphaConversionCount,
             colorConversionCount: colorConversionCount,
             pixelFormatConversionCount: pixelFormatConversionCount,
@@ -576,11 +582,14 @@ public struct RenderPlan {
         )
         let sourceDerivedInputColorConversions = RenderPlan.resolveInputColorConversionCount(from: sourceDescriptor)
         let sourceDerivedInputPixelFormatConversions = RenderPlan.resolveInputPixelFormatConversionCount(from: sourceDescriptor)
+        let sourceDirectPlaneBridgeCount = RenderPlan.resolveInputDirectPlaneBridgeCount(from: sourceDescriptor)
         let auxiliaryInputColorConversions = RenderPlan.resolveInputColorConversionCount(from: auxiliaryInputDescriptor)
         let auxiliaryInputPixelFormatConversions = RenderPlan.resolveInputPixelFormatConversionCount(from: auxiliaryInputDescriptor)
+        let auxiliaryDirectPlaneBridgeCount = RenderPlan.resolveInputDirectPlaneBridgeCount(from: auxiliaryInputDescriptor)
         let resolvedInputColorConversionCount = inputColorConversionCount ?? (sourceDerivedInputColorConversions + auxiliaryInputColorConversions)
         let resolvedInputPixelFormatConversionCount = inputPixelFormatConversionCount ?? (sourceDerivedInputPixelFormatConversions + auxiliaryInputPixelFormatConversions)
         let resolvedInputAlphaConversionCount = inputAlphaConversionCount ?? 0
+        let resolvedInputDirectPlaneBridgeCount = sourceDirectPlaneBridgeCount + auxiliaryDirectPlaneBridgeCount
         let resolvedInputColorSpace: ImageColorSpaceContract = sourceDescriptor?.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true
             ? ImageColorSpaceContract(name: "YCbCr", preservesInput: true, gamut: .custom, transferFunction: .custom)
             : .preserveInput
@@ -633,6 +642,7 @@ public struct RenderPlan {
             inputColorConversionCount: resolvedInputColorConversionCount,
             inputPixelFormatConversionCount: resolvedInputPixelFormatConversionCount,
             inputAlphaConversionCount: resolvedInputAlphaConversionCount,
+            inputDirectPlaneBridgeCount: resolvedInputDirectPlaneBridgeCount,
             alphaConversionCount: outputContract.requiresAlphaConversion ? 1 : 0,
             colorConversionCount: outputContract.requiresColorSpaceConversion ? 1 : 0,
             pixelFormatConversionCount: outputContract.requiresPixelFormatConversion ? max(optimizationPlan.formatConversionCount, 1) : optimizationPlan.formatConversionCount,
@@ -675,6 +685,16 @@ private extension RenderPlan {
             return 1
         }
         return 0
+    }
+
+    static func resolveInputDirectPlaneBridgeCount(from descriptor: ImageSourceDescriptor?) -> Int {
+        guard let descriptor else {
+            return 0
+        }
+        if let bridgePlan = descriptor.pixelBufferBridgePlan {
+            return bridgePlan.directPlaneBridgeCount
+        }
+        return descriptor.sampleBufferContract?.frameContract.directPlaneBridgeCount ?? 0
     }
 
     static func resolveInputPixelFormat(from descriptor: ImageSourceDescriptor?) -> PixelFormatContract {

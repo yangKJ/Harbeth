@@ -311,10 +311,12 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputColorConversionCount, 1)
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 1)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
+        XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 2)
         XCTAssertEqual(diagnostics.colorConversionCount, 0)
         XCTAssertEqual(diagnostics.pixelFormatConversionCount, 0)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=1"))
+        XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=2"))
     }
 
     func testRenderDiagnosticsTracksBGRAPixelBufferNoInputConversions() throws {
@@ -347,8 +349,10 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputColorConversionCount, 0)
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 0)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
+        XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 1)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=0"))
+        XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=1"))
     }
 
     func testRenderDiagnosticsTracksSampleBufferBiPlanarInputConversions() throws {
@@ -382,10 +386,12 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputColorConversionCount, 1)
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 1)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
+        XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 2)
         XCTAssertEqual(diagnostics.sourceKind, "sampleBuffer")
         XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=1"))
+        XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=2"))
     }
 
     func testRenderDiagnosticsTracksSampleBufferRGBAInputNoInputConversions() throws {
@@ -419,10 +425,12 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputColorConversionCount, 0)
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 0)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
+        XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 1)
         XCTAssertEqual(diagnostics.sourceKind, "sampleBuffer")
         XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=0"))
+        XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=1"))
     }
 
     func testNodeRenderRecipeTracksSampleBufferSourceContract() throws {
