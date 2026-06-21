@@ -637,6 +637,44 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.channel, .luminance)
     }
 
+    func testHarbethIORenderAttachmentAnalysisBundleCanRestrictHistogramRegion() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
+            .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
+        ], identifier: "RenderedFrameTests.renderAttachmentAnalysis.region")
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+
+        let bundle = try XCTUnwrap(
+            HarbethIO(
+                element: texture,
+                filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()]
+            ).renderAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                region: MTLRegionMake2D(1, 0, 1, 1),
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(bundle.primary?.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.primary?.histogram?.bins.reduce(0, +), 1)
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.bins.reduce(0, +), 1)
+        XCTAssertNotNil(bundle.primary?.histogramAttachment)
+        XCTAssertNotNil(bundle.analysis(for: .luminance)?.histogramAttachment)
+    }
+
     func testHarbethIORenderHistogramFromCompositePathReturnsTextureHistogram() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

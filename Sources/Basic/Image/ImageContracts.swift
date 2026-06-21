@@ -188,25 +188,43 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
               source.preservesInput == false else {
             return nil
         }
-        switch (source.gamut, source.transferFunction, gamut, transferFunction) {
-        case (.sRGB, .sRGB, .displayP3, .sRGB):
-            return .sRGBToDisplayP3
-        case (.displayP3, .sRGB, .sRGB, .sRGB):
-            return .displayP3ToSRGB
-        case (.displayP3, .sRGB, .extendedLinearSRGB, .linear):
-            return .displayP3ToExtendedLinearSRGB
-        case (.extendedLinearSRGB, .linear, .displayP3, .sRGB):
-            return .extendedLinearSRGBToDisplayP3
+        switch (source.gamut, gamut) {
+        case (.sRGB, .displayP3),
+             (.extendedLinearSRGB, .displayP3):
+            return .linearSRGBToLinearDisplayP3
+        case (.displayP3, .sRGB),
+             (.displayP3, .extendedLinearSRGB):
+            return .linearDisplayP3ToLinearSRGB
         default:
             return nil
         }
     }
 
-    public func makeColorConversionFilter(from source: ImageColorSpaceContract) -> C7FilterProtocol? {
-        if let filter = C7RGBColorSpaceConversion(from: source, to: self) {
-            return filter
+    public func makeColorConversionFilters(from source: ImageColorSpaceContract) -> [C7FilterProtocol] {
+        guard preservesInput == false,
+              source.preservesInput == false else {
+            return []
         }
-        return C7RGBTransferConversion(from: source, to: self)
+        if let transferOnly = C7RGBTransferConversion(from: source, to: self) {
+            return [transferOnly]
+        }
+        guard let gamutMode = colorConversionMode(from: source) else {
+            return []
+        }
+        let decodeTransfer = source.transferFunction == .sRGB
+            && (source.gamut == .sRGB || source.gamut == .displayP3)
+        let encodeTransfer = transferFunction == .sRGB
+            && (gamut == .sRGB || gamut == .displayP3)
+
+        var filters: [C7FilterProtocol] = []
+        if decodeTransfer {
+            filters.append(C7RGBTransferConversion(mode: .sRGBToLinear))
+        }
+        filters.append(C7RGBColorSpaceConversion(mode: gamutMode))
+        if encodeTransfer {
+            filters.append(C7RGBTransferConversion(mode: .linearToSRGB))
+        }
+        return filters
     }
 
     private func supportsTransferOnlyConversion(from source: ImageColorSpaceContract) -> Bool {
@@ -892,6 +910,26 @@ public enum YCbCrMatrixAttachment: String, Sendable, Codable, Equatable, Hashabl
     case ituR709_2
     case ituR2020
     case smpte240M_1995
+
+    public var imageColorGamut: ImageColorGamut {
+        switch self {
+        case .ituR2020:
+            return .ituR2020
+        case .ituR601_4, .ituR709_2, .smpte240M_1995:
+            return .sRGB
+        }
+    }
+
+    public var fallbackColorPrimariesAttachment: ColorPrimariesAttachment? {
+        switch self {
+        case .ituR2020:
+            return .ituR2020
+        case .ituR709_2:
+            return .ituR709_2
+        case .ituR601_4, .smpte240M_1995:
+            return nil
+        }
+    }
 }
 
 public enum ColorPrimariesAttachment: String, Sendable, Codable, Equatable, Hashable {
@@ -990,13 +1028,15 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
     }
 
     public var attachmentColorSpace: ImageColorSpaceContract? {
-        guard colorPrimariesAttachment != nil || transferFunctionAttachment != nil else {
+        guard colorPrimariesAttachment != nil || transferFunctionAttachment != nil || yCbCrMatrixAttachment != nil else {
             return nil
         }
-        let gamut = colorPrimariesAttachment?.imageColorGamut ?? .custom
+        let gamut = colorPrimariesAttachment?.imageColorGamut
+            ?? yCbCrMatrixAttachment?.imageColorGamut
+            ?? .custom
         let transferFunction = transferFunctionAttachment?.imageTransferFunction ?? .custom
         let name = [
-            colorPrimariesAttachment?.rawValue,
+            colorPrimariesAttachment?.rawValue ?? yCbCrMatrixAttachment?.rawValue,
             transferFunctionAttachment?.rawValue
         ]
         .compactMap { $0 }
@@ -1071,7 +1111,9 @@ public enum YCbCrDecodeMatrix: String, Sendable, Codable, Equatable, Hashable {
     case bt601VideoRange
     case bt601FullRange
     case bt709VideoRange
-    case bt709FullRangeApproximation
+    case bt709FullRange
+    case bt2020VideoRange
+    case bt2020FullRange
 }
 
 public enum YCbCrPlaneLayout: String, Sendable, Codable, Equatable, Hashable {

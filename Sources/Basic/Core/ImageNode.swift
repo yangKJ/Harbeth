@@ -143,6 +143,7 @@ extension ImageNode: ImagePromise {
                 descriptor.outputContract,
                 to: rendered,
                 sourceColorSpace: descriptor.inputColorSpace,
+                sourceAlphaType: descriptor.outputContract.inputAlphaExpectation.expectedAlphaType,
                 profile: profile
             )
             return try resizeTextureIfNeeded(contracted, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
@@ -397,6 +398,7 @@ extension ImageNode: ImagePromise {
     public func makeAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
                                              bins: Int = 256,
                                              histogramHeight: Int = 64,
+                                             region: MTLRegion? = nil,
                                              preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
         guard let bridge = try resolvedAttachmentAnalysisBridge(
             profile: profile
@@ -408,6 +410,7 @@ extension ImageNode: ImagePromise {
             identifier: "ImageNode.AttachmentAnalysis.\(UUID().uuidString)",
             bins: bins,
             histogramHeight: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -697,6 +700,7 @@ extension LayerCompositeRecipe {
         let contracted = try ImageNode.applyOutputContractIfNeeded(
             outputContract,
             to: current,
+            sourceAlphaType: outputContract.inputAlphaExpectation.expectedAlphaType,
             profile: profile
         )
         return try resizeTextureIfNeeded(contracted, derivative: derivative ?? self.derivative)
@@ -927,21 +931,23 @@ extension ImageNode {
     static func applyOutputContractIfNeeded(_ contract: RenderOutputContract,
                                             to texture: MTLTexture,
                                             sourceColorSpace: ImageColorSpaceContract = .preserveInput,
+                                            sourceAlphaType: AlphaType? = nil,
                                             profile: RenderProfile) throws -> MTLTexture {
         var output = texture
-        if let colorFilter = contract.colorSpace.makeColorConversionFilter(from: sourceColorSpace) {
-            output = try HarbethIO(element: output, filter: colorFilter)
+        let colorFilters = contract.colorSpace.makeColorConversionFilters(from: sourceColorSpace)
+        if colorFilters.isEmpty == false {
+            output = try HarbethIO(element: output, filters: colorFilters)
                 .configured(for: profile)
                 .output()
         }
         let filters: [C7FilterProtocol]
         switch contract.alpha {
         case .premultiplied, .forcePremultiply:
-            filters = [C7PremultiplyAlpha()]
+            filters = sourceAlphaType == .premultiplied ? [] : [C7PremultiplyAlpha()]
         case .nonPremultiplied, .forceUnpremultiply:
-            filters = [C7UnpremultiplyAlpha()]
+            filters = sourceAlphaType == .nonPremultiplied ? [] : [C7UnpremultiplyAlpha()]
         case .opaque:
-            filters = [C7ForceOpaqueAlpha()]
+            filters = sourceAlphaType == .alphaIsOne ? [] : [C7ForceOpaqueAlpha()]
         case .preserveInput:
             filters = []
         }

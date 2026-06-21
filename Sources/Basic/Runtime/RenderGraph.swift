@@ -129,6 +129,8 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
     public let formatConversionCount: Int
     public let destinationTextureCreationCount: Int
     public let allocationStrategy: TextureAllocationStrategy
+    public let requestedAllocationStrategy: TextureAllocationStrategy?
+    public let allocationFallbackReason: String?
     public let textureRequestCount: Int
     public let textureReuseHitCount: Int
     public let heapBackedAllocationCount: Int
@@ -150,6 +152,8 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
                 formatConversionCount: Int,
                 destinationTextureCreationCount: Int,
                 allocationStrategy: TextureAllocationStrategy,
+                requestedAllocationStrategy: TextureAllocationStrategy? = nil,
+                allocationFallbackReason: String? = nil,
                 textureRequestCount: Int,
                 textureReuseHitCount: Int,
                 heapBackedAllocationCount: Int,
@@ -170,6 +174,8 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
         self.formatConversionCount = formatConversionCount
         self.destinationTextureCreationCount = destinationTextureCreationCount
         self.allocationStrategy = allocationStrategy
+        self.requestedAllocationStrategy = requestedAllocationStrategy
+        self.allocationFallbackReason = allocationFallbackReason
         self.textureRequestCount = textureRequestCount
         self.textureReuseHitCount = textureReuseHitCount
         self.heapBackedAllocationCount = heapBackedAllocationCount
@@ -182,11 +188,21 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
     public var textureReuseHitRatio: Double {
         TextureAllocatorSnapshot(
             allocationStrategy: allocationStrategy,
+            requestedAllocationStrategy: requestedAllocationStrategy,
+            allocationFallbackReason: allocationFallbackReason,
             textureRequestCount: textureRequestCount,
             textureReuseHitCount: textureReuseHitCount,
             heapBackedAllocationCount: heapBackedAllocationCount,
             allocatorDecisions: allocatorDecisions
         ).textureReuseHitRatio
+    }
+
+    public var allocationResolution: TextureAllocationResolution {
+        TextureAllocationResolution(
+            requested: requestedAllocationStrategy ?? allocationStrategy,
+            resolved: allocationStrategy,
+            fallbackReason: allocationFallbackReason
+        )
     }
 }
 
@@ -440,6 +456,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
             "allocator=\(optimizationPlan.allocationStrategy.rawValue)",
+            optimizationPlan.requestedAllocationStrategy.map { "requestedAllocator=\($0.rawValue)" } ?? "requestedAllocator=none",
+            "allocatorFallback=\(optimizationPlan.allocationFallbackReason ?? "none")",
             "textureRequests=\(optimizationPlan.textureRequestCount)",
             "textureReuseHits=\(optimizationPlan.textureReuseHitCount)",
             "textureReuseRatio=\(String(format: "%.3f", optimizationPlan.textureReuseHitRatio))",
@@ -901,6 +919,11 @@ public enum GraphOptimizer {
            }) {
             decisions.append("preserveInputPixelFormatForReservations")
         }
+        if prewarmReservations.contains(where: {
+            $0.reason == .transientReuse && $0.stageIndices.count > $0.count
+        }) {
+            decisions.append("capTransientReusePrewarmToDoubleBuffer")
+        }
         if decisions.isEmpty {
             decisions.append("singleStageNoOptimizationNeeded")
         }
@@ -919,6 +942,8 @@ public enum GraphOptimizer {
             formatConversionCount: formatConversionCount,
             destinationTextureCreationCount: destinationTextureCreationCount,
             allocationStrategy: allocatorSnapshot.allocationStrategy,
+            requestedAllocationStrategy: allocatorSnapshot.requestedAllocationStrategy,
+            allocationFallbackReason: allocatorSnapshot.allocationFallbackReason,
             textureRequestCount: allocatorSnapshot.textureRequestCount,
             textureReuseHitCount: allocatorSnapshot.textureReuseHitCount,
             heapBackedAllocationCount: allocatorSnapshot.heapBackedAllocationCount,
@@ -1011,12 +1036,18 @@ public enum GraphOptimizer {
                 pixelFormat.fingerprint
             ].joined(separator: "|")
             if let existing = grouped[key] {
+                let nextCount: Int
+                if existing.reason == .transientReuse {
+                    nextCount = min(existing.count + 1, 2)
+                } else {
+                    nextCount = existing.count + 1
+                }
                 grouped[key] = RenderTextureReservation(
                     stageIndices: existing.stageIndices + [decision.stageIndex],
                     size: existing.size,
                     pixelFormat: existing.pixelFormat,
                     reason: existing.reason,
-                    count: existing.count + 1
+                    count: nextCount
                 )
             } else {
                 grouped[key] = RenderTextureReservation(

@@ -289,6 +289,35 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertTrue(contract.fingerprint.contains("transferAttachment=sRGB"))
     }
 
+    func testBiPlanarPixelBufferContractCanDeriveColorSpaceFromYCbCrMatrixAndTransfer() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferYCbCrMatrixKey,
+                kCVImageBufferYCbCrMatrix_ITU_R_2020,
+                .shouldPropagate
+            )
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferTransferFunctionKey,
+                kCVImageBufferTransferFunction_ITU_R_2100_HLG,
+                .shouldPropagate
+            )
+        } else {
+            throw XCTSkip("BT.2020 / HLG attachments are unavailable on this platform.")
+        }
+
+        let contract = pixelBuffer.c7.contract
+
+        XCTAssertNil(contract.colorPrimariesAttachment)
+        XCTAssertEqual(contract.yCbCrMatrixAttachment, .ituR2020)
+        XCTAssertEqual(contract.transferFunctionAttachment, .ituR2100HLG)
+        XCTAssertEqual(contract.attachmentColorSpace?.gamut, .ituR2020)
+        XCTAssertEqual(contract.attachmentColorSpace?.transferFunction, .hybridLogGamma)
+        XCTAssertEqual(contract.attachmentColorSpace?.name, "ituR2020+ituR2100HLG")
+    }
+
     func testSampleBufferContractTracksFrameBridgeMetadata() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
@@ -747,6 +776,41 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .sRGB)
         XCTAssertEqual(output.c7.contract.attachmentColorSpace?.gamut, .displayP3)
         XCTAssertEqual(output.c7.contract.attachmentColorSpace?.transferFunction, .sRGB)
+    }
+
+    func testRenderPixelBufferSynthesizesPrimariesFromSampleBufferYCbCrMatrixWhenMissing() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferYCbCrMatrixKey,
+                kCVImageBufferYCbCrMatrix_ITU_R_2020,
+                .shouldPropagate
+            )
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferTransferFunctionKey,
+                kCVImageBufferTransferFunction_ITU_R_2100_HLG,
+                .shouldPropagate
+            )
+        } else {
+            throw XCTSkip("BT.2020 / HLG attachments are unavailable on this platform.")
+        }
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let output = try HarbethIO(
+            element: sampleBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).renderPixelBuffer()
+
+        XCTAssertEqual(output.c7.contract.colorPrimariesAttachment, .ituR2020)
+        XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .ituR2100HLG)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.gamut, .ituR2020)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.transferFunction, .hybridLogGamma)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.name, "ituR2020+ituR2100HLG")
     }
 
     func testFilteringPixelBufferResizeThrowsTextureSizeMismatch() throws {

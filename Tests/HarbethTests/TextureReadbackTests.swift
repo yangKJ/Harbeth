@@ -213,6 +213,59 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(strategy.conversionOffset.x, -16.0 / 255.0, accuracy: 0.0001)
     }
 
+    func testBiPlanarFullRange709AttachmentUsesExplicitFullRangeMatrix() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferYCbCrMatrixKey,
+            kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+            .shouldPropagate
+        )
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(strategy.descriptor, "709FullRange")
+        XCTAssertEqual(strategy.matrixContract, .bt709FullRange)
+        XCTAssertEqual(strategy.conversionMatrix.values, Matrix3x3.Kernel.to709FullRange.values)
+        XCTAssertEqual(strategy.conversionOffset.x, 0, accuracy: 0.0001)
+    }
+
+    func testBiPlanarAttachmentCanPromoteDecodeStrategyTo2020() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferYCbCrMatrixKey,
+                kCVImageBufferYCbCrMatrix_ITU_R_2020,
+                .shouldPropagate
+            )
+        } else {
+            throw XCTSkip("BT.2020 attachments are unavailable on this platform.")
+        }
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+        let contract = pixelBuffer.c7.contract
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(contract.yCbCrMatrixAttachment, .ituR2020)
+        XCTAssertEqual(strategy.layout, .biPlanar)
+        XCTAssertEqual(strategy.descriptor, "2020VideoRange")
+        XCTAssertEqual(strategy.matrixContract, .bt2020VideoRange)
+        XCTAssertEqual(strategy.conversionMatrix.values, Matrix3x3.Kernel.to2020.values)
+        XCTAssertEqual(strategy.conversionOffset.x, -16.0 / 255.0, accuracy: 0.0001)
+    }
+
     func testWideGamutAttachmentsPromoteDecodeDestinationToRGBA16Float() throws {
         let pixelBuffer = try makePixelBuffer(
             width: 4,
@@ -358,6 +411,34 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(strategy.conversionMatrix.values, Matrix3x3.Kernel.to601FullRange.values)
     }
 
+    func testTriPlanarAttachmentCanPromoteFullRangeDecodeStrategyTo2020() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 6,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8PlanarFullRange,
+            unavailableMessage: "Tri-planar pixel buffer is unavailable in this environment."
+        )
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferYCbCrMatrixKey,
+                kCVImageBufferYCbCrMatrix_ITU_R_2020,
+                .shouldPropagate
+            )
+        } else {
+            throw XCTSkip("BT.2020 attachments are unavailable on this platform.")
+        }
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(strategy.layout, .triPlanar)
+        XCTAssertEqual(strategy.descriptor, "2020FullRange")
+        XCTAssertEqual(strategy.matrixContract, .bt2020FullRange)
+        XCTAssertEqual(strategy.conversionMatrix.values, Matrix3x3.Kernel.to2020FullRange.values)
+        XCTAssertEqual(strategy.conversionOffset.x, 0, accuracy: 0.0001)
+    }
+
     func testBiPlanarPixelBufferTextureSourceResolvesAllPlaneTextures() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
@@ -378,6 +459,7 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertTrue(source.requiresPlaneAwareDecoding)
         XCTAssertTrue(source.exposesAllDirectPlaneTextures)
         XCTAssertEqual(source.planeTextures.count, 2)
+        XCTAssertEqual(source.retainedOwners.count, 2)
         XCTAssertEqual(source.primaryTexture.pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[0].pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[1].pixelFormat, .rg8Unorm)
@@ -406,12 +488,92 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertTrue(source.requiresPlaneAwareDecoding)
         XCTAssertTrue(source.exposesAllDirectPlaneTextures)
         XCTAssertEqual(source.planeTextures.count, 3)
+        XCTAssertEqual(source.retainedOwners.count, 2)
         XCTAssertEqual(source.primaryTexture.pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[0].pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[1].pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[2].pixelFormat, .r8Unorm)
         XCTAssertEqual(ObjectIdentifier(source.primaryTexture), ObjectIdentifier(source.planeTextures[0]))
         XCTAssertNotNil(TextureOwnerRegistry.owner(for: source.primaryTexture))
+        #endif
+    }
+
+    func testDecodedYCbCrTextureRetainsBridgeOwners() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let texture = try TextureLoader(with: pixelBuffer).texture
+        let owners = TextureOwnerRegistry.owners(for: texture)
+
+        XCTAssertEqual(owners.count, 2)
+        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
+        XCTAssertTrue(owners.contains { $0 !== pixelBuffer })
+        #endif
+    }
+
+    func testSampleBufferTextureSourceRetainsSampleBufferAlongsideBridgeOwners() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let source = try TextureLoader.resolveTextureSource(with: sampleBuffer)
+        let owners = TextureOwnerRegistry.owners(for: source.primaryTexture)
+
+        XCTAssertEqual(source.retainedOwners.count, 3)
+        XCTAssertTrue(source.retainedOwners.contains { $0 === pixelBuffer })
+        XCTAssertTrue(source.retainedOwners.contains { $0 === sampleBuffer })
+        XCTAssertEqual(owners.count, 3)
+        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
+        XCTAssertTrue(owners.contains { $0 === sampleBuffer })
+        XCTAssertTrue(owners.contains { $0 !== pixelBuffer && $0 !== sampleBuffer })
+        #endif
+    }
+
+    func testDecodedSampleBufferTextureRetainsSampleBufferOwner() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let texture = try TextureLoader(with: sampleBuffer).texture
+        let owners = TextureOwnerRegistry.owners(for: texture)
+
+        XCTAssertEqual(owners.count, 3)
+        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
+        XCTAssertTrue(owners.contains { $0 === sampleBuffer })
+        XCTAssertTrue(owners.contains { $0 !== pixelBuffer && $0 !== sampleBuffer })
         #endif
     }
 

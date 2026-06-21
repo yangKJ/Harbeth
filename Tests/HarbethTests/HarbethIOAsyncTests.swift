@@ -44,6 +44,36 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(asyncValue, callbackValue)
     }
 
+    func testAsyncTransmitManagedTexturePrewarmsLifecycleReservations() async throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        Shared.shared.deinitDevice()
+        defer { Shared.shared.deinitDevice() }
+
+        let input = try makeTexture(width: 32, height: 24, pixel: [120, 80, 40, 255])
+        let io = HarbethIO(
+            element: input,
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Resize(width: 16, height: 12),
+                C7Contrast(contrast: 1.1)
+            ]
+        ).configured(for: .stablePreview)
+
+        let output = try await withCheckedThrowingContinuation { continuation in
+            io.transmitManagedTexture { result in
+                continuation.resume(with: result)
+            }
+        }
+
+        let snapshot = Shared.shared.defaultTextureAllocator.makeSnapshot()
+
+        XCTAssertGreaterThan(snapshot.textureReuseHitCount, 0)
+        XCTAssertGreaterThan(snapshot.textureRequestCount, 0)
+        XCTAssertNotNil(output.lease)
+        output.lease?.release()
+    }
+
     func testFilterRecipeDescriptorUsesStableFingerprint() {
         let filter = C7Brightness(brightness: 0.2)
         let descriptor = filter.recipeDescriptor
@@ -145,5 +175,32 @@ final class HarbethIOAsyncTests: XCTestCase {
             throw XCTSkip("Failed to create CGImage fixture.")
         }
         return image
+    }
+
+    private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        guard let texture = Shared.shared.defaultDevice.device.makeTexture(descriptor: descriptor) else {
+            throw HarbethError.makeTexture
+        }
+        var pixels = Array(repeating: UInt8(0), count: width * height * 4)
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            pixels[index] = pixel[0]
+            pixels[index + 1] = pixel[1]
+            pixels[index + 2] = pixel[2]
+            pixels[index + 3] = pixel[3]
+        }
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, width, height),
+            mipmapLevel: 0,
+            withBytes: pixels,
+            bytesPerRow: width * 4
+        )
+        return texture
     }
 }

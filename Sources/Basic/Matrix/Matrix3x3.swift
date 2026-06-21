@@ -156,4 +156,25 @@ extension Matrix3x3.Kernel {
         0.000, -0.213, 2.112,
         1.793, -0.533, 0.000,
     ])
+
+    /// BT.709 full range.
+    public static let to709FullRange = Matrix3x3(values: [
+        1.000,  1.000, 1.000,
+        0.000, -0.187, 1.856,
+        1.575, -0.468, 0.000,
+    ])
+
+    /// BT.2020 non-constant luminance, video range.
+    public static let to2020 = Matrix3x3(values: [
+        1.164,  1.164, 1.164,
+        0.000, -0.187, 2.142,
+        1.679, -0.650, 0.000,
+    ])
+
+    /// BT.2020 non-constant luminance, full range.
+    public static let to2020FullRange = Matrix3x3(values: [
+        1.000,  1.000, 1.000,
+        0.000, -0.165, 1.881,
+        1.475, -0.571, 0.000,
+    ])
 }

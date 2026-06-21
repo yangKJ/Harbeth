@@ -216,6 +216,24 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         return nil
     }
 
+    private static func cvColorPrimariesValue(for primaries: ColorPrimariesAttachment) -> CFString? {
+        switch primaries {
+        case .ituR709_2:
+            return kCVImageBufferColorPrimaries_ITU_R_709_2
+        case .ebu3213:
+            return kCVImageBufferColorPrimaries_EBU_3213
+        case .smpteC:
+            return kCVImageBufferColorPrimaries_SMPTE_C
+        case .p3D65:
+            return kCVImageBufferColorPrimaries_P3_D65
+        case .ituR2020:
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+                return kCVImageBufferColorPrimaries_ITU_R_2020
+            }
+            return nil
+        }
+    }
+
     private static func transferFunctionAttachment(for pixelBuffer: CVPixelBuffer) -> ColorTransferAttachment? {
         guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, nil)?.takeUnretainedValue() else {
             return nil
@@ -278,10 +296,15 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     }
 
     public func copyAttachments(from imageBuffer: CVImageBuffer) {
+        let sourceContract = imageBuffer.c7.contract
         if contract.requiresYCbCrConversion {
             copyAttachment(kCVImageBufferYCbCrMatrixKey, from: imageBuffer)
         }
         copyAttachment(kCVImageBufferColorPrimariesKey, from: imageBuffer)
+        if sourceContract.colorPrimariesAttachment == nil,
+           let fallbackPrimaries = sourceContract.yCbCrMatrixAttachment?.fallbackColorPrimariesAttachment {
+            setColorPrimariesAttachmentIfMissing(fallbackPrimaries)
+        }
         copyAttachment(kCVImageBufferTransferFunctionKey, from: imageBuffer)
     }
 
@@ -291,6 +314,16 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return
         }
         CVBufferSetAttachment(base, key, attachment.takeUnretainedValue(), attachmentMode)
+    }
+
+    public func setColorPrimariesAttachmentIfMissing(_ primaries: ColorPrimariesAttachment) {
+        guard CVBufferGetAttachment(base, kCVImageBufferColorPrimariesKey, nil) == nil else {
+            return
+        }
+        guard let value = Self.cvColorPrimariesValue(for: primaries) else {
+            return
+        }
+        CVBufferSetAttachment(base, kCVImageBufferColorPrimariesKey, value, .shouldPropagate)
     }
 
     public func textureCopyCompatibilityError(for texture: MTLTexture) -> HarbethError? {

@@ -15,15 +15,17 @@ enum GPUHistogramSupport {
 
     static func makeHistogram(from texture: MTLTexture,
                               channel: TextureHistogramChannel,
-                              bins: Int) -> TextureHistogram? {
-        makeHistogramArtifacts(from: texture, channel: channel, bins: bins).histogram
+                              bins: Int,
+                              region: MTLRegion? = nil) -> TextureHistogram? {
+        makeHistogramArtifacts(from: texture, channel: channel, bins: bins, region: region).histogram
     }
 
     static func makeRenderedHistogramAttachment(from texture: MTLTexture,
                                                 channel: TextureHistogramChannel,
                                                 bins: Int,
-                                                height: Int) -> RenderedHistogramAttachment? {
-        let artifacts = makeHistogramArtifacts(from: texture, channel: channel, bins: bins)
+                                                height: Int,
+                                                region: MTLRegion? = nil) -> RenderedHistogramAttachment? {
+        let artifacts = makeHistogramArtifacts(from: texture, channel: channel, bins: bins, region: region)
         guard let histogram = artifacts.histogram,
               let histogramBuffer = artifacts.buffer,
               let previewTexture = makePreviewTexture(
@@ -48,14 +50,18 @@ enum GPUHistogramSupport {
 
     private static func makeHistogramArtifacts(from texture: MTLTexture,
                                                channel: TextureHistogramChannel,
-                                               bins: Int) -> HistogramArtifacts {
+                                               bins: Int,
+                                               region: MTLRegion?) -> HistogramArtifacts {
         let clampedBins = max(1, bins)
+        guard let resolvedRegion = resolvedRegion(region, for: texture) else {
+            return HistogramArtifacts(texture: texture, histogram: nil, buffer: nil, resolvedChannel: channel, sampleCount: 0)
+        }
         let source: HistogramSource
         switch channel {
         case .luminance:
             guard let grayscale = try? HarbethIO(element: texture, filter: C7Grayed())
                 .renderTexture(profile: .readbackQuality) else {
-                return HistogramArtifacts(texture: texture, histogram: nil, buffer: nil, resolvedChannel: .red)
+                return HistogramArtifacts(texture: texture, histogram: nil, buffer: nil, resolvedChannel: .red, sampleCount: 0)
             }
             source = HistogramSource(texture: grayscale, resolvedChannel: .red)
         case .red, .green, .blue, .alpha:
@@ -70,13 +76,14 @@ enum GPUHistogramSupport {
         )
         let histogram = MPSImageHistogram(device: source.texture.device, histogramInfo: &histogramInfo)
         histogram.zeroHistogram = true
+        histogram.clipRectSource = resolvedRegion
 
         let bufferLength = histogram.histogramSize(forSourceFormat: source.texture.pixelFormat)
         guard bufferLength >= clampedBins * 4 * MemoryLayout<UInt32>.stride,
               let histogramBuffer = source.texture.device.makeBuffer(length: bufferLength, options: .storageModeShared),
               let commandQueue = source.texture.device.makeCommandQueue(),
               let commandBuffer = commandQueue.makeCommandBuffer() else {
-            return HistogramArtifacts(texture: source.texture, histogram: nil, buffer: nil, resolvedChannel: source.resolvedChannel)
+            return HistogramArtifacts(texture: source.texture, histogram: nil, buffer: nil, resolvedChannel: source.resolvedChannel, sampleCount: 0)
         }
 
         histogram.encode(
@@ -99,10 +106,11 @@ enum GPUHistogramSupport {
             histogram: TextureHistogram(
                 channel: channel,
                 bins: counts,
-                totalSampleCount: source.texture.width * source.texture.height
+                totalSampleCount: resolvedRegion.size.width * resolvedRegion.size.height
             ),
             buffer: histogramBuffer,
-            resolvedChannel: source.resolvedChannel
+            resolvedChannel: source.resolvedChannel,
+            sampleCount: resolvedRegion.size.width * resolvedRegion.size.height
         )
     }
 
@@ -116,6 +124,7 @@ enum GPUHistogramSupport {
         let histogram: TextureHistogram?
         let buffer: MTLBuffer?
         let resolvedChannel: TextureHistogramChannel
+        let sampleCount: Int
     }
 
     private static func makePreviewTexture(device: MTLDevice,
@@ -167,6 +176,18 @@ enum GPUHistogramSupport {
 
         return texture
     }
+
+    private static func resolvedRegion(_ requestedRegion: MTLRegion?, for texture: MTLTexture) -> MTLRegion? {
+        let region = requestedRegion ?? MTLRegionMake2D(0, 0, texture.width, texture.height)
+        let originX = min(max(region.origin.x, 0), texture.width)
+        let originY = min(max(region.origin.y, 0), texture.height)
+        let width = min(max(region.size.width, 0), max(texture.width - originX, 0))
+        let height = min(max(region.size.height, 0), max(texture.height - originY, 0))
+        guard width > 0, height > 0 else {
+            return nil
+        }
+        return MTLRegionMake2D(originX, originY, width, height)
+    }
 }
 
 private extension TextureHistogramChannel {
@@ -209,14 +230,16 @@ private struct HistogramPreviewParameters {
 enum GPUHistogramSupport {
     static func makeHistogram(from texture: MTLTexture,
                               channel: TextureHistogramChannel,
-                              bins: Int) -> TextureHistogram? {
+                              bins: Int,
+                              region: MTLRegion? = nil) -> TextureHistogram? {
         nil
     }
 
     static func makeRenderedHistogramAttachment(from texture: MTLTexture,
                                                 channel: TextureHistogramChannel,
                                                 bins: Int,
-                                                height: Int) -> RenderedHistogramAttachment? {
+                                                height: Int,
+                                                region: MTLRegion? = nil) -> RenderedHistogramAttachment? {
         nil
     }
 }

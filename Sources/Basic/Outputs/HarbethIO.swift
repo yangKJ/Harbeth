@@ -582,6 +582,7 @@ extension HarbethIO where Dest == MTLTexture {
             return
         }
         let plan = makeRenderPlan(input: element)
+        prepareTextureLifecycle(for: plan, inputPixelFormat: element.pixelFormat)
         let operation = BlockOperation {
             do {
                 let commandBuffer = try self.makeCommandBuffer()

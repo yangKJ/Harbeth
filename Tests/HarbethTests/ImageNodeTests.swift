@@ -518,6 +518,32 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.channel, .luminance)
     }
 
+    func testImageNodeAttachmentAnalysisBundleCanRestrictHistogramRegion() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+
+        let bundle = try XCTUnwrap(
+            node.makeAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                region: MTLRegionMake2D(1, 0, 1, 1),
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(bundle.primary?.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.primary?.histogram?.bins.reduce(0, +), 1)
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.bins.reduce(0, +), 1)
+        XCTAssertNotNil(bundle.primary?.histogramAttachment)
+        XCTAssertNotNil(bundle.analysis(for: .luminance)?.histogramAttachment)
+    }
+
     func testNodeDebugSnapshotExposesGraphAndOptimizationDecisions() throws {
         let input = try makeTexture(width: 4, height: 4, pixel: [32, 64, 96, 255])
         let node = ImageNode
@@ -1523,19 +1549,19 @@ final class ImageNodeTests: XCTestCase {
     func testRGBColorSpaceConversionSupportsDisplayP3Contracts() {
         XCTAssertEqual(
             ImageColorSpaceContract.displayP3.colorConversionMode(from: .sRGB),
-            .sRGBToDisplayP3
+            .linearSRGBToLinearDisplayP3
         )
         XCTAssertEqual(
             ImageColorSpaceContract.sRGB.colorConversionMode(from: .displayP3),
-            .displayP3ToSRGB
+            .linearDisplayP3ToLinearSRGB
         )
         XCTAssertEqual(
             ImageColorSpaceContract.extendedLinearSRGB.colorConversionMode(from: .displayP3),
-            .displayP3ToExtendedLinearSRGB
+            .linearDisplayP3ToLinearSRGB
         )
         XCTAssertEqual(
             ImageColorSpaceContract.displayP3.colorConversionMode(from: .extendedLinearSRGB),
-            .extendedLinearSRGBToDisplayP3
+            .linearSRGBToLinearDisplayP3
         )
         XCTAssertNil(ImageColorSpaceContract.displayP3.colorConversionMode(from: .preserveInput))
         XCTAssertNil(ImageColorSpaceContract.sRGB.colorConversionMode(from: .sRGB))
@@ -1545,11 +1571,19 @@ final class ImageNodeTests: XCTestCase {
         let input = try makeTexture(width: 1, height: 1, pixel: [64, 128, 192, 255])
         let displayP3 = try HarbethIO(
             element: input,
-            filter: C7RGBColorSpaceConversion(mode: .sRGBToDisplayP3)
+            filters: [
+                C7RGBTransferConversion(mode: .sRGBToLinear),
+                C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3),
+                C7RGBTransferConversion(mode: .linearToSRGB)
+            ]
         ).output()
         let restored = try HarbethIO(
             element: displayP3,
-            filter: C7RGBColorSpaceConversion(mode: .displayP3ToSRGB)
+            filters: [
+                C7RGBTransferConversion(mode: .sRGBToLinear),
+                C7RGBColorSpaceConversion(mode: .linearDisplayP3ToLinearSRGB),
+                C7RGBTransferConversion(mode: .linearToSRGB)
+            ]
         ).output()
         let restoredPixel = try pixel(in: restored, x: 0, y: 0)
 
@@ -1599,7 +1633,11 @@ final class ImageNodeTests: XCTestCase {
         let output = try node.makeTexture(profile: .stablePreview)
         let manual = try HarbethIO(
             element: input,
-            filter: C7RGBColorSpaceConversion(mode: .sRGBToDisplayP3)
+            filters: [
+                C7RGBTransferConversion(mode: .sRGBToLinear),
+                C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3),
+                C7RGBTransferConversion(mode: .linearToSRGB)
+            ]
         ).output()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
         let manualPixel = try pixel(in: manual, x: 0, y: 0)
@@ -1608,6 +1646,61 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(outputPixel.green, manualPixel.green, accuracy: 2)
         XCTAssertEqual(outputPixel.blue, manualPixel.blue, accuracy: 2)
         XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testApplyOutputContractSkipsRedundantPremultiplyPass() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [64, 32, 16, 128])
+
+        let output = try ImageNode.applyOutputContractIfNeeded(
+            RenderOutputContract(alpha: .premultiplied),
+            to: input,
+            sourceAlphaType: .premultiplied,
+            profile: .stablePreview
+        )
+
+        XCTAssertEqual(ObjectIdentifier(output), ObjectIdentifier(input))
+    }
+
+    func testApplyOutputContractSkipsRedundantUnpremultiplyPass() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [64, 32, 16, 128])
+
+        let output = try ImageNode.applyOutputContractIfNeeded(
+            RenderOutputContract(alpha: .nonPremultiplied),
+            to: input,
+            sourceAlphaType: .nonPremultiplied,
+            profile: .stablePreview
+        )
+
+        XCTAssertEqual(ObjectIdentifier(output), ObjectIdentifier(input))
+    }
+
+    func testApplyOutputContractSkipsRedundantOpaquePass() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [64, 32, 16, 255])
+
+        let output = try ImageNode.applyOutputContractIfNeeded(
+            RenderOutputContract(alpha: .opaque),
+            to: input,
+            sourceAlphaType: .alphaIsOne,
+            profile: .stablePreview
+        )
+
+        XCTAssertEqual(ObjectIdentifier(output), ObjectIdentifier(input))
+    }
+
+    func testApplyOutputContractMaterializesAlphaPassWhenSourceAlphaDiffers() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [128, 64, 32, 128])
+
+        let output = try ImageNode.applyOutputContractIfNeeded(
+            RenderOutputContract(alpha: .premultiplied),
+            to: input,
+            sourceAlphaType: .nonPremultiplied,
+            profile: .stablePreview
+        )
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertNotEqual(ObjectIdentifier(output), ObjectIdentifier(input))
+        XCTAssertLessThan(outputPixel.red, 128)
+        XCTAssertEqual(outputPixel.alpha, 128, accuracy: 1)
     }
 
     func testRenderOutputContractDecodesOlderColorAndPixelFormatPayloads() throws {

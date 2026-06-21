@@ -171,6 +171,7 @@ public enum ImageGraphOptimizer {
 
         var nodes = graph.nodes
         var edges = graph.edges
+        var rootNodeID = graph.rootNodeID
         var decisions: [String] = []
 
         func directInputID(for nodeID: ImageGraphNodeID) -> ImageGraphNodeID? {
@@ -192,10 +193,45 @@ public enum ImageGraphOptimizer {
             }
         }
 
+        func isTransparentWrapper(_ node: ImageGraphNode, inputNode: ImageGraphNode) -> String? {
+            switch node.kind {
+            case .cachePolicy:
+                return node.cachePolicy == inputNode.cachePolicy ? "collapseRedundantCachePolicyWrapper" : nil
+            case .samplerDescriptor:
+                return node.samplerDescriptor == inputNode.samplerDescriptor ? "collapseRedundantSamplerWrapper" : nil
+            default:
+                return nil
+            }
+        }
+
         var changed = true
         while changed {
             changed = false
             for current in nodes.sorted(by: { $0.id < $1.id }) {
+                if let inputID = directInputID(for: current.id),
+                   let inputNode = nodes.first(where: { $0.id == inputID }),
+                   let decision = isTransparentWrapper(current, inputNode: inputNode) {
+                    nodes.removeAll(where: { $0.id == current.id })
+                    edges = edges.compactMap { edge in
+                        if edge.from == inputNode.id && edge.to == current.id {
+                            return nil
+                        }
+                        if edge.to == current.id {
+                            return ImageGraphEdge(from: edge.from, to: inputNode.id, label: edge.label)
+                        }
+                        if edge.from == current.id {
+                            return ImageGraphEdge(from: inputNode.id, to: edge.to, label: edge.label)
+                        }
+                        return edge
+                    }
+                    if rootNodeID == current.id {
+                        rootNodeID = inputNode.id
+                    }
+                    decisions.append(decision)
+                    changed = true
+                    break
+                }
+
                 guard let mergeDecision = mergeDecision(for: current),
                       current.cachePolicy == .transient,
                       let inputID = directInputID(for: current.id),
@@ -258,7 +294,7 @@ public enum ImageGraphOptimizer {
         let optimized = ImageGraph(
             nodes: nodes,
             edges: deduplicated(edges),
-            rootNodeID: graph.rootNodeID,
+            rootNodeID: rootNodeID,
             profile: graph.profile,
             derivative: graph.derivative
         )

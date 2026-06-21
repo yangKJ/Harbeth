@@ -45,13 +45,16 @@ public struct TextureLoader {
         public let primaryTexture: MTLTexture
         public let planeTextures: [MTLTexture]
         public let bridgePlan: PixelBufferTextureBridgePlan
+        public let retainedOwners: [AnyObject]
 
         public init(primaryTexture: MTLTexture,
                     planeTextures: [MTLTexture],
-                    bridgePlan: PixelBufferTextureBridgePlan) {
+                    bridgePlan: PixelBufferTextureBridgePlan,
+                    retainedOwners: [AnyObject] = []) {
             self.primaryTexture = primaryTexture
             self.planeTextures = planeTextures
             self.bridgePlan = bridgePlan
+            self.retainedOwners = retainedOwners
         }
 
         public var requiresPlaneAwareDecoding: Bool {
@@ -225,13 +228,14 @@ extension TextureLoader {
             guard let texture = pixelBuffer.c7.toMTLTexture() else {
                 throw HarbethError.source2Texture
             }
-            if bridgePlan.preservesOwnerReference {
-                TextureOwnerRegistry.attach(pixelBuffer, to: texture)
-            }
             return PixelBufferTextureSource(
                 primaryTexture: texture,
                 planeTextures: [texture],
-                bridgePlan: bridgePlan
+                bridgePlan: bridgePlan,
+                retainedOwners: TextureLoader.resolveRetainedOwners(
+                    primaryTexture: texture,
+                    fallbackOwner: pixelBuffer
+                )
             )
         case .directPlaneTexture:
             #if targetEnvironment(simulator)
@@ -241,16 +245,23 @@ extension TextureLoader {
             return PixelBufferTextureSource(
                 primaryTexture: texture,
                 planeTextures: [texture],
-                bridgePlan: bridgePlan
+                bridgePlan: bridgePlan,
+                retainedOwners: TextureLoader.resolveRetainedOwners(
+                    primaryTexture: texture,
+                    fallbackOwner: pixelBuffer
+                )
             )
             #else
             let textures = pixelBuffer.c7.createPlaneTextures()
             if let primary = textures.first {
-                TextureOwnerRegistry.attach(pixelBuffer, to: primary)
                 return PixelBufferTextureSource(
                     primaryTexture: primary,
                     planeTextures: textures,
-                    bridgePlan: bridgePlan
+                    bridgePlan: bridgePlan,
+                    retainedOwners: TextureLoader.resolveRetainedOwners(
+                        primaryTexture: primary,
+                        fallbackOwner: pixelBuffer
+                    )
                 )
             }
             guard let texture = pixelBuffer.c7.toMTLTexture() else {
@@ -259,7 +270,11 @@ extension TextureLoader {
             return PixelBufferTextureSource(
                 primaryTexture: texture,
                 planeTextures: [texture],
-                bridgePlan: bridgePlan
+                bridgePlan: bridgePlan,
+                retainedOwners: TextureLoader.resolveRetainedOwners(
+                    primaryTexture: texture,
+                    fallbackOwner: pixelBuffer
+                )
             )
             #endif
         case .cgImageFallback:
@@ -271,14 +286,16 @@ extension TextureLoader {
             return PixelBufferTextureSource(
                 primaryTexture: texture,
                 planeTextures: [texture],
-                bridgePlan: bridgePlan
+                bridgePlan: bridgePlan,
+                retainedOwners: [pixelBuffer]
             )
         case .cpuCopyFallback:
             let texture = try copyTextureFromPixelBuffer(pixelBuffer, bridgePlan: bridgePlan)
             return PixelBufferTextureSource(
                 primaryTexture: texture,
                 planeTextures: [texture],
-                bridgePlan: bridgePlan
+                bridgePlan: bridgePlan,
+                retainedOwners: [pixelBuffer]
             )
         }
     }
@@ -288,7 +305,18 @@ extension TextureLoader {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
-        return try resolveTextureSource(with: pixelBuffer, options: options)
+        let source = try resolveTextureSource(with: pixelBuffer, options: options)
+        attachOwner(sampleBuffer, to: source.primaryTexture)
+        source.planeTextures.forEach { attachOwner(sampleBuffer, to: $0) }
+        let retainedOwners = source.retainedOwners.contains { $0 === sampleBuffer }
+            ? source.retainedOwners
+            : source.retainedOwners + [sampleBuffer]
+        return PixelBufferTextureSource(
+            primaryTexture: source.primaryTexture,
+            planeTextures: source.planeTextures,
+            bridgePlan: source.bridgePlan,
+            retainedOwners: retainedOwners
+        )
     }
 
     private static func copyTextureFromPixelBuffer(_ pixelBuffer: CVPixelBuffer,
@@ -343,9 +371,25 @@ extension TextureLoader {
         let conversionMatrix: Matrix3x3
         let descriptor: String
         if bridgePlan.contract.yCbCrMatrixAttachment == .ituR709_2 {
-            conversionMatrix = Matrix3x3.Kernel.to709
-            descriptor = isFullRange ? "709FullRangeApproximation" : "709VideoRange"
-            let matrixContract: YCbCrDecodeMatrix = isFullRange ? .bt709FullRangeApproximation : .bt709VideoRange
+            conversionMatrix = isFullRange ? Matrix3x3.Kernel.to709FullRange : Matrix3x3.Kernel.to709
+            descriptor = isFullRange ? "709FullRange" : "709VideoRange"
+            let matrixContract: YCbCrDecodeMatrix = isFullRange ? .bt709FullRange : .bt709VideoRange
+            return YCbCrDecodeStrategy(
+                layout: layout,
+                conversionMatrix: conversionMatrix,
+                conversionOffset: SIMD3<Float>(
+                    isFullRange ? 0.0 : (-16.0 / 255.0),
+                    -0.5,
+                    -0.5
+                ),
+                destinationPixelFormat: destinationPixelFormat,
+                descriptor: descriptor,
+                matrixContract: matrixContract
+            )
+        } else if bridgePlan.contract.yCbCrMatrixAttachment == .ituR2020 {
+            conversionMatrix = isFullRange ? Matrix3x3.Kernel.to2020FullRange : Matrix3x3.Kernel.to2020
+            descriptor = isFullRange ? "2020FullRange" : "2020VideoRange"
+            let matrixContract: YCbCrDecodeMatrix = isFullRange ? .bt2020FullRange : .bt2020VideoRange
             return YCbCrDecodeStrategy(
                 layout: layout,
                 conversionMatrix: conversionMatrix,
@@ -431,8 +475,21 @@ extension TextureLoader {
         commandBuffer.label = "Harbeth.YCbCrDecode.\(strategy.descriptor)"
         _ = try filter.applyAtTexture(form: source.primaryTexture, to: outputTexture, for: commandBuffer)
         commandBuffer.commitAndWaitUntilCompleted(identifier: "YCbCrDecode")
-        TextureOwnerRegistry.attach(owner, to: outputTexture)
+        let owners = source.retainedOwners.isEmpty ? [owner] : source.retainedOwners
+        TextureOwnerRegistry.attach(owners, to: outputTexture)
         return outputTexture
+    }
+
+    private static func resolveRetainedOwners(primaryTexture: MTLTexture,
+                                              fallbackOwner: AnyObject) -> [AnyObject] {
+        let owners = TextureOwnerRegistry.owners(for: primaryTexture)
+        return owners.isEmpty ? [fallbackOwner] : owners
+    }
+
+    private static func attachOwner(_ owner: AnyObject, to texture: MTLTexture) {
+        let owners = TextureOwnerRegistry.owners(for: texture)
+        guard owners.contains(where: { $0 === owner }) == false else { return }
+        TextureOwnerRegistry.attach(owners + [owner], to: texture)
     }
 
     

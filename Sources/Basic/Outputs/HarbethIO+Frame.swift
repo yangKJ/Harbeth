@@ -552,10 +552,12 @@ extension HarbethIO {
                                 derivative: ImageDerivativeSpec? = nil,
                                 channel: TextureHistogramChannel = .luminance,
                                 bins: Int = 256,
+                                region: MTLRegion? = nil,
                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
         try renderFrame(profile: profile, derivative: derivative).makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -565,10 +567,12 @@ extension HarbethIO {
                                 derivative: ImageDerivativeSpec? = nil,
                                 channel: TextureHistogramChannel = .luminance,
                                 bins: Int = 256,
+                                region: MTLRegion? = nil,
                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
         try renderFrame(recipe: recipe, mode: mode, derivative: derivative).makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -577,10 +581,12 @@ extension HarbethIO {
                                 derivative: ImageDerivativeSpec? = nil,
                                 channel: TextureHistogramChannel = .luminance,
                                 bins: Int = 256,
+                                region: MTLRegion? = nil,
                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
         try renderFrame(composite: recipe, derivative: derivative).makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -590,10 +596,12 @@ extension HarbethIO {
                                 derivative: ImageDerivativeSpec? = nil,
                                 channel: TextureHistogramChannel = .luminance,
                                 bins: Int = 256,
+                                region: MTLRegion? = nil,
                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
         try renderFrame(node: node, profile: profile, derivative: derivative).makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -601,10 +609,12 @@ extension HarbethIO {
     public func renderTransitionHistogram(_ recipe: TransitionRecipe,
                                           channel: TextureHistogramChannel = .luminance,
                                           bins: Int = 256,
+                                          region: MTLRegion? = nil,
                                           preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
         try renderTransitionFrame(recipe).makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -614,11 +624,13 @@ extension HarbethIO {
                                           channel: TextureHistogramChannel = .luminance,
                                           bins: Int = 256,
                                           height: Int = 64,
+                                          region: MTLRegion? = nil,
                                           preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
         try renderFrame(profile: profile, derivative: derivative).renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: height,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -628,17 +640,20 @@ extension HarbethIO {
                                      channel: TextureHistogramChannel = .luminance,
                                      bins: Int = 256,
                                      histogramHeight: Int = 64,
+                                     region: MTLRegion? = nil,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(profile: profile, derivative: derivative)
         let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
         let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
         return RenderedAnalysisBundle(
@@ -655,11 +670,13 @@ extension HarbethIO {
                                           channel: TextureHistogramChannel = .luminance,
                                           bins: Int = 256,
                                           height: Int = 64,
+                                          region: MTLRegion? = nil,
                                           preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
         try renderFrame(recipe: recipe, mode: mode, derivative: derivative).renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: height,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -669,11 +686,13 @@ extension HarbethIO {
                                           channel: TextureHistogramChannel = .luminance,
                                           bins: Int = 256,
                                           height: Int = 64,
+                                          region: MTLRegion? = nil,
                                           preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
         try renderFrame(composite: recipe, derivative: derivative).renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: height,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -684,17 +703,20 @@ extension HarbethIO {
                                      channel: TextureHistogramChannel = .luminance,
                                      bins: Int = 256,
                                      histogramHeight: Int = 64,
+                                     region: MTLRegion? = nil,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(recipe: recipe, mode: mode, derivative: derivative)
         let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
         let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
         return RenderedAnalysisBundle(
@@ -714,17 +736,20 @@ extension HarbethIO {
                                      channel: TextureHistogramChannel = .luminance,
                                      bins: Int = 256,
                                      histogramHeight: Int = 64,
+                                     region: MTLRegion? = nil,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(composite: recipe, derivative: derivative)
         let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
         let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
         return RenderedAnalysisBundle(
@@ -741,11 +766,13 @@ extension HarbethIO {
                                           channel: TextureHistogramChannel = .luminance,
                                           bins: Int = 256,
                                           height: Int = 64,
+                                          region: MTLRegion? = nil,
                                           preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
         try renderFrame(node: node, profile: profile, derivative: derivative).renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: height,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -756,17 +783,20 @@ extension HarbethIO {
                                      channel: TextureHistogramChannel = .luminance,
                                      bins: Int = 256,
                                      histogramHeight: Int = 64,
+                                     region: MTLRegion? = nil,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(node: node, profile: profile, derivative: derivative)
         let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
         let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
         return RenderedAnalysisBundle(
@@ -790,11 +820,13 @@ extension HarbethIO {
                                                     channel: TextureHistogramChannel = .luminance,
                                                     bins: Int = 256,
                                                     height: Int = 64,
+                                                    region: MTLRegion? = nil,
                                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
         try renderTransitionFrame(recipe).renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: height,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -803,17 +835,20 @@ extension HarbethIO {
                                                channel: TextureHistogramChannel = .luminance,
                                                bins: Int = 256,
                                                histogramHeight: Int = 64,
+                                               region: MTLRegion? = nil,
                                                preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderTransitionFrame(recipe)
         let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
         let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
             channel: channel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
         return RenderedAnalysisBundle(
@@ -860,6 +895,7 @@ extension HarbethIO {
     public func renderAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
                                                bins: Int = 256,
                                                histogramHeight: Int = 64,
+                                               region: MTLRegion? = nil,
                                                preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
         guard let finalFilter = filters.last as? any RenderProtocol else {
             return nil
@@ -882,6 +918,7 @@ extension HarbethIO {
             identifier: "\(identifier).attachmentAnalysis",
             bins: bins,
             histogramHeight: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
     }

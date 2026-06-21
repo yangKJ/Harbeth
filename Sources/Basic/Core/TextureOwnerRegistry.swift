@@ -11,7 +11,7 @@ import ObjectiveC
 
 enum TextureOwnerRegistry {
 
-    private final class OwnerBox: NSObject {
+    final class OwnerBox: NSObject {
         let owners: [AnyObject]
 
         init(owners: [AnyObject]) {
@@ -36,5 +36,15 @@ enum TextureOwnerRegistry {
 
     static func owner(for texture: MTLTexture) -> AnyObject? {
         objc_getAssociatedObject(texture, &ownerKey) as AnyObject?
+    }
+
+    static func owners(for texture: MTLTexture) -> [AnyObject] {
+        guard let owner = owner(for: texture) else {
+            return []
+        }
+        if let box = owner as? OwnerBox {
+            return box.owners
+        }
+        return [owner]
     }
 }

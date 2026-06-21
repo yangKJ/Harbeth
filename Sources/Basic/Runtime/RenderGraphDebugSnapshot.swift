@@ -31,6 +31,8 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let outputAttachmentMonochromePreviewFlags: [Bool]
         public let optimizationPlan: RenderOptimizationPlan
         public let allocationStrategy: String
+        public let requestedAllocationStrategy: String?
+        public let allocationFallbackReason: String?
         public let textureRequestCount: Int
         public let textureReuseHitCount: Int
         public let textureReuseHitRatio: Double
@@ -63,6 +65,8 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                     outputAttachmentMonochromePreviewFlags: [Bool],
                     optimizationPlan: RenderOptimizationPlan,
                     allocationStrategy: String,
+                    requestedAllocationStrategy: String? = nil,
+                    allocationFallbackReason: String? = nil,
                     textureRequestCount: Int,
                     textureReuseHitCount: Int,
                     textureReuseHitRatio: Double,
@@ -94,6 +98,8 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.outputAttachmentMonochromePreviewFlags = outputAttachmentMonochromePreviewFlags
             self.optimizationPlan = optimizationPlan
             self.allocationStrategy = allocationStrategy
+            self.requestedAllocationStrategy = requestedAllocationStrategy
+            self.allocationFallbackReason = allocationFallbackReason
             self.textureRequestCount = textureRequestCount
             self.textureReuseHitCount = textureReuseHitCount
             self.textureReuseHitRatio = textureReuseHitRatio
@@ -129,6 +135,8 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 outputAttachmentMonochromePreviewFlags: diagnostics.outputContract.attachmentDebugPolicies.map(\.prefersMonochromePreview),
                 optimizationPlan: diagnostics.optimizationPlan,
                 allocationStrategy: diagnostics.optimizationPlan.allocationStrategy.rawValue,
+                requestedAllocationStrategy: diagnostics.optimizationPlan.requestedAllocationStrategy?.rawValue,
+                allocationFallbackReason: diagnostics.optimizationPlan.allocationFallbackReason,
                 textureRequestCount: diagnostics.optimizationPlan.textureRequestCount,
                 textureReuseHitCount: diagnostics.optimizationPlan.textureReuseHitCount,
                 textureReuseHitRatio: diagnostics.optimizationPlan.textureReuseHitRatio,

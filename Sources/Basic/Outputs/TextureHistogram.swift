@@ -121,23 +121,27 @@ public struct RenderedHistogramAttachment: @unchecked Sendable {
 public extension MTLTextureCompatible_ {
     func makeHistogram(channel: TextureHistogramChannel = .luminance,
                        bins: Int = 256,
+                       region: MTLRegion? = nil,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         switch preferredMethod {
         case .cpuReadback:
-            return makeCPUHistogram(channel: channel, bins: bins)
+            return makeCPUHistogram(channel: channel, bins: bins, region: region)
         case .gpuMPS:
-            return makeGPUHistogram(channel: channel, bins: bins) ?? makeCPUHistogram(channel: channel, bins: bins)
+            return makeGPUHistogram(channel: channel, bins: bins, region: region)
+                ?? makeCPUHistogram(channel: channel, bins: bins, region: region)
         }
     }
 
     func makeGPUHistogram(channel: TextureHistogramChannel = .luminance,
-                          bins: Int = 256) -> TextureHistogram? {
-        GPUHistogramSupport.makeHistogram(from: target, channel: channel, bins: bins)
+                          bins: Int = 256,
+                          region: MTLRegion? = nil) -> TextureHistogram? {
+        GPUHistogramSupport.makeHistogram(from: target, channel: channel, bins: bins, region: region)
     }
 
     func renderHistogramAttachment(channel: TextureHistogramChannel = .luminance,
                                    bins: Int = 256,
                                    height: Int = 64,
+                                   region: MTLRegion? = nil,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         switch preferredMethod {
         case .gpuMPS:
@@ -145,14 +149,15 @@ public extension MTLTextureCompatible_ {
                 from: target,
                 channel: channel,
                 bins: bins,
-                height: height
+                height: height,
+                region: region
             ) {
                 return output
             }
         case .cpuReadback:
             break
         }
-        guard let histogram = makeCPUHistogram(channel: channel, bins: bins),
+        guard let histogram = makeCPUHistogram(channel: channel, bins: bins, region: region),
               let previewTexture = makePreviewTexture(from: histogram, height: height) else {
             return nil
         }
@@ -168,49 +173,57 @@ public extension MTLTextureCompatible_ {
     }
 
     private func makeCPUHistogram(channel: TextureHistogramChannel,
-                                  bins: Int) -> TextureHistogram? {
+                                  bins: Int,
+                                  region: MTLRegion?) -> TextureHistogram? {
         let clampedBins = max(1, bins)
         guard let bytes = bytes() else { return nil }
         let width = target.width
         let height = target.height
-        guard width > 0, height > 0 else {
+        guard let resolvedRegion = resolvedHistogramRegion(region),
+              width > 0,
+              height > 0 else {
             return TextureHistogram(channel: channel, bins: [UInt32](repeating: 0, count: clampedBins), totalSampleCount: 0)
         }
 
         var counts = [UInt32](repeating: 0, count: clampedBins)
         let step = 4
         let scale = Float(clampedBins - 1)
+        let bytesPerRow = width * step
 
         bytes.withUnsafeBytes { rawBuffer in
             let rgba = rawBuffer.bindMemory(to: UInt8.self)
-            for offset in stride(from: 0, to: rgba.count, by: step) {
-                let red = Float(rgba[offset]) / 255.0
-                let green = Float(rgba[offset + 1]) / 255.0
-                let blue = Float(rgba[offset + 2]) / 255.0
-                let alpha = Float(rgba[offset + 3]) / 255.0
+            for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
+                let rowBase = y * bytesPerRow
+                for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
+                    let offset = rowBase + x * step
+                    let red = Float(rgba[offset]) / 255.0
+                    let green = Float(rgba[offset + 1]) / 255.0
+                    let blue = Float(rgba[offset + 2]) / 255.0
+                    let alpha = Float(rgba[offset + 3]) / 255.0
 
-                let value: Float
-                switch channel {
-                case .luminance:
-                    value = red * 0.2126 + green * 0.7152 + blue * 0.0722
-                case .red:
-                    value = red
-                case .green:
-                    value = green
-                case .blue:
-                    value = blue
-                case .alpha:
-                    value = alpha
+                    let value: Float
+                    switch channel {
+                    case .luminance:
+                        value = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                    case .red:
+                        value = red
+                    case .green:
+                        value = green
+                    case .blue:
+                        value = blue
+                    case .alpha:
+                        value = alpha
+                    }
+                    let index = min(max(Int((value * scale).rounded()), 0), clampedBins - 1)
+                    counts[index] += 1
                 }
-                let index = min(max(Int((value * scale).rounded()), 0), clampedBins - 1)
-                counts[index] += 1
             }
         }
 
         return TextureHistogram(
             channel: channel,
             bins: counts,
-            totalSampleCount: width * height
+            totalSampleCount: resolvedRegion.size.width * resolvedRegion.size.height
         )
     }
 
@@ -229,15 +242,32 @@ public extension MTLTextureCompatible_ {
             ]
         ).texture
     }
+
+    private func resolvedHistogramRegion(_ requestedRegion: MTLRegion?) -> MTLRegion? {
+        let fullRegion = MTLRegionMake2D(0, 0, target.width, target.height)
+        let region = requestedRegion ?? fullRegion
+        let maxX = min(max(region.origin.x, 0), target.width)
+        let maxY = min(max(region.origin.y, 0), target.height)
+        let remainingWidth = max(target.width - maxX, 0)
+        let remainingHeight = max(target.height - maxY, 0)
+        let width = min(max(region.size.width, 0), remainingWidth)
+        let height = min(max(region.size.height, 0), remainingHeight)
+        guard width > 0, height > 0 else {
+            return nil
+        }
+        return MTLRegionMake2D(maxX, maxY, width, height)
+    }
 }
 
 public extension RenderedAttachment {
     func makeHistogram(channel: TextureHistogramChannel? = nil,
                        bins: Int = 256,
+                       region: MTLRegion? = nil,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         texture.c7.makeHistogram(
             channel: channel ?? defaultHistogramChannel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -260,20 +290,28 @@ public extension RenderedAttachmentSet {
     func makeHistogram(for semantic: RenderOutputAttachmentSemantic,
                        channel: TextureHistogramChannel? = nil,
                        bins: Int = 256,
+                       region: MTLRegion? = nil,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
-        attachment(for: semantic)?.makeHistogram(channel: channel, bins: bins, preferredMethod: preferredMethod)
+        attachment(for: semantic)?.makeHistogram(
+            channel: channel,
+            bins: bins,
+            region: region,
+            preferredMethod: preferredMethod
+        )
     }
 
     func renderHistogramAttachment(for semantic: RenderOutputAttachmentSemantic,
                                    channel: TextureHistogramChannel? = nil,
                                    bins: Int = 256,
                                    height: Int = 64,
+                                   region: MTLRegion? = nil,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         guard let attachment = attachment(for: semantic) else { return nil }
         return attachment.texture.c7.renderHistogramAttachment(
             channel: channel ?? attachment.defaultHistogramChannel,
             bins: bins,
             height: height,
+            region: region,
             preferredMethod: preferredMethod
         )
     }
@@ -282,18 +320,26 @@ public extension RenderedAttachmentSet {
 public extension RenderedFrame {
     func makeHistogram(channel: TextureHistogramChannel = .luminance,
                        bins: Int = 256,
+                       region: MTLRegion? = nil,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
-        texture.c7.makeHistogram(channel: channel, bins: bins, preferredMethod: preferredMethod)
+        texture.c7.makeHistogram(
+            channel: channel,
+            bins: bins,
+            region: region,
+            preferredMethod: preferredMethod
+        )
     }
 
     func renderHistogramAttachment(channel: TextureHistogramChannel = .luminance,
                                    bins: Int = 256,
                                    height: Int = 64,
+                                   region: MTLRegion? = nil,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         texture.c7.renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: height,
+            region: region,
             preferredMethod: preferredMethod
         )
     }

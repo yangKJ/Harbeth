@@ -194,6 +194,20 @@ final class HarbethContextTests: XCTestCase {
             )
         )
         XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === Shared.shared.defaultTexturePool)
+        let snapshot = allocator.makeSnapshot()
+        XCTAssertEqual(snapshot.requestedAllocationStrategy, .heapBacked)
+        XCTAssertEqual(
+            snapshot.allocationFallbackReason,
+            TextureAllocationStrategy.heapBacked.fallbackReason(
+                heapTexturePoolSupported: report.isSupported
+            )
+        )
+        XCTAssertEqual(snapshot.allocationResolution.requested, .heapBacked)
+        XCTAssertEqual(snapshot.allocationResolution.resolved, allocator.strategy)
+        XCTAssertEqual(
+            snapshot.allocationResolution.isFallback,
+            report.isSupported == false
+        )
     }
 
     func testTexturePoolPrewarmSyncHonorsPerRequestCounts() throws {

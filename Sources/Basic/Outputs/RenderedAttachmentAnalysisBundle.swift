@@ -74,6 +74,7 @@ public extension RenderedAttachmentSet {
                       channel: TextureHistogramChannel? = nil,
                       bins: Int = 256,
                       histogramHeight: Int = 64,
+                      region: MTLRegion? = nil,
                       preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysis? {
         guard let attachment = attachment(for: semantic) else { return nil }
         let resolvedChannel = channel ?? attachment.defaultHistogramChannel
@@ -81,11 +82,13 @@ public extension RenderedAttachmentSet {
             channel: resolvedChannel,
             bins: bins,
             height: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
         let histogram = histogramAttachment?.histogram ?? attachment.makeHistogram(
             channel: resolvedChannel,
             bins: bins,
+            region: region,
             preferredMethod: preferredMethod
         )
         return RenderedAttachmentAnalysis(
@@ -97,6 +100,7 @@ public extension RenderedAttachmentSet {
 
     func makeAnalysisBundle(bins: Int = 256,
                             histogramHeight: Int = 64,
+                            region: MTLRegion? = nil,
                             preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysisBundle {
         let analyses = attachments.compactMap { attachment in
             makeAnalysis(
@@ -104,6 +108,7 @@ public extension RenderedAttachmentSet {
                 channel: nil,
                 bins: bins,
                 histogramHeight: histogramHeight,
+                region: region,
                 preferredMethod: preferredMethod
             )
         }
@@ -119,6 +124,7 @@ public extension RenderProtocol {
                                         identifier: String = "RenderAttachmentAnalysisBundle",
                                         bins: Int = 256,
                                         histogramHeight: Int = 64,
+                                        region: MTLRegion? = nil,
                                         preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle {
         try renderAttachmentSet(
             from: sourceTexture,
@@ -126,6 +132,7 @@ public extension RenderProtocol {
         ).makeAnalysisBundle(
             bins: bins,
             histogramHeight: histogramHeight,
+            region: region,
             preferredMethod: preferredMethod
         )
     }

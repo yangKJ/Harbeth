@@ -57,6 +57,36 @@ final class TextureHistogramTests: XCTestCase {
         XCTAssertEqual(histogram.bins[3], 1)
     }
 
+    func testRGBA8TextureHistogramCanRestrictToRegion() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 2,
+            height: 2,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255,
+                0, 255, 0, 255,
+                0, 0, 255, 255
+            ]
+        )
+
+        let histogram = try XCTUnwrap(
+            texture.c7.makeHistogram(
+                channel: .red,
+                bins: 4,
+                region: MTLRegionMake2D(1, 0, 1, 2)
+            )
+        )
+
+        XCTAssertEqual(histogram.channel, .red)
+        XCTAssertEqual(histogram.totalSampleCount, 2)
+        XCTAssertEqual(histogram.bins.reduce(0, +), 2)
+        XCTAssertEqual(histogram.bins[0], 1)
+        XCTAssertEqual(histogram.bins[3], 1)
+    }
+
     func testRGBA8TextureGPULuminanceHistogramCountsExpectedBins() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -111,6 +141,38 @@ final class TextureHistogramTests: XCTestCase {
         XCTAssertEqual(output.attachment.semantic, .histogram)
         XCTAssertEqual(output.attachment.pixelFormat, .rgba8Unorm)
         XCTAssertNotNil(output.makeCGImage(colorSpace: CGColorSpaceCreateDeviceRGB()))
+    }
+
+    func testTextureCanRenderGPUHistogramAttachmentForRegion() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 2,
+            height: 2,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255,
+                0, 255, 0, 255,
+                0, 0, 255, 255
+            ]
+        )
+
+        let output = try XCTUnwrap(
+            texture.c7.renderHistogramAttachment(
+                channel: .red,
+                bins: 4,
+                height: 16,
+                region: MTLRegionMake2D(1, 0, 1, 2),
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(output.histogram.channel, .red)
+        XCTAssertEqual(output.histogram.totalSampleCount, 2)
+        XCTAssertEqual(output.histogram.bins.reduce(0, +), 2)
+        XCTAssertEqual(output.histogram.bins[0], 1)
+        XCTAssertEqual(output.histogram.bins[3], 1)
     }
 
     func testRenderedAttachmentSetCanMaterializeHistogramFromAnalysisSemantic() throws {

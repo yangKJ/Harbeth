@@ -353,6 +353,29 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("preserveInputPixelFormatForReservations"))
     }
 
+    func testOptimizationPlanCapsTransientReusePrewarmToDoubleBuffer() {
+        let plan = GraphCompiler.compile(
+            filters: [
+                RenderBasicFilter(),
+                C7Brightness(brightness: 0.1),
+                RenderBasicFilter(),
+                C7Contrast(contrast: 1.1),
+                RenderBasicFilter()
+            ],
+            inputSize: C7Size(width: 32, height: 24),
+            profile: .stablePreview
+        )
+
+        let transientReservation = plan.diagnostics.optimizationPlan.prewarmReservations.first {
+            $0.reason == .transientReuse
+        }
+
+        XCTAssertEqual(plan.optimizedStages.count, 5)
+        XCTAssertEqual(transientReservation?.stageIndices, [0, 1, 2, 3])
+        XCTAssertEqual(transientReservation?.count, 2)
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("capTransientReusePrewarmToDoubleBuffer"))
+    }
+
     func testRenderPlanDerivesAttachmentDrivenHDRInputColorSpace() {
         let contract = PixelBufferContract(
             width: 32,
@@ -389,7 +412,7 @@ final class RenderGraphTests: XCTestCase {
             pixelBufferBridgePolicy: .directPlaneDecodeToRGBA,
             yCbCrDecodeContract: YCbCrDecodeContract(
                 layout: .biPlanar,
-                matrix: .bt709VideoRange,
+                matrix: .bt2020VideoRange,
                 destinationPixelFormat: .rgba8Unorm
             )
         )
@@ -405,6 +428,59 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.inputColorSpace.name, "ituR2020+smpteSt2084PQ")
         XCTAssertTrue(plan.diagnostics.inputIsHDRFriendly)
         XCTAssertTrue(plan.diagnostics.summary.contains("inputColor=ituR2020+smpteSt2084PQ"))
+    }
+
+    func testRenderPlanCanDeriveHDRInputColorSpaceFromYCbCrMatrixWithoutPrimaries() {
+        let contract = PixelBufferContract(
+            width: 32,
+            height: 24,
+            cvPixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            planeCount: 2,
+            planar: true,
+            colorModel: .yCbCrBiPlanar,
+            nativeTextureLayout: .planeTextures,
+            yCbCrMatrixAttachment: .ituR2020,
+            colorPrimariesAttachment: nil,
+            transferFunctionAttachment: .ituR2100HLG,
+            planes: [
+                .init(index: 0, width: 32, height: 24, bytesPerRow: 32, cvPixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, metalPixelFormat: .r8Unorm),
+                .init(index: 1, width: 16, height: 12, bytesPerRow: 32, cvPixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, metalPixelFormat: .rg8Unorm)
+            ]
+        )
+        let sourceDescriptor = ImageSourceDescriptor(
+            kind: "pixelBuffer",
+            sourceTier: .original,
+            alphaType: .premultiplied,
+            orientation: .up,
+            cachePolicy: .persistent,
+            pixelBufferContract: contract,
+            pixelBufferBridgePlan: PixelBufferTextureBridgePlan(
+                contract: contract,
+                loadStrategy: .directPlaneTexture,
+                preservesOwnerReference: true,
+                planes: [
+                    .init(index: 0, metalPixelFormat: .r8Unorm, conversionStrategy: .directMetalTexture, preservesOwnerReference: true),
+                    .init(index: 1, metalPixelFormat: .rg8Unorm, conversionStrategy: .directMetalTexture, preservesOwnerReference: true)
+                ]
+            ),
+            pixelBufferBridgePolicy: .directPlaneDecodeToRGBA,
+            yCbCrDecodeContract: YCbCrDecodeContract(
+                layout: .biPlanar,
+                matrix: .bt2020VideoRange,
+                destinationPixelFormat: .rgba16Float
+            )
+        )
+
+        let plan = GraphCompiler.compile(
+            filters: [C7Brightness(brightness: 0.1)],
+            inputSize: C7Size(width: 32, height: 24),
+            sourceDescriptor: sourceDescriptor
+        )
+
+        XCTAssertEqual(plan.diagnostics.inputColorSpace.gamut, .ituR2020)
+        XCTAssertEqual(plan.diagnostics.inputColorSpace.transferFunction, .hybridLogGamma)
+        XCTAssertEqual(plan.diagnostics.inputColorSpace.name, "ituR2020+ituR2100HLG")
+        XCTAssertTrue(plan.diagnostics.inputIsHDRFriendly)
     }
 
     func testOptimizationPlanEstimatesMoreBytesForHighPrecisionInputReservations() {
@@ -485,6 +561,34 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("textureReuseRatio="))
     }
 
+    func testDiagnosticsExposeRequestedAllocatorFallbackWhenHeapBackedFallsBack() {
+        let allocator = TextureAllocationStrategy.heapBacked.makeAllocator(
+            texturePool: Shared.shared.defaultTexturePool,
+            heapTexturePoolSupported: false
+        )
+        Shared.shared.defaultTextureAllocator = allocator
+        let plan = GraphCompiler.compile(
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.1)
+            ],
+            inputSize: C7Size(width: 32, height: 24)
+        )
+
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.allocationStrategy, .exact)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.requestedAllocationStrategy, .heapBacked)
+        XCTAssertEqual(
+            plan.diagnostics.optimizationPlan.allocationFallbackReason,
+            "unsupportedHeapTexturePoolCapabilityFallbackToExact"
+        )
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.allocationResolution.requested, .heapBacked)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.allocationResolution.resolved, .exact)
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.allocationResolution.isFallback)
+        XCTAssertTrue(plan.diagnostics.summary.contains("allocator=exact"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("requestedAllocator=heapBacked"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("allocatorFallback=unsupportedHeapTexturePoolCapabilityFallbackToExact"))
+    }
+
     func testOptimizationPlanReportsTextureReuseHitRatio() {
         let plan = RenderOptimizationPlan(
             intermediateTextureCount: 2,
@@ -530,6 +634,8 @@ final class RenderGraphTests: XCTestCase {
 
         XCTAssertEqual(empty.textureReuseHitRatio, 0)
         XCTAssertEqual(saturated.textureReuseHitRatio, 1)
+        XCTAssertEqual(empty.allocationResolution.fingerprint, "requested=exact|resolved=exact|fallback=none")
+        XCTAssertEqual(saturated.allocationResolution.fingerprint, "requested=tolerant|resolved=tolerant|fallback=none")
     }
 
     func testRenderOptimizationPlanSupportsCodableRoundTrip() throws {
