@@ -6,6 +6,7 @@
 //
 import Foundation
 import CoreGraphics
+import Metal
 
 /// 图像 alpha 的语义类型。
 ///
@@ -40,6 +41,80 @@ public enum AlphaType: String, Sendable, Codable, Equatable {
         case .alphaIsOne:
             return .noneSkipLast
         }
+    }
+}
+
+public enum ImageAlphaContract: Sendable, Codable, Equatable, Hashable {
+    case opaque
+    case premultiplied
+    case nonPremultiplied
+    case preserveInput
+    case forcePremultiply
+    case forceUnpremultiply
+
+    public var expectedAlphaType: AlphaType? {
+        switch self {
+        case .opaque:
+            return .alphaIsOne
+        case .premultiplied, .forcePremultiply:
+            return .premultiplied
+        case .nonPremultiplied, .forceUnpremultiply:
+            return .nonPremultiplied
+        case .preserveInput:
+            return nil
+        }
+    }
+}
+
+public struct ImageColorSpaceContract: Sendable, Equatable, Hashable {
+    public let name: String
+    public let preservesInput: Bool
+
+    public init(name: String = "preserveInput", preservesInput: Bool = true) {
+        self.name = name
+        self.preservesInput = preservesInput
+    }
+
+    public static let preserveInput = ImageColorSpaceContract()
+}
+
+public struct PixelFormatContract: Sendable, Equatable, Hashable {
+    public let name: String
+    public let preservesInput: Bool
+
+    public init(pixelFormat: MTLPixelFormat? = nil, preservesInput: Bool = true) {
+        self.name = pixelFormat.map { String(describing: $0) } ?? "preserveInput"
+        self.preservesInput = preservesInput
+    }
+
+    public static let preserveInput = PixelFormatContract()
+}
+
+public struct RenderOutputContract: Sendable, Equatable, Hashable {
+    public let alpha: ImageAlphaContract
+    public let colorSpace: ImageColorSpaceContract
+    public let pixelFormat: PixelFormatContract
+    public let preservesOrientation: Bool
+
+    public init(alpha: ImageAlphaContract = .preserveInput,
+                colorSpace: ImageColorSpaceContract = .preserveInput,
+                pixelFormat: PixelFormatContract = .preserveInput,
+                preservesOrientation: Bool = true) {
+        self.alpha = alpha
+        self.colorSpace = colorSpace
+        self.pixelFormat = pixelFormat
+        self.preservesOrientation = preservesOrientation
+    }
+
+    public static let preserveInput = RenderOutputContract()
+
+    public var fingerprint: String {
+        [
+            "alpha=\(alpha)",
+            "color=\(colorSpace.name)",
+            "pixelFormat=\(pixelFormat.name)",
+            "orientation=\(preservesOrientation ? "preserve" : "reset")"
+        ].joined(separator: "|")
     }
 }
 

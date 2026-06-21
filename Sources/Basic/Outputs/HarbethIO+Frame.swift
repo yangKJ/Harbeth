@@ -83,6 +83,12 @@ extension HarbethIO {
         ).renderTexture()
     }
 
+    public func renderTexture(node: HarbethImageNode,
+                              profile: RenderProfile = .stablePreview,
+                              derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+        try node.makeTexture(profile: profile, derivative: derivative)
+    }
+
     public func renderDiagnostics(recipe: EditRecipe,
                                   mode: EditRecipeMode = .preview,
                                   derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
@@ -111,6 +117,19 @@ extension HarbethIO {
             }
         }
         return plan.diagnostics
+    }
+
+    public func renderDiagnostics(node: HarbethImageNode,
+                                  profile: RenderProfile = .stablePreview,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+        let diagnostics = try node.makeDiagnostics(profile: profile, derivative: derivative)
+        if Shared.shared.enablePerformanceMonitor {
+            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: diagnostics.stageCount)
+            if diagnostics.requiresCompletedGPUWork {
+                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+            }
+        }
+        return diagnostics
     }
 
     /// texture-first 同步帧输出，携带稳定元数据。
@@ -146,6 +165,13 @@ extension HarbethIO {
             metadata: metadata,
             derivative: derivative
         ).renderFrame()
+    }
+
+    public func renderFrame(node: HarbethImageNode,
+                            profile: RenderProfile = .stablePreview,
+                            derivative: ImageDerivativeSpec? = nil,
+                            metadata: [String: String] = [:]) throws -> RenderedFrame {
+        try node.makeFrame(profile: profile, derivative: derivative, metadata: metadata)
     }
 
     public func makeFrameRenderToken() -> FrameRenderToken {

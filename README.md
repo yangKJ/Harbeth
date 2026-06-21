@@ -139,7 +139,9 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `Shared.shared`: the default global runtime owner for `Device`, `HarbethContext`, texture pooling, command queue access, and lifecycle reset.
 - `HarbethContext.shared`: the default execution context facade for render pipeline cache, sampler cache, and execution diagnostics.
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
-- `KernelContractDescriptor`: lightweight technical metadata for a filter's execution path, function identity, multi-input usage, and alpha behavior.
+- `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths.
+- `HarbethKernelDescriptor`: lightweight technical metadata for a filter's execution path, function identity, multi-input usage, and alpha behavior.
+- `RenderOutputContract`: explicit alpha, color-space, and pixel-format intent for diagnostics and conservative planning.
 
 ```swift
 let runtime = Shared.shared
@@ -152,12 +154,25 @@ let semantic = frame.semantic
 let replayContract = frame.replayBaseContract
 ```
 
+```swift
+let node = HarbethImageNode.filters(
+    input: .source(.texture(inputTexture)),
+    filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.05)]
+)
+
+let nodeFrame = try HarbethIO(element: inputTexture, filters: [])
+    .renderFrame(node: node, profile: .stablePreview)
+let nodeDiagnostics = try HarbethIO(element: inputTexture, filters: [])
+    .renderDiagnostics(node: node)
+```
+
 ### Geometry, Local Mask, and Transition Primitives
 
 Harbeth now includes reusable editor-grade primitives without turning the core into a product-specific editor:
 
 - `ImageCropRegion`, `ImageTransformRecipe`, `AspectPolicy`, `CoordinateSpace`
 - `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`, `LocalEffectRecipe`
+- `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing
 - `TransitionKernel` with built-in dissolve, directional wipe, luma wipe, and displacement transitions
 - `EditRecipe` for lightweight preview/final render contracts
 
@@ -200,6 +215,24 @@ let transition = TransitionRecipe(
 
 let transitionFrame = try HarbethIO(element: fromTexture, filters: [])
     .renderTransitionFrame(transition)
+```
+
+```swift
+let composite = LayerCompositeRecipe(
+    background: .texture(backgroundTexture),
+    layers: [
+        ImageLayer(
+            content: .texture(layerTexture),
+            normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+            opacity: 0.9,
+            blendMode: .sourceOver,
+            mask: MaskDescriptor(texture: maskTexture)
+        )
+    ]
+)
+
+let compositeTexture = try HarbethIO(element: backgroundTexture, filters: [])
+    .renderTexture(node: .layerComposite(composite))
 ```
 
 ### 🎨 Real-time Filter Effects

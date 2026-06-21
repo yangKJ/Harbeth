@@ -61,6 +61,34 @@ public enum RenderCompilationSource: String, Sendable, Equatable {
     case filtersPrimitive
     case editRecipe
     case transition
+    case nodeGraph
+    case layerComposite
+}
+
+public struct RenderOptimizationPlan: Sendable, Equatable {
+    public let intermediateTextureCount: Int
+    public let reusableTextureCount: Int
+    public let persistentOutputCount: Int
+    public let readbackBoundaryCount: Int
+    public let formatConversionCount: Int
+    public let destinationTextureCreationCount: Int
+    public let decisions: [String]
+
+    public init(intermediateTextureCount: Int,
+                reusableTextureCount: Int,
+                persistentOutputCount: Int,
+                readbackBoundaryCount: Int,
+                formatConversionCount: Int,
+                destinationTextureCreationCount: Int,
+                decisions: [String]) {
+        self.intermediateTextureCount = intermediateTextureCount
+        self.reusableTextureCount = reusableTextureCount
+        self.persistentOutputCount = persistentOutputCount
+        self.readbackBoundaryCount = readbackBoundaryCount
+        self.formatConversionCount = formatConversionCount
+        self.destinationTextureCreationCount = destinationTextureCreationCount
+        self.decisions = decisions
+    }
 }
 
 public struct RenderStage: Sendable, Equatable {
@@ -148,6 +176,11 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let containsLocalEffectComposite: Bool
     public let containsTransitionKernel: Bool
     public let containsDerivativeResize: Bool
+    public let optimizationPlan: RenderOptimizationPlan
+    public let outputContract: RenderOutputContract
+    public let alphaConversionCount: Int
+    public let colorConversionCount: Int
+    public let pixelFormatConversionCount: Int
     public let nodes: [RenderNodeDiagnostic]
     public let stages: [RenderStage]
 
@@ -162,6 +195,11 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
                 containsLocalEffectComposite: Bool,
                 containsTransitionKernel: Bool,
                 containsDerivativeResize: Bool,
+                optimizationPlan: RenderOptimizationPlan,
+                outputContract: RenderOutputContract,
+                alphaConversionCount: Int,
+                colorConversionCount: Int,
+                pixelFormatConversionCount: Int,
                 nodes: [RenderNodeDiagnostic],
                 stages: [RenderStage]) {
         self.profile = profile
@@ -175,6 +213,11 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         self.containsLocalEffectComposite = containsLocalEffectComposite
         self.containsTransitionKernel = containsTransitionKernel
         self.containsDerivativeResize = containsDerivativeResize
+        self.optimizationPlan = optimizationPlan
+        self.outputContract = outputContract
+        self.alphaConversionCount = alphaConversionCount
+        self.colorConversionCount = colorConversionCount
+        self.pixelFormatConversionCount = pixelFormatConversionCount
         self.nodes = nodes
         self.stages = stages
     }
@@ -196,6 +239,10 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "boundary=\(containsBoundary ? 1 : 0)",
             "readback=\(requiresCompletedGPUWork ? 1 : 0)",
             "source=\(compilationSource.rawValue)",
+            "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
+            "reusableTextures=\(optimizationPlan.reusableTextureCount)",
+            "formatConversions=\(optimizationPlan.formatConversionCount)",
+            "alphaContract=\(outputContract.alpha)",
             "plan=\(stageSummary)"
         ].joined(separator: " ")
     }
@@ -215,7 +262,8 @@ public struct RenderPlan {
                 inputSize: C7Size,
                 outputSize: C7Size,
                 nodeDiagnostics: [RenderNodeDiagnostic],
-                compilationSource: RenderCompilationSource) {
+                compilationSource: RenderCompilationSource,
+                outputContract: RenderOutputContract = .preserveInput) {
         self.graph = graph
         self.profile = profile
         let requiresCompletedGPUWork = profile.requiresCompletedGPUWorkBeforeReadback
@@ -226,6 +274,11 @@ public struct RenderPlan {
             graph: graph,
             nodeDiagnostics: nodeDiagnostics,
             profile: profile
+        )
+        let optimizationPlan = GraphOptimizer.makeOptimizationPlan(
+            stages: optimizedStages,
+            nodeDiagnostics: nodeDiagnostics,
+            outputContract: outputContract
         )
         self.diagnostics = RenderPlanDiagnostics(
             profile: profile,
@@ -239,6 +292,11 @@ public struct RenderPlan {
             containsLocalEffectComposite: optimizedStages.contains(where: \.containsLocalEffectComposite),
             containsTransitionKernel: optimizedStages.contains(where: \.containsTransitionKernel),
             containsDerivativeResize: optimizedStages.contains(where: \.containsDerivativeResize),
+            optimizationPlan: optimizationPlan,
+            outputContract: outputContract,
+            alphaConversionCount: outputContract.alpha == .preserveInput ? 0 : 1,
+            colorConversionCount: outputContract.colorSpace.preservesInput ? 0 : 1,
+            pixelFormatConversionCount: outputContract.pixelFormat.preservesInput ? optimizationPlan.formatConversionCount : max(optimizationPlan.formatConversionCount, 1),
             nodes: nodeDiagnostics,
             stages: optimizedStages
         )
@@ -250,6 +308,43 @@ public struct RenderPlan {
 }
 
 public enum GraphOptimizer {
+    public static func makeOptimizationPlan(stages: [RenderStage],
+                                            nodeDiagnostics: [RenderNodeDiagnostic],
+                                            outputContract: RenderOutputContract = .preserveInput) -> RenderOptimizationPlan {
+        let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
+        let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
+        let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
+        let formatConversionCount = outputContract.pixelFormat.preservesInput ? 0 : 1
+        let reusableTextureCount = stages.filter { stage in
+            stage.containsReadbackBoundary == false && stage.createsDestinationTexture
+        }.count
+        var decisions: [String] = []
+        if intermediateTextureCount > 0 {
+            decisions.append("reuseTransientIntermediateTextures")
+        }
+        if stages.contains(where: \.containsDerivativeResize) {
+            decisions.append("keepDerivativeResizeAtTerminalStage")
+        }
+        if readbackBoundaryCount > 0 {
+            decisions.append("preserveReadbackBoundary")
+        }
+        if formatConversionCount > 0 {
+            decisions.append("recordPixelFormatConversion")
+        }
+        if decisions.isEmpty {
+            decisions.append("singleStageNoOptimizationNeeded")
+        }
+        return RenderOptimizationPlan(
+            intermediateTextureCount: intermediateTextureCount,
+            reusableTextureCount: reusableTextureCount,
+            persistentOutputCount: 1,
+            readbackBoundaryCount: readbackBoundaryCount,
+            formatConversionCount: formatConversionCount,
+            destinationTextureCreationCount: destinationTextureCreationCount,
+            decisions: decisions
+        )
+    }
+
     public static func optimize(graph: RenderGraph,
                                 nodeDiagnostics: [RenderNodeDiagnostic],
                                 profile: RenderProfile) -> [RenderStage] {
@@ -340,7 +435,8 @@ public enum GraphCompiler {
                                inputSize: C7Size,
                                profile: RenderProfile = .stablePreview,
                                derivative: ImageDerivativeSpec? = nil,
-                               compilationSource: RenderCompilationSource = .filtersPrimitive) -> RenderPlan {
+                               compilationSource: RenderCompilationSource = .filtersPrimitive,
+                               outputContract: RenderOutputContract = .preserveInput) -> RenderPlan {
         var currentSize = inputSize
         var nodeDiagnostics: [RenderNodeDiagnostic] = []
         let nodes = filters.enumerated().map { index, filter -> RenderNode in
@@ -404,7 +500,8 @@ public enum GraphCompiler {
             inputSize: inputSize,
             outputSize: currentSize,
             nodeDiagnostics: nodeDiagnostics,
-            compilationSource: compilationSource
+            compilationSource: compilationSource,
+            outputContract: outputContract
         )
     }
 

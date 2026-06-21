@@ -375,7 +375,9 @@ Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定
 - `Shared.shared`：默认全局 runtime owner，统一管理 `Device`、`HarbethContext`、texture pool、command queue 和生命周期 reset
 - `HarbethContext.shared`：默认执行上下文 facade，负责 render pipeline cache、sampler cache 和执行期诊断
 - `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
-- `KernelContractDescriptor`：提供滤镜执行路径、function identity、多输入资源使用和 alpha 行为的技术元数据
+- `HarbethImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径
+- `HarbethKernelDescriptor`：提供滤镜执行路径、function identity、多输入资源使用和 alpha 行为的技术元数据
+- `RenderOutputContract`：显式描述 alpha、color-space、pixel-format 意图，供 diagnostics 和保守执行计划使用
 
 ```swift
 let runtime = Shared.shared
@@ -388,12 +390,25 @@ let semantic = frame.semantic
 let replayContract = frame.replayBaseContract
 ```
 
+```swift
+let node = HarbethImageNode.filters(
+    input: .source(.texture(inputTexture)),
+    filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.05)]
+)
+
+let nodeFrame = try HarbethIO(element: inputTexture, filters: [])
+    .renderFrame(node: node, profile: .stablePreview)
+let nodeDiagnostics = try HarbethIO(element: inputTexture, filters: [])
+    .renderDiagnostics(node: node)
+```
+
 ### 几何、局部蒙版与转场 Primitive
 
 Harbeth 现在补齐了一批可复用的编辑基础元件，但仍然保持底座定位，不把自己做成完整产品编辑器：
 
 - `ImageCropRegion`、`ImageTransformRecipe`、`AspectPolicy`、`CoordinateSpace`
 - `MaskDescriptor`、`MaskBlendMode`、`MaskFeatherPolicy`、`LocalEffectRecipe`
+- `ImageLayer`、`LayerCompositeRecipe`、`LayerBlendMode`，用于单帧 texture 图层合成
 - `TransitionKernel` 以及 dissolve、directional wipe、luma wipe、displacement 四个基础转场
 - 用于预览/最终输出分离的轻量 `EditRecipe`
 
@@ -436,6 +451,24 @@ let transition = TransitionRecipe(
 
 let transitionFrame = try HarbethIO(element: fromTexture, filters: [])
     .renderTransitionFrame(transition)
+```
+
+```swift
+let composite = LayerCompositeRecipe(
+    background: .texture(backgroundTexture),
+    layers: [
+        ImageLayer(
+            content: .texture(layerTexture),
+            normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+            opacity: 0.9,
+            blendMode: .sourceOver,
+            mask: MaskDescriptor(texture: maskTexture)
+        )
+    ]
+)
+
+let compositeTexture = try HarbethIO(element: backgroundTexture, filters: [])
+    .renderTexture(node: .layerComposite(composite))
 ```
 
 ### 🔧 安装方式
