@@ -24,7 +24,7 @@ extension HarbethIO {
             throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
         let outputPixelBuffer = try filtering(pixelBuffer: pixelBuffer)
-        guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer() else {
+        guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: sampleBuffer) else {
             throw HarbethError.CVPixelBufferToCMSampleBuffer
         }
         return buffer
@@ -68,7 +68,7 @@ extension HarbethIO {
         filtering(pixelBuffer: pixelBuffer, complete: { result in
             switch result {
             case .success(let outputPixelBuffer):
-                guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer() else {
+                guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: sampleBuffer) else {
                     complete(.failure(HarbethError.CVPixelBufferToCMSampleBuffer))
                     return
                 }

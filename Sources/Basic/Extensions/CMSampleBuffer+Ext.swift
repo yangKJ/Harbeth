@@ -32,6 +32,75 @@ extension CMSampleBuffer: HarbethCompatible {
 }
 
 extension HarbethWrapper where Base: CMSampleBuffer {
+    public var attachmentContract: SampleAttachmentContract {
+        SampleAttachmentContract(
+            notSync: base.getAttachmentValue(for: kCMSampleAttachmentKey_NotSync),
+            dependsOnOthers: base.getAttachmentValue(for: kCMSampleAttachmentKey_DependsOnOthers),
+            earlierDisplayTimesAllowed: base.getAttachmentValue(for: kCMSampleAttachmentKey_EarlierDisplayTimesAllowed),
+            displayImmediately: base.getAttachmentValue(for: kCMSampleAttachmentKey_DisplayImmediately),
+            doNotDisplay: base.getAttachmentValue(for: kCMSampleAttachmentKey_DoNotDisplay)
+        )
+    }
+
+    public var contract: SampleBufferContract {
+        let formatDescription = CMSampleBufferGetFormatDescription(base)
+        let imageBufferContract = CMSampleBufferGetImageBuffer(base)?.c7.contract
+        return SampleBufferContract(
+            numSamples: Int(CMSampleBufferGetNumSamples(base)),
+            isValid: CMSampleBufferIsValid(base),
+            presentationTimeStamp: TimeValueContract(time: CMSampleBufferGetPresentationTimeStamp(base)),
+            decodeTimeStamp: TimeValueContract(time: CMSampleBufferGetDecodeTimeStamp(base)),
+            duration: TimeValueContract(time: CMSampleBufferGetDuration(base)),
+            formatDescriptionMediaType: formatDescription.map(CMFormatDescriptionGetMediaType),
+            formatDescriptionMediaSubType: formatDescription.map(CMFormatDescriptionGetMediaSubType),
+            pixelBufferContract: imageBufferContract,
+            attachments: attachmentContract
+        )
+    }
+
+    public func makeDerivedSampleBuffer(imageBuffer: CVImageBuffer) -> CMSampleBuffer? {
+        var timingInfo = CMSampleTimingInfo(
+            duration: CMSampleBufferGetDuration(base),
+            presentationTimeStamp: CMSampleBufferGetPresentationTimeStamp(base),
+            decodeTimeStamp: CMSampleBufferGetDecodeTimeStamp(base)
+        )
+        var formatDescription: CMVideoFormatDescription?
+        guard CMVideoFormatDescriptionCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: imageBuffer,
+            formatDescriptionOut: &formatDescription
+        ) == noErr,
+        let formatDescription else {
+            return nil
+        }
+        var sampleBuffer: CMSampleBuffer?
+        let status = CMSampleBufferCreateReadyWithImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: imageBuffer,
+            formatDescription: formatDescription,
+            sampleTiming: &timingInfo,
+            sampleBufferOut: &sampleBuffer
+        )
+        guard status == noErr, let sampleBuffer else {
+            return nil
+        }
+        copyAttachments(to: sampleBuffer)
+        return sampleBuffer
+    }
+
+    public func copyAttachments(to sampleBuffer: CMSampleBuffer) {
+        let values: [(CFString, Bool?)] = [
+            (kCMSampleAttachmentKey_NotSync, base.getAttachmentValue(for: kCMSampleAttachmentKey_NotSync)),
+            (kCMSampleAttachmentKey_DependsOnOthers, base.getAttachmentValue(for: kCMSampleAttachmentKey_DependsOnOthers)),
+            (kCMSampleAttachmentKey_EarlierDisplayTimesAllowed, base.getAttachmentValue(for: kCMSampleAttachmentKey_EarlierDisplayTimesAllowed)),
+            (kCMSampleAttachmentKey_DisplayImmediately, base.getAttachmentValue(for: kCMSampleAttachmentKey_DisplayImmediately)),
+            (kCMSampleAttachmentKey_DoNotDisplay, base.getAttachmentValue(for: kCMSampleAttachmentKey_DoNotDisplay))
+        ]
+        for (key, value) in values {
+            guard let value else { continue }
+            sampleBuffer.setAttachmentValue(for: key, value: value)
+        }
+    }
     
     public func toCGImage() -> CGImage? {
         let pixelBuffer = CMSampleBufferGetImageBuffer(base)

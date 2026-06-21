@@ -155,7 +155,11 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(request.source.kind, "pixelBuffer")
         XCTAssertEqual(request.source.cachePolicy, .persistent)
         XCTAssertEqual(request.compilationSource, .filtersPrimitive)
+        XCTAssertEqual(request.source.pixelBufferContract?.colorModel, .rgba)
+        XCTAssertEqual(request.source.pixelBufferBridgePlan?.loadStrategy, .directMetalTexture)
+        XCTAssertTrue(request.source.fingerprint.contains("bridge={"))
         XCTAssertEqual(renderRecipe.source.kind, "pixelBuffer")
+        XCTAssertEqual(renderRecipe.source.pixelBufferContract?.planeCount, 1)
         XCTAssertEqual(renderRecipe.alphaType, .premultiplied)
         XCTAssertEqual(renderRecipe.orientation, .up)
     }
@@ -174,10 +178,11 @@ final class PixelBufferOutputTests: XCTestCase {
             kCVReturnSuccess
         )
         guard let pixelBuffer,
-              let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+              var sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
             XCTFail("Failed to create sample buffer.")
             return
         }
+        sampleBuffer.c7.isNotSync = true
 
         let node = HarbethImageNode.sampleBuffer(sampleBuffer)
             .applying(C7Brightness(brightness: 0.1))
@@ -185,10 +190,47 @@ final class PixelBufferOutputTests: XCTestCase {
         let renderRecipe = try XCTUnwrap(request.renderRecipe)
 
         XCTAssertEqual(request.source.kind, "sampleBuffer")
+        XCTAssertEqual(request.source.sampleBufferContract?.attachments.notSync, true)
+        XCTAssertEqual(request.source.sampleBufferContract?.pixelBufferContract?.planeCount, 1)
+        XCTAssertTrue(request.source.fingerprint.contains("sampleBuffer={"))
         XCTAssertEqual(renderRecipe.source.kind, "sampleBuffer")
+        XCTAssertEqual(renderRecipe.source.sampleBufferContract?.attachments.notSync, true)
         XCTAssertEqual(renderRecipe.alphaType, .premultiplied)
         XCTAssertEqual(renderRecipe.orientation, .up)
         XCTAssertEqual(request.diagnostics.compilationSource, .nodeGraph)
+    }
+
+    func testFilteringSampleBufferPreservesTimingAndAttachments() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: 2,
+            kCVPixelBufferHeightKey: 2,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, 2, 2, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &pixelBuffer),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer,
+              var sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        sampleBuffer.c7.isNotSync = true
+
+        let output: CMSampleBuffer = try HarbethIO(
+            element: sampleBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).output()
+
+        XCTAssertEqual(output.c7.presentationTimeStamp, sampleBuffer.c7.presentationTimeStamp)
+        XCTAssertEqual(output.c7.decodeTimeStamp, sampleBuffer.c7.decodeTimeStamp)
+        XCTAssertEqual(output.c7.duration, sampleBuffer.c7.duration)
+        XCTAssertEqual(output.c7.isNotSync, true)
+        XCTAssertEqual(output.c7.contract.attachments.notSync, true)
+        XCTAssertEqual(output.c7.contract.pixelBufferContract?.planeCount, 1)
     }
 
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {

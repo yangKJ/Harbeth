@@ -135,15 +135,41 @@ public enum HarbethSource {
     }
 
     public var descriptor: HarbethSourceDescriptor {
-        HarbethSourceDescriptor(
-            kind: kindName,
-            sourceTier: sourceTier,
-            alphaType: alphaType,
-            orientation: orientation,
-            cachePolicy: cachePolicy,
-            semantic: .sourceOriginal,
-            loadingOptions: loadingOptions
-        )
+        switch self {
+        case .pixelBuffer(let pixelBuffer):
+            return HarbethSourceDescriptor(
+                kind: kindName,
+                sourceTier: sourceTier,
+                alphaType: alphaType,
+                orientation: orientation,
+                cachePolicy: cachePolicy,
+                semantic: .sourceOriginal,
+                loadingOptions: loadingOptions,
+                pixelBufferContract: pixelBuffer.c7.contract,
+                pixelBufferBridgePlan: pixelBuffer.c7.makeTextureBridgePlan()
+            )
+        case .sampleBuffer(let sampleBuffer):
+            return HarbethSourceDescriptor(
+                kind: kindName,
+                sourceTier: sourceTier,
+                alphaType: alphaType,
+                orientation: orientation,
+                cachePolicy: cachePolicy,
+                semantic: .sourceOriginal,
+                loadingOptions: loadingOptions,
+                sampleBufferContract: sampleBuffer.c7.contract
+            )
+        default:
+            return HarbethSourceDescriptor(
+                kind: kindName,
+                sourceTier: sourceTier,
+                alphaType: alphaType,
+                orientation: orientation,
+                cachePolicy: cachePolicy,
+                semantic: .sourceOriginal,
+                loadingOptions: loadingOptions
+            )
+        }
     }
 
     var resolutionFingerprint: String {

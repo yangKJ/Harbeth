@@ -196,7 +196,10 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     
     /// Creates CMSampleBuffer from pixel buffer
     /// - Returns: CMSampleBuffer or nil
-    public func toCMSampleBuffer() -> CMSampleBuffer? {
+    public func toCMSampleBuffer(reference sampleBuffer: CMSampleBuffer? = nil) -> CMSampleBuffer? {
+        if let sampleBuffer {
+            return sampleBuffer.c7.makeDerivedSampleBuffer(imageBuffer: base)
+        }
         var newSampleBuffer: CMSampleBuffer?
         var timimgInfo = CMSampleTimingInfo.invalid
         var videoInfo: CMVideoFormatDescription?

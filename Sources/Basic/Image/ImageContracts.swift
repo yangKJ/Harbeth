@@ -481,6 +481,119 @@ public struct PixelBufferTextureBridgePlan: Sendable, Codable, Equatable, Hashab
     }
 }
 
+public struct TimeValueContract: Sendable, Codable, Equatable, Hashable {
+    public let value: Int64
+    public let timescale: Int32
+    public let epoch: Int64
+    public let flagsRawValue: UInt32
+    public let isValid: Bool
+
+    public init(time: CMTime) {
+        self.value = time.value
+        self.timescale = time.timescale
+        self.epoch = time.epoch
+        self.flagsRawValue = time.flags.rawValue
+        self.isValid = time.isValid
+    }
+
+    public var fingerprint: String {
+        [
+            "value=\(value)",
+            "timescale=\(timescale)",
+            "epoch=\(epoch)",
+            "flags=\(flagsRawValue)",
+            "valid=\(isValid ? 1 : 0)"
+        ].joined(separator: "|")
+    }
+}
+
+public struct SampleAttachmentContract: Sendable, Codable, Equatable, Hashable {
+    public let notSync: Bool?
+    public let dependsOnOthers: Bool?
+    public let earlierDisplayTimesAllowed: Bool?
+    public let displayImmediately: Bool?
+    public let doNotDisplay: Bool?
+
+    public init(notSync: Bool? = nil,
+                dependsOnOthers: Bool? = nil,
+                earlierDisplayTimesAllowed: Bool? = nil,
+                displayImmediately: Bool? = nil,
+                doNotDisplay: Bool? = nil) {
+        self.notSync = notSync
+        self.dependsOnOthers = dependsOnOthers
+        self.earlierDisplayTimesAllowed = earlierDisplayTimesAllowed
+        self.displayImmediately = displayImmediately
+        self.doNotDisplay = doNotDisplay
+    }
+
+    public var fingerprint: String {
+        [
+            "notSync=\(Self.stableBoolDescription(notSync))",
+            "depends=\(Self.stableBoolDescription(dependsOnOthers))",
+            "early=\(Self.stableBoolDescription(earlierDisplayTimesAllowed))",
+            "immediate=\(Self.stableBoolDescription(displayImmediately))",
+            "hidden=\(Self.stableBoolDescription(doNotDisplay))"
+        ].joined(separator: "|")
+    }
+
+    private static func stableBoolDescription(_ value: Bool?) -> String {
+        switch value {
+        case .some(true):
+            return "1"
+        case .some(false):
+            return "0"
+        case .none:
+            return "none"
+        }
+    }
+}
+
+public struct SampleBufferContract: Sendable, Codable, Equatable, Hashable {
+    public let numSamples: Int
+    public let isValid: Bool
+    public let presentationTimeStamp: TimeValueContract
+    public let decodeTimeStamp: TimeValueContract
+    public let duration: TimeValueContract
+    public let formatDescriptionMediaType: FourCharCode?
+    public let formatDescriptionMediaSubType: FourCharCode?
+    public let pixelBufferContract: PixelBufferContract?
+    public let attachments: SampleAttachmentContract
+
+    public init(numSamples: Int,
+                isValid: Bool,
+                presentationTimeStamp: TimeValueContract,
+                decodeTimeStamp: TimeValueContract,
+                duration: TimeValueContract,
+                formatDescriptionMediaType: FourCharCode?,
+                formatDescriptionMediaSubType: FourCharCode?,
+                pixelBufferContract: PixelBufferContract?,
+                attachments: SampleAttachmentContract) {
+        self.numSamples = numSamples
+        self.isValid = isValid
+        self.presentationTimeStamp = presentationTimeStamp
+        self.decodeTimeStamp = decodeTimeStamp
+        self.duration = duration
+        self.formatDescriptionMediaType = formatDescriptionMediaType
+        self.formatDescriptionMediaSubType = formatDescriptionMediaSubType
+        self.pixelBufferContract = pixelBufferContract
+        self.attachments = attachments
+    }
+
+    public var fingerprint: String {
+        [
+            "samples=\(numSamples)",
+            "valid=\(isValid ? 1 : 0)",
+            "pts={\(presentationTimeStamp.fingerprint)}",
+            "dts={\(decodeTimeStamp.fingerprint)}",
+            "duration={\(duration.fingerprint)}",
+            "mediaType=\(formatDescriptionMediaType.map(String.init) ?? "none")",
+            "subType=\(formatDescriptionMediaSubType.map(String.init) ?? "none")",
+            attachments.fingerprint,
+            pixelBufferContract.map { "pixelBuffer={\($0.fingerprint)}" } ?? "pixelBuffer=none"
+        ].joined(separator: "|")
+    }
+}
+
 /// 图像采样合同，用于 lazy graph、render diagnostics 和 sampler cache。
 public struct ImageSamplerDescriptor: Sendable, Equatable, Hashable {
     public let minFilter: MTLSamplerMinMagFilter
@@ -538,6 +651,9 @@ public struct HarbethSourceDescriptor: Sendable, Hashable, Codable {
     public let cachePolicy: ImageCachePolicy
     public let semantic: ImageSemanticDescriptor
     public let loadingOptions: ImageLoadingOptions
+    public let pixelBufferContract: PixelBufferContract?
+    public let pixelBufferBridgePlan: PixelBufferTextureBridgePlan?
+    public let sampleBufferContract: SampleBufferContract?
 
     public init(kind: String,
                 sourceTier: ImageSourceTier = .original,
@@ -545,7 +661,10 @@ public struct HarbethSourceDescriptor: Sendable, Hashable, Codable {
                 orientation: FrameOrientation,
                 cachePolicy: ImageCachePolicy,
                 semantic: ImageSemanticDescriptor = .sourceOriginal,
-                loadingOptions: ImageLoadingOptions = .default) {
+                loadingOptions: ImageLoadingOptions = .default,
+                pixelBufferContract: PixelBufferContract? = nil,
+                pixelBufferBridgePlan: PixelBufferTextureBridgePlan? = nil,
+                sampleBufferContract: SampleBufferContract? = nil) {
         self.kind = kind
         self.sourceTier = sourceTier
         self.alphaType = alphaType
@@ -553,10 +672,13 @@ public struct HarbethSourceDescriptor: Sendable, Hashable, Codable {
         self.cachePolicy = cachePolicy
         self.semantic = semantic
         self.loadingOptions = loadingOptions
+        self.pixelBufferContract = pixelBufferContract
+        self.pixelBufferBridgePlan = pixelBufferBridgePlan
+        self.sampleBufferContract = sampleBufferContract
     }
 
     public var fingerprint: String {
-        [
+        var parts = [
             "kind=\(kind)",
             "tier=\(sourceTier.rawValue)",
             "alpha=\(alphaType.rawValue)",
@@ -564,7 +686,17 @@ public struct HarbethSourceDescriptor: Sendable, Hashable, Codable {
             "cache=\(cachePolicy.rawValue)",
             semantic.fingerprint,
             loadingOptions.fingerprint
-        ].joined(separator: "|")
+        ]
+        if let pixelBufferContract {
+            parts.append("pixelBuffer={\(pixelBufferContract.fingerprint)}")
+        }
+        if let pixelBufferBridgePlan {
+            parts.append("bridge={\(pixelBufferBridgePlan.fingerprint)}")
+        }
+        if let sampleBufferContract {
+            parts.append("sampleBuffer={\(sampleBufferContract.fingerprint)}")
+        }
+        return parts.joined(separator: "|")
     }
 }
 
