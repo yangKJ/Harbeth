@@ -33,24 +33,79 @@ public enum HarbethKernelFunctionKind: String, Sendable, Codable, Equatable, Has
     case advancedMetal
 }
 
-public struct HarbethKernelFunctionIdentity: Sendable, Codable, Equatable, Hashable {
-    public let kind: HarbethKernelFunctionKind
-    public let primaryName: String
-    public let secondaryName: String?
+public enum HarbethKernelFunctionConstantValue: Sendable, Codable, Equatable, Hashable {
+    case bool(Bool)
+    case int(Int)
+    case float(Float)
+    case string(String)
 
-    public init(kind: HarbethKernelFunctionKind,
-                primaryName: String,
-                secondaryName: String? = nil) {
-        self.kind = kind
-        self.primaryName = primaryName
-        self.secondaryName = secondaryName
+    public var fingerprint: String {
+        switch self {
+        case .bool(let value):
+            return "bool:\(value ? 1 : 0)"
+        case .int(let value):
+            return "int:\(value)"
+        case .float(let value):
+            return "float:\(String(format: "%.4f", value))"
+        case .string(let value):
+            return "string:\(value)"
+        }
+    }
+}
+
+public struct HarbethKernelFunctionConstantDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let name: String
+    public let index: Int?
+    public let value: HarbethKernelFunctionConstantValue
+
+    public init(name: String,
+                index: Int? = nil,
+                value: HarbethKernelFunctionConstantValue) {
+        self.name = name
+        self.index = index
+        self.value = value
     }
 
     public var fingerprint: String {
         [
+            "constant=\(name)",
+            "index=\(index.map(String.init) ?? "named")",
+            "value=\(value.fingerprint)"
+        ].joined(separator: "|")
+    }
+}
+
+public struct HarbethKernelFunctionIdentity: Sendable, Codable, Equatable, Hashable {
+    public let kind: HarbethKernelFunctionKind
+    public let primaryName: String
+    public let secondaryName: String?
+    public let functionConstants: [HarbethKernelFunctionConstantDescriptor]
+
+    public init(kind: HarbethKernelFunctionKind,
+                primaryName: String,
+                secondaryName: String? = nil,
+                functionConstants: [HarbethKernelFunctionConstantDescriptor] = []) {
+        self.kind = kind
+        self.primaryName = primaryName
+        self.secondaryName = secondaryName
+        self.functionConstants = functionConstants
+    }
+
+    public var fingerprint: String {
+        let constants = functionConstants
+            .sorted { lhs, rhs in
+                if lhs.name == rhs.name {
+                    return (lhs.index ?? -1) < (rhs.index ?? -1)
+                }
+                return lhs.name < rhs.name
+            }
+            .map(\.fingerprint)
+            .joined(separator: "||")
+        return [
             "kind=\(kind.rawValue)",
             "primary=\(primaryName)",
-            "secondary=\(secondaryName ?? "none")"
+            "secondary=\(secondaryName ?? "none")",
+            "constants=\(constants.isEmpty ? "none" : constants)"
         ].joined(separator: "|")
     }
 }
@@ -89,6 +144,7 @@ public enum HarbethKernelParameterValue: Sendable, Codable, Equatable, Hashable 
 
 public enum HarbethKernelArgumentRole: String, Sendable, Codable, Equatable, Hashable {
     case parameter
+    case functionConstant
     case inputTexture
     case outputTexture
     case resourceState
@@ -248,7 +304,12 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
         self.filterName = filterName
         self.functionIdentity = functionIdentity
         self.parameters = parameters
-        self.arguments = arguments.isEmpty ? HarbethKernelDescriptor.makeArgumentDescriptors(parameters: parameters) : arguments
+        self.arguments = arguments.isEmpty
+            ? HarbethKernelDescriptor.makeArgumentDescriptors(
+                parameters: parameters,
+                functionConstants: functionIdentity.functionConstants
+            )
+            : arguments
         self.output = output
         self.resourceUsage = resourceUsage
         self.resources = resources ?? HarbethKernelResourceDescriptor(usage: resourceUsage, inputTextureCount: 1)
@@ -287,8 +348,9 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
         ].joined(separator: "|")
     }
 
-    private static func makeArgumentDescriptors(parameters: [String: HarbethKernelParameterValue]) -> [HarbethKernelArgumentDescriptor] {
-        parameters
+    private static func makeArgumentDescriptors(parameters: [String: HarbethKernelParameterValue],
+                                                functionConstants: [HarbethKernelFunctionConstantDescriptor]) -> [HarbethKernelArgumentDescriptor] {
+        let parameterDescriptors = parameters
             .sorted { $0.key < $1.key }
             .enumerated()
             .map { index, pair in
@@ -301,6 +363,25 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
                     valueFingerprint: pair.value.fingerprint
                 )
             }
+        let constantDescriptors = functionConstants
+            .sorted { lhs, rhs in
+                if lhs.name == rhs.name {
+                    return (lhs.index ?? -1) < (rhs.index ?? -1)
+                }
+                return lhs.name < rhs.name
+            }
+            .enumerated()
+            .map { offset, constant in
+                HarbethKernelArgumentDescriptor(
+                    name: constant.name,
+                    index: parameterDescriptors.count + offset,
+                    role: .functionConstant,
+                    dataType: constant.value.argumentDataType,
+                    required: true,
+                    valueFingerprint: constant.value.fingerprint
+                )
+            }
+        return parameterDescriptors + constantDescriptors
     }
 }
 
@@ -428,6 +509,21 @@ private extension HarbethKernelParameterValue {
             return .intArray
         case .stringArray:
             return .stringArray
+        }
+    }
+}
+
+private extension HarbethKernelFunctionConstantValue {
+    var argumentDataType: HarbethKernelArgumentDataType {
+        switch self {
+        case .bool:
+            return .bool
+        case .int:
+            return .int
+        case .float:
+            return .float
+        case .string:
+            return .string
         }
     }
 }

@@ -107,6 +107,57 @@ final class HarbethImageNodeTests: XCTestCase {
         }))
     }
 
+    func testKernelDescriptorFunctionConstantsAreSpecializationContracts() {
+        let constants = [
+            HarbethKernelFunctionConstantDescriptor(
+                name: "harbeth::outputsPremultipliedAlpha",
+                index: 3,
+                value: .bool(true)
+            ),
+            HarbethKernelFunctionConstantDescriptor(
+                name: "harbeth::blendMode",
+                index: 1,
+                value: .int(8)
+            )
+        ]
+        let reversedConstants = Array(constants.reversed())
+        let firstIdentity = HarbethKernelFunctionIdentity(
+            kind: .render,
+            primaryName: "C7VertexPassthrough",
+            secondaryName: "C7LayerComposite",
+            functionConstants: constants
+        )
+        let secondIdentity = HarbethKernelFunctionIdentity(
+            kind: .render,
+            primaryName: "C7VertexPassthrough",
+            secondaryName: "C7LayerComposite",
+            functionConstants: reversedConstants
+        )
+        let descriptor = HarbethKernelDescriptor(
+            filterName: "C7LayerComposite",
+            functionIdentity: firstIdentity,
+            parameters: ["opacity": .float(0.5)],
+            resourceUsage: .multiInput
+        )
+
+        XCTAssertEqual(firstIdentity.fingerprint, secondIdentity.fingerprint)
+        XCTAssertEqual(descriptor.functionIdentity.functionConstants.count, 2)
+        XCTAssertEqual(descriptor.passes[0].functionIdentity.functionConstants.count, 2)
+        XCTAssertTrue(descriptor.fingerprint.contains("constants=constant=harbeth::blendMode"))
+        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
+            argument.name == "harbeth::blendMode"
+                && argument.role == .functionConstant
+                && argument.dataType == .int
+                && argument.valueFingerprint == "int:8"
+        }))
+        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
+            argument.name == "harbeth::outputsPremultipliedAlpha"
+                && argument.role == .functionConstant
+                && argument.dataType == .bool
+                && argument.valueFingerprint == "bool:1"
+        }))
+    }
+
     func testKernelDescriptorTracksAlphaAndResourceContracts() {
         let premultiply = C7PremultiplyAlpha().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
         let unpremultiply = C7UnpremultiplyAlpha().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
