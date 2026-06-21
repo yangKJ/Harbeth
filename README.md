@@ -131,6 +131,55 @@ let stableFrame = try io.renderFrame(profile: .stablePreview)
 let exportTexture = try io.renderTexture(profile: .exportQuality)
 ```
 
+### Execution Core
+
+Harbeth now exposes a more explicit execution core for host apps that need stable contracts instead of one-off image output:
+
+- `HarbethContext.shared`: unified access to `MTLDevice`, `MTLCommandQueue`, pipeline caches, sampler cache, texture pool, and `CVMetalTextureCache`.
+- `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
+- `KernelContractDescriptor`: lightweight technical metadata for a filter's execution path, function identity, multi-input usage, and alpha behavior.
+
+```swift
+let context = HarbethContext.shared
+let frame = try HarbethIO(element: inputTexture, filters: filters)
+    .renderFrame(profile: .stablePreview)
+
+let cacheSnapshot = context.debugCacheSnapshot()
+let semantic = frame.semantic
+let replayContract = frame.replayBaseContract
+```
+
+### Geometry, Local Mask, and Transition Primitives
+
+Harbeth now includes reusable editor-grade primitives without turning the core into a product-specific editor:
+
+- `ImageCropRegion`, `ImageTransformRecipe`, `AspectPolicy`, `CoordinateSpace`
+- `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`, `LocalEffectRecipe`
+- `TransitionKernel` with built-in dissolve, directional wipe, luma wipe, and displacement transitions
+- `EditRecipe` for lightweight preview/final render contracts
+
+```swift
+let geometry = ImageTransformRecipe(
+    cropRegion: ImageCropRegion(
+        rect: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+        coordinateSpace: .normalized
+    ),
+    targetSize: CGSize(width: 1080, height: 1080),
+    aspectPolicy: .fill
+)
+
+let baseFilters = geometry.makeFilters(inputSize: C7Size(width: 4032, height: 3024))
+let recipe = EditRecipe(
+    geometry: geometry,
+    filters: baseFilters + [C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75)],
+    previewProfile: .stablePreview,
+    finalProfile: .exportQuality
+)
+
+let previewContract = recipe.contract(for: .preview)
+let finalContract = recipe.contract(for: .final)
+```
+
 ### 🎨 Real-time Filter Effects
 
 Harbeth delivers stunning visual effects with GPU-accelerated real-time processing:

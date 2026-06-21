@@ -42,6 +42,12 @@ extension HarbethIO {
             profile: profile,
             derivative: derivative ?? profile.defaultDerivativeSpec
         )
+        if Shared.shared.enablePerformanceMonitor {
+            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
+            if plan.requiresCompletedGPUWork {
+                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+            }
+        }
         return plan.diagnostics
     }
 

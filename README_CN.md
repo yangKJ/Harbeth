@@ -367,6 +367,55 @@ let stableFrame = try io.renderFrame(profile: .stablePreview)
 let exportTexture = try io.renderTexture(profile: .exportQuality)
 ```
 
+### 执行内核
+
+Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定 contract，而不是只把它当成“一次性出图”的工具：
+
+- `HarbethContext.shared`：统一持有 `MTLDevice`、`MTLCommandQueue`、pipeline cache、sampler cache、texture pool 和 `CVMetalTextureCache`
+- `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
+- `KernelContractDescriptor`：提供滤镜执行路径、function identity、多输入资源使用和 alpha 行为的技术元数据
+
+```swift
+let context = HarbethContext.shared
+let frame = try HarbethIO(element: inputTexture, filters: filters)
+    .renderFrame(profile: .stablePreview)
+
+let cacheSnapshot = context.debugCacheSnapshot()
+let semantic = frame.semantic
+let replayContract = frame.replayBaseContract
+```
+
+### 几何、局部蒙版与转场 Primitive
+
+Harbeth 现在补齐了一批可复用的编辑基础元件，但仍然保持底座定位，不把自己做成完整产品编辑器：
+
+- `ImageCropRegion`、`ImageTransformRecipe`、`AspectPolicy`、`CoordinateSpace`
+- `MaskDescriptor`、`MaskBlendMode`、`MaskFeatherPolicy`、`LocalEffectRecipe`
+- `TransitionKernel` 以及 dissolve、directional wipe、luma wipe、displacement 四个基础转场
+- 用于预览/最终输出分离的轻量 `EditRecipe`
+
+```swift
+let geometry = ImageTransformRecipe(
+    cropRegion: ImageCropRegion(
+        rect: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+        coordinateSpace: .normalized
+    ),
+    targetSize: CGSize(width: 1080, height: 1080),
+    aspectPolicy: .fill
+)
+
+let baseFilters = geometry.makeFilters(inputSize: C7Size(width: 4032, height: 3024))
+let recipe = EditRecipe(
+    geometry: geometry,
+    filters: baseFilters + [C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75)],
+    previewProfile: .stablePreview,
+    finalProfile: .exportQuality
+)
+
+let previewContract = recipe.contract(for: .preview)
+let finalContract = recipe.contract(for: .final)
+```
+
 ### 🔧 安装方式
 
 #### CocoaPods

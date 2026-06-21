@@ -32,6 +32,8 @@ public final class Shared {
     /// Considering that there are quite a lot of performance-consuming objects in `Device`, design a singleton for global use.
     /// Once Metal is no longer used, call this method to release it.
     public func deinitDevice() {
+        context?.resetCaches()
+        context = nil
         device = nil
         texturePool = nil
         performanceMonitor = nil

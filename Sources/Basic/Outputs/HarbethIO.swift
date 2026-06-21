@@ -291,11 +291,18 @@ extension HarbethIO {
 extension HarbethIO {
     
     func makeRenderPlan(input texture: MTLTexture) -> RenderPlan {
-        return GraphCompiler.compile(
+        let plan = GraphCompiler.compile(
             filters: filters,
             inputSize: C7Size(width: texture.width, height: texture.height),
             profile: renderProfile
         )
+        if Shared.shared.enablePerformanceMonitor {
+            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
+            if plan.requiresCompletedGPUWork {
+                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+            }
+        }
+        return plan
     }
 
     private func groupStrategy(for plan: RenderPlan) -> GroupStrategy {
@@ -326,6 +333,13 @@ extension HarbethIO {
             .texturePixelFormat: targetPixelFormat
         ], identifier: identifier)
         if Shared.shared.enablePerformanceMonitor {
+            if sourceTexture.pixelFormat != targetPixelFormat {
+                Shared.shared.performanceMonitor?.recordPixelFormatConversion(
+                    identifier,
+                    from: sourceTexture.pixelFormat,
+                    to: targetPixelFormat
+                )
+            }
             // Record memory allocation
             let bytesPerPixel = 4 // RGBA8
             let memoryBytes = resize.width * resize.height * bytesPerPixel
@@ -346,6 +360,13 @@ extension HarbethIO {
             .texturePixelFormat: targetPixelFormat
         ], identifier: identifier)
         if Shared.shared.enablePerformanceMonitor {
+            if sourceTexture.pixelFormat != targetPixelFormat {
+                Shared.shared.performanceMonitor?.recordPixelFormatConversion(
+                    identifier,
+                    from: sourceTexture.pixelFormat,
+                    to: targetPixelFormat
+                )
+            }
             let bytesPerPixel = 4
             let memoryBytes = resize.width * resize.height * bytesPerPixel
             Shared.shared.performanceMonitor?.recordMemoryAllocation(identifier, bytes: memoryBytes, source: "TextureLease")

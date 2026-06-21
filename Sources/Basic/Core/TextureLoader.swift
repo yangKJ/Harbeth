@@ -10,6 +10,7 @@ import Metal
 import MetalKit
 import ImageIO
 import CoreGraphics
+import ObjectiveC
 
 /// Converts various image sources into Metal textures or creates empty ones.
 public struct TextureLoader {
@@ -68,6 +69,7 @@ extension TextureLoader {
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
         if let texture = pixelBuffer.c7.toMTLTexture() {
+            TextureOwnerRegistry.attach(pixelBuffer, to: texture)
             self.texture = texture
             return
         }
@@ -90,6 +92,7 @@ extension TextureLoader {
         let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
         let region = MTLRegionMake2D(0, 0, width, height)
         texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddress, bytesPerRow: bytesPerRow)
+        TextureOwnerRegistry.attach(pixelBuffer, to: texture)
         self.texture = texture
     }
     
@@ -238,6 +241,7 @@ extension TextureLoader {
         }
         if let texture = pooledTexture {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
+            Shared.shared.performanceMonitor?.recordTextureReuse(identifier, source: "TexturePool")
             return texture
         }
         
@@ -259,6 +263,7 @@ extension TextureLoader {
             throw HarbethError.makeTexture
         }
         Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
+        Shared.shared.performanceMonitor?.recordRenderTargetCreation(identifier)
         return texture
     }
 
@@ -283,6 +288,7 @@ extension TextureLoader {
             logicalExtent: logicalExtent
         ) {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
+            Shared.shared.performanceMonitor?.recordTextureReuse(identifier, source: "TextureLease")
             return lease
         }
 

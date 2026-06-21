@@ -10,16 +10,16 @@ import MetalKit
 
 struct Rendering {
     
-    static func makeRenderPipelineState(with vertex: String, fragment: String) throws -> MTLRenderPipelineState {
-        let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
-        descriptor.rasterSampleCount = 1
-        descriptor.vertexFunction = try Device.readMTLFunction(vertex)
-        descriptor.fragmentFunction = try Device.readMTLFunction(fragment)
-        guard let pipelineState = try? Device.device().makeRenderPipelineState(descriptor: descriptor) else {
-            throw HarbethError.renderPipelineState(vertex, fragment)
-        }
-        return pipelineState
+    static func makeRenderPipelineState(with vertex: String,
+                                        fragment: String,
+                                        pixelFormat: MTLPixelFormat,
+                                        sampleCount: Int = 1) throws -> MTLRenderPipelineState {
+        try HarbethContext.shared.makeRenderPipelineState(
+            vertex: vertex,
+            fragment: fragment,
+            pixelFormat: pixelFormat,
+            sampleCount: sampleCount
+        )
     }
     
     static func drawing(_ pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer, texture: MTLTexture, destTexture: MTLTexture, filter: C7FilterProtocol) {
@@ -33,7 +33,7 @@ struct Rendering {
             HarbethError.failed("Could not create render encoder")
             return
         }
-        let device = Device.device()
+        let device = HarbethContext.shared.device
         let size = MemoryLayout<Float>.size
         
         renderEncoder.setFrontFacing(MTLWinding.counterClockwise)

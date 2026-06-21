@@ -61,11 +61,7 @@ public final class Device: Cacheable {
         self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
         
         self.harbethLibrary = Device.makeFrameworkLibrary(device, for: "Harbeth")
-        
-        if defaultLibrary == nil && harbethLibrary == nil {
-            HarbethError.failed("Could not load library")
-        }
-        
+
         self._commandBufferPool = CommandBufferPool(maxSize: 4, commandQueue: commandQueue)
     }
     
@@ -250,6 +246,12 @@ extension Device {
         defer { pipelineLock.unlock() }
         pipelines[kernel] = pipeline
     }
+
+    var pipelineCount: Int {
+        pipelineLock.lock()
+        defer { pipelineLock.unlock() }
+        return pipelines.count
+    }
     
     /// Get maximum concurrent render tasks
     public var maxConcurrentRenderTasks: Int {
@@ -284,34 +286,50 @@ extension Device {
             return library
         }
         #endif
-        
-        /// Fixed the read failure of imported local resources was rectified.
-        if let library = try? device.makeDefaultLibrary(bundle: Bundle(for: Device.self)) {
-            return library
+
+        let candidateBundles: [Bundle] = {
+            var bundles: [Bundle] = [Bundle(for: Device.self), Bundle.main]
+            bundles.append(contentsOf: Bundle.allFrameworks)
+            bundles.append(contentsOf: Bundle.allBundles)
+            return Array(NSOrderedSet(array: bundles)) as? [Bundle] ?? bundles
+        }()
+
+        for bundle in candidateBundles {
+            if let library = try? device.makeDefaultLibrary(bundle: bundle) {
+                return library
+            }
+            if let libraryFile = bundle.path(forResource: "default", ofType: "metallib") {
+                if let library = try? device.makeLibrary(filepath: libraryFile) {
+                    return library
+                }
+                if #available(macOS 10.13, iOS 11.0, *),
+                   let url = URL(string: libraryFile),
+                   let library = try? device.makeLibrary(URL: url) {
+                    return library
+                }
+            }
+            #if SWIFT_PACKAGE
+            if let library = makeSourceLibrary(device, bundle: bundle) {
+                return library
+            }
+            #endif
         }
-        
+
         let bundle = R.readFrameworkBundle(with: resource)
-        /// Fixed libraryFile is nil. podspec file `s.static_framework = false`
-        /// https://github.com/CocoaPods/CocoaPods/issues/7967
-        guard let libraryFile = bundle?.path(forResource: "default", ofType: "metallib") else {
-            return nil
-        }
-        
-        /// Compatible with the Bundle address used by CocoaPods to import framework.
-        if let library = try? device.makeLibrary(filepath: libraryFile) {
-            return library
-        }
-        
-        if #available(macOS 10.13, iOS 11.0, *) {
-            if let url = URL(string: libraryFile), let library = try? device.makeLibrary(URL: url) {
+        if let libraryFile = bundle?.path(forResource: "default", ofType: "metallib") {
+            if let library = try? device.makeLibrary(filepath: libraryFile) {
+                return library
+            }
+            if #available(macOS 10.13, iOS 11.0, *),
+               let url = URL(string: libraryFile),
+               let library = try? device.makeLibrary(URL: url) {
                 return library
             }
         }
-        
+
         return nil
     }
     
-    #if SWIFT_PACKAGE
     private static func makeSourceLibrary(_ device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
         guard let resourceURL = bundle.resourceURL,
               let enumerator = FileManager.default.enumerator(
@@ -346,7 +364,66 @@ extension Device {
             return nil
         }
     }
-    #endif
+
+    private static func makeSourceFallbackLibrary(_ device: MTLDevice, functionName: String) -> MTLLibrary? {
+        #if SWIFT_PACKAGE
+        if let library = makeSourceLibrary(device, bundle: Bundle.module),
+           library.makeFunction(name: functionName) != nil {
+            return library
+        }
+        #endif
+
+        let candidateBundles: [Bundle] = {
+            var bundles: [Bundle] = [Bundle(for: Device.self), Bundle.main]
+            bundles.append(contentsOf: Bundle.allFrameworks)
+            bundles.append(contentsOf: Bundle.allBundles)
+            return Array(NSOrderedSet(array: bundles)) as? [Bundle] ?? bundles
+        }()
+
+        for bundle in candidateBundles {
+            if let library = makeSourceLibrary(device, bundle: bundle),
+               library.makeFunction(name: functionName) != nil {
+                return library
+            }
+        }
+        if let library = makeSourceTreeLibrary(device),
+           library.makeFunction(name: functionName) != nil {
+            return library
+        }
+        return nil
+    }
+
+    private static func makeSourceTreeLibrary(_ device: MTLDevice) -> MTLLibrary? {
+        let fileURL = URL(fileURLWithPath: #filePath)
+        let sourcesRoot = fileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        guard let enumerator = FileManager.default.enumerator(
+            at: sourcesRoot,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        var source = ""
+        for case let fileURL as URL in enumerator where fileURL.pathExtension == "metal" {
+            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                  values.isRegularFile == true,
+                  let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
+                continue
+            }
+            source += "\n// MARK: - \(fileURL.lastPathComponent)\n"
+            source += content
+            source += "\n"
+        }
+
+        guard source.isEmpty == false else {
+            return nil
+        }
+        return try? device.makeLibrary(source: source, options: nil)
+    }
     
     public static func readMTLFunction(_ name: String) throws -> MTLFunction {
         /// Read external libraries
@@ -363,6 +440,11 @@ extension Device {
         }
         // Last read from ``Harbeth Framework``
         if let libray = existingSharedDevice?.harbethLibrary, let function = libray.makeFunction(name: name) {
+            return function
+        }
+        if let metalDevice = existingSharedDevice?.device ?? MTLCreateSystemDefaultDevice(),
+           let fallbackLibrary = makeSourceFallbackLibrary(metalDevice, functionName: name),
+           let function = fallbackLibrary.makeFunction(name: name) {
             return function
         }
         #if DEBUG

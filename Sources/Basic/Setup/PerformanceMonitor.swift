@@ -102,6 +102,59 @@ public final class PerformanceMonitor {
             metricsCache[identifier]?.textureReuses += 1
         }
     }
+
+    public func recordTextureReuse(_ identifier: String, source: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.resourceEvents.append("reuse:\(source)")
+    }
+
+    public func recordPipelineCacheLookup(_ identifier: String, hit: Bool) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        if hit {
+            metricsCache[identifier]?.pipelineCacheHits += 1
+        } else {
+            metricsCache[identifier]?.pipelineCacheMisses += 1
+        }
+    }
+
+    public func recordRenderStageCount(_ identifier: String, stageCount: Int) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.stageCount = stageCount
+    }
+
+    public func recordReadbackBoundary(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.readbackBoundaryCount += 1
+    }
+
+    public func recordPixelFormatConversion(_ identifier: String, from: MTLPixelFormat, to: MTLPixelFormat) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.pixelFormatConversions += 1
+        metricsCache[identifier]?.resourceEvents.append("pixelFormat:\(from.rawValue)->\(to.rawValue)")
+    }
+
+    public func recordRenderTargetCreation(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.renderTargetCreations += 1
+    }
     
     public func recordFilterProcessing(_ identifier: String, filterName: String, duration: TimeInterval) {
         guard configuration.enabled else { return }
@@ -213,6 +266,12 @@ public final class PerformanceMonitor {
             summary.averageGPUUtilization += metrics.gpuUtilization
             summary.totalTextureCreations += metrics.textureCreations
             summary.totalTextureReuses += metrics.textureReuses
+            summary.totalPipelineCacheHits += metrics.pipelineCacheHits
+            summary.totalPipelineCacheMisses += metrics.pipelineCacheMisses
+            summary.totalStages += metrics.stageCount
+            summary.totalReadbackBoundaries += metrics.readbackBoundaryCount
+            summary.totalPixelFormatConversions += metrics.pixelFormatConversions
+            summary.totalRenderTargetCreations += metrics.renderTargetCreations
             summary.totalFilters += metrics.filterProcessingTimes.count
             summary.totalMemoryAllocated += metrics.totalMemoryAllocated
             summary.peakMemoryAllocation = max(summary.peakMemoryAllocation, metrics.peakMemoryAllocation)
@@ -255,6 +314,7 @@ public final class PerformanceMonitor {
         let gpuTimeStr = gpuTime > 0 ? String(format: "%.3f", gpuTime * 1000) : "0.000"
         let gpuUtilizationStr = String(format: "%.1f", metrics.gpuUtilization * 100)
         let texHit = String(format: "%.1f", metrics.textureCacheHitRate * 100)
+        let pipelineHit = String(format: "%.1f", metrics.pipelineCacheHitRate * 100)
         let memAlloc = String(format: "%.1f", Double(metrics.totalMemoryAllocated) / 1_000_000)
         let peakMem = String(format: "%.1f", Double(metrics.peakMemoryAllocation) / 1_000_000)
         
@@ -280,7 +340,7 @@ public final class PerformanceMonitor {
         print("""
         [PerformanceMonitor Info] \(identifier):
         Total Time: \(totalTimeStr)ms | CPU Time: \(cpuTimeStr)ms | GPU Time: \(gpuTimeStr)ms
-        GPU Utilization: \(gpuUtilizationStr)% | Texture Hit Rate: \(texHit)%
+        GPU Utilization: \(gpuUtilizationStr)% | Texture Hit Rate: \(texHit)% | Pipeline Hit Rate: \(pipelineHit)%
         Memory Allocated: \(memAlloc) MB | Peak Memory: \(peakMem) MB | Errors: \(metrics.errors.count)\(filterStr)\(counterStr)
         """)
         
@@ -310,6 +370,12 @@ extension PerformanceMonitor {
         public var gpuCpuRatio: Double = 0
         public var totalTextureCreations: Int = 0
         public var totalTextureReuses: Int = 0
+        public var totalPipelineCacheHits: Int = 0
+        public var totalPipelineCacheMisses: Int = 0
+        public var totalStages: Int = 0
+        public var totalReadbackBoundaries: Int = 0
+        public var totalPixelFormatConversions: Int = 0
+        public var totalRenderTargetCreations: Int = 0
         public var totalFilters: Int = 0
         public var totalMemoryAllocated: Int = 0
         public var peakMemoryAllocation: Int = 0
@@ -318,6 +384,11 @@ extension PerformanceMonitor {
         public var textureCacheHitRate: Double {
             let total = totalTextureCreations + totalTextureReuses
             return total > 0 ? Double(totalTextureReuses) / Double(total) : 0
+        }
+
+        public var pipelineCacheHitRate: Double {
+            let total = totalPipelineCacheHits + totalPipelineCacheMisses
+            return total > 0 ? Double(totalPipelineCacheHits) / Double(total) : 0
         }
     }
     
@@ -345,15 +416,27 @@ extension PerformanceMonitor {
         
         public var textureCreations: Int = 0
         public var textureReuses: Int = 0
+        public var pipelineCacheHits: Int = 0
+        public var pipelineCacheMisses: Int = 0
+        public var stageCount: Int = 0
+        public var readbackBoundaryCount: Int = 0
+        public var pixelFormatConversions: Int = 0
+        public var renderTargetCreations: Int = 0
         public var textureCacheHitRate: Double {
             let total = textureCreations + textureReuses
             return total > 0 ? Double(textureReuses) / Double(total) : 0
+        }
+
+        public var pipelineCacheHitRate: Double {
+            let total = pipelineCacheHits + pipelineCacheMisses
+            return total > 0 ? Double(pipelineCacheHits) / Double(total) : 0
         }
         
         public var filterProcessingTimes: [String: TimeInterval] = [:]
         public var performanceCounters: [String: Double] = [:]
         public var memoryAllocations: [MemoryAllocation] = []
         public var errors: [String] = []
+        public var resourceEvents: [String] = []
         
         public struct MemoryAllocation {
             public let timestamp: TimeInterval
@@ -371,10 +454,17 @@ extension PerformanceMonitor {
             gpuTotalTimeNanoseconds = 0
             textureCreations = 0
             textureReuses = 0
+            pipelineCacheHits = 0
+            pipelineCacheMisses = 0
+            stageCount = 0
+            readbackBoundaryCount = 0
+            pixelFormatConversions = 0
+            renderTargetCreations = 0
             filterProcessingTimes.removeAll()
             performanceCounters.removeAll()
             memoryAllocations.removeAll()
             errors.removeAll()
+            resourceEvents.removeAll()
         }
         
         public var slowestFilter: (name: String, time: TimeInterval)? {
