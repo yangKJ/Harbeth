@@ -33,6 +33,31 @@ extension HarbethIO {
             .output()
     }
 
+    /// texture-first task output for callers that need to observe GPU completion.
+    public func startRenderTextureTask(profile: RenderProfile = .stablePreview,
+                                       derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderTask<MTLTexture> {
+        let sourceObject = try makeHarbethSource()
+        let source = try sourceObject.makeTexture()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let effectiveFilters = makeEffectiveFilters(
+            inputSize: C7Size(width: source.width, height: source.height),
+            derivative: effectiveDerivative
+        )
+        let diagnostics = GraphCompiler.compile(
+            filters: filters,
+            inputSize: C7Size(width: source.width, height: source.height),
+            profile: profile,
+            derivative: effectiveDerivative,
+            compilationSource: .filtersPrimitive
+        ).diagnostics
+        guard effectiveFilters.isEmpty == false else {
+            return .completed(identifier: identifier, output: source, diagnostics: diagnostics)
+        }
+        return try HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+            .configured(for: profile)
+            .startRenderTextureTask(diagnostics: diagnostics)
+    }
+
     /// 结构化渲染计划诊断，供上层做日志、调度、缓存和大图策略分析。
     public func renderDiagnostics(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
         let source = try makeHarbethSource().makeTexture()

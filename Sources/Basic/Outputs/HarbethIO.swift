@@ -525,6 +525,47 @@ extension HarbethIO {
 
 extension HarbethIO where Dest == MTLTexture {
 
+    /// Starts a texture render task and returns a GPU task handle for status observation.
+    ///
+    /// This API is for advanced texture-first callers that need command-buffer status,
+    /// completion observation, or explicit waiting without changing the existing
+    /// `output()` and `transmitOutput(...)` behavior.
+    public func startRenderTextureTask(diagnostics: RenderPlanDiagnostics? = nil) throws -> HarbethRenderTask<MTLTexture> {
+        if filters.isEmpty {
+            return .completed(identifier: identifier, output: element, diagnostics: diagnostics)
+        }
+        let plan = makeRenderPlan(input: element)
+        let taskDiagnostics = diagnostics ?? plan.diagnostics
+        prepareTextureLifecycle(for: plan, inputPixelFormat: element.pixelFormat)
+        let commandBuffer = try makeCommandBuffer(for: nil)
+        do {
+            let outputTexture: MTLTexture
+            var texturesToEnqueue: [MTLTexture] = []
+            if shouldUseDoubleBuffer(input: element, plan: plan, minimumFilterCount: 1) {
+                outputTexture = try doubleBuffering(input: element, plan: plan, commandBuffer: commandBuffer)
+            } else {
+                let result = try singleBuffer(input: element, plan: plan, commandBuffer: commandBuffer)
+                outputTexture = result.0
+                texturesToEnqueue = result.1
+            }
+            let task = HarbethRenderTask(
+                identifier: identifier,
+                commandBuffer: commandBuffer,
+                output: outputTexture,
+                diagnostics: taskDiagnostics,
+                cleanup: {
+                    Shared.shared.defaultTexturePool.enqueueTexturesSync(texturesToEnqueue)
+                    Shared.shared.returnCommandBuffer(commandBuffer)
+                }
+            )
+            commandBuffer.commit()
+            return task
+        } catch {
+            Shared.shared.returnCommandBuffer(commandBuffer)
+            throw error
+        }
+    }
+
     func renderManagedTexture() throws -> ManagedTextureResult {
         if filters.isEmpty {
             return ManagedTextureResult(texture: element, lease: nil)

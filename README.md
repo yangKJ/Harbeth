@@ -141,6 +141,7 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
 - `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths.
 - `HarbethKernelDescriptor`: lightweight technical metadata for function identity, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
+- `HarbethRenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
 - `RenderOutputContract`: explicit alpha, color-space, and pixel-format intent for diagnostics and conservative planning.
 - `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, estimated texture cost, readback boundaries, and format conversion decisions. The texture-first execution path can use the plan to prewarm reusable render targets without changing visual output.
 
@@ -153,6 +154,18 @@ let frame = try HarbethIO(element: inputTexture, filters: filters)
 let cacheSnapshot = context.debugCacheSnapshot()
 let semantic = frame.semantic
 let replayContract = frame.replayBaseContract
+```
+
+```swift
+let task = try HarbethIO(element: inputTexture, filters: filters)
+    .startRenderTextureTask(profile: .stablePreview)
+
+task.observeCompletion { task in
+    print(task.commandBufferStatus)
+}
+
+let outputTexture = try task.output()
+let diagnostics = task.diagnostics
 ```
 
 ```swift

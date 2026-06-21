@@ -377,6 +377,7 @@ Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定
 - `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
 - `HarbethImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径
 - `HarbethKernelDescriptor`：提供 function identity、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
+- `HarbethRenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
 - `RenderOutputContract`：显式描述 alpha、color-space、pixel-format 意图，供 diagnostics 和保守执行计划使用
 - `RenderOptimizationPlan`：以保守方式描述 transient texture 复用、persistent output、纹理成本估算、readback boundary 和格式转换决策。texture-first 执行路径可据此预热可复用 render target，但不改变视觉输出
 
@@ -389,6 +390,18 @@ let frame = try HarbethIO(element: inputTexture, filters: filters)
 let cacheSnapshot = context.debugCacheSnapshot()
 let semantic = frame.semantic
 let replayContract = frame.replayBaseContract
+```
+
+```swift
+let task = try HarbethIO(element: inputTexture, filters: filters)
+    .startRenderTextureTask(profile: .stablePreview)
+
+task.observeCompletion { task in
+    print(task.commandBufferStatus)
+}
+
+let outputTexture = try task.output()
+let diagnostics = task.diagnostics
 ```
 
 ```swift
