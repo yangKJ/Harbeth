@@ -88,6 +88,45 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertLessThan(pixel.blue, 10)
     }
 
+    func testRecipeLocalEffectSupportsMaskCompositeRecipe() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let base = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let baseMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let subtractMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let maskRecipe = MaskCompositeRecipe(
+            baseMask: MaskDescriptor(texture: baseMask, component: .red),
+            steps: [
+                MaskCompositeStep(
+                    name: "subject-soft-subtract",
+                    mask: MaskDescriptor(
+                        texture: subtractMask,
+                        component: .red,
+                        blendMode: .subtract,
+                        opacity: 1
+                    )
+                )
+            ]
+        )
+        let recipe = EditRecipe(
+            localEffects: [
+                LocalEffectRecipe(
+                    filters: [C7Brightness(brightness: -1)],
+                    maskRecipe: maskRecipe
+                )
+            ]
+        )
+
+        let output = try HarbethIO(element: base, filters: [])
+            .renderTexture(recipe: recipe)
+
+        let pixel = try firstPixel(in: output)
+        XCTAssertEqual(pixel.red, 128, accuracy: 4)
+        XCTAssertEqual(pixel.green, 128, accuracy: 4)
+        XCTAssertEqual(pixel.blue, 128, accuracy: 4)
+    }
+
     func testRecipeWithoutLocalEffectsMatchesDirectFilterExecution() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
@@ -211,6 +250,43 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 
+    func testRecipeDiagnosticsStayStableForMaskCompositeRecipeLocalEffect() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 2, height: 2, pixel: [200, 180, 160, 255])
+        let baseMask = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
+        let multiplyMask = try makeTexture(width: 2, height: 2, pixel: [128, 0, 0, 255])
+        let recipe = EditRecipe(
+            localEffects: [
+                LocalEffectRecipe(
+                    filters: [C7Contrast(contrast: 1.1)],
+                    maskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "intersection",
+                                mask: MaskDescriptor(
+                                    texture: multiplyMask,
+                                    component: .red,
+                                    blendMode: .multiply,
+                                    opacity: 1
+                                )
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+
+        let diagnostics = try HarbethIO(element: input, filters: [])
+            .renderDiagnostics(recipe: recipe, mode: .preview)
+
+        XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
+        XCTAssertTrue(diagnostics.containsLocalEffectComposite)
+        XCTAssertTrue(diagnostics.nodes.contains(where: { $0.name.contains("C7MaskRegionBlend") }))
+    }
+
     func testRecipeCompilationPlanAndNodePathStayAligned() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
@@ -231,6 +307,44 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(renderRecipe.renderIntent, .stable)
         XCTAssertEqual(renderRecipe.source.kind, "texture")
         XCTAssertTrue(renderRecipe.filters.contains(where: { $0.stableTypeID.contains("C7Brightness") }))
+    }
+
+    func testRecipeRenderRecipeExposesLocalEffectMaskGraphDescriptor() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 2, height: 2, pixel: [120, 90, 60, 255])
+        let baseMask = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
+        let subtractMask = try makeTexture(width: 2, height: 2, pixel: [128, 0, 0, 255])
+        let recipe = EditRecipe(
+            localEffects: [
+                LocalEffectRecipe(
+                    filters: [C7Brightness(brightness: -0.1)],
+                    maskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "subtract-half",
+                                mask: MaskDescriptor(
+                                    texture: subtractMask,
+                                    component: .red,
+                                    blendMode: .subtract,
+                                    opacity: 1
+                                )
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe(source: .texture(input), mode: .preview)
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+
+        XCTAssertEqual(localEffect.mask.kind, "maskCompositeRecipe")
+        XCTAssertEqual(localEffect.mask.stepCount, 1)
+        XCTAssertEqual(localEffect.mask.steps.first?.name, "subtract-half")
+        XCTAssertEqual(localEffect.mask.steps.first?.blendMode, .subtract)
     }
 
     func testLayerCompositeDirectPathMatchesNodePath() throws {

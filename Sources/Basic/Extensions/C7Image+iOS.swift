@@ -16,10 +16,10 @@ extension HarbethWrapper where Base: C7Image {
     /// - Returns: Compressed JPEG data
     public func jpegData(maxCount: Int = 0) -> Data? {
         var quality = CGFloat(1)
-        var jpegData = base.jpegData(compressionQuality: quality)
+        var jpegData = base.c7.encodedJPEGData(compressionQuality: quality)
         while let data = jpegData, maxCount > 0 && data.count > maxCount && quality > 0 {
             quality -= 0.05
-            jpegData = base.jpegData(compressionQuality: quality)
+            jpegData = base.c7.encodedJPEGData(compressionQuality: quality)
         }
         return jpegData
     }
@@ -33,7 +33,7 @@ extension HarbethWrapper where Base: C7Image {
     /// - Parameter compressionQuality: Compression quality (0.0 to 1.0)
     /// - Returns: New image instance with applied compression
     public func copy(compressionQuality: CGFloat) -> C7Image? {
-        base.jpegData(compressionQuality: compressionQuality).flatMap { C7Image(data: $0) }
+        base.c7.encodedJPEGData(compressionQuality: compressionQuality).flatMap { C7Image(data: $0) }
     }
     
     /// Remove white background by making pixels in range [222...255] transparent

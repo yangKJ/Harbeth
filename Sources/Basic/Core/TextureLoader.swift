@@ -359,26 +359,38 @@ extension TextureLoader {
         case .rgba, .monochrome, .unknown:
             return nil
         }
+        let isTenBitBiPlanar = bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
+            || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+            || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange
+            || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_422YpCbCr10BiPlanarFullRange
         let isFullRange = bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
             || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr8PlanarFullRange
+            || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_422YpCbCr8BiPlanarFullRange
+            || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+            || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_422YpCbCr10BiPlanarFullRange
         let destinationPixelFormat: MTLPixelFormat = {
+            if isTenBitBiPlanar {
+                return .rgba16Float
+            }
             if let colorSpace = bridgePlan.contract.attachmentColorSpace,
                colorSpace.isWideGamut || colorSpace.isHDRTransfer {
                 return .rgba16Float
             }
             return .rgba8Unorm
         }()
+        let lumaOffset: Float = isFullRange ? 0.0 : (isTenBitBiPlanar ? -(64.0 / 1023.0) : (-16.0 / 255.0))
+        let descriptorSuffix = isTenBitBiPlanar ? "10Bit" : ""
         let conversionMatrix: Matrix3x3
         let descriptor: String
         if bridgePlan.contract.yCbCrMatrixAttachment == .ituR709_2 {
             conversionMatrix = isFullRange ? Matrix3x3.Kernel.to709FullRange : Matrix3x3.Kernel.to709
-            descriptor = isFullRange ? "709FullRange" : "709VideoRange"
+            descriptor = (isFullRange ? "709FullRange" : "709VideoRange") + descriptorSuffix
             let matrixContract: YCbCrDecodeMatrix = isFullRange ? .bt709FullRange : .bt709VideoRange
             return YCbCrDecodeStrategy(
                 layout: layout,
                 conversionMatrix: conversionMatrix,
                 conversionOffset: SIMD3<Float>(
-                    isFullRange ? 0.0 : (-16.0 / 255.0),
+                    lumaOffset,
                     -0.5,
                     -0.5
                 ),
@@ -388,13 +400,13 @@ extension TextureLoader {
             )
         } else if bridgePlan.contract.yCbCrMatrixAttachment == .ituR2020 {
             conversionMatrix = isFullRange ? Matrix3x3.Kernel.to2020FullRange : Matrix3x3.Kernel.to2020
-            descriptor = isFullRange ? "2020FullRange" : "2020VideoRange"
+            descriptor = (isFullRange ? "2020FullRange" : "2020VideoRange") + descriptorSuffix
             let matrixContract: YCbCrDecodeMatrix = isFullRange ? .bt2020FullRange : .bt2020VideoRange
             return YCbCrDecodeStrategy(
                 layout: layout,
                 conversionMatrix: conversionMatrix,
                 conversionOffset: SIMD3<Float>(
-                    isFullRange ? 0.0 : (-16.0 / 255.0),
+                    lumaOffset,
                     -0.5,
                     -0.5
                 ),
@@ -404,16 +416,16 @@ extension TextureLoader {
             )
         } else if isFullRange {
             conversionMatrix = Matrix3x3.Kernel.to601FullRange
-            descriptor = "601FullRange"
+            descriptor = "601FullRange" + descriptorSuffix
         } else {
             conversionMatrix = Matrix3x3.Kernel.to601
-            descriptor = "601VideoRange"
+            descriptor = "601VideoRange" + descriptorSuffix
         }
         return YCbCrDecodeStrategy(
             layout: layout,
             conversionMatrix: conversionMatrix,
             conversionOffset: SIMD3<Float>(
-                isFullRange ? 0.0 : (-16.0 / 255.0),
+                lumaOffset,
                 -0.5,
                 -0.5
             ),
@@ -432,8 +444,21 @@ extension TextureLoader {
         return YCbCrDecodeContract(
             layout: layout,
             matrix: strategy.matrixContract,
+            componentBitDepth: yCbCrComponentBitDepth(for: bridgePlan.contract.cvPixelFormatType),
             destinationPixelFormat: strategy.destinationPixelFormat
         )
+    }
+
+    private static func yCbCrComponentBitDepth(for pixelFormatType: OSType) -> Int {
+        switch pixelFormatType {
+        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_420YpCbCr10BiPlanarFullRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarFullRange:
+            return 10
+        default:
+            return 8
+        }
     }
 
     static func makeBridgePolicy(for bridgePlan: PixelBufferTextureBridgePlan) -> PixelBufferBridgePolicy {
@@ -639,7 +664,13 @@ extension TextureLoader {
             return .rgba16Float
         case kCVPixelFormatType_OneComponent8:
             return .r8Unorm
-        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
+        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_420YpCbCr10BiPlanarFullRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarFullRange:
+            return .rgba16Float
+        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+             kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
             return .bgra8Unorm
         default:
             return .bgra8Unorm

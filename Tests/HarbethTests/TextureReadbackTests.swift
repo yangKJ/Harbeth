@@ -188,6 +188,189 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(strategy.conversionOffset.z, -0.5, accuracy: 0.0001)
     }
 
+    func test422BiPlanarPixelBufferContractUsesBiPlanarMetalFormats() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange,
+            unavailableMessage: "422 bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let contract = pixelBuffer.c7.contract
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        XCTAssertEqual(contract.colorModel, .yCbCrBiPlanar)
+        XCTAssertEqual(contract.planeCount, 2)
+        XCTAssertEqual(contract.nativeTextureLayout, .planeTextures)
+        XCTAssertEqual(contract.planes[0].metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(contract.planes[1].metalPixelFormat, .rg8Unorm)
+        XCTAssertEqual(contract.planes[0].width, 8)
+        XCTAssertEqual(contract.planes[0].height, 4)
+        XCTAssertEqual(contract.planes[1].width, 4)
+        XCTAssertEqual(contract.planes[1].height, 4)
+        XCTAssertEqual(bridgePlan.loadStrategy, .directPlaneTexture)
+    }
+
+    func test422BiPlanarDecodeStrategyUsesBiPlanarLayoutAndRange() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_422YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "422 bi-planar pixel buffer is unavailable in this environment."
+        )
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(strategy.layout, .biPlanar)
+        XCTAssertEqual(strategy.matrixContract, .bt601FullRange)
+        XCTAssertEqual(strategy.descriptor, "601FullRange")
+        XCTAssertEqual(strategy.destinationPixelFormat, .rgba8Unorm)
+        XCTAssertEqual(strategy.conversionOffset.x, 0, accuracy: 0.0001)
+    }
+
+    func test420TenBitBiPlanarContractUsesHighPrecisionPlaneFormats() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+            unavailableMessage: "420 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let contract = pixelBuffer.c7.contract
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        XCTAssertEqual(contract.colorModel, .yCbCrBiPlanar)
+        XCTAssertEqual(contract.planeCount, 2)
+        XCTAssertEqual(contract.nativeTextureLayout, .planeTextures)
+        XCTAssertEqual(contract.planes[0].metalPixelFormat, .r16Unorm)
+        XCTAssertEqual(contract.planes[1].metalPixelFormat, .rg16Unorm)
+        XCTAssertEqual(contract.planes[0].width, 8)
+        XCTAssertEqual(contract.planes[0].height, 4)
+        XCTAssertEqual(contract.planes[1].width, 4)
+        XCTAssertEqual(contract.planes[1].height, 2)
+        XCTAssertEqual(bridgePlan.loadStrategy, .directPlaneTexture)
+    }
+
+    func test420TenBitBiPlanarDecodeStrategyUsesRGBA16FloatAndTenBitOffset() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+            unavailableMessage: "420 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(strategy.layout, .biPlanar)
+        XCTAssertEqual(strategy.matrixContract, .bt601VideoRange)
+        XCTAssertEqual(strategy.descriptor, "601VideoRange10Bit")
+        XCTAssertEqual(strategy.destinationPixelFormat, .rgba16Float)
+        XCTAssertEqual(strategy.conversionOffset.x, -(64.0 / 1023.0), accuracy: 0.0001)
+    }
+
+    func test420TenBitBiPlanarDecodeContractTracksTenBitComponents() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+            unavailableMessage: "420 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let contract = try XCTUnwrap(TextureLoader.makeYCbCrDecodeContract(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(contract.layout, .biPlanar)
+        XCTAssertEqual(contract.matrix, .bt601VideoRange)
+        XCTAssertEqual(contract.componentBitDepth, 10)
+        XCTAssertEqual(contract.destinationPixelFormat, .rgba16Float)
+        XCTAssertEqual(contract.fingerprint, "layout=biPlanar|matrix=bt601VideoRange|bitDepth=10|destPixel=115")
+    }
+
+    func test422TenBitBiPlanarContractUsesFullHeightChromaAndHighPrecisionFormats() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_422YpCbCr10BiPlanarFullRange,
+            unavailableMessage: "422 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let contract = pixelBuffer.c7.contract
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        XCTAssertEqual(contract.colorModel, .yCbCrBiPlanar)
+        XCTAssertEqual(contract.planes[0].metalPixelFormat, .r16Unorm)
+        XCTAssertEqual(contract.planes[1].metalPixelFormat, .rg16Unorm)
+        XCTAssertEqual(contract.planes[0].width, 8)
+        XCTAssertEqual(contract.planes[0].height, 4)
+        XCTAssertEqual(contract.planes[1].width, 4)
+        XCTAssertEqual(contract.planes[1].height, 4)
+        XCTAssertEqual(bridgePlan.loadStrategy, .directPlaneTexture)
+    }
+
+    func test422TenBitBiPlanarFullRangeDecodeStrategyUsesRGBA16Float() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_422YpCbCr10BiPlanarFullRange,
+            unavailableMessage: "422 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(strategy.layout, .biPlanar)
+        XCTAssertEqual(strategy.matrixContract, .bt601FullRange)
+        XCTAssertEqual(strategy.descriptor, "601FullRange10Bit")
+        XCTAssertEqual(strategy.destinationPixelFormat, .rgba16Float)
+        XCTAssertEqual(strategy.conversionOffset.x, 0, accuracy: 0.0001)
+    }
+
+    func test420TenBitBiPlanarTextureLoaderDecodesToRGBA16Float() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+            unavailableMessage: "420 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let texture = try TextureLoader(with: pixelBuffer).texture
+
+        XCTAssertEqual(texture.pixelFormat, .rgba16Float)
+        XCTAssertEqual(texture.width, 8)
+        XCTAssertEqual(texture.height, 4)
+        XCTAssertNotNil(TextureOwnerRegistry.owner(for: texture))
+        #endif
+    }
+
+    func test422TenBitBiPlanarTextureLoaderDecodesToRGBA16Float() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_422YpCbCr10BiPlanarFullRange,
+            unavailableMessage: "422 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let texture = try TextureLoader(with: pixelBuffer).texture
+
+        XCTAssertEqual(texture.pixelFormat, .rgba16Float)
+        XCTAssertEqual(texture.width, 8)
+        XCTAssertEqual(texture.height, 4)
+        XCTAssertNotNil(TextureOwnerRegistry.owner(for: texture))
+        #endif
+    }
+
     func testBiPlanarAttachmentCanPromoteDecodeStrategyTo709() throws {
         let pixelBuffer = try makePixelBuffer(
             width: 4,
@@ -514,6 +697,29 @@ final class TextureReadbackTests: XCTestCase {
         let texture = try TextureLoader(with: pixelBuffer).texture
         let owners = TextureOwnerRegistry.owners(for: texture)
 
+        XCTAssertEqual(owners.count, 2)
+        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
+        XCTAssertTrue(owners.contains { $0 !== pixelBuffer })
+        #endif
+    }
+
+    func testDecodedTenBitYCbCrTextureRetainsBridgeOwners() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 8,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr10BiPlanarFullRange,
+            unavailableMessage: "420 10-bit bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let texture = try TextureLoader(with: pixelBuffer).texture
+        let owners = TextureOwnerRegistry.owners(for: texture)
+
+        XCTAssertEqual(texture.pixelFormat, .rgba16Float)
         XCTAssertEqual(owners.count, 2)
         XCTAssertTrue(owners.contains { $0 === pixelBuffer })
         XCTAssertTrue(owners.contains { $0 !== pixelBuffer })

@@ -544,6 +544,35 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertNotNil(bundle.analysis(for: .luminance)?.histogramAttachment)
     }
 
+    func testImageNodeAttachmentAnalysisBundleSupportsUnifiedAnalysisScope() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+
+        let bundle = try XCTUnwrap(
+            node.makeAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                scope: TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red)),
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(bundle.primary?.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.primary?.statistics?.sampleCount, 1)
+        XCTAssertEqual(Double(try XCTUnwrap(bundle.primary?.statistics).meanRed), 1, accuracy: 0.0001)
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red)).fingerprint)
+    }
+
     func testNodeDebugSnapshotExposesGraphAndOptimizationDecisions() throws {
         let input = try makeTexture(width: 4, height: 4, pixel: [32, 64, 96, 255])
         let node = ImageNode
@@ -563,6 +592,8 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(snapshot.diagnostics.graphNodeCount, 2)
         XCTAssertTrue(snapshot.diagnostics.persistentBoundaryCount >= 1)
         XCTAssertFalse(snapshot.optimizationDecisions.isEmpty)
+        XCTAssertEqual(snapshot.renderRecipe?.source.kind, "texture")
+        XCTAssertTrue(snapshot.renderRecipe?.filters.contains(where: { $0.stableTypeID.contains("C7Brightness") }) == true)
     }
 
     func testNodeDebugSnapshotExposesDirectPlaneBridgeDiagnostics() throws {
@@ -686,6 +717,81 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(texture.width, 2)
         XCTAssertEqual(frame.metadata["node"], "request")
         XCTAssertEqual(frame.profile, .stablePreview)
+    }
+
+    func testLayerCompositeRenderRecipeExposesLayerMaskGraphDescriptors() throws {
+        let background = try makeTexture(width: 2, height: 2, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let baseMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let subtractMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let addMask = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "subject-subtract",
+                                mask: MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
+                            )
+                        ]
+                    ),
+                    compositingMaskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "canvas-add",
+                                mask: MaskDescriptor(texture: addMask, component: .red, blendMode: .add, opacity: 1)
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe()
+        let layerMask = try XCTUnwrap(renderRecipe.layerMasks?.first)
+
+        XCTAssertEqual(layerMask.layerIndex, 0)
+        XCTAssertEqual(layerMask.mask?.kind, "maskCompositeRecipe")
+        XCTAssertEqual(layerMask.mask?.steps.first?.name, "subject-subtract")
+        XCTAssertEqual(layerMask.compositingMask?.kind, "maskCompositeRecipe")
+        XCTAssertEqual(layerMask.compositingMask?.steps.first?.blendMode, .add)
+    }
+
+    func testLayerCompositeDebugSnapshotCarriesLayerMaskGraphDescriptor() throws {
+        let background = try makeTexture(width: 2, height: 2, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let baseMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let subtractMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let node = ImageNode.layerComposite(
+            LayerCompositeRecipe(
+                background: .texture(background),
+                layers: [
+                    ImageLayer(
+                        content: .texture(layer),
+                        maskRecipe: MaskCompositeRecipe(
+                            baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                            steps: [
+                                MaskCompositeStep(
+                                    name: "snapshot-mask-step",
+                                    mask: MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
+                                )
+                            ]
+                        )
+                    )
+                ]
+            )
+        )
+
+        let snapshot = try node.makeDebugSnapshot()
+        let layerMask = try XCTUnwrap(snapshot.renderRecipe?.layerMasks?.first)
+
+        XCTAssertEqual(layerMask.mask?.kind, "maskCompositeRecipe")
+        XCTAssertEqual(layerMask.mask?.steps.first?.name, "snapshot-mask-step")
     }
 
     func testLayerCompositeSupportsDifferenceBlendAndClampsFrame() throws {
@@ -1009,6 +1115,45 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(outputPixel.alpha, 255)
     }
 
+    func testLayerCompositeMaskRecipeBuildsReusableCoverageForLayerMask() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let baseMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let subtractMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver,
+                    maskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "soft-subtract",
+                                mask: MaskDescriptor(
+                                    texture: subtractMask,
+                                    component: .red,
+                                    blendMode: .subtract,
+                                    opacity: 1
+                                )
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 128, accuracy: 4)
+        XCTAssertEqual(outputPixel.green, 128, accuracy: 4)
+        XCTAssertEqual(outputPixel.blue, 128, accuracy: 4)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
     func testLayerCompositeCompositingMaskOpacityModulatesCoverage() throws {
         let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
@@ -1031,6 +1176,45 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(outputPixel.red, 128, accuracy: 2)
         XCTAssertEqual(outputPixel.green, 128, accuracy: 2)
         XCTAssertEqual(outputPixel.blue, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testLayerCompositeCompositingMaskRecipeBuildsReusableCoverage() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let baseMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let subtractMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver,
+                    compositingMaskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "soft-subtract",
+                                mask: MaskDescriptor(
+                                    texture: subtractMask,
+                                    component: .red,
+                                    blendMode: .subtract,
+                                    opacity: 1
+                                )
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 128, accuracy: 4)
+        XCTAssertEqual(outputPixel.green, 128, accuracy: 4)
+        XCTAssertEqual(outputPixel.blue, 128, accuracy: 4)
         XCTAssertEqual(outputPixel.alpha, 255)
     }
 
@@ -1057,6 +1241,94 @@ final class ImageNodeTests: XCTestCase {
             ]
         )
 
+        XCTAssertNotEqual(firstRecipe.fingerprint, secondRecipe.fingerprint)
+    }
+
+    func testLayerCompositeFingerprintTracksMaskRecipe() throws {
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let baseMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let overlayMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let firstRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "multiply-soft",
+                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .multiply, opacity: 0.5)
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+        let secondRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "multiply-hard",
+                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .multiply, opacity: 1)
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+
+        XCTAssertTrue(firstRecipe.fingerprint.contains("recipe{"))
+        XCTAssertNotEqual(firstRecipe.fingerprint, secondRecipe.fingerprint)
+    }
+
+    func testLayerCompositeFingerprintTracksCompositingMaskRecipe() throws {
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let baseMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let overlayMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let firstRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    compositingMaskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "subtract-soft",
+                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .subtract, opacity: 0.5)
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+        let secondRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    compositingMaskRecipe: MaskCompositeRecipe(
+                        baseMask: MaskDescriptor(texture: baseMask, component: .red),
+                        steps: [
+                            MaskCompositeStep(
+                                name: "subtract-hard",
+                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .subtract, opacity: 1)
+                            )
+                        ]
+                    )
+                )
+            ]
+        )
+
+        XCTAssertTrue(firstRecipe.fingerprint.contains("compositingMask=recipe{"))
         XCTAssertNotEqual(firstRecipe.fingerprint, secondRecipe.fingerprint)
     }
 
@@ -1196,6 +1468,30 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(pixel.red, 223, accuracy: 4)
         XCTAssertEqual(pixel.green, 223, accuracy: 4)
         XCTAssertEqual(pixel.blue, 223, accuracy: 4)
+    }
+
+    func testLayerCompositeCompositingMaskSubtractRemovesCoverageFromExistingLayerMask() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [192, 0, 0, 255])
+        let compositingMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
+                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .subtract, opacity: 1)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let pixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(pixel.red, 159, accuracy: 4)
+        XCTAssertEqual(pixel.green, 159, accuracy: 4)
+        XCTAssertEqual(pixel.blue, 159, accuracy: 4)
     }
 
     func testLayerCompositeProgrammableBlendUsesPreparedLayerCanvas() throws {
@@ -1466,6 +1762,7 @@ final class ImageNodeTests: XCTestCase {
     func testRenderOutputContractTracksWideGamutAndHighPrecisionOutput() {
         let displayP3 = RenderOutputContract.displayP3Texture
         let highPrecision = RenderOutputContract.highPrecisionLinearTexture
+        let linearDisplayP3 = RenderOutputContract.highPrecisionLinearDisplayP3Texture
 
         XCTAssertTrue(displayP3.isWideGamutOutput)
         XCTAssertFalse(displayP3.isHighPrecisionOutput)
@@ -1481,6 +1778,14 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(highPrecision.pixelFormat.precision, .float16)
         XCTAssertTrue(highPrecision.fingerprint.contains("gamut=extendedLinearSRGB"))
         XCTAssertTrue(highPrecision.fingerprint.contains("precision=float16"))
+
+        XCTAssertTrue(linearDisplayP3.isWideGamutOutput)
+        XCTAssertTrue(linearDisplayP3.isHighPrecisionOutput)
+        XCTAssertTrue(linearDisplayP3.isHDRFriendlyOutput)
+        XCTAssertEqual(linearDisplayP3.colorSpace.gamut, .displayP3)
+        XCTAssertEqual(linearDisplayP3.colorSpace.transferFunction, .linear)
+        XCTAssertEqual(linearDisplayP3.pixelFormat.precision, .float16)
+        XCTAssertTrue(linearDisplayP3.fingerprint.contains("color=extendedLinearDisplayP3"))
     }
 
     func testRenderDiagnosticsExposeOutputQualityContract() {
@@ -1526,7 +1831,15 @@ final class ImageNodeTests: XCTestCase {
             .sRGBToLinear
         )
         XCTAssertEqual(
+            ImageColorSpaceContract.extendedLinearDisplayP3.transferConversionMode(from: .displayP3),
+            .sRGBToLinear
+        )
+        XCTAssertEqual(
             ImageColorSpaceContract.sRGB.transferConversionMode(from: .extendedLinearSRGB),
+            .linearToSRGB
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.displayP3.transferConversionMode(from: .extendedLinearDisplayP3),
             .linearToSRGB
         )
         XCTAssertNil(ImageColorSpaceContract.displayP3.transferConversionMode(from: .sRGB))
@@ -1560,11 +1873,29 @@ final class ImageNodeTests: XCTestCase {
             .linearDisplayP3ToLinearSRGB
         )
         XCTAssertEqual(
+            ImageColorSpaceContract.extendedLinearDisplayP3.colorConversionMode(from: .extendedLinearSRGB),
+            .linearSRGBToLinearDisplayP3
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.extendedLinearSRGB.colorConversionMode(from: .extendedLinearDisplayP3),
+            .linearDisplayP3ToLinearSRGB
+        )
+        XCTAssertEqual(
             ImageColorSpaceContract.displayP3.colorConversionMode(from: .extendedLinearSRGB),
             .linearSRGBToLinearDisplayP3
         )
+        XCTAssertNil(ImageColorSpaceContract.extendedLinearDisplayP3.colorConversionMode(from: .displayP3))
         XCTAssertNil(ImageColorSpaceContract.displayP3.colorConversionMode(from: .preserveInput))
         XCTAssertNil(ImageColorSpaceContract.sRGB.colorConversionMode(from: .sRGB))
+    }
+
+    func testExtendedLinearDisplayP3ContractResolvesCGColorSpace() throws {
+        let colorSpace = try XCTUnwrap(ImageColorSpaceContract.extendedLinearDisplayP3.cgColorSpace)
+        if #available(macOS 10.14.3, iOS 12.1, tvOS 12.1, watchOS 5.1, *) {
+            XCTAssertEqual(colorSpace.name as String?, CGColorSpace.extendedLinearDisplayP3 as String)
+        } else {
+            XCTAssertEqual(colorSpace.name as String?, CGColorSpace.displayP3 as String)
+        }
     }
 
     func testRGBColorSpaceConversionRoundTripsSRGBAndDisplayP3() throws {
@@ -1637,6 +1968,37 @@ final class ImageNodeTests: XCTestCase {
                 C7RGBTransferConversion(mode: .sRGBToLinear),
                 C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3),
                 C7RGBTransferConversion(mode: .linearToSRGB)
+            ]
+        ).output()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+        let manualPixel = try pixel(in: manual, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, manualPixel.red, accuracy: 2)
+        XCTAssertEqual(outputPixel.green, manualPixel.green, accuracy: 2)
+        XCTAssertEqual(outputPixel.blue, manualPixel.blue, accuracy: 2)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testKernelNodeExecutesExtendedLinearDisplayP3OutputContract() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [64, 128, 192, 255])
+        let descriptor = KernelDescriptor(
+            filterName: "identityExtendedLinearDisplayP3Output",
+            functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            inputColorSpace: .sRGB,
+            outputContract: RenderOutputContract(colorSpace: .extendedLinearDisplayP3)
+        )
+        let node = ImageNode.kernel(
+            input: .source(.texture(input)),
+            descriptor: descriptor,
+            filter: C7Brightness(brightness: 0)
+        )
+
+        let output = try node.makeTexture(profile: .stablePreview)
+        let manual = try HarbethIO(
+            element: input,
+            filters: [
+                C7RGBTransferConversion(mode: .sRGBToLinear),
+                C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3)
             ]
         ).output()
         let outputPixel = try pixel(in: output, x: 0, y: 0)

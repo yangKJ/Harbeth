@@ -12,6 +12,48 @@ import CoreGraphics
 import MetalKit
 
 extension HarbethIO {
+    public func renderPNGData() throws -> Data {
+        try renderEncodedImageData(utType: "public.png" as CFString)
+    }
+
+    public func renderJPEGData(compressionQuality: CGFloat = 1) throws -> Data {
+        try renderEncodedImageData(
+            utType: "public.jpeg" as CFString,
+            properties: [kCGImageDestinationLossyCompressionQuality: compressionQuality]
+        )
+    }
+
+    public func renderTIFFData() throws -> Data {
+        try renderEncodedImageData(utType: "public.tiff" as CFString)
+    }
+
+    #if os(macOS)
+    public func renderHEICData() throws -> Data {
+        try renderEncodedImageData(utType: "public.heic" as CFString)
+    }
+    #endif
+
+    private func renderEncodedImageData(utType: CFString,
+                                        properties: [CFString: Any] = [:]) throws -> Data {
+        switch element {
+        case let image as C7Image:
+            let outputImage = filters.isEmpty ? image : try filtering(image: image)
+            guard let data = outputImage.c7.encodedData(utType: utType, properties: properties) else {
+                throw HarbethError.image2CGImage
+            }
+            return data
+        case let value where CFGetTypeID(value as CFTypeRef) == CGImage.typeID:
+            let cgImage = value as! CGImage
+            let outputImage = filters.isEmpty ? cgImage : try filtering(cgImage: cgImage)
+            guard let data = outputImage.c7.encodedData(utType: utType, properties: properties) else {
+                throw HarbethError.image2CGImage
+            }
+            return data
+        default:
+            throw HarbethError.source2Texture
+        }
+    }
+
     func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
         let inTexture = try TextureLoader(with: pixelBuffer).texture
         let outputColorSpace = resolvedOutputColorSpace(

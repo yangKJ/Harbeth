@@ -9,6 +9,7 @@ import Foundation
 import MetalKit
 import CoreGraphics
 import CoreVideo
+import ImageIO
 
 extension CGImage: HarbethCompatible { }
 
@@ -122,6 +123,23 @@ extension HarbethWrapper where Base: CGImage {
         #else
         return UIImage(cgImage: base, scale: refImage.scale, orientation: refImage.imageOrientation)
         #endif
+    }
+
+    public func encodedData(utType: CFString, properties: [CFString: Any] = [:]) -> Data? {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            data as CFMutableData,
+            utType,
+            1,
+            nil
+        ) else {
+            return nil
+        }
+        CGImageDestinationAddImage(destination, base, properties as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else {
+            return nil
+        }
+        return data as Data
     }
 }
 

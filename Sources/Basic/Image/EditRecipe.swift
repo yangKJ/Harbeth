@@ -149,7 +149,8 @@ public struct EditRecipe {
                         otherInputTextureCount: 0,
                         hasCount: false
                     )
-                }
+                },
+            localEffects: localEffects.isEmpty ? nil : localEffects.map(\.recipeDescriptor)
         )
     }
 
@@ -249,10 +250,11 @@ public struct EditRecipe {
     func makeExecutionPreviewChain(inputSize: C7Size,
                                    mode: EditRecipeMode,
                                    derivative: ImageDerivativeSpec,
+                                   resolvedLocalEffects: [ResolvedLocalEffect],
                                    appending extraFilters: [C7FilterProtocol] = [],
                                    includeDerivativeResize: Bool = true) -> [C7FilterProtocol] {
         var compiled = makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)
-        localEffects.forEach { effect in
+        resolvedLocalEffects.forEach { effect in
             compiled.append(contentsOf: effect.filters)
             let placeholderMask = effect.mask
             compiled.append(C7MaskRegionBlend(effectTexture: placeholderMask.texture, mask: placeholderMask))
@@ -286,10 +288,14 @@ public struct EditRecipe {
         let contract = contract(for: mode)
         let effectiveDerivative = derivative ?? contract.derivative
         let baseFilters = makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)
+        let resolvedLocalEffects = try localEffects.map { effect in
+            try ResolvedLocalEffect(filters: effect.filters, mask: effect.resolvedMaskDescriptor())
+        }
         let diagnosticFilters = makeExecutionPreviewChain(
             inputSize: inputSize,
             mode: mode,
             derivative: effectiveDerivative,
+            resolvedLocalEffects: resolvedLocalEffects,
             appending: extraFilters
         )
         let outputCachePolicy: ImageCachePolicy =
@@ -303,11 +309,16 @@ public struct EditRecipe {
             inputTexture: input,
             inputSize: inputSize,
             baseFilters: baseFilters,
-            localEffects: localEffects,
+            localEffects: resolvedLocalEffects,
             diagnosticFilters: diagnosticFilters,
             outputCachePolicy: outputCachePolicy
         )
     }
+}
+
+struct ResolvedLocalEffect {
+    let filters: [C7FilterProtocol]
+    let mask: MaskDescriptor
 }
 
 struct CompiledEditRecipeExecution {
@@ -317,7 +328,7 @@ struct CompiledEditRecipeExecution {
     let inputTexture: MTLTexture
     let inputSize: C7Size
     let baseFilters: [C7FilterProtocol]
-    let localEffects: [LocalEffectRecipe]
+    let localEffects: [ResolvedLocalEffect]
     let diagnosticFilters: [C7FilterProtocol]
     let outputCachePolicy: ImageCachePolicy
 

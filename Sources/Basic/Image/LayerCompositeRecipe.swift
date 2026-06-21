@@ -101,7 +101,9 @@ public struct ImageLayer {
     public var rotation: Float
     public var tintColor: SIMD4<Float>?
     public var mask: MaskDescriptor?
+    public var maskRecipe: MaskCompositeRecipe?
     public var compositingMask: MaskDescriptor?
+    public var compositingMaskRecipe: MaskCompositeRecipe?
     public var programmableBlend: LayerProgrammableBlend?
     public var cornerRadius: Float
     public var cornerCurve: LayerCornerCurve
@@ -119,7 +121,9 @@ public struct ImageLayer {
                 rotation: Float = 0,
                 tintColor: SIMD4<Float>? = nil,
                 mask: MaskDescriptor? = nil,
+                maskRecipe: MaskCompositeRecipe? = nil,
                 compositingMask: MaskDescriptor? = nil,
+                compositingMaskRecipe: MaskCompositeRecipe? = nil,
                 programmableBlend: LayerProgrammableBlend? = nil,
                 cornerRadius: Float = 0,
                 cornerCurve: LayerCornerCurve = .circular,
@@ -136,7 +140,9 @@ public struct ImageLayer {
         self.rotation = rotation
         self.tintColor = tintColor
         self.mask = mask
+        self.maskRecipe = maskRecipe
         self.compositingMask = compositingMask
+        self.compositingMaskRecipe = compositingMaskRecipe
         self.programmableBlend = programmableBlend
         self.cornerRadius = max(cornerRadius, 0)
         self.cornerCurve = cornerCurve
@@ -144,7 +150,7 @@ public struct ImageLayer {
     }
 
     public var hasMask: Bool {
-        mask != nil || compositingMask != nil
+        mask != nil || maskRecipe != nil || compositingMask != nil || compositingMaskRecipe != nil
     }
 
     public var fingerprint: String {
@@ -159,13 +165,27 @@ public struct ImageLayer {
             "rotation=\(String(format: "%.4f", rotation))",
             "tint=\(tintColor.map { "\($0.x),\($0.y),\($0.z),\($0.w)" } ?? "none")",
             "filters=\(filters.isEmpty ? "none" : filters.chainRecipe.fingerprint)",
-            "mask=\(mask.map(Self.maskFingerprint) ?? "none")",
-            "compositingMask=\(compositingMask.map(Self.maskFingerprint) ?? "none")",
+            "mask=\(maskRecipe.map { "recipe{\($0.fingerprint)}" } ?? mask.map(Self.maskFingerprint) ?? "none")",
+            "compositingMask=\(compositingMaskRecipe.map { "recipe{\($0.fingerprint)}" } ?? compositingMask.map(Self.maskFingerprint) ?? "none")",
             "programmableBlend=\(programmableBlend?.fingerprint ?? "none")",
             "corner=\(String(format: "%.4f", cornerRadius))",
             "cornerCurve=\(cornerCurve.rawValue)",
             "samples=\(rasterSampleCount)"
         ].joined(separator: "|")
+    }
+
+    func resolvedMaskDescriptor() throws -> MaskDescriptor? {
+        if let maskRecipe {
+            return try maskRecipe.makeMaskDescriptor()
+        }
+        return mask
+    }
+
+    func resolvedCompositingMaskDescriptor() throws -> MaskDescriptor? {
+        if let compositingMaskRecipe {
+            return try compositingMaskRecipe.makeMaskDescriptor()
+        }
+        return compositingMask
     }
 
     private static func clampedNormalizedFrame(_ rect: CGRect) -> CGRect {
@@ -224,11 +244,39 @@ public struct LayerCompositeRecipe {
         .layerComposite(self)
     }
 
+    public func makeRenderRecipe(derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
+        let plan = try makeRenderPlan(derivative: derivative)
+        return RenderRecipe(
+            renderProfile: String(describing: profile),
+            renderIntent: plan.diagnostics.derivative.renderIntent,
+            source: background.descriptor,
+            outputDerivative: plan.diagnostics.derivative,
+            outputCachePolicy: .transient,
+            outputSemantic: plan.diagnostics.derivative.semantic,
+            alphaType: background.alphaType,
+            orientation: background.orientation,
+            filters: plan.diagnostics.nodes
+                .filter { $0.name != "DerivativeResize" }
+                .map { diagnostic in
+                    FilterRecipeDescriptor(
+                        stableTypeID: diagnostic.name,
+                        modifier: diagnostic.kind.rawValue,
+                        parameterValues: diagnostic.parameterSummary
+                            .sorted { $0.key < $1.key }
+                            .map { "\($0.key)=\($0.value)" },
+                        otherInputTextureCount: 0,
+                        hasCount: false
+                    )
+                },
+            layerMasks: layerMaskDescriptors
+        )
+    }
+
     public func makeRenderRequest(derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
         let effectiveDerivative = derivative ?? self.derivative
         let node = makeNode()
         let diagnostics = try node.makeDiagnostics(profile: profile, derivative: effectiveDerivative)
-        let recipeDescriptor = try node.makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
+        let recipeDescriptor = try makeRenderRecipe(derivative: effectiveDerivative)
         return RenderRequest(
             compilationSource: .layerComposite,
             profile: profile,
@@ -242,6 +290,22 @@ public struct LayerCompositeRecipe {
                 try node.makeFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
             }
         )
+    }
+
+    var layerMaskDescriptors: [LayerMaskRecipeDescriptor]? {
+        let descriptors = layers.enumerated().compactMap { index, layer -> LayerMaskRecipeDescriptor? in
+            let mask = layer.maskRecipe?.graphDescriptor ?? layer.mask?.graphDescriptor
+            let compositingMask = layer.compositingMaskRecipe?.graphDescriptor ?? layer.compositingMask?.graphDescriptor
+            guard mask != nil || compositingMask != nil else {
+                return nil
+            }
+            return LayerMaskRecipeDescriptor(
+                layerIndex: index,
+                mask: mask,
+                compositingMask: compositingMask
+            )
+        }
+        return descriptors.isEmpty ? nil : descriptors
     }
 }
 

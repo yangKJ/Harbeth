@@ -13,13 +13,16 @@ import Metal
 public struct RenderedAttachmentAnalysis: @unchecked Sendable {
     public let attachment: RenderedAttachment
     public let histogram: TextureHistogram?
+    public let statistics: TextureStatistics?
     public let histogramAttachment: RenderedHistogramAttachment?
 
     public init(attachment: RenderedAttachment,
                 histogram: TextureHistogram?,
+                statistics: TextureStatistics?,
                 histogramAttachment: RenderedHistogramAttachment?) {
         self.attachment = attachment
         self.histogram = histogram
+        self.statistics = statistics
         self.histogramAttachment = histogramAttachment
     }
 
@@ -41,11 +44,14 @@ public struct RenderedAttachmentAnalysis: @unchecked Sendable {
 public struct RenderedAttachmentAnalysisBundle: @unchecked Sendable {
     public let attachmentSet: RenderedAttachmentSet
     public let analyses: [RenderedAttachmentAnalysis]
+    public let analysisScopeFingerprint: String?
 
     public init(attachmentSet: RenderedAttachmentSet,
-                analyses: [RenderedAttachmentAnalysis]) {
+                analyses: [RenderedAttachmentAnalysis],
+                analysisScopeFingerprint: String? = nil) {
         self.attachmentSet = attachmentSet
         self.analyses = analyses.sorted { $0.attachment.index < $1.attachment.index }
+        self.analysisScopeFingerprint = analysisScopeFingerprint
     }
 
     public var primary: RenderedAttachmentAnalysis? {
@@ -74,26 +80,56 @@ public extension RenderedAttachmentSet {
                       channel: TextureHistogramChannel? = nil,
                       bins: Int = 256,
                       histogramHeight: Int = 64,
+                      scope: TextureAnalysisScope,
+                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysis? {
+        makeAnalysis(
+            for: semantic,
+            channel: channel,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func makeAnalysis(for semantic: RenderOutputAttachmentSemantic,
+                      channel: TextureHistogramChannel? = nil,
+                      bins: Int = 256,
+                      histogramHeight: Int = 64,
                       region: MTLRegion? = nil,
+                      mask: MaskDescriptor? = nil,
+                      coverageThreshold: Float = 0.5,
                       preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysis? {
         guard let attachment = attachment(for: semantic) else { return nil }
         let resolvedChannel = channel ?? attachment.defaultHistogramChannel
+        let statistics = attachment.makeStatistics(
+            region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold
+        )
         let histogramAttachment = attachment.texture.c7.renderHistogramAttachment(
             channel: resolvedChannel,
             bins: bins,
             height: histogramHeight,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
         let histogram = histogramAttachment?.histogram ?? attachment.makeHistogram(
             channel: resolvedChannel,
             bins: bins,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
         return RenderedAttachmentAnalysis(
             attachment: attachment,
             histogram: histogram,
+            statistics: statistics,
             histogramAttachment: histogramAttachment
         )
     }
@@ -101,6 +137,8 @@ public extension RenderedAttachmentSet {
     func makeAnalysisBundle(bins: Int = 256,
                             histogramHeight: Int = 64,
                             region: MTLRegion? = nil,
+                            mask: MaskDescriptor? = nil,
+                            coverageThreshold: Float = 0.5,
                             preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysisBundle {
         let analyses = attachments.compactMap { attachment in
             makeAnalysis(
@@ -109,12 +147,40 @@ public extension RenderedAttachmentSet {
                 bins: bins,
                 histogramHeight: histogramHeight,
                 region: region,
+                mask: mask,
+                coverageThreshold: coverageThreshold,
                 preferredMethod: preferredMethod
             )
         }
         return RenderedAttachmentAnalysisBundle(
             attachmentSet: self,
-            analyses: analyses
+            analyses: analyses,
+            analysisScopeFingerprint: TextureAnalysisScope(
+                region: region,
+                mask: mask,
+                coverageThreshold: coverageThreshold
+            ).fingerprint
+        )
+    }
+
+    func makeAnalysisBundle(bins: Int = 256,
+                            histogramHeight: Int = 64,
+                            scope: TextureAnalysisScope,
+                            preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysisBundle {
+        let analyses = attachments.compactMap { attachment in
+            makeAnalysis(
+                for: attachment.semantic,
+                channel: nil,
+                bins: bins,
+                histogramHeight: histogramHeight,
+                scope: scope,
+                preferredMethod: preferredMethod
+            )
+        }
+        return RenderedAttachmentAnalysisBundle(
+            attachmentSet: self,
+            analyses: analyses,
+            analysisScopeFingerprint: scope.fingerprint
         )
     }
 }
@@ -125,6 +191,8 @@ public extension RenderProtocol {
                                         bins: Int = 256,
                                         histogramHeight: Int = 64,
                                         region: MTLRegion? = nil,
+                                        mask: MaskDescriptor? = nil,
+                                        coverageThreshold: Float = 0.5,
                                         preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle {
         try renderAttachmentSet(
             from: sourceTexture,
@@ -133,6 +201,26 @@ public extension RenderProtocol {
             bins: bins,
             histogramHeight: histogramHeight,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderAttachmentAnalysisBundle(from sourceTexture: MTLTexture,
+                                        identifier: String = "RenderAttachmentAnalysisBundle",
+                                        bins: Int = 256,
+                                        histogramHeight: Int = 64,
+                                        scope: TextureAnalysisScope,
+                                        preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle {
+        try renderAttachmentAnalysisBundle(
+            from: sourceTexture,
+            identifier: identifier,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
     }

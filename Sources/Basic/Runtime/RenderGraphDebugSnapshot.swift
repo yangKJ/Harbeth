@@ -191,22 +191,28 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
     public let edges: [Edge]
     public let optimizationDecisions: [String]
     public let dotGraph: String
+    public let renderRecipe: RenderRecipe?
 
     public init(summary: String,
                 diagnostics: Diagnostics,
                 nodes: [Node],
                 edges: [Edge],
                 optimizationDecisions: [String],
-                dotGraph: String) {
+                dotGraph: String,
+                renderRecipe: RenderRecipe? = nil) {
         self.summary = summary
         self.diagnostics = diagnostics
         self.nodes = nodes
         self.edges = edges
         self.optimizationDecisions = optimizationDecisions
         self.dotGraph = dotGraph
+        self.renderRecipe = renderRecipe
     }
 
-    public init(graph: ImageGraph, diagnostics: RenderPlanDiagnostics, optimizationDecisions: [String]) {
+    public init(graph: ImageGraph,
+                diagnostics: RenderPlanDiagnostics,
+                optimizationDecisions: [String],
+                renderRecipe: RenderRecipe? = nil) {
         let nodes = graph.nodes.map {
             Node(
                 id: $0.id.rawValue,
@@ -224,7 +230,8 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             nodes: nodes,
             edges: edges,
             optimizationDecisions: optimizationDecisions,
-            dotGraph: RenderGraphDebugSnapshot.makeDOTGraph(nodes: nodes, edges: edges)
+            dotGraph: RenderGraphDebugSnapshot.makeDOTGraph(nodes: nodes, edges: edges),
+            renderRecipe: renderRecipe
         )
     }
 

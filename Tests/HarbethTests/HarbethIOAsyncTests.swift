@@ -1,4 +1,5 @@
 import XCTest
+import ImageIO
 @testable import Harbeth
 
 final class HarbethIOAsyncTests: XCTestCase {
@@ -182,6 +183,25 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(output.c7.toCGImage()?.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
     }
 
+    func testC7ImageEncodedPNGDataPreservesDisplayP3ColorSpace() throws {
+        let displayP3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let image = C7Image(cgImage: try makeFixtureCGImage(colorSpace: displayP3))
+
+        let data = try XCTUnwrap(image.c7.encodedPNGData())
+
+        XCTAssertEqual(decodedImageColorSpaceName(from: data), CGColorSpace.displayP3 as String)
+    }
+
+    func testHarbethIORenderJPEGDataAppliesExplicitRenderOutputColorSpace() throws {
+        let image = C7Image(cgImage: try makeFixtureCGImage())
+        let data = try HarbethIO(
+            element: image,
+            filters: [HarbethIOC7ImageDisplayP3RenderFilter()]
+        ).renderJPEGData()
+
+        XCTAssertEqual(decodedImageColorSpaceName(from: data), CGColorSpace.displayP3 as String)
+    }
+
     private func makeFixtureCGImage(colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()) throws -> CGImage {
         let bytes: [UInt8] = [255, 0, 0, 255]
         guard let provider = CGDataProvider(data: Data(bytes) as CFData),
@@ -199,6 +219,14 @@ final class HarbethIOAsyncTests: XCTestCase {
             throw XCTSkip("Failed to create CGImage fixture.")
         }
         return image
+    }
+
+    private func decodedImageColorSpaceName(from data: Data) -> String? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            return nil
+        }
+        return image.colorSpace?.name as String?
     }
 
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {

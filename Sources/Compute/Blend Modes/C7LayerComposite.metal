@@ -72,6 +72,9 @@ static inline half3 blendLayer(half3 background, half3 layer, float mode) {
 static inline half combineMaskCoverage(half current, half maskValue, int blendMode, bool hasExistingMask) {
     const half clampedMask = clamp(maskValue, half(0.0), half(1.0));
     if (!hasExistingMask) {
+        if (blendMode == 4) {
+            return half(1.0) - clampedMask;
+        }
         return clampedMask;
     }
 
@@ -80,6 +83,8 @@ static inline half combineMaskCoverage(half current, half maskValue, int blendMo
             return clamp(current + clampedMask, half(0.0), half(1.0));
         case 3:
             return clamp(current * clampedMask, half(0.0), half(1.0));
+        case 4:
+            return clamp(current * (half(1.0) - clampedMask), half(0.0), half(1.0));
         case 1:
         case 0:
         default:

@@ -8,9 +8,7 @@
 import Foundation
 import MetalKit
 import CoreVideo
-#if !os(macOS)
-import MobileCoreServices
-#endif
+import ImageIO
 
 extension C7Image: HarbethCompatible { }
 
@@ -35,6 +33,38 @@ extension HarbethWrapper where Base: C7Image {
         return base.cgImage
         #endif
     }
+
+    public func encodedData(utType: CFString, properties: [CFString: Any] = [:]) -> Data? {
+        guard let cgImage = toCGImage() else {
+            return nil
+        }
+        var destinationProperties = properties
+        #if !os(macOS)
+        destinationProperties[kCGImagePropertyOrientation] = base.imageOrientation.rawValue
+        #endif
+        return cgImage.c7.encodedData(utType: utType, properties: destinationProperties)
+    }
+
+    public func encodedPNGData() -> Data? {
+        encodedData(utType: "public.png" as CFString)
+    }
+
+    public func encodedJPEGData(compressionQuality: CGFloat = 1) -> Data? {
+        encodedData(
+            utType: "public.jpeg" as CFString,
+            properties: [kCGImageDestinationLossyCompressionQuality: compressionQuality]
+        )
+    }
+
+    public func encodedTIFFData() -> Data? {
+        encodedData(utType: "public.tiff" as CFString)
+    }
+
+    #if os(macOS)
+    public func encodedHEICData() -> Data? {
+        encodedData(utType: "public.heic" as CFString)
+    }
+    #endif
     
     #if canImport(UIKit) && !os(watchOS)
     public func toPixelBuffer() -> CVPixelBuffer? {
@@ -102,22 +132,9 @@ extension HarbethWrapper where Base: C7Image {
     
     public func tiffData() -> Data? {
         #if os(macOS)
-        return base.tiffRepresentation
+        return encodedTIFFData() ?? base.tiffRepresentation
         #else
-        guard let cgImage = base.cgImage else {
-            return nil
-        }
-        let options: NSDictionary = [
-            kCGImagePropertyOrientation: base.imageOrientation,
-            kCGImagePropertyHasAlpha: true
-        ]
-        let data = NSMutableData()
-        guard let imageDestination = CGImageDestinationCreateWithData(data as CFMutableData, kUTTypeTIFF, 1, nil) else {
-            return nil
-        }
-        CGImageDestinationAddImage(imageDestination, cgImage, options)
-        CGImageDestinationFinalize(imageDestination)
-        return data as Data        
+        return encodedTIFFData()
         #endif
     }
     

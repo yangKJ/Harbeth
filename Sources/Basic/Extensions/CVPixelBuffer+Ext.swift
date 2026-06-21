@@ -158,7 +158,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         guard plan.contract.nativeTextureLayout == .planeTextures else {
             return []
         }
-        let cache = textureCache ?? Shared.shared.sharedTextureCache
+        let cache: CVMetalTextureCache? = textureCache ?? Shared.shared.sharedTextureCache
         return plan.contract.planes.compactMap { plane in
             guard let pixelFormat = plane.metalPixelFormat else {
                 return nil
@@ -526,7 +526,13 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         case kCVPixelFormatType_OneComponent8:
             return .monochrome
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-             kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+             kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+             kCVPixelFormatType_422YpCbCr8BiPlanarFullRange,
+             kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange,
+             kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_420YpCbCr10BiPlanarFullRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarFullRange:
             return .yCbCrBiPlanar
         case kCVPixelFormatType_420YpCbCr8Planar,
              kCVPixelFormatType_420YpCbCr8PlanarFullRange:
@@ -555,8 +561,15 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
         switch pixelFormatType {
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-             kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+             kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+             kCVPixelFormatType_422YpCbCr8BiPlanarFullRange,
+             kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange:
             return planeIndex == 0 ? .r8Unorm : .rg8Unorm
+        case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_420YpCbCr10BiPlanarFullRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange,
+             kCVPixelFormatType_422YpCbCr10BiPlanarFullRange:
+            return planeIndex == 0 ? .r16Unorm : .rg16Unorm
         case kCVPixelFormatType_420YpCbCr8Planar,
              kCVPixelFormatType_420YpCbCr8PlanarFullRange:
             return .r8Unorm

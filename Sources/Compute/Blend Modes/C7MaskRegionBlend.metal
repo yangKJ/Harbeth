@@ -53,6 +53,9 @@ kernel void C7MaskRegionBlend(texture2d<half, access::write> outputTexture [[tex
         case 3:
             output = base * mix(half4(1.0h), effect, mask);
             break;
+        case 4:
+            output = mix(base, max(base - effect, half4(0.0h)), mask);
+            break;
         default:
             break;
     }

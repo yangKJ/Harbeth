@@ -36,25 +36,17 @@ extension C7Image {
     
     // Generate PNG data from image
     public func pngData() -> Data? {
-        guard let rep = tiffRepresentation, let bitmap = NSBitmapImageRep(data: rep) else { return nil }
-        return bitmap.representation(using: .png, properties: [:])
+        c7.encodedPNGData()
     }
     
     // Generate JPEG data with compression quality
     public func jpegData(compressionQuality: CGFloat) -> Data? {
-        guard let rep = tiffRepresentation, let bitmap = NSBitmapImageRep(data: rep) else { return nil }
-        return bitmap.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+        c7.encodedJPEGData(compressionQuality: compressionQuality)
     }
     
     // Generate HEIC data (macOS 10.13+)
     public func heic() -> Data? {
-        guard let mutableData = CFDataCreateMutable(nil, 0),
-              let destination = CGImageDestinationCreateWithData(mutableData, "public.heic" as CFString, 1, nil),
-              let cgImage = cgImage else {
-            return nil
-        }
-        CGImageDestinationAddImage(destination, cgImage, nil)
-        return CGImageDestinationFinalize(destination) ? mutableData as Data : nil
+        c7.encodedHEICData()
     }
 }
 

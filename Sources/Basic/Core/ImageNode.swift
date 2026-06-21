@@ -194,10 +194,12 @@ extension ImageNode: ImagePromise {
     public func makeDebugSnapshot(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
         let diagnostics = try makeRenderPlan(profile: profile, derivative: derivative).diagnostics
+        let renderRecipe = try makeRenderRecipe(profile: profile, derivative: derivative)
         return RenderGraphDebugSnapshot(
             graph: optimization.graph,
             diagnostics: diagnostics,
-            optimizationDecisions: optimization.decisions
+            optimizationDecisions: optimization.decisions,
+            renderRecipe: renderRecipe
         )
     }
 
@@ -329,6 +331,18 @@ extension ImageNode: ImagePromise {
     }
 
     public func makeRenderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
+        switch self {
+        case .recipe(let source, let recipe, let mode):
+            return try recipe.makeRenderRecipe(
+                source: source,
+                mode: mode,
+                derivative: derivative
+            )
+        case .layerComposite(let recipe):
+            return try recipe.makeRenderRecipe(derivative: derivative)
+        default:
+            break
+        }
         let plan = try makeRenderPlan(profile: profile, derivative: derivative)
         let primarySource = try resolvedPrimarySource()
         return RenderRecipe(
@@ -411,6 +425,26 @@ extension ImageNode: ImagePromise {
             bins: bins,
             histogramHeight: histogramHeight,
             region: region,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func makeAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                             bins: Int = 256,
+                                             histogramHeight: Int = 64,
+                                             scope: TextureAnalysisScope,
+                                             preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        guard let bridge = try resolvedAttachmentAnalysisBridge(
+            profile: profile
+        ) else {
+            return nil
+        }
+        return try bridge.filter.renderAttachmentAnalysisBundle(
+            from: bridge.inputTexture,
+            identifier: "ImageNode.AttachmentAnalysis.\(UUID().uuidString)",
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
             preferredMethod: preferredMethod
         )
     }
@@ -580,11 +614,13 @@ extension LayerCompositeRecipe {
         let backgroundTexture = try background.makeTexture()
         let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
         let placeholderTexture = backgroundTexture
-        let filters = layers.flatMap { layer -> [C7FilterProtocol] in
+        let filters = try layers.flatMap { layer -> [C7FilterProtocol] in
+            let resolvedMask = try layer.resolvedMaskDescriptor()
+            let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
             let composite = C7LayerComposite(
                 layerTexture: placeholderTexture,
-                mask: layer.mask,
-                compositingMask: layer.compositingMask,
+                mask: resolvedMask,
+                compositingMask: resolvedCompositingMask,
                 normalizedFrame: layer.normalizedFrame,
                 contentRegion: layer.contentRegion,
                 opacity: layer.opacity,
@@ -627,6 +663,8 @@ extension LayerCompositeRecipe {
 
         for layer in layers {
             var layerTexture = try layer.content.makeTexture()
+            let resolvedMask = try layer.resolvedMaskDescriptor()
+            let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
             var layerTransform = layer.transform
             if layer.rotation.truncatingRemainder(dividingBy: 360) != 0 {
                 layerTransform.rotationDegrees += layer.rotation
@@ -651,8 +689,8 @@ extension LayerCompositeRecipe {
                     element: preparedLayer,
                     filter: C7LayerComposite(
                         layerTexture: layerTexture,
-                        mask: layer.mask,
-                        compositingMask: layer.compositingMask,
+                        mask: resolvedMask,
+                        compositingMask: resolvedCompositingMask,
                         normalizedFrame: layer.normalizedFrame,
                         contentRegion: layer.contentRegion,
                         opacity: layer.opacity,
@@ -683,8 +721,8 @@ extension LayerCompositeRecipe {
                 element: current,
                 filter: C7LayerComposite(
                     layerTexture: layerTexture,
-                    mask: layer.mask,
-                    compositingMask: layer.compositingMask,
+                    mask: resolvedMask,
+                    compositingMask: resolvedCompositingMask,
                     normalizedFrame: layer.normalizedFrame,
                     contentRegion: layer.contentRegion,
                     opacity: layer.opacity,

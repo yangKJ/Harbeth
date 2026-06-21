@@ -413,6 +413,7 @@ final class RenderGraphTests: XCTestCase {
             yCbCrDecodeContract: YCbCrDecodeContract(
                 layout: .biPlanar,
                 matrix: .bt2020VideoRange,
+                componentBitDepth: 8,
                 destinationPixelFormat: .rgba8Unorm
             )
         )
@@ -467,6 +468,7 @@ final class RenderGraphTests: XCTestCase {
             yCbCrDecodeContract: YCbCrDecodeContract(
                 layout: .biPlanar,
                 matrix: .bt2020VideoRange,
+                componentBitDepth: 8,
                 destinationPixelFormat: .rgba16Float
             )
         )
@@ -760,6 +762,7 @@ final class RenderGraphTests: XCTestCase {
             inputYCbCrDecodeContract: YCbCrDecodeContract(
                 layout: .biPlanar,
                 matrix: .bt601FullRange,
+                componentBitDepth: 8,
                 destinationPixelFormat: .rgba8Unorm
             ),
             outputPixelFormat: .rgba16Float,
@@ -815,7 +818,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(decoded.inputYCbCrDecodeContract?.matrix, .bt601FullRange)
         XCTAssertTrue(decoded.summary.contains("sharedDependencies=1"))
         XCTAssertTrue(decoded.summary.contains("inputBridgePolicy=directPlaneDecodeToRGBA"))
-        XCTAssertTrue(decoded.summary.contains("inputYCbCrDecode=layout=biPlanar|matrix=bt601FullRange"))
+        XCTAssertTrue(decoded.summary.contains("inputYCbCrDecode=layout=biPlanar|matrix=bt601FullRange|bitDepth=8"))
         XCTAssertFalse(decoded.inputIsHDRFriendly)
         XCTAssertEqual(decoded.inputPixelPrecision, .preserveInput)
     }
@@ -1056,7 +1059,7 @@ final class RenderGraphTests: XCTestCase {
             sharedDependencyNodeCount: 1,
             inputDirectPlaneBridgeCount: 0,
             inputBridgePolicy: "directPlaneDecodeToRGBA",
-            inputYCbCrDecode: "layout=biPlanar|matrix=bt601FullRange|destPixel=70",
+            inputYCbCrDecode: "layout=biPlanar|matrix=bt601FullRange|bitDepth=8|destPixel=70",
             inputPixelPrecision: "preserveInput",
             inputHDRFriendly: false,
             outputAttachmentLabels: ["primaryColor", "maskCoverage"],
@@ -1097,7 +1100,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(decoded.diagnostics.allocatorDecisions, ["heapBackedAllocation"])
         XCTAssertEqual(decoded.diagnostics.optimizationPlan, optimizationPlan)
         XCTAssertEqual(decoded.diagnostics.inputBridgePolicy, "directPlaneDecodeToRGBA")
-        XCTAssertEqual(decoded.diagnostics.inputYCbCrDecode, "layout=biPlanar|matrix=bt601FullRange|destPixel=70")
+        XCTAssertEqual(decoded.diagnostics.inputYCbCrDecode, "layout=biPlanar|matrix=bt601FullRange|bitDepth=8|destPixel=70")
         XCTAssertEqual(decoded.diagnostics.inputPixelPrecision, "preserveInput")
         XCTAssertFalse(decoded.diagnostics.inputHDRFriendly)
         XCTAssertEqual(decoded.diagnostics.outputAttachmentLabels, ["primaryColor", "maskCoverage"])

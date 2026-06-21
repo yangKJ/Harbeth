@@ -494,8 +494,9 @@ final class PixelBufferOutputTests: XCTestCase {
             .makeRenderRequest(profile: .stablePreview)
         XCTAssertEqual(request.source.yCbCrDecodeContract?.layout, .biPlanar)
         XCTAssertEqual(request.source.yCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.componentBitDepth, 8)
         XCTAssertEqual(request.source.pixelBufferBridgePolicy, .directPlaneDecodeToRGBA)
-        XCTAssertTrue(request.source.fingerprint.contains("ycbcrDecode={layout=biPlanar|matrix=bt601FullRange"))
+        XCTAssertTrue(request.source.fingerprint.contains("ycbcrDecode={layout=biPlanar|matrix=bt601FullRange|bitDepth=8"))
         XCTAssertTrue(request.source.fingerprint.contains("bridgePolicy=directPlaneDecodeToRGBA"))
 
         let diagnostics = try HarbethIO(element: pixelBuffer, filter: C7Brightness(brightness: 0.0)).renderDiagnostics()
@@ -507,13 +508,14 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputBridgePolicy, .directPlaneDecodeToRGBA)
         XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.layout, .biPlanar)
         XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.componentBitDepth, 8)
         XCTAssertEqual(diagnostics.colorConversionCount, 0)
         XCTAssertEqual(diagnostics.pixelFormatConversionCount, 0)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=2"))
         XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directPlaneDecodeToRGBA"))
-        XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=biPlanar|matrix=bt601FullRange"))
+        XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=biPlanar|matrix=bt601FullRange|bitDepth=8"))
     }
 
     func testRenderDiagnosticsTracksTriPlanarPixelBufferInputConversions() throws {
@@ -528,6 +530,7 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputBridgePolicy, .directPlaneDecodeToRGBA)
         XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.layout, .triPlanar)
         XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.componentBitDepth, 8)
         XCTAssertEqual(diagnostics.colorConversionCount, 0)
         XCTAssertEqual(diagnostics.pixelFormatConversionCount, 0)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))

@@ -6,6 +6,10 @@
 //
 import Foundation
 
+private func stableRecipeFloatDescription(_ value: Float) -> String {
+    String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+}
+
 public struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
     public let stableTypeID: String
     public let modifier: String
@@ -48,6 +52,96 @@ public struct FilterChainRecipe: Sendable, Hashable, Codable {
     }
 }
 
+public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
+    public let name: String
+    public let component: MaskComponent
+    public let blendMode: MaskBlendMode
+    public let invert: Bool
+    public let opacity: Float
+    public let featherAmount: Float
+
+    public init(name: String,
+                component: MaskComponent,
+                blendMode: MaskBlendMode,
+                invert: Bool,
+                opacity: Float,
+                featherAmount: Float) {
+        self.name = name
+        self.component = component
+        self.blendMode = blendMode
+        self.invert = invert
+        self.opacity = opacity
+        self.featherAmount = featherAmount
+    }
+
+    public var fingerprint: String {
+        [
+            "name=\(name)",
+            "component=\(component.rawValue)",
+            "blend=\(blendMode.rawValue)",
+            "invert=\(invert ? 1 : 0)",
+            "opacity=\(stableRecipeFloatDescription(opacity))",
+            "feather=\(stableRecipeFloatDescription(featherAmount))"
+        ].joined(separator: ",")
+    }
+}
+
+public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
+    public let kind: String
+    public let fingerprint: String
+    public let component: MaskComponent
+    public let blendMode: MaskBlendMode
+    public let invert: Bool
+    public let opacity: Float
+    public let featherAmount: Float
+    public let stepCount: Int
+    public let steps: [MaskCompositeStepDescriptor]
+
+    public init(kind: String,
+                fingerprint: String,
+                component: MaskComponent,
+                blendMode: MaskBlendMode,
+                invert: Bool,
+                opacity: Float,
+                featherAmount: Float,
+                stepCount: Int,
+                steps: [MaskCompositeStepDescriptor]) {
+        self.kind = kind
+        self.fingerprint = fingerprint
+        self.component = component
+        self.blendMode = blendMode
+        self.invert = invert
+        self.opacity = opacity
+        self.featherAmount = featherAmount
+        self.stepCount = stepCount
+        self.steps = steps
+    }
+}
+
+public struct LocalEffectRecipeDescriptor: Sendable, Hashable, Codable {
+    public let filters: [FilterRecipeDescriptor]
+    public let mask: MaskGraphDescriptor
+
+    public init(filters: [FilterRecipeDescriptor], mask: MaskGraphDescriptor) {
+        self.filters = filters
+        self.mask = mask
+    }
+}
+
+public struct LayerMaskRecipeDescriptor: Sendable, Hashable, Codable {
+    public let layerIndex: Int
+    public let mask: MaskGraphDescriptor?
+    public let compositingMask: MaskGraphDescriptor?
+
+    public init(layerIndex: Int,
+                mask: MaskGraphDescriptor?,
+                compositingMask: MaskGraphDescriptor?) {
+        self.layerIndex = layerIndex
+        self.mask = mask
+        self.compositingMask = compositingMask
+    }
+}
+
 public struct RenderRecipe: Sendable, Hashable, Codable {
     public let renderProfile: String
     public let renderIntent: RenderIntent
@@ -58,6 +152,8 @@ public struct RenderRecipe: Sendable, Hashable, Codable {
     public let alphaType: AlphaType
     public let orientation: FrameOrientation
     public let filters: [FilterRecipeDescriptor]
+    public let localEffects: [LocalEffectRecipeDescriptor]?
+    public let layerMasks: [LayerMaskRecipeDescriptor]?
 
     public init(renderProfile: String,
                 renderIntent: RenderIntent,
@@ -67,7 +163,9 @@ public struct RenderRecipe: Sendable, Hashable, Codable {
                 outputSemantic: ImageSemanticDescriptor,
                 alphaType: AlphaType,
                 orientation: FrameOrientation,
-                filters: [FilterRecipeDescriptor]) {
+                filters: [FilterRecipeDescriptor],
+                localEffects: [LocalEffectRecipeDescriptor]? = nil,
+                layerMasks: [LayerMaskRecipeDescriptor]? = nil) {
         self.renderProfile = renderProfile
         self.renderIntent = renderIntent
         self.source = source
@@ -77,10 +175,16 @@ public struct RenderRecipe: Sendable, Hashable, Codable {
         self.alphaType = alphaType
         self.orientation = orientation
         self.filters = filters
+        self.localEffects = localEffects
+        self.layerMasks = layerMasks
     }
 
     public var fingerprint: String {
-        [
+        let localEffectPart = localEffects?.map { $0.mask.fingerprint }.joined(separator: "||") ?? "none"
+        let layerMaskPart = layerMasks?.map { descriptor in
+            "layer=\(descriptor.layerIndex):mask=\(descriptor.mask?.fingerprint ?? "none"):compositing=\(descriptor.compositingMask?.fingerprint ?? "none")"
+        }.joined(separator: "||") ?? "none"
+        return [
             "profile=\(renderProfile)",
             "intent=\(renderIntent.rawValue)",
             source.fingerprint,
@@ -89,7 +193,9 @@ public struct RenderRecipe: Sendable, Hashable, Codable {
             outputSemantic.fingerprint,
             "alpha=\(alphaType.rawValue)",
             "orientation=\(orientation.rawValue)",
-            filters.map(\.fingerprint).joined(separator: " -> ")
+            filters.map(\.fingerprint).joined(separator: " -> "),
+            "localEffects=\(localEffectPart)",
+            "layerMasks=\(layerMaskPart)"
         ].joined(separator: " || ")
     }
 }
@@ -106,7 +212,7 @@ extension C7FilterProtocol {
     }
 
     public static func stableFloatDescription(_ value: Float) -> String {
-        String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+        stableRecipeFloatDescription(value)
     }
 }
 

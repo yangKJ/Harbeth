@@ -15,16 +15,22 @@ import CoreGraphics
 public struct RenderedAnalysisBundle: @unchecked Sendable {
     public let frame: RenderedFrame
     public let histogram: TextureHistogram?
+    public let statistics: TextureStatistics?
     public let histogramAttachment: RenderedHistogramAttachment?
+    public let analysisScopeFingerprint: String?
     public let attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
 
     public init(frame: RenderedFrame,
                 histogram: TextureHistogram?,
+                statistics: TextureStatistics?,
                 histogramAttachment: RenderedHistogramAttachment?,
+                analysisScopeFingerprint: String? = nil,
                 attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]) {
         self.frame = frame
         self.histogram = histogram
+        self.statistics = statistics
         self.histogramAttachment = histogramAttachment
+        self.analysisScopeFingerprint = analysisScopeFingerprint
         self.attachmentDebugPolicies = attachmentDebugPolicies
     }
 

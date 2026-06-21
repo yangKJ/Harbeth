@@ -114,6 +114,12 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         gamut: .displayP3,
         transferFunction: .sRGB
     )
+    public static let extendedLinearDisplayP3 = ImageColorSpaceContract(
+        name: "extendedLinearDisplayP3",
+        preservesInput: false,
+        gamut: .displayP3,
+        transferFunction: .linear
+    )
     public static let extendedLinearSRGB = ImageColorSpaceContract(
         name: "extendedLinearSRGB",
         preservesInput: false,
@@ -230,6 +236,7 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     private func supportsTransferOnlyConversion(from source: ImageColorSpaceContract) -> Bool {
         switch (source.gamut, gamut) {
         case (.sRGB, .sRGB),
+             (.displayP3, .displayP3),
              (.sRGB, .extendedLinearSRGB),
              (.extendedLinearSRGB, .sRGB),
              (.extendedLinearSRGB, .extendedLinearSRGB):
@@ -242,14 +249,19 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
 
 extension ImageColorSpaceContract {
     var cgColorSpace: CGColorSpace? {
-        switch gamut {
-        case .sRGB:
+        switch (gamut, transferFunction) {
+        case (.sRGB, _):
             return CGColorSpace(name: CGColorSpace.sRGB)
-        case .displayP3:
+        case (.displayP3, .linear):
+            if #available(macOS 10.14.3, iOS 12.3, tvOS 12.3, watchOS 5.1, *) {
+                return CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)
+            }
             return CGColorSpace(name: CGColorSpace.displayP3)
-        case .extendedLinearSRGB:
+        case (.displayP3, _):
+            return CGColorSpace(name: CGColorSpace.displayP3)
+        case (.extendedLinearSRGB, _):
             return CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
-        case .preserveInput, .ituR2020, .custom:
+        case (.preserveInput, _), (.ituR2020, _), (.custom, _):
             return nil
         }
     }
@@ -413,6 +425,11 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
 
     public static let highPrecisionLinearTexture = RenderOutputContract(
         colorSpace: .extendedLinearSRGB,
+        pixelFormat: .rgba16Float
+    )
+
+    public static let highPrecisionLinearDisplayP3Texture = RenderOutputContract(
+        colorSpace: .extendedLinearDisplayP3,
         pixelFormat: .rgba16Float
     )
 
@@ -1139,13 +1156,16 @@ public enum YCbCrPlaneLayout: String, Sendable, Codable, Equatable, Hashable {
 public struct YCbCrDecodeContract: Sendable, Codable, Equatable, Hashable {
     public let layout: YCbCrPlaneLayout
     public let matrix: YCbCrDecodeMatrix
+    public let componentBitDepth: Int
     public let destinationPixelFormatRawValue: UInt
 
     public init(layout: YCbCrPlaneLayout,
                 matrix: YCbCrDecodeMatrix,
+                componentBitDepth: Int = 8,
                 destinationPixelFormat: MTLPixelFormat) {
         self.layout = layout
         self.matrix = matrix
+        self.componentBitDepth = componentBitDepth
         self.destinationPixelFormatRawValue = destinationPixelFormat.rawValue
     }
 
@@ -1157,6 +1177,7 @@ public struct YCbCrDecodeContract: Sendable, Codable, Equatable, Hashable {
         [
             "layout=\(layout.rawValue)",
             "matrix=\(matrix.rawValue)",
+            "bitDepth=\(componentBitDepth)",
             "destPixel=\(destinationPixelFormatRawValue)"
         ].joined(separator: "|")
     }

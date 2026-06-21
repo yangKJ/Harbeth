@@ -123,14 +123,51 @@ public struct RenderedHistogramAttachment: @unchecked Sendable {
 public extension MTLTextureCompatible_ {
     func makeHistogram(channel: TextureHistogramChannel = .luminance,
                        bins: Int = 256,
-                       region: MTLRegion? = nil,
+                       scope: TextureAnalysisScope,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        makeHistogram(
+            channel: channel,
+            bins: bins,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func makeHistogram(channel: TextureHistogramChannel = .luminance,
+                       bins: Int = 256,
+                       region: MTLRegion? = nil,
+                       mask: MaskDescriptor? = nil,
+                       coverageThreshold: Float = 0.5,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        if mask != nil {
+            return makeCPUHistogram(
+                channel: channel,
+                bins: bins,
+                region: region,
+                mask: mask,
+                coverageThreshold: coverageThreshold
+            )
+        }
         switch preferredMethod {
         case .cpuReadback:
-            return makeCPUHistogram(channel: channel, bins: bins, region: region)
+            return makeCPUHistogram(
+                channel: channel,
+                bins: bins,
+                region: region,
+                mask: mask,
+                coverageThreshold: coverageThreshold
+            )
         case .gpuMPS:
             return makeGPUHistogram(channel: channel, bins: bins, region: region)
-                ?? makeCPUHistogram(channel: channel, bins: bins, region: region)
+                ?? makeCPUHistogram(
+                    channel: channel,
+                    bins: bins,
+                    region: region,
+                    mask: mask,
+                    coverageThreshold: coverageThreshold
+                )
         }
     }
 
@@ -144,22 +181,32 @@ public extension MTLTextureCompatible_ {
                                    bins: Int = 256,
                                    height: Int = 64,
                                    region: MTLRegion? = nil,
+                                   mask: MaskDescriptor? = nil,
+                                   coverageThreshold: Float = 0.5,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
-        switch preferredMethod {
-        case .gpuMPS:
-            if let output = GPUHistogramSupport.makeRenderedHistogramAttachment(
-                from: target,
+        if mask == nil {
+            switch preferredMethod {
+            case .gpuMPS:
+                if let output = GPUHistogramSupport.makeRenderedHistogramAttachment(
+                    from: target,
+                    channel: channel,
+                    bins: bins,
+                    height: height,
+                    region: region
+                ) {
+                    return output
+                }
+            case .cpuReadback:
+                break
+            }
+        }
+        guard let histogram = makeCPUHistogram(
                 channel: channel,
                 bins: bins,
-                height: height,
-                region: region
-            ) {
-                return output
-            }
-        case .cpuReadback:
-            break
-        }
-        guard let histogram = makeCPUHistogram(channel: channel, bins: bins, region: region),
+                region: region,
+                mask: mask,
+                coverageThreshold: coverageThreshold
+              ),
               let previewTexture = makePreviewTexture(from: histogram, height: height) else {
             return nil
         }
@@ -174,9 +221,27 @@ public extension MTLTextureCompatible_ {
         )
     }
 
+    func renderHistogramAttachment(channel: TextureHistogramChannel = .luminance,
+                                   bins: Int = 256,
+                                   height: Int = 64,
+                                   scope: TextureAnalysisScope,
+                                   preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
+        renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
     private func makeCPUHistogram(channel: TextureHistogramChannel,
                                   bins: Int,
-                                  region: MTLRegion?) -> TextureHistogram? {
+                                  region: MTLRegion?,
+                                  mask: MaskDescriptor?,
+                                  coverageThreshold: Float) -> TextureHistogram? {
         let clampedBins = max(1, bins)
         guard let bytes = bytes() else { return nil }
         let width = target.width
@@ -191,12 +256,19 @@ public extension MTLTextureCompatible_ {
         let step = 4
         let scale = Float(clampedBins - 1)
         let bytesPerRow = width * step
+        let resolvedCoverageThreshold = min(max(coverageThreshold, 0), 1)
+        let maskSample = makeMaskCoverageSample(for: mask)
+        var totalSampleCount = 0
 
         bytes.withUnsafeBytes { rawBuffer in
             let rgba = rawBuffer.bindMemory(to: UInt8.self)
             for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
                 let rowBase = y * bytesPerRow
                 for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
+                    if let maskSample,
+                       maskSample.coverage(atSourceX: x, y: y, sourceWidth: width, sourceHeight: height) < resolvedCoverageThreshold {
+                        continue
+                    }
                     let offset = rowBase + x * step
                     let red = Float(rgba[offset]) / 255.0
                     let green = Float(rgba[offset + 1]) / 255.0
@@ -218,6 +290,7 @@ public extension MTLTextureCompatible_ {
                     }
                     let index = min(max(Int((value * scale).rounded()), 0), clampedBins - 1)
                     counts[index] += 1
+                    totalSampleCount += 1
                 }
             }
         }
@@ -225,7 +298,7 @@ public extension MTLTextureCompatible_ {
         return TextureHistogram(
             channel: channel,
             bins: counts,
-            totalSampleCount: resolvedRegion.size.width * resolvedRegion.size.height
+            totalSampleCount: totalSampleCount
         )
     }
 
@@ -245,7 +318,7 @@ public extension MTLTextureCompatible_ {
         ).texture
     }
 
-    private func resolvedHistogramRegion(_ requestedRegion: MTLRegion?) -> MTLRegion? {
+    internal func resolvedHistogramRegion(_ requestedRegion: MTLRegion?) -> MTLRegion? {
         let fullRegion = MTLRegionMake2D(0, 0, target.width, target.height)
         let region = requestedRegion ?? fullRegion
         let maxX = min(max(region.origin.x, 0), target.width)
@@ -259,17 +332,113 @@ public extension MTLTextureCompatible_ {
         }
         return MTLRegionMake2D(maxX, maxY, width, height)
     }
+
+    internal func makeMaskCoverageSample(for mask: MaskDescriptor?) -> MaskCoverageSample? {
+        guard let mask else { return nil }
+        guard let coverageTexture = try? HarbethIO(
+            element: mask.texture,
+            filter: C7MaskCoverageExtract(mask: mask)
+        ).renderTexture(profile: .readbackQuality),
+        let bytes = coverageTexture.c7.bytes() else {
+            guard let bytes = mask.texture.c7.bytes() else { return nil }
+            return MaskCoverageSample(
+                bytes: bytes,
+                width: mask.texture.width,
+                height: mask.texture.height,
+                component: mask.component,
+                invert: mask.invert,
+                opacity: mask.opacity,
+                normalizedCoverage: false
+            )
+        }
+        return MaskCoverageSample(
+            bytes: bytes,
+            width: coverageTexture.width,
+            height: coverageTexture.height,
+            component: .red,
+            invert: false,
+            opacity: 1,
+            normalizedCoverage: true
+        )
+    }
+}
+
+struct MaskCoverageSample {
+    let bytes: Data
+    let width: Int
+    let height: Int
+    let component: MaskComponent
+    let invert: Bool
+    let opacity: Float
+    let normalizedCoverage: Bool
+
+    func coverage(atSourceX x: Int,
+                  y: Int,
+                  sourceWidth: Int,
+                  sourceHeight: Int) -> Float {
+        guard width > 0,
+              height > 0,
+              sourceWidth > 0,
+              sourceHeight > 0 else {
+            return 0
+        }
+        let maskX = min(max((x * width) / sourceWidth, 0), width - 1)
+        let maskY = min(max((y * height) / sourceHeight, 0), height - 1)
+        let offset = (maskY * width + maskX) * 4
+        guard offset + 3 < bytes.count else { return 0 }
+        let red = Float(bytes[offset]) / 255.0
+        if normalizedCoverage {
+            return red
+        }
+        let green = Float(bytes[offset + 1]) / 255.0
+        let blue = Float(bytes[offset + 2]) / 255.0
+        let alpha = Float(bytes[offset + 3]) / 255.0
+        let baseValue: Float = {
+            switch component {
+            case .alpha:
+                return alpha
+            case .red:
+                return red
+            case .green:
+                return green
+            case .blue:
+                return blue
+            case .luminance:
+                return red * 0.2126 + green * 0.7152 + blue * 0.0722
+            }
+        }()
+        let adjustedValue = invert ? 1 - baseValue : baseValue
+        return min(max(adjustedValue * opacity, 0), 1)
+    }
 }
 
 public extension RenderedAttachment {
     func makeHistogram(channel: TextureHistogramChannel? = nil,
                        bins: Int = 256,
+                       scope: TextureAnalysisScope,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        makeHistogram(
+            channel: channel,
+            bins: bins,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func makeHistogram(channel: TextureHistogramChannel? = nil,
+                       bins: Int = 256,
                        region: MTLRegion? = nil,
+                       mask: MaskDescriptor? = nil,
+                       coverageThreshold: Float = 0.5,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         texture.c7.makeHistogram(
             channel: channel ?? defaultHistogramChannel,
             bins: bins,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
     }
@@ -292,12 +461,32 @@ public extension RenderedAttachmentSet {
     func makeHistogram(for semantic: RenderOutputAttachmentSemantic,
                        channel: TextureHistogramChannel? = nil,
                        bins: Int = 256,
+                       scope: TextureAnalysisScope,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        makeHistogram(
+            for: semantic,
+            channel: channel,
+            bins: bins,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func makeHistogram(for semantic: RenderOutputAttachmentSemantic,
+                       channel: TextureHistogramChannel? = nil,
+                       bins: Int = 256,
                        region: MTLRegion? = nil,
+                       mask: MaskDescriptor? = nil,
+                       coverageThreshold: Float = 0.5,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         attachment(for: semantic)?.makeHistogram(
             channel: channel,
             bins: bins,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
     }
@@ -307,6 +496,8 @@ public extension RenderedAttachmentSet {
                                    bins: Int = 256,
                                    height: Int = 64,
                                    region: MTLRegion? = nil,
+                                   mask: MaskDescriptor? = nil,
+                                   coverageThreshold: Float = 0.5,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         guard let attachment = attachment(for: semantic) else { return nil }
         return attachment.texture.c7.renderHistogramAttachment(
@@ -314,6 +505,26 @@ public extension RenderedAttachmentSet {
             bins: bins,
             height: height,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderHistogramAttachment(for semantic: RenderOutputAttachmentSemantic,
+                                   channel: TextureHistogramChannel? = nil,
+                                   bins: Int = 256,
+                                   height: Int = 64,
+                                   scope: TextureAnalysisScope,
+                                   preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
+        renderHistogramAttachment(
+            for: semantic,
+            channel: channel,
+            bins: bins,
+            height: height,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
     }
@@ -322,12 +533,30 @@ public extension RenderedAttachmentSet {
 public extension RenderedFrame {
     func makeHistogram(channel: TextureHistogramChannel = .luminance,
                        bins: Int = 256,
+                       scope: TextureAnalysisScope,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        makeHistogram(
+            channel: channel,
+            bins: bins,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func makeHistogram(channel: TextureHistogramChannel = .luminance,
+                       bins: Int = 256,
                        region: MTLRegion? = nil,
+                       mask: MaskDescriptor? = nil,
+                       coverageThreshold: Float = 0.5,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         texture.c7.makeHistogram(
             channel: channel,
             bins: bins,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
     }
@@ -336,12 +565,32 @@ public extension RenderedFrame {
                                    bins: Int = 256,
                                    height: Int = 64,
                                    region: MTLRegion? = nil,
+                                   mask: MaskDescriptor? = nil,
+                                   coverageThreshold: Float = 0.5,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         texture.c7.renderHistogramAttachment(
             channel: channel,
             bins: bins,
             height: height,
             region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderHistogramAttachment(channel: TextureHistogramChannel = .luminance,
+                                   bins: Int = 256,
+                                   height: Int = 64,
+                                   scope: TextureAnalysisScope,
+                                   preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
+        renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
     }
