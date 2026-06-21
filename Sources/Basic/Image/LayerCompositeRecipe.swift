@@ -15,6 +15,11 @@ public enum LayerBlendMode: Int, Sendable, Codable, Equatable, Hashable {
     case add = 2
     case multiply = 3
     case screen = 4
+    case overlay = 5
+    case darken = 6
+    case lighten = 7
+    case difference = 8
+    case subtract = 9
 }
 
 public struct ImageLayer {
@@ -39,13 +44,38 @@ public struct ImageLayer {
                 cornerRadius: Float = 0) {
         self.content = content
         self.filters = filters
-        self.normalizedFrame = normalizedFrame.standardized
+        self.normalizedFrame = ImageLayer.clampedNormalizedFrame(normalizedFrame)
         self.opacity = min(max(opacity, 0), 1)
         self.blendMode = blendMode
         self.transform = transform
         self.mask = mask
         self.compositingMask = compositingMask
         self.cornerRadius = max(cornerRadius, 0)
+    }
+
+    public var hasMask: Bool {
+        mask != nil || compositingMask != nil
+    }
+
+    public var fingerprint: String {
+        [
+            "frame=\(String(format: "%.4f", normalizedFrame.origin.x)),\(String(format: "%.4f", normalizedFrame.origin.y)),\(String(format: "%.4f", normalizedFrame.width)),\(String(format: "%.4f", normalizedFrame.height))",
+            "opacity=\(String(format: "%.4f", opacity))",
+            "blend=\(blendMode.rawValue)",
+            "filters=\(filters.map(\.identifier).joined(separator: ","))",
+            "mask=\(mask == nil ? 0 : 1)",
+            "compositingMask=\(compositingMask == nil ? 0 : 1)",
+            "corner=\(String(format: "%.4f", cornerRadius))"
+        ].joined(separator: "|")
+    }
+
+    private static func clampedNormalizedFrame(_ rect: CGRect) -> CGRect {
+        let standardized = rect.standardized
+        let x = min(max(standardized.origin.x, 0), 1)
+        let y = min(max(standardized.origin.y, 0), 1)
+        let width = min(max(standardized.width, 0), 1 - x)
+        let height = min(max(standardized.height, 0), 1 - y)
+        return CGRect(x: x, y: y, width: width, height: height)
     }
 }
 
@@ -70,6 +100,15 @@ public struct LayerCompositeRecipe {
 
     public var layerCount: Int {
         layers.count
+    }
+
+    public var fingerprint: String {
+        [
+            "layers=\(layers.map(\.fingerprint).joined(separator: "||"))",
+            "profile=\(profile)",
+            "derivative=\(derivative.name)",
+            outputContract.fingerprint
+        ].joined(separator: "|")
     }
 }
 

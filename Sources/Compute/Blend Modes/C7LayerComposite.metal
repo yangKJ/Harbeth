@@ -30,6 +30,20 @@ static inline half3 blendLayer(half3 background, half3 layer, float mode) {
         return background * layer;
     } else if (mode < 4.5) {
         return half3(1.0) - (half3(1.0) - background) * (half3(1.0) - layer);
+    } else if (mode < 5.5) {
+        return select(
+            half3(1.0) - half3(2.0) * (half3(1.0) - background) * (half3(1.0) - layer),
+            half3(2.0) * background * layer,
+            background < half3(0.5)
+        );
+    } else if (mode < 6.5) {
+        return min(background, layer);
+    } else if (mode < 7.5) {
+        return max(background, layer);
+    } else if (mode < 8.5) {
+        return abs(background - layer);
+    } else if (mode < 9.5) {
+        return max(background - layer, half3(0.0));
     }
     return layer;
 }

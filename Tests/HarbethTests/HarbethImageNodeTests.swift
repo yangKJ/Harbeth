@@ -28,8 +28,25 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(descriptor.functionIdentity.primaryName, "C7Brightness")
         XCTAssertEqual(descriptor.output.outputSize, C7Size(width: 8, height: 6))
         XCTAssertEqual(descriptor.resourceUsage, .singleInput)
+        XCTAssertEqual(descriptor.resources.inputTextureCount, 1)
+        XCTAssertEqual(descriptor.resources.memoryAccessPattern, "point")
         XCTAssertEqual(descriptor.alphaBehavior, .preserveInput)
+        XCTAssertEqual(descriptor.outputContract.alpha, .preserveInput)
         XCTAssertTrue(descriptor.fingerprint.contains("filter=C7Brightness"))
+    }
+
+    func testKernelDescriptorTracksAlphaAndResourceContracts() {
+        let premultiply = C7PremultiplyAlpha().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+        let unpremultiply = C7UnpremultiplyAlpha().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+        let opacity = C7Opacity(opacity: 0.4).kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+
+        XCTAssertEqual(premultiply.alphaBehavior, .outputsPremultiplied)
+        XCTAssertEqual(premultiply.outputContract.alpha, .premultiplied)
+        XCTAssertEqual(unpremultiply.alphaBehavior, .outputsNonPremultiplied)
+        XCTAssertEqual(unpremultiply.outputContract.alpha, .nonPremultiplied)
+        XCTAssertEqual(opacity.alphaBehavior, .modifiesAlpha)
+        XCTAssertEqual(opacity.parameters["factors"]?.fingerprint, "floats:0.4000")
+        XCTAssertTrue(opacity.fingerprint.contains("memory=auto"))
     }
 
     func testConservativeOptimizationPlanRecordsResourceDecisions() {
@@ -59,7 +76,24 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.pixelFormatConversionCount, 1)
         XCTAssertGreaterThanOrEqual(plan.diagnostics.optimizationPlan.intermediateTextureCount, 2)
         XCTAssertGreaterThanOrEqual(plan.diagnostics.optimizationPlan.readbackBoundaryCount, 1)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.lifecycleDecisions.last?.action, .preserveForReadback)
         XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("keepDerivativeResizeAtTerminalStage"))
+    }
+
+    func testOptimizerExposesTransientReuseLifecyclePlan() {
+        let plan = GraphCompiler.compile(
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.1),
+                C7Saturation(saturation: 0.8)
+            ],
+            inputSize: C7Size(width: 4, height: 4),
+            profile: .stablePreview
+        )
+
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.lifecycleDecisions.count, plan.diagnostics.stageCount)
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.lifecycleDecisions.contains(where: { $0.action == .allocatePersistentOutput }))
+        XCTAssertTrue(plan.diagnostics.summary.contains("lifecycle="))
     }
 
     func testLayerCompositeRendersNormalizedFrameAndDiagnostics() throws {
@@ -88,6 +122,27 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(diagnostics.compilationSource, .layerComposite)
         XCTAssertEqual(diagnostics.nodes.first?.name.contains("C7LayerComposite"), true)
         XCTAssertEqual(diagnostics.optimizationPlan.destinationTextureCreationCount, 1)
+    }
+
+    func testLayerCompositeSupportsDifferenceBlendAndClampsFrame() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 255, 0, 255])
+        let imageLayer = ImageLayer(
+            content: .texture(layer),
+            normalizedFrame: CGRect(x: -0.25, y: -0.25, width: 2, height: 2),
+            opacity: 1,
+            blendMode: .difference
+        )
+        let recipe = LayerCompositeRecipe(background: .texture(background), layers: [imageLayer])
+
+        let output = try HarbethImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(imageLayer.normalizedFrame, CGRect(x: 0, y: 0, width: 1, height: 1))
+        XCTAssertEqual(outputPixel.red, 255)
+        XCTAssertEqual(outputPixel.green, 255)
+        XCTAssertEqual(outputPixel.blue, 0)
+        XCTAssertTrue(recipe.fingerprint.contains("blend=8"))
     }
 
     func testNodeRecipeAndTransitionDiagnosticsKeepOriginalSources() throws {

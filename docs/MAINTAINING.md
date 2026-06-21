@@ -38,7 +38,9 @@ Execution contract checks:
 - When touching `EditRecipe`, `LocalEffectRecipe`, or `TransitionRecipe`, run the focused recipe, mask, transition, and rendered-frame tests before broader verification.
 - When touching `HarbethImageNode`, `HarbethKernelDescriptor`, `LayerCompositeRecipe`, or `RenderOutputContract`, run the node graph tests and verify that diagnostics still explain compilation source, optimizer decisions, and output contract fields.
 - Treat `RenderPlanDiagnostics`, `RenderStage`, and `RenderedFrame` metadata as stable contracts; if a field changes, update tests in the same slice.
-- Keep `RenderOptimizationPlan` conservative. It can report texture reuse and boundary decisions, but it must not silently change visual output or absorb product workflow policy.
+- Keep `RenderOptimizationPlan` conservative. It can report texture reuse, lifecycle decisions, persistent outputs, readback boundaries, and conversion decisions, but it must not silently change visual output or absorb product workflow policy.
+- Treat `HarbethKernelDescriptor.fingerprint`, `HarbethKernelResourceDescriptor`, and `RenderOutputContract.fingerprint` as public technical contracts. New kernel metadata should be deterministic and testable.
+- Layer compositing belongs to single-frame texture composition only. Do not add text engines, sticker libraries, timeline layers, or media orchestration to `LayerCompositeRecipe`.
 - Be cautious with `CVPixelBuffer` and `CMSampleBuffer` paths when size, pixel format, or readback behavior changes; those bridges are more constrained than pure texture/image flows.
 
 ## Issue Triage

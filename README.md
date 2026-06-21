@@ -140,8 +140,9 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `HarbethContext.shared`: the default execution context facade for render pipeline cache, sampler cache, and execution diagnostics.
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
 - `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths.
-- `HarbethKernelDescriptor`: lightweight technical metadata for a filter's execution path, function identity, multi-input usage, and alpha behavior.
+- `HarbethKernelDescriptor`: lightweight technical metadata for function identity, parameter fingerprinting, input texture usage, resource behavior, and alpha/output contracts.
 - `RenderOutputContract`: explicit alpha, color-space, and pixel-format intent for diagnostics and conservative planning.
+- `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, readback boundaries, and format conversion decisions.
 
 ```swift
 let runtime = Shared.shared
@@ -172,7 +173,7 @@ Harbeth now includes reusable editor-grade primitives without turning the core i
 
 - `ImageCropRegion`, `ImageTransformRecipe`, `AspectPolicy`, `CoordinateSpace`
 - `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`, `LocalEffectRecipe`
-- `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing
+- `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing with normalized placement, opacity, masks, corner radius, and common blend modes
 - `TransitionKernel` with built-in dissolve, directional wipe, luma wipe, and displacement transitions
 - `EditRecipe` for lightweight preview/final render contracts
 

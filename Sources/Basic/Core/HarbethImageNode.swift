@@ -101,14 +101,13 @@ extension HarbethImageNode: HarbethImagePromise {
             ).diagnostics
         case .kernel(let input, let descriptor, let filter):
             let texture = try input.makeTexture(profile: profile, derivative: nil)
-            let outputContract = RenderOutputContract(alpha: descriptor.alphaBehavior.renderAlphaContract)
             return GraphCompiler.compile(
                 filters: [filter],
                 inputSize: C7Size(width: texture.width, height: texture.height),
                 profile: profile,
                 derivative: derivative ?? profile.defaultDerivativeSpec,
                 compilationSource: .nodeGraph,
-                outputContract: outputContract
+                outputContract: descriptor.outputContract
             ).diagnostics
         case .recipe(let source, let recipe, let mode):
             let texture = try recipe.resolvedSource(source).makeTexture()
@@ -171,23 +170,6 @@ extension HarbethImageNode: HarbethImagePromise {
         )
         .configured(for: profile)
         .output()
-    }
-}
-
-private extension HarbethKernelAlphaBehavior {
-    var renderAlphaContract: ImageAlphaContract {
-        switch self {
-        case .preserveInput:
-            return .preserveInput
-        case .outputsOpaque:
-            return .opaque
-        case .outputsPremultiplied:
-            return .premultiplied
-        case .outputsNonPremultiplied:
-            return .nonPremultiplied
-        case .modifiesAlpha:
-            return .preserveInput
-        }
     }
 }
 

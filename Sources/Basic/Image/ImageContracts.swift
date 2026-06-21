@@ -66,7 +66,7 @@ public enum ImageAlphaContract: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct ImageColorSpaceContract: Sendable, Equatable, Hashable {
+public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let preservesInput: Bool
 
@@ -78,7 +78,7 @@ public struct ImageColorSpaceContract: Sendable, Equatable, Hashable {
     public static let preserveInput = ImageColorSpaceContract()
 }
 
-public struct PixelFormatContract: Sendable, Equatable, Hashable {
+public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let preservesInput: Bool
 
@@ -90,7 +90,7 @@ public struct PixelFormatContract: Sendable, Equatable, Hashable {
     public static let preserveInput = PixelFormatContract()
 }
 
-public struct RenderOutputContract: Sendable, Equatable, Hashable {
+public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
     public let alpha: ImageAlphaContract
     public let colorSpace: ImageColorSpaceContract
     public let pixelFormat: PixelFormatContract
@@ -107,6 +107,23 @@ public struct RenderOutputContract: Sendable, Equatable, Hashable {
     }
 
     public static let preserveInput = RenderOutputContract()
+
+    public var requiresAlphaConversion: Bool {
+        switch alpha {
+        case .opaque, .premultiplied, .nonPremultiplied, .forcePremultiply, .forceUnpremultiply:
+            return true
+        case .preserveInput:
+            return false
+        }
+    }
+
+    public var requiresColorSpaceConversion: Bool {
+        colorSpace.preservesInput == false
+    }
+
+    public var requiresPixelFormatConversion: Bool {
+        pixelFormat.preservesInput == false
+    }
 
     public var fingerprint: String {
         [

@@ -65,6 +65,30 @@ public enum RenderCompilationSource: String, Sendable, Equatable {
     case layerComposite
 }
 
+public enum RenderTextureLifecycleAction: String, Sendable, Equatable {
+    case allocatePersistentOutput
+    case allocateTransient
+    case reuseTransient
+    case preserveForReadback
+}
+
+public struct RenderTextureLifecycleDecision: Sendable, Equatable {
+    public let stageIndex: Int
+    public let action: RenderTextureLifecycleAction
+    public let size: C7Size
+    public let reason: String
+
+    public init(stageIndex: Int,
+                action: RenderTextureLifecycleAction,
+                size: C7Size,
+                reason: String) {
+        self.stageIndex = stageIndex
+        self.action = action
+        self.size = size
+        self.reason = reason
+    }
+}
+
 public struct RenderOptimizationPlan: Sendable, Equatable {
     public let intermediateTextureCount: Int
     public let reusableTextureCount: Int
@@ -72,6 +96,7 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public let readbackBoundaryCount: Int
     public let formatConversionCount: Int
     public let destinationTextureCreationCount: Int
+    public let lifecycleDecisions: [RenderTextureLifecycleDecision]
     public let decisions: [String]
 
     public init(intermediateTextureCount: Int,
@@ -80,6 +105,7 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
                 readbackBoundaryCount: Int,
                 formatConversionCount: Int,
                 destinationTextureCreationCount: Int,
+                lifecycleDecisions: [RenderTextureLifecycleDecision],
                 decisions: [String]) {
         self.intermediateTextureCount = intermediateTextureCount
         self.reusableTextureCount = reusableTextureCount
@@ -87,6 +113,7 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
         self.readbackBoundaryCount = readbackBoundaryCount
         self.formatConversionCount = formatConversionCount
         self.destinationTextureCreationCount = destinationTextureCreationCount
+        self.lifecycleDecisions = lifecycleDecisions
         self.decisions = decisions
     }
 }
@@ -241,6 +268,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "source=\(compilationSource.rawValue)",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
+            "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
             "alphaContract=\(outputContract.alpha)",
             "plan=\(stageSummary)"
@@ -294,9 +322,9 @@ public struct RenderPlan {
             containsDerivativeResize: optimizedStages.contains(where: \.containsDerivativeResize),
             optimizationPlan: optimizationPlan,
             outputContract: outputContract,
-            alphaConversionCount: outputContract.alpha == .preserveInput ? 0 : 1,
-            colorConversionCount: outputContract.colorSpace.preservesInput ? 0 : 1,
-            pixelFormatConversionCount: outputContract.pixelFormat.preservesInput ? optimizationPlan.formatConversionCount : max(optimizationPlan.formatConversionCount, 1),
+            alphaConversionCount: outputContract.requiresAlphaConversion ? 1 : 0,
+            colorConversionCount: outputContract.requiresColorSpaceConversion ? 1 : 0,
+            pixelFormatConversionCount: outputContract.requiresPixelFormatConversion ? max(optimizationPlan.formatConversionCount, 1) : optimizationPlan.formatConversionCount,
             nodes: nodeDiagnostics,
             stages: optimizedStages
         )
@@ -314,13 +342,15 @@ public enum GraphOptimizer {
         let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
         let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
         let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
-        let formatConversionCount = outputContract.pixelFormat.preservesInput ? 0 : 1
-        let reusableTextureCount = stages.filter { stage in
-            stage.containsReadbackBoundary == false && stage.createsDestinationTexture
-        }.count
+        let formatConversionCount = outputContract.requiresPixelFormatConversion ? 1 : 0
+        let lifecycleDecisions = makeLifecycleDecisions(stages: stages)
+        let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
         var decisions: [String] = []
         if intermediateTextureCount > 0 {
             decisions.append("reuseTransientIntermediateTextures")
+        }
+        if reusableTextureCount > 0 {
+            decisions.append("planTransientTextureReuse")
         }
         if stages.contains(where: \.containsDerivativeResize) {
             decisions.append("keepDerivativeResizeAtTerminalStage")
@@ -341,13 +371,49 @@ public enum GraphOptimizer {
             readbackBoundaryCount: readbackBoundaryCount,
             formatConversionCount: formatConversionCount,
             destinationTextureCreationCount: destinationTextureCreationCount,
+            lifecycleDecisions: lifecycleDecisions,
             decisions: decisions
         )
     }
 
-    public static func optimize(graph: RenderGraph,
-                                nodeDiagnostics: [RenderNodeDiagnostic],
-                                profile: RenderProfile) -> [RenderStage] {
+    private static func makeLifecycleDecisions(stages: [RenderStage]) -> [RenderTextureLifecycleDecision] {
+        guard stages.isEmpty == false else { return [] }
+        return stages.map { stage in
+            let isLast = stage.index == stages.count - 1
+            if isLast {
+                return RenderTextureLifecycleDecision(
+                    stageIndex: stage.index,
+                    action: stage.containsReadbackBoundary ? .preserveForReadback : .allocatePersistentOutput,
+                    size: stage.outputSize,
+                    reason: stage.containsReadbackBoundary ? "terminalReadbackBoundary" : "terminalOutput"
+                )
+            }
+            if stage.containsReadbackBoundary {
+                return RenderTextureLifecycleDecision(
+                    stageIndex: stage.index,
+                    action: .preserveForReadback,
+                    size: stage.outputSize,
+                    reason: "readbackBoundary"
+                )
+            }
+            if stage.createsDestinationTexture {
+                return RenderTextureLifecycleDecision(
+                    stageIndex: stage.index,
+                    action: .reuseTransient,
+                    size: stage.outputSize,
+                    reason: "safeTransientAfterStage"
+                )
+            }
+            return RenderTextureLifecycleDecision(
+                stageIndex: stage.index,
+                action: .allocateTransient,
+                size: stage.outputSize,
+                reason: "nonWritingStage"
+            )
+        }
+    }
+
+    public static func optimize(graph: RenderGraph, nodeDiagnostics: [RenderNodeDiagnostic], profile: RenderProfile) -> [RenderStage] {
         guard graph.nodes.isEmpty == false else { return [] }
 
         var stages: [RenderStage] = []
