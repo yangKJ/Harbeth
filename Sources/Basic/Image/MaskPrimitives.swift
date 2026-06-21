@@ -135,14 +135,22 @@ public struct MaskGradientRecipe {
     }
 
     public var graphDescriptor: MaskGraphDescriptor {
+        graphDescriptor()
+    }
+
+    public func graphDescriptor(component: MaskComponent = .red,
+                                blendMode: MaskBlendMode = .mix,
+                                invert: Bool = false,
+                                featherPolicy: MaskFeatherPolicy = .none,
+                                opacity: Float = 1.0) -> MaskGraphDescriptor {
         MaskGraphDescriptor(
             kind: "maskGradientRecipe",
             fingerprint: fingerprint,
-            component: .red,
-            blendMode: .mix,
-            invert: false,
-            opacity: 1,
-            featherAmount: 0,
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            opacity: min(max(opacity, 0), 1),
+            featherAmount: featherPolicy.amount,
             stepCount: 0,
             steps: [],
             gradient: gradientDescriptor,
@@ -241,14 +249,22 @@ public struct MaskShapeRecipe {
     }
 
     public var graphDescriptor: MaskGraphDescriptor {
+        graphDescriptor()
+    }
+
+    public func graphDescriptor(component: MaskComponent = .red,
+                                blendMode: MaskBlendMode = .mix,
+                                invert: Bool = false,
+                                featherPolicy: MaskFeatherPolicy = .none,
+                                opacity: Float = 1.0) -> MaskGraphDescriptor {
         MaskGraphDescriptor(
             kind: "maskShapeRecipe",
             fingerprint: fingerprint,
-            component: .red,
-            blendMode: .mix,
-            invert: false,
-            opacity: 1,
-            featherAmount: 0,
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            opacity: min(max(opacity, 0), 1),
+            featherAmount: featherPolicy.amount,
             stepCount: 0,
             steps: [],
             gradient: nil,
@@ -439,7 +455,13 @@ public struct LocalEffectRecipe {
             opacity: opacity
         )
         self.maskRecipe = nil
-        self.maskGraphOverride = maskGradientRecipe.graphDescriptor
+        self.maskGraphOverride = maskGradientRecipe.graphDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
     }
 
     public init(filters: [C7FilterProtocol],
@@ -458,7 +480,13 @@ public struct LocalEffectRecipe {
             opacity: opacity
         )
         self.maskRecipe = nil
-        self.maskGraphOverride = maskShapeRecipe.graphDescriptor
+        self.maskGraphOverride = maskShapeRecipe.graphDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
     }
 
     func resolvedMaskDescriptor() throws -> MaskDescriptor {
@@ -593,21 +621,35 @@ public struct C7MaskCoverageBlend: C7FilterProtocol {
 public struct MaskCompositeStep {
     public var name: String
     public var mask: MaskDescriptor
+    public var gradientDescriptor: MaskGradientDescriptor?
+    public var shapeDescriptor: MaskShapeDescriptor?
 
-    public init(name: String = "mask", mask: MaskDescriptor) {
+    public init(name: String = "mask",
+                mask: MaskDescriptor,
+                gradientDescriptor: MaskGradientDescriptor? = nil,
+                shapeDescriptor: MaskShapeDescriptor? = nil) {
         self.name = name
         self.mask = mask
+        self.gradientDescriptor = gradientDescriptor
+        self.shapeDescriptor = shapeDescriptor
     }
 
     public var fingerprint: String {
-        [
+        var parts = [
             "name=\(name)",
             "component=\(mask.component.rawValue)",
             "blend=\(mask.blendMode.rawValue)",
             "invert=\(mask.invert ? 1 : 0)",
             "opacity=\(String(format: "%.4f", mask.opacity))",
             "feather=\(mask.featherPolicy.amount)"
-        ].joined(separator: ",")
+        ]
+        if let gradientDescriptor {
+            parts.append("gradient=\(gradientDescriptor.fingerprint)")
+        }
+        if let shapeDescriptor {
+            parts.append("shape=\(shapeDescriptor.fingerprint)")
+        }
+        return parts.joined(separator: ",")
     }
 
     public var descriptor: MaskCompositeStepDescriptor {
@@ -617,13 +659,151 @@ public struct MaskCompositeStep {
             blendMode: mask.blendMode,
             invert: mask.invert,
             opacity: mask.opacity,
-            featherAmount: mask.featherPolicy.amount
+            featherAmount: mask.featherPolicy.amount,
+            gradient: gradientDescriptor,
+            shape: shapeDescriptor
+        )
+    }
+
+    public static func add(_ mask: MaskDescriptor,
+                           name: String = "add") -> MaskCompositeStep {
+        var descriptor = mask
+        descriptor.blendMode = .add
+        return MaskCompositeStep(name: name, mask: descriptor)
+    }
+
+    public static func intersect(_ mask: MaskDescriptor,
+                                 name: String = "intersect") -> MaskCompositeStep {
+        var descriptor = mask
+        descriptor.blendMode = .multiply
+        return MaskCompositeStep(name: name, mask: descriptor)
+    }
+
+    public static func subtract(_ mask: MaskDescriptor,
+                                name: String = "subtract") -> MaskCompositeStep {
+        var descriptor = mask
+        descriptor.blendMode = .subtract
+        return MaskCompositeStep(name: name, mask: descriptor)
+    }
+
+    public static func add(_ maskGradientRecipe: MaskGradientRecipe,
+                           component: MaskComponent = .red,
+                           invert: Bool = false,
+                           featherPolicy: MaskFeatherPolicy = .none,
+                           opacity: Float = 1.0,
+                           name: String = "add") throws -> MaskCompositeStep {
+        MaskCompositeStep(
+            name: name,
+            mask: try maskGradientRecipe.makeMaskDescriptor(
+                component: component,
+                blendMode: .add,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            gradientDescriptor: maskGradientRecipe.gradientDescriptor
+        )
+    }
+
+    public static func intersect(_ maskGradientRecipe: MaskGradientRecipe,
+                                 component: MaskComponent = .red,
+                                 invert: Bool = false,
+                                 featherPolicy: MaskFeatherPolicy = .none,
+                                 opacity: Float = 1.0,
+                                 name: String = "intersect") throws -> MaskCompositeStep {
+        MaskCompositeStep(
+            name: name,
+            mask: try maskGradientRecipe.makeMaskDescriptor(
+                component: component,
+                blendMode: .multiply,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            gradientDescriptor: maskGradientRecipe.gradientDescriptor
+        )
+    }
+
+    public static func subtract(_ maskGradientRecipe: MaskGradientRecipe,
+                                component: MaskComponent = .red,
+                                invert: Bool = false,
+                                featherPolicy: MaskFeatherPolicy = .none,
+                                opacity: Float = 1.0,
+                                name: String = "subtract") throws -> MaskCompositeStep {
+        MaskCompositeStep(
+            name: name,
+            mask: try maskGradientRecipe.makeMaskDescriptor(
+                component: component,
+                blendMode: .subtract,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            gradientDescriptor: maskGradientRecipe.gradientDescriptor
+        )
+    }
+
+    public static func add(_ maskShapeRecipe: MaskShapeRecipe,
+                           component: MaskComponent = .red,
+                           invert: Bool = false,
+                           featherPolicy: MaskFeatherPolicy = .none,
+                           opacity: Float = 1.0,
+                           name: String = "add") throws -> MaskCompositeStep {
+        MaskCompositeStep(
+            name: name,
+            mask: try maskShapeRecipe.makeMaskDescriptor(
+                component: component,
+                blendMode: .add,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            shapeDescriptor: maskShapeRecipe.shapeDescriptor
+        )
+    }
+
+    public static func intersect(_ maskShapeRecipe: MaskShapeRecipe,
+                                 component: MaskComponent = .red,
+                                 invert: Bool = false,
+                                 featherPolicy: MaskFeatherPolicy = .none,
+                                 opacity: Float = 1.0,
+                                 name: String = "intersect") throws -> MaskCompositeStep {
+        MaskCompositeStep(
+            name: name,
+            mask: try maskShapeRecipe.makeMaskDescriptor(
+                component: component,
+                blendMode: .multiply,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            shapeDescriptor: maskShapeRecipe.shapeDescriptor
+        )
+    }
+
+    public static func subtract(_ maskShapeRecipe: MaskShapeRecipe,
+                                component: MaskComponent = .red,
+                                invert: Bool = false,
+                                featherPolicy: MaskFeatherPolicy = .none,
+                                opacity: Float = 1.0,
+                                name: String = "subtract") throws -> MaskCompositeStep {
+        MaskCompositeStep(
+            name: name,
+            mask: try maskShapeRecipe.makeMaskDescriptor(
+                component: component,
+                blendMode: .subtract,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            shapeDescriptor: maskShapeRecipe.shapeDescriptor
         )
     }
 }
 
 public struct MaskCompositeRecipe {
     public var baseMask: MaskDescriptor
+    public var baseGraphOverride: MaskGraphDescriptor?
     public var steps: [MaskCompositeStep]
     public var profile: RenderProfile
 
@@ -631,6 +811,7 @@ public struct MaskCompositeRecipe {
                 masks: [MaskDescriptor] = [],
                 profile: RenderProfile = .stablePreview) {
         self.baseMask = baseMask
+        self.baseGraphOverride = nil
         self.steps = masks.enumerated().map { index, mask in
             MaskCompositeStep(name: "mask\(index)", mask: mask)
         }
@@ -641,8 +822,59 @@ public struct MaskCompositeRecipe {
                 steps: [MaskCompositeStep],
                 profile: RenderProfile = .stablePreview) {
         self.baseMask = baseMask
+        self.baseGraphOverride = nil
         self.steps = steps
         self.profile = profile
+    }
+
+    public init(baseGradientRecipe: MaskGradientRecipe,
+                component: MaskComponent = .red,
+                blendMode: MaskBlendMode = .mix,
+                invert: Bool = false,
+                featherPolicy: MaskFeatherPolicy = .none,
+                opacity: Float = 1.0,
+                steps: [MaskCompositeStep] = []) throws {
+        self.baseMask = try baseGradientRecipe.makeMaskDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+        self.baseGraphOverride = baseGradientRecipe.graphDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+        self.steps = steps
+        self.profile = baseGradientRecipe.profile
+    }
+
+    public init(baseShapeRecipe: MaskShapeRecipe,
+                component: MaskComponent = .red,
+                blendMode: MaskBlendMode = .mix,
+                invert: Bool = false,
+                featherPolicy: MaskFeatherPolicy = .none,
+                opacity: Float = 1.0,
+                steps: [MaskCompositeStep] = []) throws {
+        self.baseMask = try baseShapeRecipe.makeMaskDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+        self.baseGraphOverride = baseShapeRecipe.graphDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+        self.steps = steps
+        self.profile = baseShapeRecipe.profile
     }
 
     public var maskCount: Int {
@@ -651,6 +883,147 @@ public struct MaskCompositeRecipe {
 
     public var masks: [MaskDescriptor] {
         steps.map(\.mask)
+    }
+
+    public func adding(_ mask: MaskDescriptor,
+                       name: String = "add") -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(.add(mask, name: name))
+        return copy
+    }
+
+    public func intersecting(_ mask: MaskDescriptor,
+                             name: String = "intersect") -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(.intersect(mask, name: name))
+        return copy
+    }
+
+    public func subtracting(_ mask: MaskDescriptor,
+                            name: String = "subtract") -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(.subtract(mask, name: name))
+        return copy
+    }
+
+    public func adding(_ maskGradientRecipe: MaskGradientRecipe,
+                       component: MaskComponent = .red,
+                       invert: Bool = false,
+                       featherPolicy: MaskFeatherPolicy = .none,
+                       opacity: Float = 1.0,
+                       name: String = "add") throws -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(
+            try .add(
+                maskGradientRecipe,
+                component: component,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity,
+                name: name
+            )
+        )
+        return copy
+    }
+
+    public func intersecting(_ maskGradientRecipe: MaskGradientRecipe,
+                             component: MaskComponent = .red,
+                             invert: Bool = false,
+                             featherPolicy: MaskFeatherPolicy = .none,
+                             opacity: Float = 1.0,
+                             name: String = "intersect") throws -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(
+            try .intersect(
+                maskGradientRecipe,
+                component: component,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity,
+                name: name
+            )
+        )
+        return copy
+    }
+
+    public func subtracting(_ maskGradientRecipe: MaskGradientRecipe,
+                            component: MaskComponent = .red,
+                            invert: Bool = false,
+                            featherPolicy: MaskFeatherPolicy = .none,
+                            opacity: Float = 1.0,
+                            name: String = "subtract") throws -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(
+            try .subtract(
+                maskGradientRecipe,
+                component: component,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity,
+                name: name
+            )
+        )
+        return copy
+    }
+
+    public func adding(_ maskShapeRecipe: MaskShapeRecipe,
+                       component: MaskComponent = .red,
+                       invert: Bool = false,
+                       featherPolicy: MaskFeatherPolicy = .none,
+                       opacity: Float = 1.0,
+                       name: String = "add") throws -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(
+            try .add(
+                maskShapeRecipe,
+                component: component,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity,
+                name: name
+            )
+        )
+        return copy
+    }
+
+    public func intersecting(_ maskShapeRecipe: MaskShapeRecipe,
+                             component: MaskComponent = .red,
+                             invert: Bool = false,
+                             featherPolicy: MaskFeatherPolicy = .none,
+                             opacity: Float = 1.0,
+                             name: String = "intersect") throws -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(
+            try .intersect(
+                maskShapeRecipe,
+                component: component,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity,
+                name: name
+            )
+        )
+        return copy
+    }
+
+    public func subtracting(_ maskShapeRecipe: MaskShapeRecipe,
+                            component: MaskComponent = .red,
+                            invert: Bool = false,
+                            featherPolicy: MaskFeatherPolicy = .none,
+                            opacity: Float = 1.0,
+                            name: String = "subtract") throws -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(
+            try .subtract(
+                maskShapeRecipe,
+                component: component,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity,
+                name: name
+            )
+        )
+        return copy
     }
 
     public var fingerprint: String {
@@ -665,6 +1038,7 @@ public struct MaskCompositeRecipe {
         return [
             "profile=\(profile)",
             "base={\(baseSegment)}",
+            "baseSource=\(baseGraphOverride?.fingerprint ?? "none")",
             "steps=\(steps.isEmpty ? "none" : steps.map(\.fingerprint).joined(separator: "||"))"
         ].joined(separator: "|")
     }
@@ -680,8 +1054,8 @@ public struct MaskCompositeRecipe {
             featherAmount: baseMask.featherPolicy.amount,
             stepCount: steps.count,
             steps: steps.map(\.descriptor),
-            gradient: nil,
-            shape: nil
+            gradient: baseGraphOverride?.gradient,
+            shape: baseGraphOverride?.shape
         )
     }
 
@@ -706,11 +1080,15 @@ public struct MaskCompositeRecipe {
 
     public func makeMaskDescriptor(component: MaskComponent = .red,
                                    blendMode: MaskBlendMode = .mix,
+                                   invert: Bool = false,
+                                   featherPolicy: MaskFeatherPolicy = .none,
                                    opacity: Float = 1.0) throws -> MaskDescriptor {
         MaskDescriptor(
             texture: try makeTexture(),
             component: component,
             blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
             opacity: opacity
         )
     }

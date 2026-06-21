@@ -264,6 +264,114 @@ final class MaskPrimitiveTests: XCTestCase {
         XCTAssertTrue(recipe.fingerprint.contains("blend=4"))
     }
 
+    func testMaskCompositeConvenienceStepsMapToSemanticBlendModes() throws {
+        let texture = try makeTexture(pixel: [255, 0, 0, 255])
+
+        let add = MaskCompositeStep.add(
+            MaskDescriptor(texture: texture, component: .red),
+            name: "skyAdd"
+        )
+        let intersect = MaskCompositeStep.intersect(
+            MaskDescriptor(texture: texture, component: .red),
+            name: "subjectIntersect"
+        )
+        let subtract = MaskCompositeStep.subtract(
+            MaskDescriptor(texture: texture, component: .red),
+            name: "foregroundSubtract"
+        )
+
+        XCTAssertEqual(add.mask.blendMode, .add)
+        XCTAssertEqual(intersect.mask.blendMode, .multiply)
+        XCTAssertEqual(subtract.mask.blendMode, .subtract)
+        XCTAssertEqual(add.name, "skyAdd")
+        XCTAssertEqual(intersect.name, "subjectIntersect")
+        XCTAssertEqual(subtract.name, "foregroundSubtract")
+    }
+
+    func testMaskCompositeRecipeConvenienceOperationsAppendNamedSteps() throws {
+        let baseTexture = try makeTexture(pixel: [255, 0, 0, 255])
+        let overlayTexture = try makeTexture(pixel: [128, 0, 0, 255])
+
+        let recipe = MaskCompositeRecipe(
+            baseMask: MaskDescriptor(texture: baseTexture, component: .red)
+        )
+        .adding(
+            MaskDescriptor(texture: overlayTexture, component: .red, opacity: 0.5),
+            name: "skyAdd"
+        )
+        .intersecting(
+            MaskDescriptor(texture: overlayTexture, component: .red, opacity: 1),
+            name: "subjectIntersect"
+        )
+        .subtracting(
+            MaskDescriptor(texture: overlayTexture, component: .red, opacity: 1),
+            name: "foregroundSubtract"
+        )
+
+        XCTAssertEqual(recipe.steps.count, 3)
+        XCTAssertEqual(recipe.steps[0].mask.blendMode, .add)
+        XCTAssertEqual(recipe.steps[1].mask.blendMode, .multiply)
+        XCTAssertEqual(recipe.steps[2].mask.blendMode, .subtract)
+        XCTAssertTrue(recipe.fingerprint.contains("name=skyAdd"))
+        XCTAssertTrue(recipe.fingerprint.contains("name=subjectIntersect"))
+        XCTAssertTrue(recipe.fingerprint.contains("name=foregroundSubtract"))
+    }
+
+    func testMaskCompositeRecipeSupportsParametricBaseAndSteps() throws {
+        let base = MaskGradientRecipe(
+            size: C7Size(width: 4, height: 4),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            ),
+            profile: .inspectionQuality
+        )
+        let shape = MaskShapeRecipe(
+            size: C7Size(width: 4, height: 4),
+            kind: .ellipse(rect: CGRect(x: 0.2, y: 0.2, width: 0.6, height: 0.6), feather: 0.1)
+        )
+
+        let recipe = try MaskCompositeRecipe(
+            baseGradientRecipe: base,
+            opacity: 0.8
+        )
+        .adding(shape, opacity: 0.5, name: "subjectAdd")
+        .subtracting(base, opacity: 0.25, name: "skySubtract")
+
+        XCTAssertEqual(recipe.profile, .inspectionQuality)
+        XCTAssertEqual(recipe.baseMask.component, .red)
+        XCTAssertEqual(recipe.baseMask.opacity, 0.8, accuracy: 0.0001)
+        XCTAssertEqual(recipe.steps.count, 2)
+        XCTAssertEqual(recipe.steps[0].mask.blendMode, .add)
+        XCTAssertEqual(recipe.steps[1].mask.blendMode, .subtract)
+        XCTAssertEqual(recipe.steps[0].name, "subjectAdd")
+        XCTAssertEqual(recipe.steps[1].name, "skySubtract")
+        XCTAssertEqual(recipe.baseGraphOverride?.gradient?.kind, "linear")
+        XCTAssertEqual(recipe.steps[0].descriptor.shape?.kind, "ellipse")
+        XCTAssertEqual(recipe.steps[1].descriptor.gradient?.kind, "linear")
+    }
+
+    func testMaskCompositeRecipeFinalDescriptorControlsStayConfigurable() throws {
+        let baseTexture = try makeTexture(pixel: [255, 0, 0, 255])
+        let recipe = MaskCompositeRecipe(
+            baseMask: MaskDescriptor(texture: baseTexture, component: .red)
+        )
+
+        let descriptor = try recipe.makeMaskDescriptor(
+            component: .alpha,
+            blendMode: .multiply,
+            invert: true,
+            featherPolicy: .normalized(0.3),
+            opacity: 0.4
+        )
+
+        XCTAssertEqual(descriptor.component, .alpha)
+        XCTAssertEqual(descriptor.blendMode, .multiply)
+        XCTAssertTrue(descriptor.invert)
+        XCTAssertEqual(descriptor.opacity, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(descriptor.featherPolicy, .normalized(0.3))
+    }
+
     func testMaskDescriptorFactorsExposeComponentAndFeather() throws {
         let maskTexture = try makeTexture(pixel: [255, 128, 0, 255])
         let descriptor = MaskDescriptor(

@@ -59,30 +59,43 @@ public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
     public let invert: Bool
     public let opacity: Float
     public let featherAmount: Float
+    public let gradient: MaskGradientDescriptor?
+    public let shape: MaskShapeDescriptor?
 
     public init(name: String,
                 component: MaskComponent,
                 blendMode: MaskBlendMode,
                 invert: Bool,
                 opacity: Float,
-                featherAmount: Float) {
+                featherAmount: Float,
+                gradient: MaskGradientDescriptor? = nil,
+                shape: MaskShapeDescriptor? = nil) {
         self.name = name
         self.component = component
         self.blendMode = blendMode
         self.invert = invert
         self.opacity = opacity
         self.featherAmount = featherAmount
+        self.gradient = gradient
+        self.shape = shape
     }
 
     public var fingerprint: String {
-        [
+        var parts = [
             "name=\(name)",
             "component=\(component.rawValue)",
             "blend=\(blendMode.rawValue)",
             "invert=\(invert ? 1 : 0)",
             "opacity=\(stableRecipeFloatDescription(opacity))",
             "feather=\(stableRecipeFloatDescription(featherAmount))"
-        ].joined(separator: ",")
+        ]
+        if let gradient {
+            parts.append("gradient=\(gradient.fingerprint)")
+        }
+        if let shape {
+            parts.append("shape=\(shape.fingerprint)")
+        }
+        return parts.joined(separator: ",")
     }
 }
 

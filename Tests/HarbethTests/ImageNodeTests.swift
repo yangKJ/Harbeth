@@ -944,6 +944,44 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(layerMask.mask?.shape?.kind, "rectangle")
     }
 
+    func testLayerCompositeRenderRecipePreservesParametricCompositeMaskStepDescriptors() throws {
+        let background = try makeTexture(width: 3, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 0, 255])
+        let gradient = MaskGradientRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        )
+        let shape = MaskShapeRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .ellipse(rect: CGRect(x: 0, y: 0, width: 1, height: 1))
+        )
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskRecipe: try MaskCompositeRecipe(
+                        baseGradientRecipe: gradient
+                    )
+                    .intersecting(shape, name: "subjectIntersect")
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe()
+        let layerMask = try XCTUnwrap(renderRecipe.layerMasks?.first)
+        let step = try XCTUnwrap(layerMask.mask?.steps.first)
+
+        XCTAssertEqual(layerMask.mask?.kind, "maskCompositeRecipe")
+        XCTAssertEqual(layerMask.mask?.gradient?.kind, "linear")
+        XCTAssertEqual(step.name, "subjectIntersect")
+        XCTAssertEqual(step.blendMode, .multiply)
+        XCTAssertEqual(step.shape?.kind, "ellipse")
+    }
+
     func testLayerCompositeShapeMaskCanDrivePartialCoverage() throws {
         let background = try makeTexture(width: 3, height: 1, pixel: [255, 0, 0, 255])
         let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 255, 255])

@@ -376,6 +376,45 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertTrue(localEffect.mask.fingerprint.contains("kind=linear"))
     }
 
+    func testRecipeRenderRecipePreservesParametricCompositeMaskStepDescriptors() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 3, height: 1, pixel: [120, 90, 60, 255])
+        let baseGradient = MaskGradientRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        )
+        let subtractShape = MaskShapeRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+        )
+        let recipe = EditRecipe(
+            localEffects: [
+                LocalEffectRecipe(
+                    filters: [C7Brightness(brightness: -0.1)],
+                    maskRecipe: try MaskCompositeRecipe(
+                        baseGradientRecipe: baseGradient
+                    )
+                    .subtracting(subtractShape, name: "centerSubtract")
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe(source: .texture(input), mode: .preview)
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+        let step = try XCTUnwrap(localEffect.mask.steps.first)
+
+        XCTAssertEqual(localEffect.mask.kind, "maskCompositeRecipe")
+        XCTAssertEqual(localEffect.mask.gradient?.kind, "linear")
+        XCTAssertEqual(step.name, "centerSubtract")
+        XCTAssertEqual(step.blendMode, .subtract)
+        XCTAssertEqual(step.shape?.kind, "rectangle")
+    }
+
     func testRecipeRenderRecipePreservesShapeMaskDescriptor() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
