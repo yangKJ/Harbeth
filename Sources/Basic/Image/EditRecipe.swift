@@ -2,7 +2,7 @@
 //  EditRecipe.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
@@ -86,12 +86,12 @@ public struct EditRecipe {
         makeBaseFilterChain(inputSize: inputSize, prefersQualityResize: prefersQualityResize)
     }
 
-    public func makeNode(source: HarbethSource,
-                         mode: EditRecipeMode = .preview) -> HarbethImageNode {
+    public func makeNode(source: ImageSource,
+                         mode: EditRecipeMode = .preview) -> ImageNode {
         .recipe(source: source, recipe: self, mode: mode)
     }
 
-    public func makeRenderPlan(source: HarbethSource,
+    public func makeRenderPlan(source: ImageSource,
                                mode: EditRecipeMode = .preview,
                                extraFilters: [C7FilterProtocol] = [],
                                derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
@@ -106,11 +106,12 @@ public struct EditRecipe {
             inputSize: compiled.inputSize,
             profile: compiled.profile,
             derivative: compiled.derivative,
-            compilationSource: .editRecipe
+            compilationSource: .editRecipe,
+            sourceDescriptor: compiled.source.descriptor
         )
     }
 
-    public func makeRenderRecipe(source: HarbethSource,
+    public func makeRenderRecipe(source: ImageSource,
                                  mode: EditRecipeMode = .preview,
                                  extraFilters: [C7FilterProtocol] = [],
                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
@@ -125,7 +126,8 @@ public struct EditRecipe {
             inputSize: compiled.inputSize,
             profile: compiled.profile,
             derivative: compiled.derivative,
-            compilationSource: .editRecipe
+            compilationSource: .editRecipe,
+            sourceDescriptor: compiled.source.descriptor
         )
         return RenderRecipe(
             renderProfile: String(describing: compiled.profile),
@@ -152,11 +154,11 @@ public struct EditRecipe {
         )
     }
 
-    public func makeRenderRequest(source: HarbethSource,
+    public func makeRenderRequest(source: ImageSource,
                                   mode: EditRecipeMode = .preview,
                                   extraFilters: [C7FilterProtocol] = [],
                                   derivative: ImageDerivativeSpec? = nil,
-                                  identifier: String = UUID().uuidString) throws -> HarbethRenderRequest {
+                                  identifier: String = UUID().uuidString) throws -> RenderRequest {
         let compiled = try compileExecution(
             source: source,
             mode: mode,
@@ -175,7 +177,7 @@ public struct EditRecipe {
             extraFilters: extraFilters,
             derivative: derivative
         )
-        return HarbethRenderRequest(
+        return RenderRequest(
             compilationSource: .editRecipe,
             profile: compiled.profile,
             derivative: compiled.derivative,
@@ -224,11 +226,11 @@ public struct EditRecipe {
         )
     }
 
-    func resolvedSource(_ source: HarbethSource) -> HarbethSource {
+    func resolvedSource(_ source: ImageSource) -> ImageSource {
         switch source {
         case .asset(let asset):
             return .asset(
-                HarbethImageAsset(
+                ImageAsset(
                     storage: asset.storage,
                     loadingOptions: sourceLoadingOptions,
                     sourceTier: asset.sourceTier
@@ -275,7 +277,7 @@ public struct EditRecipe {
         return compiled
     }
 
-    func compileExecution(source: HarbethSource,
+    func compileExecution(source: ImageSource,
                           mode: EditRecipeMode,
                           extraFilters: [C7FilterProtocol] = [],
                           derivative: ImageDerivativeSpec? = nil) throws -> CompiledEditRecipeExecution {
@@ -310,7 +312,7 @@ public struct EditRecipe {
 }
 
 struct CompiledEditRecipeExecution {
-    let source: HarbethSource
+    let source: ImageSource
     let contract: EditRecipeContract
     let derivative: ImageDerivativeSpec
     let inputTexture: MTLTexture

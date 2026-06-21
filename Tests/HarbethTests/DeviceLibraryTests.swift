@@ -78,7 +78,7 @@ final class DeviceLibraryTests: XCTestCase {
     }
 
     func testReadMetalFunctionByKernelIdentityUsesLibrarySource() throws {
-        let identity = HarbethKernelFunctionIdentity(
+        let identity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "C7Brightness",
             librarySource: .automatic

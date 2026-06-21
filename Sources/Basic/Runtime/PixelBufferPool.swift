@@ -1,8 +1,8 @@
 //
-//  HarbethPixelBufferPool.swift
+//  PixelBufferPool.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
@@ -74,7 +74,7 @@ public struct RenderPixelBufferDescriptor: Sendable, Equatable, Hashable {
     }
 }
 
-public final class HarbethPixelBufferPool {
+public final class PixelBufferPool {
     public let descriptor: RenderPixelBufferDescriptor
     private let pool: CVPixelBufferPool
 

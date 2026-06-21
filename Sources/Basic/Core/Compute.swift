@@ -34,7 +34,7 @@ struct Compute {
         return pipeline
     }
 
-    static func makeComputePipelineState(with identity: HarbethKernelFunctionIdentity) throws -> MTLComputePipelineState {
+    static func makeComputePipelineState(with identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
         let context = Shared.shared.defaultContext
         if let pipelineState = context.computePipelineState(for: identity) {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: true)
@@ -75,7 +75,7 @@ struct Compute {
         }
     }
 
-    static func makeComputePipelineState(with identity: HarbethKernelFunctionIdentity,
+    static func makeComputePipelineState(with identity: KernelFunctionIdentity,
                                          complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
         let context = Shared.shared.defaultContext
         if let pipelineState = context.computePipelineState(for: identity) {

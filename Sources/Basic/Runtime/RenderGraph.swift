@@ -128,9 +128,14 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public let readbackBoundaryCount: Int
     public let formatConversionCount: Int
     public let destinationTextureCreationCount: Int
+    public let allocationStrategy: TextureAllocationStrategy
+    public let textureRequestCount: Int
+    public let textureReuseHitCount: Int
+    public let heapBackedAllocationCount: Int
     public let prewarmReservations: [RenderTextureReservation]
     public let lifecycleDecisions: [RenderTextureLifecycleDecision]
     public let decisions: [String]
+    public let allocatorDecisions: [String]
 
     public init(intermediateTextureCount: Int,
                 reusableTextureCount: Int,
@@ -144,9 +149,14 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
                 readbackBoundaryCount: Int,
                 formatConversionCount: Int,
                 destinationTextureCreationCount: Int,
+                allocationStrategy: TextureAllocationStrategy,
+                textureRequestCount: Int,
+                textureReuseHitCount: Int,
+                heapBackedAllocationCount: Int,
                 prewarmReservations: [RenderTextureReservation],
                 lifecycleDecisions: [RenderTextureLifecycleDecision],
-                decisions: [String]) {
+                decisions: [String],
+                allocatorDecisions: [String]) {
         self.intermediateTextureCount = intermediateTextureCount
         self.reusableTextureCount = reusableTextureCount
         self.persistentOutputCount = persistentOutputCount
@@ -159,9 +169,14 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
         self.readbackBoundaryCount = readbackBoundaryCount
         self.formatConversionCount = formatConversionCount
         self.destinationTextureCreationCount = destinationTextureCreationCount
+        self.allocationStrategy = allocationStrategy
+        self.textureRequestCount = textureRequestCount
+        self.textureReuseHitCount = textureReuseHitCount
+        self.heapBackedAllocationCount = heapBackedAllocationCount
         self.prewarmReservations = prewarmReservations
         self.lifecycleDecisions = lifecycleDecisions
         self.decisions = decisions
+        self.allocatorDecisions = allocatorDecisions
     }
 }
 
@@ -251,6 +266,13 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let profile: RenderProfile
     public let derivative: ImageDerivativeSpec
     public let graphFingerprint: String
+    public let sourceKind: String?
+    public let graphNodeCount: Int
+    public let graphEdgeCount: Int
+    public let optimizedGraphNodeCount: Int
+    public let graphOptimizationDecisions: [String]
+    public let persistentBoundaryCount: Int
+    public let transientReuseCandidateCount: Int
     public let inputSize: C7Size
     public let outputSize: C7Size
     public let containsBoundary: Bool
@@ -264,15 +286,32 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let containsDerivativeResize: Bool
     public let optimizationPlan: RenderOptimizationPlan
     public let outputContract: RenderOutputContract
+    public let inputColorSpace: ImageColorSpaceContract
+    public let outputColorSpace: ImageColorSpaceContract
+    public let inputAlphaType: AlphaType?
+    public let outputAlphaType: AlphaType?
+    public let inputPixelFormat: PixelFormatContract
+    public let outputPixelFormat: PixelFormatContract
+    public let inputColorConversionCount: Int
+    public let inputPixelFormatConversionCount: Int
+    public let inputAlphaConversionCount: Int
     public let alphaConversionCount: Int
     public let colorConversionCount: Int
     public let pixelFormatConversionCount: Int
+    public let lossyConversionCount: Int
     public let nodes: [RenderNodeDiagnostic]
     public let stages: [RenderStage]
 
     public init(profile: RenderProfile,
                 derivative: ImageDerivativeSpec,
                 graphFingerprint: String,
+                sourceKind: String?,
+                graphNodeCount: Int,
+                graphEdgeCount: Int,
+                optimizedGraphNodeCount: Int,
+                graphOptimizationDecisions: [String],
+                persistentBoundaryCount: Int,
+                transientReuseCandidateCount: Int,
                 inputSize: C7Size,
                 outputSize: C7Size,
                 containsBoundary: Bool,
@@ -286,14 +325,31 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
                 containsDerivativeResize: Bool,
                 optimizationPlan: RenderOptimizationPlan,
                 outputContract: RenderOutputContract,
+                inputColorSpace: ImageColorSpaceContract,
+                outputColorSpace: ImageColorSpaceContract,
+                inputAlphaType: AlphaType?,
+                outputAlphaType: AlphaType?,
+                inputPixelFormat: PixelFormatContract,
+                outputPixelFormat: PixelFormatContract,
+                inputColorConversionCount: Int,
+                inputPixelFormatConversionCount: Int,
+                inputAlphaConversionCount: Int,
                 alphaConversionCount: Int,
                 colorConversionCount: Int,
                 pixelFormatConversionCount: Int,
+                lossyConversionCount: Int,
                 nodes: [RenderNodeDiagnostic],
                 stages: [RenderStage]) {
         self.profile = profile
         self.derivative = derivative
         self.graphFingerprint = graphFingerprint
+        self.sourceKind = sourceKind
+        self.graphNodeCount = graphNodeCount
+        self.graphEdgeCount = graphEdgeCount
+        self.optimizedGraphNodeCount = optimizedGraphNodeCount
+        self.graphOptimizationDecisions = graphOptimizationDecisions
+        self.persistentBoundaryCount = persistentBoundaryCount
+        self.transientReuseCandidateCount = transientReuseCandidateCount
         self.inputSize = inputSize
         self.outputSize = outputSize
         self.containsBoundary = containsBoundary
@@ -307,9 +363,19 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         self.containsDerivativeResize = containsDerivativeResize
         self.optimizationPlan = optimizationPlan
         self.outputContract = outputContract
+        self.inputColorSpace = inputColorSpace
+        self.outputColorSpace = outputColorSpace
+        self.inputAlphaType = inputAlphaType
+        self.outputAlphaType = outputAlphaType
+        self.inputPixelFormat = inputPixelFormat
+        self.outputPixelFormat = outputPixelFormat
+        self.inputColorConversionCount = inputColorConversionCount
+        self.inputPixelFormatConversionCount = inputPixelFormatConversionCount
+        self.inputAlphaConversionCount = inputAlphaConversionCount
         self.alphaConversionCount = alphaConversionCount
         self.colorConversionCount = colorConversionCount
         self.pixelFormatConversionCount = pixelFormatConversionCount
+        self.lossyConversionCount = lossyConversionCount
         self.nodes = nodes
         self.stages = stages
     }
@@ -327,11 +393,17 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "input=\(inputSize.width)x\(inputSize.height)",
             "output=\(outputSize.width)x\(outputSize.height)",
             "graph=\(graphFingerprint)",
+            "graphNodes=\(graphNodeCount)",
+            "graphEdges=\(graphEdgeCount)",
+            "optimizedGraphNodes=\(optimizedGraphNodeCount)",
+            "persistentBoundaries=\(persistentBoundaryCount)",
+            "reuseCandidates=\(transientReuseCandidateCount)",
             "nodes=\(nodes.count)",
             "stages=\(stageCount)",
             "boundary=\(containsBoundary ? 1 : 0)",
             "readback=\(requiresCompletedGPUWork ? 1 : 0)",
             "source=\(compilationSource.rawValue)",
+            "origin=\(sourceKind ?? "unknown")",
             "cachePolicy=\(imageCachePolicy.rawValue)",
             "sampler=\(samplerDescriptor.fingerprint)",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
@@ -344,10 +416,24 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "prewarm=\(optimizationPlan.prewarmReservations.count)",
             "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
+            "allocator=\(optimizationPlan.allocationStrategy.rawValue)",
+            "textureRequests=\(optimizationPlan.textureRequestCount)",
+            "textureReuseHits=\(optimizationPlan.textureReuseHitCount)",
+            "heapBacked=\(optimizationPlan.heapBackedAllocationCount)",
+            "inputColorConversions=\(inputColorConversionCount)",
+            "inputPixelFormatConversions=\(inputPixelFormatConversionCount)",
+            "inputAlphaConversions=\(inputAlphaConversionCount)",
+            "inputColor=\(inputColorSpace.name)",
+            "outputColor=\(outputColorSpace.name)",
+            "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
+            "outputAlpha=\(outputAlphaType?.rawValue ?? "none")",
+            "inputPixel=\(inputPixelFormat.name)",
+            "outputPixel=\(outputPixelFormat.name)",
             "alphaContract=\(outputContract.alpha)",
             "colorGamut=\(outputContract.colorSpace.gamut.rawValue)",
             "transfer=\(outputContract.colorSpace.transferFunction.rawValue)",
             "pixelPrecision=\(outputContract.pixelFormat.precision.rawValue)",
+            "lossyConversions=\(lossyConversionCount)",
             "hdrFriendly=\(outputContract.isHDRFriendlyOutput ? 1 : 0)",
             "plan=\(stageSummary)"
         ].joined(separator: " ")
@@ -364,6 +450,13 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             profile: profile,
             derivative: derivative,
             graphFingerprint: graphFingerprint,
+            sourceKind: sourceKind,
+            graphNodeCount: graphNodeCount,
+            graphEdgeCount: graphEdgeCount,
+            optimizedGraphNodeCount: optimizedGraphNodeCount,
+            graphOptimizationDecisions: graphOptimizationDecisions,
+            persistentBoundaryCount: persistentBoundaryCount,
+            transientReuseCandidateCount: transientReuseCandidateCount,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -377,9 +470,19 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             containsDerivativeResize: containsDerivativeResize,
             optimizationPlan: plan,
             outputContract: outputContract,
+            inputColorSpace: inputColorSpace,
+            outputColorSpace: outputColorSpace,
+            inputAlphaType: inputAlphaType,
+            outputAlphaType: outputAlphaType,
+            inputPixelFormat: inputPixelFormat,
+            outputPixelFormat: outputPixelFormat,
+            inputColorConversionCount: inputColorConversionCount,
+            inputPixelFormatConversionCount: inputPixelFormatConversionCount,
+            inputAlphaConversionCount: inputAlphaConversionCount,
             alphaConversionCount: alphaConversionCount,
             colorConversionCount: colorConversionCount,
             pixelFormatConversionCount: pixelFormatConversionCount,
+            lossyConversionCount: lossyConversionCount,
             nodes: nodes,
             stages: stages
         )
@@ -390,6 +493,13 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             profile: profile,
             derivative: derivative,
             graphFingerprint: graphFingerprint,
+            sourceKind: sourceKind,
+            graphNodeCount: graphNodeCount,
+            graphEdgeCount: graphEdgeCount,
+            optimizedGraphNodeCount: optimizedGraphNodeCount,
+            graphOptimizationDecisions: graphOptimizationDecisions,
+            persistentBoundaryCount: persistentBoundaryCount,
+            transientReuseCandidateCount: transientReuseCandidateCount,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -403,9 +513,19 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             containsDerivativeResize: containsDerivativeResize,
             optimizationPlan: optimizationPlan,
             outputContract: outputContract,
+            inputColorSpace: inputColorSpace,
+            outputColorSpace: outputColorSpace,
+            inputAlphaType: inputAlphaType,
+            outputAlphaType: outputAlphaType,
+            inputPixelFormat: inputPixelFormat,
+            outputPixelFormat: outputPixelFormat,
+            inputColorConversionCount: inputColorConversionCount,
+            inputPixelFormatConversionCount: inputPixelFormatConversionCount,
+            inputAlphaConversionCount: inputAlphaConversionCount,
             alphaConversionCount: alphaConversionCount,
             colorConversionCount: colorConversionCount,
             pixelFormatConversionCount: pixelFormatConversionCount,
+            lossyConversionCount: lossyConversionCount,
             nodes: nodes,
             stages: stages
         )
@@ -429,7 +549,14 @@ public struct RenderPlan {
                 compilationSource: RenderCompilationSource,
                 outputContract: RenderOutputContract = .preserveInput,
                 imageCachePolicy: ImageCachePolicy = .transient,
-                samplerDescriptor: ImageSamplerDescriptor = .default) {
+                samplerDescriptor: ImageSamplerDescriptor = .default,
+                sourceDescriptor: ImageSourceDescriptor? = nil,
+                auxiliaryInputDescriptor: ImageSourceDescriptor? = nil,
+                inputColorConversionCount: Int? = nil,
+                inputPixelFormatConversionCount: Int? = nil,
+                inputAlphaConversionCount: Int? = nil,
+                imageGraph: ImageGraph? = nil,
+                graphOptimizationDecisions: [String] = []) {
         self.graph = graph
         self.profile = profile
         let requiresCompletedGPUWork = profile.requiresCompletedGPUWorkBeforeReadback
@@ -447,6 +574,28 @@ public struct RenderPlan {
             outputContract: outputContract,
             imageCachePolicy: imageCachePolicy
         )
+        let sourceDerivedInputColorConversions = RenderPlan.resolveInputColorConversionCount(from: sourceDescriptor)
+        let sourceDerivedInputPixelFormatConversions = RenderPlan.resolveInputPixelFormatConversionCount(from: sourceDescriptor)
+        let auxiliaryInputColorConversions = RenderPlan.resolveInputColorConversionCount(from: auxiliaryInputDescriptor)
+        let auxiliaryInputPixelFormatConversions = RenderPlan.resolveInputPixelFormatConversionCount(from: auxiliaryInputDescriptor)
+        let resolvedInputColorConversionCount = inputColorConversionCount ?? (sourceDerivedInputColorConversions + auxiliaryInputColorConversions)
+        let resolvedInputPixelFormatConversionCount = inputPixelFormatConversionCount ?? (sourceDerivedInputPixelFormatConversions + auxiliaryInputPixelFormatConversions)
+        let resolvedInputAlphaConversionCount = inputAlphaConversionCount ?? 0
+        let resolvedInputColorSpace: ImageColorSpaceContract = sourceDescriptor?.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true
+            ? ImageColorSpaceContract(name: "YCbCr", preservesInput: true, gamut: .custom, transferFunction: .custom)
+            : .preserveInput
+        let resolvedInputPixelFormat = RenderPlan.resolveInputPixelFormat(from: sourceDescriptor)
+        let resolvedOutputPixelFormat = outputContract.pixelFormat.preservesInput
+            ? (resolvedInputPixelFormat.preservesInput ? .rgba8Unorm : resolvedInputPixelFormat)
+            : outputContract.pixelFormat
+        let resolvedOutputColorSpace = outputContract.colorSpace
+        let resolvedOutputAlphaType = outputContract.alpha.expectedAlphaType ?? sourceDescriptor?.alphaType
+        let resolvedLossyConversionCount = outputContract.allowsLossyConversion ? 1 : 0
+        let resolvedGraphNodeCount = imageGraph?.nodeCount ?? max(nodeDiagnostics.count, graph.nodes.count)
+        let resolvedGraphEdgeCount = imageGraph?.edgeCount ?? max(resolvedGraphNodeCount - 1, 0)
+        let resolvedOptimizedGraphNodeCount = imageGraph?.nodeCount ?? resolvedGraphNodeCount
+        let resolvedPersistentBoundaryCount = imageGraph?.persistentBoundaryCount ?? (containsBoundary ? 1 : 0)
+        let resolvedTransientReuseCandidateCount = imageGraph?.transientReuseCandidateCount ?? max(nodeDiagnostics.count - 1, 0)
         self.diagnostics = RenderPlanDiagnostics(
             profile: profile,
             derivative: derivative,
@@ -455,6 +604,13 @@ public struct RenderPlan {
                 stages: optimizedStages,
                 compilationSource: compilationSource
             ),
+            sourceKind: sourceDescriptor?.kind,
+            graphNodeCount: resolvedGraphNodeCount,
+            graphEdgeCount: resolvedGraphEdgeCount,
+            optimizedGraphNodeCount: resolvedOptimizedGraphNodeCount,
+            graphOptimizationDecisions: graphOptimizationDecisions,
+            persistentBoundaryCount: resolvedPersistentBoundaryCount,
+            transientReuseCandidateCount: resolvedTransientReuseCandidateCount,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -468,9 +624,19 @@ public struct RenderPlan {
             containsDerivativeResize: optimizedStages.contains(where: \.containsDerivativeResize),
             optimizationPlan: optimizationPlan,
             outputContract: outputContract,
+            inputColorSpace: resolvedInputColorSpace,
+            outputColorSpace: resolvedOutputColorSpace,
+            inputAlphaType: sourceDescriptor?.alphaType,
+            outputAlphaType: resolvedOutputAlphaType,
+            inputPixelFormat: resolvedInputPixelFormat,
+            outputPixelFormat: resolvedOutputPixelFormat,
+            inputColorConversionCount: resolvedInputColorConversionCount,
+            inputPixelFormatConversionCount: resolvedInputPixelFormatConversionCount,
+            inputAlphaConversionCount: resolvedInputAlphaConversionCount,
             alphaConversionCount: outputContract.requiresAlphaConversion ? 1 : 0,
             colorConversionCount: outputContract.requiresColorSpaceConversion ? 1 : 0,
             pixelFormatConversionCount: outputContract.requiresPixelFormatConversion ? max(optimizationPlan.formatConversionCount, 1) : optimizationPlan.formatConversionCount,
+            lossyConversionCount: resolvedLossyConversionCount,
             nodes: nodeDiagnostics,
             stages: optimizedStages
         )
@@ -478,6 +644,44 @@ public struct RenderPlan {
 
     public var debugSummary: String {
         diagnostics.summary
+    }
+}
+
+private extension RenderPlan {
+    static func resolveInputColorConversionCount(from descriptor: ImageSourceDescriptor?) -> Int {
+        guard let descriptor else {
+            return 0
+        }
+        if let bridgePlan = descriptor.pixelBufferBridgePlan,
+           bridgePlan.requiresColorConversion {
+            return 1
+        }
+        if descriptor.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true {
+            return 1
+        }
+        return 0
+    }
+
+    static func resolveInputPixelFormatConversionCount(from descriptor: ImageSourceDescriptor?) -> Int {
+        guard let descriptor else {
+            return 0
+        }
+        if let bridgePlan = descriptor.pixelBufferBridgePlan,
+           bridgePlan.loadStrategy != .directMetalTexture {
+            return 1
+        }
+        if descriptor.sampleBufferContract?.pixelBufferContract?.colorModel == .yCbCrBiPlanar
+            || descriptor.sampleBufferContract?.pixelBufferContract?.colorModel == .yCbCrTriPlanar {
+            return 1
+        }
+        return 0
+    }
+
+    static func resolveInputPixelFormat(from descriptor: ImageSourceDescriptor?) -> PixelFormatContract {
+        if let pixelFormat = descriptor?.pixelBufferBridgePlan?.contract.preferredMetalPixelFormat {
+            return PixelFormatContract(pixelFormat: pixelFormat, preservesInput: true)
+        }
+        return .preserveInput
     }
 }
 
@@ -535,6 +739,7 @@ public enum GraphOptimizer {
         if decisions.isEmpty {
             decisions.append("singleStageNoOptimizationNeeded")
         }
+        let allocatorSnapshot = Shared.shared.defaultTextureAllocator.makeSnapshot()
         return RenderOptimizationPlan(
             intermediateTextureCount: intermediateTextureCount,
             reusableTextureCount: reusableTextureCount,
@@ -548,9 +753,14 @@ public enum GraphOptimizer {
             readbackBoundaryCount: readbackBoundaryCount,
             formatConversionCount: formatConversionCount,
             destinationTextureCreationCount: destinationTextureCreationCount,
+            allocationStrategy: allocatorSnapshot.allocationStrategy,
+            textureRequestCount: allocatorSnapshot.textureRequestCount,
+            textureReuseHitCount: allocatorSnapshot.textureReuseHitCount,
+            heapBackedAllocationCount: allocatorSnapshot.heapBackedAllocationCount,
             prewarmReservations: prewarmReservations,
             lifecycleDecisions: lifecycleDecisions,
-            decisions: decisions
+            decisions: decisions,
+            allocatorDecisions: allocatorSnapshot.allocatorDecisions
         )
     }
 
@@ -789,7 +999,11 @@ public enum GraphCompiler {
                                compilationSource: RenderCompilationSource = .filtersPrimitive,
                                outputContract: RenderOutputContract = .preserveInput,
                                imageCachePolicy: ImageCachePolicy = .transient,
-                               samplerDescriptor: ImageSamplerDescriptor = .default) -> RenderPlan {
+                               samplerDescriptor: ImageSamplerDescriptor = .default,
+                               sourceDescriptor: ImageSourceDescriptor? = nil,
+                               auxiliaryInputDescriptor: ImageSourceDescriptor? = nil,
+                               imageGraph: ImageGraph? = nil,
+                               graphOptimizationDecisions: [String] = []) -> RenderPlan {
         var currentSize = inputSize
         var nodeDiagnostics: [RenderNodeDiagnostic] = []
         let nodes = filters.enumerated().map { index, filter -> RenderNode in
@@ -856,7 +1070,11 @@ public enum GraphCompiler {
             compilationSource: compilationSource,
             outputContract: outputContract,
             imageCachePolicy: imageCachePolicy,
-            samplerDescriptor: samplerDescriptor
+            samplerDescriptor: samplerDescriptor,
+            sourceDescriptor: sourceDescriptor,
+            auxiliaryInputDescriptor: auxiliaryInputDescriptor,
+            imageGraph: imageGraph,
+            graphOptimizationDecisions: graphOptimizationDecisions
         )
     }
 

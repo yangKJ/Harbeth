@@ -323,7 +323,7 @@ final class RenderedFrameTests: XCTestCase {
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
         let texture = try TextureLoader.makeTexture(width: 4, height: 4, identifier: "RenderedFrameTests")
-        let descriptor = HarbethSource.texture(texture).descriptor
+        let descriptor = ImageSource.texture(texture).descriptor
 
         XCTAssertEqual(descriptor.semantic, .sourceOriginal)
         XCTAssertEqual(descriptor.sourceTier, .original)

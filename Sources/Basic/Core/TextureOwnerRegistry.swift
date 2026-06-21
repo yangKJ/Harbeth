@@ -2,7 +2,7 @@
 //  TextureOwnerRegistry.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation

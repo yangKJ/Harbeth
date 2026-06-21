@@ -2,7 +2,7 @@
 //  HarbethIO+Source.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
@@ -120,7 +120,7 @@ extension HarbethIO {
         }
     }
 
-    func makeHarbethSource() throws -> HarbethSource {
+    func makeImageSource() throws -> ImageSource {
         switch element {
         case let texture as MTLTexture:
             return .texture(texture)
@@ -129,8 +129,8 @@ extension HarbethIO {
         case let data as Data:
             return .data(data)
         case let url as URL:
-            return .asset(HarbethImageAsset(storage: .url(url)))
-        case let asset as HarbethImageAsset:
+            return .asset(ImageAsset(storage: .url(url)))
+        case let asset as ImageAsset:
             return .asset(asset)
         case let value where CFGetTypeID(value as CFTypeRef) == CGImage.typeID:
             return .cgImage(value as! CGImage)

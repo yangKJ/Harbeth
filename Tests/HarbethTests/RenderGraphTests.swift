@@ -243,4 +243,36 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(reservations.contains(where: { $0.pixelFormat == .rgba16Float }))
         XCTAssertTrue(plan.diagnostics.summary.contains("prewarm="))
     }
+
+    func testDiagnosticsExposeAllocatorAndGraphMetrics() {
+        Shared.shared.defaultTextureAllocator = ExactTextureAllocator(texturePool: Shared.shared.defaultTexturePool)
+        let plan = GraphCompiler.compile(
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.1)
+            ],
+            inputSize: C7Size(width: 32, height: 24)
+        )
+
+        XCTAssertGreaterThanOrEqual(plan.diagnostics.graphNodeCount, 2)
+        XCTAssertGreaterThanOrEqual(plan.diagnostics.graphEdgeCount, 1)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.allocationStrategy, .exact)
+        XCTAssertTrue(plan.diagnostics.summary.contains("allocator=exact"))
+    }
+
+    func testDebugSnapshotBuildsDOTGraphForNodePath() throws {
+        let input = try TextureLoader.makeTexture(width: 8, height: 8, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "graph-snapshot-input")
+        let node = ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+            .applying(C7Contrast(contrast: 1.1))
+
+        let snapshot = try HarbethIO(element: input, filters: []).renderDebugSnapshot(node: node)
+
+        XCTAssertTrue(snapshot.dotGraph.contains("digraph ImageGraph"))
+        XCTAssertFalse(snapshot.nodes.isEmpty)
+        XCTAssertFalse(snapshot.optimizationDecisions.isEmpty)
+    }
 }

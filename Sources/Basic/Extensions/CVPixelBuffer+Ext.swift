@@ -61,19 +61,43 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return PixelBufferTextureBridgePlan(
                 contract: contract,
                 loadStrategy: .directMetalTexture,
-                preservesOwnerReference: true
+                preservesOwnerReference: true,
+                planes: contract.planes.map {
+                    PixelBufferPlaneBridgeDescriptor(
+                        index: $0.index,
+                        metalPixelFormat: $0.metalPixelFormat,
+                        conversionStrategy: .directMetalTexture,
+                        preservesOwnerReference: true
+                    )
+                }
             )
         case .planeTextures:
             return PixelBufferTextureBridgePlan(
                 contract: contract,
                 loadStrategy: .cgImageFallback,
-                preservesOwnerReference: false
+                preservesOwnerReference: false,
+                planes: contract.planes.map {
+                    PixelBufferPlaneBridgeDescriptor(
+                        index: $0.index,
+                        metalPixelFormat: $0.metalPixelFormat,
+                        conversionStrategy: .cgImageFallback,
+                        preservesOwnerReference: false
+                    )
+                }
             )
         case .unsupported:
             return PixelBufferTextureBridgePlan(
                 contract: contract,
                 loadStrategy: .cpuCopyFallback,
-                preservesOwnerReference: false
+                preservesOwnerReference: false,
+                planes: contract.planes.map {
+                    PixelBufferPlaneBridgeDescriptor(
+                        index: $0.index,
+                        metalPixelFormat: $0.metalPixelFormat,
+                        conversionStrategy: .cpuCopyFallback,
+                        preservesOwnerReference: false
+                    )
+                }
             )
         }
     }

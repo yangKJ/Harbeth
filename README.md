@@ -133,24 +133,36 @@ let stableFrame = try io.renderFrame(profile: .stablePreview)
 let exportTexture = try io.renderTexture(profile: .exportQuality)
 ```
 
-### Execution Core
+### Primary Processing Paths
 
-Harbeth now exposes a more explicit execution core for host apps that need stable contracts instead of one-off image output:
+Most host apps should start from one of these three paths:
+
+- Primitive filters path: use `output()` when you want direct image output from a filter chain.
+- Recipe-driven path: use `renderTexture(recipe:)` / `renderFrame(recipe:)` when geometry, local effects, or reusable output contracts matter.
+- Transition and layer path: use `renderTransitionTexture(_:)`, `renderTransitionFrame(_:)`, or `LayerCompositeRecipe` for dual-input transitions and texture composition.
+
+### Advanced Runtime
+
+Harbeth also exposes a more explicit runtime surface for host apps that need stable contracts, diagnostics, and low-level extension points:
 
 - `Shared.shared`: the default global runtime owner for `Device`, `HarbethContext`, texture pooling, command queue access, and lifecycle reset.
 - `HarbethContext.shared`: the default execution context facade for identity-aware Metal function and compute/render pipeline cache, sampler cache, lazy image resolution cache, and execution diagnostics.
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
-- `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths, including explicit transient/persistent image cache policy and sampler descriptors.
-- `HarbethKernelDescriptor`: lightweight technical metadata for function identity, library source lookup identity, function-constant specialization, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
-- `HarbethKernelInvocation`: bridges a stable kernel descriptor to an executable filter instance, exposing compatibility summary and deterministic fingerprinting for node-graph execution.
-- `HarbethRenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
-- `HarbethRenderRequest`: deferred single-frame render contract that lets host apps compile diagnostics, source semantics, and recipe metadata first, then materialize texture/frame output later.
-- `HarbethPixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
+- `ImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths, including explicit transient/persistent image cache policy and sampler descriptors.
+- `KernelDescriptor`: lightweight technical metadata for function identity, library source lookup identity, function-constant specialization, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
+- `KernelInvocation`: bridges a stable kernel descriptor to an executable filter instance, exposing compatibility summary and deterministic fingerprinting for node-graph execution.
+- `RenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
+- `RenderRequest`: deferred single-frame render contract that lets host apps compile diagnostics, source semantics, and recipe metadata first, then materialize texture/frame output later.
+- `PixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
 - `RenderOutputContract`: explicit alpha, color-space, wide-gamut, pixel-format, and high-precision output intent for diagnostics and conservative planning.
 - Texture/node execution can materialize a target `MTLPixelFormat` from `RenderOutputContract`; color-space metadata remains an explicit contract for diagnostics/planning unless a concrete conversion filter is supplied.
 - `PixelBufferContract`, `PixelBufferTextureBridgePlan`, and `SampleBufferContract`: explicit multi-plane pixel-buffer layout, YCbCr bridge strategy, timing, and sample-attachment contracts for camera/video frame style inputs.
+- `PixelBufferPlaneBridgeDescriptor` and `SampleBufferFrameContract`: explicit per-plane bridge strategy, owner-retention contract, and sample-buffer frame metadata for `CVMetalTexture` style inputs.
 - `C7RGBTransferConversion`: explicit sRGB/linear transfer conversion for source/target color contracts; node execution can apply it when a kernel descriptor declares a compatible input color contract.
 - `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, estimated texture cost, readback boundaries, and format conversion decisions. The texture-first execution path can use the plan to prewarm reusable render targets without changing visual output.
+- `ImageGraph`, `ImageGraphOptimizer`, and `RenderGraphDebugSnapshot`: lazy DAG diagnostics for node/recipe/transition/layer execution, including graph node counts, optimization decisions, DOT graph export, and JSON-friendly snapshots.
+- `KernelExecutionPlan`: a kernel-level execution description that lifts `KernelDescriptor` into concrete compute/render/mps/advancedMetal/blit execution metadata.
+- `ExactTextureAllocator`, `TolerantTextureAllocator`, and `HeapBackedTextureAllocator`: allocator surfaces for conservative texture reuse diagnostics without changing the default `Shared.shared` entrypoint.
 
 ```swift
 let runtime = Shared.shared
@@ -176,13 +188,13 @@ let diagnostics = task.diagnostics
 ```
 
 ```swift
-let pixelBufferPool = try HarbethPixelBufferPool(width: 1920, height: 1080)
+let pixelBufferPool = try PixelBufferPool(width: 1920, height: 1080)
 let outputPixelBuffer = try HarbethIO(element: inputTexture, filters: filters)
     .renderPixelBuffer(profile: .stablePreview, pool: pixelBufferPool)
 ```
 
 ```swift
-let node = HarbethImageNode.filters(
+let node = ImageNode.filters(
     input: .source(.texture(inputTexture)),
     filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.05)]
 )
@@ -202,7 +214,7 @@ let invocation = descriptor.makeInvocation(
     filter: filter,
     inputSize: C7Size(width: 1920, height: 1080)
 )
-let kernelNode = HarbethImageNode
+let kernelNode = ImageNode
     .texture(inputTexture)
     .applying(invocation)
 
@@ -214,6 +226,41 @@ let request = try kernelNode.makeRenderRequest(profile: .stablePreview)
 let deferredFrame = try request.renderFrame(metadata: ["mode": "deferred"])
 ```
 
+#### Lazy Graph, Debug Snapshot, and Allocator Diagnostics
+
+Use the node graph path when the host app needs explainable lazy execution instead of only immediate output:
+
+```swift
+let node = ImageNode
+    .texture(inputTexture)
+    .applying(C7Brightness(brightness: 0.1))
+    .applying(C7Contrast(contrast: 1.05))
+    .withCachePolicy(.persistent)
+
+let graph = try node.makeImageGraph(profile: .stablePreview)
+let optimizedGraph = try node.makeOptimizedImageGraph(profile: .stablePreview)
+let snapshot = try HarbethIO(element: inputTexture, filters: [])
+    .renderDebugSnapshot(node: node, profile: .stablePreview)
+
+print(graph.nodeCount)
+print(optimizedGraph.decisions)
+print(snapshot.dotGraph)
+```
+
+If the host app wants a different allocator policy for diagnostics or reuse behavior, swap the default allocator through `Shared.shared`:
+
+```swift
+Shared.shared.defaultTextureAllocator = TolerantTextureAllocator(
+    texturePool: Shared.shared.defaultTexturePool
+)
+
+let diagnostics = try HarbethIO(element: inputTexture, filters: filters)
+    .renderDiagnostics(profile: .stablePreview)
+
+print(diagnostics.optimizationPlan.allocationStrategy)
+print(diagnostics.optimizationPlan.textureReuseHitCount)
+```
+
 ### Geometry, Local Mask, and Transition Primitives
 
 Harbeth now includes reusable editor-grade primitives without turning the core into a product-specific editor:
@@ -221,6 +268,7 @@ Harbeth now includes reusable editor-grade primitives without turning the core i
 - `ImageCropRegion`, `ImageTransformRecipe`, `AspectPolicy`, `CoordinateSpace`
 - `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`, `LocalEffectRecipe`
 - `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing with normalized placement, layer-local transform, opacity, masks, corner radius, and common blend modes
+- `LayerLayoutUnit`, `LayerFlipOptions`, and `LayerCornerCurve` for more explicit layer layout and compositing contracts
 - `TransitionKernel` with built-in dissolve, directional wipe, luma wipe, and displacement transitions
 - `EditRecipe` for lightweight preview/final render contracts
 
@@ -272,9 +320,15 @@ let composite = LayerCompositeRecipe(
         ImageLayer(
             content: .texture(layerTexture),
             normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+            contentRegion: CGRect(x: 0.0, y: 0.0, width: 0.9, height: 0.9),
             opacity: 0.9,
-            blendMode: .sourceOver,
-            mask: MaskDescriptor(texture: maskTexture)
+            blendMode: .softLight,
+            flipOptions: LayerFlipOptions(horizontal: true),
+            rotation: 90,
+            tintColor: SIMD4<Float>(1.0, 0.9, 0.8, 0.35),
+            mask: MaskDescriptor(texture: maskTexture),
+            cornerRadius: 24,
+            cornerCurve: .continuous
         )
     ]
 )
@@ -283,6 +337,8 @@ let compositeTexture = try HarbethIO(element: backgroundTexture, filters: [])
     .renderTexture(composite: composite)
 let compositeDiagnostics = try HarbethIO(element: backgroundTexture, filters: [])
     .renderDiagnostics(composite: composite)
+let compositeSnapshot = try HarbethIO(element: backgroundTexture, filters: [])
+    .renderDebugSnapshot(composite: composite)
 ```
 
 ### 🎨 Real-time Filter Effects

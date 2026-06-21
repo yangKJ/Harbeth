@@ -84,8 +84,8 @@ extension Shared {
         set { objc_setAssociatedObject(self, &C7ATSharedContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
 
-    fileprivate var existingTextureAllocator: TextureAllocating? {
-        get { objc_getAssociatedObject(self, &C7ATSharedTextureAllocatorContext) as? TextureAllocating }
+    fileprivate var existingTextureAllocator: TextureAllocator? {
+        get { objc_getAssociatedObject(self, &C7ATSharedTextureAllocatorContext) as? TextureAllocator }
         set { objc_setAssociatedObject(self, &C7ATSharedTextureAllocatorContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
     
@@ -165,14 +165,21 @@ extension Shared {
         }
     }
 
-    public var defaultTextureAllocator: TextureAllocating {
-        synchronizedDevice {
-            if let allocator = existingTextureAllocator {
+    public var defaultTextureAllocator: TextureAllocator {
+        get {
+            synchronizedDevice {
+                if let allocator = existingTextureAllocator {
+                    return allocator
+                }
+                let allocator = ExactTextureAllocator(texturePool: defaultTexturePool)
+                existingTextureAllocator = allocator
                 return allocator
             }
-            let allocator = TexturePoolAllocator(texturePool: defaultTexturePool)
-            existingTextureAllocator = allocator
-            return allocator
+        }
+        set {
+            synchronizedDevice {
+                existingTextureAllocator = newValue
+            }
         }
     }
 

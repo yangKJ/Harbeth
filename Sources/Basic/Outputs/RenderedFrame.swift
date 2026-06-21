@@ -77,8 +77,6 @@ public enum RenderProfile: Sendable, Equatable {
     }
 }
 
-public typealias HarbethRenderProfile = RenderProfile
-
 /// 单次帧渲染请求的稳定标识。generation 在请求创建时分配，
 /// 用于 UI 层丢弃较早请求的迟到结果。
 public struct FrameRenderToken: Sendable, Equatable {
@@ -102,7 +100,7 @@ public struct RenderedFrame: @unchecked Sendable {
     public let size: CGSize
     public let pixelFormat: MTLPixelFormat
     public let colorSpace: CGColorSpace?
-    public let sourceDescriptor: HarbethSourceDescriptor
+    public let sourceDescriptor: ImageSourceDescriptor
     public let derivative: ImageDerivativeSpec
     public let resolvedOutputSize: C7Size
     public let renderIntent: RenderIntent
@@ -122,7 +120,7 @@ public struct RenderedFrame: @unchecked Sendable {
 
     public init(texture: MTLTexture,
                 colorSpace: CGColorSpace? = nil,
-                sourceDescriptor: HarbethSourceDescriptor? = nil,
+                sourceDescriptor: ImageSourceDescriptor? = nil,
                 derivative: ImageDerivativeSpec? = nil,
                 resolvedOutputSize: C7Size? = nil,
                 renderIntent: RenderIntent? = nil,
@@ -158,7 +156,7 @@ public struct RenderedFrame: @unchecked Sendable {
 
     public init(texture: MTLTexture,
                 colorSpace: CGColorSpace? = nil,
-                sourceDescriptor: HarbethSourceDescriptor? = nil,
+                sourceDescriptor: ImageSourceDescriptor? = nil,
                 derivative: ImageDerivativeSpec? = nil,
                 resolvedOutputSize: C7Size? = nil,
                 renderIntent: RenderIntent? = nil,
@@ -175,7 +173,7 @@ public struct RenderedFrame: @unchecked Sendable {
         self.size = CGSize(width: texture.width, height: texture.height)
         self.pixelFormat = texture.pixelFormat
         self.colorSpace = colorSpace
-        self.sourceDescriptor = sourceDescriptor ?? HarbethSourceDescriptor(
+        self.sourceDescriptor = sourceDescriptor ?? ImageSourceDescriptor(
             kind: "texture",
             sourceTier: sourceTier,
             alphaType: alphaType,
@@ -232,7 +230,7 @@ public enum RenderTarget: Sendable, Equatable {
 
 /// 面向产品级调用方的 texture-first 渲染器，提供稳定帧元数据。
 public struct FrameRenderer {
-    public let source: HarbethSource
+    public let source: ImageSource
     public let filters: [C7FilterProtocol]
     public let recipe: EditRecipe?
     public let recipeMode: EditRecipeMode?
@@ -245,7 +243,7 @@ public struct FrameRenderer {
     public var outputSemantic: ImageSemanticDescriptor
     public var outputDerivative: ImageDerivativeSpec
 
-    public init(source: HarbethSource,
+    public init(source: ImageSource,
                 filters: [C7FilterProtocol] = [],
                 profile: RenderProfile = .stablePreview,
                 renderIntent: RenderIntent? = nil,
@@ -268,7 +266,7 @@ public struct FrameRenderer {
         self.outputDerivative = outputDerivative ?? profile.defaultDerivativeSpec
     }
 
-    public init(source: HarbethSource,
+    public init(source: ImageSource,
                 recipe: EditRecipe,
                 mode: EditRecipeMode = .preview,
                 filters: [C7FilterProtocol] = [],
@@ -481,7 +479,7 @@ public struct FrameRenderer {
     }
 
     private func renderFrame(token: FrameRenderToken,
-                             source: HarbethSource,
+                             source: ImageSource,
                              renderedTexture: MTLTexture,
                              resolvedSize: C7Size,
                              filterChain: [C7FilterProtocol],
@@ -557,7 +555,7 @@ public struct FrameRenderer {
 }
 
 private struct CompiledRecipeExecution {
-    let source: HarbethSource
+    let source: ImageSource
     let profile: RenderProfile
     let diagnosticFilters: [C7FilterProtocol]
     let resolvedOutputSize: C7Size
@@ -590,13 +588,13 @@ private struct CompiledRecipeExecution {
 }
 
 private struct CompiledTransitionExecution {
-    let source: HarbethSource
+    let source: ImageSource
     let profile: RenderProfile
     let diagnosticFilters: [C7FilterProtocol]
     let resolvedOutputSize: C7Size
     let renderTextureClosure: () throws -> MTLTexture
 
-    init(source: HarbethSource,
+    init(source: ImageSource,
          recipe: TransitionRecipe,
          extraFilters: [C7FilterProtocol],
          outputDerivative: ImageDerivativeSpec,

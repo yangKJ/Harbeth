@@ -2,13 +2,13 @@
 //  KernelContract.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
 import Metal
 
-public enum KernelResourceUsage: String, Sendable, Codable, Equatable, Hashable {
+public enum FilterKernelResourceUsage: String, Sendable, Codable, Equatable, Hashable {
     case readOnly
     case readWrite
     case multiInput
@@ -16,24 +16,24 @@ public enum KernelResourceUsage: String, Sendable, Codable, Equatable, Hashable 
     case platformKernel
 }
 
-public enum KernelAlphaBehavior: String, Sendable, Codable, Equatable, Hashable {
+public enum FilterKernelAlphaBehavior: String, Sendable, Codable, Equatable, Hashable {
     case preserve
     case rewrite
     case dependsOnKernel
 }
 
-public struct KernelContractDescriptor: Sendable, Equatable {
+public struct FilterKernelContractDescriptor: Sendable, Equatable {
     public let functionIdentity: String
     public let modifierName: String
     public let otherInputTextureCount: Int
-    public let resourceUsage: KernelResourceUsage
-    public let alphaBehavior: KernelAlphaBehavior
+    public let resourceUsage: FilterKernelResourceUsage
+    public let alphaBehavior: FilterKernelAlphaBehavior
 
     public init(functionIdentity: String,
                 modifierName: String,
                 otherInputTextureCount: Int,
-                resourceUsage: KernelResourceUsage,
-                alphaBehavior: KernelAlphaBehavior) {
+                resourceUsage: FilterKernelResourceUsage,
+                alphaBehavior: FilterKernelAlphaBehavior) {
         self.functionIdentity = functionIdentity
         self.modifierName = modifierName
         self.otherInputTextureCount = otherInputTextureCount
@@ -43,8 +43,8 @@ public struct KernelContractDescriptor: Sendable, Equatable {
 }
 
 public extension C7FilterProtocol {
-    var kernelContract: KernelContractDescriptor {
-        let usage: KernelResourceUsage
+    var kernelContract: FilterKernelContractDescriptor {
+        let usage: FilterKernelResourceUsage
         switch modifier {
         case .compute:
             usage = otherInputTextures.isEmpty ? .readWrite : .multiInput
@@ -55,7 +55,7 @@ public extension C7FilterProtocol {
         case .mps, .advancedMetal:
             usage = .platformKernel
         }
-        return KernelContractDescriptor(
+        return FilterKernelContractDescriptor(
             functionIdentity: modifier.recipeName,
             modifierName: modifier.name,
             otherInputTextureCount: otherInputTextures.count,

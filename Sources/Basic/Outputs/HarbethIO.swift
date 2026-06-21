@@ -527,7 +527,7 @@ extension HarbethIO where Dest == MTLTexture {
     /// This API is for advanced texture-first callers that need command-buffer status,
     /// completion observation, or explicit waiting without changing the existing
     /// `output()` and `transmitOutput(...)` behavior.
-    public func startRenderTextureTask(diagnostics: RenderPlanDiagnostics? = nil) throws -> HarbethRenderTask<MTLTexture> {
+    public func startRenderTextureTask(diagnostics: RenderPlanDiagnostics? = nil) throws -> RenderTask<MTLTexture> {
         if filters.isEmpty {
             return .completed(identifier: identifier, output: element, diagnostics: diagnostics)
         }
@@ -545,7 +545,7 @@ extension HarbethIO where Dest == MTLTexture {
                 outputTexture = result.0
                 texturesToEnqueue = result.1
             }
-            let task = HarbethRenderTask(
+            let task = RenderTask(
                 identifier: identifier,
                 commandBuffer: commandBuffer,
                 output: outputTexture,

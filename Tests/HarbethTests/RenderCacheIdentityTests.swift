@@ -18,14 +18,14 @@ final class RenderCacheIdentityTests: XCTestCase {
         let inspectionContract = RenderProfile.inspectionQuality.defaultDerivativeSpec.replayBaseContract
         let exportContract = RenderProfile.exportQuality.defaultDerivativeSpec.replayBaseContract
 
-        let displaySource = HarbethSourceDescriptor(
+        let displaySource = ImageSourceDescriptor(
             kind: "cgImage",
             sourceTier: .stableReusable,
             alphaType: .premultiplied,
             orientation: .up,
             cachePolicy: .persistent
         )
-        let originalSource = HarbethSourceDescriptor(
+        let originalSource = ImageSourceDescriptor(
             kind: "cgImage",
             sourceTier: .original,
             alphaType: .premultiplied,
@@ -49,7 +49,7 @@ final class RenderCacheIdentityTests: XCTestCase {
             semantic: ImageSemanticDescriptor(role: .derivative, purpose: .thumbnail, fidelity: .thumbnailOptimized),
             outputSizePolicy: .maxPixelSize(160)
         )
-        let source = HarbethSourceDescriptor(
+        let source = ImageSourceDescriptor(
             kind: "cgImage",
             sourceTier: .thumbnail,
             alphaType: .premultiplied,
@@ -80,7 +80,7 @@ final class RenderCacheIdentityTests: XCTestCase {
     }
 
     func testRenderCacheIdentityChangesWithDerivativeFingerprint() {
-        let source = HarbethSourceDescriptor(
+        let source = ImageSourceDescriptor(
             kind: "cgImage",
             sourceTier: .stableReusable,
             alphaType: .premultiplied,
@@ -125,7 +125,7 @@ final class RenderCacheIdentityTests: XCTestCase {
         let candidates = [
             ReplaySourceCandidate(
                 identifier: "original",
-                descriptor: HarbethSourceDescriptor(
+                descriptor: ImageSourceDescriptor(
                     kind: "cgImage",
                     sourceTier: .original,
                     alphaType: .premultiplied,
@@ -136,7 +136,7 @@ final class RenderCacheIdentityTests: XCTestCase {
             ),
             ReplaySourceCandidate(
                 identifier: "display",
-                descriptor: HarbethSourceDescriptor(
+                descriptor: ImageSourceDescriptor(
                     kind: "cgImage",
                     sourceTier: .stableReusable,
                     alphaType: .premultiplied,
@@ -160,7 +160,7 @@ final class RenderCacheIdentityTests: XCTestCase {
         let candidates = [
             ReplaySourceCandidate(
                 identifier: "original",
-                descriptor: HarbethSourceDescriptor(
+                descriptor: ImageSourceDescriptor(
                     kind: "cgImage",
                     sourceTier: .original,
                     alphaType: .premultiplied,
@@ -171,7 +171,7 @@ final class RenderCacheIdentityTests: XCTestCase {
             ),
             ReplaySourceCandidate(
                 identifier: "display",
-                descriptor: HarbethSourceDescriptor(
+                descriptor: ImageSourceDescriptor(
                     kind: "cgImage",
                     sourceTier: .stableReusable,
                     alphaType: .premultiplied,
@@ -194,7 +194,7 @@ final class RenderCacheIdentityTests: XCTestCase {
         let candidates = [
             ReplaySourceCandidate(
                 identifier: "fullres",
-                descriptor: HarbethSourceDescriptor(
+                descriptor: ImageSourceDescriptor(
                     kind: "cgImage",
                     sourceTier: .fullResolutionReusable,
                     alphaType: .premultiplied,
@@ -205,7 +205,7 @@ final class RenderCacheIdentityTests: XCTestCase {
             ),
             ReplaySourceCandidate(
                 identifier: "original",
-                descriptor: HarbethSourceDescriptor(
+                descriptor: ImageSourceDescriptor(
                     kind: "cgImage",
                     sourceTier: .original,
                     alphaType: .premultiplied,
@@ -228,7 +228,7 @@ final class RenderCacheIdentityTests: XCTestCase {
         let candidates = [
             ReplaySourceCandidate(
                 identifier: "thumbnail",
-                descriptor: HarbethSourceDescriptor(
+                descriptor: ImageSourceDescriptor(
                     kind: "cgImage",
                     sourceTier: .thumbnail,
                     alphaType: .premultiplied,
@@ -256,7 +256,7 @@ final class RenderCacheIdentityTests: XCTestCase {
         )
         let candidate = ReplaySourceCandidate(
             identifier: "delivery",
-            descriptor: HarbethSourceDescriptor(
+            descriptor: ImageSourceDescriptor(
                 kind: "cgImage",
                 sourceTier: .deliveryReusable,
                 alphaType: .premultiplied,
@@ -288,7 +288,7 @@ final class RenderCacheIdentityTests: XCTestCase {
         )
         let candidate = ReplaySourceCandidate(
             identifier: "original",
-            descriptor: HarbethSourceDescriptor(
+            descriptor: ImageSourceDescriptor(
                 kind: "cgImage",
                 sourceTier: .original,
                 alphaType: .premultiplied,
@@ -354,7 +354,7 @@ final class RenderCacheIdentityTests: XCTestCase {
         )
         let candidate = ReplaySourceCandidate(
             identifier: "hero",
-            descriptor: HarbethSourceDescriptor(
+            descriptor: ImageSourceDescriptor(
                 kind: "cgImage",
                 sourceTier: .deliveryReusable,
                 alphaType: .premultiplied,

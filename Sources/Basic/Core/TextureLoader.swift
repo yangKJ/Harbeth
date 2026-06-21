@@ -160,7 +160,7 @@ extension TextureLoader {
         try self.init(with: cgImage, options: options)
     }
 
-    public init(with asset: HarbethImageAsset,
+    public init(with asset: ImageAsset,
                 options: [MTKTextureLoader.Option: Any]? = nil) throws {
         switch asset.storage {
         case .data(let data):

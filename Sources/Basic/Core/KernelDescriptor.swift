@@ -1,15 +1,15 @@
 //
-//  HarbethKernelDescriptor.swift
+//  KernelDescriptor.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
 import CoreGraphics
 import Metal
 
-public enum HarbethKernelResourceUsage: String, Sendable, Codable, Equatable, Hashable {
+public enum KernelResourceUsage: String, Sendable, Codable, Equatable, Hashable {
     case singleInput
     case dualInput
     case multiInput
@@ -17,7 +17,7 @@ public enum HarbethKernelResourceUsage: String, Sendable, Codable, Equatable, Ha
     case externalEncoder
 }
 
-public enum HarbethKernelAlphaBehavior: String, Sendable, Codable, Equatable, Hashable {
+public enum KernelAlphaBehavior: String, Sendable, Codable, Equatable, Hashable {
     case preserveInput
     case outputsOpaque
     case outputsPremultiplied
@@ -25,7 +25,7 @@ public enum HarbethKernelAlphaBehavior: String, Sendable, Codable, Equatable, Ha
     case modifiesAlpha
 }
 
-public enum HarbethKernelFunctionKind: String, Sendable, Codable, Equatable, Hashable {
+public enum KernelFunctionKind: String, Sendable, Codable, Equatable, Hashable {
     case compute
     case render
     case blit
@@ -33,7 +33,7 @@ public enum HarbethKernelFunctionKind: String, Sendable, Codable, Equatable, Has
     case advancedMetal
 }
 
-public enum HarbethKernelLibrarySource: Sendable, Codable, Equatable, Hashable {
+public enum KernelLibrarySource: Sendable, Codable, Equatable, Hashable {
     case automatic
     case defaultLibrary
     case harbethFramework
@@ -59,7 +59,7 @@ public enum HarbethKernelLibrarySource: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public enum HarbethKernelFunctionConstantValue: Sendable, Codable, Equatable, Hashable {
+public enum KernelFunctionConstantValue: Sendable, Codable, Equatable, Hashable {
     case bool(Bool)
     case int(Int)
     case float(Float)
@@ -79,14 +79,14 @@ public enum HarbethKernelFunctionConstantValue: Sendable, Codable, Equatable, Ha
     }
 }
 
-public struct HarbethKernelFunctionConstantDescriptor: Sendable, Codable, Equatable, Hashable {
+public struct KernelFunctionConstantDescriptor: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let index: Int?
-    public let value: HarbethKernelFunctionConstantValue
+    public let value: KernelFunctionConstantValue
 
     public init(name: String,
                 index: Int? = nil,
-                value: HarbethKernelFunctionConstantValue) {
+                value: KernelFunctionConstantValue) {
         self.name = name
         self.index = index
         self.value = value
@@ -101,18 +101,18 @@ public struct HarbethKernelFunctionConstantDescriptor: Sendable, Codable, Equata
     }
 }
 
-public struct HarbethKernelFunctionIdentity: Sendable, Codable, Equatable, Hashable {
-    public let kind: HarbethKernelFunctionKind
+public struct KernelFunctionIdentity: Sendable, Codable, Equatable, Hashable {
+    public let kind: KernelFunctionKind
     public let primaryName: String
     public let secondaryName: String?
-    public let librarySource: HarbethKernelLibrarySource
-    public let functionConstants: [HarbethKernelFunctionConstantDescriptor]
+    public let librarySource: KernelLibrarySource
+    public let functionConstants: [KernelFunctionConstantDescriptor]
 
-    public init(kind: HarbethKernelFunctionKind,
+    public init(kind: KernelFunctionKind,
                 primaryName: String,
                 secondaryName: String? = nil,
-                librarySource: HarbethKernelLibrarySource = .automatic,
-                functionConstants: [HarbethKernelFunctionConstantDescriptor] = []) {
+                librarySource: KernelLibrarySource = .automatic,
+                functionConstants: [KernelFunctionConstantDescriptor] = []) {
         self.kind = kind
         self.primaryName = primaryName
         self.secondaryName = secondaryName
@@ -140,7 +140,7 @@ public struct HarbethKernelFunctionIdentity: Sendable, Codable, Equatable, Hasha
     }
 }
 
-public extension HarbethKernelFunctionIdentity {
+public extension KernelFunctionIdentity {
     func makeMetalFunctionConstantValues() -> MTLFunctionConstantValues? {
         guard functionConstants.isEmpty == false else {
             return nil
@@ -155,7 +155,7 @@ public extension HarbethKernelFunctionIdentity {
     }
 }
 
-public enum HarbethKernelParameterValue: Sendable, Codable, Equatable, Hashable {
+public enum KernelParameterValue: Sendable, Codable, Equatable, Hashable {
     case float(Float)
     case double(Double)
     case int(Int)
@@ -187,7 +187,7 @@ public enum HarbethKernelParameterValue: Sendable, Codable, Equatable, Hashable 
     }
 }
 
-private extension HarbethKernelFunctionConstantDescriptor {
+private extension KernelFunctionConstantDescriptor {
     func apply(to values: MTLFunctionConstantValues) -> Bool {
         switch value {
         case .bool(let constant):
@@ -220,7 +220,7 @@ private extension HarbethKernelFunctionConstantDescriptor {
     }
 }
 
-public enum HarbethKernelArgumentRole: String, Sendable, Codable, Equatable, Hashable {
+public enum KernelArgumentRole: String, Sendable, Codable, Equatable, Hashable {
     case parameter
     case functionConstant
     case inputTexture
@@ -229,7 +229,7 @@ public enum HarbethKernelArgumentRole: String, Sendable, Codable, Equatable, Has
     case executionHint
 }
 
-public enum HarbethKernelArgumentDataType: String, Sendable, Codable, Equatable, Hashable {
+public enum KernelArgumentDataType: String, Sendable, Codable, Equatable, Hashable {
     case float
     case double
     case int
@@ -242,18 +242,18 @@ public enum HarbethKernelArgumentDataType: String, Sendable, Codable, Equatable,
     case unknown
 }
 
-public struct HarbethKernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
+public struct KernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let index: Int
-    public let role: HarbethKernelArgumentRole
-    public let dataType: HarbethKernelArgumentDataType
+    public let role: KernelArgumentRole
+    public let dataType: KernelArgumentDataType
     public let required: Bool
     public let valueFingerprint: String?
 
     public init(name: String,
                 index: Int,
-                role: HarbethKernelArgumentRole,
-                dataType: HarbethKernelArgumentDataType,
+                role: KernelArgumentRole,
+                dataType: KernelArgumentDataType,
                 required: Bool = true,
                 valueFingerprint: String? = nil) {
         self.name = name
@@ -276,15 +276,15 @@ public struct HarbethKernelArgumentDescriptor: Sendable, Codable, Equatable, Has
     }
 }
 
-public struct HarbethKernelResourceDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let usage: HarbethKernelResourceUsage
+public struct KernelResourceDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let usage: KernelResourceUsage
     public let inputTextureCount: Int
     public let writesOutputTexture: Bool
     public let requiresDestinationTexture: Bool
     public let memoryAccessPattern: String
     public let hasPixelCountBuffer: Bool
 
-    public init(usage: HarbethKernelResourceUsage,
+    public init(usage: KernelResourceUsage,
                 inputTextureCount: Int,
                 writesOutputTexture: Bool = true,
                 requiresDestinationTexture: Bool = true,
@@ -310,7 +310,7 @@ public struct HarbethKernelResourceDescriptor: Sendable, Codable, Equatable, Has
     }
 }
 
-public struct HarbethKernelOutputDescriptor: Sendable, Codable, Equatable, Hashable {
+public struct KernelOutputDescriptor: Sendable, Codable, Equatable, Hashable {
     public let outputSize: C7Size?
     public let pixelFormat: String?
 
@@ -327,20 +327,20 @@ public struct HarbethKernelOutputDescriptor: Sendable, Codable, Equatable, Hasha
     }
 }
 
-public struct HarbethKernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
+public struct KernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
     public let index: Int
-    public let functionIdentity: HarbethKernelFunctionIdentity
-    public let output: HarbethKernelOutputDescriptor
-    public let resources: HarbethKernelResourceDescriptor
-    public let alphaBehavior: HarbethKernelAlphaBehavior
-    public let renderPass: HarbethRenderPassContract?
+    public let functionIdentity: KernelFunctionIdentity
+    public let output: KernelOutputDescriptor
+    public let resources: KernelResourceDescriptor
+    public let alphaBehavior: KernelAlphaBehavior
+    public let renderPass: RenderPassContract?
 
     public init(index: Int,
-                functionIdentity: HarbethKernelFunctionIdentity,
-                output: HarbethKernelOutputDescriptor = HarbethKernelOutputDescriptor(),
-                resources: HarbethKernelResourceDescriptor,
-                alphaBehavior: HarbethKernelAlphaBehavior = .preserveInput,
-                renderPass: HarbethRenderPassContract? = nil) {
+                functionIdentity: KernelFunctionIdentity,
+                output: KernelOutputDescriptor = KernelOutputDescriptor(),
+                resources: KernelResourceDescriptor,
+                alphaBehavior: KernelAlphaBehavior = .preserveInput,
+                renderPass: RenderPassContract? = nil) {
         self.index = index
         self.functionIdentity = functionIdentity
         self.output = output
@@ -361,48 +361,48 @@ public struct HarbethKernelPassDescriptor: Sendable, Codable, Equatable, Hashabl
     }
 }
 
-public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
+public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public let filterName: String
-    public let functionIdentity: HarbethKernelFunctionIdentity
-    public let parameters: [String: HarbethKernelParameterValue]
-    public let arguments: [HarbethKernelArgumentDescriptor]
-    public let output: HarbethKernelOutputDescriptor
-    public let resourceUsage: HarbethKernelResourceUsage
-    public let resources: HarbethKernelResourceDescriptor
-    public let alphaBehavior: HarbethKernelAlphaBehavior
+    public let functionIdentity: KernelFunctionIdentity
+    public let parameters: [String: KernelParameterValue]
+    public let arguments: [KernelArgumentDescriptor]
+    public let output: KernelOutputDescriptor
+    public let resourceUsage: KernelResourceUsage
+    public let resources: KernelResourceDescriptor
+    public let alphaBehavior: KernelAlphaBehavior
     public let inputColorSpace: ImageColorSpaceContract
     public let outputContract: RenderOutputContract
-    public let passes: [HarbethKernelPassDescriptor]
+    public let passes: [KernelPassDescriptor]
 
     public init(filterName: String,
-                functionIdentity: HarbethKernelFunctionIdentity,
-                parameters: [String: HarbethKernelParameterValue] = [:],
-                arguments: [HarbethKernelArgumentDescriptor] = [],
-                output: HarbethKernelOutputDescriptor = HarbethKernelOutputDescriptor(),
-                resourceUsage: HarbethKernelResourceUsage = .singleInput,
-                resources: HarbethKernelResourceDescriptor? = nil,
-                alphaBehavior: HarbethKernelAlphaBehavior = .preserveInput,
+                functionIdentity: KernelFunctionIdentity,
+                parameters: [String: KernelParameterValue] = [:],
+                arguments: [KernelArgumentDescriptor] = [],
+                output: KernelOutputDescriptor = KernelOutputDescriptor(),
+                resourceUsage: KernelResourceUsage = .singleInput,
+                resources: KernelResourceDescriptor? = nil,
+                alphaBehavior: KernelAlphaBehavior = .preserveInput,
                 inputColorSpace: ImageColorSpaceContract = .preserveInput,
                 outputContract: RenderOutputContract = .preserveInput,
-                passes: [HarbethKernelPassDescriptor] = []) {
+                passes: [KernelPassDescriptor] = []) {
         self.filterName = filterName
         self.functionIdentity = functionIdentity
         self.parameters = parameters
         self.arguments = arguments.isEmpty
-            ? HarbethKernelDescriptor.makeArgumentDescriptors(
+            ? KernelDescriptor.makeArgumentDescriptors(
                 parameters: parameters,
                 functionConstants: functionIdentity.functionConstants
             )
             : arguments
         self.output = output
         self.resourceUsage = resourceUsage
-        self.resources = resources ?? HarbethKernelResourceDescriptor(usage: resourceUsage, inputTextureCount: 1)
+        self.resources = resources ?? KernelResourceDescriptor(usage: resourceUsage, inputTextureCount: 1)
         self.alphaBehavior = alphaBehavior
         self.inputColorSpace = inputColorSpace
         self.outputContract = outputContract
         if passes.isEmpty {
             self.passes = [
-                HarbethKernelPassDescriptor(
+                KernelPassDescriptor(
                     index: 0,
                     functionIdentity: functionIdentity,
                     output: output,
@@ -435,13 +435,13 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
         ].joined(separator: "|")
     }
 
-    private static func makeArgumentDescriptors(parameters: [String: HarbethKernelParameterValue],
-                                                functionConstants: [HarbethKernelFunctionConstantDescriptor]) -> [HarbethKernelArgumentDescriptor] {
+    private static func makeArgumentDescriptors(parameters: [String: KernelParameterValue],
+                                                functionConstants: [KernelFunctionConstantDescriptor]) -> [KernelArgumentDescriptor] {
         let parameterDescriptors = parameters
             .sorted { $0.key < $1.key }
             .enumerated()
             .map { index, pair in
-                HarbethKernelArgumentDescriptor(
+                KernelArgumentDescriptor(
                     name: pair.key,
                     index: index,
                     role: pair.key.defaultArgumentRole,
@@ -459,7 +459,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
             }
             .enumerated()
             .map { offset, constant in
-                HarbethKernelArgumentDescriptor(
+                KernelArgumentDescriptor(
                     name: constant.name,
                     index: parameterDescriptors.count + offset,
                     role: .functionConstant,
@@ -472,7 +472,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public extension HarbethKernelDescriptor {
+public extension KernelDescriptor {
     func compatibilitySummary(with filter: C7FilterProtocol,
                               inputSize: C7Size? = nil) -> String {
         let runtimeDescriptor = filter.kernelDescriptor(inputSize: inputSize)
@@ -493,8 +493,8 @@ public extension HarbethKernelDescriptor {
     }
 
     func makeInvocation(filter: C7FilterProtocol,
-                        inputSize: C7Size? = nil) -> HarbethKernelInvocation {
-        HarbethKernelInvocation(
+                        inputSize: C7Size? = nil) -> KernelInvocation {
+        KernelInvocation(
             descriptor: self,
             executableFilter: filter,
             inputSize: inputSize
@@ -503,50 +503,55 @@ public extension HarbethKernelDescriptor {
 }
 
 public extension C7FilterProtocol {
-    func kernelDescriptor(inputSize: C7Size? = nil) -> HarbethKernelDescriptor {
+    func makeKernelExecutionPlan(inputSize: C7Size? = nil) -> KernelExecutionPlan {
+        let descriptor = kernelDescriptor(inputSize: inputSize)
+        return KernelEncoder.makeExecutionPlan(descriptor: descriptor)
+    }
+
+    func kernelDescriptor(inputSize: C7Size? = nil) -> KernelDescriptor {
         let outputSize = inputSize.map { resize(input: $0) }
-        let functionIdentity: HarbethKernelFunctionIdentity
-        let resourceUsage: HarbethKernelResourceUsage
+        let functionIdentity: KernelFunctionIdentity
+        let resourceUsage: KernelResourceUsage
         let inputTextureCount = 1 + otherInputTextures.count
         let requiresDestinationTexture: Bool
         switch modifier {
         case .compute(let kernel):
-            functionIdentity = HarbethKernelFunctionIdentity(kind: .compute, primaryName: kernel)
+            functionIdentity = KernelFunctionIdentity(kind: .compute, primaryName: kernel)
             resourceUsage = otherInputTextures.isEmpty ? .singleInput : (otherInputTextures.count == 1 ? .dualInput : .multiInput)
             requiresDestinationTexture = true
         case .render(let vertex, let fragment):
-            functionIdentity = HarbethKernelFunctionIdentity(kind: .render, primaryName: vertex, secondaryName: fragment)
+            functionIdentity = KernelFunctionIdentity(kind: .render, primaryName: vertex, secondaryName: fragment)
             resourceUsage = otherInputTextures.isEmpty ? .singleInput : .multiInput
             requiresDestinationTexture = true
         case .blit:
-            functionIdentity = HarbethKernelFunctionIdentity(kind: .blit, primaryName: "blit")
+            functionIdentity = KernelFunctionIdentity(kind: .blit, primaryName: "blit")
             resourceUsage = .generatesTexture
             requiresDestinationTexture = false
         case .mps(let kernel):
-            functionIdentity = HarbethKernelFunctionIdentity(kind: .mps, primaryName: kernel.label ?? String(describing: Swift.type(of: kernel)))
+            functionIdentity = KernelFunctionIdentity(kind: .mps, primaryName: kernel.label ?? String(describing: Swift.type(of: kernel)))
             resourceUsage = .externalEncoder
             requiresDestinationTexture = true
         case .advancedMetal(_, let function):
-            functionIdentity = HarbethKernelFunctionIdentity(kind: .advancedMetal, primaryName: function)
+            functionIdentity = KernelFunctionIdentity(kind: .advancedMetal, primaryName: function)
             resourceUsage = .externalEncoder
             requiresDestinationTexture = true
         }
 
-        var parameters: [String: HarbethKernelParameterValue] = [
+        var parameters: [String: KernelParameterValue] = [
             "factors": .floatArray(factors),
             "hasCount": .bool(hasCount),
             "otherInputTextures": .int(otherInputTextures.count),
             "memoryAccessPattern": .string(String(describing: memoryAccessPattern))
         ]
         for (key, value) in parameterDescription {
-            if let parameter = HarbethKernelParameterValue(value: value) {
+            if let parameter = KernelParameterValue(value: value) {
                 parameters[key] = parameter
             }
         }
 
         let alphaBehavior = defaultAlphaBehavior
         let outputContract = RenderOutputContract(alpha: alphaBehavior.renderAlphaContract)
-        let renderPassContract: HarbethRenderPassContract?
+        let renderPassContract: RenderPassContract?
         if case .render = modifier {
             let fallbackSize = inputSize ?? outputSize ?? C7Size(width: 1, height: 1)
             let usesCustomVertexLayout = (self as? RenderProtocol)?.renderVertexStride != 4
@@ -555,7 +560,7 @@ public extension C7FilterProtocol {
         } else {
             renderPassContract = nil
         }
-        let resourceDescriptor = HarbethKernelResourceDescriptor(
+        let resourceDescriptor = KernelResourceDescriptor(
             usage: resourceUsage,
             inputTextureCount: inputTextureCount,
             writesOutputTexture: modifier.writesOutputTexture,
@@ -564,20 +569,20 @@ public extension C7FilterProtocol {
             hasPixelCountBuffer: hasCount
         )
 
-        return HarbethKernelDescriptor(
+        return KernelDescriptor(
             filterName: String(describing: Swift.type(of: self)),
             functionIdentity: functionIdentity,
             parameters: parameters,
-            output: HarbethKernelOutputDescriptor(outputSize: outputSize),
+            output: KernelOutputDescriptor(outputSize: outputSize),
             resourceUsage: resourceUsage,
             resources: resourceDescriptor,
             alphaBehavior: alphaBehavior,
             outputContract: outputContract,
             passes: [
-                HarbethKernelPassDescriptor(
+                KernelPassDescriptor(
                     index: 0,
                     functionIdentity: functionIdentity,
-                    output: HarbethKernelOutputDescriptor(outputSize: outputSize),
+                    output: KernelOutputDescriptor(outputSize: outputSize),
                     resources: resourceDescriptor,
                     alphaBehavior: alphaBehavior,
                     renderPass: renderPassContract
@@ -586,7 +591,7 @@ public extension C7FilterProtocol {
         )
     }
 
-    private var defaultAlphaBehavior: HarbethKernelAlphaBehavior {
+    private var defaultAlphaBehavior: KernelAlphaBehavior {
         if self is C7Opacity {
             return .modifiesAlpha
         }
@@ -600,7 +605,7 @@ public extension C7FilterProtocol {
     }
 }
 
-private extension HarbethKernelParameterValue {
+private extension KernelParameterValue {
     init?(value: Any) {
         if let float = value as? Float {
             self = .float(float)
@@ -627,7 +632,7 @@ private extension HarbethKernelParameterValue {
         }
     }
 
-    var argumentDataType: HarbethKernelArgumentDataType {
+    var argumentDataType: KernelArgumentDataType {
         switch self {
         case .float:
             return .float
@@ -649,8 +654,8 @@ private extension HarbethKernelParameterValue {
     }
 }
 
-private extension HarbethKernelFunctionConstantValue {
-    var argumentDataType: HarbethKernelArgumentDataType {
+private extension KernelFunctionConstantValue {
+    var argumentDataType: KernelArgumentDataType {
         switch self {
         case .bool:
             return .bool
@@ -665,7 +670,7 @@ private extension HarbethKernelFunctionConstantValue {
 }
 
 private extension String {
-    var defaultArgumentRole: HarbethKernelArgumentRole {
+    var defaultArgumentRole: KernelArgumentRole {
         switch self {
         case "otherInputTextures":
             return .inputTexture
@@ -688,7 +693,7 @@ private extension ModifierEnum {
     }
 }
 
-extension HarbethKernelAlphaBehavior {
+extension KernelAlphaBehavior {
     var renderAlphaContract: ImageAlphaContract {
         switch self {
         case .preserveInput:

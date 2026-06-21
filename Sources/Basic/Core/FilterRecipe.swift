@@ -51,7 +51,7 @@ public struct FilterChainRecipe: Sendable, Hashable, Codable {
 public struct RenderRecipe: Sendable, Hashable, Codable {
     public let renderProfile: String
     public let renderIntent: RenderIntent
-    public let source: HarbethSourceDescriptor
+    public let source: ImageSourceDescriptor
     public let outputDerivative: ImageDerivativeSpec
     public let outputCachePolicy: ImageCachePolicy
     public let outputSemantic: ImageSemanticDescriptor
@@ -61,7 +61,7 @@ public struct RenderRecipe: Sendable, Hashable, Codable {
 
     public init(renderProfile: String,
                 renderIntent: RenderIntent,
-                source: HarbethSourceDescriptor,
+                source: ImageSourceDescriptor,
                 outputDerivative: ImageDerivativeSpec,
                 outputCachePolicy: ImageCachePolicy,
                 outputSemantic: ImageSemanticDescriptor,

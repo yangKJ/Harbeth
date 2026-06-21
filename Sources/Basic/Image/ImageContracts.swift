@@ -212,7 +212,7 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
     public init(pixelFormat: MTLPixelFormat? = nil,
                 preservesInput: Bool = true,
                 precision: PixelPrecision? = nil) {
-        self.name = pixelFormat.map { String(describing: $0) } ?? "preserveInput"
+        self.name = PixelFormatContract.name(for: pixelFormat)
         self.preservesInput = preservesInput
         self.metalPixelFormatRawValue = pixelFormat?.rawValue
         self.precision = precision ?? PixelFormatContract.precision(for: pixelFormat)
@@ -244,6 +244,39 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
 
     public var metalPixelFormat: MTLPixelFormat? {
         metalPixelFormatRawValue.flatMap { MTLPixelFormat(rawValue: $0) }
+    }
+
+    private static func name(for pixelFormat: MTLPixelFormat?) -> String {
+        switch pixelFormat {
+        case .none:
+            return "preserveInput"
+        case .some(.rgba8Unorm):
+            return "rgba8Unorm"
+        case .some(.bgra8Unorm):
+            return "bgra8Unorm"
+        case .some(.rgba8Unorm_srgb):
+            return "rgba8Unorm_srgb"
+        case .some(.bgra8Unorm_srgb):
+            return "bgra8Unorm_srgb"
+        case .some(.rgba16Float):
+            return "rgba16Float"
+        case .some(.rgba32Float):
+            return "rgba32Float"
+        case .some(.r8Unorm):
+            return "r8Unorm"
+        case .some(.rg8Unorm):
+            return "rg8Unorm"
+        case .some(.r16Float):
+            return "r16Float"
+        case .some(.rg16Float):
+            return "rg16Float"
+        case .some(.r32Float):
+            return "r32Float"
+        case .some(.rg32Float):
+            return "rg32Float"
+        case .some(let format):
+            return "raw:\(format.rawValue)"
+        }
     }
 
     private static func precision(for pixelFormat: MTLPixelFormat?) -> PixelPrecision {
@@ -278,18 +311,30 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
 }
 
 public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
+    public let inputAlphaExpectation: ImageAlphaContract
     public let alpha: ImageAlphaContract
     public let colorSpace: ImageColorSpaceContract
     public let pixelFormat: PixelFormatContract
+    public let colorTransferPolicy: ColorTransferPolicy
+    public let pixelFormatFallbackPolicy: PixelFormatFallbackPolicy
+    public let allowsLossyConversion: Bool
     public let preservesOrientation: Bool
 
-    public init(alpha: ImageAlphaContract = .preserveInput,
+    public init(inputAlphaExpectation: ImageAlphaContract = .preserveInput,
+                alpha: ImageAlphaContract = .preserveInput,
                 colorSpace: ImageColorSpaceContract = .preserveInput,
                 pixelFormat: PixelFormatContract = .preserveInput,
+                colorTransferPolicy: ColorTransferPolicy = .automatic,
+                pixelFormatFallbackPolicy: PixelFormatFallbackPolicy = .preserveInput,
+                allowsLossyConversion: Bool = false,
                 preservesOrientation: Bool = true) {
+        self.inputAlphaExpectation = inputAlphaExpectation
         self.alpha = alpha
         self.colorSpace = colorSpace
         self.pixelFormat = pixelFormat
+        self.colorTransferPolicy = colorTransferPolicy
+        self.pixelFormatFallbackPolicy = pixelFormatFallbackPolicy
+        self.allowsLossyConversion = allowsLossyConversion
         self.preservesOrientation = preservesOrientation
     }
 
@@ -336,12 +381,28 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
 
     public var fingerprint: String {
         [
+            "inputAlpha=\(inputAlphaExpectation)",
             "alpha=\(alpha)",
             colorSpace.fingerprint,
             pixelFormat.fingerprint,
+            "transferPolicy=\(colorTransferPolicy.rawValue)",
+            "pixelFallback=\(pixelFormatFallbackPolicy.rawValue)",
+            "lossy=\(allowsLossyConversion ? 1 : 0)",
             "orientation=\(preservesOrientation ? "preserve" : "reset")"
         ].joined(separator: "|")
     }
+}
+
+public enum ColorTransferPolicy: String, Sendable, Codable, Equatable, Hashable {
+    case automatic
+    case preserveInput
+    case convertToOutput
+}
+
+public enum PixelFormatFallbackPolicy: String, Sendable, Codable, Equatable, Hashable {
+    case preserveInput
+    case nearestSupported
+    case exactRequired
 }
 
 public enum PixelBufferColorModel: String, Sendable, Codable, Equatable, Hashable {
@@ -397,6 +458,36 @@ public struct PixelBufferPlaneContract: Sendable, Codable, Equatable, Hashable {
             "bytesPerRow=\(bytesPerRow)",
             "cv=\(cvPixelFormatType)",
             "metal=\(metalPixelFormatRawValue.map(String.init) ?? "none")"
+        ].joined(separator: "|")
+    }
+}
+
+public struct PixelBufferPlaneBridgeDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let index: Int
+    public let metalPixelFormatRawValue: UInt?
+    public let conversionStrategy: PixelBufferTextureLoadStrategy
+    public let preservesOwnerReference: Bool
+
+    public init(index: Int,
+                metalPixelFormat: MTLPixelFormat?,
+                conversionStrategy: PixelBufferTextureLoadStrategy,
+                preservesOwnerReference: Bool) {
+        self.index = index
+        self.metalPixelFormatRawValue = metalPixelFormat?.rawValue
+        self.conversionStrategy = conversionStrategy
+        self.preservesOwnerReference = preservesOwnerReference
+    }
+
+    public var metalPixelFormat: MTLPixelFormat? {
+        metalPixelFormatRawValue.flatMap(MTLPixelFormat.init(rawValue:))
+    }
+
+    public var fingerprint: String {
+        [
+            "plane=\(index)",
+            "metal=\(metalPixelFormatRawValue.map(String.init) ?? "none")",
+            "strategy=\(conversionStrategy.rawValue)",
+            "owner=\(preservesOwnerReference ? 1 : 0)"
         ].joined(separator: "|")
     }
 }
@@ -459,13 +550,16 @@ public struct PixelBufferTextureBridgePlan: Sendable, Codable, Equatable, Hashab
     public let contract: PixelBufferContract
     public let loadStrategy: PixelBufferTextureLoadStrategy
     public let preservesOwnerReference: Bool
+    public let planes: [PixelBufferPlaneBridgeDescriptor]
 
     public init(contract: PixelBufferContract,
                 loadStrategy: PixelBufferTextureLoadStrategy,
-                preservesOwnerReference: Bool) {
+                preservesOwnerReference: Bool,
+                planes: [PixelBufferPlaneBridgeDescriptor] = []) {
         self.contract = contract
         self.loadStrategy = loadStrategy
         self.preservesOwnerReference = preservesOwnerReference
+        self.planes = planes
     }
 
     public var requiresColorConversion: Bool {
@@ -476,7 +570,8 @@ public struct PixelBufferTextureBridgePlan: Sendable, Codable, Equatable, Hashab
         [
             contract.fingerprint,
             "load=\(loadStrategy.rawValue)",
-            "owner=\(preservesOwnerReference ? 1 : 0)"
+            "owner=\(preservesOwnerReference ? 1 : 0)",
+            "planes=\(planes.map(\.fingerprint).joined(separator: "||"))"
         ].joined(separator: "|")
     }
 }
@@ -557,6 +652,7 @@ public struct SampleBufferContract: Sendable, Codable, Equatable, Hashable {
     public let formatDescriptionMediaType: FourCharCode?
     public let formatDescriptionMediaSubType: FourCharCode?
     public let pixelBufferContract: PixelBufferContract?
+    public let frameContract: SampleBufferFrameContract
     public let attachments: SampleAttachmentContract
 
     public init(numSamples: Int,
@@ -567,6 +663,7 @@ public struct SampleBufferContract: Sendable, Codable, Equatable, Hashable {
                 formatDescriptionMediaType: FourCharCode?,
                 formatDescriptionMediaSubType: FourCharCode?,
                 pixelBufferContract: PixelBufferContract?,
+                frameContract: SampleBufferFrameContract,
                 attachments: SampleAttachmentContract) {
         self.numSamples = numSamples
         self.isValid = isValid
@@ -576,6 +673,7 @@ public struct SampleBufferContract: Sendable, Codable, Equatable, Hashable {
         self.formatDescriptionMediaType = formatDescriptionMediaType
         self.formatDescriptionMediaSubType = formatDescriptionMediaSubType
         self.pixelBufferContract = pixelBufferContract
+        self.frameContract = frameContract
         self.attachments = attachments
     }
 
@@ -588,8 +686,31 @@ public struct SampleBufferContract: Sendable, Codable, Equatable, Hashable {
             "duration={\(duration.fingerprint)}",
             "mediaType=\(formatDescriptionMediaType.map(String.init) ?? "none")",
             "subType=\(formatDescriptionMediaSubType.map(String.init) ?? "none")",
+            "frame={\(frameContract.fingerprint)}",
             attachments.fingerprint,
             pixelBufferContract.map { "pixelBuffer={\($0.fingerprint)}" } ?? "pixelBuffer=none"
+        ].joined(separator: "|")
+    }
+}
+
+public struct SampleBufferFrameContract: Sendable, Codable, Equatable, Hashable {
+    public let ownerRetained: Bool
+    public let conversionStrategy: PixelBufferTextureLoadStrategy?
+    public let orientation: FrameOrientation
+
+    public init(ownerRetained: Bool,
+                conversionStrategy: PixelBufferTextureLoadStrategy?,
+                orientation: FrameOrientation = .up) {
+        self.ownerRetained = ownerRetained
+        self.conversionStrategy = conversionStrategy
+        self.orientation = orientation
+    }
+
+    public var fingerprint: String {
+        [
+            "owner=\(ownerRetained ? 1 : 0)",
+            "strategy=\(conversionStrategy?.rawValue ?? "none")",
+            "orientation=\(orientation.rawValue)"
         ].joined(separator: "|")
     }
 }
@@ -643,7 +764,7 @@ public enum ImageCachePolicy: String, Sendable, Codable, Equatable {
     case persistent
 }
 
-public struct HarbethSourceDescriptor: Sendable, Hashable, Codable {
+public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
     public let kind: String
     public let sourceTier: ImageSourceTier
     public let alphaType: AlphaType
@@ -861,7 +982,7 @@ public struct ImageLoadingOptions: Sendable, Hashable, Codable {
 }
 
 /// 可携带稳定加载策略的外部图像资源。
-public struct HarbethImageAsset: @unchecked Sendable {
+public struct ImageAsset: @unchecked Sendable {
     public enum Storage {
         case data(Data)
         case url(URL)

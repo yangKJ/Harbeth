@@ -31,18 +31,18 @@ final class ImageLoadingOptionsTests: XCTestCase {
         XCTAssertEqual(texture.height, 1)
     }
 
-    func testHarbethImageAssetDescriptorIncludesLoadingFingerprint() throws {
+    func testImageAssetDescriptorIncludesLoadingFingerprint() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
         let image = try makeFixtureCGImage(width: 8, height: 4)
-        let asset = HarbethImageAsset(
+        let asset = ImageAsset(
             storage: .cgImage(image),
             loadingOptions: ImageLoadingOptions(sizePolicy: .fit(width: 3, height: 3), flipsVertically: true),
             sourceTier: .thumbnail
         )
 
-        let descriptor = HarbethSource.asset(asset).descriptor
+        let descriptor = ImageSource.asset(asset).descriptor
 
         XCTAssertEqual(descriptor.kind, "cgImageAsset")
         XCTAssertEqual(descriptor.sourceTier, .thumbnail)
@@ -60,7 +60,7 @@ final class ImageLoadingOptionsTests: XCTestCase {
         let data = try makePNGData(from: image)
         let url = try writeTemporaryPNG(data: data)
 
-        let asset = HarbethImageAsset(
+        let asset = ImageAsset(
             storage: .url(url),
             loadingOptions: ImageLoadingOptions(sizePolicy: .maxPixelSize(4)),
             sourceTier: .stableReusable

@@ -2,7 +2,7 @@
 //  HarbethContext.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
@@ -63,11 +63,11 @@ public final class HarbethContext {
         legacyDevice.setPipelineState(pipeline, for: kernel)
     }
 
-    func computePipelineState(for identity: HarbethKernelFunctionIdentity) -> MTLComputePipelineState? {
+    func computePipelineState(for identity: KernelFunctionIdentity) -> MTLComputePipelineState? {
         legacyDevice.pipelineState(for: identity)
     }
 
-    func setComputePipelineState(_ pipeline: MTLComputePipelineState, for identity: HarbethKernelFunctionIdentity) {
+    func setComputePipelineState(_ pipeline: MTLComputePipelineState, for identity: KernelFunctionIdentity) {
         legacyDevice.setPipelineState(pipeline, for: identity)
     }
 
@@ -76,15 +76,15 @@ public final class HarbethContext {
                                  pixelFormat: MTLPixelFormat,
                                  sampleCount: Int = 1) throws -> MTLRenderPipelineState {
         try makeRenderPipelineState(
-            vertexIdentity: HarbethKernelFunctionIdentity(kind: .render, primaryName: vertex),
-            fragmentIdentity: HarbethKernelFunctionIdentity(kind: .render, primaryName: fragment),
+            vertexIdentity: KernelFunctionIdentity(kind: .render, primaryName: vertex),
+            fragmentIdentity: KernelFunctionIdentity(kind: .render, primaryName: fragment),
             pixelFormat: pixelFormat,
             sampleCount: sampleCount
         )
     }
 
-    func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
-                                 fragmentIdentity: HarbethKernelFunctionIdentity,
+    func makeRenderPipelineState(vertexIdentity: KernelFunctionIdentity,
+                                 fragmentIdentity: KernelFunctionIdentity,
                                  pixelFormat: MTLPixelFormat,
                                  sampleCount: Int = 1) throws -> MTLRenderPipelineState {
         try makeRenderPipelineState(
@@ -94,9 +94,9 @@ public final class HarbethContext {
         )
     }
 
-    func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
-                                 fragmentIdentity: HarbethKernelFunctionIdentity,
-                                 renderPass: HarbethRenderPassContract) throws -> MTLRenderPipelineState {
+    func makeRenderPipelineState(vertexIdentity: KernelFunctionIdentity,
+                                 fragmentIdentity: KernelFunctionIdentity,
+                                 renderPass: RenderPassContract) throws -> MTLRenderPipelineState {
         let key = RenderPipelineCacheKey(
             vertex: vertexIdentity.fingerprint,
             fragment: fragmentIdentity.fingerprint,

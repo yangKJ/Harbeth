@@ -369,24 +369,36 @@ let stableFrame = try io.renderFrame(profile: .stablePreview)
 let exportTexture = try io.renderTexture(profile: .exportQuality)
 ```
 
-### 执行内核
+### 主处理路径
 
-Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定 contract，而不是只把它当成“一次性出图”的工具：
+大多数宿主工程优先从这三条路径接入：
+
+- primitive filters path：需要直接出图时，使用 `output()`
+- recipe-driven path：需要几何、局部效果、稳定派生输出时，使用 `renderTexture(recipe:)` / `renderFrame(recipe:)`
+- transition / layer path：需要双输入转场或纹理合成时，使用 `renderTransitionTexture(_:)`、`renderTransitionFrame(_:)` 或 `LayerCompositeRecipe`
+
+### 高级运行时
+
+Harbeth 也继续暴露更明确的 runtime surface，供需要稳定 contract、diagnostics 和底层扩展点的宿主工程使用：
 
 - `Shared.shared`：默认全局 runtime owner，统一管理 `Device`、`HarbethContext`、texture pool、command queue 和生命周期 reset
 - `HarbethContext.shared`：默认执行上下文 facade，负责 identity-aware Metal function 与 compute/render pipeline cache、sampler cache、lazy image resolution cache 和执行期诊断
 - `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
-- `HarbethImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径，并显式表达 transient/persistent 图像缓存语义和采样描述
-- `HarbethKernelDescriptor`：提供 function identity、library source lookup identity、function constant specialization、稳定 argument descriptor、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
-- `HarbethKernelInvocation`：把稳定的 kernel descriptor 桥接到可执行 filter 实例，显式暴露兼容性摘要和稳定 fingerprint，便于 node graph 执行与验证
-- `HarbethRenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
-- `HarbethRenderRequest`：延迟单帧渲染合同。宿主可以先编译 diagnostics、source semantic 和 recipe metadata，再按需要真正 materialize texture/frame 输出
-- `HarbethPixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
+- `ImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径，并显式表达 transient/persistent 图像缓存语义和采样描述
+- `KernelDescriptor`：提供 function identity、library source lookup identity、function constant specialization、稳定 argument descriptor、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
+- `KernelInvocation`：把稳定的 kernel descriptor 桥接到可执行 filter 实例，显式暴露兼容性摘要和稳定 fingerprint，便于 node graph 执行与验证
+- `RenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
+- `RenderRequest`：延迟单帧渲染合同。宿主可以先编译 diagnostics、source semantic 和 recipe metadata，再按需要真正 materialize texture/frame 输出
+- `PixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
 - `RenderOutputContract`：显式描述 alpha、color-space、wide-gamut、pixel-format 和 high-precision 输出意图，供 diagnostics 和保守执行计划使用
 - texture/node 执行路径可以按 `RenderOutputContract` materialize 目标 `MTLPixelFormat`；color-space 仍作为 diagnostics/planning 的显式 contract，除非调用方接入具体转换滤镜
 - `PixelBufferContract`、`PixelBufferTextureBridgePlan`、`SampleBufferContract`：显式描述 multi-plane pixelBuffer 布局、YCbCr bridge 策略，以及 timing / sample attachment 合同，适合相机帧和视频帧输入链路
+- `PixelBufferPlaneBridgeDescriptor`、`SampleBufferFrameContract`：进一步描述每个 plane 的 bridge 策略、owner retention 语义，以及 sampleBuffer 帧级元数据
 - `C7RGBTransferConversion`：显式执行 sRGB/linear transfer 转换；当 kernel descriptor 声明了兼容的输入色彩 contract 时，node 执行路径可以按输出 contract 自动接入
 - `RenderOptimizationPlan`：以保守方式描述 transient texture 复用、persistent output、纹理成本估算、readback boundary 和格式转换决策。texture-first 执行路径可据此预热可复用 render target，但不改变视觉输出
+- `ImageGraph`、`ImageGraphOptimizer`、`RenderGraphDebugSnapshot`：为 node/recipe/transition/layer 路径提供 lazy DAG 诊断，包含 graph node 数、优化决策、DOT graph 导出和 JSON 友好的快照结构
+- `KernelExecutionPlan`：把 `KernelDescriptor` 提升成 compute/render/mps/advancedMetal/blit 的统一执行元数据
+- `ExactTextureAllocator`、`TolerantTextureAllocator`、`HeapBackedTextureAllocator`：提供 allocator 抽象和诊断视角，同时保持 `Shared.shared` 默认入口不变
 
 ```swift
 let runtime = Shared.shared
@@ -412,13 +424,13 @@ let diagnostics = task.diagnostics
 ```
 
 ```swift
-let pixelBufferPool = try HarbethPixelBufferPool(width: 1920, height: 1080)
+let pixelBufferPool = try PixelBufferPool(width: 1920, height: 1080)
 let outputPixelBuffer = try HarbethIO(element: inputTexture, filters: filters)
     .renderPixelBuffer(profile: .stablePreview, pool: pixelBufferPool)
 ```
 
 ```swift
-let node = HarbethImageNode.filters(
+let node = ImageNode.filters(
     input: .source(.texture(inputTexture)),
     filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.05)]
 )
@@ -438,7 +450,7 @@ let invocation = descriptor.makeInvocation(
     filter: filter,
     inputSize: C7Size(width: 1920, height: 1080)
 )
-let kernelNode = HarbethImageNode
+let kernelNode = ImageNode
     .texture(inputTexture)
     .applying(invocation)
 
@@ -450,6 +462,41 @@ let request = try kernelNode.makeRenderRequest(profile: .stablePreview)
 let deferredFrame = try request.renderFrame(metadata: ["mode": "deferred"])
 ```
 
+#### Lazy Graph、Debug Snapshot 与 Allocator Diagnostics
+
+当宿主需要“这条链路是怎么被编排和优化的”时，可以直接使用 node graph 诊断路径：
+
+```swift
+let node = ImageNode
+    .texture(inputTexture)
+    .applying(C7Brightness(brightness: 0.1))
+    .applying(C7Contrast(contrast: 1.05))
+    .withCachePolicy(.persistent)
+
+let graph = try node.makeImageGraph(profile: .stablePreview)
+let optimizedGraph = try node.makeOptimizedImageGraph(profile: .stablePreview)
+let snapshot = try HarbethIO(element: inputTexture, filters: [])
+    .renderDebugSnapshot(node: node, profile: .stablePreview)
+
+print(graph.nodeCount)
+print(optimizedGraph.decisions)
+print(snapshot.dotGraph)
+```
+
+如果宿主需要切换 allocator 策略，也可以继续沿用 `Shared.shared` 来注入默认 allocator：
+
+```swift
+Shared.shared.defaultTextureAllocator = TolerantTextureAllocator(
+    texturePool: Shared.shared.defaultTexturePool
+)
+
+let diagnostics = try HarbethIO(element: inputTexture, filters: filters)
+    .renderDiagnostics(profile: .stablePreview)
+
+print(diagnostics.optimizationPlan.allocationStrategy)
+print(diagnostics.optimizationPlan.textureReuseHitCount)
+```
+
 ### 几何、局部蒙版与转场 Primitive
 
 Harbeth 现在补齐了一批可复用的编辑基础元件，但仍然保持底座定位，不把自己做成完整产品编辑器：
@@ -457,6 +504,7 @@ Harbeth 现在补齐了一批可复用的编辑基础元件，但仍然保持底
 - `ImageCropRegion`、`ImageTransformRecipe`、`AspectPolicy`、`CoordinateSpace`
 - `MaskDescriptor`、`MaskBlendMode`、`MaskFeatherPolicy`、`LocalEffectRecipe`
 - `ImageLayer`、`LayerCompositeRecipe`、`LayerBlendMode`，用于带 normalized placement、layer-local transform、opacity、mask、corner radius 和常见 blend mode 的单帧 texture 图层合成
+- `LayerLayoutUnit`、`LayerFlipOptions`、`LayerCornerCurve`，用于更明确地表达 layer 的布局、翻转和圆角曲线 contract
 - `TransitionKernel` 以及 dissolve、directional wipe、luma wipe、displacement 四个基础转场
 - 用于预览/最终输出分离的轻量 `EditRecipe`
 
@@ -508,9 +556,15 @@ let composite = LayerCompositeRecipe(
         ImageLayer(
             content: .texture(layerTexture),
             normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+            contentRegion: CGRect(x: 0.0, y: 0.0, width: 0.9, height: 0.9),
             opacity: 0.9,
-            blendMode: .sourceOver,
-            mask: MaskDescriptor(texture: maskTexture)
+            blendMode: .softLight,
+            flipOptions: LayerFlipOptions(horizontal: true),
+            rotation: 90,
+            tintColor: SIMD4<Float>(1.0, 0.9, 0.8, 0.35),
+            mask: MaskDescriptor(texture: maskTexture),
+            cornerRadius: 24,
+            cornerCurve: .continuous
         )
     ]
 )
@@ -519,6 +573,8 @@ let compositeTexture = try HarbethIO(element: backgroundTexture, filters: [])
     .renderTexture(composite: composite)
 let compositeDiagnostics = try HarbethIO(element: backgroundTexture, filters: [])
     .renderDiagnostics(composite: composite)
+let compositeSnapshot = try HarbethIO(element: backgroundTexture, filters: [])
+    .renderDebugSnapshot(composite: composite)
 ```
 
 ### 🔧 安装方式

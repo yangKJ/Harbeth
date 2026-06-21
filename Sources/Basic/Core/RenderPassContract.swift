@@ -1,8 +1,8 @@
 //
-//  HarbethRenderPassContract.swift
+//  RenderPassContract.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
@@ -45,7 +45,7 @@ public enum RenderAttachmentStoreBehavior: String, Sendable, Codable, Equatable,
     }
 }
 
-public struct HarbethColorAttachmentContract: Sendable, Codable, Equatable, Hashable {
+public struct ColorAttachmentContract: Sendable, Codable, Equatable, Hashable {
     public let index: Int
     public let pixelFormat: String?
     public let loadBehavior: RenderAttachmentLoadBehavior
@@ -73,14 +73,14 @@ public struct HarbethColorAttachmentContract: Sendable, Codable, Equatable, Hash
     }
 }
 
-public struct HarbethRenderPassContract: Sendable, Codable, Equatable, Hashable {
-    public let colorAttachments: [HarbethColorAttachmentContract]
+public struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
+    public let colorAttachments: [ColorAttachmentContract]
     public let sampleCount: Int
     public let hasDepthAttachment: Bool
     public let hasStencilAttachment: Bool
     public let usesCustomVertexLayout: Bool
 
-    public init(colorAttachments: [HarbethColorAttachmentContract],
+    public init(colorAttachments: [ColorAttachmentContract],
                 sampleCount: Int = 1,
                 hasDepthAttachment: Bool = false,
                 hasStencilAttachment: Bool = false,
@@ -94,10 +94,10 @@ public struct HarbethRenderPassContract: Sendable, Codable, Equatable, Hashable 
 
     public static func singleColor(pixelFormat: MTLPixelFormat? = nil,
                                    sampleCount: Int = 1,
-                                   usesCustomVertexLayout: Bool = false) -> HarbethRenderPassContract {
-        HarbethRenderPassContract(
+                                   usesCustomVertexLayout: Bool = false) -> RenderPassContract {
+        RenderPassContract(
             colorAttachments: [
-                HarbethColorAttachmentContract(
+                ColorAttachmentContract(
                     index: 0,
                     pixelFormat: pixelFormat,
                     loadBehavior: .clear,

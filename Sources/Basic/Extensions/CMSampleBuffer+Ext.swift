@@ -44,7 +44,9 @@ extension HarbethWrapper where Base: CMSampleBuffer {
 
     public var contract: SampleBufferContract {
         let formatDescription = CMSampleBufferGetFormatDescription(base)
-        let imageBufferContract = CMSampleBufferGetImageBuffer(base)?.c7.contract
+        let imageBuffer = CMSampleBufferGetImageBuffer(base)
+        let imageBufferContract = imageBuffer?.c7.contract
+        let bridgePlan = imageBuffer.map { $0.c7.makeTextureBridgePlan() }
         return SampleBufferContract(
             numSamples: Int(CMSampleBufferGetNumSamples(base)),
             isValid: CMSampleBufferIsValid(base),
@@ -54,6 +56,11 @@ extension HarbethWrapper where Base: CMSampleBuffer {
             formatDescriptionMediaType: formatDescription.map(CMFormatDescriptionGetMediaType),
             formatDescriptionMediaSubType: formatDescription.map(CMFormatDescriptionGetMediaSubType),
             pixelBufferContract: imageBufferContract,
+            frameContract: SampleBufferFrameContract(
+                ownerRetained: bridgePlan?.preservesOwnerReference ?? false,
+                conversionStrategy: bridgePlan?.loadStrategy,
+                orientation: .up
+            ),
             attachments: attachmentContract
         )
     }

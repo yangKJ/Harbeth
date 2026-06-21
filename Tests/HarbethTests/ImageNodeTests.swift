@@ -1,13 +1,14 @@
 import XCTest
 import Metal
+import CoreVideo
 @testable import Harbeth
 
-final class HarbethImageNodeTests: XCTestCase {
+final class ImageNodeTests: XCTestCase {
 
     func testNodeFilterPathMatchesDirectFilterPath() throws {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
         let filters: [C7FilterProtocol] = [C7Resize(width: 2, height: 2)]
-        let node = HarbethImageNode.filters(input: .source(.texture(input)), filters: filters)
+        let node = ImageNode.filters(input: .source(.texture(input)), filters: filters)
 
         let nodeOutput = try HarbethIO(element: input, filters: []).renderTexture(node: node)
         let directOutput: MTLTexture = try HarbethIO(element: input, filters: filters).output()
@@ -22,8 +23,8 @@ final class HarbethImageNodeTests: XCTestCase {
 
     func testNodeCachePolicyIsVisibleInDiagnostics() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
-        let sourceDiagnostics = try HarbethImageNode.source(.texture(input)).makeDiagnostics()
-        let persistentNode = HarbethImageNode
+        let sourceDiagnostics = try ImageNode.source(.texture(input)).makeDiagnostics()
+        let persistentNode = ImageNode
             .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
             .withCachePolicy(.persistent)
         let persistentDiagnostics = try persistentNode.makeDiagnostics()
@@ -36,7 +37,7 @@ final class HarbethImageNodeTests: XCTestCase {
 
     func testNodeSamplerDescriptorIsVisibleInDiagnostics() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
-        let node = HarbethImageNode
+        let node = ImageNode
             .source(.texture(input))
             .withSamplerDescriptor(.nearest)
         let diagnostics = try node.makeDiagnostics()
@@ -45,11 +46,54 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("sampler=\(ImageSamplerDescriptor.nearest.fingerprint)"))
     }
 
+    func testNodeWrappedPlanPreservesSourceConversionDiagnostics() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create bi-planar pixel buffer.")
+            return
+        }
+
+        let node = ImageNode
+            .source(.pixelBuffer(pixelBuffer))
+            .applying(C7Brightness(brightness: 0.1))
+            .withCachePolicy(.persistent)
+            .withSamplerDescriptor(.nearest)
+
+        let diagnostics = try node.makeDiagnostics()
+
+        XCTAssertEqual(diagnostics.sourceKind, "pixelBuffer")
+        XCTAssertEqual(diagnostics.inputColorConversionCount, 1)
+        XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 1)
+        XCTAssertEqual(diagnostics.imageCachePolicy, .persistent)
+        XCTAssertEqual(diagnostics.samplerDescriptor, .nearest)
+        XCTAssertTrue(diagnostics.summary.contains("origin=pixelBuffer"))
+        XCTAssertEqual(diagnostics.inputColorSpace.name, "preserveInput")
+        XCTAssertEqual(diagnostics.inputPixelFormat.name, "r8Unorm")
+    }
+
     func testPersistentNodeResolutionReusesCachedTexture() throws {
         let context = Shared.shared.defaultContext
         context.resetCaches()
         let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
-        let node = HarbethImageNode
+        let node = ImageNode
             .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
             .withCachePolicy(.persistent)
 
@@ -110,31 +154,31 @@ final class HarbethImageNodeTests: XCTestCase {
 
     func testKernelDescriptorFunctionConstantsAreSpecializationContracts() {
         let constants = [
-            HarbethKernelFunctionConstantDescriptor(
+            KernelFunctionConstantDescriptor(
                 name: "harbeth::outputsPremultipliedAlpha",
                 index: 3,
                 value: .bool(true)
             ),
-            HarbethKernelFunctionConstantDescriptor(
+            KernelFunctionConstantDescriptor(
                 name: "harbeth::blendMode",
                 index: 1,
                 value: .int(8)
             )
         ]
         let reversedConstants = Array(constants.reversed())
-        let firstIdentity = HarbethKernelFunctionIdentity(
+        let firstIdentity = KernelFunctionIdentity(
             kind: .render,
             primaryName: "C7VertexPassthrough",
             secondaryName: "C7LayerComposite",
             functionConstants: constants
         )
-        let secondIdentity = HarbethKernelFunctionIdentity(
+        let secondIdentity = KernelFunctionIdentity(
             kind: .render,
             primaryName: "C7VertexPassthrough",
             secondaryName: "C7LayerComposite",
             functionConstants: reversedConstants
         )
-        let descriptor = HarbethKernelDescriptor(
+        let descriptor = KernelDescriptor(
             filterName: "C7LayerComposite",
             functionIdentity: firstIdentity,
             parameters: ["opacity": .float(0.5)],
@@ -160,28 +204,28 @@ final class HarbethImageNodeTests: XCTestCase {
     }
 
     func testKernelFunctionIdentityIncludesLibrarySource() {
-        let defaultIdentity = HarbethKernelFunctionIdentity(
+        let defaultIdentity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "customKernel",
             librarySource: .defaultLibrary
         )
-        let externalIdentity = HarbethKernelFunctionIdentity(
+        let externalIdentity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "customKernel",
             librarySource: .externalProvider("tests.external.library")
         )
-        let metallibIdentity = HarbethKernelFunctionIdentity(
+        let metallibIdentity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "customKernel",
             librarySource: .metallibURL("file:///tmp/custom.metallib"),
             functionConstants: [
-                HarbethKernelFunctionConstantDescriptor(
+                KernelFunctionConstantDescriptor(
                     name: "harbeth::usesLinearSampling",
                     value: .bool(true)
                 )
             ]
         )
-        let descriptor = HarbethKernelDescriptor(
+        let descriptor = KernelDescriptor(
             filterName: "customKernel",
             functionIdentity: metallibIdentity
         )
@@ -196,31 +240,31 @@ final class HarbethImageNodeTests: XCTestCase {
     }
 
     func testKernelFunctionIdentityBuildsMetalFunctionConstantValues() {
-        let identity = HarbethKernelFunctionIdentity(
+        let identity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "customKernel",
             functionConstants: [
-                HarbethKernelFunctionConstantDescriptor(
+                KernelFunctionConstantDescriptor(
                     name: "harbeth::flag",
                     value: .bool(true)
                 ),
-                HarbethKernelFunctionConstantDescriptor(
+                KernelFunctionConstantDescriptor(
                     name: "harbeth::mode",
                     index: 1,
                     value: .int(2)
                 ),
-                HarbethKernelFunctionConstantDescriptor(
+                KernelFunctionConstantDescriptor(
                     name: "harbeth::amount",
                     index: 2,
                     value: .float(0.75)
                 )
             ]
         )
-        let metadataOnlyIdentity = HarbethKernelFunctionIdentity(
+        let metadataOnlyIdentity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "customKernel",
             functionConstants: [
-                HarbethKernelFunctionConstantDescriptor(
+                KernelFunctionConstantDescriptor(
                     name: "harbeth::debugLabel",
                     value: .string("metadata-only")
                 )
@@ -282,12 +326,12 @@ final class HarbethImageNodeTests: XCTestCase {
     func testKernelNodeExecutesAlphaOutputContract() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [200, 100, 50, 128])
         let filter = C7Brightness(brightness: 0)
-        let descriptor = HarbethKernelDescriptor(
+        let descriptor = KernelDescriptor(
             filterName: "identityPremultiply",
-            functionIdentity: HarbethKernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
             outputContract: RenderOutputContract(alpha: .forcePremultiply)
         )
-        let node = HarbethImageNode.kernel(input: .source(.texture(input)), descriptor: descriptor, filter: filter)
+        let node = ImageNode.kernel(input: .source(.texture(input)), descriptor: descriptor, filter: filter)
 
         let output = try node.makeTexture()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
@@ -361,7 +405,7 @@ final class HarbethImageNodeTests: XCTestCase {
                 )
             ]
         )
-        let node = HarbethImageNode.layerComposite(recipe)
+        let node = ImageNode.layerComposite(recipe)
 
         let output = try HarbethIO(element: background, filters: []).renderTexture(node: node)
         let diagnostics = try HarbethIO(element: background, filters: []).renderDiagnostics(node: node)
@@ -375,9 +419,59 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(diagnostics.optimizationPlan.destinationTextureCreationCount, 1)
     }
 
+    func testNodeDebugSnapshotExposesGraphAndOptimizationDecisions() throws {
+        let input = try makeTexture(width: 4, height: 4, pixel: [32, 64, 96, 255])
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.1)
+            ])
+            .withCachePolicy(.persistent)
+
+        let snapshot = try node.makeDebugSnapshot()
+
+        XCTAssertFalse(snapshot.nodes.isEmpty)
+        XCTAssertFalse(snapshot.edges.isEmpty)
+        XCTAssertFalse(snapshot.dotGraph.isEmpty)
+        XCTAssertTrue(snapshot.dotGraph.contains("digraph ImageGraph"))
+        XCTAssertGreaterThanOrEqual(snapshot.diagnostics.graphNodeCount, 2)
+        XCTAssertTrue(snapshot.diagnostics.persistentBoundaryCount >= 1)
+        XCTAssertFalse(snapshot.optimizationDecisions.isEmpty)
+    }
+
+    func testLayerCompositeFingerprintTracksExtendedLayerContracts() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    contentRegion: CGRect(x: 0.1, y: 0.2, width: 0.5, height: 0.5),
+                    opacity: 0.8,
+                    blendMode: .softLight,
+                    flipOptions: LayerFlipOptions(horizontal: true),
+                    rotation: 90,
+                    tintColor: SIMD4<Float>(1, 0.5, 0.25, 0.75),
+                    cornerCurve: .continuous,
+                    rasterSampleCount: 2
+                )
+            ]
+        )
+
+        XCTAssertTrue(recipe.fingerprint.contains("contentRegion="))
+        XCTAssertTrue(recipe.fingerprint.contains("layout=normalized"))
+        XCTAssertTrue(recipe.fingerprint.contains("flip=h=1|v=0"))
+        XCTAssertTrue(recipe.fingerprint.contains("rotation=90.0000"))
+        XCTAssertTrue(recipe.fingerprint.contains("cornerCurve=continuous"))
+        XCTAssertTrue(recipe.fingerprint.contains("samples=2"))
+        XCTAssertTrue(recipe.fingerprint.contains("blend=12"))
+    }
+
     func testNodeRenderPlanAndRenderRecipeExposeStableContracts() throws {
         let input = try makeTexture(width: 4, height: 3, pixel: [80, 40, 20, 255])
-        let node = HarbethImageNode
+        let node = ImageNode
             .texture(input)
             .applying(C7Brightness(brightness: 0.1))
             .withCachePolicy(.persistent)
@@ -419,7 +513,7 @@ final class HarbethImageNodeTests: XCTestCase {
 
     func testNodeRenderRequestCarriesDeferredExecutionContract() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [40, 80, 120, 255])
-        let node = HarbethImageNode
+        let node = ImageNode
             .texture(input)
             .applying(C7Brightness(brightness: 0.1))
 
@@ -447,7 +541,7 @@ final class HarbethImageNodeTests: XCTestCase {
         )
         let recipe = LayerCompositeRecipe(background: .texture(background), layers: [imageLayer])
 
-        let output = try HarbethImageNode.layerComposite(recipe).makeTexture()
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
 
         XCTAssertEqual(imageLayer.normalizedFrame, CGRect(x: 0, y: 0, width: 1, height: 1))
@@ -476,7 +570,7 @@ final class HarbethImageNodeTests: XCTestCase {
         )
         let recipe = LayerCompositeRecipe(background: .texture(background), layers: [transformedLayer])
 
-        let output = try HarbethImageNode.layerComposite(recipe).makeTexture()
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
 
         XCTAssertLessThan(outputPixel.green, 64)
@@ -511,12 +605,12 @@ final class HarbethImageNodeTests: XCTestCase {
     func testNodeRecipeAndTransitionDiagnosticsKeepOriginalSources() throws {
         let from = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
         let to = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
-        let recipeNode = HarbethImageNode.recipe(
+        let recipeNode = ImageNode.recipe(
             source: .texture(from),
             recipe: EditRecipe(filters: [C7Brightness(brightness: 0.1)]),
             mode: .preview
         )
-        let transitionNode = HarbethImageNode.transition(
+        let transitionNode = ImageNode.transition(
             TransitionRecipe(from: .texture(from), to: .texture(to), kernel: .dissolve, progress: 0.5)
         )
 
@@ -526,6 +620,42 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(recipeDiagnostics.compilationSource, .editRecipe)
         XCTAssertEqual(transitionDiagnostics.compilationSource, .transition)
         XCTAssertTrue(transitionDiagnostics.containsTransitionKernel)
+    }
+
+    func testNodeDiagnosticsTracksPixelBufferInputConversions() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create bi-planar pixel buffer.")
+            return
+        }
+
+        let node = ImageNode.source(.pixelBuffer(pixelBuffer))
+            .applying(C7Brightness(brightness: 0.1))
+
+        let diagnostics = try node.makeDiagnostics()
+
+        XCTAssertEqual(diagnostics.compilationSource, .nodeGraph)
+        XCTAssertEqual(diagnostics.inputColorConversionCount, 1)
+        XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 1)
+        XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
     }
 
     func testRenderOutputContractFingerprintAndAlphaExpectation() {
@@ -569,16 +699,18 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("transfer=linear"))
         XCTAssertTrue(plan.diagnostics.summary.contains("pixelPrecision=float16"))
         XCTAssertTrue(plan.diagnostics.summary.contains("hdrFriendly=1"))
+        XCTAssertEqual(plan.diagnostics.outputColorSpace, .extendedLinearSRGB)
+        XCTAssertEqual(plan.diagnostics.outputPixelFormat, .rgba16Float)
     }
 
     func testKernelNodeMaterializesPixelFormatOutputContract() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [120, 80, 40, 255])
-        let descriptor = HarbethKernelDescriptor(
+        let descriptor = KernelDescriptor(
             filterName: "identityHighPrecision",
-            functionIdentity: HarbethKernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
             outputContract: .highPrecisionLinearTexture
         )
-        let node = HarbethImageNode.kernel(
+        let node = ImageNode.kernel(
             input: .source(.texture(input)),
             descriptor: descriptor,
             filter: C7Brightness(brightness: 0)
@@ -619,13 +751,13 @@ final class HarbethImageNodeTests: XCTestCase {
 
     func testKernelNodeExecutesExplicitColorTransferOutputContract() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [128, 128, 128, 255])
-        let descriptor = HarbethKernelDescriptor(
+        let descriptor = KernelDescriptor(
             filterName: "identityLinearOutput",
-            functionIdentity: HarbethKernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
             inputColorSpace: .sRGB,
             outputContract: RenderOutputContract(colorSpace: .extendedLinearSRGB)
         )
-        let node = HarbethImageNode.kernel(
+        let node = ImageNode.kernel(
             input: .source(.texture(input)),
             descriptor: descriptor,
             filter: C7Brightness(brightness: 0)

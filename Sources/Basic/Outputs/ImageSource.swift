@@ -1,5 +1,5 @@
 //
-//  HarbethSource.swift
+//  ImageSource.swift
 //  Harbeth
 //
 //  Created by Condy on 2026/6/20.
@@ -12,14 +12,14 @@ import CoreVideo
 import CoreMedia
 
 /// 高级 texture-first 渲染的统一输入面。
-public enum HarbethSource {
+public enum ImageSource {
     case texture(MTLTexture)
     case image(C7Image)
     case cgImage(CGImage)
     case pixelBuffer(CVPixelBuffer)
     case sampleBuffer(CMSampleBuffer)
     case data(Data)
-    case asset(HarbethImageAsset)
+    case asset(ImageAsset)
 
     public func makeTexture() throws -> MTLTexture {
         switch self {
@@ -134,10 +134,10 @@ public enum HarbethSource {
         }
     }
 
-    public var descriptor: HarbethSourceDescriptor {
+    public var descriptor: ImageSourceDescriptor {
         switch self {
         case .pixelBuffer(let pixelBuffer):
-            return HarbethSourceDescriptor(
+            return ImageSourceDescriptor(
                 kind: kindName,
                 sourceTier: sourceTier,
                 alphaType: alphaType,
@@ -149,7 +149,7 @@ public enum HarbethSource {
                 pixelBufferBridgePlan: pixelBuffer.c7.makeTextureBridgePlan()
             )
         case .sampleBuffer(let sampleBuffer):
-            return HarbethSourceDescriptor(
+            return ImageSourceDescriptor(
                 kind: kindName,
                 sourceTier: sourceTier,
                 alphaType: alphaType,
@@ -160,7 +160,7 @@ public enum HarbethSource {
                 sampleBufferContract: sampleBuffer.c7.contract
             )
         default:
-            return HarbethSourceDescriptor(
+            return ImageSourceDescriptor(
                 kind: kindName,
                 sourceTier: sourceTier,
                 alphaType: alphaType,
@@ -203,7 +203,7 @@ public enum HarbethSource {
     }
 }
 
-private extension HarbethImageAsset.Storage {
+private extension ImageAsset.Storage {
     var resolutionFingerprint: String {
         switch self {
         case .url(let url):

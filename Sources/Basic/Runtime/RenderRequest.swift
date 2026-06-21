@@ -1,19 +1,19 @@
 //
-//  HarbethRenderRequest.swift
+//  RenderRequest.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
 import Metal
 
 /// A deferred single-frame render contract that can be compiled first and executed later.
-public struct HarbethRenderRequest {
+public struct RenderRequest {
     public let compilationSource: RenderCompilationSource
     public let profile: RenderProfile
     public let derivative: ImageDerivativeSpec
-    public let source: HarbethSourceDescriptor
+    public let source: ImageSourceDescriptor
     public let outputCachePolicy: ImageCachePolicy
     public let diagnostics: RenderPlanDiagnostics
     public let renderRecipe: RenderRecipe?
@@ -24,7 +24,7 @@ public struct HarbethRenderRequest {
     init(compilationSource: RenderCompilationSource,
          profile: RenderProfile,
          derivative: ImageDerivativeSpec,
-         source: HarbethSourceDescriptor,
+         source: ImageSourceDescriptor,
          outputCachePolicy: ImageCachePolicy,
          diagnostics: RenderPlanDiagnostics,
          renderRecipe: RenderRecipe?,

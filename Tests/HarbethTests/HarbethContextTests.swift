@@ -28,12 +28,12 @@ final class HarbethContextTests: XCTestCase {
 
         let context = Shared.shared.defaultContext
         context.resetCaches()
-        let identity = HarbethKernelFunctionIdentity(
+        let identity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "C7Brightness",
             librarySource: .automatic
         )
-        let defaultLibraryIdentity = HarbethKernelFunctionIdentity(
+        let defaultLibraryIdentity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "C7Brightness",
             librarySource: .defaultLibrary
@@ -57,17 +57,17 @@ final class HarbethContextTests: XCTestCase {
 
         let context = Shared.shared.defaultContext
         context.resetCaches()
-        let vertex = HarbethKernelFunctionIdentity(
+        let vertex = KernelFunctionIdentity(
             kind: .render,
             primaryName: "basicVertex",
             librarySource: .automatic
         )
-        let fragment = HarbethKernelFunctionIdentity(
+        let fragment = KernelFunctionIdentity(
             kind: .render,
             primaryName: "sepiaFragment",
             librarySource: .automatic
         )
-        let sourceFallbackFragment = HarbethKernelFunctionIdentity(
+        let sourceFallbackFragment = KernelFunctionIdentity(
             kind: .render,
             primaryName: "sepiaFragment",
             librarySource: .sourceFallback("render-shader-source")
@@ -99,7 +99,7 @@ final class HarbethContextTests: XCTestCase {
 
         let context = Shared.shared.defaultContext
         context.resetCaches()
-        let identity = HarbethKernelFunctionIdentity(
+        let identity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "C7Brightness",
             librarySource: .automatic

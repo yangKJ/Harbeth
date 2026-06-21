@@ -80,7 +80,7 @@ public extension ImageDerivativeSpec {
     }
 }
 
-public extension HarbethSourceDescriptor {
+public extension ImageSourceDescriptor {
     func satisfies(_ contract: ReplayBaseContract) -> Bool {
         if contract.requiresOriginalSource {
             return sourceTier == .original
@@ -142,10 +142,10 @@ public extension RenderRecipe {
 /// 单个可用 replay base 候选。由上层资源表、磁盘缓存或内存缓存提供。
 public struct ReplaySourceCandidate: Sendable, Hashable, Codable {
     public let identifier: String
-    public let descriptor: HarbethSourceDescriptor
+    public let descriptor: ImageSourceDescriptor
     public let pixelSize: C7Size?
 
-    public init(identifier: String, descriptor: HarbethSourceDescriptor, pixelSize: C7Size? = nil) {
+    public init(identifier: String, descriptor: ImageSourceDescriptor, pixelSize: C7Size? = nil) {
         self.identifier = identifier
         self.descriptor = descriptor
         self.pixelSize = pixelSize
@@ -190,7 +190,7 @@ public struct ReplaySourceSelection: Sendable, Hashable, Codable {
     }
 }
 
-public extension HarbethSourceDescriptor {
+public extension ImageSourceDescriptor {
     func replayReuseScore(for derivative: ImageDerivativeSpec, contract: ReplayBaseContract) -> Int? {
         guard satisfies(contract) else {
             return nil

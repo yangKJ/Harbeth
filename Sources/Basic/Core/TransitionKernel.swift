@@ -2,7 +2,7 @@
 //  TransitionKernel.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
@@ -105,8 +105,8 @@ public struct C7DisplacementTransition: TransitionKernel {
 public enum TransitionKernelDescriptor {
     case dissolve
     case directionalWipe(angleDegrees: Float = 0, softness: Float = 0.02)
-    case lumaWipe(lumaSource: HarbethSource, softness: Float = 0.1)
-    case displacement(displacementSource: HarbethSource, scale: Float = 0.05)
+    case lumaWipe(lumaSource: ImageSource, softness: Float = 0.1)
+    case displacement(displacementSource: ImageSource, scale: Float = 0.05)
 
     public var fingerprint: String {
         switch self {
@@ -167,15 +167,15 @@ private func stableTransitionFloatDescription(_ value: Float) -> String {
 }
 
 public struct TransitionRecipe {
-    public var from: HarbethSource
-    public var to: HarbethSource
+    public var from: ImageSource
+    public var to: ImageSource
     public var kernel: TransitionKernelDescriptor
     public var progress: Float
     public var profile: RenderProfile
     public var derivative: ImageDerivativeSpec
 
-    public init(from: HarbethSource,
-                to: HarbethSource,
+    public init(from: ImageSource,
+                to: ImageSource,
                 kernel: TransitionKernelDescriptor,
                 progress: Float,
                 profile: RenderProfile = .stablePreview,

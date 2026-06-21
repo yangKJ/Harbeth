@@ -1,5 +1,7 @@
 import XCTest
 import Metal
+import CoreVideo
+import CoreMedia
 @testable import Harbeth
 
 final class TransitionKernelTests: XCTestCase {
@@ -106,6 +108,70 @@ final class TransitionKernelTests: XCTestCase {
         XCTAssertTrue(diagnostics.containsTransitionKernel)
         XCTAssertFalse(diagnostics.containsLocalEffectComposite)
         XCTAssertEqual(diagnostics.stages.first?.containsTransitionKernel, true)
+    }
+
+    func testTransitionDiagnosticsTracksDualInputConversions() throws {
+        var fromBuffer: CVPixelBuffer?
+        var toBuffer: CVPixelBuffer?
+        let fromAttributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                fromAttributes as CFDictionary,
+                &fromBuffer
+            ),
+            kCVReturnSuccess
+        )
+        let toAttributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                toAttributes as CFDictionary,
+                &toBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let fromBuffer,
+              let toBuffer,
+              let fromSample = fromBuffer.c7.toCMSampleBuffer(),
+              let toSample = toBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffers.")
+            return
+        }
+
+        let recipe = TransitionRecipe(
+            from: .sampleBuffer(fromSample),
+            to: .sampleBuffer(toSample),
+            kernel: .directionalWipe(angleDegrees: 45, softness: 0.05),
+            progress: 0.5
+        )
+
+        let diagnostics = try HarbethIO(element: fromSample, filters: []).renderTransitionDiagnostics(recipe)
+
+        XCTAssertEqual(diagnostics.inputColorConversionCount, 2)
+        XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 2)
+        XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
+        XCTAssertEqual(diagnostics.sourceKind, "sampleBuffer")
+        XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
+        XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=2"))
     }
 
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {

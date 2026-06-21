@@ -2,7 +2,7 @@
 //  HarbethIO+Frame.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
@@ -20,7 +20,7 @@ extension HarbethIO {
 
     /// texture-first 同步输出，不执行 CPU 读回。
     public func renderTexture(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
-        let sourceObject = try makeHarbethSource()
+        let sourceObject = try makeImageSource()
         let source = try sourceObject.makeTexture()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let effectiveFilters = makeEffectiveFilters(
@@ -36,10 +36,10 @@ extension HarbethIO {
     /// 将单帧渲染结果输出为新的 `CVPixelBuffer`，不修改输入 pixel buffer。
     public func renderPixelBuffer(profile: RenderProfile = .stablePreview,
                                   derivative: ImageDerivativeSpec? = nil,
-                                  pool: HarbethPixelBufferPool? = nil,
+                                  pool: PixelBufferPool? = nil,
                                   pixelFormatType: OSType = kCVPixelFormatType_32BGRA) throws -> CVPixelBuffer {
         let texture = try renderTexture(profile: profile, derivative: derivative)
-        let outputPool = try pool ?? HarbethPixelBufferPool(
+        let outputPool = try pool ?? PixelBufferPool(
             width: texture.width,
             height: texture.height,
             pixelFormatType: pixelFormatType
@@ -57,8 +57,8 @@ extension HarbethIO {
 
     /// texture-first task output for callers that need to observe GPU completion.
     public func startRenderTextureTask(profile: RenderProfile = .stablePreview,
-                                       derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderTask<MTLTexture> {
-        let sourceObject = try makeHarbethSource()
+                                       derivative: ImageDerivativeSpec? = nil) throws -> RenderTask<MTLTexture> {
+        let sourceObject = try makeImageSource()
         let source = try sourceObject.makeTexture()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let effectiveFilters = makeEffectiveFilters(
@@ -70,7 +70,8 @@ extension HarbethIO {
             inputSize: C7Size(width: source.width, height: source.height),
             profile: profile,
             derivative: effectiveDerivative,
-            compilationSource: .filtersPrimitive
+            compilationSource: .filtersPrimitive,
+            sourceDescriptor: sourceObject.descriptor
         ).diagnostics
         guard effectiveFilters.isEmpty == false else {
             return .completed(identifier: identifier, output: source, diagnostics: diagnostics)
@@ -82,13 +83,15 @@ extension HarbethIO {
 
     /// 结构化渲染计划诊断，供上层做日志、调度、缓存和大图策略分析。
     public func renderDiagnostics(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
-        let source = try makeHarbethSource().makeTexture()
+        let sourceObject = try makeImageSource()
+        let source = try sourceObject.makeTexture()
         let plan = GraphCompiler.compile(
             filters: filters,
             inputSize: C7Size(width: source.width, height: source.height),
             profile: profile,
             derivative: derivative ?? profile.defaultDerivativeSpec,
-            compilationSource: .filtersPrimitive
+            compilationSource: .filtersPrimitive,
+            sourceDescriptor: sourceObject.descriptor
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
@@ -100,7 +103,7 @@ extension HarbethIO {
     }
 
     public func renderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
-        let source = try makeHarbethSource()
+        let source = try makeImageSource()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let outputCachePolicy: ImageCachePolicy = filters.isEmpty ? source.cachePolicy : .transient
         return RenderRecipe(
@@ -117,12 +120,12 @@ extension HarbethIO {
     }
 
     public func makeRenderRequest(profile: RenderProfile = .stablePreview,
-                                  derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let renderRecipe = try renderRecipe(profile: profile, derivative: effectiveDerivative)
         let diagnostics = try renderDiagnostics(profile: profile, derivative: effectiveDerivative)
-        let source = try makeHarbethSource()
-        return HarbethRenderRequest(
+        let source = try makeImageSource()
+        return RenderRequest(
             compilationSource: .filtersPrimitive,
             profile: profile,
             derivative: effectiveDerivative,
@@ -140,7 +143,7 @@ extension HarbethIO {
     public func renderTexture(recipe: EditRecipe,
                               mode: EditRecipeMode = .preview,
                               derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
-        let source = try makeHarbethSource()
+        let source = try makeImageSource()
         return try FrameRenderer(
             source: source,
             recipe: recipe,
@@ -151,7 +154,7 @@ extension HarbethIO {
         ).renderTexture()
     }
 
-    public func renderTexture(node: HarbethImageNode,
+    public func renderTexture(node: ImageNode,
                               profile: RenderProfile = .stablePreview,
                               derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
         try node.makeTexture(profile: profile, derivative: derivative)
@@ -161,7 +164,7 @@ extension HarbethIO {
                                   mode: EditRecipeMode = .preview,
                                   derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
         let plan = try recipe.makeRenderPlan(
-            source: makeHarbethSource(),
+            source: makeImageSource(),
             mode: mode,
             extraFilters: filters,
             derivative: derivative
@@ -182,9 +185,9 @@ extension HarbethIO {
 
     public func makeRenderRequest(recipe: EditRecipe,
                                   mode: EditRecipeMode = .preview,
-                                  derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
         try recipe.makeRenderRequest(
-            source: makeHarbethSource(),
+            source: makeImageSource(),
             mode: mode,
             extraFilters: filters,
             derivative: derivative,
@@ -215,11 +218,11 @@ extension HarbethIO {
     }
 
     public func makeRenderRequest(composite recipe: LayerCompositeRecipe,
-                                  derivative: ImageDerivativeSpec? = nil) throws -> HarbethRenderRequest {
+                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
         try recipe.makeRenderRequest(derivative: derivative)
     }
 
-    public func renderDiagnostics(node: HarbethImageNode,
+    public func renderDiagnostics(node: ImageNode,
                                   profile: RenderProfile = .stablePreview,
                                   derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
         let diagnostics = try node.makeDiagnostics(profile: profile, derivative: derivative)
@@ -232,11 +235,34 @@ extension HarbethIO {
         return diagnostics
     }
 
+    public func renderDebugSnapshot(node: ImageNode,
+                                    profile: RenderProfile = .stablePreview,
+                                    derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
+        try node.makeDebugSnapshot(profile: profile, derivative: derivative)
+    }
+
+    public func renderDebugSnapshot(recipe: EditRecipe,
+                                    mode: EditRecipeMode = .preview,
+                                    derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
+        let source = try makeImageSource()
+        return try ImageNode.recipe(source: source, recipe: recipe, mode: mode)
+            .makeDebugSnapshot(profile: recipe.contract(for: mode).profile, derivative: derivative)
+    }
+
+    public func renderDebugSnapshot(composite recipe: LayerCompositeRecipe,
+                                    derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
+        try recipe.makeNode().makeDebugSnapshot(profile: recipe.profile, derivative: derivative ?? recipe.derivative)
+    }
+
+    public func renderDebugSnapshot(transition recipe: TransitionRecipe) throws -> RenderGraphDebugSnapshot {
+        try ImageNode.transition(recipe).makeDebugSnapshot(profile: recipe.profile, derivative: recipe.derivative)
+    }
+
     /// texture-first 同步帧输出，携带稳定元数据。
     public func renderFrame(profile: RenderProfile = .stablePreview,
                             derivative: ImageDerivativeSpec? = nil,
                             metadata: [String: String] = [:]) throws -> RenderedFrame {
-        let source = try makeHarbethSource()
+        let source = try makeImageSource()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let renderer = FrameRenderer(
             source: source,
@@ -255,7 +281,7 @@ extension HarbethIO {
                             mode: EditRecipeMode = .preview,
                             derivative: ImageDerivativeSpec? = nil,
                             metadata: [String: String] = [:]) throws -> RenderedFrame {
-        let source = try makeHarbethSource()
+        let source = try makeImageSource()
         return try FrameRenderer(
             source: source,
             recipe: recipe,
@@ -267,7 +293,7 @@ extension HarbethIO {
         ).renderFrame()
     }
 
-    public func renderFrame(node: HarbethImageNode,
+    public func renderFrame(node: ImageNode,
                             profile: RenderProfile = .stablePreview,
                             derivative: ImageDerivativeSpec? = nil,
                             metadata: [String: String] = [:]) throws -> RenderedFrame {
@@ -282,7 +308,7 @@ extension HarbethIO {
                             derivative: ImageDerivativeSpec? = nil,
                             token: FrameRenderToken,
                             metadata: [String: String] = [:]) throws -> RenderedFrame {
-        let source = try makeHarbethSource()
+        let source = try makeImageSource()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         return try FrameRenderer(
             source: source,
@@ -301,7 +327,7 @@ extension HarbethIO {
                             derivative: ImageDerivativeSpec? = nil,
                             token: FrameRenderToken,
                             metadata: [String: String] = [:]) throws -> RenderedFrame {
-        let source = try makeHarbethSource()
+        let source = try makeImageSource()
         return try FrameRenderer(
             source: source,
             recipe: recipe,
@@ -329,7 +355,9 @@ extension HarbethIO {
             inputSize: C7Size(width: input.width, height: input.height),
             profile: recipe.profile,
             derivative: recipe.derivative,
-            compilationSource: .transition
+            compilationSource: .transition,
+            sourceDescriptor: recipe.from.descriptor,
+            auxiliaryInputDescriptor: recipe.to.descriptor
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
@@ -386,7 +414,7 @@ extension HarbethIO {
                               metadata: [String: String] = [:],
                               complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
         do {
-            let source = try makeHarbethSource()
+            let source = try makeImageSource()
             let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
             FrameRenderer(
                 source: source,
@@ -410,7 +438,7 @@ extension HarbethIO {
                               metadata: [String: String] = [:],
                               complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
         do {
-            let source = try makeHarbethSource()
+            let source = try makeImageSource()
             FrameRenderer(
                 source: source,
                 recipe: recipe,

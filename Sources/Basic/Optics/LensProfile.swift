@@ -57,9 +57,7 @@ public struct LensProfile: Codable, Equatable {
         public var redCyanShift: Float
         public var blueYellowShift: Float
 
-        public init(center: C7Point2D = .center,
-                    redCyanShift: Float = 0,
-                    blueYellowShift: Float = 0) {
+        public init(center: C7Point2D = .center, redCyanShift: Float = 0, blueYellowShift: Float = 0) {
             self.center = center
             self.redCyanShift = redCyanShift
             self.blueYellowShift = blueYellowShift

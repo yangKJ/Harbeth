@@ -22,8 +22,8 @@ struct Rendering {
         )
     }
 
-    static func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
-                                        fragmentIdentity: HarbethKernelFunctionIdentity,
+    static func makeRenderPipelineState(vertexIdentity: KernelFunctionIdentity,
+                                        fragmentIdentity: KernelFunctionIdentity,
                                         pixelFormat: MTLPixelFormat,
                                         sampleCount: Int = 1) throws -> MTLRenderPipelineState {
         try Shared.shared.defaultContext.makeRenderPipelineState(
@@ -34,9 +34,9 @@ struct Rendering {
         )
     }
 
-    static func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
-                                        fragmentIdentity: HarbethKernelFunctionIdentity,
-                                        renderPass: HarbethRenderPassContract) throws -> MTLRenderPipelineState {
+    static func makeRenderPipelineState(vertexIdentity: KernelFunctionIdentity,
+                                        fragmentIdentity: KernelFunctionIdentity,
+                                        renderPass: RenderPassContract) throws -> MTLRenderPipelineState {
         try Shared.shared.defaultContext.makeRenderPipelineState(
             vertexIdentity: vertexIdentity,
             fragmentIdentity: fragmentIdentity,
@@ -48,7 +48,7 @@ struct Rendering {
         let inputSize = C7Size(width: texture.width, height: texture.height)
         let customVertices = (filter as? RenderProtocol)?.setupVertices(inputSize: inputSize)
         let usesCustomVertexLayout = (filter as? RenderProtocol)?.renderVertexStride != 4 || customVertices != nil
-        let renderPass = HarbethRenderPassContract.singleColor(
+        let renderPass = RenderPassContract.singleColor(
             pixelFormat: destTexture.pixelFormat,
             sampleCount: max(destTexture.sampleCount, 1),
             usesCustomVertexLayout: usesCustomVertexLayout

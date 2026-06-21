@@ -1,22 +1,22 @@
 //
-//  HarbethRenderTask.swift
+//  RenderTask.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/6/21.
+//  Created by Condy on 2026/6/21.
 //
 
 import Foundation
 import Metal
 
 /// A GPU render task handle for callers that need to observe command-buffer status.
-public final class HarbethRenderTask<Output> {
+public final class RenderTask<Output> {
     public let identifier: String
     public let diagnostics: RenderPlanDiagnostics?
 
     private let commandBuffer: MTLCommandBuffer?
     private let outputValue: Output
     private let lock = NSLock()
-    private var completionHandlers: [(HarbethRenderTask<Output>) -> Void] = []
+    private var completionHandlers: [(RenderTask<Output>) -> Void] = []
     private var cleanup: (() -> Void)?
     private var completed = false
 
@@ -48,8 +48,8 @@ public final class HarbethRenderTask<Output> {
 
     public static func completed(identifier: String = UUID().uuidString,
                                  output: Output,
-                                 diagnostics: RenderPlanDiagnostics? = nil) -> HarbethRenderTask<Output> {
-        HarbethRenderTask(identifier: identifier, output: output, diagnostics: diagnostics)
+                                 diagnostics: RenderPlanDiagnostics? = nil) -> RenderTask<Output> {
+        RenderTask(identifier: identifier, output: output, diagnostics: diagnostics)
     }
 
     public var commandBufferStatus: MTLCommandBufferStatus {
@@ -83,7 +83,7 @@ public final class HarbethRenderTask<Output> {
         return outputValue
     }
 
-    public func observeCompletion(_ handler: @escaping (HarbethRenderTask<Output>) -> Void) {
+    public func observeCompletion(_ handler: @escaping (RenderTask<Output>) -> Void) {
         lock.lock()
         let shouldCallNow = completed || isCompleted
         if shouldCallNow == false {
