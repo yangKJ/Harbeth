@@ -42,6 +42,9 @@ Execution contract checks:
 - Treat `HarbethPixelBufferPool` and `renderPixelBuffer(...)` as single-frame output contracts. They may allocate reusable `CVPixelBuffer` render targets, but must not absorb recorder, exporter, timing, or sample scheduling responsibilities.
 - Keep `RenderOptimizationPlan` conservative. It can report texture reuse, lifecycle decisions, persistent outputs, readback boundaries, and conversion decisions, but it must not silently change visual output or absorb product workflow policy.
 - Treat `HarbethKernelDescriptor.fingerprint`, `HarbethKernelResourceDescriptor`, and `RenderOutputContract.fingerprint` as public technical contracts. New kernel metadata should be deterministic and testable.
+- Treat `HarbethKernelArgumentDescriptor` ordering, role, data type, and value fingerprint as shader-authoring contracts. Do not derive them from unstable dictionary iteration order.
+- Treat `HarbethImageNode.withCachePolicy(_:)` as lazy graph execution metadata. It can influence diagnostics and conservative reuse planning, but must not become product-level cache orchestration.
+- Treat `ImageSamplerDescriptor` as an image sampling contract and sampler-cache key. It should stay deterministic, inspectable, and independent from UI preview policy.
 - Execution may use `RenderOptimizationPlan` to prewarm or reuse render targets, but optimizer decisions must remain explainable through diagnostics and covered by contract tests.
 - Alpha output contracts may insert native premultiply or unpremultiply filters. Pixel format and color-space contract changes must be explicit and tested before becoming automatic conversions.
 - Layer compositing belongs to single-frame texture composition only. Do not add text engines, sticker libraries, timeline layers, or media orchestration to `LayerCompositeRecipe`.

@@ -14,9 +14,11 @@ final class HarbethContextTests: XCTestCase {
 
         _ = context.makeSamplerState()
         _ = context.makeSamplerState()
+        _ = context.makeSamplerState(.nearest)
+        _ = context.makeSamplerState(.nearest)
 
         let snapshot = context.debugCacheSnapshot()
-        XCTAssertEqual(snapshot.samplerCount, 1)
+        XCTAssertEqual(snapshot.samplerCount, 2)
         XCTAssertNotNil(context.commandQueue)
     }
 

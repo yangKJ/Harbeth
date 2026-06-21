@@ -20,6 +20,31 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("source=nodeGraph"))
     }
 
+    func testNodeCachePolicyIsVisibleInDiagnostics() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
+        let sourceDiagnostics = try HarbethImageNode.source(.texture(input)).makeDiagnostics()
+        let persistentNode = HarbethImageNode
+            .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
+            .withCachePolicy(.persistent)
+        let persistentDiagnostics = try persistentNode.makeDiagnostics()
+
+        XCTAssertEqual(sourceDiagnostics.imageCachePolicy, .persistent)
+        XCTAssertEqual(persistentDiagnostics.imageCachePolicy, .persistent)
+        XCTAssertTrue(persistentDiagnostics.optimizationPlan.decisions.contains("preservePersistentImageNode"))
+        XCTAssertTrue(persistentDiagnostics.summary.contains("cachePolicy=persistent"))
+    }
+
+    func testNodeSamplerDescriptorIsVisibleInDiagnostics() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
+        let node = HarbethImageNode
+            .source(.texture(input))
+            .withSamplerDescriptor(.nearest)
+        let diagnostics = try node.makeDiagnostics()
+
+        XCTAssertEqual(diagnostics.samplerDescriptor, .nearest)
+        XCTAssertTrue(diagnostics.summary.contains("sampler=\(ImageSamplerDescriptor.nearest.fingerprint)"))
+    }
+
     func testKernelDescriptorExposesStableFunctionAndContract() throws {
         let filter = C7Brightness(brightness: 0.2)
         let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 8, height: 6))
@@ -32,10 +57,34 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(descriptor.resources.memoryAccessPattern, "point")
         XCTAssertEqual(descriptor.alphaBehavior, .preserveInput)
         XCTAssertEqual(descriptor.outputContract.alpha, .preserveInput)
+        XCTAssertTrue(descriptor.arguments.contains(where: { $0.name == "factors" && $0.dataType == .floatArray }))
+        XCTAssertTrue(descriptor.arguments.contains(where: { $0.name == "memoryAccessPattern" && $0.role == .executionHint }))
         XCTAssertEqual(descriptor.passes.count, 1)
         XCTAssertEqual(descriptor.passes[0].functionIdentity.primaryName, "C7Brightness")
         XCTAssertTrue(descriptor.fingerprint.contains("filter=C7Brightness"))
+        XCTAssertTrue(descriptor.fingerprint.contains("arguments=arg="))
         XCTAssertTrue(descriptor.fingerprint.contains("passes=pass=0"))
+    }
+
+    func testKernelDescriptorArgumentMetadataIsDeterministic() {
+        let descriptor = C7Opacity(opacity: 0.4).kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+        let names = descriptor.arguments.map(\.name)
+        let sortedNames = names.sorted()
+
+        XCTAssertEqual(names, sortedNames)
+        XCTAssertEqual(descriptor.arguments.first?.index, 0)
+        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
+            argument.name == "factors"
+                && argument.role == .parameter
+                && argument.dataType == .floatArray
+                && argument.valueFingerprint == "floats:0.4000"
+        }))
+        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
+            argument.name == "otherInputTextures"
+                && argument.role == .inputTexture
+                && argument.dataType == .int
+                && argument.required == false
+        }))
     }
 
     func testKernelDescriptorTracksAlphaAndResourceContracts() {

@@ -135,6 +135,44 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
     }
 }
 
+/// 图像采样合同，用于 lazy graph、render diagnostics 和 sampler cache。
+public struct ImageSamplerDescriptor: Sendable, Equatable, Hashable {
+    public let minFilter: MTLSamplerMinMagFilter
+    public let magFilter: MTLSamplerMinMagFilter
+    public let mipFilter: MTLSamplerMipFilter
+    public let sAddressMode: MTLSamplerAddressMode
+    public let tAddressMode: MTLSamplerAddressMode
+
+    public init(minFilter: MTLSamplerMinMagFilter = .linear,
+                magFilter: MTLSamplerMinMagFilter = .linear,
+                mipFilter: MTLSamplerMipFilter = .notMipmapped,
+                sAddressMode: MTLSamplerAddressMode = .clampToEdge,
+                tAddressMode: MTLSamplerAddressMode = .clampToEdge) {
+        self.minFilter = minFilter
+        self.magFilter = magFilter
+        self.mipFilter = mipFilter
+        self.sAddressMode = sAddressMode
+        self.tAddressMode = tAddressMode
+    }
+
+    public static let `default` = ImageSamplerDescriptor()
+
+    public static let nearest = ImageSamplerDescriptor(
+        minFilter: .nearest,
+        magFilter: .nearest
+    )
+
+    public var fingerprint: String {
+        [
+            "min=\(minFilter.rawValue)",
+            "mag=\(magFilter.rawValue)",
+            "mip=\(mipFilter.rawValue)",
+            "s=\(sAddressMode.rawValue)",
+            "t=\(tAddressMode.rawValue)"
+        ].joined(separator: "|")
+    }
+}
+
 /// 图像或纹理结果的缓存语义。
 ///
 /// 延续 Harbeth 的 transient / persistent 区分，并保持 Harbeth 当前

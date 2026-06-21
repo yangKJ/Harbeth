@@ -87,6 +87,61 @@ public enum HarbethKernelParameterValue: Sendable, Codable, Equatable, Hashable 
     }
 }
 
+public enum HarbethKernelArgumentRole: String, Sendable, Codable, Equatable, Hashable {
+    case parameter
+    case inputTexture
+    case outputTexture
+    case resourceState
+    case executionHint
+}
+
+public enum HarbethKernelArgumentDataType: String, Sendable, Codable, Equatable, Hashable {
+    case float
+    case double
+    case int
+    case bool
+    case string
+    case floatArray
+    case intArray
+    case stringArray
+    case texture
+    case unknown
+}
+
+public struct HarbethKernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let name: String
+    public let index: Int
+    public let role: HarbethKernelArgumentRole
+    public let dataType: HarbethKernelArgumentDataType
+    public let required: Bool
+    public let valueFingerprint: String?
+
+    public init(name: String,
+                index: Int,
+                role: HarbethKernelArgumentRole,
+                dataType: HarbethKernelArgumentDataType,
+                required: Bool = true,
+                valueFingerprint: String? = nil) {
+        self.name = name
+        self.index = index
+        self.role = role
+        self.dataType = dataType
+        self.required = required
+        self.valueFingerprint = valueFingerprint
+    }
+
+    public var fingerprint: String {
+        [
+            "arg=\(index)",
+            "name=\(name)",
+            "role=\(role.rawValue)",
+            "type=\(dataType.rawValue)",
+            "required=\(required ? 1 : 0)",
+            "value=\(valueFingerprint ?? "none")"
+        ].joined(separator: "|")
+    }
+}
+
 public struct HarbethKernelResourceDescriptor: Sendable, Codable, Equatable, Hashable {
     public let usage: HarbethKernelResourceUsage
     public let inputTextureCount: Int
@@ -172,6 +227,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public let filterName: String
     public let functionIdentity: HarbethKernelFunctionIdentity
     public let parameters: [String: HarbethKernelParameterValue]
+    public let arguments: [HarbethKernelArgumentDescriptor]
     public let output: HarbethKernelOutputDescriptor
     public let resourceUsage: HarbethKernelResourceUsage
     public let resources: HarbethKernelResourceDescriptor
@@ -182,6 +238,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public init(filterName: String,
                 functionIdentity: HarbethKernelFunctionIdentity,
                 parameters: [String: HarbethKernelParameterValue] = [:],
+                arguments: [HarbethKernelArgumentDescriptor] = [],
                 output: HarbethKernelOutputDescriptor = HarbethKernelOutputDescriptor(),
                 resourceUsage: HarbethKernelResourceUsage = .singleInput,
                 resources: HarbethKernelResourceDescriptor? = nil,
@@ -191,6 +248,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
         self.filterName = filterName
         self.functionIdentity = functionIdentity
         self.parameters = parameters
+        self.arguments = arguments.isEmpty ? HarbethKernelDescriptor.makeArgumentDescriptors(parameters: parameters) : arguments
         self.output = output
         self.resourceUsage = resourceUsage
         self.resources = resources ?? HarbethKernelResourceDescriptor(usage: resourceUsage, inputTextureCount: 1)
@@ -220,12 +278,29 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
             "filter=\(filterName)",
             functionIdentity.fingerprint,
             "params=\(parameterFingerprint)",
+            "arguments=\(arguments.map(\.fingerprint).joined(separator: "||"))",
             output.fingerprint,
             resources.fingerprint,
             "alpha=\(alphaBehavior.rawValue)",
             outputContract.fingerprint,
             "passes=\(passes.map(\.fingerprint).joined(separator: "||"))"
         ].joined(separator: "|")
+    }
+
+    private static func makeArgumentDescriptors(parameters: [String: HarbethKernelParameterValue]) -> [HarbethKernelArgumentDescriptor] {
+        parameters
+            .sorted { $0.key < $1.key }
+            .enumerated()
+            .map { index, pair in
+                HarbethKernelArgumentDescriptor(
+                    name: pair.key,
+                    index: index,
+                    role: pair.key.defaultArgumentRole,
+                    dataType: pair.value.argumentDataType,
+                    required: pair.key != "hasCount" && pair.key != "otherInputTextures",
+                    valueFingerprint: pair.value.fingerprint
+                )
+            }
     }
 }
 
@@ -332,6 +407,40 @@ private extension HarbethKernelParameterValue {
             self = .stringArray(values)
         } else {
             self = .string(String(describing: value))
+        }
+    }
+
+    var argumentDataType: HarbethKernelArgumentDataType {
+        switch self {
+        case .float:
+            return .float
+        case .double:
+            return .double
+        case .int:
+            return .int
+        case .bool:
+            return .bool
+        case .string:
+            return .string
+        case .floatArray:
+            return .floatArray
+        case .intArray:
+            return .intArray
+        case .stringArray:
+            return .stringArray
+        }
+    }
+}
+
+private extension String {
+    var defaultArgumentRole: HarbethKernelArgumentRole {
+        switch self {
+        case "otherInputTextures":
+            return .inputTexture
+        case "hasCount", "memoryAccessPattern":
+            return .executionHint
+        default:
+            return .parameter
         }
     }
 }

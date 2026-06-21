@@ -21,9 +21,19 @@ public indirect enum HarbethImageNode {
     case recipe(source: HarbethSource, recipe: EditRecipe, mode: EditRecipeMode)
     case transition(TransitionRecipe)
     case layerComposite(LayerCompositeRecipe)
+    case cachePolicy(input: HarbethImageNode, policy: ImageCachePolicy)
+    case samplerDescriptor(input: HarbethImageNode, descriptor: ImageSamplerDescriptor)
 
     public static func source(_ source: HarbethSource, filters: [C7FilterProtocol]) -> HarbethImageNode {
         .filters(input: .source(source), filters: filters)
+    }
+
+    public func withCachePolicy(_ policy: ImageCachePolicy) -> HarbethImageNode {
+        .cachePolicy(input: self, policy: policy)
+    }
+
+    public func withSamplerDescriptor(_ descriptor: ImageSamplerDescriptor) -> HarbethImageNode {
+        .samplerDescriptor(input: self, descriptor: descriptor)
     }
 }
 
@@ -38,6 +48,10 @@ extension HarbethImageNode: HarbethImagePromise {
             return .transition
         case .layerComposite:
             return .layerComposite
+        case .cachePolicy(let input, _):
+            return input.compilationSource
+        case .samplerDescriptor(let input, _):
+            return input.compilationSource
         }
     }
 
@@ -80,6 +94,10 @@ extension HarbethImageNode: HarbethImagePromise {
             ).renderTexture()
         case .layerComposite(let recipe):
             return try recipe.makeTexture(derivative: derivative)
+        case .cachePolicy(let input, _):
+            return try input.makeTexture(profile: profile, derivative: derivative)
+        case .samplerDescriptor(let input, _):
+            return try input.makeTexture(profile: profile, derivative: derivative)
         }
     }
 
@@ -93,7 +111,8 @@ extension HarbethImageNode: HarbethImagePromise {
                 inputSize: C7Size(width: texture.width, height: texture.height),
                 profile: profile,
                 derivative: derivative ?? profile.defaultDerivativeSpec,
-                compilationSource: .nodeGraph
+                compilationSource: .nodeGraph,
+                imageCachePolicy: source.cachePolicy
             ).diagnostics
         case .filters(let input, let filters):
             let texture = try input.makeTexture(profile: profile, derivative: nil)
@@ -142,6 +161,13 @@ extension HarbethImageNode: HarbethImagePromise {
             ).diagnostics
         case .layerComposite(let recipe):
             return try recipe.makeDiagnostics(derivative: derivative)
+        case .cachePolicy(let input, let policy):
+            return try input.makeDiagnostics(profile: profile, derivative: derivative)
+                .withImageCachePolicy(policy)
+        case .samplerDescriptor(let input, let descriptor):
+            _ = Shared.shared.defaultContext.makeSamplerState(descriptor)
+            return try input.makeDiagnostics(profile: profile, derivative: derivative)
+                .withSamplerDescriptor(descriptor)
         }
     }
 

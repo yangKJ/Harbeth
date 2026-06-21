@@ -206,6 +206,8 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let requiresCompletedGPUWork: Bool
     public let stageCount: Int
     public let compilationSource: RenderCompilationSource
+    public let imageCachePolicy: ImageCachePolicy
+    public let samplerDescriptor: ImageSamplerDescriptor
     public let containsLocalEffectComposite: Bool
     public let containsTransitionKernel: Bool
     public let containsDerivativeResize: Bool
@@ -225,6 +227,8 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
                 requiresCompletedGPUWork: Bool,
                 stageCount: Int,
                 compilationSource: RenderCompilationSource,
+                imageCachePolicy: ImageCachePolicy,
+                samplerDescriptor: ImageSamplerDescriptor,
                 containsLocalEffectComposite: Bool,
                 containsTransitionKernel: Bool,
                 containsDerivativeResize: Bool,
@@ -243,6 +247,8 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         self.requiresCompletedGPUWork = requiresCompletedGPUWork
         self.stageCount = stageCount
         self.compilationSource = compilationSource
+        self.imageCachePolicy = imageCachePolicy
+        self.samplerDescriptor = samplerDescriptor
         self.containsLocalEffectComposite = containsLocalEffectComposite
         self.containsTransitionKernel = containsTransitionKernel
         self.containsDerivativeResize = containsDerivativeResize
@@ -272,6 +278,8 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "boundary=\(containsBoundary ? 1 : 0)",
             "readback=\(requiresCompletedGPUWork ? 1 : 0)",
             "source=\(compilationSource.rawValue)",
+            "cachePolicy=\(imageCachePolicy.rawValue)",
+            "sampler=\(samplerDescriptor.fingerprint)",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
             "transientBytes=\(optimizationPlan.estimatedTransientByteCount)",
@@ -280,6 +288,62 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "alphaContract=\(outputContract.alpha)",
             "plan=\(stageSummary)"
         ].joined(separator: " ")
+    }
+
+    public func withImageCachePolicy(_ policy: ImageCachePolicy) -> RenderPlanDiagnostics {
+        let plan = GraphOptimizer.makeOptimizationPlan(
+            stages: stages,
+            nodeDiagnostics: nodes,
+            outputContract: outputContract,
+            imageCachePolicy: policy
+        )
+        return RenderPlanDiagnostics(
+            profile: profile,
+            derivative: derivative,
+            inputSize: inputSize,
+            outputSize: outputSize,
+            containsBoundary: containsBoundary,
+            requiresCompletedGPUWork: requiresCompletedGPUWork,
+            stageCount: stageCount,
+            compilationSource: compilationSource,
+            imageCachePolicy: policy,
+            samplerDescriptor: samplerDescriptor,
+            containsLocalEffectComposite: containsLocalEffectComposite,
+            containsTransitionKernel: containsTransitionKernel,
+            containsDerivativeResize: containsDerivativeResize,
+            optimizationPlan: plan,
+            outputContract: outputContract,
+            alphaConversionCount: alphaConversionCount,
+            colorConversionCount: colorConversionCount,
+            pixelFormatConversionCount: pixelFormatConversionCount,
+            nodes: nodes,
+            stages: stages
+        )
+    }
+
+    public func withSamplerDescriptor(_ descriptor: ImageSamplerDescriptor) -> RenderPlanDiagnostics {
+        RenderPlanDiagnostics(
+            profile: profile,
+            derivative: derivative,
+            inputSize: inputSize,
+            outputSize: outputSize,
+            containsBoundary: containsBoundary,
+            requiresCompletedGPUWork: requiresCompletedGPUWork,
+            stageCount: stageCount,
+            compilationSource: compilationSource,
+            imageCachePolicy: imageCachePolicy,
+            samplerDescriptor: descriptor,
+            containsLocalEffectComposite: containsLocalEffectComposite,
+            containsTransitionKernel: containsTransitionKernel,
+            containsDerivativeResize: containsDerivativeResize,
+            optimizationPlan: optimizationPlan,
+            outputContract: outputContract,
+            alphaConversionCount: alphaConversionCount,
+            colorConversionCount: colorConversionCount,
+            pixelFormatConversionCount: pixelFormatConversionCount,
+            nodes: nodes,
+            stages: stages
+        )
     }
 }
 
@@ -298,7 +362,9 @@ public struct RenderPlan {
                 outputSize: C7Size,
                 nodeDiagnostics: [RenderNodeDiagnostic],
                 compilationSource: RenderCompilationSource,
-                outputContract: RenderOutputContract = .preserveInput) {
+                outputContract: RenderOutputContract = .preserveInput,
+                imageCachePolicy: ImageCachePolicy = .transient,
+                samplerDescriptor: ImageSamplerDescriptor = .default) {
         self.graph = graph
         self.profile = profile
         let requiresCompletedGPUWork = profile.requiresCompletedGPUWorkBeforeReadback
@@ -313,7 +379,8 @@ public struct RenderPlan {
         let optimizationPlan = GraphOptimizer.makeOptimizationPlan(
             stages: optimizedStages,
             nodeDiagnostics: nodeDiagnostics,
-            outputContract: outputContract
+            outputContract: outputContract,
+            imageCachePolicy: imageCachePolicy
         )
         self.diagnostics = RenderPlanDiagnostics(
             profile: profile,
@@ -324,6 +391,8 @@ public struct RenderPlan {
             requiresCompletedGPUWork: requiresCompletedGPUWork,
             stageCount: optimizedStages.count,
             compilationSource: compilationSource,
+            imageCachePolicy: imageCachePolicy,
+            samplerDescriptor: samplerDescriptor,
             containsLocalEffectComposite: optimizedStages.contains(where: \.containsLocalEffectComposite),
             containsTransitionKernel: optimizedStages.contains(where: \.containsTransitionKernel),
             containsDerivativeResize: optimizedStages.contains(where: \.containsDerivativeResize),
@@ -345,7 +414,8 @@ public struct RenderPlan {
 public enum GraphOptimizer {
     public static func makeOptimizationPlan(stages: [RenderStage],
                                             nodeDiagnostics: [RenderNodeDiagnostic],
-                                            outputContract: RenderOutputContract = .preserveInput) -> RenderOptimizationPlan {
+                                            outputContract: RenderOutputContract = .preserveInput,
+                                            imageCachePolicy: ImageCachePolicy = .transient) -> RenderOptimizationPlan {
         let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
         let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
         let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
@@ -373,6 +443,9 @@ public enum GraphOptimizer {
         }
         if formatConversionCount > 0 {
             decisions.append("recordPixelFormatConversion")
+        }
+        if imageCachePolicy == .persistent {
+            decisions.append("preservePersistentImageNode")
         }
         if decisions.isEmpty {
             decisions.append("singleStageNoOptimizationNeeded")
@@ -521,7 +594,9 @@ public enum GraphCompiler {
                                profile: RenderProfile = .stablePreview,
                                derivative: ImageDerivativeSpec? = nil,
                                compilationSource: RenderCompilationSource = .filtersPrimitive,
-                               outputContract: RenderOutputContract = .preserveInput) -> RenderPlan {
+                               outputContract: RenderOutputContract = .preserveInput,
+                               imageCachePolicy: ImageCachePolicy = .transient,
+                               samplerDescriptor: ImageSamplerDescriptor = .default) -> RenderPlan {
         var currentSize = inputSize
         var nodeDiagnostics: [RenderNodeDiagnostic] = []
         let nodes = filters.enumerated().map { index, filter -> RenderNode in
@@ -586,7 +661,9 @@ public enum GraphCompiler {
             outputSize: currentSize,
             nodeDiagnostics: nodeDiagnostics,
             compilationSource: compilationSource,
-            outputContract: outputContract
+            outputContract: outputContract,
+            imageCachePolicy: imageCachePolicy,
+            samplerDescriptor: samplerDescriptor
         )
     }
 

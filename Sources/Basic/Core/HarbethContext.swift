@@ -128,6 +128,16 @@ public final class HarbethContext {
         return state
     }
 
+    public func makeSamplerState(_ descriptor: ImageSamplerDescriptor) -> MTLSamplerState? {
+        makeSamplerState(
+            minFilter: descriptor.minFilter,
+            magFilter: descriptor.magFilter,
+            mipFilter: descriptor.mipFilter,
+            sAddressMode: descriptor.sAddressMode,
+            tAddressMode: descriptor.tAddressMode
+        )
+    }
+
     public func resetCaches() {
         renderPipelineLock.lock()
         renderPipelines.removeAll()

@@ -376,8 +376,8 @@ Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定
 - `Shared.shared`：默认全局 runtime owner，统一管理 `Device`、`HarbethContext`、texture pool、command queue 和生命周期 reset
 - `HarbethContext.shared`：默认执行上下文 facade，负责 render pipeline cache、sampler cache 和执行期诊断
 - `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
-- `HarbethImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径
-- `HarbethKernelDescriptor`：提供 function identity、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
+- `HarbethImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径，并显式表达 transient/persistent 图像缓存语义和采样描述
+- `HarbethKernelDescriptor`：提供 function identity、稳定 argument descriptor、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
 - `HarbethRenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
 - `HarbethPixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
 - `RenderOutputContract`：显式描述 alpha、color-space、pixel-format 意图，供 diagnostics 和保守执行计划使用
