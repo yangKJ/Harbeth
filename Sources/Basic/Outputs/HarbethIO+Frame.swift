@@ -62,6 +62,7 @@ extension HarbethIO {
         guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
             throw HarbethError.pixelBufferCopyFailed
         }
+        copySourceImageBufferAttachmentsIfNeeded(to: pixelBuffer)
         return pixelBuffer
     }
 
@@ -134,6 +135,20 @@ extension HarbethIO {
             )
         }
         return resolvedType
+    }
+
+    private func copySourceImageBufferAttachmentsIfNeeded(to pixelBuffer: CVPixelBuffer) {
+        switch element {
+        case let source where CFGetTypeID(source as CFTypeRef) == CVPixelBufferGetTypeID():
+            pixelBuffer.c7.copyAttachments(from: source as! CVPixelBuffer)
+        case let source where CFGetTypeID(source as CFTypeRef) == CMSampleBufferGetTypeID():
+            guard let imageBuffer = CMSampleBufferGetImageBuffer(source as! CMSampleBuffer) else {
+                return
+            }
+            pixelBuffer.c7.copyAttachments(from: imageBuffer)
+        default:
+            break
+        }
     }
 
     /// texture-first task output for callers that need to observe GPU completion.
@@ -502,6 +517,315 @@ extension HarbethIO {
 
     public func renderAttachmentDebugPolicies(transition recipe: TransitionRecipe) throws -> [RenderOutputAttachmentDebugPolicy] {
         try ImageNode.transition(recipe).makeAttachmentDebugPolicies(profile: recipe.profile, derivative: recipe.derivative)
+    }
+
+    /// 直接渲染 filters 路径最终结果并输出 histogram。
+    ///
+    /// 这个入口保持 Harbeth 的轻量使用方式：
+    /// 上层不需要先手动拿 frame/texture 再做一次 histogram 读回。
+    public func renderHistogram(profile: RenderProfile = .readbackQuality,
+                                derivative: ImageDerivativeSpec? = nil,
+                                channel: TextureHistogramChannel = .luminance,
+                                bins: Int = 256,
+                                preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderFrame(profile: profile, derivative: derivative).makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderHistogram(recipe: EditRecipe,
+                                mode: EditRecipeMode = .preview,
+                                derivative: ImageDerivativeSpec? = nil,
+                                channel: TextureHistogramChannel = .luminance,
+                                bins: Int = 256,
+                                preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderFrame(recipe: recipe, mode: mode, derivative: derivative).makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderHistogram(composite recipe: LayerCompositeRecipe,
+                                derivative: ImageDerivativeSpec? = nil,
+                                channel: TextureHistogramChannel = .luminance,
+                                bins: Int = 256,
+                                preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderFrame(composite: recipe, derivative: derivative).makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderHistogram(node: ImageNode,
+                                profile: RenderProfile = .readbackQuality,
+                                derivative: ImageDerivativeSpec? = nil,
+                                channel: TextureHistogramChannel = .luminance,
+                                bins: Int = 256,
+                                preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderFrame(node: node, profile: profile, derivative: derivative).makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderTransitionHistogram(_ recipe: TransitionRecipe,
+                                          channel: TextureHistogramChannel = .luminance,
+                                          bins: Int = 256,
+                                          preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderTransitionFrame(recipe).makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderHistogramAttachment(profile: RenderProfile = .readbackQuality,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          channel: TextureHistogramChannel = .luminance,
+                                          bins: Int = 256,
+                                          height: Int = 64,
+                                          preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
+        try renderFrame(profile: profile, derivative: derivative).renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        let frame = try renderFrame(profile: profile, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: histogramHeight,
+            preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            histogramAttachment: histogramAttachment,
+            attachmentDebugPolicies: [RenderOutputAttachmentContract(index: 0).debugPolicy]
+        )
+    }
+
+    public func renderHistogramAttachment(recipe: EditRecipe,
+                                          mode: EditRecipeMode = .preview,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          channel: TextureHistogramChannel = .luminance,
+                                          bins: Int = 256,
+                                          height: Int = 64,
+                                          preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
+        try renderFrame(recipe: recipe, mode: mode, derivative: derivative).renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderHistogramAttachment(composite recipe: LayerCompositeRecipe,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          channel: TextureHistogramChannel = .luminance,
+                                          bins: Int = 256,
+                                          height: Int = 64,
+                                          preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
+        try renderFrame(composite: recipe, derivative: derivative).renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAnalysisBundle(recipe: EditRecipe,
+                                     mode: EditRecipeMode = .preview,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        let frame = try renderFrame(recipe: recipe, mode: mode, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: histogramHeight,
+            preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            histogramAttachment: histogramAttachment,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(
+                recipe: recipe,
+                mode: mode,
+                derivative: derivative
+            )
+        )
+    }
+
+    public func renderAnalysisBundle(composite recipe: LayerCompositeRecipe,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        let frame = try renderFrame(composite: recipe, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: histogramHeight,
+            preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            histogramAttachment: histogramAttachment,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(composite: recipe, derivative: derivative)
+        )
+    }
+
+    public func renderHistogramAttachment(node: ImageNode,
+                                          profile: RenderProfile = .readbackQuality,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          channel: TextureHistogramChannel = .luminance,
+                                          bins: Int = 256,
+                                          height: Int = 64,
+                                          preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
+        try renderFrame(node: node, profile: profile, derivative: derivative).renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAnalysisBundle(node: ImageNode,
+                                     profile: RenderProfile = .readbackQuality,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        let frame = try renderFrame(node: node, profile: profile, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: histogramHeight,
+            preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            histogramAttachment: histogramAttachment,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(
+                node: node,
+                profile: profile,
+                derivative: derivative
+            )
+        )
+    }
+
+    public func renderTransitionHistogramAttachment(_ recipe: TransitionRecipe,
+                                                    channel: TextureHistogramChannel = .luminance,
+                                                    bins: Int = 256,
+                                                    height: Int = 64,
+                                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
+        try renderTransitionFrame(recipe).renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderTransitionAnalysisBundle(_ recipe: TransitionRecipe,
+                                               channel: TextureHistogramChannel = .luminance,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        let frame = try renderTransitionFrame(recipe)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: histogramHeight,
+            preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            preferredMethod: preferredMethod
+        )
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            histogramAttachment: histogramAttachment,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(transition: recipe)
+        )
+    }
+
+    /// 当 filter 链最后一个节点是真正的 render primitive 时，
+    /// 直接返回多 attachment 的轻量分析输出集合。
+    ///
+    /// 这个入口不会把普通 filter 链强行提升成 MRT runtime；
+    /// 只有末端是 `RenderProtocol` 时才返回 bundle。
+    public func renderAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        guard let finalFilter = filters.last as? any RenderProtocol else {
+            return nil
+        }
+        let source = try makeImageSource()
+        let inputTexture: MTLTexture
+        if filters.count > 1 {
+            let preFilters = Array(filters.dropLast())
+            inputTexture = try HarbethIO<MTLTexture>(
+                element: try source.makeTexture(),
+                filters: preFilters
+            )
+            .configured(for: profile)
+            .output()
+        } else {
+            inputTexture = try source.makeTexture()
+        }
+        return try finalFilter.renderAttachmentAnalysisBundle(
+            from: inputTexture,
+            identifier: "\(identifier).attachmentAnalysis",
+            bins: bins,
+            histogramHeight: histogramHeight,
+            preferredMethod: preferredMethod
+        )
     }
 
     /// texture-first 同步帧输出，携带稳定元数据。

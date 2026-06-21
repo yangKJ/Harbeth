@@ -17,6 +17,11 @@ public enum TextureHistogramChannel: String, Sendable, Codable, Equatable, Hasha
     case alpha
 }
 
+public enum TextureHistogramComputationMethod: String, Sendable, Codable, Equatable, Hashable {
+    case cpuReadback
+    case gpuMPS
+}
+
 public struct TextureHistogram: Sendable, Equatable {
     public let channel: TextureHistogramChannel
     public let bins: [UInt32]
@@ -97,9 +102,73 @@ public struct TextureHistogram: Sendable, Equatable {
     }
 }
 
+public struct RenderedHistogramAttachment: @unchecked Sendable {
+    public let histogram: TextureHistogram
+    public let attachment: RenderedAttachment
+
+    public init(histogram: TextureHistogram,
+                attachment: RenderedAttachment) {
+        self.histogram = histogram
+        self.attachment = attachment
+    }
+
+    public func makeCGImage(colorSpace: CGColorSpace? = nil,
+                            alphaType: AlphaType = .premultiplied) -> CGImage? {
+        attachment.makeCGImage(colorSpace: colorSpace, alphaType: alphaType)
+    }
+}
+
 public extension MTLTextureCompatible_ {
     func makeHistogram(channel: TextureHistogramChannel = .luminance,
-                       bins: Int = 256) -> TextureHistogram? {
+                       bins: Int = 256,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        switch preferredMethod {
+        case .cpuReadback:
+            return makeCPUHistogram(channel: channel, bins: bins)
+        case .gpuMPS:
+            return makeGPUHistogram(channel: channel, bins: bins) ?? makeCPUHistogram(channel: channel, bins: bins)
+        }
+    }
+
+    func makeGPUHistogram(channel: TextureHistogramChannel = .luminance,
+                          bins: Int = 256) -> TextureHistogram? {
+        GPUHistogramSupport.makeHistogram(from: target, channel: channel, bins: bins)
+    }
+
+    func renderHistogramAttachment(channel: TextureHistogramChannel = .luminance,
+                                   bins: Int = 256,
+                                   height: Int = 64,
+                                   preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
+        switch preferredMethod {
+        case .gpuMPS:
+            if let output = GPUHistogramSupport.makeRenderedHistogramAttachment(
+                from: target,
+                channel: channel,
+                bins: bins,
+                height: height
+            ) {
+                return output
+            }
+        case .cpuReadback:
+            break
+        }
+        guard let histogram = makeCPUHistogram(channel: channel, bins: bins),
+              let previewTexture = makePreviewTexture(from: histogram, height: height) else {
+            return nil
+        }
+        return RenderedHistogramAttachment(
+            histogram: histogram,
+            attachment: RenderedAttachment(
+                index: 1,
+                semantic: .histogram,
+                texture: previewTexture,
+                debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy
+            )
+        )
+    }
+
+    private func makeCPUHistogram(channel: TextureHistogramChannel,
+                                  bins: Int) -> TextureHistogram? {
         let clampedBins = max(1, bins)
         guard let bytes = bytes() else { return nil }
         let width = target.width
@@ -144,18 +213,36 @@ public extension MTLTextureCompatible_ {
             totalSampleCount: width * height
         )
     }
+
+    private func makePreviewTexture(from histogram: TextureHistogram,
+                                    height: Int) -> MTLTexture? {
+        guard let image = histogram.makePreviewCGImage(height: height) else {
+            return nil
+        }
+        return try? TextureLoader(
+            with: image,
+            options: [
+                .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+                .generateMipmaps: false,
+                .SRGB: false,
+                .textureCPUCacheMode: true
+            ]
+        ).texture
+    }
 }
 
 public extension RenderedAttachment {
     func makeHistogram(channel: TextureHistogramChannel? = nil,
-                       bins: Int = 256) -> TextureHistogram? {
+                       bins: Int = 256,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         texture.c7.makeHistogram(
             channel: channel ?? defaultHistogramChannel,
-            bins: bins
+            bins: bins,
+            preferredMethod: preferredMethod
         )
     }
 
-    private var defaultHistogramChannel: TextureHistogramChannel {
+    var defaultHistogramChannel: TextureHistogramChannel {
         if debugPolicy.interpretation == .scalarField,
            debugPolicy.prefersMonochromePreview == false {
             return .red
@@ -172,14 +259,42 @@ public extension RenderedAttachment {
 public extension RenderedAttachmentSet {
     func makeHistogram(for semantic: RenderOutputAttachmentSemantic,
                        channel: TextureHistogramChannel? = nil,
-                       bins: Int = 256) -> TextureHistogram? {
-        attachment(for: semantic)?.makeHistogram(channel: channel, bins: bins)
+                       bins: Int = 256,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        attachment(for: semantic)?.makeHistogram(channel: channel, bins: bins, preferredMethod: preferredMethod)
+    }
+
+    func renderHistogramAttachment(for semantic: RenderOutputAttachmentSemantic,
+                                   channel: TextureHistogramChannel? = nil,
+                                   bins: Int = 256,
+                                   height: Int = 64,
+                                   preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
+        guard let attachment = attachment(for: semantic) else { return nil }
+        return attachment.texture.c7.renderHistogramAttachment(
+            channel: channel ?? attachment.defaultHistogramChannel,
+            bins: bins,
+            height: height,
+            preferredMethod: preferredMethod
+        )
     }
 }
 
 public extension RenderedFrame {
     func makeHistogram(channel: TextureHistogramChannel = .luminance,
-                       bins: Int = 256) -> TextureHistogram? {
-        texture.c7.makeHistogram(channel: channel, bins: bins)
+                       bins: Int = 256,
+                       preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        texture.c7.makeHistogram(channel: channel, bins: bins, preferredMethod: preferredMethod)
+    }
+
+    func renderHistogramAttachment(channel: TextureHistogramChannel = .luminance,
+                                   bins: Int = 256,
+                                   height: Int = 64,
+                                   preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
+        texture.c7.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            preferredMethod: preferredMethod
+        )
     }
 }

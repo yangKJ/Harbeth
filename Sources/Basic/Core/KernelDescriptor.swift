@@ -592,7 +592,13 @@ public extension C7FilterProtocol {
             resourceUsage = .externalEncoder
             requiresDestinationTexture = true
         case .advancedMetal(_, let function):
-            functionIdentity = KernelFunctionIdentity(kind: .advancedMetal, primaryName: function)
+            let advancedFilter = self as? C7AdvancedMetalKernelProtocol
+            functionIdentity = KernelFunctionIdentity(
+                kind: .advancedMetal,
+                primaryName: function,
+                librarySource: advancedFilter?.advancedMetalLibrarySource ?? .automatic,
+                functionConstants: advancedFilter?.advancedMetalFunctionConstants ?? []
+            )
             resourceUsage = .externalEncoder
             requiresDestinationTexture = true
         }
@@ -682,6 +688,9 @@ public extension C7FilterProtocol {
         }
         if self is C7UnpremultiplyAlpha {
             return .outputsNonPremultiplied
+        }
+        if self is C7ForceOpaqueAlpha {
+            return .outputsOpaque
         }
         return .preserveInput
     }

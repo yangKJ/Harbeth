@@ -1067,6 +1067,257 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertGreaterThan(softPixel.red, hardPixel.red)
     }
 
+    func testLayerCompositeCompositingMaskReplaceOverridesExistingLayerMaskCoverage() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let compositingMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
+                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .replace, opacity: 1)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let pixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(pixel.red, 127, accuracy: 3)
+        XCTAssertEqual(pixel.green, 127, accuracy: 3)
+        XCTAssertEqual(pixel.blue, 127, accuracy: 3)
+    }
+
+    func testLayerCompositeCompositingMaskAddCombinesWithExistingLayerMaskCoverage() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let compositingMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
+                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .add, opacity: 1)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let pixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(pixel.red, 63, accuracy: 4)
+        XCTAssertEqual(pixel.green, 63, accuracy: 4)
+        XCTAssertEqual(pixel.blue, 63, accuracy: 4)
+    }
+
+    func testLayerCompositeCompositingMaskMultiplyCombinesWithExistingLayerMaskCoverage() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let compositingMask = try makeTexture(width: 1, height: 1, pixel: [128, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
+                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .multiply, opacity: 1)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let pixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(pixel.red, 223, accuracy: 4)
+        XCTAssertEqual(pixel.green, 223, accuracy: 4)
+        XCTAssertEqual(pixel.blue, 223, accuracy: 4)
+    }
+
+    func testLayerCompositeProgrammableBlendUsesPreparedLayerCanvas() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [64, 64, 64, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    programmableBlend: LayerProgrammableBlend(
+                        functionName: "C7BlendColorAdd",
+                        intensity: 1,
+                        librarySource: .sourceFallback("layer-programmable-blend")
+                    )
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let pixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(pixel.red, 128, accuracy: 3)
+        XCTAssertEqual(pixel.green, 64, accuracy: 3)
+        XCTAssertEqual(pixel.blue, 64, accuracy: 3)
+        XCTAssertEqual(pixel.alpha, 255, accuracy: 2)
+    }
+
+    func testLayerCompositeProgrammableBlendPreservesLayerMaskCoverageAcrossPixels() throws {
+        let background = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [64, 64, 64, 255],
+                [64, 64, 64, 255]
+            ]
+        )
+        let layer = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [64, 0, 0, 255],
+                [64, 0, 0, 255]
+            ]
+        )
+        let mask = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [255, 0, 0, 255],
+                [0, 0, 0, 255]
+            ]
+        )
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red),
+                    programmableBlend: LayerProgrammableBlend(
+                        functionName: "C7BlendColorAdd",
+                        intensity: 1,
+                        librarySource: .sourceFallback("layer-programmable-blend")
+                    )
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let first = try pixel(in: output, x: 0, y: 0)
+        let second = try pixel(in: output, x: 1, y: 0)
+
+        XCTAssertEqual(first.red, 128, accuracy: 3)
+        XCTAssertEqual(first.green, 64, accuracy: 3)
+        XCTAssertEqual(first.blue, 64, accuracy: 3)
+        XCTAssertEqual(first.alpha, 255, accuracy: 2)
+        XCTAssertEqual(second.red, 64, accuracy: 3)
+        XCTAssertEqual(second.green, 64, accuracy: 3)
+        XCTAssertEqual(second.blue, 64, accuracy: 3)
+        XCTAssertEqual(second.alpha, 255, accuracy: 2)
+    }
+
+    func testLayerCompositeProgrammableBlendPreservesLayerFrameCoverageAcrossPixels() throws {
+        let background = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [64, 64, 64, 255],
+                [64, 64, 64, 255]
+            ]
+        )
+        let layer = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    normalizedFrame: CGRect(x: 0, y: 0, width: 0.5, height: 1),
+                    programmableBlend: LayerProgrammableBlend(
+                        functionName: "C7BlendColorAdd",
+                        intensity: 1,
+                        librarySource: .sourceFallback("layer-programmable-blend")
+                    )
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let first = try pixel(in: output, x: 0, y: 0)
+        let second = try pixel(in: output, x: 1, y: 0)
+
+        XCTAssertEqual(first.red, 128, accuracy: 3)
+        XCTAssertEqual(first.green, 64, accuracy: 3)
+        XCTAssertEqual(first.blue, 64, accuracy: 3)
+        XCTAssertEqual(first.alpha, 255, accuracy: 2)
+        XCTAssertEqual(second.red, 64, accuracy: 3)
+        XCTAssertEqual(second.green, 64, accuracy: 3)
+        XCTAssertEqual(second.blue, 64, accuracy: 3)
+        XCTAssertEqual(second.alpha, 255, accuracy: 2)
+    }
+
+    func testLayerCompositeFingerprintTracksProgrammableBlendDescriptor() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let basicRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [ImageLayer(content: .texture(layer))]
+        )
+        let programmableRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    programmableBlend: LayerProgrammableBlend(
+                        functionName: "C7BlendSourceOver",
+                        intensity: 0.75,
+                        librarySource: .sourceFallback("layer-programmable-blend"),
+                        functionConstants: [
+                            KernelFunctionConstantDescriptor(name: "useRightSample", index: 0, value: .bool(true))
+                        ]
+                    )
+                )
+            ]
+        )
+
+        XCTAssertNotEqual(basicRecipe.fingerprint, programmableRecipe.fingerprint)
+    }
+
+    func testLayerCompositeProgrammableBlendIsVisibleInRenderPlanDiagnostics() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [64, 64, 64, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    programmableBlend: LayerProgrammableBlend(
+                        functionName: "C7BlendColorAdd",
+                        intensity: 1,
+                        librarySource: .sourceFallback("layer-programmable-blend"),
+                        functionConstants: [
+                            KernelFunctionConstantDescriptor(name: "useRightSample", index: 0, value: .bool(true))
+                        ]
+                    )
+                )
+            ]
+        )
+
+        let plan = try ImageNode.layerComposite(recipe).makeRenderPlan()
+        let advancedMetalNode = try XCTUnwrap(
+            plan.diagnostics.nodes.first(where: { $0.kind == .advancedMetal && $0.name.contains("C7ProgrammableBlend") })
+        )
+
+        XCTAssertEqual(plan.diagnostics.compilationSource, .layerComposite)
+        XCTAssertTrue(plan.graph.nodes.contains(where: { $0.kind == .advancedMetal }))
+        XCTAssertGreaterThanOrEqual(plan.diagnostics.stageCount, 2)
+        XCTAssertEqual(advancedMetalNode.parameterSummary["functionName"], "C7BlendColorAdd")
+        XCTAssertEqual(advancedMetalNode.parameterSummary["librarySource"], "library=sourceFallback:layer-programmable-blend")
+        XCTAssertTrue(advancedMetalNode.parameterSummary["functionConstants"]?.contains("constant=useRightSample|index=0|value=bool:1") == true)
+    }
+
     func testLayerCompositeFingerprintTracksLayerTransformAndFilterParameters() throws {
         let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])

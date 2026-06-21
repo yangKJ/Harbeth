@@ -38,6 +38,17 @@ final class AlphaTypeTests: XCTestCase {
         XCTAssertEqual(pixel.alpha, 128, accuracy: 1)
     }
 
+    func testForceOpaqueAlphaFilterSetsAlphaToOneWithoutChangingRGB() throws {
+        let texture = try makeSolidTexture(bytes: [64, 128, 255, 128])
+        let output: MTLTexture = try HarbethIO(element: texture, filter: C7ForceOpaqueAlpha()).output()
+        let pixel = try firstPixel(in: output)
+
+        XCTAssertEqual(pixel.red, 64)
+        XCTAssertEqual(pixel.green, 128)
+        XCTAssertEqual(pixel.blue, 255)
+        XCTAssertEqual(pixel.alpha, 255)
+    }
+
     private func makeCGImage(alphaInfo: CGImageAlphaInfo) throws -> CGImage {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bytes = [UInt8](repeating: 255, count: 4)

@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-public enum C7MetalCapability: String, CaseIterable {
+public enum C7MetalCapability: String, CaseIterable, Sendable, Codable {
     case customAdvancedEncoder
     case heapTexturePool
     case meshShaders
@@ -46,6 +46,10 @@ public protocol C7AdvancedMetalKernelProtocol: C7FilterProtocol {
 
     var advancedMetalFunction: String { get }
 
+    var advancedMetalLibrarySource: KernelLibrarySource { get }
+
+    var advancedMetalFunctionConstants: [KernelFunctionConstantDescriptor] { get }
+
     func canUseAdvancedMetal(on device: MTLDevice) -> Bool
 
     func setupAdvancedMetalParameters(for encoder: MTLComputeCommandEncoder, textures: [MTLTexture])
@@ -70,6 +74,14 @@ extension C7AdvancedMetalKernelProtocol {
             return function
         }
         return modifier.name
+    }
+
+    public var advancedMetalLibrarySource: KernelLibrarySource {
+        .automatic
+    }
+
+    public var advancedMetalFunctionConstants: [KernelFunctionConstantDescriptor] {
+        []
     }
 
     public func canUseAdvancedMetal(on device: MTLDevice) -> Bool {
@@ -100,11 +112,21 @@ extension C7AdvancedMetalKernelProtocol {
             throw HarbethError.makeComputeCommandEncoder
         }
 
-        let pipelineState = try advancedMetalPipelineState(for: advancedMetalFunction)
+        let pipelineState = try advancedMetalPipelineState(
+            identity: KernelFunctionIdentity(
+                kind: .advancedMetal,
+                primaryName: advancedMetalFunction,
+                librarySource: advancedMetalLibrarySource,
+                functionConstants: advancedMetalFunctionConstants
+            )
+        )
 
         encoder.setComputePipelineState(pipelineState)
         encoder.setTexture(outputTexture, index: 0)
         encoder.setTexture(inputTexture, index: 1)
+        for (index, texture) in textures.dropFirst(2).enumerated() {
+            encoder.setTexture(texture, index: index + 2)
+        }
 
         for (index, factor) in factors.enumerated() {
             var f = factor
@@ -125,9 +147,8 @@ extension C7AdvancedMetalKernelProtocol {
         return outputTexture
     }
 
-    private func advancedMetalPipelineState(for function: String) throws -> MTLComputePipelineState {
+    private func advancedMetalPipelineState(identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
         let device = Shared.shared.defaultDevice
-        let identity = KernelFunctionIdentity(kind: .advancedMetal, primaryName: function)
 
         if let cached = device.pipelineState(for: identity) {
             return cached

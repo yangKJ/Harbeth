@@ -51,6 +51,43 @@ public struct LayerFlipOptions: Sendable, Codable, Equatable, Hashable {
     }
 }
 
+public struct LayerProgrammableBlend: Sendable, Codable, Equatable, Hashable {
+    public let functionName: String
+    public let intensity: Float
+    public let capability: C7MetalCapability
+    public let librarySource: KernelLibrarySource
+    public let functionConstants: [KernelFunctionConstantDescriptor]
+
+    public init(functionName: String,
+                intensity: Float = 1.0,
+                capability: C7MetalCapability = .customAdvancedEncoder,
+                librarySource: KernelLibrarySource = .automatic,
+                functionConstants: [KernelFunctionConstantDescriptor] = []) {
+        self.functionName = functionName
+        self.intensity = min(max(intensity, 0), 1)
+        self.capability = capability
+        self.librarySource = librarySource
+        self.functionConstants = functionConstants
+    }
+
+    public var fingerprint: String {
+        let constantsFingerprint = functionConstants.map(\.fingerprint).joined(separator: "||")
+        let identity = KernelFunctionIdentity(
+            kind: .advancedMetal,
+            primaryName: functionName,
+            librarySource: librarySource,
+            functionConstants: functionConstants
+        )
+        return [
+            "function=\(functionName)",
+            "intensity=\(String(format: "%.4f", intensity))",
+            "capability=\(capability.rawValue)",
+            identity.librarySource.fingerprint,
+            "constants=\(constantsFingerprint.isEmpty ? "none" : constantsFingerprint)"
+        ].joined(separator: "|")
+    }
+}
+
 public struct ImageLayer {
     public var content: ImageSource
     public var filters: [C7FilterProtocol]
@@ -65,6 +102,7 @@ public struct ImageLayer {
     public var tintColor: SIMD4<Float>?
     public var mask: MaskDescriptor?
     public var compositingMask: MaskDescriptor?
+    public var programmableBlend: LayerProgrammableBlend?
     public var cornerRadius: Float
     public var cornerCurve: LayerCornerCurve
     public var rasterSampleCount: Int
@@ -82,6 +120,7 @@ public struct ImageLayer {
                 tintColor: SIMD4<Float>? = nil,
                 mask: MaskDescriptor? = nil,
                 compositingMask: MaskDescriptor? = nil,
+                programmableBlend: LayerProgrammableBlend? = nil,
                 cornerRadius: Float = 0,
                 cornerCurve: LayerCornerCurve = .circular,
                 rasterSampleCount: Int = 1) {
@@ -98,6 +137,7 @@ public struct ImageLayer {
         self.tintColor = tintColor
         self.mask = mask
         self.compositingMask = compositingMask
+        self.programmableBlend = programmableBlend
         self.cornerRadius = max(cornerRadius, 0)
         self.cornerCurve = cornerCurve
         self.rasterSampleCount = max(rasterSampleCount, 1)
@@ -119,8 +159,9 @@ public struct ImageLayer {
             "rotation=\(String(format: "%.4f", rotation))",
             "tint=\(tintColor.map { "\($0.x),\($0.y),\($0.z),\($0.w)" } ?? "none")",
             "filters=\(filters.isEmpty ? "none" : filters.chainRecipe.fingerprint)",
-            "mask=\(mask == nil ? 0 : 1)",
-            "compositingMask=\(compositingMask == nil ? 0 : 1)",
+            "mask=\(mask.map(Self.maskFingerprint) ?? "none")",
+            "compositingMask=\(compositingMask.map(Self.maskFingerprint) ?? "none")",
+            "programmableBlend=\(programmableBlend?.fingerprint ?? "none")",
             "corner=\(String(format: "%.4f", cornerRadius))",
             "cornerCurve=\(cornerCurve.rawValue)",
             "samples=\(rasterSampleCount)"
@@ -134,6 +175,16 @@ public struct ImageLayer {
         let width = min(max(standardized.width, 0), 1 - x)
         let height = min(max(standardized.height, 0), 1 - y)
         return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    private static func maskFingerprint(_ descriptor: MaskDescriptor) -> String {
+        [
+            "component=\(descriptor.component.rawValue)",
+            "blend=\(descriptor.blendMode.rawValue)",
+            "invert=\(descriptor.invert ? 1 : 0)",
+            "opacity=\(String(format: "%.4f", descriptor.opacity))",
+            "feather=\(descriptor.featherPolicy.amount)"
+        ].joined(separator: ",")
     }
 }
 
@@ -246,10 +297,16 @@ public struct C7LayerComposite: C7FilterProtocol {
             Float(blendMode.rawValue),
             mask == nil ? 0 : 1,
             Float(mask?.component.rawValue ?? MaskComponent.alpha.rawValue),
+            Float(mask?.blendMode.rawValue ?? MaskBlendMode.mix.rawValue),
             mask?.invert == true ? 1 : 0,
+            mask?.opacity ?? 1,
+            mask?.featherPolicy.amount ?? 0,
             compositingMask == nil ? 0 : 1,
             Float(compositingMask?.component.rawValue ?? MaskComponent.alpha.rawValue),
+            Float(compositingMask?.blendMode.rawValue ?? MaskBlendMode.mix.rawValue),
             compositingMask?.invert == true ? 1 : 0,
+            compositingMask?.opacity ?? 1,
+            compositingMask?.featherPolicy.amount ?? 0,
             cornerRadius,
             cornerCurve == .continuous ? 1 : 0,
             tintColor?.x ?? 0,

@@ -277,6 +277,22 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         textureCopyCompatibilityError(for: texture) == nil
     }
 
+    public func copyAttachments(from imageBuffer: CVImageBuffer) {
+        if contract.requiresYCbCrConversion {
+            copyAttachment(kCVImageBufferYCbCrMatrixKey, from: imageBuffer)
+        }
+        copyAttachment(kCVImageBufferColorPrimariesKey, from: imageBuffer)
+        copyAttachment(kCVImageBufferTransferFunctionKey, from: imageBuffer)
+    }
+
+    public func copyAttachment(_ key: CFString, from imageBuffer: CVImageBuffer) {
+        var attachmentMode = CVAttachmentMode.shouldPropagate
+        guard let attachment = CVBufferGetAttachment(imageBuffer, key, &attachmentMode) else {
+            return
+        }
+        CVBufferSetAttachment(base, key, attachment.takeUnretainedValue(), attachmentMode)
+    }
+
     public func textureCopyCompatibilityError(for texture: MTLTexture) -> HarbethError? {
         guard base.c7.size == texture.c7.toC7Size() else {
             return .textureSizeMismatch
@@ -322,6 +338,9 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     /// - Returns: CMSampleBuffer or nil
     public func toCMSampleBuffer(reference sampleBuffer: CMSampleBuffer? = nil) -> CMSampleBuffer? {
         if let sampleBuffer {
+            if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                base.c7.copyAttachments(from: imageBuffer)
+            }
             return sampleBuffer.c7.makeDerivedSampleBuffer(imageBuffer: base)
         }
         var newSampleBuffer: CMSampleBuffer?

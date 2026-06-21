@@ -15,7 +15,7 @@ kernel void C7BlendExclusion(texture2d<half, access::write> outputTexture [[text
                              uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    float2 textureCoordinate = (float2(grid) + 0.5) / float2(outputTexture.get_width(), outputTexture.get_height());
     const half4 overlay = inputTexture2.sample(quadSampler, textureCoordinate);
     
     const half3 excolor = half3(overlay.rgb * inColor.a + inColor.rgb * overlay.a - 2.0h * overlay.rgb * inColor.rgb) + overlay.rgb * (1.0h - inColor.a) + inColor.rgb * (1.0h - overlay.a);

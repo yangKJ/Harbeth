@@ -98,6 +98,16 @@ struct DualOutputHighlightClippingFragmentOut {
     float4 analysisColor [[color(1)]];
 };
 
+struct DualOutputShadowClippingFragmentOut {
+    float4 primaryColor [[color(0)]];
+    float4 analysisColor [[color(1)]];
+};
+
+struct DualOutputFalseColorExposureFragmentOut {
+    float4 primaryColor [[color(0)]];
+    float4 analysisColor [[color(1)]];
+};
+
 fragment DualOutputMaskCoverageFragmentOut dualOutputMaskCoverageFragment(
     VertexOut vertexOut [[stage_in]],
     texture2d<float, access::sample> inputTexture [[texture(0)]],
@@ -150,6 +160,62 @@ fragment DualOutputHighlightClippingFragmentOut dualOutputHighlightClippingFragm
     DualOutputHighlightClippingFragmentOut output;
     output.primaryColor = color;
     output.analysisColor = float4(clipped, 0.0, 0.0, 1.0);
+    return output;
+}
+
+fragment DualOutputShadowClippingFragmentOut dualOutputShadowClippingFragment(
+    VertexOut vertexOut [[stage_in]],
+    texture2d<float, access::sample> inputTexture [[texture(0)]],
+    constant float *analysisParameters [[buffer(0)]],
+    sampler textureSampler [[sampler(0)]]
+) {
+    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
+    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+
+    float threshold = clamp(analysisParameters[0], 0.0, 1.0);
+    float softness = clamp(analysisParameters[1], 0.0, 1.0);
+    float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+    float low = max(0.0, threshold - max(softness, 0.0001));
+    float high = min(1.0, threshold + softness);
+    float clipped = softness > 0.0 ? 1.0 - smoothstep(low, high, luminance) : 1.0 - step(threshold, luminance);
+
+    DualOutputShadowClippingFragmentOut output;
+    output.primaryColor = color;
+    output.analysisColor = float4(clipped, 0.0, 0.0, 1.0);
+    return output;
+}
+
+fragment DualOutputFalseColorExposureFragmentOut dualOutputFalseColorExposureFragment(
+    VertexOut vertexOut [[stage_in]],
+    texture2d<float, access::sample> inputTexture [[texture(0)]],
+    constant float *analysisParameters [[buffer(0)]],
+    sampler textureSampler [[sampler(0)]]
+) {
+    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
+    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+
+    float shadowThreshold = clamp(analysisParameters[0], 0.0, 1.0);
+    float lowMidThreshold = clamp(max(analysisParameters[1], shadowThreshold), 0.0, 1.0);
+    float highMidThreshold = clamp(max(analysisParameters[2], lowMidThreshold), 0.0, 1.0);
+    float highlightThreshold = clamp(max(analysisParameters[3], highMidThreshold), 0.0, 1.0);
+
+    float3 analysisColor;
+    if (luminance <= shadowThreshold) {
+        analysisColor = float3(0.0, 0.0, 1.0);
+    } else if (luminance <= lowMidThreshold) {
+        analysisColor = float3(0.0, 1.0, 1.0);
+    } else if (luminance <= highMidThreshold) {
+        analysisColor = float3(0.0, 1.0, 0.0);
+    } else if (luminance <= highlightThreshold) {
+        analysisColor = float3(1.0, 1.0, 0.0);
+    } else {
+        analysisColor = float3(1.0, 0.0, 0.0);
+    }
+
+    DualOutputFalseColorExposureFragmentOut output;
+    output.primaryColor = color;
+    output.analysisColor = float4(analysisColor, 1.0);
     return output;
 }
 
@@ -241,4 +307,32 @@ fragment float4 sepiaFragment(VertexOut vertexOut [[stage_in]],
     float gray = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
     float4 sepiaColor = float4(gray * 0.9, gray * 0.7, gray * 0.4, color.a);
     return sepiaColor;
+}
+
+struct HistogramPreviewParameters {
+    uint histogramOffset;
+    uint histogramCount;
+    uint textureHeight;
+    uint peakCount;
+};
+
+kernel void histogramPreviewKernel(
+    device const uint *histogramBuffer [[buffer(0)]],
+    constant HistogramPreviewParameters &params [[buffer(1)]],
+    constant float4 &barColor [[buffer(2)]],
+    texture2d<float, access::write> outputTexture [[texture(0)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+
+    uint index = min(gid.x, max(params.histogramCount, 1u) - 1u);
+    uint count = histogramBuffer[params.histogramOffset + index];
+    float normalized = params.peakCount > 0 ? float(count) / float(params.peakCount) : 0.0;
+    uint filledHeight = uint(ceil(normalized * float(params.textureHeight)));
+    uint thresholdRow = params.textureHeight > filledHeight ? (params.textureHeight - filledHeight) : 0u;
+
+    float4 value = gid.y >= thresholdRow ? barColor : float4(0.0, 0.0, 0.0, 1.0);
+    outputTexture.write(value, gid);
 }

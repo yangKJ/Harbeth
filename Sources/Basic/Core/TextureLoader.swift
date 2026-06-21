@@ -333,6 +333,13 @@ extension TextureLoader {
         }
         let isFullRange = bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
             || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr8PlanarFullRange
+        let destinationPixelFormat: MTLPixelFormat = {
+            if let colorSpace = bridgePlan.contract.attachmentColorSpace,
+               colorSpace.isWideGamut || colorSpace.isHDRTransfer {
+                return .rgba16Float
+            }
+            return .rgba8Unorm
+        }()
         let conversionMatrix: Matrix3x3
         let descriptor: String
         if bridgePlan.contract.yCbCrMatrixAttachment == .ituR709_2 {
@@ -347,7 +354,7 @@ extension TextureLoader {
                     -0.5,
                     -0.5
                 ),
-                destinationPixelFormat: .rgba8Unorm,
+                destinationPixelFormat: destinationPixelFormat,
                 descriptor: descriptor,
                 matrixContract: matrixContract
             )
@@ -366,7 +373,7 @@ extension TextureLoader {
                 -0.5,
                 -0.5
             ),
-            destinationPixelFormat: .rgba8Unorm,
+            destinationPixelFormat: destinationPixelFormat,
             descriptor: descriptor,
             matrixContract: isFullRange ? .bt601FullRange : .bt601VideoRange
         )

@@ -213,6 +213,135 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(strategy.conversionOffset.x, -16.0 / 255.0, accuracy: 0.0001)
     }
 
+    func testWideGamutAttachmentsPromoteDecodeDestinationToRGBA16Float() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(pixelBuffer.c7.contract.attachmentColorSpace?.gamut, .displayP3)
+        XCTAssertEqual(strategy.destinationPixelFormat, .rgba16Float)
+    }
+
+    func testWideGamutBiPlanarTextureLoaderDecodesToRGBA16Float() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+
+        let texture = try TextureLoader(with: pixelBuffer).texture
+
+        XCTAssertEqual(texture.pixelFormat, .rgba16Float)
+        XCTAssertEqual(texture.width, 4)
+        XCTAssertEqual(texture.height, 4)
+        #endif
+    }
+
+    func testHDRAttachmentsPromoteDecodeDestinationToRGBA16Float() throws {
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferColorPrimariesKey,
+                kCVImageBufferColorPrimaries_ITU_R_2020,
+                .shouldPropagate
+            )
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferTransferFunctionKey,
+                kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ,
+                .shouldPropagate
+            )
+        } else {
+            throw XCTSkip("HDR attachments are unavailable on this platform.")
+        }
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        let strategy = try XCTUnwrap(TextureLoader.makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan))
+
+        XCTAssertEqual(pixelBuffer.c7.contract.attachmentColorSpace?.gamut, .ituR2020)
+        XCTAssertEqual(pixelBuffer.c7.contract.attachmentColorSpace?.transferFunction, .perceptualQuantizer)
+        XCTAssertEqual(strategy.destinationPixelFormat, .rgba16Float)
+    }
+
+    func testHDRBiPlanarTextureLoaderDecodesToRGBA16Float() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferColorPrimariesKey,
+                kCVImageBufferColorPrimaries_ITU_R_2020,
+                .shouldPropagate
+            )
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferTransferFunctionKey,
+                kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ,
+                .shouldPropagate
+            )
+        } else {
+            throw XCTSkip("HDR attachments are unavailable on this platform.")
+        }
+
+        let texture = try TextureLoader(with: pixelBuffer).texture
+
+        XCTAssertEqual(texture.pixelFormat, .rgba16Float)
+        XCTAssertEqual(texture.width, 4)
+        XCTAssertEqual(texture.height, 4)
+        #endif
+    }
+
     func testTriPlanarFullRangeDecodeStrategyUsesTriPlanarLayout() throws {
         let pixelBuffer = try makePixelBuffer(
             width: 6,

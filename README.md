@@ -63,7 +63,7 @@ Harbeth leverages Metal GPU acceleration to deliver exceptional performance, esp
 ### 🎨 Filter System
 Harbeth offers a comprehensive filter classification to meet various image processing needs:
 - **Color Adjustment**: Brightness, contrast, saturation, exposure, white balance, etc.
-- **Blur Effects**: Gaussian blur, bilateral blur, noise reduction, motion blur, zoom blur, etc.
+- **Blur Effects**: Gaussian blur, bilateral blur, noise reduction, deband, motion blur, zoom blur, etc.
 - **Blend Modes**: Normal, multiply, screen, overlay, hard light, etc.
 - **Edge & Detail**: Sharpen, unsharp mask, edge detection, sketch, comic strip effect, etc.
 - **Distortion & Warp**: Bulge, pinch, swirl, water ripple, glass sphere, etc.
@@ -271,6 +271,7 @@ Harbeth now includes reusable editor-grade primitives without turning the core i
 - `LayerLayoutUnit`, `LayerFlipOptions`, and `LayerCornerCurve` for more explicit layer layout and compositing contracts
 - `TransitionKernel` with built-in dissolve, directional wipe, luma wipe, and displacement transitions
 - `EditRecipe` for lightweight preview/final render contracts
+- `C7ProgrammableBlend` for lightweight custom compute blend seams without introducing a heavy render-registry surface
 
 ```swift
 let geometry = ImageTransformRecipe(
@@ -301,6 +302,21 @@ let finalTexture = try io.renderTexture(recipe: recipe, mode: .final)
 ```
 
 ```swift
+let cleanup = EditRecipe(
+    filters: [
+        C7Deband(radius: 2, threshold: 0.12, amount: 0.7, dither: 0.15),
+        C7NoiseReduction(radius: 3, amount: 0.18, edgePreservation: 0.8),
+        C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
+    ],
+    previewProfile: .stablePreview,
+    finalProfile: .exportQuality
+)
+
+let cleanedFrame = try HarbethIO(element: inputTexture, filters: [])
+    .renderFrame(recipe: cleanup, mode: .preview)
+```
+
+```swift
 let transition = TransitionRecipe(
     from: .texture(fromTexture),
     to: .texture(toTexture),
@@ -327,6 +343,11 @@ let composite = LayerCompositeRecipe(
             rotation: 90,
             tintColor: SIMD4<Float>(1.0, 0.9, 0.8, 0.35),
             mask: MaskDescriptor(texture: maskTexture),
+            programmableBlend: LayerProgrammableBlend(
+                functionName: "C7BlendColorAdd",
+                intensity: 1.0,
+                librarySource: .sourceFallback("layer-programmable-blend")
+            ),
             cornerRadius: 24,
             cornerCurve: .continuous
         )
@@ -410,6 +431,21 @@ let frame = try io.renderFrame(profile: .stablePreview)
 let renderedImage = frame.image
 let semantic = frame.semantic
 let replayContract = frame.replayBaseContract
+```
+
+#### 🧩 Lightweight Programmable Blend
+
+Use `C7ProgrammableBlend` when the host app needs a custom compute blend kernel but still wants to stay inside Harbeth's lightweight filter-chain surface:
+
+```swift
+let programmableBlend = C7ProgrammableBlend(
+    functionName: "C7BlendSourceOver",
+    blendTexture: overlayTexture,
+    intensity: 1.0,
+    librarySource: .sourceFallback("custom-overlay-source")
+)
+
+let blendedTexture = try HarbethIO(element: baseTexture, filter: programmableBlend).output()
 ```
 
 #### 📷 Geometry and Optics Pipeline
@@ -776,6 +812,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7BilateralBlur**: Applies a bilateral blur effect that preserves edges while blurring flat areas, creating a smooth appearance without losing important details
 - **C7CircleBlur**: Creates a circular blur effect that radiates from a central point, with blur intensity decreasing outward from the center
 - **C7DetailPreservingBlur**: Applies a blur that reduces noise and smooths the image while preserving important details and edges
+- **C7Deband**: Softens banding in flat gradients with optional micro-dithering while preserving obvious edges
 - **C7GaussianBlur**: Applies a classic Gaussian blur effect, creating a smooth, natural-looking blur by averaging pixel values with a Gaussian distribution
 - **C7MeanBlur**: Applies a mean (box) blur effect, averaging pixel values within the blur radius for a simple but effective blur
 - **C7MotionBlur**: Simulates motion blur in a specified direction, creating the illusion of movement or camera shake

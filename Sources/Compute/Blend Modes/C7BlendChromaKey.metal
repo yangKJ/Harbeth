@@ -20,7 +20,7 @@ kernel void C7BlendChromaKey(texture2d<half, access::write> outputTexture [[text
                              uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
-    float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    float2 textureCoordinate = (float2(grid) + 0.5) / float2(outputTexture.get_width(), outputTexture.get_height());
     const half4 overlay = inputTexture2.sample(quadSampler, textureCoordinate);
     
     const half maskY  = 0.2989h * half(*red) + 0.5866h * half(*green) + 0.1145h * half(*blue);

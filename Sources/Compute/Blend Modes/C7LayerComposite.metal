@@ -69,6 +69,24 @@ static inline half3 blendLayer(half3 background, half3 layer, float mode) {
     return layer;
 }
 
+static inline half combineMaskCoverage(half current, half maskValue, int blendMode, bool hasExistingMask) {
+    const half clampedMask = clamp(maskValue, half(0.0), half(1.0));
+    if (!hasExistingMask) {
+        return clampedMask;
+    }
+
+    switch (blendMode) {
+        case 2:
+            return clamp(current + clampedMask, half(0.0), half(1.0));
+        case 3:
+            return clamp(current * clampedMask, half(0.0), half(1.0));
+        case 1:
+        case 0:
+        default:
+            return clampedMask;
+    }
+}
+
 kernel void C7LayerComposite(texture2d<half, access::write> outputTexture [[texture(0)]],
                              texture2d<half, access::read> backgroundTexture [[texture(1)]],
                              texture2d<half, access::sample> layerTexture [[texture(2)]],
@@ -86,17 +104,23 @@ kernel void C7LayerComposite(texture2d<half, access::write> outputTexture [[text
                              constant float *blendMode [[buffer(9)]],
                              constant float *hasMask [[buffer(10)]],
                              constant float *maskComponent [[buffer(11)]],
-                             constant float *maskInvert [[buffer(12)]],
-                             constant float *hasCompositingMask [[buffer(13)]],
-                             constant float *compositingMaskComponent [[buffer(14)]],
-                             constant float *compositingMaskInvert [[buffer(15)]],
-                             constant float *cornerRadius [[buffer(16)]],
-                             constant float *continuousCorner [[buffer(17)]],
-                             constant float *tintR [[buffer(18)]],
-                             constant float *tintG [[buffer(19)]],
-                             constant float *tintB [[buffer(20)]],
-                             constant float *tintA [[buffer(21)]],
-                             constant float *hasTint [[buffer(22)]],
+                             constant float *maskBlendMode [[buffer(12)]],
+                             constant float *maskInvert [[buffer(13)]],
+                             constant float *maskOpacity [[buffer(14)]],
+                             constant float *maskFeather [[buffer(15)]],
+                             constant float *hasCompositingMask [[buffer(16)]],
+                             constant float *compositingMaskComponent [[buffer(17)]],
+                             constant float *compositingMaskBlendMode [[buffer(18)]],
+                             constant float *compositingMaskInvert [[buffer(19)]],
+                             constant float *compositingMaskOpacity [[buffer(20)]],
+                             constant float *compositingMaskFeather [[buffer(21)]],
+                             constant float *cornerRadius [[buffer(22)]],
+                             constant float *continuousCorner [[buffer(23)]],
+                             constant float *tintR [[buffer(24)]],
+                             constant float *tintG [[buffer(25)]],
+                             constant float *tintB [[buffer(26)]],
+                             constant float *tintA [[buffer(27)]],
+                             constant float *hasTint [[buffer(28)]],
                              uint2 grid [[thread_position_in_grid]]) {
     const half4 background = backgroundTexture.read(grid);
     const float outputWidth = float(outputTexture.get_width());
@@ -119,20 +143,37 @@ kernel void C7LayerComposite(texture2d<half, access::write> outputTexture [[text
     const float2 layerUV = contentOrigin + regionUV * contentSize;
     const half4 layer = layerTexture.sample(quadSampler, layerUV);
     half3 layerColor = layer.rgb;
-    if (*hasTint > 0.5) {
+    half layerAlpha = layer.a;
+    if (*hasTint > 0.5 && *tintA > 0.0) {
         const half3 tintColor = half3(*tintR, *tintG, *tintB);
-        layerColor = mix(layerColor, layerColor * tintColor, half(clamp(*tintA, 0.0, 1.0)));
+        layerColor = tintColor;
+        layerAlpha *= half(clamp(*tintA, 0.0, 1.0));
     }
 
     half coverage = half(clamp(*opacity, 0.0, 1.0));
-    coverage *= layer.a;
+    coverage *= layerAlpha;
+    half combinedMaskCoverage = half(1.0);
+    bool hasCombinedMask = false;
 
     if (*hasMask > 0.5) {
-        half maskValue = readMaskComponent(maskTexture.sample(quadSampler, outputUV), *maskComponent);
+        half maskValue = readMaskComponent(maskTexture.sample(quadSampler, regionUV), *maskComponent);
         if (*maskInvert > 0.5) {
             maskValue = half(1.0) - maskValue;
         }
-        coverage *= clamp(maskValue, half(0.0), half(1.0));
+        const half feather = half(clamp(*maskFeather, 0.0, 1.0));
+        if (feather > 0.0h) {
+            const half low = max(0.0h, 0.5h - feather * 0.5h);
+            const half high = min(1.0h, 0.5h + feather * 0.5h);
+            maskValue = smoothstep(low, high, maskValue);
+        }
+        maskValue *= half(clamp(*maskOpacity, 0.0, 1.0));
+        combinedMaskCoverage = combineMaskCoverage(
+            combinedMaskCoverage,
+            maskValue,
+            int(*maskBlendMode),
+            hasCombinedMask
+        );
+        hasCombinedMask = true;
     }
 
     if (*hasCompositingMask > 0.5) {
@@ -140,7 +181,24 @@ kernel void C7LayerComposite(texture2d<half, access::write> outputTexture [[text
         if (*compositingMaskInvert > 0.5) {
             maskValue = half(1.0) - maskValue;
         }
-        coverage *= clamp(maskValue, half(0.0), half(1.0));
+        const half feather = half(clamp(*compositingMaskFeather, 0.0, 1.0));
+        if (feather > 0.0h) {
+            const half low = max(0.0h, 0.5h - feather * 0.5h);
+            const half high = min(1.0h, 0.5h + feather * 0.5h);
+            maskValue = smoothstep(low, high, maskValue);
+        }
+        maskValue *= half(clamp(*compositingMaskOpacity, 0.0, 1.0));
+        combinedMaskCoverage = combineMaskCoverage(
+            combinedMaskCoverage,
+            maskValue,
+            int(*compositingMaskBlendMode),
+            hasCombinedMask
+        );
+        hasCombinedMask = true;
+    }
+
+    if (hasCombinedMask) {
+        coverage *= combinedMaskCoverage;
     }
 
     const float radius = max(*cornerRadius, 0.0);
@@ -155,6 +213,6 @@ kernel void C7LayerComposite(texture2d<half, access::write> outputTexture [[text
 
     const half3 blended = blendLayer(background.rgb, layerColor, *blendMode);
     const half3 rgb = mix(background.rgb, blended, coverage);
-    const half alpha = max(background.a, coverage);
+    const half alpha = coverage + background.a * (half(1.0) - coverage);
     outputTexture.write(half4(rgb, alpha), grid);
 }

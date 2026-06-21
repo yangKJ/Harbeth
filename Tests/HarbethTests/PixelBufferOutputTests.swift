@@ -76,6 +76,39 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(output.c7.contract.preferredMetalPixelFormat, .rgba16Float)
     }
 
+    func testRenderPixelBufferPreservesSourceImageBufferColorAttachments() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferYCbCrMatrixKey,
+            kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+
+        let output = try HarbethIO(
+            element: pixelBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).renderPixelBuffer()
+
+        XCTAssertEqual(output.c7.contract.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .sRGB)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.gamut, .displayP3)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.transferFunction, .sRGB)
+        XCTAssertNil(output.c7.contract.yCbCrMatrixAttachment)
+    }
+
     func testRenderPixelBufferRejectsUnsupportedPixelFormatContract() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [120, 40, 20, 255])
 
@@ -650,6 +683,70 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(output.c7.isNotSync, true)
         XCTAssertEqual(output.c7.contract.attachments.notSync, true)
         XCTAssertEqual(output.c7.contract.pixelBufferContract?.planeCount, 1)
+    }
+
+    func testToCMSampleBufferReferenceCopiesImageBufferColorAttachments() throws {
+        let referencePixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        CVBufferSetAttachment(
+            referencePixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            referencePixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+        guard let referenceSampleBuffer = referencePixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create reference sample buffer.")
+            return
+        }
+
+        let outputPixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        XCTAssertNil(outputPixelBuffer.c7.contract.colorPrimariesAttachment)
+        XCTAssertNil(outputPixelBuffer.c7.contract.transferFunctionAttachment)
+
+        guard let derivedSampleBuffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: referenceSampleBuffer) else {
+            XCTFail("Failed to create derived sample buffer.")
+            return
+        }
+
+        XCTAssertEqual(outputPixelBuffer.c7.contract.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(outputPixelBuffer.c7.contract.transferFunctionAttachment, .sRGB)
+        XCTAssertEqual(derivedSampleBuffer.c7.contract.pixelBufferContract?.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(derivedSampleBuffer.c7.contract.pixelBufferContract?.transferFunctionAttachment, .sRGB)
+    }
+
+    func testRenderPixelBufferPreservesSourceSampleBufferColorAttachments() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let output = try HarbethIO(
+            element: sampleBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).renderPixelBuffer()
+
+        XCTAssertEqual(output.c7.contract.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .sRGB)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.gamut, .displayP3)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.transferFunction, .sRGB)
     }
 
     func testFilteringPixelBufferResizeThrowsTextureSizeMismatch() throws {

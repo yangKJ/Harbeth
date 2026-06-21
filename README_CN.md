@@ -96,6 +96,7 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7MeanBlur**（均值模糊）- 简单平均模糊
 - **C7MotionBlur**（运动模糊）- 模拟物体运动轨迹
 - **C7NoiseReduction**（降噪）- 基于边缘保护的局部降噪
+- **C7Deband**（去色带）- 软化平滑渐变中的 banding，并可加入轻量 dithering
 - **C7RedMonochromeBlur**（红色单色模糊）- 仅模糊红色通道
 - **C7TiltShift**（移轴模糊）- 创建选择性聚焦区域，模拟移轴镜头的浅景深效果
 - **C7ZoomBlur**（缩放模糊）- 模拟相机缩放效果
@@ -507,6 +508,7 @@ Harbeth 现在补齐了一批可复用的编辑基础元件，但仍然保持底
 - `LayerLayoutUnit`、`LayerFlipOptions`、`LayerCornerCurve`，用于更明确地表达 layer 的布局、翻转和圆角曲线 contract
 - `TransitionKernel` 以及 dissolve、directional wipe、luma wipe、displacement 四个基础转场
 - 用于预览/最终输出分离的轻量 `EditRecipe`
+- 用于轻量自定义 compute blend 扩展缝的 `C7ProgrammableBlend`
 
 ```swift
 let geometry = ImageTransformRecipe(
@@ -537,6 +539,21 @@ let finalTexture = try io.renderTexture(recipe: recipe, mode: .final)
 ```
 
 ```swift
+let cleanup = EditRecipe(
+    filters: [
+        C7Deband(radius: 2, threshold: 0.12, amount: 0.7, dither: 0.15),
+        C7NoiseReduction(radius: 3, amount: 0.18, edgePreservation: 0.8),
+        C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
+    ],
+    previewProfile: .stablePreview,
+    finalProfile: .exportQuality
+)
+
+let cleanedFrame = try HarbethIO(element: inputTexture, filters: [])
+    .renderFrame(recipe: cleanup, mode: .preview)
+```
+
+```swift
 let transition = TransitionRecipe(
     from: .texture(fromTexture),
     to: .texture(toTexture),
@@ -563,6 +580,11 @@ let composite = LayerCompositeRecipe(
             rotation: 90,
             tintColor: SIMD4<Float>(1.0, 0.9, 0.8, 0.35),
             mask: MaskDescriptor(texture: maskTexture),
+            programmableBlend: LayerProgrammableBlend(
+                functionName: "C7BlendColorAdd",
+                intensity: 1.0,
+                librarySource: .sourceFallback("layer-programmable-blend")
+            ),
             cornerRadius: 24,
             cornerCurve: .continuous
         )
@@ -684,7 +706,22 @@ let semantic = frame.semantic
 let replayContract = frame.replayBaseContract
 ```
 
-#### 7. 几何与光学校正链路
+#### 7. 轻量 Programmable Blend
+
+当宿主需要自定义 compute blend kernel，但仍希望保持 Harbeth 现有轻量滤镜链表面时，可以直接使用 `C7ProgrammableBlend`：
+
+```swift
+let programmableBlend = C7ProgrammableBlend(
+    functionName: "C7BlendSourceOver",
+    blendTexture: overlayTexture,
+    intensity: 1.0,
+    librarySource: .sourceFallback("custom-overlay-source")
+)
+
+let blendedTexture = try HarbethIO(element: baseTexture, filter: programmableBlend).output()
+```
+
+#### 8. 几何与光学校正链路
 
 几何与光学能力和普通滤镜一样，可以直接组合进处理链：
 

@@ -100,6 +100,65 @@ final class NativeReplacementFiltersTests: XCTestCase {
         XCTAssertLessThan(abs(Int(right.red) - 30), 20)
     }
 
+    func testDebandLowAmountIsNearIdentity() throws {
+        let texture = try makeTexture(width: 1, height: 1, pixels: [90, 140, 200, 255])
+        let output: MTLTexture = try HarbethIO(
+            element: texture,
+            filter: C7Deband(radius: 2, threshold: 0.12, amount: 0, dither: 0)
+        ).output()
+
+        let pixel = try pixel(in: output, x: 0, y: 0)
+        XCTAssertEqual(pixel.red, 90, accuracy: 1)
+        XCTAssertEqual(pixel.green, 140, accuracy: 1)
+        XCTAssertEqual(pixel.blue, 200, accuracy: 1)
+        XCTAssertEqual(pixel.alpha, 255)
+    }
+
+    func testDebandSoftensBandStepOnFlatGradient() throws {
+        let texture = try makeTexture(
+            width: 5,
+            height: 1,
+            pixels: [
+                80, 80, 80, 255,
+                80, 80, 80, 255,
+                80, 80, 80, 255,
+                160, 160, 160, 255,
+                160, 160, 160, 255
+            ]
+        )
+        let output: MTLTexture = try HarbethIO(
+            element: texture,
+            filter: C7Deband(radius: 2, threshold: 0.4, amount: 1, dither: 0)
+        ).output()
+
+        let bridge = try pixel(in: output, x: 2, y: 0)
+        XCTAssertGreaterThan(bridge.red, 80)
+        XCTAssertLessThan(bridge.red, 160)
+    }
+
+    func testDebandKeepsHardEdgeWhenThresholdIsTight() throws {
+        let texture = try makeTexture(
+            width: 5,
+            height: 1,
+            pixels: [
+                20, 20, 20, 255,
+                20, 20, 20, 255,
+                20, 20, 20, 255,
+                240, 240, 240, 255,
+                240, 240, 240, 255
+            ]
+        )
+        let output: MTLTexture = try HarbethIO(
+            element: texture,
+            filter: C7Deband(radius: 2, threshold: 0.03, amount: 1, dither: 0)
+        ).output()
+
+        let left = try pixel(in: output, x: 2, y: 0)
+        let right = try pixel(in: output, x: 3, y: 0)
+        XCTAssertLessThan(abs(Int(left.red) - 20), 8)
+        XCTAssertLessThan(abs(Int(right.red) - 240), 8)
+    }
+
     private func makeTexture(width: Int, height: Int, pixels: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

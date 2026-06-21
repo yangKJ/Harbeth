@@ -372,6 +372,29 @@ extension ImageNode: ImagePromise {
         ).renderFrame()
     }
 
+    /// 当 node 最终收敛到单个 `RenderProtocol` primitive 时，
+    /// 直接导出多 attachment 的轻量分析 bundle。
+    ///
+    /// 这个入口不会把所有 node 都抬成 MRT runtime。
+    /// 如果当前 node 不满足“最终一步是 render primitive”的条件，则返回 `nil`。
+    public func makeAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                             bins: Int = 256,
+                                             histogramHeight: Int = 64,
+                                             preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        guard let bridge = try resolvedAttachmentAnalysisBridge(
+            profile: profile
+        ) else {
+            return nil
+        }
+        return try bridge.filter.renderAttachmentAnalysisBundle(
+            from: bridge.inputTexture,
+            identifier: "ImageNode.AttachmentAnalysis.\(UUID().uuidString)",
+            bins: bins,
+            histogramHeight: histogramHeight,
+            preferredMethod: preferredMethod
+        )
+    }
+
     public func makeRenderRequest(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
@@ -495,6 +518,41 @@ extension ImageNode: ImagePromise {
             return recipe.background
         }
     }
+
+    private func resolvedAttachmentAnalysisBridge(profile: RenderProfile) throws -> (inputTexture: MTLTexture, filter: any RenderProtocol)? {
+        switch self {
+        case .filters(let input, let filters):
+            guard let finalFilter = filters.last as? any RenderProtocol else {
+                return nil
+            }
+            let inputTexture: MTLTexture
+            if filters.count > 1 {
+                inputTexture = try ImageNode.filters(
+                    input: input,
+                    filters: Array(filters.dropLast())
+                ).makeTexture(profile: profile, derivative: nil)
+            } else {
+                inputTexture = try input.makeTexture(profile: profile, derivative: nil)
+            }
+            return (inputTexture, finalFilter)
+        case .kernel(let input, let descriptor, let filter):
+            guard let renderFilter = filter as? any RenderProtocol else {
+                return nil
+            }
+            let inputTexture = try input.makeTexture(profile: profile, derivative: nil)
+            try descriptor.validateCompatibility(
+                with: filter,
+                inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
+            )
+            return (inputTexture, renderFilter)
+        case .cachePolicy(let input, _):
+            return try input.resolvedAttachmentAnalysisBridge(profile: profile)
+        case .samplerDescriptor(let input, _):
+            return try input.resolvedAttachmentAnalysisBridge(profile: profile)
+        case .source, .recipe, .transition, .layerComposite:
+            return nil
+        }
+    }
 }
 
 extension LayerCompositeRecipe {
@@ -502,19 +560,33 @@ extension LayerCompositeRecipe {
         let backgroundTexture = try background.makeTexture()
         let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
         let placeholderTexture = backgroundTexture
-        let filters = layers.map { layer in
-            C7LayerComposite(
+        let filters = layers.flatMap { layer -> [C7FilterProtocol] in
+            let composite = C7LayerComposite(
                 layerTexture: placeholderTexture,
                 mask: layer.mask,
                 compositingMask: layer.compositingMask,
                 normalizedFrame: layer.normalizedFrame,
                 contentRegion: layer.contentRegion,
                 opacity: layer.opacity,
-                blendMode: layer.blendMode,
+                blendMode: layer.programmableBlend == nil ? layer.blendMode : .sourceOver,
                 cornerRadius: layer.cornerRadius,
                 cornerCurve: layer.cornerCurve,
                 tintColor: layer.tintColor
             )
+            guard let programmableBlend = layer.programmableBlend else {
+                return [composite]
+            }
+            return [
+                composite,
+                C7ProgrammableBlend(
+                    functionName: programmableBlend.functionName,
+                    blendTexture: placeholderTexture,
+                    intensity: programmableBlend.intensity,
+                    capability: programmableBlend.capability,
+                    librarySource: programmableBlend.librarySource,
+                    functionConstants: programmableBlend.functionConstants
+                )
+            ]
         }
         return GraphCompiler.compile(
             filters: filters,
@@ -552,6 +624,40 @@ extension LayerCompositeRecipe {
                 layerTexture = try HarbethIO(element: layerTexture, filters: layerFilters)
                     .configured(for: profile)
                     .output()
+            }
+            if let programmableBlend = layer.programmableBlend {
+                let preparedLayer = try makeTransparentCanvas(matching: current)
+                let layerCanvas = try HarbethIO(
+                    element: preparedLayer,
+                    filter: C7LayerComposite(
+                        layerTexture: layerTexture,
+                        mask: layer.mask,
+                        compositingMask: layer.compositingMask,
+                        normalizedFrame: layer.normalizedFrame,
+                        contentRegion: layer.contentRegion,
+                        opacity: layer.opacity,
+                        blendMode: .sourceOver,
+                        cornerRadius: layer.cornerRadius,
+                        cornerCurve: layer.cornerCurve,
+                        tintColor: layer.tintColor
+                    )
+                )
+                .configured(for: profile)
+                .output()
+                current = try HarbethIO(
+                    element: current,
+                    filter: C7ProgrammableBlend(
+                        functionName: programmableBlend.functionName,
+                        blendTexture: layerCanvas,
+                        intensity: programmableBlend.intensity,
+                        capability: programmableBlend.capability,
+                        librarySource: programmableBlend.librarySource,
+                        functionConstants: programmableBlend.functionConstants
+                    )
+                )
+                .configured(for: profile)
+                .output()
+                continue
             }
             current = try HarbethIO(
                 element: current,
@@ -594,6 +700,33 @@ extension LayerCompositeRecipe {
         )
         .configured(for: profile)
         .output()
+    }
+
+    private func makeTransparentCanvas(matching texture: MTLTexture) throws -> MTLTexture {
+        let canvas = try TextureLoader.makeTexture(width: texture.width, height: texture.height, options: [
+            .texturePixelFormat: texture.pixelFormat,
+            .textureUsage: texture.usage,
+            .textureSampleCount: texture.sampleCount
+        ], identifier: "LayerCompositeRecipe.TransparentCanvas")
+
+        let bytesPerPixel: Int
+        switch texture.pixelFormat {
+        case .rgba8Unorm, .bgra8Unorm, .rgba8Snorm, .rgba8Unorm_srgb, .bgra8Unorm_srgb:
+            bytesPerPixel = 4
+        case .rgba16Float:
+            bytesPerPixel = 8
+        default:
+            throw HarbethError.filterParameterInvalid("Unsupported programmable layer canvas pixel format: \(texture.pixelFormat)")
+        }
+        let bytesPerRow = texture.width * bytesPerPixel
+        let zeroBytes = [UInt8](repeating: 0, count: texture.height * bytesPerRow)
+        canvas.replace(
+            region: MTLRegionMake2D(0, 0, texture.width, texture.height),
+            mipmapLevel: 0,
+            withBytes: zeroBytes,
+            bytesPerRow: bytesPerRow
+        )
+        return canvas
     }
 }
 
@@ -790,7 +923,9 @@ extension ImageNode {
             filters = [C7PremultiplyAlpha()]
         case .nonPremultiplied, .forceUnpremultiply:
             filters = [C7UnpremultiplyAlpha()]
-        case .opaque, .preserveInput:
+        case .opaque:
+            filters = [C7ForceOpaqueAlpha()]
+        case .preserveInput:
             filters = []
         }
         if filters.isEmpty == false {
