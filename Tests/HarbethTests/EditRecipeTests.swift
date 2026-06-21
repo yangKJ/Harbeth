@@ -347,6 +347,60 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(localEffect.mask.steps.first?.blendMode, .subtract)
     }
 
+    func testRecipeRenderRecipePreservesGradientMaskDescriptor() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 3, height: 1, pixel: [120, 90, 60, 255])
+        let recipe = EditRecipe(
+            localEffects: [
+                try LocalEffectRecipe(
+                    filters: [C7Brightness(brightness: -0.1)],
+                    maskGradientRecipe: MaskGradientRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .linear(
+                            startPoint: CGPoint(x: 0, y: 0.5),
+                            endPoint: CGPoint(x: 1, y: 0.5)
+                        )
+                    )
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe(source: .texture(input), mode: .preview)
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+
+        XCTAssertEqual(localEffect.mask.kind, "maskGradientRecipe")
+        XCTAssertEqual(localEffect.mask.gradient?.kind, "linear")
+        XCTAssertTrue(localEffect.mask.gradient?.parameterValues.contains("size=3x1") == true)
+        XCTAssertTrue(localEffect.mask.fingerprint.contains("kind=linear"))
+    }
+
+    func testRecipeRenderRecipePreservesShapeMaskDescriptor() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 3, height: 1, pixel: [120, 90, 60, 255])
+        let recipe = EditRecipe(
+            localEffects: [
+                try LocalEffectRecipe(
+                    filters: [C7Brightness(brightness: -0.1)],
+                    maskShapeRecipe: MaskShapeRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+                    )
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe(source: .texture(input), mode: .preview)
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+
+        XCTAssertEqual(localEffect.mask.kind, "maskShapeRecipe")
+        XCTAssertEqual(localEffect.mask.shape?.kind, "rectangle")
+        XCTAssertTrue(localEffect.mask.shape?.parameterValues.contains("size=3x1") == true)
+    }
+
     func testLayerCompositeDirectPathMatchesNodePath() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")

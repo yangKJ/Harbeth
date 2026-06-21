@@ -283,6 +283,52 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(histogram.bins[3], 1)
     }
 
+    func testHarbethIORenderAnalysisBundleSupportsUnifiedAnalysisScope() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
+            .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
+        ], identifier: "RenderedFrameTests.analysisBundle.scope")
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+        let mask = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
+            .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
+        ], identifier: "RenderedFrameTests.analysisBundle.scope.mask")
+        mask.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ],
+            bytesPerRow: 8
+        )
+        let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
+
+        let bundle = try HarbethIO(element: texture, filters: [])
+            .renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+    }
+
     func testHarbethIORenderHistogramAttachmentWithGPUMethodReturnsPreviewTexture() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -346,51 +392,6 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertNotNil(bundle.makeHistogramCGImage())
     }
 
-    func testHarbethIORenderAnalysisBundleSupportsUnifiedAnalysisScope() throws {
-        let device = MTLCreateSystemDefaultDevice()
-        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-
-        let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
-            .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
-            .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
-        ], identifier: "RenderedFrameTests.analysisBundle.scope")
-        texture.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
-        let mask = try TextureLoader.makeTexture(width: 2, height: 1, options: [
-            .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
-            .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
-        ], identifier: "RenderedFrameTests.analysisBundle.scope.mask")
-        mask.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
-        let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
-
-        let bundle = try HarbethIO(element: texture, filters: [])
-            .renderAnalysisBundle(
-                channel: .red,
-                bins: 4,
-                histogramHeight: 16,
-                scope: scope,
-                preferredMethod: .gpuMPS
-            )
-
-        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
-        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
-        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
-    }
 
     func testNodeAnalysisBundleCarriesAttachmentPolicies() throws {
         let device = MTLCreateSystemDefaultDevice()

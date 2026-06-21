@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreGraphics
 import Metal
 
 public enum MaskComponent: Int, Sendable, Codable, Equatable, Hashable {
@@ -61,21 +62,403 @@ public struct MaskDescriptor {
     }
 }
 
+public enum MaskGradientKind: Sendable, Codable, Equatable, Hashable {
+    case linear(startPoint: CGPoint, endPoint: CGPoint)
+    case radial(center: CGPoint, startRadius: Float, endRadius: Float)
+
+    var fingerprint: String {
+        switch self {
+        case .linear(let startPoint, let endPoint):
+            return [
+                "kind=linear",
+                "start=\(String(format: "%.4f", startPoint.x)),\(String(format: "%.4f", startPoint.y))",
+                "end=\(String(format: "%.4f", endPoint.x)),\(String(format: "%.4f", endPoint.y))"
+            ].joined(separator: "|")
+        case .radial(let center, let startRadius, let endRadius):
+            return [
+                "kind=radial",
+                "center=\(String(format: "%.4f", center.x)),\(String(format: "%.4f", center.y))",
+                "startRadius=\(String(format: "%.4f", startRadius))",
+                "endRadius=\(String(format: "%.4f", endRadius))"
+            ].joined(separator: "|")
+        }
+    }
+}
+
+public enum MaskShapeKind: Sendable, Codable, Equatable, Hashable {
+    case rectangle(rect: CGRect, feather: Float = 0)
+    case ellipse(rect: CGRect, feather: Float = 0)
+
+    var fingerprint: String {
+        switch self {
+        case .rectangle(let rect, let feather):
+            return [
+                "kind=rectangle",
+                "rect=\(String(format: "%.4f", rect.origin.x)),\(String(format: "%.4f", rect.origin.y)),\(String(format: "%.4f", rect.width)),\(String(format: "%.4f", rect.height))",
+                "feather=\(String(format: "%.4f", min(max(feather, 0), 1)))"
+            ].joined(separator: "|")
+        case .ellipse(let rect, let feather):
+            return [
+                "kind=ellipse",
+                "rect=\(String(format: "%.4f", rect.origin.x)),\(String(format: "%.4f", rect.origin.y)),\(String(format: "%.4f", rect.width)),\(String(format: "%.4f", rect.height))",
+                "feather=\(String(format: "%.4f", min(max(feather, 0), 1)))"
+            ].joined(separator: "|")
+        }
+    }
+}
+
+/// 参数化渐变遮罩。
+///
+/// 这层能力只负责把常见局部渐变选择沉成普通 texture：
+/// - 线性渐变：`startPoint` 为 0 coverage，`endPoint` 为 1 coverage
+/// - 径向渐变：`startRadius` 内为 1 coverage，`endRadius` 外为 0 coverage
+/// - 输出仍是普通 `MaskDescriptor`，不引入重型 editor state
+public struct MaskGradientRecipe {
+    public var size: C7Size
+    public var kind: MaskGradientKind
+    public var profile: RenderProfile
+
+    public init(size: C7Size,
+                kind: MaskGradientKind,
+                profile: RenderProfile = .stablePreview) {
+        self.size = size
+        self.kind = kind
+        self.profile = profile
+    }
+
+    public var fingerprint: String {
+        [
+            "size=\(size.width)x\(size.height)",
+            kind.fingerprint,
+            "profile=\(profile.rawValue)"
+        ].joined(separator: "|")
+    }
+
+    public var graphDescriptor: MaskGraphDescriptor {
+        MaskGraphDescriptor(
+            kind: "maskGradientRecipe",
+            fingerprint: fingerprint,
+            component: .red,
+            blendMode: .mix,
+            invert: false,
+            opacity: 1,
+            featherAmount: 0,
+            stepCount: 0,
+            steps: [],
+            gradient: gradientDescriptor,
+            shape: nil
+        )
+    }
+
+    public var gradientDescriptor: MaskGradientDescriptor {
+        switch kind {
+        case .linear(let startPoint, let endPoint):
+            return MaskGradientDescriptor(
+                kind: "linear",
+                fingerprint: fingerprint,
+                parameterValues: [
+                    "startX=\(Self.stableFloatDescription(Float(startPoint.x)))",
+                    "startY=\(Self.stableFloatDescription(Float(startPoint.y)))",
+                    "endX=\(Self.stableFloatDescription(Float(endPoint.x)))",
+                    "endY=\(Self.stableFloatDescription(Float(endPoint.y)))",
+                    "size=\(size.width)x\(size.height)"
+                ]
+            )
+        case .radial(let center, let startRadius, let endRadius):
+            return MaskGradientDescriptor(
+                kind: "radial",
+                fingerprint: fingerprint,
+                parameterValues: [
+                    "centerX=\(Self.stableFloatDescription(Float(center.x)))",
+                    "centerY=\(Self.stableFloatDescription(Float(center.y)))",
+                    "startRadius=\(Self.stableFloatDescription(startRadius))",
+                    "endRadius=\(Self.stableFloatDescription(endRadius))",
+                    "size=\(size.width)x\(size.height)"
+                ]
+            )
+        }
+    }
+
+    public func makeTexture(pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture {
+        let seed = try TextureLoader.makeTexture(
+            width: max(size.width, 1),
+            height: max(size.height, 1),
+            options: [TextureLoader.Option.texturePixelFormat: pixelFormat],
+            identifier: "MaskGradientRecipe"
+        )
+        return try HarbethIO(
+            element: seed,
+            filter: C7GradientMask(kind: kind)
+        )
+        .configured(for: profile)
+        .output()
+    }
+
+    public func makeMaskDescriptor(component: MaskComponent = .red,
+                                   blendMode: MaskBlendMode = .mix,
+                                   invert: Bool = false,
+                                   featherPolicy: MaskFeatherPolicy = .none,
+                                   opacity: Float = 1.0,
+                                   pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MaskDescriptor {
+        MaskDescriptor(
+            texture: try makeTexture(pixelFormat: pixelFormat),
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+    }
+
+    static func stableFloatDescription(_ value: Float) -> String {
+        C7GradientMask.stableFloatDescription(value)
+    }
+}
+
+/// 参数化几何遮罩。
+///
+/// 这层能力把矩形/椭圆选择沉成普通 coverage texture，
+/// 用 normalized rect + feather 表达，不引入更重的 editor state。
+public struct MaskShapeRecipe {
+    public var size: C7Size
+    public var kind: MaskShapeKind
+    public var profile: RenderProfile
+
+    public init(size: C7Size,
+                kind: MaskShapeKind,
+                profile: RenderProfile = .stablePreview) {
+        self.size = size
+        self.kind = kind
+        self.profile = profile
+    }
+
+    public var fingerprint: String {
+        [
+            "size=\(size.width)x\(size.height)",
+            kind.fingerprint,
+            "profile=\(profile.rawValue)"
+        ].joined(separator: "|")
+    }
+
+    public var graphDescriptor: MaskGraphDescriptor {
+        MaskGraphDescriptor(
+            kind: "maskShapeRecipe",
+            fingerprint: fingerprint,
+            component: .red,
+            blendMode: .mix,
+            invert: false,
+            opacity: 1,
+            featherAmount: 0,
+            stepCount: 0,
+            steps: [],
+            gradient: nil,
+            shape: shapeDescriptor
+        )
+    }
+
+    public var shapeDescriptor: MaskShapeDescriptor {
+        switch kind {
+        case .rectangle(let rect, let feather):
+            return MaskShapeDescriptor(
+                kind: "rectangle",
+                fingerprint: fingerprint,
+                parameterValues: [
+                    "x=\(Self.stableFloatDescription(Float(rect.origin.x)))",
+                    "y=\(Self.stableFloatDescription(Float(rect.origin.y)))",
+                    "width=\(Self.stableFloatDescription(Float(rect.width)))",
+                    "height=\(Self.stableFloatDescription(Float(rect.height)))",
+                    "feather=\(Self.stableFloatDescription(feather))",
+                    "size=\(size.width)x\(size.height)"
+                ]
+            )
+        case .ellipse(let rect, let feather):
+            return MaskShapeDescriptor(
+                kind: "ellipse",
+                fingerprint: fingerprint,
+                parameterValues: [
+                    "x=\(Self.stableFloatDescription(Float(rect.origin.x)))",
+                    "y=\(Self.stableFloatDescription(Float(rect.origin.y)))",
+                    "width=\(Self.stableFloatDescription(Float(rect.width)))",
+                    "height=\(Self.stableFloatDescription(Float(rect.height)))",
+                    "feather=\(Self.stableFloatDescription(feather))",
+                    "size=\(size.width)x\(size.height)"
+                ]
+            )
+        }
+    }
+
+    public func makeTexture(pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture {
+        let seed = try TextureLoader.makeTexture(
+            width: max(size.width, 1),
+            height: max(size.height, 1),
+            options: [TextureLoader.Option.texturePixelFormat: pixelFormat],
+            identifier: "MaskShapeRecipe"
+        )
+        return try HarbethIO(
+            element: seed,
+            filter: C7ShapeMask(kind: kind)
+        )
+        .configured(for: profile)
+        .output()
+    }
+
+    public func makeMaskDescriptor(component: MaskComponent = .red,
+                                   blendMode: MaskBlendMode = .mix,
+                                   invert: Bool = false,
+                                   featherPolicy: MaskFeatherPolicy = .none,
+                                   opacity: Float = 1.0,
+                                   pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MaskDescriptor {
+        MaskDescriptor(
+            texture: try makeTexture(pixelFormat: pixelFormat),
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+    }
+
+    static func stableFloatDescription(_ value: Float) -> String {
+        C7ShapeMask.stableFloatDescription(value)
+    }
+}
+
+public struct C7GradientMask: C7FilterProtocol {
+    public let kind: MaskGradientKind
+
+    public init(kind: MaskGradientKind) {
+        self.kind = kind
+    }
+
+    public var modifier: ModifierEnum {
+        .compute(kernel: "C7GradientMask")
+    }
+
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+
+    public var factors: [Float] {
+        switch kind {
+        case .linear(let startPoint, let endPoint):
+            return [
+                0,
+                Float(startPoint.x),
+                Float(startPoint.y),
+                Float(endPoint.x),
+                Float(endPoint.y),
+                0,
+                0
+            ]
+        case .radial(let center, let startRadius, let endRadius):
+            return [
+                1,
+                Float(center.x),
+                Float(center.y),
+                0,
+                0,
+                startRadius,
+                endRadius
+            ]
+        }
+    }
+}
+
+public struct C7ShapeMask: C7FilterProtocol {
+    public let kind: MaskShapeKind
+
+    public init(kind: MaskShapeKind) {
+        self.kind = kind
+    }
+
+    public var modifier: ModifierEnum {
+        .compute(kernel: "C7ShapeMask")
+    }
+
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+
+    public var factors: [Float] {
+        switch kind {
+        case .rectangle(let rect, let feather):
+            return [
+                0,
+                Float(rect.origin.x),
+                Float(rect.origin.y),
+                Float(rect.width),
+                Float(rect.height),
+                min(max(feather, 0), 1)
+            ]
+        case .ellipse(let rect, let feather):
+            return [
+                1,
+                Float(rect.origin.x),
+                Float(rect.origin.y),
+                Float(rect.width),
+                Float(rect.height),
+                min(max(feather, 0), 1)
+            ]
+        }
+    }
+}
+
 public struct LocalEffectRecipe {
     public var filters: [C7FilterProtocol]
     public var mask: MaskDescriptor
     public var maskRecipe: MaskCompositeRecipe?
+    public var maskGraphOverride: MaskGraphDescriptor?
 
     public init(filters: [C7FilterProtocol], mask: MaskDescriptor) {
         self.filters = filters
         self.mask = mask
         self.maskRecipe = nil
+        self.maskGraphOverride = nil
     }
 
     public init(filters: [C7FilterProtocol], maskRecipe: MaskCompositeRecipe) {
         self.filters = filters
         self.mask = maskRecipe.baseMask
         self.maskRecipe = maskRecipe
+        self.maskGraphOverride = nil
+    }
+
+    public init(filters: [C7FilterProtocol],
+                maskGradientRecipe: MaskGradientRecipe,
+                component: MaskComponent = .red,
+                blendMode: MaskBlendMode = .mix,
+                invert: Bool = false,
+                featherPolicy: MaskFeatherPolicy = .none,
+                opacity: Float = 1.0) throws {
+        self.filters = filters
+        self.mask = try maskGradientRecipe.makeMaskDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+        self.maskRecipe = nil
+        self.maskGraphOverride = maskGradientRecipe.graphDescriptor
+    }
+
+    public init(filters: [C7FilterProtocol],
+                maskShapeRecipe: MaskShapeRecipe,
+                component: MaskComponent = .red,
+                blendMode: MaskBlendMode = .mix,
+                invert: Bool = false,
+                featherPolicy: MaskFeatherPolicy = .none,
+                opacity: Float = 1.0) throws {
+        self.filters = filters
+        self.mask = try maskShapeRecipe.makeMaskDescriptor(
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+        self.maskRecipe = nil
+        self.maskGraphOverride = maskShapeRecipe.graphDescriptor
     }
 
     func resolvedMaskDescriptor() throws -> MaskDescriptor {
@@ -88,7 +471,7 @@ public struct LocalEffectRecipe {
     public var recipeDescriptor: LocalEffectRecipeDescriptor {
         LocalEffectRecipeDescriptor(
             filters: filters.map(\.recipeDescriptor),
-            mask: (maskRecipe?.graphDescriptor) ?? mask.graphDescriptor
+            mask: (maskGraphOverride ?? maskRecipe?.graphDescriptor) ?? mask.graphDescriptor
         )
     }
 }
@@ -296,7 +679,9 @@ public struct MaskCompositeRecipe {
             opacity: baseMask.opacity,
             featherAmount: baseMask.featherPolicy.amount,
             stepCount: steps.count,
-            steps: steps.map(\.descriptor)
+            steps: steps.map(\.descriptor),
+            gradient: nil,
+            shape: nil
         )
     }
 
@@ -348,7 +733,9 @@ extension MaskDescriptor {
             opacity: opacity,
             featherAmount: featherPolicy.amount,
             stepCount: 0,
-            steps: []
+            steps: [],
+            gradient: nil,
+            shape: nil
         )
     }
 }

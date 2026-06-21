@@ -102,8 +102,12 @@ public struct ImageLayer {
     public var tintColor: SIMD4<Float>?
     public var mask: MaskDescriptor?
     public var maskRecipe: MaskCompositeRecipe?
+    public var maskGradientRecipe: MaskGradientRecipe?
+    public var maskShapeRecipe: MaskShapeRecipe?
     public var compositingMask: MaskDescriptor?
     public var compositingMaskRecipe: MaskCompositeRecipe?
+    public var compositingMaskGradientRecipe: MaskGradientRecipe?
+    public var compositingMaskShapeRecipe: MaskShapeRecipe?
     public var programmableBlend: LayerProgrammableBlend?
     public var cornerRadius: Float
     public var cornerCurve: LayerCornerCurve
@@ -122,8 +126,12 @@ public struct ImageLayer {
                 tintColor: SIMD4<Float>? = nil,
                 mask: MaskDescriptor? = nil,
                 maskRecipe: MaskCompositeRecipe? = nil,
+                maskGradientRecipe: MaskGradientRecipe? = nil,
+                maskShapeRecipe: MaskShapeRecipe? = nil,
                 compositingMask: MaskDescriptor? = nil,
                 compositingMaskRecipe: MaskCompositeRecipe? = nil,
+                compositingMaskGradientRecipe: MaskGradientRecipe? = nil,
+                compositingMaskShapeRecipe: MaskShapeRecipe? = nil,
                 programmableBlend: LayerProgrammableBlend? = nil,
                 cornerRadius: Float = 0,
                 cornerCurve: LayerCornerCurve = .circular,
@@ -141,8 +149,12 @@ public struct ImageLayer {
         self.tintColor = tintColor
         self.mask = mask
         self.maskRecipe = maskRecipe
+        self.maskGradientRecipe = maskGradientRecipe
+        self.maskShapeRecipe = maskShapeRecipe
         self.compositingMask = compositingMask
         self.compositingMaskRecipe = compositingMaskRecipe
+        self.compositingMaskGradientRecipe = compositingMaskGradientRecipe
+        self.compositingMaskShapeRecipe = compositingMaskShapeRecipe
         self.programmableBlend = programmableBlend
         self.cornerRadius = max(cornerRadius, 0)
         self.cornerCurve = cornerCurve
@@ -150,23 +162,60 @@ public struct ImageLayer {
     }
 
     public var hasMask: Bool {
-        mask != nil || maskRecipe != nil || compositingMask != nil || compositingMaskRecipe != nil
+        mask != nil
+        || maskRecipe != nil
+        || maskGradientRecipe != nil
+        || maskShapeRecipe != nil
+        || compositingMask != nil
+        || compositingMaskRecipe != nil
+        || compositingMaskGradientRecipe != nil
+        || compositingMaskShapeRecipe != nil
     }
 
     public var fingerprint: String {
-        [
-            "frame=\(String(format: "%.4f", normalizedFrame.origin.x)),\(String(format: "%.4f", normalizedFrame.origin.y)),\(String(format: "%.4f", normalizedFrame.width)),\(String(format: "%.4f", normalizedFrame.height))",
-            "contentRegion=\(String(format: "%.4f", contentRegion.origin.x)),\(String(format: "%.4f", contentRegion.origin.y)),\(String(format: "%.4f", contentRegion.width)),\(String(format: "%.4f", contentRegion.height))",
+        let frameFingerprint = Self.rectFingerprint(label: "frame", rect: normalizedFrame)
+        let contentRegionFingerprint = Self.rectFingerprint(label: "contentRegion", rect: contentRegion)
+        let tintFingerprint = tintColor.map { "\($0.x),\($0.y),\($0.z),\($0.w)" } ?? "none"
+        let filterFingerprint = filters.isEmpty ? "none" : filters.chainRecipe.fingerprint
+        let maskFingerprint: String
+        if let maskShapeRecipe {
+            maskFingerprint = "shape{\(maskShapeRecipe.fingerprint)}"
+        } else if let maskGradientRecipe {
+            maskFingerprint = "gradient{\(maskGradientRecipe.fingerprint)}"
+        } else if let maskRecipe {
+            maskFingerprint = "recipe{\(maskRecipe.fingerprint)}"
+        } else if let mask {
+            maskFingerprint = Self.maskFingerprint(mask)
+        } else {
+            maskFingerprint = "none"
+        }
+
+        let compositingMaskFingerprint: String
+        if let compositingMaskShapeRecipe {
+            compositingMaskFingerprint = "shape{\(compositingMaskShapeRecipe.fingerprint)}"
+        } else if let compositingMaskGradientRecipe {
+            compositingMaskFingerprint = "gradient{\(compositingMaskGradientRecipe.fingerprint)}"
+        } else if let compositingMaskRecipe {
+            compositingMaskFingerprint = "recipe{\(compositingMaskRecipe.fingerprint)}"
+        } else if let compositingMask {
+            compositingMaskFingerprint = Self.maskFingerprint(compositingMask)
+        } else {
+            compositingMaskFingerprint = "none"
+        }
+
+        return [
+            frameFingerprint,
+            contentRegionFingerprint,
             "layout=\(layoutUnit.rawValue)",
             "opacity=\(String(format: "%.4f", opacity))",
             "blend=\(blendMode.rawValue)",
             "transform=\(transform.fingerprint)",
             "flip=\(flipOptions.fingerprint)",
             "rotation=\(String(format: "%.4f", rotation))",
-            "tint=\(tintColor.map { "\($0.x),\($0.y),\($0.z),\($0.w)" } ?? "none")",
-            "filters=\(filters.isEmpty ? "none" : filters.chainRecipe.fingerprint)",
-            "mask=\(maskRecipe.map { "recipe{\($0.fingerprint)}" } ?? mask.map(Self.maskFingerprint) ?? "none")",
-            "compositingMask=\(compositingMaskRecipe.map { "recipe{\($0.fingerprint)}" } ?? compositingMask.map(Self.maskFingerprint) ?? "none")",
+            "tint=\(tintFingerprint)",
+            "filters=\(filterFingerprint)",
+            "mask=\(maskFingerprint)",
+            "compositingMask=\(compositingMaskFingerprint)",
             "programmableBlend=\(programmableBlend?.fingerprint ?? "none")",
             "corner=\(String(format: "%.4f", cornerRadius))",
             "cornerCurve=\(cornerCurve.rawValue)",
@@ -174,7 +223,23 @@ public struct ImageLayer {
         ].joined(separator: "|")
     }
 
+    private static func rectFingerprint(label: String, rect: CGRect) -> String {
+        [
+            "\(label)=\(stableFloatDescription(Double(rect.origin.x))),\(stableFloatDescription(Double(rect.origin.y))),\(stableFloatDescription(Double(rect.width))),\(stableFloatDescription(Double(rect.height)))"
+        ].joined(separator: "|")
+    }
+
+    private static func stableFloatDescription(_ value: Double) -> String {
+        String(format: "%.4f", value)
+    }
+
     func resolvedMaskDescriptor() throws -> MaskDescriptor? {
+        if let maskShapeRecipe {
+            return try maskShapeRecipe.makeMaskDescriptor()
+        }
+        if let maskGradientRecipe {
+            return try maskGradientRecipe.makeMaskDescriptor()
+        }
         if let maskRecipe {
             return try maskRecipe.makeMaskDescriptor()
         }
@@ -182,10 +247,30 @@ public struct ImageLayer {
     }
 
     func resolvedCompositingMaskDescriptor() throws -> MaskDescriptor? {
+        if let compositingMaskShapeRecipe {
+            return try compositingMaskShapeRecipe.makeMaskDescriptor()
+        }
+        if let compositingMaskGradientRecipe {
+            return try compositingMaskGradientRecipe.makeMaskDescriptor()
+        }
         if let compositingMaskRecipe {
             return try compositingMaskRecipe.makeMaskDescriptor()
         }
         return compositingMask
+    }
+
+    var maskGraphDescriptor: MaskGraphDescriptor? {
+        maskShapeRecipe?.graphDescriptor
+        ?? maskGradientRecipe?.graphDescriptor
+        ?? maskRecipe?.graphDescriptor
+        ?? mask?.graphDescriptor
+    }
+
+    var compositingMaskGraphDescriptor: MaskGraphDescriptor? {
+        compositingMaskShapeRecipe?.graphDescriptor
+        ?? compositingMaskGradientRecipe?.graphDescriptor
+        ?? compositingMaskRecipe?.graphDescriptor
+        ?? compositingMask?.graphDescriptor
     }
 
     private static func clampedNormalizedFrame(_ rect: CGRect) -> CGRect {
@@ -294,8 +379,8 @@ public struct LayerCompositeRecipe {
 
     var layerMaskDescriptors: [LayerMaskRecipeDescriptor]? {
         let descriptors = layers.enumerated().compactMap { index, layer -> LayerMaskRecipeDescriptor? in
-            let mask = layer.maskRecipe?.graphDescriptor ?? layer.mask?.graphDescriptor
-            let compositingMask = layer.compositingMaskRecipe?.graphDescriptor ?? layer.compositingMask?.graphDescriptor
+            let mask = layer.maskGraphDescriptor
+            let compositingMask = layer.compositingMaskGraphDescriptor
             guard mask != nil || compositingMask != nil else {
                 return nil
             }

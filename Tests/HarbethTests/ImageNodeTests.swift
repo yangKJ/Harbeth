@@ -794,6 +794,183 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(layerMask.mask?.steps.first?.name, "snapshot-mask-step")
     }
 
+    func testLayerCompositeRenderRecipePreservesGradientMaskDescriptors() throws {
+        let background = try makeTexture(width: 3, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskGradientRecipe: MaskGradientRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .linear(
+                            startPoint: CGPoint(x: 0, y: 0.5),
+                            endPoint: CGPoint(x: 1, y: 0.5)
+                        )
+                    ),
+                    compositingMaskGradientRecipe: MaskGradientRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .radial(
+                            center: CGPoint(x: 0.5, y: 0.5),
+                            startRadius: 0,
+                            endRadius: 0.75
+                        )
+                    )
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe()
+        let layerMask = try XCTUnwrap(renderRecipe.layerMasks?.first)
+
+        XCTAssertEqual(layerMask.mask?.kind, "maskGradientRecipe")
+        XCTAssertEqual(layerMask.mask?.gradient?.kind, "linear")
+        XCTAssertTrue(layerMask.mask?.gradient?.parameterValues.contains("size=3x1") == true)
+        XCTAssertEqual(layerMask.compositingMask?.kind, "maskGradientRecipe")
+        XCTAssertEqual(layerMask.compositingMask?.gradient?.kind, "radial")
+    }
+
+    func testLayerCompositeDebugSnapshotPreservesGradientMaskDescriptors() throws {
+        let background = try makeTexture(width: 3, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 0, 255])
+        let node = ImageNode.layerComposite(
+            LayerCompositeRecipe(
+                background: .texture(background),
+                layers: [
+                    ImageLayer(
+                        content: .texture(layer),
+                        maskGradientRecipe: MaskGradientRecipe(
+                            size: C7Size(width: 3, height: 1),
+                            kind: .linear(
+                                startPoint: CGPoint(x: 0, y: 0.5),
+                                endPoint: CGPoint(x: 1, y: 0.5)
+                            )
+                        )
+                    )
+                ]
+            )
+        )
+
+        let snapshot = try node.makeDebugSnapshot()
+        let layerMask = try XCTUnwrap(snapshot.renderRecipe?.layerMasks?.first)
+
+        XCTAssertEqual(layerMask.mask?.kind, "maskGradientRecipe")
+        XCTAssertEqual(layerMask.mask?.gradient?.kind, "linear")
+        XCTAssertTrue(layerMask.mask?.fingerprint.contains("kind=linear") == true)
+    }
+
+    func testLayerCompositeGradientMaskCanDrivePartialCoverage() throws {
+        let background = try makeTexture(width: 3, height: 1, pixel: [255, 0, 0, 255])
+        let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 255, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskGradientRecipe: MaskGradientRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .linear(
+                            startPoint: CGPoint(x: 0, y: 0.5),
+                            endPoint: CGPoint(x: 1, y: 0.5)
+                        )
+                    )
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let left = try pixel(in: output, x: 0, y: 0)
+        let center = try pixel(in: output, x: 1, y: 0)
+        let right = try pixel(in: output, x: 2, y: 0)
+
+        XCTAssertGreaterThan(left.red, center.red)
+        XCTAssertGreaterThan(center.red, right.red)
+        XCTAssertLessThan(left.blue, center.blue)
+        XCTAssertLessThan(center.blue, right.blue)
+    }
+
+    func testLayerCompositeRenderRecipePreservesShapeMaskDescriptors() throws {
+        let background = try makeTexture(width: 3, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskShapeRecipe: MaskShapeRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+                    ),
+                    compositingMaskShapeRecipe: MaskShapeRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .ellipse(rect: CGRect(x: 0, y: 0, width: 1, height: 1))
+                    )
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe()
+        let layerMask = try XCTUnwrap(renderRecipe.layerMasks?.first)
+
+        XCTAssertEqual(layerMask.mask?.kind, "maskShapeRecipe")
+        XCTAssertEqual(layerMask.mask?.shape?.kind, "rectangle")
+        XCTAssertEqual(layerMask.compositingMask?.kind, "maskShapeRecipe")
+        XCTAssertEqual(layerMask.compositingMask?.shape?.kind, "ellipse")
+    }
+
+    func testLayerCompositeDebugSnapshotPreservesShapeMaskDescriptors() throws {
+        let background = try makeTexture(width: 3, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 0, 255])
+        let node = ImageNode.layerComposite(
+            LayerCompositeRecipe(
+                background: .texture(background),
+                layers: [
+                    ImageLayer(
+                        content: .texture(layer),
+                        maskShapeRecipe: MaskShapeRecipe(
+                            size: C7Size(width: 3, height: 1),
+                            kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+                        )
+                    )
+                ]
+            )
+        )
+
+        let snapshot = try node.makeDebugSnapshot()
+        let layerMask = try XCTUnwrap(snapshot.renderRecipe?.layerMasks?.first)
+
+        XCTAssertEqual(layerMask.mask?.kind, "maskShapeRecipe")
+        XCTAssertEqual(layerMask.mask?.shape?.kind, "rectangle")
+    }
+
+    func testLayerCompositeShapeMaskCanDrivePartialCoverage() throws {
+        let background = try makeTexture(width: 3, height: 1, pixel: [255, 0, 0, 255])
+        let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 255, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    maskShapeRecipe: MaskShapeRecipe(
+                        size: C7Size(width: 3, height: 1),
+                        kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+                    )
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let left = try pixel(in: output, x: 0, y: 0)
+        let center = try pixel(in: output, x: 1, y: 0)
+        let right = try pixel(in: output, x: 2, y: 0)
+
+        XCTAssertGreaterThan(left.red, 240)
+        XCTAssertLessThan(center.red, 20)
+        XCTAssertGreaterThan(right.red, 240)
+        XCTAssertGreaterThan(center.blue, 240)
+    }
+
     func testLayerCompositeSupportsDifferenceBlendAndClampsFrame() throws {
         let background = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 255, 0, 255])

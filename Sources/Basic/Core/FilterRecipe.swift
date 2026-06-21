@@ -86,6 +86,34 @@ public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
     }
 }
 
+public struct MaskGradientDescriptor: Sendable, Hashable, Codable {
+    public let kind: String
+    public let fingerprint: String
+    public let parameterValues: [String]
+
+    public init(kind: String,
+                fingerprint: String,
+                parameterValues: [String]) {
+        self.kind = kind
+        self.fingerprint = fingerprint
+        self.parameterValues = parameterValues
+    }
+}
+
+public struct MaskShapeDescriptor: Sendable, Hashable, Codable {
+    public let kind: String
+    public let fingerprint: String
+    public let parameterValues: [String]
+
+    public init(kind: String,
+                fingerprint: String,
+                parameterValues: [String]) {
+        self.kind = kind
+        self.fingerprint = fingerprint
+        self.parameterValues = parameterValues
+    }
+}
+
 public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
     public let kind: String
     public let fingerprint: String
@@ -96,6 +124,8 @@ public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
     public let featherAmount: Float
     public let stepCount: Int
     public let steps: [MaskCompositeStepDescriptor]
+    public let gradient: MaskGradientDescriptor?
+    public let shape: MaskShapeDescriptor?
 
     public init(kind: String,
                 fingerprint: String,
@@ -105,7 +135,9 @@ public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
                 opacity: Float,
                 featherAmount: Float,
                 stepCount: Int,
-                steps: [MaskCompositeStepDescriptor]) {
+                steps: [MaskCompositeStepDescriptor],
+                gradient: MaskGradientDescriptor? = nil,
+                shape: MaskShapeDescriptor? = nil) {
         self.kind = kind
         self.fingerprint = fingerprint
         self.component = component
@@ -115,6 +147,8 @@ public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
         self.featherAmount = featherAmount
         self.stepCount = stepCount
         self.steps = steps
+        self.gradient = gradient
+        self.shape = shape
     }
 }
 

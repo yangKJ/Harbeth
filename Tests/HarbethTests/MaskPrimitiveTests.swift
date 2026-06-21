@@ -281,14 +281,131 @@ final class MaskPrimitiveTests: XCTestCase {
         XCTAssertEqual(filter.factors[4], 0.4, accuracy: 0.0001)
     }
 
+    func testLinearGradientMaskRecipeBuildsExpectedCoverageRamp() throws {
+        let recipe = MaskGradientRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        )
+
+        let texture = try recipe.makeTexture()
+        let bytes = try bytes(in: texture)
+
+        XCTAssertEqual(texture.width, 3)
+        XCTAssertTrue(recipe.fingerprint.contains("kind=linear"))
+        XCTAssertEqual(bytes[0], 42, accuracy: 6)
+        XCTAssertEqual(bytes[4], 128, accuracy: 6)
+        XCTAssertEqual(bytes[8], 213, accuracy: 6)
+    }
+
+    func testRadialGradientMaskRecipeBuildsCenteredCoverageFalloff() throws {
+        let recipe = MaskGradientRecipe(
+            size: C7Size(width: 3, height: 3),
+            kind: .radial(
+                center: CGPoint(x: 0.5, y: 0.5),
+                startRadius: 0.0,
+                endRadius: 0.5
+            )
+        )
+
+        let texture = try recipe.makeTexture()
+        let bytes = try bytes(in: texture)
+
+        XCTAssertTrue(recipe.fingerprint.contains("kind=radial"))
+        XCTAssertLessThan(bytes[0], 10)
+        XCTAssertEqual(bytes[16], 255, accuracy: 2)
+    }
+
+    func testGradientMaskDescriptorCanDriveLocalEffectBlend() throws {
+        let base = try makeTexture(width: 3, height: 1, pixel: [255, 0, 0, 255])
+        let effect = try makeTexture(width: 3, height: 1, pixel: [0, 0, 255, 255])
+        let descriptor = try MaskGradientRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        )
+        .makeMaskDescriptor(component: .red)
+
+        let output: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+        ).output()
+        let bytes = try bytes(in: output)
+
+        XCTAssertGreaterThan(bytes[2], 20)
+        XCTAssertGreaterThan(bytes[6], bytes[2])
+        XCTAssertGreaterThan(bytes[10], bytes[6])
+        XCTAssertLessThan(bytes[0], 240)
+        XCTAssertLessThan(bytes[4], bytes[0])
+        XCTAssertLessThan(bytes[8], bytes[4])
+    }
+
+    func testRectangleShapeMaskRecipeBuildsExpectedCoverage() throws {
+        let recipe = MaskShapeRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+        )
+
+        let texture = try recipe.makeTexture()
+        let bytes = try bytes(in: texture)
+
+        XCTAssertEqual(recipe.shapeDescriptor.kind, "rectangle")
+        XCTAssertLessThan(bytes[0], 10)
+        XCTAssertGreaterThan(bytes[4], 240)
+        XCTAssertLessThan(bytes[8], 10)
+    }
+
+    func testEllipseShapeMaskRecipeBuildsCenteredCoverage() throws {
+        let recipe = MaskShapeRecipe(
+            size: C7Size(width: 3, height: 3),
+            kind: .ellipse(rect: CGRect(x: 1.0 / 6.0, y: 1.0 / 6.0, width: 2.0 / 3.0, height: 2.0 / 3.0))
+        )
+
+        let texture = try recipe.makeTexture()
+        let bytes = try bytes(in: texture)
+
+        XCTAssertEqual(recipe.shapeDescriptor.kind, "ellipse")
+        XCTAssertLessThan(bytes[0], 40)
+        XCTAssertGreaterThan(bytes[16], 240)
+    }
+
+    func testShapeMaskDescriptorCanDriveLocalEffectBlend() throws {
+        let base = try makeTexture(width: 3, height: 1, pixel: [255, 0, 0, 255])
+        let effect = try makeTexture(width: 3, height: 1, pixel: [0, 0, 255, 255])
+        let descriptor = try MaskShapeRecipe(
+            size: C7Size(width: 3, height: 1),
+            kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+        )
+        .makeMaskDescriptor(component: .red)
+
+        let output: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+        ).output()
+        let bytes = try bytes(in: output)
+
+        XCTAssertGreaterThan(bytes[0], 240)
+        XCTAssertLessThan(bytes[4], 20)
+        XCTAssertGreaterThan(bytes[8], 240)
+        XCTAssertGreaterThan(bytes[6], 240)
+    }
+
     private func makeTexture(pixel: [UInt8]) throws -> MTLTexture {
+        try makeTexture(width: 1, height: 1, pixel: pixel)
+    }
+
+    private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
         }
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .rgba8Unorm,
-            width: 1,
-            height: 1,
+            width: width,
+            height: height,
             mipmapped: false
         )
         descriptor.usage = [.shaderRead, .shaderWrite]
@@ -296,15 +413,26 @@ final class MaskPrimitiveTests: XCTestCase {
             XCTFail("Failed to create texture.")
             throw HarbethError.makeTexture
         }
-        texture.replace(region: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0, withBytes: pixel, bytesPerRow: 4)
+        let pixels = Array(repeating: pixel, count: width * height).flatMap { $0 }
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, width, height),
+            mipmapLevel: 0,
+            withBytes: pixels,
+            bytesPerRow: width * 4
+        )
         return texture
     }
 
     private func firstPixel(in texture: MTLTexture) throws -> (red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
-        guard let bytes = texture.c7.bytes(), bytes.count >= 4 else {
+        let bytes = try bytes(in: texture)
+        return (bytes[0], bytes[1], bytes[2], bytes[3])
+    }
+
+    private func bytes(in texture: MTLTexture) throws -> [UInt8] {
+        guard let bytes = texture.c7.bytes(), bytes.count >= texture.width * texture.height * 4 else {
             XCTFail("Expected readable bytes.")
             throw HarbethError.texture2Image
         }
-        return (bytes[0], bytes[1], bytes[2], bytes[3])
+        return Array(bytes)
     }
 }

@@ -779,6 +779,28 @@ extension HarbethIO {
                                      channel: TextureHistogramChannel = .luminance,
                                      bins: Int = 256,
                                      histogramHeight: Int = 64,
+                                     scope: TextureAnalysisScope,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        try renderAnalysisBundle(
+            recipe: recipe,
+            mode: mode,
+            derivative: derivative,
+            channel: channel,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAnalysisBundle(recipe: EditRecipe,
+                                     mode: EditRecipeMode = .preview,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
                                      region: MTLRegion? = nil,
                                      mask: MaskDescriptor? = nil,
                                      coverageThreshold: Float = 0.5,
@@ -821,28 +843,6 @@ extension HarbethIO {
                 mode: mode,
                 derivative: derivative
             )
-        )
-    }
-
-    public func renderAnalysisBundle(recipe: EditRecipe,
-                                     mode: EditRecipeMode = .preview,
-                                     derivative: ImageDerivativeSpec? = nil,
-                                     channel: TextureHistogramChannel = .luminance,
-                                     bins: Int = 256,
-                                     histogramHeight: Int = 64,
-                                     scope: TextureAnalysisScope,
-                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderAnalysisBundle(
-            recipe: recipe,
-            mode: mode,
-            derivative: derivative,
-            channel: channel,
-            bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
-            preferredMethod: preferredMethod
         )
     }
 
@@ -939,6 +939,28 @@ extension HarbethIO {
                                      channel: TextureHistogramChannel = .luminance,
                                      bins: Int = 256,
                                      histogramHeight: Int = 64,
+                                     scope: TextureAnalysisScope,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        try renderAnalysisBundle(
+            node: node,
+            profile: profile,
+            derivative: derivative,
+            channel: channel,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAnalysisBundle(node: ImageNode,
+                                     profile: RenderProfile = .readbackQuality,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
                                      region: MTLRegion? = nil,
                                      mask: MaskDescriptor? = nil,
                                      coverageThreshold: Float = 0.5,
@@ -984,28 +1006,6 @@ extension HarbethIO {
         )
     }
 
-    public func renderAnalysisBundle(node: ImageNode,
-                                     profile: RenderProfile = .readbackQuality,
-                                     derivative: ImageDerivativeSpec? = nil,
-                                     channel: TextureHistogramChannel = .luminance,
-                                     bins: Int = 256,
-                                     histogramHeight: Int = 64,
-                                     scope: TextureAnalysisScope,
-                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderAnalysisBundle(
-            node: node,
-            profile: profile,
-            derivative: derivative,
-            channel: channel,
-            bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
-            preferredMethod: preferredMethod
-        )
-    }
-
     public func renderAttachmentSet(node: ImageNode,
                                     profile: RenderProfile = .readbackQuality) throws -> RenderedAttachmentSet? {
         try node.makeAttachmentSet(profile: profile)
@@ -1026,6 +1026,24 @@ extension HarbethIO {
             region: region,
             mask: mask,
             coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderTransitionAnalysisBundle(_ recipe: TransitionRecipe,
+                                               channel: TextureHistogramChannel = .luminance,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               scope: TextureAnalysisScope,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        try renderTransitionAnalysisBundle(
+            recipe,
+            channel: channel,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: scope.region,
+            mask: scope.mask,
+            coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
     }
@@ -1075,23 +1093,6 @@ extension HarbethIO {
         )
     }
 
-    public func renderTransitionAnalysisBundle(_ recipe: TransitionRecipe,
-                                               channel: TextureHistogramChannel = .luminance,
-                                               bins: Int = 256,
-                                               histogramHeight: Int = 64,
-                                               scope: TextureAnalysisScope,
-                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderTransitionAnalysisBundle(
-            recipe,
-            channel: channel,
-            bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
-            preferredMethod: preferredMethod
-        )
-    }
 
     /// 当 filter 链最后一个节点是真正的 render primitive 时，
     /// 直接返回多 attachment 的轻量输出集合。
