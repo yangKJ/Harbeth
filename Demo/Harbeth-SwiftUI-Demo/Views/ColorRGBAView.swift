@@ -11,7 +11,7 @@ import Harbeth
 struct ColorRGBAView: View {
     @State private var intensity: Float = R.intensityRange.value
     @State private var selectedColor: Color = .yellow
-    @State private var inputImage: UIImage = R.image("Bear")!
+    @State private var inputImage: C7Image = R.image("Bear")!
     
     let colors: [Color] = [
         .red, .green, .blue, .yellow, .purple, .orange, .pink, .teal

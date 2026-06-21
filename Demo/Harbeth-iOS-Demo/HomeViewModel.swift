@@ -60,7 +60,6 @@ struct HomeViewModel {
                 "🔧 实用工具": utility,
                 "📋 查找滤镜": lookup,
                 "🔬 Blit操作": blit,
-                "🔌 CoreImage": coreImage,
                 "⚡ MPS": mps,
                 "🎲 扭曲与变形": distortionWarp,
                 "✨ 生成器": generators,
@@ -177,11 +176,6 @@ struct HomeViewModel {
     let matrix: [ViewControllerType] = [
         .ColorMatrix4x4, .ColorMatrix4x5, .ColorVector4,
         .Convolution3x3, .Sharpen3x3, .Sepia,
-    ]
-    
-    let coreImage: [ViewControllerType] = [
-        .CIHS, .CIGaussianCase, .CIVignetteCase,
-        .CIColorMonochromeCase,
     ]
     
     // MPS测试用例

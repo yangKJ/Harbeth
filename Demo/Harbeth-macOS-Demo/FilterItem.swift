@@ -703,29 +703,6 @@ class FilterGroup {
             FilterItem(name: "Blit Crop", filter: C7CropBlit(rect: CGRect(x: 200, y: 500, width: 200, height: 200)), hasSlider: false, sliderRange: nil, callback: nil),
         ]),
         
-        FilterGroup(name: "🔌 CoreImage", items: [
-            FilterItem(name: "CI Highlight Shadow", filter: CIHighlight(highlight: 0.5), hasSlider: true, sliderRange: (0, 1, 0.5), callback: { value in
-                var filter = CIHighlight()
-                filter.highlight = value
-                return filter
-            }),
-            FilterItem(name: "CI Gaussian Blur", filter: CIGaussianBlur(radius: 2), hasSlider: true, sliderRange: (0, 10, 2), callback: { value in
-                var filter = CIGaussianBlur()
-                filter.radius = value
-                return filter
-            }),
-            FilterItem(name: "CI Vignette", filter: CIVignette(vignette: 0.3), hasSlider: true, sliderRange: (0, 2, 0.3), callback: { value in
-                var filter = CIVignette()
-                filter.vignette = value
-                return filter
-            }),
-            FilterItem(name: "CI Color Monochrome", filter: CIColorMonochrome(), hasSlider: true, sliderRange: (0, 1, 1), callback: { value in
-                var filter = CIColorMonochrome()
-                filter.intensity = value
-                return filter
-            }),
-        ]),
-        
         FilterGroup(name: "⚡ MPS", items: [
             FilterItem(name: "MPS Box Blur", filter: MPSBoxBlur(radius: 5), hasSlider: true, sliderRange: (1, 20, 5), callback: { value in
                 var filter = MPSBoxBlur()

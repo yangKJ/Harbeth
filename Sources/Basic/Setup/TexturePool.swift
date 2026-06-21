@@ -23,12 +23,12 @@ public final class TexturePool {
             hasher.combine(pixelFormat.rawValue)
         }
     }
-    
+
     /// Max memory usage: Dynamic based on device memory, capped at 512 MB.
     private var maxMemoryUsage: Int
     /// Allow reuse of textures within ±8 pixels to improve hit rate (e.g., 1920x1080 can reuse 1928x1080).
     private let sizeTolerance: Int = 8
-    
+
     /// Cache key → list of available textures (stack: LIFO for better locality)
     private var cache: [TextureKey: [MTLTexture]] = [:]
     /// Tracks access order for LRU eviction (FIFO queue)
@@ -37,14 +37,14 @@ public final class TexturePool {
     private var textureToKey: [ObjectIdentifier: TextureKey] = [:]
     /// Current estimated GPU memory usage in bytes.
     private var currentMemoryUsage: Int = 0
-    
+
     /// Dynamic memory management
     private var memoryPressureLevel: Int = 0 // 0: normal, 1: warning, 2: critical
     private let memoryMonitoringInterval: TimeInterval = 5.0
     private var memoryMonitorTimer: Timer?
-    
+
     private let queue = DispatchQueue(label: "com.harbeth.texturepool.concurrent", attributes: .concurrent)
-    
+
     public struct Statistics {
         public var totalTexturesCreated: Int = 0
         public var totalTexturesReused: Int = 0
@@ -55,21 +55,21 @@ public final class TexturePool {
         public var peakMemoryUsage: Int = 0
         public var averageMemoryUsage: Double = 0
         public var memoryUsageSamples: [Int] = []
-        
+
         public var hitRate: Double {
             totalTexturesReused > 0 ? Double(totalTexturesReused) / Double(totalTexturesCreated + totalTexturesReused) : 0
         }
     }
-    
+
     public private(set) var statistics = Statistics()
-    
+
     /// Commonly used resolution cache to improve matching efficiency
     private var commonResolutions: Set<TextureKey> = []
-    
+
     #if os(macOS)
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     #endif
-    
+
     init() {
         let physicalMemory = ProcessInfo.processInfo.physicalMemory
         let physicalMemoryMB = physicalMemory / 1024 / 1024
@@ -104,10 +104,10 @@ public final class TexturePool {
         source.resume()
         self.memoryPressureSource = source
         #endif
-        
+
         startMemoryMonitoring()
     }
-    
+
     deinit {
         #if os(iOS)
         NotificationCenter.default.removeObserver(self)
@@ -118,7 +118,7 @@ public final class TexturePool {
         memoryMonitorTimer?.invalidate()
         print("TexturePool is deinit.")
     }
-    
+
     private func startMemoryMonitoring() {
         #if os(iOS)
         memoryMonitorTimer = Timer.scheduledTimer(
@@ -130,7 +130,7 @@ public final class TexturePool {
         )
         #endif
     }
-    
+
     @objc private func checkMemoryPressure() {
         #if os(iOS)
         let currentUsage = Double(currentMemoryUsage)
@@ -147,7 +147,7 @@ public final class TexturePool {
         }
         #endif
     }
-    
+
     private func purgeLeastUsedTextures() {
         queue.async(flags: .barrier) {
             let releaseCount = min(self.accessQueue.count, 3)
@@ -169,13 +169,24 @@ public final class TexturePool {
             self.updateMemoryUsageStatistics()
         }
     }
-    
+
     /// Attempts to dequeue a reusable texture matching the given specs.
     /// Uses size tolerance to improve hit rate.
     public func dequeueTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
+        return dequeueTexture(width: width, height: height, pixelFormat: pixelFormat, allowsSizeTolerance: true)
+    }
+
+    /// Attempts to dequeue a reusable texture matching the exact specs.
+    /// Texture-first rendering paths use this by default so logical coordinates
+    /// cannot drift because a tolerance-matched texture was larger or smaller.
+    public func dequeueExactTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
+        return dequeueTexture(width: width, height: height, pixelFormat: pixelFormat, allowsSizeTolerance: false)
+    }
+
+    private func dequeueTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat, allowsSizeTolerance: Bool) -> MTLTexture? {
         let exactKey = TextureKey(width: width, height: height, pixelFormat: pixelFormat)
         var result: MTLTexture? = nil
-        
+
         queue.sync(flags: .barrier) {
             // 1. Try exact match
             if let texture = popFromCache(forKey: exactKey) {
@@ -184,7 +195,12 @@ public final class TexturePool {
                 result = texture
                 return
             }
-            
+
+            guard allowsSizeTolerance else {
+                statistics.totalTexturesCreated += 1
+                return
+            }
+
             // 2. Try common resolutions first (optimized path)
             for key in commonResolutions where key.pixelFormat == pixelFormat {
                 if abs(key.width - width) <= sizeTolerance && abs(key.height - height) <= sizeTolerance {
@@ -196,7 +212,7 @@ public final class TexturePool {
                     }
                 }
             }
-            
+
             // 3. Try tolerant match for all textures
             for (key, textures) in cache where key.pixelFormat == pixelFormat && !textures.isEmpty {
                 if abs(key.width - width) <= sizeTolerance && abs(key.height - height) <= sizeTolerance {
@@ -210,19 +226,19 @@ public final class TexturePool {
                     }
                 }
             }
-            
+
             statistics.totalTexturesCreated += 1
         }
-        
+
         return result
     }
-    
+
     /// Returns a texture to the pool for reuse.
     /// Silently ignores invalid or already-pooled textures.
     public func enqueueTexture(_ texture: MTLTexture) {
         let key = TextureKey(width: texture.width, height: texture.height, pixelFormat: texture.pixelFormat)
         let oid = ObjectIdentifier(texture)
-        
+
         queue.async(flags: .barrier) {
             if self.textureToKey[oid] != nil {
                 return
@@ -254,7 +270,7 @@ public final class TexturePool {
             }
         }
     }
-    
+
     public func enqueueTexturesSync(_ textures: [MTLTexture]) {
         if !textures.isEmpty {
             for texture in textures {
@@ -262,21 +278,51 @@ public final class TexturePool {
             }
         }
     }
-    
+
+    /// Creates a managed lease for a texture acquired from the pool. The texture
+    /// is returned to the pool exactly once when the lease is released.
+    public func makeLease(for texture: MTLTexture, logicalExtent: C7Size? = nil) -> TextureLease {
+        TextureLease(
+            texture: texture,
+            logicalExtent: logicalExtent,
+            releaseHandler: { [weak self] in
+                self?.enqueueTextureSync(texture)
+            }
+        )
+    }
+
+    public func dequeueTextureLease(width: Int,
+                                    height: Int,
+                                    pixelFormat: MTLPixelFormat,
+                                    allowsSizeTolerance: Bool = false,
+                                    logicalExtent: C7Size? = nil) -> TextureLease? {
+        let texture: MTLTexture?
+        if allowsSizeTolerance {
+            texture = dequeueTexture(width: width, height: height, pixelFormat: pixelFormat)
+        } else {
+            texture = dequeueExactTexture(width: width, height: height, pixelFormat: pixelFormat)
+        }
+        guard let texture else { return nil }
+        return makeLease(
+            for: texture,
+            logicalExtent: logicalExtent ?? C7Size(width: width, height: height)
+        )
+    }
+
     /// Synchronous variant for deterministic statistics updates.
     /// Intended for GPU completion handlers where we want pool statistics to be visible immediately.
     public func enqueueTextureSync(_ texture: MTLTexture) {
         let key = TextureKey(width: texture.width, height: texture.height, pixelFormat: texture.pixelFormat)
         let oid = ObjectIdentifier(texture)
-        
+
         queue.sync(flags: .barrier) {
             if self.textureToKey[oid] != nil {
                 return
             }
-            
+
             let textureSize = self.estimatedByteSize(of: texture)
             let newTotal = self.currentMemoryUsage + textureSize
-            
+
             // Evict until under memory limit
             var mutableNewTotal = newTotal
             while mutableNewTotal > self.maxMemoryUsage && !self.accessQueue.isEmpty {
@@ -293,10 +339,10 @@ public final class TexturePool {
                     break
                 }
             }
-            
+
             // Only enqueue if still under limit
             guard self.currentMemoryUsage + textureSize <= self.maxMemoryUsage else { return }
-            
+
             self.cache[key, default: []].append(texture)
             self.textureToKey[oid] = key
             if !self.accessQueue.contains(key) {
@@ -304,7 +350,7 @@ public final class TexturePool {
             }
             self.currentMemoryUsage += textureSize
             self.statistics.currentTextureCount += 1
-            
+
             // Update statistics immediately
             self.statistics.currentMemoryUsage = self.currentMemoryUsage
             self.statistics.peakMemoryUsage = max(self.statistics.peakMemoryUsage, self.currentMemoryUsage)
@@ -318,10 +364,10 @@ public final class TexturePool {
             }
         }
     }
-    
+
     public func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
         guard count > 0 else { return }
-        
+
         let device = Device.device()
         queue.async(flags: .barrier) {
             for (width, height, pixelFormat) in resolutions {
@@ -360,7 +406,7 @@ public final class TexturePool {
             }
         }
     }
-    
+
     public func resetStatistics() {
         queue.async(flags: .barrier) {
             self.statistics = Statistics()
@@ -379,18 +425,18 @@ public final class TexturePool {
             self.statistics.maxMemoryUsage = max(self.statistics.maxMemoryUsage, self.currentMemoryUsage)
         }
     }
-    
+
     private func updateMemoryUsageStatistics() {
         queue.async(flags: .barrier) {
             self.statistics.currentMemoryUsage = self.currentMemoryUsage
             self.statistics.peakMemoryUsage = max(self.statistics.peakMemoryUsage, self.currentMemoryUsage)
-            
+
             // Update memory usage samples (keep last 100 samples)
             self.statistics.memoryUsageSamples.append(self.currentMemoryUsage)
             if self.statistics.memoryUsageSamples.count > 100 {
                 self.statistics.memoryUsageSamples.removeFirst()
             }
-            
+
             // Calculate average memory usage
             if !self.statistics.memoryUsageSamples.isEmpty {
                 let total = self.statistics.memoryUsageSamples.reduce(0, +)
@@ -398,7 +444,7 @@ public final class TexturePool {
             }
         }
     }
-    
+
     /// Dumps current texture pool statistics for debugging
     public func dumpStatistics() {
         queue.sync {
@@ -418,7 +464,7 @@ public final class TexturePool {
             print("==============================")
         }
     }
-    
+
     private func popFromCache(forKey key: TextureKey) -> MTLTexture? {
         guard var mutableList = self.cache[key] else {
             return nil
@@ -427,10 +473,10 @@ public final class TexturePool {
             self.cache[key] = nil
             return nil
         }
-        
+
         let texture = mutableList.removeLast()
         self.cache[key] = mutableList
-        
+
         if let index = self.accessQueue.firstIndex(of: key) {
             self.accessQueue.remove(at: index)
             self.accessQueue.append(key)
@@ -440,10 +486,10 @@ public final class TexturePool {
         self.currentMemoryUsage -= self.estimatedByteSize(of: texture)
         self.statistics.currentTextureCount -= 1
         self.updateMemoryUsageStatistics()
-        
+
         return texture
     }
-    
+
     /// Precise byte size estimation for common pixel formats.
     private func estimatedByteSize(of texture: MTLTexture) -> Int {
         let w = texture.width
@@ -465,15 +511,15 @@ public final class TexturePool {
             return w * h * 4
         }
     }
-    
+
     @objc private func didReceiveMemoryWarning() {
         purgeAllTextures()
     }
-    
+
     @objc private func handleMemoryPressure() {
         purgeAllTextures()
     }
-    
+
     private func purgeAllTextures() {
         queue.async(flags: .barrier) {
             self.cache.removeAll()

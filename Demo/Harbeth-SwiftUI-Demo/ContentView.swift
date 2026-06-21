@@ -18,7 +18,7 @@ struct ContentView: View {
             List {
                 Section {
                     NavigationLink(destination: CubeView()) {
-                        ShowcaseRow(title: "Cinematic Color Grading", subtitle: "CUBE LUT with Metal and CoreImage paths")
+                        ShowcaseRow(title: "Cinematic Color Grading", subtitle: "CUBE LUT with native Metal processing")
                     }
                     NavigationLink(destination: DoubleBufferView()) {
                         ShowcaseRow(title: "Real-time Frame Processing", subtitle: "Filter chains, texture reuse, and double buffering")
@@ -65,9 +65,6 @@ struct ContentView: View {
                 Section {
                     NavigationLink(destination: MetalKernelViews()) {
                         Text("Metal filters")
-                    }
-                    NavigationLink(destination: CoreImageViews()) {
-                        Text("CoreImage filters")
                     }
                 }
                 

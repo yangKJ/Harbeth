@@ -37,6 +37,6 @@ Pod::Spec.new do |s|
   
   s.source_files = 'Sources/**/**/*.swift'
   s.resource_bundles = { s.name => [ 'Sources/**/**/*.metal' ] }
-  s.weak_frameworks = 'ImageIO', 'MetalKit', 'AVFoundation', 'MetalPerformanceShaders', 'CoreImage'
+  s.weak_frameworks = 'ImageIO', 'MetalKit', 'AVFoundation', 'MetalPerformanceShaders'
   
 end

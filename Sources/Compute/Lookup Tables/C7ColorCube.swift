@@ -13,8 +13,8 @@ import MetalKit
 public struct C7ColorCube: C7FilterProtocol {
     
     public struct Resource {
-        let dimension: Int
-        let data: Data
+        public let dimension: Int
+        public let data: Data
         public init(dimension: Int, data: Data) {
             self.dimension = dimension
             self.data = data

@@ -1,6 +1,6 @@
 # Harbeth Maintaining Guide
 
-Harbeth is maintained as a multi-platform Apple GPU image and frame processing core across iOS, iPadOS, macOS, tvOS, and watchOS where the underlying APIs are available. Camera and video examples are supported integration demos, but the library should not absorb full camera session, recording, timeline editing, or export product responsibilities.
+Harbeth is maintained as a multi-platform Apple GPU image and frame processing core across iOS, iPadOS, macOS, tvOS, and watchOS where the underlying APIs are available. Camera and video examples are supported integration demos, but the library should not absorb source acquisition policy, media orchestration, persistence, or other product workflow responsibilities.
 
 ## Maintenance Baseline
 

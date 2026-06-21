@@ -92,7 +92,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
         CMSampleBufferGetDecodeTimeStamp(base)
     }
     
-    /// Returns the numerically earliest presentation timestamp.
+    /// Returns the numerically earliest delivery timestamp.
     public var presentationTimeStamp: CMTime {
         CMSampleBufferGetPresentationTimeStamp(base)
     }

@@ -9,7 +9,7 @@ import SwiftUI
 import Harbeth
 
 struct HSLView: View {
-    @State private var inputImage: UIImage = R.image("Bear")!
+    @State private var inputImage: C7Image = R.image("Bear")!
     @State private var hue: Float = 50.0
     @State private var saturation: Float = 0.3
     @State private var lightness: Float = 0.0

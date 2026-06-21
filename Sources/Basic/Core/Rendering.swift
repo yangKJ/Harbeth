@@ -40,12 +40,17 @@ struct Rendering {
         renderEncoder.setRenderPipelineState(pipelineState)
         
         /// The origin of Metal texture coordinates is in the upper left corner, so the y-axis needs to be flipped.
-        let vertices: [Float] = [
+        let defaultVertices: [Float] = [
             -1.0, -1.0, 0.0, 1.0,
              1.0, -1.0, 1.0, 1.0,
             -1.0,  1.0, 0.0, 0.0,
              1.0,  1.0, 1.0, 0.0,
         ]
+        let inputSize = C7Size(width: texture.width, height: texture.height)
+        let customVertices = (filter as? RenderProtocol)?.setupVertices(inputSize: inputSize)
+        let vertexStride = (filter as? RenderProtocol)?.renderVertexStride ?? 4
+        let vertices = customVertices ?? defaultVertices
+        let vertexCount = max(vertices.count / vertexStride, 0)
         let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * size, options: [])!
         renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
         
@@ -58,18 +63,25 @@ struct Rendering {
         }
         
         var bufferIndex: Int = 1
-        if let buffer = (filter as? RenderProtocol)?.setupVertexUniformBuffer(for: device) {
+        let renderFilter = filter as? RenderProtocol
+        if let buffer = renderFilter?.setupVertexUniformBuffer(for: device) {
             renderEncoder.setVertexBuffer(buffer, offset: 0, index: bufferIndex)
             bufferIndex += 1
         }
-        
+
+        var fragmentBufferIndex = 0
+        if let buffer = renderFilter?.setupFragmentUniformBuffer(for: device, inputSize: inputSize) {
+            renderEncoder.setFragmentBuffer(buffer, offset: 0, index: fragmentBufferIndex)
+            fragmentBufferIndex += 1
+        }
+
         let length = filter.factors.count * size
         if !filter.factors.isEmpty, let uniformBuffer = device.makeBuffer(bytes: filter.factors, length: length, options: []) {
-            renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: 0)
+            renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: fragmentBufferIndex)
         }
         
         /// Draw a quadrilateral (two triangles)
-        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: 1)
+        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: vertexCount, instanceCount: 1)
         renderEncoder.endEncoding()
     }
 }

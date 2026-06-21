@@ -8,7 +8,8 @@
 import Foundation
 import Metal
 import MetalKit
-import CoreImage
+import ImageIO
+import CoreGraphics
 
 /// Converts various image sources into Metal textures or creates empty ones.
 public struct TextureLoader {
@@ -61,29 +62,15 @@ extension TextureLoader {
         self.texture = try TextureLoader.drawCGImageToTexture(cgImage)
     }
     
-    /// Creates a new MTLTexture from a CIImage.
-    /// - Parameters:
-    ///   - ciImage: CIImage
-    ///   - options: Dictonary of MTKTextureLoaderOptions.
-    public init(with ciImage: CIImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let options = options ?? TextureLoader.defaultOptions
-        let context: CIContext? = {
-            if options.keys.contains(where: { $0 == .sharedContext }) {
-                return options[.sharedContext] as? CIContext
-            }
-            return CIContext(mtlDevice: Device.device())
-        }()
-        guard let cgImage = context?.createCGImage(ciImage, from: ciImage.extent) else {
-            throw HarbethError.source2Texture
-        }
-        try self.init(with: cgImage, options: options)
-    }
-    
     /// Creates a new MTLTexture from a CVPixelBuffer.
     /// - Parameters:
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        if let texture = pixelBuffer.c7.toMTLTexture() {
+            self.texture = texture
+            return
+        }
         let pixelFormat = TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
@@ -97,10 +84,12 @@ extension TextureLoader {
         }
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
-        let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer)
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw HarbethError.source2Texture
+        }
         let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
         let region = MTLRegionMake2D(0, 0, width, height)
-        texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddress!, bytesPerRow: bytesPerRow)
+        texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddress, bytesPerRow: bytesPerRow)
         self.texture = texture
     }
     
@@ -137,6 +126,40 @@ extension TextureLoader {
         }
         let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(data: data, options: options)
+    }
+
+    public init(with data: Data,
+                loadingOptions: ImageLoadingOptions,
+                options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        let source = CGImageSourceCreateWithData(data as CFData, nil)
+        guard let source else {
+            throw HarbethError.source2Texture
+        }
+        let cgImage = try TextureLoader.loadCGImage(from: source, loadingOptions: loadingOptions)
+        try self.init(with: cgImage, options: options)
+    }
+
+    public init(with url: URL,
+                loadingOptions: ImageLoadingOptions = .default,
+                options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            throw HarbethError.source2Texture
+        }
+        let cgImage = try TextureLoader.loadCGImage(from: source, loadingOptions: loadingOptions)
+        try self.init(with: cgImage, options: options)
+    }
+
+    public init(with asset: HarbethImageAsset,
+                options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        switch asset.storage {
+        case .data(let data):
+            try self.init(with: data, loadingOptions: asset.loadingOptions, options: options)
+        case .url(let url):
+            try self.init(with: url, loadingOptions: asset.loadingOptions, options: options)
+        case .cgImage(let cgImage):
+            let transformed = try TextureLoader.loadCGImage(from: cgImage, loadingOptions: asset.loadingOptions)
+            try self.init(with: transformed, options: options)
+        }
     }
     
     public init(with bundleURL: URL, name: String, options: [MTKTextureLoader.Option: Any]? = nil) throws {
@@ -192,6 +215,7 @@ extension TextureLoader {
         let usage = opts[.textureUsage] as? MTLTextureUsage ?? defaultUsage
         let sampleCount = (opts[.textureSampleCount] as? Int) ?? 1
         let allowGPUOptimized = (opts[.textureAllowGPUOptimizedContents] as? Bool) ?? true
+        let allowsSizeTolerance = (opts[.textureAllowsSizeTolerance] as? Bool) ?? false
         // Platform-specific storage mode
         let storageMode: MTLStorageMode = {
             #if os(iOS) || targetEnvironment(simulator)
@@ -206,7 +230,13 @@ extension TextureLoader {
         let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
         
         // Try texture pool with calculated size
-        if let texture = Shared.shared.texturePool?.dequeueTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat) {
+        let pooledTexture: MTLTexture?
+        if allowsSizeTolerance {
+            pooledTexture = Shared.shared.texturePool?.dequeueTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat)
+        } else {
+            pooledTexture = Shared.shared.texturePool?.dequeueExactTexture(width: maxWidth, height: maxHeight, pixelFormat: pixelFormat)
+        }
+        if let texture = pooledTexture {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
             return texture
         }
@@ -231,6 +261,42 @@ extension TextureLoader {
         Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
         return texture
     }
+
+    /// Creates a texture lease whose lifetime controls when the texture is
+    /// returned to the pool. This is the preferred API for texture-first frame
+    /// renderers that need deterministic ownership.
+    public static func makeTextureLease(width: Int,
+                                        height: Int,
+                                        options: [Option: Any]? = nil,
+                                        identifier: String = "Render") throws -> TextureLease {
+        let opts = options ?? [:]
+        let pixelFormat = opts[.texturePixelFormat] as? MTLPixelFormat ?? .rgba8Unorm
+        let allowsSizeTolerance = (opts[.textureAllowsSizeTolerance] as? Bool) ?? false
+        let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
+        let logicalExtent = C7Size(width: max(maxWidth, 1), height: max(maxHeight, 1))
+
+        if let lease = Shared.shared.texturePool?.dequeueTextureLease(
+            width: logicalExtent.width,
+            height: logicalExtent.height,
+            pixelFormat: pixelFormat,
+            allowsSizeTolerance: allowsSizeTolerance,
+            logicalExtent: logicalExtent
+        ) {
+            Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
+            return lease
+        }
+
+        let texture = try makeTexture(
+            width: logicalExtent.width,
+            height: logicalExtent.height,
+            options: options,
+            identifier: identifier
+        )
+        return Shared.shared.texturePool?.makeLease(
+            for: texture,
+            logicalExtent: logicalExtent
+        ) ?? TextureLease(texture: texture, logicalExtent: logicalExtent)
+    }
     
     public static func makeTexture(at size: CGSize, options: [Option: Any]? = nil, identifier: String = "Render") throws -> MTLTexture {
         return try makeTexture(width: Int(size.width), height: Int(size.height), options: options, identifier: identifier)
@@ -250,14 +316,13 @@ extension TextureLoader {
             return pooledTexture
         }
         // 纹理最好不要又作为输入纹理又作为输出纹理，否则会出现重复内容，
-        // 所以需要拷贝新的纹理来承载新的内容‼️
-        let newTexture = try makeTexture(width: width, height: height, options: [
+        // 所以需要新的纹理来承载输出。返回给调用方的纹理不能同时入池，
+        // 否则后续 dequeue 可能覆盖仍在使用或 GPU in-flight 的纹理。
+        return try makeTexture(width: width, height: height, options: [
             .texturePixelFormat: texture.pixelFormat,
             .textureUsage: texture.usage,
             .textureSampleCount: texture.sampleCount,
         ], identifier: identifier)
-        Shared.shared.texturePool?.enqueueTextureSync(newTexture)
-        return newTexture
     }
     
     private static func pixelFormat(from cvFormat: OSType) -> MTLPixelFormat {
@@ -272,15 +337,92 @@ extension TextureLoader {
             return .bgra8Unorm
         }
     }
+
+    private static func loadCGImage(from source: CGImageSource,
+                                    loadingOptions: ImageLoadingOptions) throws -> CGImage {
+        let cfOptions = makeImageSourceOptions(loadingOptions: loadingOptions)
+        if loadingOptions.sizePolicy.resolvedMaxPixelSize() != nil,
+           let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, cfOptions) {
+            return try applyLoadingOptionsIfNeeded(to: thumbnail, loadingOptions: loadingOptions)
+        }
+        if let image = CGImageSourceCreateImageAtIndex(source, 0, cfOptions) {
+            return try applyLoadingOptionsIfNeeded(to: image, loadingOptions: loadingOptions)
+        }
+        throw HarbethError.source2Texture
+    }
+
+    private static func loadCGImage(from cgImage: CGImage,
+                                    loadingOptions: ImageLoadingOptions) throws -> CGImage {
+        try applyLoadingOptionsIfNeeded(to: cgImage, loadingOptions: loadingOptions)
+    }
+
+    private static func makeImageSourceOptions(loadingOptions: ImageLoadingOptions) -> CFDictionary {
+        var options: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceShouldCacheImmediately: false
+        ]
+        if let maxPixelSize = loadingOptions.sizePolicy.resolvedMaxPixelSize() {
+            options[kCGImageSourceCreateThumbnailFromImageAlways] = true
+            options[kCGImageSourceThumbnailMaxPixelSize] = maxPixelSize
+            options[kCGImageSourceCreateThumbnailWithTransform] = true
+        }
+        if loadingOptions.flipsVertically {
+            options[kCGImageSourceCreateThumbnailWithTransform] = true
+        }
+        return options as CFDictionary
+    }
+
+    private static func applyLoadingOptionsIfNeeded(to cgImage: CGImage,
+                                                    loadingOptions: ImageLoadingOptions) throws -> CGImage {
+        let targetSize: CGSize = {
+            switch loadingOptions.sizePolicy {
+            case .original:
+                return CGSize(width: cgImage.width, height: cgImage.height)
+            case .maxPixelSize(let value):
+                return CGSize(width: cgImage.width, height: cgImage.height).c7.constrained(
+                    CGSize(width: max(value, 1), height: max(value, 1))
+                )
+            case .fit(let width, let height):
+                return CGSize(width: cgImage.width, height: cgImage.height).c7.constrained(
+                    CGSize(width: max(width, 1), height: max(height, 1))
+                )
+            }
+        }()
+
+        let outputWidth = max(Int(targetSize.width.rounded(.up)), 1)
+        let outputHeight = max(Int(targetSize.height.rounded(.up)), 1)
+
+        guard outputWidth != cgImage.width || outputHeight != cgImage.height || loadingOptions.flipsVertically else {
+            return cgImage
+        }
+
+        guard let context = CGContext(
+            data: nil,
+            width: outputWidth,
+            height: outputHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: cgImage.colorSpace ?? Device.colorSpace(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw HarbethError.contextCreationFailed
+        }
+
+        if loadingOptions.flipsVertically {
+            context.translateBy(x: 0, y: CGFloat(outputHeight))
+            context.scaleBy(x: 1, y: -1)
+        }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: outputWidth, height: outputHeight))
+
+        guard let image = context.makeImage() else {
+            throw HarbethError.source2Texture
+        }
+        return image
+    }
     
     /// Downgrade strategy: manually create textures and copy pixel data
     private static func drawCGImageToTexture(_ cgImage: CGImage) throws -> MTLTexture {
         let (width, height) = Device.makeTexture2DMaxSize(width: Int(cgImage.width), height: Int(cgImage.height))
-        
-        // Try texture pool first with original size
-        if let texture = Shared.shared.texturePool?.dequeueTexture(width: width, height: height, pixelFormat: .rgba8Unorm) {
-            return texture
-        }
         
         // 降级策略：手动创建纹理并复制像素数据
         let texture = try makeTexture(width: width, height: height, options: [
@@ -357,23 +499,6 @@ extension TextureLoader {
             failed?(.error(error))
         }
     }
-    
-    public static func makeTexture(with ciImage: CIImage,
-                                   options: [MTKTextureLoader.Option: Any]? = nil,
-                                   success: @escaping (_ texture: MTLTexture) -> Void,
-                                   failed: ((HarbethError) -> Void)? = nil) {
-        do {
-            let texture = try TextureLoader(with: ciImage, options: options).texture
-            success(texture)
-        } catch {
-            failed?(.error(error))
-        }
-    }
-}
-
-extension MTKTextureLoader.Option {
-    /// Allows passing a shared `CIContext` for async CIImage conversion.
-    public static let sharedContext = MTKTextureLoader.Option(rawValue: "condy_context")
 }
 
 extension TextureLoader.Option {
@@ -399,4 +524,9 @@ extension TextureLoader.Option {
     
     /// Allow GPU-optimization for the contents of this texture. The default value is true.
     public static let textureAllowGPUOptimizedContents: TextureLoader.Option = .init(rawValue: 1 << 5)
+
+    /// Allows pooled texture reuse within the pool tolerance.
+    /// The default is false for render-runtime correctness because geometry and mask
+    /// coordinates must match the requested logical extent exactly.
+    public static let textureAllowsSizeTolerance: TextureLoader.Option = .init(rawValue: 1 << 6)
 }

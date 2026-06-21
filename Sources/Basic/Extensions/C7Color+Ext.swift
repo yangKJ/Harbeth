@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CoreImage
 
 extension C7Color: HarbethCompatible {
     /// Empty color, Dooo default. cannot get rgba.
@@ -34,11 +33,6 @@ extension C7Color: HarbethCompatible {
 }
 
 extension HarbethWrapper where Base: C7Color {
-    
-    public func toCIColor() -> CIColor {
-        let components = base.c7.components
-        return CIColor(red: components[0], green: components[1], blue: components[2], alpha: components[3])
-    }
     
     public func toRGBA() -> (red: Float, green: Float, blue: Float, alpha: Float) {
         let components = base.c7.components.map { Float($0) }

@@ -59,7 +59,7 @@ FOUNDATION_EXPORT double HarbethVersionNumber;
 FOUNDATION_EXPORT const unsigned char HarbethVersionString[];
 
 /// Quickly add filters to sources.
-/// Support use `UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer/CVImageBuffer`
+/// Support use `UIImage/NSImage, CGImage, MTLTexture, CMSampleBuffer, CVPixelBuffer/CVImageBuffer`
 ///
 /// For example:
 ///

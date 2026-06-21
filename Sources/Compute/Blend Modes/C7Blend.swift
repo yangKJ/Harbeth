@@ -95,7 +95,7 @@ public struct C7Blend: C7FilterProtocol {
     }
 }
 
-extension C7Blend.BlendType: Hashable, Identifiable {
+extension C7Blend.BlendType: Hashable, Identifiable, Sendable, Codable {
     
     public var id: String {
         kernel
@@ -164,5 +164,31 @@ extension C7Blend.BlendType: Hashable, Identifiable {
         case .color:
             return "C7BlendColor"
         }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let kernel = try container.decode(String.self)
+        guard let value = Self.allCases.first(where: { $0.kernel == kernel }) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported blend kernel: \(kernel)")
+        }
+        self = value
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(kernel)
+    }
+}
+
+private extension C7Blend.BlendType {
+    static var allCases: [C7Blend.BlendType] {
+        [
+            .add, .alpha, .colorBurn, .colorDodge, .darken, .darkerColor,
+            .difference, .dissolve, .divide, .exclusion, .hardLight, .hardMix,
+            .hue, .lighten, .lighterColor, .linearBurn, .linearLight, .luminosity,
+            .mask, .multiply, .normal, .overlay, .pinLight, .saturation, .screen,
+            .softLight, .sourceOver, .subtract, .vividLight, .color
+        ]
     }
 }

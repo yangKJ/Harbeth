@@ -9,7 +9,6 @@ import Foundation
 import MetalKit
 import ImageIO
 import Accelerate
-import CoreImage
 
 extension MTLTexture {
     /// Add the `c7` prefix namespace
@@ -102,36 +101,15 @@ public struct MTLTextureCompatible_ {
         C7Size(width: target.width, height: target.height)
     }
     
-    public func toImage() -> C7Image? {
-        guard let cgImage = toCGImage() else {
+    public func toImage(alphaType: AlphaType = .premultiplied) -> C7Image? {
+        guard let cgImage = toCGImage(alphaType: alphaType) else {
             return nil
         }
         return cgImage.c7.toC7Image()
     }
     
-    /// Converts to CIImage with best-effort zero-copy strategy.
-    public func toCIImage() -> CIImage? {
-        if let cgImage = toCGImage() {
-            return CIImage(cgImage: cgImage)
-        }
-        return CIImage(mtlTexture: target, options: nil)
-    }
-    
-    public func toCIImage(mirrored: Bool) throws -> CIImage {
-        guard let ciImage = toCIImage() else {
-            throw HarbethError.texture2CIImage
-        }
-        if mirrored, #available(iOS 11.0, macOS 10.13, *) {
-            // When the CIImage is created, it is mirrored and flipped upside down.
-            // But upon inspecting the texture, it still renders the CIImage as expected.
-            // Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
-            return ciImage.oriented(.downMirrored)
-        }
-        return ciImage
-    }
-    
-    public func fixImageOrientation(refImage: C7Image) throws -> C7Image {
-        guard let cgImage = toCGImage() else {
+    public func fixImageOrientation(refImage: C7Image, alphaType: AlphaType = .premultiplied) throws -> C7Image {
+        guard let cgImage = toCGImage(alphaType: alphaType) else {
             throw HarbethError.texture2Image
         }
         return cgImage.c7.drawing(refImage: refImage).c7.flattened()
@@ -145,7 +123,7 @@ public struct MTLTextureCompatible_ {
     ///   - colorSpace: Color space
     ///   - pixelFormat: Current Metal texture pixel format.
     /// - Returns: CGImage
-    public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil) -> CGImage? {
+    public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil, alphaType: AlphaType = .premultiplied) -> CGImage? {
         let width = target.width
         let height = target.height
         let currentFormat = pixelFormat ?? target.pixelFormat
@@ -204,7 +182,7 @@ public struct MTLTextureCompatible_ {
             
             // create CGImage with RGBA Flipped Bytes
             let colorSpace = colorSpace ?? Device.colorSpace()
-            let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+            let bitmapInfo = CGBitmapInfo(rawValue: alphaType.cgImageAlphaInfoForRGBA.rawValue)
             guard let data = CFDataCreate(nil, rgbaBytes, length),
                   let dataProvider = CGDataProvider(data: data),
                   let cgImage = CGImage(width: width,
@@ -230,7 +208,7 @@ public struct MTLTextureCompatible_ {
             target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
             
             let colorSpace = colorSpace ?? Device.colorSpace()
-            let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+            let bitmapInfo = CGBitmapInfo(rawValue: alphaType.cgImageAlphaInfoForRGBA.rawValue)
             guard let data = CFDataCreate(nil, rgbaBytes, length),
                   let dataProvider = CGDataProvider(data: data),
                   let cgImage = CGImage(width: width,

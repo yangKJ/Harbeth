@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		68A25FD72D5DEB5C006FBFC8 /* Skateboarding.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 68A25FD62D5DEB5C006FBFC8 /* Skateboarding.mp4 */; };
-		870B80AC2A80E40200614660 /* CoreImageViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870B80AB2A80E40200614660 /* CoreImageViews.swift */; };
 		870B80AE2A80E51B00614660 /* MetalKernelViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870B80AD2A80E51B00614660 /* MetalKernelViews.swift */; };
 		872661C42994D8CE00E612C7 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872661C32994D8CE00E612C7 /* AppDelegate.swift */; };
 		872661C62994D8CE00E612C7 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872661C52994D8CE00E612C7 /* ViewController.swift */; };
@@ -100,7 +99,6 @@
 
 /* Begin PBXFileReference section */
 		68A25FD62D5DEB5C006FBFC8 /* Skateboarding.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = Skateboarding.mp4; sourceTree = "<group>"; };
-		870B80AB2A80E40200614660 /* CoreImageViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreImageViews.swift; sourceTree = "<group>"; };
 		870B80AD2A80E51B00614660 /* MetalKernelViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalKernelViews.swift; sourceTree = "<group>"; };
 		872661C12994D8CE00E612C7 /* Harbeth-macOS-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-macOS-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		872661C32994D8CE00E612C7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -310,7 +308,6 @@
 				F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */,
 				F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */,
 				F78A110D2F5FEA3D00FFC2B6 /* ColorRGBAView.swift */,
-				870B80AB2A80E40200614660 /* CoreImageViews.swift */,
 				F7621A882A7E7DA200614542 /* CubeView.swift */,
 				F78A11232F6010C300FFC2B6 /* CurvesView.swift */,
 				8769918B2A7CEBDC00551BD3 /* CustomViews.swift */,
@@ -491,7 +488,6 @@
 			files = (
 				F78A110E2F5FEA3D00FFC2B6 /* ColorRGBAView.swift in Sources */,
 				F7CBC1E02F6FD4AF00F75991 /* DoubleBufferView.swift in Sources */,
-				870B80AC2A80E40200614660 /* CoreImageViews.swift in Sources */,
 				87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */,
 				F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */,
 				870B80AE2A80E51B00614660 /* MetalKernelViews.swift in Sources */,

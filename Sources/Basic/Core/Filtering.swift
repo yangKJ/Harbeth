@@ -7,7 +7,6 @@
 
 import Foundation
 import MetalKit
-import CoreImage
 
 /// Memory access pattern for compute shaders
 public enum MemoryAccessPattern {
@@ -153,44 +152,33 @@ extension C7FilterProtocol {
     }
 }
 
-// MARK: - coreimage filter protocol
-public protocol CoreImageProtocol: C7FilterProtocol {
-    /// Put out the CIFilter instance in advance to avoid repeated generation
-    /// when the filter is applied, which will affect the efficiency.
-    var inputCIFilter: CIFilter? { get }
-    
-    /// Return a new image cropped to a rectangle.
-    var croppedOutputImage: Bool { get }
-    
-    /// Series connection other filters and finally output to the main filter.
-    /// - Parameters:
-    ///   - filter: CoreImage CIFilter.
-    ///   - ciImage: Input source
-    /// - Returns: Output source
-    func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage
-}
-
-extension CoreImageProtocol {
-    
-    public var inputCIFilter: CIFilter? { nil }
-    
-    public var croppedOutputImage: Bool { false }
-    
-    public func coreImageApply(filter: CIFilter, input ciImage: CIImage) throws -> CIImage {
-        return ciImage
-    }
-}
-
 // MARK: - render filter protocol
 public protocol RenderProtocol: C7FilterProtocol {
     /// Setup the vertex shader parameters.
     /// - Parameter device: MTLDevice
     /// - Returns: Vertex uniform buffer.
     func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer?
+
+    /// Setup the fragment shader parameters that depend on the input size.
+    /// - Parameters:
+    ///   - device: MTLDevice
+    ///   - inputSize: Input texture size.
+    /// - Returns: Fragment uniform buffer.
+    func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer?
+
+    /// Override the default fullscreen quad when a render filter needs
+    /// custom geometry, e.g. 3D/projective transforms.
+    func setupVertices(inputSize: C7Size) -> [Float]?
+
+    /// Number of floats for each vertex in the custom vertex buffer.
+    var renderVertexStride: Int { get }
 }
 
 extension RenderProtocol {
     public func setupVertexUniformBuffer(for device: MTLDevice) -> MTLBuffer? { nil }
+    public func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer? { nil }
+    public func setupVertices(inputSize: C7Size) -> [Float]? { nil }
+    public var renderVertexStride: Int { 4 }
 }
 
 // MARK: - mps filter protocol

@@ -9,7 +9,7 @@ import SwiftUI
 import Harbeth
 
 struct CurvesView: View {
-    @State private var inputImage: UIImage = R.image("Bear")!
+    @State private var inputImage: C7Image = R.image("Bear")!
     @State private var selectedChannel: Channel = .rgb
     @State private var controlPoints: [C7Point2D] = [
         C7Point2D(x: 0.0, y: 0.0),

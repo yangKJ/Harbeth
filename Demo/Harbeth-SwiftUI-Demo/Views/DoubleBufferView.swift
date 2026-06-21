@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import QuartzCore
 import SwiftUI
 import Harbeth
 
@@ -172,7 +173,9 @@ struct DoubleBufferView: View {
             }
             .padding()
             .navigationTitle("Double Buffer Comparison")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
         }
     }
     

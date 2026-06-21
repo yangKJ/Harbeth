@@ -208,11 +208,6 @@ enum ViewControllerType: String {
     case MPSMedianBlurCase = "MPS中值模糊"
     case MPSGaussianBlurCase = "MPS高斯模糊"
     
-    // CoreImage测试
-    case CIHS = "CI高光阴影"
-    case CIGaussianCase = "CI高斯模糊"
-    case CIVignetteCase = "CI暗角"
-    case CIColorMonochromeCase = "CI单色"
 }
 
 extension ViewControllerType {

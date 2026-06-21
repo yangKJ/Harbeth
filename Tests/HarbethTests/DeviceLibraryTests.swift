@@ -12,4 +12,68 @@ final class DeviceLibraryTests: XCTestCase {
 
         XCTAssertNotNil(library)
     }
+
+    func testRegisterExternalLibraryProviderIsIdempotent() throws {
+        Shared.shared.deinitDevice()
+        let baseline = Device.externalLibraryProviderIdentifiers()
+        let provider = MockExternalLibraryProvider(identifier: "tests.mock.provider")
+
+        XCTAssertTrue(Device.registerExternalLibraryProvider(provider))
+        XCTAssertFalse(Device.registerExternalLibraryProvider(provider))
+
+        let identifiers = Device.externalLibraryProviderIdentifiers()
+        XCTAssertEqual(identifiers.filter { $0 == provider.providerIdentifier }.count, 1)
+        XCTAssertEqual(identifiers.count, baseline.count + 1)
+        XCTAssertTrue(Device.externalLibraryRegistryDebugDescription().contains(provider.providerIdentifier))
+    }
+
+    func testReadFrameworkBundleFallsBackToHarbethHostBundle() {
+        let bundle = R.readFrameworkBundle(with: "Harbeth")
+        XCTAssertNotNil(bundle)
+        XCTAssertNotNil(R.cacheBundles["Harbeth"])
+    }
+
+    func testLookupAndCubeKeepResourceOwnerMetadataWhenResourcesAreMissing() {
+        let lookup = C7LookupTable(name: "missing_lookup", forResource: "Harbeth", intensity: 0.42)
+        let cube = C7ColorCube(cubeName: "missing_cube", forResource: "Harbeth", intensity: 0.73)
+        let multiZone = C7MultiZoneLookup(
+            shadowThreshold: 0.25,
+            highlightThreshold: 0.75,
+            transitionWidth: 0.12,
+            shadowLookupName: "shadow",
+            midtoneLookupName: "midtone",
+            highlightLookupName: "highlight",
+            forResource: "Harbeth"
+        )
+
+        XCTAssertEqual(lookup.resourceName, "missing_lookup")
+        XCTAssertEqual(lookup.resourceBundleName, "Harbeth")
+        XCTAssertEqual(lookup.otherInputTextures.count, 0)
+
+        XCTAssertEqual(cube.resourceName, "missing_cube")
+        XCTAssertEqual(cube.resourceBundleName, "Harbeth")
+        XCTAssertEqual(cube.otherInputTextures.count, 0)
+
+        XCTAssertEqual(multiZone.resourceBundleName, "Harbeth")
+        XCTAssertEqual(multiZone.otherInputTextures.count, 0)
+    }
+
+    func testMetalFunctionLookupFailureDescriptionIncludesCandidateSources() {
+        let description = Device.metalFunctionLookupFailureDescription("missing_kernel")
+        XCTAssertTrue(description.contains("missing_kernel"))
+        XCTAssertTrue(description.contains("Default Library"))
+        XCTAssertTrue(description.contains("External Registry"))
+    }
+}
+
+private final class MockExternalLibraryProvider: ExternalMTLLibraryProvider {
+    let providerIdentifier: String
+
+    init(identifier: String) {
+        self.providerIdentifier = identifier
+    }
+
+    func provideLibrary(for device: MTLDevice) -> MTLLibrary? {
+        nil
+    }
 }

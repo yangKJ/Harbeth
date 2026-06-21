@@ -7,7 +7,6 @@
 
 import Foundation
 import MetalKit
-import CoreImage
 import CoreMedia
 import CoreVideo
 
@@ -15,7 +14,7 @@ import CoreVideo
 public typealias BoxxIO<Dest> = HarbethIO<Dest>
 
 /// Quickly add filters to sources.
-/// Support use `UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, CVPixelBuffer/CVImageBuffer`
+/// Support use `UIImage/NSImage, CGImage, MTLTexture, CMSampleBuffer, CVPixelBuffer/CVImageBuffer`.
 ///
 /// For example:
 ///
@@ -33,31 +32,28 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     public let element: Dest
     public let filters: [C7FilterProtocol]
     
-    /// Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
-    /// The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
+    /// Host-side frame sources often use `kCVPixelFormatType_32BGRA`.
+    /// Keep the pixel format aligned with the source to avoid color channel issues.
     public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm {
         didSet { setupedBufferPixelFormat = true }
     }
-    /// When the CIImage is created, it is mirrored and flipped upside down.
-    /// But upon inspecting the texture, it still renders the CIImage as expected.
-    /// Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
-    public var mirrored: Bool = false
     /// Do you need to create an output texture object?
     /// If you do not create a separate output texture, texture overlay may occur.
     public var createDestTexture: Bool = true
-    /// Whether to use real-time commit for Metal texture output.
-    /// on the GPU but not until it's completed, providing faster response for real-time scenarios.
-    /// Recommended for camera capture, live video processing, and other real-time applications.
+    /// Whether to schedule the command buffer as soon as GPU execution is arranged,
+    /// instead of waiting for full completion before continuing host-side flow.
+    /// Recommended for low-latency frame processing paths.
     public var transmitOutputRealTimeCommit: Bool = false
     /// Enable double buffer optimization for metal filters
     /// When there are less than 4 filters, the traditional(singleBuffer) mode is better.
     public var enableDoubleBuffer: Bool = true
+    /// Stable render intent for planning and diagnostics.
+    public var renderProfile: RenderProfile = .stablePreview
     
     /// The identifier of the HarbethIO instance.
     public let identifier: String
     
     private var setupedBufferPixelFormat = false
-    private let hasCoreImage: Bool
     
     private enum GroupStrategy {
         case batched, interleaved
@@ -75,7 +71,6 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         self.element = element
         self.identifier = UUID().uuidString
         self.filters = filters
-        self.hasCoreImage = filters.contains(where: { $0.modifier.isCoreImage })
     }
     
     /// Add filters to sources synchronously. If it fails, it returns element.
@@ -98,8 +93,6 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
             return try filtering(texture: ee) as! Dest
         case let ee as C7Image:
             return try filtering(image: ee) as! Dest
-        case let ee as CIImage:
-            return try filtering(ciImage: ee) as! Dest
         case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
             return try filtering(cgImage: ee as! CGImage) as! Dest
         case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
@@ -145,11 +138,6 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                 complete($0.map { $0 as! Dest })
                 Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
             })
-        case let ee as CIImage:
-            filtering(ciImage: ee, complete: {
-                complete($0.map { $0 as! Dest })
-                Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
-            })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
             filtering(cgImage: ee as! CGImage, complete: {
                 complete($0.map { $0 as! Dest })
@@ -180,25 +168,19 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
             complete(.success(texture))
             return
         }
+        let plan = makeRenderPlan(input: texture)
         let operation = BlockOperation {
             do {
-                // CoreImage filters need synchronous processing
-                if self.hasCoreImage {
-                    let outputTexture = try self.filtering(texture: texture)
-                    complete(.success(outputTexture))
-                    return
-                }
-                
                 // Real-time mode: wait until scheduled, not completed
                 if self.transmitOutputRealTimeCommit {
                     let commandBuffer = try self.makeCommandBuffer()
                     var outputTexture: MTLTexture
                     var texturesToEnqueue: [MTLTexture] = []
                     
-                    if self.enableDoubleBuffer && self.filters.count > 3 {
-                        outputTexture = try self.doubleBuffering(input: texture, filters: self.filters, commandBuffer: commandBuffer)
+                    if self.shouldUseDoubleBuffer(input: texture, plan: plan, minimumFilterCount: 4) {
+                        outputTexture = try self.doubleBuffering(input: texture, plan: plan, commandBuffer: commandBuffer)
                     } else {
-                        let result = try self.singleBuffer(input: texture, filters: self.filters, commandBuffer: commandBuffer)
+                        let result = try self.singleBuffer(input: texture, plan: plan, commandBuffer: commandBuffer)
                         outputTexture = result.0
                         texturesToEnqueue = result.1
                     }
@@ -226,10 +208,10 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                     var outputTexture: MTLTexture
                     var texturesToEnqueue: [MTLTexture] = []
                     
-                    if self.enableDoubleBuffer && self.filters.count > 3 {
-                        outputTexture = try self.doubleBuffering(input: texture, filters: self.filters, commandBuffer: commandBuffer)
+                    if self.shouldUseDoubleBuffer(input: texture, plan: plan, minimumFilterCount: 4) {
+                        outputTexture = try self.doubleBuffering(input: texture, plan: plan, commandBuffer: commandBuffer)
                     } else {
-                        let result = try self.singleBuffer(input: texture, filters: self.filters, commandBuffer: commandBuffer)
+                        let result = try self.singleBuffer(input: texture, plan: plan, commandBuffer: commandBuffer)
                         outputTexture = result.0
                         texturesToEnqueue = result.1
                     }
@@ -254,110 +236,49 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     }
 }
 
+struct ManagedTextureResult {
+    let texture: MTLTexture
+    let lease: TextureLease?
+}
+
+private struct ManagedTextureStage {
+    let texture: MTLTexture
+    let producedLease: TextureLease?
+}
+
 extension HarbethIO {
     
-    private func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
-        let inTexture = try TextureLoader.init(with: pixelBuffer).texture
-        let texture = try filtering(texture: inTexture)
-        pixelBuffer.c7.copyToPixelBuffer(with: texture)
-        return pixelBuffer
-    }
-    
-    private func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            throw HarbethError.CMSampleBufferToCVPixelBuffer
-        }
-        let p = try filtering(pixelBuffer: pixelBuffer)
-        guard let buffer = p.c7.toCMSampleBuffer() else {
-            throw HarbethError.CVPixelBufferToCMSampleBuffer
-        }
-        return buffer
-    }
-    
-    private func filtering(ciImage: CIImage) throws -> CIImage {
-        let inTexture = try TextureLoader.init(with: ciImage).texture
-        let texture = try filtering(texture: inTexture)
-        return try texture.c7.toCIImage(mirrored: mirrored)
-    }
-    
-    private func filtering(cgImage: CGImage) throws -> CGImage {
-        let inTexture = try TextureLoader.init(with: cgImage).texture
-        let texture = try filtering(texture: inTexture)
-        guard let cgImg = texture.c7.toCGImage() else {
-            throw HarbethError.texture2Image
-        }
-        return cgImg
-    }
-    
-    private func filtering(image: C7Image) throws -> C7Image {
-        let inTexture = try TextureLoader.init(with: image).texture
-        let texture = try filtering(texture: inTexture)
-        return try texture.c7.fixImageOrientation(refImage: image)
-    }
-    
-    private func filtering(texture: MTLTexture) throws -> MTLTexture {
-        switch groupStrategy {
+    func filtering(texture: MTLTexture) throws -> MTLTexture {
+        let plan = makeRenderPlan(input: texture)
+        switch groupStrategy(for: plan) {
         case .batched:
-            return try processBatchedFilters(input: texture)
+            return try processBatchedFilters(input: texture, plan: plan)
         case .interleaved:
-            return try processInterleavedFilters(input: texture)
+            return try processInterleavedFilters(input: texture, plan: plan)
         }
     }
     
-    private func processBatchedFilters(input: MTLTexture) throws -> MTLTexture {
-        let filterGroups = groupFilters(by: { $0.modifier.isCoreImage })
-        var outputTexture = input
-        var currentCommandBuffer: MTLCommandBuffer? = nil
-        var pendingTexturesToEnqueue: [MTLTexture] = []
-        
-        for group in filterGroups {
-            if group.first?.modifier.isCoreImage ?? false {
-                if let commandBuffer = currentCommandBuffer {
-                    commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-                    Shared.shared.texturePool?.enqueueTexturesSync(pendingTexturesToEnqueue)
-                    pendingTexturesToEnqueue.removeAll()
-                    Device.returnCommandBuffer(commandBuffer)
-                    currentCommandBuffer = nil
-                }
-                guard var inputCIImage = outputTexture.c7.toCIImage() else {
-                    continue
-                }
-                for filter in group.map({ $0 as! CoreImageProtocol }) {
-                    inputCIImage = try filter.outputCIImage(with: inputCIImage)
-                }
-                let commandBuffer = try makeCommandBuffer(for: nil)
-                let destTexture = try TextureLoader.makeTexture(at: inputCIImage.extent.size, identifier: identifier)
-                try inputCIImage.c7.renderCIImageToTexture(destTexture, commandBuffer: commandBuffer)
-                outputTexture = destTexture
-                commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-                Device.returnCommandBuffer(commandBuffer)
-            } else {
-                if currentCommandBuffer == nil {
-                    currentCommandBuffer = try makeCommandBuffer(for: nil)
-                }
-                if enableDoubleBuffer {
-                    outputTexture = try doubleBuffering(input: outputTexture, filters: group, commandBuffer: currentCommandBuffer!)
-                } else {
-                    let (resultTexture, texturesToEnqueue) = try singleBuffer(input: outputTexture, filters: group, commandBuffer: currentCommandBuffer!)
-                    outputTexture = resultTexture
-                    pendingTexturesToEnqueue.append(contentsOf: texturesToEnqueue)
-                }
-            }
+    private func processBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
+        let commandBuffer = try makeCommandBuffer(for: nil)
+        let outputTexture: MTLTexture
+        var texturesToEnqueue: [MTLTexture] = []
+        if shouldUseDoubleBuffer(input: input, plan: plan, minimumFilterCount: 1) {
+            outputTexture = try doubleBuffering(input: input, plan: plan, commandBuffer: commandBuffer)
+        } else {
+            let result = try singleBuffer(input: input, plan: plan, commandBuffer: commandBuffer)
+            outputTexture = result.0
+            texturesToEnqueue = result.1
         }
-        
-        // Submit the last Metal command buffer.
-        if let commandBuffer = currentCommandBuffer {
-            commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-            Shared.shared.texturePool?.enqueueTexturesSync(pendingTexturesToEnqueue)
-            pendingTexturesToEnqueue.removeAll()
-            Device.returnCommandBuffer(commandBuffer)
-        }
+        commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+        Shared.shared.texturePool?.enqueueTexturesSync(texturesToEnqueue)
+        Device.returnCommandBuffer(commandBuffer)
         return outputTexture
     }
     
-    private func processInterleavedFilters(input: MTLTexture) throws -> MTLTexture {
+    private func processInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
         var outputTexture = input
-        for filter in filters {
+        for node in plan.graph.nodes {
+            guard let filter = node.filter else { continue }
             let commandBuffer = try makeCommandBuffer(for: nil)
             outputTexture = try textureIO(input: outputTexture, filter: filter, for: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
@@ -369,132 +290,16 @@ extension HarbethIO {
 
 extension HarbethIO {
     
-    private func filtering(pixelBuffer: CVPixelBuffer, complete: @escaping (Result<CVPixelBuffer, HarbethError>) -> Void) {
-        do {
-            let texture = try TextureLoader(with: pixelBuffer).texture
-            filtering(texture: texture, complete: { res in
-                let ress = res.map {
-                    pixelBuffer.c7.copyToPixelBuffer(with: $0)
-                    return pixelBuffer
-                }
-                complete(ress)
-            })
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
-        }
+    func makeRenderPlan(input texture: MTLTexture) -> RenderPlan {
+        return GraphCompiler.compile(
+            filters: filters,
+            inputSize: C7Size(width: texture.width, height: texture.height),
+            profile: renderProfile
+        )
     }
-    
-    private func filtering(sampleBuffer: CMSampleBuffer, complete: @escaping (Result<CMSampleBuffer, HarbethError>) -> Void) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            complete(.failure(HarbethError.CMSampleBufferToCVPixelBuffer))
-            return
-        }
-        filtering(pixelBuffer: pixelBuffer, complete: { res in
-            switch res {
-            case .success(let p):
-                guard let buffer = p.c7.toCMSampleBuffer() else {
-                    complete(.failure(HarbethError.CVPixelBufferToCMSampleBuffer))
-                    return
-                }
-                complete(.success(buffer))
-            case .failure(let error):
-                complete(.failure(HarbethError.toHarbethError(error)))
-            }
-        })
-    }
-    
-    private func filtering(ciImage: CIImage, complete: @escaping (Result<CIImage, HarbethError>) -> Void) {
-        do {
-            let texture = try TextureLoader(with: ciImage).texture
-            filtering(texture: texture, complete: { res in
-                switch res {
-                case .success(let t):
-                    do {
-                        let result = try t.c7.toCIImage(mirrored: mirrored)
-                        complete(.success(result))
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
-                case .failure(let error):
-                    complete(.failure(HarbethError.toHarbethError(error)))
-                }
-            })
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
-        }
-    }
-    
-    private func filtering(cgImage: CGImage, complete: @escaping (Result<CGImage, HarbethError>) -> Void) {
-        do {
-            let texture = try TextureLoader(with: cgImage).texture
-            filtering(texture: texture, complete: { res in
-                switch res {
-                case .success(let t):
-                    guard let result = t.c7.toCGImage() else {
-                        complete(.failure(HarbethError.texture2Image))
-                        return
-                    }
-                    complete(.success(result))
-                case .failure(let error):
-                    complete(.failure(HarbethError.toHarbethError(error)))
-                }
-            })
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
-        }
-    }
-    
-    private func filtering(image: C7Image, complete: @escaping (Result<C7Image, HarbethError>) -> Void) {
-        do {
-            let texture = try TextureLoader(with: image).texture
-            filtering(texture: texture, complete: { res in
-                switch res {
-                case .success(let t):
-                    do {
-                        let result = try t.c7.fixImageOrientation(refImage: image)
-                        complete(.success(result))
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
-                case .failure(let error):
-                    complete(.failure(HarbethError.toHarbethError(error)))
-                }
-            })
-        } catch {
-            complete(.failure(HarbethError.toHarbethError(error)))
-        }
-    }
-}
 
-extension HarbethIO {
-    
-    private var groupStrategy: GroupStrategy {
-        let filterGroups = groupFilters(by: { $0.modifier.isCoreImage })
-        for group in filterGroups where group.count > 1 {
-            return .batched
-        }
-        return .interleaved
-    }
-    
-    private func groupFilters(by predicate: (C7FilterProtocol) -> Bool) -> [[C7FilterProtocol]] {
-        var groups: [[C7FilterProtocol]] = []
-        var currentGroup: [C7FilterProtocol] = []
-        var currentType: Bool?
-        for filter in filters {
-            let filterType = predicate(filter)
-            if currentType == nil || currentType == filterType {
-                currentGroup.append(filter)
-                currentType = filterType
-            } else {
-                groups.append(currentGroup)
-                currentGroup = [filter]
-                currentType = filterType
-            }
-        }
-        if !currentGroup.isEmpty {
-            groups.append(currentGroup)
-        }
-        return groups
+    private func groupStrategy(for plan: RenderPlan) -> GroupStrategy {
+        return plan.graph.nodes.count > 1 ? .batched : .interleaved
     }
     
     private func setupBufferPixelFormat(with sourceTexture: MTLTexture) -> MTLPixelFormat {
@@ -515,8 +320,8 @@ extension HarbethIO {
         let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
         resize = C7Size(width: deviceMaxWidth, height: deviceMaxHeight)
         
-        // Since the camera acquisition generally uses ' kCVPixelFormatType_32BGRA '
-        // The pixel format needs to be consistent, otherwise it will appear blue phenomenon.
+        // Host-side frame sources often use `kCVPixelFormatType_32BGRA`.
+        // Keep the output pixel format aligned with the source to avoid channel mismatch.
         let texture = try TextureLoader.makeTexture(width: resize.width, height: resize.height, options: [
             .texturePixelFormat: targetPixelFormat
         ], identifier: identifier)
@@ -527,6 +332,25 @@ extension HarbethIO {
             Shared.shared.performanceMonitor?.recordMemoryAllocation(identifier, bytes: memoryBytes, source: "Texture")
         }
         return texture
+    }
+
+    private func createDestTextureLease(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> TextureLease? {
+        guard createDestTexture, (filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true) else {
+            return nil
+        }
+        let targetPixelFormat = setupBufferPixelFormat(with: sourceTexture)
+        var resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
+        let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
+        resize = C7Size(width: deviceMaxWidth, height: deviceMaxHeight)
+        let lease = try TextureLoader.makeTextureLease(width: resize.width, height: resize.height, options: [
+            .texturePixelFormat: targetPixelFormat
+        ], identifier: identifier)
+        if Shared.shared.enablePerformanceMonitor {
+            let bytesPerPixel = 4
+            let memoryBytes = resize.width * resize.height * bytesPerPixel
+            Shared.shared.performanceMonitor?.recordMemoryAllocation(identifier, bytes: memoryBytes, source: "TextureLease")
+        }
+        return lease
     }
     
     /// Do you need to create a new metal texture command buffer.
@@ -544,22 +368,25 @@ extension HarbethIO {
     private func textureIO(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> MTLTexture {
         let destTexture = try createDestTexture(with: texture, filter: filter)
         let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
-        let outputTexture: MTLTexture
-        if case .coreimage = filter.modifier {
-            let outputImage = try (filter as! CoreImageProtocol).outputCIImage(with: inputTexture)
-            try outputImage.c7.renderCIImageToTexture(destTexture, commandBuffer: buffer)
-            outputTexture = destTexture
-        } else {
-            outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
-        }
+        let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
         return try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
     }
+
+    private func textureIOManaged(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> ManagedTextureStage {
+        let destLease = try createDestTextureLease(with: texture, filter: filter)
+        let destTexture = destLease?.texture ?? texture
+        let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
+        let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
+        let finalTexture = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
+        return ManagedTextureStage(texture: finalTexture, producedLease: destLease)
+    }
     
-    private func singleBuffer(input: MTLTexture, filters: [C7FilterProtocol], commandBuffer: MTLCommandBuffer) throws -> (MTLTexture, [MTLTexture]) {
+    private func singleBuffer(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (MTLTexture, [MTLTexture]) {
         var currentTexture = input
         var producedTextures: [MTLTexture] = []
         
-        for filter in filters {
+        for node in plan.graph.nodes {
+            guard let filter = node.filter else { continue }
             let next = try textureIO(input: currentTexture, filter: filter, for: commandBuffer)
             producedTextures.append(next)
             currentTexture = next
@@ -572,8 +399,29 @@ extension HarbethIO {
         return (finalTexture, texturesToEnqueue)
     }
     
+
+    private func shouldUseDoubleBuffer(input: MTLTexture, plan: RenderPlan, minimumFilterCount: Int) -> Bool {
+        let filters = plan.graph.nodes.compactMap(\.filter)
+        guard enableDoubleBuffer, filters.count >= minimumFilterCount else {
+            return false
+        }
+        guard plan.containsBoundary == false else {
+            return false
+        }
+        var inputSize = C7Size(width: input.width, height: input.height)
+        for filter in filters {
+            let outputSize = filter.resize(input: inputSize)
+            if outputSize.width != inputSize.width || outputSize.height != inputSize.height {
+                return false
+            }
+            inputSize = outputSize
+        }
+        return true
+    }
+
     /// Use double buffer technology to handle filter chains.
-    private func doubleBuffering(input: MTLTexture, filters: [C7FilterProtocol], commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
+    private func doubleBuffering(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
+        let filters = plan.graph.nodes.compactMap(\.filter)
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
@@ -614,5 +462,212 @@ extension HarbethIO {
         }
         
         return finalTexture
+    }
+
+    func makeEffectiveFilters(inputSize: C7Size, derivative: ImageDerivativeSpec) -> [C7FilterProtocol] {
+        let baseOutputSize = filters.reduce(inputSize) { size, filter in
+            filter.resize(input: size)
+        }
+        let targetOutputSize = derivative.resolvedOutputSize(for: baseOutputSize)
+        guard targetOutputSize != baseOutputSize else {
+            return filters
+        }
+        return filters + [C7Resize(width: Float(targetOutputSize.width), height: Float(targetOutputSize.height))]
+    }
+
+}
+
+extension HarbethIO where Dest == MTLTexture {
+
+    func renderManagedTexture() throws -> ManagedTextureResult {
+        if filters.isEmpty {
+            return ManagedTextureResult(texture: element, lease: nil)
+        }
+        let plan = makeRenderPlan(input: element)
+        switch groupStrategy(for: plan) {
+        case .batched:
+            return try processManagedBatchedFilters(input: element, plan: plan)
+        case .interleaved:
+            return try processManagedInterleavedFilters(input: element, plan: plan)
+        }
+    }
+
+    func transmitManagedTexture(complete: @escaping (Result<ManagedTextureResult, HarbethError>) -> Void) {
+        if filters.isEmpty {
+            complete(.success(ManagedTextureResult(texture: element, lease: nil)))
+            return
+        }
+        let plan = makeRenderPlan(input: element)
+        let operation = BlockOperation {
+            do {
+                let commandBuffer = try self.makeCommandBuffer()
+                let result: ManagedTextureResult
+                let intermediateLeases: [TextureLease]
+                if self.shouldUseDoubleBuffer(input: self.element, plan: plan, minimumFilterCount: 4) {
+                    let managed = try self.doubleBufferingManaged(input: self.element, plan: plan, commandBuffer: commandBuffer)
+                    result = managed.result
+                    intermediateLeases = managed.intermediateLeases
+                } else {
+                    let managed = try self.singleBufferManaged(input: self.element, plan: plan, commandBuffer: commandBuffer)
+                    result = managed.result
+                    intermediateLeases = managed.intermediateLeases
+                }
+
+                let releaseIntermediates = {
+                    intermediateLeases.forEach { $0.release() }
+                }
+
+                if self.transmitOutputRealTimeCommit {
+                    commandBuffer.addCompletedHandler { _ in
+                        releaseIntermediates()
+                    }
+                    commandBuffer.realTimeCommit(identifier: self.identifier) {
+                        complete(.success(result))
+                    }
+                    DispatchQueue.global().async {
+                        commandBuffer.waitUntilCompleted()
+                        Device.returnCommandBuffer(commandBuffer)
+                    }
+                } else {
+                    commandBuffer.asyncCommit(identifier: self.identifier) { callbackResult in
+                        switch callbackResult {
+                        case .success:
+                            releaseIntermediates()
+                            Device.returnCommandBuffer(commandBuffer)
+                            complete(.success(result))
+                        case .failure(let error):
+                            releaseIntermediates()
+                            result.lease?.release()
+                            Device.returnCommandBuffer(commandBuffer)
+                            complete(.failure(HarbethError.toHarbethError(error)))
+                        }
+                    }
+                }
+            } catch {
+                complete(.failure(HarbethError.toHarbethError(error)))
+            }
+        }
+        Device.renderOperationQueue.addOperation(operation)
+    }
+
+    private func processManagedBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
+        let commandBuffer = try makeCommandBuffer(for: nil)
+        let managed: (result: ManagedTextureResult, intermediateLeases: [TextureLease])
+        if shouldUseDoubleBuffer(input: input, plan: plan, minimumFilterCount: 1) {
+            managed = try doubleBufferingManaged(input: input, plan: plan, commandBuffer: commandBuffer)
+        } else {
+            managed = try singleBufferManaged(input: input, plan: plan, commandBuffer: commandBuffer)
+        }
+        commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+        managed.intermediateLeases.forEach { $0.release() }
+        Device.returnCommandBuffer(commandBuffer)
+        return managed.result
+    }
+
+    private func processManagedInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
+        var currentTexture = input
+        var currentLease: TextureLease?
+
+        for node in plan.graph.nodes {
+            guard let filter = node.filter else { continue }
+            let commandBuffer = try makeCommandBuffer(for: nil)
+            let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
+            commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+            Device.returnCommandBuffer(commandBuffer)
+
+            if let previousLease = currentLease, previousLease.texture !== stage.texture {
+                previousLease.release()
+                currentLease = nil
+            }
+
+            if let producedLease = stage.producedLease {
+                if producedLease.texture === stage.texture {
+                    currentLease = producedLease
+                } else {
+                    producedLease.release()
+                }
+            }
+
+            currentTexture = stage.texture
+        }
+
+        return ManagedTextureResult(texture: currentTexture, lease: currentLease)
+    }
+
+    private func singleBufferManaged(input: MTLTexture,
+                                     plan: RenderPlan,
+                                     commandBuffer: MTLCommandBuffer) throws -> (result: ManagedTextureResult, intermediateLeases: [TextureLease]) {
+        var currentTexture = input
+        var producedLeases: [TextureLease] = []
+
+        for node in plan.graph.nodes {
+            guard let filter = node.filter else { continue }
+            let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
+            if let lease = stage.producedLease {
+                producedLeases.append(lease)
+            }
+            currentTexture = stage.texture
+        }
+
+        let finalLease = producedLeases.last(where: { $0.texture === currentTexture })
+        let intermediateLeases = producedLeases.filter { lease in
+            lease.texture !== currentTexture && lease.texture !== input
+        }
+        return (
+            ManagedTextureResult(texture: currentTexture, lease: finalLease),
+            intermediateLeases
+        )
+    }
+
+    private func doubleBufferingManaged(input: MTLTexture,
+                                        plan: RenderPlan,
+                                        commandBuffer: MTLCommandBuffer) throws -> (result: ManagedTextureResult, intermediateLeases: [TextureLease]) {
+        let filters = plan.graph.nodes.compactMap(\.filter)
+        let width = input.width
+        let height = input.height
+        let pixelFormat = input.pixelFormat
+
+        Shared.shared.prewarmTexturePool(resolutions: [(width: width, height: height, pixelFormat: pixelFormat)], count: 2)
+        let leaseA = try TextureLoader.makeTextureLease(width: width, height: height, options: [
+            .texturePixelFormat: pixelFormat
+        ], identifier: identifier)
+        let leaseB = try TextureLoader.makeTextureLease(width: width, height: height, options: [
+            .texturePixelFormat: pixelFormat
+        ], identifier: identifier)
+
+        var currentInput = input
+        var currentOutput = leaseA.texture
+
+        for (index, filter) in filters.enumerated() {
+            if let filter = filter as? C7CombinationBase {
+                filter.identifier = identifier
+                currentInput = try textureIO(input: currentInput, filter: filter, for: commandBuffer)
+            } else {
+                let preparedInput = try filter.combinationBegin(for: commandBuffer, source: currentInput, dest: currentOutput)
+                let outputTexture = try filter.apply(form: preparedInput, to: currentOutput, for: commandBuffer, complete: nil)
+                currentInput = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: currentInput)
+                if index < filters.count - 1 {
+                    currentOutput = currentOutput === leaseA.texture ? leaseB.texture : leaseA.texture
+                }
+            }
+        }
+
+        let finalLease: TextureLease?
+        if currentInput === leaseA.texture {
+            finalLease = leaseA
+        } else if currentInput === leaseB.texture {
+            finalLease = leaseB
+        } else {
+            finalLease = nil
+        }
+
+        let intermediateLeases: [TextureLease] = [leaseA, leaseB].filter { lease in
+            lease !== finalLease
+        }
+
+        return (
+            ManagedTextureResult(texture: currentInput, lease: finalLease),
+            intermediateLeases
+        )
     }
 }

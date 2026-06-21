@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CoreImage
 
 public protocol Outputable {
     
@@ -60,6 +59,5 @@ extension Outputable {
 
 extension C7Image: Outputable { }
 extension CGImage: Outputable { }
-extension CIImage: Outputable { }
 extension CVPixelBuffer: Outputable { }
 extension CMSampleBuffer: Outputable { }

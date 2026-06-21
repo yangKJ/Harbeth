@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import MetalKit
 
 extension URL: HarbethCompatible { }
 
@@ -30,5 +31,9 @@ extension HarbethWrapper where Base == URL {
     
     public var isLocalResource: Bool {
         base.scheme == "file" || base.scheme == "data"
+    }
+
+    public func toTexture(loadingOptions: ImageLoadingOptions = .default, options: [MTKTextureLoader.Option: Any]? = nil) -> MTLTexture? {
+        return try? TextureLoader(with: base, loadingOptions: loadingOptions, options: options).texture
     }
 }

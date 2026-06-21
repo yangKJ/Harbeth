@@ -9,24 +9,24 @@
 
 ## 📖 项目简介
 
-**Harbeth** 是一款基于 GPU 加速的高性能图像处理框架，专为 iOS 和 macOS 平台设计，通过 Metal 着色器技术实现实时图像和视频滤镜效果。
+**Harbeth** 是面向 Apple 平台的高性能图像与帧处理底座，基于 Metal 着色器技术提供可复用的 GPU 处理能力。
 
-更准确地说，Harbeth 是面向 Apple 平台的 GPU 图像与帧处理核心。它可以处理静态图片、Metal 纹理、CVPixelBuffer 和 CMSampleBuffer，因此适合接入图片编辑、相机预览、视频播放和逐帧视频处理等真实产品链路。
+更准确地说，Harbeth 是面向 Apple 平台的 GPU 图像与帧处理核心。它可以处理静态图片、Metal 纹理、CVPixelBuffer 和 CMSampleBuffer，因此适合接入图片处理、实时采集链路、视频播放和逐帧视频处理等真实工程链路。
 
-仓库中的相机和视频示例属于集成 Demo：Harbeth 提供处理核心和参考接线方式，完整的相机会话管理、录制策略、时间线编辑和导出产品逻辑仍由业务 App 自己组合。
+仓库中的相机和视频示例属于集成 Demo：Harbeth 提供处理核心和参考接线方式，完整的数据采集策略、媒体编排、持久化和产品工作流仍由宿主 App 自己组合。
 
 ## 🚀 核心特性
 
-Harbeth 提供了一系列强大的特性，旨在使图像和视频处理变得快速、高效且易于实现：
+Harbeth 提供了一系列强大的特性，用于构建快速、稳定、可复用的图像与帧处理链路：
 
 - **跨平台支持**：在 iOS、macOS、tvOS 和 watchOS 上无缝运行，支持 UIKit/AppKit 和 SwiftUI 框架。
-- **多数据源支持**：应用滤镜到多种图像和视频源，包括 MTLTexture、UIImage、NSImage、CIImage、CGImage、CMSampleBuffer 和 CVPixelBuffer。
+- **多数据源支持**：应用滤镜到多种图像和视频源，包括 MTLTexture、UIImage、NSImage、CGImage、CMSampleBuffer 和 CVPixelBuffer。
 - **丰富的滤镜生态系统**：超过 200+ 内置滤镜，组织成直观的类别，涵盖从基本颜色调整到高级艺术效果的各种功能。
-- **高级集成**：利用 Metal Performance Shaders (MPS) 实现高性能过滤，同时保持与 CoreImage 滤镜的兼容性，以获得最大的灵活性。
-- **Metal 驱动渲染**：所有预览和渲染操作都由 Metal 加速，确保即使使用复杂的滤镜链也能实现流畅的实时性能。
+- **高级集成**：利用 Metal Performance Shaders (MPS) 实现高性能过滤，并与 Harbeth 原生 Metal 滤镜链协同工作。
+- **Metal 驱动渲染**：texture-first 的处理与渲染操作都由 Metal 加速，确保即使使用复杂滤镜链也能保持流畅性能。
 - **自定义滤镜支持**：使用查找表 LUT、Cube 文件或自定义 Metal 着色器轻松创建和集成自定义滤镜。通过继承 `C7CombinationBase` 创建高级组合滤镜，实现复杂的多步骤效果。
-- **实时处理**：实现流畅的实时相机捕获和视频播放，带有实时滤镜应用。
-- **视频处理**：使用集成的 [Kakapos](https://github.com/yangKJ/Kakapos) 库无缝处理本地和网络视频文件。
+- **实时帧处理**：可把滤镜链接入相机预览、视频播放等低延迟帧处理链路。
+- **参考视频接线**：通过集成的 [Kakapos](https://github.com/yangKJ/Kakapos) 示例处理本地和网络视频帧，产品编排仍由宿主 App 负责。
 - **直观的 API**：享受干净、Swift 友好的 API，具有可链接的滤镜操作和运算符重载，以实现简洁、富有表现力的代码。
 - **SwiftUI 集成**：原生支持 SwiftUI 框架。
 - **性能优化**：受益于自动纹理池、内存管理和多编码器支持，以在各种设备上获得最佳性能。
@@ -34,8 +34,8 @@ Harbeth 提供了一系列强大的特性，旨在使图像和视频处理变得
 
 ### 🔌 集成边界
 
-- **Harbeth 提供**：GPU 滤镜、链式处理、texture / image / pixelBuffer / sampleBuffer 处理、LUT 管线、CoreImage / MPS / Metal 集成、SwiftUI 预览，以及相机和视频工作流的 Demo 接入方式。
-- **业务 App 提供**：完整相机会话策略、录制体验、视频时间线编辑、导出编排、媒体库管理和产品业务逻辑。
+- **Harbeth 提供**：GPU 滤镜、链式处理、texture / image / pixelBuffer / sampleBuffer 处理、LUT 管线、MPS / Metal 集成、SwiftUI 渲染承载，以及面向帧链路的参考接线方式。
+- **业务 App 提供**：数据采集策略、媒体编排、持久化、展示承载以及全部产品业务逻辑。
 - **商业承接**：如果你需要私有 LUT、品牌滤镜包、实时相机/视频调优或定制 Metal kernel，可以基于开源示例确认技术基线，再与维护者讨论私有集成范围。
 
 ### 🎨 丰富的滤镜效果
@@ -77,6 +77,7 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7GaussianBlur**（高斯模糊）- 经典平滑模糊效果
 - **C7MeanBlur**（均值模糊）- 简单平均模糊
 - **C7MotionBlur**（运动模糊）- 模拟物体运动轨迹
+- **C7NoiseReduction**（降噪）- 基于边缘保护的局部降噪
 - **C7RedMonochromeBlur**（红色单色模糊）- 仅模糊红色通道
 - **C7TiltShift**（移轴模糊）- 创建选择性聚焦区域，模拟移轴镜头的浅景深效果
 - **C7ZoomBlur**（缩放模糊）- 模拟相机缩放效果
@@ -88,6 +89,7 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7Crosshatch**（交叉线）- 添加交叉线条效果
 - **C7DetailEnhancer**（细节增强）- 增强图像细节而不放大噪声，使图像更清晰
 - **C7EdgeAwareSharpen**（边缘感知锐化）- 仅锐化图像的边缘区域，同时保留平滑区域，避免放大噪声
+- **C7UnsharpMask**（非锐化遮罩）- 通过模糊差值增强边缘清晰度
 - **C7Granularity**（颗粒感）- 添加胶片颗粒效果
 - **C7Sharpen**（锐化）- 增强图像细节
 - **C7SharpenDetail**（锐化细节）- 综合锐化滤镜，结合锐化、清晰度和细节增强，实现专业图像锐化
@@ -251,33 +253,13 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7Vignette**（暗角）- 添加照片暗角效果
 - **C7VignetteBlend**（暗角混合）- 应用带有多种混合模式的暗角效果，允许不同风格的边缘变暗
 
+#### 📐 几何变换
+- **C7LanczosResize**（Lanczos 缩放）- 高质量缩放，适合导出和精细预览
+
 #### 🖼️ Blit 操作
 - **C7CopyRegionBlit**（区域复制）- 从一个纹理复制特定区域到另一个纹理
 - **C7CropBlit**（裁剪）- 将图像裁剪到指定区域
 - **C7GenerateMipmapsBlit**（生成Mipmaps）- 为纹理生成mipmaps，用于高效下采样
-
-#### 🎯 CoreImage 集成
-- **CIBrightness**（CoreImage亮度）- CoreImage亮度调整
-- **CIColorControls**（CoreImage颜色控制）- CoreImage颜色控制（亮度、对比度、饱和度）
-- **CIColorCube**（CoreImage颜色立方体）- CoreImage颜色立方体滤镜
-- **CIColorMonochrome**（CoreImage单色）- CoreImage单色效果
-- **CIContrast**（CoreImage对比度）- CoreImage对比度调整
-- **CIExposure**（CoreImage曝光）- CoreImage曝光调整
-- **CIFade**（CoreImage淡出）- CoreImage淡出效果
-- **CIGaussianBlur**（CoreImage高斯模糊）- CoreImage高斯模糊
-- **CIHighlight**（CoreImage高光）- CoreImage高光调整
-- **CILookupTable**（CoreImage查找表）- CoreImage查找表滤镜
-- **CINoiseReduction**（CoreImage降噪）- CoreImage降噪
-- **CIPhotoEffect**（CoreImage照片效果）- CoreImage照片效果（chrome, fade, instant, mono, noir, process, tonal, transfer）
-- **CIResizedSmooth**（CoreImage平滑调整大小）- CoreImage平滑调整大小
-- **CISaturation**（CoreImage饱和度）- CoreImage饱和度调整
-- **CIShadows**（CoreImage阴影）- CoreImage阴影调整
-- **CISharpen**（CoreImage锐化）- CoreImage锐化
-- **CISketch**（CoreImage素描）- CoreImage素描效果
-- **CITemperature**（CoreImage色温）- CoreImage色温调整
-- **CIUnsharpMask**（CoreImage非锐化遮罩）- CoreImage非锐化遮罩锐化
-- **CIVignette**（CoreImage暗角）- CoreImage暗角效果
-- **CIWhitePoint**（CoreImage白点）- CoreImage白点调整
 
 #### ⚡ Metal Performance Shaders
 - **MPSBoxBlur**（MPS盒式模糊）- Metal Performance Shaders盒式模糊
@@ -480,7 +462,7 @@ struct FilterView: View {
     
     var body: some View {
         let filters: [C7FilterProtocol] = [
-            CIHighlight(highlight: intensity),
+            C7HighlightShadow(highlight: intensity),
             C7WaterRipple(ripple: intensity),
         ]
         
@@ -632,10 +614,9 @@ print(PerformanceMonitor.shared.getStatistics())
 
 | 属性 | 类型 | 默认值 | 描述 |
 | :--- | :--- | :--- | :--- |
-| `element` | `Dest` | - | 要应用滤镜的输入元素。支持 UIImage/NSImage、CGImage、CIImage、MTLTexture、CMSampleBuffer 和 CVPixelBuffer。 |
+| `element` | `Dest` | - | 要应用滤镜的输入元素。支持 UIImage/NSImage、CGImage、MTLTexture、CMSampleBuffer 和 CVPixelBuffer。 |
 | `filters` | `[C7FilterProtocol]` | - | 要应用到输入元素的滤镜数组。 |
 | `bufferPixelFormat` | `MTLPixelFormat` | `.bgra8Unorm` | 输出缓冲区的像素格式。对于相机捕获尤为重要，通常使用 `kCVPixelFormatType_32BGRA` 以避免蓝色 tint 问题。 |
-| `mirrored` | `Bool` | `false` | 是否镜像输出图像。修复从纹理创建 CIImage 时的上下颠倒镜像问题。 |
 | `createDestTexture` | `Bool` | `true` | 是否创建单独的输出纹理。禁用此选项可能会导致纹理覆盖问题。 |
 | `transmitOutputRealTimeCommit` | `Bool` | `false` | 是否对 Metal 纹理输出使用实时提交。启用 `MTLCommandBuffer.asyncCommit` 以获得更快的处理速度。 |
 | `enableDoubleBuffer` | `Bool` | `true` | 是否为金属滤镜启用双缓冲优化。减少内存使用并提高纹理池效率。 |

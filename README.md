@@ -9,11 +9,11 @@
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Kakapos.svg?style=flat&label=Kakapos&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Kakapos)
 ![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
  
-[**Harbeth**](https://github.com/yangKJ/Harbeth) is a high-performance Swift library focused on GPU-accelerated real-time image processing, camera capture, and video processing. Built on Metal technology, it also integrates with CoreImage and Metal Performance Shaders, providing developers with a powerful and easy-to-integrate image processing solution.
+[**Harbeth**](https://github.com/yangKJ/Harbeth) is a high-performance Swift library for Apple-platform image and frame processing. Built on Metal technology, it integrates GPU filters, frame pipelines, and Metal Performance Shaders into a reusable processing core.
 
-Harbeth is best understood as a GPU image and frame processing core for Apple platforms. It works with still images, Metal textures, pixel buffers, and sample buffers, so it can be embedded into real product pipelines such as photo editing, camera preview, video playback, and frame-by-frame video processing.
+Harbeth is best understood as a GPU image and frame processing core for Apple platforms. It works with still images, Metal textures, pixel buffers, and sample buffers, so it can be embedded into real product pipelines such as photo editing, live capture, video playback, and frame-by-frame video processing.
 
-The camera and video examples in this repository are integration demos: Harbeth provides the processing core and reference wiring, while your app remains responsible for camera session management, recording, timeline editing, and export product logic.
+The camera and video examples in this repository are integration demos: Harbeth provides the processing core and reference wiring, while your app remains responsible for source acquisition policy, media orchestration, persistence, and product-specific workflows.
 
 This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUImage).
 
@@ -22,16 +22,16 @@ This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUI
 English | [**简体中文**](README_CN.md)
 
 ## Features
-🟣 Harbeth offers a comprehensive set of features designed to make image and video processing fast, efficient, and easy to implement:
+🟣 Harbeth offers a comprehensive set of features for building fast, reusable image and frame processing pipelines:
 
 - **Cross-Platform Support**: Runs seamlessly on iOS, macOS, tvOS, and watchOS, supporting both UIKit/AppKit and SwiftUI frameworks.
-- **Versatile Input Sources**: Apply filters to a wide range of image and video sources including MTLTexture, UIImage, NSImage, CIImage, CGImage, CMSampleBuffer, and CVPixelBuffer.
+- **Versatile Input Sources**: Apply filters to a wide range of image and video sources including MTLTexture, UIImage, NSImage, CGImage, CMSampleBuffer, and CVPixelBuffer.
 - **Rich Filter Ecosystem**: Over 200+ built-in filters organized into intuitive categories, covering everything from basic color adjustments to advanced artistic effects.
-- **Advanced Integration**: Leverage the power of [Metal Performance Shaders (MPS)](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) for high-performance filtering, while maintaining compatibility with [CoreImage](https://github.com/yangKJ/Harbeth/tree/master/Sources/CoreImage) filters for maximum flexibility.
-- **Metal-Powered Rendering**: All previews and rendering operations are accelerated by Metal, ensuring smooth, real-time performance even with complex filter chains.
+- **Advanced Integration**: Leverage the power of [Metal Performance Shaders (MPS)](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) for high-performance filtering alongside Harbeth's native Metal filter pipeline.
+- **Metal-Powered Rendering**: Texture-first processing and rendering operations are accelerated by Metal, ensuring smooth real-time performance even with complex filter chains.
 - **Custom Filter Support**: Easily create and integrate custom filters using LUTs has `1D Lookup Tables`、`2D Lookup Tables`、`3D Cube Files` And `Multi Zone Tables`, or custom Metal shaders. Create advanced combination filters by subclassing `C7CombinationBase` for complex, multi-step effects.
-- **Real-Time Processing**: Achieve smooth, real-time camera capture and video playback with live filter application.
-- **Video Processing**: Seamlessly process both local and network video files using the integrated [Kakapos](https://github.com/yangKJ/Kakapos) library, integrated editing and export.
+- **Real-Time Frame Processing**: Apply filter chains to live frame sources such as capture pipelines, video playback, and other low-latency flows.
+- **Reference Video Integration**: Process local and network video frames through the integrated [Kakapos](https://github.com/yangKJ/Kakapos) examples as reference wiring, while keeping product orchestration in the host app.
 - **Intuitive API**: Enjoy a clean, Swift-friendly API with chainable filter operations and operator overloading for concise, expressive code.
 - **Performance Optimization**: Benefit from automatic texture pooling, memory management, and multi-encoder support for optimal performance across devices.
 - **Extensive Documentation**: Comprehensive documentation and demo projects to help you get started quickly and make the most of Harbeth's capabilities.
@@ -54,18 +54,17 @@ Harbeth leverages Metal GPU acceleration to deliver exceptional performance, esp
 ### 🎨 Filter System
 Harbeth offers a comprehensive filter classification to meet various image processing needs:
 - **Color Adjustment**: Brightness, contrast, saturation, exposure, white balance, etc.
-- **Blur Effects**: Gaussian blur, bilateral blur, motion blur, zoom blur, etc.
+- **Blur Effects**: Gaussian blur, bilateral blur, noise reduction, motion blur, zoom blur, etc.
 - **Blend Modes**: Normal, multiply, screen, overlay, hard light, etc.
-- **Edge & Detail**: Sharpen, edge detection, sketch, comic strip effect, etc.
+- **Edge & Detail**: Sharpen, unsharp mask, edge detection, sketch, comic strip effect, etc.
 - **Distortion & Warp**: Bulge, pinch, swirl, water ripple, glass sphere, etc.
 - **Stylization**: Oil painting, cartoon, glitch effect, split screen, soul out, etc.
-- **Geometric Transform**: Crop, flip, rotate, resize, etc.
+- **Geometric Transform**: Crop, flip, rotate, resize, Lanczos resize, etc.
 - **Matrix Processing**: 3x3 convolution matrix, 4x4 color matrix, 4x5 color matrix, etc.
 - **Utility**: Chroma key, highlight shadow, levels, luminance threshold, etc.
 - **Generators**: Solid color, color gradient, etc.
 - **Lookup Tables**: LUT-based color adjustments and CUBE file support.
 - **Blit Operations**: Copy region, crop, generate mipmaps.
-- **CoreImage Integration**: Access to CoreImage filters
 - **Metal Performance Shaders**: High-performance MPS filters
 - **Render Vertex Fragment**: The Render module provides low-level rendering capabilities using vertex and fragment shaders.
 
@@ -73,8 +72,8 @@ Harbeth offers a comprehensive filter classification to meet various image proce
 
 ### Integration Scope
 
-- **Harbeth provides**: GPU filters, filter chaining, texture / image / pixelBuffer / sampleBuffer processing, LUT pipelines, CoreImage / MPS / Metal integration, SwiftUI previews, and demo integrations for camera and video workflows.
-- **Your app provides**: full camera session policy, recording UX, video timeline editing, export orchestration, media library management, and product-specific business logic.
+- **Harbeth provides**: GPU filters, filter chaining, texture / image / pixelBuffer / sampleBuffer processing, LUT pipelines, MPS / Metal integration, SwiftUI rendering surfaces, and reference wiring for frame-based integrations.
+- **Your app provides**: source acquisition policy, media orchestration, persistence, presentation surfaces, and all product-specific business logic.
 - **Commercial integration**: If you need private LUTs, branded filter packs, real-time camera/video tuning, or custom Metal kernels, use the open-source examples as the technical baseline and discuss a private integration scope with the maintainer.
 
 ## Requirements
@@ -158,30 +157,30 @@ dest.transmitOutput { [weak self] result in
 ```
 
 **💡 Pro Tips:**
-- Use `transmitOutputRealTimeCommit = true` for camera/video streams
+- Use `transmitOutputRealTimeCommit = true` for low-latency frame streams
 - Enable `enableDoubleBuffer` for better memory efficiency
 - Set `bufferPixelFormat` to match your input format for optimal performance
 
 ### 📸 Camera
 
-Harbeth provides seamless camera integration with real-time filter application, making it easy to create professional-quality camera apps:
+Harbeth includes reference camera wiring that shows how to connect live frame sources into the processing core:
 
 #### ✨ Key Features
 - **Real-time filtering** - Apply filters to camera feed at 60 FPS
 - **High-quality capture** - Supports multiple camera resolutions and orientations
-- **Easy integration** - Simple delegate pattern for receiving filtered frames
+- **Reference wiring** - Simple delegate pattern for receiving filtered frames
 - **Flexible filter chain** - Apply multiple filters simultaneously
 - **Performance optimized** - Metal-powered processing with texture pooling
 
 ### 📺 Video
 
-Harbeth makes video processing simple and efficient, supporting both local and network videos with real-time filter application:
+Harbeth includes reference video wiring for local and network frame sources:
 
 #### ✨ Key Features
 - **Universal video support** - Works with both local files and network streams
 - **Real-time filtering** - Apply filters during video playback
-- **Seamless integration** - Built-in AVPlayer integration
-- **Customizable processing** - Use HarbethIO for advanced video frame processing
+- **Reference integration** - Built-in AVPlayer example wiring
+- **Customizable processing** - Use HarbethIO for advanced frame processing
 - **Performance optimized** - Metal acceleration for smooth playback
 
 ### ⛺️ SwiftUI Support
@@ -201,7 +200,7 @@ struct FilteredImageView: View {
     var body: some View {
         VStack {
             HarbethView(image: inputImage, filters: [
-                CIHighlight(highlight: intensity),
+                C7HighlightShadow(highlight: intensity),
                 C7WaterRipple(ripple: intensity),
             ]) { image in
                 image
@@ -322,10 +321,9 @@ HarbethIO provides several properties to customize the image processing behavior
 
 | Property | Description |
 | :--- | :--- |
-| `element` | The input element to apply filters to. Supports UIImage/NSImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, and CVPixelBuffer. |
+| `element` | The input element to apply filters to. Supports UIImage/NSImage, CGImage, MTLTexture, CMSampleBuffer, and CVPixelBuffer. |
 | `filters` | An array of filters to apply to the input element. |
-| `bufferPixelFormat` | The pixel format for the output buffer. Important for camera capture which typically uses `kCVPixelFormatType_32BGRA` to avoid blue tint issues. |
-| `mirrored` | Whether to mirror the output image. Fixes the upside-down mirroring issue when creating CIImage from texture. |
+| `bufferPixelFormat` | The pixel format for the output buffer. Keep it aligned with incoming frame sources, which often use `kCVPixelFormatType_32BGRA`, to avoid channel mismatch issues. |
 | `createDestTexture` | Whether to create a separate output texture. Disabling this may cause texture overlay issues. |
 | `transmitOutputRealTimeCommit` | Whether to use real-time commit for Metal texture output. Enables `MTLCommandBuffer.realTimeCommit` for faster processing by only waiting until scheduled, not completed. |
 | `enableDoubleBuffer` | Whether to enable double buffer optimization for metal filters. Reduces memory usage and improves texture pool efficiency. |
@@ -354,7 +352,7 @@ dest.transmitOutput { result in
 
 #### Performance Optimization Tips
 
-1. **For real-time processing** (e.g., camera capture):
+1. **For low-latency frame processing**:
    - Set `transmitOutputRealTimeCommit = true`
    - Enable `enableDoubleBuffer` for better memory management
 
@@ -613,29 +611,6 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7CropBlit**: Crops the image to a specified region
 - **C7GenerateMipmapsBlit**: Generates mipmaps for a texture, useful for efficient downsampling
 
-#### 🎯 CoreImage Integration
-- **CIBrightness**: CoreImage brightness adjustment
-- **CIColorControls**: CoreImage color controls (brightness, contrast, saturation)
-- **CIColorCube**: CoreImage color cube filter
-- **CIColorMonochrome**: CoreImage monochrome effect
-- **CIContrast**: CoreImage contrast adjustment
-- **CIExposure**: CoreImage exposure adjustment
-- **CIFade**: CoreImage fade effect
-- **CIGaussianBlur**: CoreImage Gaussian blur
-- **CIHighlight**: CoreImage highlight adjustment
-- **CILookupTable**: CoreImage lookup table filter
-- **CINoiseReduction**: CoreImage noise reduction
-- **CIPhotoEffect**: CoreImage photo effects (chrome, fade, instant, mono, noir, process, tonal, transfer)
-- **CIResizedSmooth**: CoreImage smooth resizing
-- **CISaturation**: CoreImage saturation adjustment
-- **CIShadows**: CoreImage shadow adjustment
-- **CISharpen**: CoreImage sharpening
-- **CISketch**: CoreImage sketch effect
-- **CITemperature**: CoreImage temperature adjustment
-- **CIUnsharpMask**: CoreImage unsharp mask sharpening
-- **CIVignette**: CoreImage vignette effect
-- **CIWhitePoint**: CoreImage white point adjustment
-
 #### ⚡ Metal Performance Shaders
 - **MPSBoxBlur**: Metal Performance Shaders box blur
 - **MPSCanny**: Metal Performance Shaders Canny edge detection
@@ -741,13 +716,13 @@ A: Harbeth is built on Metal, fully leveraging GPU acceleration, which is severa
 A: Use the HarbethView component, which provides a SwiftUI-friendly interface for applying filters to images.
 
 **Q: How to handle different input source types?**
-A: HarbethIO supports various input types including UIImage, CGImage, CIImage, MTLTexture, CMSampleBuffer, and CVPixelBuffer. Simply pass your input to the HarbethIO initializer.
+A: HarbethIO supports various input types including UIImage, CGImage, MTLTexture, CMSampleBuffer, and CVPixelBuffer. Simply pass your input to the HarbethIO initializer.
 
 **Q: How to debug filter issues?** 
 A: Enable performance monitoring to check for errors, verify input/output texture sizes, and ensure your filters are compatible with each other.
 
 **Q: How to handle different pixel formats?**
-A: Set the bufferPixelFormat property in HarbethIO to match your input/output requirements, especially important for camera capture which typically uses kCVPixelFormatType_32BGRA .
+A: Set the bufferPixelFormat property in HarbethIO to match your input/output requirements, especially for frame sources that use `kCVPixelFormatType_32BGRA`.
 
 <p align="center">
   <em>Thank you for using Harbeth! I hope it can help with your projects.</em>

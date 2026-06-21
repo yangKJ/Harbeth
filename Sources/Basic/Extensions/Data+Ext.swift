@@ -23,4 +23,8 @@ extension HarbethWrapper where Base == Data {
     public func toTexture(options: [MTKTextureLoader.Option: Any]? = nil) -> MTLTexture? {
         return try? TextureLoader.init(with: base, options: options).texture
     }
+
+    public func toTexture(loadingOptions: ImageLoadingOptions, options: [MTKTextureLoader.Option: Any]? = nil) -> MTLTexture? {
+        return try? TextureLoader(with: base, loadingOptions: loadingOptions, options: options).texture
+    }
 }

@@ -988,30 +988,6 @@ extension ViewControllerType {
                 filter.radius = $0
                 return filter
             })
-        case .CIHS:
-            var filter = CIHighlight()
-            return (filter, (CIHighlight.range.value, CIHighlight.range.min, CIHighlight.range.max), {
-                filter.highlight = $0
-                return filter
-            })
-        case .CIGaussianCase:
-            var filter = CIGaussianBlur()
-            return (filter, (CIGaussianBlur.range.value, CIGaussianBlur.range.min, CIGaussianBlur.range.max), {
-                filter.radius = $0
-                return filter
-            })
-        case .CIVignetteCase:
-            var filter = CIVignette()
-            return (filter, (0.3, 0, 2), {
-                filter.vignette = $0
-                return filter
-            })
-        case .CIColorMonochromeCase:
-            var filter = CIColorMonochrome()
-            return (filter, (1, 0, 1), {
-                filter.intensity = $0
-                return filter
-            })
         }
     }
 }

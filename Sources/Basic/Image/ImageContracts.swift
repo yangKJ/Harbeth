@@ -1,0 +1,413 @@
+//
+//  ImageContracts.swift
+//  Harbeth
+//
+//  Created by Condy on 2026/6/20.
+//
+import Foundation
+import CoreGraphics
+
+/// 图像 alpha 的语义类型。
+///
+/// 这层语义保持 Harbeth 当前底座足够轻量：
+/// - premultiplied: RGB 已经乘过 alpha
+/// - nonPremultiplied: 直通颜色，RGB 未乘 alpha
+/// - alphaIsOne: 图像可视为不透明
+public enum AlphaType: String, Sendable, Codable, Equatable {
+    case premultiplied
+    case nonPremultiplied
+    case alphaIsOne
+
+    public init(cgImageAlphaInfo: CGImageAlphaInfo) {
+        switch cgImageAlphaInfo {
+        case .premultipliedFirst, .premultipliedLast:
+            self = .premultiplied
+        case .first, .last, .alphaOnly:
+            self = .nonPremultiplied
+        case .none, .noneSkipFirst, .noneSkipLast:
+            self = .alphaIsOne
+        @unknown default:
+            self = .premultiplied
+        }
+    }
+
+    public var cgImageAlphaInfoForRGBA: CGImageAlphaInfo {
+        switch self {
+        case .premultiplied:
+            return .premultipliedLast
+        case .nonPremultiplied:
+            return .last
+        case .alphaIsOne:
+            return .noneSkipLast
+        }
+    }
+}
+
+/// 图像或纹理结果的缓存语义。
+///
+/// 延续 Harbeth 的 transient / persistent 区分，并保持 Harbeth 当前
+/// texture-first 结构：
+/// - persistent: 外部 source、自身可长期复用的结果
+/// - transient: 滤镜中间态、低延迟输出、可重建结果
+public enum ImageCachePolicy: String, Sendable, Codable, Equatable {
+    case transient
+    case persistent
+}
+
+public struct HarbethSourceDescriptor: Sendable, Hashable, Codable {
+    public let kind: String
+    public let sourceTier: ImageSourceTier
+    public let alphaType: AlphaType
+    public let orientation: FrameOrientation
+    public let cachePolicy: ImageCachePolicy
+    public let semantic: ImageSemanticDescriptor
+    public let loadingOptions: ImageLoadingOptions
+
+    public init(kind: String,
+                sourceTier: ImageSourceTier = .original,
+                alphaType: AlphaType,
+                orientation: FrameOrientation,
+                cachePolicy: ImageCachePolicy,
+                semantic: ImageSemanticDescriptor = .sourceOriginal,
+                loadingOptions: ImageLoadingOptions = .default) {
+        self.kind = kind
+        self.sourceTier = sourceTier
+        self.alphaType = alphaType
+        self.orientation = orientation
+        self.cachePolicy = cachePolicy
+        self.semantic = semantic
+        self.loadingOptions = loadingOptions
+    }
+
+    public var fingerprint: String {
+        [
+            "kind=\(kind)",
+            "tier=\(sourceTier.rawValue)",
+            "alpha=\(alphaType.rawValue)",
+            "orientation=\(orientation.rawValue)",
+            "cache=\(cachePolicy.rawValue)",
+            semantic.fingerprint,
+            loadingOptions.fingerprint
+        ].joined(separator: "|")
+    }
+}
+
+/// 图像在处理链路中的职责角色。
+public enum ImageRole: String, Sendable, Codable, Hashable {
+    /// 外部传入、作为真相源的输入。
+    case source
+    /// 处理中可继续派生其他结果的工作图。
+    case derivative
+    /// 作为最终交付或读回目标的输出。
+    case output
+}
+
+/// 图像对上层的使用意图。
+public enum ImagePurpose: String, Sendable, Codable, Hashable {
+    case processingInput
+    case interactive
+    case responsive
+    case stable
+    case inspection
+    case thumbnail
+    case delivery
+    case export
+    case readback
+}
+
+/// 图像内容的清晰度与保真档位。
+public enum ImageFidelity: String, Sendable, Codable, Hashable {
+    case original
+    case lowLatency
+    case displayOptimized
+    case thumbnailOptimized
+    case fullResolution
+}
+
+/// 供 source / frame / recipe 共享的图像语义描述。
+public struct ImageSemanticDescriptor: Sendable, Hashable, Codable {
+    public let role: ImageRole
+    public let purpose: ImagePurpose
+    public let fidelity: ImageFidelity
+
+    public init(role: ImageRole, purpose: ImagePurpose, fidelity: ImageFidelity) {
+        self.role = role
+        self.purpose = purpose
+        self.fidelity = fidelity
+    }
+
+    public var fingerprint: String {
+        [
+            "role=\(role.rawValue)",
+            "purpose=\(purpose.rawValue)",
+            "fidelity=\(fidelity.rawValue)"
+        ].joined(separator: "|")
+    }
+
+    public static let sourceOriginal = ImageSemanticDescriptor(
+        role: .source,
+        purpose: .processingInput,
+        fidelity: .original
+    )
+}
+
+public extension RenderProfile {
+    var defaultImageSemantic: ImageSemanticDescriptor {
+        switch self {
+        case .interactiveLatency:
+            return ImageSemanticDescriptor(
+                role: .derivative,
+                purpose: .interactive,
+                fidelity: .lowLatency
+            )
+        case .responseLatency:
+            return ImageSemanticDescriptor(
+                role: .derivative,
+                purpose: .responsive,
+                fidelity: .displayOptimized
+            )
+        case .stablePreview:
+            return ImageSemanticDescriptor(
+                role: .derivative,
+                purpose: .stable,
+                fidelity: .displayOptimized
+            )
+        case .inspectionQuality:
+            return ImageSemanticDescriptor(
+                role: .derivative,
+                purpose: .inspection,
+                fidelity: .fullResolution
+            )
+        case .exportQuality:
+            return ImageSemanticDescriptor(
+                role: .output,
+                purpose: .export,
+                fidelity: .fullResolution
+            )
+        case .readbackQuality:
+            return ImageSemanticDescriptor(
+                role: .output,
+                purpose: .readback,
+                fidelity: .fullResolution
+            )
+        }
+    }
+}
+
+/// 图像 source 在进入 Harbeth 前的加载尺寸策略。
+public enum ImageSourceSizePolicy: Sendable, Hashable, Codable {
+    /// 以原始像素尺寸加载。
+    case original
+    /// 约束最长边到指定像素，保持纵横比。
+    case maxPixelSize(Int)
+    /// 约束到指定逻辑尺寸的包围盒，保持纵横比。
+    case fit(width: Int, height: Int)
+
+    public var fingerprint: String {
+        switch self {
+        case .original:
+            return "size=original"
+        case .maxPixelSize(let value):
+            return "size=maxPixel:\(max(value, 1))"
+        case .fit(let width, let height):
+            return "size=fit:\(max(width, 1))x\(max(height, 1))"
+        }
+    }
+
+    public func resolvedMaxPixelSize() -> Int? {
+        switch self {
+        case .original:
+            return nil
+        case .maxPixelSize(let value):
+            return max(value, 1)
+        case .fit(let width, let height):
+            return max(max(width, 1), max(height, 1))
+        }
+    }
+
+    public static func fit(_ size: CGSize) -> ImageSourceSizePolicy {
+        .fit(width: Int(max(size.width.rounded(.up), 1)),
+             height: Int(max(size.height.rounded(.up), 1)))
+    }
+}
+
+/// 图像 source 解码/降采样时的稳定选项。
+public struct ImageLoadingOptions: Sendable, Hashable, Codable {
+    public let sizePolicy: ImageSourceSizePolicy
+    public let flipsVertically: Bool
+
+    public init(sizePolicy: ImageSourceSizePolicy = .original,
+                flipsVertically: Bool = false) {
+        self.sizePolicy = sizePolicy
+        self.flipsVertically = flipsVertically
+    }
+
+    public var fingerprint: String {
+        [
+            sizePolicy.fingerprint,
+            "flip=\(flipsVertically ? 1 : 0)"
+        ].joined(separator: "|")
+    }
+
+    public static let `default` = ImageLoadingOptions()
+}
+
+/// 可携带稳定加载策略的外部图像资源。
+public struct HarbethImageAsset: @unchecked Sendable {
+    public enum Storage {
+        case data(Data)
+        case url(URL)
+        case cgImage(CGImage)
+
+        var kindName: String {
+            switch self {
+            case .data:
+                return "dataAsset"
+            case .url:
+                return "urlAsset"
+            case .cgImage:
+                return "cgImageAsset"
+            }
+        }
+    }
+
+    public let storage: Storage
+    public let loadingOptions: ImageLoadingOptions
+    public let sourceTier: ImageSourceTier
+
+    public init(storage: Storage, loadingOptions: ImageLoadingOptions = .default, sourceTier: ImageSourceTier = .original) {
+        self.storage = storage
+        self.loadingOptions = loadingOptions
+        self.sourceTier = sourceTier
+    }
+}
+
+/// 输出资源的目标尺寸策略。
+public enum OutputSizePolicy: Sendable, Hashable, Codable {
+    case source
+    case fit(C7Size)
+    case exact(C7Size)
+    case maxPixelSize(Int)
+
+    public var fingerprint: String {
+        switch self {
+        case .source:
+            return "output=source"
+        case .fit(let size):
+            return "output=fit:\(size.width)x\(size.height)"
+        case .exact(let size):
+            return "output=exact:\(size.width)x\(size.height)"
+        case .maxPixelSize(let value):
+            return "output=maxPixel:\(max(value, 1))"
+        }
+    }
+
+    public func resolve(baseSize: C7Size) -> C7Size {
+        switch self {
+        case .source:
+            return baseSize
+        case .exact(let size):
+            return C7Size(width: max(size.width, 1), height: max(size.height, 1))
+        case .fit(let size):
+            return CGSize(width: baseSize.width, height: baseSize.height)
+                .c7.constrained(CGSize(width: max(size.width, 1), height: max(size.height, 1)))
+                .c7.toC7Size()
+        case .maxPixelSize(let value):
+            let maxPixel = max(value, 1)
+            return CGSize(width: baseSize.width, height: baseSize.height)
+                .c7.constrained(CGSize(width: maxPixel, height: maxPixel))
+                .c7.toC7Size()
+        }
+    }
+}
+
+/// 一份稳定的派生图规格。它描述“这次渲染想产出哪一类资源”，
+/// 供 Harbeth 与上层共享，而不是让业务层重复拼装尺寸/语义。
+public struct ImageDerivativeSpec: Sendable, Hashable, Codable {
+    public let name: String
+    public let renderIntent: RenderIntent
+    public let sourceTier: ImageSourceTier
+    public let semantic: ImageSemanticDescriptor
+    public let outputSizePolicy: OutputSizePolicy
+
+    public init(name: String,
+                renderIntent: RenderIntent,
+                sourceTier: ImageSourceTier,
+                semantic: ImageSemanticDescriptor,
+                outputSizePolicy: OutputSizePolicy) {
+        self.name = name
+        self.renderIntent = renderIntent
+        self.sourceTier = sourceTier
+        self.semantic = semantic
+        self.outputSizePolicy = outputSizePolicy
+    }
+
+    public var fingerprint: String {
+        [
+            "name=\(name)",
+            "intent=\(renderIntent.rawValue)",
+            "tier=\(sourceTier.rawValue)",
+            semantic.fingerprint,
+            outputSizePolicy.fingerprint
+        ].joined(separator: "|")
+    }
+
+    public func resolvedOutputSize(for baseSize: C7Size) -> C7Size {
+        outputSizePolicy.resolve(baseSize: baseSize)
+    }
+}
+
+public extension RenderProfile {
+    var defaultDerivativeSpec: ImageDerivativeSpec {
+        switch self {
+        case .interactiveLatency:
+            return ImageDerivativeSpec(
+                name: "interactiveLatency",
+                renderIntent: .interactive,
+                sourceTier: .stableReusable,
+                semantic: defaultImageSemantic,
+                outputSizePolicy: .source
+            )
+        case .responseLatency:
+            return ImageDerivativeSpec(
+                name: "responseLatency",
+                renderIntent: .responsive,
+                sourceTier: .stableReusable,
+                semantic: defaultImageSemantic,
+                outputSizePolicy: .source
+            )
+        case .stablePreview:
+            return ImageDerivativeSpec(
+                name: "stablePreview",
+                renderIntent: .stable,
+                sourceTier: .stableReusable,
+                semantic: defaultImageSemantic,
+                outputSizePolicy: .source
+            )
+        case .inspectionQuality:
+            return ImageDerivativeSpec(
+                name: "inspectionQuality",
+                renderIntent: .inspection,
+                sourceTier: .fullResolutionReusable,
+                semantic: defaultImageSemantic,
+                outputSizePolicy: .source
+            )
+        case .exportQuality:
+            return ImageDerivativeSpec(
+                name: "exportQuality",
+                renderIntent: .export,
+                sourceTier: .fullResolutionReusable,
+                semantic: defaultImageSemantic,
+                outputSizePolicy: .source
+            )
+        case .readbackQuality:
+            return ImageDerivativeSpec(
+                name: "readbackQuality",
+                renderIntent: .readback,
+                sourceTier: .fullResolutionReusable,
+                semantic: defaultImageSemantic,
+                outputSizePolicy: .source
+            )
+        }
+    }
+}

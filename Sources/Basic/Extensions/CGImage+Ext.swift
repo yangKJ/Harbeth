@@ -13,6 +13,10 @@ import CoreVideo
 extension CGImage: HarbethCompatible { }
 
 extension HarbethWrapper where Base: CGImage {
+
+    public var alphaType: AlphaType {
+        AlphaType(cgImageAlphaInfo: base.alphaInfo)
+    }
     
     /// Check if the image has an alpha channel
     public var hasAlphaChannel: Bool {

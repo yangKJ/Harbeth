@@ -33,7 +33,6 @@ public enum HarbethError: Swift.Error {
     case source2Texture
     case texture2Image
     case texture2CGImage
-    case texture2CIImage
     case textureCropFailed
     case textureCreateFailed
     case textureCopyPixelBufferFailed
@@ -47,10 +46,7 @@ public enum HarbethError: Swift.Error {
     case pipelineStateCreationFailed(String)
     
     case cubeResource
-    case createCIFilter(String)
-    case outputCIImage(String)
     case contextCreationFailed
-    case ciImageCreationFailed
     
     case CVPixelBufferToCMSampleBuffer
     case CMSampleBufferToCVPixelBuffer
@@ -124,7 +120,6 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .source2Texture: return "Transform to texture failed."
         case .texture2Image: return "MTLTexture transform to image failed."
         case .texture2CGImage: return "MTLTexture transform to CGImage failed."
-        case .texture2CIImage: return "MTLTexture transform to CIImage failed."
         case .textureCropFailed: return "Texture crop failed."
         case .textureCreateFailed: return "Texture create failed."
         case .textureCopyPixelBufferFailed: return "Failed to copy pixel buffer."
@@ -136,10 +131,7 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .renderPipelineState(let vertex, let fragment): return "Make rendering pipeline state failed with \(vertex) and \(fragment)."
         case .pipelineStateCreationFailed(let description): return "Pipeline state creation failed: \(description)"
         case .cubeResource: return "Read the contents of the cube file failed."
-        case .createCIFilter(let name): return "Create the filter \(name) is failed."
-        case .outputCIImage(let name): return "CoreImage \(name) filter bring into being output image failed."
-        case .contextCreationFailed: return "CIContext creation failed."
-        case .ciImageCreationFailed: return "Core Image creation failed."
+        case .contextCreationFailed: return "Graphics context creation failed."
         case .CVPixelBufferToCMSampleBuffer: return "CVPixelBuffer transform to CMSampleBuffer failed."
         case .CMSampleBufferToCVPixelBuffer: return "CMSampleBuffer transform to CVPixelBuffer failed."
         case .pixelBufferLockFailed: return "Failed to lock pixel buffer."
@@ -290,22 +282,18 @@ extension HarbethError {
         case .source2Texture: return 1200
         case .texture2Image: return 1201
         case .texture2CGImage: return 1202
-        case .texture2CIImage: return 1203
-        case .textureCropFailed: return 1204
-        case .textureCreateFailed: return 1205
-        case .textureCopyPixelBufferFailed: return 1206
-        case .textureFormatNotSupported: return 1207
-        case .textureSizeMismatch: return 1208
-        case .textureNotMipmapped: return 1209
+        case .textureCropFailed: return 1203
+        case .textureCreateFailed: return 1204
+        case .textureCopyPixelBufferFailed: return 1205
+        case .textureFormatNotSupported: return 1206
+        case .textureSizeMismatch: return 1207
+        case .textureNotMipmapped: return 1208
         case .readFunction: return 1300
         case .computePipelineState: return 1301
         case .renderPipelineState: return 1302
         case .pipelineStateCreationFailed: return 1303
         case .cubeResource: return 1400
-        case .createCIFilter: return 1401
-        case .outputCIImage: return 1402
-        case .contextCreationFailed: return 1403
-        case .ciImageCreationFailed: return 1404
+        case .contextCreationFailed: return 1401
         case .CVPixelBufferToCMSampleBuffer: return 1500
         case .CMSampleBufferToCVPixelBuffer: return 1501
         case .pixelBufferLockFailed: return 1502

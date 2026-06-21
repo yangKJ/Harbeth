@@ -64,7 +64,7 @@ extension MTLCommandBuffer {
     }
     
     /// Real-time submission: commit and wait until scheduled, not completed.
-    /// Used for real-time scenarios like camera preview and video playback.
+    /// Used for low-latency frame scenarios like live capture and video playback.
     func realTimeCommit(identifier: String, complete: @escaping () -> Void) {
         // GPU time recording for performance monitoring
         if Shared.shared.enablePerformanceMonitor {

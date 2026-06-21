@@ -69,12 +69,6 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         return cgImage
     }
     
-    /// Creates CIImage from pixel buffer
-    /// - Returns: CIImage or nil
-    public func toCIImage() -> CIImage? {
-        CIImage(cvPixelBuffer: base)
-    }
-    
     /// Copies texture data to pixel buffer
     /// - Parameter texture: Source Metal texture
     @discardableResult

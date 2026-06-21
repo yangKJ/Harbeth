@@ -21,7 +21,7 @@ import Harbeth
     /// Capture other relevant information. The child thread returns the result.
     /// - Parameters:
     ///   - collector: Collector
-    ///   - pixelBuffer: A CVPixelBuffer object containing the video frame data and additional information about the frame, such as its format and presentation time.
+    ///   - pixelBuffer: A CVPixelBuffer object containing the video frame data and additional information about the frame, such as its format and delivery time.
     @objc optional func captureOutput(_ collector: C7Collector, pixelBuffer: CVPixelBuffer)
     
     /// Capture CVPixelBuffer converted to MTLTexture.

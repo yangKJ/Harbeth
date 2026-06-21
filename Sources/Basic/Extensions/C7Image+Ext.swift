@@ -7,7 +7,6 @@
 
 import Foundation
 import MetalKit
-import CoreImage
 import CoreVideo
 #if !os(macOS)
 import MobileCoreServices
@@ -34,20 +33,6 @@ extension HarbethWrapper where Base: C7Image {
         return base.cgImage(forProposedRect: nil, context: nil, hints: nil)
         #else
         return base.cgImage
-        #endif
-    }
-    
-    public func toCIImage() -> CIImage? {
-        #if os(macOS)
-        if let cgImage = base.cgImage {
-            return CIImage(cgImage: cgImage)
-        }
-        return nil
-        #else
-        if let ciImage = base.ciImage {
-            return ciImage
-        }
-        return CIImage(image: base)
         #endif
     }
     

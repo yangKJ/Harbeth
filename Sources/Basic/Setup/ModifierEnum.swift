@@ -12,7 +12,6 @@
 
 import Foundation
 import MetalKit
-import CoreImage
 import MetalPerformanceShaders
 
 @available(*, deprecated, message: "Typo. Use `ModifierEnum` instead", renamed: "ModifierEnum")
@@ -28,17 +27,13 @@ public enum ModifierEnum: Equatable, Hashable {
     /// 基于`MTLBlitCommandEncoder`位图复制编码器，拷贝纹理同时也能生成贴图
     /// Based on bitmap copy encoder, copy buffer textures and generate mipmap.
     case blit
-    /// 基于`CoreImage`，直接生成图片
-    /// Based on CoreImage, directly generate images
-    /// - Parameter CIName: CoreImage CIFilter Name.
-    case coreimage(CIName: String)
     /// 基于`MetalPerformanceShaders`着色器
     /// Based on the MetalPerformanceShaders shader.
     case mps(performance: MPSKernel)
     /// 高级 Metal 自定义编码入口，由具体滤镜自行实现能力检查和 fallback。
     /// Advanced Metal custom encoder. Concrete filters own availability checks and fallback.
     case advancedMetal(capability: C7MetalCapability, function: String)
-    
+
     public static func ==(lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
         switch (lhs, rhs) {
         case (.compute(let lhsKernel), .compute(let rhsKernel)):
@@ -47,8 +42,6 @@ public enum ModifierEnum: Equatable, Hashable {
             return lhsVertex == rhsVertex && lhsFragment == rhsFragment
         case (.blit, .blit):
             return true
-        case (.coreimage(let lhsName), .coreimage(let rhsName)):
-            return lhsName == rhsName
         case (.mps(let lhsKernel), .mps(let rhsKernel)):
             return lhsKernel === rhsKernel
         case (.advancedMetal(let lhsCapability, let lhsFunction), .advancedMetal(let rhsCapability, let rhsFunction)):
@@ -57,24 +50,7 @@ public enum ModifierEnum: Equatable, Hashable {
             return false
         }
     }
-    
-    var isCoreImage: Bool {
-        switch self {
-        case .compute:
-            return false
-        case .render:
-            return false
-        case .blit:
-            return false
-        case .coreimage:
-            return true
-        case .mps:
-            return false
-        case .advancedMetal:
-            return false
-        }
-    }
-    
+
     var name: String {
         switch self {
         case .compute(let kernel):
@@ -83,12 +59,25 @@ public enum ModifierEnum: Equatable, Hashable {
             return vertex + "_" + fragment
         case .blit:
             return UUID().uuidString
-        case .coreimage(let CIName):
-            return CIName
         case .mps(let performance):
             return performance.label ?? UUID().uuidString
         case .advancedMetal(_, let function):
             return function
+        }
+    }
+
+    var recipeName: String {
+        switch self {
+        case .compute(let kernel):
+            return "compute:\(kernel)"
+        case .render(let vertex, let fragment):
+            return "render:\(vertex)|\(fragment)"
+        case .blit:
+            return "blit"
+        case .mps:
+            return "mps"
+        case .advancedMetal:
+            return "advancedMetal"
         }
     }
 }

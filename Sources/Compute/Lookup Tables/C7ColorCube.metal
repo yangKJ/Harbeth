@@ -13,7 +13,7 @@ uint2 cubeCalculateTextureCoord(int3 coord, int dimension, int textureWidth) {
     // Ensure coordinates are within bounds
     coord = clamp(coord, int3(0), int3(dimension - 1));
     
-    // Try different LUT layout to match CoreImage
+    // Match the repository's conventional 2D LUT packing.
     // Layout: each row is a B slice, each column is R + G * dimension
     int x = coord.x + coord.y * dimension;
     int y = coord.z;

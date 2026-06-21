@@ -26,8 +26,6 @@ public final class Device: Cacheable {
     lazy var colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
     /// We are likely to encounter images with wider colour than sRGB
     lazy var workingColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
-    /// CIContexts
-    lazy var contexts = [CGColorSpace: CIContext]()
     
     /// Cache pipe state
     private var pipelines = [C7KernelFunction: MTLComputePipelineState]()
@@ -77,9 +75,32 @@ public final class Device: Cacheable {
 }
 
 extension Device {
+    private static var existingSharedDevice: Device? {
+        guard Shared.shared.hasDevice else { return nil }
+        return Shared.shared.device
+    }
     
     public static func metalCapabilityReport(_ capability: C7MetalCapability, on device: MTLDevice? = nil) -> C7MetalCapabilityReport {
-        guard let device = device ?? Shared.shared.device?.device else {
+        if capability == .customAdvancedEncoder {
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .requiresConcreteImplementationCheck,
+                minimumPlatform: "Implementation-defined",
+                reason: "Higher packages must provide their own availability and device checks."
+            )
+        }
+
+        let resolvedDevice: MTLDevice? = {
+            if let device {
+                return device
+            }
+            if let existingDevice = existingSharedDevice {
+                return existingDevice.device
+            }
+            return MTLCreateSystemDefaultDevice()
+        }()
+
+        guard let device = resolvedDevice else {
             return C7MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
@@ -329,7 +350,7 @@ extension Device {
     
     public static func readMTLFunction(_ name: String) throws -> MTLFunction {
         /// Read external libraries
-        if let device = Shared.shared.device {
+        if let device = existingSharedDevice {
             for library in device.externalLibraries() {
                 if let function = library.makeFunction(name: name) {
                     return function
@@ -337,22 +358,27 @@ extension Device {
             }
         }
         // And then read the project
-        if let libray = Shared.shared.device?.defaultLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = existingSharedDevice?.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         // Last read from ``Harbeth Framework``
-        if let libray = Shared.shared.device?.harbethLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = existingSharedDevice?.harbethLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         #if DEBUG
-        var errorMessage = "Could not find Metal function '\(name)' in any library.\nAvailable libraries:\n"
-        errorMessage += "- Default Library: \(Shared.shared.device?.defaultLibrary != nil ? "Available" : "Not available")\n"
-        errorMessage += "- Harbeth Library: \(Shared.shared.device?.harbethLibrary != nil ? "Available" : "Not available")\n"
-        errorMessage += "- External Library Registry: \(Shared.shared.device?.externalLibraries().count ?? 0) libraries registered"
-        fatalError(errorMessage)
+        fatalError(metalFunctionLookupFailureDescription(name))
         #else
         throw HarbethError.readFunction(name)
         #endif
+    }
+
+    public static func metalFunctionLookupFailureDescription(_ name: String) -> String {
+        let sharedDevice = existingSharedDevice
+        var errorMessage = "Could not find Metal function '\(name)' in any library.\nCandidate sources:\n"
+        errorMessage += "- Default Library: \(sharedDevice?.defaultLibrary != nil ? "Available" : "Not available")\n"
+        errorMessage += "- Harbeth Library: \(sharedDevice?.harbethLibrary != nil ? "Available" : "Not available")\n"
+        errorMessage += "- External Registry:\n\(Device.externalLibraryRegistryDebugDescription())"
+        return errorMessage
     }
 }
 
@@ -419,54 +445,6 @@ extension Device {
         Shared.shared.device!._commandBufferPool.put(buffer)
     }
     
-    public static func context() -> CIContext {
-        Device.context(colorSpace: Device.colorSpace())
-    }
-    
-    public static func context(cgImage: CGImage) -> CIContext {
-        let colorSpace = cgImage.colorSpace ?? Device.colorSpace()
-        return Device.context(colorSpace: colorSpace)
-    }
-    
-    public static func context(colorSpace: CGColorSpace) -> CIContext {
-        if let context = Shared.shared.device?.contexts[colorSpace] {
-            return context
-        }
-        var options: [CIContextOption : Any] = [
-            // Specify the default destination color space for rendering.
-            CIContextOption.outputColorSpace: colorSpace,
-            // Caching does provide a minor speed boost without ballooning memory use, so let's have it on
-            CIContextOption.cacheIntermediates: true,
-            // Low GPU priority would make sense for a background operation that isn't performance-critical,
-            // but we are interested in disk-to-display performance
-            CIContextOption.priorityRequestLow: false,
-            // Definitely no CPU rendering, please
-            CIContextOption.useSoftwareRenderer: false,
-            // This is the Apple recommendation, see cgImage(using:) above
-            CIContextOption.workingFormat: CIFormat.RGBAh,
-            /// Render produces alpha-premultiplied pixels.
-            CIContextOption.outputPremultiplied: true,
-        ]
-        if #available(iOS 13.0, macOS 10.12, *) {
-            // This option is undocumented, possibly only effective on iOS?
-            // Sounds more like allowLowPerformance, though, so turn it off
-            options[CIContextOption.allowLowPower] = false
-        }
-        if let workingColorSpace = Shared.shared.device?.workingColorSpace {
-            // We are likely to encounter images with wider colour than sRGB
-            options[CIContextOption.workingColorSpace] = workingColorSpace
-        }
-        let context: CIContext
-        if #available(iOS 13.0, *, macOS 10.15, *) {
-            context = CIContext(mtlCommandQueue: Device.commandQueue(), options: options)
-        } else if #available(iOS 9.0, *) {
-            context = CIContext(mtlDevice: Device.device(), options: options)
-        } else {
-            context = CIContext(options: options)
-        }
-        Shared.shared.device?.contexts[colorSpace] = context
-        return context
-    }
     
     public static func makeTexture2DMaxSize(width: Int, height: Int) -> (width: Int, height: Int) {
         func getMaxTextureDimensions() -> (width: Int, height: Int) {
