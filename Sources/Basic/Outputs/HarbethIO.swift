@@ -317,6 +317,13 @@ extension HarbethIO {
         return plan
     }
 
+    func resolvedOutputColorSpace(inputSize: C7Size) -> ImageColorSpaceContract {
+        filters.reduce(.preserveInput) { current, filter in
+            let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
+            return declared.preservesInput ? current : declared
+        }
+    }
+
     private func prepareTextureLifecycle(for plan: RenderPlan, inputPixelFormat: MTLPixelFormat) {
         let reservations = plan.diagnostics.optimizationPlan.prewarmReservations
         guard reservations.isEmpty == false else { return }

@@ -101,15 +101,18 @@ public struct MTLTextureCompatible_ {
         C7Size(width: target.width, height: target.height)
     }
     
-    public func toImage(alphaType: AlphaType = .premultiplied) -> C7Image? {
-        guard let cgImage = toCGImage(alphaType: alphaType) else {
+    public func toImage(colorSpace: CGColorSpace? = nil,
+                        alphaType: AlphaType = .premultiplied) -> C7Image? {
+        guard let cgImage = toCGImage(colorSpace: colorSpace, alphaType: alphaType) else {
             return nil
         }
         return cgImage.c7.toC7Image()
     }
     
-    public func fixImageOrientation(refImage: C7Image, alphaType: AlphaType = .premultiplied) throws -> C7Image {
-        guard let cgImage = toCGImage(alphaType: alphaType) else {
+    public func fixImageOrientation(refImage: C7Image,
+                                    colorSpace: CGColorSpace? = nil,
+                                    alphaType: AlphaType = .premultiplied) throws -> C7Image {
+        guard let cgImage = toCGImage(colorSpace: colorSpace, alphaType: alphaType) else {
             throw HarbethError.texture2Image
         }
         return cgImage.c7.drawing(refImage: refImage).c7.flattened()

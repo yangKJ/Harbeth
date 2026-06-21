@@ -74,8 +74,37 @@ final class ImageLoadingOptionsTests: XCTestCase {
         XCTAssertEqual(frame.renderIntent, .stable)
     }
 
-    private func makeFixtureCGImage(width: Int, height: Int) throws -> CGImage {
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
+    func testHarbethIOCGImageOutputAppliesExplicitRenderOutputColorSpace() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let image = try makeFixtureCGImage(width: 4, height: 4)
+        let output: CGImage = try HarbethIO(
+            element: image,
+            filters: [CGImageDisplayP3RenderFilter()]
+        ).output()
+
+        XCTAssertEqual(output.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
+    }
+
+    func testHarbethIOCGImageOutputPreservesSourceColorSpaceWithoutExplicitContract() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let displayP3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let image = try makeFixtureCGImage(width: 4, height: 4, colorSpace: displayP3)
+
+        let output: CGImage = try HarbethIO(
+            element: image,
+            filters: [C7Brightness(brightness: 0.0)]
+        ).output()
+
+        XCTAssertEqual(output.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
+    }
+
+    private func makeFixtureCGImage(width: Int,
+                                    height: Int,
+                                    colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()) throws -> CGImage {
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
         for y in 0..<height {
             for x in 0..<width {
@@ -121,5 +150,15 @@ final class ImageLoadingOptionsTests: XCTestCase {
             .appendingPathExtension("png")
         try data.write(to: url)
         return url
+    }
+}
+
+private struct CGImageDisplayP3RenderFilter: RenderProtocol {
+    var modifier: ModifierEnum {
+        .render(vertex: "basicVertex", fragment: "basicFragment")
+    }
+
+    var renderOutputContract: RenderOutputContract {
+        RenderOutputContract(colorSpace: .displayP3)
     }
 }

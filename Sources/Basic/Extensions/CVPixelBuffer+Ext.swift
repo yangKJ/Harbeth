@@ -234,6 +234,22 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
     }
 
+    private static func cvColorPrimariesValue(for gamut: ImageColorGamut) -> CFString? {
+        switch gamut {
+        case .sRGB, .extendedLinearSRGB:
+            return kCVImageBufferColorPrimaries_ITU_R_709_2
+        case .displayP3:
+            return kCVImageBufferColorPrimaries_P3_D65
+        case .ituR2020:
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+                return kCVImageBufferColorPrimaries_ITU_R_2020
+            }
+            return nil
+        case .preserveInput, .custom:
+            return nil
+        }
+    }
+
     private static func transferFunctionAttachment(for pixelBuffer: CVPixelBuffer) -> ColorTransferAttachment? {
         guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, nil)?.takeUnretainedValue() else {
             return nil
@@ -261,6 +277,30 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             }
         }
         return nil
+    }
+
+    private static func cvTransferFunctionValue(for transferFunction: ImageTransferFunction) -> CFString? {
+        switch transferFunction {
+        case .sRGB:
+            return kCVImageBufferTransferFunction_sRGB
+        case .linear:
+            if #available(iOS 13.0, macOS 10.15, tvOS 13.0, *) {
+                return kCVImageBufferTransferFunction_Linear
+            }
+            return nil
+        case .perceptualQuantizer:
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+                return kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ
+            }
+            return nil
+        case .hybridLogGamma:
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+                return kCVImageBufferTransferFunction_ITU_R_2100_HLG
+            }
+            return nil
+        case .preserveInput, .custom:
+            return nil
+        }
     }
     
     /// Creates CGImage from pixel buffer
@@ -324,6 +364,18 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return
         }
         CVBufferSetAttachment(base, kCVImageBufferColorPrimariesKey, value, .shouldPropagate)
+    }
+
+    public func setColorSpaceAttachments(_ colorSpace: ImageColorSpaceContract) {
+        guard colorSpace.preservesInput == false else {
+            return
+        }
+        if let primaries = Self.cvColorPrimariesValue(for: colorSpace.gamut) {
+            CVBufferSetAttachment(base, kCVImageBufferColorPrimariesKey, primaries, .shouldPropagate)
+        }
+        if let transfer = Self.cvTransferFunctionValue(for: colorSpace.transferFunction) {
+            CVBufferSetAttachment(base, kCVImageBufferTransferFunctionKey, transfer, .shouldPropagate)
+        }
     }
 
     public func textureCopyCompatibilityError(for texture: MTLTexture) -> HarbethError? {

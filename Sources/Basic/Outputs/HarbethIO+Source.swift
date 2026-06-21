@@ -14,6 +14,9 @@ import MetalKit
 extension HarbethIO {
     func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
         let inTexture = try TextureLoader(with: pixelBuffer).texture
+        let outputColorSpace = resolvedOutputColorSpace(
+            inputSize: C7Size(width: inTexture.width, height: inTexture.height)
+        )
         let texture = try filtering(texture: inTexture)
         if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
             throw compatibilityError
@@ -21,6 +24,7 @@ extension HarbethIO {
         guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
             throw HarbethError.pixelBufferCopyFailed
         }
+        pixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
         return pixelBuffer
     }
 
@@ -37,8 +41,13 @@ extension HarbethIO {
 
     func filtering(cgImage: CGImage) throws -> CGImage {
         let inTexture = try TextureLoader(with: cgImage).texture
+        let outputColorSpace = resolvedOutputColorSpace(
+            inputSize: C7Size(width: inTexture.width, height: inTexture.height)
+        )
         let texture = try filtering(texture: inTexture)
-        guard let cgImg = texture.c7.toCGImage() else {
+        guard let cgImg = texture.c7.toCGImage(
+            colorSpace: outputColorSpace.cgColorSpace ?? cgImage.colorSpace
+        ) else {
             throw HarbethError.texture2Image
         }
         return cgImg
@@ -46,13 +55,22 @@ extension HarbethIO {
 
     func filtering(image: C7Image) throws -> C7Image {
         let inTexture = try TextureLoader(with: image).texture
+        let outputColorSpace = resolvedOutputColorSpace(
+            inputSize: C7Size(width: inTexture.width, height: inTexture.height)
+        )
         let texture = try filtering(texture: inTexture)
-        return try texture.c7.fixImageOrientation(refImage: image)
+        return try texture.c7.fixImageOrientation(
+            refImage: image,
+            colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
+        )
     }
 
     func filtering(pixelBuffer: CVPixelBuffer, complete: @escaping (Result<CVPixelBuffer, HarbethError>) -> Void) {
         do {
             let texture = try TextureLoader(with: pixelBuffer).texture
+            let outputColorSpace = resolvedOutputColorSpace(
+                inputSize: C7Size(width: texture.width, height: texture.height)
+            )
             filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let outputTexture):
@@ -64,6 +82,7 @@ extension HarbethIO {
                         complete(.failure(.pixelBufferCopyFailed))
                         return
                     }
+                    pixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
                     complete(.success(pixelBuffer))
                 case .failure(let error):
                     complete(.failure(error))
@@ -96,10 +115,15 @@ extension HarbethIO {
     func filtering(cgImage: CGImage, complete: @escaping (Result<CGImage, HarbethError>) -> Void) {
         do {
             let texture = try TextureLoader(with: cgImage).texture
+            let outputColorSpace = resolvedOutputColorSpace(
+                inputSize: C7Size(width: texture.width, height: texture.height)
+            )
             filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let texture):
-                    guard let outputImage = texture.c7.toCGImage() else {
+                    guard let outputImage = texture.c7.toCGImage(
+                        colorSpace: outputColorSpace.cgColorSpace ?? cgImage.colorSpace
+                    ) else {
                         complete(.failure(HarbethError.texture2Image))
                         return
                     }
@@ -116,11 +140,17 @@ extension HarbethIO {
     func filtering(image: C7Image, complete: @escaping (Result<C7Image, HarbethError>) -> Void) {
         do {
             let texture = try TextureLoader(with: image).texture
+            let outputColorSpace = resolvedOutputColorSpace(
+                inputSize: C7Size(width: texture.width, height: texture.height)
+            )
             filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let texture):
                     do {
-                        let outputImage = try texture.c7.fixImageOrientation(refImage: image)
+                        let outputImage = try texture.c7.fixImageOrientation(
+                            refImage: image,
+                            colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
+                        )
                         complete(.success(outputImage))
                     } catch {
                         complete(.failure(HarbethError.toHarbethError(error)))

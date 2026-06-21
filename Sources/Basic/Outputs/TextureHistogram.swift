@@ -78,7 +78,7 @@ public struct TextureHistogram: Sendable, Equatable {
         context.setFillColor(red: 0, green: 0, blue: 0, alpha: 1)
         context.fill(CGRect(x: 0, y: 0, width: width, height: clampedHeight))
 
-        let fillColor = CGColor(
+        guard let fillColor = CGColor(
             colorSpace: CGColorSpaceCreateDeviceRGB(),
             components: [
                 CGFloat(color.0) / 255.0,
@@ -86,7 +86,9 @@ public struct TextureHistogram: Sendable, Equatable {
                 CGFloat(color.2) / 255.0,
                 1.0
             ]
-        ) ?? CGColor(gray: 1, alpha: 1)
+        ) else {
+            return nil
+        }
         context.setFillColor(fillColor)
         for (x, value) in normalized.enumerated() {
             let filledHeight = Int((value * Float(clampedHeight)).rounded(.up))

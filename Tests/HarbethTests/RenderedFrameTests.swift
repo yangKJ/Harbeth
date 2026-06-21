@@ -980,6 +980,46 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertTrue(fingerprint.contains("C7MaskRegionBlend"))
     }
 
+    func testRenderFrameCarriesExplicitRenderOutputColorSpace() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "RenderedFrameTests.colorContract")
+        let frame = try HarbethIO(
+            element: texture,
+            filters: [RenderedFrameDisplayP3RenderFilter()]
+        ).renderFrame(profile: .stablePreview)
+
+        XCTAssertEqual(frame.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
+    }
+
+    func testRenderFrameCanDeriveColorSpaceFromSampleBufferAttachments() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let frame = try HarbethIO(
+            element: sampleBuffer,
+            filters: []
+        ).renderFrame(profile: .stablePreview)
+
+        XCTAssertEqual(frame.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
+    }
+
     func testTransitionFrameCarriesPredictableFilterFingerprint() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -1019,5 +1059,43 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertTrue(descriptor.fingerprint.contains("tier=original"))
         XCTAssertTrue(descriptor.fingerprint.contains("purpose=processingInput"))
         XCTAssertTrue(descriptor.fingerprint.contains("fidelity=original"))
+    }
+
+    private func makeBGRAPixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32BGRA,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        try XCTSkipIf(
+            status != kCVReturnSuccess,
+            "BGRA pixel buffer is unavailable in this environment. CVPixelBufferCreate status=\(status)."
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create BGRA pixel buffer.")
+            throw XCTSkip()
+        }
+        return pixelBuffer
+    }
+}
+
+private struct RenderedFrameDisplayP3RenderFilter: RenderProtocol {
+    var modifier: ModifierEnum {
+        .render(vertex: "basicVertex", fragment: "basicFragment")
+    }
+
+    var renderOutputContract: RenderOutputContract {
+        RenderOutputContract(colorSpace: .displayP3)
     }
 }

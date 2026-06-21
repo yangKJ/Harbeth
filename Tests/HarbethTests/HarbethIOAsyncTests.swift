@@ -157,8 +157,32 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(frame.profile, .stablePreview)
     }
 
-    private func makeFixtureCGImage() throws -> CGImage {
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
+    func testHarbethIOC7ImageOutputAppliesExplicitRenderOutputColorSpace() throws {
+        let cgImage = try makeFixtureCGImage()
+        let image = C7Image(cgImage: cgImage)
+
+        let output: C7Image = try HarbethIO(
+            element: image,
+            filters: [HarbethIOC7ImageDisplayP3RenderFilter()]
+        ).output()
+
+        XCTAssertEqual(output.c7.toCGImage()?.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
+    }
+
+    func testHarbethIOC7ImageOutputPreservesSourceColorSpaceWithoutExplicitContract() throws {
+        let displayP3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let cgImage = try makeFixtureCGImage(colorSpace: displayP3)
+        let image = C7Image(cgImage: cgImage)
+
+        let output: C7Image = try HarbethIO(
+            element: image,
+            filters: [C7Brightness(brightness: 0.0)]
+        ).output()
+
+        XCTAssertEqual(output.c7.toCGImage()?.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
+    }
+
+    private func makeFixtureCGImage(colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()) throws -> CGImage {
         let bytes: [UInt8] = [255, 0, 0, 255]
         guard let provider = CGDataProvider(data: Data(bytes) as CFData),
               let image = CGImage(width: 1,
@@ -202,5 +226,15 @@ final class HarbethIOAsyncTests: XCTestCase {
             bytesPerRow: width * 4
         )
         return texture
+    }
+}
+
+private struct HarbethIOC7ImageDisplayP3RenderFilter: RenderProtocol {
+    var modifier: ModifierEnum {
+        .render(vertex: "basicVertex", fragment: "basicFragment")
+    }
+
+    var renderOutputContract: RenderOutputContract {
+        RenderOutputContract(colorSpace: .displayP3)
     }
 }

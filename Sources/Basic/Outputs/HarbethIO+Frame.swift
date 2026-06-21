@@ -39,12 +39,13 @@ extension HarbethIO {
                                   pool: PixelBufferPool? = nil,
                                   pixelFormatType: OSType = kCVPixelFormatType_32BGRA,
                                   outputPixelFormat: PixelFormatContract = .preserveInput) throws -> CVPixelBuffer {
-        let texture = try renderTextureForPixelBuffer(
+        let result = try renderTextureForPixelBuffer(
             profile: profile,
             derivative: derivative,
             requestedPixelFormatType: pixelFormatType,
             outputPixelFormat: outputPixelFormat
         )
+        let texture = result.texture
         let resolvedPixelFormatType = try resolvePixelBufferFormatType(
             requestedPixelFormatType: pixelFormatType,
             outputPixelFormat: outputPixelFormat,
@@ -63,13 +64,14 @@ extension HarbethIO {
             throw HarbethError.pixelBufferCopyFailed
         }
         copySourceImageBufferAttachmentsIfNeeded(to: pixelBuffer)
+        pixelBuffer.c7.setColorSpaceAttachments(result.outputColorSpace)
         return pixelBuffer
     }
 
     private func renderTextureForPixelBuffer(profile: RenderProfile,
                                              derivative: ImageDerivativeSpec?,
                                              requestedPixelFormatType: OSType,
-                                             outputPixelFormat: PixelFormatContract) throws -> MTLTexture {
+                                             outputPixelFormat: PixelFormatContract) throws -> (texture: MTLTexture, outputColorSpace: ImageColorSpaceContract) {
         let sourceObject = try makeImageSource()
         let source = try sourceObject.makeTexture()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
@@ -89,7 +91,7 @@ extension HarbethIO {
             effectiveFilters = [C7Brightness(brightness: 0)]
         }
         guard effectiveFilters.isEmpty == false else {
-            return source
+            return (source, .preserveInput)
         }
         var io = HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
             .configured(for: profile)
@@ -97,7 +99,11 @@ extension HarbethIO {
             io.bufferPixelFormat = targetPixelFormat
             io.createDestTexture = true
         }
-        return try io.output()
+        let outputColorSpace = io.resolvedOutputColorSpace(
+            inputSize: C7Size(width: source.width, height: source.height)
+        )
+        let texture = try io.output()
+        return (texture, outputColorSpace)
     }
 
     private static func preferredMetalPixelFormat(for pixelFormatType: OSType) -> MTLPixelFormat? {

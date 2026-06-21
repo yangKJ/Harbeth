@@ -813,6 +813,50 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(output.c7.contract.attachmentColorSpace?.name, "ituR2020+ituR2100HLG")
     }
 
+    func testRenderPixelBufferAppliesExplicitRenderOutputColorAttachments() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [64, 96, 128, 255])
+
+        let output = try HarbethIO(
+            element: input,
+            filter: PixelBufferOutputColorSpaceRenderFilter()
+        ).renderPixelBuffer()
+
+        XCTAssertEqual(output.c7.contract.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .sRGB)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.gamut, .displayP3)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.transferFunction, .sRGB)
+    }
+
+    func testFilteringSampleBufferAppliesExplicitRenderOutputColorAttachments() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_ITU_R_709_2,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let output: CMSampleBuffer = try HarbethIO(
+            element: sampleBuffer,
+            filter: PixelBufferOutputColorSpaceRenderFilter()
+        ).output()
+
+        XCTAssertEqual(output.c7.contract.pixelBufferContract?.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(output.c7.contract.pixelBufferContract?.transferFunctionAttachment, .sRGB)
+        XCTAssertEqual(output.c7.contract.pixelBufferContract?.attachmentColorSpace?.gamut, .displayP3)
+        XCTAssertEqual(output.c7.contract.pixelBufferContract?.attachmentColorSpace?.transferFunction, .sRGB)
+    }
+
     func testFilteringPixelBufferResizeThrowsTextureSizeMismatch() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
@@ -996,5 +1040,15 @@ final class PixelBufferOutputTests: XCTestCase {
             throw XCTSkip()
         }
         return pixelBuffer
+    }
+}
+
+private struct PixelBufferOutputColorSpaceRenderFilter: RenderProtocol {
+    var modifier: ModifierEnum {
+        .render(vertex: "basicVertex", fragment: "basicFragment")
+    }
+
+    var renderOutputContract: RenderOutputContract {
+        RenderOutputContract(colorSpace: .displayP3)
     }
 }

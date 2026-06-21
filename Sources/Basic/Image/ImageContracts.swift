@@ -240,6 +240,21 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     }
 }
 
+extension ImageColorSpaceContract {
+    var cgColorSpace: CGColorSpace? {
+        switch gamut {
+        case .sRGB:
+            return CGColorSpace(name: CGColorSpace.sRGB)
+        case .displayP3:
+            return CGColorSpace(name: CGColorSpace.displayP3)
+        case .extendedLinearSRGB:
+            return CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+        case .preserveInput, .ituR2020, .custom:
+            return nil
+        }
+    }
+}
+
 public enum PixelPrecision: String, Sendable, Codable, Equatable, Hashable {
     case preserveInput
     case unorm8

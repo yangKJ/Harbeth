@@ -407,7 +407,7 @@ public struct FrameRenderer {
             guard effectiveFilters.isEmpty == false else {
                 complete(.success(RenderedFrame(
                     texture: input,
-                    colorSpace: source.colorSpace,
+                    colorSpace: resolvedFrameColorSpace(source: source, filterChain: filters),
                     sourceDescriptor: source.descriptor,
                     derivative: outputDerivative,
                     resolvedOutputSize: resolvedSize,
@@ -431,7 +431,7 @@ public struct FrameRenderer {
                     case .success(let output):
                         complete(.success(RenderedFrame(
                             texture: output.texture,
-                            colorSpace: source.colorSpace,
+                            colorSpace: resolvedFrameColorSpace(source: source, filterChain: filters),
                             sourceDescriptor: source.descriptor,
                             derivative: outputDerivative,
                             resolvedOutputSize: resolvedSize,
@@ -478,6 +478,35 @@ public struct FrameRenderer {
         return value
     }
 
+    private func resolvedFrameColorSpace(source: ImageSource,
+                                         filterChain: [C7FilterProtocol]) -> CGColorSpace? {
+        let inputSize: C7Size?
+        if let texture = try? source.makeTexture() {
+            inputSize = C7Size(width: texture.width, height: texture.height)
+        } else {
+            inputSize = nil
+        }
+        let explicitOutput = filterChain.reduce(ImageColorSpaceContract.preserveInput) { current, filter in
+            let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
+            return declared.preservesInput ? current : declared
+        }
+        if explicitOutput.preservesInput == false,
+           let colorSpace = explicitOutput.cgColorSpace {
+            return colorSpace
+        }
+        if let colorSpace = source.colorSpace {
+            return colorSpace
+        }
+        let sourceDescriptor = source.descriptor
+        if let colorSpace = sourceDescriptor.pixelBufferContract?.attachmentColorSpace?.cgColorSpace {
+            return colorSpace
+        }
+        if let colorSpace = sourceDescriptor.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.cgColorSpace {
+            return colorSpace
+        }
+        return nil
+    }
+
     private func renderFrame(token: FrameRenderToken,
                              source: ImageSource,
                              renderedTexture: MTLTexture,
@@ -486,7 +515,7 @@ public struct FrameRenderer {
                              lease: TextureLease? = nil) throws -> RenderedFrame {
         RenderedFrame(
             texture: renderedTexture,
-            colorSpace: source.colorSpace,
+            colorSpace: resolvedFrameColorSpace(source: source, filterChain: filterChain),
             sourceDescriptor: source.descriptor,
             derivative: outputDerivative,
             resolvedOutputSize: resolvedSize,
