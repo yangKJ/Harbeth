@@ -333,17 +333,20 @@ public struct HarbethKernelPassDescriptor: Sendable, Codable, Equatable, Hashabl
     public let output: HarbethKernelOutputDescriptor
     public let resources: HarbethKernelResourceDescriptor
     public let alphaBehavior: HarbethKernelAlphaBehavior
+    public let renderPass: HarbethRenderPassContract?
 
     public init(index: Int,
                 functionIdentity: HarbethKernelFunctionIdentity,
                 output: HarbethKernelOutputDescriptor = HarbethKernelOutputDescriptor(),
                 resources: HarbethKernelResourceDescriptor,
-                alphaBehavior: HarbethKernelAlphaBehavior = .preserveInput) {
+                alphaBehavior: HarbethKernelAlphaBehavior = .preserveInput,
+                renderPass: HarbethRenderPassContract? = nil) {
         self.index = index
         self.functionIdentity = functionIdentity
         self.output = output
         self.resources = resources
         self.alphaBehavior = alphaBehavior
+        self.renderPass = renderPass
     }
 
     public var fingerprint: String {
@@ -352,7 +355,8 @@ public struct HarbethKernelPassDescriptor: Sendable, Codable, Equatable, Hashabl
             functionIdentity.fingerprint,
             output.fingerprint,
             resources.fingerprint,
-            "alpha=\(alphaBehavior.rawValue)"
+            "alpha=\(alphaBehavior.rawValue)",
+            "renderPass=\(renderPass?.fingerprint ?? "none")"
         ].joined(separator: "|")
     }
 }
@@ -366,6 +370,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public let resourceUsage: HarbethKernelResourceUsage
     public let resources: HarbethKernelResourceDescriptor
     public let alphaBehavior: HarbethKernelAlphaBehavior
+    public let inputColorSpace: ImageColorSpaceContract
     public let outputContract: RenderOutputContract
     public let passes: [HarbethKernelPassDescriptor]
 
@@ -377,6 +382,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
                 resourceUsage: HarbethKernelResourceUsage = .singleInput,
                 resources: HarbethKernelResourceDescriptor? = nil,
                 alphaBehavior: HarbethKernelAlphaBehavior = .preserveInput,
+                inputColorSpace: ImageColorSpaceContract = .preserveInput,
                 outputContract: RenderOutputContract = .preserveInput,
                 passes: [HarbethKernelPassDescriptor] = []) {
         self.filterName = filterName
@@ -392,6 +398,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
         self.resourceUsage = resourceUsage
         self.resources = resources ?? HarbethKernelResourceDescriptor(usage: resourceUsage, inputTextureCount: 1)
         self.alphaBehavior = alphaBehavior
+        self.inputColorSpace = inputColorSpace
         self.outputContract = outputContract
         if passes.isEmpty {
             self.passes = [
@@ -400,7 +407,8 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
                     functionIdentity: functionIdentity,
                     output: output,
                     resources: self.resources,
-                    alphaBehavior: alphaBehavior
+                    alphaBehavior: alphaBehavior,
+                    renderPass: nil
                 )
             ]
         } else {
@@ -421,6 +429,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
             output.fingerprint,
             resources.fingerprint,
             "alpha=\(alphaBehavior.rawValue)",
+            "inputColor=\(inputColorSpace.fingerprint)",
             outputContract.fingerprint,
             "passes=\(passes.map(\.fingerprint).joined(separator: "||"))"
         ].joined(separator: "|")
@@ -507,6 +516,15 @@ public extension C7FilterProtocol {
 
         let alphaBehavior = defaultAlphaBehavior
         let outputContract = RenderOutputContract(alpha: alphaBehavior.renderAlphaContract)
+        let renderPassContract: HarbethRenderPassContract?
+        if case .render = modifier {
+            let fallbackSize = inputSize ?? outputSize ?? C7Size(width: 1, height: 1)
+            let usesCustomVertexLayout = (self as? RenderProtocol)?.renderVertexStride != 4
+                || (self as? RenderProtocol)?.setupVertices(inputSize: fallbackSize) != nil
+            renderPassContract = .singleColor(usesCustomVertexLayout: usesCustomVertexLayout)
+        } else {
+            renderPassContract = nil
+        }
         let resourceDescriptor = HarbethKernelResourceDescriptor(
             usage: resourceUsage,
             inputTextureCount: inputTextureCount,
@@ -524,7 +542,17 @@ public extension C7FilterProtocol {
             resourceUsage: resourceUsage,
             resources: resourceDescriptor,
             alphaBehavior: alphaBehavior,
-            outputContract: outputContract
+            outputContract: outputContract,
+            passes: [
+                HarbethKernelPassDescriptor(
+                    index: 0,
+                    functionIdentity: functionIdentity,
+                    output: HarbethKernelOutputDescriptor(outputSize: outputSize),
+                    resources: resourceDescriptor,
+                    alphaBehavior: alphaBehavior,
+                    renderPass: renderPassContract
+                )
+            ]
         )
     }
 

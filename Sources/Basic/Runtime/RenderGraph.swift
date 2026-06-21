@@ -93,6 +93,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public let intermediateTextureCount: Int
     public let reusableTextureCount: Int
     public let persistentOutputCount: Int
+    public let mergedStageCount: Int
+    public let fusionEligibleNodeCount: Int
     public let estimatedTransientByteCount: Int
     public let estimatedPersistentByteCount: Int
     public let readbackBoundaryCount: Int
@@ -104,6 +106,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public init(intermediateTextureCount: Int,
                 reusableTextureCount: Int,
                 persistentOutputCount: Int,
+                mergedStageCount: Int,
+                fusionEligibleNodeCount: Int,
                 estimatedTransientByteCount: Int,
                 estimatedPersistentByteCount: Int,
                 readbackBoundaryCount: Int,
@@ -114,6 +118,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
         self.intermediateTextureCount = intermediateTextureCount
         self.reusableTextureCount = reusableTextureCount
         self.persistentOutputCount = persistentOutputCount
+        self.mergedStageCount = mergedStageCount
+        self.fusionEligibleNodeCount = fusionEligibleNodeCount
         self.estimatedTransientByteCount = estimatedTransientByteCount
         self.estimatedPersistentByteCount = estimatedPersistentByteCount
         self.readbackBoundaryCount = readbackBoundaryCount
@@ -124,9 +130,16 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     }
 }
 
+public enum RenderStageMergeClass: String, Sendable, Equatable {
+    case pointCompute
+    case renderPipeline
+    case blitPass
+}
+
 public struct RenderStage: Sendable, Equatable {
     public let index: Int
     public let stageKind: RenderStageKind
+    public let mergeClass: RenderStageMergeClass?
     public let nodeIndices: [Int]
     public let kinds: [RenderNodeKind]
     public let filterCount: Int
@@ -142,6 +155,7 @@ public struct RenderStage: Sendable, Equatable {
 
     public init(index: Int,
                 stageKind: RenderStageKind,
+                mergeClass: RenderStageMergeClass?,
                 nodeIndices: [Int],
                 kinds: [RenderNodeKind],
                 filterCount: Int,
@@ -156,6 +170,7 @@ public struct RenderStage: Sendable, Equatable {
                 containsDerivativeResize: Bool) {
         self.index = index
         self.stageKind = stageKind
+        self.mergeClass = mergeClass
         self.nodeIndices = nodeIndices
         self.kinds = kinds
         self.filterCount = filterCount
@@ -282,6 +297,8 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "sampler=\(samplerDescriptor.fingerprint)",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
+            "mergedStages=\(optimizationPlan.mergedStageCount)",
+            "fusionEligibleNodes=\(optimizationPlan.fusionEligibleNodeCount)",
             "transientBytes=\(optimizationPlan.estimatedTransientByteCount)",
             "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
@@ -424,6 +441,10 @@ public enum GraphOptimizer {
         let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
         let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
         let formatConversionCount = outputContract.requiresPixelFormatConversion ? 1 : 0
+        let mergedStageCount = stages.filter { $0.filterCount > 1 && $0.mergeClass != nil }.count
+        let fusionEligibleNodeCount = stages
+            .filter { $0.mergeClass != nil }
+            .reduce(0) { $0 + $1.filterCount }
         let lifecycleDecisions = makeLifecycleDecisions(stages: stages)
         let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
         let estimatedTransientByteCount = lifecycleDecisions
@@ -438,6 +459,9 @@ public enum GraphOptimizer {
         }
         if reusableTextureCount > 0 {
             decisions.append("planTransientTextureReuse")
+        }
+        if mergedStageCount > 0 {
+            decisions.append("mergeCompatibleStages")
         }
         if stages.contains(where: \.containsDerivativeResize) {
             decisions.append("keepDerivativeResizeAtTerminalStage")
@@ -458,6 +482,8 @@ public enum GraphOptimizer {
             intermediateTextureCount: intermediateTextureCount,
             reusableTextureCount: reusableTextureCount,
             persistentOutputCount: 1,
+            mergedStageCount: mergedStageCount,
+            fusionEligibleNodeCount: fusionEligibleNodeCount,
             estimatedTransientByteCount: estimatedTransientByteCount,
             estimatedPersistentByteCount: estimatedPersistentByteCount,
             readbackBoundaryCount: readbackBoundaryCount,
@@ -528,6 +554,27 @@ public enum GraphOptimizer {
             return .compute
         }
 
+        func mergeClass(for node: RenderNode) -> RenderStageMergeClass? {
+            guard node.breaksFusion == false, let filter = node.filter else {
+                return nil
+            }
+            switch node.kind {
+            case .compute:
+                switch filter.memoryAccessPattern {
+                case .point, .auto:
+                    return filter.otherInputTextures.isEmpty ? .pointCompute : nil
+                case .neighborhood, .dualTexture, .multiTexture:
+                    return nil
+                }
+            case .render:
+                return .renderPipeline
+            case .blit:
+                return .blitPass
+            case .mps, .advancedMetal, .combination, .boundary:
+                return nil
+            }
+        }
+
         func boundaryReason(for stageNodes: [RenderNode], diagnostics: [RenderNodeDiagnostic]) -> RenderStageBoundaryReason? {
             if stageNodes.contains(where: { $0.kind == .boundary }) {
                 return .externalBoundary
@@ -551,10 +598,12 @@ public enum GraphOptimizer {
             let inputSize = diagnostics.first?.inputSize ?? C7Size(width: 0, height: 0)
             let outputSize = diagnostics.last?.outputSize ?? inputSize
             let kinds = stageNodes.map(\.kind)
+            let mergeClasses = Set(stageNodes.compactMap(mergeClass(for:)))
             stages.append(
                 RenderStage(
                     index: stages.count,
                     stageKind: stageKind(for: kinds),
+                    mergeClass: mergeClasses.count == 1 ? mergeClasses.first : nil,
                     nodeIndices: currentNodeIndices,
                     kinds: kinds,
                     filterCount: stageNodes.filter { $0.filter != nil }.count,
@@ -572,10 +621,20 @@ public enum GraphOptimizer {
             currentNodeIndices.removeAll(keepingCapacity: true)
         }
 
+        func canMerge(_ current: RenderNode, _ next: RenderNode) -> Bool {
+            guard let currentClass = mergeClass(for: current),
+                  let nextClass = mergeClass(for: next) else {
+                return false
+            }
+            return currentClass == nextClass
+        }
+
         for index in graph.nodes.indices {
             let node = graph.nodes[index]
-            let previousBreaksFusion = currentNodeIndices.last.flatMap { graph.nodes[$0].breaksFusion } ?? false
-            let startsNewStage = currentNodeIndices.isEmpty == false && (previousBreaksFusion || node.breaksFusion)
+            let previousNode = currentNodeIndices.last.flatMap { graph.nodes[$0] }
+            let previousBreaksFusion = previousNode?.breaksFusion ?? false
+            let kindMismatch = previousNode.map { canMerge($0, node) == false } ?? false
+            let startsNewStage = currentNodeIndices.isEmpty == false && (previousBreaksFusion || node.breaksFusion || kindMismatch)
             if startsNewStage {
                 flushStage()
             }

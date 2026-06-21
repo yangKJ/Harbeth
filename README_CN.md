@@ -382,6 +382,7 @@ Harbeth 现在对宿主工程暴露了更明确的执行底座，便于做稳定
 - `HarbethPixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
 - `RenderOutputContract`：显式描述 alpha、color-space、wide-gamut、pixel-format 和 high-precision 输出意图，供 diagnostics 和保守执行计划使用
 - texture/node 执行路径可以按 `RenderOutputContract` materialize 目标 `MTLPixelFormat`；color-space 仍作为 diagnostics/planning 的显式 contract，除非调用方接入具体转换滤镜
+- `C7RGBTransferConversion`：显式执行 sRGB/linear transfer 转换；当 kernel descriptor 声明了兼容的输入色彩 contract 时，node 执行路径可以按输出 contract 自动接入
 - `RenderOptimizationPlan`：以保守方式描述 transient texture 复用、persistent output、纹理成本估算、readback boundary 和格式转换决策。texture-first 执行路径可据此预热可复用 render target，但不改变视觉输出
 
 ```swift

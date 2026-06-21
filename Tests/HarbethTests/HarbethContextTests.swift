@@ -134,6 +134,18 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue(context.device === device.device)
         XCTAssertTrue(context.commandQueue === device.commandQueue)
         XCTAssertTrue(context.texturePool === Shared.shared.defaultTexturePool)
+        XCTAssertTrue((context.textureAllocator as AnyObject) === (Shared.shared.defaultTextureAllocator as AnyObject))
+    }
+
+    func testSharedProvidesTextureAllocatorBackedByDefaultTexturePool() {
+        Shared.shared.deinitDevice()
+
+        let allocator = Shared.shared.defaultTextureAllocator
+        let allocatorAgain = Shared.shared.defaultTextureAllocator
+
+        XCTAssertTrue((allocator as AnyObject) === (allocatorAgain as AnyObject))
+        XCTAssertTrue(allocator is TexturePoolAllocator)
+        XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === Shared.shared.defaultTexturePool)
     }
 
     func testSharedDeinitDeviceResetsDefaultRuntime() {

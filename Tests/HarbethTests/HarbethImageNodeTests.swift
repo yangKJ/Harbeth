@@ -83,6 +83,7 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(descriptor.passes[0].functionIdentity.primaryName, "C7Brightness")
         XCTAssertTrue(descriptor.fingerprint.contains("filter=C7Brightness"))
         XCTAssertTrue(descriptor.fingerprint.contains("arguments=arg="))
+        XCTAssertTrue(descriptor.fingerprint.contains("inputColor=color=preserveInput"))
         XCTAssertTrue(descriptor.fingerprint.contains("passes=pass=0"))
     }
 
@@ -242,6 +243,19 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(opacity.alphaBehavior, .modifiesAlpha)
         XCTAssertEqual(opacity.parameters["factors"]?.fingerprint, "floats:0.4000")
         XCTAssertTrue(opacity.fingerprint.contains("memory=auto"))
+        XCTAssertNil(opacity.passes.first?.renderPass)
+    }
+
+    func testRenderKernelDescriptorExposesRenderPassContract() {
+        let basicDescriptor = RenderBasicFilter().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+        let projectiveDescriptor = RenderTransform3D().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+
+        XCTAssertEqual(basicDescriptor.functionIdentity.kind, .render)
+        XCTAssertEqual(basicDescriptor.passes.first?.renderPass?.sampleCount, 1)
+        XCTAssertEqual(basicDescriptor.passes.first?.renderPass?.colorAttachments.count, 1)
+        XCTAssertEqual(basicDescriptor.passes.first?.renderPass?.usesCustomVertexLayout, false)
+        XCTAssertEqual(projectiveDescriptor.passes.first?.renderPass?.usesCustomVertexLayout, true)
+        XCTAssertTrue(projectiveDescriptor.fingerprint.contains("renderPass=attachments="))
     }
 
     func testKernelNodeExecutesAlphaOutputContract() throws {
@@ -493,6 +507,55 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(output.width, input.width)
         XCTAssertEqual(output.height, input.height)
         XCTAssertEqual(output.pixelFormat, .rgba16Float)
+    }
+
+    func testRGBTransferConversionRunsOnlyForExplicitCompatibleContracts() throws {
+        XCTAssertEqual(
+            ImageColorSpaceContract.extendedLinearSRGB.transferConversionMode(from: .sRGB),
+            .sRGBToLinear
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.sRGB.transferConversionMode(from: .extendedLinearSRGB),
+            .linearToSRGB
+        )
+        XCTAssertNil(ImageColorSpaceContract.displayP3.transferConversionMode(from: .sRGB))
+        XCTAssertNil(ImageColorSpaceContract.extendedLinearSRGB.transferConversionMode(from: .preserveInput))
+
+        let input = try makeTexture(width: 1, height: 1, pixel: [128, 128, 128, 255])
+        let output = try HarbethIO(
+            element: input,
+            filter: C7RGBTransferConversion(mode: .sRGBToLinear)
+        ).output()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertLessThan(outputPixel.red, 80)
+        XCTAssertGreaterThan(outputPixel.red, 40)
+        XCTAssertEqual(outputPixel.red, outputPixel.green)
+        XCTAssertEqual(outputPixel.green, outputPixel.blue)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testKernelNodeExecutesExplicitColorTransferOutputContract() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [128, 128, 128, 255])
+        let descriptor = HarbethKernelDescriptor(
+            filterName: "identityLinearOutput",
+            functionIdentity: HarbethKernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            inputColorSpace: .sRGB,
+            outputContract: RenderOutputContract(colorSpace: .extendedLinearSRGB)
+        )
+        let node = HarbethImageNode.kernel(
+            input: .source(.texture(input)),
+            descriptor: descriptor,
+            filter: C7Brightness(brightness: 0)
+        )
+
+        let output = try node.makeTexture(profile: .stablePreview)
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertTrue(descriptor.fingerprint.contains("inputColor=color=sRGB"))
+        XCTAssertLessThan(outputPixel.red, 80)
+        XCTAssertGreaterThan(outputPixel.red, 40)
+        XCTAssertEqual(outputPixel.alpha, 255)
     }
 
     func testRenderOutputContractDecodesOlderColorAndPixelFormatPayloads() throws {

@@ -78,12 +78,16 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(plan.optimizedStages.count, 3)
         XCTAssertEqual(plan.optimizedStages[0].filterCount, 2)
         XCTAssertEqual(plan.optimizedStages[0].stageKind, .compute)
+        XCTAssertEqual(plan.optimizedStages[0].mergeClass, .pointCompute)
         XCTAssertEqual(plan.optimizedStages[0].nodeIndices, [0, 1])
         XCTAssertFalse(plan.optimizedStages[0].breaksFusion)
         XCTAssertEqual(plan.optimizedStages[1].filterCount, 1)
         XCTAssertTrue(plan.optimizedStages[1].breaksFusion)
         XCTAssertEqual(plan.optimizedStages[1].boundaryReason, .fusionBoundary)
         XCTAssertEqual(plan.optimizedStages[2].filterCount, 1)
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.mergedStageCount >= 1)
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.fusionEligibleNodeCount >= 2)
+        XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("mergeCompatibleStages"))
         XCTAssertTrue(plan.debugSummary.contains("profile=responseLatency"))
         XCTAssertEqual(plan.diagnostics.inputSize, C7Size(width: 640, height: 480))
         XCTAssertEqual(plan.diagnostics.outputSize, C7Size(width: 320, height: 240))
@@ -148,6 +152,27 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(diagnostics.compilationSource, .filtersPrimitive)
         XCTAssertTrue(diagnostics.summary.contains("output=6x5"))
         XCTAssertTrue(diagnostics.summary.contains("source=filtersPrimitive"))
+    }
+
+    func testOptimizerKeepsNeighborhoodComputeInSeparateStage() {
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.1),
+            C7GaussianBlur(radius: 2),
+            C7Contrast(contrast: 1.1)
+        ]
+        let plan = GraphCompiler.compile(
+            filters: filters,
+            inputSize: C7Size(width: 640, height: 480),
+            profile: .stablePreview
+        )
+
+        XCTAssertEqual(plan.optimizedStages.count, 3)
+        XCTAssertEqual(plan.optimizedStages[0].mergeClass, .pointCompute)
+        XCTAssertNil(plan.optimizedStages[1].mergeClass)
+        XCTAssertEqual(plan.optimizedStages[1].filterCount, 1)
+        XCTAssertEqual(plan.optimizedStages[2].mergeClass, .pointCompute)
+        XCTAssertEqual(plan.diagnostics.optimizationPlan.mergedStageCount, 0)
+        XCTAssertTrue(plan.diagnostics.summary.contains("mergedStages=0"))
     }
 
     func testDerivativeSpecCanResizeRenderPlanOutput() {

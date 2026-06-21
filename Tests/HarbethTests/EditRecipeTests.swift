@@ -132,6 +132,27 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertLessThan(pixel.blue, 150)
     }
 
+    func testEmptyLocalEffectFilterChainKeepsRecipeStable() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 1, height: 1, pixel: [120, 80, 40, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let recipe = EditRecipe(
+            localEffects: [
+                LocalEffectRecipe(filters: [], mask: MaskDescriptor(texture: mask, opacity: 1))
+            ]
+        )
+
+        let output = try HarbethIO(element: input, filters: []).renderTexture(recipe: recipe)
+        let outputPixel = try firstPixel(in: output)
+
+        XCTAssertEqual(outputPixel.red, 120)
+        XCTAssertEqual(outputPixel.green, 80)
+        XCTAssertEqual(outputPixel.blue, 40)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
     func testFinalRecipeContractDrivesFrameMetadata() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")

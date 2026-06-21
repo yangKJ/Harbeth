@@ -33,13 +33,26 @@ struct Rendering {
             sampleCount: sampleCount
         )
     }
+
+    static func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
+                                        fragmentIdentity: HarbethKernelFunctionIdentity,
+                                        renderPass: HarbethRenderPassContract) throws -> MTLRenderPipelineState {
+        try Shared.shared.defaultContext.makeRenderPipelineState(
+            vertexIdentity: vertexIdentity,
+            fragmentIdentity: fragmentIdentity,
+            renderPass: renderPass
+        )
+    }
     
     static func drawing(_ pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer, texture: MTLTexture, destTexture: MTLTexture, filter: C7FilterProtocol) {
-        let renderPass = MTLRenderPassDescriptor()
-        renderPass.colorAttachments[0].texture = destTexture
-        renderPass.colorAttachments[0].loadAction = MTLLoadAction.clear
-        renderPass.colorAttachments[0].storeAction = MTLStoreAction.store
-        renderPass.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0)
+        let inputSize = C7Size(width: texture.width, height: texture.height)
+        let customVertices = (filter as? RenderProtocol)?.setupVertices(inputSize: inputSize)
+        let usesCustomVertexLayout = (filter as? RenderProtocol)?.renderVertexStride != 4 || customVertices != nil
+        let renderPass = HarbethRenderPassContract.singleColor(
+            pixelFormat: destTexture.pixelFormat,
+            sampleCount: max(destTexture.sampleCount, 1),
+            usesCustomVertexLayout: usesCustomVertexLayout
+        ).makeDescriptor(destinationTexture: destTexture)
         
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
             HarbethError.failed("Could not create render encoder")
@@ -58,8 +71,6 @@ struct Rendering {
             -1.0,  1.0, 0.0, 0.0,
              1.0,  1.0, 1.0, 0.0,
         ]
-        let inputSize = C7Size(width: texture.width, height: texture.height)
-        let customVertices = (filter as? RenderProtocol)?.setupVertices(inputSize: inputSize)
         let vertexStride = (filter as? RenderProtocol)?.renderVertexStride ?? 4
         let vertices = customVertices ?? defaultVertices
         let vertexCount = max(vertices.count / vertexStride, 0)

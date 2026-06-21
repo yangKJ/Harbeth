@@ -39,6 +39,7 @@ public final class Shared {
             existingContext = nil
             existingDevice = nil
             existingTexturePool = nil
+            existingTextureAllocator = nil
             performanceMonitor = nil
         }
     }
@@ -64,6 +65,7 @@ private var C7ATSharedDeviceContext: UInt8 = 0
 private var C7ATSharedTexturePoolContext: UInt8 = 0
 private var C7ATSharedPerformanceMonitorContext: UInt8 = 0
 private var C7ATSharedContext: UInt8 = 0
+private var C7ATSharedTextureAllocatorContext: UInt8 = 0
 
 extension Shared {
 
@@ -80,6 +82,11 @@ extension Shared {
     fileprivate var existingContext: HarbethContext? {
         get { objc_getAssociatedObject(self, &C7ATSharedContext) as? HarbethContext }
         set { objc_setAssociatedObject(self, &C7ATSharedContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+
+    fileprivate var existingTextureAllocator: TextureAllocating? {
+        get { objc_getAssociatedObject(self, &C7ATSharedTextureAllocatorContext) as? TextureAllocating }
+        set { objc_setAssociatedObject(self, &C7ATSharedTextureAllocatorContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
     
     public var defaultDevice: Device {
@@ -155,6 +162,17 @@ extension Shared {
             let pool = TexturePool()
             existingTexturePool = pool
             return pool
+        }
+    }
+
+    public var defaultTextureAllocator: TextureAllocating {
+        synchronizedDevice {
+            if let allocator = existingTextureAllocator {
+                return allocator
+            }
+            let allocator = TexturePoolAllocator(texturePool: defaultTexturePool)
+            existingTextureAllocator = allocator
+            return allocator
         }
     }
 

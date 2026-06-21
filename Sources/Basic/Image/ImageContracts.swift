@@ -6,6 +6,7 @@
 //
 import Foundation
 import CoreGraphics
+import CoreVideo
 import Metal
 
 /// 图像 alpha 的语义类型。
@@ -160,6 +161,38 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         self.gamut = try container.decodeIfPresent(ImageColorGamut.self, forKey: .gamut) ?? .preserveInput
         self.transferFunction = try container.decodeIfPresent(ImageTransferFunction.self, forKey: .transferFunction) ?? .preserveInput
     }
+
+    public func transferConversionMode(from source: ImageColorSpaceContract) -> C7RGBTransferConversion.Mode? {
+        guard preservesInput == false,
+              source.preservesInput == false,
+              supportsTransferOnlyConversion(from: source) else {
+            return nil
+        }
+        switch (source.transferFunction, transferFunction) {
+        case (.sRGB, .linear):
+            return .sRGBToLinear
+        case (.linear, .sRGB):
+            return .linearToSRGB
+        default:
+            return nil
+        }
+    }
+
+    public func makeTransferConversionFilter(from source: ImageColorSpaceContract) -> C7RGBTransferConversion? {
+        C7RGBTransferConversion(from: source, to: self)
+    }
+
+    private func supportsTransferOnlyConversion(from source: ImageColorSpaceContract) -> Bool {
+        switch (source.gamut, gamut) {
+        case (.sRGB, .sRGB),
+             (.sRGB, .extendedLinearSRGB),
+             (.extendedLinearSRGB, .sRGB),
+             (.extendedLinearSRGB, .extendedLinearSRGB):
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 public enum PixelPrecision: String, Sendable, Codable, Equatable, Hashable {
@@ -307,6 +340,143 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
             colorSpace.fingerprint,
             pixelFormat.fingerprint,
             "orientation=\(preservesOrientation ? "preserve" : "reset")"
+        ].joined(separator: "|")
+    }
+}
+
+public enum PixelBufferColorModel: String, Sendable, Codable, Equatable, Hashable {
+    case rgba
+    case yCbCrBiPlanar
+    case yCbCrTriPlanar
+    case monochrome
+    case unknown
+}
+
+public enum PixelBufferNativeTextureLayout: String, Sendable, Codable, Equatable, Hashable {
+    case directSingleTexture
+    case planeTextures
+    case unsupported
+}
+
+public enum PixelBufferTextureLoadStrategy: String, Sendable, Codable, Equatable, Hashable {
+    case directMetalTexture
+    case cgImageFallback
+    case cpuCopyFallback
+}
+
+public struct PixelBufferPlaneContract: Sendable, Codable, Equatable, Hashable {
+    public let index: Int
+    public let width: Int
+    public let height: Int
+    public let bytesPerRow: Int
+    public let cvPixelFormatType: OSType
+    public let metalPixelFormatRawValue: UInt?
+
+    public init(index: Int,
+                width: Int,
+                height: Int,
+                bytesPerRow: Int,
+                cvPixelFormatType: OSType,
+                metalPixelFormat: MTLPixelFormat?) {
+        self.index = index
+        self.width = width
+        self.height = height
+        self.bytesPerRow = bytesPerRow
+        self.cvPixelFormatType = cvPixelFormatType
+        self.metalPixelFormatRawValue = metalPixelFormat?.rawValue
+    }
+
+    public var metalPixelFormat: MTLPixelFormat? {
+        metalPixelFormatRawValue.flatMap(MTLPixelFormat.init(rawValue:))
+    }
+
+    public var fingerprint: String {
+        [
+            "plane=\(index)",
+            "size=\(width)x\(height)",
+            "bytesPerRow=\(bytesPerRow)",
+            "cv=\(cvPixelFormatType)",
+            "metal=\(metalPixelFormatRawValue.map(String.init) ?? "none")"
+        ].joined(separator: "|")
+    }
+}
+
+public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
+    public let width: Int
+    public let height: Int
+    public let cvPixelFormatType: OSType
+    public let planeCount: Int
+    public let planar: Bool
+    public let colorModel: PixelBufferColorModel
+    public let nativeTextureLayout: PixelBufferNativeTextureLayout
+    public let planes: [PixelBufferPlaneContract]
+
+    public init(width: Int,
+                height: Int,
+                cvPixelFormatType: OSType,
+                planeCount: Int,
+                planar: Bool,
+                colorModel: PixelBufferColorModel,
+                nativeTextureLayout: PixelBufferNativeTextureLayout,
+                planes: [PixelBufferPlaneContract]) {
+        self.width = width
+        self.height = height
+        self.cvPixelFormatType = cvPixelFormatType
+        self.planeCount = planeCount
+        self.planar = planar
+        self.colorModel = colorModel
+        self.nativeTextureLayout = nativeTextureLayout
+        self.planes = planes
+    }
+
+    public var requiresYCbCrConversion: Bool {
+        switch colorModel {
+        case .yCbCrBiPlanar, .yCbCrTriPlanar:
+            return true
+        case .rgba, .monochrome, .unknown:
+            return false
+        }
+    }
+
+    public var preferredMetalPixelFormat: MTLPixelFormat? {
+        planes.first?.metalPixelFormat
+    }
+
+    public var fingerprint: String {
+        [
+            "size=\(width)x\(height)",
+            "cv=\(cvPixelFormatType)",
+            "planes=\(planeCount)",
+            "planar=\(planar ? 1 : 0)",
+            "model=\(colorModel.rawValue)",
+            "layout=\(nativeTextureLayout.rawValue)",
+            planes.map(\.fingerprint).joined(separator: "||")
+        ].joined(separator: "|")
+    }
+}
+
+public struct PixelBufferTextureBridgePlan: Sendable, Codable, Equatable, Hashable {
+    public let contract: PixelBufferContract
+    public let loadStrategy: PixelBufferTextureLoadStrategy
+    public let preservesOwnerReference: Bool
+
+    public init(contract: PixelBufferContract,
+                loadStrategy: PixelBufferTextureLoadStrategy,
+                preservesOwnerReference: Bool) {
+        self.contract = contract
+        self.loadStrategy = loadStrategy
+        self.preservesOwnerReference = preservesOwnerReference
+    }
+
+    public var requiresColorConversion: Bool {
+        contract.requiresYCbCrConversion
+    }
+
+    public var fingerprint: String {
+        [
+            contract.fingerprint,
+            "load=\(loadStrategy.rawValue)",
+            "owner=\(preservesOwnerReference ? 1 : 0)"
         ].joined(separator: "|")
     }
 }

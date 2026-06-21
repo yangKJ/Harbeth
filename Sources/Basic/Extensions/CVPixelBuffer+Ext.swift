@@ -13,6 +13,70 @@ import VideoToolbox
 extension CVPixelBuffer: HarbethCompatible { }
 
 extension HarbethWrapper where Base: CVPixelBuffer {
+
+    public var contract: PixelBufferContract {
+        let pixelFormatType = CVPixelBufferGetPixelFormatType(base)
+        let isPlanar = CVPixelBufferIsPlanar(base)
+        let actualPlaneCount = isPlanar ? CVPixelBufferGetPlaneCount(base) : 1
+        let colorModel = Self.colorModel(for: pixelFormatType, planeCount: actualPlaneCount)
+        let nativeTextureLayout: PixelBufferNativeTextureLayout
+        switch colorModel {
+        case .rgba, .monochrome:
+            nativeTextureLayout = .directSingleTexture
+        case .yCbCrBiPlanar, .yCbCrTriPlanar:
+            nativeTextureLayout = .planeTextures
+        case .unknown:
+            nativeTextureLayout = .unsupported
+        }
+        let planes = (0..<actualPlaneCount).map { planeIndex in
+            PixelBufferPlaneContract(
+                index: planeIndex,
+                width: Self.width(of: base, planeIndex: planeIndex, planar: isPlanar),
+                height: Self.height(of: base, planeIndex: planeIndex, planar: isPlanar),
+                bytesPerRow: Self.bytesPerRow(of: base, planeIndex: planeIndex, planar: isPlanar),
+                cvPixelFormatType: pixelFormatType,
+                metalPixelFormat: Self.preferredMetalPixelFormat(
+                    for: pixelFormatType,
+                    planeIndex: planeIndex,
+                    planar: isPlanar
+                )
+            )
+        }
+        return PixelBufferContract(
+            width: CVPixelBufferGetWidth(base),
+            height: CVPixelBufferGetHeight(base),
+            cvPixelFormatType: pixelFormatType,
+            planeCount: actualPlaneCount,
+            planar: isPlanar,
+            colorModel: colorModel,
+            nativeTextureLayout: nativeTextureLayout,
+            planes: planes
+        )
+    }
+
+    public func makeTextureBridgePlan() -> PixelBufferTextureBridgePlan {
+        let contract = contract
+        switch contract.nativeTextureLayout {
+        case .directSingleTexture:
+            return PixelBufferTextureBridgePlan(
+                contract: contract,
+                loadStrategy: .directMetalTexture,
+                preservesOwnerReference: true
+            )
+        case .planeTextures:
+            return PixelBufferTextureBridgePlan(
+                contract: contract,
+                loadStrategy: .cgImageFallback,
+                preservesOwnerReference: false
+            )
+        case .unsupported:
+            return PixelBufferTextureBridgePlan(
+                contract: contract,
+                loadStrategy: .cpuCopyFallback,
+                preservesOwnerReference: false
+            )
+        }
+    }
     
     /// Width of the pixel buffer
     public var width: Int {
@@ -59,6 +123,24 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
         #endif
         return nil
+    }
+
+    public func createPlaneTextures(textureCache: CVMetalTextureCache? = nil) -> [MTLTexture] {
+        let plan = makeTextureBridgePlan()
+        guard plan.contract.nativeTextureLayout == .planeTextures else {
+            return []
+        }
+        let cache = textureCache ?? Shared.shared.sharedTextureCache
+        return plan.contract.planes.compactMap { plane in
+            guard let pixelFormat = plane.metalPixelFormat else {
+                return nil
+            }
+            return convert2MTLTexture(
+                textureCache: cache,
+                pixelFormat: pixelFormat,
+                planeIndex: plane.index
+            )
+        }
     }
     
     /// Creates CGImage from pixel buffer
@@ -138,14 +220,24 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     /// - Parameter textureCache: Texture cache (real device only)
     /// - Returns: Metal texture or nil
     public func toMTLTexture(textureCache: CVMetalTextureCache? = nil) -> MTLTexture? {
-        #if targetEnvironment(simulator)
-        // Simulator requires rgba8Unorm format
-        let pixelFormat: MTLPixelFormat = .rgba8Unorm
-        return base.c7.toCGImage()?.c7.toTexture(pixelFormat: pixelFormat)
-        #else
-        let cache = textureCache ?? Shared.shared.sharedTextureCache
-        return base.c7.convert2MTLTexture(textureCache: cache)
-        #endif
+        let bridgePlan = makeTextureBridgePlan()
+        switch bridgePlan.loadStrategy {
+        case .directMetalTexture:
+            #if targetEnvironment(simulator)
+            return base.c7.toCGImage()?.c7.toTexture(pixelFormat: .rgba8Unorm)
+            #else
+            let cache = textureCache ?? Shared.shared.sharedTextureCache
+            return convert2MTLTexture(
+                textureCache: cache,
+                pixelFormat: bridgePlan.contract.preferredMetalPixelFormat ?? .bgra8Unorm,
+                planeIndex: 0
+            )
+            #endif
+        case .cgImageFallback:
+            return base.c7.toCGImage()?.c7.toTexture(pixelFormat: .rgba8Unorm)
+        case .cpuCopyFallback:
+            return nil
+        }
     }
     
     /// Creates new Metal texture from pixel buffer
@@ -155,8 +247,9 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     /// - Returns: New Metal texture
     /// - Throws: Texture creation error
     public func createMTLTexture(pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) throws -> MTLTexture {
-        let width = CVPixelBufferGetWidthOfPlane(self.base, planeIndex)
-        let height = CVPixelBufferGetHeightOfPlane(self.base, planeIndex)
+        let isPlanar = CVPixelBufferIsPlanar(base)
+        let width = Self.width(of: base, planeIndex: planeIndex, planar: isPlanar)
+        let height = Self.height(of: base, planeIndex: planeIndex, planar: isPlanar)
         let texture = try TextureLoader.makeTexture(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
         ])
@@ -181,5 +274,61 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     @discardableResult
     public func unlockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
         return CVPixelBufferUnlockBaseAddress(base, lockFlags)
+    }
+
+    private static func colorModel(for pixelFormatType: OSType, planeCount: Int) -> PixelBufferColorModel {
+        switch pixelFormatType {
+        case kCVPixelFormatType_32BGRA, kCVPixelFormatType_32RGBA, kCVPixelFormatType_32ARGB:
+            return .rgba
+        case kCVPixelFormatType_OneComponent8:
+            return .monochrome
+        case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+             kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+            return .yCbCrBiPlanar
+        case kCVPixelFormatType_420YpCbCr8Planar,
+             kCVPixelFormatType_420YpCbCr8PlanarFullRange:
+            return .yCbCrTriPlanar
+        default:
+            return planeCount == 1 ? .unknown : .unknown
+        }
+    }
+
+    private static func preferredMetalPixelFormat(for pixelFormatType: OSType,
+                                                  planeIndex: Int,
+                                                  planar: Bool) -> MTLPixelFormat? {
+        if planar == false {
+            switch pixelFormatType {
+            case kCVPixelFormatType_32BGRA:
+                return .bgra8Unorm
+            case kCVPixelFormatType_32RGBA, kCVPixelFormatType_32ARGB:
+                return .rgba8Unorm
+            case kCVPixelFormatType_OneComponent8:
+                return .r8Unorm
+            default:
+                return nil
+            }
+        }
+        switch pixelFormatType {
+        case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+             kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+            return planeIndex == 0 ? .r8Unorm : .rg8Unorm
+        case kCVPixelFormatType_420YpCbCr8Planar,
+             kCVPixelFormatType_420YpCbCr8PlanarFullRange:
+            return .r8Unorm
+        default:
+            return nil
+        }
+    }
+
+    private static func width(of pixelBuffer: CVPixelBuffer, planeIndex: Int, planar: Bool) -> Int {
+        planar ? CVPixelBufferGetWidthOfPlane(pixelBuffer, planeIndex) : CVPixelBufferGetWidth(pixelBuffer)
+    }
+
+    private static func height(of pixelBuffer: CVPixelBuffer, planeIndex: Int, planar: Bool) -> Int {
+        planar ? CVPixelBufferGetHeightOfPlane(pixelBuffer, planeIndex) : CVPixelBufferGetHeight(pixelBuffer)
+    }
+
+    private static func bytesPerRow(of pixelBuffer: CVPixelBuffer, planeIndex: Int, planar: Bool) -> Int {
+        planar ? CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, planeIndex) : CVPixelBufferGetBytesPerRow(pixelBuffer)
     }
 }

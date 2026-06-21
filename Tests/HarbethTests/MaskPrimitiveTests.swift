@@ -60,6 +60,31 @@ final class MaskPrimitiveTests: XCTestCase {
         XCTAssertEqual(try firstPixel(in: opaqueOutput).green, 255)
     }
 
+    func testMaskBlendSelectsRequestedColorComponent() throws {
+        let base = try makeTexture(pixel: [255, 0, 0, 255])
+        let effect = try makeTexture(pixel: [0, 255, 0, 255])
+        let redMask = try makeTexture(pixel: [255, 0, 0, 0])
+        let greenMask = try makeTexture(pixel: [0, 255, 0, 0])
+
+        let redOutput: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(
+                effectTexture: effect,
+                mask: MaskDescriptor(texture: redMask, component: .red, opacity: 1)
+            )
+        ).output()
+        let greenOutput: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(
+                effectTexture: effect,
+                mask: MaskDescriptor(texture: greenMask, component: .red, opacity: 1)
+            )
+        ).output()
+
+        XCTAssertEqual(try firstPixel(in: redOutput).green, 255)
+        XCTAssertEqual(try firstPixel(in: greenOutput).red, 255)
+    }
+
     func testMaskDescriptorFactorsExposeComponentAndFeather() throws {
         let maskTexture = try makeTexture(pixel: [255, 128, 0, 255])
         let descriptor = MaskDescriptor(

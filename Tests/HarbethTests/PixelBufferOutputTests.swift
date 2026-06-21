@@ -56,6 +56,79 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(CVPixelBufferGetHeight(output), 3)
     }
 
+    func testBGRAPixelBufferContractPrefersDirectSingleTextureBridge() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 3,
+            kCVPixelBufferMetalCompatibilityKey: true
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, 4, 3, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &pixelBuffer),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create BGRA pixel buffer.")
+            return
+        }
+
+        let contract = pixelBuffer.c7.contract
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        XCTAssertFalse(contract.planar)
+        XCTAssertEqual(contract.planeCount, 1)
+        XCTAssertEqual(contract.colorModel, .rgba)
+        XCTAssertEqual(contract.nativeTextureLayout, .directSingleTexture)
+        XCTAssertEqual(contract.planes.first?.metalPixelFormat, .bgra8Unorm)
+        XCTAssertEqual(bridgePlan.loadStrategy, .directMetalTexture)
+        XCTAssertTrue(bridgePlan.preservesOwnerReference)
+    }
+
+    func testBiPlanarPixelBufferContractExposesPlanesAndFallbackLoadStrategy() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create bi-planar pixel buffer.")
+            return
+        }
+
+        let contract = pixelBuffer.c7.contract
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        XCTAssertTrue(contract.planar)
+        XCTAssertEqual(contract.planeCount, 2)
+        XCTAssertEqual(contract.colorModel, .yCbCrBiPlanar)
+        XCTAssertEqual(contract.nativeTextureLayout, .planeTextures)
+        XCTAssertEqual(contract.planes[0].width, 4)
+        XCTAssertEqual(contract.planes[0].height, 4)
+        XCTAssertEqual(contract.planes[0].metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(contract.planes[1].width, 2)
+        XCTAssertEqual(contract.planes[1].height, 2)
+        XCTAssertEqual(contract.planes[1].metalPixelFormat, .rg8Unorm)
+        XCTAssertTrue(contract.requiresYCbCrConversion)
+        XCTAssertEqual(bridgePlan.loadStrategy, .cgImageFallback)
+        XCTAssertFalse(bridgePlan.preservesOwnerReference)
+        XCTAssertTrue(bridgePlan.requiresColorConversion)
+    }
+
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .rgba8Unorm,

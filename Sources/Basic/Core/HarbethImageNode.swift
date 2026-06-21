@@ -97,6 +97,7 @@ extension HarbethImageNode: HarbethImagePromise {
             let contracted = try HarbethImageNode.applyOutputContractIfNeeded(
                 descriptor.outputContract,
                 to: rendered,
+                sourceColorSpace: descriptor.inputColorSpace,
                 profile: profile
             )
             return try resizeTextureIfNeeded(contracted, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
@@ -392,8 +393,14 @@ extension LayerCompositeRecipe {
 extension HarbethImageNode {
     static func applyOutputContractIfNeeded(_ contract: RenderOutputContract,
                                             to texture: MTLTexture,
+                                            sourceColorSpace: ImageColorSpaceContract = .preserveInput,
                                             profile: RenderProfile) throws -> MTLTexture {
         var output = texture
+        if let colorFilter = contract.colorSpace.makeTransferConversionFilter(from: sourceColorSpace) {
+            output = try HarbethIO(element: output, filter: colorFilter)
+                .configured(for: profile)
+                .output()
+        }
         let filters: [C7FilterProtocol]
         switch contract.alpha {
         case .premultiplied, .forcePremultiply:

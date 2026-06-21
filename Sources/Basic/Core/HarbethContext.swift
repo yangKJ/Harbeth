@@ -38,6 +38,10 @@ public final class HarbethContext {
         Shared.shared.defaultTexturePool
     }
 
+    public var textureAllocator: TextureAllocating {
+        Shared.shared.defaultTextureAllocator
+    }
+
     public var cvMetalTextureCache: CVMetalTextureCache? {
         legacyDevice.textureCache
     }
@@ -83,11 +87,20 @@ public final class HarbethContext {
                                  fragmentIdentity: HarbethKernelFunctionIdentity,
                                  pixelFormat: MTLPixelFormat,
                                  sampleCount: Int = 1) throws -> MTLRenderPipelineState {
+        try makeRenderPipelineState(
+            vertexIdentity: vertexIdentity,
+            fragmentIdentity: fragmentIdentity,
+            renderPass: .singleColor(pixelFormat: pixelFormat, sampleCount: sampleCount)
+        )
+    }
+
+    func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
+                                 fragmentIdentity: HarbethKernelFunctionIdentity,
+                                 renderPass: HarbethRenderPassContract) throws -> MTLRenderPipelineState {
         let key = RenderPipelineCacheKey(
             vertex: vertexIdentity.fingerprint,
             fragment: fragmentIdentity.fingerprint,
-            pixelFormat: pixelFormat.rawValue,
-            sampleCount: sampleCount
+            renderPass: renderPass.fingerprint
         )
         renderPipelineLock.lock()
         if let cached = renderPipelines[key] {
@@ -98,8 +111,10 @@ public final class HarbethContext {
         renderPipelineLock.unlock()
 
         let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.colorAttachments[0].pixelFormat = pixelFormat
-        descriptor.rasterSampleCount = sampleCount
+        for attachment in renderPass.colorAttachments where attachment.index < 8 {
+            descriptor.colorAttachments[attachment.index].pixelFormat = Self.pixelFormat(from: attachment.pixelFormat) ?? .invalid
+        }
+        descriptor.rasterSampleCount = renderPass.sampleCount
         descriptor.vertexFunction = try Device.readMTLFunction(vertexIdentity)
         descriptor.fragmentFunction = try Device.readMTLFunction(fragmentIdentity)
         guard let pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor) else {
@@ -112,6 +127,26 @@ public final class HarbethContext {
         renderPipelineLock.unlock()
         Shared.shared.performanceMonitor?.recordPipelineCacheLookup("render", hit: false)
         return pipelineState
+    }
+
+    private static func pixelFormat(from value: String?) -> MTLPixelFormat? {
+        guard let value else { return nil }
+        switch value {
+        case String(describing: MTLPixelFormat.rgba8Unorm):
+            return .rgba8Unorm
+        case String(describing: MTLPixelFormat.bgra8Unorm):
+            return .bgra8Unorm
+        case String(describing: MTLPixelFormat.rgba16Float):
+            return .rgba16Float
+        case String(describing: MTLPixelFormat.r8Unorm):
+            return .r8Unorm
+        case String(describing: MTLPixelFormat.rg8Unorm):
+            return .rg8Unorm
+        case String(describing: MTLPixelFormat.rgba32Float):
+            return .rgba32Float
+        default:
+            return nil
+        }
     }
 
     public func makeSamplerState(minFilter: MTLSamplerMinMagFilter = .linear,
@@ -224,8 +259,7 @@ public extension HarbethContext {
 private struct RenderPipelineCacheKey: Hashable {
     let vertex: String
     let fragment: String
-    let pixelFormat: UInt
-    let sampleCount: Int
+    let renderPass: String
 }
 
 private struct SamplerCacheKey: Hashable {

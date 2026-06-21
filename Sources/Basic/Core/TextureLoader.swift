@@ -67,10 +67,16 @@ extension TextureLoader {
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
         if let texture = pixelBuffer.c7.toMTLTexture() {
-            TextureOwnerRegistry.attach(pixelBuffer, to: texture)
+            if bridgePlan.preservesOwnerReference {
+                TextureOwnerRegistry.attach(pixelBuffer, to: texture)
+            }
             self.texture = texture
             return
+        }
+        if bridgePlan.loadStrategy == .cgImageFallback {
+            throw HarbethError.source2Texture
         }
         let pixelFormat = TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
         let width = CVPixelBufferGetWidth(pixelBuffer)
@@ -275,7 +281,7 @@ extension TextureLoader {
         let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
         let logicalExtent = C7Size(width: max(maxWidth, 1), height: max(maxHeight, 1))
 
-        if let lease = Shared.shared.defaultTexturePool.dequeueTextureLease(
+        if let lease = Shared.shared.defaultTextureAllocator.dequeueTextureLease(
             width: logicalExtent.width,
             height: logicalExtent.height,
             pixelFormat: pixelFormat,
@@ -293,7 +299,7 @@ extension TextureLoader {
             options: options,
             identifier: identifier
         )
-        return Shared.shared.defaultTexturePool.makeLease(
+        return Shared.shared.defaultTextureAllocator.makeLease(
             for: texture,
             logicalExtent: logicalExtent
         )
@@ -312,7 +318,12 @@ extension TextureLoader {
     
     public static func copyTexture(with texture: MTLTexture, identifier: String = "Render") throws -> MTLTexture {
         let width = texture.width, height = texture.height
-        if let pooledTexture = Shared.shared.defaultTexturePool.dequeueTexture(width: width, height: height, pixelFormat: texture.pixelFormat) {
+        if let pooledTexture = Shared.shared.defaultTextureAllocator.dequeueTexture(
+            width: width,
+            height: height,
+            pixelFormat: texture.pixelFormat,
+            allowsSizeTolerance: true
+        ) {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
             return pooledTexture
         }
