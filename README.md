@@ -145,6 +145,7 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `HarbethRenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
 - `HarbethPixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
 - `RenderOutputContract`: explicit alpha, color-space, wide-gamut, pixel-format, and high-precision output intent for diagnostics and conservative planning.
+- Texture/node execution can materialize a target `MTLPixelFormat` from `RenderOutputContract`; color-space metadata remains an explicit contract for diagnostics/planning unless a concrete conversion filter is supplied.
 - `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, estimated texture cost, readback boundaries, and format conversion decisions. The texture-first execution path can use the plan to prewarm reusable render targets without changing visual output.
 
 ```swift

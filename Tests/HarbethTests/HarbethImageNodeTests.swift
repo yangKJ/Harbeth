@@ -475,6 +475,26 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("hdrFriendly=1"))
     }
 
+    func testKernelNodeMaterializesPixelFormatOutputContract() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [120, 80, 40, 255])
+        let descriptor = HarbethKernelDescriptor(
+            filterName: "identityHighPrecision",
+            functionIdentity: HarbethKernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            outputContract: .highPrecisionLinearTexture
+        )
+        let node = HarbethImageNode.kernel(
+            input: .source(.texture(input)),
+            descriptor: descriptor,
+            filter: C7Brightness(brightness: 0)
+        )
+
+        let output = try node.makeTexture(profile: .interactiveLatency)
+
+        XCTAssertEqual(output.width, input.width)
+        XCTAssertEqual(output.height, input.height)
+        XCTAssertEqual(output.pixelFormat, .rgba16Float)
+    }
+
     func testRenderOutputContractDecodesOlderColorAndPixelFormatPayloads() throws {
         let colorData = Data("""
         {"name":"sRGB","preservesInput":false}

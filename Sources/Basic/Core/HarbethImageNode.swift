@@ -393,6 +393,7 @@ extension HarbethImageNode {
     static func applyOutputContractIfNeeded(_ contract: RenderOutputContract,
                                             to texture: MTLTexture,
                                             profile: RenderProfile) throws -> MTLTexture {
+        var output = texture
         let filters: [C7FilterProtocol]
         switch contract.alpha {
         case .premultiplied, .forcePremultiply:
@@ -402,9 +403,19 @@ extension HarbethImageNode {
         case .opaque, .preserveInput:
             filters = []
         }
-        guard filters.isEmpty == false else { return texture }
-        return try HarbethIO(element: texture, filters: filters)
-            .configured(for: profile)
-            .output()
+        if filters.isEmpty == false {
+            output = try HarbethIO(element: output, filters: filters)
+                .configured(for: profile)
+                .output()
+        }
+        if let targetPixelFormat = contract.pixelFormat.metalPixelFormat,
+           output.pixelFormat != targetPixelFormat {
+            var io = HarbethIO(element: output, filter: C7Brightness(brightness: 0))
+                .configured(for: profile)
+            io.bufferPixelFormat = targetPixelFormat
+            io.createDestTexture = true
+            output = try io.output()
+        }
+        return output
     }
 }

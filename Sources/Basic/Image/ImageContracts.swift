@@ -209,6 +209,10 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
         ].joined(separator: "|")
     }
 
+    public var metalPixelFormat: MTLPixelFormat? {
+        metalPixelFormatRawValue.flatMap { MTLPixelFormat(rawValue: $0) }
+    }
+
     private static func precision(for pixelFormat: MTLPixelFormat?) -> PixelPrecision {
         switch pixelFormat {
         case .none:
