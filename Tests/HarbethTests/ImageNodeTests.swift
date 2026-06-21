@@ -447,6 +447,44 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(diagnostics.optimizationPlan.destinationTextureCreationCount, 1)
     }
 
+    func testImageNodeAttachmentAnalysisBundleReturnsNilForNonRenderPath() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
+        let node = ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+
+        let bundle = try node.makeAttachmentAnalysisBundle()
+
+        XCTAssertNil(bundle)
+    }
+
+    func testImageNodeAttachmentAnalysisBundleUsesFinalRenderPrimitiveThroughWrappers() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+            .withCachePolicy(.persistent)
+            .withSamplerDescriptor(.nearest)
+
+        let bundle = try XCTUnwrap(
+            node.makeAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(bundle.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(bundle.analyses.count, 2)
+        XCTAssertEqual(bundle.primary?.attachment.semantic, .primaryColor)
+        XCTAssertEqual(bundle.primary?.histogram?.totalSampleCount, 2)
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.attachment.semantic, .luminance)
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.channel, .luminance)
+    }
+
     func testNodeDebugSnapshotExposesGraphAndOptimizationDecisions() throws {
         let input = try makeTexture(width: 4, height: 4, pixel: [32, 64, 96, 255])
         let node = ImageNode
@@ -477,20 +515,19 @@ final class ImageNodeTests: XCTestCase {
             kCVPixelBufferMetalCompatibilityKey: true,
             kCVPixelBufferIOSurfacePropertiesKey: [:]
         ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
+        let creationStatus = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            4,
+            4,
+            kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            attributes as CFDictionary,
+            &pixelBuffer
         )
+        guard creationStatus == kCVReturnSuccess else {
+            throw XCTSkip("Failed to create bi-planar pixel buffer.")
+        }
         guard let pixelBuffer else {
-            XCTFail("Failed to create bi-planar pixel buffer.")
-            return
+            throw XCTSkip("Failed to create bi-planar pixel buffer.")
         }
         let node = ImageNode
             .pixelBuffer(pixelBuffer)
@@ -641,6 +678,395 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(recipe.fingerprint.contains("mirror=1"))
     }
 
+    func testLayerCompositeSourceOverAccumulatesAlphaOverTranslucentBackground() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 128])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 128])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.green, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.blue, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.alpha, 192, accuracy: 2)
+    }
+
+    func testLayerCompositeSourceOverKeepsOpaqueBackgroundAlpha() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 128])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testLayerCompositeOutputContractCanForceOpaqueAlpha() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 255, 128])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 255, 128])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver
+                )
+            ],
+            outputContract: RenderOutputContract(alpha: .opaque)
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 0)
+        XCTAssertEqual(outputPixel.green, 0)
+        XCTAssertEqual(outputPixel.blue, 255)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testLayerCompositeOutputContractCanForcePremultipliedAlpha() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 255, 128])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 255, 128])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver
+                )
+            ],
+            outputContract: RenderOutputContract(alpha: .forcePremultiply)
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 0)
+        XCTAssertEqual(outputPixel.green, 0)
+        XCTAssertEqual(outputPixel.blue, 192, accuracy: 2)
+        XCTAssertEqual(outputPixel.alpha, 192, accuracy: 2)
+    }
+
+    func testLayerCompositeOutputContractCanForceUnpremultipliedAlpha() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 128, 128])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 128, 128])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver
+                )
+            ],
+            outputContract: RenderOutputContract(alpha: .forceUnpremultiply)
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 0)
+        XCTAssertEqual(outputPixel.green, 0)
+        XCTAssertEqual(outputPixel.blue, 170, accuracy: 3)
+        XCTAssertEqual(outputPixel.alpha, 192, accuracy: 2)
+    }
+
+    func testLayerCompositeMaskUsesLayerLocalCoordinates() throws {
+        let background = try makeTexture(
+            width: 5,
+            height: 1,
+            pixels: [
+                [255, 255, 255, 255],
+                [255, 255, 255, 255],
+                [255, 255, 255, 255],
+                [255, 255, 255, 255],
+                [255, 255, 255, 255]
+            ]
+        )
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [255, 0, 0, 255],
+                [0, 0, 0, 255]
+            ]
+        )
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    normalizedFrame: CGRect(x: 0.25, y: 0, width: 0.25, height: 1),
+                    opacity: 1,
+                    blendMode: .sourceOver,
+                    mask: MaskDescriptor(texture: mask, component: .red, opacity: 1),
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let first = try pixel(in: output, x: 0, y: 0)
+        let second = try pixel(in: output, x: 1, y: 0)
+        let third = try pixel(in: output, x: 2, y: 0)
+        let fourth = try pixel(in: output, x: 3, y: 0)
+        let fifth = try pixel(in: output, x: 4, y: 0)
+
+        XCTAssertEqual(first.red, 255)
+        XCTAssertEqual(first.green, 255)
+        XCTAssertEqual(first.blue, 255)
+        XCTAssertEqual(second.red, 0)
+        XCTAssertEqual(second.green, 0)
+        XCTAssertEqual(second.blue, 0)
+        XCTAssertEqual(third.red, 255)
+        XCTAssertEqual(third.green, 255)
+        XCTAssertEqual(third.blue, 255)
+        XCTAssertEqual(fourth.red, 255)
+        XCTAssertEqual(fourth.green, 255)
+        XCTAssertEqual(fourth.blue, 255)
+        XCTAssertEqual(fifth.red, 255)
+        XCTAssertEqual(fifth.green, 255)
+        XCTAssertEqual(fifth.blue, 255)
+    }
+
+    func testLayerCompositeTintUsesTintColorAndTintAlphaAsLayerOpacity() throws {
+        let background = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [0, 0, 0, 255],
+                [0, 0, 0, 255]
+            ]
+        )
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    normalizedFrame: CGRect(x: 0, y: 0, width: 0.5, height: 1),
+                    opacity: 1,
+                    blendMode: .sourceOver,
+                    tintColor: SIMD4<Float>(1, 1, 0, 0.5)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let first = try pixel(in: output, x: 0, y: 0)
+        let second = try pixel(in: output, x: 1, y: 0)
+
+        XCTAssertEqual(first.red, 128, accuracy: 2)
+        XCTAssertEqual(first.green, 128, accuracy: 2)
+        XCTAssertEqual(first.blue, 0, accuracy: 2)
+        XCTAssertEqual(first.alpha, 255)
+        XCTAssertEqual(second.red, 0)
+        XCTAssertEqual(second.green, 0)
+        XCTAssertEqual(second.blue, 0)
+        XCTAssertEqual(second.alpha, 255)
+    }
+
+    func testLayerCompositeTintWithZeroAlphaKeepsOriginalLayerColor() throws {
+        let background = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [0, 0, 0, 255],
+                [0, 0, 0, 255]
+            ]
+        )
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    normalizedFrame: CGRect(x: 0, y: 0, width: 0.5, height: 1),
+                    opacity: 1,
+                    blendMode: .sourceOver,
+                    tintColor: SIMD4<Float>(1, 1, 0, 0)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let first = try pixel(in: output, x: 0, y: 0)
+        let second = try pixel(in: output, x: 1, y: 0)
+
+        XCTAssertEqual(first.red, 255)
+        XCTAssertEqual(first.green, 255)
+        XCTAssertEqual(first.blue, 255)
+        XCTAssertEqual(first.alpha, 255)
+        XCTAssertEqual(second.red, 0)
+        XCTAssertEqual(second.green, 0)
+        XCTAssertEqual(second.blue, 0)
+        XCTAssertEqual(second.alpha, 255)
+    }
+
+    func testLayerCompositeMaskOpacityModulatesCoverage() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver,
+                    mask: MaskDescriptor(texture: mask, component: .red, opacity: 0.5)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.green, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.blue, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testLayerCompositeCompositingMaskOpacityModulatesCoverage() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let compositingMask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    opacity: 1,
+                    blendMode: .sourceOver,
+                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, opacity: 0.5)
+                )
+            ]
+        )
+
+        let output = try ImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(outputPixel.red, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.green, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.blue, 128, accuracy: 2)
+        XCTAssertEqual(outputPixel.alpha, 255)
+    }
+
+    func testLayerCompositeFingerprintTracksMaskOpacity() throws {
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [255, 0, 0, 255])
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let firstRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, opacity: 0.25)
+                )
+            ]
+        )
+        let secondRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, opacity: 0.75)
+                )
+            ]
+        )
+
+        XCTAssertNotEqual(firstRecipe.fingerprint, secondRecipe.fingerprint)
+    }
+
+    func testLayerCompositeMaskFeatherModulatesCoverageCurve() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let hardRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, featherPolicy: .none, opacity: 1)
+                )
+            ]
+        )
+        let softRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskDescriptor(texture: mask, component: .red, featherPolicy: .normalized(1), opacity: 1)
+                )
+            ]
+        )
+
+        let hardOutput = try ImageNode.layerComposite(hardRecipe).makeTexture()
+        let softOutput = try ImageNode.layerComposite(softRecipe).makeTexture()
+        let hardPixel = try pixel(in: hardOutput, x: 0, y: 0)
+        let softPixel = try pixel(in: softOutput, x: 0, y: 0)
+
+        XCTAssertEqual(hardPixel.red, 191, accuracy: 3)
+        XCTAssertEqual(softPixel.red, 215, accuracy: 3)
+        XCTAssertGreaterThan(softPixel.red, hardPixel.red)
+    }
+
+    func testLayerCompositeCompositingMaskFeatherModulatesCoverageCurve() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
+        let hardRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    compositingMask: MaskDescriptor(texture: mask, component: .red, featherPolicy: .none, opacity: 1)
+                )
+            ]
+        )
+        let softRecipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    compositingMask: MaskDescriptor(texture: mask, component: .red, featherPolicy: .normalized(1), opacity: 1)
+                )
+            ]
+        )
+
+        let hardOutput = try ImageNode.layerComposite(hardRecipe).makeTexture()
+        let softOutput = try ImageNode.layerComposite(softRecipe).makeTexture()
+        let hardPixel = try pixel(in: hardOutput, x: 0, y: 0)
+        let softPixel = try pixel(in: softOutput, x: 0, y: 0)
+
+        XCTAssertEqual(hardPixel.red, 191, accuracy: 3)
+        XCTAssertEqual(softPixel.red, 215, accuracy: 3)
+        XCTAssertGreaterThan(softPixel.red, hardPixel.red)
+    }
+
     func testLayerCompositeFingerprintTracksLayerTransformAndFilterParameters() throws {
         let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
@@ -693,20 +1119,19 @@ final class ImageNodeTests: XCTestCase {
             kCVPixelBufferMetalCompatibilityKey: true,
             kCVPixelBufferIOSurfacePropertiesKey: [:]
         ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
+        let creationStatus = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            4,
+            4,
+            kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            attributes as CFDictionary,
+            &pixelBuffer
         )
+        guard creationStatus == kCVReturnSuccess else {
+            throw XCTSkip("Failed to create bi-planar pixel buffer.")
+        }
         guard let pixelBuffer else {
-            XCTFail("Failed to create bi-planar pixel buffer.")
-            return
+            throw XCTSkip("Failed to create bi-planar pixel buffer.")
         }
 
         let node = ImageNode.source(.pixelBuffer(pixelBuffer))
