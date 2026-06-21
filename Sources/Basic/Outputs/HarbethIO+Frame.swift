@@ -68,6 +68,49 @@ extension HarbethIO {
         )
     }
 
+    public func renderTexture(recipe: EditRecipe,
+                              mode: EditRecipeMode = .preview,
+                              derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+        let source = try makeHarbethSource()
+        return try FrameRenderer(
+            source: source,
+            recipe: recipe,
+            mode: mode,
+            filters: filters,
+            identifier: identifier,
+            derivative: derivative
+        ).renderTexture()
+    }
+
+    public func renderDiagnostics(recipe: EditRecipe,
+                                  mode: EditRecipeMode = .preview,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+        let source = recipe.resolvedSource(try makeHarbethSource())
+        let input = try source.makeTexture()
+        let contract = recipe.contract(for: mode)
+        let effectiveDerivative = derivative ?? contract.derivative
+        let compiled = recipe.makeExecutionPreviewChain(
+            inputSize: C7Size(width: input.width, height: input.height),
+            mode: mode,
+            derivative: effectiveDerivative,
+            appending: filters,
+            includeDerivativeResize: false
+        )
+        let plan = GraphCompiler.compile(
+            filters: compiled,
+            inputSize: C7Size(width: input.width, height: input.height),
+            profile: contract.profile,
+            derivative: effectiveDerivative
+        )
+        if Shared.shared.enablePerformanceMonitor {
+            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
+            if plan.requiresCompletedGPUWork {
+                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+            }
+        }
+        return plan.diagnostics
+    }
+
     /// texture-first 同步帧输出，携带稳定元数据。
     public func renderFrame(profile: RenderProfile = .stablePreview,
                             derivative: ImageDerivativeSpec? = nil,
@@ -85,6 +128,22 @@ extension HarbethIO {
             outputDerivative: effectiveDerivative
         )
         return try renderer.renderFrame()
+    }
+
+    public func renderFrame(recipe: EditRecipe,
+                            mode: EditRecipeMode = .preview,
+                            derivative: ImageDerivativeSpec? = nil,
+                            metadata: [String: String] = [:]) throws -> RenderedFrame {
+        let source = try makeHarbethSource()
+        return try FrameRenderer(
+            source: source,
+            recipe: recipe,
+            mode: mode,
+            filters: filters,
+            identifier: identifier,
+            metadata: metadata,
+            derivative: derivative
+        ).renderFrame()
     }
 
     public func makeFrameRenderToken() -> FrameRenderToken {
@@ -109,6 +168,59 @@ extension HarbethIO {
         ).renderFrame(token: token)
     }
 
+    public func renderFrame(recipe: EditRecipe,
+                            mode: EditRecipeMode = .preview,
+                            derivative: ImageDerivativeSpec? = nil,
+                            token: FrameRenderToken,
+                            metadata: [String: String] = [:]) throws -> RenderedFrame {
+        let source = try makeHarbethSource()
+        return try FrameRenderer(
+            source: source,
+            recipe: recipe,
+            mode: mode,
+            filters: filters,
+            identifier: identifier,
+            metadata: metadata,
+            derivative: derivative
+        ).renderFrame(token: token)
+    }
+
+    public func renderTransitionTexture(_ recipe: TransitionRecipe) throws -> MTLTexture {
+        try FrameRenderer(
+            transitionRecipe: recipe,
+            filters: filters,
+            identifier: identifier
+        ).renderTexture()
+    }
+
+    public func renderTransitionDiagnostics(_ recipe: TransitionRecipe) throws -> RenderPlanDiagnostics {
+        let input = try recipe.from.makeTexture()
+        let compiled = [try recipe.makeFilter()] + filters
+        let plan = GraphCompiler.compile(
+            filters: compiled,
+            inputSize: C7Size(width: input.width, height: input.height),
+            profile: recipe.profile,
+            derivative: recipe.derivative
+        )
+        if Shared.shared.enablePerformanceMonitor {
+            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
+            if plan.requiresCompletedGPUWork {
+                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+            }
+        }
+        return plan.diagnostics
+    }
+
+    public func renderTransitionFrame(_ recipe: TransitionRecipe,
+                                      metadata: [String: String] = [:]) throws -> RenderedFrame {
+        try FrameRenderer(
+            transitionRecipe: recipe,
+            filters: filters,
+            identifier: identifier,
+            metadata: metadata
+        ).renderFrame()
+    }
+
     /// texture-first 异步帧输出。需要 UIImage/CGImage/Data 的调用方
     /// 应走读回路径并等待 GPU 完成。
     public func transmitFrame(profile: RenderProfile = .stablePreview,
@@ -117,6 +229,21 @@ extension HarbethIO {
                               complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
         transmitFrame(
             profile: profile,
+            derivative: derivative,
+            token: makeFrameRenderToken(),
+            metadata: metadata,
+            complete: complete
+        )
+    }
+
+    public func transmitFrame(recipe: EditRecipe,
+                              mode: EditRecipeMode = .preview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              metadata: [String: String] = [:],
+                              complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+        transmitFrame(
+            recipe: recipe,
+            mode: mode,
             derivative: derivative,
             token: makeFrameRenderToken(),
             metadata: metadata,
@@ -145,6 +272,39 @@ extension HarbethIO {
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
         }
+    }
+
+    public func transmitFrame(recipe: EditRecipe,
+                              mode: EditRecipeMode = .preview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              token: FrameRenderToken,
+                              metadata: [String: String] = [:],
+                              complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+        do {
+            let source = try makeHarbethSource()
+            FrameRenderer(
+                source: source,
+                recipe: recipe,
+                mode: mode,
+                filters: filters,
+                identifier: identifier,
+                metadata: metadata,
+                derivative: derivative
+            ).transmitFrame(token: token, complete: complete)
+        } catch {
+            complete(.failure(HarbethError.toHarbethError(error)))
+        }
+    }
+
+    public func transmitTransitionFrame(_ recipe: TransitionRecipe,
+                                        metadata: [String: String] = [:],
+                                        complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+        FrameRenderer(
+            transitionRecipe: recipe,
+            filters: filters,
+            identifier: identifier,
+            metadata: metadata
+        ).transmitFrame(complete: complete)
     }
 }
 
@@ -180,6 +340,36 @@ extension HarbethIO {
                               metadata: [String: String] = [:]) async throws -> RenderedFrame {
         try await withCheckedThrowingContinuation { continuation in
             transmitFrame(profile: profile, derivative: derivative, token: token, metadata: metadata) { result in
+                switch result {
+                case .success(let frame):
+                    continuation.resume(returning: frame)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    public func transmitFrame(recipe: EditRecipe,
+                              mode: EditRecipeMode = .preview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              metadata: [String: String] = [:]) async throws -> RenderedFrame {
+        try await withCheckedThrowingContinuation { continuation in
+            transmitFrame(recipe: recipe, mode: mode, derivative: derivative, metadata: metadata) { result in
+                switch result {
+                case .success(let frame):
+                    continuation.resume(returning: frame)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    public func transmitTransitionFrame(_ recipe: TransitionRecipe,
+                                        metadata: [String: String] = [:]) async throws -> RenderedFrame {
+        try await withCheckedThrowingContinuation { continuation in
+            transmitTransitionFrame(recipe, metadata: metadata) { result in
                 switch result {
                 case .success(let frame):
                     continuation.resume(returning: frame)

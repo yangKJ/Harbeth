@@ -77,13 +77,17 @@ final class RenderGraphTests: XCTestCase {
 
         XCTAssertEqual(plan.optimizedStages.count, 3)
         XCTAssertEqual(plan.optimizedStages[0].filterCount, 2)
+        XCTAssertEqual(plan.optimizedStages[0].stageKind, .compute)
+        XCTAssertEqual(plan.optimizedStages[0].nodeIndices, [0, 1])
         XCTAssertFalse(plan.optimizedStages[0].breaksFusion)
         XCTAssertEqual(plan.optimizedStages[1].filterCount, 1)
         XCTAssertTrue(plan.optimizedStages[1].breaksFusion)
+        XCTAssertEqual(plan.optimizedStages[1].boundaryReason, "fusionBoundary")
         XCTAssertEqual(plan.optimizedStages[2].filterCount, 1)
         XCTAssertTrue(plan.debugSummary.contains("profile=responseLatency"))
         XCTAssertEqual(plan.diagnostics.inputSize, C7Size(width: 640, height: 480))
         XCTAssertEqual(plan.diagnostics.outputSize, C7Size(width: 320, height: 240))
+        XCTAssertEqual(plan.diagnostics.stageCount, 3)
         XCTAssertEqual(plan.diagnostics.nodes.first?.inputSize, C7Size(width: 640, height: 480))
         XCTAssertEqual(plan.diagnostics.nodes[2].outputSize, C7Size(width: 320, height: 240))
         XCTAssertEqual(plan.diagnostics.nodes[2].parameterSummary["width"], "320.0")
@@ -136,7 +140,9 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(diagnostics.outputSize, C7Size(width: 6, height: 5))
         XCTAssertEqual(diagnostics.nodes.count, 3)
         XCTAssertEqual(diagnostics.stages.count, 3)
+        XCTAssertEqual(diagnostics.stageCount, 3)
         XCTAssertTrue(diagnostics.containsBoundary)
+        XCTAssertEqual(diagnostics.stages[1].outputSize, C7Size(width: 6, height: 5))
         XCTAssertTrue(diagnostics.summary.contains("output=6x5"))
     }
 

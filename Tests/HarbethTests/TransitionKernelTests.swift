@@ -52,6 +52,31 @@ final class TransitionKernelTests: XCTestCase {
         XCTAssertEqual(try firstPixel(in: displacementOutput).green, 255)
     }
 
+    func testTransitionRecipeRendersFrameAndDiagnostics() throws {
+        let from = try makeTexture(width: 3, height: 2, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 3, height: 2, pixel: [0, 0, 255, 255])
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .dissolve,
+            progress: 1,
+            profile: .stablePreview
+        )
+
+        let io = HarbethIO(element: from, filters: [])
+        let frame = try io.renderTransitionFrame(recipe, metadata: ["path": "transition"])
+        let diagnostics = try io.renderTransitionDiagnostics(recipe)
+
+        XCTAssertEqual(frame.profile, .stablePreview)
+        XCTAssertEqual(frame.size.width, 3)
+        XCTAssertEqual(frame.size.height, 2)
+        XCTAssertEqual(frame.metadata["path"], "transition")
+        XCTAssertEqual(try firstPixel(in: frame.texture).blue, 255)
+        XCTAssertEqual(diagnostics.stageCount, diagnostics.stages.count)
+        XCTAssertEqual(diagnostics.stages.first?.stageKind, .compute)
+        XCTAssertEqual(diagnostics.outputSize, C7Size(width: 3, height: 2))
+    }
+
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

@@ -33,6 +33,7 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertNotNil(R.cacheBundles["Harbeth"])
     }
 
+    @available(*, deprecated, message: "Compatibility verification for legacy Device accessors.")
     func testDeprecatedDeviceAccessorsStillResolveToSharedDefaultRuntime() {
         Shared.shared.deinitDevice()
 

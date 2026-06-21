@@ -101,3 +101,68 @@ public struct C7DisplacementTransition: TransitionKernel {
     public var modifier: ModifierEnum { .compute(kernel: "C7DisplacementTransition") }
     public var factors: [Float] { [progress, scale] }
 }
+
+public enum TransitionKernelDescriptor {
+    case dissolve
+    case directionalWipe(angleDegrees: Float = 0, softness: Float = 0.02)
+    case lumaWipe(lumaSource: HarbethSource, softness: Float = 0.1)
+    case displacement(displacementSource: HarbethSource, scale: Float = 0.05)
+
+    func makeFilter(toTexture: MTLTexture, progress: Float) throws -> C7FilterProtocol {
+        switch self {
+        case .dissolve:
+            return C7DissolveTransition(toTexture: toTexture, progress: progress)
+        case .directionalWipe(let angleDegrees, let softness):
+            return C7DirectionalWipeTransition(
+                toTexture: toTexture,
+                progress: progress,
+                angleDegrees: angleDegrees,
+                softness: softness
+            )
+        case .lumaWipe(let lumaSource, let softness):
+            return C7LumaWipeTransition(
+                toTexture: toTexture,
+                lumaTexture: try lumaSource.makeTexture(),
+                progress: progress,
+                softness: softness
+            )
+        case .displacement(let displacementSource, let scale):
+            return C7DisplacementTransition(
+                toTexture: toTexture,
+                displacementTexture: try displacementSource.makeTexture(),
+                progress: progress,
+                scale: scale
+            )
+        }
+    }
+}
+
+public struct TransitionRecipe {
+    public var from: HarbethSource
+    public var to: HarbethSource
+    public var kernel: TransitionKernelDescriptor
+    public var progress: Float
+    public var profile: RenderProfile
+    public var derivative: ImageDerivativeSpec
+
+    public init(from: HarbethSource,
+                to: HarbethSource,
+                kernel: TransitionKernelDescriptor,
+                progress: Float,
+                profile: RenderProfile = .stablePreview,
+                derivative: ImageDerivativeSpec? = nil) {
+        self.from = from
+        self.to = to
+        self.kernel = kernel
+        self.progress = min(max(progress, 0), 1)
+        self.profile = profile
+        self.derivative = derivative ?? profile.defaultDerivativeSpec
+    }
+
+    func makeFilter() throws -> C7FilterProtocol {
+        try kernel.makeFilter(
+            toTexture: to.makeTexture(),
+            progress: progress
+        )
+    }
+}

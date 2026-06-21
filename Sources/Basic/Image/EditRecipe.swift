@@ -82,6 +82,57 @@ public struct EditRecipe {
     }
 
     public func makeFilterChain(inputSize: C7Size, prefersQualityResize: Bool = true) -> [C7FilterProtocol] {
-        geometry.makeFilters(inputSize: inputSize, prefersQualityResize: prefersQualityResize) + filters
+        makeBaseFilterChain(inputSize: inputSize, prefersQualityResize: prefersQualityResize)
+    }
+
+    func resolvedSource(_ source: HarbethSource) -> HarbethSource {
+        switch source {
+        case .asset(let asset):
+            return .asset(
+                HarbethImageAsset(
+                    storage: asset.storage,
+                    loadingOptions: sourceLoadingOptions,
+                    sourceTier: asset.sourceTier
+                )
+            )
+        default:
+            return source
+        }
+    }
+
+    func makeBaseFilterChain(inputSize: C7Size,
+                             prefersQualityResize: Bool = true,
+                             appending extraFilters: [C7FilterProtocol] = []) -> [C7FilterProtocol] {
+        geometry.makeFilters(inputSize: inputSize, prefersQualityResize: prefersQualityResize) + filters + extraFilters
+    }
+
+    func makeExecutionPreviewChain(inputSize: C7Size,
+                                   mode: EditRecipeMode,
+                                   derivative: ImageDerivativeSpec,
+                                   appending extraFilters: [C7FilterProtocol] = [],
+                                   includeDerivativeResize: Bool = true) -> [C7FilterProtocol] {
+        var compiled = makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)
+        localEffects.forEach { effect in
+            compiled.append(contentsOf: effect.filters)
+            let placeholderMask = effect.mask
+            compiled.append(C7MaskRegionBlend(effectTexture: placeholderMask.texture, mask: placeholderMask))
+        }
+        guard includeDerivativeResize else {
+            return compiled
+        }
+        let baseOutputSize = compiled.reduce(inputSize) { size, filter in
+            filter.resize(input: size)
+        }
+        let derivativeOutputSize = derivative.resolvedOutputSize(for: baseOutputSize)
+        guard derivativeOutputSize != baseOutputSize else {
+            return compiled
+        }
+        compiled.append(
+            C7Resize(
+                width: Float(derivativeOutputSize.width),
+                height: Float(derivativeOutputSize.height)
+            )
+        )
+        return compiled
     }
 }

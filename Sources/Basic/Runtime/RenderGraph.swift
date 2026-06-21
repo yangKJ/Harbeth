@@ -44,17 +44,48 @@ public struct RenderGraph {
     }
 }
 
+public enum RenderStageKind: String, Sendable, Equatable {
+    case compute
+    case render
+    case blit
+    case boundary
+}
+
 public struct RenderStage: Sendable, Equatable {
     public let index: Int
+    public let stageKind: RenderStageKind
+    public let nodeIndices: [Int]
     public let kinds: [RenderNodeKind]
     public let filterCount: Int
     public let breaksFusion: Bool
+    public let inputSize: C7Size
+    public let outputSize: C7Size
+    public let boundaryReason: String?
+    public let containsReadbackBoundary: Bool
+    public let createsDestinationTexture: Bool
 
-    public init(index: Int, kinds: [RenderNodeKind], filterCount: Int, breaksFusion: Bool) {
+    public init(index: Int,
+                stageKind: RenderStageKind,
+                nodeIndices: [Int],
+                kinds: [RenderNodeKind],
+                filterCount: Int,
+                breaksFusion: Bool,
+                inputSize: C7Size,
+                outputSize: C7Size,
+                boundaryReason: String?,
+                containsReadbackBoundary: Bool,
+                createsDestinationTexture: Bool) {
         self.index = index
+        self.stageKind = stageKind
+        self.nodeIndices = nodeIndices
         self.kinds = kinds
         self.filterCount = filterCount
         self.breaksFusion = breaksFusion
+        self.inputSize = inputSize
+        self.outputSize = outputSize
+        self.boundaryReason = boundaryReason
+        self.containsReadbackBoundary = containsReadbackBoundary
+        self.createsDestinationTexture = createsDestinationTexture
     }
 }
 
@@ -91,6 +122,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let outputSize: C7Size
     public let containsBoundary: Bool
     public let requiresCompletedGPUWork: Bool
+    public let stageCount: Int
     public let nodes: [RenderNodeDiagnostic]
     public let stages: [RenderStage]
 
@@ -100,6 +132,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
                 outputSize: C7Size,
                 containsBoundary: Bool,
                 requiresCompletedGPUWork: Bool,
+                stageCount: Int,
                 nodes: [RenderNodeDiagnostic],
                 stages: [RenderStage]) {
         self.profile = profile
@@ -108,6 +141,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         self.outputSize = outputSize
         self.containsBoundary = containsBoundary
         self.requiresCompletedGPUWork = requiresCompletedGPUWork
+        self.stageCount = stageCount
         self.nodes = nodes
         self.stages = stages
     }
@@ -125,7 +159,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "input=\(inputSize.width)x\(inputSize.height)",
             "output=\(outputSize.width)x\(outputSize.height)",
             "nodes=\(nodes.count)",
-            "stages=\(stages.count)",
+            "stages=\(stageCount)",
             "boundary=\(containsBoundary ? 1 : 0)",
             "readback=\(requiresCompletedGPUWork ? 1 : 0)",
             "plan=\(stageSummary)"
@@ -153,7 +187,11 @@ public struct RenderPlan {
         let containsBoundary = graph.nodes.contains(where: { $0.kind == .boundary || $0.breaksFusion })
         self.requiresCompletedGPUWork = requiresCompletedGPUWork
         self.containsBoundary = containsBoundary
-        self.optimizedStages = GraphOptimizer.optimize(graph: graph)
+        self.optimizedStages = GraphOptimizer.optimize(
+            graph: graph,
+            nodeDiagnostics: nodeDiagnostics,
+            profile: profile
+        )
         self.diagnostics = RenderPlanDiagnostics(
             profile: profile,
             derivative: derivative,
@@ -161,6 +199,7 @@ public struct RenderPlan {
             outputSize: outputSize,
             containsBoundary: containsBoundary,
             requiresCompletedGPUWork: requiresCompletedGPUWork,
+            stageCount: optimizedStages.count,
             nodes: nodeDiagnostics,
             stages: optimizedStages
         )
@@ -172,42 +211,77 @@ public struct RenderPlan {
 }
 
 public enum GraphOptimizer {
-    public static func optimize(graph: RenderGraph) -> [RenderStage] {
+    public static func optimize(graph: RenderGraph,
+                                nodeDiagnostics: [RenderNodeDiagnostic],
+                                profile: RenderProfile) -> [RenderStage] {
         guard graph.nodes.isEmpty == false else { return [] }
 
         var stages: [RenderStage] = []
-        var stageKinds: [RenderNodeKind] = []
-        var stageFilterCount = 0
-        var stageBreaksFusion = false
-        var stageIndex = 0
+        var currentNodeIndices: [Int] = []
 
-        func flushStage() {
-            guard stageKinds.isEmpty == false else { return }
-            stages.append(
-                RenderStage(
-                    index: stageIndex,
-                    kinds: stageKinds,
-                    filterCount: stageFilterCount,
-                    breaksFusion: stageBreaksFusion
-                )
-            )
-            stageIndex += 1
-            stageKinds.removeAll(keepingCapacity: true)
-            stageFilterCount = 0
-            stageBreaksFusion = false
+        func stageKind(for kinds: [RenderNodeKind]) -> RenderStageKind {
+            if kinds.contains(.boundary) {
+                return .boundary
+            }
+            if kinds.contains(.render) {
+                return .render
+            }
+            if kinds.contains(.blit) {
+                return .blit
+            }
+            return .compute
         }
 
-        for node in graph.nodes {
-            let startsNewStage = stageKinds.isEmpty == false && (stageBreaksFusion || node.breaksFusion)
+        func boundaryReason(for stageNodes: [RenderNode], diagnostics: [RenderNodeDiagnostic]) -> String? {
+            if stageNodes.contains(where: { $0.kind == .boundary }) {
+                return "externalBoundary"
+            }
+            if diagnostics.contains(where: \.breaksFusion) {
+                return "fusionBoundary"
+            }
+            if profile.requiresCompletedGPUWorkBeforeReadback,
+               diagnostics.last?.outputSize == diagnostics.last?.outputSize {
+                return "readbackReady"
+            }
+            return nil
+        }
+
+        func flushStage() {
+            guard currentNodeIndices.isEmpty == false else { return }
+            let stageNodes = currentNodeIndices.map { graph.nodes[$0] }
+            let diagnostics = currentNodeIndices.compactMap { index in
+                nodeDiagnostics.indices.contains(index) ? nodeDiagnostics[index] : nil
+            }
+            let inputSize = diagnostics.first?.inputSize ?? C7Size(width: 0, height: 0)
+            let outputSize = diagnostics.last?.outputSize ?? inputSize
+            let kinds = stageNodes.map(\.kind)
+            stages.append(
+                RenderStage(
+                    index: stages.count,
+                    stageKind: stageKind(for: kinds),
+                    nodeIndices: currentNodeIndices,
+                    kinds: kinds,
+                    filterCount: stageNodes.filter { $0.filter != nil }.count,
+                    breaksFusion: stageNodes.contains(where: \.breaksFusion),
+                    inputSize: inputSize,
+                    outputSize: outputSize,
+                    boundaryReason: boundaryReason(for: stageNodes, diagnostics: diagnostics),
+                    containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback && currentNodeIndices.last == graph.nodes.indices.last,
+                    createsDestinationTexture: stageNodes.contains(where: { $0.filter != nil })
+                )
+            )
+            currentNodeIndices.removeAll(keepingCapacity: true)
+        }
+
+        for index in graph.nodes.indices {
+            let node = graph.nodes[index]
+            let previousBreaksFusion = currentNodeIndices.last.flatMap { graph.nodes[$0].breaksFusion } ?? false
+            let startsNewStage = currentNodeIndices.isEmpty == false && (previousBreaksFusion || node.breaksFusion)
             if startsNewStage {
                 flushStage()
             }
 
-            stageKinds.append(node.kind)
-            if node.filter != nil {
-                stageFilterCount += 1
-            }
-            stageBreaksFusion = stageBreaksFusion || node.breaksFusion || node.kind == .boundary
+            currentNodeIndices.append(index)
 
             if node.breaksFusion || node.kind == .boundary {
                 flushStage()

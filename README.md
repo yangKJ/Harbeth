@@ -169,17 +169,36 @@ let geometry = ImageTransformRecipe(
     targetSize: CGSize(width: 1080, height: 1080),
     aspectPolicy: .fill
 )
-
-let baseFilters = geometry.makeFilters(inputSize: C7Size(width: 4032, height: 3024))
+let mask = MaskDescriptor(texture: maskTexture, opacity: 0.8)
 let recipe = EditRecipe(
     geometry: geometry,
-    filters: baseFilters + [C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75)],
+    filters: [C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75)],
+    localEffects: [
+        LocalEffectRecipe(
+            filters: [C7UnsharpMask(radius: 2, intensity: 0.6, threshold: 0.02)],
+            mask: mask
+        )
+    ],
     previewProfile: .stablePreview,
     finalProfile: .exportQuality
 )
 
-let previewContract = recipe.contract(for: .preview)
-let finalContract = recipe.contract(for: .final)
+let io = HarbethIO(element: inputImage, filters: [])
+let previewFrame = try io.renderFrame(recipe: recipe, mode: .preview)
+let finalTexture = try io.renderTexture(recipe: recipe, mode: .final)
+```
+
+```swift
+let transition = TransitionRecipe(
+    from: .texture(fromTexture),
+    to: .texture(toTexture),
+    kernel: .directionalWipe(angleDegrees: 90, softness: 0.08),
+    progress: 0.35,
+    profile: .stablePreview
+)
+
+let transitionFrame = try HarbethIO(element: fromTexture, filters: [])
+    .renderTransitionFrame(transition)
 ```
 
 ### 🎨 Real-time Filter Effects
