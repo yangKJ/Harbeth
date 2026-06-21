@@ -283,6 +283,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     public let graphOptimizationDecisions: [String]
     public let persistentBoundaryCount: Int
     public let transientReuseCandidateCount: Int
+    public let sharedDependencyNodeCount: Int
     public let inputSize: C7Size
     public let outputSize: C7Size
     public let containsBoundary: Bool
@@ -301,6 +302,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     public let inputAlphaType: AlphaType?
     public let outputAlphaType: AlphaType?
     public let inputPixelFormat: PixelFormatContract
+    public let inputBridgePolicy: PixelBufferBridgePolicy?
+    public let inputYCbCrDecodeContract: YCbCrDecodeContract?
     public let outputPixelFormat: PixelFormatContract
     public let inputColorConversionCount: Int
     public let inputPixelFormatConversionCount: Int
@@ -323,6 +326,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
                 graphOptimizationDecisions: [String],
                 persistentBoundaryCount: Int,
                 transientReuseCandidateCount: Int,
+                sharedDependencyNodeCount: Int,
                 inputSize: C7Size,
                 outputSize: C7Size,
                 containsBoundary: Bool,
@@ -341,6 +345,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
                 inputAlphaType: AlphaType?,
                 outputAlphaType: AlphaType?,
                 inputPixelFormat: PixelFormatContract,
+                inputBridgePolicy: PixelBufferBridgePolicy? = nil,
+                inputYCbCrDecodeContract: YCbCrDecodeContract? = nil,
                 outputPixelFormat: PixelFormatContract,
                 inputColorConversionCount: Int,
                 inputPixelFormatConversionCount: Int,
@@ -362,6 +368,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         self.graphOptimizationDecisions = graphOptimizationDecisions
         self.persistentBoundaryCount = persistentBoundaryCount
         self.transientReuseCandidateCount = transientReuseCandidateCount
+        self.sharedDependencyNodeCount = sharedDependencyNodeCount
         self.inputSize = inputSize
         self.outputSize = outputSize
         self.containsBoundary = containsBoundary
@@ -380,6 +387,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         self.inputAlphaType = inputAlphaType
         self.outputAlphaType = outputAlphaType
         self.inputPixelFormat = inputPixelFormat
+        self.inputBridgePolicy = inputBridgePolicy
+        self.inputYCbCrDecodeContract = inputYCbCrDecodeContract
         self.outputPixelFormat = outputPixelFormat
         self.inputColorConversionCount = inputColorConversionCount
         self.inputPixelFormatConversionCount = inputPixelFormatConversionCount
@@ -411,6 +420,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "optimizedGraphNodes=\(optimizedGraphNodeCount)",
             "persistentBoundaries=\(persistentBoundaryCount)",
             "reuseCandidates=\(transientReuseCandidateCount)",
+            "sharedDependencies=\(sharedDependencyNodeCount)",
             "nodes=\(nodes.count)",
             "stages=\(stageCount)",
             "boundary=\(containsBoundary ? 1 : 0)",
@@ -443,6 +453,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
             "outputAlpha=\(outputAlphaType?.rawValue ?? "none")",
             "inputPixel=\(inputPixelFormat.name)",
+            "inputBridgePolicy=\(inputBridgePolicy?.rawValue ?? "none")",
+            "inputYCbCrDecode=\(inputYCbCrDecodeContract?.fingerprint ?? "none")",
             "inputPixelPrecision=\(inputPixelPrecision.rawValue)",
             "inputHDRFriendly=\(inputIsHDRFriendly ? 1 : 0)",
             "outputPixel=\(outputPixelFormat.name)",
@@ -450,8 +462,17 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "colorGamut=\(outputContract.colorSpace.gamut.rawValue)",
             "transfer=\(outputContract.colorSpace.transferFunction.rawValue)",
             "pixelPrecision=\(outputContract.pixelFormat.precision.rawValue)",
+            "outputAttachments=\(outputAttachmentCount)",
+            "outputAttachmentIndices=\(outputContract.attachments.map { String($0.index) }.joined(separator: ","))",
+            "outputAttachmentSemantics=\(outputContract.attachments.map { $0.semantic.rawValue }.joined(separator: ","))",
+            "outputAttachmentPixels=\(outputContract.attachments.map { $0.pixelFormat.name }.joined(separator: ","))",
+            "outputAttachmentHDR=\(outputContract.attachments.map { $0.isHDRFriendlyOutput ? "1" : "0" }.joined(separator: ","))",
+            "outputAttachmentDebugLabels=\(outputContract.attachmentDebugPolicies.map(\.label).joined(separator: ","))",
+            "outputAttachmentDebugViews=\(outputContract.attachmentDebugPolicies.map { $0.interpretation.rawValue }.joined(separator: ","))",
+            "outputAttachmentReadbackPixels=\(outputContract.attachmentDebugPolicies.map { $0.preferredReadbackPixelFormat.name }.joined(separator: ","))",
+            "outputAttachmentMonochromePreview=\(outputContract.attachmentDebugPolicies.map { $0.prefersMonochromePreview ? "1" : "0" }.joined(separator: ","))",
             "lossyConversions=\(lossyConversionCount)",
-            "hdrFriendly=\(outputContract.isHDRFriendlyOutput ? 1 : 0)",
+            "hdrFriendly=\(outputContract.hasHDRFriendlyAttachment ? 1 : 0)",
             "plan=\(stageSummary)"
         ].joined(separator: " ")
     }
@@ -466,6 +487,18 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
 
     public var inputIsHDRFriendly: Bool {
         inputPixelFormat.isHighPrecision || inputColorSpace.isWideGamut || inputColorSpace.isHDRTransfer
+    }
+
+    public var outputAttachmentCount: Int {
+        outputContract.attachmentCount
+    }
+
+    public var outputHasMultipleAttachments: Bool {
+        outputContract.hasMultipleAttachments
+    }
+
+    public var outputAttachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy] {
+        outputContract.attachmentDebugPolicies
     }
 
     public func withImageCachePolicy(_ policy: ImageCachePolicy) -> RenderPlanDiagnostics {
@@ -487,6 +520,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             graphOptimizationDecisions: graphOptimizationDecisions,
             persistentBoundaryCount: persistentBoundaryCount,
             transientReuseCandidateCount: transientReuseCandidateCount,
+            sharedDependencyNodeCount: sharedDependencyNodeCount,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -505,6 +539,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             inputAlphaType: inputAlphaType,
             outputAlphaType: outputAlphaType,
             inputPixelFormat: inputPixelFormat,
+            inputBridgePolicy: inputBridgePolicy,
+            inputYCbCrDecodeContract: inputYCbCrDecodeContract,
             outputPixelFormat: outputPixelFormat,
             inputColorConversionCount: inputColorConversionCount,
             inputPixelFormatConversionCount: inputPixelFormatConversionCount,
@@ -531,6 +567,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             graphOptimizationDecisions: graphOptimizationDecisions,
             persistentBoundaryCount: persistentBoundaryCount,
             transientReuseCandidateCount: transientReuseCandidateCount,
+            sharedDependencyNodeCount: sharedDependencyNodeCount,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -549,6 +586,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             inputAlphaType: inputAlphaType,
             outputAlphaType: outputAlphaType,
             inputPixelFormat: inputPixelFormat,
+            inputBridgePolicy: inputBridgePolicy,
+            inputYCbCrDecodeContract: inputYCbCrDecodeContract,
             outputPixelFormat: outputPixelFormat,
             inputColorConversionCount: inputColorConversionCount,
             inputPixelFormatConversionCount: inputPixelFormatConversionCount,
@@ -631,9 +670,12 @@ public struct RenderPlan {
         let resolvedInputPixelFormatConversionCount = inputPixelFormatConversionCount ?? (sourceDerivedInputPixelFormatConversions + auxiliaryInputPixelFormatConversions)
         let resolvedInputAlphaConversionCount = inputAlphaConversionCount ?? 0
         let resolvedInputDirectPlaneBridgeCount = sourceDirectPlaneBridgeCount + auxiliaryDirectPlaneBridgeCount
-        let resolvedInputColorSpace: ImageColorSpaceContract = sourceDescriptor?.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true
-            ? ImageColorSpaceContract(name: "YCbCr", preservesInput: true, gamut: .custom, transferFunction: .custom)
-            : .preserveInput
+        let resolvedInputBridgePolicy = sourceDescriptor?.pixelBufferBridgePolicy ?? auxiliaryInputDescriptor?.pixelBufferBridgePolicy
+        let resolvedInputYCbCrDecodeContract = sourceDescriptor?.yCbCrDecodeContract ?? auxiliaryInputDescriptor?.yCbCrDecodeContract
+        let resolvedInputColorSpace = RenderPlan.resolveInputColorSpace(
+            primary: sourceDescriptor,
+            auxiliary: auxiliaryInputDescriptor
+        )
         let resolvedInputPixelFormat = RenderPlan.resolveInputPixelFormat(from: sourceDescriptor)
         let optimizationPlan = GraphOptimizer.makeOptimizationPlan(
             stages: optimizedStages,
@@ -653,6 +695,7 @@ public struct RenderPlan {
         let resolvedOptimizedGraphNodeCount = imageGraph?.nodeCount ?? resolvedGraphNodeCount
         let resolvedPersistentBoundaryCount = imageGraph?.persistentBoundaryCount ?? (containsBoundary ? 1 : 0)
         let resolvedTransientReuseCandidateCount = imageGraph?.transientReuseCandidateCount ?? max(nodeDiagnostics.count - 1, 0)
+        let resolvedSharedDependencyNodeCount = imageGraph?.sharedDependencyNodeCount ?? 0
         self.diagnostics = RenderPlanDiagnostics(
             profile: profile,
             derivative: derivative,
@@ -668,6 +711,7 @@ public struct RenderPlan {
             graphOptimizationDecisions: graphOptimizationDecisions,
             persistentBoundaryCount: resolvedPersistentBoundaryCount,
             transientReuseCandidateCount: resolvedTransientReuseCandidateCount,
+            sharedDependencyNodeCount: resolvedSharedDependencyNodeCount,
             inputSize: inputSize,
             outputSize: outputSize,
             containsBoundary: containsBoundary,
@@ -686,6 +730,8 @@ public struct RenderPlan {
             inputAlphaType: sourceDescriptor?.alphaType,
             outputAlphaType: resolvedOutputAlphaType,
             inputPixelFormat: resolvedInputPixelFormat,
+            inputBridgePolicy: resolvedInputBridgePolicy,
+            inputYCbCrDecodeContract: resolvedInputYCbCrDecodeContract,
             outputPixelFormat: resolvedOutputPixelFormat,
             inputColorConversionCount: resolvedInputColorConversionCount,
             inputPixelFormatConversionCount: resolvedInputPixelFormatConversionCount,
@@ -706,6 +752,28 @@ public struct RenderPlan {
 }
 
 private extension RenderPlan {
+    static func resolveInputColorSpace(primary descriptor: ImageSourceDescriptor?,
+                                       auxiliary auxiliaryDescriptor: ImageSourceDescriptor?) -> ImageColorSpaceContract {
+        if let colorSpace = resolveAttachmentColorSpace(from: descriptor)
+            ?? resolveAttachmentColorSpace(from: auxiliaryDescriptor) {
+            return colorSpace
+        }
+        if sourceRequiresYCbCrConversion(descriptor) || sourceRequiresYCbCrConversion(auxiliaryDescriptor) {
+            return ImageColorSpaceContract(name: "YCbCr", preservesInput: true, gamut: .custom, transferFunction: .custom)
+        }
+        return .preserveInput
+    }
+
+    static func resolveAttachmentColorSpace(from descriptor: ImageSourceDescriptor?) -> ImageColorSpaceContract? {
+        descriptor?.pixelBufferContract?.attachmentColorSpace
+            ?? descriptor?.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace
+    }
+
+    static func sourceRequiresYCbCrConversion(_ descriptor: ImageSourceDescriptor?) -> Bool {
+        descriptor?.pixelBufferBridgePlan?.requiresColorConversion == true
+            || descriptor?.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true
+    }
+
     static func resolveInputColorConversionCount(from descriptor: ImageSourceDescriptor?) -> Int {
         guard let descriptor else {
             return 0

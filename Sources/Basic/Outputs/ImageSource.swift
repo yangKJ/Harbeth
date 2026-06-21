@@ -137,6 +137,7 @@ public enum ImageSource {
     public var descriptor: ImageSourceDescriptor {
         switch self {
         case .pixelBuffer(let pixelBuffer):
+            let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
             return ImageSourceDescriptor(
                 kind: kindName,
                 sourceTier: sourceTier,
@@ -146,9 +147,16 @@ public enum ImageSource {
                 semantic: .sourceOriginal,
                 loadingOptions: loadingOptions,
                 pixelBufferContract: pixelBuffer.c7.contract,
-                pixelBufferBridgePlan: pixelBuffer.c7.makeTextureBridgePlan()
+                pixelBufferBridgePlan: bridgePlan,
+                pixelBufferBridgePolicy: TextureLoader.makeBridgePolicy(for: bridgePlan),
+                yCbCrDecodeContract: TextureLoader.makeYCbCrDecodeContract(
+                    for: pixelBuffer,
+                    bridgePlan: bridgePlan
+                )
             )
         case .sampleBuffer(let sampleBuffer):
+            let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
+            let bridgePlan = pixelBuffer?.c7.makeTextureBridgePlan()
             return ImageSourceDescriptor(
                 kind: kindName,
                 sourceTier: sourceTier,
@@ -157,6 +165,13 @@ public enum ImageSource {
                 cachePolicy: cachePolicy,
                 semantic: .sourceOriginal,
                 loadingOptions: loadingOptions,
+                pixelBufferContract: pixelBuffer?.c7.contract,
+                pixelBufferBridgePlan: bridgePlan,
+                pixelBufferBridgePolicy: bridgePlan.map(TextureLoader.makeBridgePolicy(for:)),
+                yCbCrDecodeContract: pixelBuffer.flatMap {
+                    guard let bridgePlan else { return nil }
+                    return TextureLoader.makeYCbCrDecodeContract(for: $0, bridgePlan: bridgePlan)
+                },
                 sampleBufferContract: sampleBuffer.c7.contract
             )
         default:

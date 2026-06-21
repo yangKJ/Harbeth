@@ -205,6 +205,7 @@ struct Compute {
         }
         /// 配置特殊参数非`Float`类型，例如4x4矩阵
         filter.setupSpecialFactors(for: computeEncoder, index: index)
+        KernelBindingEncoder.encode(filter.kernelParameterBindings, stage: .compute, on: computeEncoder)
         
         // Calculate optimal threadgroup size based on memory access pattern and GPU architecture
         let threadgroupSize = calculateOptimalThreadgroupSize(for: pipelineState, texture: destTexture, filter: filter)

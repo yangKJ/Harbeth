@@ -104,6 +104,55 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(frame.profile, .responseLatency)
     }
 
+    func testHarbethIOAttachmentDebugPoliciesExposeAuxiliaryHints() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "RenderedFrameTests")
+        let io = HarbethIO(element: texture, filters: [RenderAuxiliaryLuminance()])
+        let node = ImageNode.filters(input: .texture(texture), filters: [RenderAuxiliaryLuminance()])
+
+        let policies = try io.renderAttachmentDebugPolicies(
+            node: node
+        )
+
+        XCTAssertEqual(policies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(policies.map(\.interpretation), [.color, .monochrome])
+        XCTAssertEqual(policies.map { $0.preferredReadbackPixelFormat }, [.rgba8Unorm, .rgba8Unorm])
+    }
+
+    func testRenderedAttachmentSetExposesPrimaryAttachmentBySemantic() throws {
+        let contract = RenderOutputContract(
+            alpha: .premultiplied,
+            colorSpace: .sRGB,
+            pixelFormat: .rgba8Unorm,
+            additionalAttachments: [.analysis(index: 1, pixelFormat: .rgba8Unorm)]
+        )
+        let primaryTexture = try TextureLoader.makeTexture(width: 1, height: 1, identifier: "RenderedFrameTests.primaryAttachment")
+        let analysisTexture = try TextureLoader.makeTexture(width: 1, height: 1, identifier: "RenderedFrameTests.analysisAttachment")
+        let output = RenderedAttachmentSet(
+            outputContract: contract,
+            attachments: [
+                RenderedAttachment(
+                    index: 0,
+                    semantic: .primaryColor,
+                    texture: primaryTexture,
+                    debugPolicy: contract.attachments[0].debugPolicy
+                ),
+                RenderedAttachment(
+                    index: 1,
+                    semantic: .analysis,
+                    texture: analysisTexture,
+                    debugPolicy: contract.attachments[1].debugPolicy
+                )
+            ]
+        )
+
+        XCTAssertTrue(output.primary?.texture === primaryTexture)
+        XCTAssertTrue(output.attachment(for: .analysis)?.texture === analysisTexture)
+        XCTAssertEqual(output.debugPolicies.map(\.label), ["primaryColor", "analysis"])
+    }
+
     func testRenderedFrameCanRejectStaleTokenForSameIdentifier() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

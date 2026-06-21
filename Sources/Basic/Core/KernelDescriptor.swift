@@ -234,10 +234,16 @@ public enum KernelArgumentDataType: String, Sendable, Codable, Equatable, Hashab
     case double
     case int
     case bool
+    case float2
+    case float3
+    case float4
     case string
     case floatArray
     case intArray
     case stringArray
+    case matrix3x3
+    case matrix4x4
+    case bytes
     case texture
     case unknown
 }
@@ -334,19 +340,22 @@ public struct KernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
     public let resources: KernelResourceDescriptor
     public let alphaBehavior: KernelAlphaBehavior
     public let renderPass: RenderPassContract?
+    public let drawCallCount: Int
 
     public init(index: Int,
                 functionIdentity: KernelFunctionIdentity,
                 output: KernelOutputDescriptor = KernelOutputDescriptor(),
                 resources: KernelResourceDescriptor,
                 alphaBehavior: KernelAlphaBehavior = .preserveInput,
-                renderPass: RenderPassContract? = nil) {
+                renderPass: RenderPassContract? = nil,
+                drawCallCount: Int = 1) {
         self.index = index
         self.functionIdentity = functionIdentity
         self.output = output
         self.resources = resources
         self.alphaBehavior = alphaBehavior
         self.renderPass = renderPass
+        self.drawCallCount = max(drawCallCount, 1)
     }
 
     public var fingerprint: String {
@@ -356,7 +365,8 @@ public struct KernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
             output.fingerprint,
             resources.fingerprint,
             "alpha=\(alphaBehavior.rawValue)",
-            "renderPass=\(renderPass?.fingerprint ?? "none")"
+            "renderPass=\(renderPass?.fingerprint ?? "none")",
+            "drawCalls=\(drawCallCount)"
         ].joined(separator: "|")
     }
 }
@@ -365,6 +375,7 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public let filterName: String
     public let functionIdentity: KernelFunctionIdentity
     public let parameters: [String: KernelParameterValue]
+    public let parameterBindings: [KernelParameterBinding]
     public let arguments: [KernelArgumentDescriptor]
     public let output: KernelOutputDescriptor
     public let resourceUsage: KernelResourceUsage
@@ -377,6 +388,7 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public init(filterName: String,
                 functionIdentity: KernelFunctionIdentity,
                 parameters: [String: KernelParameterValue] = [:],
+                parameterBindings: [KernelParameterBinding] = [],
                 arguments: [KernelArgumentDescriptor] = [],
                 output: KernelOutputDescriptor = KernelOutputDescriptor(),
                 resourceUsage: KernelResourceUsage = .singleInput,
@@ -388,9 +400,11 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
         self.filterName = filterName
         self.functionIdentity = functionIdentity
         self.parameters = parameters
+        self.parameterBindings = parameterBindings
         self.arguments = arguments.isEmpty
             ? KernelDescriptor.makeArgumentDescriptors(
                 parameters: parameters,
+                parameterBindings: parameterBindings,
                 functionConstants: functionIdentity.functionConstants
             )
             : arguments
@@ -408,7 +422,8 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
                     output: output,
                     resources: self.resources,
                     alphaBehavior: alphaBehavior,
-                    renderPass: nil
+                    renderPass: nil,
+                    drawCallCount: 1
                 )
             ]
         } else {
@@ -421,10 +436,23 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
             .sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value.fingerprint)" }
             .joined(separator: "|")
+        let bindingFingerprint = parameterBindings
+            .sorted { lhs, rhs in
+                if lhs.index == rhs.index {
+                    if lhs.stage == rhs.stage {
+                        return lhs.name < rhs.name
+                    }
+                    return lhs.stage.rawValue < rhs.stage.rawValue
+                }
+                return lhs.index < rhs.index
+            }
+            .map(\.fingerprint)
+            .joined(separator: "||")
         return [
             "filter=\(filterName)",
             functionIdentity.fingerprint,
             "params=\(parameterFingerprint)",
+            "bindings=\(bindingFingerprint.isEmpty ? "none" : bindingFingerprint)",
             "arguments=\(arguments.map(\.fingerprint).joined(separator: "||"))",
             output.fingerprint,
             resources.fingerprint,
@@ -436,6 +464,7 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 
     private static func makeArgumentDescriptors(parameters: [String: KernelParameterValue],
+                                                parameterBindings: [KernelParameterBinding],
                                                 functionConstants: [KernelFunctionConstantDescriptor]) -> [KernelArgumentDescriptor] {
         let parameterDescriptors = parameters
             .sorted { $0.key < $1.key }
@@ -450,6 +479,26 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
                     valueFingerprint: pair.value.fingerprint
                 )
             }
+        let bindingDescriptors = parameterBindings
+            .sorted { lhs, rhs in
+                if lhs.index == rhs.index {
+                    if lhs.stage == rhs.stage {
+                        return lhs.name < rhs.name
+                    }
+                    return lhs.stage.rawValue < rhs.stage.rawValue
+                }
+                return lhs.index < rhs.index
+            }
+            .map { binding in
+                KernelArgumentDescriptor(
+                    name: binding.name,
+                    index: binding.index,
+                    role: .parameter,
+                    dataType: binding.value.argumentDataType,
+                    required: binding.required,
+                    valueFingerprint: binding.fingerprint
+                )
+            }
         let constantDescriptors = functionConstants
             .sorted { lhs, rhs in
                 if lhs.name == rhs.name {
@@ -461,14 +510,14 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
             .map { offset, constant in
                 KernelArgumentDescriptor(
                     name: constant.name,
-                    index: parameterDescriptors.count + offset,
+                    index: parameterDescriptors.count + bindingDescriptors.count + offset,
                     role: .functionConstant,
                     dataType: constant.value.argumentDataType,
                     required: true,
                     valueFingerprint: constant.value.fingerprint
                 )
             }
-        return parameterDescriptors + constantDescriptors
+        return parameterDescriptors + bindingDescriptors + constantDescriptors
     }
 }
 
@@ -484,6 +533,9 @@ public extension KernelDescriptor {
         }
         if resources.inputTextureCount != runtimeDescriptor.resources.inputTextureCount {
             return "inputTextureCountMismatch"
+        }
+        if parameterBindings != runtimeDescriptor.parameterBindings {
+            return "parameterBindingsMismatch"
         }
         return "compatible"
     }
@@ -558,14 +610,34 @@ public extension C7FilterProtocol {
         }
 
         let alphaBehavior = defaultAlphaBehavior
-        let outputContract = RenderOutputContract(alpha: alphaBehavior.renderAlphaContract)
+        let parameterBindings = kernelParameterBindings
+        let outputContract: RenderOutputContract
         let renderPassContract: RenderPassContract?
         if case .render = modifier {
             let fallbackSize = inputSize ?? outputSize ?? C7Size(width: 1, height: 1)
-            let usesCustomVertexLayout = (self as? RenderProtocol)?.renderVertexStride != 4
-                || (self as? RenderProtocol)?.setupVertices(inputSize: fallbackSize) != nil
-            renderPassContract = .singleColor(usesCustomVertexLayout: usesCustomVertexLayout)
+            let renderFilter = self as? RenderProtocol
+            let usesCustomVertexLayout = renderFilter?.renderVertexStride != 4
+                || renderFilter?.setupVertices(inputSize: fallbackSize) != nil
+            let declaredContract = renderFilter?.renderOutputContract ?? .preserveInput
+            outputContract = RenderOutputContract(
+                inputAlphaExpectation: declaredContract.inputAlphaExpectation,
+                alpha: alphaBehavior.renderAlphaContract == .preserveInput ? declaredContract.alpha : alphaBehavior.renderAlphaContract,
+                colorSpace: declaredContract.colorSpace,
+                pixelFormat: declaredContract.pixelFormat,
+                additionalAttachments: declaredContract.secondaryAttachments,
+                colorTransferPolicy: declaredContract.colorTransferPolicy,
+                pixelFormatFallbackPolicy: declaredContract.pixelFormatFallbackPolicy,
+                allowsLossyConversion: declaredContract.allowsLossyConversion,
+                preservesOrientation: declaredContract.preservesOrientation
+            )
+            renderPassContract = RenderPassContract(
+                colorAttachments: outputContract.attachments.map {
+                    ColorAttachmentContract(index: $0.index, pixelFormat: $0.pixelFormat.metalPixelFormat)
+                },
+                usesCustomVertexLayout: usesCustomVertexLayout
+            )
         } else {
+            outputContract = RenderOutputContract(alpha: alphaBehavior.renderAlphaContract)
             renderPassContract = nil
         }
         let resourceDescriptor = KernelResourceDescriptor(
@@ -581,6 +653,7 @@ public extension C7FilterProtocol {
             filterName: String(describing: Swift.type(of: self)),
             functionIdentity: functionIdentity,
             parameters: parameters,
+            parameterBindings: parameterBindings,
             output: KernelOutputDescriptor(outputSize: outputSize),
             resourceUsage: resourceUsage,
             resources: resourceDescriptor,
@@ -593,7 +666,8 @@ public extension C7FilterProtocol {
                     output: KernelOutputDescriptor(outputSize: outputSize),
                     resources: resourceDescriptor,
                     alphaBehavior: alphaBehavior,
-                    renderPass: renderPassContract
+                    renderPass: renderPassContract,
+                    drawCallCount: 1
                 )
             ]
         )

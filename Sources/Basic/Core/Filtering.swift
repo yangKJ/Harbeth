@@ -29,6 +29,9 @@ public protocol C7FilterProtocol: Mirrorable {
     
     /// Multiple input source extensions, an array containing the `MTLTexture`.
     var otherInputTextures: C7InputTextures { get }
+
+    /// Explicit shader parameter bindings for compute/render encoders.
+    var kernelParameterBindings: [KernelParameterBinding] { get }
     
     /// Do you need the total number of pixels factor,
     /// before the special factor and after the factors.
@@ -75,6 +78,8 @@ extension C7FilterProtocol {
     public var factors: [Float] { [] }
     /// Multiple input source extensions, an array containing the `MTLTexture`.
     public var otherInputTextures: C7InputTextures { [] }
+    /// Explicit shader parameter bindings for compute/render encoders.
+    public var kernelParameterBindings: [KernelParameterBinding] { [] }
     /// Do you need the total number of pixels factor.
     public var hasCount: Bool { false }
     /// Memory access pattern for threadgroup optimization
@@ -180,6 +185,9 @@ public protocol RenderProtocol: C7FilterProtocol {
 
     /// Number of floats for each vertex in the custom vertex buffer.
     var renderVertexStride: Int { get }
+
+    /// Render-target quality contract for the primary and auxiliary color attachments.
+    var renderOutputContract: RenderOutputContract { get }
 }
 
 extension RenderProtocol {
@@ -187,6 +195,7 @@ extension RenderProtocol {
     public func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer? { nil }
     public func setupVertices(inputSize: C7Size) -> [Float]? { nil }
     public var renderVertexStride: Int { 4 }
+    public var renderOutputContract: RenderOutputContract { .preserveInput }
 }
 
 // MARK: - mps filter protocol

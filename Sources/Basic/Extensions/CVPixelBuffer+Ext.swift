@@ -50,6 +50,9 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             planar: isPlanar,
             colorModel: colorModel,
             nativeTextureLayout: nativeTextureLayout,
+            yCbCrMatrixAttachment: Self.yCbCrMatrixAttachment(for: base),
+            colorPrimariesAttachment: Self.colorPrimariesAttachment(for: base),
+            transferFunctionAttachment: Self.transferFunctionAttachment(for: base),
             planes: planes
         )
     }
@@ -74,8 +77,8 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         case .planeTextures:
             return PixelBufferTextureBridgePlan(
                 contract: contract,
-                loadStrategy: .cgImageFallback,
-                preservesOwnerReference: false,
+                loadStrategy: .directPlaneTexture,
+                preservesOwnerReference: true,
                 planes: contract.planes.map {
                     PixelBufferPlaneBridgeDescriptor(
                         index: $0.index,
@@ -166,6 +169,80 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                 planeIndex: plane.index
             )
         }
+    }
+
+    private static func yCbCrMatrixAttachment(for pixelBuffer: CVPixelBuffer) -> YCbCrMatrixAttachment? {
+        guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, nil)?.takeUnretainedValue() else {
+            return nil
+        }
+        if CFEqual(attachment, kCVImageBufferYCbCrMatrix_ITU_R_709_2) {
+            return .ituR709_2
+        }
+        if CFEqual(attachment, kCVImageBufferYCbCrMatrix_ITU_R_601_4) {
+            return .ituR601_4
+        }
+        if CFEqual(attachment, kCVImageBufferYCbCrMatrix_SMPTE_240M_1995) {
+            return .smpte240M_1995
+        }
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            if CFEqual(attachment, kCVImageBufferYCbCrMatrix_ITU_R_2020) {
+                return .ituR2020
+            }
+        }
+        return nil
+    }
+
+    private static func colorPrimariesAttachment(for pixelBuffer: CVPixelBuffer) -> ColorPrimariesAttachment? {
+        guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferColorPrimariesKey, nil)?.takeUnretainedValue() else {
+            return nil
+        }
+        if CFEqual(attachment, kCVImageBufferColorPrimaries_ITU_R_709_2) {
+            return .ituR709_2
+        }
+        if CFEqual(attachment, kCVImageBufferColorPrimaries_EBU_3213) {
+            return .ebu3213
+        }
+        if CFEqual(attachment, kCVImageBufferColorPrimaries_SMPTE_C) {
+            return .smpteC
+        }
+        if CFEqual(attachment, kCVImageBufferColorPrimaries_P3_D65) {
+            return .p3D65
+        }
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            if CFEqual(attachment, kCVImageBufferColorPrimaries_ITU_R_2020) {
+                return .ituR2020
+            }
+        }
+        return nil
+    }
+
+    private static func transferFunctionAttachment(for pixelBuffer: CVPixelBuffer) -> ColorTransferAttachment? {
+        guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, nil)?.takeUnretainedValue() else {
+            return nil
+        }
+        if CFEqual(attachment, kCVImageBufferTransferFunction_ITU_R_709_2) {
+            return .ituR709_2
+        }
+        if CFEqual(attachment, kCVImageBufferTransferFunction_UseGamma) {
+            return .useGamma
+        }
+        if CFEqual(attachment, kCVImageBufferTransferFunction_sRGB) {
+            return .sRGB
+        }
+        if #available(iOS 12.0, macOS 10.14, tvOS 12.0, *) {
+            if CFEqual(attachment, kCVImageBufferTransferFunction_Linear) {
+                return .linear
+            }
+        }
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            if CFEqual(attachment, kCVImageBufferTransferFunction_ITU_R_2100_HLG) {
+                return .ituR2100HLG
+            }
+            if CFEqual(attachment, kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ) {
+                return .smpteSt2084PQ
+            }
+        }
+        return nil
     }
     
     /// Creates CGImage from pixel buffer
@@ -282,6 +359,18 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                 pixelFormat: bridgePlan.contract.preferredMetalPixelFormat ?? .bgra8Unorm,
                 planeIndex: 0
             )
+            #endif
+        case .directPlaneTexture:
+            #if targetEnvironment(simulator)
+            return base.c7.toCGImage()?.c7.toTexture(pixelFormat: .rgba8Unorm)
+            #else
+            let cache = textureCache ?? Shared.shared.sharedTextureCache
+            let textures = createPlaneTextures(textureCache: cache)
+            guard let primary = textures.first else {
+                return nil
+            }
+            TextureOwnerRegistry.attach(base, to: primary)
+            return primary
             #endif
         case .cgImageFallback:
             return base.c7.toCGImage()?.c7.toTexture(pixelFormat: .rgba8Unorm)

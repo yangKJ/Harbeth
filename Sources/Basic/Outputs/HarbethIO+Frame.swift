@@ -416,6 +416,12 @@ extension HarbethIO {
         )
     }
 
+    public func renderAttachmentDebugPolicies(node: ImageNode,
+                                              profile: RenderProfile = .stablePreview,
+                                              derivative: ImageDerivativeSpec? = nil) throws -> [RenderOutputAttachmentDebugPolicy] {
+        try node.makeAttachmentDebugPolicies(profile: profile, derivative: derivative)
+    }
+
     public func renderDebugSnapshot(recipe: EditRecipe,
                                     mode: EditRecipeMode = .preview,
                                     derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
@@ -442,6 +448,14 @@ extension HarbethIO {
             .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
+    public func renderAttachmentDebugPolicies(recipe: EditRecipe,
+                                              mode: EditRecipeMode = .preview,
+                                              derivative: ImageDerivativeSpec? = nil) throws -> [RenderOutputAttachmentDebugPolicy] {
+        let source = try makeImageSource()
+        return try ImageNode.recipe(source: source, recipe: recipe, mode: mode)
+            .makeAttachmentDebugPolicies(profile: recipe.contract(for: mode).profile, derivative: derivative)
+    }
+
     public func renderDebugSnapshot(composite recipe: LayerCompositeRecipe,
                                     derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
         try recipe.makeNode().makeDebugSnapshot(profile: recipe.profile, derivative: derivative ?? recipe.derivative)
@@ -463,6 +477,11 @@ extension HarbethIO {
             .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
+    public func renderAttachmentDebugPolicies(composite recipe: LayerCompositeRecipe,
+                                              derivative: ImageDerivativeSpec? = nil) throws -> [RenderOutputAttachmentDebugPolicy] {
+        try recipe.makeNode().makeAttachmentDebugPolicies(profile: recipe.profile, derivative: derivative ?? recipe.derivative)
+    }
+
     public func renderDebugSnapshot(transition recipe: TransitionRecipe) throws -> RenderGraphDebugSnapshot {
         try ImageNode.transition(recipe).makeDebugSnapshot(profile: recipe.profile, derivative: recipe.derivative)
     }
@@ -479,6 +498,10 @@ extension HarbethIO {
                                               sortedKeys: Bool = true) throws -> String {
         try renderDebugSnapshot(transition: recipe)
             .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderAttachmentDebugPolicies(transition recipe: TransitionRecipe) throws -> [RenderOutputAttachmentDebugPolicy] {
+        try ImageNode.transition(recipe).makeAttachmentDebugPolicies(profile: recipe.profile, derivative: recipe.derivative)
     }
 
     /// texture-first 同步帧输出，携带稳定元数据。

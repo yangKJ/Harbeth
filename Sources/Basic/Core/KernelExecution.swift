@@ -25,6 +25,7 @@ public struct KernelExecutionPass: Sendable, Codable, Equatable, Hashable {
     public let inputTextureCount: Int
     public let requiresDestinationTexture: Bool
     public let alphaBehavior: KernelAlphaBehavior
+    public let drawCallCount: Int
     public let parameterFingerprint: String
 
     public init(index: Int,
@@ -35,6 +36,7 @@ public struct KernelExecutionPass: Sendable, Codable, Equatable, Hashable {
                 inputTextureCount: Int,
                 requiresDestinationTexture: Bool,
                 alphaBehavior: KernelAlphaBehavior,
+                drawCallCount: Int = 1,
                 parameterFingerprint: String) {
         self.index = index
         self.kind = kind
@@ -44,6 +46,7 @@ public struct KernelExecutionPass: Sendable, Codable, Equatable, Hashable {
         self.inputTextureCount = inputTextureCount
         self.requiresDestinationTexture = requiresDestinationTexture
         self.alphaBehavior = alphaBehavior
+        self.drawCallCount = max(drawCallCount, 1)
         self.parameterFingerprint = parameterFingerprint
     }
 }
@@ -83,9 +86,24 @@ public struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
             "inputs=\(inputTextureCount)",
             "constants=\(usesFunctionConstants ? 1 : 0)",
             "pixel=\(expectedPixelFormat.fingerprint)",
+            "outputAttachments=\(outputAttachmentCount)",
+            "outputAttachmentSemantics=\(outputAttachmentSemantics.joined(separator: ","))",
+            "outputAttachmentPixels=\(outputAttachmentPixelFormats.joined(separator: ","))",
             "compatibility=\(compatibilitySummary)",
-            "passes=\(passes.map { "\($0.index):\($0.kind.rawValue):\($0.functionIdentity.fingerprint)" }.joined(separator: "||"))"
+            "passes=\(passes.map { "\($0.index):\($0.kind.rawValue):draws=\($0.drawCallCount):attachments=\($0.outputContract.attachmentCount):\($0.functionIdentity.fingerprint)" }.joined(separator: "||"))"
         ].joined(separator: "|")
+    }
+
+    public var outputAttachmentCount: Int {
+        outputContract.attachmentCount
+    }
+
+    public var outputAttachmentPixelFormats: [String] {
+        outputContract.attachments.map { $0.pixelFormat.name }
+    }
+
+    public var outputAttachmentSemantics: [String] {
+        outputContract.attachments.map { $0.semantic.rawValue }
     }
 }
 
@@ -101,6 +119,19 @@ public enum KernelEncoder {
             .sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value.fingerprint)" }
             .joined(separator: "|")
+        let bindingFingerprint = descriptor.parameterBindings
+            .sorted { lhs, rhs in
+                if lhs.index == rhs.index {
+                    if lhs.stage == rhs.stage {
+                        return lhs.name < rhs.name
+                    }
+                    return lhs.stage.rawValue < rhs.stage.rawValue
+                }
+                return lhs.index < rhs.index
+            }
+            .map(\.fingerprint)
+            .joined(separator: "||")
+        let executionFingerprint = [parameterFingerprint, bindingFingerprint].filter { !$0.isEmpty }.joined(separator: "||")
         let passes = descriptor.passes.map { pass in
             KernelExecutionPass(
                 index: pass.index,
@@ -111,7 +142,8 @@ public enum KernelEncoder {
                 inputTextureCount: pass.resources.inputTextureCount,
                 requiresDestinationTexture: pass.resources.requiresDestinationTexture,
                 alphaBehavior: pass.alphaBehavior,
-                parameterFingerprint: parameterFingerprint
+                drawCallCount: pass.drawCallCount,
+                parameterFingerprint: executionFingerprint
             )
         }
         return KernelExecutionPlan(

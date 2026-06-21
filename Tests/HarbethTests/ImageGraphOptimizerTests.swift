@@ -49,6 +49,117 @@ final class ImageGraphOptimizerTests: XCTestCase {
         XCTAssertTrue(optimized.graph.persistentBoundaryCount >= 1)
     }
 
+    func testOptimizerPreservesSamplerBoundaryForTransientFilterNodes() {
+        let sourceID = ImageGraphNodeID(rawValue: 0)
+        let firstFilterID = ImageGraphNodeID(rawValue: 1)
+        let secondFilterID = ImageGraphNodeID(rawValue: 2)
+        let graph = ImageGraph(
+            nodes: [
+                .init(
+                    id: sourceID,
+                    kind: .source,
+                    name: "Source.texture",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .default,
+                    sourceKind: "texture",
+                    filterCount: 0,
+                    fingerprint: "source"
+                ),
+                .init(
+                    id: firstFilterID,
+                    kind: .filters,
+                    name: "NearestFilters",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .nearest,
+                    sourceKind: "texture",
+                    filterCount: 1,
+                    fingerprint: "nearest"
+                ),
+                .init(
+                    id: secondFilterID,
+                    kind: .filters,
+                    name: "LinearFilters",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .default,
+                    sourceKind: "texture",
+                    filterCount: 1,
+                    fingerprint: "linear"
+                )
+            ],
+            edges: [
+                .init(from: sourceID, to: firstFilterID),
+                .init(from: firstFilterID, to: secondFilterID)
+            ],
+            rootNodeID: secondFilterID,
+            profile: .stablePreview,
+            derivative: RenderProfile.stablePreview.defaultDerivativeSpec
+        )
+
+        let optimized = ImageGraphOptimizer.optimize(graph)
+
+        XCTAssertEqual(optimized.graph.nodes.count, 3)
+        XCTAssertEqual(optimized.graph.edges.count, 2)
+        XCTAssertTrue(optimized.decisions.contains("preserveSamplerBoundary"))
+        XCTAssertFalse(optimized.decisions.contains("mergeAdjacentFilterNodes"))
+    }
+
+    func testOptimizerMergesAdjacentTransientKernelNodes() {
+        let sourceID = ImageGraphNodeID(rawValue: 0)
+        let firstKernelID = ImageGraphNodeID(rawValue: 1)
+        let secondKernelID = ImageGraphNodeID(rawValue: 2)
+        let graph = ImageGraph(
+            nodes: [
+                .init(
+                    id: sourceID,
+                    kind: .source,
+                    name: "Source.texture",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .default,
+                    sourceKind: "texture",
+                    filterCount: 0,
+                    fingerprint: "source"
+                ),
+                .init(
+                    id: firstKernelID,
+                    kind: .kernel,
+                    name: "KernelA",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .nearest,
+                    sourceKind: "texture",
+                    filterCount: 1,
+                    fingerprint: "kernel-a"
+                ),
+                .init(
+                    id: secondKernelID,
+                    kind: .kernel,
+                    name: "KernelB",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .nearest,
+                    sourceKind: "texture",
+                    filterCount: 1,
+                    fingerprint: "kernel-b"
+                )
+            ],
+            edges: [
+                .init(from: sourceID, to: firstKernelID),
+                .init(from: firstKernelID, to: secondKernelID)
+            ],
+            rootNodeID: secondKernelID,
+            profile: .stablePreview,
+            derivative: RenderProfile.stablePreview.defaultDerivativeSpec
+        )
+
+        let optimized = ImageGraphOptimizer.optimize(graph)
+
+        XCTAssertEqual(optimized.graph.nodes.count, 2)
+        XCTAssertEqual(optimized.graph.edges.count, 1)
+        XCTAssertTrue(optimized.decisions.contains("mergeAdjacentKernelNodes"))
+        XCTAssertEqual(optimized.graph.nodes.last?.kind, .kernel)
+        XCTAssertEqual(optimized.graph.nodes.last?.filterCount, 2)
+        XCTAssertEqual(optimized.graph.nodes.last?.samplerDescriptor, .nearest)
+        XCTAssertEqual(optimized.graph.rootNodeID, secondKernelID)
+    }
+
     private func makeTexture(width: Int, height: Int) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

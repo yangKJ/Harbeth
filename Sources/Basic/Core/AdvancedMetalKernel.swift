@@ -10,6 +10,7 @@ import MetalKit
 
 public enum C7MetalCapability: String, CaseIterable {
     case customAdvancedEncoder
+    case heapTexturePool
     case meshShaders
     case metalFX
     case metalIO

@@ -128,6 +128,14 @@ public struct ImageGraph: Sendable, Equatable, Hashable {
         }.count
     }
 
+    public var sharedDependencyNodeCount: Int {
+        nodes.filter { outgoingEdgeCount(for: $0.id) > 1 }.count
+    }
+
+    public func outgoingEdgeCount(for nodeID: ImageGraphNodeID) -> Int {
+        edges.filter { $0.from == nodeID }.count
+    }
+
     public var fingerprint: String {
         let nodePart = nodes
             .map { "\($0.id.rawValue):\($0.kind.rawValue):\($0.fingerprint)" }
@@ -169,24 +177,53 @@ public enum ImageGraphOptimizer {
             edges.first(where: { $0.to == nodeID })?.from
         }
 
+        func outgoingEdgeCount(for nodeID: ImageGraphNodeID) -> Int {
+            edges.filter { $0.from == nodeID }.count
+        }
+
+        func mergeDecision(for node: ImageGraphNode) -> String? {
+            switch node.kind {
+            case .filters:
+                return "mergeAdjacentFilterNodes"
+            case .kernel:
+                return "mergeAdjacentKernelNodes"
+            default:
+                return nil
+            }
+        }
+
         var changed = true
         while changed {
             changed = false
             for current in nodes.sorted(by: { $0.id < $1.id }) {
-                guard current.kind == .filters,
+                guard let mergeDecision = mergeDecision(for: current),
                       current.cachePolicy == .transient,
                       let inputID = directInputID(for: current.id),
                       let inputNode = nodes.first(where: { $0.id == inputID }),
-                      inputNode.kind == .filters,
+                      inputNode.kind == current.kind,
                       inputNode.cachePolicy == .transient,
                       inputNode.formsBoundary == false,
                       current.formsBoundary == false else {
                     continue
                 }
 
+                guard outgoingEdgeCount(for: inputNode.id) == 1 else {
+                    if decisions.contains("preserveSharedInputDependency") == false {
+                        decisions.append("preserveSharedInputDependency")
+                    }
+                    continue
+                }
+
+                guard inputNode.samplerDescriptor == current.samplerDescriptor else {
+                    if decisions.contains("preserveSamplerBoundary") == false {
+                        decisions.append("preserveSamplerBoundary")
+                    }
+                    continue
+                }
+
                 let merged = ImageGraphNode(
                     id: current.id,
-                    kind: .filters,
+                    kind: current.kind,
                     name: "\(inputNode.name)+\(current.name)",
                     cachePolicy: .transient,
                     samplerDescriptor: current.samplerDescriptor,
@@ -208,7 +245,7 @@ public enum ImageGraphOptimizer {
                     }
                     return edge
                 }
-                decisions.append("mergeAdjacentFilterNodes")
+                decisions.append(mergeDecision)
                 changed = true
                 break
             }

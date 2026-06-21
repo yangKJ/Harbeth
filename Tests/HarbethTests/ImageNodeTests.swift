@@ -852,6 +852,148 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(pixel.precision, .custom)
     }
 
+    func testRenderOutputContractCanDescribeMultipleAttachments() {
+        let contract = RenderOutputContract(
+            colorSpace: .extendedLinearSRGB,
+            pixelFormat: .rgba16Float,
+            additionalAttachments: [
+                RenderOutputAttachmentContract.maskCoverage(index: 1, pixelFormat: .rgba8Unorm)
+            ]
+        )
+
+        XCTAssertEqual(contract.attachmentCount, 2)
+        XCTAssertTrue(contract.hasMultipleAttachments)
+        XCTAssertEqual(contract.primaryAttachment.pixelFormat, .rgba16Float)
+        XCTAssertEqual(contract.primaryAttachment.semantic, .primaryColor)
+        XCTAssertEqual(contract.attachmentContract(at: 1)?.colorSpace.gamut, .sRGB)
+        XCTAssertEqual(contract.attachmentContract(at: 1)?.semantic, .maskCoverage)
+        XCTAssertEqual(contract.auxiliaryAttachmentCount, 1)
+        XCTAssertTrue(contract.hasWideGamutAttachment)
+        XCTAssertTrue(contract.hasHighPrecisionAttachment)
+        XCTAssertTrue(contract.hasHDRFriendlyAttachment)
+        XCTAssertTrue(contract.auxiliaryAttachments.allSatisfy(\.carriesAuxiliaryData))
+        XCTAssertTrue(contract.fingerprint.contains("semantic=maskCoverage"))
+        XCTAssertTrue(contract.fingerprint.contains("attachment=1"))
+    }
+
+    func testRenderOutputAttachmentSemanticHelpersExposeStableDefaults() {
+        let auxiliary = RenderOutputAttachmentContract.auxiliaryColor(
+            index: 1,
+            colorSpace: .displayP3,
+            pixelFormat: .rgba16Float
+        )
+        let mask = RenderOutputAttachmentContract.maskCoverage(index: 2)
+        let luminance = RenderOutputAttachmentContract.luminance(index: 3)
+        let analysis = RenderOutputAttachmentContract.analysis(index: 4)
+        let histogram = RenderOutputAttachmentContract.histogram(index: 5)
+
+        XCTAssertEqual(auxiliary.semantic, .auxiliaryColor)
+        XCTAssertEqual(auxiliary.colorSpace.gamut, .displayP3)
+        XCTAssertEqual(mask.semantic, .maskCoverage)
+        XCTAssertEqual(mask.alpha, .opaque)
+        XCTAssertEqual(luminance.semantic, .luminance)
+        XCTAssertEqual(analysis.semantic, .analysis)
+        XCTAssertEqual(histogram.semantic, .histogram)
+        XCTAssertEqual(histogram.pixelFormat.precision, .float16)
+        XCTAssertEqual(histogram.colorSpace.transferFunction, .linear)
+    }
+
+    func testRenderOutputAttachmentDebugPoliciesExposeStableReadbackHints() {
+        let primary = RenderOutputAttachmentContract(
+            index: 0,
+            semantic: .primaryColor,
+            alpha: .premultiplied,
+            colorSpace: .extendedLinearSRGB,
+            pixelFormat: .rgba16Float
+        )
+        let mask = RenderOutputAttachmentContract.maskCoverage(index: 1)
+        let histogram = RenderOutputAttachmentContract.histogram(index: 2)
+
+        XCTAssertEqual(primary.debugPolicy.label, "primaryColor")
+        XCTAssertEqual(primary.debugPolicy.interpretation, .color)
+        XCTAssertEqual(primary.debugPolicy.preferredReadbackPixelFormat, .rgba16Float)
+        XCTAssertTrue(primary.debugPolicy.preservesDynamicRange)
+        XCTAssertFalse(primary.debugPolicy.prefersMonochromePreview)
+
+        XCTAssertEqual(mask.debugPolicy.label, "maskCoverage")
+        XCTAssertEqual(mask.debugPolicy.interpretation, .monochrome)
+        XCTAssertEqual(mask.debugPolicy.preferredReadbackPixelFormat, .rgba8Unorm)
+        XCTAssertFalse(mask.debugPolicy.preservesDynamicRange)
+        XCTAssertTrue(mask.debugPolicy.prefersMonochromePreview)
+
+        XCTAssertEqual(histogram.debugPolicy.label, "histogram")
+        XCTAssertEqual(histogram.debugPolicy.interpretation, .scalarField)
+        XCTAssertEqual(histogram.debugPolicy.preferredReadbackPixelFormat, .rgba16Float)
+        XCTAssertTrue(histogram.debugPolicy.preservesDynamicRange)
+        XCTAssertTrue(histogram.debugPolicy.prefersMonochromePreview)
+    }
+
+    func testNodeAttachmentDebugPoliciesExposeAuxiliaryAttachmentHints() throws {
+        let input = try makeTexture(pixel: [64, 128, 255, 255])
+        let node = ImageNode.filters(input: .texture(input), filters: [RenderAuxiliaryLuminance()])
+
+        let policies = try node.makeAttachmentDebugPolicies()
+
+        XCTAssertEqual(policies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(policies.map(\.interpretation), [.color, .monochrome])
+        XCTAssertEqual(policies.map { $0.preferredReadbackPixelFormat }, [.rgba8Unorm, .rgba8Unorm])
+        XCTAssertEqual(policies.map(\.prefersMonochromePreview), [false, true])
+    }
+
+    func testRenderOutputContractDecodesAttachmentArrayPayload() throws {
+        let data = Data("""
+        {
+          "inputAlphaExpectation":"preserveInput",
+          "attachments":[
+            {
+              "index":0,
+              "alpha":"preserveInput",
+              "colorSpace":{
+                "name":"extendedLinearSRGB",
+                "preservesInput":false,
+                "gamut":"extendedLinearSRGB",
+                "transferFunction":"linear"
+              },
+              "pixelFormat":{
+                "name":"rgba16Float",
+                "preservesInput":false,
+                "metalPixelFormatRawValue":112,
+                "precision":"float16"
+              }
+            },
+            {
+              "index":1,
+              "alpha":"opaque",
+              "colorSpace":{
+                "name":"DisplayP3",
+                "preservesInput":false,
+                "gamut":"displayP3",
+                "transferFunction":"sRGB"
+              },
+              "pixelFormat":{
+                "name":"rgba8Unorm",
+                "preservesInput":false,
+                "metalPixelFormatRawValue":70,
+                "precision":"unorm8"
+              }
+            }
+          ],
+          "colorTransferPolicy":"automatic",
+          "pixelFormatFallbackPolicy":"preserveInput",
+          "allowsLossyConversion":false,
+          "preservesOrientation":true
+        }
+        """.utf8)
+
+        let contract = try JSONDecoder().decode(RenderOutputContract.self, from: data)
+
+        XCTAssertEqual(contract.attachmentCount, 2)
+        XCTAssertEqual(contract.colorSpace.transferFunction, .linear)
+        XCTAssertEqual(contract.pixelFormat.precision, .float16)
+        XCTAssertEqual(contract.attachmentContract(at: 1)?.alpha, .opaque)
+        XCTAssertEqual(contract.attachmentContract(at: 1)?.pixelFormat.name, "rgba8Unorm")
+    }
+
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {
         let bytes = Array(repeating: pixel, count: width * height)
         return try makeTexture(width: width, height: height, pixels: bytes)

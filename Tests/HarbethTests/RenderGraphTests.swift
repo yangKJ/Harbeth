@@ -103,6 +103,74 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.optimizationPlan.renderStageCount, 0)
     }
 
+    func testImageGraphOptimizerPreservesSharedTransientFilterDependency() {
+        let sourceID = ImageGraphNodeID(rawValue: 0)
+        let sharedID = ImageGraphNodeID(rawValue: 1)
+        let branchAID = ImageGraphNodeID(rawValue: 2)
+        let branchBID = ImageGraphNodeID(rawValue: 3)
+        let graph = ImageGraph(
+            nodes: [
+                .init(
+                    id: sourceID,
+                    kind: .source,
+                    name: "Source.texture",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .default,
+                    sourceKind: "texture",
+                    filterCount: 0,
+                    fingerprint: "source"
+                ),
+                .init(
+                    id: sharedID,
+                    kind: .filters,
+                    name: "SharedFilters",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .default,
+                    sourceKind: "texture",
+                    filterCount: 1,
+                    fingerprint: "shared"
+                ),
+                .init(
+                    id: branchAID,
+                    kind: .filters,
+                    name: "BranchA",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .default,
+                    sourceKind: "texture",
+                    filterCount: 1,
+                    fingerprint: "branch-a"
+                ),
+                .init(
+                    id: branchBID,
+                    kind: .filters,
+                    name: "BranchB",
+                    cachePolicy: .transient,
+                    samplerDescriptor: .default,
+                    sourceKind: "texture",
+                    filterCount: 1,
+                    fingerprint: "branch-b"
+                )
+            ],
+            edges: [
+                .init(from: sourceID, to: sharedID),
+                .init(from: sharedID, to: branchAID),
+                .init(from: sharedID, to: branchBID)
+            ],
+            rootNodeID: branchAID,
+            profile: .stablePreview,
+            derivative: RenderProfile.stablePreview.defaultDerivativeSpec
+        )
+
+        let result = ImageGraphOptimizer.optimize(graph)
+
+        XCTAssertEqual(graph.sharedDependencyNodeCount, 1)
+        XCTAssertEqual(result.graph.sharedDependencyNodeCount, 1)
+        XCTAssertEqual(result.graph.nodes.count, 4)
+        XCTAssertEqual(result.graph.edges.count, 3)
+        XCTAssertTrue(result.decisions.contains("preserveSharedInputDependency"))
+        XCTAssertFalse(result.decisions.contains("mergeAdjacentFilterNodes"))
+    }
+
     func testConfiguredProfilePropagatesIntoRenderPlan() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -283,6 +351,60 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertFalse(reservations.isEmpty)
         XCTAssertTrue(reservations.contains(where: { $0.reason == .persistentOutput && $0.pixelFormat == .rgba16Float }))
         XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("preserveInputPixelFormatForReservations"))
+    }
+
+    func testRenderPlanDerivesAttachmentDrivenHDRInputColorSpace() {
+        let contract = PixelBufferContract(
+            width: 32,
+            height: 24,
+            cvPixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            planeCount: 2,
+            planar: true,
+            colorModel: .yCbCrBiPlanar,
+            nativeTextureLayout: .planeTextures,
+            yCbCrMatrixAttachment: .ituR2020,
+            colorPrimariesAttachment: .ituR2020,
+            transferFunctionAttachment: .smpteSt2084PQ,
+            planes: [
+                .init(index: 0, width: 32, height: 24, bytesPerRow: 32, cvPixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, metalPixelFormat: .r8Unorm),
+                .init(index: 1, width: 16, height: 12, bytesPerRow: 32, cvPixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, metalPixelFormat: .rg8Unorm)
+            ]
+        )
+        let sourceDescriptor = ImageSourceDescriptor(
+            kind: "pixelBuffer",
+            sourceTier: .original,
+            alphaType: .premultiplied,
+            orientation: .up,
+            cachePolicy: .persistent,
+            pixelBufferContract: contract,
+            pixelBufferBridgePlan: PixelBufferTextureBridgePlan(
+                contract: contract,
+                loadStrategy: .directPlaneTexture,
+                preservesOwnerReference: true,
+                planes: [
+                    .init(index: 0, metalPixelFormat: .r8Unorm, conversionStrategy: .directMetalTexture, preservesOwnerReference: true),
+                    .init(index: 1, metalPixelFormat: .rg8Unorm, conversionStrategy: .directMetalTexture, preservesOwnerReference: true)
+                ]
+            ),
+            pixelBufferBridgePolicy: .directPlaneDecodeToRGBA,
+            yCbCrDecodeContract: YCbCrDecodeContract(
+                layout: .biPlanar,
+                matrix: .bt709VideoRange,
+                destinationPixelFormat: .rgba8Unorm
+            )
+        )
+
+        let plan = GraphCompiler.compile(
+            filters: [C7Brightness(brightness: 0.1)],
+            inputSize: C7Size(width: 32, height: 24),
+            sourceDescriptor: sourceDescriptor
+        )
+
+        XCTAssertEqual(plan.diagnostics.inputColorSpace.gamut, .ituR2020)
+        XCTAssertEqual(plan.diagnostics.inputColorSpace.transferFunction, .perceptualQuantizer)
+        XCTAssertEqual(plan.diagnostics.inputColorSpace.name, "ituR2020+smpteSt2084PQ")
+        XCTAssertTrue(plan.diagnostics.inputIsHDRFriendly)
+        XCTAssertTrue(plan.diagnostics.summary.contains("inputColor=ituR2020+smpteSt2084PQ"))
     }
 
     func testOptimizationPlanEstimatesMoreBytesForHighPrecisionInputReservations() {
@@ -474,6 +596,7 @@ final class RenderGraphTests: XCTestCase {
             graphOptimizationDecisions: ["preservePersistentImageNode"],
             persistentBoundaryCount: 1,
             transientReuseCandidateCount: 1,
+            sharedDependencyNodeCount: 1,
             inputSize: C7Size(width: 16, height: 12),
             outputSize: C7Size(width: 16, height: 12),
             containsBoundary: true,
@@ -527,6 +650,12 @@ final class RenderGraphTests: XCTestCase {
             inputAlphaType: .premultiplied,
             outputAlphaType: .premultiplied,
             inputPixelFormat: .preserveInput,
+            inputBridgePolicy: .directPlaneDecodeToRGBA,
+            inputYCbCrDecodeContract: YCbCrDecodeContract(
+                layout: .biPlanar,
+                matrix: .bt601FullRange,
+                destinationPixelFormat: .rgba8Unorm
+            ),
             outputPixelFormat: .rgba16Float,
             inputColorConversionCount: 0,
             inputPixelFormatConversionCount: 1,
@@ -574,6 +703,13 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(decoded, diagnostics)
         XCTAssertEqual(decoded.samplerDescriptor, ImageSamplerDescriptor.nearest)
         XCTAssertEqual(decoded.optimizationPlan.textureReuseHitRatio, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(decoded.sharedDependencyNodeCount, 1)
+        XCTAssertEqual(decoded.inputBridgePolicy, .directPlaneDecodeToRGBA)
+        XCTAssertEqual(decoded.inputYCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(decoded.inputYCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertTrue(decoded.summary.contains("sharedDependencies=1"))
+        XCTAssertTrue(decoded.summary.contains("inputBridgePolicy=directPlaneDecodeToRGBA"))
+        XCTAssertTrue(decoded.summary.contains("inputYCbCrDecode=layout=biPlanar|matrix=bt601FullRange"))
         XCTAssertFalse(decoded.inputIsHDRFriendly)
         XCTAssertEqual(decoded.inputPixelPrecision, .preserveInput)
     }
@@ -597,6 +733,7 @@ final class RenderGraphTests: XCTestCase {
             graphOptimizationDecisions: [],
             persistentBoundaryCount: 0,
             transientReuseCandidateCount: 0,
+            sharedDependencyNodeCount: 0,
             inputSize: C7Size(width: 8, height: 8),
             outputSize: C7Size(width: 8, height: 8),
             containsBoundary: false,
@@ -636,6 +773,7 @@ final class RenderGraphTests: XCTestCase {
             inputAlphaType: .premultiplied,
             outputAlphaType: .premultiplied,
             inputPixelFormat: .preserveInput,
+            inputYCbCrDecodeContract: nil,
             outputPixelFormat: .preserveInput,
             inputColorConversionCount: 0,
             inputPixelFormatConversionCount: 0,
@@ -658,6 +796,107 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(string.contains("\"textureReuseHitCount\":1"))
         XCTAssertFalse(diagnostics.inputIsHDRFriendly)
         XCTAssertEqual(diagnostics.inputPixelPrecision, .preserveInput)
+    }
+
+    func testRenderPlanDiagnosticsSummarizeMultiAttachmentOutputContract() {
+        let derivative = ImageDerivativeSpec(
+            name: "previewDisplay",
+            renderIntent: .stable,
+            sourceTier: .stableReusable,
+            semantic: RenderProfile.stablePreview.defaultImageSemantic,
+            outputSizePolicy: .source
+        )
+        let contract = RenderOutputContract(
+            colorSpace: .extendedLinearSRGB,
+            pixelFormat: .rgba16Float,
+            additionalAttachments: [
+                RenderOutputAttachmentContract(
+                    index: 1,
+                    semantic: .luminance,
+                    alpha: .opaque,
+                    colorSpace: .displayP3,
+                    pixelFormat: .rgba8Unorm
+                )
+            ]
+        )
+        let diagnostics = RenderPlanDiagnostics(
+            profile: .stablePreview,
+            derivative: derivative,
+            graphFingerprint: "graph=fingerprint",
+            sourceKind: "texture",
+            graphNodeCount: 1,
+            graphEdgeCount: 0,
+            optimizedGraphNodeCount: 1,
+            graphOptimizationDecisions: [],
+            persistentBoundaryCount: 0,
+            transientReuseCandidateCount: 0,
+            sharedDependencyNodeCount: 0,
+            inputSize: C7Size(width: 8, height: 8),
+            outputSize: C7Size(width: 8, height: 8),
+            containsBoundary: false,
+            requiresCompletedGPUWork: false,
+            stageCount: 1,
+            compilationSource: .filtersPrimitive,
+            imageCachePolicy: .transient,
+            samplerDescriptor: .default,
+            containsLocalEffectComposite: false,
+            containsTransitionKernel: false,
+            containsDerivativeResize: false,
+            optimizationPlan: RenderOptimizationPlan(
+                intermediateTextureCount: 1,
+                reusableTextureCount: 1,
+                persistentOutputCount: 1,
+                mergedStageCount: 0,
+                fusionEligibleNodeCount: 1,
+                transientStageCount: 1,
+                renderStageCount: 0,
+                estimatedTransientByteCount: 64,
+                estimatedPersistentByteCount: 64,
+                readbackBoundaryCount: 0,
+                formatConversionCount: 1,
+                destinationTextureCreationCount: 1,
+                allocationStrategy: .exact,
+                textureRequestCount: 2,
+                textureReuseHitCount: 1,
+                heapBackedAllocationCount: 0,
+                prewarmReservations: [],
+                lifecycleDecisions: [],
+                decisions: [],
+                allocatorDecisions: []
+            ),
+            outputContract: contract,
+            inputColorSpace: .preserveInput,
+            outputColorSpace: .extendedLinearSRGB,
+            inputAlphaType: .premultiplied,
+            outputAlphaType: .premultiplied,
+            inputPixelFormat: .preserveInput,
+            outputPixelFormat: .rgba16Float,
+            inputColorConversionCount: 0,
+            inputPixelFormatConversionCount: 0,
+            inputAlphaConversionCount: 0,
+            inputDirectPlaneBridgeCount: 0,
+            alphaConversionCount: 0,
+            colorConversionCount: 1,
+            pixelFormatConversionCount: 1,
+            lossyConversionCount: 0,
+            nodes: [],
+            stages: []
+        )
+
+        XCTAssertEqual(diagnostics.outputAttachmentCount, 2)
+        XCTAssertTrue(diagnostics.outputHasMultipleAttachments)
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachments=2"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentIndices=0,1"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentSemantics=primaryColor,luminance"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentPixels=rgba16Float,rgba8Unorm"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentHDR=1,1"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentDebugLabels=primaryColor,luminance"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentDebugViews=color,monochrome"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentReadbackPixels=rgba16Float,rgba8Unorm"))
+        XCTAssertTrue(diagnostics.summary.contains("outputAttachmentMonochromePreview=0,1"))
+        XCTAssertTrue(diagnostics.summary.contains("hdrFriendly=1"))
+        XCTAssertEqual(diagnostics.outputAttachmentDebugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(diagnostics.outputAttachmentDebugPolicies.map(\.interpretation), [.color, .monochrome])
     }
 
     func testRenderGraphDebugSnapshotSupportsCodableRoundTrip() throws {
@@ -708,9 +947,16 @@ final class RenderGraphTests: XCTestCase {
             graphOptimizationDecisions: ["preservePersistentImageNode"],
             persistentBoundaryCount: 1,
             transientReuseCandidateCount: 1,
+            sharedDependencyNodeCount: 1,
             inputDirectPlaneBridgeCount: 0,
+            inputBridgePolicy: "directPlaneDecodeToRGBA",
+            inputYCbCrDecode: "layout=biPlanar|matrix=bt601FullRange|destPixel=70",
             inputPixelPrecision: "preserveInput",
             inputHDRFriendly: false,
+            outputAttachmentLabels: ["primaryColor", "maskCoverage"],
+            outputAttachmentDebugViews: ["color", "monochrome"],
+            outputAttachmentReadbackPixelFormats: ["rgba8Unorm", "rgba8Unorm"],
+            outputAttachmentMonochromePreviewFlags: [false, true],
             optimizationPlan: optimizationPlan,
             allocationStrategy: "heapBacked",
             textureRequestCount: 4,
@@ -744,8 +990,14 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(decoded.diagnostics.textureReuseHitRatio, 0.5, accuracy: 0.0001)
         XCTAssertEqual(decoded.diagnostics.allocatorDecisions, ["heapBackedAllocation"])
         XCTAssertEqual(decoded.diagnostics.optimizationPlan, optimizationPlan)
+        XCTAssertEqual(decoded.diagnostics.inputBridgePolicy, "directPlaneDecodeToRGBA")
+        XCTAssertEqual(decoded.diagnostics.inputYCbCrDecode, "layout=biPlanar|matrix=bt601FullRange|destPixel=70")
         XCTAssertEqual(decoded.diagnostics.inputPixelPrecision, "preserveInput")
         XCTAssertFalse(decoded.diagnostics.inputHDRFriendly)
+        XCTAssertEqual(decoded.diagnostics.outputAttachmentLabels, ["primaryColor", "maskCoverage"])
+        XCTAssertEqual(decoded.diagnostics.outputAttachmentDebugViews, ["color", "monochrome"])
+        XCTAssertEqual(decoded.diagnostics.outputAttachmentReadbackPixelFormats, ["rgba8Unorm", "rgba8Unorm"])
+        XCTAssertEqual(decoded.diagnostics.outputAttachmentMonochromePreviewFlags, [false, true])
         XCTAssertTrue(decoded.dotGraph.contains("digraph ImageGraph"))
     }
 
@@ -785,9 +1037,15 @@ final class RenderGraphTests: XCTestCase {
                 graphOptimizationDecisions: [],
                 persistentBoundaryCount: 0,
                 transientReuseCandidateCount: 0,
+                sharedDependencyNodeCount: 0,
                 inputDirectPlaneBridgeCount: 0,
+                inputYCbCrDecode: nil,
                 inputPixelPrecision: "preserveInput",
                 inputHDRFriendly: false,
+                outputAttachmentLabels: ["primaryColor"],
+                outputAttachmentDebugViews: ["color"],
+                outputAttachmentReadbackPixelFormats: ["rgba8Unorm"],
+                outputAttachmentMonochromePreviewFlags: [false],
                 optimizationPlan: optimizationPlan,
                 allocationStrategy: "exact",
                 textureRequestCount: 2,
@@ -818,6 +1076,8 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(string.contains("\"allocatorDecisions\":[\"dequeueExactMatch\"]"))
         XCTAssertTrue(string.contains("\"inputPixelPrecision\":\"preserveInput\""))
         XCTAssertTrue(string.contains("\"inputHDRFriendly\":false"))
+        XCTAssertTrue(string.contains("\"outputAttachmentDebugViews\":[\"color\"]"))
+        XCTAssertTrue(string.contains("\"outputAttachmentMonochromePreviewFlags\":[false]"))
     }
 
     func testRenderGraphDebugSnapshotPrettyPrintedJSONIsStable() throws {
@@ -834,9 +1094,15 @@ final class RenderGraphTests: XCTestCase {
                 graphOptimizationDecisions: [],
                 persistentBoundaryCount: 0,
                 transientReuseCandidateCount: 0,
+                sharedDependencyNodeCount: 0,
                 inputDirectPlaneBridgeCount: 0,
+                inputYCbCrDecode: nil,
                 inputPixelPrecision: "preserveInput",
                 inputHDRFriendly: false,
+                outputAttachmentLabels: ["primaryColor"],
+                outputAttachmentDebugViews: ["color"],
+                outputAttachmentReadbackPixelFormats: ["rgba8Unorm"],
+                outputAttachmentMonochromePreviewFlags: [false],
                 optimizationPlan: RenderOptimizationPlan(
                     intermediateTextureCount: 1,
                     reusableTextureCount: 1,

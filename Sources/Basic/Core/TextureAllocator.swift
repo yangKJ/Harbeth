@@ -12,6 +12,38 @@ public enum TextureAllocationStrategy: String, Sendable, Codable, Equatable, Has
     case exact
     case tolerant
     case heapBacked
+
+    public func resolvedStrategy(heapTexturePoolSupported: Bool) -> TextureAllocationStrategy {
+        switch self {
+        case .heapBacked:
+            return heapTexturePoolSupported ? .heapBacked : .exact
+        case .exact, .tolerant:
+            return self
+        }
+    }
+
+    public func fallbackReason(heapTexturePoolSupported: Bool) -> String? {
+        guard self == .heapBacked, heapTexturePoolSupported == false else { return nil }
+        return "unsupportedHeapTexturePoolCapabilityFallbackToExact"
+    }
+
+    public func makeAllocator(texturePool: TexturePool,
+                              heapTexturePoolSupported: Bool) -> TextureAllocator {
+        switch resolvedStrategy(heapTexturePoolSupported: heapTexturePoolSupported) {
+        case .exact:
+            return ExactTextureAllocator(texturePool: texturePool)
+        case .tolerant:
+            return TolerantTextureAllocator(texturePool: texturePool)
+        case .heapBacked:
+            return HeapBackedTextureAllocator(texturePool: texturePool)
+        }
+    }
+
+    public func makeAllocator(texturePool: TexturePool,
+                              on device: MTLDevice? = nil) -> TextureAllocator {
+        let report = Device.metalCapabilityReport(.heapTexturePool, on: device)
+        return makeAllocator(texturePool: texturePool, heapTexturePoolSupported: report.isSupported)
+    }
 }
 
 public struct TextureAllocatorSnapshot: Sendable, Codable, Equatable, Hashable {

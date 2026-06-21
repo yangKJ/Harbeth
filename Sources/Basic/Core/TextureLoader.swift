@@ -10,6 +10,7 @@ import Metal
 import MetalKit
 import ImageIO
 import CoreGraphics
+import CoreVideo
 import ObjectiveC
 
 /// Converts various image sources into Metal textures or creates empty ones.
@@ -34,6 +35,34 @@ public struct TextureLoader {
     ]
     
     public let texture: MTLTexture
+
+    /// 像素缓冲解析后的纹理源。
+    ///
+    /// 对于普通 RGBA pixel buffer，`planeTextures` 只包含主纹理；
+    /// 对于 multi-plane YCbCr 输入，`primaryTexture` 仍保持轻量入口，
+    /// 但 `planeTextures` 会把所有可直接桥接的 plane textures 一并暴露出来。
+    public struct PixelBufferTextureSource {
+        public let primaryTexture: MTLTexture
+        public let planeTextures: [MTLTexture]
+        public let bridgePlan: PixelBufferTextureBridgePlan
+
+        public init(primaryTexture: MTLTexture,
+                    planeTextures: [MTLTexture],
+                    bridgePlan: PixelBufferTextureBridgePlan) {
+            self.primaryTexture = primaryTexture
+            self.planeTextures = planeTextures
+            self.bridgePlan = bridgePlan
+        }
+
+        public var requiresPlaneAwareDecoding: Bool {
+            bridgePlan.requiresColorConversion && planeTextures.count > 1
+        }
+
+        public var exposesAllDirectPlaneTextures: Bool {
+            bridgePlan.directPlaneBridgeCount == planeTextures.count
+                && bridgePlan.supportsDirectPlaneTextures
+        }
+    }
     
     /// Is it a blank texture?
     public var isBlank: Bool {
@@ -67,44 +96,12 @@ extension TextureLoader {
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
-        if let texture = pixelBuffer.c7.toMTLTexture() {
-            if bridgePlan.preservesOwnerReference {
-                TextureOwnerRegistry.attach(pixelBuffer, to: texture)
-            }
-            self.texture = texture
-            return
+        let source = try TextureLoader.resolveTextureSource(with: pixelBuffer, options: options)
+        if source.requiresPlaneAwareDecoding {
+            self.texture = try TextureLoader.decodeYCbCrTextureSource(source, owner: pixelBuffer)
+        } else {
+            self.texture = source.primaryTexture
         }
-        if bridgePlan.loadStrategy == .cgImageFallback {
-            guard let cgImage = pixelBuffer.c7.toCGImage() else {
-                throw HarbethError.source2Texture
-            }
-            self.texture = try TextureLoader(with: cgImage, options: options).texture
-            return
-        }
-
-        let pixelFormat = bridgePlan.contract.preferredMetalPixelFormat
-            ?? TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
-        let width = CVPixelBufferGetWidth(pixelBuffer)
-        let height = CVPixelBufferGetHeight(pixelBuffer)
-        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: .texture2DDescriptor(
-            pixelFormat: pixelFormat,
-            width: width,
-            height: height,
-            mipmapped: false
-        )) else {
-            throw HarbethError.textureLoader
-        }
-        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
-        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
-        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
-            throw HarbethError.source2Texture
-        }
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
-        let region = MTLRegionMake2D(0, 0, width, height)
-        texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddress, bytesPerRow: bytesPerRow)
-        TextureOwnerRegistry.attach(pixelBuffer, to: texture)
-        self.texture = texture
     }
     
     /// Creates a new MTLTexture from a CMSampleBuffer.
@@ -112,10 +109,15 @@ extension TextureLoader {
     ///   - ciImage: CVPixelBuffer
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            throw HarbethError.CMSampleBufferToCVPixelBuffer
+        let source = try TextureLoader.resolveTextureSource(with: sampleBuffer, options: options)
+        if source.requiresPlaneAwareDecoding {
+            guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+                throw HarbethError.CMSampleBufferToCVPixelBuffer
+            }
+            self.texture = try TextureLoader.decodeYCbCrTextureSource(source, owner: pixelBuffer)
+        } else {
+            self.texture = source.primaryTexture
         }
-        try self.init(with: pixelBuffer, options: options)
     }
     
     /// Creates a new MTLTexture from a UIImage / NSImage.
@@ -206,6 +208,226 @@ extension TextureLoader {
 }
 
 extension TextureLoader {
+    struct YCbCrDecodeStrategy {
+        let layout: YCbCrPlaneDecodeFilter.Layout
+        let conversionMatrix: Matrix3x3
+        let conversionOffset: SIMD3<Float>
+        let destinationPixelFormat: MTLPixelFormat
+        let descriptor: String
+        let matrixContract: YCbCrDecodeMatrix
+    }
+
+    public static func resolveTextureSource(with pixelBuffer: CVPixelBuffer,
+                                            options: [MTKTextureLoader.Option: Any]? = nil) throws -> PixelBufferTextureSource {
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+        switch bridgePlan.loadStrategy {
+        case .directMetalTexture:
+            guard let texture = pixelBuffer.c7.toMTLTexture() else {
+                throw HarbethError.source2Texture
+            }
+            if bridgePlan.preservesOwnerReference {
+                TextureOwnerRegistry.attach(pixelBuffer, to: texture)
+            }
+            return PixelBufferTextureSource(
+                primaryTexture: texture,
+                planeTextures: [texture],
+                bridgePlan: bridgePlan
+            )
+        case .directPlaneTexture:
+            #if targetEnvironment(simulator)
+            guard let texture = pixelBuffer.c7.toMTLTexture() else {
+                throw HarbethError.source2Texture
+            }
+            return PixelBufferTextureSource(
+                primaryTexture: texture,
+                planeTextures: [texture],
+                bridgePlan: bridgePlan
+            )
+            #else
+            let textures = pixelBuffer.c7.createPlaneTextures()
+            if let primary = textures.first {
+                TextureOwnerRegistry.attach(pixelBuffer, to: primary)
+                return PixelBufferTextureSource(
+                    primaryTexture: primary,
+                    planeTextures: textures,
+                    bridgePlan: bridgePlan
+                )
+            }
+            guard let texture = pixelBuffer.c7.toMTLTexture() else {
+                throw HarbethError.source2Texture
+            }
+            return PixelBufferTextureSource(
+                primaryTexture: texture,
+                planeTextures: [texture],
+                bridgePlan: bridgePlan
+            )
+            #endif
+        case .cgImageFallback:
+            guard let cgImage = pixelBuffer.c7.toCGImage() else {
+                throw HarbethError.source2Texture
+            }
+            let texture = try TextureLoader(with: cgImage, options: options).texture
+            TextureOwnerRegistry.attach(pixelBuffer, to: texture)
+            return PixelBufferTextureSource(
+                primaryTexture: texture,
+                planeTextures: [texture],
+                bridgePlan: bridgePlan
+            )
+        case .cpuCopyFallback:
+            let texture = try copyTextureFromPixelBuffer(pixelBuffer, bridgePlan: bridgePlan)
+            return PixelBufferTextureSource(
+                primaryTexture: texture,
+                planeTextures: [texture],
+                bridgePlan: bridgePlan
+            )
+        }
+    }
+
+    public static func resolveTextureSource(with sampleBuffer: CMSampleBuffer,
+                                            options: [MTKTextureLoader.Option: Any]? = nil) throws -> PixelBufferTextureSource {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            throw HarbethError.CMSampleBufferToCVPixelBuffer
+        }
+        return try resolveTextureSource(with: pixelBuffer, options: options)
+    }
+
+    private static func copyTextureFromPixelBuffer(_ pixelBuffer: CVPixelBuffer,
+                                                   bridgePlan: PixelBufferTextureBridgePlan) throws -> MTLTexture {
+        let pixelFormat = bridgePlan.contract.preferredMetalPixelFormat
+            ?? TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: .texture2DDescriptor(
+            pixelFormat: pixelFormat,
+            width: width,
+            height: height,
+            mipmapped: false
+        )) else {
+            throw HarbethError.textureLoader
+        }
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw HarbethError.source2Texture
+        }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let region = MTLRegionMake2D(0, 0, width, height)
+        texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddress, bytesPerRow: bytesPerRow)
+        TextureOwnerRegistry.attach(pixelBuffer, to: texture)
+        return texture
+    }
+
+    static func makeYCbCrDecodeStrategy(for pixelBuffer: CVPixelBuffer,
+                                        bridgePlan: PixelBufferTextureBridgePlan) -> YCbCrDecodeStrategy? {
+        guard bridgePlan.requiresColorConversion else {
+            return nil
+        }
+        let layout: YCbCrPlaneDecodeFilter.Layout
+        switch bridgePlan.contract.colorModel {
+        case .yCbCrBiPlanar:
+            layout = .biPlanar
+        case .yCbCrTriPlanar:
+            layout = .triPlanar
+        case .rgba, .monochrome, .unknown:
+            return nil
+        }
+        let isFullRange = bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+            || bridgePlan.contract.cvPixelFormatType == kCVPixelFormatType_420YpCbCr8PlanarFullRange
+        let conversionMatrix: Matrix3x3
+        let descriptor: String
+        if bridgePlan.contract.yCbCrMatrixAttachment == .ituR709_2 {
+            conversionMatrix = Matrix3x3.Kernel.to709
+            descriptor = isFullRange ? "709FullRangeApproximation" : "709VideoRange"
+            let matrixContract: YCbCrDecodeMatrix = isFullRange ? .bt709FullRangeApproximation : .bt709VideoRange
+            return YCbCrDecodeStrategy(
+                layout: layout,
+                conversionMatrix: conversionMatrix,
+                conversionOffset: SIMD3<Float>(
+                    isFullRange ? 0.0 : (-16.0 / 255.0),
+                    -0.5,
+                    -0.5
+                ),
+                destinationPixelFormat: .rgba8Unorm,
+                descriptor: descriptor,
+                matrixContract: matrixContract
+            )
+        } else if isFullRange {
+            conversionMatrix = Matrix3x3.Kernel.to601FullRange
+            descriptor = "601FullRange"
+        } else {
+            conversionMatrix = Matrix3x3.Kernel.to601
+            descriptor = "601VideoRange"
+        }
+        return YCbCrDecodeStrategy(
+            layout: layout,
+            conversionMatrix: conversionMatrix,
+            conversionOffset: SIMD3<Float>(
+                isFullRange ? 0.0 : (-16.0 / 255.0),
+                -0.5,
+                -0.5
+            ),
+            destinationPixelFormat: .rgba8Unorm,
+            descriptor: descriptor,
+            matrixContract: isFullRange ? .bt601FullRange : .bt601VideoRange
+        )
+    }
+
+    static func makeYCbCrDecodeContract(for pixelBuffer: CVPixelBuffer,
+                                        bridgePlan: PixelBufferTextureBridgePlan) -> YCbCrDecodeContract? {
+        guard let strategy = makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan) else {
+            return nil
+        }
+        let layout: YCbCrPlaneLayout = strategy.layout == .biPlanar ? .biPlanar : .triPlanar
+        return YCbCrDecodeContract(
+            layout: layout,
+            matrix: strategy.matrixContract,
+            destinationPixelFormat: strategy.destinationPixelFormat
+        )
+    }
+
+    static func makeBridgePolicy(for bridgePlan: PixelBufferTextureBridgePlan) -> PixelBufferBridgePolicy {
+        if bridgePlan.requiresColorConversion && bridgePlan.directPlaneBridgeCount > 1 {
+            return .directPlaneDecodeToRGBA
+        }
+        switch bridgePlan.loadStrategy {
+        case .directMetalTexture:
+            return .directTexturePassthrough
+        case .directPlaneTexture:
+            return .directPlanePassthrough
+        case .cgImageFallback:
+            return .cgImageMaterialization
+        case .cpuCopyFallback:
+            return .cpuCopyMaterialization
+        }
+    }
+
+    private static func decodeYCbCrTextureSource(_ source: PixelBufferTextureSource,
+                                                 owner: CVPixelBuffer) throws -> MTLTexture {
+        guard let strategy = makeYCbCrDecodeStrategy(for: owner, bridgePlan: source.bridgePlan) else {
+            return source.primaryTexture
+        }
+        let outputTexture = try makeTexture(
+            width: source.bridgePlan.contract.width,
+            height: source.bridgePlan.contract.height,
+            options: [.texturePixelFormat: strategy.destinationPixelFormat],
+            identifier: "YCbCrDecode"
+        )
+        let filter = YCbCrPlaneDecodeFilter(
+            layout: strategy.layout,
+            conversionMatrix: strategy.conversionMatrix,
+            conversionOffset: strategy.conversionOffset,
+            planeTextures: source.planeTextures
+        )
+        guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
+            throw HarbethError.commandBuffer
+        }
+        commandBuffer.label = "Harbeth.YCbCrDecode.\(strategy.descriptor)"
+        _ = try filter.applyAtTexture(form: source.primaryTexture, to: outputTexture, for: commandBuffer)
+        commandBuffer.commitAndWaitUntilCompleted(identifier: "YCbCrDecode")
+        TextureOwnerRegistry.attach(owner, to: outputTexture)
+        return outputTexture
+    }
+
     
     public struct Option: Hashable, Equatable, RawRepresentable, @unchecked Sendable {
         public let rawValue: UInt16

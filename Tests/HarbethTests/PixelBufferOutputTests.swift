@@ -180,30 +180,8 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(CVPixelBufferGetPixelFormatType(output), kCVPixelFormatType_64RGBAHalf)
     }
 
-    func testBiPlanarPixelBufferContractExposesFallbackTopLevelAndDirectPlaneBridge() throws {
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-            kCVPixelBufferWidthKey: 4,
-            kCVPixelBufferHeightKey: 4,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
-        )
-        guard let pixelBuffer else {
-            XCTFail("Failed to create bi-planar pixel buffer.")
-            return
-        }
+    func testBiPlanarPixelBufferContractPrefersDirectPlaneTopLevelAndDirectPlaneBridge() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
 
         let contract = pixelBuffer.c7.contract
         let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
@@ -219,20 +197,63 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(contract.planes[1].height, 2)
         XCTAssertEqual(contract.planes[1].metalPixelFormat, .rg8Unorm)
         XCTAssertTrue(contract.requiresYCbCrConversion)
-        XCTAssertEqual(bridgePlan.loadStrategy, .cgImageFallback)
-        XCTAssertFalse(bridgePlan.preservesOwnerReference)
+        XCTAssertTrue(contract.supportsDirectPlaneTextures)
+        XCTAssertEqual(bridgePlan.loadStrategy, .directPlaneTexture)
+        XCTAssertTrue(bridgePlan.preservesOwnerReference)
         XCTAssertTrue(bridgePlan.requiresColorConversion)
         XCTAssertEqual(bridgePlan.directPlaneBridgeCount, 2)
         XCTAssertTrue(bridgePlan.supportsDirectPlaneTextures)
+        XCTAssertEqual(bridgePlan.primaryDirectPlane?.index, 0)
+        XCTAssertEqual(bridgePlan.primaryDirectPlane?.metalPixelFormat, .r8Unorm)
         XCTAssertEqual(bridgePlan.planes.count, 2)
         XCTAssertEqual(bridgePlan.planes[0].conversionStrategy, .directMetalTexture)
         XCTAssertTrue(bridgePlan.planes[0].preservesOwnerReference)
         XCTAssertEqual(bridgePlan.planes[1].metalPixelFormat, .rg8Unorm)
         XCTAssertEqual(bridgePlan.planes[1].conversionStrategy, .directMetalTexture)
         XCTAssertTrue(bridgePlan.planes[1].preservesOwnerReference)
-        XCTAssertTrue(bridgePlan.fingerprint.contains("load=cgImageFallback"))
+        XCTAssertTrue(bridgePlan.fingerprint.contains("load=directPlaneTexture"))
         XCTAssertTrue(bridgePlan.fingerprint.contains("plane=0|metal=\(MTLPixelFormat.r8Unorm.rawValue)|strategy=directMetalTexture|owner=1"))
         XCTAssertTrue(bridgePlan.fingerprint.contains("plane=1|metal=\(MTLPixelFormat.rg8Unorm.rawValue)|strategy=directMetalTexture|owner=1"))
+    }
+
+    func testBiPlanarPixelBufferContractTracksYCbCrMatrixAttachment() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferYCbCrMatrixKey,
+            kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+            .shouldPropagate
+        )
+
+        let contract = pixelBuffer.c7.contract
+
+        XCTAssertEqual(contract.yCbCrMatrixAttachment, .ituR709_2)
+        XCTAssertTrue(contract.fingerprint.contains("ycbcrAttachment=ituR709_2"))
+    }
+
+    func testBiPlanarPixelBufferContractTracksColorPrimariesAndTransferAttachments() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+
+        let contract = pixelBuffer.c7.contract
+
+        XCTAssertEqual(contract.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(contract.transferFunctionAttachment, .sRGB)
+        XCTAssertEqual(contract.attachmentColorSpace?.gamut, .displayP3)
+        XCTAssertEqual(contract.attachmentColorSpace?.transferFunction, .sRGB)
+        XCTAssertTrue(contract.fingerprint.contains("primaries=p3D65"))
+        XCTAssertTrue(contract.fingerprint.contains("transferAttachment=sRGB"))
     }
 
     func testSampleBufferContractTracksFrameBridgeMetadata() throws {
@@ -269,27 +290,14 @@ final class PixelBufferOutputTests: XCTestCase {
     }
 
     func testBiPlanarSampleBufferContractExposesDirectPlaneBridgeMetadata() throws {
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-            kCVPixelBufferWidthKey: 4,
-            kCVPixelBufferHeightKey: 4,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferYCbCrMatrixKey,
+            kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+            .shouldPropagate
         )
-        guard let pixelBuffer,
-              let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
             XCTFail("Failed to create bi-planar sample buffer.")
             return
         }
@@ -297,37 +305,80 @@ final class PixelBufferOutputTests: XCTestCase {
         let contract = sampleBuffer.c7.contract
 
         XCTAssertEqual(contract.pixelBufferContract?.colorModel, .yCbCrBiPlanar)
-        XCTAssertEqual(contract.frameContract.conversionStrategy, .cgImageFallback)
-        XCTAssertFalse(contract.frameContract.ownerRetained)
+        XCTAssertEqual(contract.pixelBufferContract?.yCbCrMatrixAttachment, .ituR709_2)
+        XCTAssertEqual(contract.frameContract.conversionStrategy, .directPlaneTexture)
+        XCTAssertTrue(contract.frameContract.ownerRetained)
         XCTAssertEqual(contract.frameContract.directPlaneBridgeCount, 2)
         XCTAssertTrue(contract.frameContract.supportsDirectPlaneTextures)
+        XCTAssertTrue(contract.fingerprint.contains("ycbcrAttachment=ituR709_2"))
         XCTAssertTrue(contract.fingerprint.contains("directPlanes=2"))
     }
 
-    func testBiPlanarPixelBufferCanRenderThroughTextureLoader() throws {
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-            kCVPixelBufferWidthKey: 4,
-            kCVPixelBufferHeightKey: 4,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
-        )
-        guard let pixelBuffer else {
-            XCTFail("Failed to create bi-planar pixel buffer.")
+    func testTriPlanarPixelBufferContractPrefersDirectPlaneTopLevelAndThreePlaneBridge() throws {
+        let pixelBuffer = try makeTriPlanarPixelBuffer()
+
+        let contract = pixelBuffer.c7.contract
+        let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+
+        XCTAssertTrue(contract.planar)
+        XCTAssertEqual(contract.colorModel, .yCbCrTriPlanar)
+        XCTAssertEqual(contract.planeCount, 3)
+        XCTAssertEqual(contract.nativeTextureLayout, .planeTextures)
+        XCTAssertTrue(contract.requiresYCbCrConversion)
+        XCTAssertTrue(contract.supportsDirectPlaneTextures)
+        XCTAssertEqual(contract.preferredMetalPixelFormat, .r8Unorm)
+        XCTAssertEqual(contract.planes[0].width, 6)
+        XCTAssertEqual(contract.planes[0].height, 4)
+        XCTAssertEqual(contract.planes[0].metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(contract.planes[1].width, 3)
+        XCTAssertEqual(contract.planes[1].height, 2)
+        XCTAssertEqual(contract.planes[1].metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(contract.planes[2].width, 3)
+        XCTAssertEqual(contract.planes[2].height, 2)
+        XCTAssertEqual(contract.planes[2].metalPixelFormat, .r8Unorm)
+
+        XCTAssertEqual(bridgePlan.loadStrategy, .directPlaneTexture)
+        XCTAssertTrue(bridgePlan.preservesOwnerReference)
+        XCTAssertTrue(bridgePlan.requiresColorConversion)
+        XCTAssertEqual(bridgePlan.directPlaneBridgeCount, 3)
+        XCTAssertTrue(bridgePlan.supportsDirectPlaneTextures)
+        XCTAssertEqual(bridgePlan.primaryDirectPlane?.index, 0)
+        XCTAssertEqual(bridgePlan.primaryDirectPlane?.metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(bridgePlan.planes.count, 3)
+        XCTAssertEqual(bridgePlan.planes[0].metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(bridgePlan.planes[0].conversionStrategy, .directMetalTexture)
+        XCTAssertTrue(bridgePlan.planes[0].preservesOwnerReference)
+        XCTAssertEqual(bridgePlan.planes[1].metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(bridgePlan.planes[1].conversionStrategy, .directMetalTexture)
+        XCTAssertTrue(bridgePlan.planes[1].preservesOwnerReference)
+        XCTAssertEqual(bridgePlan.planes[2].metalPixelFormat, .r8Unorm)
+        XCTAssertEqual(bridgePlan.planes[2].conversionStrategy, .directMetalTexture)
+        XCTAssertTrue(bridgePlan.planes[2].preservesOwnerReference)
+        XCTAssertTrue(bridgePlan.fingerprint.contains("load=directPlaneTexture"))
+        XCTAssertTrue(bridgePlan.fingerprint.contains("plane=0|metal=\(MTLPixelFormat.r8Unorm.rawValue)|strategy=directMetalTexture|owner=1"))
+        XCTAssertTrue(bridgePlan.fingerprint.contains("plane=1|metal=\(MTLPixelFormat.r8Unorm.rawValue)|strategy=directMetalTexture|owner=1"))
+        XCTAssertTrue(bridgePlan.fingerprint.contains("plane=2|metal=\(MTLPixelFormat.r8Unorm.rawValue)|strategy=directMetalTexture|owner=1"))
+    }
+
+    func testTriPlanarSampleBufferContractExposesDirectPlaneBridgeMetadata() throws {
+        let pixelBuffer = try makeTriPlanarPixelBuffer()
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create tri-planar sample buffer.")
             return
         }
+
+        let contract = sampleBuffer.c7.contract
+
+        XCTAssertEqual(contract.pixelBufferContract?.colorModel, .yCbCrTriPlanar)
+        XCTAssertEqual(contract.frameContract.conversionStrategy, .directPlaneTexture)
+        XCTAssertTrue(contract.frameContract.ownerRetained)
+        XCTAssertEqual(contract.frameContract.directPlaneBridgeCount, 3)
+        XCTAssertTrue(contract.frameContract.supportsDirectPlaneTextures)
+        XCTAssertTrue(contract.fingerprint.contains("directPlanes=3"))
+    }
+
+    func testBiPlanarPixelBufferCanRenderThroughTextureLoader() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
 
         let output: MTLTexture = try HarbethIO(
             element: pixelBuffer,
@@ -365,7 +416,10 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(request.compilationSource, .filtersPrimitive)
         XCTAssertEqual(request.source.pixelBufferContract?.colorModel, .rgba)
         XCTAssertEqual(request.source.pixelBufferBridgePlan?.loadStrategy, .directMetalTexture)
+        XCTAssertEqual(request.source.pixelBufferBridgePolicy, .directTexturePassthrough)
+        XCTAssertNil(request.source.yCbCrDecodeContract)
         XCTAssertTrue(request.source.fingerprint.contains("bridge={"))
+        XCTAssertTrue(request.source.fingerprint.contains("bridgePolicy=directTexturePassthrough"))
         XCTAssertEqual(renderRecipe.source.kind, "pixelBuffer")
         XCTAssertEqual(renderRecipe.source.pixelBufferContract?.planeCount, 1)
         XCTAssertEqual(renderRecipe.alphaType, .premultiplied)
@@ -373,29 +427,14 @@ final class PixelBufferOutputTests: XCTestCase {
     }
 
     func testRenderDiagnosticsTracksBiPlanarPixelBufferInputConversions() throws {
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-            kCVPixelBufferWidthKey: 4,
-            kCVPixelBufferHeightKey: 4,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
-        )
-        guard let pixelBuffer else {
-            XCTFail("Failed to create bi-planar pixel buffer.")
-            return
-        }
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        let request = try HarbethIO(element: pixelBuffer, filter: C7Brightness(brightness: 0.0))
+            .makeRenderRequest(profile: .stablePreview)
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertEqual(request.source.pixelBufferBridgePolicy, .directPlaneDecodeToRGBA)
+        XCTAssertTrue(request.source.fingerprint.contains("ycbcrDecode={layout=biPlanar|matrix=bt601FullRange"))
+        XCTAssertTrue(request.source.fingerprint.contains("bridgePolicy=directPlaneDecodeToRGBA"))
 
         let diagnostics = try HarbethIO(element: pixelBuffer, filter: C7Brightness(brightness: 0.0)).renderDiagnostics()
 
@@ -403,37 +442,41 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 1)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
         XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 2)
+        XCTAssertEqual(diagnostics.inputBridgePolicy, .directPlaneDecodeToRGBA)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.matrix, .bt601FullRange)
         XCTAssertEqual(diagnostics.colorConversionCount, 0)
         XCTAssertEqual(diagnostics.pixelFormatConversionCount, 0)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=2"))
+        XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directPlaneDecodeToRGBA"))
+        XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=biPlanar|matrix=bt601FullRange"))
+    }
+
+    func testRenderDiagnosticsTracksTriPlanarPixelBufferInputConversions() throws {
+        let pixelBuffer = try makeTriPlanarPixelBuffer(width: 6, height: 4)
+
+        let diagnostics = try HarbethIO(element: pixelBuffer, filter: C7Brightness(brightness: 0.0)).renderDiagnostics()
+
+        XCTAssertEqual(diagnostics.inputColorConversionCount, 1)
+        XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 1)
+        XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
+        XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 3)
+        XCTAssertEqual(diagnostics.inputBridgePolicy, .directPlaneDecodeToRGBA)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.layout, .triPlanar)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertEqual(diagnostics.colorConversionCount, 0)
+        XCTAssertEqual(diagnostics.pixelFormatConversionCount, 0)
+        XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))
+        XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=1"))
+        XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=3"))
+        XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directPlaneDecodeToRGBA"))
+        XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=triPlanar|matrix=bt601FullRange"))
     }
 
     func testRenderDiagnosticsTracksBGRAPixelBufferNoInputConversions() throws {
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferWidthKey: 3,
-            kCVPixelBufferHeightKey: 2,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                3,
-                2,
-                kCVPixelFormatType_32BGRA,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
-        )
-        guard let pixelBuffer else {
-            XCTFail("Failed to create BGRA pixel buffer.")
-            return
-        }
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 3, height: 2)
 
         let diagnostics = try HarbethIO(element: pixelBuffer).renderDiagnostics()
 
@@ -441,11 +484,14 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 0)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
         XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 1)
+        XCTAssertEqual(diagnostics.inputBridgePolicy, .directTexturePassthrough)
+        XCTAssertNil(diagnostics.inputYCbCrDecodeContract)
         XCTAssertEqual(diagnostics.inputPixelPrecision, .unorm8)
         XCTAssertFalse(diagnostics.inputIsHDRFriendly)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=1"))
+        XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directTexturePassthrough"))
     }
 
     func testRenderDiagnosticsTracksHalfFloatPixelBufferInputPrecision() throws {
@@ -487,30 +533,16 @@ final class PixelBufferOutputTests: XCTestCase {
     }
 
     func testRenderDiagnosticsTracksSampleBufferBiPlanarInputConversions() throws {
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-            kCVPixelBufferWidthKey: 4,
-            kCVPixelBufferHeightKey: 4,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
-        )
-        guard let pixelBuffer,
-              let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
             XCTFail("Failed to create bi-planar sample buffer.")
             return
         }
+        let request = try HarbethIO(element: sampleBuffer, filter: C7Brightness(brightness: 0.0))
+            .makeRenderRequest(profile: .stablePreview)
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertEqual(request.source.pixelBufferBridgePolicy, .directPlaneDecodeToRGBA)
 
         let diagnostics = try HarbethIO(element: sampleBuffer, filter: C7Brightness(brightness: 0.0)).renderDiagnostics()
 
@@ -518,35 +550,20 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 1)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
         XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 2)
+        XCTAssertEqual(diagnostics.inputBridgePolicy, .directPlaneDecodeToRGBA)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.layout, .biPlanar)
         XCTAssertEqual(diagnostics.sourceKind, "sampleBuffer")
         XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=2"))
+        XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directPlaneDecodeToRGBA"))
+        XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=biPlanar"))
     }
 
     func testRenderDiagnosticsTracksSampleBufferRGBAInputNoInputConversions() throws {
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferWidthKey: 4,
-            kCVPixelBufferHeightKey: 4,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
-        ]
-        XCTAssertEqual(
-            CVPixelBufferCreate(
-                kCFAllocatorDefault,
-                4,
-                4,
-                kCVPixelFormatType_32BGRA,
-                attributes as CFDictionary,
-                &pixelBuffer
-            ),
-            kCVReturnSuccess
-        )
-        guard let pixelBuffer,
-              let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 4, height: 4)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
             XCTFail("Failed to create RGBA sample buffer.")
             return
         }
@@ -557,10 +574,12 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 0)
         XCTAssertEqual(diagnostics.inputAlphaConversionCount, 0)
         XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 1)
+        XCTAssertEqual(diagnostics.inputBridgePolicy, .directTexturePassthrough)
         XCTAssertEqual(diagnostics.sourceKind, "sampleBuffer")
         XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=0"))
+        XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directTexturePassthrough"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=1"))
     }
 
@@ -732,5 +751,89 @@ final class PixelBufferOutputTests: XCTestCase {
             bytesPerRow: width * 4
         )
         return texture
+    }
+
+    private func makeBiPlanarPixelBuffer(width: Int = 4, height: Int = 4) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        try XCTSkipIf(
+            status != kCVReturnSuccess,
+            "Bi-planar pixel buffer is unavailable in this environment. CVPixelBufferCreate status=\(status)."
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create bi-planar pixel buffer.")
+            throw XCTSkip()
+        }
+        return pixelBuffer
+    }
+
+    private func makeBGRAPixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32BGRA,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        try XCTSkipIf(
+            status != kCVReturnSuccess,
+            "BGRA pixel buffer is unavailable in this environment. CVPixelBufferCreate status=\(status)."
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create BGRA pixel buffer.")
+            throw XCTSkip()
+        }
+        return pixelBuffer
+    }
+
+    private func makeTriPlanarPixelBuffer(width: Int = 6, height: Int = 4) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8PlanarFullRange,
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_420YpCbCr8PlanarFullRange,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        try XCTSkipIf(
+            status != kCVReturnSuccess,
+            "Tri-planar pixel buffer is unavailable in this environment. CVPixelBufferCreate status=\(status)."
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create tri-planar pixel buffer.")
+            throw XCTSkip()
+        }
+        return pixelBuffer
     }
 }

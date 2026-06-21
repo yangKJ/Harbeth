@@ -148,6 +148,99 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === Shared.shared.defaultTexturePool)
     }
 
+    func testSharedDefaultTextureAllocationStrategyRebuildsAllocator() {
+        Shared.shared.deinitDevice()
+        Shared.shared.defaultTextureAllocationStrategy = .exact
+        defer {
+            Shared.shared.defaultTextureAllocationStrategy = .exact
+            Shared.shared.deinitDevice()
+        }
+
+        let exactAllocator = Shared.shared.defaultTextureAllocator
+        let pool = Shared.shared.defaultTexturePool
+
+        Shared.shared.defaultTextureAllocationStrategy = .tolerant
+        let tolerantAllocator = Shared.shared.defaultTextureAllocator
+
+        XCTAssertEqual(exactAllocator.strategy, .exact)
+        XCTAssertEqual(Shared.shared.defaultTextureAllocationStrategy, .tolerant)
+        XCTAssertEqual(tolerantAllocator.strategy, .tolerant)
+        XCTAssertTrue((tolerantAllocator as? TexturePoolAllocator)?.texturePool === pool)
+        XCTAssertFalse((exactAllocator as AnyObject) === (tolerantAllocator as AnyObject))
+
+        Shared.shared.defaultTextureAllocationStrategy = .exact
+        let exactAllocatorAgain = Shared.shared.defaultTextureAllocator
+
+        XCTAssertEqual(exactAllocatorAgain.strategy, .exact)
+        XCTAssertTrue((exactAllocatorAgain as? TexturePoolAllocator)?.texturePool === pool)
+        XCTAssertFalse((tolerantAllocator as AnyObject) === (exactAllocatorAgain as AnyObject))
+    }
+
+    func testSharedHeapBackedDefaultTextureAllocationStrategyResolvesAgainstCurrentDeviceCapability() {
+        Shared.shared.deinitDevice()
+        Shared.shared.defaultTextureAllocationStrategy = .heapBacked
+        defer {
+            Shared.shared.defaultTextureAllocationStrategy = .exact
+            Shared.shared.deinitDevice()
+        }
+
+        let report = Device.metalCapabilityReport(.heapTexturePool, on: Shared.shared.currentMetalDevice)
+        let allocator = Shared.shared.defaultTextureAllocator
+
+        XCTAssertEqual(
+            allocator.strategy,
+            TextureAllocationStrategy.heapBacked.resolvedStrategy(
+                heapTexturePoolSupported: report.isSupported
+            )
+        )
+        XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === Shared.shared.defaultTexturePool)
+    }
+
+    func testTexturePoolPrewarmSyncHonorsPerRequestCounts() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let pool = TexturePool()
+        pool.prewarmSync(
+            requests: [
+                .init(width: 11, height: 7, pixelFormat: .rgba8Unorm, count: 1),
+                .init(width: 19, height: 13, pixelFormat: .rgba8Unorm, count: 3)
+            ]
+        )
+
+        XCTAssertNotNil(pool.dequeueExactTexture(width: 11, height: 7, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(pool.dequeueExactTexture(width: 11, height: 7, pixelFormat: .rgba8Unorm))
+
+        XCTAssertNotNil(pool.dequeueExactTexture(width: 19, height: 13, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(pool.dequeueExactTexture(width: 19, height: 13, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(pool.dequeueExactTexture(width: 19, height: 13, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(pool.dequeueExactTexture(width: 19, height: 13, pixelFormat: .rgba8Unorm))
+    }
+
+    func testSharedPrewarmTexturePoolSyncPreservesReservationCounts() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let small = C7Size(width: 23, height: 11)
+        let large = C7Size(width: 29, height: 17)
+        Shared.shared.prewarmTexturePoolSync(
+            reservations: [
+                .init(stageIndices: [0], size: small, pixelFormat: .rgba8Unorm, reason: .transientReuse, count: 1),
+                .init(stageIndices: [1, 2, 3], size: large, pixelFormat: .rgba8Unorm, reason: .persistentOutput, count: 3)
+            ],
+            fallbackPixelFormat: .rgba8Unorm,
+            defaultCount: 1
+        )
+
+        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: small.width, height: small.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: small.width, height: small.height, pixelFormat: .rgba8Unorm))
+
+        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+    }
+
     func testTolerantTextureAllocatorStillReusesOversizedUnormTexture() throws {
         let pool = TexturePool()
         let allocator = TolerantTextureAllocator(texturePool: pool)
@@ -209,6 +302,43 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertEqual(
             allocator.makeSnapshot().allocatorDecisions,
             ["highPrecisionForcesExactMatch", "leaseExactMatch"]
+        )
+    }
+
+    func testHeapBackedAllocationStrategyFallsBackToExactWhenCapabilityIsUnavailable() {
+        let pool = TexturePool()
+
+        XCTAssertEqual(
+            TextureAllocationStrategy.heapBacked.resolvedStrategy(heapTexturePoolSupported: false),
+            .exact
+        )
+        XCTAssertEqual(
+            TextureAllocationStrategy.heapBacked.fallbackReason(heapTexturePoolSupported: false),
+            "unsupportedHeapTexturePoolCapabilityFallbackToExact"
+        )
+        XCTAssertTrue(
+            TextureAllocationStrategy.heapBacked.makeAllocator(
+                texturePool: pool,
+                heapTexturePoolSupported: false
+            ) is ExactTextureAllocator
+        )
+    }
+
+    func testHeapBackedAllocationStrategyCreatesHeapAllocatorWhenCapabilityIsAvailable() {
+        let pool = TexturePool()
+
+        XCTAssertEqual(
+            TextureAllocationStrategy.heapBacked.resolvedStrategy(heapTexturePoolSupported: true),
+            .heapBacked
+        )
+        XCTAssertNil(
+            TextureAllocationStrategy.heapBacked.fallbackReason(heapTexturePoolSupported: true)
+        )
+        XCTAssertTrue(
+            TextureAllocationStrategy.heapBacked.makeAllocator(
+                texturePool: pool,
+                heapTexturePoolSupported: true
+            ) is HeapBackedTextureAllocator
         )
     }
 

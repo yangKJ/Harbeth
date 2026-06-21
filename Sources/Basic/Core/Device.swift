@@ -74,6 +74,29 @@ public final class Device: Cacheable {
 }
 
 extension Device {
+    private static func capabilityMinimumPlatform(_ capability: C7MetalCapability) -> String {
+        switch capability {
+        case .customAdvancedEncoder:
+            return "Implementation-defined"
+        case .heapTexturePool:
+            return "iOS 13 / macOS 10.15 / Mac Catalyst 13"
+        case .meshShaders:
+            return "iOS 16 / macOS 13 / tvOS 16"
+        case .metalFX:
+            return "iOS 16 / macOS 13"
+        case .metalIO:
+            return "iOS 16 / macOS 13"
+        case .renderDynamicLibraries:
+            return "iOS 15 / macOS 12 / tvOS 16"
+        case .renderFunctionPointers:
+            return "iOS 15 / macOS 12 / tvOS 16"
+        case .rayTracing:
+            return "iOS 14 / macOS 11 / tvOS 16"
+        case .sparseTextures:
+            return "iOS 13 / macOS 11 / tvOS 16"
+        }
+    }
+
     var sharedRenderOperationQueue: OperationQueue {
         _renderOperationQueue
     }
@@ -122,8 +145,8 @@ extension Device {
             return C7MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
-                minimumPlatform: "Metal device required",
-                reason: "No available MTLDevice."
+                minimumPlatform: capabilityMinimumPlatform(capability),
+                reason: "No available MTLDevice to evaluate this capability."
             )
         }
         
@@ -140,22 +163,49 @@ extension Device {
             return C7MetalCapabilityReport(
                 capability: capability,
                 status: .requiresConcreteImplementationCheck,
-                minimumPlatform: "Implementation-defined",
+                minimumPlatform: capabilityMinimumPlatform(capability),
                 reason: "Higher packages must provide their own availability and device checks."
+            )
+        case .heapTexturePool:
+            if #available(macOS 10.15, iOS 13.0, macCatalyst 13.0, *) {
+                let isSupported: Bool
+                #if targetEnvironment(macCatalyst)
+                isSupported = device.supportsFamily(.macCatalyst1)
+                #elseif os(macOS)
+                isSupported = device.supportsFamily(.mac1)
+                #elseif os(iOS)
+                isSupported = device.supportsFamily(.apple5)
+                #else
+                isSupported = false
+                #endif
+                return C7MetalCapabilityReport(
+                    capability: capability,
+                    status: isSupported ? .supported : .unsupported,
+                    minimumPlatform: capabilityMinimumPlatform(capability),
+                    reason: isSupported
+                        ? "Device meets the heap texture pool family requirement used by MetalPetal-style heap reuse."
+                        : "Device does not meet the heap texture pool family requirement (Apple5 / Mac1 / MacCatalyst1)."
+                )
+            }
+            return C7MetalCapabilityReport(
+                capability: capability,
+                status: .unsupported,
+                minimumPlatform: capabilityMinimumPlatform(capability),
+                reason: "Heap texture pool support is newer than the current runtime."
             )
         case .meshShaders:
             if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
                 return C7MetalCapabilityReport(
                     capability: capability,
                     status: .requiresConcreteImplementationCheck,
-                    minimumPlatform: "iOS 16 / macOS 13 / tvOS 16",
+                    minimumPlatform: capabilityMinimumPlatform(capability),
                     reason: "Object/mesh shader APIs are available; concrete pipeline creation must still be checked by the implementation."
                 )
             }
             return C7MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
-                minimumPlatform: "iOS 16 / macOS 13 / tvOS 16",
+                minimumPlatform: capabilityMinimumPlatform(capability),
                 reason: "Object/mesh shader APIs are newer than the current runtime."
             )
         case .metalFX:
@@ -163,14 +213,14 @@ extension Device {
                 return C7MetalCapabilityReport(
                     capability: capability,
                     status: .requiresConcreteImplementationCheck,
-                    minimumPlatform: "iOS 16 / macOS 13",
+                    minimumPlatform: capabilityMinimumPlatform(capability),
                     reason: "MetalFX belongs to the MetalFX framework; higher packages must call framework-specific support checks."
                 )
             }
             return C7MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
-                minimumPlatform: "iOS 16 / macOS 13",
+                minimumPlatform: capabilityMinimumPlatform(capability),
                 reason: "MetalFX is newer than the current runtime."
             )
         case .metalIO:
@@ -179,7 +229,7 @@ extension Device {
                 return C7MetalCapabilityReport(
                     capability: capability,
                     status: .requiresConcreteImplementationCheck,
-                    minimumPlatform: "iOS 16 / macOS 13",
+                    minimumPlatform: capabilityMinimumPlatform(capability),
                     reason: "Metal IO APIs are available; concrete streaming strategy must be checked by the implementation."
                 )
             }
@@ -187,7 +237,7 @@ extension Device {
             return C7MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
-                minimumPlatform: "iOS 16 / macOS 13",
+                minimumPlatform: capabilityMinimumPlatform(capability),
                 reason: "Metal IO is not available for this platform or runtime."
             )
         case .renderDynamicLibraries:

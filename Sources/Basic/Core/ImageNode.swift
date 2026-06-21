@@ -216,6 +216,11 @@ extension ImageNode: ImagePromise {
             .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
+    public func makeAttachmentDebugPolicies(profile: RenderProfile = .stablePreview,
+                                            derivative: ImageDerivativeSpec? = nil) throws -> [RenderOutputAttachmentDebugPolicy] {
+        try makeDiagnostics(profile: profile, derivative: derivative).outputAttachmentDebugPolicies
+    }
+
     public func makeRenderPlan(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
         switch self {

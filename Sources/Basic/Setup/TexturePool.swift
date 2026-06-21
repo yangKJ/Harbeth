@@ -15,6 +15,23 @@ import UIKit
 
 /// Enhanced texture pool with LRU, precise memory tracking, and cross-platform memory pressure handling.
 public final class TexturePool {
+    public struct PrewarmRequest: Sendable, Equatable, Hashable {
+        public let width: Int
+        public let height: Int
+        public let pixelFormat: MTLPixelFormat
+        public let count: Int
+
+        public init(width: Int,
+                    height: Int,
+                    pixelFormat: MTLPixelFormat,
+                    count: Int) {
+            self.width = width
+            self.height = height
+            self.pixelFormat = pixelFormat
+            self.count = count
+        }
+    }
+
     private struct TextureKey: Hashable {
         let width: Int, height: Int, pixelFormat: MTLPixelFormat
         func hash(into hasher: inout Hasher) {
@@ -366,22 +383,42 @@ public final class TexturePool {
     }
 
     public func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
-        guard count > 0 else { return }
+        let requests = resolutions.map {
+            PrewarmRequest(width: $0.width, height: $0.height, pixelFormat: $0.pixelFormat, count: count)
+        }
+        prewarm(requests: requests)
+    }
+
+    public func prewarm(requests: [PrewarmRequest]) {
+        prewarm(requests: requests, synchronously: false)
+    }
+
+    public func prewarmSync(requests: [PrewarmRequest]) {
+        prewarm(requests: requests, synchronously: true)
+    }
+
+    private func prewarm(requests: [PrewarmRequest], synchronously: Bool) {
+        let filteredRequests = requests.filter { $0.count > 0 }
+        guard filteredRequests.isEmpty == false else { return }
 
         let device = Shared.shared.metalDevice
-        queue.async(flags: .barrier) {
-            for (width, height, pixelFormat) in resolutions {
-                let key = TextureKey(width: width, height: height, pixelFormat: pixelFormat)
+        let work = {
+            for request in filteredRequests {
+                let key = TextureKey(
+                    width: request.width,
+                    height: request.height,
+                    pixelFormat: request.pixelFormat
+                )
                 let existingCount = self.cache[key]?.count ?? 0
-                if existingCount >= count {
+                if existingCount >= request.count {
                     continue
                 }
-                let neededCount = count - existingCount
+                let neededCount = request.count - existingCount
                 for _ in 0..<neededCount {
                     let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-                        pixelFormat: pixelFormat,
-                        width: width,
-                        height: height,
+                        pixelFormat: request.pixelFormat,
+                        width: request.width,
+                        height: request.height,
                         mipmapped: false
                     )
                     descriptor.usage = [.shaderRead, .shaderWrite]
@@ -404,6 +441,11 @@ public final class TexturePool {
                     }
                 }
             }
+        }
+        if synchronously {
+            queue.sync(flags: .barrier, execute: work)
+        } else {
+            queue.async(flags: .barrier, execute: work)
         }
     }
 

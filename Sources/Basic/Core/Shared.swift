@@ -66,6 +66,7 @@ private var C7ATSharedTexturePoolContext: UInt8 = 0
 private var C7ATSharedPerformanceMonitorContext: UInt8 = 0
 private var C7ATSharedContext: UInt8 = 0
 private var C7ATSharedTextureAllocatorContext: UInt8 = 0
+private var C7ATSharedTextureAllocationStrategyContext: UInt8 = 0
 
 extension Shared {
 
@@ -87,6 +88,26 @@ extension Shared {
     fileprivate var existingTextureAllocator: TextureAllocator? {
         get { objc_getAssociatedObject(self, &C7ATSharedTextureAllocatorContext) as? TextureAllocator }
         set { objc_setAssociatedObject(self, &C7ATSharedTextureAllocatorContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+
+    fileprivate var existingTextureAllocationStrategy: NSString? {
+        get { objc_getAssociatedObject(self, &C7ATSharedTextureAllocationStrategyContext) as? NSString }
+        set { objc_setAssociatedObject(self, &C7ATSharedTextureAllocationStrategyContext, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+
+    private func resolvedDefaultTextureAllocationStrategy() -> TextureAllocationStrategy {
+        guard let rawValue = existingTextureAllocationStrategy as String?,
+              let strategy = TextureAllocationStrategy(rawValue: rawValue) else {
+            return .exact
+        }
+        return strategy
+    }
+
+    private func makeDefaultTextureAllocatorLocked() -> TextureAllocator {
+        resolvedDefaultTextureAllocationStrategy().makeAllocator(
+            texturePool: defaultTexturePool,
+            on: existingDevice?.device
+        )
     }
     
     public var defaultDevice: Device {
@@ -165,13 +186,27 @@ extension Shared {
         }
     }
 
+    public var defaultTextureAllocationStrategy: TextureAllocationStrategy {
+        get {
+            synchronizedDevice {
+                resolvedDefaultTextureAllocationStrategy()
+            }
+        }
+        set {
+            synchronizedDevice {
+                existingTextureAllocationStrategy = newValue.rawValue as NSString
+                existingTextureAllocator = nil
+            }
+        }
+    }
+
     public var defaultTextureAllocator: TextureAllocator {
         get {
             synchronizedDevice {
                 if let allocator = existingTextureAllocator {
                     return allocator
                 }
-                let allocator = ExactTextureAllocator(texturePool: defaultTexturePool)
+                let allocator = makeDefaultTextureAllocatorLocked()
                 existingTextureAllocator = allocator
                 return allocator
             }
@@ -294,15 +329,25 @@ extension Shared {
     public func prewarmTexturePool(reservations: [RenderTextureReservation],
                                    fallbackPixelFormat: MTLPixelFormat,
                                    defaultCount: Int = 1) {
-        let resolutions = reservations.map { reservation in
-            (
-                width: reservation.size.width,
-                height: reservation.size.height,
-                pixelFormat: reservation.pixelFormat.metalPixelFormat ?? fallbackPixelFormat
+        defaultTexturePool.prewarm(
+            requests: makePrewarmRequests(
+                from: reservations,
+                fallbackPixelFormat: fallbackPixelFormat,
+                defaultCount: defaultCount
             )
-        }
-        let count = max(defaultCount, reservations.map(\.count).max() ?? defaultCount)
-        defaultTexturePool.prewarm(resolutions: resolutions, count: count)
+        )
+    }
+
+    public func prewarmTexturePoolSync(reservations: [RenderTextureReservation],
+                                       fallbackPixelFormat: MTLPixelFormat,
+                                       defaultCount: Int = 1) {
+        defaultTexturePool.prewarmSync(
+            requests: makePrewarmRequests(
+                from: reservations,
+                fallbackPixelFormat: fallbackPixelFormat,
+                defaultCount: defaultCount
+            )
+        )
     }
     
     /// Get the statistics of the texture pool
@@ -313,5 +358,18 @@ extension Shared {
     /// Reset the statistics of the texture pool
     public func resetTexturePoolStatistics() {
         defaultTexturePool.resetStatisticsSync()
+    }
+
+    private func makePrewarmRequests(from reservations: [RenderTextureReservation],
+                                     fallbackPixelFormat: MTLPixelFormat,
+                                     defaultCount: Int) -> [TexturePool.PrewarmRequest] {
+        reservations.map { reservation in
+            TexturePool.PrewarmRequest(
+                width: reservation.size.width,
+                height: reservation.size.height,
+                pixelFormat: reservation.pixelFormat.metalPixelFormat ?? fallbackPixelFormat,
+                count: max(defaultCount, reservation.count)
+            )
+        }
     }
 }

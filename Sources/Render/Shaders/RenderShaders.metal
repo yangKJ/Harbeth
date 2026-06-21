@@ -57,6 +57,102 @@ fragment float4 basicFragment(VertexOut vertexOut [[stage_in]],
     return color;
 }
 
+struct DualOutputLuminanceFragmentOut {
+    float4 primaryColor [[color(0)]];
+    float4 luminanceColor [[color(1)]];
+};
+
+static inline float maskComponentValue(float4 color, int component) {
+    switch (component) {
+        case 0: return color.a;
+        case 1: return color.r;
+        case 2: return color.g;
+        case 3: return color.b;
+        case 4: return dot(color.rgb, float3(0.299, 0.587, 0.114));
+        default: return color.a;
+    }
+}
+
+fragment DualOutputLuminanceFragmentOut dualOutputLuminanceFragment(
+    VertexOut vertexOut [[stage_in]],
+    texture2d<float, access::sample> inputTexture [[texture(0)]],
+    sampler textureSampler [[sampler(0)]]
+) {
+    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
+    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+
+    DualOutputLuminanceFragmentOut output;
+    output.primaryColor = color;
+    output.luminanceColor = float4(luminance, luminance, luminance, 1.0);
+    return output;
+}
+
+struct DualOutputMaskCoverageFragmentOut {
+    float4 primaryColor [[color(0)]];
+    float4 maskCoverageColor [[color(1)]];
+};
+
+struct DualOutputHighlightClippingFragmentOut {
+    float4 primaryColor [[color(0)]];
+    float4 analysisColor [[color(1)]];
+};
+
+fragment DualOutputMaskCoverageFragmentOut dualOutputMaskCoverageFragment(
+    VertexOut vertexOut [[stage_in]],
+    texture2d<float, access::sample> inputTexture [[texture(0)]],
+    texture2d<float, access::sample> maskTexture [[texture(1)]],
+    constant float *maskParameters [[buffer(0)]],
+    sampler textureSampler [[sampler(0)]]
+) {
+    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
+    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 maskColor = maskTexture.sample(s, vertexOut.textureCoordinate);
+
+    float opacity = clamp(maskParameters[0], 0.0, 1.0);
+    bool invert = maskParameters[1] > 0.5;
+    int component = int(maskParameters[2]);
+    float feather = clamp(maskParameters[3], 0.0, 1.0);
+
+    float mask = maskComponentValue(maskColor, component);
+    if (invert) {
+        mask = 1.0 - mask;
+    }
+    if (feather > 0.0) {
+        float low = max(0.0, 0.5 - feather * 0.5);
+        float high = min(1.0, 0.5 + feather * 0.5);
+        mask = smoothstep(low, high, mask);
+    }
+    mask *= opacity;
+
+    DualOutputMaskCoverageFragmentOut output;
+    output.primaryColor = color;
+    output.maskCoverageColor = float4(mask, mask, mask, 1.0);
+    return output;
+}
+
+fragment DualOutputHighlightClippingFragmentOut dualOutputHighlightClippingFragment(
+    VertexOut vertexOut [[stage_in]],
+    texture2d<float, access::sample> inputTexture [[texture(0)]],
+    constant float *analysisParameters [[buffer(0)]],
+    sampler textureSampler [[sampler(0)]]
+) {
+    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
+    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+
+    float threshold = clamp(analysisParameters[0], 0.0, 1.0);
+    float softness = clamp(analysisParameters[1], 0.0, 1.0);
+    float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+    float low = max(0.0, threshold - softness);
+    float high = min(1.0, threshold + max(softness, 0.0001));
+    float clipped = softness > 0.0 ? smoothstep(low, high, luminance) : step(threshold, luminance);
+
+    DualOutputHighlightClippingFragmentOut output;
+    output.primaryColor = color;
+    output.analysisColor = float4(clipped, 0.0, 0.0, 1.0);
+    return output;
+}
+
 fragment float4 quadTransformFragment(VertexOut vertexOut [[stage_in]],
                                       texture2d<float, access::sample> inputTexture [[texture(0)]],
                                       constant QuadTransformUniforms &uniforms [[buffer(0)]],

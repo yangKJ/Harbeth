@@ -19,9 +19,16 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let graphOptimizationDecisions: [String]
         public let persistentBoundaryCount: Int
         public let transientReuseCandidateCount: Int
+        public let sharedDependencyNodeCount: Int
         public let inputDirectPlaneBridgeCount: Int
+        public let inputBridgePolicy: String?
+        public let inputYCbCrDecode: String?
         public let inputPixelPrecision: String
         public let inputHDRFriendly: Bool
+        public let outputAttachmentLabels: [String]
+        public let outputAttachmentDebugViews: [String]
+        public let outputAttachmentReadbackPixelFormats: [String]
+        public let outputAttachmentMonochromePreviewFlags: [Bool]
         public let optimizationPlan: RenderOptimizationPlan
         public let allocationStrategy: String
         public let textureRequestCount: Int
@@ -44,9 +51,16 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                     graphOptimizationDecisions: [String],
                     persistentBoundaryCount: Int,
                     transientReuseCandidateCount: Int,
+                    sharedDependencyNodeCount: Int,
                     inputDirectPlaneBridgeCount: Int,
+                    inputBridgePolicy: String? = nil,
+                    inputYCbCrDecode: String? = nil,
                     inputPixelPrecision: String,
                     inputHDRFriendly: Bool,
+                    outputAttachmentLabels: [String],
+                    outputAttachmentDebugViews: [String],
+                    outputAttachmentReadbackPixelFormats: [String],
+                    outputAttachmentMonochromePreviewFlags: [Bool],
                     optimizationPlan: RenderOptimizationPlan,
                     allocationStrategy: String,
                     textureRequestCount: Int,
@@ -68,9 +82,16 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.graphOptimizationDecisions = graphOptimizationDecisions
             self.persistentBoundaryCount = persistentBoundaryCount
             self.transientReuseCandidateCount = transientReuseCandidateCount
+            self.sharedDependencyNodeCount = sharedDependencyNodeCount
             self.inputDirectPlaneBridgeCount = inputDirectPlaneBridgeCount
+            self.inputBridgePolicy = inputBridgePolicy
+            self.inputYCbCrDecode = inputYCbCrDecode
             self.inputPixelPrecision = inputPixelPrecision
             self.inputHDRFriendly = inputHDRFriendly
+            self.outputAttachmentLabels = outputAttachmentLabels
+            self.outputAttachmentDebugViews = outputAttachmentDebugViews
+            self.outputAttachmentReadbackPixelFormats = outputAttachmentReadbackPixelFormats
+            self.outputAttachmentMonochromePreviewFlags = outputAttachmentMonochromePreviewFlags
             self.optimizationPlan = optimizationPlan
             self.allocationStrategy = allocationStrategy
             self.textureRequestCount = textureRequestCount
@@ -96,9 +117,16 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 graphOptimizationDecisions: diagnostics.graphOptimizationDecisions,
                 persistentBoundaryCount: diagnostics.persistentBoundaryCount,
                 transientReuseCandidateCount: diagnostics.transientReuseCandidateCount,
+                sharedDependencyNodeCount: diagnostics.sharedDependencyNodeCount,
                 inputDirectPlaneBridgeCount: diagnostics.inputDirectPlaneBridgeCount,
+                inputBridgePolicy: diagnostics.inputBridgePolicy?.rawValue,
+                inputYCbCrDecode: diagnostics.inputYCbCrDecodeContract?.fingerprint,
                 inputPixelPrecision: diagnostics.inputPixelPrecision.rawValue,
                 inputHDRFriendly: diagnostics.inputIsHDRFriendly,
+                outputAttachmentLabels: diagnostics.outputContract.attachmentDebugPolicies.map(\.label),
+                outputAttachmentDebugViews: diagnostics.outputContract.attachmentDebugPolicies.map { $0.interpretation.rawValue },
+                outputAttachmentReadbackPixelFormats: diagnostics.outputContract.attachmentDebugPolicies.map { $0.preferredReadbackPixelFormat.name },
+                outputAttachmentMonochromePreviewFlags: diagnostics.outputContract.attachmentDebugPolicies.map(\.prefersMonochromePreview),
                 optimizationPlan: diagnostics.optimizationPlan,
                 allocationStrategy: diagnostics.optimizationPlan.allocationStrategy.rawValue,
                 textureRequestCount: diagnostics.optimizationPlan.textureRequestCount,

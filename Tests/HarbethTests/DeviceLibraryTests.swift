@@ -91,6 +91,15 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertTrue(description.contains("C7Brightness"))
         XCTAssertTrue(description.contains("library=automatic"))
     }
+
+    func testHeapTexturePoolCapabilityReportUsesStablePlatformContract() {
+        let report = Device.metalCapabilityReport(.heapTexturePool)
+
+        XCTAssertEqual(report.capability, .heapTexturePool)
+        XCTAssertTrue(report.minimumPlatform.contains("iOS 13"))
+        XCTAssertTrue(report.minimumPlatform.contains("macOS 10.15"))
+        XCTAssertFalse(report.reason.isEmpty)
+    }
 }
 
 private final class MockExternalLibraryProvider: ExternalMTLLibraryProvider {

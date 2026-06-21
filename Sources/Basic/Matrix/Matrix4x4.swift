@@ -8,7 +8,7 @@
 import Foundation
 import simd
 
-public struct Matrix4x4: Matrix {
+public struct Matrix4x4: Matrix, Sendable, Equatable, Hashable {
     
     public typealias MatrixType = matrix_float4x4
     

@@ -71,6 +71,7 @@ public enum ImageColorGamut: String, Sendable, Codable, Equatable, Hashable {
     case preserveInput
     case sRGB
     case displayP3
+    case ituR2020
     case extendedLinearSRGB
     case custom
 }
@@ -122,7 +123,7 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
 
     public var isWideGamut: Bool {
         switch gamut {
-        case .displayP3, .extendedLinearSRGB:
+        case .displayP3, .ituR2020, .extendedLinearSRGB:
             return true
         case .preserveInput, .sRGB, .custom:
             return false
@@ -312,9 +313,7 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
 
 public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
     public let inputAlphaExpectation: ImageAlphaContract
-    public let alpha: ImageAlphaContract
-    public let colorSpace: ImageColorSpaceContract
-    public let pixelFormat: PixelFormatContract
+    public let attachments: [RenderOutputAttachmentContract]
     public let colorTransferPolicy: ColorTransferPolicy
     public let pixelFormatFallbackPolicy: PixelFormatFallbackPolicy
     public let allowsLossyConversion: Bool
@@ -324,14 +323,22 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
                 alpha: ImageAlphaContract = .preserveInput,
                 colorSpace: ImageColorSpaceContract = .preserveInput,
                 pixelFormat: PixelFormatContract = .preserveInput,
+                additionalAttachments: [RenderOutputAttachmentContract] = [],
                 colorTransferPolicy: ColorTransferPolicy = .automatic,
                 pixelFormatFallbackPolicy: PixelFormatFallbackPolicy = .preserveInput,
                 allowsLossyConversion: Bool = false,
                 preservesOrientation: Bool = true) {
         self.inputAlphaExpectation = inputAlphaExpectation
-        self.alpha = alpha
-        self.colorSpace = colorSpace
-        self.pixelFormat = pixelFormat
+        self.attachments = RenderOutputContract.normalizeAttachments(
+            primary: RenderOutputAttachmentContract(
+                index: 0,
+                semantic: .primaryColor,
+                alpha: alpha,
+                colorSpace: colorSpace,
+                pixelFormat: pixelFormat
+            ),
+            additional: additionalAttachments
+        )
         self.colorTransferPolicy = colorTransferPolicy
         self.pixelFormatFallbackPolicy = pixelFormatFallbackPolicy
         self.allowsLossyConversion = allowsLossyConversion
@@ -349,6 +356,50 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         colorSpace: .extendedLinearSRGB,
         pixelFormat: .rgba16Float
     )
+
+    public var primaryAttachment: RenderOutputAttachmentContract {
+        attachments.first ?? RenderOutputAttachmentContract(index: 0)
+    }
+
+    public var alpha: ImageAlphaContract {
+        primaryAttachment.alpha
+    }
+
+    public var colorSpace: ImageColorSpaceContract {
+        primaryAttachment.colorSpace
+    }
+
+    public var pixelFormat: PixelFormatContract {
+        primaryAttachment.pixelFormat
+    }
+
+    public var secondaryAttachments: [RenderOutputAttachmentContract] {
+        Array(attachments.dropFirst())
+    }
+
+    public var hasMultipleAttachments: Bool {
+        attachments.count > 1
+    }
+
+    public var attachmentCount: Int {
+        attachments.count
+    }
+
+    public func attachmentContract(at index: Int) -> RenderOutputAttachmentContract? {
+        attachments.first(where: { $0.index == index })
+    }
+
+    public var auxiliaryAttachments: [RenderOutputAttachmentContract] {
+        attachments.filter(\.carriesAuxiliaryData)
+    }
+
+    public var auxiliaryAttachmentCount: Int {
+        auxiliaryAttachments.count
+    }
+
+    public var attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy] {
+        attachments.map(\.debugPolicy)
+    }
 
     public var requiresAlphaConversion: Bool {
         switch alpha {
@@ -379,18 +430,327 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         colorSpace.isWideGamut || colorSpace.isHDRTransfer || pixelFormat.isHighPrecision
     }
 
+    public var hasWideGamutAttachment: Bool {
+        attachments.contains(where: { $0.colorSpace.isWideGamut })
+    }
+
+    public var hasHighPrecisionAttachment: Bool {
+        attachments.contains(where: { $0.pixelFormat.isHighPrecision })
+    }
+
+    public var hasHDRFriendlyAttachment: Bool {
+        attachments.contains(where: { $0.isHDRFriendlyOutput })
+    }
+
     public var fingerprint: String {
         [
             "inputAlpha=\(inputAlphaExpectation)",
-            "alpha=\(alpha)",
-            colorSpace.fingerprint,
-            pixelFormat.fingerprint,
+            "attachments=\(attachments.map(\.fingerprint).joined(separator: "||"))",
             "transferPolicy=\(colorTransferPolicy.rawValue)",
             "pixelFallback=\(pixelFormatFallbackPolicy.rawValue)",
             "lossy=\(allowsLossyConversion ? 1 : 0)",
             "orientation=\(preservesOrientation ? "preserve" : "reset")"
         ].joined(separator: "|")
     }
+
+    enum CodingKeys: String, CodingKey {
+        case inputAlphaExpectation
+        case alpha
+        case colorSpace
+        case pixelFormat
+        case attachments
+        case colorTransferPolicy
+        case pixelFormatFallbackPolicy
+        case allowsLossyConversion
+        case preservesOrientation
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let inputAlphaExpectation = try container.decodeIfPresent(ImageAlphaContract.self, forKey: .inputAlphaExpectation) ?? .preserveInput
+        let colorTransferPolicy = try container.decodeIfPresent(ColorTransferPolicy.self, forKey: .colorTransferPolicy) ?? .automatic
+        let pixelFormatFallbackPolicy = try container.decodeIfPresent(PixelFormatFallbackPolicy.self, forKey: .pixelFormatFallbackPolicy) ?? .preserveInput
+        let allowsLossyConversion = try container.decodeIfPresent(Bool.self, forKey: .allowsLossyConversion) ?? false
+        let preservesOrientation = try container.decodeIfPresent(Bool.self, forKey: .preservesOrientation) ?? true
+        let storedAttachments = try container.decodeIfPresent([RenderOutputAttachmentContract].self, forKey: .attachments)
+        let alpha = try container.decodeIfPresent(ImageAlphaContract.self, forKey: .alpha) ?? .preserveInput
+        let colorSpace = try container.decodeIfPresent(ImageColorSpaceContract.self, forKey: .colorSpace) ?? .preserveInput
+        let pixelFormat = try container.decodeIfPresent(PixelFormatContract.self, forKey: .pixelFormat) ?? .preserveInput
+        let primaryAttachment = storedAttachments?.first ?? RenderOutputAttachmentContract(
+            index: 0,
+            semantic: .primaryColor,
+            alpha: alpha,
+            colorSpace: colorSpace,
+            pixelFormat: pixelFormat
+        )
+
+        self.init(
+            inputAlphaExpectation: inputAlphaExpectation,
+            alpha: primaryAttachment.alpha,
+            colorSpace: primaryAttachment.colorSpace,
+            pixelFormat: primaryAttachment.pixelFormat,
+            additionalAttachments: Array((storedAttachments ?? [primaryAttachment]).dropFirst()),
+            colorTransferPolicy: colorTransferPolicy,
+            pixelFormatFallbackPolicy: pixelFormatFallbackPolicy,
+            allowsLossyConversion: allowsLossyConversion,
+            preservesOrientation: preservesOrientation
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(inputAlphaExpectation, forKey: .inputAlphaExpectation)
+        try container.encode(alpha, forKey: .alpha)
+        try container.encode(colorSpace, forKey: .colorSpace)
+        try container.encode(pixelFormat, forKey: .pixelFormat)
+        try container.encode(attachments, forKey: .attachments)
+        try container.encode(colorTransferPolicy, forKey: .colorTransferPolicy)
+        try container.encode(pixelFormatFallbackPolicy, forKey: .pixelFormatFallbackPolicy)
+        try container.encode(allowsLossyConversion, forKey: .allowsLossyConversion)
+        try container.encode(preservesOrientation, forKey: .preservesOrientation)
+    }
+
+    private static func normalizeAttachments(primary: RenderOutputAttachmentContract,
+                                             additional: [RenderOutputAttachmentContract]) -> [RenderOutputAttachmentContract] {
+        let combined = [primary] + additional
+        let normalized = combined.map { attachment in
+            RenderOutputAttachmentContract(
+                index: max(attachment.index, 0),
+                semantic: attachment.index == 0 ? .primaryColor : attachment.semantic,
+                alpha: attachment.alpha,
+                colorSpace: attachment.colorSpace,
+                pixelFormat: attachment.pixelFormat
+            )
+        }.sorted { lhs, rhs in
+            if lhs.index == rhs.index {
+                return lhs.fingerprint < rhs.fingerprint
+            }
+            return lhs.index < rhs.index
+        }
+        var seen = Set<Int>()
+        var result: [RenderOutputAttachmentContract] = []
+        for attachment in normalized where seen.insert(attachment.index).inserted {
+            result.append(attachment)
+        }
+        return result.isEmpty ? [RenderOutputAttachmentContract(index: 0)] : result
+    }
+}
+
+public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hashable {
+    public let index: Int
+    public let semantic: RenderOutputAttachmentSemantic
+    public let alpha: ImageAlphaContract
+    public let colorSpace: ImageColorSpaceContract
+    public let pixelFormat: PixelFormatContract
+
+    public init(index: Int,
+                semantic: RenderOutputAttachmentSemantic = .primaryColor,
+                alpha: ImageAlphaContract = .preserveInput,
+                colorSpace: ImageColorSpaceContract = .preserveInput,
+                pixelFormat: PixelFormatContract = .preserveInput) {
+        self.index = max(index, 0)
+        self.semantic = semantic
+        self.alpha = alpha
+        self.colorSpace = colorSpace
+        self.pixelFormat = pixelFormat
+    }
+
+    public var carriesAuxiliaryData: Bool {
+        semantic != .primaryColor
+    }
+
+    public var isWideGamutOutput: Bool {
+        colorSpace.isWideGamut
+    }
+
+    public var isHighPrecisionOutput: Bool {
+        pixelFormat.isHighPrecision
+    }
+
+    public var isHDRFriendlyOutput: Bool {
+        colorSpace.isWideGamut || colorSpace.isHDRTransfer || pixelFormat.isHighPrecision
+    }
+
+    public var debugPolicy: RenderOutputAttachmentDebugPolicy {
+        RenderOutputAttachmentDebugPolicy(
+            label: semantic.defaultDebugLabel(for: index),
+            interpretation: semantic.debugInterpretation,
+            preferredReadbackPixelFormat: semantic.preferredReadbackPixelFormat(
+                declared: pixelFormat
+            ),
+            preservesDynamicRange: semantic.preservesDynamicRange(declared: pixelFormat),
+            prefersMonochromePreview: semantic.prefersMonochromePreview
+        )
+    }
+
+    public var fingerprint: String {
+        [
+            "attachment=\(index)",
+            "semantic=\(semantic.rawValue)",
+            "alpha=\(alpha)",
+            colorSpace.fingerprint,
+            pixelFormat.fingerprint
+        ].joined(separator: "|")
+    }
+
+    public static func auxiliaryColor(index: Int,
+                                      alpha: ImageAlphaContract = .preserveInput,
+                                      colorSpace: ImageColorSpaceContract = .preserveInput,
+                                      pixelFormat: PixelFormatContract = .preserveInput) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .auxiliaryColor,
+            alpha: alpha,
+            colorSpace: colorSpace,
+            pixelFormat: pixelFormat
+        )
+    }
+
+    public static func maskCoverage(index: Int,
+                                    pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .maskCoverage,
+            alpha: .opaque,
+            colorSpace: .sRGB,
+            pixelFormat: pixelFormat
+        )
+    }
+
+    public static func luminance(index: Int,
+                                 pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .luminance,
+            alpha: .opaque,
+            colorSpace: .sRGB,
+            pixelFormat: pixelFormat
+        )
+    }
+
+    public static func analysis(index: Int,
+                                pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .analysis,
+            alpha: .opaque,
+            colorSpace: .sRGB,
+            pixelFormat: pixelFormat
+        )
+    }
+
+    public static func histogram(index: Int,
+                                 pixelFormat: PixelFormatContract = .rgba16Float) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .histogram,
+            alpha: .opaque,
+            colorSpace: .extendedLinearSRGB,
+            pixelFormat: pixelFormat
+        )
+    }
+}
+
+public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable, Hashable {
+    case primaryColor
+    case auxiliaryColor
+    case maskCoverage
+    case luminance
+    case histogram
+    case analysis
+    case debug
+
+    fileprivate var debugInterpretation: RenderOutputAttachmentDebugInterpretation {
+        switch self {
+        case .primaryColor, .auxiliaryColor, .debug:
+            return .color
+        case .maskCoverage, .luminance:
+            return .monochrome
+        case .histogram, .analysis:
+            return .scalarField
+        }
+    }
+
+    fileprivate var prefersMonochromePreview: Bool {
+        switch self {
+        case .maskCoverage, .luminance, .histogram:
+            return true
+        case .primaryColor, .auxiliaryColor, .analysis, .debug:
+            return false
+        }
+    }
+
+    fileprivate func preferredReadbackPixelFormat(declared: PixelFormatContract) -> PixelFormatContract {
+        switch self {
+        case .maskCoverage, .luminance:
+            return .rgba8Unorm
+        case .histogram:
+            return declared.preservesInput ? .rgba16Float : declared
+        case .analysis:
+            if declared.isHighPrecision {
+                return declared
+            }
+            return declared.preservesInput ? .rgba8Unorm : declared
+        case .primaryColor, .auxiliaryColor, .debug:
+            return declared.preservesInput ? .rgba8Unorm : declared
+        }
+    }
+
+    fileprivate func preservesDynamicRange(declared: PixelFormatContract) -> Bool {
+        switch self {
+        case .histogram:
+            return true
+        case .primaryColor, .auxiliaryColor, .analysis, .debug:
+            return declared.isHighPrecision
+        case .maskCoverage, .luminance:
+            return false
+        }
+    }
+
+    fileprivate func defaultDebugLabel(for index: Int) -> String {
+        switch self {
+        case .primaryColor:
+            return "primaryColor"
+        case .auxiliaryColor:
+            return "auxiliaryColor\(index)"
+        case .maskCoverage:
+            return "maskCoverage"
+        case .luminance:
+            return "luminance"
+        case .histogram:
+            return "histogram"
+        case .analysis:
+            return "analysis"
+        case .debug:
+            return "debug\(index)"
+        }
+    }
+}
+
+public struct RenderOutputAttachmentDebugPolicy: Sendable, Codable, Equatable, Hashable {
+    public let label: String
+    public let interpretation: RenderOutputAttachmentDebugInterpretation
+    public let preferredReadbackPixelFormat: PixelFormatContract
+    public let preservesDynamicRange: Bool
+    public let prefersMonochromePreview: Bool
+
+    public init(label: String,
+                interpretation: RenderOutputAttachmentDebugInterpretation,
+                preferredReadbackPixelFormat: PixelFormatContract,
+                preservesDynamicRange: Bool,
+                prefersMonochromePreview: Bool) {
+        self.label = label
+        self.interpretation = interpretation
+        self.preferredReadbackPixelFormat = preferredReadbackPixelFormat
+        self.preservesDynamicRange = preservesDynamicRange
+        self.prefersMonochromePreview = prefersMonochromePreview
+    }
+}
+
+public enum RenderOutputAttachmentDebugInterpretation: String, Sendable, Codable, Equatable, Hashable {
+    case color
+    case monochrome
+    case scalarField
 }
 
 public enum ColorTransferPolicy: String, Sendable, Codable, Equatable, Hashable {
@@ -421,8 +781,17 @@ public enum PixelBufferNativeTextureLayout: String, Sendable, Codable, Equatable
 
 public enum PixelBufferTextureLoadStrategy: String, Sendable, Codable, Equatable, Hashable {
     case directMetalTexture
+    case directPlaneTexture
     case cgImageFallback
     case cpuCopyFallback
+}
+
+public enum PixelBufferBridgePolicy: String, Sendable, Codable, Equatable, Hashable {
+    case directTexturePassthrough
+    case directPlanePassthrough
+    case directPlaneDecodeToRGBA
+    case cgImageMaterialization
+    case cpuCopyMaterialization
 }
 
 public struct PixelBufferPlaneContract: Sendable, Codable, Equatable, Hashable {
@@ -492,6 +861,54 @@ public struct PixelBufferPlaneBridgeDescriptor: Sendable, Codable, Equatable, Ha
     }
 }
 
+public enum YCbCrMatrixAttachment: String, Sendable, Codable, Equatable, Hashable {
+    case ituR601_4
+    case ituR709_2
+    case ituR2020
+    case smpte240M_1995
+}
+
+public enum ColorPrimariesAttachment: String, Sendable, Codable, Equatable, Hashable {
+    case ituR709_2
+    case ituR2020
+    case p3D65
+    case ebu3213
+    case smpteC
+
+    public var imageColorGamut: ImageColorGamut {
+        switch self {
+        case .ituR2020:
+            return .ituR2020
+        case .p3D65:
+            return .displayP3
+        case .ituR709_2, .ebu3213, .smpteC:
+            return .sRGB
+        }
+    }
+}
+
+public enum ColorTransferAttachment: String, Sendable, Codable, Equatable, Hashable {
+    case ituR709_2
+    case linear
+    case sRGB
+    case smpteSt2084PQ
+    case ituR2100HLG
+    case useGamma
+
+    public var imageTransferFunction: ImageTransferFunction {
+        switch self {
+        case .linear:
+            return .linear
+        case .smpteSt2084PQ:
+            return .perceptualQuantizer
+        case .ituR2100HLG:
+            return .hybridLogGamma
+        case .ituR709_2, .sRGB, .useGamma:
+            return .sRGB
+        }
+    }
+}
+
 public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
     public let width: Int
     public let height: Int
@@ -500,6 +917,9 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
     public let planar: Bool
     public let colorModel: PixelBufferColorModel
     public let nativeTextureLayout: PixelBufferNativeTextureLayout
+    public let yCbCrMatrixAttachment: YCbCrMatrixAttachment?
+    public let colorPrimariesAttachment: ColorPrimariesAttachment?
+    public let transferFunctionAttachment: ColorTransferAttachment?
     public let planes: [PixelBufferPlaneContract]
 
     public init(width: Int,
@@ -509,6 +929,9 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
                 planar: Bool,
                 colorModel: PixelBufferColorModel,
                 nativeTextureLayout: PixelBufferNativeTextureLayout,
+                yCbCrMatrixAttachment: YCbCrMatrixAttachment? = nil,
+                colorPrimariesAttachment: ColorPrimariesAttachment? = nil,
+                transferFunctionAttachment: ColorTransferAttachment? = nil,
                 planes: [PixelBufferPlaneContract]) {
         self.width = width
         self.height = height
@@ -517,6 +940,9 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
         self.planar = planar
         self.colorModel = colorModel
         self.nativeTextureLayout = nativeTextureLayout
+        self.yCbCrMatrixAttachment = yCbCrMatrixAttachment
+        self.colorPrimariesAttachment = colorPrimariesAttachment
+        self.transferFunctionAttachment = transferFunctionAttachment
         self.planes = planes
     }
 
@@ -533,6 +959,30 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
         planes.first?.metalPixelFormat
     }
 
+    public var supportsDirectPlaneTextures: Bool {
+        planeCount > 1 && planes.allSatisfy { $0.metalPixelFormat != nil }
+    }
+
+    public var attachmentColorSpace: ImageColorSpaceContract? {
+        guard colorPrimariesAttachment != nil || transferFunctionAttachment != nil else {
+            return nil
+        }
+        let gamut = colorPrimariesAttachment?.imageColorGamut ?? .custom
+        let transferFunction = transferFunctionAttachment?.imageTransferFunction ?? .custom
+        let name = [
+            colorPrimariesAttachment?.rawValue,
+            transferFunctionAttachment?.rawValue
+        ]
+        .compactMap { $0 }
+        .joined(separator: "+")
+        return ImageColorSpaceContract(
+            name: name.isEmpty ? "attachmentDerived" : name,
+            preservesInput: false,
+            gamut: gamut,
+            transferFunction: transferFunction
+        )
+    }
+
     public var fingerprint: String {
         [
             "size=\(width)x\(height)",
@@ -541,6 +991,9 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
             "planar=\(planar ? 1 : 0)",
             "model=\(colorModel.rawValue)",
             "layout=\(nativeTextureLayout.rawValue)",
+            "ycbcrAttachment=\(yCbCrMatrixAttachment?.rawValue ?? "none")",
+            "primaries=\(colorPrimariesAttachment?.rawValue ?? "none")",
+            "transferAttachment=\(transferFunctionAttachment?.rawValue ?? "none")",
             planes.map(\.fingerprint).joined(separator: "||")
         ].joined(separator: "|")
     }
@@ -574,12 +1027,54 @@ public struct PixelBufferTextureBridgePlan: Sendable, Codable, Equatable, Hashab
         directPlaneBridgeCount == contract.planeCount && contract.planeCount > 1
     }
 
+    public var primaryDirectPlane: PixelBufferPlaneBridgeDescriptor? {
+        planes.first { $0.conversionStrategy == .directMetalTexture }
+    }
+
     public var fingerprint: String {
         [
             contract.fingerprint,
             "load=\(loadStrategy.rawValue)",
             "owner=\(preservesOwnerReference ? 1 : 0)",
             "planes=\(planes.map(\.fingerprint).joined(separator: "||"))"
+        ].joined(separator: "|")
+    }
+}
+
+public enum YCbCrDecodeMatrix: String, Sendable, Codable, Equatable, Hashable {
+    case bt601VideoRange
+    case bt601FullRange
+    case bt709VideoRange
+    case bt709FullRangeApproximation
+}
+
+public enum YCbCrPlaneLayout: String, Sendable, Codable, Equatable, Hashable {
+    case biPlanar
+    case triPlanar
+}
+
+public struct YCbCrDecodeContract: Sendable, Codable, Equatable, Hashable {
+    public let layout: YCbCrPlaneLayout
+    public let matrix: YCbCrDecodeMatrix
+    public let destinationPixelFormatRawValue: UInt
+
+    public init(layout: YCbCrPlaneLayout,
+                matrix: YCbCrDecodeMatrix,
+                destinationPixelFormat: MTLPixelFormat) {
+        self.layout = layout
+        self.matrix = matrix
+        self.destinationPixelFormatRawValue = destinationPixelFormat.rawValue
+    }
+
+    public var destinationPixelFormat: MTLPixelFormat? {
+        MTLPixelFormat(rawValue: destinationPixelFormatRawValue)
+    }
+
+    public var fingerprint: String {
+        [
+            "layout=\(layout.rawValue)",
+            "matrix=\(matrix.rawValue)",
+            "destPixel=\(destinationPixelFormatRawValue)"
         ].joined(separator: "|")
     }
 }
@@ -818,6 +1313,8 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
     public let loadingOptions: ImageLoadingOptions
     public let pixelBufferContract: PixelBufferContract?
     public let pixelBufferBridgePlan: PixelBufferTextureBridgePlan?
+    public let pixelBufferBridgePolicy: PixelBufferBridgePolicy?
+    public let yCbCrDecodeContract: YCbCrDecodeContract?
     public let sampleBufferContract: SampleBufferContract?
 
     public init(kind: String,
@@ -829,6 +1326,8 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
                 loadingOptions: ImageLoadingOptions = .default,
                 pixelBufferContract: PixelBufferContract? = nil,
                 pixelBufferBridgePlan: PixelBufferTextureBridgePlan? = nil,
+                pixelBufferBridgePolicy: PixelBufferBridgePolicy? = nil,
+                yCbCrDecodeContract: YCbCrDecodeContract? = nil,
                 sampleBufferContract: SampleBufferContract? = nil) {
         self.kind = kind
         self.sourceTier = sourceTier
@@ -839,6 +1338,8 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
         self.loadingOptions = loadingOptions
         self.pixelBufferContract = pixelBufferContract
         self.pixelBufferBridgePlan = pixelBufferBridgePlan
+        self.pixelBufferBridgePolicy = pixelBufferBridgePolicy
+        self.yCbCrDecodeContract = yCbCrDecodeContract
         self.sampleBufferContract = sampleBufferContract
     }
 
@@ -857,6 +1358,12 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
         }
         if let pixelBufferBridgePlan {
             parts.append("bridge={\(pixelBufferBridgePlan.fingerprint)}")
+        }
+        if let pixelBufferBridgePolicy {
+            parts.append("bridgePolicy=\(pixelBufferBridgePolicy.rawValue)")
+        }
+        if let yCbCrDecodeContract {
+            parts.append("ycbcrDecode={\(yCbCrDecodeContract.fingerprint)}")
         }
         if let sampleBufferContract {
             parts.append("sampleBuffer={\(sampleBufferContract.fingerprint)}")
