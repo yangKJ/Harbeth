@@ -51,6 +51,18 @@ public enum RenderStageKind: String, Sendable, Equatable {
     case boundary
 }
 
+public enum RenderStageBoundaryReason: String, Sendable, Equatable {
+    case externalBoundary
+    case fusionBoundary
+    case readbackReady
+}
+
+public enum RenderCompilationSource: String, Sendable, Equatable {
+    case filtersPrimitive
+    case editRecipe
+    case transition
+}
+
 public struct RenderStage: Sendable, Equatable {
     public let index: Int
     public let stageKind: RenderStageKind
@@ -60,9 +72,12 @@ public struct RenderStage: Sendable, Equatable {
     public let breaksFusion: Bool
     public let inputSize: C7Size
     public let outputSize: C7Size
-    public let boundaryReason: String?
+    public let boundaryReason: RenderStageBoundaryReason?
     public let containsReadbackBoundary: Bool
     public let createsDestinationTexture: Bool
+    public let containsLocalEffectComposite: Bool
+    public let containsTransitionKernel: Bool
+    public let containsDerivativeResize: Bool
 
     public init(index: Int,
                 stageKind: RenderStageKind,
@@ -72,9 +87,12 @@ public struct RenderStage: Sendable, Equatable {
                 breaksFusion: Bool,
                 inputSize: C7Size,
                 outputSize: C7Size,
-                boundaryReason: String?,
+                boundaryReason: RenderStageBoundaryReason?,
                 containsReadbackBoundary: Bool,
-                createsDestinationTexture: Bool) {
+                createsDestinationTexture: Bool,
+                containsLocalEffectComposite: Bool,
+                containsTransitionKernel: Bool,
+                containsDerivativeResize: Bool) {
         self.index = index
         self.stageKind = stageKind
         self.nodeIndices = nodeIndices
@@ -86,6 +104,9 @@ public struct RenderStage: Sendable, Equatable {
         self.boundaryReason = boundaryReason
         self.containsReadbackBoundary = containsReadbackBoundary
         self.createsDestinationTexture = createsDestinationTexture
+        self.containsLocalEffectComposite = containsLocalEffectComposite
+        self.containsTransitionKernel = containsTransitionKernel
+        self.containsDerivativeResize = containsDerivativeResize
     }
 }
 
@@ -123,6 +144,10 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
     public let containsBoundary: Bool
     public let requiresCompletedGPUWork: Bool
     public let stageCount: Int
+    public let compilationSource: RenderCompilationSource
+    public let containsLocalEffectComposite: Bool
+    public let containsTransitionKernel: Bool
+    public let containsDerivativeResize: Bool
     public let nodes: [RenderNodeDiagnostic]
     public let stages: [RenderStage]
 
@@ -133,6 +158,10 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
                 containsBoundary: Bool,
                 requiresCompletedGPUWork: Bool,
                 stageCount: Int,
+                compilationSource: RenderCompilationSource,
+                containsLocalEffectComposite: Bool,
+                containsTransitionKernel: Bool,
+                containsDerivativeResize: Bool,
                 nodes: [RenderNodeDiagnostic],
                 stages: [RenderStage]) {
         self.profile = profile
@@ -142,6 +171,10 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
         self.containsBoundary = containsBoundary
         self.requiresCompletedGPUWork = requiresCompletedGPUWork
         self.stageCount = stageCount
+        self.compilationSource = compilationSource
+        self.containsLocalEffectComposite = containsLocalEffectComposite
+        self.containsTransitionKernel = containsTransitionKernel
+        self.containsDerivativeResize = containsDerivativeResize
         self.nodes = nodes
         self.stages = stages
     }
@@ -162,6 +195,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "stages=\(stageCount)",
             "boundary=\(containsBoundary ? 1 : 0)",
             "readback=\(requiresCompletedGPUWork ? 1 : 0)",
+            "source=\(compilationSource.rawValue)",
             "plan=\(stageSummary)"
         ].joined(separator: " ")
     }
@@ -180,7 +214,8 @@ public struct RenderPlan {
                 derivative: ImageDerivativeSpec,
                 inputSize: C7Size,
                 outputSize: C7Size,
-                nodeDiagnostics: [RenderNodeDiagnostic]) {
+                nodeDiagnostics: [RenderNodeDiagnostic],
+                compilationSource: RenderCompilationSource) {
         self.graph = graph
         self.profile = profile
         let requiresCompletedGPUWork = profile.requiresCompletedGPUWorkBeforeReadback
@@ -200,6 +235,10 @@ public struct RenderPlan {
             containsBoundary: containsBoundary,
             requiresCompletedGPUWork: requiresCompletedGPUWork,
             stageCount: optimizedStages.count,
+            compilationSource: compilationSource,
+            containsLocalEffectComposite: optimizedStages.contains(where: \.containsLocalEffectComposite),
+            containsTransitionKernel: optimizedStages.contains(where: \.containsTransitionKernel),
+            containsDerivativeResize: optimizedStages.contains(where: \.containsDerivativeResize),
             nodes: nodeDiagnostics,
             stages: optimizedStages
         )
@@ -232,16 +271,16 @@ public enum GraphOptimizer {
             return .compute
         }
 
-        func boundaryReason(for stageNodes: [RenderNode], diagnostics: [RenderNodeDiagnostic]) -> String? {
+        func boundaryReason(for stageNodes: [RenderNode], diagnostics: [RenderNodeDiagnostic]) -> RenderStageBoundaryReason? {
             if stageNodes.contains(where: { $0.kind == .boundary }) {
-                return "externalBoundary"
+                return .externalBoundary
             }
             if diagnostics.contains(where: \.breaksFusion) {
-                return "fusionBoundary"
+                return .fusionBoundary
             }
             if profile.requiresCompletedGPUWorkBeforeReadback,
                diagnostics.last?.outputSize == diagnostics.last?.outputSize {
-                return "readbackReady"
+                return .readbackReady
             }
             return nil
         }
@@ -267,7 +306,10 @@ public enum GraphOptimizer {
                     outputSize: outputSize,
                     boundaryReason: boundaryReason(for: stageNodes, diagnostics: diagnostics),
                     containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback && currentNodeIndices.last == graph.nodes.indices.last,
-                    createsDestinationTexture: stageNodes.contains(where: { $0.filter != nil })
+                    createsDestinationTexture: stageNodes.contains(where: { $0.filter != nil }),
+                    containsLocalEffectComposite: diagnostics.contains(where: { $0.name.contains("C7MaskRegionBlend") }),
+                    containsTransitionKernel: diagnostics.contains(where: { $0.name.contains("Transition") }),
+                    containsDerivativeResize: diagnostics.contains(where: { $0.name.contains("DerivativeResize") })
                 )
             )
             currentNodeIndices.removeAll(keepingCapacity: true)
@@ -297,7 +339,8 @@ public enum GraphCompiler {
     public static func compile(filters: [C7FilterProtocol],
                                inputSize: C7Size,
                                profile: RenderProfile = .stablePreview,
-                               derivative: ImageDerivativeSpec? = nil) -> RenderPlan {
+                               derivative: ImageDerivativeSpec? = nil,
+                               compilationSource: RenderCompilationSource = .filtersPrimitive) -> RenderPlan {
         var currentSize = inputSize
         var nodeDiagnostics: [RenderNodeDiagnostic] = []
         let nodes = filters.enumerated().map { index, filter -> RenderNode in
@@ -360,7 +403,8 @@ public enum GraphCompiler {
             derivative: resolvedDerivative,
             inputSize: inputSize,
             outputSize: currentSize,
-            nodeDiagnostics: nodeDiagnostics
+            nodeDiagnostics: nodeDiagnostics,
+            compilationSource: compilationSource
         )
     }
 

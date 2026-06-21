@@ -310,10 +310,10 @@ public struct FrameRenderer {
 
     public func renderTexture() throws -> MTLTexture {
         if let transitionRecipe {
-            return try renderTransitionTexture(transitionRecipe)
+            return try compiledTransitionExecution(transitionRecipe).renderTexture()
         }
         if let recipe, let mode = recipeMode {
-            return try renderRecipeTexture(recipe, mode: mode)
+            return try compiledRecipeExecution(recipe, mode: mode).renderTexture()
         }
         let input = try source.makeTexture()
         let effectiveFilters = effectiveFilters(for: C7Size(width: input.width, height: input.height))
@@ -333,22 +333,23 @@ public struct FrameRenderer {
 
     public func renderFrame(token: FrameRenderToken) throws -> RenderedFrame {
         if let transitionRecipe {
+            let execution = try compiledTransitionExecution(transitionRecipe)
             return try renderFrame(
                 token: token,
-                source: transitionRecipe.from,
-                renderedTexture: renderTransitionTexture(transitionRecipe),
-                resolvedSize: transitionResolvedOutputSize(transitionRecipe),
-                filterChain: transitionCompiledFilters(transitionRecipe)
+                source: execution.source,
+                renderedTexture: execution.renderTexture(),
+                resolvedSize: execution.resolvedOutputSize,
+                filterChain: execution.diagnosticFilters
             )
         }
         if let recipe, let mode = recipeMode {
-            let resolvedSource = recipe.resolvedSource(source)
+            let execution = try compiledRecipeExecution(recipe, mode: mode)
             return try renderFrame(
                 token: token,
-                source: resolvedSource,
-                renderedTexture: renderRecipeTexture(recipe, mode: mode),
-                resolvedSize: recipeResolvedOutputSize(recipe, mode: mode, source: resolvedSource),
-                filterChain: recipeCompiledFilters(recipe, mode: mode, source: resolvedSource)
+                source: execution.source,
+                renderedTexture: execution.renderTexture(),
+                resolvedSize: execution.resolvedOutputSize,
+                filterChain: execution.diagnosticFilters
             )
         }
         let renderedTexture: MTLTexture
@@ -504,41 +505,6 @@ public struct FrameRenderer {
         )
     }
 
-    private func renderRecipeTexture(_ recipe: EditRecipe, mode: EditRecipeMode) throws -> MTLTexture {
-        let resolvedSource = recipe.resolvedSource(source)
-        let input = try resolvedSource.makeTexture()
-        let inputSize = C7Size(width: input.width, height: input.height)
-        let baseFilters = recipe.makeBaseFilterChain(inputSize: inputSize, appending: filters)
-        let contract = recipe.contract(for: mode)
-        var currentTexture = try renderTexture(input: input, filters: baseFilters, profile: contract.profile)
-
-        for localEffect in recipe.localEffects {
-            let effectTexture = try renderTexture(input: currentTexture, filters: localEffect.filters, profile: contract.profile)
-            currentTexture = try renderTexture(
-                input: currentTexture,
-                filters: [C7MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
-                profile: contract.profile
-            )
-        }
-
-        return try resizeTextureIfNeeded(
-            currentTexture,
-            derivative: outputDerivative,
-            profile: contract.profile
-        )
-    }
-
-    private func renderTransitionTexture(_ recipe: TransitionRecipe) throws -> MTLTexture {
-        let input = try recipe.from.makeTexture()
-        let compiled = [try recipe.makeFilter()] + filters
-        let rendered = try renderTexture(input: input, filters: compiled, profile: recipe.profile)
-        return try resizeTextureIfNeeded(
-            rendered,
-            derivative: outputDerivative,
-            profile: recipe.profile
-        )
-    }
-
     private func renderTexture(input: MTLTexture,
                                filters: [C7FilterProtocol],
                                profile: RenderProfile) throws -> MTLTexture {
@@ -563,49 +529,117 @@ public struct FrameRenderer {
         .output()
     }
 
-    private func recipeCompiledFilters(_ recipe: EditRecipe,
-                                       mode: EditRecipeMode,
-                                       source: HarbethSource) throws -> [C7FilterProtocol] {
-        let input = try source.makeTexture()
-        return recipe.makeExecutionPreviewChain(
-            inputSize: C7Size(width: input.width, height: input.height),
+    private func compiledRecipeExecution(_ recipe: EditRecipe,
+                                         mode: EditRecipeMode) throws -> CompiledRecipeExecution {
+        try CompiledRecipeExecution(
+            source: recipe.resolvedSource(source),
+            recipe: recipe,
             mode: mode,
-            derivative: outputDerivative,
-            appending: filters
+            extraFilters: filters,
+            outputDerivative: outputDerivative,
+            renderTexture: renderTexture(input:filters:profile:),
+            resizeTextureIfNeeded: resizeTextureIfNeeded(_:derivative:profile:)
         )
     }
 
-    private func recipeResolvedOutputSize(_ recipe: EditRecipe,
-                                          mode: EditRecipeMode,
-                                          source: HarbethSource) throws -> C7Size {
+    private func compiledTransitionExecution(_ recipe: TransitionRecipe) throws -> CompiledTransitionExecution {
+        try CompiledTransitionExecution(
+            source: recipe.from,
+            recipe: recipe,
+            extraFilters: filters,
+            outputDerivative: outputDerivative,
+            renderTexture: renderTexture(input:filters:profile:),
+            resizeTextureIfNeeded: resizeTextureIfNeeded(_:derivative:profile:)
+        )
+    }
+}
+
+private struct CompiledRecipeExecution {
+    let source: HarbethSource
+    let profile: RenderProfile
+    let diagnosticFilters: [C7FilterProtocol]
+    let resolvedOutputSize: C7Size
+    let renderTextureClosure: () throws -> MTLTexture
+
+    init(source: HarbethSource,
+         recipe: EditRecipe,
+         mode: EditRecipeMode,
+         extraFilters: [C7FilterProtocol],
+         outputDerivative: ImageDerivativeSpec,
+         renderTexture: @escaping (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture,
+         resizeTextureIfNeeded: @escaping (MTLTexture, ImageDerivativeSpec, RenderProfile) throws -> MTLTexture) throws {
         let input = try source.makeTexture()
-        return try recipeCompiledFilters(recipe, mode: mode, source: source).reduce(
-            C7Size(width: input.width, height: input.height)
-        ) { size, filter in
+        let inputSize = C7Size(width: input.width, height: input.height)
+        let contract = recipe.contract(for: mode)
+        let baseFilters = recipe.makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)
+        let diagnosticFilters = recipe.makeExecutionPreviewChain(
+            inputSize: inputSize,
+            mode: mode,
+            derivative: outputDerivative,
+            appending: extraFilters
+        )
+        self.source = source
+        self.profile = contract.profile
+        self.diagnosticFilters = diagnosticFilters
+        self.resolvedOutputSize = diagnosticFilters.reduce(inputSize) { size, filter in
             filter.resize(input: size)
+        }
+        self.renderTextureClosure = {
+            var currentTexture = try renderTexture(input, baseFilters, contract.profile)
+            for localEffect in recipe.localEffects {
+                let effectTexture = try renderTexture(currentTexture, localEffect.filters, contract.profile)
+                currentTexture = try renderTexture(
+                    currentTexture,
+                    [C7MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
+                    contract.profile
+                )
+            }
+            return try resizeTextureIfNeeded(currentTexture, outputDerivative, contract.profile)
         }
     }
 
-    private func transitionCompiledFilters(_ recipe: TransitionRecipe) throws -> [C7FilterProtocol] {
-        let input = try recipe.from.makeTexture()
-        var compiled = [try recipe.makeFilter()] + filters
-        let baseOutputSize = compiled.reduce(C7Size(width: input.width, height: input.height)) { size, filter in
+    func renderTexture() throws -> MTLTexture {
+        try renderTextureClosure()
+    }
+}
+
+private struct CompiledTransitionExecution {
+    let source: HarbethSource
+    let profile: RenderProfile
+    let diagnosticFilters: [C7FilterProtocol]
+    let resolvedOutputSize: C7Size
+    let renderTextureClosure: () throws -> MTLTexture
+
+    init(source: HarbethSource,
+         recipe: TransitionRecipe,
+         extraFilters: [C7FilterProtocol],
+         outputDerivative: ImageDerivativeSpec,
+         renderTexture: @escaping (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture,
+         resizeTextureIfNeeded: @escaping (MTLTexture, ImageDerivativeSpec, RenderProfile) throws -> MTLTexture) throws {
+        let input = try source.makeTexture()
+        let inputSize = C7Size(width: input.width, height: input.height)
+        var filters = [try recipe.makeFilter()] + extraFilters
+        let baseOutputSize = filters.reduce(inputSize) { size, filter in
             filter.resize(input: size)
         }
         let derivativeOutputSize = outputDerivative.resolvedOutputSize(for: baseOutputSize)
         if derivativeOutputSize != baseOutputSize {
-            compiled.append(C7Resize(width: Float(derivativeOutputSize.width), height: Float(derivativeOutputSize.height)))
+            filters.append(C7Resize(width: Float(derivativeOutputSize.width), height: Float(derivativeOutputSize.height)))
         }
-        return compiled
-    }
-
-    private func transitionResolvedOutputSize(_ recipe: TransitionRecipe) throws -> C7Size {
-        let input = try recipe.from.makeTexture()
-        return try transitionCompiledFilters(recipe).reduce(
-            C7Size(width: input.width, height: input.height)
-        ) { size, filter in
+        self.source = source
+        self.profile = recipe.profile
+        self.diagnosticFilters = filters
+        self.resolvedOutputSize = filters.reduce(inputSize) { size, filter in
             filter.resize(input: size)
         }
+        self.renderTextureClosure = {
+            let rendered = try renderTexture(input, [try recipe.makeFilter()] + extraFilters, recipe.profile)
+            return try resizeTextureIfNeeded(rendered, outputDerivative, recipe.profile)
+        }
+    }
+
+    func renderTexture() throws -> MTLTexture {
+        try renderTextureClosure()
     }
 }
 

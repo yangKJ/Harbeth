@@ -82,12 +82,14 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertFalse(plan.optimizedStages[0].breaksFusion)
         XCTAssertEqual(plan.optimizedStages[1].filterCount, 1)
         XCTAssertTrue(plan.optimizedStages[1].breaksFusion)
-        XCTAssertEqual(plan.optimizedStages[1].boundaryReason, "fusionBoundary")
+        XCTAssertEqual(plan.optimizedStages[1].boundaryReason, .fusionBoundary)
         XCTAssertEqual(plan.optimizedStages[2].filterCount, 1)
         XCTAssertTrue(plan.debugSummary.contains("profile=responseLatency"))
         XCTAssertEqual(plan.diagnostics.inputSize, C7Size(width: 640, height: 480))
         XCTAssertEqual(plan.diagnostics.outputSize, C7Size(width: 320, height: 240))
         XCTAssertEqual(plan.diagnostics.stageCount, 3)
+        XCTAssertEqual(plan.diagnostics.compilationSource, .filtersPrimitive)
+        XCTAssertTrue(plan.diagnostics.containsDerivativeResize == false)
         XCTAssertEqual(plan.diagnostics.nodes.first?.inputSize, C7Size(width: 640, height: 480))
         XCTAssertEqual(plan.diagnostics.nodes[2].outputSize, C7Size(width: 320, height: 240))
         XCTAssertEqual(plan.diagnostics.nodes[2].parameterSummary["width"], "320.0")
@@ -143,7 +145,9 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(diagnostics.stageCount, 3)
         XCTAssertTrue(diagnostics.containsBoundary)
         XCTAssertEqual(diagnostics.stages[1].outputSize, C7Size(width: 6, height: 5))
+        XCTAssertEqual(diagnostics.compilationSource, .filtersPrimitive)
         XCTAssertTrue(diagnostics.summary.contains("output=6x5"))
+        XCTAssertTrue(diagnostics.summary.contains("source=filtersPrimitive"))
     }
 
     func testDerivativeSpecCanResizeRenderPlanOutput() {
@@ -167,5 +171,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.graph.nodes.last?.breaksFusion ?? false)
         XCTAssertEqual(plan.diagnostics.nodes.last?.name, "DerivativeResize")
         XCTAssertEqual(plan.diagnostics.nodes.last?.parameterSummary["derivative"], "panelThumbnail")
+        XCTAssertTrue(plan.diagnostics.containsDerivativeResize)
+        XCTAssertTrue(plan.diagnostics.stages.last?.containsDerivativeResize ?? false)
     }
 }

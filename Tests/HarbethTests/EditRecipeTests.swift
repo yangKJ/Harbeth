@@ -88,6 +88,105 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertLessThan(pixel.blue, 10)
     }
 
+    func testRecipeWithoutLocalEffectsMatchesDirectFilterExecution() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 1, height: 1, pixel: [180, 120, 80, 255])
+        let recipe = EditRecipe(filters: [C7Brightness(brightness: -0.2)])
+
+        let recipeOutput = try HarbethIO(element: input, filters: [])
+            .renderTexture(recipe: recipe, mode: .preview)
+        let directOutput: MTLTexture = try HarbethIO(
+            element: input,
+            filters: [C7Brightness(brightness: -0.2)]
+        ).output()
+
+        let recipePixel = try firstPixel(in: recipeOutput)
+        let directPixel = try firstPixel(in: directOutput)
+        XCTAssertEqual(recipePixel.red, directPixel.red)
+        XCTAssertEqual(recipePixel.green, directPixel.green)
+        XCTAssertEqual(recipePixel.blue, directPixel.blue)
+        XCTAssertEqual(recipePixel.alpha, directPixel.alpha)
+    }
+
+    func testMultipleLocalEffectsRunInStableOrder() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 1, height: 1, pixel: [200, 200, 200, 255])
+        let mask = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let recipe = EditRecipe(
+            localEffects: [
+                LocalEffectRecipe(filters: [C7Brightness(brightness: -0.15)], mask: MaskDescriptor(texture: mask, opacity: 1)),
+                LocalEffectRecipe(filters: [C7Brightness(brightness: -0.15)], mask: MaskDescriptor(texture: mask, opacity: 1))
+            ]
+        )
+
+        let output = try HarbethIO(element: input, filters: [])
+            .renderTexture(recipe: recipe)
+        let pixel = try firstPixel(in: output)
+
+        XCTAssertLessThan(pixel.red, 150)
+        XCTAssertLessThan(pixel.green, 150)
+        XCTAssertLessThan(pixel.blue, 150)
+    }
+
+    func testFinalRecipeContractDrivesFrameMetadata() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 4, height: 4, pixel: [255, 255, 255, 255])
+        let finalDerivative = ImageDerivativeSpec(
+            name: "finalDelivery",
+            renderIntent: .export,
+            sourceTier: .fullResolutionReusable,
+            semantic: ImageSemanticDescriptor(role: .output, purpose: .export, fidelity: .fullResolution),
+            outputSizePolicy: .exact(C7Size(width: 2, height: 2))
+        )
+        let recipe = EditRecipe(
+            filters: [C7Brightness(brightness: -0.1)],
+            finalProfile: .exportQuality,
+            finalDerivative: finalDerivative
+        )
+
+        let frame = try HarbethIO(element: input, filters: [])
+            .renderFrame(recipe: recipe, mode: .final)
+
+        XCTAssertEqual(frame.profile, .exportQuality)
+        XCTAssertEqual(frame.renderIntent, .export)
+        XCTAssertEqual(frame.derivative.name, "finalDelivery")
+        XCTAssertEqual(frame.sourceTier, .original)
+        XCTAssertEqual(frame.semantic.purpose, .export)
+        XCTAssertEqual(frame.resolvedOutputSize, C7Size(width: 2, height: 2))
+    }
+
+    func testRecipeDiagnosticsExposeRecipeAndLocalEffectContracts() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 4, height: 4, pixel: [255, 255, 255, 255])
+        let recipe = EditRecipe(
+            filters: [C7Brightness(brightness: 0.1)],
+            localEffects: [
+                LocalEffectRecipe(
+                    filters: [C7Contrast(contrast: 1.1)],
+                    mask: MaskDescriptor(texture: input, opacity: 1)
+                )
+            ]
+        )
+
+        let diagnostics = try HarbethIO(element: input, filters: [])
+            .renderDiagnostics(recipe: recipe, mode: .preview)
+
+        XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
+        XCTAssertTrue(diagnostics.containsLocalEffectComposite)
+        XCTAssertFalse(diagnostics.containsTransitionKernel)
+        XCTAssertTrue(diagnostics.summary.contains("source=editRecipe"))
+        XCTAssertFalse(diagnostics.summary.contains("preview"))
+        XCTAssertFalse(diagnostics.summary.contains("presentation"))
+    }
+
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

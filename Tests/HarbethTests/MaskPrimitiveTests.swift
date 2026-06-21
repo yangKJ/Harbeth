@@ -36,6 +36,47 @@ final class MaskPrimitiveTests: XCTestCase {
         XCTAssertEqual(pixel.blue, 0)
     }
 
+    func testMaskBlendRespectsTransparentAndOpaqueOpacity() throws {
+        let base = try makeTexture(pixel: [255, 0, 0, 255])
+        let effect = try makeTexture(pixel: [0, 255, 0, 255])
+        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
+
+        let transparentOutput: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(
+                effectTexture: effect,
+                mask: MaskDescriptor(texture: maskTexture, opacity: 0)
+            )
+        ).output()
+        let opaqueOutput: MTLTexture = try HarbethIO(
+            element: base,
+            filter: C7MaskRegionBlend(
+                effectTexture: effect,
+                mask: MaskDescriptor(texture: maskTexture, opacity: 1)
+            )
+        ).output()
+
+        XCTAssertEqual(try firstPixel(in: transparentOutput).red, 255)
+        XCTAssertEqual(try firstPixel(in: opaqueOutput).green, 255)
+    }
+
+    func testMaskDescriptorFactorsExposeComponentAndFeather() throws {
+        let maskTexture = try makeTexture(pixel: [255, 128, 0, 255])
+        let descriptor = MaskDescriptor(
+            texture: maskTexture,
+            component: .red,
+            blendMode: .multiply,
+            featherPolicy: .normalized(0.4),
+            opacity: 0.75
+        )
+        let filter = C7MaskRegionBlend(effectTexture: maskTexture, mask: descriptor)
+
+        XCTAssertEqual(filter.factors[0], 0.75, accuracy: 0.0001)
+        XCTAssertEqual(filter.factors[2], Float(MaskComponent.red.rawValue), accuracy: 0.0001)
+        XCTAssertEqual(filter.factors[3], Float(MaskBlendMode.multiply.rawValue), accuracy: 0.0001)
+        XCTAssertEqual(filter.factors[4], 0.4, accuracy: 0.0001)
+    }
+
     private func makeTexture(pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

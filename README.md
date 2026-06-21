@@ -108,9 +108,10 @@ Harbeth also provides a reusable correction and transform layer for editor-grade
 Harbeth supports multiple source types and more than one output shape:
 
 - Use `UIImage`, `NSImage`, `CGImage`, `MTLTexture`, `CVPixelBuffer`, or `CMSampleBuffer` as processing inputs.
-- Use `output()` when you want an image result.
-- Use `renderTexture(profile:)` when you want to keep the pipeline texture-first.
-- Use `renderFrame(profile:)` when you need a reusable `RenderedFrame` with metadata, semantic contract, and replay-oriented context.
+- Use `output()` for the primitive image path.
+- Use `renderTexture(profile:)` / `renderFrame(profile:)` for the frame-first filters path.
+- Use `renderTexture(recipe:)` / `renderFrame(recipe:)` for recipe-driven execution.
+- Use `renderTransitionTexture(_:)` / `renderTransitionFrame(_:)` for transition primitives.
 
 ### Render Profiles and Frame Rendering
 

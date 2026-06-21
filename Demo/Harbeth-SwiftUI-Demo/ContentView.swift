@@ -92,6 +92,24 @@ private struct ShowcaseHomeView: View {
                             isWide: proxy.size.width >= 960
                         )
 
+                        ShowcaseStoryRail(items: [
+                            ShowcaseMetric(
+                                title: "Recipe Core",
+                                value: "LUT + tone + detail",
+                                detail: "One edit recipe carries through preview and final render semantics."
+                            ),
+                            ShowcaseMetric(
+                                title: "Frame Contract",
+                                value: "texture-first",
+                                detail: "Harbeth focuses on how a frame is processed rather than owning capture lifecycle."
+                            ),
+                            ShowcaseMetric(
+                                title: "Reusable Output",
+                                value: "derivative-ready",
+                                detail: "The Showcase frames reusable derivatives, readback paths, and stable render metadata."
+                            )
+                        ])
+
                         ShowcaseBand(
                             title: "Image Editing Core",
                             subtitle: "Show the full chain from source image to recipe, preview surface, final render, and reusable derivative.",
@@ -142,7 +160,7 @@ private struct ShowcaseHomeView: View {
                             subtitle: "The first Studio pass focuses on crop, rotate, and resize. Advanced perspective and optics remain capability-forward and can expand without changing the demo shell.",
                             icon: "crop.rotate"
                         ) {
-                            HStack(alignment: .top, spacing: 20) {
+                            AdaptiveShowcaseGrid(minimumWidth: 220, spacing: 16) {
                                 CapabilityListColumn(
                                     title: "Now in Studio",
                                     items: [
@@ -233,18 +251,31 @@ private struct ShowcaseHeroSection: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
-            HStack(spacing: 10) {
-                CapabilityTag(text: "LUT")
-                CapabilityTag(text: "Preview/Final")
-                CapabilityTag(text: "Geometry")
-                CapabilityTag(text: "Detail")
-                CapabilityTag(text: "Blend")
+            AdaptiveTagCloud(items: ["LUT", "Preview/Final", "Geometry", "Detail", "Blend"])
+
+            AdaptiveShowcaseGrid(minimumWidth: 116, spacing: 10) {
+                ShowcaseStatBadge(title: "Inputs", value: "Image / Texture")
+                ShowcaseStatBadge(title: "Profiles", value: "Preview / Final")
+                ShowcaseStatBadge(title: "Quality", value: "Sharpen / Denoise")
+                ShowcaseStatBadge(title: "Boundary", value: "Frame-only core")
             }
 
-            HStack(spacing: 12) {
-                ShowcasePrimaryButton(title: "Open Studio", action: openStudio)
-                ShowcaseSecondaryButton(title: "Browse Labs", action: openLabs)
-                ShowcaseSecondaryButton(title: "Read Core Capabilities", action: openCapabilities)
+            AdaptiveTagCloud(items: ["Readback", "Alpha", "Derivative", "Frame Runtime"])
+
+            if isWide {
+                HStack(spacing: 12) {
+                    ShowcasePrimaryButton(title: "Open Studio", action: openStudio)
+                    ShowcaseSecondaryButton(title: "Browse Labs", action: openLabs)
+                    ShowcaseSecondaryButton(title: "Read Core Capabilities", action: openCapabilities)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    ShowcasePrimaryButton(title: "Open Studio", action: openStudio)
+                    HStack(spacing: 12) {
+                        ShowcaseSecondaryButton(title: "Browse Labs", action: openLabs)
+                        ShowcaseSecondaryButton(title: "Read Core Capabilities", action: openCapabilities)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -267,21 +298,13 @@ private struct ShowcaseHeroPreview: View {
                 StudioMessageView(message: errorMessage)
                     .frame(minHeight: 260)
             } else {
-                HStack(spacing: 12) {
-                    PreviewImageCard(title: "Source", image: previewRecipe.sourceImage)
-                    if let previewOutput = previewOutput {
-                        PreviewImageCard(title: "Preview", image: previewOutput.image)
-                    }
-                }
-
-                if let finalOutput = finalOutput {
-                    VStack(alignment: .leading, spacing: 8) {
-                        PreviewImageCard(title: "Final Render", image: finalOutput.image)
-                        Text(finalOutput.summary)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                ShowcasePreviewStack(
+                    source: previewRecipe.sourceImage,
+                    preview: previewOutput?.image,
+                    final: finalOutput?.image,
+                    previewSummary: previewOutput?.summary,
+                    finalSummary: finalOutput?.summary
+                )
             }
         }
         .onAppear(perform: renderPreview)
@@ -313,6 +336,136 @@ private struct ShowcaseHeroPreview: View {
                 }
             }
         }
+    }
+}
+
+private struct ShowcaseStoryRail: View {
+    let items: [ShowcaseMetric]
+
+    var body: some View {
+        AdaptiveShowcaseGrid(minimumWidth: 220, spacing: 16) {
+            ForEach(items) { item in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(item.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.secondary)
+                    Text(item.value)
+                        .font(.title3.weight(.semibold))
+                    Text(item.detail)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.background)
+                )
+            }
+        }
+    }
+}
+
+private struct AdaptiveShowcaseGrid<Content: View>: View {
+    let minimumWidth: CGFloat
+    let spacing: CGFloat
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: minimumWidth), spacing: spacing, alignment: .top)],
+            alignment: .leading,
+            spacing: spacing
+        ) {
+            content
+        }
+    }
+}
+
+private struct AdaptiveTagCloud: View {
+    let items: [String]
+
+    var body: some View {
+        AdaptiveShowcaseGrid(minimumWidth: 84, spacing: 10) {
+            ForEach(items, id: \.self) { item in
+                CapabilityTag(text: item)
+            }
+        }
+    }
+}
+
+private struct ShowcaseStatBadge: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.06))
+        )
+    }
+}
+
+private struct ShowcasePreviewStack: View {
+    let source: C7Image
+    let preview: C7Image?
+    let final: C7Image?
+    let previewSummary: String?
+    let finalSummary: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let preview {
+                PreviewImageCard(title: "Preview Surface", image: preview, height: 240)
+            }
+            HStack(alignment: .top, spacing: 12) {
+                PreviewImageCard(title: "Source", image: source, height: 172)
+                if let final {
+                    PreviewImageCard(title: "Final Render", image: final, height: 172)
+                }
+            }
+            AdaptiveShowcaseGrid(minimumWidth: 180, spacing: 10) {
+                ShowcasePreviewStatusCard(
+                    title: "Preview Surface",
+                    detail: previewSummary ?? "Preparing preview render"
+                )
+                ShowcasePreviewStatusCard(
+                    title: "Final Surface",
+                    detail: finalSummary ?? "Preparing final render"
+                )
+            }
+        }
+    }
+}
+
+private struct ShowcasePreviewStatusCard: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.secondary)
+            Text(detail)
+                .font(.subheadline)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.05))
+        )
     }
 }
 
@@ -429,7 +582,7 @@ private struct ShowcaseFeatureGrid: View {
     let items: [ShowcaseFeature]
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+        AdaptiveShowcaseGrid(minimumWidth: 220, spacing: 16) {
             ForEach(items) { item in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(item.title)
@@ -448,7 +601,7 @@ private struct ShowcaseRuntimeStrip: View {
     let items: [ShowcaseMetric]
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+        AdaptiveShowcaseGrid(minimumWidth: 180, spacing: 16) {
             ForEach(items) { item in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(item.title)
@@ -534,6 +687,141 @@ private struct CapabilityTag: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.primary.opacity(0.08))
             )
+    }
+}
+
+private struct ShowcaseToolButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: icon)
+                    .font(.headline)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.primary.opacity(0.10) : Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.primary.opacity(0.28) : Color.secondary.opacity(0.18), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct StudioSourceChip: View {
+    let asset: StudioSourceAsset
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "photo")
+                    .font(.caption.weight(.semibold))
+                Text(asset.title)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.primary.opacity(0.10) : Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.primary.opacity(0.28) : Color.secondary.opacity(0.18), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct StudioStatusPill: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.05))
+        )
+    }
+}
+
+private struct StudioPanelHeader: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+private struct StudioPanelCard<Content: View>: View {
+    let title: String
+    let subtitle: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            StudioPanelHeader(title: title, subtitle: subtitle)
+            content
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.background)
+        )
+    }
+}
+
+private struct StudioComparisonPill: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? Color.primary.opacity(0.10) : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? Color.primary.opacity(0.28) : Color.secondary.opacity(0.18), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -631,6 +919,8 @@ private struct PhotoStudioView: View {
     private var previewColumn: some View {
         VStack(alignment: .leading, spacing: 16) {
             heroHeader
+            sourcePickerCard
+            studioStatusCard
             previewCard
             renderSummaryCard
         }
@@ -653,12 +943,43 @@ private struct PhotoStudioView: View {
         }
     }
 
+    private var sourcePickerCard: some View {
+        StudioPanelCard(
+            title: "Source Set",
+            subtitle: "Switch between portrait, street, and composite assets without leaving the editor shell."
+        ) {
+            AdaptiveShowcaseGrid(minimumWidth: 120, spacing: 12) {
+                ForEach(StudioSourceAsset.allCases) { asset in
+                    StudioSourceChip(
+                        asset: asset,
+                        isSelected: recipe.sourceName == asset,
+                        action: { recipe.sourceName = asset }
+                    )
+                }
+            }
+        }
+    }
+
+    private var studioStatusCard: some View {
+        StudioPanelCard(
+            title: "Current Recipe",
+            subtitle: "Compact readout of the active source, look, and render contract."
+        ) {
+            AdaptiveShowcaseGrid(minimumWidth: 160, spacing: 12) {
+                StudioStatusPill(title: "Source", value: recipe.sourceName.title)
+                StudioStatusPill(title: "Look", value: recipe.lookPreset.title)
+                StudioStatusPill(title: "Surface", value: activeOutput?.profile.studioLabel ?? activeRenderSurface.previewTitle)
+                StudioStatusPill(title: "Detail", value: String(format: "%.2f / %.2f", recipe.sharpen, recipe.noiseReduction))
+            }
+        }
+    }
+
     private var previewCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        StudioPanelCard(
+            title: "Studio Preview",
+            subtitle: "Inspect original, edited, or split comparison while switching between preview and final output surfaces."
+        ) {
             HStack {
-                Text("Studio Preview")
-                    .font(.headline)
-                Spacer()
                 Picker("Surface", selection: $activeRenderSurface) {
                     ForEach(StudioRenderSurface.allCases) { surface in
                         Text(surface.title).tag(surface)
@@ -666,14 +987,24 @@ private struct PhotoStudioView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(maxWidth: 220)
-            }
 
-            Picker("Compare", selection: $comparisonMode) {
-                ForEach(StudioComparisonMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+                Spacer()
+
+                if isRendering {
+                    ProgressView()
+                        .controlSize(.small)
                 }
             }
-            .pickerStyle(SegmentedPickerStyle())
+
+            HStack(spacing: 10) {
+                ForEach(StudioComparisonMode.allCases) { mode in
+                    StudioComparisonPill(
+                        title: mode.title,
+                        isSelected: comparisonMode == mode,
+                        action: { comparisonMode = mode }
+                    )
+                }
+            }
 
             Group {
                 if let error = renderError {
@@ -688,8 +1019,6 @@ private struct PhotoStudioView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     @ViewBuilder
@@ -733,10 +1062,10 @@ private struct PhotoStudioView: View {
     }
 
     private var renderSummaryCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Render Path")
-                .font(.headline)
-
+        StudioPanelCard(
+            title: "Render Path",
+            subtitle: "Preview and final outputs share the recipe, but can carry different runtime contracts."
+        ) {
             renderInfoRow(
                 title: "Preview",
                 profile: recipe.previewProfile,
@@ -750,8 +1079,6 @@ private struct PhotoStudioView: View {
                 fallback: "High-quality delivery or readback path"
             )
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     private func renderInfoRow(title: String, profile: RenderProfile, output: StudioRenderOutput?, fallback: String) -> some View {
@@ -771,18 +1098,21 @@ private struct PhotoStudioView: View {
     }
 
     private var toolGroupPicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Tools")
-                .font(.headline)
-            Picker("Tool Group", selection: $selectedTool) {
+        StudioPanelCard(
+            title: "Tools",
+            subtitle: "Choose a capability area without forcing six segments into one row."
+        ) {
+            AdaptiveShowcaseGrid(minimumWidth: 116, spacing: 12) {
                 ForEach(StudioToolGroup.allCases) { group in
-                    Text(group.title).tag(group)
+                    ShowcaseToolButton(
+                        title: group.title,
+                        icon: group.symbolName,
+                        isSelected: selectedTool == group,
+                        action: { selectedTool = group }
+                    )
                 }
             }
-            .pickerStyle(SegmentedPickerStyle())
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     @ViewBuilder
@@ -804,9 +1134,10 @@ private struct PhotoStudioView: View {
     }
 
     private var looksPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Looks")
-                .font(.headline)
+        StudioPanelCard(
+            title: "Looks",
+            subtitle: "Preset-driven look shaping with LUT and curve control."
+        ) {
             Picker("Look", selection: $recipe.lookPreset) {
                 ForEach(StudioLookPreset.allCases) { preset in
                     Text(preset.title).tag(preset)
@@ -824,27 +1155,25 @@ private struct PhotoStudioView: View {
             sliderRow(title: "Hue Shift", value: $recipe.hsl.hue, range: -25...25)
             sliderRow(title: "HSL Saturation", value: $recipe.hsl.saturation, range: -0.4...0.4)
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     private var adjustPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Adjust")
-                .font(.headline)
+        StudioPanelCard(
+            title: "Adjust",
+            subtitle: "Core exposure and color decisions stay direct and continuously previewable."
+        ) {
             sliderRow(title: "Exposure", value: $recipe.exposure, range: -1.2...1.2)
             sliderRow(title: "Contrast", value: $recipe.contrast, range: 0.6...1.8)
             sliderRow(title: "Saturation", value: $recipe.saturation, range: 0.0...2.0)
             sliderRow(title: "Temperature", value: $recipe.temperature, range: 3500...7500, format: "%.0f")
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     private var geometryPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Geometry")
-                .font(.headline)
+        StudioPanelCard(
+            title: "Geometry",
+            subtitle: "The first pass centers on crop, rotate, and resize quality."
+        ) {
             Picker("Crop", selection: $recipe.cropMode) {
                 ForEach(StudioCropMode.allCases) { mode in
                     Text(mode.title).tag(mode)
@@ -866,26 +1195,24 @@ private struct PhotoStudioView: View {
             }
             .pickerStyle(SegmentedPickerStyle())
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     private var detailPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Detail")
-                .font(.headline)
+        StudioPanelCard(
+            title: "Detail",
+            subtitle: "Sharpening and denoise stay explicit so the Showcase proves finishing quality."
+        ) {
             sliderRow(title: "Sharpen", value: $recipe.sharpen, range: 0...1.6)
             sliderRow(title: "Noise Reduction", value: $recipe.noiseReduction, range: 0...1)
             sliderRow(title: "Edge Preserve", value: $recipe.edgePreservation, range: 0.2...0.95)
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     private var compositePanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Composite")
-                .font(.headline)
+        StudioPanelCard(
+            title: "Composite",
+            subtitle: "Show two-input blending as a frame processing capability, not a product workflow."
+        ) {
             Picker("Blend", selection: $recipe.blendMode) {
                 ForEach(StudioRecipe.blendModes) { mode in
                     Text(mode.kernel).tag(mode)
@@ -899,14 +1226,13 @@ private struct PhotoStudioView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     private var exportPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Export")
-                .font(.headline)
+        StudioPanelCard(
+            title: "Export",
+            subtitle: "Expose profile semantics directly so the Showcase teaches runtime contracts, not file writing."
+        ) {
             Picker("Preview Profile", selection: $recipe.previewProfile) {
                 ForEach(StudioRecipe.previewProfiles, id: \.self) { profile in
                     Text(profile.studioLabel).tag(profile)
@@ -932,8 +1258,6 @@ private struct PhotoStudioView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding(18)
-        .background(panelBackground)
     }
 
     private func sliderRow(title: String, value: Binding<Float>, range: ClosedRange<Float>, format: String = "%.2f") -> some View {
@@ -946,11 +1270,6 @@ private struct PhotoStudioView: View {
             }
             Slider(value: value, in: range)
         }
-    }
-
-    private var panelBackground: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(Color.background)
     }
 
     private var activeOutput: StudioRenderOutput? {
@@ -1008,6 +1327,7 @@ private struct PhotoStudioView: View {
 private struct PreviewImageCard: View {
     let title: String
     let image: C7Image
+    var height: CGFloat = 280
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1016,7 +1336,7 @@ private struct PreviewImageCard: View {
             Image(c7Image: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity, minHeight: 280)
+                .frame(maxWidth: .infinity, minHeight: height)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.black.opacity(0.04))
@@ -1496,6 +1816,23 @@ private enum StudioToolGroup: String, CaseIterable, Identifiable {
             return "Composite"
         case .export:
             return "Export"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .looks:
+            return "sparkles"
+        case .adjust:
+            return "slider.horizontal.3"
+        case .geometry:
+            return "crop.rotate"
+        case .detail:
+            return "wand.and.stars"
+        case .composite:
+            return "square.stack.3d.up"
+        case .export:
+            return "arrow.down.circle"
         }
     }
 }

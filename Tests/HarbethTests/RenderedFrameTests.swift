@@ -265,6 +265,59 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(frame.size.height, 3)
     }
 
+    func testRecipeDrivenFrameCarriesPredictableFilterFingerprint() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        Shared.shared.deinitDevice()
+
+        let texture = try TextureLoader.makeTexture(width: 4, height: 4, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "recipe-frame-source")
+        let recipe = EditRecipe(
+            filters: [C7Brightness(brightness: 0.1)],
+            localEffects: [
+                LocalEffectRecipe(
+                    filters: [C7Contrast(contrast: 1.1)],
+                    mask: MaskDescriptor(texture: texture, opacity: 1)
+                )
+            ]
+        )
+
+        let frame = try HarbethIO(element: texture, filters: [])
+            .renderFrame(recipe: recipe, mode: .preview)
+
+        let fingerprint = frame.metadata["filterChainFingerprint"] ?? ""
+        XCTAssertFalse(fingerprint.isEmpty)
+        XCTAssertTrue(fingerprint.contains("C7Brightness"))
+        XCTAssertTrue(fingerprint.contains("C7MaskRegionBlend"))
+    }
+
+    func testTransitionFrameCarriesPredictableFilterFingerprint() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        Shared.shared.deinitDevice()
+
+        let from = try TextureLoader.makeTexture(width: 4, height: 4, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "transition-from")
+        let to = try TextureLoader.makeTexture(width: 4, height: 4, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "transition-to")
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .dissolve,
+            progress: 0.5
+        )
+
+        let frame = try HarbethIO(element: from, filters: [])
+            .renderTransitionFrame(recipe)
+
+        let fingerprint = frame.metadata["filterChainFingerprint"] ?? ""
+        XCTAssertFalse(fingerprint.isEmpty)
+        XCTAssertTrue(fingerprint.contains("C7DissolveTransition"))
+    }
+
     func testSourceDescriptorCarriesStableSemanticFingerprint() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

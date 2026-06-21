@@ -294,7 +294,8 @@ extension HarbethIO {
         let plan = GraphCompiler.compile(
             filters: filters,
             inputSize: C7Size(width: texture.width, height: texture.height),
-            profile: renderProfile
+            profile: renderProfile,
+            compilationSource: .filtersPrimitive
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)

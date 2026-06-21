@@ -33,6 +33,12 @@ Platform checks:
 - Treat macOS-only texture synchronization tests as regression coverage, not as the full platform boundary.
 - Keep iOS/iPadOS behavior first-class when changing camera frame, `CVPixelBuffer`, `CMSampleBuffer`, UIKit, SwiftUI, or video playback/export paths.
 
+Execution contract checks:
+
+- When touching `EditRecipe`, `LocalEffectRecipe`, or `TransitionRecipe`, run the focused recipe, mask, transition, and rendered-frame tests before broader verification.
+- Treat `RenderPlanDiagnostics`, `RenderStage`, and `RenderedFrame` metadata as stable contracts; if a field changes, update tests in the same slice.
+- Be cautious with `CVPixelBuffer` and `CMSampleBuffer` paths when size, pixel format, or readback behavior changes; those bridges are more constrained than pure texture/image flows.
+
 ## Issue Triage
 
 - Reproduce with the smallest input type first: `CGImage`, `MTLTexture`, `CVPixelBuffer`, then `CMSampleBuffer`.

@@ -344,9 +344,10 @@ Harbeth 支持多种自定义滤镜方式：
 Harbeth 不只支持“直接出图”，也支持更适合真实工程链路的多种输出方式：
 
 - 输入可使用 `UIImage`、`NSImage`、`CGImage`、`MTLTexture`、`CVPixelBuffer`、`CMSampleBuffer`。
-- 需要直接得到图片结果时，使用 `output()`。
-- 需要保持 texture-first 链路时，使用 `renderTexture(profile:)`。
-- 需要带 metadata、semantic contract、replay context 的输出时，使用 `renderFrame(profile:)`。
+- 需要 primitive 级直接出图时，使用 `output()`。
+- 需要 filters 路径的 texture-first / frame-first 输出时，使用 `renderTexture(profile:)` / `renderFrame(profile:)`。
+- 需要 recipe-driven execution 时，使用 `renderTexture(recipe:)` / `renderFrame(recipe:)`。
+- 需要转场 primitive 时，使用 `renderTransitionTexture(_:)` / `renderTransitionFrame(_:)`。
 
 ### 渲染档位与帧渲染
 

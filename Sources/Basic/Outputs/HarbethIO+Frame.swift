@@ -40,7 +40,8 @@ extension HarbethIO {
             filters: filters,
             inputSize: C7Size(width: source.width, height: source.height),
             profile: profile,
-            derivative: derivative ?? profile.defaultDerivativeSpec
+            derivative: derivative ?? profile.defaultDerivativeSpec,
+            compilationSource: .filtersPrimitive
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
@@ -100,7 +101,8 @@ extension HarbethIO {
             filters: compiled,
             inputSize: C7Size(width: input.width, height: input.height),
             profile: contract.profile,
-            derivative: effectiveDerivative
+            derivative: effectiveDerivative,
+            compilationSource: .editRecipe
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
@@ -200,7 +202,8 @@ extension HarbethIO {
             filters: compiled,
             inputSize: C7Size(width: input.width, height: input.height),
             profile: recipe.profile,
-            derivative: recipe.derivative
+            derivative: recipe.derivative,
+            compilationSource: .transition
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)

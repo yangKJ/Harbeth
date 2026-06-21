@@ -77,6 +77,37 @@ final class TransitionKernelTests: XCTestCase {
         XCTAssertEqual(diagnostics.outputSize, C7Size(width: 3, height: 2))
     }
 
+    func testTransitionRecipeClampsProgressAndKeepsDefaultsStable() throws {
+        let from = try makeTexture(pixel: [255, 0, 0, 255])
+        let to = try makeTexture(pixel: [0, 0, 255, 255])
+
+        let low = TransitionRecipe(from: .texture(from), to: .texture(to), kernel: .dissolve, progress: -1)
+        let high = TransitionRecipe(from: .texture(from), to: .texture(to), kernel: .dissolve, progress: 2)
+
+        XCTAssertEqual(low.progress, 0, accuracy: 0.0001)
+        XCTAssertEqual(high.progress, 1, accuracy: 0.0001)
+        XCTAssertEqual(low.profile, .stablePreview)
+        XCTAssertEqual(low.derivative.name, RenderProfile.stablePreview.defaultDerivativeSpec.name)
+    }
+
+    func testTransitionRecipeMidpointDiagnosticsExposeTransitionSource() throws {
+        let from = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 2, height: 2, pixel: [0, 255, 0, 255])
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .directionalWipe(angleDegrees: 45, softness: 0.05),
+            progress: 0.5
+        )
+
+        let diagnostics = try HarbethIO(element: from, filters: []).renderTransitionDiagnostics(recipe)
+
+        XCTAssertEqual(diagnostics.compilationSource, .transition)
+        XCTAssertTrue(diagnostics.containsTransitionKernel)
+        XCTAssertFalse(diagnostics.containsLocalEffectComposite)
+        XCTAssertEqual(diagnostics.stages.first?.containsTransitionKernel, true)
+    }
+
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
