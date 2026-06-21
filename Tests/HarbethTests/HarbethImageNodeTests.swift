@@ -45,6 +45,26 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("sampler=\(ImageSamplerDescriptor.nearest.fingerprint)"))
     }
 
+    func testPersistentNodeResolutionReusesCachedTexture() throws {
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
+        let node = HarbethImageNode
+            .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
+            .withCachePolicy(.persistent)
+
+        let first = try node.makeTexture()
+        let second = try node.makeTexture()
+        let snapshot = context.debugCacheSnapshot()
+
+        XCTAssertTrue(first === second)
+        XCTAssertGreaterThanOrEqual(snapshot.imageResolutionCount, 1)
+        XCTAssertTrue(node.resolutionFingerprint().contains("cache=persistent"))
+
+        context.resetCaches()
+        XCTAssertEqual(context.debugCacheSnapshot().imageResolutionCount, 0)
+    }
+
     func testKernelDescriptorExposesStableFunctionAndContract() throws {
         let filter = C7Brightness(brightness: 0.2)
         let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 8, height: 6))

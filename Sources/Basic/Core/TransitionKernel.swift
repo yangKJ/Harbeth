@@ -108,6 +108,31 @@ public enum TransitionKernelDescriptor {
     case lumaWipe(lumaSource: HarbethSource, softness: Float = 0.1)
     case displacement(displacementSource: HarbethSource, scale: Float = 0.05)
 
+    public var fingerprint: String {
+        switch self {
+        case .dissolve:
+            return "dissolve"
+        case .directionalWipe(let angleDegrees, let softness):
+            return [
+                "directionalWipe",
+                "angle=\(stableTransitionFloatDescription(angleDegrees))",
+                "softness=\(stableTransitionFloatDescription(softness))"
+            ].joined(separator: "|")
+        case .lumaWipe(let lumaSource, let softness):
+            return [
+                "lumaWipe",
+                lumaSource.resolutionFingerprint,
+                "softness=\(stableTransitionFloatDescription(softness))"
+            ].joined(separator: "|")
+        case .displacement(let displacementSource, let scale):
+            return [
+                "displacement",
+                displacementSource.resolutionFingerprint,
+                "scale=\(stableTransitionFloatDescription(scale))"
+            ].joined(separator: "|")
+        }
+    }
+
     func makeFilter(toTexture: MTLTexture, progress: Float) throws -> C7FilterProtocol {
         switch self {
         case .dissolve:
@@ -135,6 +160,10 @@ public enum TransitionKernelDescriptor {
             )
         }
     }
+}
+
+private func stableTransitionFloatDescription(_ value: Float) -> String {
+    String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
 }
 
 public struct TransitionRecipe {

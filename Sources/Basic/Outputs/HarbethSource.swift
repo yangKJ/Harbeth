@@ -145,4 +145,55 @@ public enum HarbethSource {
             loadingOptions: loadingOptions
         )
     }
+
+    var resolutionFingerprint: String {
+        switch self {
+        case .texture(let texture):
+            return [
+                descriptor.fingerprint,
+                "textureObject=\(ObjectIdentifier(texture).hashValue)",
+                "size=\(texture.width)x\(texture.height)",
+                "pixelFormat=\(texture.pixelFormat.rawValue)"
+            ].joined(separator: "|")
+        case .cgImage(let image):
+            return [
+                descriptor.fingerprint,
+                "size=\(image.width)x\(image.height)"
+            ].joined(separator: "|")
+        case .data(let data):
+            return [
+                descriptor.fingerprint,
+                "bytes=\(data.count)",
+                "checksum=\(data.resolutionChecksum)"
+            ].joined(separator: "|")
+        case .asset(let asset):
+            return [
+                descriptor.fingerprint,
+                asset.storage.resolutionFingerprint
+            ].joined(separator: "|")
+        case .image, .pixelBuffer, .sampleBuffer:
+            return descriptor.fingerprint
+        }
+    }
+}
+
+private extension HarbethImageAsset.Storage {
+    var resolutionFingerprint: String {
+        switch self {
+        case .url(let url):
+            return "url=\(url.absoluteString)"
+        case .data(let data):
+            return "data=\(data.count)|checksum=\(data.resolutionChecksum)"
+        case .cgImage(let image):
+            return "cgImage=\(image.width)x\(image.height)"
+        }
+    }
+}
+
+private extension Data {
+    var resolutionChecksum: UInt64 {
+        reduce(UInt64(14_695_981_039_346_656_037)) { partial, byte in
+            (partial ^ UInt64(byte)) &* UInt64(1_099_511_628_211)
+        }
+    }
 }

@@ -117,4 +117,16 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertEqual(summary.totalColorConversions, 1)
         XCTAssertEqual(summary.totalPixelFormatConversions, 1)
     }
+
+    func testPerformanceMonitorTracksImageResolutionCacheLookups() {
+        let monitor = PerformanceMonitor(enabled: true)
+
+        monitor.recordImageResolutionCacheLookup("image-node", hit: false)
+        monitor.recordImageResolutionCacheLookup("image-node", hit: true)
+
+        let summary = monitor.getSummary()
+        XCTAssertEqual(summary.totalImageResolutionCacheMisses, 1)
+        XCTAssertEqual(summary.totalImageResolutionCacheHits, 1)
+        XCTAssertEqual(summary.imageResolutionCacheHitRate, 0.5)
+    }
 }

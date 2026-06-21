@@ -45,6 +45,8 @@ Execution contract checks:
 - Treat `HarbethKernelArgumentDescriptor` ordering, role, data type, and value fingerprint as shader-authoring contracts. Do not derive them from unstable dictionary iteration order.
 - Treat `HarbethImageNode.withCachePolicy(_:)` as lazy graph execution metadata. It can influence diagnostics and conservative reuse planning, but must not become product-level cache orchestration.
 - Treat `ImageSamplerDescriptor` as an image sampling contract and sampler-cache key. It should stay deterministic, inspectable, and independent from UI preview policy.
+- Treat the `HarbethContext` image resolution cache as an in-memory lazy graph resolution cache only. Do not turn it into disk cache, asset library, export cache, or media lifecycle management.
+- Keep image resolution cache hit/miss metrics technical. They explain lazy graph reuse and must not become product retention, asset, or media-session policy.
 - Execution may use `RenderOptimizationPlan` to prewarm or reuse render targets, but optimizer decisions must remain explainable through diagnostics and covered by contract tests.
 - Alpha output contracts may insert native premultiply or unpremultiply filters. Pixel format and color-space contract changes must be explicit and tested before becoming automatic conversions.
 - Layer compositing belongs to single-frame texture composition only. Do not add text engines, sticker libraries, timeline layers, or media orchestration to `LayerCompositeRecipe`.

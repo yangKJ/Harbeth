@@ -17,8 +17,10 @@ public final class HarbethContext {
     private let legacyDevice: Device
     private let renderPipelineLock = NSLock()
     private let samplerLock = NSLock()
+    private let imageResolutionLock = NSLock()
     private var renderPipelines: [RenderPipelineCacheKey: MTLRenderPipelineState] = [:]
     private var samplerStates: [SamplerCacheKey: MTLSamplerState] = [:]
+    private var imageResolutionCache: [String: MTLTexture] = [:]
 
     init(device: Device) {
         self.legacyDevice = device
@@ -138,6 +140,19 @@ public final class HarbethContext {
         )
     }
 
+    public func cachedResolvedTexture(for fingerprint: String) -> MTLTexture? {
+        imageResolutionLock.lock()
+        let texture = imageResolutionCache[fingerprint]
+        imageResolutionLock.unlock()
+        return texture
+    }
+
+    public func storeResolvedTexture(_ texture: MTLTexture, for fingerprint: String) {
+        imageResolutionLock.lock()
+        imageResolutionCache[fingerprint] = texture
+        imageResolutionLock.unlock()
+    }
+
     public func resetCaches() {
         renderPipelineLock.lock()
         renderPipelines.removeAll()
@@ -145,6 +160,9 @@ public final class HarbethContext {
         samplerLock.lock()
         samplerStates.removeAll()
         samplerLock.unlock()
+        imageResolutionLock.lock()
+        imageResolutionCache.removeAll()
+        imageResolutionLock.unlock()
     }
 
     public func debugCacheSnapshot() -> CacheSnapshot {
@@ -154,10 +172,14 @@ public final class HarbethContext {
         samplerLock.lock()
         let samplerCount = samplerStates.count
         samplerLock.unlock()
+        imageResolutionLock.lock()
+        let imageResolutionCount = imageResolutionCache.count
+        imageResolutionLock.unlock()
         return CacheSnapshot(
             computePipelineCount: legacyDevice.pipelineCount,
             renderPipelineCount: renderCount,
             samplerCount: samplerCount,
+            imageResolutionCount: imageResolutionCount,
             hasTexturePool: true,
             hasCVMetalTextureCache: cvMetalTextureCache != nil
         )
@@ -169,6 +191,7 @@ public extension HarbethContext {
         public let computePipelineCount: Int
         public let renderPipelineCount: Int
         public let samplerCount: Int
+        public let imageResolutionCount: Int
         public let hasTexturePool: Bool
         public let hasCVMetalTextureCache: Bool
     }

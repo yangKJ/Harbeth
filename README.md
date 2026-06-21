@@ -138,7 +138,7 @@ let exportTexture = try io.renderTexture(profile: .exportQuality)
 Harbeth now exposes a more explicit execution core for host apps that need stable contracts instead of one-off image output:
 
 - `Shared.shared`: the default global runtime owner for `Device`, `HarbethContext`, texture pooling, command queue access, and lifecycle reset.
-- `HarbethContext.shared`: the default execution context facade for render pipeline cache, sampler cache, and execution diagnostics.
+- `HarbethContext.shared`: the default execution context facade for render pipeline cache, sampler cache, lazy image resolution cache, and execution diagnostics.
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
 - `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths, including explicit transient/persistent image cache policy and sampler descriptors.
 - `HarbethKernelDescriptor`: lightweight technical metadata for function identity, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.

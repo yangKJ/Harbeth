@@ -123,6 +123,18 @@ public final class PerformanceMonitor {
         }
     }
 
+    public func recordImageResolutionCacheLookup(_ identifier: String, hit: Bool) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        if hit {
+            metricsCache[identifier]?.imageResolutionCacheHits += 1
+        } else {
+            metricsCache[identifier]?.imageResolutionCacheMisses += 1
+        }
+    }
+
     public func recordRenderStageCount(_ identifier: String, stageCount: Int) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -296,6 +308,8 @@ public final class PerformanceMonitor {
             summary.totalTextureReuses += metrics.textureReuses
             summary.totalPipelineCacheHits += metrics.pipelineCacheHits
             summary.totalPipelineCacheMisses += metrics.pipelineCacheMisses
+            summary.totalImageResolutionCacheHits += metrics.imageResolutionCacheHits
+            summary.totalImageResolutionCacheMisses += metrics.imageResolutionCacheMisses
             summary.totalStages += metrics.stageCount
             summary.totalReadbackBoundaries += metrics.readbackBoundaryCount
             summary.totalPixelFormatConversions += metrics.pixelFormatConversions
@@ -404,6 +418,8 @@ extension PerformanceMonitor {
         public var totalTextureReuses: Int = 0
         public var totalPipelineCacheHits: Int = 0
         public var totalPipelineCacheMisses: Int = 0
+        public var totalImageResolutionCacheHits: Int = 0
+        public var totalImageResolutionCacheMisses: Int = 0
         public var totalStages: Int = 0
         public var totalReadbackBoundaries: Int = 0
         public var totalPixelFormatConversions: Int = 0
@@ -425,6 +441,11 @@ extension PerformanceMonitor {
         public var pipelineCacheHitRate: Double {
             let total = totalPipelineCacheHits + totalPipelineCacheMisses
             return total > 0 ? Double(totalPipelineCacheHits) / Double(total) : 0
+        }
+
+        public var imageResolutionCacheHitRate: Double {
+            let total = totalImageResolutionCacheHits + totalImageResolutionCacheMisses
+            return total > 0 ? Double(totalImageResolutionCacheHits) / Double(total) : 0
         }
     }
     
@@ -454,6 +475,8 @@ extension PerformanceMonitor {
         public var textureReuses: Int = 0
         public var pipelineCacheHits: Int = 0
         public var pipelineCacheMisses: Int = 0
+        public var imageResolutionCacheHits: Int = 0
+        public var imageResolutionCacheMisses: Int = 0
         public var stageCount: Int = 0
         public var readbackBoundaryCount: Int = 0
         public var pixelFormatConversions: Int = 0
@@ -470,6 +493,11 @@ extension PerformanceMonitor {
         public var pipelineCacheHitRate: Double {
             let total = pipelineCacheHits + pipelineCacheMisses
             return total > 0 ? Double(pipelineCacheHits) / Double(total) : 0
+        }
+
+        public var imageResolutionCacheHitRate: Double {
+            let total = imageResolutionCacheHits + imageResolutionCacheMisses
+            return total > 0 ? Double(imageResolutionCacheHits) / Double(total) : 0
         }
         
         public var filterProcessingTimes: [String: TimeInterval] = [:]
@@ -496,6 +524,8 @@ extension PerformanceMonitor {
             textureReuses = 0
             pipelineCacheHits = 0
             pipelineCacheMisses = 0
+            imageResolutionCacheHits = 0
+            imageResolutionCacheMisses = 0
             stageCount = 0
             readbackBoundaryCount = 0
             pixelFormatConversions = 0

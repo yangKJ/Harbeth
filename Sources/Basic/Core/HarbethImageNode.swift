@@ -57,6 +57,25 @@ extension HarbethImageNode: HarbethImagePromise {
 
     public func makeTexture(profile: RenderProfile = .stablePreview,
                             derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+        let effectiveCachePolicy = resolvedCachePolicy
+        let fingerprint = resolutionFingerprint(profile: profile, derivative: derivative)
+        if effectiveCachePolicy == .persistent,
+           let cached = Shared.shared.defaultContext.cachedResolvedTexture(for: fingerprint) {
+            Shared.shared.performanceMonitor?.recordImageResolutionCacheLookup("imageResolution", hit: true)
+            return cached
+        }
+        if effectiveCachePolicy == .persistent {
+            Shared.shared.performanceMonitor?.recordImageResolutionCacheLookup("imageResolution", hit: false)
+        }
+        let texture = try makeTextureUncached(profile: profile, derivative: derivative)
+        if effectiveCachePolicy == .persistent {
+            Shared.shared.defaultContext.storeResolvedTexture(texture, for: fingerprint)
+        }
+        return texture
+    }
+
+    private func makeTextureUncached(profile: RenderProfile,
+                                     derivative: ImageDerivativeSpec?) throws -> MTLTexture {
         switch self {
         case .source(let source):
             let texture = try source.makeTexture()
@@ -99,6 +118,18 @@ extension HarbethImageNode: HarbethImagePromise {
         case .samplerDescriptor(let input, _):
             return try input.makeTexture(profile: profile, derivative: derivative)
         }
+    }
+
+    public func resolutionFingerprint(profile: RenderProfile = .stablePreview,
+                                      derivative: ImageDerivativeSpec? = nil) -> String {
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        return [
+            nodeFingerprint,
+            "profile=\(profile)",
+            effectiveDerivative.fingerprint,
+            "cache=\(resolvedCachePolicy.rawValue)",
+            "sampler=\(resolvedSamplerDescriptor.fingerprint)"
+        ].joined(separator: " || ")
     }
 
     public func makeDiagnostics(profile: RenderProfile = .stablePreview,
@@ -201,6 +232,80 @@ extension HarbethImageNode: HarbethImagePromise {
         )
         .configured(for: profile)
         .output()
+    }
+
+    private var resolvedCachePolicy: ImageCachePolicy {
+        switch self {
+        case .source(let source):
+            return source.cachePolicy
+        case .filters, .kernel, .recipe, .transition, .layerComposite:
+            return .transient
+        case .cachePolicy(_, let policy):
+            return policy
+        case .samplerDescriptor(let input, _):
+            return input.resolvedCachePolicy
+        }
+    }
+
+    private var resolvedSamplerDescriptor: ImageSamplerDescriptor {
+        switch self {
+        case .samplerDescriptor(_, let descriptor):
+            return descriptor
+        case .cachePolicy(let input, _):
+            return input.resolvedSamplerDescriptor
+        case .source, .filters, .kernel, .recipe, .transition, .layerComposite:
+            return .default
+        }
+    }
+
+    private var nodeFingerprint: String {
+        switch self {
+        case .source(let source):
+            return "source|\(source.resolutionFingerprint)"
+        case .filters(let input, let filters):
+            return [
+                "filters",
+                input.nodeFingerprint,
+                filters.chainRecipe.fingerprint
+            ].joined(separator: "|")
+        case .kernel(let input, let descriptor, let filter):
+            return [
+                "kernel",
+                input.nodeFingerprint,
+                descriptor.fingerprint,
+                filter.recipeDescriptor.fingerprint
+            ].joined(separator: "|")
+        case .recipe(let source, let recipe, let mode):
+            let contract = recipe.contract(for: mode)
+            return [
+                "recipe",
+                source.resolutionFingerprint,
+                "mode=\(mode.rawValue)",
+                "profile=\(contract.profile)",
+                contract.derivative.fingerprint,
+                recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).chainRecipe.fingerprint
+            ].joined(separator: "|")
+        case .transition(let recipe):
+            return [
+                "transition",
+                recipe.from.resolutionFingerprint,
+                recipe.to.resolutionFingerprint,
+                recipe.kernel.fingerprint,
+                "progress=\(String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), recipe.progress))",
+                recipe.derivative.fingerprint
+            ].joined(separator: "|")
+        case .layerComposite(let recipe):
+            return [
+                "layerComposite",
+                recipe.background.resolutionFingerprint,
+                recipe.layers.map { $0.content.resolutionFingerprint + "|" + $0.fingerprint }.joined(separator: "||"),
+                recipe.fingerprint
+            ].joined(separator: "|")
+        case .cachePolicy(let input, let policy):
+            return "\(input.nodeFingerprint)|cacheOverride=\(policy.rawValue)"
+        case .samplerDescriptor(let input, let descriptor):
+            return "\(input.nodeFingerprint)|samplerOverride=\(descriptor.fingerprint)"
+        }
     }
 }
 
