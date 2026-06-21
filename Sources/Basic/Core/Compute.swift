@@ -33,6 +33,22 @@ struct Compute {
         Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
         return pipeline
     }
+
+    static func makeComputePipelineState(with identity: HarbethKernelFunctionIdentity) throws -> MTLComputePipelineState {
+        let context = Shared.shared.defaultContext
+        if let pipelineState = context.computePipelineState(for: identity) {
+            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: true)
+            return pipelineState
+        }
+        let function = try Device.readMTLFunction(identity)
+        guard let pipeline = try? Shared.shared.metalDevice.makeComputePipelineState(function: function) else {
+            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+            throw HarbethError.computePipelineState(identity.primaryName)
+        }
+        context.setComputePipelineState(pipeline, for: identity)
+        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+        return pipeline
+    }
     
     @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
         let context = Shared.shared.defaultContext
@@ -58,12 +74,39 @@ struct Compute {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
         }
     }
+
+    static func makeComputePipelineState(with identity: HarbethKernelFunctionIdentity,
+                                         complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
+        let context = Shared.shared.defaultContext
+        if let pipelineState = context.computePipelineState(for: identity) {
+            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: true)
+            complete(.success(pipelineState))
+            return
+        }
+        guard let function = try? Device.readMTLFunction(identity) else {
+            complete(.failure(HarbethError.readFunction(identity.primaryName)))
+            return
+        }
+        Shared.shared.metalDevice.makeComputePipelineState(function: function) { pipelineState, error in
+            guard let pipeline = pipelineState else {
+                Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+                complete(.failure(HarbethError.computePipelineState(identity.primaryName)))
+                return
+            }
+            complete(.success(pipeline))
+            context.setComputePipelineState(pipeline, for: identity)
+            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+        }
+    }
     
     static func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], filter: C7FilterProtocol) throws -> MTLTexture {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
         }
-        let pipelineState = try makeComputePipelineState(with: kernel)
+        let identity = filter.kernelDescriptor().functionIdentity
+        let pipelineState = identity.primaryName == kernel
+            ? try makeComputePipelineState(with: identity)
+            : try makeComputePipelineState(with: kernel)
         
         return encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures, filter: filter)
     }
@@ -73,7 +116,15 @@ struct Compute {
             complete(.failure(HarbethError.makeComputeCommandEncoder))
             return
         }
-        makeComputePipelineState(with: kernel) { res in
+        let identity = filter.kernelDescriptor().functionIdentity
+        let makePipeline: (@escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = { callback in
+            if identity.primaryName == kernel {
+                makeComputePipelineState(with: identity, complete: callback)
+            } else {
+                makeComputePipelineState(with: kernel, complete: callback)
+            }
+        }
+        makePipeline { res in
             switch res {
             case .success(let pipelineState):
                 let destTexture = encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures, filter: filter)

@@ -126,15 +126,16 @@ extension C7AdvancedMetalKernelProtocol {
 
     private func advancedMetalPipelineState(for function: String) throws -> MTLComputePipelineState {
         let device = Shared.shared.defaultDevice
+        let identity = HarbethKernelFunctionIdentity(kind: .advancedMetal, primaryName: function)
 
-        if let cached = device.pipelineState(for: function) {
+        if let cached = device.pipelineState(for: identity) {
             return cached
         }
 
-        let metalFunction = try Device.readMTLFunction(function)
+        let metalFunction = try Device.readMTLFunction(identity)
         let pipeline = try device.device.makeComputePipelineState(function: metalFunction)
 
-        device.setPipelineState(pipeline, for: function)
+        device.setPipelineState(pipeline, for: identity)
         return pipeline
     }
 }

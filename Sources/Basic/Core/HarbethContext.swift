@@ -59,13 +59,33 @@ public final class HarbethContext {
         legacyDevice.setPipelineState(pipeline, for: kernel)
     }
 
+    func computePipelineState(for identity: HarbethKernelFunctionIdentity) -> MTLComputePipelineState? {
+        legacyDevice.pipelineState(for: identity)
+    }
+
+    func setComputePipelineState(_ pipeline: MTLComputePipelineState, for identity: HarbethKernelFunctionIdentity) {
+        legacyDevice.setPipelineState(pipeline, for: identity)
+    }
+
     func makeRenderPipelineState(vertex: String,
                                  fragment: String,
                                  pixelFormat: MTLPixelFormat,
                                  sampleCount: Int = 1) throws -> MTLRenderPipelineState {
+        try makeRenderPipelineState(
+            vertexIdentity: HarbethKernelFunctionIdentity(kind: .render, primaryName: vertex),
+            fragmentIdentity: HarbethKernelFunctionIdentity(kind: .render, primaryName: fragment),
+            pixelFormat: pixelFormat,
+            sampleCount: sampleCount
+        )
+    }
+
+    func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
+                                 fragmentIdentity: HarbethKernelFunctionIdentity,
+                                 pixelFormat: MTLPixelFormat,
+                                 sampleCount: Int = 1) throws -> MTLRenderPipelineState {
         let key = RenderPipelineCacheKey(
-            vertex: vertex,
-            fragment: fragment,
+            vertex: vertexIdentity.fingerprint,
+            fragment: fragmentIdentity.fingerprint,
             pixelFormat: pixelFormat.rawValue,
             sampleCount: sampleCount
         )
@@ -80,11 +100,11 @@ public final class HarbethContext {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.colorAttachments[0].pixelFormat = pixelFormat
         descriptor.rasterSampleCount = sampleCount
-        descriptor.vertexFunction = try Device.readMTLFunction(vertex)
-        descriptor.fragmentFunction = try Device.readMTLFunction(fragment)
+        descriptor.vertexFunction = try Device.readMTLFunction(vertexIdentity)
+        descriptor.fragmentFunction = try Device.readMTLFunction(fragmentIdentity)
         guard let pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor) else {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("render", hit: false)
-            throw HarbethError.renderPipelineState(vertex, fragment)
+            throw HarbethError.renderPipelineState(vertexIdentity.primaryName, fragmentIdentity.primaryName)
         }
 
         renderPipelineLock.lock()
@@ -154,6 +174,8 @@ public final class HarbethContext {
     }
 
     public func resetCaches() {
+        legacyDevice.removePipelineStates()
+        legacyDevice.removeFunctionCache()
         renderPipelineLock.lock()
         renderPipelines.removeAll()
         renderPipelineLock.unlock()
@@ -176,6 +198,7 @@ public final class HarbethContext {
         let imageResolutionCount = imageResolutionCache.count
         imageResolutionLock.unlock()
         return CacheSnapshot(
+            functionCacheCount: legacyDevice.functionCacheCount,
             computePipelineCount: legacyDevice.pipelineCount,
             renderPipelineCount: renderCount,
             samplerCount: samplerCount,
@@ -188,6 +211,7 @@ public final class HarbethContext {
 
 public extension HarbethContext {
     struct CacheSnapshot: Sendable, Equatable {
+        public let functionCacheCount: Int
         public let computePipelineCount: Int
         public let renderPipelineCount: Int
         public let samplerCount: Int

@@ -44,6 +44,7 @@ Execution contract checks:
 - Treat `HarbethKernelDescriptor.fingerprint`, `HarbethKernelResourceDescriptor`, and `RenderOutputContract.fingerprint` as public technical contracts. New kernel metadata should be deterministic and testable.
 - Treat `HarbethKernelArgumentDescriptor` ordering, role, data type, and value fingerprint as shader-authoring contracts. Do not derive them from unstable dictionary iteration order.
 - Treat `HarbethKernelLibrarySource` and `Device.readMTLFunction(_ identity:)` as shader lookup/cache identity. External provider identifiers and metallib URLs must remain technical source descriptors, not product asset or preset names.
+- Treat identity-aware Metal function, compute pipeline, and render pipeline cache keys as kernel execution contracts. Function constants and library source must remain part of the cache identity, and `HarbethContext.resetCaches()` must reset these caches together.
 - Treat `HarbethKernelFunctionConstantDescriptor` as shader specialization metadata. Function constants must participate in the function identity fingerprint and remain separate from product presets or style decisions.
 - Treat `HarbethImageNode.withCachePolicy(_:)` as lazy graph execution metadata. It can influence diagnostics and conservative reuse planning, but must not become product-level cache orchestration.
 - Treat `ImageSamplerDescriptor` as an image sampling contract and sampler-cache key. It should stay deterministic, inspectable, and independent from UI preview policy.

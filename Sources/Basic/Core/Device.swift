@@ -29,8 +29,11 @@ public final class Device: Cacheable {
     
     /// Cache pipe state
     private var pipelines = [C7KernelFunction: MTLComputePipelineState]()
+    private var identityPipelines = [String: MTLComputePipelineState]()
+    private var identityFunctions = [String: MTLFunction]()
     /// Lock for thread safety
     private let pipelineLock = NSLock()
+    private let functionLock = NSLock()
     
     /// Memory limit for texture processing in MB
     private var _memoryLimitMB: Int = 512
@@ -266,10 +269,53 @@ extension Device {
         pipelines[kernel] = pipeline
     }
 
+    public func pipelineState(for identity: HarbethKernelFunctionIdentity) -> MTLComputePipelineState? {
+        pipelineLock.lock()
+        defer { pipelineLock.unlock() }
+        return identityPipelines[identity.fingerprint]
+    }
+
+    public func setPipelineState(_ pipeline: MTLComputePipelineState, for identity: HarbethKernelFunctionIdentity) {
+        pipelineLock.lock()
+        defer { pipelineLock.unlock() }
+        identityPipelines[identity.fingerprint] = pipeline
+    }
+
+    public func cachedFunction(for identity: HarbethKernelFunctionIdentity) -> MTLFunction? {
+        functionLock.lock()
+        defer { functionLock.unlock() }
+        return identityFunctions[identity.fingerprint]
+    }
+
+    public func setCachedFunction(_ function: MTLFunction, for identity: HarbethKernelFunctionIdentity) {
+        functionLock.lock()
+        defer { functionLock.unlock() }
+        identityFunctions[identity.fingerprint] = function
+    }
+
+    func removePipelineStates() {
+        pipelineLock.lock()
+        pipelines.removeAll()
+        identityPipelines.removeAll()
+        pipelineLock.unlock()
+    }
+
+    func removeFunctionCache() {
+        functionLock.lock()
+        identityFunctions.removeAll()
+        functionLock.unlock()
+    }
+
     var pipelineCount: Int {
         pipelineLock.lock()
         defer { pipelineLock.unlock() }
-        return pipelines.count
+        return pipelines.count + identityPipelines.count
+    }
+
+    var functionCacheCount: Int {
+        functionLock.lock()
+        defer { functionLock.unlock() }
+        return identityFunctions.count
     }
     
     /// Get maximum concurrent render tasks
@@ -474,6 +520,10 @@ extension Device {
         let constantValues = identity.makeMetalFunctionConstantValues()
         let resolvedDevice = existingSharedDevice ?? Shared.shared.defaultDevice
 
+        if let cached = resolvedDevice.cachedFunction(for: identity) {
+            return cached
+        }
+
         func makeFunction(from library: MTLLibrary) -> MTLFunction? {
             if let constantValues {
                 return try? library.makeFunction(name: functionName, constantValues: constantValues)
@@ -525,6 +575,7 @@ extension Device {
 
         for library in candidateLibraries {
             if let function = makeFunction(from: library) {
+                resolvedDevice.setCachedFunction(function, for: identity)
                 return function
             }
         }

@@ -22,6 +22,99 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertNotNil(context.commandQueue)
     }
 
+    func testContextCachesComputePipelineByKernelIdentity() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let identity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "C7Brightness",
+            librarySource: .automatic
+        )
+        let defaultLibraryIdentity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "C7Brightness",
+            librarySource: .defaultLibrary
+        )
+
+        let first = try Compute.makeComputePipelineState(with: identity)
+        let second = try Compute.makeComputePipelineState(with: identity)
+        context.setComputePipelineState(first, for: defaultLibraryIdentity)
+        let snapshot = context.debugCacheSnapshot()
+
+        XCTAssertTrue(first === second)
+        XCTAssertEqual(snapshot.computePipelineCount, 2)
+
+        context.resetCaches()
+        XCTAssertEqual(context.debugCacheSnapshot().computePipelineCount, 0)
+    }
+
+    func testContextCachesRenderPipelineByKernelIdentity() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let vertex = HarbethKernelFunctionIdentity(
+            kind: .render,
+            primaryName: "basicVertex",
+            librarySource: .automatic
+        )
+        let fragment = HarbethKernelFunctionIdentity(
+            kind: .render,
+            primaryName: "sepiaFragment",
+            librarySource: .automatic
+        )
+        let sourceFallbackFragment = HarbethKernelFunctionIdentity(
+            kind: .render,
+            primaryName: "sepiaFragment",
+            librarySource: .sourceFallback("render-shader-source")
+        )
+
+        let first = try context.makeRenderPipelineState(
+            vertexIdentity: vertex,
+            fragmentIdentity: fragment,
+            pixelFormat: .rgba8Unorm
+        )
+        let second = try context.makeRenderPipelineState(
+            vertexIdentity: vertex,
+            fragmentIdentity: fragment,
+            pixelFormat: .rgba8Unorm
+        )
+        _ = try context.makeRenderPipelineState(
+            vertexIdentity: vertex,
+            fragmentIdentity: sourceFallbackFragment,
+            pixelFormat: .rgba8Unorm
+        )
+
+        XCTAssertTrue(first === second)
+        XCTAssertEqual(context.debugCacheSnapshot().renderPipelineCount, 2)
+    }
+
+    func testContextCachesMetalFunctionByKernelIdentity() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let identity = HarbethKernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "C7Brightness",
+            librarySource: .automatic
+        )
+
+        let first = try Device.readMTLFunction(identity)
+        let second = try Device.readMTLFunction(identity)
+
+        XCTAssertTrue(first === second)
+        XCTAssertEqual(context.debugCacheSnapshot().functionCacheCount, 1)
+
+        context.resetCaches()
+        XCTAssertEqual(context.debugCacheSnapshot().functionCacheCount, 0)
+    }
+
     func testTexturePoolReusesExactTexture() throws {
         let texture = try TextureLoader.makeTexture(width: 4, height: 4, identifier: "context-pool")
         Shared.shared.defaultTexturePool.enqueueTextureSync(texture)

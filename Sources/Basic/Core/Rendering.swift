@@ -21,6 +21,18 @@ struct Rendering {
             sampleCount: sampleCount
         )
     }
+
+    static func makeRenderPipelineState(vertexIdentity: HarbethKernelFunctionIdentity,
+                                        fragmentIdentity: HarbethKernelFunctionIdentity,
+                                        pixelFormat: MTLPixelFormat,
+                                        sampleCount: Int = 1) throws -> MTLRenderPipelineState {
+        try Shared.shared.defaultContext.makeRenderPipelineState(
+            vertexIdentity: vertexIdentity,
+            fragmentIdentity: fragmentIdentity,
+            pixelFormat: pixelFormat,
+            sampleCount: sampleCount
+        )
+    }
     
     static func drawing(_ pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer, texture: MTLTexture, destTexture: MTLTexture, filter: C7FilterProtocol) {
         let renderPass = MTLRenderPassDescriptor()
