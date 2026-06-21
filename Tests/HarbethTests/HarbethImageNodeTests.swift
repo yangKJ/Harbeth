@@ -32,7 +32,10 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(descriptor.resources.memoryAccessPattern, "point")
         XCTAssertEqual(descriptor.alphaBehavior, .preserveInput)
         XCTAssertEqual(descriptor.outputContract.alpha, .preserveInput)
+        XCTAssertEqual(descriptor.passes.count, 1)
+        XCTAssertEqual(descriptor.passes[0].functionIdentity.primaryName, "C7Brightness")
         XCTAssertTrue(descriptor.fingerprint.contains("filter=C7Brightness"))
+        XCTAssertTrue(descriptor.fingerprint.contains("passes=pass=0"))
     }
 
     func testKernelDescriptorTracksAlphaAndResourceContracts() {
@@ -47,6 +50,24 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(opacity.alphaBehavior, .modifiesAlpha)
         XCTAssertEqual(opacity.parameters["factors"]?.fingerprint, "floats:0.4000")
         XCTAssertTrue(opacity.fingerprint.contains("memory=auto"))
+    }
+
+    func testKernelNodeExecutesAlphaOutputContract() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [200, 100, 50, 128])
+        let filter = C7Brightness(brightness: 0)
+        let descriptor = HarbethKernelDescriptor(
+            filterName: "identityPremultiply",
+            functionIdentity: HarbethKernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            outputContract: RenderOutputContract(alpha: .forcePremultiply)
+        )
+        let node = HarbethImageNode.kernel(input: .source(.texture(input)), descriptor: descriptor, filter: filter)
+
+        let output = try node.makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertLessThan(outputPixel.red, 200)
+        XCTAssertLessThan(outputPixel.green, 100)
+        XCTAssertEqual(outputPixel.alpha, 128)
     }
 
     func testConservativeOptimizationPlanRecordsResourceDecisions() {
@@ -75,9 +96,12 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.alphaConversionCount, 1)
         XCTAssertEqual(plan.diagnostics.pixelFormatConversionCount, 1)
         XCTAssertGreaterThanOrEqual(plan.diagnostics.optimizationPlan.intermediateTextureCount, 2)
+        XCTAssertGreaterThan(plan.diagnostics.optimizationPlan.estimatedTransientByteCount, 0)
+        XCTAssertGreaterThan(plan.diagnostics.optimizationPlan.estimatedPersistentByteCount, 0)
         XCTAssertGreaterThanOrEqual(plan.diagnostics.optimizationPlan.readbackBoundaryCount, 1)
         XCTAssertEqual(plan.diagnostics.optimizationPlan.lifecycleDecisions.last?.action, .preserveForReadback)
         XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("keepDerivativeResizeAtTerminalStage"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("transientBytes="))
     }
 
     func testOptimizerExposesTransientReuseLifecyclePlan() {

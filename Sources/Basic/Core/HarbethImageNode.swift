@@ -56,12 +56,17 @@ extension HarbethImageNode: HarbethImagePromise {
                 .configured(for: profile)
                 .output()
             return try resizeTextureIfNeeded(rendered, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
-        case .kernel(let input, _, let filter):
+        case .kernel(let input, let descriptor, let filter):
             let inputTexture = try input.makeTexture(profile: profile, derivative: nil)
             let rendered = try HarbethIO(element: inputTexture, filter: filter)
                 .configured(for: profile)
                 .output()
-            return try resizeTextureIfNeeded(rendered, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
+            let contracted = try HarbethImageNode.applyOutputContractIfNeeded(
+                descriptor.outputContract,
+                to: rendered,
+                profile: profile
+            )
+            return try resizeTextureIfNeeded(contracted, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
         case .recipe(let source, let recipe, let mode):
             return try FrameRenderer(
                 source: source,
@@ -205,7 +210,12 @@ extension LayerCompositeRecipe {
             .configured(for: profile)
             .output()
         }
-        return try resizeTextureIfNeeded(current, derivative: derivative ?? self.derivative)
+        let contracted = try HarbethImageNode.applyOutputContractIfNeeded(
+            outputContract,
+            to: current,
+            profile: profile
+        )
+        return try resizeTextureIfNeeded(contracted, derivative: derivative ?? self.derivative)
     }
 
     func makeDiagnostics(derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
@@ -245,5 +255,25 @@ extension LayerCompositeRecipe {
         )
         .configured(for: profile)
         .output()
+    }
+}
+
+extension HarbethImageNode {
+    static func applyOutputContractIfNeeded(_ contract: RenderOutputContract,
+                                            to texture: MTLTexture,
+                                            profile: RenderProfile) throws -> MTLTexture {
+        let filters: [C7FilterProtocol]
+        switch contract.alpha {
+        case .premultiplied, .forcePremultiply:
+            filters = [C7PremultiplyAlpha()]
+        case .nonPremultiplied, .forceUnpremultiply:
+            filters = [C7UnpremultiplyAlpha()]
+        case .opaque, .preserveInput:
+            filters = []
+        }
+        guard filters.isEmpty == false else { return texture }
+        return try HarbethIO(element: texture, filters: filters)
+            .configured(for: profile)
+            .output()
     }
 }

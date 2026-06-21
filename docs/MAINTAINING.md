@@ -40,6 +40,8 @@ Execution contract checks:
 - Treat `RenderPlanDiagnostics`, `RenderStage`, and `RenderedFrame` metadata as stable contracts; if a field changes, update tests in the same slice.
 - Keep `RenderOptimizationPlan` conservative. It can report texture reuse, lifecycle decisions, persistent outputs, readback boundaries, and conversion decisions, but it must not silently change visual output or absorb product workflow policy.
 - Treat `HarbethKernelDescriptor.fingerprint`, `HarbethKernelResourceDescriptor`, and `RenderOutputContract.fingerprint` as public technical contracts. New kernel metadata should be deterministic and testable.
+- Execution may use `RenderOptimizationPlan` to prewarm or reuse render targets, but optimizer decisions must remain explainable through diagnostics and covered by contract tests.
+- Alpha output contracts may insert native premultiply or unpremultiply filters. Pixel format and color-space contract changes must be explicit and tested before becoming automatic conversions.
 - Layer compositing belongs to single-frame texture composition only. Do not add text engines, sticker libraries, timeline layers, or media orchestration to `LayerCompositeRecipe`.
 - Be cautious with `CVPixelBuffer` and `CMSampleBuffer` paths when size, pixel format, or readback behavior changes; those bridges are more constrained than pure texture/image flows.
 

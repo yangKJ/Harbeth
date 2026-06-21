@@ -140,9 +140,9 @@ Harbeth now exposes a more explicit execution core for host apps that need stabl
 - `HarbethContext.shared`: the default execution context facade for render pipeline cache, sampler cache, and execution diagnostics.
 - `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
 - `HarbethImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths.
-- `HarbethKernelDescriptor`: lightweight technical metadata for function identity, parameter fingerprinting, input texture usage, resource behavior, and alpha/output contracts.
+- `HarbethKernelDescriptor`: lightweight technical metadata for function identity, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
 - `RenderOutputContract`: explicit alpha, color-space, and pixel-format intent for diagnostics and conservative planning.
-- `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, readback boundaries, and format conversion decisions.
+- `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, estimated texture cost, readback boundaries, and format conversion decisions. The texture-first execution path can use the plan to prewarm reusable render targets without changing visual output.
 
 ```swift
 let runtime = Shared.shared

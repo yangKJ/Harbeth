@@ -148,12 +148,40 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.resourceEvents.append("pixelFormat:\(from.rawValue)->\(to.rawValue)")
     }
 
+    public func recordAlphaConversion(_ identifier: String, contract: ImageAlphaContract) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.alphaConversions += 1
+        metricsCache[identifier]?.resourceEvents.append("alpha:\(contract)")
+    }
+
+    public func recordColorConversion(_ identifier: String, contract: ImageColorSpaceContract) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.colorConversions += 1
+        metricsCache[identifier]?.resourceEvents.append("color:\(contract.name)")
+    }
+
     public func recordRenderTargetCreation(_ identifier: String) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.renderTargetCreations += 1
+    }
+
+    public func recordRenderOptimizationPlan(_ identifier: String, plan: RenderOptimizationPlan) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.optimizerDecisionCount += plan.decisions.count
+        metricsCache[identifier]?.textureLifecycleDecisionCount += plan.lifecycleDecisions.count
+        metricsCache[identifier]?.resourceEvents.append(contentsOf: plan.decisions.map { "optimizer:\($0)" })
     }
     
     public func recordFilterProcessing(_ identifier: String, filterName: String, duration: TimeInterval) {
@@ -271,7 +299,11 @@ public final class PerformanceMonitor {
             summary.totalStages += metrics.stageCount
             summary.totalReadbackBoundaries += metrics.readbackBoundaryCount
             summary.totalPixelFormatConversions += metrics.pixelFormatConversions
+            summary.totalAlphaConversions += metrics.alphaConversions
+            summary.totalColorConversions += metrics.colorConversions
             summary.totalRenderTargetCreations += metrics.renderTargetCreations
+            summary.totalOptimizerDecisions += metrics.optimizerDecisionCount
+            summary.totalTextureLifecycleDecisions += metrics.textureLifecycleDecisionCount
             summary.totalFilters += metrics.filterProcessingTimes.count
             summary.totalMemoryAllocated += metrics.totalMemoryAllocated
             summary.peakMemoryAllocation = max(summary.peakMemoryAllocation, metrics.peakMemoryAllocation)
@@ -375,7 +407,11 @@ extension PerformanceMonitor {
         public var totalStages: Int = 0
         public var totalReadbackBoundaries: Int = 0
         public var totalPixelFormatConversions: Int = 0
+        public var totalAlphaConversions: Int = 0
+        public var totalColorConversions: Int = 0
         public var totalRenderTargetCreations: Int = 0
+        public var totalOptimizerDecisions: Int = 0
+        public var totalTextureLifecycleDecisions: Int = 0
         public var totalFilters: Int = 0
         public var totalMemoryAllocated: Int = 0
         public var peakMemoryAllocation: Int = 0
@@ -421,7 +457,11 @@ extension PerformanceMonitor {
         public var stageCount: Int = 0
         public var readbackBoundaryCount: Int = 0
         public var pixelFormatConversions: Int = 0
+        public var alphaConversions: Int = 0
+        public var colorConversions: Int = 0
         public var renderTargetCreations: Int = 0
+        public var optimizerDecisionCount: Int = 0
+        public var textureLifecycleDecisionCount: Int = 0
         public var textureCacheHitRate: Double {
             let total = textureCreations + textureReuses
             return total > 0 ? Double(textureReuses) / Double(total) : 0
@@ -459,7 +499,11 @@ extension PerformanceMonitor {
             stageCount = 0
             readbackBoundaryCount = 0
             pixelFormatConversions = 0
+            alphaConversions = 0
+            colorConversions = 0
             renderTargetCreations = 0
+            optimizerDecisionCount = 0
+            textureLifecycleDecisionCount = 0
             filterProcessingTimes.removeAll()
             performanceCounters.removeAll()
             memoryAllocations.removeAll()

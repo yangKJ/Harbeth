@@ -169,6 +169,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
             return
         }
         let plan = makeRenderPlan(input: texture)
+        prepareTextureLifecycle(for: plan, inputPixelFormat: texture.pixelFormat)
         let operation = BlockOperation {
             do {
                 // Real-time mode: wait until scheduled, not completed
@@ -259,6 +260,7 @@ extension HarbethIO {
     }
     
     private func processBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
+        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         let commandBuffer = try makeCommandBuffer(for: nil)
         let outputTexture: MTLTexture
         var texturesToEnqueue: [MTLTexture] = []
@@ -276,6 +278,7 @@ extension HarbethIO {
     }
     
     private func processInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
+        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         var outputTexture = input
         for node in plan.graph.nodes {
             guard let filter = node.filter else { continue }
@@ -302,8 +305,29 @@ extension HarbethIO {
             if plan.requiresCompletedGPUWork {
                 Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
             }
+            let diagnostics = plan.diagnostics
+            Shared.shared.performanceMonitor?.recordRenderOptimizationPlan(identifier, plan: diagnostics.optimizationPlan)
+            if diagnostics.outputContract.requiresAlphaConversion {
+                Shared.shared.performanceMonitor?.recordAlphaConversion(identifier, contract: diagnostics.outputContract.alpha)
+            }
+            if diagnostics.outputContract.requiresColorSpaceConversion {
+                Shared.shared.performanceMonitor?.recordColorConversion(identifier, contract: diagnostics.outputContract.colorSpace)
+            }
         }
         return plan
+    }
+
+    private func prepareTextureLifecycle(for plan: RenderPlan, inputPixelFormat: MTLPixelFormat) {
+        let prewarmTargets = plan.diagnostics.optimizationPlan.lifecycleDecisions.compactMap { decision -> (width: Int, height: Int, pixelFormat: MTLPixelFormat)? in
+            switch decision.action {
+            case .reuseTransient, .allocatePersistentOutput:
+                return (width: decision.size.width, height: decision.size.height, pixelFormat: inputPixelFormat)
+            case .allocateTransient, .preserveForReadback:
+                return nil
+            }
+        }
+        guard prewarmTargets.isEmpty == false else { return }
+        Shared.shared.prewarmTexturePool(resolutions: prewarmTargets, count: 1)
     }
 
     private func groupStrategy(for plan: RenderPlan) -> GroupStrategy {
@@ -573,6 +597,7 @@ extension HarbethIO where Dest == MTLTexture {
     }
 
     private func processManagedBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
+        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         let commandBuffer = try makeCommandBuffer(for: nil)
         let managed: (result: ManagedTextureResult, intermediateLeases: [TextureLease])
         if shouldUseDoubleBuffer(input: input, plan: plan, minimumFilterCount: 1) {
@@ -587,6 +612,7 @@ extension HarbethIO where Dest == MTLTexture {
     }
 
     private func processManagedInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
+        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         var currentTexture = input
         var currentLease: TextureLease?
 

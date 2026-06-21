@@ -93,6 +93,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public let intermediateTextureCount: Int
     public let reusableTextureCount: Int
     public let persistentOutputCount: Int
+    public let estimatedTransientByteCount: Int
+    public let estimatedPersistentByteCount: Int
     public let readbackBoundaryCount: Int
     public let formatConversionCount: Int
     public let destinationTextureCreationCount: Int
@@ -102,6 +104,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
     public init(intermediateTextureCount: Int,
                 reusableTextureCount: Int,
                 persistentOutputCount: Int,
+                estimatedTransientByteCount: Int,
+                estimatedPersistentByteCount: Int,
                 readbackBoundaryCount: Int,
                 formatConversionCount: Int,
                 destinationTextureCreationCount: Int,
@@ -110,6 +114,8 @@ public struct RenderOptimizationPlan: Sendable, Equatable {
         self.intermediateTextureCount = intermediateTextureCount
         self.reusableTextureCount = reusableTextureCount
         self.persistentOutputCount = persistentOutputCount
+        self.estimatedTransientByteCount = estimatedTransientByteCount
+        self.estimatedPersistentByteCount = estimatedPersistentByteCount
         self.readbackBoundaryCount = readbackBoundaryCount
         self.formatConversionCount = formatConversionCount
         self.destinationTextureCreationCount = destinationTextureCreationCount
@@ -268,6 +274,7 @@ public struct RenderPlanDiagnostics: Sendable, Equatable {
             "source=\(compilationSource.rawValue)",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
+            "transientBytes=\(optimizationPlan.estimatedTransientByteCount)",
             "lifecycle=\(optimizationPlan.lifecycleDecisions.count)",
             "formatConversions=\(optimizationPlan.formatConversionCount)",
             "alphaContract=\(outputContract.alpha)",
@@ -345,6 +352,12 @@ public enum GraphOptimizer {
         let formatConversionCount = outputContract.requiresPixelFormatConversion ? 1 : 0
         let lifecycleDecisions = makeLifecycleDecisions(stages: stages)
         let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
+        let estimatedTransientByteCount = lifecycleDecisions
+            .filter { $0.action == .reuseTransient || $0.action == .allocateTransient }
+            .reduce(0) { $0 + estimatedByteCount(for: $1.size) }
+        let estimatedPersistentByteCount = lifecycleDecisions
+            .filter { $0.action == .allocatePersistentOutput || $0.action == .preserveForReadback }
+            .reduce(0) { $0 + estimatedByteCount(for: $1.size) }
         var decisions: [String] = []
         if intermediateTextureCount > 0 {
             decisions.append("reuseTransientIntermediateTextures")
@@ -368,6 +381,8 @@ public enum GraphOptimizer {
             intermediateTextureCount: intermediateTextureCount,
             reusableTextureCount: reusableTextureCount,
             persistentOutputCount: 1,
+            estimatedTransientByteCount: estimatedTransientByteCount,
+            estimatedPersistentByteCount: estimatedPersistentByteCount,
             readbackBoundaryCount: readbackBoundaryCount,
             formatConversionCount: formatConversionCount,
             destinationTextureCreationCount: destinationTextureCreationCount,
@@ -411,6 +426,10 @@ public enum GraphOptimizer {
                 reason: "nonWritingStage"
             )
         }
+    }
+
+    private static func estimatedByteCount(for size: C7Size) -> Int {
+        max(size.width, 0) * max(size.height, 0) * 4
     }
 
     public static func optimize(graph: RenderGraph, nodeDiagnostics: [RenderNodeDiagnostic], profile: RenderProfile) -> [RenderStage] {

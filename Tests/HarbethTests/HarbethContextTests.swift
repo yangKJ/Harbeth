@@ -86,4 +86,33 @@ final class HarbethContextTests: XCTestCase {
         let owner = TextureOwnerRegistry.owner(for: texture)
         XCTAssertNotNil(owner)
     }
+
+    func testPerformanceMonitorTracksRenderContractDecisions() {
+        let monitor = PerformanceMonitor(enabled: true)
+        let identifier = "contract-monitor"
+        let plan = GraphCompiler.compile(
+            filters: [C7Brightness(brightness: 0.1), C7Resize(width: 2, height: 2)],
+            inputSize: C7Size(width: 4, height: 4),
+            outputContract: RenderOutputContract(
+                alpha: .forcePremultiply,
+                colorSpace: ImageColorSpaceContract(name: "sRGB", preservesInput: false),
+                pixelFormat: PixelFormatContract(pixelFormat: .rgba8Unorm, preservesInput: false)
+            )
+        )
+
+        monitor.beginMonitoring(identifier)
+        monitor.recordRenderStageCount(identifier, stageCount: plan.diagnostics.stageCount)
+        monitor.recordRenderOptimizationPlan(identifier, plan: plan.diagnostics.optimizationPlan)
+        monitor.recordAlphaConversion(identifier, contract: plan.diagnostics.outputContract.alpha)
+        monitor.recordColorConversion(identifier, contract: plan.diagnostics.outputContract.colorSpace)
+        monitor.recordPixelFormatConversion(identifier, from: .bgra8Unorm, to: .rgba8Unorm)
+        _ = monitor.endMonitoring(identifier)
+
+        let summary = monitor.getSummary()
+        XCTAssertGreaterThan(summary.totalOptimizerDecisions, 0)
+        XCTAssertGreaterThan(summary.totalTextureLifecycleDecisions, 0)
+        XCTAssertEqual(summary.totalAlphaConversions, 1)
+        XCTAssertEqual(summary.totalColorConversions, 1)
+        XCTAssertEqual(summary.totalPixelFormatConversions, 1)
+    }
 }

@@ -138,6 +138,36 @@ public struct HarbethKernelOutputDescriptor: Sendable, Codable, Equatable, Hasha
     }
 }
 
+public struct HarbethKernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let index: Int
+    public let functionIdentity: HarbethKernelFunctionIdentity
+    public let output: HarbethKernelOutputDescriptor
+    public let resources: HarbethKernelResourceDescriptor
+    public let alphaBehavior: HarbethKernelAlphaBehavior
+
+    public init(index: Int,
+                functionIdentity: HarbethKernelFunctionIdentity,
+                output: HarbethKernelOutputDescriptor = HarbethKernelOutputDescriptor(),
+                resources: HarbethKernelResourceDescriptor,
+                alphaBehavior: HarbethKernelAlphaBehavior = .preserveInput) {
+        self.index = index
+        self.functionIdentity = functionIdentity
+        self.output = output
+        self.resources = resources
+        self.alphaBehavior = alphaBehavior
+    }
+
+    public var fingerprint: String {
+        [
+            "pass=\(index)",
+            functionIdentity.fingerprint,
+            output.fingerprint,
+            resources.fingerprint,
+            "alpha=\(alphaBehavior.rawValue)"
+        ].joined(separator: "|")
+    }
+}
+
 public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public let filterName: String
     public let functionIdentity: HarbethKernelFunctionIdentity
@@ -147,6 +177,7 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
     public let resources: HarbethKernelResourceDescriptor
     public let alphaBehavior: HarbethKernelAlphaBehavior
     public let outputContract: RenderOutputContract
+    public let passes: [HarbethKernelPassDescriptor]
 
     public init(filterName: String,
                 functionIdentity: HarbethKernelFunctionIdentity,
@@ -155,7 +186,8 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
                 resourceUsage: HarbethKernelResourceUsage = .singleInput,
                 resources: HarbethKernelResourceDescriptor? = nil,
                 alphaBehavior: HarbethKernelAlphaBehavior = .preserveInput,
-                outputContract: RenderOutputContract = .preserveInput) {
+                outputContract: RenderOutputContract = .preserveInput,
+                passes: [HarbethKernelPassDescriptor] = []) {
         self.filterName = filterName
         self.functionIdentity = functionIdentity
         self.parameters = parameters
@@ -164,6 +196,19 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
         self.resources = resources ?? HarbethKernelResourceDescriptor(usage: resourceUsage, inputTextureCount: 1)
         self.alphaBehavior = alphaBehavior
         self.outputContract = outputContract
+        if passes.isEmpty {
+            self.passes = [
+                HarbethKernelPassDescriptor(
+                    index: 0,
+                    functionIdentity: functionIdentity,
+                    output: output,
+                    resources: self.resources,
+                    alphaBehavior: alphaBehavior
+                )
+            ]
+        } else {
+            self.passes = passes
+        }
     }
 
     public var fingerprint: String {
@@ -178,7 +223,8 @@ public struct HarbethKernelDescriptor: Sendable, Codable, Equatable, Hashable {
             output.fingerprint,
             resources.fingerprint,
             "alpha=\(alphaBehavior.rawValue)",
-            outputContract.fingerprint
+            outputContract.fingerprint,
+            "passes=\(passes.map(\.fingerprint).joined(separator: "||"))"
         ].joined(separator: "|")
     }
 }
