@@ -566,6 +566,14 @@ public struct PixelBufferTextureBridgePlan: Sendable, Codable, Equatable, Hashab
         contract.requiresYCbCrConversion
     }
 
+    public var directPlaneBridgeCount: Int {
+        planes.filter { $0.conversionStrategy == .directMetalTexture }.count
+    }
+
+    public var supportsDirectPlaneTextures: Bool {
+        directPlaneBridgeCount == contract.planeCount && contract.planeCount > 1
+    }
+
     public var fingerprint: String {
         [
             contract.fingerprint,
@@ -696,20 +704,28 @@ public struct SampleBufferContract: Sendable, Codable, Equatable, Hashable {
 public struct SampleBufferFrameContract: Sendable, Codable, Equatable, Hashable {
     public let ownerRetained: Bool
     public let conversionStrategy: PixelBufferTextureLoadStrategy?
+    public let directPlaneBridgeCount: Int
     public let orientation: FrameOrientation
 
     public init(ownerRetained: Bool,
                 conversionStrategy: PixelBufferTextureLoadStrategy?,
+                directPlaneBridgeCount: Int = 0,
                 orientation: FrameOrientation = .up) {
         self.ownerRetained = ownerRetained
         self.conversionStrategy = conversionStrategy
+        self.directPlaneBridgeCount = directPlaneBridgeCount
         self.orientation = orientation
+    }
+
+    public var supportsDirectPlaneTextures: Bool {
+        directPlaneBridgeCount > 1
     }
 
     public var fingerprint: String {
         [
             "owner=\(ownerRetained ? 1 : 0)",
             "strategy=\(conversionStrategy?.rawValue ?? "none")",
+            "directPlanes=\(directPlaneBridgeCount)",
             "orientation=\(orientation.rawValue)"
         ].joined(separator: "|")
     }

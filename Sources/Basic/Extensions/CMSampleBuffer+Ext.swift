@@ -59,6 +59,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
             frameContract: SampleBufferFrameContract(
                 ownerRetained: bridgePlan?.preservesOwnerReference ?? false,
                 conversionStrategy: bridgePlan?.loadStrategy,
+                directPlaneBridgeCount: bridgePlan?.directPlaneBridgeCount ?? 0,
                 orientation: .up
             ),
             attachments: attachmentContract

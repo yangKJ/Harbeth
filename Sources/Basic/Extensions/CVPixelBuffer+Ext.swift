@@ -80,8 +80,8 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                     PixelBufferPlaneBridgeDescriptor(
                         index: $0.index,
                         metalPixelFormat: $0.metalPixelFormat,
-                        conversionStrategy: .cgImageFallback,
-                        preservesOwnerReference: false
+                        conversionStrategy: $0.metalPixelFormat == nil ? .cpuCopyFallback : .directMetalTexture,
+                        preservesOwnerReference: $0.metalPixelFormat != nil
                     )
                 }
             )

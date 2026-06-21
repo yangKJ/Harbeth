@@ -89,7 +89,7 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertTrue(bridgePlan.planes.first?.preservesOwnerReference ?? false)
     }
 
-    func testBiPlanarPixelBufferContractExposesPlanesAndFallbackLoadStrategy() throws {
+    func testBiPlanarPixelBufferContractExposesFallbackTopLevelAndDirectPlaneBridge() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
             kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
@@ -131,9 +131,17 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(bridgePlan.loadStrategy, .cgImageFallback)
         XCTAssertFalse(bridgePlan.preservesOwnerReference)
         XCTAssertTrue(bridgePlan.requiresColorConversion)
+        XCTAssertEqual(bridgePlan.directPlaneBridgeCount, 2)
+        XCTAssertTrue(bridgePlan.supportsDirectPlaneTextures)
         XCTAssertEqual(bridgePlan.planes.count, 2)
-        XCTAssertEqual(bridgePlan.planes[0].conversionStrategy, .cgImageFallback)
+        XCTAssertEqual(bridgePlan.planes[0].conversionStrategy, .directMetalTexture)
+        XCTAssertTrue(bridgePlan.planes[0].preservesOwnerReference)
         XCTAssertEqual(bridgePlan.planes[1].metalPixelFormat, .rg8Unorm)
+        XCTAssertEqual(bridgePlan.planes[1].conversionStrategy, .directMetalTexture)
+        XCTAssertTrue(bridgePlan.planes[1].preservesOwnerReference)
+        XCTAssertTrue(bridgePlan.fingerprint.contains("load=cgImageFallback"))
+        XCTAssertTrue(bridgePlan.fingerprint.contains("plane=0|metal=\(MTLPixelFormat.r8Unorm.rawValue)|strategy=directMetalTexture|owner=1"))
+        XCTAssertTrue(bridgePlan.fingerprint.contains("plane=1|metal=\(MTLPixelFormat.rg8Unorm.rawValue)|strategy=directMetalTexture|owner=1"))
     }
 
     func testSampleBufferContractTracksFrameBridgeMetadata() throws {
@@ -164,7 +172,45 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(contract.frameContract.orientation, .up)
         XCTAssertTrue(contract.frameContract.ownerRetained)
         XCTAssertEqual(contract.frameContract.conversionStrategy, .directMetalTexture)
+        XCTAssertEqual(contract.frameContract.directPlaneBridgeCount, 1)
+        XCTAssertFalse(contract.frameContract.supportsDirectPlaneTextures)
         XCTAssertTrue(contract.fingerprint.contains("frame={"))
+    }
+
+    func testBiPlanarSampleBufferContractExposesDirectPlaneBridgeMetadata() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer,
+              let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create bi-planar sample buffer.")
+            return
+        }
+
+        let contract = sampleBuffer.c7.contract
+
+        XCTAssertEqual(contract.pixelBufferContract?.colorModel, .yCbCrBiPlanar)
+        XCTAssertEqual(contract.frameContract.conversionStrategy, .cgImageFallback)
+        XCTAssertFalse(contract.frameContract.ownerRetained)
+        XCTAssertEqual(contract.frameContract.directPlaneBridgeCount, 2)
+        XCTAssertTrue(contract.frameContract.supportsDirectPlaneTextures)
+        XCTAssertTrue(contract.fingerprint.contains("directPlanes=2"))
     }
 
     func testBiPlanarPixelBufferCanRenderThroughTextureLoader() throws {
