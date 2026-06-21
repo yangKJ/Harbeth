@@ -12,6 +12,11 @@ enum ViewType {
     case image, camera, player
 }
 
+struct HomeSection {
+    let title: String
+    let items: [ViewControllerType]
+}
+
 struct HomeViewModel {
     var viewType: ViewType
     
@@ -43,50 +48,60 @@ struct HomeViewModel {
         }
     }
     
-    lazy var datas: [String: [ViewControllerType]] = {
+    lazy var sections: [HomeSection] = {
         switch viewType {
         case .image, .player:
-            var filters = [
-                "🖼️ 基础测试用例": test,
-                "🤡 组合效果滤镜": sceneStyle,
-                "🎨 艺术风格滤镜": artStyle,
-                "🔍 边缘与细节": edgeDetail,
-                "🌫️ 模糊效果": blur,
-                "🎭 风格化效果": stylization,
-                "🌈 颜色调整": color,
-                "🔄 几何变换": shape,
-                "🔗 混合模式": blend,
-                "📊 矩阵处理": matrix,
-                "🔧 实用工具": utility,
-                "📋 查找滤镜": lookup,
-                "🔬 Blit操作": blit,
-                "⚡ MPS": mps,
-                "🎲 扭曲与变形": distortionWarp,
-                "✨ 生成器": generators,
-                "🌟 其他效果": otherEffects,
-            ].filter { $0.value.count > 0 }
+            var filters: [HomeSection] = [
+                HomeSection(title: "🚀 能力展示", items: showcase),
+                HomeSection(title: "🎞️ 帧处理与输出", items: frameProcessing),
+                HomeSection(title: "🌈 色彩与色调", items: color),
+                HomeSection(title: "🌫️ 模糊与降噪", items: blur),
+                HomeSection(title: "🔍 边缘与细节", items: edgeDetail),
+                HomeSection(title: "📐 几何与光学", items: geometryOptics),
+                HomeSection(title: "🎭 风格化与创意效果", items: stylization),
+                HomeSection(title: "🎨 艺术风格", items: artStyle),
+                HomeSection(title: "🎲 扭曲与形变", items: distortionWarp),
+                HomeSection(title: "🔗 混合与合成", items: blend),
+                HomeSection(title: "📋 LUT 与色彩映射", items: lookup),
+                HomeSection(title: "📊 矩阵与基础算子", items: matrix),
+                HomeSection(title: "🔧 实用工具", items: utility),
+                HomeSection(title: "✨ 生成与拷贝", items: generators + blit),
+                HomeSection(title: "⚡ Metal Performance Shaders", items: mps),
+                HomeSection(title: "🧪 基础验证", items: test),
+                HomeSection(title: "🌟 其他效果", items: otherEffects),
+            ].filter { !$0.items.isEmpty }
             if viewType == .player {
-                filters["😈 动效滤镜"] = [
+                filters.insert(HomeSection(title: "🎬 时序动效", items: [
                     .ShiftGlitch, .SoulOut, .WaterRipple, .Swirl,
                     .SplitScreen, .Fluctuate, .Glitch, .Pinch,
-                ]
+                ]), at: 1)
             }
             return filters
         case .camera:
             #if targetEnvironment(simulator)
-            return ["❌ 模拟器不支持，请用真机测试": []]
+            return [HomeSection(title: "❌ 模拟器不支持，请用真机测试", items: [])]
             #else
             var filters = sceneStyle + color + blur + mps + artStyle +
-            edgeDetail + lookup + matrix + blend + utility + stylization +
+            edgeDetail + geometryOptics + lookup + matrix + blend + utility + stylization +
             otherEffects + distortionWarp
             filters.append(contentsOf: [.Storyboard, .Rotate, .Flip])
-            return ["📷 相机特效 - 真机测试": filters]
+            return [HomeSection(title: "📷 实时帧处理 - 真机能力展示", items: filters)]
             #endif
         }
     }()
     
     let test: [ViewControllerType] = [
         .TextHEIC,
+    ]
+
+    let showcase: [ViewControllerType] = [
+        .CombinationCinematic, .CombinationColorGrading, .CombinationHDRBoost,
+        .ColorCube, .NoiseReduction, .UnsharpMask,
+        .LensDistortionCorrection, .ChromaticAberrationCorrection,
+    ]
+
+    let frameProcessing: [ViewControllerType] = [
+        .NoiseReduction, .UnsharpMask, .LanczosResize,
     ]
     
     // 相机风格滤镜
@@ -113,7 +128,8 @@ struct HomeViewModel {
         .Sharpen3x3, .Sobel, .Canny, .Luminance,
         .DetailEnhancer, .EdgeAwareSharpen, .ThresholdSketch,
         .EdgeGlow, .Sharpen, .SharpenEnhanced, .StickerOutline,
-        .Clarity, .SharpenDetail,
+        .Clarity, .SharpenDetail, .UnsharpMask,
+        .DiffractionCorrection, .SharpnessFalloffCorrection,
     ]
     
     // 风格化效果
@@ -147,12 +163,21 @@ struct HomeViewModel {
         .Crop, .Rotate, .Resize, .Flip,
         .Transform, .Mirror,
     ]
-    
+
+    let geometryOptics: [ViewControllerType] = [
+        .Crop, .Rotate, .Resize, .LanczosResize,
+        .Flip, .Transform, .Mirror,
+        .LensDistortionCorrection, .ChromaticAberrationCorrection,
+        .LensVignetteCorrection, .DefringeCorrection,
+        .DiffractionCorrection, .SharpnessFalloffCorrection,
+    ]
+
     let blur: [ViewControllerType] = [
         .MonochromeDilation, .MotionBlur, .MeanBlur,
         .GaussianBlur, .BilateralBlur, .CircleBlur,
         .DetailPreservingBlur, .ZoomBlur, .SurfaceBlur,
         .LocalBlur, .TiltShift, .RedMonochromeBlur,
+        .NoiseReduction,
     ]
     
     let blend: [ViewControllerType] = [

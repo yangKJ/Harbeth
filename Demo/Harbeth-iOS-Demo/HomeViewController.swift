@@ -15,13 +15,13 @@ class HomeViewController: UIViewController {
     lazy var viewModel: HomeViewModel = {
         switch view.restorationIdentifier {
         case "520":
-            title = "Image"//"图像处理"
+            title = "Image Pipeline"
             return HomeViewModel.init(viewType: .image)
         case "521":
-            title = "Camera"//"相机采集"
+            title = "Live Frames"
             return HomeViewModel.init(viewType: .camera)
         case "522":
-            title = "Video"//"视频特效"
+            title = "Video Frames"
             return HomeViewModel.init(viewType: .player)
         default:
             return HomeViewModel.init(viewType: .image)
@@ -74,10 +74,8 @@ class HomeViewController: UIViewController {
         tabBarController?.tabBar.isHidden = false
     }
     
-    var datas: [(key: String, value: [ViewControllerType])] {
-        get {
-            self.viewModel.datas.sorted(by: { $0.0 > $1.0 })
-        }
+    var sections: [HomeSection] {
+        viewModel.sections
     }
 }
 
@@ -183,15 +181,15 @@ class HomeTableViewCell: UITableViewCell {
 extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     
     func numberOfSections(in tableView: UITableView) -> Int {
-        return viewModel.datas.count
+        return sections.count
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return datas[section].value.count
+        return sections[section].items.count
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return datas[section].key
+        return sections[section].title
     }
     
     func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
@@ -202,14 +200,14 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let element = datas[indexPath.section].value[indexPath.row]
+        let element = sections[indexPath.section].items[indexPath.row]
         let cell = tableView.dequeueReusableCell(withIdentifier: HomeViewController.identifier, for: indexPath) as! HomeTableViewCell
         cell.configure(with: "\(element)", subtitle: element.rawValue, number: "\(indexPath.row + 1).")
         return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let type = datas[indexPath.section].value[indexPath.row]
+        let type = sections[indexPath.section].items[indexPath.row]
         let vc = viewModel.setupViewController(type)
         vc.title = type.rawValue
         tabBarController?.tabBar.isHidden = true

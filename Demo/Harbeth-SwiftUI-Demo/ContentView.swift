@@ -24,55 +24,57 @@ struct ContentView: View {
                         ShowcaseRow(title: "Real-time Frame Processing", subtitle: "Filter chains, texture reuse, and double buffering")
                     }
                     NavigationLink(destination: MetalKernelViews()) {
-                        ShowcaseRow(title: "Video / LUT / HDR Pipeline", subtitle: "Metal kernels for frame-oriented effects")
+                        ShowcaseRow(title: "Metal Runtime and Custom Kernels", subtitle: "Frame-oriented kernels, custom effects, and reusable runtime surfaces")
                     }
                 } header: {
-                    Text("Showcase").bold().textCase(.none)
+                    Text("Capability Showcase").bold().textCase(.none)
                 }
 
                 Section {
                     NavigationLink(destination: DoubleBufferView()) {
-                        Text("Double Buffer")
+                        Text("Frame Runtime")
                     }
                     NavigationLink(destination: CurvesView()) {
-                        Text("Curves")
+                        Text("Curves and Tone")
                     }
                     NavigationLink(destination: HSLView()) {
-                        Text("HSL")
+                        Text("HSL Adjustments")
                     }
                     NavigationLink(destination: ColorRGBAView()) {
-                        Text("Color")
+                        Text("Channel and Color Controls")
                     }
                     NavigationLink(destination: CubeView()) {
-                        Text("Cube")
+                        Text("LUT Pipeline")
                     }
                     NavigationLink(destination: BlendView()) {
-                        Text("Blend")
+                        Text("Blend and Compositing")
                     }
                     NavigationLink(destination: HighlightShadowToneView()) {
-                        Text("Highlight Shadow")
+                        Text("Highlight and Shadow")
                     }
                     NavigationLink(destination: ChromaKeyView()) {
                         Text("Chroma Key")
                     }
                     NavigationLink(destination: ChannelControlView()) {
-                        Text("Channel Control")
+                        Text("Channel Isolation")
                     }
                 } header: {
-                    Text("Examples").bold().textCase(.none)
+                    Text("Capability Examples").bold().textCase(.none)
                 }
                 
                 Section {
                     NavigationLink(destination: MetalKernelViews()) {
-                        Text("Metal filters")
+                        Text("Custom Metal Filters")
                     }
+                } header: {
+                    Text("Metal Runtime").bold().textCase(.none)
                 }
                 
                 Section {
                     NavigationLink(destination: CustomViews(value: MPSGaussianBlur.range.value, filtering: {
                         MPSGaussianBlur.init(radius: $0)
                     }, min: MPSGaussianBlur.range.min, max: MPSGaussianBlur.range.max)) {
-                        Text("MPS gaussian blur")
+                        Text("MPS Gaussian Blur")
                     }
                 } header: {
                     Text("MPS").bold().textCase(.none)
@@ -82,7 +84,7 @@ struct ContentView: View {
             .listStyle(.sidebar)
             .textCase(.none)
             .groupedListStyle()
-            .inlineNavigationBarTitle("Harbeth Examples")
+            .inlineNavigationBarTitle("Harbeth Capability Demos")
         }
         .stackNavigationViewStyle()
     }

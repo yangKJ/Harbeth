@@ -6,6 +6,7 @@
 //
 
 import Harbeth
+import CoreGraphics
 
 typealias maxminTuple = (current: Float, min: Float, max: Float)?
 typealias FilterCallback = (_ value: Float) -> C7FilterProtocol
@@ -72,10 +73,68 @@ extension ViewControllerType {
                 filter.radius = $0
                 return filter
             })
+        case .NoiseReduction:
+            var filter = C7NoiseReduction(radius: 3, amount: 0.55, edgePreservation: 0.8)
+            return (filter, (0.55, 0, 1), {
+                filter.amount = $0
+                return filter
+            })
         case .Pixellated:
             var filter = C7Pixellated()
             return (filter, (C7Pixellated.range.value, C7Pixellated.range.min, C7Pixellated.range.max), {
                 filter.scale = $0
+                return filter
+            })
+        case .UnsharpMask:
+            var filter = C7UnsharpMask(radius: 2, intensity: 1, threshold: 0.02)
+            return (filter, (1, 0, 4), {
+                filter.intensity = $0
+                return filter
+            })
+        case .DiffractionCorrection:
+            var filter = C7DiffractionCorrection(amount: 0.8, radius: 1.2, edgeThreshold: 0.08)
+            return (filter, (0.8, 0, 2), {
+                filter.amount = $0
+                return filter
+            })
+        case .SharpnessFalloffCorrection:
+            var filter = C7SharpnessFalloffCorrection(amount: 0.35, start: 0.45, end: 1.0, edgeThreshold: 0.2)
+            return (filter, (0.35, 0, 1), {
+                filter.amount = $0
+                return filter
+            })
+        case .LanczosResize:
+            let baseSize = image?.size ?? CGSize(width: 720, height: 540)
+            var filter = C7LanczosResize(width: Float(baseSize.width), height: Float(baseSize.height))
+            return (filter, (1, 0.4, 1.4), {
+                filter.width = Float(baseSize.width) * $0
+                filter.height = Float(baseSize.height) * $0
+                return filter
+            })
+        case .LensDistortionCorrection:
+            var filter = C7LensDistortionCorrection(distortion: -0.18, cubicDistortion: 0.03, scale: 1.02)
+            return (filter, (-0.18, -0.35, 0.35), {
+                filter.distortion = $0
+                return filter
+            })
+        case .ChromaticAberrationCorrection:
+            var filter = C7ChromaticAberrationCorrection(redCyanShift: 0.015, blueYellowShift: 0.008)
+            return (filter, (0.015, -0.05, 0.05), {
+                filter.redCyanShift = $0
+                filter.blueYellowShift = $0 * 0.6
+                return filter
+            })
+        case .LensVignetteCorrection:
+            var filter = C7LensVignetteCorrection(amount: 0.4, start: 0.35, end: 1.0)
+            return (filter, (0.4, 0, 1.5), {
+                filter.amount = $0
+                return filter
+            })
+        case .DefringeCorrection:
+            var filter = C7DefringeCorrection(purpleAmount: 0.45, greenAmount: 0.2)
+            return (filter, (0.45, 0, 1), {
+                filter.purpleAmount = $0
+                filter.greenAmount = $0 * 0.5
                 return filter
             })
         case .HueBlend:

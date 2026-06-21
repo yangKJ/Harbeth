@@ -52,6 +52,7 @@ enum ViewControllerType: String {
     case SurfaceBlur = "表面模糊"
     case CircleBlur = "圆形模糊"
     case DetailPreservingBlur = "细节保留模糊"
+    case NoiseReduction = "边缘保护降噪"
     case MonochromeDilation = "黑白模糊"
     case LocalBlur = "局部模糊"
     case RedMonochromeBlur = "红色单色模糊"
@@ -73,6 +74,9 @@ enum ViewControllerType: String {
     case StickerOutline = "贴纸轮廓"
     case Clarity = "清晰度"
     case SharpenDetail = "细节锐化"
+    case UnsharpMask = "非锐化遮罩"
+    case DiffractionCorrection = "衍射补偿"
+    case SharpnessFalloffCorrection = "边缘锐度衰减补偿"
     
     // 扭曲和变形
     case Bulge = "大胸效果"
@@ -93,8 +97,13 @@ enum ViewControllerType: String {
     case Rotate = "图形旋转"
     case Flip = "图形翻转"
     case Resize = "改变尺寸"
+    case LanczosResize = "Lanczos 高质量缩放"
     case Transform = "透视变形"
     case Mirror = "镜像效果"
+    case LensDistortionCorrection = "镜头畸变校正"
+    case ChromaticAberrationCorrection = "色差校正"
+    case LensVignetteCorrection = "镜头暗角校正"
+    case DefringeCorrection = "去边校正"
     
     // 混合模式
     case HueBlend = "色相融合"
