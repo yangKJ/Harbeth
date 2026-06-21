@@ -194,6 +194,34 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertNotNil(owner)
     }
 
+    func testPlaneTexturesRetainOwnerReference() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            4,
+            4,
+            kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            [
+                kCVPixelBufferMetalCompatibilityKey: true,
+                kCVPixelBufferIOSurfacePropertiesKey: [:],
+                kCVPixelBufferWidthKey: 4,
+                kCVPixelBufferHeightKey: 4,
+                kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+            ] as CFDictionary,
+            &pixelBuffer
+        )
+        XCTAssertEqual(status, kCVReturnSuccess)
+        guard let pixelBuffer else {
+            XCTFail("Expected pixel buffer.")
+            return
+        }
+
+        let textures = pixelBuffer.c7.createPlaneTextures()
+        XCTAssertEqual(textures.count, 2)
+        XCTAssertNotNil(TextureOwnerRegistry.owner(for: textures[0]))
+        XCTAssertNotNil(TextureOwnerRegistry.owner(for: textures[1]))
+    }
+
     func testPerformanceMonitorTracksRenderContractDecisions() {
         let monitor = PerformanceMonitor(enabled: true)
         let identifier = "contract-monitor"

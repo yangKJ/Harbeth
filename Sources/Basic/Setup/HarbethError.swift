@@ -68,6 +68,7 @@ public enum HarbethError: Swift.Error {
     case filterInitializationFailed(String)
     case filterParameterInvalid(String)
     case filterChainEmpty
+    case kernelInvocationIncompatible(String)
     case filterProcessingFailed(String)
     
     case memoryAllocationFailed
@@ -150,6 +151,7 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .filterInitializationFailed(let name): return "Failed to initialize filter: \(name)."
         case .filterParameterInvalid(let parameter): return "Invalid filter parameter: \(parameter)."
         case .filterChainEmpty: return "Filter chain is empty."
+        case .kernelInvocationIncompatible(let summary): return "Kernel invocation is incompatible: \(summary)."
         case .filterProcessingFailed(let description): return "Filter processing failed: \(description)."
         case .memoryAllocationFailed: return "Memory allocation failed."
         case .deviceNotAvailable: return "Metal device is not available."
@@ -184,6 +186,8 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
             return "Try reducing image size or closing other applications."
         case .filterChainEmpty:
             return "Add at least one filter to the filter chain."
+        case .kernelInvocationIncompatible:
+            return "Ensure the descriptor was generated for the same filter type, resource usage, and input contract."
         case .renderableNoInputSource:
             return "Set an input source before applying filters."
         case .parameterOutOfRange(_, let range):
@@ -312,7 +316,8 @@ extension HarbethError {
         case .filterInitializationFailed: return 1700
         case .filterParameterInvalid: return 1701
         case .filterChainEmpty: return 1702
-        case .filterProcessingFailed: return 1703
+        case .kernelInvocationIncompatible: return 1703
+        case .filterProcessingFailed: return 1704
         case .memoryAllocationFailed: return 1800
         case .deviceNotAvailable: return 1801
         case .commandQueueCreationFailed: return 1802

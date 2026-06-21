@@ -448,6 +448,80 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(output.c7.contract.pixelBufferContract?.planeCount, 1)
     }
 
+    func testFilteringPixelBufferResizeThrowsTextureSizeMismatch() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_32BGRA,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create pixel buffer.")
+            return
+        }
+
+        XCTAssertThrowsError(
+            try HarbethIO(element: pixelBuffer, filter: C7Resize(width: 2, height: 2)).output() as CVPixelBuffer
+        ) { error in
+            guard case .textureSizeMismatch? = error.asHarbethError else {
+                return XCTFail("Expected textureSizeMismatch, got \(error)")
+            }
+        }
+    }
+
+    func testFilteringPixelBufferResizeAsyncReturnsTextureSizeMismatch() throws {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: 4,
+            kCVPixelBufferHeightKey: 4,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                4,
+                4,
+                kCVPixelFormatType_32BGRA,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            XCTFail("Failed to create pixel buffer.")
+            return
+        }
+
+        let expectation = expectation(description: "pixelBuffer copy-back failure")
+        HarbethIO(element: pixelBuffer, filter: C7Resize(width: 2, height: 2)).transmitOutput { (result: Result<CVPixelBuffer, HarbethError>) in
+            switch result {
+            case .success:
+                XCTFail("Expected resize to fail for in-place pixel buffer copy-back.")
+            case .failure(let error):
+                guard case .textureSizeMismatch = error else {
+                    return XCTFail("Expected textureSizeMismatch, got \(error)")
+                }
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 2.0)
+    }
+
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .rgba8Unorm,

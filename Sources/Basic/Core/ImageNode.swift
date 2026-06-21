@@ -132,6 +132,10 @@ extension ImageNode: ImagePromise {
             return try resizeTextureIfNeeded(rendered, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
         case .kernel(let input, let descriptor, let filter):
             let inputTexture = try input.makeTexture(profile: profile, derivative: nil)
+            try descriptor.validateCompatibility(
+                with: filter,
+                inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
+            )
             let rendered = try HarbethIO(element: inputTexture, filter: filter)
                 .configured(for: profile)
                 .output()
@@ -226,6 +230,10 @@ extension ImageNode: ImagePromise {
             )
         case .kernel(let input, let descriptor, let filter):
             let texture = try input.makeTexture(profile: profile, derivative: nil)
+            try descriptor.validateCompatibility(
+                with: filter,
+                inputSize: C7Size(width: texture.width, height: texture.height)
+            )
             return GraphCompiler.compile(
                 filters: [filter],
                 inputSize: C7Size(width: texture.width, height: texture.height),

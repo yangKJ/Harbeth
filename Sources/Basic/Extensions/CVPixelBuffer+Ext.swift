@@ -143,6 +143,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                                                   planeIndex,
                                                   &cvmTexture)
         if let cvmTexture = cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) {
+            TextureOwnerRegistry.attach([base, cvmTexture], to: texture)
             return texture
         }
         #endif
@@ -196,6 +197,10 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
         texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
         return true
+    }
+
+    public func canCopyTextureData(from texture: MTLTexture) -> Bool {
+        base.c7.size == texture.c7.toC7Size()
     }
     
     /// Creates new pixel buffer from texture

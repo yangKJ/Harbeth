@@ -492,6 +492,14 @@ public extension KernelDescriptor {
         compatibilitySummary(with: filter, inputSize: inputSize) == "compatible"
     }
 
+    func validateCompatibility(with filter: C7FilterProtocol,
+                               inputSize: C7Size? = nil) throws {
+        let summary = compatibilitySummary(with: filter, inputSize: inputSize)
+        guard summary == "compatible" else {
+            throw HarbethError.kernelInvocationIncompatible(summary)
+        }
+    }
+
     func makeInvocation(filter: C7FilterProtocol,
                         inputSize: C7Size? = nil) -> KernelInvocation {
         KernelInvocation(

@@ -311,6 +311,34 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertFalse(descriptor.matches(incompatibleFilter, inputSize: C7Size(width: 4, height: 4)))
     }
 
+    func testKernelNodeFailsFastWhenDescriptorDoesNotMatchFilterDuringTextureExecution() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [120, 80, 40, 255])
+        let descriptor = C7Brightness(brightness: 0.2).kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+        let incompatibleFilter = C7Contrast(contrast: 1.1)
+        let node = ImageNode.kernel(input: .source(.texture(input)), descriptor: descriptor, filter: incompatibleFilter)
+
+        XCTAssertThrowsError(try node.makeTexture()) { error in
+            guard case .kernelInvocationIncompatible(let summary)? = error.asHarbethError else {
+                return XCTFail("Expected kernelInvocationIncompatible, got \(error)")
+            }
+            XCTAssertEqual(summary, "functionIdentityMismatch")
+        }
+    }
+
+    func testKernelNodeFailsFastWhenDescriptorDoesNotMatchFilterDuringPlanCompilation() throws {
+        let input = try makeTexture(width: 2, height: 2, pixel: [120, 80, 40, 255])
+        let descriptor = C7Brightness(brightness: 0.2).kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
+        let incompatibleFilter = C7Contrast(contrast: 1.1)
+        let node = ImageNode.kernel(input: .source(.texture(input)), descriptor: descriptor, filter: incompatibleFilter)
+
+        XCTAssertThrowsError(try node.makeRenderPlan()) { error in
+            guard case .kernelInvocationIncompatible(let summary)? = error.asHarbethError else {
+                return XCTFail("Expected kernelInvocationIncompatible, got \(error)")
+            }
+            XCTAssertEqual(summary, "functionIdentityMismatch")
+        }
+    }
+
     func testRenderKernelDescriptorExposesRenderPassContract() {
         let basicDescriptor = RenderBasicFilter().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
         let projectiveDescriptor = RenderTransform3D().kernelDescriptor(inputSize: C7Size(width: 2, height: 2))
