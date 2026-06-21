@@ -10,19 +10,19 @@ import Foundation
 /// 对于 2D 纹理，采用归一化之后的纹理坐标, 在 x 轴和 y 轴方向上都是从 0.0 到 1.0
 /// 2D textures, normalized texture coordinates are used, from 0.0 to 1.0 in both x and y directions
 public struct C7Point2D: Codable {
-    
+
     public static let maximum = C7Point2D(x: 1.0, y: 1.0)
     public static let center  = C7Point2D(x: 0.5, y: 0.5)
     public static let zero    = C7Point2D(x: 0.0, y: 0.0)
-    
+
     @ZeroOneRange public var x: Float
     @ZeroOneRange public var y: Float
-    
+
     public init(x: Float, y: Float) {
         self.x = x
         self.y = y
     }
-    
+
     /// Initialize the normalized texture coordinates.
     /// - Parameters:
     ///   - point: Current coordinate point.
@@ -32,18 +32,18 @@ public struct C7Point2D: Codable {
         let y_ = Float(point.y / size.height)
         self.init(x: x_, y: y_)
     }
-    
+
     private enum CodingKeys: String, CodingKey {
         case x
         case y
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.x = try container.decode(Float.self, forKey: .x)
         self.y = try container.decode(Float.self, forKey: .y)
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(x, forKey: .x)
@@ -58,8 +58,37 @@ extension C7Point2D {
 }
 
 extension C7Point2D: Equatable {
-    
+
     public static func == (lhs: C7Point2D, rhs: C7Point2D) -> Bool {
         lhs.x == rhs.x && lhs.y == rhs.y
+    }
+}
+
+/// Unclamped normalized 2D coordinates.
+///
+/// Unlike `C7Point2D`, this type intentionally allows values outside `0...1`
+/// so geometry tools can preserve out-of-bounds corner positions.
+public struct FreePoint2D: Codable, Equatable {
+
+    public static let zero = FreePoint2D(x: 0, y: 0)
+    public static let center = FreePoint2D(x: 0.5, y: 0.5)
+
+    public var x: Float
+    public var y: Float
+
+    public init(x: Float, y: Float) {
+        self.x = x
+        self.y = y
+    }
+
+    public init(point: CGPoint, size: CGSize) {
+        self.init(
+            x: Float(point.x / size.width),
+            y: Float(point.y / size.height)
+        )
+    }
+
+    public func toXY() -> [Float] {
+        [x, y]
     }
 }
