@@ -361,6 +361,57 @@ final class HarbethImageNodeTests: XCTestCase {
         XCTAssertTrue(recipe.fingerprint.contains("blend=8"))
     }
 
+    func testLayerCompositeExecutesLayerLocalTransform() throws {
+        let background = try makeTexture(width: 2, height: 1, pixel: [255, 0, 0, 255])
+        let layer = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                [0, 255, 0, 255],
+                [0, 0, 255, 255]
+            ]
+        )
+        let transformedLayer = ImageLayer(
+            content: .texture(layer),
+            normalizedFrame: CGRect(x: 0, y: 0, width: 1, height: 1),
+            transform: ImageTransformRecipe(
+                mirrorsHorizontally: true
+            )
+        )
+        let recipe = LayerCompositeRecipe(background: .texture(background), layers: [transformedLayer])
+
+        let output = try HarbethImageNode.layerComposite(recipe).makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertLessThan(outputPixel.green, 64)
+        XCTAssertGreaterThan(outputPixel.blue, 180)
+        XCTAssertTrue(recipe.fingerprint.contains("transform=crop=none"))
+        XCTAssertTrue(recipe.fingerprint.contains("mirror=1"))
+    }
+
+    func testLayerCompositeFingerprintTracksLayerTransformAndFilterParameters() throws {
+        let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let identityLayer = ImageLayer(content: .texture(layer))
+        let transformedLayer = ImageLayer(
+            content: .texture(layer),
+            transform: ImageTransformRecipe(rotationDegrees: 90)
+        )
+        let filteredLayer = ImageLayer(
+            content: .texture(layer),
+            filters: [C7Brightness(brightness: 0.2)]
+        )
+
+        let identityRecipe = LayerCompositeRecipe(background: .texture(background), layers: [identityLayer])
+        let transformedRecipe = LayerCompositeRecipe(background: .texture(background), layers: [transformedLayer])
+        let filteredRecipe = LayerCompositeRecipe(background: .texture(background), layers: [filteredLayer])
+
+        XCTAssertNotEqual(identityRecipe.fingerprint, transformedRecipe.fingerprint)
+        XCTAssertNotEqual(identityRecipe.fingerprint, filteredRecipe.fingerprint)
+        XCTAssertTrue(transformedRecipe.fingerprint.contains("rotation=90.000000"))
+        XCTAssertTrue(filteredRecipe.fingerprint.contains("C7Brightness"))
+    }
+
     func testNodeRecipeAndTransitionDiagnosticsKeepOriginalSources() throws {
         let from = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
         let to = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
@@ -390,6 +441,11 @@ final class HarbethImageNodeTests: XCTestCase {
     }
 
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {
+        let bytes = Array(repeating: pixel, count: width * height)
+        return try makeTexture(width: width, height: height, pixels: bytes)
+    }
+
+    private func makeTexture(width: Int, height: Int, pixels: [[UInt8]]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
         }
@@ -403,7 +459,8 @@ final class HarbethImageNodeTests: XCTestCase {
         guard let texture = device.makeTexture(descriptor: descriptor) else {
             throw XCTSkip("Could not create Metal texture.")
         }
-        let bytes = Array(repeating: pixel, count: width * height).flatMap { $0 }
+        let bytes = pixels.flatMap { $0 }
+        XCTAssertEqual(bytes.count, width * height * 4)
         texture.replace(
             region: MTLRegionMake2D(0, 0, width, height),
             mipmapLevel: 0,

@@ -52,7 +52,7 @@ Execution contract checks:
 - Keep image resolution cache hit/miss metrics technical. They explain lazy graph reuse and must not become product retention, asset, or media-session policy.
 - Execution may use `RenderOptimizationPlan` to prewarm or reuse render targets, but optimizer decisions must remain explainable through diagnostics and covered by contract tests.
 - Alpha output contracts may insert native premultiply or unpremultiply filters. Pixel format and color-space contract changes must be explicit and tested before becoming automatic conversions.
-- Layer compositing belongs to single-frame texture composition only. Do not add text engines, sticker libraries, timeline layers, or media orchestration to `LayerCompositeRecipe`.
+- Layer compositing belongs to single-frame texture composition only. Layer-local transforms and filter chains must participate in `ImageLayer` fingerprints because they affect cache identity and replay correctness. Do not add text engines, sticker libraries, timeline layers, or media orchestration to `LayerCompositeRecipe`.
 - Be cautious with `CVPixelBuffer` and `CMSampleBuffer` paths when size, pixel format, or readback behavior changes; those bridges are more constrained than pure texture/image flows.
 
 ## Issue Triage

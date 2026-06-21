@@ -62,7 +62,8 @@ public struct ImageLayer {
             "frame=\(String(format: "%.4f", normalizedFrame.origin.x)),\(String(format: "%.4f", normalizedFrame.origin.y)),\(String(format: "%.4f", normalizedFrame.width)),\(String(format: "%.4f", normalizedFrame.height))",
             "opacity=\(String(format: "%.4f", opacity))",
             "blend=\(blendMode.rawValue)",
-            "filters=\(filters.map(\.identifier).joined(separator: ","))",
+            "transform=\(transform.fingerprint)",
+            "filters=\(filters.isEmpty ? "none" : filters.chainRecipe.fingerprint)",
             "mask=\(mask == nil ? 0 : 1)",
             "compositingMask=\(compositingMask == nil ? 0 : 1)",
             "corner=\(String(format: "%.4f", cornerRadius))"

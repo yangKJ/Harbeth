@@ -69,6 +69,13 @@ public struct ImageCropRegion: Sendable, Codable, Equatable, Hashable {
             height: max(Int(resolved.height.rounded(.toNearestOrAwayFromZero)), 1)
         )
     }
+
+    public var fingerprint: String {
+        [
+            "rect=\(ImageTransformRecipe.stableRectDescription(rect))",
+            "space=\(coordinateSpace.rawValue)"
+        ].joined(separator: "|")
+    }
 }
 
 public struct ImageTransformRecipe {
@@ -99,6 +106,17 @@ public struct ImageTransformRecipe {
         rotationDegrees.truncatingRemainder(dividingBy: 360) == 0 &&
         mirrorsHorizontally == false &&
         flipsVertically == false
+    }
+
+    public var fingerprint: String {
+        [
+            "crop=\(cropRegion?.fingerprint ?? "none")",
+            "target=\(targetSize.map { ImageTransformRecipe.stableSizeDescription($0) } ?? "none")",
+            "aspect=\(aspectPolicy.rawValue)",
+            "rotation=\(ImageTransformRecipe.stableFloatDescription(rotationDegrees.truncatingRemainder(dividingBy: 360)))",
+            "mirror=\(mirrorsHorizontally ? 1 : 0)",
+            "flip=\(flipsVertically ? 1 : 0)"
+        ].joined(separator: "|")
     }
 
     public func makeFilters(inputSize: C7Size, prefersQualityResize: Bool = true) -> [C7FilterProtocol] {
@@ -179,5 +197,25 @@ public struct ImageTransformRecipe {
         } else {
             return C7Resize(width: Float(width), height: Float(height))
         }
+    }
+
+    fileprivate static func stableFloatDescription(_ value: Float) -> String {
+        String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+    }
+
+    fileprivate static func stableRectDescription(_ rect: CGRect) -> String {
+        [
+            stableFloatDescription(Float(rect.origin.x)),
+            stableFloatDescription(Float(rect.origin.y)),
+            stableFloatDescription(Float(rect.width)),
+            stableFloatDescription(Float(rect.height))
+        ].joined(separator: ",")
+    }
+
+    fileprivate static func stableSizeDescription(_ size: CGSize) -> String {
+        [
+            stableFloatDescription(Float(size.width)),
+            stableFloatDescription(Float(size.height))
+        ].joined(separator: "x")
     }
 }

@@ -430,7 +430,7 @@ Harbeth 现在补齐了一批可复用的编辑基础元件，但仍然保持底
 
 - `ImageCropRegion`、`ImageTransformRecipe`、`AspectPolicy`、`CoordinateSpace`
 - `MaskDescriptor`、`MaskBlendMode`、`MaskFeatherPolicy`、`LocalEffectRecipe`
-- `ImageLayer`、`LayerCompositeRecipe`、`LayerBlendMode`，用于带 normalized placement、opacity、mask、corner radius 和常见 blend mode 的单帧 texture 图层合成
+- `ImageLayer`、`LayerCompositeRecipe`、`LayerBlendMode`，用于带 normalized placement、layer-local transform、opacity、mask、corner radius 和常见 blend mode 的单帧 texture 图层合成
 - `TransitionKernel` 以及 dissolve、directional wipe、luma wipe、displacement 四个基础转场
 - 用于预览/最终输出分离的轻量 `EditRecipe`
 

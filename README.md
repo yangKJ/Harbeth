@@ -194,7 +194,7 @@ Harbeth now includes reusable editor-grade primitives without turning the core i
 
 - `ImageCropRegion`, `ImageTransformRecipe`, `AspectPolicy`, `CoordinateSpace`
 - `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`, `LocalEffectRecipe`
-- `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing with normalized placement, opacity, masks, corner radius, and common blend modes
+- `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing with normalized placement, layer-local transform, opacity, masks, corner radius, and common blend modes
 - `TransitionKernel` with built-in dissolve, directional wipe, luma wipe, and displacement transitions
 - `EditRecipe` for lightweight preview/final render contracts
 
