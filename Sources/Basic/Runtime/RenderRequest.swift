@@ -20,6 +20,11 @@ public struct RenderRequest {
 
     private let renderTextureClosure: () throws -> MTLTexture
     private let renderFrameClosure: ([String: String]) throws -> RenderedFrame
+    private let renderAnalysisBundleClosure: ((TextureHistogramChannel, Int, Int, MTLRegion?, TextureHistogramComputationMethod) throws -> RenderedAnalysisBundle)?
+    private let renderAnalysisScopeBundleClosure: ((TextureHistogramChannel, Int, Int, TextureAnalysisScope, TextureHistogramComputationMethod) throws -> RenderedAnalysisBundle)?
+    private let renderAttachmentSetClosure: (() throws -> RenderedAttachmentSet?)?
+    private let renderAttachmentAnalysisBundleClosure: ((Int, Int, MTLRegion?, TextureHistogramComputationMethod) throws -> RenderedAttachmentAnalysisBundle?)?
+    private let renderAttachmentAnalysisScopeBundleClosure: ((Int, Int, TextureAnalysisScope, TextureHistogramComputationMethod) throws -> RenderedAttachmentAnalysisBundle?)?
 
     init(compilationSource: RenderCompilationSource,
          profile: RenderProfile,
@@ -29,7 +34,12 @@ public struct RenderRequest {
          diagnostics: RenderPlanDiagnostics,
          renderRecipe: RenderRecipe?,
          renderTexture: @escaping () throws -> MTLTexture,
-         renderFrame: @escaping ([String: String]) throws -> RenderedFrame) {
+         renderFrame: @escaping ([String: String]) throws -> RenderedFrame,
+         renderAnalysisBundle: ((TextureHistogramChannel, Int, Int, MTLRegion?, TextureHistogramComputationMethod) throws -> RenderedAnalysisBundle)? = nil,
+         renderAnalysisScopeBundle: ((TextureHistogramChannel, Int, Int, TextureAnalysisScope, TextureHistogramComputationMethod) throws -> RenderedAnalysisBundle)? = nil,
+         renderAttachmentSet: (() throws -> RenderedAttachmentSet?)? = nil,
+         renderAttachmentAnalysisBundle: ((Int, Int, MTLRegion?, TextureHistogramComputationMethod) throws -> RenderedAttachmentAnalysisBundle?)? = nil,
+         renderAttachmentAnalysisScopeBundle: ((Int, Int, TextureAnalysisScope, TextureHistogramComputationMethod) throws -> RenderedAttachmentAnalysisBundle?)? = nil) {
         self.compilationSource = compilationSource
         self.profile = profile
         self.derivative = derivative
@@ -39,6 +49,11 @@ public struct RenderRequest {
         self.renderRecipe = renderRecipe
         self.renderTextureClosure = renderTexture
         self.renderFrameClosure = renderFrame
+        self.renderAnalysisBundleClosure = renderAnalysisBundle
+        self.renderAnalysisScopeBundleClosure = renderAnalysisScopeBundle
+        self.renderAttachmentSetClosure = renderAttachmentSet
+        self.renderAttachmentAnalysisBundleClosure = renderAttachmentAnalysisBundle
+        self.renderAttachmentAnalysisScopeBundleClosure = renderAttachmentAnalysisScopeBundle
     }
 
     public func renderTexture() throws -> MTLTexture {
@@ -47,5 +62,54 @@ public struct RenderRequest {
 
     public func renderFrame(metadata: [String: String] = [:]) throws -> RenderedFrame {
         try renderFrameClosure(metadata)
+    }
+
+    public func renderAnalysisBundle(channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     region: MTLRegion? = nil,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle? {
+        try renderAnalysisBundleClosure?(channel, bins, histogramHeight, region, preferredMethod)
+    }
+
+    public func renderAnalysisBundle(channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     scope: TextureAnalysisScope,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle? {
+        try renderAnalysisScopeBundleClosure?(channel, bins, histogramHeight, scope, preferredMethod)
+    }
+
+    public func renderColorProbe(region: MTLRegion? = nil) throws -> TextureColorProbe? {
+        try renderAnalysisBundle(region: region, preferredMethod: .cpuReadback)?.colorProbe
+    }
+
+    public func renderColorProbe(scope: TextureAnalysisScope) throws -> TextureColorProbe? {
+        try renderAnalysisBundle(scope: scope, preferredMethod: .cpuReadback)?.colorProbe
+    }
+
+    public func renderColorProbe(x: Int, y: Int, radius: Int = 0) throws -> TextureColorProbe? {
+        try renderAnalysisBundle(
+            scope: .point(x: x, y: y, radius: radius),
+            preferredMethod: .cpuReadback
+        )?.colorProbe
+    }
+
+    public func renderAttachmentSet() throws -> RenderedAttachmentSet? {
+        try renderAttachmentSetClosure?()
+    }
+
+    public func renderAttachmentAnalysisBundle(bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               region: MTLRegion? = nil,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        try renderAttachmentAnalysisBundleClosure?(bins, histogramHeight, region, preferredMethod)
+    }
+
+    public func renderAttachmentAnalysisBundle(bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               scope: TextureAnalysisScope,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        try renderAttachmentAnalysisScopeBundleClosure?(bins, histogramHeight, scope, preferredMethod)
     }
 }

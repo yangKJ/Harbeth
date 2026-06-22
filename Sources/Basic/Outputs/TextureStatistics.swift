@@ -46,12 +46,16 @@ public extension MTLTextureCompatible_ {
         makeStatistics(
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold
         )
     }
 
     func makeStatistics(region: MTLRegion? = nil,
                         mask: MaskDescriptor? = nil,
+                        luminanceRange: TextureLuminanceRange? = nil,
+                        colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureStatistics? {
         guard let bytes = bytes() else { return nil }
         let width = target.width
@@ -99,6 +103,12 @@ public extension MTLTextureCompatible_ {
                     let blue = Float(rgba[offset + 2]) / 255.0
                     let alpha = Float(rgba[offset + 3]) / 255.0
                     let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                    if let luminanceRange, luminanceRange.contains(luminance) == false {
+                        continue
+                    }
+                    if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
+                        continue
+                    }
 
                     redSum += red
                     greenSum += green
@@ -144,16 +154,22 @@ public extension RenderedAttachment {
         makeStatistics(
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold
         )
     }
 
     func makeStatistics(region: MTLRegion? = nil,
                         mask: MaskDescriptor? = nil,
+                        luminanceRange: TextureLuminanceRange? = nil,
+                        colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureStatistics? {
         texture.c7.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold
         )
     }
@@ -166,6 +182,8 @@ public extension RenderedAttachmentSet {
             for: semantic,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold
         )
     }
@@ -173,10 +191,14 @@ public extension RenderedAttachmentSet {
     func makeStatistics(for semantic: RenderOutputAttachmentSemantic,
                         region: MTLRegion? = nil,
                         mask: MaskDescriptor? = nil,
+                        luminanceRange: TextureLuminanceRange? = nil,
+                        colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureStatistics? {
         attachment(for: semantic)?.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold
         )
     }
@@ -187,16 +209,22 @@ public extension RenderedFrame {
         makeStatistics(
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold
         )
     }
 
     func makeStatistics(region: MTLRegion? = nil,
                         mask: MaskDescriptor? = nil,
+                        luminanceRange: TextureLuminanceRange? = nil,
+                        colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureStatistics? {
         texture.c7.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold
         )
     }

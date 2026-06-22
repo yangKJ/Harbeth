@@ -177,6 +177,9 @@ public struct EditRecipe {
             extraFilters: extraFilters,
             derivative: derivative
         )
+        let attachmentPolicies = try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
+            .applying(filters: extraFilters)
+            .makeAttachmentDebugPolicies(profile: compiled.profile, derivative: compiled.derivative)
         return RenderRequest(
             compilationSource: .editRecipe,
             profile: compiled.profile,
@@ -222,6 +225,101 @@ public struct EditRecipe {
                     metadata: metadata,
                     derivative: compiled.derivative
                 ).renderFrame()
+            },
+            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
+                let frame = try FrameRenderer(
+                    source: compiled.source,
+                    recipe: self,
+                    mode: mode,
+                    filters: extraFilters,
+                    identifier: identifier,
+                    derivative: compiled.derivative
+                ).renderFrame()
+                let histogramAttachment = frame.renderHistogramAttachment(
+                    channel: channel,
+                    bins: bins,
+                    height: histogramHeight,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+                    channel: channel,
+                    bins: bins,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+                let statistics = frame.makeStatistics(region: region)
+                let colorProbe = frame.makeColorProbe(region: region)
+                return RenderedAnalysisBundle(
+                    frame: frame,
+                    histogram: histogram,
+                    statistics: statistics,
+                    colorProbe: colorProbe,
+                    histogramAttachment: histogramAttachment,
+                    analysisScopeFingerprint: TextureAnalysisScope(region: region).fingerprint,
+                    attachmentDebugPolicies: attachmentPolicies
+                )
+            },
+            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
+                let frame = try FrameRenderer(
+                    source: compiled.source,
+                    recipe: self,
+                    mode: mode,
+                    filters: extraFilters,
+                    identifier: identifier,
+                    derivative: compiled.derivative
+                ).renderFrame()
+                let histogramAttachment = frame.renderHistogramAttachment(
+                    channel: channel,
+                    bins: bins,
+                    height: histogramHeight,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
+                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+                    channel: channel,
+                    bins: bins,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
+                let statistics = frame.makeStatistics(scope: scope)
+                let colorProbe = frame.makeColorProbe(scope: scope)
+                return RenderedAnalysisBundle(
+                    frame: frame,
+                    histogram: histogram,
+                    statistics: statistics,
+                    colorProbe: colorProbe,
+                    histogramAttachment: histogramAttachment,
+                    analysisScopeFingerprint: scope.fingerprint,
+                    attachmentDebugPolicies: attachmentPolicies
+                )
+            },
+            renderAttachmentSet: {
+                try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
+                    .applying(filters: extraFilters)
+                    .makeAttachmentSet(profile: compiled.profile)
+            },
+            renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
+                try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
+                    .applying(filters: extraFilters)
+                    .makeAttachmentAnalysisBundle(
+                        profile: compiled.profile,
+                        bins: bins,
+                        histogramHeight: histogramHeight,
+                        region: region,
+                        preferredMethod: preferredMethod
+                    )
+            },
+            renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
+                try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
+                    .applying(filters: extraFilters)
+                    .makeAttachmentAnalysisBundle(
+                        profile: compiled.profile,
+                        bins: bins,
+                        histogramHeight: histogramHeight,
+                        scope: scope,
+                        preferredMethod: preferredMethod
+                    )
             }
         )
     }

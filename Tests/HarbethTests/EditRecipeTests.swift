@@ -491,6 +491,97 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(try compositeRequest.renderFrame(metadata: ["kind": "composite"]).metadata["kind"], "composite")
     }
 
+    func testRecipeRenderRequestBridgesDeferredAttachmentOutputsThroughExtraFilters() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 2, height: 1, pixel: [120, 120, 120, 255])
+        let recipe = EditRecipe(filters: [C7Brightness(brightness: 0.0)])
+        let request = try recipe.makeRenderRequest(
+            source: .texture(input),
+            mode: .preview,
+            extraFilters: [RenderAuxiliaryLuminance()]
+        )
+
+        let attachmentSet = try XCTUnwrap(request.renderAttachmentSet())
+        let bundle = try XCTUnwrap(
+            request.renderAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(bundle.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.channel, .luminance)
+    }
+
+    func testRecipeRenderRequestBridgesDeferredAnalysisBundleAndColorProbe() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 2, height: 1, pixel: [255, 0, 0, 255])
+        let request = try EditRecipe(filters: [C7Brightness(brightness: 0.0)])
+            .makeRenderRequest(source: .texture(input), mode: .preview)
+
+        let bundle = try XCTUnwrap(
+            request.renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let probe = try XCTUnwrap(
+            request.renderColorProbe(x: 0, y: 0)
+        )
+
+        XCTAssertEqual(bundle.statistics?.sampleCount, 2)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 2)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+        XCTAssertEqual(bundle.attachmentDebugPolicies.map(\.label), ["primaryColor"])
+    }
+
+    func testRecipeRenderRequestBridgesDeferredColorRangeAnalysisScope() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 3, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [255, 255, 255, 255]
+        ])
+        let request = try EditRecipe(filters: [C7Brightness(brightness: 0.0)])
+            .makeRenderRequest(source: .texture(input), mode: .preview)
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let bundle = try XCTUnwrap(
+            request.renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let probe = try XCTUnwrap(request.renderColorProbe(scope: scope))
+
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.y, 0)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.z, 0)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+    }
+
     private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
@@ -508,6 +599,27 @@ final class EditRecipeTests: XCTestCase {
         }
         let row = Array(repeating: pixel, count: width).flatMap { $0 }
         let bytes = Array(repeating: row, count: height).flatMap { $0 }
+        texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: bytes, bytesPerRow: width * 4)
+        return texture
+    }
+
+    private func makeTexture(width: Int, height: Int, pixels: [[UInt8]]) throws -> MTLTexture {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable.")
+        }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        guard let texture = device.makeTexture(descriptor: descriptor) else {
+            XCTFail("Failed to create texture.")
+            throw HarbethError.makeTexture
+        }
+        let bytes = pixels.flatMap { $0 }
+        XCTAssertEqual(bytes.count, width * height * 4)
         texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: bytes, bytesPerRow: width * 4)
         return texture
     }

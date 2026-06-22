@@ -254,6 +254,49 @@ extension HarbethIO {
             renderTexture: { try renderTexture(profile: profile, derivative: effectiveDerivative) },
             renderFrame: { metadata in
                 try renderFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+            },
+            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
+                try renderAnalysisBundle(
+                    profile: profile,
+                    derivative: effectiveDerivative,
+                    channel: channel,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+            },
+            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
+                try renderAnalysisBundle(
+                    profile: profile,
+                    derivative: effectiveDerivative,
+                    channel: channel,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
+            },
+            renderAttachmentSet: {
+                try renderAttachmentSet(profile: profile)
+            },
+            renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
+                try renderAttachmentAnalysisBundle(
+                    profile: profile,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+            },
+            renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
+                try renderAttachmentAnalysisBundle(
+                    profile: profile,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
             }
         )
     }
@@ -673,6 +716,7 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      region: MTLRegion? = nil,
                                      mask: MaskDescriptor? = nil,
+                                     luminanceRange: TextureLuminanceRange? = nil,
                                      coverageThreshold: Float = 0.5,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(profile: profile, derivative: derivative)
@@ -682,6 +726,7 @@ extension HarbethIO {
             height: histogramHeight,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -690,22 +735,32 @@ extension HarbethIO {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
         let statistics = frame.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold
+        )
+        let colorProbe = frame.makeColorProbe(
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold
         )
         return RenderedAnalysisBundle(
             frame: frame,
             histogram: histogram,
             statistics: statistics,
+            colorProbe: colorProbe,
             histogramAttachment: histogramAttachment,
             analysisScopeFingerprint: TextureAnalysisScope(
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
                 coverageThreshold: coverageThreshold
             ).fingerprint,
             attachmentDebugPolicies: [RenderOutputAttachmentContract(index: 0).debugPolicy]
@@ -719,16 +774,30 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      scope: TextureAnalysisScope,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderAnalysisBundle(
-            profile: profile,
-            derivative: derivative,
+        let frame = try renderFrame(profile: profile, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
+            height: histogramHeight,
+            scope: scope,
             preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+        let statistics = frame.makeStatistics(scope: scope)
+        let colorProbe = frame.makeColorProbe(scope: scope)
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            statistics: statistics,
+            colorProbe: colorProbe,
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: scope.fingerprint,
+            attachmentDebugPolicies: [RenderOutputAttachmentContract(index: 0).debugPolicy]
         )
     }
 
@@ -781,17 +850,34 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      scope: TextureAnalysisScope,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderAnalysisBundle(
-            recipe: recipe,
-            mode: mode,
-            derivative: derivative,
+        let frame = try renderFrame(recipe: recipe, mode: mode, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
+            height: histogramHeight,
+            scope: scope,
             preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+        let statistics = frame.makeStatistics(scope: scope)
+        let colorProbe = frame.makeColorProbe(scope: scope)
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            statistics: statistics,
+            colorProbe: colorProbe,
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: scope.fingerprint,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(
+                recipe: recipe,
+                mode: mode,
+                derivative: derivative
+            )
         )
     }
 
@@ -803,6 +889,7 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      region: MTLRegion? = nil,
                                      mask: MaskDescriptor? = nil,
+                                     luminanceRange: TextureLuminanceRange? = nil,
                                      coverageThreshold: Float = 0.5,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(recipe: recipe, mode: mode, derivative: derivative)
@@ -812,6 +899,7 @@ extension HarbethIO {
             height: histogramHeight,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -820,22 +908,32 @@ extension HarbethIO {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
         let statistics = frame.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold
+        )
+        let colorProbe = frame.makeColorProbe(
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold
         )
         return RenderedAnalysisBundle(
             frame: frame,
             histogram: histogram,
             statistics: statistics,
+            colorProbe: colorProbe,
             histogramAttachment: histogramAttachment,
             analysisScopeFingerprint: TextureAnalysisScope(
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
                 coverageThreshold: coverageThreshold
             ).fingerprint,
             attachmentDebugPolicies: try renderAttachmentDebugPolicies(
@@ -853,6 +951,7 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      region: MTLRegion? = nil,
                                      mask: MaskDescriptor? = nil,
+                                     luminanceRange: TextureLuminanceRange? = nil,
                                      coverageThreshold: Float = 0.5,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(composite: recipe, derivative: derivative)
@@ -862,6 +961,7 @@ extension HarbethIO {
             height: histogramHeight,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -870,22 +970,32 @@ extension HarbethIO {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
         let statistics = frame.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold
+        )
+        let colorProbe = frame.makeColorProbe(
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold
         )
         return RenderedAnalysisBundle(
             frame: frame,
             histogram: histogram,
             statistics: statistics,
+            colorProbe: colorProbe,
             histogramAttachment: histogramAttachment,
             analysisScopeFingerprint: TextureAnalysisScope(
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
                 coverageThreshold: coverageThreshold
             ).fingerprint,
             attachmentDebugPolicies: try renderAttachmentDebugPolicies(composite: recipe, derivative: derivative)
@@ -899,16 +1009,30 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      scope: TextureAnalysisScope,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderAnalysisBundle(
-            composite: recipe,
-            derivative: derivative,
+        let frame = try renderFrame(composite: recipe, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
+            height: histogramHeight,
+            scope: scope,
             preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+        let statistics = frame.makeStatistics(scope: scope)
+        let colorProbe = frame.makeColorProbe(scope: scope)
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            statistics: statistics,
+            colorProbe: colorProbe,
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: scope.fingerprint,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(composite: recipe, derivative: derivative)
         )
     }
 
@@ -941,17 +1065,34 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      scope: TextureAnalysisScope,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderAnalysisBundle(
-            node: node,
-            profile: profile,
-            derivative: derivative,
+        let frame = try renderFrame(node: node, profile: profile, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
+            height: histogramHeight,
+            scope: scope,
             preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+        let statistics = frame.makeStatistics(scope: scope)
+        let colorProbe = frame.makeColorProbe(scope: scope)
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            statistics: statistics,
+            colorProbe: colorProbe,
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: scope.fingerprint,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(
+                node: node,
+                profile: profile,
+                derivative: derivative
+            )
         )
     }
 
@@ -963,6 +1104,7 @@ extension HarbethIO {
                                      histogramHeight: Int = 64,
                                      region: MTLRegion? = nil,
                                      mask: MaskDescriptor? = nil,
+                                     luminanceRange: TextureLuminanceRange? = nil,
                                      coverageThreshold: Float = 0.5,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderFrame(node: node, profile: profile, derivative: derivative)
@@ -972,6 +1114,7 @@ extension HarbethIO {
             height: histogramHeight,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -980,22 +1123,32 @@ extension HarbethIO {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
         let statistics = frame.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold
+        )
+        let colorProbe = frame.makeColorProbe(
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold
         )
         return RenderedAnalysisBundle(
             frame: frame,
             histogram: histogram,
             statistics: statistics,
+            colorProbe: colorProbe,
             histogramAttachment: histogramAttachment,
             analysisScopeFingerprint: TextureAnalysisScope(
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
                 coverageThreshold: coverageThreshold
             ).fingerprint,
             attachmentDebugPolicies: try renderAttachmentDebugPolicies(
@@ -1036,15 +1189,30 @@ extension HarbethIO {
                                                histogramHeight: Int = 64,
                                                scope: TextureAnalysisScope,
                                                preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
-        try renderTransitionAnalysisBundle(
-            recipe,
+        let frame = try renderTransitionFrame(recipe)
+        let histogramAttachment = frame.renderHistogramAttachment(
             channel: channel,
             bins: bins,
-            histogramHeight: histogramHeight,
-            region: scope.region,
-            mask: scope.mask,
-            coverageThreshold: scope.coverageThreshold,
+            height: histogramHeight,
+            scope: scope,
             preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+        let statistics = frame.makeStatistics(scope: scope)
+        let colorProbe = frame.makeColorProbe(scope: scope)
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            statistics: statistics,
+            colorProbe: colorProbe,
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: scope.fingerprint,
+            attachmentDebugPolicies: try renderAttachmentDebugPolicies(transition: recipe)
         )
     }
 
@@ -1054,6 +1222,7 @@ extension HarbethIO {
                                                histogramHeight: Int = 64,
                                                region: MTLRegion? = nil,
                                                mask: MaskDescriptor? = nil,
+                                               luminanceRange: TextureLuminanceRange? = nil,
                                                coverageThreshold: Float = 0.5,
                                                preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
         let frame = try renderTransitionFrame(recipe)
@@ -1063,6 +1232,7 @@ extension HarbethIO {
             height: histogramHeight,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -1071,22 +1241,32 @@ extension HarbethIO {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
         let statistics = frame.makeStatistics(
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold
+        )
+        let colorProbe = frame.makeColorProbe(
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
             coverageThreshold: coverageThreshold
         )
         return RenderedAnalysisBundle(
             frame: frame,
             histogram: histogram,
             statistics: statistics,
+            colorProbe: colorProbe,
             histogramAttachment: histogramAttachment,
             analysisScopeFingerprint: TextureAnalysisScope(
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
                 coverageThreshold: coverageThreshold
             ).fingerprint,
             attachmentDebugPolicies: try renderAttachmentDebugPolicies(transition: recipe)
@@ -1158,6 +1338,67 @@ extension HarbethIO {
             region: region,
             mask: mask,
             coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               scope: TextureAnalysisScope,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        guard let finalFilter = filters.last as? any RenderProtocol else {
+            return nil
+        }
+        let source = try makeImageSource()
+        let inputTexture: MTLTexture
+        if filters.count > 1 {
+            let preFilters = Array(filters.dropLast())
+            inputTexture = try HarbethIO<MTLTexture>(
+                element: try source.makeTexture(),
+                filters: preFilters
+            )
+            .configured(for: profile)
+            .output()
+        } else {
+            inputTexture = try source.makeTexture()
+        }
+        return try finalFilter.renderAttachmentAnalysisBundle(
+            from: inputTexture,
+            identifier: "\(identifier).attachmentAnalysis",
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAttachmentAnalysisBundle(node: ImageNode,
+                                               profile: RenderProfile = .readbackQuality,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               region: MTLRegion? = nil,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        try node.makeAttachmentAnalysisBundle(
+            profile: profile,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: region,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAttachmentAnalysisBundle(node: ImageNode,
+                                               profile: RenderProfile = .readbackQuality,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               scope: TextureAnalysisScope,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        try node.makeAttachmentAnalysisBundle(
+            profile: profile,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
             preferredMethod: preferredMethod
         )
     }

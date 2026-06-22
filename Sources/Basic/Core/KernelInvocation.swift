@@ -13,9 +13,7 @@ public struct KernelInvocation {
     public let compatibilitySummary: String
     public let executionPlan: KernelExecutionPlan
 
-    public init(descriptor: KernelDescriptor,
-                executableFilter: C7FilterProtocol,
-                inputSize: C7Size? = nil) {
+    public init(descriptor: KernelDescriptor, executableFilter: C7FilterProtocol, inputSize: C7Size? = nil) {
         self.descriptor = descriptor
         self.executableFilter = executableFilter
         let compatibilitySummary = descriptor.compatibilitySummary(

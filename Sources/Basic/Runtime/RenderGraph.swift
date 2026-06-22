@@ -776,9 +776,6 @@ private extension RenderPlan {
             ?? resolveAttachmentColorSpace(from: auxiliaryDescriptor) {
             return colorSpace
         }
-        if sourceRequiresYCbCrConversion(descriptor) || sourceRequiresYCbCrConversion(auxiliaryDescriptor) {
-            return ImageColorSpaceContract(name: "YCbCr", preservesInput: true, gamut: .custom, transferFunction: .custom)
-        }
         return .preserveInput
     }
 
@@ -1297,6 +1294,14 @@ public enum GraphCompiler {
                 breaksFusion: resizes || kind == .combination
             )
         }
+        let resolvedOutputContract: RenderOutputContract
+        if outputContract == .preserveInput,
+           let lastFilter = filters.last,
+           case .render = lastFilter.modifier {
+            resolvedOutputContract = lastFilter.kernelDescriptor(inputSize: currentSize).outputContract
+        } else {
+            resolvedOutputContract = outputContract
+        }
         let resolvedDerivative = derivative ?? profile.defaultDerivativeSpec
         let derivativeOutputSize = resolvedDerivative.resolvedOutputSize(for: currentSize)
         let finalNodes: [RenderNode]
@@ -1335,7 +1340,7 @@ public enum GraphCompiler {
             outputSize: currentSize,
             nodeDiagnostics: nodeDiagnostics,
             compilationSource: compilationSource,
-            outputContract: outputContract,
+            outputContract: resolvedOutputContract,
             imageCachePolicy: imageCachePolicy,
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: sourceDescriptor,

@@ -719,6 +719,158 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(frame.profile, .stablePreview)
     }
 
+    func testNodeRenderRequestBridgesDeferredAttachmentOutputs() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let request = try node.makeRenderRequest(profile: .readbackQuality)
+        let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
+
+        let attachmentSet = try XCTUnwrap(request.renderAttachmentSet())
+        let bundle = try XCTUnwrap(
+            request.renderAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(bundle.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+    }
+
+    func testNodeRenderRequestKeepsAttachmentOutputsOptionalForNonRenderPath() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
+        let node = ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+
+        let request = try node.makeRenderRequest(profile: .stablePreview)
+
+        XCTAssertNil(try request.renderAttachmentSet())
+        XCTAssertNil(
+            try request.renderAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                preferredMethod: .gpuMPS
+            )
+        )
+    }
+
+    func testNodeRenderRequestBridgesDeferredAnalysisBundleAndColorProbe() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let request = try ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.0))
+            .makeRenderRequest(profile: .readbackQuality)
+        let scope = TextureAnalysisScope.region(MTLRegionMake2D(1, 0, 1, 1))
+
+        let bundle = try XCTUnwrap(
+            request.renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let probe = try XCTUnwrap(
+            request.renderColorProbe(scope: scope)
+        )
+
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+    }
+
+    func testNodeRenderRequestBridgesDeferredColorRangeAnalysisScope() throws {
+        let input = try makeTexture(width: 3, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [255, 255, 255, 255]
+        ])
+        let request = try ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.0))
+            .makeRenderRequest(profile: .readbackQuality)
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let bundle = try XCTUnwrap(
+            request.renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let probe = try XCTUnwrap(request.renderColorProbe(scope: scope))
+
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.y, 0)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.z, 0)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+    }
+
+    func testNodeRenderRequestBridgesDeferredAttachmentColorRangeAnalysisScope() throws {
+        let input = try makeTexture(width: 3, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [255, 255, 255, 255]
+        ])
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let request = try node.makeRenderRequest(profile: .readbackQuality)
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let bundle = try XCTUnwrap(
+            request.renderAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+        XCTAssertEqual(bundle.analysis(for: .primaryColor)?.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.analysis(for: .primaryColor)?.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.analysis(for: .primaryColor)?.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.analysis(for: .primaryColor)?.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(bundle.analysis(for: .primaryColor)?.colorProbe?.meanColor8.y, 0)
+        XCTAssertEqual(bundle.analysis(for: .primaryColor)?.colorProbe?.meanColor8.z, 0)
+    }
+
     func testLayerCompositeRenderRecipeExposesLayerMaskGraphDescriptors() throws {
         let background = try makeTexture(width: 2, height: 2, pixel: [255, 255, 255, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])

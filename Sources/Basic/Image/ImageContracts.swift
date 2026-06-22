@@ -65,6 +65,50 @@ public enum ImageAlphaContract: Sendable, Codable, Equatable, Hashable {
             return nil
         }
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        switch rawValue {
+        case "opaque":
+            self = .opaque
+        case "premultiplied":
+            self = .premultiplied
+        case "nonPremultiplied":
+            self = .nonPremultiplied
+        case "preserveInput":
+            self = .preserveInput
+        case "forcePremultiply":
+            self = .forcePremultiply
+        case "forceUnpremultiply":
+            self = .forceUnpremultiply
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown ImageAlphaContract value: \(rawValue)"
+            )
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        let rawValue: String
+        switch self {
+        case .opaque:
+            rawValue = "opaque"
+        case .premultiplied:
+            rawValue = "premultiplied"
+        case .nonPremultiplied:
+            rawValue = "nonPremultiplied"
+        case .preserveInput:
+            rawValue = "preserveInput"
+        case .forcePremultiply:
+            rawValue = "forcePremultiply"
+        case .forceUnpremultiply:
+            rawValue = "forceUnpremultiply"
+        }
+        try container.encode(rawValue)
+    }
 }
 
 public enum ImageColorGamut: String, Sendable, Codable, Equatable, Hashable {
@@ -667,6 +711,40 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
             colorSpace.fingerprint,
             pixelFormat.fingerprint
         ].joined(separator: "|")
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case index
+        case semantic
+        case alpha
+        case colorSpace
+        case pixelFormat
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let index = try container.decode(Int.self, forKey: .index)
+        let semantic = try container.decodeIfPresent(RenderOutputAttachmentSemantic.self, forKey: .semantic)
+            ?? (index == 0 ? .primaryColor : .auxiliaryColor)
+        let alpha = try container.decodeIfPresent(ImageAlphaContract.self, forKey: .alpha) ?? .preserveInput
+        let colorSpace = try container.decodeIfPresent(ImageColorSpaceContract.self, forKey: .colorSpace) ?? .preserveInput
+        let pixelFormat = try container.decodeIfPresent(PixelFormatContract.self, forKey: .pixelFormat) ?? .preserveInput
+        self.init(
+            index: index,
+            semantic: semantic,
+            alpha: alpha,
+            colorSpace: colorSpace,
+            pixelFormat: pixelFormat
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(index, forKey: .index)
+        try container.encode(semantic, forKey: .semantic)
+        try container.encode(alpha, forKey: .alpha)
+        try container.encode(colorSpace, forKey: .colorSpace)
+        try container.encode(pixelFormat, forKey: .pixelFormat)
     }
 
     public static func auxiliaryColor(index: Int,

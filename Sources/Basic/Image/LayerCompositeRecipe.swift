@@ -362,6 +362,7 @@ public struct LayerCompositeRecipe {
         let node = makeNode()
         let diagnostics = try node.makeDiagnostics(profile: profile, derivative: effectiveDerivative)
         let recipeDescriptor = try makeRenderRecipe(derivative: effectiveDerivative)
+        let attachmentPolicies = try node.makeAttachmentDebugPolicies(profile: profile, derivative: effectiveDerivative)
         return RenderRequest(
             compilationSource: .layerComposite,
             profile: profile,
@@ -373,6 +374,81 @@ public struct LayerCompositeRecipe {
             renderTexture: { try makeTexture(derivative: effectiveDerivative) },
             renderFrame: { metadata in
                 try node.makeFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+            },
+            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
+                let frame = try node.makeFrame(profile: profile, derivative: effectiveDerivative)
+                let histogramAttachment = frame.renderHistogramAttachment(
+                    channel: channel,
+                    bins: bins,
+                    height: histogramHeight,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+                    channel: channel,
+                    bins: bins,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+                let statistics = frame.makeStatistics(region: region)
+                let colorProbe = frame.makeColorProbe(region: region)
+                return RenderedAnalysisBundle(
+                    frame: frame,
+                    histogram: histogram,
+                    statistics: statistics,
+                    colorProbe: colorProbe,
+                    histogramAttachment: histogramAttachment,
+                    analysisScopeFingerprint: TextureAnalysisScope(region: region).fingerprint,
+                    attachmentDebugPolicies: attachmentPolicies
+                )
+            },
+            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
+                let frame = try node.makeFrame(profile: profile, derivative: effectiveDerivative)
+                let histogramAttachment = frame.renderHistogramAttachment(
+                    channel: channel,
+                    bins: bins,
+                    height: histogramHeight,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
+                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+                    channel: channel,
+                    bins: bins,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
+                let statistics = frame.makeStatistics(scope: scope)
+                let colorProbe = frame.makeColorProbe(scope: scope)
+                return RenderedAnalysisBundle(
+                    frame: frame,
+                    histogram: histogram,
+                    statistics: statistics,
+                    colorProbe: colorProbe,
+                    histogramAttachment: histogramAttachment,
+                    analysisScopeFingerprint: scope.fingerprint,
+                    attachmentDebugPolicies: attachmentPolicies
+                )
+            },
+            renderAttachmentSet: {
+                try node.makeAttachmentSet(profile: profile)
+            },
+            renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
+                try node.makeAttachmentAnalysisBundle(
+                    profile: profile,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+            },
+            renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
+                try node.makeAttachmentAnalysisBundle(
+                    profile: profile,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
             }
         )
     }

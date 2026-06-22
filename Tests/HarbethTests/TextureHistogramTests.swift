@@ -211,6 +211,100 @@ final class TextureHistogramTests: XCTestCase {
         XCTAssertEqual(statistics.meanRed, 1, accuracy: 0.0001)
     }
 
+    func testTextureAnalysisScopePointBuildsNeighborhoodRegion() {
+        let scope = TextureAnalysisScope.point(x: 4, y: 3, radius: 1)
+
+        XCTAssertEqual(scope.region?.origin.x, 3)
+        XCTAssertEqual(scope.region?.origin.y, 2)
+        XCTAssertEqual(scope.region?.size.width, 3)
+        XCTAssertEqual(scope.region?.size.height, 3)
+    }
+
+    func testRGBA8TextureColorProbeCanSamplePointNeighborhood() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+
+        let probe = try XCTUnwrap(
+            texture.c7.makeColorProbe(x: 1, y: 0, radius: 1)
+        )
+
+        XCTAssertEqual(probe.region.origin.x, 0)
+        XCTAssertEqual(probe.region.size.width, 3)
+        XCTAssertEqual(probe.sampleCount, 3)
+        XCTAssertEqual(probe.meanColor8.x, 170)
+        XCTAssertEqual(probe.meanColor8.y, 85)
+        XCTAssertEqual(probe.meanColor8.z, 85)
+    }
+
+    func testHarbethIOAnalysisBundleCarriesColorProbe() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 2,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ]
+        )
+
+        let bundle = try HarbethIO(element: texture, filters: [])
+            .renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                preferredMethod: .cpuReadback
+        )
+
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 2)
+        XCTAssertEqual(Double(try XCTUnwrap(bundle.colorProbe).meanLuminance), 0.1063, accuracy: 0.0001)
+        XCTAssertEqual(bundle.colorProbe?.region.size.width, 2)
+    }
+
+    func testHarbethIOAnalysisBundleCanRestrictToLuminanceRangeScope() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+        let scope = TextureAnalysisScope(
+            luminanceRange: TextureLuminanceRange(minimum: 0.15, maximum: 0.25)
+        )
+
+        let bundle = try HarbethIO(element: texture, filters: [])
+            .renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+    }
+
     func testTextureAnalysisScopeFingerprintTracksRegionMaskAndThreshold() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -240,6 +334,221 @@ final class TextureHistogramTests: XCTestCase {
         XCTAssertEqual(base, same)
         XCTAssertEqual(base.fingerprint, same.fingerprint)
         XCTAssertNotEqual(base.fingerprint, changedThreshold.fingerprint)
+    }
+
+    func testTextureAnalysisScopeFingerprintTracksLuminanceRange() {
+        let base = TextureAnalysisScope(
+            luminanceRange: TextureLuminanceRange(minimum: 0.2, maximum: 0.4)
+        )
+        let same = TextureAnalysisScope(
+            luminanceRange: TextureLuminanceRange(minimum: 0.2, maximum: 0.4)
+        )
+        let changed = TextureAnalysisScope(
+            luminanceRange: TextureLuminanceRange(minimum: 0.4, maximum: 0.8)
+        )
+
+        XCTAssertEqual(base, same)
+        XCTAssertNotEqual(base.fingerprint, changed.fingerprint)
+        XCTAssertTrue(base.fingerprint.contains("luminance=min=0.2000|max=0.4000"))
+    }
+
+    func testTextureAnalysisScopeToneBandMapsToExpectedLuminanceRange() throws {
+        let highlights = try XCTUnwrap(TextureAnalysisScope.toneBand(.highlights).luminanceRange)
+        let midtones = try XCTUnwrap(TextureAnalysisScope.toneBand(.midtones).luminanceRange)
+
+        XCTAssertEqual(highlights.minimum, 0.66, accuracy: 0.0001)
+        XCTAssertEqual(highlights.maximum, 1.0, accuracy: 0.0001)
+        XCTAssertEqual(midtones.minimum, 0.2, accuracy: 0.0001)
+        XCTAssertEqual(midtones.maximum, 0.8, accuracy: 0.0001)
+    }
+
+    func testTextureAnalysisScopeFingerprintTracksColorRange() {
+        let base = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+        let same = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+        let changed = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.25, maximum: 0.45),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        XCTAssertEqual(base, same)
+        XCTAssertNotEqual(base.fingerprint, changed.fingerprint)
+        XCTAssertTrue(base.fingerprint.contains("color=hue=min=0.9500|max=0.0500|wrap=1"))
+    }
+
+    func testRGBA8TextureHistogramCanRestrictToLuminanceRange() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+        let scope = TextureAnalysisScope(
+            luminanceRange: TextureLuminanceRange(minimum: 0.15, maximum: 0.25)
+        )
+
+        let histogram = try XCTUnwrap(
+            texture.c7.makeHistogram(
+                channel: .red,
+                bins: 4,
+                scope: scope
+            )
+        )
+
+        XCTAssertEqual(histogram.totalSampleCount, 1)
+        XCTAssertEqual(histogram.bins, [0, 0, 0, 1])
+    }
+
+    func testRGBA8TextureStatisticsCanRestrictToLuminanceRange() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+        let scope = TextureAnalysisScope(
+            luminanceRange: TextureLuminanceRange(minimum: 0.15, maximum: 0.25)
+        )
+
+        let statistics = try XCTUnwrap(texture.c7.makeStatistics(scope: scope))
+        let probe = try XCTUnwrap(texture.c7.makeColorProbe(scope: scope))
+
+        XCTAssertEqual(statistics.sampleCount, 1)
+        XCTAssertEqual(statistics.meanRed, 1, accuracy: 0.0001)
+        XCTAssertEqual(Double(probe.meanLuminance), 0.2126, accuracy: 0.0001)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+        XCTAssertEqual(probe.meanColor8.y, 0)
+    }
+
+    func testRGBA8TextureHistogramCanRestrictToColorRange() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                255, 0, 0, 255,
+                0, 255, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let histogram = try XCTUnwrap(
+            texture.c7.makeHistogram(
+                channel: .red,
+                bins: 4,
+                scope: scope
+            )
+        )
+        let statistics = try XCTUnwrap(texture.c7.makeStatistics(scope: scope))
+        let probe = try XCTUnwrap(texture.c7.makeColorProbe(scope: scope))
+
+        XCTAssertEqual(histogram.totalSampleCount, 1)
+        XCTAssertEqual(histogram.bins, [0, 0, 0, 1])
+        XCTAssertEqual(statistics.sampleCount, 1)
+        XCTAssertEqual(probe.sampleCount, 1)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+        XCTAssertEqual(probe.meanColor8.y, 0)
+        XCTAssertEqual(probe.meanColor8.z, 0)
+    }
+
+    func testHarbethIOAnalysisBundleCanRestrictToToneBandScope() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+
+        let bundle = try HarbethIO(element: texture, filters: [])
+            .renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: .toneBand(.highlights),
+                preferredMethod: .cpuReadback
+            )
+
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.y, 255)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.z, 255)
+    }
+
+    func testHarbethIOAnalysisBundleCanRestrictToColorRangeScope() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                255, 0, 0, 255,
+                0, 255, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let bundle = try HarbethIO(element: texture, filters: [])
+            .renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.y, 0)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.z, 0)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
     }
 
     func testTextureCanRenderGPUHistogramAttachment() throws {
@@ -602,8 +911,112 @@ final class TextureHistogramTests: XCTestCase {
 
         XCTAssertEqual(bundle.primary?.histogram?.totalSampleCount, 1)
         XCTAssertEqual(bundle.primary?.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.primary?.colorProbe?.sampleCount, 1)
         XCTAssertEqual(Double(try XCTUnwrap(bundle.analysis(for: .analysis)?.statistics).meanLuminance), 0, accuracy: 0.0001)
+        XCTAssertEqual(bundle.analysis(for: .analysis)?.colorProbe?.meanColor8.x, 0)
         XCTAssertEqual(bundle.analysisScopeFingerprint, TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red)).fingerprint)
+    }
+
+    func testRenderedAttachmentAnalysisBundleSummaryCarriesStableAnalysisMetadata() throws {
+        let primary = try makeTexture(
+            width: 2,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 0, 0, 255
+            ]
+        )
+        let analysis = try makeTexture(
+            width: 2,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                255, 255, 255, 255
+            ]
+        )
+        let contract = RenderOutputContract(
+            alpha: .premultiplied,
+            colorSpace: .sRGB,
+            pixelFormat: .rgba8Unorm,
+            additionalAttachments: [.analysis(index: 1, pixelFormat: .rgba8Unorm)]
+        )
+        let output = RenderedAttachmentSet(
+            outputContract: contract,
+            attachments: [
+                RenderedAttachment(
+                    index: 0,
+                    semantic: .primaryColor,
+                    texture: primary,
+                    debugPolicy: contract.attachments[0].debugPolicy
+                ),
+                RenderedAttachment(
+                    index: 1,
+                    semantic: .analysis,
+                    texture: analysis,
+                    debugPolicy: contract.attachments[1].debugPolicy
+                )
+            ]
+        )
+
+        let bundle = output.makeAnalysisBundle(bins: 4, histogramHeight: 16, preferredMethod: .gpuMPS)
+        let summary = bundle.summary
+
+        XCTAssertEqual(summary.attachmentLabels, ["primaryColor", "analysis"])
+        XCTAssertEqual(summary.analyses.count, 2)
+        XCTAssertEqual(summary.analyses.first?.semantic, .primaryColor)
+        XCTAssertEqual(summary.analyses.first?.histogramChannel, .luminance)
+        XCTAssertEqual(summary.analyses.first?.histogramTotalSampleCount, 2)
+        XCTAssertTrue(summary.fingerprint.contains("labels=primaryColor,analysis"))
+    }
+
+    func testRenderedAttachmentAnalysisBundleJSONUsesSummarySurface() throws {
+        let primary = try makeTexture(
+            width: 1,
+            height: 1,
+            bytes: [255, 255, 255, 255]
+        )
+        let analysis = try makeTexture(
+            width: 1,
+            height: 1,
+            bytes: [255, 255, 255, 255]
+        )
+        let contract = RenderOutputContract(
+            alpha: .premultiplied,
+            colorSpace: .sRGB,
+            pixelFormat: .rgba8Unorm,
+            additionalAttachments: [.analysis(index: 1, pixelFormat: .rgba8Unorm)]
+        )
+        let output = RenderedAttachmentSet(
+            outputContract: contract,
+            attachments: [
+                RenderedAttachment(
+                    index: 0,
+                    semantic: .primaryColor,
+                    texture: primary,
+                    debugPolicy: contract.attachments[0].debugPolicy
+                ),
+                RenderedAttachment(
+                    index: 1,
+                    semantic: .analysis,
+                    texture: analysis,
+                    debugPolicy: contract.attachments[1].debugPolicy
+                )
+            ]
+        )
+
+        let bundle = output.makeAnalysisBundle(
+            bins: 4,
+            histogramHeight: 16,
+            scope: TextureAnalysisScope.region(MTLRegionMake2D(0, 0, 1, 1)),
+            preferredMethod: .gpuMPS
+        )
+
+        let string = try bundle.jsonString(prettyPrinted: true, sortedKeys: true)
+
+        XCTAssertTrue(string.contains("\"attachmentLabels\""))
+        XCTAssertTrue(string.contains("\"analysisScopeFingerprint\""))
+        XCTAssertTrue(string.contains("\"primaryColor\""))
+        XCTAssertTrue(string.contains("\"analysis\""))
     }
 
     private func makeTexture(width: Int,

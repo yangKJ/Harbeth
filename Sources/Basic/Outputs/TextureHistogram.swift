@@ -130,6 +130,8 @@ public extension MTLTextureCompatible_ {
             bins: bins,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -139,14 +141,18 @@ public extension MTLTextureCompatible_ {
                        bins: Int = 256,
                        region: MTLRegion? = nil,
                        mask: MaskDescriptor? = nil,
+                       luminanceRange: TextureLuminanceRange? = nil,
+                       colorRange: TextureColorRange? = nil,
                        coverageThreshold: Float = 0.5,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
-        if mask != nil {
+        if mask != nil || luminanceRange != nil || colorRange != nil {
             return makeCPUHistogram(
                 channel: channel,
                 bins: bins,
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
                 coverageThreshold: coverageThreshold
             )
         }
@@ -157,6 +163,8 @@ public extension MTLTextureCompatible_ {
                 bins: bins,
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
                 coverageThreshold: coverageThreshold
             )
         case .gpuMPS:
@@ -166,6 +174,8 @@ public extension MTLTextureCompatible_ {
                     bins: bins,
                     region: region,
                     mask: mask,
+                    luminanceRange: luminanceRange,
+                    colorRange: colorRange,
                     coverageThreshold: coverageThreshold
                 )
         }
@@ -182,9 +192,11 @@ public extension MTLTextureCompatible_ {
                                    height: Int = 64,
                                    region: MTLRegion? = nil,
                                    mask: MaskDescriptor? = nil,
+                                   luminanceRange: TextureLuminanceRange? = nil,
+                                   colorRange: TextureColorRange? = nil,
                                    coverageThreshold: Float = 0.5,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
-        if mask == nil {
+        if mask == nil && luminanceRange == nil && colorRange == nil {
             switch preferredMethod {
             case .gpuMPS:
                 if let output = GPUHistogramSupport.makeRenderedHistogramAttachment(
@@ -205,6 +217,8 @@ public extension MTLTextureCompatible_ {
                 bins: bins,
                 region: region,
                 mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
                 coverageThreshold: coverageThreshold
               ),
               let previewTexture = makePreviewTexture(from: histogram, height: height) else {
@@ -232,6 +246,8 @@ public extension MTLTextureCompatible_ {
             height: height,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -241,6 +257,8 @@ public extension MTLTextureCompatible_ {
                                   bins: Int,
                                   region: MTLRegion?,
                                   mask: MaskDescriptor?,
+                                  luminanceRange: TextureLuminanceRange?,
+                                  colorRange: TextureColorRange?,
                                   coverageThreshold: Float) -> TextureHistogram? {
         let clampedBins = max(1, bins)
         guard let bytes = bytes() else { return nil }
@@ -274,11 +292,18 @@ public extension MTLTextureCompatible_ {
                     let green = Float(rgba[offset + 1]) / 255.0
                     let blue = Float(rgba[offset + 2]) / 255.0
                     let alpha = Float(rgba[offset + 3]) / 255.0
+                    let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                    if let luminanceRange, luminanceRange.contains(luminance) == false {
+                        continue
+                    }
+                    if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
+                        continue
+                    }
 
                     let value: Float
                     switch channel {
                     case .luminance:
-                        value = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                        value = luminance
                     case .red:
                         value = red
                     case .green:
@@ -422,6 +447,8 @@ public extension RenderedAttachment {
             bins: bins,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -431,6 +458,8 @@ public extension RenderedAttachment {
                        bins: Int = 256,
                        region: MTLRegion? = nil,
                        mask: MaskDescriptor? = nil,
+                       luminanceRange: TextureLuminanceRange? = nil,
+                       colorRange: TextureColorRange? = nil,
                        coverageThreshold: Float = 0.5,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         texture.c7.makeHistogram(
@@ -438,6 +467,8 @@ public extension RenderedAttachment {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -469,6 +500,8 @@ public extension RenderedAttachmentSet {
             bins: bins,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -479,6 +512,8 @@ public extension RenderedAttachmentSet {
                        bins: Int = 256,
                        region: MTLRegion? = nil,
                        mask: MaskDescriptor? = nil,
+                       luminanceRange: TextureLuminanceRange? = nil,
+                       colorRange: TextureColorRange? = nil,
                        coverageThreshold: Float = 0.5,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         attachment(for: semantic)?.makeHistogram(
@@ -486,6 +521,8 @@ public extension RenderedAttachmentSet {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -497,6 +534,8 @@ public extension RenderedAttachmentSet {
                                    height: Int = 64,
                                    region: MTLRegion? = nil,
                                    mask: MaskDescriptor? = nil,
+                                   luminanceRange: TextureLuminanceRange? = nil,
+                                   colorRange: TextureColorRange? = nil,
                                    coverageThreshold: Float = 0.5,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         guard let attachment = attachment(for: semantic) else { return nil }
@@ -506,6 +545,8 @@ public extension RenderedAttachmentSet {
             height: height,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -524,6 +565,8 @@ public extension RenderedAttachmentSet {
             height: height,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -540,6 +583,8 @@ public extension RenderedFrame {
             bins: bins,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -549,6 +594,8 @@ public extension RenderedFrame {
                        bins: Int = 256,
                        region: MTLRegion? = nil,
                        mask: MaskDescriptor? = nil,
+                       luminanceRange: TextureLuminanceRange? = nil,
+                       colorRange: TextureColorRange? = nil,
                        coverageThreshold: Float = 0.5,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
         texture.c7.makeHistogram(
@@ -556,6 +603,8 @@ public extension RenderedFrame {
             bins: bins,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -566,6 +615,8 @@ public extension RenderedFrame {
                                    height: Int = 64,
                                    region: MTLRegion? = nil,
                                    mask: MaskDescriptor? = nil,
+                                   luminanceRange: TextureLuminanceRange? = nil,
+                                   colorRange: TextureColorRange? = nil,
                                    coverageThreshold: Float = 0.5,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         texture.c7.renderHistogramAttachment(
@@ -574,6 +625,8 @@ public extension RenderedFrame {
             height: height,
             region: region,
             mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
             coverageThreshold: coverageThreshold,
             preferredMethod: preferredMethod
         )
@@ -590,6 +643,8 @@ public extension RenderedFrame {
             height: height,
             region: scope.region,
             mask: scope.mask,
+            luminanceRange: scope.luminanceRange,
+            colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
             preferredMethod: preferredMethod
         )

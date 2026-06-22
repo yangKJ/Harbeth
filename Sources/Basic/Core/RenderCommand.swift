@@ -13,9 +13,7 @@ public struct RenderGeometryDescriptor: Sendable, Codable, Equatable, Hashable {
     public let vertexStride: Int
     public let usesCustomVertices: Bool
 
-    public init(vertexCount: Int,
-                vertexStride: Int = 4,
-                usesCustomVertices: Bool = false) {
+    public init(vertexCount: Int, vertexStride: Int = 4, usesCustomVertices: Bool = false) {
         self.vertexCount = max(vertexCount, 0)
         self.vertexStride = max(vertexStride, 1)
         self.usesCustomVertices = usesCustomVertices
@@ -107,9 +105,7 @@ public struct RenderCommand {
     public let filter: RenderProtocol
     public let sourceTexture: MTLTexture
 
-    public init(filter: RenderProtocol,
-                sourceTexture: MTLTexture,
-                renderPass: RenderPassContract? = nil) {
+    public init(filter: RenderProtocol, sourceTexture: MTLTexture, renderPass: RenderPassContract? = nil) {
         self.filter = filter
         self.sourceTexture = sourceTexture
         self.descriptor = filter.renderCommandDescriptor(
@@ -125,9 +121,7 @@ public struct RenderCommandBatch {
     public let destinationTexturesByAttachmentIndex: [Int: MTLTexture]
     public let commands: [RenderCommand]
 
-    public init(renderPass: RenderPassContract,
-                destinationTexturesByAttachmentIndex: [Int: MTLTexture],
-                commands: [RenderCommand]) throws {
+    public init(renderPass: RenderPassContract, destinationTexturesByAttachmentIndex: [Int: MTLTexture], commands: [RenderCommand]) throws {
         guard commands.isEmpty == false else {
             throw HarbethError.configurationInvalid("Render command batch must contain at least one command.")
         }
@@ -157,8 +151,7 @@ public struct RenderCommandBatch {
 }
 
 public extension RenderProtocol {
-    func renderCommandDescriptor(inputSize: C7Size,
-                                 renderPass: RenderPassContract? = nil) -> RenderCommandDescriptor {
+    func renderCommandDescriptor(inputSize: C7Size, renderPass: RenderPassContract? = nil) -> RenderCommandDescriptor {
         let vertexIdentity: KernelFunctionIdentity
         let fragmentIdentity: KernelFunctionIdentity
         switch modifier {

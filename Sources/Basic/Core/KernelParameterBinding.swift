@@ -103,11 +103,7 @@ public struct KernelParameterBinding: Sendable, Codable, Equatable, Hashable {
     public let value: KernelParameterBindingValue
     public let required: Bool
 
-    public init(name: String,
-                index: Int,
-                stage: KernelBindingStage,
-                value: KernelParameterBindingValue,
-                required: Bool = true) {
+    public init(name: String, index: Int, stage: KernelBindingStage, value: KernelParameterBindingValue, required: Bool = true) {
         self.name = name
         self.index = index
         self.stage = stage
@@ -128,16 +124,13 @@ public struct KernelParameterBinding: Sendable, Codable, Equatable, Hashable {
 }
 
 enum KernelBindingEncoder {
-    static func encode(_ bindings: [KernelParameterBinding],
-                       stage: KernelBindingStage,
-                       on encoder: MTLCommandEncoder) {
+    static func encode(_ bindings: [KernelParameterBinding], stage: KernelBindingStage, on encoder: MTLCommandEncoder) {
         for binding in bindings where binding.stage == stage {
             encode(binding, on: encoder)
         }
     }
 
-    private static func encode(_ binding: KernelParameterBinding,
-                               on encoder: MTLCommandEncoder) {
+    private static func encode(_ binding: KernelParameterBinding, on encoder: MTLCommandEncoder) {
         switch binding.stage {
         case .compute:
             guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
@@ -157,9 +150,7 @@ enum KernelBindingEncoder {
         }
     }
 
-    private static func encode(_ value: KernelParameterBindingValue,
-                               index: Int,
-                               applier: (UnsafeRawPointer, Int, Int) -> Void) {
+    private static func encode(_ value: KernelParameterBindingValue, index: Int, applier: (UnsafeRawPointer, Int, Int) -> Void) {
         switch value {
         case .float(let rawValue):
             var value = rawValue

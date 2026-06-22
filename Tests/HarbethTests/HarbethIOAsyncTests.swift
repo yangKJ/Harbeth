@@ -158,6 +158,91 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(frame.profile, .stablePreview)
     }
 
+    func testRenderRequestBridgesDeferredAttachmentOutputsForRenderPrimitive() throws {
+        let image = try makeFixtureCGImage()
+        let request = try HarbethIO<CGImage>(
+            element: image,
+            filters: [RenderAuxiliaryLuminance()]
+        ).makeRenderRequest(profile: .readbackQuality)
+
+        let attachmentSet = try XCTUnwrap(request.renderAttachmentSet())
+        let bundle = try XCTUnwrap(
+            request.renderAttachmentAnalysisBundle(
+                bins: 4,
+                histogramHeight: 16,
+                preferredMethod: .gpuMPS
+            )
+        )
+
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(bundle.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        XCTAssertEqual(bundle.analysis(for: .luminance)?.histogram?.channel, .luminance)
+    }
+
+    func testRenderRequestBridgesDeferredAnalysisBundleAndColorProbe() throws {
+        let image = try makeFixtureCGImage()
+        let request = try HarbethIO<CGImage>(
+            element: image,
+            filters: [C7Brightness(brightness: 0.0)]
+        ).makeRenderRequest(profile: .readbackQuality)
+
+        let bundle = try XCTUnwrap(
+            request.renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let probe = try XCTUnwrap(
+            request.renderColorProbe(x: 0, y: 0)
+        )
+
+        XCTAssertEqual(bundle.histogram?.channel, .red)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(probe.sampleCount, 1)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+    }
+
+    func testRenderRequestBridgesDeferredColorRangeAnalysisScope() throws {
+        let texture = try makeTexture(width: 3, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [255, 255, 255, 255]
+        ])
+        let request = try HarbethIO<MTLTexture>(
+            element: texture,
+            filters: [C7Brightness(brightness: 0.0)]
+        ).makeRenderRequest(profile: .readbackQuality)
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let bundle = try XCTUnwrap(
+            request.renderAnalysisBundle(
+                channel: .red,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let probe = try XCTUnwrap(request.renderColorProbe(scope: scope))
+
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.x, 255)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.y, 0)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8.z, 0)
+        XCTAssertEqual(probe.meanColor8.x, 255)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+    }
+
     func testHarbethIOC7ImageOutputAppliesExplicitRenderOutputColorSpace() throws {
         let cgImage = try makeFixtureCGImage()
         let image = C7Image(cgImage: cgImage)
@@ -251,6 +336,28 @@ final class HarbethIOAsyncTests: XCTestCase {
             region: MTLRegionMake2D(0, 0, width, height),
             mipmapLevel: 0,
             withBytes: pixels,
+            bytesPerRow: width * 4
+        )
+        return texture
+    }
+
+    private func makeTexture(width: Int, height: Int, pixels: [[UInt8]]) throws -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        guard let texture = Shared.shared.defaultDevice.device.makeTexture(descriptor: descriptor) else {
+            throw HarbethError.makeTexture
+        }
+        let bytes = pixels.flatMap { $0 }
+        XCTAssertEqual(bytes.count, width * height * 4)
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, width, height),
+            mipmapLevel: 0,
+            withBytes: bytes,
             bytesPerRow: width * 4
         )
         return texture

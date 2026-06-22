@@ -78,8 +78,7 @@ struct Rendering {
         try? encode(batch: batch, with: pipelineState, commandBuffer: commandBuffer)
     }
 
-    static func encode(batch: RenderCommandBatch,
-                       commandBuffer: MTLCommandBuffer) throws {
+    static func encode(batch: RenderCommandBatch, commandBuffer: MTLCommandBuffer) throws {
         let renderPass = try batch.renderPass.makeDescriptor(
             destinationTexturesByAttachmentIndex: batch.destinationTexturesByAttachmentIndex
         )
@@ -98,9 +97,7 @@ struct Rendering {
         renderEncoder.endEncoding()
     }
 
-    static func encode(batch: RenderCommandBatch,
-                       with pipelineState: MTLRenderPipelineState,
-                       commandBuffer: MTLCommandBuffer) throws {
+    static func encode(batch: RenderCommandBatch, with pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer) throws {
         let renderPass = try batch.renderPass.makeDescriptor(
             destinationTexturesByAttachmentIndex: batch.destinationTexturesByAttachmentIndex
         )
@@ -114,9 +111,7 @@ struct Rendering {
         renderEncoder.endEncoding()
     }
 
-    private static func encode(command: RenderCommand,
-                               pipelineState: MTLRenderPipelineState,
-                               renderEncoder: MTLRenderCommandEncoder) {
+    private static func encode(command: RenderCommand, pipelineState: MTLRenderPipelineState, renderEncoder: MTLRenderCommandEncoder) {
         let texture = command.sourceTexture
         let filter = command.filter
         let device = Shared.shared.metalDevice
