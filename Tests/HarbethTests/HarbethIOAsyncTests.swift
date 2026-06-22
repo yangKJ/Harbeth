@@ -75,6 +75,36 @@ final class HarbethIOAsyncTests: XCTestCase {
         output.lease?.release()
     }
 
+    func testAsyncTransmitManagedTexturePrewarmsDoubleBufferReservations() async throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        Shared.shared.deinitDevice()
+        _ = Shared.shared.defaultDevice
+        Shared.shared.resetTexturePoolStatistics()
+        defer { Shared.shared.deinitDevice() }
+
+        let input = try makeTexture(width: 32, height: 24, pixel: [60, 80, 120, 255])
+        let io = HarbethIO(
+            element: input,
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.05)
+            ]
+        ).configured(for: .stablePreview)
+
+        let output = try await withCheckedThrowingContinuation { continuation in
+            io.transmitManagedTexture { result in
+                continuation.resume(with: result)
+            }
+        }
+
+        XCTAssertEqual(output.texture.width, 32)
+        XCTAssertEqual(output.texture.height, 24)
+        XCTAssertGreaterThan(Shared.shared.texturePoolStatistics?.totalTexturesReused ?? 0, 0)
+        XCTAssertNotNil(output.lease)
+        output.lease?.release()
+    }
+
     func testFilterRecipeDescriptorUsesStableFingerprint() {
         let filter = C7Brightness(brightness: 0.2)
         let descriptor = filter.recipeDescriptor
@@ -136,6 +166,32 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(recipe.outputDerivative.outputSizePolicy, .maxPixelSize(160))
         XCTAssertTrue(recipe.fingerprint.contains("name=panelThumbnail"))
         XCTAssertTrue(recipe.fingerprint.contains("output=maxPixel:160"))
+    }
+
+    func testHarbethIODiagnosticsAndRenderRecipeUseSameEffectiveDerivativeChain() throws {
+        let input = try makeTexture(width: 4, height: 4, pixel: [120, 40, 20, 255])
+        let derivative = ImageDerivativeSpec(
+            name: "tinyPreview",
+            renderIntent: .stable,
+            sourceTier: .thumbnail,
+            semantic: RenderProfile.stablePreview.defaultImageSemantic,
+            outputSizePolicy: .exact(C7Size(width: 2, height: 2))
+        )
+        let io = HarbethIO(
+            element: input,
+            filters: []
+        )
+
+        let diagnostics = try io.renderDiagnostics(profile: .stablePreview, derivative: derivative)
+        let recipe = try io.renderRecipe(profile: .stablePreview, derivative: derivative)
+        let request = try io.makeRenderRequest(profile: .stablePreview, derivative: derivative)
+
+        XCTAssertEqual(diagnostics.outputSize, C7Size(width: 2, height: 2))
+        XCTAssertEqual(recipe.outputDerivative.name, "tinyPreview")
+        XCTAssertEqual(recipe.filters.count, 1)
+        XCTAssertTrue(recipe.filters[0].stableTypeID.contains("C7Resize"))
+        XCTAssertEqual(request.renderRecipe?.filters.count, 1)
+        XCTAssertEqual(request.diagnostics.outputSize, C7Size(width: 2, height: 2))
     }
 
     func testRenderRequestCarriesStableContractsAndDeferredExecution() throws {

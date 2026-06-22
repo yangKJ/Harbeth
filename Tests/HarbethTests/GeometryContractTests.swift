@@ -70,4 +70,91 @@ final class GeometryContractTests: XCTestCase {
         XCTAssertEqual(filters.count, 1)
         XCTAssertTrue(filters.first is RenderQuadRectifyTransform)
     }
+
+    func testSamplerExecutionAdapterOverridesLegacyComputeGeometryAndOpticsFilters() {
+        let sampler = ImageSamplerDescriptor.nearest
+
+        let crop = C7Crop(origin: .zero, width: 2, height: 2, samplingMode: .adaptive, edgeMode: .transparent)
+        let adaptedCrop = SamplerExecutionAdapter.adapt(filter: crop, samplerDescriptor: sampler) as? C7Crop
+        XCTAssertEqual(adaptedCrop?.samplingMode, .nearest)
+        XCTAssertEqual(adaptedCrop?.edgeMode, .clamp)
+
+        let rotate = C7Rotate(angle: 15, samplingMode: .adaptive, edgeMode: .transparent)
+        let adaptedRotate = SamplerExecutionAdapter.adapt(filter: rotate, samplerDescriptor: sampler) as? C7Rotate
+        XCTAssertEqual(adaptedRotate?.samplingMode, .nearest)
+        XCTAssertEqual(adaptedRotate?.edgeMode, .clamp)
+
+        let transform = C7Transform(
+            transform: CGAffineTransform(scaleX: 1.1, y: 0.9),
+            samplingMode: .adaptive,
+            edgeMode: .transparent
+        )
+        let adaptedTransform = SamplerExecutionAdapter.adapt(filter: transform, samplerDescriptor: sampler) as? C7Transform
+        XCTAssertEqual(adaptedTransform?.samplingMode, .nearest)
+        XCTAssertEqual(adaptedTransform?.edgeMode, .clamp)
+
+        let lens = C7LensDistortionCorrection(
+            distortion: -0.12,
+            cubicDistortion: 0.03,
+            scale: 1.01,
+            samplingMode: .adaptive,
+            edgeMode: .transparent
+        )
+        let adaptedLens = SamplerExecutionAdapter.adapt(filter: lens, samplerDescriptor: sampler) as? C7LensDistortionCorrection
+        XCTAssertEqual(adaptedLens?.samplingMode, .nearest)
+        XCTAssertEqual(adaptedLens?.edgeMode, .clamp)
+
+        let chromatic = C7ChromaticAberrationCorrection(
+            redCyanShift: -0.01,
+            blueYellowShift: 0.02,
+            samplingMode: .adaptive,
+            edgeMode: .transparent
+        )
+        let adaptedChromatic = SamplerExecutionAdapter.adapt(filter: chromatic, samplerDescriptor: sampler) as? C7ChromaticAberrationCorrection
+        XCTAssertEqual(adaptedChromatic?.samplingMode, .nearest)
+        XCTAssertEqual(adaptedChromatic?.edgeMode, .clamp)
+    }
+
+    func testSamplerExecutionCoverageTreatsLegacyComputeGeometryAsCoveredWhenDescriptorIsRepresentable() {
+        let coverage = SamplerExecutionAdapter.coverage(
+            for: [
+                C7Crop(origin: .zero, width: 2, height: 2),
+                C7Rotate(angle: 15),
+                C7Transform(transform: .identity),
+                C7LensDistortionCorrection(distortion: -0.12),
+                C7ChromaticAberrationCorrection(redCyanShift: -0.01, blueYellowShift: 0.02)
+            ],
+            samplerDescriptor: .nearest
+        )
+
+        XCTAssertEqual(coverage.mode, .covered)
+        XCTAssertEqual(
+            Set(coverage.coveredFilterTypes),
+            Set([
+                "C7Crop",
+                "C7Rotate",
+                "C7Transform",
+                "C7LensDistortionCorrection",
+                "C7ChromaticAberrationCorrection"
+            ])
+        )
+        XCTAssertTrue(coverage.metadataOnlyFilterTypes.isEmpty)
+    }
+
+    func testSamplerExecutionCoverageKeepsLegacyComputeGeometryMetadataOnlyForUnsupportedDescriptor() {
+        let unsupported = ImageSamplerDescriptor(
+            minFilter: .nearest,
+            magFilter: .linear,
+            sAddressMode: .clampToEdge,
+            tAddressMode: .repeat
+        )
+        let coverage = SamplerExecutionAdapter.coverage(
+            for: [C7Rotate(angle: 15)],
+            samplerDescriptor: unsupported
+        )
+
+        XCTAssertEqual(coverage.mode, .metadataOnly)
+        XCTAssertEqual(coverage.coveredFilterTypes, [])
+        XCTAssertEqual(coverage.metadataOnlyFilterTypes, ["C7Rotate"])
+    }
 }

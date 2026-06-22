@@ -357,6 +357,8 @@ let frame = try io.renderFrame(profile: .stablePreview)
 
 `RenderProfile` 是这条路线上的输出档位选项，用来表达延迟和质量意图，不是新的使用方式。
 
+当这条路线因为 derivative 或其他条件注入了真实执行链上的附加滤镜时，`renderTexture`、`renderFrame`、`makeRenderRequest` 和 diagnostics 现在都会反映同一条 effective chain，不再出现执行和调试面各说各话。
+
 ### ImageNode：编辑、图结构与诊断
 
 当处理包含几何、局部效果、图层合成、转场或 preview/final 输出合同时，统一使用 `ImageNode`。
@@ -374,6 +376,8 @@ let finalTexture = try ImageNode
 ```
 
 `EditRecipe`、`LayerCompositeRecipe`、`TransitionRecipe` 是编辑 primitive；mask、local effect、geometry、layer、transition 相关类型都是它们的组件，而不是独立执行入口。
+
+对于 `editing(...)`、`transforming(...)`、`transition(...)`、`layerComposite(...)` 这些 node 路径，即使执行期已经把上游 source 物化成中间 texture，`RenderRequest`、`RenderRecipe` 和 diagnostics 仍会保留原始 source contract。这一点对 `pixelBuffer`、`sampleBuffer`、YCbCr 和 HDR 相关输入尤其重要。
 
 ### ImageNode：图结构与诊断
 
@@ -402,6 +406,14 @@ print(diagnostics.samplerExecutionCoverage.mode)
 print(diagnostics.samplerExecutionCoverage.coveredFilterTypes)
 print(diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes)
 ```
+
+当前默认口径：
+
+- 普通 `RenderProtocol` 与 render geometry path 会直接绑定 runtime sampler state
+- `C7Crop`、`C7Rotate`、`C7Transform`、`C7LensDistortionCorrection`、`C7ChromaticAberrationCorrection` 这类历史 compute geometry / optics filter，已经能桥接 nearest/linear 与常见 edge mode
+- 如果 sampler descriptor 超出当前 compute family 可表达范围，diagnostics 仍会保守显示为 `metadataOnly` 或 `partial`
+
+`RenderOptimizationPlan.prewarmReservations` 也已经进入真实执行层。`HarbethIO` 与 `ImageNode` 都会在编码前预热 pool reservation，因此 texture reuse 的收益可以在测试里直接观测，而不是只停留在 diagnostics 描述里。
 
 `RenderRequest` 和 `RenderTask` 是延迟执行和异步执行形态，服务于以上路线，不单独构成新的接入模型。
 
@@ -440,12 +452,14 @@ let recipe = EditRecipe(
 )
 
 let previewFrame = try ImageNode
-    .recipe(source: .image(inputImage), recipe: recipe, mode: .preview)
+    .image(inputImage)
+    .editing(recipe, mode: .preview)
     .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
     .makeFrame(profile: .stablePreview)
 
 let finalTexture = try ImageNode
-    .recipe(source: .image(inputImage), recipe: recipe, mode: .final)
+    .image(inputImage)
+    .editing(recipe, mode: .final)
     .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
     .makeTexture(profile: .exportQuality)
 ```
@@ -656,30 +670,45 @@ let correctedImage = try originalImage.make(filters: correctionFilters)
 
 ```swift
 let profile = LensProfile(
-    distortion: .init(amount: -0.2, cubic: 0.04, scale: 1.01),
-    vignette: .init(intensity: 0.2),
-    chromaticAberration: .init(intensity: 0.35)
+    make: "Demo",
+    model: "Wide",
+    profileName: "Default",
+    distortionCorrection: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.01),
+    vignetteCorrection: .init(amount: 0.2),
+    chromaticAberrationCorrection: .init(redCyanShift: -0.01, blueYellowShift: 0.015)
 )
 
 let settings = OpticsSettings(
-    lensProfile: profile,
-    enablesDefringe: true,
-    enablesSharpnessFalloffCorrection: true
+    profile: profile,
+    defringe: .init(purpleAmount: 0.2),
+    sharpnessFalloff: .init(amount: 0.25)
 )
 
-let correctedImage = try originalImage.make(filters: settings.filters)
+let correctedFrame = try ImageNode
+    .image(originalImage)
+    .applying(optics: settings)
+    .makeFrame(profile: .stablePreview)
 ```
 
 对于引导式透视拉正：
 
 ```swift
 let upright = GuidedUpright(
-    verticalGuides: [leftEdge, rightEdge],
-    horizontalGuides: [roofLine]
+    guides: [
+        .vertical(start: CGPoint(x: 0.2, y: 0.1), end: CGPoint(x: 0.22, y: 0.9)),
+        .vertical(start: CGPoint(x: 0.8, y: 0.1), end: CGPoint(x: 0.78, y: 0.9))
+    ]
 )
 
-let transform = upright.recommendedTransform()
-let correctedImage = try originalImage ->> transform
+let correctedFrame = try ImageNode
+    .image(originalImage)
+    .transforming(
+        ImageTransformRecipe(
+            guidedUpright: upright,
+            projectiveViewportMode: .minimumEnclosing
+        )
+    )
+    .makeFrame(profile: .stablePreview)
 ```
 
 ### 推荐工作流

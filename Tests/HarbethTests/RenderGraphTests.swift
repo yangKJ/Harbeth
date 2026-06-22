@@ -1024,7 +1024,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("samplerCoverage=covered"))
     }
 
-    func testSamplerExecutionCoverageReportsMetadataOnlyForLegacyComputeGeometry() {
+    func testSamplerExecutionCoverageReportsCoveredLegacyComputeGeometryWhenDescriptorIsRepresentable() {
         let plan = GraphCompiler.compile(
             filters: [C7Rotate(angle: 15)],
             inputSize: C7Size(width: 4, height: 4),
@@ -1032,22 +1032,97 @@ final class RenderGraphTests: XCTestCase {
             samplerDescriptor: .nearest
         )
 
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .covered)
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.coveredFilterTypes, ["C7Rotate"])
+        XCTAssertTrue(plan.diagnostics.summary.contains("samplerCoveredFilters=C7Rotate"))
+    }
+
+    func testSamplerExecutionCoverageReportsMetadataOnlyForUnsupportedLegacyComputeGeometryDescriptor() {
+        let unsupported = ImageSamplerDescriptor(
+            minFilter: .nearest,
+            magFilter: .linear,
+            sAddressMode: .clampToEdge,
+            tAddressMode: .repeat
+        )
+        let plan = GraphCompiler.compile(
+            filters: [C7Rotate(angle: 15)],
+            inputSize: C7Size(width: 4, height: 4),
+            profile: .stablePreview,
+            samplerDescriptor: unsupported
+        )
+
         XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .metadataOnly)
         XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes, ["C7Rotate"])
         XCTAssertTrue(plan.diagnostics.summary.contains("samplerMetadataOnlyFilters=C7Rotate"))
     }
 
-    func testSamplerExecutionCoverageReportsMixedChain() {
+    func testSamplerExecutionCoverageReportsMixedChainWhenDescriptorCannotBridgeAllStages() {
+        let unsupported = ImageSamplerDescriptor(
+            minFilter: .nearest,
+            magFilter: .linear,
+            sAddressMode: .clampToEdge,
+            tAddressMode: .repeat
+        )
         let plan = GraphCompiler.compile(
             filters: [RenderQuadTransform(), C7Rotate(angle: 15)],
             inputSize: C7Size(width: 4, height: 4),
             profile: .stablePreview,
-            samplerDescriptor: .nearest
+            samplerDescriptor: unsupported
         )
 
         XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .partial)
         XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.coveredFilterTypes, ["RenderQuadTransform"])
         XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes, ["C7Rotate"])
+    }
+
+    func testExecutionPrewarmReservationsIncreaseTextureReuseForBoundaryChain() throws {
+        Shared.shared.deinitDevice()
+        _ = Shared.shared.defaultDevice
+        Shared.shared.resetTexturePoolStatistics()
+
+        let input = try TextureLoader.makeTexture(
+            width: 8,
+            height: 6,
+            options: [.texturePixelFormat: MTLPixelFormat.rgba8Unorm],
+            identifier: "RenderGraphTests.prewarm.boundary.input"
+        )
+
+        let output: MTLTexture = try HarbethIO(
+            element: input,
+            filters: [
+                C7Resize(width: 4, height: 3),
+                C7Brightness(brightness: 0.1)
+            ]
+        ).output()
+
+        XCTAssertEqual(output.width, 4)
+        XCTAssertEqual(output.height, 3)
+        XCTAssertGreaterThan(Shared.shared.texturePoolStatistics?.totalTexturesReused ?? 0, 0)
+    }
+
+    func testExecutionPrewarmReservationsIncreaseTextureReuseForDoubleBufferChain() throws {
+        Shared.shared.deinitDevice()
+        _ = Shared.shared.defaultDevice
+        Shared.shared.resetTexturePoolStatistics()
+
+        let input = try TextureLoader.makeTexture(
+            width: 8,
+            height: 6,
+            options: [.texturePixelFormat: MTLPixelFormat.rgba8Unorm],
+            identifier: "RenderGraphTests.prewarm.double-buffer.input"
+        )
+
+        let output: MTLTexture = try HarbethIO(
+            element: input,
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.05)
+            ]
+        ).output()
+
+        XCTAssertEqual(output.width, 8)
+        XCTAssertEqual(output.height, 6)
+        XCTAssertGreaterThan(Shared.shared.texturePoolStatistics?.totalTexturesReused ?? 0, 0)
     }
 
     func testRenderGraphDebugSnapshotSupportsCodableRoundTrip() throws {

@@ -9,6 +9,18 @@ import Foundation
 import MetalKit
 
 extension HarbethIO {
+    private func resolvedExecutionContext(profile: RenderProfile,
+                                          derivative: ImageDerivativeSpec? = nil) throws -> (sourceObject: ImageSource, sourceTexture: MTLTexture, effectiveDerivative: ImageDerivativeSpec, effectiveFilters: [C7FilterProtocol]) {
+        let sourceObject = try makeImageSource()
+        let sourceTexture = try sourceObject.makeTexture()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let effectiveFilters = makeEffectiveFilters(
+            inputSize: C7Size(width: sourceTexture.width, height: sourceTexture.height),
+            derivative: effectiveDerivative
+        )
+        return (sourceObject, sourceTexture, effectiveDerivative, effectiveFilters)
+    }
+
     public func configured(for profile: RenderProfile) -> Self {
         var copy = self
         copy.renderProfile = profile
@@ -20,15 +32,9 @@ extension HarbethIO {
 
     /// texture-first 同步输出，不执行 CPU 读回。
     public func renderTexture(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
-        let sourceObject = try makeImageSource()
-        let source = try sourceObject.makeTexture()
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        let effectiveFilters = makeEffectiveFilters(
-            inputSize: C7Size(width: source.width, height: source.height),
-            derivative: effectiveDerivative
-        )
-        guard effectiveFilters.isEmpty == false else { return source }
-        return try HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
+        guard context.effectiveFilters.isEmpty == false else { return context.sourceTexture }
+        return try HarbethIO<MTLTexture>(element: context.sourceTexture, filters: context.effectiveFilters)
             .configured(for: profile)
             .output()
     }
@@ -72,13 +78,8 @@ extension HarbethIO {
                                              derivative: ImageDerivativeSpec?,
                                              requestedPixelFormatType: OSType,
                                              outputPixelFormat: PixelFormatContract) throws -> (texture: MTLTexture, outputColorSpace: ImageColorSpaceContract) {
-        let sourceObject = try makeImageSource()
-        let source = try sourceObject.makeTexture()
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        var effectiveFilters = makeEffectiveFilters(
-            inputSize: C7Size(width: source.width, height: source.height),
-            derivative: effectiveDerivative
-        )
+        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
+        var effectiveFilters = context.effectiveFilters
         let targetPixelFormat: MTLPixelFormat? = {
             if outputPixelFormat.preservesInput {
                 return Self.preferredMetalPixelFormat(for: requestedPixelFormatType)
@@ -87,20 +88,20 @@ extension HarbethIO {
         }()
         if effectiveFilters.isEmpty,
            let targetPixelFormat,
-           source.pixelFormat != targetPixelFormat {
+           context.sourceTexture.pixelFormat != targetPixelFormat {
             effectiveFilters = [C7Brightness(brightness: 0)]
         }
         guard effectiveFilters.isEmpty == false else {
-            return (source, .preserveInput)
+            return (context.sourceTexture, .preserveInput)
         }
-        var io = HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+        var io = HarbethIO<MTLTexture>(element: context.sourceTexture, filters: effectiveFilters)
             .configured(for: profile)
         if let targetPixelFormat {
             io.bufferPixelFormat = targetPixelFormat
             io.createDestTexture = true
         }
         let outputColorSpace = io.resolvedOutputColorSpace(
-            inputSize: C7Size(width: source.width, height: source.height)
+            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height)
         )
         let texture = try io.output()
         return (texture, outputColorSpace)
@@ -160,40 +161,33 @@ extension HarbethIO {
     /// texture-first task output for callers that need to observe GPU completion.
     public func startRenderTextureTask(profile: RenderProfile = .stablePreview,
                                        derivative: ImageDerivativeSpec? = nil) throws -> RenderTask<MTLTexture> {
-        let sourceObject = try makeImageSource()
-        let source = try sourceObject.makeTexture()
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        let effectiveFilters = makeEffectiveFilters(
-            inputSize: C7Size(width: source.width, height: source.height),
-            derivative: effectiveDerivative
-        )
+        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
         let diagnostics = GraphCompiler.compile(
-            filters: filters,
-            inputSize: C7Size(width: source.width, height: source.height),
+            filters: context.effectiveFilters,
+            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height),
             profile: profile,
-            derivative: effectiveDerivative,
+            derivative: context.effectiveDerivative,
             compilationSource: .filtersPrimitive,
-            sourceDescriptor: sourceObject.descriptor
+            sourceDescriptor: context.sourceObject.descriptor
         ).diagnostics
-        guard effectiveFilters.isEmpty == false else {
-            return .completed(identifier: identifier, output: source, diagnostics: diagnostics)
+        guard context.effectiveFilters.isEmpty == false else {
+            return .completed(identifier: identifier, output: context.sourceTexture, diagnostics: diagnostics)
         }
-        return try HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+        return try HarbethIO<MTLTexture>(element: context.sourceTexture, filters: context.effectiveFilters)
             .configured(for: profile)
             .startRenderTextureTask(diagnostics: diagnostics)
     }
 
     /// 结构化渲染计划诊断，供上层做日志、调度、缓存和大图策略分析。
     public func renderDiagnostics(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
-        let sourceObject = try makeImageSource()
-        let source = try sourceObject.makeTexture()
+        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
         let plan = GraphCompiler.compile(
-            filters: filters,
-            inputSize: C7Size(width: source.width, height: source.height),
+            filters: context.effectiveFilters,
+            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height),
             profile: profile,
-            derivative: derivative ?? profile.defaultDerivativeSpec,
+            derivative: context.effectiveDerivative,
             compilationSource: .filtersPrimitive,
-            sourceDescriptor: sourceObject.descriptor
+            sourceDescriptor: context.sourceObject.descriptor
         )
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
@@ -221,19 +215,18 @@ extension HarbethIO {
     }
 
     func renderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
-        let source = try makeImageSource()
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        let outputCachePolicy: ImageCachePolicy = filters.isEmpty ? source.cachePolicy : .transient
+        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
+        let outputCachePolicy: ImageCachePolicy = context.effectiveFilters.isEmpty ? context.sourceObject.cachePolicy : .transient
         return RenderRecipe(
             renderProfile: String(describing: profile),
-            renderIntent: effectiveDerivative.renderIntent,
-            source: source.descriptor,
-            outputDerivative: effectiveDerivative,
+            renderIntent: context.effectiveDerivative.renderIntent,
+            source: context.sourceObject.descriptor,
+            outputDerivative: context.effectiveDerivative,
             outputCachePolicy: outputCachePolicy,
-            outputSemantic: effectiveDerivative.semantic,
-            alphaType: source.alphaType,
-            orientation: source.orientation,
-            filters: filters.map(\.recipeDescriptor)
+            outputSemantic: context.effectiveDerivative.semantic,
+            alphaType: context.sourceObject.alphaType,
+            orientation: context.sourceObject.orientation,
+            filters: context.effectiveFilters.map(\.recipeDescriptor)
         )
     }
 

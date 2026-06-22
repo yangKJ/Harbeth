@@ -22,6 +22,7 @@ indirect enum ImageNodeStorage {
     case filters(input: ImageNode, filters: [C7FilterProtocol])
     case kernel(input: ImageNode, descriptor: KernelDescriptor, filter: C7FilterProtocol)
     case recipe(source: ImageSource, recipe: EditRecipe, mode: EditRecipeMode)
+    case edit(input: ImageNode, recipe: EditRecipe, mode: EditRecipeMode)
     case transition(TransitionRecipe)
     case layerComposite(LayerCompositeRecipe)
     case cachePolicy(input: ImageNode, policy: ImageCachePolicy)
@@ -54,7 +55,7 @@ extension ImageNode {
     }
 
     public static func recipe(source: ImageSource, recipe: EditRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
-        ImageNode(storage: .recipe(source: source, recipe: recipe, mode: mode))
+        ImageNode.source(source).editing(recipe, mode: mode)
     }
 
     public static func transition(_ recipe: TransitionRecipe) -> ImageNode {
@@ -109,6 +110,18 @@ extension ImageNode {
         ImageNode(storage: .filters(input: self, filters: filters))
     }
 
+    public func applying(optics settings: OpticsSettings) -> ImageNode {
+        applying(filters: settings.makeFilters())
+    }
+
+    public func editing(_ recipe: EditRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
+        ImageNode(storage: .edit(input: self, recipe: recipe, mode: mode))
+    }
+
+    public func transforming(_ geometry: ImageTransformRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
+        editing(EditRecipe(geometry: geometry), mode: mode)
+    }
+
     /// 将一个普通滤镜按 kernel contract 方式挂到 `ImageNode` 上。
     ///
     /// 这个入口用于把 filter 的 kernel descriptor、兼容性校验和 output contract
@@ -136,6 +149,8 @@ extension ImageNode: ImagePromise {
         case .kernel(let input, _, _):
             return input.compilationSource
         case .recipe:
+            return .editRecipe
+        case .edit:
             return .editRecipe
         case .transition:
             return .transition
@@ -225,6 +240,19 @@ extension ImageNode: ImagePromise {
                 derivative: derivative,
                 samplerDescriptor: samplerDescriptor
             ).renderTexture()
+        case .edit(let input, let recipe, let mode):
+            let inputTexture = try input.makeTextureUncached(
+                profile: profile,
+                derivative: nil,
+                samplerDescriptor: samplerDescriptor
+            )
+            return try FrameRenderer(
+                source: .texture(inputTexture),
+                recipe: recipe,
+                mode: mode,
+                derivative: derivative,
+                samplerDescriptor: samplerDescriptor
+            ).renderTexture()
         case .transition(let recipe):
             return try FrameRenderer(
                 transitionRecipe: recipe,
@@ -307,7 +335,10 @@ extension ImageNode: ImagePromise {
         try makeDiagnostics(profile: profile, derivative: derivative).outputAttachmentDebugPolicies
     }
 
-    func makeRenderPlan(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
+    func makeRenderPlan(profile: RenderProfile = .stablePreview,
+                        derivative: ImageDerivativeSpec? = nil,
+                        samplerDescriptorOverride: ImageSamplerDescriptor? = nil) throws -> RenderPlan {
+        let activeSamplerDescriptor = samplerDescriptorOverride ?? resolvedSamplerDescriptor
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
         switch storage {
         case .source(let source):
@@ -319,6 +350,7 @@ extension ImageNode: ImagePromise {
                 derivative: derivative ?? profile.defaultDerivativeSpec,
                 compilationSource: .nodeGraph,
                 imageCachePolicy: source.cachePolicy,
+                samplerDescriptor: activeSamplerDescriptor,
                 sourceDescriptor: source.descriptor,
                 imageGraph: optimization.graph,
                 graphOptimizationDecisions: optimization.decisions
@@ -326,31 +358,33 @@ extension ImageNode: ImagePromise {
         case .filters(let input, let filters):
             switch input.storage {
             case .recipe(let source, let recipe, let mode):
-                let plan = try recipe.makeRenderPlan(
+                return try makeWrappedEditRenderPlan(
                     source: source,
+                    recipe: recipe,
                     mode: mode,
                     extraFilters: filters,
+                    profile: profile,
                     derivative: derivative,
-                    samplerDescriptor: resolvedSamplerDescriptor
-                )
-                return RenderPlan(
-                    graph: plan.graph,
-                    profile: plan.profile,
-                    derivative: plan.diagnostics.derivative,
-                    inputSize: plan.diagnostics.inputSize,
-                    outputSize: plan.diagnostics.outputSize,
-                    nodeDiagnostics: plan.diagnostics.nodes,
-                    compilationSource: plan.diagnostics.compilationSource,
-                    outputContract: plan.diagnostics.outputContract,
-                    imageCachePolicy: plan.diagnostics.imageCachePolicy,
-                    samplerDescriptor: plan.diagnostics.samplerDescriptor,
-                    samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,
+                    samplerDescriptor: activeSamplerDescriptor,
                     sourceDescriptor: source.descriptor,
-                    inputColorConversionCount: plan.diagnostics.inputColorConversionCount,
-                    inputPixelFormatConversionCount: plan.diagnostics.inputPixelFormatConversionCount,
-                    inputAlphaConversionCount: plan.diagnostics.inputAlphaConversionCount,
-                    imageGraph: optimization.graph,
-                    graphOptimizationDecisions: optimization.decisions
+                    optimization: optimization
+                )
+            case .edit(let upstream, let recipe, let mode):
+                let inputTexture = try upstream.makeTextureUncached(
+                    profile: profile,
+                    derivative: nil,
+                    samplerDescriptor: activeSamplerDescriptor
+                )
+                return try makeWrappedEditRenderPlan(
+                    source: .texture(inputTexture),
+                    recipe: recipe,
+                    mode: mode,
+                    extraFilters: filters,
+                    profile: profile,
+                    derivative: derivative,
+                    samplerDescriptor: activeSamplerDescriptor,
+                    sourceDescriptor: try upstream.resolvedPrimarySource().descriptor,
+                    optimization: optimization
                 )
             case .transition(let recipe):
                 let texture = try recipe.from.makeTexture()
@@ -360,7 +394,7 @@ extension ImageNode: ImagePromise {
                     profile: recipe.profile,
                     derivative: derivative ?? recipe.derivative,
                     compilationSource: .transition,
-                    samplerDescriptor: resolvedSamplerDescriptor,
+                    samplerDescriptor: activeSamplerDescriptor,
                     sourceDescriptor: recipe.from.descriptor,
                     auxiliaryInputDescriptor: recipe.to.descriptor,
                     imageGraph: optimization.graph,
@@ -375,13 +409,58 @@ extension ImageNode: ImagePromise {
                     profile: profile,
                     derivative: derivative ?? profile.defaultDerivativeSpec,
                     compilationSource: input.compilationSource,
-                    samplerDescriptor: resolvedSamplerDescriptor,
+                    samplerDescriptor: activeSamplerDescriptor,
                     sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
                     imageGraph: optimization.graph,
                     graphOptimizationDecisions: optimization.decisions
                 )
             }
         case .kernel(let input, let descriptor, let filter):
+            switch input.storage {
+            case .recipe(let source, let recipe, let mode):
+                let sourceTexture = try source.makeTexture()
+                try descriptor.validateCompatibility(
+                    with: filter,
+                    inputSize: C7Size(
+                        width: sourceTexture.width,
+                        height: sourceTexture.height
+                    )
+                )
+                return try makeWrappedEditRenderPlan(
+                    source: source,
+                    recipe: recipe,
+                    mode: mode,
+                    extraFilters: [filter],
+                    profile: profile,
+                    derivative: derivative,
+                    samplerDescriptor: activeSamplerDescriptor,
+                    sourceDescriptor: source.descriptor,
+                    optimization: optimization
+                )
+            case .edit(let upstream, let recipe, let mode):
+                let inputTexture = try upstream.makeTextureUncached(
+                    profile: profile,
+                    derivative: nil,
+                    samplerDescriptor: activeSamplerDescriptor
+                )
+                try descriptor.validateCompatibility(
+                    with: filter,
+                    inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
+                )
+                return try makeWrappedEditRenderPlan(
+                    source: .texture(inputTexture),
+                    recipe: recipe,
+                    mode: mode,
+                    extraFilters: [filter],
+                    profile: profile,
+                    derivative: derivative,
+                    samplerDescriptor: activeSamplerDescriptor,
+                    sourceDescriptor: try upstream.resolvedPrimarySource().descriptor,
+                    optimization: optimization
+                )
+            default:
+                break
+            }
             let texture = try input.makeTexture(profile: profile, derivative: nil)
             try descriptor.validateCompatibility(
                 with: filter,
@@ -394,17 +473,39 @@ extension ImageNode: ImagePromise {
                 derivative: derivative ?? profile.defaultDerivativeSpec,
                 compilationSource: input.compilationSource,
                 outputContract: descriptor.outputContract,
-                samplerDescriptor: resolvedSamplerDescriptor,
+                samplerDescriptor: activeSamplerDescriptor,
                 sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
                 imageGraph: optimization.graph,
                 graphOptimizationDecisions: optimization.decisions
             )
         case .recipe(let source, let recipe, let mode):
-            return try recipe.makeRenderPlan(
+            return try makeWrappedEditRenderPlan(
                 source: source,
+                recipe: recipe,
                 mode: mode,
+                extraFilters: [],
+                profile: profile,
                 derivative: derivative,
-                samplerDescriptor: resolvedSamplerDescriptor
+                samplerDescriptor: activeSamplerDescriptor,
+                sourceDescriptor: source.descriptor,
+                optimization: optimization
+            )
+        case .edit(let input, let recipe, let mode):
+            let inputTexture = try input.makeTextureUncached(
+                profile: profile,
+                derivative: nil,
+                samplerDescriptor: activeSamplerDescriptor
+            )
+            return try makeWrappedEditRenderPlan(
+                source: .texture(inputTexture),
+                recipe: recipe,
+                mode: mode,
+                extraFilters: [],
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptor: activeSamplerDescriptor,
+                sourceDescriptor: try input.resolvedPrimarySource().descriptor,
+                optimization: optimization
             )
         case .transition(let recipe):
             let texture = try recipe.from.makeTexture()
@@ -414,7 +515,7 @@ extension ImageNode: ImagePromise {
                 profile: recipe.profile,
                 derivative: derivative ?? recipe.derivative,
                 compilationSource: .transition,
-                samplerDescriptor: resolvedSamplerDescriptor,
+                samplerDescriptor: activeSamplerDescriptor,
                 sourceDescriptor: recipe.from.descriptor,
                 auxiliaryInputDescriptor: recipe.to.descriptor,
                 imageGraph: optimization.graph,
@@ -423,10 +524,14 @@ extension ImageNode: ImagePromise {
         case .layerComposite(let recipe):
             return try recipe.makeRenderPlan(
                 derivative: derivative,
-                samplerDescriptor: resolvedSamplerDescriptor
+                samplerDescriptor: activeSamplerDescriptor
             )
         case .cachePolicy(let input, let policy):
-            let plan = try input.makeRenderPlan(profile: profile, derivative: derivative)
+            let plan = try input.makeRenderPlan(
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptorOverride: activeSamplerDescriptor
+            )
             return RenderPlan(
                 graph: plan.graph,
                 profile: plan.profile,
@@ -438,6 +543,7 @@ extension ImageNode: ImagePromise {
                 outputContract: plan.diagnostics.outputContract,
                 imageCachePolicy: policy,
                 samplerDescriptor: plan.diagnostics.samplerDescriptor,
+                samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,
                 sourceDescriptor: try input.resolvedPrimarySource().descriptor,
                 inputColorConversionCount: plan.diagnostics.inputColorConversionCount,
                 inputPixelFormatConversionCount: plan.diagnostics.inputPixelFormatConversionCount,
@@ -447,7 +553,11 @@ extension ImageNode: ImagePromise {
             )
         case .samplerDescriptor(let input, let descriptor):
             _ = Shared.shared.defaultContext.makeSamplerState(descriptor)
-            let plan = try input.makeRenderPlan(profile: profile, derivative: derivative)
+            let plan = try input.makeRenderPlan(
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptorOverride: descriptor
+            )
             return RenderPlan(
                 graph: plan.graph,
                 profile: plan.profile,
@@ -459,6 +569,7 @@ extension ImageNode: ImagePromise {
                 outputContract: plan.diagnostics.outputContract,
                 imageCachePolicy: plan.diagnostics.imageCachePolicy,
                 samplerDescriptor: descriptor,
+                samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,
                 sourceDescriptor: try input.resolvedPrimarySource().descriptor,
                 inputColorConversionCount: plan.diagnostics.inputColorConversionCount,
                 inputPixelFormatConversionCount: plan.diagnostics.inputPixelFormatConversionCount,
@@ -477,6 +588,22 @@ extension ImageNode: ImagePromise {
                 mode: mode,
                 derivative: derivative,
                 samplerDescriptor: resolvedSamplerDescriptor
+            )
+        case .edit(let input, let recipe, let mode):
+            let inputTexture = try input.makeTextureUncached(
+                profile: profile,
+                derivative: nil,
+                samplerDescriptor: resolvedSamplerDescriptor
+            )
+            let originalSource = try input.resolvedPrimarySource()
+            return try recipe.makeRenderRecipe(
+                source: .texture(inputTexture),
+                mode: mode,
+                derivative: derivative,
+                samplerDescriptor: resolvedSamplerDescriptor,
+                sourceDescriptorOverride: originalSource.descriptor,
+                alphaTypeOverride: originalSource.alphaType,
+                orientationOverride: originalSource.orientation
             )
         case .layerComposite(let recipe):
             return try recipe.makeRenderRecipe(
@@ -721,7 +848,7 @@ extension ImageNode: ImagePromise {
         switch storage {
         case .source(let source):
             return source.cachePolicy
-        case .filters, .kernel, .recipe, .transition, .layerComposite:
+        case .filters, .kernel, .recipe, .edit, .transition, .layerComposite:
             return .transient
         case .cachePolicy(_, let policy):
             return policy
@@ -736,7 +863,7 @@ extension ImageNode: ImagePromise {
             return descriptor
         case .cachePolicy(let input, _):
             return input.resolvedSamplerDescriptor
-        case .source, .filters, .kernel, .recipe, .transition, .layerComposite:
+        case .source, .filters, .kernel, .recipe, .edit, .transition, .layerComposite:
             return .default
         }
     }
@@ -787,6 +914,16 @@ extension ImageNode: ImagePromise {
                 contract.derivative.fingerprint,
                 recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).chainRecipe.fingerprint
             ].joined(separator: "|")
+        case .edit(let input, let recipe, let mode):
+            let contract = recipe.contract(for: mode)
+            return [
+                "edit",
+                input.nodeFingerprint,
+                "mode=\(mode.rawValue)",
+                "profile=\(contract.profile)",
+                contract.derivative.fingerprint,
+                recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).chainRecipe.fingerprint
+            ].joined(separator: "|")
         case .transition(let recipe):
             return [
                 "transition",
@@ -818,6 +955,8 @@ extension ImageNode: ImagePromise {
             return try input.resolvedPrimarySource()
         case .recipe(let source, _, _):
             return source
+        case .edit(let input, _, _):
+            return try input.resolvedPrimarySource()
         case .transition(let recipe):
             return recipe.from
         case .layerComposite(let recipe):
@@ -864,9 +1003,46 @@ extension ImageNode: ImagePromise {
                     samplerDescriptor: descriptor
                 )
             )
-        case .source, .recipe, .transition, .layerComposite:
+        case .source, .recipe, .edit, .transition, .layerComposite:
             return nil
         }
+    }
+
+    private func makeWrappedEditRenderPlan(source: ImageSource,
+                                           recipe: EditRecipe,
+                                           mode: EditRecipeMode,
+                                           extraFilters: [C7FilterProtocol],
+                                           profile: RenderProfile,
+                                           derivative: ImageDerivativeSpec?,
+                                           samplerDescriptor: ImageSamplerDescriptor,
+                                           sourceDescriptor: ImageSourceDescriptor,
+                                           optimization: ImageGraphOptimizationResult) throws -> RenderPlan {
+        let plan = try recipe.makeRenderPlan(
+            source: source,
+            mode: mode,
+            extraFilters: extraFilters,
+            derivative: derivative,
+            samplerDescriptor: samplerDescriptor
+        )
+        return RenderPlan(
+            graph: plan.graph,
+            profile: plan.profile,
+            derivative: plan.diagnostics.derivative,
+            inputSize: plan.diagnostics.inputSize,
+            outputSize: plan.diagnostics.outputSize,
+            nodeDiagnostics: plan.diagnostics.nodes,
+            compilationSource: plan.diagnostics.compilationSource,
+            outputContract: plan.diagnostics.outputContract,
+            imageCachePolicy: plan.diagnostics.imageCachePolicy,
+            samplerDescriptor: plan.diagnostics.samplerDescriptor,
+            samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,
+            sourceDescriptor: sourceDescriptor,
+            inputColorConversionCount: plan.diagnostics.inputColorConversionCount,
+            inputPixelFormatConversionCount: plan.diagnostics.inputPixelFormatConversionCount,
+            inputAlphaConversionCount: plan.diagnostics.inputAlphaConversionCount,
+            imageGraph: optimization.graph,
+            graphOptimizationDecisions: optimization.decisions
+        )
     }
 }
 
@@ -1150,6 +1326,28 @@ private final class ImageGraphBuilder {
                 )
             )
             edges.append(ImageGraphEdge(from: sourceID, to: nodeID))
+            return nodeID
+        case .edit(let input, let recipe, let mode):
+            let inputID = try append(input)
+            let nodeID = allocateID()
+            let contract = recipe.contract(for: mode)
+            nodes.append(
+                ImageGraphNode(
+                    id: nodeID,
+                    kind: .recipe,
+                    name: "EditRecipe.\(mode.rawValue)",
+                    cachePolicy: node.resolvedCachePolicy,
+                    samplerDescriptor: node.resolvedSamplerDescriptor,
+                    sourceKind: try node.resolvedPrimarySource().kindName,
+                    filterCount: recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).count,
+                    fingerprint: [
+                        "input=\(input.resolutionFingerprint(profile: profile, derivative: derivative))",
+                        "profile=\(contract.profile)",
+                        contract.derivative.fingerprint
+                    ].joined(separator: "|")
+                )
+            )
+            edges.append(ImageGraphEdge(from: inputID, to: nodeID))
             return nodeID
         case .transition(let recipe):
             let fromID = try append(ImageNode.source(recipe.from))

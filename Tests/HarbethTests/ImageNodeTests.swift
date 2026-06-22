@@ -67,6 +67,36 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(nearestPixel.red == 255 || nearestPixel.blue == 255)
     }
 
+    func testNodeSamplerDescriptorAffectsLegacyComputeCropExecutionPath() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 0, 255, 255]
+        ])
+
+        let linearNode = ImageNode
+            .texture(input)
+            .applying(C7Crop(
+                origin: C7Point2D(x: 0.5, y: 0),
+                width: 1,
+                height: 1,
+                samplingMode: .adaptive,
+                edgeMode: .transparent
+            ))
+        let nearestNode = linearNode.withSamplerDescriptor(.nearest)
+
+        let linearPixel = try pixel(in: linearNode.makeTexture(), x: 0, y: 0)
+        let nearestPixel = try pixel(in: nearestNode.makeTexture(), x: 0, y: 0)
+        let nearestDiagnostics = try nearestNode.makeDiagnostics()
+
+        XCTAssertNotEqual(linearPixel.red, nearestPixel.red)
+        XCTAssertNotEqual(linearPixel.blue, nearestPixel.blue)
+        XCTAssertGreaterThan(linearPixel.red, 0)
+        XCTAssertGreaterThan(linearPixel.blue, 0)
+        XCTAssertTrue(nearestPixel.red == 255 || nearestPixel.blue == 255)
+        XCTAssertEqual(nearestDiagnostics.samplerExecutionCoverage.mode, .covered)
+        XCTAssertEqual(nearestDiagnostics.samplerExecutionCoverage.coveredFilterTypes, ["C7Crop"])
+    }
+
     func testNodeWrappedPlanPreservesSourceConversionDiagnostics() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
@@ -108,6 +138,49 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("origin=pixelBuffer"))
         XCTAssertEqual(diagnostics.inputColorSpace.name, "preserveInput")
         XCTAssertEqual(diagnostics.inputPixelFormat.name, "r8Unorm")
+    }
+
+    func testNodeEditingCanAttachRecipeToExistingNodeChain() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let node = ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+            .editing(
+                EditRecipe(
+                    geometry: ImageTransformRecipe(
+                        cropRegion: ImageCropRegion(rect: CGRect(x: 1, y: 0, width: 2, height: 3))
+                    )
+                )
+            )
+
+        let output = try node.makeTexture(profile: .stablePreview)
+        let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
+        let graph = try node.makeImageGraph(profile: .stablePreview)
+
+        XCTAssertEqual(output.width, 2)
+        XCTAssertEqual(output.height, 3)
+        XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
+        XCTAssertTrue(graph.nodes.contains(where: { $0.kind == .recipe }))
+        XCTAssertTrue(graph.nodes.contains(where: { $0.kind == .filters }))
+    }
+
+    func testNodeTransformingConvenienceUsesEditRoute() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let node = ImageNode
+            .texture(input)
+            .transforming(
+                ImageTransformRecipe(
+                    targetSize: CGSize(width: 3, height: 2),
+                    aspectPolicy: .none
+                )
+            )
+
+        let output = try node.makeTexture(profile: .stablePreview)
+        let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
+
+        XCTAssertEqual(output.width, 3)
+        XCTAssertEqual(output.height, 2)
+        XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
     }
 
     func testPersistentNodeResolutionReusesCachedTexture() throws {

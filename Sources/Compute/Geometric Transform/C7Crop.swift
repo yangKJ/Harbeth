@@ -81,4 +81,32 @@ extension C7Crop {
             return C7Size(width: Int(rect.size.width), height: Int(rect.size.height))
         }
     }
+
+    func resolved(samplingMode: SpatialSamplingMode?,
+                  edgeMode: SpatialEdgeMode?) -> C7Crop {
+        let nextSamplingMode = samplingMode ?? self.samplingMode
+        let nextEdgeMode = edgeMode ?? self.edgeMode
+        switch cropType {
+        case .size(let width, let height):
+            return C7Crop(
+                origin: origin,
+                width: width,
+                height: height,
+                samplingMode: nextSamplingMode,
+                edgeMode: nextEdgeMode
+            )
+        case .space(let space):
+            return C7Crop(
+                space: space,
+                samplingMode: nextSamplingMode,
+                edgeMode: nextEdgeMode
+            )
+        case .rect(let rect):
+            return C7Crop(
+                rect: rect,
+                samplingMode: nextSamplingMode,
+                edgeMode: nextEdgeMode
+            )
+        }
+    }
 }

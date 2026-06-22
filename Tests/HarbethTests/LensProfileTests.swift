@@ -168,6 +168,28 @@ final class LensProfileTests: XCTestCase {
         XCTAssertEqual(diffraction!.amount, Float(0.3), accuracy: Float(0.0001))
     }
 
+    func testImageNodeCanApplyOpticsSettingsConvenience() throws {
+        let input = try makeSolidTexture(red: 120, green: 140, blue: 160, alpha: 255)
+        let settings = OpticsSettings(
+            defringe: .init(purpleAmount: 0.2),
+            sharpnessFalloff: .init(amount: 0.3)
+        )
+
+        let node = ImageNode
+            .texture(input)
+            .applying(optics: settings)
+
+        let output = try node.makeTexture(profile: .stablePreview)
+        let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
+
+        XCTAssertEqual(output.width, 1)
+        XCTAssertEqual(output.height, 1)
+        XCTAssertEqual(diagnostics.compilationSource, .nodeGraph)
+        XCTAssertEqual(diagnostics.nodes.count, 2)
+        XCTAssertTrue(diagnostics.nodes[0].name.contains("C7DefringeCorrection"))
+        XCTAssertTrue(diagnostics.nodes[1].name.contains("C7SharpnessFalloffCorrection"))
+    }
+
     private func makeSolidTexture(red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

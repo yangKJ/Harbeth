@@ -50,6 +50,21 @@ enum SamplerExecutionAdapter {
         guard samplerDescriptor != .default else {
             return filter
         }
+        if let filter = filter as? C7Crop {
+            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
+        }
+        if let filter = filter as? C7Rotate {
+            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
+        }
+        if let filter = filter as? C7Transform {
+            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
+        }
+        if let filter = filter as? C7LensDistortionCorrection {
+            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
+        }
+        if let filter = filter as? C7ChromaticAberrationCorrection {
+            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
+        }
         if let filter = filter as? RenderQuadTransform {
             return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
         }
@@ -86,7 +101,7 @@ enum SamplerExecutionAdapter {
 
         for filter in relevantFilters {
             let typeName = String(describing: type(of: filter))
-            if isExecutionCovered(filter) {
+            if isExecutionCovered(filter, samplerDescriptor: samplerDescriptor) {
                 covered.append(typeName)
             } else {
                 metadataOnly.append(typeName)
@@ -115,6 +130,59 @@ enum SamplerExecutionAdapter {
     }
 
     private static func adapt(filter: RenderQuadTransform, samplerDescriptor: ImageSamplerDescriptor) -> RenderQuadTransform {
+        var resolved = filter
+        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return resolved
+    }
+
+    private static func adapt(filter: C7Crop, samplerDescriptor: ImageSamplerDescriptor) -> C7Crop {
+        filter.resolved(
+            samplingMode: samplerDescriptor.preferredSpatialSamplingMode,
+            edgeMode: samplerDescriptor.preferredSpatialEdgeMode
+        )
+    }
+
+    private static func adapt(filter: C7Rotate, samplerDescriptor: ImageSamplerDescriptor) -> C7Rotate {
+        var resolved = filter
+        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return resolved
+    }
+
+    private static func adapt(filter: C7Transform, samplerDescriptor: ImageSamplerDescriptor) -> C7Transform {
+        var resolved = filter
+        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return resolved
+    }
+
+    private static func adapt(filter: C7LensDistortionCorrection,
+                              samplerDescriptor: ImageSamplerDescriptor) -> C7LensDistortionCorrection {
+        var resolved = filter
+        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return resolved
+    }
+
+    private static func adapt(filter: C7ChromaticAberrationCorrection,
+                              samplerDescriptor: ImageSamplerDescriptor) -> C7ChromaticAberrationCorrection {
         var resolved = filter
         if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
             resolved.samplingMode = samplingMode
@@ -158,6 +226,24 @@ enum SamplerExecutionAdapter {
             return true
         case is RenderProtocol:
             return true
+        default:
+            return false
+        }
+    }
+
+    static func isExecutionCovered(_ filter: C7FilterProtocol,
+                                   samplerDescriptor: ImageSamplerDescriptor) -> Bool {
+        if isExecutionCovered(filter) {
+            return true
+        }
+        switch filter {
+        case is C7Crop,
+             is C7Rotate,
+             is C7Transform,
+             is C7LensDistortionCorrection,
+             is C7ChromaticAberrationCorrection:
+            return samplerDescriptor.preferredSpatialSamplingMode != nil
+                || samplerDescriptor.preferredSpatialEdgeMode != nil
         default:
             return false
         }

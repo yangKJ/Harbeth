@@ -113,7 +113,10 @@ public struct EditRecipe {
                           mode: EditRecipeMode = .preview,
                           extraFilters: [C7FilterProtocol] = [],
                           derivative: ImageDerivativeSpec? = nil,
-                          samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRecipe {
+                          samplerDescriptor: ImageSamplerDescriptor = .default,
+                          sourceDescriptorOverride: ImageSourceDescriptor? = nil,
+                          alphaTypeOverride: AlphaType? = nil,
+                          orientationOverride: FrameOrientation? = nil) throws -> RenderRecipe {
         let compiled = try compileExecution(
             source: source,
             mode: mode,
@@ -129,15 +132,16 @@ public struct EditRecipe {
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: compiled.source.descriptor
         )
+        let resolvedSourceDescriptor = sourceDescriptorOverride ?? compiled.source.descriptor
         return RenderRecipe(
             renderProfile: String(describing: compiled.profile),
             renderIntent: compiled.derivative.renderIntent,
-            source: compiled.source.descriptor,
+            source: resolvedSourceDescriptor,
             outputDerivative: compiled.derivative,
             outputCachePolicy: compiled.outputCachePolicy,
             outputSemantic: compiled.derivative.semantic,
-            alphaType: compiled.source.alphaType,
-            orientation: compiled.source.orientation,
+            alphaType: alphaTypeOverride ?? compiled.source.alphaType,
+            orientation: orientationOverride ?? compiled.source.orientation,
             filters: plan.diagnostics.nodes
                 .filter { $0.name != "DerivativeResize" }
                 .map { diagnostic in

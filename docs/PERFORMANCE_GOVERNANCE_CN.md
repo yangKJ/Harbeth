@@ -34,6 +34,11 @@ Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜
 
 这些指标可以通过 `HarbethIO` / `ImageNode` 的 diagnostics、debug snapshot 和测试侧计时工具组合记录。性能治理的入口也只围绕这两条路线展开，不额外引入第三条 runtime 用法。
 
+记录这些指标时有两个前提需要固定：
+
+- `HarbethIO` 的 diagnostics / request / render recipe 必须和真实 effective chain 一致，不能只看初始化时传入的原始 filters
+- `ImageNode` 的 request / recipe / snapshot 必须保留原始 source contract，不能因为内部先物化成 texture 就把 `sampleBuffer`、YCbCr、HDR 语义抹掉
+
 仓库当前已经提供一组可直接运行的基线测试：
 
 - `PerformanceBaselineTests/testHarbethIOFilterChainClockBaseline`
@@ -53,6 +58,13 @@ xcrun swift test --filter PerformanceBaselineTests
 - `ImageNode` 统一链路
 - geometry + sampler override
 - pixelBuffer / YCbCr bridge
+
+仓库当前还补了两类执行证据：
+
+- `RenderGraphTests/testExecutionPrewarmReservationsIncreaseTextureReuseForBoundaryChain`
+- `RenderGraphTests/testExecutionPrewarmReservationsIncreaseTextureReuseForDoubleBufferChain`
+
+这两条不是时钟基线，而是用 texture pool reuse hit 去证明 optimizer 的 prewarm hint 已经进入真实执行，而不只是停留在 diagnostics。
 
 ## 基准场景
 
@@ -139,6 +151,17 @@ let filters: [C7FilterProtocol] = [
 - `RenderQuadRectifyTransform`
 - `PerspectiveTransform`
 - `GuidedUpright`
+- `C7Crop`
+- `C7Rotate`
+- `C7Transform`
+- `C7LensDistortionCorrection`
+- `C7ChromaticAberrationCorrection`
+
+当前判断：
+
+- render geometry path 直接受 `MTLSamplerState` 控制
+- 历史 compute geometry / optics path 已经补齐到 nearest/linear + clamp/repeat 这类可映射 sampler 语义
+- 如果 sampler descriptor 超出当前 compute family 可表达范围，diagnostics 仍会保守标记为 `metadataOnly` 或 `partial`
 
 ### Analysis 和 Attachment
 
@@ -170,6 +193,7 @@ let filters: [C7FilterProtocol] = [
 
 - 默认 `HarbethIO + filters` texture path
 - 线性滤镜链的 transient texture reuse
+- `RenderOptimizationPlan.prewarmReservations` 驱动的同步 texture pool 预热
 - 组合滤镜 sequential pipeline 的中间纹理生命周期
 - analysis / attachment 路径的 readback 控制
 - graph optimizer 对透明 wrapper 和冗余节点的消除

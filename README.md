@@ -122,6 +122,8 @@ let frame = try io.renderFrame(profile: .stablePreview)
 
 `RenderProfile` is an option on this path. It expresses latency and quality intent, not a separate usage model. For `Data`, `URL`, and `ImageAsset`, use `renderTexture`, `renderFrame`, or `makeRenderRequest` instead of relying on typed `output()` round-trips.
 
+When this path injects derivative-driven resizing or other effective execution filters, `renderTexture`, `renderFrame`, `makeRenderRequest`, and diagnostics now report the same effective chain instead of drifting between execution and debug surfaces.
+
 ### Editing and Diagnostics with ImageNode
 
 Use `ImageNode` when the work has edit structure: geometry, local effects, layer compositing, transitions, or preview/final output contracts.
@@ -139,6 +141,8 @@ let finalTexture = try ImageNode
 ```
 
 `EditRecipe`, `LayerCompositeRecipe`, and `TransitionRecipe` are editing primitives. Mask, local effect, geometry, layer, and transition value types stay in the recipe layer, while execution is unified through `ImageNode`.
+
+For `editing(...)`, `transforming(...)`, `transition(...)`, and `layerComposite(...)`, `ImageNode` keeps the original source contract in `RenderRequest`, `RenderRecipe`, and diagnostics even when execution has already materialized the upstream source into an intermediate texture. This matters for `pixelBuffer`, `sampleBuffer`, YCbCr, and HDR-aware paths.
 
 ### Graph and Diagnostics with ImageNode
 
@@ -167,6 +171,14 @@ print(diagnostics.samplerExecutionCoverage.mode)
 print(diagnostics.samplerExecutionCoverage.coveredFilterTypes)
 print(diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes)
 ```
+
+Current behavior is intentionally conservative:
+
+- regular `RenderProtocol` stages and render geometry stages bind runtime sampler state directly
+- legacy compute geometry and optics filters such as `C7Crop`, `C7Rotate`, `C7Transform`, `C7LensDistortionCorrection`, and `C7ChromaticAberrationCorrection` now bridge common nearest/linear and edge-mode semantics
+- when a sampler descriptor cannot be represented by those compute families, diagnostics still reports `metadataOnly` or `partial`
+
+`RenderOptimizationPlan.prewarmReservations` is also part of real execution now. `HarbethIO` and `ImageNode` both prewarm pool reservations before encoding, so texture reuse evidence is observable in tests instead of living only in diagnostics.
 
 Deferred execution and asynchronous execution are supporting forms of these paths through `RenderRequest` and `RenderTask`; they are not separate integration models. Analysis is also not a third route: render through `HarbethIO` or `ImageNode` first, then inspect `RenderedFrame` or attachment outputs.
 
@@ -205,12 +217,14 @@ let recipe = EditRecipe(
 )
 
 let previewFrame = try ImageNode
-    .recipe(source: .image(inputImage), recipe: recipe, mode: .preview)
+    .image(inputImage)
+    .editing(recipe, mode: .preview)
     .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
     .makeFrame(profile: .stablePreview)
 
 let finalTexture = try ImageNode
-    .recipe(source: .image(inputImage), recipe: recipe, mode: .final)
+    .image(inputImage)
+    .editing(recipe, mode: .final)
     .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
     .makeTexture(profile: .exportQuality)
 ```
@@ -385,30 +399,45 @@ You can also build profile-driven correction from `LensProfile` and `OpticsSetti
 
 ```swift
 let profile = LensProfile(
-    distortion: .init(amount: -0.2, cubic: 0.04, scale: 1.01),
-    vignette: .init(intensity: 0.2),
-    chromaticAberration: .init(intensity: 0.35)
+    make: "Demo",
+    model: "Wide",
+    profileName: "Default",
+    distortionCorrection: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.01),
+    vignetteCorrection: .init(amount: 0.2),
+    chromaticAberrationCorrection: .init(redCyanShift: -0.01, blueYellowShift: 0.015)
 )
 
 let settings = OpticsSettings(
-    lensProfile: profile,
-    enablesDefringe: true,
-    enablesSharpnessFalloffCorrection: true
+    profile: profile,
+    defringe: .init(purpleAmount: 0.2),
+    sharpnessFalloff: .init(amount: 0.25)
 )
 
-let corrected = try inputImage.make(filters: settings.filters)
+let corrected = try ImageNode
+    .image(inputImage)
+    .applying(optics: settings)
+    .makeFrame(profile: .stablePreview)
 ```
 
 For guided perspective correction:
 
 ```swift
 let upright = GuidedUpright(
-    verticalGuides: [leftEdge, rightEdge],
-    horizontalGuides: [roofLine]
+    guides: [
+        .vertical(start: CGPoint(x: 0.2, y: 0.1), end: CGPoint(x: 0.22, y: 0.9)),
+        .vertical(start: CGPoint(x: 0.8, y: 0.1), end: CGPoint(x: 0.78, y: 0.9))
+    ]
 )
 
-let transform = upright.recommendedTransform()
-let corrected = try inputImage ->> transform
+let corrected = try ImageNode
+    .image(inputImage)
+    .transforming(
+        ImageTransformRecipe(
+            guidedUpright: upright,
+            projectiveViewportMode: .minimumEnclosing
+        )
+    )
+    .makeFrame(profile: .stablePreview)
 ```
 
 #### ⚡ Asynchronous Processing (Best Performance)

@@ -70,6 +70,11 @@ io.transmitOutput { result in
 }
 ```
 
+一致性说明：
+
+- 如果 `HarbethIO` 因为 derivative、output contract 或内部执行条件生成了 effective chain，`renderTexture(...)`、`renderFrame(...)`、`makeRenderRequest(...)`、`renderDiagnostics(...)`、`renderRecipe(...)` 会统一反映同一条执行链
+- 不再允许“真正执行已经注入附加 resize/filter，但 diagnostics 或 request 仍像原始 filters”的漂移
+
 输入类型上的实际判断：
 
 - `C7Image / CGImage / MTLTexture / CVPixelBuffer / CMSampleBuffer` 支持 `output()` typed round-trip
@@ -191,7 +196,8 @@ let recipe = EditRecipe(
 )
 
 let node = ImageNode
-    .recipe(source: .texture(inputTexture), recipe: recipe, mode: .preview)
+    .texture(inputTexture)
+    .editing(recipe, mode: .preview)
     .applying(C7Brightness(brightness: 0.08))
 
 let previewFrame = try node.makeFrame(profile: .stablePreview)
@@ -238,6 +244,20 @@ Geometry 在 `ImageNode` 里的结构化入口：
 - `PerspectiveTransform`
 - `GuidedUpright`
 
+最自然的接法现在是直接挂在已有 node 上，而不是先切回单独执行入口：
+
+```swift
+let node = ImageNode
+    .texture(inputTexture)
+    .transforming(
+        ImageTransformRecipe(
+            guidedUpright: uprightGuides,
+            projectiveViewportMode: .aspectFill
+        )
+    )
+    .applying(C7Brightness(brightness: 0.06))
+```
+
 示例：
 
 ```swift
@@ -249,7 +269,8 @@ let recipe = EditRecipe(
 )
 
 let frame = try ImageNode
-    .recipe(source: .texture(inputTexture), recipe: recipe)
+    .texture(inputTexture)
+    .editing(recipe)
     .makeFrame(profile: .stablePreview)
 ```
 
@@ -276,13 +297,23 @@ let recipe = EditRecipe(
 - `RenderQuadTransform` / `RenderQuadRectifyTransform`：通过 geometry adapter 映射到 `SpatialSamplingMode` / `SpatialEdgeMode`
 - `EditRecipe` / `TransitionRecipe` / `LayerCompositeRecipe` 进入 `ImageNode` 后，最终执行会继续沿用同一个 sampler contract
 
-当前仍是 metadata-only 的历史 family：
+当前已经进入真实执行覆盖的 family：
 
+- 普通 `RenderProtocol`
+- `RenderQuadTransform`
+- `RenderQuadRectifyTransform`
 - `C7Crop`
 - `C7Rotate`
 - `C7Transform`
 - `C7LensDistortionCorrection`
 - `C7ChromaticAberrationCorrection`
+
+但这里有一个边界要明确：
+
+- render path 可以直接绑定 `MTLSamplerState`
+- 上述历史 compute geometry / optics family 只能桥接到 `SpatialSamplingMode` / `SpatialEdgeMode`
+- 因此只有当 `ImageSamplerDescriptor` 能被映射成 nearest/linear 和 clamp/repeat 这类空间采样语义时，它们才算真实覆盖
+- 如果调用方传入的是当前 compute family 不能完整表达的 sampler 组合，diagnostics 仍会把它记成 `metadataOnly` 或 `partial`
 
 调用方应通过 diagnostics 判断当前链路到底属于哪一类：
 
@@ -295,7 +326,19 @@ diagnostics.samplerExecutionCoverage.coveredFilterTypes
 diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes
 ```
 
+执行层上的低风险优化也已经真闭环：
+
+- `HarbethIO` 在真正开始编码前，会按 `RenderOptimizationPlan.prewarmReservations` 同步预热 texture pool
+- 双 buffer filter chain 也会同步预热两块目标纹理
+- 因此 `prewarmReservations` 不再只是 diagnostics 建议，texture pool reuse hit 已经能在测试里观测到
+
 普通用户可以把它理解成高级 node contract，而不是全局采样策略总开关。
+
+source contract 一致性说明：
+
+- `ImageNode` 在 `editing(...)`、`transforming(...)`、`transition(...)`、`layerComposite(...)` 这些高级路径里，即使执行期已经把 source 物化成上游 texture，`RenderRequest`、`RenderRecipe`、`RenderGraphDebugSnapshot` 仍以最终 node contract 为准
+- `sampleBuffer`、`pixelBuffer`、YCbCr、HDR、attachment-derived color contract 不会因为内部先解成 texture 就在调试面退化成裸 `texture` source
+- 目标是让执行、request、recipe、diagnostics 四个 surface 讲的是同一件事
 
 ## 2. Supporting Public
 
@@ -384,7 +427,20 @@ diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes
 定位：
 
 - 它们是带语义的 filter builders
-- 最自然的接法仍然是产出 filters 后交给 `HarbethIO` 或 `ImageNode`
+- 最自然的接法仍然是进入 `HarbethIO(filters:)` 或 `ImageNode.applying(optics:)`
+
+示例：
+
+```swift
+let settings = OpticsSettings(
+    profile: lensProfile,
+    defringe: .init(purpleAmount: 0.2)
+)
+
+let node = ImageNode
+    .texture(inputTexture)
+    .applying(optics: settings)
+```
 
 ## 3. Analysis 如何使用
 

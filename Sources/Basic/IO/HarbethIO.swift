@@ -242,11 +242,6 @@ struct ManagedTextureResult {
     let lease: TextureLease?
 }
 
-private struct ManagedTextureStage {
-    let texture: MTLTexture
-    let producedLease: TextureLease?
-}
-
 extension HarbethIO {
     
     func filtering(texture: MTLTexture) throws -> MTLTexture {
@@ -327,10 +322,37 @@ extension HarbethIO {
     private func prepareTextureLifecycle(for plan: RenderPlan, inputPixelFormat: MTLPixelFormat) {
         let reservations = plan.diagnostics.optimizationPlan.prewarmReservations
         guard reservations.isEmpty == false else { return }
-        Shared.shared.prewarmTexturePool(
+        // Execution starts immediately after planning, so the reservations must be
+        // materialized synchronously to have a real chance to improve reuse.
+        Shared.shared.prewarmTexturePoolSync(
             reservations: reservations,
             fallbackPixelFormat: inputPixelFormat,
             defaultCount: 1
+        )
+    }
+
+    private func prewarmDoubleBufferReservations(for plan: RenderPlan,
+                                                 fallbackSize: C7Size,
+                                                 inputPixelFormat: MTLPixelFormat) {
+        let reservations = plan.diagnostics.optimizationPlan.prewarmReservations
+        let effectiveReservations: [RenderTextureReservation]
+        if reservations.isEmpty {
+            effectiveReservations = [
+                RenderTextureReservation(
+                    stageIndices: Array(0..<max(plan.graph.nodes.count, 1)),
+                    size: fallbackSize,
+                    pixelFormat: PixelFormatContract(pixelFormat: inputPixelFormat, preservesInput: false),
+                    reason: .transientReuse,
+                    count: 2
+                )
+            ]
+        } else {
+            effectiveReservations = reservations
+        }
+        Shared.shared.prewarmTexturePoolSync(
+            reservations: effectiveReservations,
+            fallbackPixelFormat: inputPixelFormat,
+            defaultCount: 2
         )
     }
 
@@ -426,17 +448,17 @@ extension HarbethIO {
         return try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
     }
 
-    private func textureIOManaged(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> ManagedTextureStage {
+    private func textureIOManaged(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> ManagedTextureResult {
         let destLease = try createDestTextureLease(with: texture, filter: filter)
         let destTexture = destLease?.texture ?? texture
         if let pipelineFilter = filter as? C7FilterPipelineProtocol {
             let finalTexture = try FilterPipelineExecutor.apply(filter: pipelineFilter, source: texture, destination: destTexture, commandBuffer: buffer)
-            return ManagedTextureStage(texture: finalTexture, producedLease: destLease)
+            return ManagedTextureResult(texture: finalTexture, lease: destLease)
         }
         let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
         let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
         let finalTexture = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
-        return ManagedTextureStage(texture: finalTexture, producedLease: destLease)
+        return ManagedTextureResult(texture: finalTexture, lease: destLease)
     }
     
     private func singleBuffer(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (MTLTexture, [MTLTexture]) {
@@ -484,7 +506,11 @@ extension HarbethIO {
         let height = input.height
         let pixelFormat = input.pixelFormat
         
-        Shared.shared.prewarmTexturePool(resolutions: [(width: width, height: height, pixelFormat: pixelFormat)], count: 2)
+        prewarmDoubleBufferReservations(
+            for: plan,
+            fallbackSize: C7Size(width: width, height: height),
+            inputPixelFormat: pixelFormat
+        )
         let textureA = try TextureLoader.makeTexture(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
         ], identifier: identifier)
@@ -689,7 +715,7 @@ extension HarbethIO where Dest == MTLTexture {
                 currentLease = nil
             }
 
-            if let producedLease = stage.producedLease {
+            if let producedLease = stage.lease {
                 if producedLease.texture === stage.texture {
                     currentLease = producedLease
                 } else {
@@ -712,7 +738,7 @@ extension HarbethIO where Dest == MTLTexture {
         for node in plan.graph.nodes {
             guard let filter = node.filter else { continue }
             let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
-            if let lease = stage.producedLease {
+            if let lease = stage.lease {
                 producedLeases.append(lease)
             }
             currentTexture = stage.texture
@@ -736,7 +762,11 @@ extension HarbethIO where Dest == MTLTexture {
         let height = input.height
         let pixelFormat = input.pixelFormat
 
-        Shared.shared.prewarmTexturePool(resolutions: [(width: width, height: height, pixelFormat: pixelFormat)], count: 2)
+        prewarmDoubleBufferReservations(
+            for: plan,
+            fallbackSize: C7Size(width: width, height: height),
+            inputPixelFormat: pixelFormat
+        )
         let leaseA = try TextureLoader.makeTextureLease(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
         ], identifier: identifier)

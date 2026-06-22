@@ -1,5 +1,6 @@
 import XCTest
 import Metal
+import CoreGraphics
 @testable import Harbeth
 
 final class ImageGraphOptimizerTests: XCTestCase {
@@ -206,6 +207,28 @@ final class ImageGraphOptimizerTests: XCTestCase {
         XCTAssertTrue(optimized.decisions.contains("collapseRedundantSamplerWrapper"))
         XCTAssertTrue(optimized.decisions.contains("mergeAdjacentFilterNodes"))
         XCTAssertEqual(optimized.graph.nodes.last?.filterCount, 2)
+    }
+
+    func testOptimizerPreservesEditRecipeSemanticBoundary() throws {
+        let input = try makeTexture(width: 4, height: 4)
+        let node = ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.1))
+            .editing(
+                EditRecipe(
+                    geometry: ImageTransformRecipe(
+                        targetSize: CGSize(width: 2, height: 2),
+                        aspectPolicy: .fit
+                    )
+                )
+            )
+            .applying(C7Contrast(contrast: 1.1))
+
+        let optimized = try node.makeOptimizedImageGraph()
+
+        XCTAssertEqual(optimized.graph.nodes.filter { $0.kind == .recipe }.count, 1)
+        XCTAssertEqual(optimized.graph.nodes.filter { $0.kind == .filters }.count, 2)
+        XCTAssertFalse(optimized.decisions.contains("mergeAdjacentFilterNodes"))
     }
 
     private func makeTexture(width: Int, height: Int) throws -> MTLTexture {

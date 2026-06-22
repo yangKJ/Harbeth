@@ -684,6 +684,36 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(request.diagnostics.compilationSource, .nodeGraph)
     }
 
+    func testImageNodeEditingPreservesOriginalSampleBufferSourceContract() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create bi-planar sample buffer.")
+            return
+        }
+
+        let node = ImageNode
+            .sampleBuffer(sampleBuffer)
+            .editing(
+                EditRecipe(
+                    geometry: ImageTransformRecipe(
+                        targetSize: CGSize(width: 2, height: 2),
+                        aspectPolicy: .fit
+                    )
+                )
+            )
+            .applying(C7Brightness(brightness: 0.1))
+
+        let request = try node.makeRenderRequest(profile: .stablePreview)
+        let renderRecipe = try XCTUnwrap(request.renderRecipe)
+
+        XCTAssertEqual(request.source.kind, "sampleBuffer")
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(renderRecipe.source.kind, "sampleBuffer")
+        XCTAssertEqual(renderRecipe.source.yCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(renderRecipe.source.sampleBufferContract?.pixelBufferContract?.planeCount, 2)
+        XCTAssertEqual(request.diagnostics.compilationSource, .editRecipe)
+    }
+
     func testFilteringSampleBufferPreservesTimingAndAttachments() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
