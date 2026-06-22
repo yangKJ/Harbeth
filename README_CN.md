@@ -15,6 +15,12 @@
 
 仓库中的相机和视频示例属于集成 Demo：Harbeth 提供处理核心和参考接线方式，完整的数据采集策略、媒体编排、持久化和产品工作流仍由宿主 App 自己组合。
 
+## 📚 文档导航
+
+- [公开 API 分层](docs/API_SURFACE_CN.md)：说明 `HarbethIO` 与 `ImageNode` 两条路线如何选择、公开 API 分层，以及 diagnostics / analysis 的使用边界。
+- [能力地图](docs/CAPABILITY_MAP_CN.md)：梳理 image、texture、pixelBuffer、sampleBuffer、滤镜、图结构与性能能力。
+- [性能治理指南](docs/PERFORMANCE_GOVERNANCE_CN.md)：说明如何比较和优化单滤镜、滤镜链、组合滤镜与帧链路性能。
+
 ## 🚀 核心特性
 
 Harbeth 提供了一系列强大的特性，用于构建快速、稳定、可复用的图像与帧处理链路：
@@ -24,13 +30,12 @@ Harbeth 提供了一系列强大的特性，用于构建快速、稳定、可复
 - **丰富的滤镜生态系统**：超过 200+ 内置滤镜，组织成直观的类别，涵盖从基本颜色调整到高级艺术效果的各种功能。
 - **高级集成**：利用 Metal Performance Shaders (MPS) 实现高性能过滤，并与 Harbeth 原生 Metal 滤镜链协同工作。
 - **Metal 驱动渲染**：texture-first 的处理与渲染操作都由 Metal 加速，确保即使使用复杂滤镜链也能保持流畅性能。
-- **自定义滤镜支持**：使用查找表 LUT、Cube 文件或自定义 Metal 着色器轻松创建和集成自定义滤镜。通过继承 `C7CombinationBase` 创建高级组合滤镜，实现复杂的多步骤效果。
+- **自定义滤镜支持**：使用查找表 LUT、Cube 文件或自定义 Metal 着色器轻松创建和集成自定义滤镜。通过 `C7FilterPipelineProtocol` 组织多阶段组合滤镜，同时保持对外使用轻量。
 - **实时帧处理**：可把滤镜链接入相机预览、视频播放等低延迟帧处理链路。
-- **参考视频接线**：通过集成的 [Kakapos](https://github.com/yangKJ/Kakapos) 示例处理本地和网络视频帧，产品编排仍由宿主 App 负责。
+- **参考帧接线**：可把相机、播放器或视频帧源接入 Harbeth 处理链，采集策略和产品编排仍由宿主 App 负责。
 - **直观的 API**：享受干净、Swift 友好的 API，具有可链接的滤镜操作和运算符重载，以实现简洁、富有表现力的代码。
 - **SwiftUI 集成**：原生支持 SwiftUI 框架。
 - **性能优化**：受益于自动纹理池、内存管理和多编码器支持，以在各种设备上获得最佳性能。
-- **广泛的文档**：全面的文档和演示项目，帮助您快速入门并充分利用 Harbeth 的功能。
 
 ### 🧱 核心能力分层
 
@@ -45,7 +50,7 @@ Harbeth 现在更适合被理解成一个能力底座，而不是单纯的滤镜
 
 - **Harbeth 提供**：GPU 滤镜、链式处理、texture / image / pixelBuffer / sampleBuffer 处理、LUT 管线、MPS / Metal 集成、SwiftUI 渲染承载，以及面向帧链路的参考接线方式。
 - **业务 App 提供**：数据采集策略、媒体编排、持久化、展示承载以及全部产品业务逻辑。
-- **商业承接**：如果你需要私有 LUT、品牌滤镜包、实时相机/视频调优或定制 Metal kernel，可以基于开源示例确认技术基线，再与维护者讨论私有集成范围。
+- **定制集成**：如需定制 LUT、品牌滤镜包、实时相机/视频调优或专用 Metal kernel，可以基于开源示例确认技术基线，再与维护者讨论集成范围。
 
 ### 📐 几何与光学能力
 
@@ -324,11 +329,11 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 
 ### 📱 相机与视频支持
 
-Harbeth 提供了内置的相机采集和视频处理功能：
+Harbeth 不是相机 SDK 或视频编辑 SDK。它负责处理已经进入链路的图像、纹理、`CVPixelBuffer` 或 `CMSampleBuffer`，宿主 App 负责采集、播放、时间线、导出和保存策略。
 
-- **实时相机滤镜**：为相机预览添加实时滤镜效果
-- **视频播放滤镜**：为本地或网络视频添加滤镜效果
-- **视频导出**：支持带滤镜效果的视频导出
+- **实时预览链路**：宿主采集相机帧后，可把帧交给 Harbeth 做滤镜处理。
+- **播放帧链路**：宿主从播放器或解码器取帧后，可使用 Harbeth 进行逐帧处理。
+- **导出帧链路**：宿主负责导出调度，Harbeth 负责每一帧的 GPU 图像处理。
 
 ### 🎨 自定义滤镜支持
 
@@ -340,132 +345,39 @@ Harbeth 支持多种自定义滤镜方式：
 
 ## 📖 使用指南
 
-### 输出方式选择
-
-Harbeth 不只支持“直接出图”，也支持更适合真实工程链路的多种输出方式：
-
-- 输入可使用 `UIImage`、`NSImage`、`CGImage`、`MTLTexture`、`CVPixelBuffer`、`CMSampleBuffer`。
-- 需要 primitive 级直接出图时，使用 `output()`。
-- 需要 filters 路径的 texture-first / frame-first 输出时，使用 `renderTexture(profile:)` / `renderFrame(profile:)`。
-- 需要输出到新的 `CVPixelBuffer`，且不原地修改输入 buffer 时，使用 `renderPixelBuffer(profile:)`。
-- 需要 recipe-driven execution 时，使用 `renderTexture(recipe:)` / `renderFrame(recipe:)`。
-- 需要转场 primitive 时，使用 `renderTransitionTexture(_:)` / `renderTransitionFrame(_:)`。
-
-### 渲染档位与帧渲染
-
-`RenderProfile` 表达的是技术语义，而不是页面场景：
-
-- `interactiveLatency`：适合交互调参和低延迟链路。
-- `responseLatency`：适合快速给出首个稳定可用结果。
-- `stablePreview`：适合作为稳定可复用派生结果。
-- `inspectionQuality`：适合更高保真的检查型输出。
-- `exportQuality`：适合导出链路。
-- `readbackQuality`：适合需要 CPU 读回的完整质量输出。
+### HarbethIO：直接处理
 
 ```swift
 let io = HarbethIO(element: originalImage, filters: filters)
 
-let interactiveTexture = try io.renderTexture(profile: .interactiveLatency)
-let stableFrame = try io.renderFrame(profile: .stablePreview)
-let exportTexture = try io.renderTexture(profile: .exportQuality)
+let image = try io.output()
+let texture = try io.renderTexture(profile: .stablePreview)
+let frame = try io.renderFrame(profile: .stablePreview)
 ```
 
-### 主处理路径
+`RenderProfile` 是这条路线上的输出档位选项，用来表达延迟和质量意图，不是新的使用方式。
 
-大多数宿主工程优先从这三条路径接入：
+### ImageNode：编辑、图结构与诊断
 
-- primitive filters path：需要直接出图时，使用 `output()`
-- recipe-driven path：需要几何、局部效果、稳定派生输出时，使用 `renderTexture(recipe:)` / `renderFrame(recipe:)`
-- transition / layer path：需要双输入转场或纹理合成时，使用 `renderTransitionTexture(_:)`、`renderTransitionFrame(_:)` 或 `LayerCompositeRecipe`
-
-### 高级运行时
-
-Harbeth 也继续暴露更明确的 runtime surface，供需要稳定 contract、diagnostics 和底层扩展点的宿主工程使用：
-
-- `Shared.shared`：默认全局 runtime owner，统一管理 `Device`、`HarbethContext`、texture pool、command queue 和生命周期 reset
-- `HarbethContext.shared`：默认执行上下文 facade，负责 identity-aware Metal function 与 compute/render pipeline cache、sampler cache、lazy image resolution cache 和执行期诊断
-- `RenderedFrame`：texture-first 输出，稳定携带 `renderIntent`、`sourceTier`、`alphaType`、`pixelFormat`、`orientation` 和 cache identity
-- `ImageNode`：不可变 lazy texture graph 节点，覆盖 source、filters、recipe、transition、kernel 和 layer composition 路径，并显式表达 transient/persistent 图像缓存语义和采样描述
-- `KernelDescriptor`：提供 function identity、library source lookup identity、function constant specialization、稳定 argument descriptor、参数 fingerprint、输入纹理数量、pass descriptor、资源行为、alpha/output contract 等技术元数据
-- `KernelInvocation`：把稳定的 kernel descriptor 桥接到可执行 filter 实例，显式暴露兼容性摘要和稳定 fingerprint，便于 node graph 执行与验证
-- `RenderTask`：texture-first 渲染的 GPU 任务句柄，可观察 command-buffer 状态、completion、diagnostics，并支持显式等待
-- `RenderRequest`：延迟单帧渲染合同。宿主可以先编译 diagnostics、source semantic 和 recipe metadata，再按需要真正 materialize texture/frame 输出
-- `PixelBufferPool`：可复用的 `CVPixelBuffer` 输出池，用于单帧 render target，稳定描述尺寸、像素格式和分配 contract
-- `RenderOutputContract`：显式描述 alpha、color-space、wide-gamut、pixel-format 和 high-precision 输出意图，供 diagnostics 和保守执行计划使用
-- texture/node 执行路径可以按 `RenderOutputContract` materialize 目标 `MTLPixelFormat`；color-space 仍作为 diagnostics/planning 的显式 contract，除非调用方接入具体转换滤镜
-- `PixelBufferContract`、`PixelBufferTextureBridgePlan`、`SampleBufferContract`：显式描述 multi-plane pixelBuffer 布局、YCbCr bridge 策略，以及 timing / sample attachment 合同，适合相机帧和视频帧输入链路
-- `PixelBufferPlaneBridgeDescriptor`、`SampleBufferFrameContract`：进一步描述每个 plane 的 bridge 策略、owner retention 语义，以及 sampleBuffer 帧级元数据
-- `C7RGBTransferConversion`：显式执行 sRGB/linear transfer 转换；当 kernel descriptor 声明了兼容的输入色彩 contract 时，node 执行路径可以按输出 contract 自动接入
-- `RenderOptimizationPlan`：以保守方式描述 transient texture 复用、persistent output、纹理成本估算、readback boundary 和格式转换决策。texture-first 执行路径可据此预热可复用 render target，但不改变视觉输出
-- `ImageGraph`、`ImageGraphOptimizer`、`RenderGraphDebugSnapshot`：为 node/recipe/transition/layer 路径提供 lazy DAG 诊断，包含 graph node 数、优化决策、DOT graph 导出和 JSON 友好的快照结构
-- `KernelExecutionPlan`：把 `KernelDescriptor` 提升成 compute/render/mps/advancedMetal/blit 的统一执行元数据
-- `ExactTextureAllocator`、`TolerantTextureAllocator`、`HeapBackedTextureAllocator`：提供 allocator 抽象和诊断视角，同时保持 `Shared.shared` 默认入口不变
+当处理包含几何、局部效果、图层合成、转场或 preview/final 输出合同时，统一使用 `ImageNode`。
 
 ```swift
-let runtime = Shared.shared
-let context = runtime.defaultContext
-let frame = try HarbethIO(element: inputTexture, filters: filters)
-    .renderFrame(profile: .stablePreview)
+let previewNode = ImageNode
+    .recipe(source: .texture(inputTexture), recipe: recipe, mode: .preview)
+    .applying(filters: filters)
 
-let cacheSnapshot = context.debugCacheSnapshot()
-let semantic = frame.semantic
-let replayContract = frame.replayBaseContract
+let previewFrame = try previewNode.makeFrame(profile: .stablePreview)
+let finalTexture = try ImageNode
+    .recipe(source: .texture(inputTexture), recipe: recipe, mode: .final)
+    .applying(filters: filters)
+    .makeTexture(profile: .exportQuality)
 ```
 
-```swift
-let task = try HarbethIO(element: inputTexture, filters: filters)
-    .startRenderTextureTask(profile: .stablePreview)
+`EditRecipe`、`LayerCompositeRecipe`、`TransitionRecipe` 是编辑 primitive；mask、local effect、geometry、layer、transition 相关类型都是它们的组件，而不是独立执行入口。
 
-task.observeCompletion { task in
-    print(task.commandBufferStatus)
-}
+### ImageNode：图结构与诊断
 
-let outputTexture = try task.output()
-let diagnostics = task.diagnostics
-```
-
-```swift
-let pixelBufferPool = try PixelBufferPool(width: 1920, height: 1080)
-let outputPixelBuffer = try HarbethIO(element: inputTexture, filters: filters)
-    .renderPixelBuffer(profile: .stablePreview, pool: pixelBufferPool)
-```
-
-```swift
-let node = ImageNode.filters(
-    input: .source(.texture(inputTexture)),
-    filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.05)]
-)
-
-let nodeFrame = try HarbethIO(element: inputTexture, filters: [])
-    .renderFrame(node: node, profile: .stablePreview)
-let nodeDiagnostics = try HarbethIO(element: inputTexture, filters: [])
-    .renderDiagnostics(node: node)
-let nodePlan = try node.makeRenderPlan(profile: .stablePreview)
-let nodeRecipe = try node.makeRenderRecipe(profile: .stablePreview)
-```
-
-```swift
-let filter = C7Brightness(brightness: 0.1)
-let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 1920, height: 1080))
-let invocation = descriptor.makeInvocation(
-    filter: filter,
-    inputSize: C7Size(width: 1920, height: 1080)
-)
-let kernelNode = ImageNode
-    .texture(inputTexture)
-    .applying(invocation)
-
-let kernelDiagnostics = try kernelNode.makeDiagnostics(profile: .stablePreview)
-let kernelPlan = try kernelNode.makeRenderPlan(profile: .stablePreview)
-let recipePlan = try recipe.makeRenderPlan(source: .texture(inputTexture), mode: .preview)
-let recipeDescriptor = try recipe.makeRenderRecipe(source: .texture(inputTexture), mode: .preview)
-let request = try kernelNode.makeRenderRequest(profile: .stablePreview)
-let deferredFrame = try request.renderFrame(metadata: ["mode": "deferred"])
-```
-
-#### Lazy Graph、Debug Snapshot 与 Allocator Diagnostics
-
-当宿主需要“这条链路是怎么被编排和优化的”时，可以直接使用 node graph 诊断路径：
+当调用方需要 graph inspection、cache policy、diagnostics 或 debug snapshot 时，使用 `ImageNode`。
 
 ```swift
 let node = ImageNode
@@ -475,28 +387,23 @@ let node = ImageNode
     .withCachePolicy(.persistent)
 
 let graph = try node.makeImageGraph(profile: .stablePreview)
-let optimizedGraph = try node.makeOptimizedImageGraph(profile: .stablePreview)
-let snapshot = try HarbethIO(element: inputTexture, filters: [])
-    .renderDebugSnapshot(node: node, profile: .stablePreview)
+let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
+let snapshot = try node.makeDebugSnapshot(profile: .stablePreview)
 
 print(graph.nodeCount)
-print(optimizedGraph.decisions)
+print(diagnostics.summary)
 print(snapshot.dotGraph)
 ```
 
-如果宿主需要切换 allocator 策略，也可以继续沿用 `Shared.shared` 来注入默认 allocator：
+当链路带有 `withSamplerDescriptor(_:)` 时，继续通过 diagnostics 判断当前 sampler contract 是真实执行、部分覆盖还是仅 metadata 可见：
 
 ```swift
-Shared.shared.defaultTextureAllocator = TolerantTextureAllocator(
-    texturePool: Shared.shared.defaultTexturePool
-)
-
-let diagnostics = try HarbethIO(element: inputTexture, filters: filters)
-    .renderDiagnostics(profile: .stablePreview)
-
-print(diagnostics.optimizationPlan.allocationStrategy)
-print(diagnostics.optimizationPlan.textureReuseHitCount)
+print(diagnostics.samplerExecutionCoverage.mode)
+print(diagnostics.samplerExecutionCoverage.coveredFilterTypes)
+print(diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes)
 ```
+
+`RenderRequest` 和 `RenderTask` 是延迟执行和异步执行形态，服务于以上路线，不单独构成新的接入模型。
 
 ### 几何、局部蒙版与转场 Primitive
 
@@ -522,7 +429,6 @@ let geometry = ImageTransformRecipe(
 let mask = MaskDescriptor(texture: maskTexture, opacity: 0.8)
 let recipe = EditRecipe(
     geometry: geometry,
-    filters: [C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75)],
     localEffects: [
         LocalEffectRecipe(
             filters: [C7UnsharpMask(radius: 2, intensity: 0.6, threshold: 0.02)],
@@ -533,24 +439,31 @@ let recipe = EditRecipe(
     finalProfile: .exportQuality
 )
 
-let io = HarbethIO(element: inputImage, filters: [])
-let previewFrame = try io.renderFrame(recipe: recipe, mode: .preview)
-let finalTexture = try io.renderTexture(recipe: recipe, mode: .final)
+let previewFrame = try ImageNode
+    .recipe(source: .image(inputImage), recipe: recipe, mode: .preview)
+    .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
+    .makeFrame(profile: .stablePreview)
+
+let finalTexture = try ImageNode
+    .recipe(source: .image(inputImage), recipe: recipe, mode: .final)
+    .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
+    .makeTexture(profile: .exportQuality)
 ```
 
 ```swift
 let cleanup = EditRecipe(
-    filters: [
-        C7Deband(radius: 2, threshold: 0.12, amount: 0.7, dither: 0.15),
-        C7NoiseReduction(radius: 3, amount: 0.18, edgePreservation: 0.8),
-        C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
-    ],
     previewProfile: .stablePreview,
     finalProfile: .exportQuality
 )
 
-let cleanedFrame = try HarbethIO(element: inputTexture, filters: [])
-    .renderFrame(recipe: cleanup, mode: .preview)
+let cleanedFrame = try ImageNode
+    .recipe(source: .texture(inputTexture), recipe: cleanup, mode: .preview)
+    .applying(filters: [
+        C7Deband(radius: 2, threshold: 0.12, amount: 0.7, dither: 0.15),
+        C7NoiseReduction(radius: 3, amount: 0.18, edgePreservation: 0.8),
+        C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
+    ])
+    .makeFrame(profile: .stablePreview)
 ```
 
 ```swift
@@ -562,8 +475,8 @@ let transition = TransitionRecipe(
     profile: .stablePreview
 )
 
-let transitionFrame = try HarbethIO(element: fromTexture, filters: [])
-    .renderTransitionFrame(transition)
+let transitionFrame = try ImageNode.transition(transition)
+    .makeFrame(profile: transition.profile, derivative: transition.derivative)
 ```
 
 ```swift
@@ -591,12 +504,10 @@ let composite = LayerCompositeRecipe(
     ]
 )
 
-let compositeTexture = try HarbethIO(element: backgroundTexture, filters: [])
-    .renderTexture(composite: composite)
-let compositeDiagnostics = try HarbethIO(element: backgroundTexture, filters: [])
-    .renderDiagnostics(composite: composite)
-let compositeSnapshot = try HarbethIO(element: backgroundTexture, filters: [])
-    .renderDebugSnapshot(composite: composite)
+let compositeNode = ImageNode.layerComposite(composite)
+let compositeTexture = try compositeNode.makeTexture(profile: composite.profile, derivative: composite.derivative)
+let compositeDiagnostics = try compositeNode.makeDiagnostics(profile: composite.profile, derivative: composite.derivative)
+let compositeSnapshot = try compositeNode.makeDebugSnapshot(profile: composite.profile, derivative: composite.derivative)
 ```
 
 ### 🔧 安装方式
@@ -977,14 +888,17 @@ Harbeth 提供了性能监控工具，帮助开发者优化应用：
 
 ```swift
 // 启用性能监控
+Shared.shared.enablePerformanceMonitor = true
+
 let io = HarbethIO(element: image, filters: filters)
-io.enablePerformanceMonitor = true
 
 // 应用滤镜
 let result = try? io.output()
 
-// 查看性能统计
-print(PerformanceMonitor.shared.getStatistics())
+// 查看汇总统计
+if let summary = Shared.shared.performanceMonitor?.getSummary() {
+    print(summary)
+}
 ```
 
 ## 📖 API 参考
@@ -1044,8 +958,8 @@ dest.transmitOutput { result in
    - 根据输出需求使用适当的 `bufferPixelFormat`
 
 4. **对于性能监控**：
-   - 使用 `Device.setEnablePerformanceMonitor(true)` 启用性能监控
-   - 使用 `PerformanceMonitor.shared.getStatistics()` 查看性能统计
+   - 使用 `Shared.shared.enablePerformanceMonitor = true` 启用性能监控
+   - 使用 `Shared.shared.performanceMonitor?.getSummary()` 查看汇总统计
 
 ```swift
 public struct HarbethIO<Dest> {
@@ -1070,43 +984,46 @@ public struct HarbethIO<Dest> {
 public protocol C7FilterProtocol {
     var modifier: ModifierEnum { get }
     var factors: [Float] { get }
+    var kernelParameterBindings: [KernelParameterBinding] { get }
     var otherInputTextures: C7InputTextures { get }
-    var hasCount: Bool { get }
     
     func resize(input size: C7Size) -> C7Size
-    func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int)
     func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture
     func combinationAfter(for buffer: MTLCommandBuffer, input texture: MTLTexture, source texture2: MTLTexture) throws -> MTLTexture
     func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture
 }
 ```
 
-#### C7CombinationBase
+#### C7FilterPipelineProtocol
 
-通过继承 `C7CombinationBase` 创建自定义组合滤镜，实现复杂的多步骤效果：
+推荐通过 `C7FilterPipelineProtocol` 定义组合滤镜，把中间 pass 描述为普通滤镜链，再把最终混合 kernel 作为 leaf filter 暴露出来：
 
 ```swift
-class CustomCombinationFilter: C7CombinationBase {
-    public var modifier: ModifierEnum {
-        return .compute(kernel: "customCombinationKernel")
+struct FinalBlendLeaf: C7FilterProtocol {
+    var modifier: ModifierEnum {
+        .compute(kernel: "customCombinationKernel")
     }
-    
-    public func prepareIntermediateTextures(buffer: MTLCommandBuffer, source: MTLTexture) throws -> [MTLTexture] {
-        // 准备中间纹理
-        let intermediateTexture = try TextureLoader.makeTexture(width: source.width, height: source.height)
-        intermediateTextures.append(intermediateTexture)
-        return intermediateTextures
+
+    var factors: [Float] {
+        [0.75]
     }
-    
-    public func combinationAfter(for buffer: MTLCommandBuffer, input texture: MTLTexture, source texture2: MTLTexture) throws -> MTLTexture {
-        // 实现多步骤处理逻辑
-        // 使用中间纹理进行复杂的滤镜组合
-        
-        cleanupIntermediateTextures()
-        return texture
+}
+
+final class CustomCombinationFilter: C7FilterPipelineProtocol {
+    var pipelineFilters: [C7FilterProtocol] {
+        [
+            C7Contrast(contrast: 1.1),
+            C7Saturation(saturation: 0.9)
+        ]
+    }
+
+    func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
+        FinalBlendLeaf()
     }
 }
 ```
+
+`C7CombinationBase` 仍然保留为兼容层，但新的组合滤镜不再推荐继承它。
 
 ## 🤝 贡献指南
 

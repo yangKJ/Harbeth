@@ -21,6 +21,12 @@ This library is highly inspired by [GPUImage](https://github.com/BradLarson/GPUI
 
 English | [**简体中文**](README_CN.md)
 
+## Documentation
+
+- [Public API Surface](docs/API_SURFACE_CN.md): choose between `HarbethIO` and `ImageNode`, understand the public API boundary, and see how diagnostics and analysis fit into the runtime.
+- [Capability Map](docs/CAPABILITY_MAP_CN.md): understand the image, texture, pixel buffer, sample buffer, filter, graph, and performance capabilities.
+- [Performance Governance](docs/PERFORMANCE_GOVERNANCE_CN.md): compare and improve performance across single filters, filter chains, and frame pipelines.
+
 ## Features
 🟣 Harbeth offers a comprehensive set of features for building fast, reusable image and frame processing pipelines:
 
@@ -29,12 +35,11 @@ English | [**简体中文**](README_CN.md)
 - **Rich Filter Ecosystem**: Over 200+ built-in filters organized into intuitive categories, covering everything from basic color adjustments to advanced artistic effects.
 - **Advanced Integration**: Leverage the power of [Metal Performance Shaders (MPS)](https://github.com/yangKJ/Harbeth/tree/master/Sources/MPS) for high-performance filtering alongside Harbeth's native Metal filter pipeline.
 - **Metal-Powered Rendering**: Texture-first processing and rendering operations are accelerated by Metal, ensuring smooth real-time performance even with complex filter chains.
-- **Custom Filter Support**: Easily create and integrate custom filters using LUTs has `1D Lookup Tables`、`2D Lookup Tables`、`3D Cube Files` And `Multi Zone Tables`, or custom Metal shaders. Create advanced combination filters by subclassing `C7CombinationBase` for complex, multi-step effects.
+- **Custom Filter Support**: Create filters with LUTs, CUBE files, or custom Metal shaders. Build multi-pass combination filters with `C7FilterPipelineProtocol` while keeping the public API lightweight.
 - **Real-Time Frame Processing**: Apply filter chains to live frame sources such as capture pipelines, video playback, and other low-latency flows.
-- **Reference Video Integration**: Process local and network video frames through the integrated [Kakapos](https://github.com/yangKJ/Kakapos) examples as reference wiring, while keeping product orchestration in the host app.
+- **Reference Frame Integration**: Process camera, player, or video-frame sources through reference wiring while keeping source acquisition and product orchestration in the host app.
 - **Intuitive API**: Enjoy a clean, Swift-friendly API with chainable filter operations and operator overloading for concise, expressive code.
 - **Performance Optimization**: Benefit from automatic texture pooling, memory management, and multi-encoder support for optimal performance across devices.
-- **Extensive Documentation**: Comprehensive documentation and demo projects to help you get started quickly and make the most of Harbeth's capabilities.
 - **SwiftUI integration**: Native support for SwiftUI framework.
 
 ### Core Capabilities
@@ -103,132 +108,41 @@ Harbeth also provides a reusable correction and transform layer for editor-grade
 
 ## Usage
 
-### Source and Output Types
+### Direct Processing with HarbethIO
 
-Harbeth supports multiple source types and more than one output shape:
-
-- Use `UIImage`, `NSImage`, `CGImage`, `MTLTexture`, `CVPixelBuffer`, or `CMSampleBuffer` as processing inputs.
-- Use `output()` for the primitive image path.
-- Use `renderTexture(profile:)` / `renderFrame(profile:)` for the frame-first filters path.
-- Use `renderPixelBuffer(profile:)` when the output needs a new `CVPixelBuffer` instead of mutating the input buffer.
-- Use `renderTexture(recipe:)` / `renderFrame(recipe:)` for recipe-driven execution.
-- Use `renderTransitionTexture(_:)` / `renderTransitionFrame(_:)` for transition primitives.
-
-### Render Profiles and Frame Rendering
-
-The render profile expresses technical intent instead of product UI state:
-
-- `interactiveLatency`: lowest-latency rendering for interactive adjustment loops.
-- `responseLatency`: fast first useful response with reusable texture output.
-- `stablePreview`: stable reusable derivative for display and repeated viewing.
-- `inspectionQuality`: higher-fidelity derivative for closer inspection.
-- `exportQuality`: full-quality output for export pipelines.
-- `readbackQuality`: full-quality output optimized for CPU-side readback.
+Use `HarbethIO` when the operation is a direct source -> filters -> output flow.
 
 ```swift
 let io = HarbethIO(element: inputImage, filters: filters)
 
-let interactiveTexture = try io.renderTexture(profile: .interactiveLatency)
-let stableFrame = try io.renderFrame(profile: .stablePreview)
-let exportTexture = try io.renderTexture(profile: .exportQuality)
+let image = try io.output()
+let texture = try io.renderTexture(profile: .stablePreview)
+let frame = try io.renderFrame(profile: .stablePreview)
 ```
 
-### Primary Processing Paths
+`RenderProfile` is an option on this path. It expresses latency and quality intent, not a separate usage model. For `Data`, `URL`, and `ImageAsset`, use `renderTexture`, `renderFrame`, or `makeRenderRequest` instead of relying on typed `output()` round-trips.
 
-Most host apps should start from one of these three paths:
+### Editing and Diagnostics with ImageNode
 
-- Primitive filters path: use `output()` when you want direct image output from a filter chain.
-- Recipe-driven path: use `renderTexture(recipe:)` / `renderFrame(recipe:)` when geometry, local effects, or reusable output contracts matter.
-- Transition and layer path: use `renderTransitionTexture(_:)`, `renderTransitionFrame(_:)`, or `LayerCompositeRecipe` for dual-input transitions and texture composition.
-
-### Advanced Runtime
-
-Harbeth also exposes a more explicit runtime surface for host apps that need stable contracts, diagnostics, and low-level extension points:
-
-- `Shared.shared`: the default global runtime owner for `Device`, `HarbethContext`, texture pooling, command queue access, and lifecycle reset.
-- `HarbethContext.shared`: the default execution context facade for identity-aware Metal function and compute/render pipeline cache, sampler cache, lazy image resolution cache, and execution diagnostics.
-- `RenderedFrame`: texture-first output with stable metadata such as `renderIntent`, `sourceTier`, `alphaType`, `pixelFormat`, `orientation`, and cache identity.
-- `ImageNode`: immutable lazy texture graph nodes for source, filters, recipe, transition, kernel, and layer composition paths, including explicit transient/persistent image cache policy and sampler descriptors.
-- `KernelDescriptor`: lightweight technical metadata for function identity, library source lookup identity, function-constant specialization, deterministic argument descriptors, parameter fingerprinting, input texture usage, pass descriptors, resource behavior, and alpha/output contracts.
-- `KernelInvocation`: bridges a stable kernel descriptor to an executable filter instance, exposing compatibility summary and deterministic fingerprinting for node-graph execution.
-- `RenderTask`: observable GPU task handles for texture-first rendering, including command-buffer status, completion observation, diagnostics, and explicit waiting.
-- `RenderRequest`: deferred single-frame render contract that lets host apps compile diagnostics, source semantics, and recipe metadata first, then materialize texture/frame output later.
-- `PixelBufferPool`: reusable `CVPixelBuffer` output pool for single-frame render targets, with stable size, pixel format, and allocation contract.
-- `RenderOutputContract`: explicit alpha, color-space, wide-gamut, pixel-format, and high-precision output intent for diagnostics and conservative planning.
-- Texture/node execution can materialize a target `MTLPixelFormat` from `RenderOutputContract`; color-space metadata remains an explicit contract for diagnostics/planning unless a concrete conversion filter is supplied.
-- `PixelBufferContract`, `PixelBufferTextureBridgePlan`, and `SampleBufferContract`: explicit multi-plane pixel-buffer layout, YCbCr bridge strategy, timing, and sample-attachment contracts for camera/video frame style inputs.
-- `PixelBufferPlaneBridgeDescriptor` and `SampleBufferFrameContract`: explicit per-plane bridge strategy, owner-retention contract, and sample-buffer frame metadata for `CVMetalTexture` style inputs.
-- `C7RGBTransferConversion`: explicit sRGB/linear transfer conversion for source/target color contracts; node execution can apply it when a kernel descriptor declares a compatible input color contract.
-- `RenderOptimizationPlan`: conservative stage metadata for transient texture reuse, persistent outputs, estimated texture cost, readback boundaries, and format conversion decisions. The texture-first execution path can use the plan to prewarm reusable render targets without changing visual output.
-- `ImageGraph`, `ImageGraphOptimizer`, and `RenderGraphDebugSnapshot`: lazy DAG diagnostics for node/recipe/transition/layer execution, including graph node counts, optimization decisions, DOT graph export, and JSON-friendly snapshots.
-- `KernelExecutionPlan`: a kernel-level execution description that lifts `KernelDescriptor` into concrete compute/render/mps/advancedMetal/blit execution metadata.
-- `ExactTextureAllocator`, `TolerantTextureAllocator`, and `HeapBackedTextureAllocator`: allocator surfaces for conservative texture reuse diagnostics without changing the default `Shared.shared` entrypoint.
+Use `ImageNode` when the work has edit structure: geometry, local effects, layer compositing, transitions, or preview/final output contracts.
 
 ```swift
-let runtime = Shared.shared
-let context = runtime.defaultContext
-let frame = try HarbethIO(element: inputTexture, filters: filters)
-    .renderFrame(profile: .stablePreview)
+let previewNode = ImageNode
+    .recipe(source: .texture(inputTexture), recipe: recipe, mode: .preview)
+    .applying(filters: filters)
 
-let cacheSnapshot = context.debugCacheSnapshot()
-let semantic = frame.semantic
-let replayContract = frame.replayBaseContract
+let previewFrame = try previewNode.makeFrame(profile: .stablePreview)
+let finalTexture = try ImageNode
+    .recipe(source: .texture(inputTexture), recipe: recipe, mode: .final)
+    .applying(filters: filters)
+    .makeTexture(profile: .exportQuality)
 ```
 
-```swift
-let task = try HarbethIO(element: inputTexture, filters: filters)
-    .startRenderTextureTask(profile: .stablePreview)
+`EditRecipe`, `LayerCompositeRecipe`, and `TransitionRecipe` are editing primitives. Mask, local effect, geometry, layer, and transition value types stay in the recipe layer, while execution is unified through `ImageNode`.
 
-task.observeCompletion { task in
-    print(task.commandBufferStatus)
-}
+### Graph and Diagnostics with ImageNode
 
-let outputTexture = try task.output()
-let diagnostics = task.diagnostics
-```
-
-```swift
-let pixelBufferPool = try PixelBufferPool(width: 1920, height: 1080)
-let outputPixelBuffer = try HarbethIO(element: inputTexture, filters: filters)
-    .renderPixelBuffer(profile: .stablePreview, pool: pixelBufferPool)
-```
-
-```swift
-let node = ImageNode.filters(
-    input: .source(.texture(inputTexture)),
-    filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.05)]
-)
-
-let nodeFrame = try HarbethIO(element: inputTexture, filters: [])
-    .renderFrame(node: node, profile: .stablePreview)
-let nodeDiagnostics = try HarbethIO(element: inputTexture, filters: [])
-    .renderDiagnostics(node: node)
-let nodePlan = try node.makeRenderPlan(profile: .stablePreview)
-let nodeRecipe = try node.makeRenderRecipe(profile: .stablePreview)
-```
-
-```swift
-let filter = C7Brightness(brightness: 0.1)
-let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 1920, height: 1080))
-let invocation = descriptor.makeInvocation(
-    filter: filter,
-    inputSize: C7Size(width: 1920, height: 1080)
-)
-let kernelNode = ImageNode
-    .texture(inputTexture)
-    .applying(invocation)
-
-let kernelDiagnostics = try kernelNode.makeDiagnostics(profile: .stablePreview)
-let kernelPlan = try kernelNode.makeRenderPlan(profile: .stablePreview)
-let recipePlan = try recipe.makeRenderPlan(source: .texture(inputTexture), mode: .preview)
-let recipeDescriptor = try recipe.makeRenderRecipe(source: .texture(inputTexture), mode: .preview)
-let request = try kernelNode.makeRenderRequest(profile: .stablePreview)
-let deferredFrame = try request.renderFrame(metadata: ["mode": "deferred"])
-```
-
-#### Lazy Graph, Debug Snapshot, and Allocator Diagnostics
-
-Use the node graph path when the host app needs explainable lazy execution instead of only immediate output:
+Use `ImageNode` when the caller needs graph inspection, cache policy, diagnostics, or debug output.
 
 ```swift
 let node = ImageNode
@@ -238,28 +152,23 @@ let node = ImageNode
     .withCachePolicy(.persistent)
 
 let graph = try node.makeImageGraph(profile: .stablePreview)
-let optimizedGraph = try node.makeOptimizedImageGraph(profile: .stablePreview)
-let snapshot = try HarbethIO(element: inputTexture, filters: [])
-    .renderDebugSnapshot(node: node, profile: .stablePreview)
+let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
+let snapshot = try node.makeDebugSnapshot(profile: .stablePreview)
 
 print(graph.nodeCount)
-print(optimizedGraph.decisions)
+print(diagnostics.summary)
 print(snapshot.dotGraph)
 ```
 
-If the host app wants a different allocator policy for diagnostics or reuse behavior, swap the default allocator through `Shared.shared`:
+When a chain uses `withSamplerDescriptor(_:)`, inspect diagnostics to see whether the sampler contract is fully executed, partially covered, or still metadata-only for legacy stages:
 
 ```swift
-Shared.shared.defaultTextureAllocator = TolerantTextureAllocator(
-    texturePool: Shared.shared.defaultTexturePool
-)
-
-let diagnostics = try HarbethIO(element: inputTexture, filters: filters)
-    .renderDiagnostics(profile: .stablePreview)
-
-print(diagnostics.optimizationPlan.allocationStrategy)
-print(diagnostics.optimizationPlan.textureReuseHitCount)
+print(diagnostics.samplerExecutionCoverage.mode)
+print(diagnostics.samplerExecutionCoverage.coveredFilterTypes)
+print(diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes)
 ```
+
+Deferred execution and asynchronous execution are supporting forms of these paths through `RenderRequest` and `RenderTask`; they are not separate integration models. Analysis is also not a third route: render through `HarbethIO` or `ImageNode` first, then inspect `RenderedFrame` or attachment outputs.
 
 ### Geometry, Local Mask, and Transition Primitives
 
@@ -285,7 +194,6 @@ let geometry = ImageTransformRecipe(
 let mask = MaskDescriptor(texture: maskTexture, opacity: 0.8)
 let recipe = EditRecipe(
     geometry: geometry,
-    filters: [C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75)],
     localEffects: [
         LocalEffectRecipe(
             filters: [C7UnsharpMask(radius: 2, intensity: 0.6, threshold: 0.02)],
@@ -296,24 +204,31 @@ let recipe = EditRecipe(
     finalProfile: .exportQuality
 )
 
-let io = HarbethIO(element: inputImage, filters: [])
-let previewFrame = try io.renderFrame(recipe: recipe, mode: .preview)
-let finalTexture = try io.renderTexture(recipe: recipe, mode: .final)
+let previewFrame = try ImageNode
+    .recipe(source: .image(inputImage), recipe: recipe, mode: .preview)
+    .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
+    .makeFrame(profile: .stablePreview)
+
+let finalTexture = try ImageNode
+    .recipe(source: .image(inputImage), recipe: recipe, mode: .final)
+    .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
+    .makeTexture(profile: .exportQuality)
 ```
 
 ```swift
 let cleanup = EditRecipe(
-    filters: [
-        C7Deband(radius: 2, threshold: 0.12, amount: 0.7, dither: 0.15),
-        C7NoiseReduction(radius: 3, amount: 0.18, edgePreservation: 0.8),
-        C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
-    ],
     previewProfile: .stablePreview,
     finalProfile: .exportQuality
 )
 
-let cleanedFrame = try HarbethIO(element: inputTexture, filters: [])
-    .renderFrame(recipe: cleanup, mode: .preview)
+let cleanedFrame = try ImageNode
+    .recipe(source: .texture(inputTexture), recipe: cleanup, mode: .preview)
+    .applying(filters: [
+        C7Deband(radius: 2, threshold: 0.12, amount: 0.7, dither: 0.15),
+        C7NoiseReduction(radius: 3, amount: 0.18, edgePreservation: 0.8),
+        C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
+    ])
+    .makeFrame(profile: .stablePreview)
 ```
 
 ```swift
@@ -325,8 +240,8 @@ let transition = TransitionRecipe(
     profile: .stablePreview
 )
 
-let transitionFrame = try HarbethIO(element: fromTexture, filters: [])
-    .renderTransitionFrame(transition)
+let transitionFrame = try ImageNode.transition(transition)
+    .makeFrame(profile: transition.profile, derivative: transition.derivative)
 ```
 
 ```swift
@@ -354,12 +269,10 @@ let composite = LayerCompositeRecipe(
     ]
 )
 
-let compositeTexture = try HarbethIO(element: backgroundTexture, filters: [])
-    .renderTexture(composite: composite)
-let compositeDiagnostics = try HarbethIO(element: backgroundTexture, filters: [])
-    .renderDiagnostics(composite: composite)
-let compositeSnapshot = try HarbethIO(element: backgroundTexture, filters: [])
-    .renderDebugSnapshot(composite: composite)
+let compositeNode = ImageNode.layerComposite(composite)
+let compositeTexture = try compositeNode.makeTexture(profile: composite.profile, derivative: composite.derivative)
+let compositeDiagnostics = try compositeNode.makeDiagnostics(profile: composite.profile, derivative: composite.derivative)
+let compositeSnapshot = try compositeNode.makeDebugSnapshot(profile: composite.profile, derivative: composite.derivative)
 ```
 
 ### 🎨 Real-time Filter Effects
@@ -735,8 +648,8 @@ dest.transmitOutput { result in
    - Use appropriate `bufferPixelFormat` for your output needs
 
 4. **For performance monitoring**:
-   - Enable performance monitoring using `Device.setEnablePerformanceMonitor(true)`
-   - Check performance statistics with `PerformanceMonitor.shared.getStatistics()`
+   - Enable performance monitoring using `Shared.shared.enablePerformanceMonitor = true`
+   - Check aggregated statistics with `Shared.shared.performanceMonitor?.getSummary()`
 
 ### 🚀 Threadgroup Optimization Strategy
 
