@@ -319,25 +319,25 @@ extension Device {
         pipelines[kernel] = pipeline
     }
 
-    public func pipelineState(for identity: KernelFunctionIdentity) -> MTLComputePipelineState? {
+    func pipelineState(for identity: KernelFunctionIdentity) -> MTLComputePipelineState? {
         pipelineLock.lock()
         defer { pipelineLock.unlock() }
         return identityPipelines[identity.fingerprint]
     }
 
-    public func setPipelineState(_ pipeline: MTLComputePipelineState, for identity: KernelFunctionIdentity) {
+    func setPipelineState(_ pipeline: MTLComputePipelineState, for identity: KernelFunctionIdentity) {
         pipelineLock.lock()
         defer { pipelineLock.unlock() }
         identityPipelines[identity.fingerprint] = pipeline
     }
 
-    public func cachedFunction(for identity: KernelFunctionIdentity) -> MTLFunction? {
+    func cachedFunction(for identity: KernelFunctionIdentity) -> MTLFunction? {
         functionLock.lock()
         defer { functionLock.unlock() }
         return identityFunctions[identity.fingerprint]
     }
 
-    public func setCachedFunction(_ function: MTLFunction, for identity: KernelFunctionIdentity) {
+    func setCachedFunction(_ function: MTLFunction, for identity: KernelFunctionIdentity) {
         functionLock.lock()
         defer { functionLock.unlock() }
         identityFunctions[identity.fingerprint] = function
@@ -561,7 +561,7 @@ extension Device {
         #endif
     }
 
-    public static func readMTLFunction(_ identity: KernelFunctionIdentity) throws -> MTLFunction {
+    static func readMTLFunction(_ identity: KernelFunctionIdentity) throws -> MTLFunction {
         guard identity.kind != .blit else {
             throw HarbethError.readFunction(identity.primaryName)
         }
@@ -646,7 +646,7 @@ extension Device {
         return errorMessage
     }
 
-    public static func metalFunctionLookupFailureDescription(_ identity: KernelFunctionIdentity) -> String {
+    static func metalFunctionLookupFailureDescription(_ identity: KernelFunctionIdentity) -> String {
         var errorMessage = metalFunctionLookupFailureDescription(identity.primaryName)
         errorMessage += "\nRequested identity: \(identity.fingerprint)"
         return errorMessage

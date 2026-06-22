@@ -75,6 +75,74 @@ public struct TextureLoader {
     public init(with texture: MTLTexture) {
         self.texture = texture
     }
+
+    /// Resolves a CPU upload row stride that satisfies Metal's texture-buffer alignment requirement.
+    ///
+    /// This keeps the common "packed RGBA bytes" call site lightweight while avoiding
+    /// small-texture upload failures on platforms that require wider row alignment.
+    public static func alignedBytesPerRow(minimum: Int, pixelFormat: MTLPixelFormat, device: MTLDevice = Shared.shared.metalDevice) -> Int {
+        let alignment: Int
+        if #available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *) {
+            alignment = max(device.minimumTextureBufferAlignment(for: pixelFormat), 1)
+        } else {
+            alignment = 1
+        }
+        let clampedMinimum = max(minimum, 1)
+        let remainder = clampedMinimum % alignment
+        return remainder == 0 ? clampedMinimum : clampedMinimum + alignment - remainder
+    }
+
+    /// Expands packed CPU image bytes into an upload buffer whose row stride satisfies Metal alignment.
+    public static func alignedTextureBytes(_ bytes: [UInt8],
+                                           packedBytesPerRow: Int,
+                                           height: Int,
+                                           pixelFormat: MTLPixelFormat,
+                                           device: MTLDevice = Shared.shared.metalDevice) -> (bytes: [UInt8], bytesPerRow: Int) {
+        let alignedRowBytes = alignedBytesPerRow(
+            minimum: packedBytesPerRow,
+            pixelFormat: pixelFormat,
+            device: device
+        )
+        guard alignedRowBytes != packedBytesPerRow else {
+            return (bytes, packedBytesPerRow)
+        }
+
+        var alignedBytes = [UInt8](repeating: 0, count: alignedRowBytes * max(height, 1))
+        for row in 0..<height {
+            let sourceStart = row * packedBytesPerRow
+            let sourceEnd = sourceStart + packedBytesPerRow
+            let destinationStart = row * alignedRowBytes
+            alignedBytes.replaceSubrange(
+                destinationStart..<(destinationStart + packedBytesPerRow),
+                with: bytes[sourceStart..<sourceEnd]
+            )
+        }
+        return (alignedBytes, alignedRowBytes)
+    }
+
+    /// Uploads packed CPU bytes into a texture while automatically fixing row alignment.
+    ///
+    /// Prefer this helper when the source row stride is tightly packed, for example
+    /// `width * 4` RGBA8 buffers built in tests, diagnostics, or lightweight host-side tools.
+    public static func replaceTexture(_ texture: MTLTexture,
+                                      region: MTLRegion,
+                                      mipmapLevel: Int = 0,
+                                      bytes: [UInt8],
+                                      packedBytesPerRow: Int) {
+        let upload = alignedTextureBytes(
+            bytes,
+            packedBytesPerRow: packedBytesPerRow,
+            height: region.size.height,
+            pixelFormat: texture.pixelFormat,
+            device: texture.device
+        )
+        texture.replace(
+            region: region,
+            mipmapLevel: mipmapLevel,
+            withBytes: upload.bytes,
+            bytesPerRow: upload.bytesPerRow
+        )
+    }
 }
 
 extension TextureLoader {
@@ -166,8 +234,7 @@ extension TextureLoader {
         try self.init(with: cgImage, options: options)
     }
 
-    public init(with asset: ImageAsset,
-                options: [MTKTextureLoader.Option: Any]? = nil) throws {
+    public init(with asset: ImageAsset, options: [MTKTextureLoader.Option: Any]? = nil) throws {
         switch asset.storage {
         case .data(let data):
             try self.init(with: data, loadingOptions: asset.loadingOptions, options: options)
@@ -220,8 +287,7 @@ extension TextureLoader {
         let matrixContract: YCbCrDecodeMatrix
     }
 
-    public static func resolveTextureSource(with pixelBuffer: CVPixelBuffer,
-                                            options: [MTKTextureLoader.Option: Any]? = nil) throws -> PixelBufferTextureSource {
+    public static func resolveTextureSource(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws -> PixelBufferTextureSource {
         let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
         switch bridgePlan.loadStrategy {
         case .directMetalTexture:
@@ -300,8 +366,7 @@ extension TextureLoader {
         }
     }
 
-    public static func resolveTextureSource(with sampleBuffer: CMSampleBuffer,
-                                            options: [MTKTextureLoader.Option: Any]? = nil) throws -> PixelBufferTextureSource {
+    public static func resolveTextureSource(with sampleBuffer: CMSampleBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws -> PixelBufferTextureSource {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
@@ -319,8 +384,7 @@ extension TextureLoader {
         )
     }
 
-    private static func copyTextureFromPixelBuffer(_ pixelBuffer: CVPixelBuffer,
-                                                   bridgePlan: PixelBufferTextureBridgePlan) throws -> MTLTexture {
+    private static func copyTextureFromPixelBuffer(_ pixelBuffer: CVPixelBuffer, bridgePlan: PixelBufferTextureBridgePlan) throws -> MTLTexture {
         let pixelFormat = bridgePlan.contract.preferredMetalPixelFormat
             ?? TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
         let width = CVPixelBufferGetWidth(pixelBuffer)
@@ -345,8 +409,7 @@ extension TextureLoader {
         return texture
     }
 
-    static func makeYCbCrDecodeStrategy(for pixelBuffer: CVPixelBuffer,
-                                        bridgePlan: PixelBufferTextureBridgePlan) -> YCbCrDecodeStrategy? {
+    static func makeYCbCrDecodeStrategy(for pixelBuffer: CVPixelBuffer, bridgePlan: PixelBufferTextureBridgePlan) -> YCbCrDecodeStrategy? {
         guard bridgePlan.requiresColorConversion else {
             return nil
         }
@@ -435,8 +498,7 @@ extension TextureLoader {
         )
     }
 
-    static func makeYCbCrDecodeContract(for pixelBuffer: CVPixelBuffer,
-                                        bridgePlan: PixelBufferTextureBridgePlan) -> YCbCrDecodeContract? {
+    static func makeYCbCrDecodeContract(for pixelBuffer: CVPixelBuffer, bridgePlan: PixelBufferTextureBridgePlan) -> YCbCrDecodeContract? {
         guard let strategy = makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: bridgePlan) else {
             return nil
         }
@@ -477,8 +539,7 @@ extension TextureLoader {
         }
     }
 
-    private static func decodeYCbCrTextureSource(_ source: PixelBufferTextureSource,
-                                                 owner: CVPixelBuffer) throws -> MTLTexture {
+    private static func decodeYCbCrTextureSource(_ source: PixelBufferTextureSource, owner: CVPixelBuffer) throws -> MTLTexture {
         guard let strategy = makeYCbCrDecodeStrategy(for: owner, bridgePlan: source.bridgePlan) else {
             return source.primaryTexture
         }
@@ -505,8 +566,7 @@ extension TextureLoader {
         return outputTexture
     }
 
-    private static func resolveRetainedOwners(primaryTexture: MTLTexture,
-                                              fallbackOwner: AnyObject) -> [AnyObject] {
+    private static func resolveRetainedOwners(primaryTexture: MTLTexture, fallbackOwner: AnyObject) -> [AnyObject] {
         let owners = TextureOwnerRegistry.owners(for: primaryTexture)
         return owners.isEmpty ? [fallbackOwner] : owners
     }
@@ -535,17 +595,19 @@ extension TextureLoader {
         let pixelFormat = opts[.texturePixelFormat] as? MTLPixelFormat ?? .rgba8Unorm
         let usage = opts[.textureUsage] as? MTLTextureUsage ?? defaultUsage
         let sampleCount = (opts[.textureSampleCount] as? Int) ?? 1
-        let allowGPUOptimized = (opts[.textureAllowGPUOptimizedContents] as? Bool) ?? true
+        let requestedAllowGPUOptimized = (opts[.textureAllowGPUOptimizedContents] as? Bool) ?? true
         let allowsSizeTolerance = (opts[.textureAllowsSizeTolerance] as? Bool) ?? false
         // Platform-specific storage mode
         let storageMode: MTLStorageMode = {
             #if os(iOS) || targetEnvironment(simulator)
             return .shared
             #else
-            // macOS requires `.managed` for CPU-accessible textures
-            return usage.contains(.shaderWrite) ? .managed : .private
+            // Harbeth frequently writes and reads back textures on CPU for analysis/debug surfaces.
+            // Using `.shared` keeps that path stable on modern macOS instead of forcing explicit managed synchronization.
+            return usage.contains(.shaderWrite) ? .shared : .private
             #endif
         }()
+        let allowGPUOptimized = storageMode == .private ? requestedAllowGPUOptimized : false
         
         // Calculate size considering device limits
         let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
@@ -677,8 +739,7 @@ extension TextureLoader {
         }
     }
 
-    private static func loadCGImage(from source: CGImageSource,
-                                    loadingOptions: ImageLoadingOptions) throws -> CGImage {
+    private static func loadCGImage(from source: CGImageSource, loadingOptions: ImageLoadingOptions) throws -> CGImage {
         let cfOptions = makeImageSourceOptions(loadingOptions: loadingOptions)
         if loadingOptions.sizePolicy.resolvedMaxPixelSize() != nil,
            let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, cfOptions) {
@@ -690,8 +751,7 @@ extension TextureLoader {
         throw HarbethError.source2Texture
     }
 
-    private static func loadCGImage(from cgImage: CGImage,
-                                    loadingOptions: ImageLoadingOptions) throws -> CGImage {
+    private static func loadCGImage(from cgImage: CGImage, loadingOptions: ImageLoadingOptions) throws -> CGImage {
         try applyLoadingOptionsIfNeeded(to: cgImage, loadingOptions: loadingOptions)
     }
 
@@ -711,8 +771,7 @@ extension TextureLoader {
         return options as CFDictionary
     }
 
-    private static func applyLoadingOptionsIfNeeded(to cgImage: CGImage,
-                                                    loadingOptions: ImageLoadingOptions) throws -> CGImage {
+    private static func applyLoadingOptionsIfNeeded(to cgImage: CGImage, loadingOptions: ImageLoadingOptions) throws -> CGImage {
         let targetSize: CGSize = {
             switch loadingOptions.sizePolicy {
             case .original:
@@ -771,7 +830,7 @@ extension TextureLoader {
             .textureAllowGPUOptimizedContents: true,
         ])
         
-        let bytesPerRow = width * 4
+        let bytesPerRow = alignedBytesPerRow(minimum: width * 4, pixelFormat: .rgba8Unorm)
         let dataSize = bytesPerRow * height
         let data = UnsafeMutableRawPointer.allocate(byteCount: dataSize, alignment: 4)
         defer { data.deallocate() }

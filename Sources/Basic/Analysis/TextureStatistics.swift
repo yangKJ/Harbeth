@@ -18,14 +18,14 @@ public struct TextureStatistics: Sendable, Equatable {
     public let minimumLuminance: Float
     public let maximumLuminance: Float
 
-    public init(sampleCount: Int,
-                meanRed: Float,
-                meanGreen: Float,
-                meanBlue: Float,
-                meanAlpha: Float,
-                meanLuminance: Float,
-                minimumLuminance: Float,
-                maximumLuminance: Float) {
+    init(sampleCount: Int,
+         meanRed: Float,
+         meanGreen: Float,
+         meanBlue: Float,
+         meanAlpha: Float,
+         meanLuminance: Float,
+         minimumLuminance: Float,
+         maximumLuminance: Float) {
         self.sampleCount = max(sampleCount, 0)
         self.meanRed = meanRed
         self.meanGreen = meanGreen

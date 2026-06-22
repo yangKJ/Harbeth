@@ -7,13 +7,13 @@
 
 import Foundation
 
-public struct KernelInvocation {
-    public let descriptor: KernelDescriptor
-    public let executableFilter: C7FilterProtocol
-    public let compatibilitySummary: String
-    public let executionPlan: KernelExecutionPlan
+struct KernelInvocation {
+    let descriptor: KernelDescriptor
+    let executableFilter: C7FilterProtocol
+    let compatibilitySummary: String
+    let executionPlan: KernelExecutionPlan
 
-    public init(descriptor: KernelDescriptor, executableFilter: C7FilterProtocol, inputSize: C7Size? = nil) {
+    init(descriptor: KernelDescriptor, executableFilter: C7FilterProtocol, inputSize: C7Size? = nil) {
         self.descriptor = descriptor
         self.executableFilter = executableFilter
         let compatibilitySummary = descriptor.compatibilitySummary(
@@ -27,11 +27,11 @@ public struct KernelInvocation {
         )
     }
 
-    public var isCompatible: Bool {
+    var isCompatible: Bool {
         compatibilitySummary == "compatible"
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             descriptor.fingerprint,
             executableFilter.recipeDescriptor.fingerprint,
@@ -42,7 +42,7 @@ public struct KernelInvocation {
 }
 
 extension KernelInvocation: KernelExecutable {
-    public var kernelExecutionPlan: KernelExecutionPlan {
+    var kernelExecutionPlan: KernelExecutionPlan {
         executionPlan
     }
 }

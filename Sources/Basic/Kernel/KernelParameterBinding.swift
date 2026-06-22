@@ -22,6 +22,7 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
     case float2(SIMD2<Float>)
     case float3(SIMD3<Float>)
     case float4(SIMD4<Float>)
+    case floatArray([Float])
     case matrix3x3(Matrix3x3)
     case matrix4x4(Matrix4x4)
     case bytes([UInt8], dataType: KernelArgumentDataType)
@@ -40,6 +41,8 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
             return "float3:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y)),\(String(format: "%.4f", value.z))"
         case .float4(let value):
             return "float4:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y)),\(String(format: "%.4f", value.z)),\(String(format: "%.4f", value.w))"
+        case .floatArray(let values):
+            return "floatArray:\(values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
         case .matrix3x3(let value):
             return "matrix3x3:\(value.values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
         case .matrix4x4(let value):
@@ -63,6 +66,8 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
             return .float3
         case .float4:
             return .float4
+        case .floatArray:
+            return .floatArray
         case .matrix3x3:
             return .matrix3x3
         case .matrix4x4:
@@ -86,6 +91,8 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
             return MemoryLayout<SIMD3<Float>>.stride
         case .float4:
             return MemoryLayout<SIMD4<Float>>.stride
+        case .floatArray(let values):
+            return values.count * MemoryLayout<Float>.stride
         case .matrix3x3:
             return Matrix3x3.size
         case .matrix4x4:
@@ -170,6 +177,11 @@ enum KernelBindingEncoder {
         case .float4(let rawValue):
             var value = rawValue
             withUnsafeBytes(of: &value) { applier($0.baseAddress!, $0.count, index) }
+        case .floatArray(let rawValue):
+            rawValue.withUnsafeBytes { buffer in
+                guard let baseAddress = buffer.baseAddress else { return }
+                applier(baseAddress, buffer.count, index)
+            }
         case .matrix3x3(let rawValue):
             var value = rawValue.to_factor()
             withUnsafeBytes(of: &value) { applier($0.baseAddress!, $0.count, index) }

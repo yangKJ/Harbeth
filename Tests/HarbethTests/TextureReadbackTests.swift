@@ -895,6 +895,33 @@ final class TextureReadbackTests: XCTestCase {
         #endif
     }
 
+    func testReplacePackedBytesKeepsSmallRGBAUploadReadable() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(
+            width: 2,
+            height: 1,
+            options: [
+                .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+            ],
+            identifier: "TextureReadbackTests.packedUpload"
+        )
+        let sourceBytes: [UInt8] = [
+            0, 0, 0, 255,
+            255, 255, 255, 255
+        ]
+
+        texture.c7.replacePackedBytes(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            bytes: sourceBytes,
+            packedBytesPerRow: 8
+        )
+
+        let readback = try XCTUnwrap(texture.c7.bytes())
+        XCTAssertEqual(Array(readback[0..<8]), sourceBytes)
+    }
+
     private func cgImageIsFullyTransparent(_ image: CGImage) -> Bool {
         let width = image.width
         let height = image.height

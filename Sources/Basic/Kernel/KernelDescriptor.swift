@@ -9,7 +9,7 @@ import Foundation
 import CoreGraphics
 import Metal
 
-public enum KernelResourceUsage: String, Sendable, Codable, Equatable, Hashable {
+enum KernelResourceUsage: String, Sendable, Codable, Equatable, Hashable {
     case singleInput
     case dualInput
     case multiInput
@@ -17,7 +17,7 @@ public enum KernelResourceUsage: String, Sendable, Codable, Equatable, Hashable 
     case externalEncoder
 }
 
-public enum KernelAlphaBehavior: String, Sendable, Codable, Equatable, Hashable {
+enum KernelAlphaBehavior: String, Sendable, Codable, Equatable, Hashable {
     case preserveInput
     case outputsOpaque
     case outputsPremultiplied
@@ -84,9 +84,7 @@ public struct KernelFunctionConstantDescriptor: Sendable, Codable, Equatable, Ha
     public let index: Int?
     public let value: KernelFunctionConstantValue
 
-    public init(name: String,
-                index: Int? = nil,
-                value: KernelFunctionConstantValue) {
+    public init(name: String, index: Int? = nil, value: KernelFunctionConstantValue) {
         self.name = name
         self.index = index
         self.value = value
@@ -155,7 +153,7 @@ public extension KernelFunctionIdentity {
     }
 }
 
-public enum KernelParameterValue: Sendable, Codable, Equatable, Hashable {
+enum KernelParameterValue: Sendable, Codable, Equatable, Hashable {
     case float(Float)
     case double(Double)
     case int(Int)
@@ -165,7 +163,7 @@ public enum KernelParameterValue: Sendable, Codable, Equatable, Hashable {
     case intArray([Int])
     case stringArray([String])
 
-    public var fingerprint: String {
+    var fingerprint: String {
         switch self {
         case .float(let value):
             return "float:\(String(format: "%.4f", value))"
@@ -220,7 +218,7 @@ private extension KernelFunctionConstantDescriptor {
     }
 }
 
-public enum KernelArgumentRole: String, Sendable, Codable, Equatable, Hashable {
+enum KernelArgumentRole: String, Sendable, Codable, Equatable, Hashable {
     case parameter
     case functionConstant
     case inputTexture
@@ -248,20 +246,20 @@ public enum KernelArgumentDataType: String, Sendable, Codable, Equatable, Hashab
     case unknown
 }
 
-public struct KernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let name: String
-    public let index: Int
-    public let role: KernelArgumentRole
-    public let dataType: KernelArgumentDataType
-    public let required: Bool
-    public let valueFingerprint: String?
+struct KernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
+    let name: String
+    let index: Int
+    let role: KernelArgumentRole
+    let dataType: KernelArgumentDataType
+    let required: Bool
+    let valueFingerprint: String?
 
-    public init(name: String,
-                index: Int,
-                role: KernelArgumentRole,
-                dataType: KernelArgumentDataType,
-                required: Bool = true,
-                valueFingerprint: String? = nil) {
+    init(name: String,
+         index: Int,
+         role: KernelArgumentRole,
+         dataType: KernelArgumentDataType,
+         required: Bool = true,
+         valueFingerprint: String? = nil) {
         self.name = name
         self.index = index
         self.role = role
@@ -270,7 +268,7 @@ public struct KernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
         self.valueFingerprint = valueFingerprint
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "arg=\(index)",
             "name=\(name)",
@@ -282,50 +280,46 @@ public struct KernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct KernelResourceDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let usage: KernelResourceUsage
-    public let inputTextureCount: Int
-    public let writesOutputTexture: Bool
-    public let requiresDestinationTexture: Bool
-    public let memoryAccessPattern: String
-    public let hasPixelCountBuffer: Bool
+struct KernelResourceDescriptor: Sendable, Codable, Equatable, Hashable {
+    let usage: KernelResourceUsage
+    let inputTextureCount: Int
+    let writesOutputTexture: Bool
+    let requiresDestinationTexture: Bool
+    let memoryAccessPattern: String
 
-    public init(usage: KernelResourceUsage,
-                inputTextureCount: Int,
-                writesOutputTexture: Bool = true,
-                requiresDestinationTexture: Bool = true,
-                memoryAccessPattern: String = "auto",
-                hasPixelCountBuffer: Bool = false) {
+    init(usage: KernelResourceUsage,
+         inputTextureCount: Int,
+         writesOutputTexture: Bool = true,
+         requiresDestinationTexture: Bool = true,
+         memoryAccessPattern: String = "auto") {
         self.usage = usage
         self.inputTextureCount = inputTextureCount
         self.writesOutputTexture = writesOutputTexture
         self.requiresDestinationTexture = requiresDestinationTexture
         self.memoryAccessPattern = memoryAccessPattern
-        self.hasPixelCountBuffer = hasPixelCountBuffer
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "usage=\(usage.rawValue)",
             "inputs=\(inputTextureCount)",
             "writes=\(writesOutputTexture ? 1 : 0)",
             "dest=\(requiresDestinationTexture ? 1 : 0)",
-            "memory=\(memoryAccessPattern)",
-            "count=\(hasPixelCountBuffer ? 1 : 0)"
+            "memory=\(memoryAccessPattern)"
         ].joined(separator: "|")
     }
 }
 
-public struct KernelOutputDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let outputSize: C7Size?
-    public let pixelFormat: String?
+struct KernelOutputDescriptor: Sendable, Codable, Equatable, Hashable {
+    let outputSize: C7Size?
+    let pixelFormat: String?
 
-    public init(outputSize: C7Size? = nil, pixelFormat: MTLPixelFormat? = nil) {
+    init(outputSize: C7Size? = nil, pixelFormat: MTLPixelFormat? = nil) {
         self.outputSize = outputSize
         self.pixelFormat = pixelFormat.map { String(describing: $0) }
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "size=\(outputSize.map { "\($0.width)x\($0.height)" } ?? "source")",
             "pixelFormat=\(pixelFormat ?? "preserve")"
@@ -333,22 +327,22 @@ public struct KernelOutputDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct KernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let index: Int
-    public let functionIdentity: KernelFunctionIdentity
-    public let output: KernelOutputDescriptor
-    public let resources: KernelResourceDescriptor
-    public let alphaBehavior: KernelAlphaBehavior
-    public let renderPass: RenderPassContract?
-    public let drawCallCount: Int
+struct KernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
+    let index: Int
+    let functionIdentity: KernelFunctionIdentity
+    let output: KernelOutputDescriptor
+    let resources: KernelResourceDescriptor
+    let alphaBehavior: KernelAlphaBehavior
+    let renderPass: RenderPassContract?
+    let drawCallCount: Int
 
-    public init(index: Int,
-                functionIdentity: KernelFunctionIdentity,
-                output: KernelOutputDescriptor = KernelOutputDescriptor(),
-                resources: KernelResourceDescriptor,
-                alphaBehavior: KernelAlphaBehavior = .preserveInput,
-                renderPass: RenderPassContract? = nil,
-                drawCallCount: Int = 1) {
+    init(index: Int,
+         functionIdentity: KernelFunctionIdentity,
+         output: KernelOutputDescriptor = KernelOutputDescriptor(),
+         resources: KernelResourceDescriptor,
+         alphaBehavior: KernelAlphaBehavior = .preserveInput,
+         renderPass: RenderPassContract? = nil,
+         drawCallCount: Int = 1) {
         self.index = index
         self.functionIdentity = functionIdentity
         self.output = output
@@ -358,7 +352,7 @@ public struct KernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
         self.drawCallCount = max(drawCallCount, 1)
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "pass=\(index)",
             functionIdentity.fingerprint,
@@ -371,32 +365,32 @@ public struct KernelPassDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let filterName: String
-    public let functionIdentity: KernelFunctionIdentity
-    public let parameters: [String: KernelParameterValue]
-    public let parameterBindings: [KernelParameterBinding]
-    public let arguments: [KernelArgumentDescriptor]
-    public let output: KernelOutputDescriptor
-    public let resourceUsage: KernelResourceUsage
-    public let resources: KernelResourceDescriptor
-    public let alphaBehavior: KernelAlphaBehavior
-    public let inputColorSpace: ImageColorSpaceContract
-    public let outputContract: RenderOutputContract
-    public let passes: [KernelPassDescriptor]
+struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
+    let filterName: String
+    let functionIdentity: KernelFunctionIdentity
+    let parameters: [String: KernelParameterValue]
+    let parameterBindings: [KernelParameterBinding]
+    let arguments: [KernelArgumentDescriptor]
+    let output: KernelOutputDescriptor
+    let resourceUsage: KernelResourceUsage
+    let resources: KernelResourceDescriptor
+    let alphaBehavior: KernelAlphaBehavior
+    let inputColorSpace: ImageColorSpaceContract
+    let outputContract: RenderOutputContract
+    let passes: [KernelPassDescriptor]
 
-    public init(filterName: String,
-                functionIdentity: KernelFunctionIdentity,
-                parameters: [String: KernelParameterValue] = [:],
-                parameterBindings: [KernelParameterBinding] = [],
-                arguments: [KernelArgumentDescriptor] = [],
-                output: KernelOutputDescriptor = KernelOutputDescriptor(),
-                resourceUsage: KernelResourceUsage = .singleInput,
-                resources: KernelResourceDescriptor? = nil,
-                alphaBehavior: KernelAlphaBehavior = .preserveInput,
-                inputColorSpace: ImageColorSpaceContract = .preserveInput,
-                outputContract: RenderOutputContract = .preserveInput,
-                passes: [KernelPassDescriptor] = []) {
+    init(filterName: String,
+         functionIdentity: KernelFunctionIdentity,
+         parameters: [String: KernelParameterValue] = [:],
+         parameterBindings: [KernelParameterBinding] = [],
+         arguments: [KernelArgumentDescriptor] = [],
+         output: KernelOutputDescriptor = KernelOutputDescriptor(),
+         resourceUsage: KernelResourceUsage = .singleInput,
+         resources: KernelResourceDescriptor? = nil,
+         alphaBehavior: KernelAlphaBehavior = .preserveInput,
+         inputColorSpace: ImageColorSpaceContract = .preserveInput,
+         outputContract: RenderOutputContract = .preserveInput,
+         passes: [KernelPassDescriptor] = []) {
         self.filterName = filterName
         self.functionIdentity = functionIdentity
         self.parameters = parameters
@@ -431,7 +425,7 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
         }
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         let parameterFingerprint = parameters
             .sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value.fingerprint)" }
@@ -475,7 +469,7 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
                     index: index,
                     role: pair.key.defaultArgumentRole,
                     dataType: pair.value.argumentDataType,
-                    required: pair.key != "hasCount" && pair.key != "otherInputTextures",
+                    required: pair.key != "otherInputTextures",
                     valueFingerprint: pair.value.fingerprint
                 )
             }
@@ -521,7 +515,7 @@ public struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public extension KernelDescriptor {
+extension KernelDescriptor {
     func compatibilitySummary(with filter: C7FilterProtocol,
                               inputSize: C7Size? = nil) -> String {
         let runtimeDescriptor = filter.kernelDescriptor(inputSize: inputSize)
@@ -562,7 +556,7 @@ public extension KernelDescriptor {
     }
 }
 
-public extension C7FilterProtocol {
+extension C7FilterProtocol {
     func makeKernelExecutionPlan(inputSize: C7Size? = nil) -> KernelExecutionPlan {
         let descriptor = kernelDescriptor(inputSize: inputSize)
         return KernelEncoder.makeExecutionPlan(descriptor: descriptor)
@@ -570,18 +564,21 @@ public extension C7FilterProtocol {
 
     func kernelDescriptor(inputSize: C7Size? = nil) -> KernelDescriptor {
         let outputSize = inputSize.map { resize(input: $0) }
+        let pipelineFilter = self as? C7FilterPipelineProtocol
+        let effectiveFilter = pipelineFilter?.makeFinalFilter(otherInputTextures: nil) ?? self
+        let otherInputCount = pipelineFilter?.pipelineOtherInputCount ?? effectiveFilter.otherInputTextures.count
         let functionIdentity: KernelFunctionIdentity
         let resourceUsage: KernelResourceUsage
-        let inputTextureCount = 1 + otherInputTextures.count
+        let inputTextureCount = 1 + otherInputCount
         let requiresDestinationTexture: Bool
-        switch modifier {
+        switch effectiveFilter.modifier {
         case .compute(let kernel):
             functionIdentity = KernelFunctionIdentity(kind: .compute, primaryName: kernel)
-            resourceUsage = otherInputTextures.isEmpty ? .singleInput : (otherInputTextures.count == 1 ? .dualInput : .multiInput)
+            resourceUsage = otherInputCount == 0 ? .singleInput : (otherInputCount == 1 ? .dualInput : .multiInput)
             requiresDestinationTexture = true
         case .render(let vertex, let fragment):
             functionIdentity = KernelFunctionIdentity(kind: .render, primaryName: vertex, secondaryName: fragment)
-            resourceUsage = otherInputTextures.isEmpty ? .singleInput : .multiInput
+            resourceUsage = otherInputCount == 0 ? .singleInput : .multiInput
             requiresDestinationTexture = true
         case .blit:
             functionIdentity = KernelFunctionIdentity(kind: .blit, primaryName: "blit")
@@ -603,10 +600,10 @@ public extension C7FilterProtocol {
             requiresDestinationTexture = true
         }
 
+        let parameterBindings = effectiveFilter.kernelParameterBindings
         var parameters: [String: KernelParameterValue] = [
-            "factors": .floatArray(factors),
-            "hasCount": .bool(hasCount),
-            "otherInputTextures": .int(otherInputTextures.count),
+            "factors": .floatArray(parameterBindings.isEmpty ? effectiveFilter.factors : []),
+            "otherInputTextures": .int(otherInputCount),
             "memoryAccessPattern": .string(String(describing: memoryAccessPattern))
         ]
         for (key, value) in parameterDescription {
@@ -616,12 +613,11 @@ public extension C7FilterProtocol {
         }
 
         let alphaBehavior = defaultAlphaBehavior
-        let parameterBindings = kernelParameterBindings
         let outputContract: RenderOutputContract
         let renderPassContract: RenderPassContract?
-        if case .render = modifier {
+        if case .render = effectiveFilter.modifier {
             let fallbackSize = inputSize ?? outputSize ?? C7Size(width: 1, height: 1)
-            let renderFilter = self as? RenderProtocol
+            let renderFilter = effectiveFilter as? RenderProtocol
             let usesCustomVertexLayout = renderFilter?.renderVertexStride != 4
                 || renderFilter?.setupVertices(inputSize: fallbackSize) != nil
             let declaredContract = renderFilter?.renderOutputContract ?? .preserveInput
@@ -649,10 +645,9 @@ public extension C7FilterProtocol {
         let resourceDescriptor = KernelResourceDescriptor(
             usage: resourceUsage,
             inputTextureCount: inputTextureCount,
-            writesOutputTexture: modifier.writesOutputTexture,
+            writesOutputTexture: effectiveFilter.modifier.writesOutputTexture,
             requiresDestinationTexture: requiresDestinationTexture,
-            memoryAccessPattern: String(describing: memoryAccessPattern),
-            hasPixelCountBuffer: hasCount
+            memoryAccessPattern: String(describing: memoryAccessPattern)
         )
 
         return KernelDescriptor(
@@ -679,7 +674,7 @@ public extension C7FilterProtocol {
         )
     }
 
-    private var defaultAlphaBehavior: KernelAlphaBehavior {
+    var defaultAlphaBehavior: KernelAlphaBehavior {
         if self is C7Opacity {
             return .modifiesAlpha
         }
@@ -765,7 +760,7 @@ private extension String {
         switch self {
         case "otherInputTextures":
             return .inputTexture
-        case "hasCount", "memoryAccessPattern":
+        case "memoryAccessPattern":
             return .executionHint
         default:
             return .parameter

@@ -58,7 +58,7 @@ public final class PerformanceMonitor {
         self.configuration = config
     }
     
-    public func setupEnablePerformanceMonitor(_ enable: Bool) {
+    func setupEnablePerformanceMonitor(_ enable: Bool) {
         cacheLock.lock()
         var config = self.configuration
         config.enabled = enable
@@ -67,7 +67,7 @@ public final class PerformanceMonitor {
     }
     
     @discardableResult
-    public func beginMonitoring(_ identifier: String) -> Metrics {
+    func beginMonitoring(_ identifier: String) -> Metrics {
         guard configuration.enabled else { return Metrics() }
         let metrics = Metrics(startTime: CACurrentMediaTime())
         cacheLock.lock()
@@ -78,7 +78,7 @@ public final class PerformanceMonitor {
     }
     
     @discardableResult
-    public func endMonitoring(_ identifier: String) -> Metrics? {
+    func endMonitoring(_ identifier: String) -> Metrics? {
         guard configuration.enabled else { return nil }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -91,7 +91,7 @@ public final class PerformanceMonitor {
         return metrics
     }
     
-    public func recordTextureCreation(_ identifier: String, created: Bool = true) {
+    func recordTextureCreation(_ identifier: String, created: Bool = true) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -103,7 +103,7 @@ public final class PerformanceMonitor {
         }
     }
 
-    public func recordTextureReuse(_ identifier: String, source: String) {
+    func recordTextureReuse(_ identifier: String, source: String) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -111,7 +111,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.resourceEvents.append("reuse:\(source)")
     }
 
-    public func recordPipelineCacheLookup(_ identifier: String, hit: Bool) {
+    func recordPipelineCacheLookup(_ identifier: String, hit: Bool) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -123,7 +123,7 @@ public final class PerformanceMonitor {
         }
     }
 
-    public func recordImageResolutionCacheLookup(_ identifier: String, hit: Bool) {
+    func recordImageResolutionCacheLookup(_ identifier: String, hit: Bool) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -135,7 +135,7 @@ public final class PerformanceMonitor {
         }
     }
 
-    public func recordRenderStageCount(_ identifier: String, stageCount: Int) {
+    func recordRenderStageCount(_ identifier: String, stageCount: Int) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -143,7 +143,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.stageCount = stageCount
     }
 
-    public func recordReadbackBoundary(_ identifier: String) {
+    func recordReadbackBoundary(_ identifier: String) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -151,7 +151,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.readbackBoundaryCount += 1
     }
 
-    public func recordPixelFormatConversion(_ identifier: String, from: MTLPixelFormat, to: MTLPixelFormat) {
+    func recordPixelFormatConversion(_ identifier: String, from: MTLPixelFormat, to: MTLPixelFormat) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -160,7 +160,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.resourceEvents.append("pixelFormat:\(from.rawValue)->\(to.rawValue)")
     }
 
-    public func recordAlphaConversion(_ identifier: String, contract: ImageAlphaContract) {
+    func recordAlphaConversion(_ identifier: String, contract: ImageAlphaContract) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -169,7 +169,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.resourceEvents.append("alpha:\(contract)")
     }
 
-    public func recordColorConversion(_ identifier: String, contract: ImageColorSpaceContract) {
+    func recordColorConversion(_ identifier: String, contract: ImageColorSpaceContract) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -178,7 +178,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.resourceEvents.append("color:\(contract.name)")
     }
 
-    public func recordRenderTargetCreation(_ identifier: String) {
+    func recordRenderTargetCreation(_ identifier: String) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -186,7 +186,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.renderTargetCreations += 1
     }
 
-    public func recordRenderOptimizationPlan(_ identifier: String, plan: RenderOptimizationPlan) {
+    func recordRenderOptimizationPlan(_ identifier: String, plan: RenderOptimizationPlan) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -196,7 +196,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.resourceEvents.append(contentsOf: plan.decisions.map { "optimizer:\($0)" })
     }
     
-    public func recordFilterProcessing(_ identifier: String, filterName: String, duration: TimeInterval) {
+    func recordFilterProcessing(_ identifier: String, filterName: String, duration: TimeInterval) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -204,7 +204,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.filterProcessingTimes[filterName] = duration
     }
     
-    public func recordMemoryAllocation(_ identifier: String, bytes: Int, source: String) {
+    func recordMemoryAllocation(_ identifier: String, bytes: Int, source: String) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -213,7 +213,7 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.memoryAllocations.append(alloc)
     }
     
-    public func recordError(_ identifier: String, error: Error) {
+    func recordError(_ identifier: String, error: Error) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -224,7 +224,7 @@ public final class PerformanceMonitor {
         }
     }
     
-    public func recordGPUTime(_ identifier: String, nanoseconds: UInt64) {
+    func recordGPUTime(_ identifier: String, nanoseconds: UInt64) {
         guard configuration.enabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -246,7 +246,7 @@ public final class PerformanceMonitor {
         return metricsCache[identifier]
     }
     
-    public func cleanupOldMetrics(maxAge: TimeInterval = 300) {
+    func cleanupOldMetrics(maxAge: TimeInterval = 300) {
         guard configuration.enabled else { return }
         let now = CACurrentMediaTime()
         cacheLock.lock()
@@ -267,7 +267,7 @@ public final class PerformanceMonitor {
     }
     
     @discardableResult
-    public func measure<T>(_ identifier: String, _ operation: String, _ block: () throws -> T) rethrows -> T {
+    func measure<T>(_ identifier: String, _ operation: String, _ block: () throws -> T) rethrows -> T {
         guard configuration.enabled else { return try block() }
         let startTime = CACurrentMediaTime()
         do {

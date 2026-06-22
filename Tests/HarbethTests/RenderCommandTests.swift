@@ -15,7 +15,7 @@ final class RenderCommandTests: XCTestCase {
         XCTAssertEqual(descriptor.renderPass.colorAttachments.map(\.index), [0, 1])
         XCTAssertEqual(
             descriptor.renderPass.colorAttachments.map(\.pixelFormat),
-            [String(describing: MTLPixelFormat.rgba8Unorm), String(describing: MTLPixelFormat.rgba8Unorm)]
+            ["rgba8Unorm", "rgba8Unorm"]
         )
     }
 

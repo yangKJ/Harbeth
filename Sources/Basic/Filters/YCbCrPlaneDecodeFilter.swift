@@ -42,22 +42,9 @@ struct YCbCrPlaneDecodeFilter: C7FilterProtocol {
 
     var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(
-                name: "conversionMatrix",
-                index: 0,
-                stage: .compute,
-                value: .matrix3x3(conversionMatrix)
-            ),
-            KernelParameterBinding(
-                name: "conversionOffset",
-                index: 1,
-                stage: .compute,
-                value: .float3(conversionOffset)
-            )
+            KernelParameterBinding(name: "conversionMatrix", index: 0, stage: .compute, value: .matrix3x3(conversionMatrix)),
+            KernelParameterBinding(name: "conversionOffset", index: 1, stage: .compute, value: .float3(conversionOffset))
         ]
     }
 
-    func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        // 旧入口先保留，新的执行链优先走 kernelParameterBindings。
-    }
 }

@@ -243,6 +243,32 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
     }
 
+    func testRenderRequestCanMaterializeColorRangeMaskDescriptor() throws {
+        let texture = try makeTexture(width: 3, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [255, 255, 255, 255]
+        ])
+        let request = try HarbethIO<MTLTexture>(
+            element: texture,
+            filters: [C7Brightness(brightness: 0.0)]
+        ).makeRenderRequest(profile: .readbackQuality)
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let mask = try XCTUnwrap(request.renderMaskDescriptor(scope: scope))
+        let bytes = try XCTUnwrap(mask.texture.c7.bytes())
+
+        XCTAssertEqual(mask.component, .red)
+        XCTAssertEqual(Array(bytes[0..<4]), [255, 255, 255, 255])
+        XCTAssertEqual(Array(bytes[4..<8]), [0, 0, 0, 255])
+        XCTAssertEqual(Array(bytes[8..<12]), [0, 0, 0, 255])
+    }
+
     func testHarbethIOC7ImageOutputAppliesExplicitRenderOutputColorSpace() throws {
         let cgImage = try makeFixtureCGImage()
         let image = C7Image(cgImage: cgImage)

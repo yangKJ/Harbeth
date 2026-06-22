@@ -90,6 +90,7 @@ final class RenderTaskTests: XCTestCase {
             compilationSource: .filtersPrimitive,
             imageCachePolicy: .transient,
             samplerDescriptor: ImageSamplerDescriptor.nearest,
+            samplerExecutionCoverage: .init(mode: .covered, coveredFilterTypes: ["RenderBasicFilter"]),
             containsLocalEffectComposite: false,
             containsTransitionKernel: false,
             containsDerivativeResize: false,

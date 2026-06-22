@@ -27,9 +27,9 @@ public struct TextureHistogram: Sendable, Equatable {
     public let bins: [UInt32]
     public let totalSampleCount: Int
 
-    public init(channel: TextureHistogramChannel,
-                bins: [UInt32],
-                totalSampleCount: Int) {
+    init(channel: TextureHistogramChannel,
+         bins: [UInt32],
+         totalSampleCount: Int) {
         self.channel = channel
         self.bins = bins
         self.totalSampleCount = max(totalSampleCount, 0)
@@ -108,8 +108,8 @@ public struct RenderedHistogramAttachment: @unchecked Sendable {
     public let histogram: TextureHistogram
     public let attachment: RenderedAttachment
 
-    public init(histogram: TextureHistogram,
-                attachment: RenderedAttachment) {
+    init(histogram: TextureHistogram,
+         attachment: RenderedAttachment) {
         self.histogram = histogram
         self.attachment = attachment
     }

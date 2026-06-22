@@ -74,6 +74,43 @@ final class ImageLoadingOptionsTests: XCTestCase {
         XCTAssertEqual(frame.renderIntent, .stable)
     }
 
+    func testImageNodeCanAcceptDataSource() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let image = try makeFixtureCGImage(width: 8, height: 4)
+        let data = try makePNGData(from: image)
+
+        let texture = try ImageNode
+            .data(data)
+            .applying(C7Brightness(brightness: 0))
+            .makeTexture(profile: .stablePreview)
+
+        XCTAssertEqual(texture.width, 8)
+        XCTAssertEqual(texture.height, 4)
+    }
+
+    func testImageNodeCanAcceptAssetSourceWithLoadingOptions() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let image = try makeFixtureCGImage(width: 8, height: 4)
+        let asset = ImageAsset(
+            storage: .cgImage(image),
+            loadingOptions: ImageLoadingOptions(sizePolicy: .maxPixelSize(4)),
+            sourceTier: .thumbnail
+        )
+
+        let frame = try ImageNode
+            .asset(asset)
+            .applying(C7Brightness(brightness: 0))
+            .makeFrame(profile: .stablePreview)
+
+        XCTAssertEqual(frame.size.width, 4)
+        XCTAssertEqual(frame.size.height, 2)
+        XCTAssertEqual(frame.sourceTier, .thumbnail)
+    }
+
     func testHarbethIOCGImageOutputAppliesExplicitRenderOutputColorSpace() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

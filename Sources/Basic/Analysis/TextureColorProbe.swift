@@ -19,15 +19,15 @@ public struct TextureColorProbe: Sendable {
     public let minimumLuminance: Float
     public let maximumLuminance: Float
 
-    public init(region: MTLRegion,
-                sampleCount: Int,
-                meanRed: Float,
-                meanGreen: Float,
-                meanBlue: Float,
-                meanAlpha: Float,
-                meanLuminance: Float,
-                minimumLuminance: Float,
-                maximumLuminance: Float) {
+    init(region: MTLRegion,
+         sampleCount: Int,
+         meanRed: Float,
+         meanGreen: Float,
+         meanBlue: Float,
+         meanAlpha: Float,
+         meanLuminance: Float,
+         minimumLuminance: Float,
+         maximumLuminance: Float) {
         self.region = region
         self.sampleCount = max(sampleCount, 0)
         self.meanRed = meanRed
@@ -39,7 +39,7 @@ public struct TextureColorProbe: Sendable {
         self.maximumLuminance = maximumLuminance
     }
 
-    public init(region: MTLRegion, statistics: TextureStatistics) {
+    init(region: MTLRegion, statistics: TextureStatistics) {
         self.init(
             region: region,
             sampleCount: statistics.sampleCount,

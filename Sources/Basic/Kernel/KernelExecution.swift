@@ -8,36 +8,28 @@
 import Foundation
 import Metal
 
-public enum KernelExecutableKind: String, Sendable, Codable, Equatable, Hashable {
-    case compute
-    case render
-    case blit
-    case mps
-    case advancedMetal
-}
+struct KernelExecutionPass: Sendable, Codable, Equatable, Hashable {
+    let index: Int
+    let kind: KernelFunctionKind
+    let functionIdentity: KernelFunctionIdentity
+    let output: KernelOutputDescriptor
+    let outputContract: RenderOutputContract
+    let inputTextureCount: Int
+    let requiresDestinationTexture: Bool
+    let alphaBehavior: KernelAlphaBehavior
+    let drawCallCount: Int
+    let parameterFingerprint: String
 
-public struct KernelExecutionPass: Sendable, Codable, Equatable, Hashable {
-    public let index: Int
-    public let kind: KernelExecutableKind
-    public let functionIdentity: KernelFunctionIdentity
-    public let output: KernelOutputDescriptor
-    public let outputContract: RenderOutputContract
-    public let inputTextureCount: Int
-    public let requiresDestinationTexture: Bool
-    public let alphaBehavior: KernelAlphaBehavior
-    public let drawCallCount: Int
-    public let parameterFingerprint: String
-
-    public init(index: Int,
-                kind: KernelExecutableKind,
-                functionIdentity: KernelFunctionIdentity,
-                output: KernelOutputDescriptor,
-                outputContract: RenderOutputContract,
-                inputTextureCount: Int,
-                requiresDestinationTexture: Bool,
-                alphaBehavior: KernelAlphaBehavior,
-                drawCallCount: Int = 1,
-                parameterFingerprint: String) {
+    init(index: Int,
+         kind: KernelFunctionKind,
+         functionIdentity: KernelFunctionIdentity,
+         output: KernelOutputDescriptor,
+         outputContract: RenderOutputContract,
+         inputTextureCount: Int,
+         requiresDestinationTexture: Bool,
+         alphaBehavior: KernelAlphaBehavior,
+         drawCallCount: Int = 1,
+         parameterFingerprint: String) {
         self.index = index
         self.kind = kind
         self.functionIdentity = functionIdentity
@@ -51,24 +43,24 @@ public struct KernelExecutionPass: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
-    public let filterName: String
-    public let kind: KernelExecutableKind
-    public let passes: [KernelExecutionPass]
-    public let outputContract: RenderOutputContract
-    public let inputTextureCount: Int
-    public let usesFunctionConstants: Bool
-    public let expectedPixelFormat: PixelFormatContract
-    public let compatibilitySummary: String
+struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
+    let filterName: String
+    let kind: KernelFunctionKind
+    let passes: [KernelExecutionPass]
+    let outputContract: RenderOutputContract
+    let inputTextureCount: Int
+    let usesFunctionConstants: Bool
+    let expectedPixelFormat: PixelFormatContract
+    let compatibilitySummary: String
 
-    public init(filterName: String,
-                kind: KernelExecutableKind,
-                passes: [KernelExecutionPass],
-                outputContract: RenderOutputContract,
-                inputTextureCount: Int,
-                usesFunctionConstants: Bool,
-                expectedPixelFormat: PixelFormatContract,
-                compatibilitySummary: String) {
+    init(filterName: String,
+         kind: KernelFunctionKind,
+         passes: [KernelExecutionPass],
+         outputContract: RenderOutputContract,
+         inputTextureCount: Int,
+         usesFunctionConstants: Bool,
+         expectedPixelFormat: PixelFormatContract,
+         compatibilitySummary: String) {
         self.filterName = filterName
         self.kind = kind
         self.passes = passes
@@ -79,7 +71,7 @@ public struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
         self.compatibilitySummary = compatibilitySummary
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "filter=\(filterName)",
             "kind=\(kind.rawValue)",
@@ -94,27 +86,27 @@ public struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
         ].joined(separator: "|")
     }
 
-    public var outputAttachmentCount: Int {
+    var outputAttachmentCount: Int {
         outputContract.attachmentCount
     }
 
-    public var outputAttachmentPixelFormats: [String] {
+    var outputAttachmentPixelFormats: [String] {
         outputContract.attachments.map { $0.pixelFormat.name }
     }
 
-    public var outputAttachmentSemantics: [String] {
+    var outputAttachmentSemantics: [String] {
         outputContract.attachments.map { $0.semantic.rawValue }
     }
 }
 
-public protocol KernelExecutable {
+protocol KernelExecutable {
     var kernelExecutionPlan: KernelExecutionPlan { get }
 }
 
-public enum KernelEncoder {
-    public static func makeExecutionPlan(descriptor: KernelDescriptor,
-                                         compatibilitySummary: String = "compatible") -> KernelExecutionPlan {
-        let kind = executableKind(for: descriptor.functionIdentity.kind)
+enum KernelEncoder {
+    static func makeExecutionPlan(descriptor: KernelDescriptor,
+                                  compatibilitySummary: String = "compatible") -> KernelExecutionPlan {
+        let kind = descriptor.functionIdentity.kind
         let parameterFingerprint = descriptor.parameters
             .sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value.fingerprint)" }
@@ -135,7 +127,7 @@ public enum KernelEncoder {
         let passes = descriptor.passes.map { pass in
             KernelExecutionPass(
                 index: pass.index,
-                kind: executableKind(for: pass.functionIdentity.kind),
+                kind: pass.functionIdentity.kind,
                 functionIdentity: pass.functionIdentity,
                 output: pass.output,
                 outputContract: descriptor.outputContract,
@@ -156,20 +148,5 @@ public enum KernelEncoder {
             expectedPixelFormat: descriptor.outputContract.pixelFormat,
             compatibilitySummary: compatibilitySummary
         )
-    }
-
-    private static func executableKind(for kind: KernelFunctionKind) -> KernelExecutableKind {
-        switch kind {
-        case .compute:
-            return .compute
-        case .render:
-            return .render
-        case .blit:
-            return .blit
-        case .mps:
-            return .mps
-        case .advancedMetal:
-            return .advancedMetal
-        }
     }
 }

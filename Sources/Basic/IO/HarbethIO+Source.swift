@@ -33,8 +33,7 @@ extension HarbethIO {
     }
     #endif
 
-    private func renderEncodedImageData(utType: CFString,
-                                        properties: [CFString: Any] = [:]) throws -> Data {
+    private func renderEncodedImageData(utType: CFString, properties: [CFString: Any] = [:]) throws -> Data {
         switch element {
         case let image as C7Image:
             let outputImage = filters.isEmpty ? image : try filtering(image: image)

@@ -109,12 +109,9 @@ final class RenderedFrameTests: XCTestCase {
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
         let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "RenderedFrameTests")
-        let io = HarbethIO(element: texture, filters: [RenderAuxiliaryLuminance()])
         let node = ImageNode.filters(input: .texture(texture), filters: [RenderAuxiliaryLuminance()])
 
-        let policies = try io.renderAttachmentDebugPolicies(
-            node: node
-        )
+        let policies = try node.makeAttachmentDebugPolicies()
 
         XCTAssertEqual(policies.map(\.label), ["primaryColor", "luminance"])
         XCTAssertEqual(policies.map(\.interpretation), [.color, .monochrome])
@@ -204,21 +201,15 @@ final class RenderedFrameTests: XCTestCase {
         let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.frameHistogram")
-        texture.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 255, 255, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(texture, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            255, 255, 255, 255
+        ])
         let frame = RenderedFrame(
             texture: texture,
             profile: .readbackQuality,
             token: FrameRenderToken(identifier: "frame-histogram", generation: 1)
         )
-
         let histogram = try XCTUnwrap(frame.makeHistogram())
         XCTAssertEqual(histogram.channel, .luminance)
         XCTAssertEqual(histogram.totalSampleCount, 2)
@@ -233,15 +224,10 @@ final class RenderedFrameTests: XCTestCase {
         let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.ioHistogram")
-        texture.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 255, 255, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(texture, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            255, 255, 255, 255
+        ])
 
         let histogram = try XCTUnwrap(
             HarbethIO(element: texture, filters: [])
@@ -261,15 +247,10 @@ final class RenderedFrameTests: XCTestCase {
         let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.ioGPUHistogram")
-        texture.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(texture, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            255, 0, 0, 255
+        ])
 
         let histogram = try XCTUnwrap(
             HarbethIO(element: texture, filters: [])
@@ -291,28 +272,18 @@ final class RenderedFrameTests: XCTestCase {
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
             .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
         ], identifier: "RenderedFrameTests.analysisBundle.scope")
-        texture.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(texture, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            255, 0, 0, 255
+        ])
         let mask = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
             .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
         ], identifier: "RenderedFrameTests.analysisBundle.scope.mask")
-        mask.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(mask, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            255, 0, 0, 255
+        ])
         let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
 
         let bundle = try HarbethIO(element: texture, filters: [])
@@ -329,6 +300,42 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
     }
 
+    func testRenderedFrameCanMaterializeColorRangeMaskDescriptor() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 3, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
+            .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
+        ], identifier: "RenderedFrameTests.analysisMask.colorRange")
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 3, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                255, 0, 0, 255,
+                0, 255, 0, 255,
+                255, 255, 255, 255
+            ],
+            bytesPerRow: 12
+        )
+        let frame = try HarbethIO(element: texture, filters: []).renderFrame(profile: .readbackQuality)
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let mask = try XCTUnwrap(frame.makeMaskDescriptor(scope: scope))
+        let bytes = try XCTUnwrap(mask.texture.c7.bytes())
+
+        XCTAssertEqual(mask.component, .red)
+        XCTAssertEqual(bytes.count, 12)
+        XCTAssertEqual(Array(bytes[0..<4]), [255, 255, 255, 255])
+        XCTAssertEqual(Array(bytes[4..<8]), [0, 0, 0, 255])
+        XCTAssertEqual(Array(bytes[8..<12]), [0, 0, 0, 255])
+    }
+
     func testHarbethIORenderHistogramAttachmentWithGPUMethodReturnsPreviewTexture() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -336,15 +343,10 @@ final class RenderedFrameTests: XCTestCase {
         let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.ioGPUHistogramAttachment")
-        texture.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(texture, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            255, 0, 0, 255
+        ])
 
         let output = try XCTUnwrap(
             HarbethIO(element: texture, filters: []).renderHistogramAttachment(
@@ -408,8 +410,22 @@ final class RenderedFrameTests: XCTestCase {
         )
         let node = ImageNode.filters(input: .texture(texture), filters: [RenderAuxiliaryLuminance()])
 
-        let bundle = try HarbethIO(element: texture, filters: [])
-            .renderAnalysisBundle(node: node, channel: .luminance, bins: 16, histogramHeight: 16, preferredMethod: .gpuMPS)
+        let frame = try node.makeFrame(profile: .readbackQuality)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: .luminance,
+            bins: 16,
+            height: 16,
+            preferredMethod: .gpuMPS
+        )
+        let bundle = RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogramAttachment?.histogram ?? frame.makeHistogram(channel: .luminance, bins: 16, preferredMethod: .gpuMPS),
+            statistics: frame.makeStatistics(),
+            colorProbe: frame.makeColorProbe(),
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: nil,
+            attachmentDebugPolicies: try node.makeAttachmentDebugPolicies(profile: .readbackQuality)
+        )
 
         XCTAssertEqual(bundle.histogram?.channel, .luminance)
         XCTAssertEqual(bundle.attachmentDebugPolicies.map(\.label), ["primaryColor", "luminance"])
@@ -496,9 +512,7 @@ final class RenderedFrameTests: XCTestCase {
             .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
             .withCachePolicy(.persistent)
 
-        let attachmentSet = try XCTUnwrap(
-            HarbethIO(element: texture, filters: []).renderAttachmentSet(node: node)
-        )
+        let attachmentSet = try XCTUnwrap(node.makeAttachmentSet())
 
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
         XCTAssertEqual(attachmentSet.attachments.count, 2)
@@ -542,10 +556,10 @@ final class RenderedFrameTests: XCTestCase {
         ])
 
         let attachmentSet = try XCTUnwrap(
-            HarbethIO(element: texture, filters: []).renderAttachmentSet(
-                recipe: recipe,
-                finalRenderFilter: RenderAuxiliaryLuminance()
-            )
+            recipe
+                .makeNode(source: .texture(texture))
+                .applying(RenderAuxiliaryLuminance())
+                .makeAttachmentSet(profile: recipe.contract(for: .preview).profile)
         )
 
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
@@ -589,10 +603,10 @@ final class RenderedFrameTests: XCTestCase {
             ]
         )
         let attachmentSet = try XCTUnwrap(
-            HarbethIO(element: background, filters: []).renderAttachmentSet(
-                composite: recipe,
-                finalRenderFilter: RenderAuxiliaryLuminance()
-            )
+            recipe
+                .makeNode()
+                .applying(RenderAuxiliaryLuminance())
+                .makeAttachmentSet(profile: recipe.profile)
         )
 
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
@@ -636,10 +650,10 @@ final class RenderedFrameTests: XCTestCase {
             progress: 0.5
         )
         let attachmentSet = try XCTUnwrap(
-            HarbethIO(element: from, filters: []).renderAttachmentSet(
-                transition: recipe,
-                finalRenderFilter: RenderAuxiliaryLuminance()
-            )
+            recipe
+                .makeNode()
+                .applying(RenderAuxiliaryLuminance())
+                .makeAttachmentSet(profile: recipe.profile)
         )
 
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
@@ -849,9 +863,7 @@ final class RenderedFrameTests: XCTestCase {
             .texture(texture)
             .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
 
-        let attachmentSet = try XCTUnwrap(
-            HarbethIO(element: texture, filters: []).renderAttachmentSet(node: node)
-        )
+        let attachmentSet = try XCTUnwrap(node.makeAttachmentSet())
 
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
         XCTAssertEqual(attachmentSet.attachments.count, 2)
@@ -892,15 +904,12 @@ final class RenderedFrameTests: XCTestCase {
             .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
         let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
 
-        let bundle = try XCTUnwrap(
-            HarbethIO(element: texture, filters: []).renderAttachmentAnalysisBundle(
-                node: node,
-                bins: 4,
-                histogramHeight: 16,
-                scope: scope,
-                preferredMethod: .gpuMPS
-            )
-        )
+        let bundle = try XCTUnwrap(node.makeAttachmentAnalysisBundle(
+            bins: 4,
+            histogramHeight: 16,
+            scope: scope,
+            preferredMethod: .gpuMPS
+        ))
 
         XCTAssertEqual(bundle.debugPolicies.map(\.label), ["primaryColor", "luminance"])
         XCTAssertNotNil(bundle.primary?.histogram)
@@ -918,28 +927,18 @@ final class RenderedFrameTests: XCTestCase {
         let background = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.compositeHistogramBackground")
-        background.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                0, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(background, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            0, 0, 0, 255
+        ])
 
         let layer = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.compositeHistogramLayer")
-        layer.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                255, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(layer, width: 2, height: 1, bytes: [
+            255, 0, 0, 255,
+            255, 0, 0, 255
+        ])
 
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
@@ -947,8 +946,9 @@ final class RenderedFrameTests: XCTestCase {
         )
 
         let histogram = try XCTUnwrap(
-            HarbethIO(element: background, filters: [])
-                .renderHistogram(composite: recipe, channel: .red, bins: 4)
+            try ImageNode.layerComposite(recipe)
+                .makeFrame(profile: recipe.profile, derivative: recipe.derivative)
+                .makeHistogram(channel: .red, bins: 4)
         )
 
         XCTAssertEqual(histogram.channel, .red)
@@ -963,36 +963,35 @@ final class RenderedFrameTests: XCTestCase {
         let background = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.compositeAnalysisBackground")
-        background.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                0, 0, 0, 255,
-                0, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(background, width: 2, height: 1, bytes: [
+            0, 0, 0, 255,
+            0, 0, 0, 255
+        ])
 
         let layer = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "RenderedFrameTests.compositeAnalysisLayer")
-        layer.replace(
-            region: MTLRegionMake2D(0, 0, 2, 1),
-            mipmapLevel: 0,
-            withBytes: [
-                255, 0, 0, 255,
-                255, 0, 0, 255
-            ],
-            bytesPerRow: 8
-        )
+        seedTexture(layer, width: 2, height: 1, bytes: [
+            255, 0, 0, 255,
+            255, 0, 0, 255
+        ])
 
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
             layers: [ImageLayer(content: .texture(layer))]
         )
 
-        let bundle = try HarbethIO(element: background, filters: [])
-            .renderAnalysisBundle(composite: recipe, channel: .red, bins: 4, histogramHeight: 16, preferredMethod: .gpuMPS)
+        let bundle = try XCTUnwrap(
+            try recipe
+                .makeNode()
+                .makeRenderRequest(profile: recipe.profile, derivative: recipe.derivative)
+                .renderAnalysisBundle(
+                    channel: .red,
+                    bins: 4,
+                    histogramHeight: 16,
+                    preferredMethod: .gpuMPS
+                )
+        )
 
         XCTAssertEqual(bundle.frame.pixelFormat, .rgba8Unorm)
         XCTAssertEqual(bundle.histogram?.channel, .red)
@@ -1019,10 +1018,7 @@ final class RenderedFrameTests: XCTestCase {
             .texture(texture)
             .applying(C7Brightness(brightness: 0))
 
-        let histogram = try XCTUnwrap(
-            HarbethIO(element: texture, filters: [])
-                .renderHistogram(node: node, channel: .red, bins: 4)
-        )
+        let histogram = try XCTUnwrap(node.makeFrame(profile: .readbackQuality).makeHistogram(channel: .red, bins: 4))
 
         XCTAssertEqual(histogram.channel, .red)
         XCTAssertEqual(histogram.totalSampleCount, 1)
@@ -1199,7 +1195,6 @@ final class RenderedFrameTests: XCTestCase {
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "recipe-frame-source")
         let recipe = EditRecipe(
-            filters: [C7Brightness(brightness: 0.1)],
             localEffects: [
                 LocalEffectRecipe(
                     filters: [C7Contrast(contrast: 1.1)],
@@ -1208,8 +1203,10 @@ final class RenderedFrameTests: XCTestCase {
             ]
         )
 
-        let frame = try HarbethIO(element: texture, filters: [])
-            .renderFrame(recipe: recipe, mode: .preview)
+        let frame = try ImageNode
+            .recipe(source: .texture(texture), recipe: recipe)
+            .applying(C7Brightness(brightness: 0.1))
+            .makeFrame()
 
         let fingerprint = frame.metadata["filterChainFingerprint"] ?? ""
         XCTAssertFalse(fingerprint.isEmpty)
@@ -1275,8 +1272,8 @@ final class RenderedFrameTests: XCTestCase {
             progress: 0.5
         )
 
-        let frame = try HarbethIO(element: from, filters: [])
-            .renderTransitionFrame(recipe)
+        let frame = try ImageNode.transition(recipe)
+            .makeFrame(profile: recipe.profile, derivative: recipe.derivative)
 
         let fingerprint = frame.metadata["filterChainFingerprint"] ?? ""
         XCTAssertFalse(fingerprint.isEmpty)
@@ -1296,6 +1293,18 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertTrue(descriptor.fingerprint.contains("tier=original"))
         XCTAssertTrue(descriptor.fingerprint.contains("purpose=processingInput"))
         XCTAssertTrue(descriptor.fingerprint.contains("fidelity=original"))
+    }
+
+    private func seedTexture(_ texture: MTLTexture,
+                             width: Int,
+                             height: Int,
+                             bytes: [UInt8]) {
+        TextureLoader.replaceTexture(
+            texture,
+            region: MTLRegionMake2D(0, 0, width, height),
+            bytes: bytes,
+            packedBytesPerRow: width * 4
+        )
     }
 
     private func makeBGRAPixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {

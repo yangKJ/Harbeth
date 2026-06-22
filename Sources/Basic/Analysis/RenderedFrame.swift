@@ -220,7 +220,7 @@ public struct RenderedFrame: @unchecked Sendable {
 }
 
 /// 高级渲染流程的终端输出意图。
-public enum RenderTarget: Sendable, Equatable {
+enum RenderTarget: Sendable, Equatable {
     case texture
     case frame
     case image
@@ -229,34 +229,37 @@ public enum RenderTarget: Sendable, Equatable {
 }
 
 /// 面向产品级调用方的 texture-first 渲染器，提供稳定帧元数据。
-public struct FrameRenderer {
-    public let source: ImageSource
-    public let filters: [C7FilterProtocol]
-    public let recipe: EditRecipe?
-    public let recipeMode: EditRecipeMode?
-    public let transitionRecipe: TransitionRecipe?
-    public var profile: RenderProfile
-    public var renderIntent: RenderIntent
-    public var identifier: String
-    public var metadata: [String: String]
-    public var outputCachePolicy: ImageCachePolicy
-    public var outputSemantic: ImageSemanticDescriptor
-    public var outputDerivative: ImageDerivativeSpec
+struct FrameRenderer {
+    let source: ImageSource
+    let filters: [C7FilterProtocol]
+    let recipe: EditRecipe?
+    let recipeMode: EditRecipeMode?
+    let transitionRecipe: TransitionRecipe?
+    let samplerDescriptor: ImageSamplerDescriptor
+    var profile: RenderProfile
+    var renderIntent: RenderIntent
+    var identifier: String
+    var metadata: [String: String]
+    var outputCachePolicy: ImageCachePolicy
+    var outputSemantic: ImageSemanticDescriptor
+    var outputDerivative: ImageDerivativeSpec
 
-    public init(source: ImageSource,
-                filters: [C7FilterProtocol] = [],
-                profile: RenderProfile = .stablePreview,
-                renderIntent: RenderIntent? = nil,
-                identifier: String = UUID().uuidString,
-                metadata: [String: String] = [:],
-                outputSemantic: ImageSemanticDescriptor? = nil,
-                outputDerivative: ImageDerivativeSpec? = nil,
-                outputCachePolicy: ImageCachePolicy? = nil) {
+    init(source: ImageSource,
+         filters: [C7FilterProtocol] = [],
+         profile: RenderProfile = .stablePreview,
+         renderIntent: RenderIntent? = nil,
+         identifier: String = UUID().uuidString,
+         metadata: [String: String] = [:],
+         outputSemantic: ImageSemanticDescriptor? = nil,
+         outputDerivative: ImageDerivativeSpec? = nil,
+         outputCachePolicy: ImageCachePolicy? = nil,
+         samplerDescriptor: ImageSamplerDescriptor = .default) {
         self.source = source
         self.filters = filters
         self.recipe = nil
         self.recipeMode = nil
         self.transitionRecipe = nil
+        self.samplerDescriptor = samplerDescriptor
         self.profile = profile
         self.renderIntent = renderIntent ?? profile.defaultRenderIntent
         self.identifier = identifier
@@ -266,37 +269,41 @@ public struct FrameRenderer {
         self.outputDerivative = outputDerivative ?? profile.defaultDerivativeSpec
     }
 
-    public init(source: ImageSource,
-                recipe: EditRecipe,
-                mode: EditRecipeMode = .preview,
-                filters: [C7FilterProtocol] = [],
-                identifier: String = UUID().uuidString,
-                metadata: [String: String] = [:],
-                derivative: ImageDerivativeSpec? = nil) {
+    init(source: ImageSource,
+         recipe: EditRecipe,
+         mode: EditRecipeMode = .preview,
+         filters: [C7FilterProtocol] = [],
+         identifier: String = UUID().uuidString,
+         metadata: [String: String] = [:],
+         derivative: ImageDerivativeSpec? = nil,
+         samplerDescriptor: ImageSamplerDescriptor = .default) {
         let contract = recipe.contract(for: mode)
         self.source = source
         self.filters = filters
         self.recipe = recipe
         self.recipeMode = mode
         self.transitionRecipe = nil
+        self.samplerDescriptor = samplerDescriptor
         self.profile = contract.profile
         self.renderIntent = contract.renderIntent
         self.identifier = identifier
         self.metadata = metadata
-        self.outputCachePolicy = (recipe.geometry.isIdentity && recipe.filters.isEmpty && recipe.localEffects.isEmpty && filters.isEmpty) ? source.cachePolicy : .transient
+        self.outputCachePolicy = (recipe.geometry.isIdentity && recipe.localEffects.isEmpty && filters.isEmpty) ? source.cachePolicy : .transient
         self.outputSemantic = contract.derivative.semantic
         self.outputDerivative = derivative ?? contract.derivative
     }
 
-    public init(transitionRecipe: TransitionRecipe,
-                filters: [C7FilterProtocol] = [],
-                identifier: String = UUID().uuidString,
-                metadata: [String: String] = [:]) {
+    init(transitionRecipe: TransitionRecipe,
+         filters: [C7FilterProtocol] = [],
+         identifier: String = UUID().uuidString,
+         metadata: [String: String] = [:],
+         samplerDescriptor: ImageSamplerDescriptor = .default) {
         self.source = transitionRecipe.from
         self.filters = filters
         self.recipe = nil
         self.recipeMode = nil
         self.transitionRecipe = transitionRecipe
+        self.samplerDescriptor = samplerDescriptor
         self.profile = transitionRecipe.profile
         self.renderIntent = transitionRecipe.derivative.renderIntent
         self.identifier = identifier
@@ -306,7 +313,7 @@ public struct FrameRenderer {
         self.outputDerivative = transitionRecipe.derivative
     }
 
-    public func renderTexture() throws -> MTLTexture {
+    func renderTexture() throws -> MTLTexture {
         if let transitionRecipe {
             return try compiledTransitionExecution(transitionRecipe).renderTexture()
         }
@@ -321,15 +328,15 @@ public struct FrameRenderer {
             .output()
     }
 
-    public func makeToken() -> FrameRenderToken {
+    func makeToken() -> FrameRenderToken {
         FrameRenderToken(identifier: identifier, generation: FrameGeneration.next())
     }
 
-    public func renderFrame() throws -> RenderedFrame {
+    func renderFrame() throws -> RenderedFrame {
         return try renderFrame(token: makeToken())
     }
 
-    public func renderFrame(token: FrameRenderToken) throws -> RenderedFrame {
+    func renderFrame(token: FrameRenderToken) throws -> RenderedFrame {
         if let transitionRecipe {
             let execution = try compiledTransitionExecution(transitionRecipe)
             return try renderFrame(
@@ -474,7 +481,9 @@ public struct FrameRenderer {
 
     private func renderedMetadata(filterChain: [C7FilterProtocol]) -> [String: String] {
         var value = metadata
-        value["filterChainFingerprint"] = filterChain.chainRecipe.fingerprint
+        if filterChain.isEmpty == false || value["filterChainFingerprint"] == nil {
+            value["filterChainFingerprint"] = filterChain.chainRecipe.fingerprint
+        }
         return value
     }
 
@@ -536,7 +545,10 @@ public struct FrameRenderer {
                                filters: [C7FilterProtocol],
                                profile: RenderProfile) throws -> MTLTexture {
         guard filters.isEmpty == false else { return input }
-        return try HarbethIO(element: input, filters: filters)
+        return try HarbethIO(
+            element: input,
+            filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
+        )
             .configured(for: profile)
             .output()
     }

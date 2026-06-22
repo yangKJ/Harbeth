@@ -8,7 +8,7 @@
 import Foundation
 import Metal
 
-public enum RenderAttachmentLoadBehavior: String, Sendable, Codable, Equatable, Hashable {
+enum RenderAttachmentLoadBehavior: String, Sendable, Codable, Equatable, Hashable {
     case dontCare
     case load
     case clear
@@ -25,7 +25,7 @@ public enum RenderAttachmentLoadBehavior: String, Sendable, Codable, Equatable, 
     }
 }
 
-public enum RenderAttachmentStoreBehavior: String, Sendable, Codable, Equatable, Hashable {
+enum RenderAttachmentStoreBehavior: String, Sendable, Codable, Equatable, Hashable {
     case dontCare
     case store
     case multisampleResolve
@@ -45,25 +45,25 @@ public enum RenderAttachmentStoreBehavior: String, Sendable, Codable, Equatable,
     }
 }
 
-public struct ColorAttachmentContract: Sendable, Codable, Equatable, Hashable {
-    public let index: Int
-    public let pixelFormat: String?
-    public let loadBehavior: RenderAttachmentLoadBehavior
-    public let storeBehavior: RenderAttachmentStoreBehavior
-    public let clearsOnLoad: Bool
+struct ColorAttachmentContract: Sendable, Codable, Equatable, Hashable {
+    let index: Int
+    let pixelFormat: String?
+    let loadBehavior: RenderAttachmentLoadBehavior
+    let storeBehavior: RenderAttachmentStoreBehavior
+    let clearsOnLoad: Bool
 
-    public init(index: Int = 0,
+    init(index: Int = 0,
                 pixelFormat: MTLPixelFormat? = nil,
                 loadBehavior: RenderAttachmentLoadBehavior = .clear,
                 storeBehavior: RenderAttachmentStoreBehavior = .store) {
         self.index = index
-        self.pixelFormat = pixelFormat.map { String(describing: $0) }
+        self.pixelFormat = pixelFormat.map { PixelFormatContract(pixelFormat: $0, preservesInput: false).name }
         self.loadBehavior = loadBehavior
         self.storeBehavior = storeBehavior
         self.clearsOnLoad = loadBehavior == .clear
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "attachment=\(index)",
             "pixelFormat=\(pixelFormat ?? "preserve")",
@@ -73,14 +73,14 @@ public struct ColorAttachmentContract: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
-    public let colorAttachments: [ColorAttachmentContract]
-    public let sampleCount: Int
-    public let hasDepthAttachment: Bool
-    public let hasStencilAttachment: Bool
-    public let usesCustomVertexLayout: Bool
+struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
+    let colorAttachments: [ColorAttachmentContract]
+    let sampleCount: Int
+    let hasDepthAttachment: Bool
+    let hasStencilAttachment: Bool
+    let usesCustomVertexLayout: Bool
 
-    public init(colorAttachments: [ColorAttachmentContract],
+    init(colorAttachments: [ColorAttachmentContract],
                 sampleCount: Int = 1,
                 hasDepthAttachment: Bool = false,
                 hasStencilAttachment: Bool = false,
@@ -92,7 +92,7 @@ public struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
         self.usesCustomVertexLayout = usesCustomVertexLayout
     }
 
-    public static func singleColor(pixelFormat: MTLPixelFormat? = nil,
+    static func singleColor(pixelFormat: MTLPixelFormat? = nil,
                                    sampleCount: Int = 1,
                                    usesCustomVertexLayout: Bool = false) -> RenderPassContract {
         RenderPassContract(
@@ -109,7 +109,7 @@ public struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
         )
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "attachments=\(colorAttachments.map(\.fingerprint).joined(separator: "||"))",
             "sampleCount=\(sampleCount)",
@@ -119,7 +119,7 @@ public struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
         ].joined(separator: "|")
     }
 
-    public func makeDescriptor(destinationTexturesByAttachmentIndex textures: [Int: MTLTexture]) throws -> MTLRenderPassDescriptor {
+    func makeDescriptor(destinationTexturesByAttachmentIndex textures: [Int: MTLTexture]) throws -> MTLRenderPassDescriptor {
         let descriptor = MTLRenderPassDescriptor()
         guard let primaryAttachment = colorAttachments.first else {
             throw HarbethError.configurationInvalid("Render pass must declare at least one color attachment.")
@@ -168,7 +168,7 @@ public struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
             )
         }
         if let pixelFormatName = attachment.pixelFormat,
-           String(describing: texture.pixelFormat) != pixelFormatName {
+           PixelFormatContract(pixelFormat: texture.pixelFormat, preservesInput: false).name != pixelFormatName {
             throw HarbethError.configurationInvalid(
                 "Render pass pixel format mismatch on attachment \(attachment.index). Texture pixelFormat=\(texture.pixelFormat), expected \(pixelFormatName)."
             )

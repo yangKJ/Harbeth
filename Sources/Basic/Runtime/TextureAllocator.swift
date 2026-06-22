@@ -27,8 +27,8 @@ public enum TextureAllocationStrategy: String, Sendable, Codable, Equatable, Has
         return "unsupportedHeapTexturePoolCapabilityFallbackToExact"
     }
 
-    public func makeAllocator(texturePool: TexturePool,
-                              heapTexturePoolSupported: Bool) -> TextureAllocator {
+    func makeAllocator(texturePool: TexturePool,
+                       heapTexturePoolSupported: Bool) -> TextureAllocator {
         let resolved = resolvedStrategy(heapTexturePoolSupported: heapTexturePoolSupported)
         let fallbackReason = fallbackReason(heapTexturePoolSupported: heapTexturePoolSupported)
         switch resolved {
@@ -53,8 +53,8 @@ public enum TextureAllocationStrategy: String, Sendable, Codable, Equatable, Has
         }
     }
 
-    public func makeAllocator(texturePool: TexturePool,
-                              on device: MTLDevice? = nil) -> TextureAllocator {
+    func makeAllocator(texturePool: TexturePool,
+                       on device: MTLDevice? = nil) -> TextureAllocator {
         let report = Device.metalCapabilityReport(.heapTexturePool, on: device)
         return makeAllocator(texturePool: texturePool, heapTexturePoolSupported: report.isSupported)
     }
@@ -125,7 +125,7 @@ public struct TextureAllocatorSnapshot: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public protocol TextureAllocating: AnyObject {
+protocol TextureAllocating: AnyObject {
     func dequeueTexture(width: Int,
                         height: Int,
                         pixelFormat: MTLPixelFormat,
@@ -139,41 +139,41 @@ public protocol TextureAllocating: AnyObject {
     func enqueueTextureSync(_ texture: MTLTexture)
 }
 
-public protocol TextureAllocator: TextureAllocating {
+protocol TextureAllocator: TextureAllocating {
     var strategy: TextureAllocationStrategy { get }
     func makeSnapshot() -> TextureAllocatorSnapshot
 }
 
-open class TexturePoolAllocator: TextureAllocator {
-    public let texturePool: TexturePool
-    public let strategy: TextureAllocationStrategy
-    public let requestedStrategy: TextureAllocationStrategy?
-    public let allocationFallbackReason: String?
+class TexturePoolAllocator: TextureAllocator {
+    let texturePool: TexturePool
+    let strategy: TextureAllocationStrategy
+    let requestedStrategy: TextureAllocationStrategy?
+    let allocationFallbackReason: String?
     private var textureRequestCount: Int = 0
     private var textureReuseHitCount: Int = 0
     private var heapBackedAllocationCount: Int = 0
     private var allocatorDecisions: [String] = []
 
-    public init(texturePool: TexturePool,
-                strategy: TextureAllocationStrategy = .exact,
-                requestedStrategy: TextureAllocationStrategy? = nil,
-                allocationFallbackReason: String? = nil) {
+    init(texturePool: TexturePool,
+         strategy: TextureAllocationStrategy = .exact,
+         requestedStrategy: TextureAllocationStrategy? = nil,
+         allocationFallbackReason: String? = nil) {
         self.texturePool = texturePool
         self.strategy = strategy
         self.requestedStrategy = requestedStrategy
         self.allocationFallbackReason = allocationFallbackReason
     }
 
-    open func resolvedAllowsSizeTolerance(_ requested: Bool,
-                                          pixelFormat: MTLPixelFormat,
-                                          decisionRecorder: ((String) -> Void)? = nil) -> Bool {
+    func resolvedAllowsSizeTolerance(_ requested: Bool,
+                                     pixelFormat: MTLPixelFormat,
+                                     decisionRecorder: ((String) -> Void)? = nil) -> Bool {
         requested
     }
 
-    open func dequeueTexture(width: Int,
-                             height: Int,
-                             pixelFormat: MTLPixelFormat,
-                             allowsSizeTolerance: Bool = false) -> MTLTexture? {
+    func dequeueTexture(width: Int,
+                        height: Int,
+                        pixelFormat: MTLPixelFormat,
+                        allowsSizeTolerance: Bool = false) -> MTLTexture? {
         textureRequestCount += 1
         let allowsSizeTolerance = resolvedAllowsSizeTolerance(
             allowsSizeTolerance,
@@ -196,11 +196,11 @@ open class TexturePoolAllocator: TextureAllocator {
         return texture
     }
 
-    open func dequeueTextureLease(width: Int,
-                                  height: Int,
-                                  pixelFormat: MTLPixelFormat,
-                                  allowsSizeTolerance: Bool = false,
-                                  logicalExtent: C7Size? = nil) -> TextureLease? {
+    func dequeueTextureLease(width: Int,
+                             height: Int,
+                             pixelFormat: MTLPixelFormat,
+                             allowsSizeTolerance: Bool = false,
+                             logicalExtent: C7Size? = nil) -> TextureLease? {
         textureRequestCount += 1
         let allowsSizeTolerance = resolvedAllowsSizeTolerance(
             allowsSizeTolerance,
@@ -223,15 +223,15 @@ open class TexturePoolAllocator: TextureAllocator {
         return lease
     }
 
-    open func makeLease(for texture: MTLTexture, logicalExtent: C7Size? = nil) -> TextureLease {
+    func makeLease(for texture: MTLTexture, logicalExtent: C7Size? = nil) -> TextureLease {
         texturePool.makeLease(for: texture, logicalExtent: logicalExtent)
     }
 
-    open func enqueueTextureSync(_ texture: MTLTexture) {
+    func enqueueTextureSync(_ texture: MTLTexture) {
         texturePool.enqueueTextureSync(texture)
     }
 
-    open func makeSnapshot() -> TextureAllocatorSnapshot {
+    func makeSnapshot() -> TextureAllocatorSnapshot {
         TextureAllocatorSnapshot(
             allocationStrategy: strategy,
             requestedAllocationStrategy: requestedStrategy,
@@ -243,16 +243,16 @@ open class TexturePoolAllocator: TextureAllocator {
         )
     }
 
-    public func recordHeapBackedAllocation() {
+    func recordHeapBackedAllocation() {
         heapBackedAllocationCount += 1
         allocatorDecisions.append("heapBackedAllocation")
     }
 }
 
-public final class ExactTextureAllocator: TexturePoolAllocator {
-    public init(texturePool: TexturePool,
-                requestedStrategy: TextureAllocationStrategy? = nil,
-                allocationFallbackReason: String? = nil) {
+final class ExactTextureAllocator: TexturePoolAllocator {
+    init(texturePool: TexturePool,
+         requestedStrategy: TextureAllocationStrategy? = nil,
+         allocationFallbackReason: String? = nil) {
         super.init(
             texturePool: texturePool,
             strategy: .exact,
@@ -261,10 +261,10 @@ public final class ExactTextureAllocator: TexturePoolAllocator {
         )
     }
 
-    public override func dequeueTexture(width: Int,
-                                        height: Int,
-                                        pixelFormat: MTLPixelFormat,
-                                        allowsSizeTolerance: Bool = false) -> MTLTexture? {
+    override func dequeueTexture(width: Int,
+                                 height: Int,
+                                 pixelFormat: MTLPixelFormat,
+                                 allowsSizeTolerance: Bool = false) -> MTLTexture? {
         super.dequeueTexture(
             width: width,
             height: height,
@@ -273,11 +273,11 @@ public final class ExactTextureAllocator: TexturePoolAllocator {
         )
     }
 
-    public override func dequeueTextureLease(width: Int,
-                                             height: Int,
-                                             pixelFormat: MTLPixelFormat,
-                                             allowsSizeTolerance: Bool = false,
-                                             logicalExtent: C7Size? = nil) -> TextureLease? {
+    override func dequeueTextureLease(width: Int,
+                                      height: Int,
+                                      pixelFormat: MTLPixelFormat,
+                                      allowsSizeTolerance: Bool = false,
+                                      logicalExtent: C7Size? = nil) -> TextureLease? {
         super.dequeueTextureLease(
             width: width,
             height: height,
@@ -288,10 +288,10 @@ public final class ExactTextureAllocator: TexturePoolAllocator {
     }
 }
 
-public final class TolerantTextureAllocator: TexturePoolAllocator {
-    public init(texturePool: TexturePool,
-                requestedStrategy: TextureAllocationStrategy? = nil,
-                allocationFallbackReason: String? = nil) {
+final class TolerantTextureAllocator: TexturePoolAllocator {
+    init(texturePool: TexturePool,
+         requestedStrategy: TextureAllocationStrategy? = nil,
+         allocationFallbackReason: String? = nil) {
         super.init(
             texturePool: texturePool,
             strategy: .tolerant,
@@ -300,9 +300,9 @@ public final class TolerantTextureAllocator: TexturePoolAllocator {
         )
     }
 
-    public override func resolvedAllowsSizeTolerance(_ requested: Bool,
-                                                     pixelFormat: MTLPixelFormat,
-                                                     decisionRecorder: ((String) -> Void)? = nil) -> Bool {
+    override func resolvedAllowsSizeTolerance(_ requested: Bool,
+                                              pixelFormat: MTLPixelFormat,
+                                              decisionRecorder: ((String) -> Void)? = nil) -> Bool {
         guard requested else { return false }
         guard !PixelFormatContract(pixelFormat: pixelFormat, preservesInput: false).isHighPrecision else {
             decisionRecorder?("highPrecisionForcesExactMatch")
@@ -311,10 +311,10 @@ public final class TolerantTextureAllocator: TexturePoolAllocator {
         return true
     }
 
-    public override func dequeueTexture(width: Int,
-                                        height: Int,
-                                        pixelFormat: MTLPixelFormat,
-                                        allowsSizeTolerance: Bool = true) -> MTLTexture? {
+    override func dequeueTexture(width: Int,
+                                 height: Int,
+                                 pixelFormat: MTLPixelFormat,
+                                 allowsSizeTolerance: Bool = true) -> MTLTexture? {
         super.dequeueTexture(
             width: width,
             height: height,
@@ -323,11 +323,11 @@ public final class TolerantTextureAllocator: TexturePoolAllocator {
         )
     }
 
-    public override func dequeueTextureLease(width: Int,
-                                             height: Int,
-                                             pixelFormat: MTLPixelFormat,
-                                             allowsSizeTolerance: Bool = true,
-                                             logicalExtent: C7Size? = nil) -> TextureLease? {
+    override func dequeueTextureLease(width: Int,
+                                      height: Int,
+                                      pixelFormat: MTLPixelFormat,
+                                      allowsSizeTolerance: Bool = true,
+                                      logicalExtent: C7Size? = nil) -> TextureLease? {
         super.dequeueTextureLease(
             width: width,
             height: height,
@@ -338,10 +338,10 @@ public final class TolerantTextureAllocator: TexturePoolAllocator {
     }
 }
 
-public final class HeapBackedTextureAllocator: TexturePoolAllocator {
-    public init(texturePool: TexturePool,
-                requestedStrategy: TextureAllocationStrategy? = nil,
-                allocationFallbackReason: String? = nil) {
+final class HeapBackedTextureAllocator: TexturePoolAllocator {
+    init(texturePool: TexturePool,
+         requestedStrategy: TextureAllocationStrategy? = nil,
+         allocationFallbackReason: String? = nil) {
         super.init(
             texturePool: texturePool,
             strategy: .heapBacked,
@@ -350,10 +350,10 @@ public final class HeapBackedTextureAllocator: TexturePoolAllocator {
         )
     }
 
-    public override func dequeueTexture(width: Int,
-                                        height: Int,
-                                        pixelFormat: MTLPixelFormat,
-                                        allowsSizeTolerance: Bool = false) -> MTLTexture? {
+    override func dequeueTexture(width: Int,
+                                 height: Int,
+                                 pixelFormat: MTLPixelFormat,
+                                 allowsSizeTolerance: Bool = false) -> MTLTexture? {
         let texture = super.dequeueTexture(
             width: width,
             height: height,
@@ -366,11 +366,11 @@ public final class HeapBackedTextureAllocator: TexturePoolAllocator {
         return texture
     }
 
-    public override func dequeueTextureLease(width: Int,
-                                             height: Int,
-                                             pixelFormat: MTLPixelFormat,
-                                             allowsSizeTolerance: Bool = false,
-                                             logicalExtent: C7Size? = nil) -> TextureLease? {
+    override func dequeueTextureLease(width: Int,
+                                      height: Int,
+                                      pixelFormat: MTLPixelFormat,
+                                      allowsSizeTolerance: Bool = false,
+                                      logicalExtent: C7Size? = nil) -> TextureLease? {
         let lease = super.dequeueTextureLease(
             width: width,
             height: height,

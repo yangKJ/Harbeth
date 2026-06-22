@@ -1,0 +1,660 @@
+//
+//  HarbethIO+Frame.swift
+//  Harbeth
+//
+//  Created by Condy on 2026/6/21.
+//
+
+import Foundation
+import MetalKit
+
+extension HarbethIO {
+    public func configured(for profile: RenderProfile) -> Self {
+        var copy = self
+        copy.renderProfile = profile
+        copy.transmitOutputRealTimeCommit = profile.usesRealTimeCommit
+        copy.enableDoubleBuffer = profile.enablesDoubleBuffer
+        copy.createDestTexture = profile.createsDestinationTexture
+        return copy
+    }
+
+    /// texture-first 同步输出，不执行 CPU 读回。
+    public func renderTexture(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+        let sourceObject = try makeImageSource()
+        let source = try sourceObject.makeTexture()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let effectiveFilters = makeEffectiveFilters(
+            inputSize: C7Size(width: source.width, height: source.height),
+            derivative: effectiveDerivative
+        )
+        guard effectiveFilters.isEmpty == false else { return source }
+        return try HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+            .configured(for: profile)
+            .output()
+    }
+
+    /// 将单帧渲染结果输出为新的 `CVPixelBuffer`，不修改输入 pixel buffer。
+    public func renderPixelBuffer(profile: RenderProfile = .stablePreview,
+                                  derivative: ImageDerivativeSpec? = nil,
+                                  pool: PixelBufferPool? = nil,
+                                  pixelFormatType: OSType = kCVPixelFormatType_32BGRA,
+                                  outputPixelFormat: PixelFormatContract = .preserveInput) throws -> CVPixelBuffer {
+        let result = try renderTextureForPixelBuffer(
+            profile: profile,
+            derivative: derivative,
+            requestedPixelFormatType: pixelFormatType,
+            outputPixelFormat: outputPixelFormat
+        )
+        let texture = result.texture
+        let resolvedPixelFormatType = try resolvePixelBufferFormatType(
+            requestedPixelFormatType: pixelFormatType,
+            outputPixelFormat: outputPixelFormat,
+            renderedTexture: texture
+        )
+        let outputPool = try pool ?? PixelBufferPool(
+            width: texture.width,
+            height: texture.height,
+            pixelFormatType: resolvedPixelFormatType
+        )
+        let pixelBuffer = try outputPool.makePixelBuffer()
+        if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
+            throw compatibilityError
+        }
+        guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
+            throw HarbethError.pixelBufferCopyFailed
+        }
+        copySourceImageBufferAttachmentsIfNeeded(to: pixelBuffer)
+        pixelBuffer.c7.setColorSpaceAttachments(result.outputColorSpace)
+        return pixelBuffer
+    }
+
+    private func renderTextureForPixelBuffer(profile: RenderProfile,
+                                             derivative: ImageDerivativeSpec?,
+                                             requestedPixelFormatType: OSType,
+                                             outputPixelFormat: PixelFormatContract) throws -> (texture: MTLTexture, outputColorSpace: ImageColorSpaceContract) {
+        let sourceObject = try makeImageSource()
+        let source = try sourceObject.makeTexture()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        var effectiveFilters = makeEffectiveFilters(
+            inputSize: C7Size(width: source.width, height: source.height),
+            derivative: effectiveDerivative
+        )
+        let targetPixelFormat: MTLPixelFormat? = {
+            if outputPixelFormat.preservesInput {
+                return Self.preferredMetalPixelFormat(for: requestedPixelFormatType)
+            }
+            return outputPixelFormat.metalPixelFormat
+        }()
+        if effectiveFilters.isEmpty,
+           let targetPixelFormat,
+           source.pixelFormat != targetPixelFormat {
+            effectiveFilters = [C7Brightness(brightness: 0)]
+        }
+        guard effectiveFilters.isEmpty == false else {
+            return (source, .preserveInput)
+        }
+        var io = HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+            .configured(for: profile)
+        if let targetPixelFormat {
+            io.bufferPixelFormat = targetPixelFormat
+            io.createDestTexture = true
+        }
+        let outputColorSpace = io.resolvedOutputColorSpace(
+            inputSize: C7Size(width: source.width, height: source.height)
+        )
+        let texture = try io.output()
+        return (texture, outputColorSpace)
+    }
+
+    private static func preferredMetalPixelFormat(for pixelFormatType: OSType) -> MTLPixelFormat? {
+        switch pixelFormatType {
+        case kCVPixelFormatType_32BGRA:
+            return .bgra8Unorm
+        case kCVPixelFormatType_32RGBA, kCVPixelFormatType_32ARGB:
+            return .rgba8Unorm
+        case kCVPixelFormatType_64RGBAHalf:
+            return .rgba16Float
+        case kCVPixelFormatType_OneComponent8:
+            return .r8Unorm
+        default:
+            return nil
+        }
+    }
+
+    private func resolvePixelBufferFormatType(requestedPixelFormatType: OSType,
+                                              outputPixelFormat: PixelFormatContract,
+                                              renderedTexture: MTLTexture) throws -> OSType {
+        if outputPixelFormat.preservesInput {
+            return requestedPixelFormatType
+        }
+        guard let targetPixelFormat = outputPixelFormat.metalPixelFormat else {
+            throw HarbethError.configurationInvalid("Pixel buffer output pixel format contract must resolve to a Metal pixel format.")
+        }
+        guard let resolvedType = RenderPixelBufferDescriptor.pixelFormatType(for: targetPixelFormat) else {
+            throw HarbethError.configurationInvalid(
+                "Pixel buffer output does not support Metal pixel format \(targetPixelFormat)."
+            )
+        }
+        if renderedTexture.pixelFormat != targetPixelFormat {
+            throw HarbethError.configurationInvalid(
+                "Rendered texture pixel format mismatch for pixel buffer output. Texture pixelFormat=\(renderedTexture.pixelFormat), expected \(targetPixelFormat)."
+            )
+        }
+        return resolvedType
+    }
+
+    private func copySourceImageBufferAttachmentsIfNeeded(to pixelBuffer: CVPixelBuffer) {
+        switch element {
+        case let source where CFGetTypeID(source as CFTypeRef) == CVPixelBufferGetTypeID():
+            pixelBuffer.c7.copyAttachments(from: source as! CVPixelBuffer)
+        case let source where CFGetTypeID(source as CFTypeRef) == CMSampleBufferGetTypeID():
+            guard let imageBuffer = CMSampleBufferGetImageBuffer(source as! CMSampleBuffer) else {
+                return
+            }
+            pixelBuffer.c7.copyAttachments(from: imageBuffer)
+        default:
+            break
+        }
+    }
+
+    /// texture-first task output for callers that need to observe GPU completion.
+    public func startRenderTextureTask(profile: RenderProfile = .stablePreview,
+                                       derivative: ImageDerivativeSpec? = nil) throws -> RenderTask<MTLTexture> {
+        let sourceObject = try makeImageSource()
+        let source = try sourceObject.makeTexture()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let effectiveFilters = makeEffectiveFilters(
+            inputSize: C7Size(width: source.width, height: source.height),
+            derivative: effectiveDerivative
+        )
+        let diagnostics = GraphCompiler.compile(
+            filters: filters,
+            inputSize: C7Size(width: source.width, height: source.height),
+            profile: profile,
+            derivative: effectiveDerivative,
+            compilationSource: .filtersPrimitive,
+            sourceDescriptor: sourceObject.descriptor
+        ).diagnostics
+        guard effectiveFilters.isEmpty == false else {
+            return .completed(identifier: identifier, output: source, diagnostics: diagnostics)
+        }
+        return try HarbethIO<MTLTexture>(element: source, filters: effectiveFilters)
+            .configured(for: profile)
+            .startRenderTextureTask(diagnostics: diagnostics)
+    }
+
+    /// 结构化渲染计划诊断，供上层做日志、调度、缓存和大图策略分析。
+    public func renderDiagnostics(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+        let sourceObject = try makeImageSource()
+        let source = try sourceObject.makeTexture()
+        let plan = GraphCompiler.compile(
+            filters: filters,
+            inputSize: C7Size(width: source.width, height: source.height),
+            profile: profile,
+            derivative: derivative ?? profile.defaultDerivativeSpec,
+            compilationSource: .filtersPrimitive,
+            sourceDescriptor: sourceObject.descriptor
+        )
+        if Shared.shared.enablePerformanceMonitor {
+            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
+            if plan.requiresCompletedGPUWork {
+                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+            }
+        }
+        return plan.diagnostics
+    }
+
+    public func renderDiagnosticsJSONData(profile: RenderProfile = .stablePreview,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          prettyPrinted: Bool = false,
+                                          sortedKeys: Bool = true) throws -> Data {
+        try renderDiagnostics(profile: profile, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    public func renderDiagnosticsJSONString(profile: RenderProfile = .stablePreview,
+                                            derivative: ImageDerivativeSpec? = nil,
+                                            prettyPrinted: Bool = false,
+                                            sortedKeys: Bool = true) throws -> String {
+        try renderDiagnostics(profile: profile, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    func renderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
+        let source = try makeImageSource()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let outputCachePolicy: ImageCachePolicy = filters.isEmpty ? source.cachePolicy : .transient
+        return RenderRecipe(
+            renderProfile: String(describing: profile),
+            renderIntent: effectiveDerivative.renderIntent,
+            source: source.descriptor,
+            outputDerivative: effectiveDerivative,
+            outputCachePolicy: outputCachePolicy,
+            outputSemantic: effectiveDerivative.semantic,
+            alphaType: source.alphaType,
+            orientation: source.orientation,
+            filters: filters.map(\.recipeDescriptor)
+        )
+    }
+
+    public func makeRenderRequest(profile: RenderProfile = .stablePreview,
+                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let renderRecipe = try renderRecipe(profile: profile, derivative: effectiveDerivative)
+        let diagnostics = try renderDiagnostics(profile: profile, derivative: effectiveDerivative)
+        let source = try makeImageSource()
+        return RenderRequest(
+            compilationSource: .filtersPrimitive,
+            profile: profile,
+            derivative: effectiveDerivative,
+            source: source.descriptor,
+            outputCachePolicy: renderRecipe.outputCachePolicy,
+            diagnostics: diagnostics,
+            renderRecipe: renderRecipe,
+            renderTexture: { try renderTexture(profile: profile, derivative: effectiveDerivative) },
+            renderFrame: { metadata in
+                try renderFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+            },
+            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
+                try renderAnalysisBundle(
+                    profile: profile,
+                    derivative: effectiveDerivative,
+                    channel: channel,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+            },
+            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
+                try renderAnalysisBundle(
+                    profile: profile,
+                    derivative: effectiveDerivative,
+                    channel: channel,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
+            },
+            renderAttachmentSet: {
+                try renderAttachmentSet(profile: profile)
+            },
+            renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
+                try renderAttachmentAnalysisBundle(
+                    profile: profile,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    region: region,
+                    preferredMethod: preferredMethod
+                )
+            },
+            renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
+                try renderAttachmentAnalysisBundle(
+                    profile: profile,
+                    bins: bins,
+                    histogramHeight: histogramHeight,
+                    scope: scope,
+                    preferredMethod: preferredMethod
+                )
+            }
+        )
+    }
+
+    /// 直接渲染 filters 路径最终结果并输出 histogram。
+    ///
+    /// 这个入口保持 Harbeth 的轻量使用方式：
+    /// 上层不需要先手动拿 frame/texture 再做一次 histogram 读回。
+    public func renderHistogram(profile: RenderProfile = .readbackQuality,
+                                derivative: ImageDerivativeSpec? = nil,
+                                channel: TextureHistogramChannel = .luminance,
+                                bins: Int = 256,
+                                region: MTLRegion? = nil,
+                                mask: MaskDescriptor? = nil,
+                                coverageThreshold: Float = 0.5,
+                                preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderFrame(profile: profile, derivative: derivative).makeHistogram(
+            channel: channel,
+            bins: bins,
+            region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderHistogramAttachment(profile: RenderProfile = .readbackQuality,
+                                          derivative: ImageDerivativeSpec? = nil,
+                                          channel: TextureHistogramChannel = .luminance,
+                                          bins: Int = 256,
+                                          height: Int = 64,
+                                          region: MTLRegion? = nil,
+                                          mask: MaskDescriptor? = nil,
+                                          coverageThreshold: Float = 0.5,
+                                          preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedHistogramAttachment? {
+        try renderFrame(profile: profile, derivative: derivative).renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: height,
+            region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     region: MTLRegion? = nil,
+                                     mask: MaskDescriptor? = nil,
+                                     luminanceRange: TextureLuminanceRange? = nil,
+                                     coverageThreshold: Float = 0.5,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        let frame = try renderFrame(profile: profile, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: histogramHeight,
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+        let statistics = frame.makeStatistics(
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold
+        )
+        let colorProbe = frame.makeColorProbe(
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold
+        )
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            statistics: statistics,
+            colorProbe: colorProbe,
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: TextureAnalysisScope(
+                region: region,
+                mask: mask,
+                luminanceRange: luminanceRange,
+                coverageThreshold: coverageThreshold
+            ).fingerprint,
+            attachmentDebugPolicies: [RenderOutputAttachmentContract(index: 0).debugPolicy]
+        )
+    }
+
+    public func renderAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     channel: TextureHistogramChannel = .luminance,
+                                     bins: Int = 256,
+                                     histogramHeight: Int = 64,
+                                     scope: TextureAnalysisScope,
+                                     preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle {
+        let frame = try renderFrame(profile: profile, derivative: derivative)
+        let histogramAttachment = frame.renderHistogramAttachment(
+            channel: channel,
+            bins: bins,
+            height: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+            channel: channel,
+            bins: bins,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+        let statistics = frame.makeStatistics(scope: scope)
+        let colorProbe = frame.makeColorProbe(scope: scope)
+        return RenderedAnalysisBundle(
+            frame: frame,
+            histogram: histogram,
+            statistics: statistics,
+            colorProbe: colorProbe,
+            histogramAttachment: histogramAttachment,
+            analysisScopeFingerprint: scope.fingerprint,
+            attachmentDebugPolicies: [RenderOutputAttachmentContract(index: 0).debugPolicy]
+        )
+    }
+
+    /// 当 filter 链最后一个节点是真正的 render primitive 时，
+    /// 直接返回多 attachment 的轻量输出集合。
+    ///
+    /// 这个入口不会把普通 filter 链强行提升成 MRT runtime；
+    /// 只有末端是 `RenderProtocol` 时才返回 attachment set。
+    public func renderAttachmentSet(profile: RenderProfile = .readbackQuality) throws -> RenderedAttachmentSet? {
+        guard let finalFilter = filters.last as? any RenderProtocol else {
+            return nil
+        }
+        let source = try makeImageSource()
+        let inputTexture: MTLTexture
+        if filters.count > 1 {
+            let preFilters = Array(filters.dropLast())
+            inputTexture = try HarbethIO<MTLTexture>(
+                element: try source.makeTexture(),
+                filters: preFilters
+            )
+            .configured(for: profile)
+            .output()
+        } else {
+            inputTexture = try source.makeTexture()
+        }
+        return try finalFilter.renderAttachmentSet(
+            from: inputTexture,
+            identifier: "\(identifier).attachmentSet"
+        )
+    }
+
+    /// 当 filter 链最后一个节点是真正的 render primitive 时，
+    /// 直接返回多 attachment 的轻量分析输出集合。
+    ///
+    /// 这个入口不会把普通 filter 链强行提升成 MRT runtime；
+    /// 只有末端是 `RenderProtocol` 时才返回 bundle。
+    public func renderAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               region: MTLRegion? = nil,
+                                               mask: MaskDescriptor? = nil,
+                                               coverageThreshold: Float = 0.5,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        guard let finalFilter = filters.last as? any RenderProtocol else {
+            return nil
+        }
+        let source = try makeImageSource()
+        let inputTexture: MTLTexture
+        if filters.count > 1 {
+            let preFilters = Array(filters.dropLast())
+            inputTexture = try HarbethIO<MTLTexture>(
+                element: try source.makeTexture(),
+                filters: preFilters
+            )
+            .configured(for: profile)
+            .output()
+        } else {
+            inputTexture = try source.makeTexture()
+        }
+        return try finalFilter.renderAttachmentAnalysisBundle(
+            from: inputTexture,
+            identifier: "\(identifier).attachmentAnalysis",
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAttachmentAnalysisBundle(profile: RenderProfile = .readbackQuality,
+                                               bins: Int = 256,
+                                               histogramHeight: Int = 64,
+                                               scope: TextureAnalysisScope,
+                                               preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
+        guard let finalFilter = filters.last as? any RenderProtocol else {
+            return nil
+        }
+        let source = try makeImageSource()
+        let inputTexture: MTLTexture
+        if filters.count > 1 {
+            let preFilters = Array(filters.dropLast())
+            inputTexture = try HarbethIO<MTLTexture>(
+                element: try source.makeTexture(),
+                filters: preFilters
+            )
+            .configured(for: profile)
+            .output()
+        } else {
+            inputTexture = try source.makeTexture()
+        }
+        return try finalFilter.renderAttachmentAnalysisBundle(
+            from: inputTexture,
+            identifier: "\(identifier).attachmentAnalysis",
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    /// texture-first 同步帧输出，携带稳定元数据。
+    public func renderFrame(profile: RenderProfile = .stablePreview,
+                            derivative: ImageDerivativeSpec? = nil,
+                            metadata: [String: String] = [:]) throws -> RenderedFrame {
+        let source = try makeImageSource()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let renderer = FrameRenderer(
+            source: source,
+            filters: filters,
+            profile: profile,
+            renderIntent: effectiveDerivative.renderIntent,
+            identifier: identifier,
+            metadata: metadata,
+            outputSemantic: effectiveDerivative.semantic,
+            outputDerivative: effectiveDerivative
+        )
+        return try renderer.renderFrame()
+    }
+
+    public func makeFrameRenderToken() -> FrameRenderToken {
+        FrameRenderToken(identifier: identifier, generation: FrameGeneration.next())
+    }
+
+    public func renderFrame(profile: RenderProfile = .stablePreview,
+                            derivative: ImageDerivativeSpec? = nil,
+                            token: FrameRenderToken,
+                            metadata: [String: String] = [:]) throws -> RenderedFrame {
+        let source = try makeImageSource()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        return try FrameRenderer(
+            source: source,
+            filters: filters,
+            profile: profile,
+            renderIntent: effectiveDerivative.renderIntent,
+            identifier: identifier,
+            metadata: metadata,
+            outputSemantic: effectiveDerivative.semantic,
+            outputDerivative: effectiveDerivative
+        ).renderFrame(token: token)
+    }
+
+    /// texture-first 异步帧输出。需要 UIImage/CGImage/Data 的调用方
+    /// 应走读回路径并等待 GPU 完成。
+    public func transmitFrame(profile: RenderProfile = .stablePreview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              metadata: [String: String] = [:],
+                              complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+        transmitFrame(
+            profile: profile,
+            derivative: derivative,
+            token: makeFrameRenderToken(),
+            metadata: metadata,
+            complete: complete
+        )
+    }
+
+    public func transmitFrame(profile: RenderProfile = .stablePreview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              token: FrameRenderToken,
+                              metadata: [String: String] = [:],
+                              complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+        do {
+            let source = try makeImageSource()
+            let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+            FrameRenderer(
+                source: source,
+                filters: filters,
+                profile: profile,
+                renderIntent: effectiveDerivative.renderIntent,
+                identifier: identifier,
+                metadata: metadata,
+                outputSemantic: effectiveDerivative.semantic,
+                outputDerivative: effectiveDerivative
+            ).transmitFrame(token: token, complete: complete)
+        } catch {
+            complete(.failure(HarbethError.toHarbethError(error)))
+        }
+    }
+
+}
+
+@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+extension HarbethIO {
+    public func transmitOutput() async throws -> Dest {
+        try await withCheckedThrowingContinuation { continuation in
+            transmitOutput(complete: { result in
+                switch result {
+                case .success(let output):
+                    continuation.resume(returning: output)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            })
+        }
+    }
+
+    public func transmitFrame(profile: RenderProfile = .stablePreview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              metadata: [String: String] = [:]) async throws -> RenderedFrame {
+        try await transmitFrame(
+            profile: profile,
+            derivative: derivative,
+            token: makeFrameRenderToken(),
+            metadata: metadata
+        )
+    }
+
+    public func transmitFrame(profile: RenderProfile = .stablePreview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              token: FrameRenderToken,
+                              metadata: [String: String] = [:]) async throws -> RenderedFrame {
+        try await withCheckedThrowingContinuation { continuation in
+            transmitFrame(profile: profile, derivative: derivative, token: token, metadata: metadata) { result in
+                switch result {
+                case .success(let frame):
+                    continuation.resume(returning: frame)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+}

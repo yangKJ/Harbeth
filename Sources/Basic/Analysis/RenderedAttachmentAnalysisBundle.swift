@@ -28,23 +28,23 @@ public struct RenderedAttachmentAnalysisSummary: Sendable, Codable, Equatable, H
     public let maximumLuminance: Float?
     public let hasHistogramAttachment: Bool
 
-    public init(index: Int,
-                semantic: RenderOutputAttachmentSemantic,
-                pixelFormat: String,
-                debugPolicy: RenderOutputAttachmentDebugPolicy,
-                histogramChannel: TextureHistogramChannel?,
-                histogramBinCount: Int,
-                histogramPeakCount: UInt32?,
-                histogramTotalSampleCount: Int?,
-                statisticsSampleCount: Int?,
-                meanRed: Float?,
-                meanGreen: Float?,
-                meanBlue: Float?,
-                meanAlpha: Float?,
-                meanLuminance: Float?,
-                minimumLuminance: Float?,
-                maximumLuminance: Float?,
-                hasHistogramAttachment: Bool) {
+    init(index: Int,
+         semantic: RenderOutputAttachmentSemantic,
+         pixelFormat: String,
+         debugPolicy: RenderOutputAttachmentDebugPolicy,
+         histogramChannel: TextureHistogramChannel?,
+         histogramBinCount: Int,
+         histogramPeakCount: UInt32?,
+         histogramTotalSampleCount: Int?,
+         statisticsSampleCount: Int?,
+         meanRed: Float?,
+         meanGreen: Float?,
+         meanBlue: Float?,
+         meanAlpha: Float?,
+         meanLuminance: Float?,
+         minimumLuminance: Float?,
+         maximumLuminance: Float?,
+         hasHistogramAttachment: Bool) {
         self.index = index
         self.semantic = semantic
         self.pixelFormat = pixelFormat
@@ -85,10 +85,10 @@ public struct RenderedAttachmentAnalysisBundleSummary: Sendable, Codable, Equata
     public let attachmentLabels: [String]
     public let analyses: [RenderedAttachmentAnalysisSummary]
 
-    public init(outputContractFingerprint: String,
-                analysisScopeFingerprint: String?,
-                attachmentLabels: [String],
-                analyses: [RenderedAttachmentAnalysisSummary]) {
+    init(outputContractFingerprint: String,
+         analysisScopeFingerprint: String?,
+         attachmentLabels: [String],
+         analyses: [RenderedAttachmentAnalysisSummary]) {
         self.outputContractFingerprint = outputContractFingerprint
         self.analysisScopeFingerprint = analysisScopeFingerprint
         self.attachmentLabels = attachmentLabels
@@ -134,11 +134,11 @@ public struct RenderedAttachmentAnalysis: @unchecked Sendable {
     public let colorProbe: TextureColorProbe?
     public let histogramAttachment: RenderedHistogramAttachment?
 
-    public init(attachment: RenderedAttachment,
-                histogram: TextureHistogram?,
-                statistics: TextureStatistics?,
-                colorProbe: TextureColorProbe?,
-                histogramAttachment: RenderedHistogramAttachment?) {
+    init(attachment: RenderedAttachment,
+         histogram: TextureHistogram?,
+         statistics: TextureStatistics?,
+         colorProbe: TextureColorProbe?,
+         histogramAttachment: RenderedHistogramAttachment?) {
         self.attachment = attachment
         self.histogram = histogram
         self.statistics = statistics
@@ -146,13 +146,11 @@ public struct RenderedAttachmentAnalysis: @unchecked Sendable {
         self.histogramAttachment = histogramAttachment
     }
 
-    public func makeCGImage(colorSpace: CGColorSpace? = nil,
-                            alphaType: AlphaType = .premultiplied) -> CGImage? {
+    public func makeCGImage(colorSpace: CGColorSpace? = nil, alphaType: AlphaType = .premultiplied) -> CGImage? {
         attachment.makeCGImage(colorSpace: colorSpace, alphaType: alphaType)
     }
 
-    public func makeHistogramCGImage(colorSpace: CGColorSpace? = nil,
-                                     alphaType: AlphaType = .premultiplied) -> CGImage? {
+    public func makeHistogramCGImage(colorSpace: CGColorSpace? = nil, alphaType: AlphaType = .premultiplied) -> CGImage? {
         histogramAttachment?.makeCGImage(colorSpace: colorSpace, alphaType: alphaType)
     }
 
@@ -188,9 +186,7 @@ public struct RenderedAttachmentAnalysisBundle: @unchecked Sendable {
     public let analyses: [RenderedAttachmentAnalysis]
     public let analysisScopeFingerprint: String?
 
-    public init(attachmentSet: RenderedAttachmentSet,
-                analyses: [RenderedAttachmentAnalysis],
-                analysisScopeFingerprint: String? = nil) {
+    init(attachmentSet: RenderedAttachmentSet, analyses: [RenderedAttachmentAnalysis], analysisScopeFingerprint: String? = nil) {
         self.attachmentSet = attachmentSet
         self.analyses = analyses.sorted { $0.attachment.index < $1.attachment.index }
         self.analysisScopeFingerprint = analysisScopeFingerprint
@@ -236,7 +232,7 @@ public struct RenderedAttachmentAnalysisBundle: @unchecked Sendable {
     }
 }
 
-public extension RenderedAttachmentSet {
+extension RenderedAttachmentSet {
     func makeAnalysis(for semantic: RenderOutputAttachmentSemantic,
                       channel: TextureHistogramChannel? = nil,
                       bins: Int = 256,

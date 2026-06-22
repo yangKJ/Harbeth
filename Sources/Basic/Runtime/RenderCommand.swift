@@ -8,18 +8,18 @@
 import Foundation
 import Metal
 
-public struct RenderGeometryDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let vertexCount: Int
-    public let vertexStride: Int
-    public let usesCustomVertices: Bool
+struct RenderGeometryDescriptor: Sendable, Codable, Equatable, Hashable {
+    let vertexCount: Int
+    let vertexStride: Int
+    let usesCustomVertices: Bool
 
-    public init(vertexCount: Int, vertexStride: Int = 4, usesCustomVertices: Bool = false) {
+    init(vertexCount: Int, vertexStride: Int = 4, usesCustomVertices: Bool = false) {
         self.vertexCount = max(vertexCount, 0)
         self.vertexStride = max(vertexStride, 1)
         self.usesCustomVertices = usesCustomVertices
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             "vertexCount=\(vertexCount)",
             "vertexStride=\(vertexStride)",
@@ -28,17 +28,17 @@ public struct RenderGeometryDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct RenderCommandDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let vertexFunction: KernelFunctionIdentity
-    public let fragmentFunction: KernelFunctionIdentity
-    public let renderPass: RenderPassContract
-    public let outputContract: RenderOutputContract
-    public let geometry: RenderGeometryDescriptor
-    public let fragmentTextureCount: Int
-    public let parameterFingerprint: String
-    public let parameterBindings: [KernelParameterBinding]
+struct RenderCommandDescriptor: Sendable, Codable, Equatable, Hashable {
+    let vertexFunction: KernelFunctionIdentity
+    let fragmentFunction: KernelFunctionIdentity
+    let renderPass: RenderPassContract
+    let outputContract: RenderOutputContract
+    let geometry: RenderGeometryDescriptor
+    let fragmentTextureCount: Int
+    let parameterFingerprint: String
+    let parameterBindings: [KernelParameterBinding]
 
-    public init(vertexFunction: KernelFunctionIdentity,
+    init(vertexFunction: KernelFunctionIdentity,
                 fragmentFunction: KernelFunctionIdentity,
                 renderPass: RenderPassContract,
                 outputContract: RenderOutputContract,
@@ -56,7 +56,7 @@ public struct RenderCommandDescriptor: Sendable, Codable, Equatable, Hashable {
         self.parameterBindings = parameterBindings
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             vertexFunction.fingerprint,
             fragmentFunction.fingerprint,
@@ -70,14 +70,14 @@ public struct RenderCommandDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct RenderCommandBatchDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let renderPass: RenderPassContract
-    public let outputContract: RenderOutputContract
-    public let commandCount: Int
-    public let drawCallCount: Int
-    public let commandFingerprints: [String]
+struct RenderCommandBatchDescriptor: Sendable, Codable, Equatable, Hashable {
+    let renderPass: RenderPassContract
+    let outputContract: RenderOutputContract
+    let commandCount: Int
+    let drawCallCount: Int
+    let commandFingerprints: [String]
 
-    public init(renderPass: RenderPassContract,
+    init(renderPass: RenderPassContract,
                 outputContract: RenderOutputContract,
                 commandCount: Int,
                 drawCallCount: Int,
@@ -89,7 +89,7 @@ public struct RenderCommandBatchDescriptor: Sendable, Codable, Equatable, Hashab
         self.commandFingerprints = commandFingerprints
     }
 
-    public var fingerprint: String {
+    var fingerprint: String {
         [
             renderPass.fingerprint,
             outputContract.fingerprint,
@@ -100,12 +100,12 @@ public struct RenderCommandBatchDescriptor: Sendable, Codable, Equatable, Hashab
     }
 }
 
-public struct RenderCommand {
-    public let descriptor: RenderCommandDescriptor
-    public let filter: RenderProtocol
-    public let sourceTexture: MTLTexture
+struct RenderCommand {
+    let descriptor: RenderCommandDescriptor
+    let filter: RenderProtocol
+    let sourceTexture: MTLTexture
 
-    public init(filter: RenderProtocol, sourceTexture: MTLTexture, renderPass: RenderPassContract? = nil) {
+    init(filter: RenderProtocol, sourceTexture: MTLTexture, renderPass: RenderPassContract? = nil) {
         self.filter = filter
         self.sourceTexture = sourceTexture
         self.descriptor = filter.renderCommandDescriptor(
@@ -115,13 +115,13 @@ public struct RenderCommand {
     }
 }
 
-public struct RenderCommandBatch {
-    public let descriptor: RenderCommandBatchDescriptor
-    public let renderPass: RenderPassContract
-    public let destinationTexturesByAttachmentIndex: [Int: MTLTexture]
-    public let commands: [RenderCommand]
+struct RenderCommandBatch {
+    let descriptor: RenderCommandBatchDescriptor
+    let renderPass: RenderPassContract
+    let destinationTexturesByAttachmentIndex: [Int: MTLTexture]
+    let commands: [RenderCommand]
 
-    public init(renderPass: RenderPassContract, destinationTexturesByAttachmentIndex: [Int: MTLTexture], commands: [RenderCommand]) throws {
+    init(renderPass: RenderPassContract, destinationTexturesByAttachmentIndex: [Int: MTLTexture], commands: [RenderCommand]) throws {
         guard commands.isEmpty == false else {
             throw HarbethError.configurationInvalid("Render command batch must contain at least one command.")
         }
@@ -150,7 +150,7 @@ public struct RenderCommandBatch {
     }
 }
 
-public extension RenderProtocol {
+extension RenderProtocol {
     func renderCommandDescriptor(inputSize: C7Size, renderPass: RenderPassContract? = nil) -> RenderCommandDescriptor {
         let vertexIdentity: KernelFunctionIdentity
         let fragmentIdentity: KernelFunctionIdentity
@@ -169,7 +169,6 @@ public extension RenderProtocol {
             vertexStride: vertexStride,
             usesCustomVertices: customVertices != nil
         )
-        let parameterFingerprint = factors.map { String(format: "%.4f", $0) }.joined(separator: ",")
         let parameterBindings = kernelParameterBindings
         let outputContract = renderOutputContract
         let resolvedRenderPass = renderPass ?? RenderPassContract(
@@ -186,7 +185,7 @@ public extension RenderProtocol {
             outputContract: outputContract,
             geometry: geometry,
             fragmentTextureCount: 1 + otherInputTextures.count,
-            parameterFingerprint: parameterFingerprint,
+            parameterFingerprint: kernelParameterFingerprint,
             parameterBindings: parameterBindings
         )
     }

@@ -1031,8 +1031,12 @@ final class TextureHistogramTests: XCTestCase {
             ],
             identifier: "TextureHistogramTests"
         )
-        let region = MTLRegionMake2D(0, 0, width, height)
-        texture.replace(region: region, mipmapLevel: 0, withBytes: bytes, bytesPerRow: width * 4)
+        TextureLoader.replaceTexture(
+            texture,
+            region: MTLRegionMake2D(0, 0, width, height),
+            bytes: bytes,
+            packedBytesPerRow: width * 4
+        )
         return texture
     }
 }

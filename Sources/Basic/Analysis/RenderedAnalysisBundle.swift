@@ -21,13 +21,13 @@ public struct RenderedAnalysisBundle: @unchecked Sendable {
     public let analysisScopeFingerprint: String?
     public let attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
 
-    public init(frame: RenderedFrame,
-                histogram: TextureHistogram?,
-                statistics: TextureStatistics?,
-                colorProbe: TextureColorProbe?,
-                histogramAttachment: RenderedHistogramAttachment?,
-                analysisScopeFingerprint: String? = nil,
-                attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]) {
+    init(frame: RenderedFrame,
+         histogram: TextureHistogram?,
+         statistics: TextureStatistics?,
+         colorProbe: TextureColorProbe?,
+         histogramAttachment: RenderedHistogramAttachment?,
+         analysisScopeFingerprint: String? = nil,
+         attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]) {
         self.frame = frame
         self.histogram = histogram
         self.statistics = statistics

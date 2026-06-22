@@ -200,7 +200,7 @@ extension Shared {
         }
     }
 
-    public var defaultTextureAllocator: TextureAllocator {
+    var defaultTextureAllocator: TextureAllocator {
         get {
             synchronizedDevice {
                 if let allocator = existingTextureAllocator {

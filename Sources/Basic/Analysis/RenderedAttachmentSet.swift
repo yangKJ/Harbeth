@@ -17,10 +17,10 @@ public struct RenderedAttachment: @unchecked Sendable {
     public let pixelFormat: MTLPixelFormat
     public let debugPolicy: RenderOutputAttachmentDebugPolicy
 
-    public init(index: Int,
-                semantic: RenderOutputAttachmentSemantic,
-                texture: MTLTexture,
-                debugPolicy: RenderOutputAttachmentDebugPolicy) {
+    init(index: Int,
+         semantic: RenderOutputAttachmentSemantic,
+         texture: MTLTexture,
+         debugPolicy: RenderOutputAttachmentDebugPolicy) {
         self.index = index
         self.semantic = semantic
         self.texture = texture
@@ -43,8 +43,7 @@ public struct RenderedAttachmentSet: @unchecked Sendable {
     public let outputContract: RenderOutputContract
     public let attachments: [RenderedAttachment]
 
-    public init(outputContract: RenderOutputContract,
-                attachments: [RenderedAttachment]) {
+    init(outputContract: RenderOutputContract, attachments: [RenderedAttachment]) {
         self.outputContract = outputContract
         self.attachments = attachments.sorted { $0.index < $1.index }
     }
@@ -81,8 +80,7 @@ public extension RenderProtocol {
     ///
     /// 这个入口刻意保持轻量，只服务单个 render primitive 的附件输出调试与分析读取，
     /// 不把 Harbeth 扩展成重型 editor runtime。
-    func renderAttachmentSet(from sourceTexture: MTLTexture,
-                             identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
+    func renderAttachmentSet(from sourceTexture: MTLTexture, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
         let inputSize = C7Size(width: sourceTexture.width, height: sourceTexture.height)
         let descriptor = renderCommandDescriptor(inputSize: inputSize)
         let outputSize = resize(input: inputSize)

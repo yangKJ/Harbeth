@@ -416,6 +416,10 @@ extension HarbethIO {
     
     /// Create a new texture based on the filter content.
     private func textureIO(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> MTLTexture {
+        if let pipelineFilter = filter as? C7FilterPipelineProtocol {
+            let destTexture = try createDestTexture(with: texture, filter: filter)
+            return try FilterPipelineExecutor.apply(filter: pipelineFilter, source: texture, destination: destTexture, commandBuffer: buffer)
+        }
         let destTexture = try createDestTexture(with: texture, filter: filter)
         let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
         let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
@@ -425,6 +429,10 @@ extension HarbethIO {
     private func textureIOManaged(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> ManagedTextureStage {
         let destLease = try createDestTextureLease(with: texture, filter: filter)
         let destTexture = destLease?.texture ?? texture
+        if let pipelineFilter = filter as? C7FilterPipelineProtocol {
+            let finalTexture = try FilterPipelineExecutor.apply(filter: pipelineFilter, source: texture, destination: destTexture, commandBuffer: buffer)
+            return ManagedTextureStage(texture: finalTexture, producedLease: destLease)
+        }
         let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
         let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
         let finalTexture = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
@@ -488,7 +496,14 @@ extension HarbethIO {
         var currentOutput = textureA
         
         for (index, filter) in filters.enumerated() {
-            if let filter = filter as? C7CombinationBase {
+            if let filter = filter as? C7FilterPipelineProtocol {
+                currentInput = try FilterPipelineExecutor.apply(filter: filter, source: currentInput, destination: currentOutput, commandBuffer: commandBuffer)
+                if index < filters.count - 1 {
+                    currentOutput = currentOutput === textureA ? textureB : textureA
+                }
+                continue
+            }
+            if let filter = filter as? LegacyCombinationFilterProtocol {
                 filter.identifier = identifier
                 currentInput = try textureIO(input: currentInput, filter: filter, for: commandBuffer)
             } else {
@@ -733,7 +748,14 @@ extension HarbethIO where Dest == MTLTexture {
         var currentOutput = leaseA.texture
 
         for (index, filter) in filters.enumerated() {
-            if let filter = filter as? C7CombinationBase {
+            if let filter = filter as? C7FilterPipelineProtocol {
+                currentInput = try FilterPipelineExecutor.apply(filter: filter, source: currentInput, destination: currentOutput, commandBuffer: commandBuffer)
+                if index < filters.count - 1 {
+                    currentOutput = currentOutput === leaseA.texture ? leaseB.texture : leaseA.texture
+                }
+                continue
+            }
+            if let filter = filter as? LegacyCombinationFilterProtocol {
                 filter.identifier = identifier
                 currentInput = try textureIO(input: currentInput, filter: filter, for: commandBuffer)
             } else {
