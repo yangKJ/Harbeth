@@ -10,9 +10,9 @@ final class ImageNodeTests: XCTestCase {
         let filters: [C7FilterProtocol] = [C7Resize(width: 2, height: 2)]
         let node = ImageNode.filters(input: .source(.texture(input)), filters: filters)
 
-        let nodeOutput = try HarbethIO(element: input, filters: []).renderTexture(node: node)
+        let nodeOutput = try node.makeTexture()
         let directOutput: MTLTexture = try HarbethIO(element: input, filters: filters).output()
-        let diagnostics = try HarbethIO(element: input, filters: []).renderDiagnostics(node: node)
+        let diagnostics = try node.makeDiagnostics()
 
         XCTAssertEqual(nodeOutput.width, directOutput.width)
         XCTAssertEqual(nodeOutput.height, directOutput.height)
@@ -44,6 +44,27 @@ final class ImageNodeTests: XCTestCase {
 
         XCTAssertEqual(diagnostics.samplerDescriptor, .nearest)
         XCTAssertTrue(diagnostics.summary.contains("sampler=\(ImageSamplerDescriptor.nearest.fingerprint)"))
+    }
+
+    func testNodeSamplerDescriptorAffectsCoveredRenderExecutionPath() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 0, 255, 255]
+        ])
+
+        let linearNode = ImageNode
+            .texture(input)
+            .applying(SamplerProbeFilter())
+        let nearestNode = linearNode.withSamplerDescriptor(.nearest)
+
+        let linearPixel = try pixel(in: linearNode.makeTexture(), x: 0, y: 0)
+        let nearestPixel = try pixel(in: nearestNode.makeTexture(), x: 0, y: 0)
+
+        XCTAssertNotEqual(linearPixel.red, nearestPixel.red)
+        XCTAssertNotEqual(linearPixel.blue, nearestPixel.blue)
+        XCTAssertGreaterThan(linearPixel.red, 0)
+        XCTAssertGreaterThan(linearPixel.blue, 0)
+        XCTAssertTrue(nearestPixel.red == 255 || nearestPixel.blue == 255)
     }
 
     func testNodeWrappedPlanPreservesSourceConversionDiagnostics() throws {
@@ -103,7 +124,6 @@ final class ImageNodeTests: XCTestCase {
 
         XCTAssertTrue(first === second)
         XCTAssertGreaterThanOrEqual(snapshot.imageResolutionCount, 1)
-        XCTAssertTrue(node.resolutionFingerprint().contains("cache=persistent"))
 
         context.resetCaches()
         XCTAssertEqual(context.debugCacheSnapshot().imageResolutionCount, 0)
@@ -301,6 +321,41 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(descriptor.matches(filter, inputSize: C7Size(width: 4, height: 4)))
     }
 
+    func testPublicApplyingKernelMatchesDirectFilterPath() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let filter = C7Brightness(brightness: 0.2)
+
+        let node = ImageNode
+            .texture(input)
+            .applyingKernel(filter, inputSize: C7Size(width: 4, height: 3))
+
+        let nodeOutput = try node.makeTexture()
+        let directOutput: MTLTexture = try HarbethIO(element: input, filter: filter).output()
+        let diagnostics = try node.makeDiagnostics()
+        let graph = try node.makeImageGraph()
+
+        XCTAssertEqual(nodeOutput.width, directOutput.width)
+        XCTAssertEqual(nodeOutput.height, directOutput.height)
+        XCTAssertEqual(diagnostics.compilationSource, .nodeGraph)
+        XCTAssertEqual(graph.nodeCount, 2)
+        XCTAssertTrue(graph.nodes.contains(where: { $0.kind == .kernel }))
+    }
+
+    func testPublicApplyingKernelPreservesOutputContractEffects() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [200, 100, 50, 128])
+        let node = ImageNode
+            .texture(input)
+            .applyingKernel(C7Brightness(brightness: 0))
+            .applyingKernel(C7PremultiplyAlpha())
+
+        let output = try node.makeTexture()
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertLessThan(outputPixel.red, 200)
+        XCTAssertLessThan(outputPixel.green, 100)
+        XCTAssertEqual(outputPixel.alpha, 128)
+    }
+
     func testKernelDescriptorDetectsIncompatibleInvocation() {
         let descriptor = C7Brightness(brightness: 0.2).kernelDescriptor(inputSize: C7Size(width: 4, height: 4))
         let incompatibleFilter = C7Contrast(contrast: 1.1)
@@ -435,8 +490,8 @@ final class ImageNodeTests: XCTestCase {
         )
         let node = ImageNode.layerComposite(recipe)
 
-        let output = try HarbethIO(element: background, filters: []).renderTexture(node: node)
-        let diagnostics = try HarbethIO(element: background, filters: []).renderDiagnostics(node: node)
+        let output = try node.makeTexture()
+        let diagnostics = try node.makeDiagnostics()
 
         XCTAssertEqual(output.width, 2)
         XCTAssertEqual(output.height, 2)
@@ -2068,15 +2123,16 @@ final class ImageNodeTests: XCTestCase {
         let to = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
         let recipeNode = ImageNode.recipe(
             source: .texture(from),
-            recipe: EditRecipe(filters: [C7Brightness(brightness: 0.1)]),
+            recipe: EditRecipe(),
             mode: .preview
         )
+        .applying(C7Brightness(brightness: 0.1))
         let transitionNode = ImageNode.transition(
             TransitionRecipe(from: .texture(from), to: .texture(to), kernel: .dissolve, progress: 0.5)
         )
 
-        let recipeDiagnostics = try HarbethIO(element: from, filters: []).renderDiagnostics(node: recipeNode)
-        let transitionDiagnostics = try HarbethIO(element: from, filters: []).renderDiagnostics(node: transitionNode)
+        let recipeDiagnostics = try recipeNode.makeDiagnostics()
+        let transitionDiagnostics = try transitionNode.makeDiagnostics()
 
         XCTAssertEqual(recipeDiagnostics.compilationSource, .editRecipe)
         XCTAssertEqual(transitionDiagnostics.compilationSource, .transition)
@@ -2631,5 +2687,24 @@ final class ImageNodeTests: XCTestCase {
             mipmapLevel: 0
         )
         return (bytes[0], bytes[1], bytes[2], bytes[3])
+    }
+}
+
+private struct SamplerProbeFilter: RenderProtocol {
+    var modifier: ModifierEnum {
+        .render(vertex: "basicVertex", fragment: "basicFragment")
+    }
+
+    func resize(input size: C7Size) -> C7Size {
+        C7Size(width: 1, height: 1)
+    }
+
+    func setupVertices(inputSize: C7Size) -> [Float]? {
+        [
+            -1.0, -1.0, 0.375, 0.5,
+             1.0, -1.0, 0.375, 0.5,
+            -1.0,  1.0, 0.375, 0.5,
+             1.0,  1.0, 0.375, 0.5
+        ]
     }
 }

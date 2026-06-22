@@ -19,18 +19,15 @@ public struct C7ColorRGBA: C7FilterProtocol {
         return .compute(kernel: "C7ColorRGBA")
     }
     
-    public var factors: [Float] {
-        return [intensity]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var factor = Vector4.init(color: color).to_factor()
-        computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "color", index: 1, stage: .compute, value: .float4(Vector4(color: color).to_factor()))
+        ]
     }
     
     public init(color: C7Color = .white, intensity: Float = 1.0) {

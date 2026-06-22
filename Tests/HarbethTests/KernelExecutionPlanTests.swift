@@ -60,6 +60,44 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertTrue(plan.passes.first?.parameterFingerprint.contains("binding=toneMatrix") == true)
         XCTAssertTrue(plan.passes.first?.parameterFingerprint.contains("binding=toneOffset") == true)
     }
+
+    func testExplicitParameterBindingFiltersDoNotMixLegacyFactors() {
+        let filters: [(name: String, filter: C7FilterProtocol, expectedBindingCount: Int)] = [
+            ("C7FalseColor", C7FalseColor(fristColor: .black, secondColor: .white), 2),
+            ("C7Levels", C7Levels(), 5),
+            ("C7HighlightShadowTint", C7HighlightShadowTint(), 4),
+            ("C7Transform", C7Transform(transform: .identity), 5),
+            ("C7ChromaKey", C7ChromaKey(), 4),
+            ("C7SolidColor", C7SolidColor(), 1),
+            ("C7ColorVector4", C7ColorVector4(vector: .zero), 2),
+            ("C7ColorMatrix4x4", C7ColorMatrix4x4(matrix: .Color.identity), 6),
+            ("C7ConvolutionMatrix3x3", C7ConvolutionMatrix3x3(matrix: .Kernel.identity), 3),
+            ("C7ColorMatrix4x5", C7ColorMatrix4x5(matrix: Matrix4x5(values: [
+                1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, 1, 0
+            ])), 3),
+            ("C7Vignette", C7Vignette(), 5),
+            ("C7VignetteBlend", C7VignetteBlend(), 6),
+            ("C7ColorRGBA", C7ColorRGBA(), 2),
+            ("C7Curves", C7Curves(), 8),
+            ("C7ColorBalanceEnhanced", C7ColorBalanceEnhanced(), 4),
+            ("C7EdgeGlow", C7EdgeGlow(), 3),
+            ("C7StickerOutline", C7StickerOutline(), 3)
+        ]
+
+        for filter in filters {
+            let descriptor = filter.filter.kernelDescriptor(inputSize: C7Size(width: 4, height: 4))
+            XCTAssertEqual(
+                descriptor.parameterBindings.count,
+                filter.expectedBindingCount,
+                "\(filter.name) should expose a complete explicit parameter binding route."
+            )
+            XCTAssertTrue(filter.filter.factors.isEmpty, "\(filter.name) should not mix factors with kernelParameterBindings.")
+            XCTAssertEqual(descriptor.parameters["factors"], .floatArray([]), "\(filter.name) should keep descriptor factors empty when bindings are present.")
+        }
+    }
 }
 
 private struct KernelBindingComputeTestFilter: C7FilterProtocol {

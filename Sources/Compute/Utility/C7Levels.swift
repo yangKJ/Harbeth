@@ -23,19 +23,15 @@ public struct C7Levels: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var _minimum = Vector3(color: minimum).to_factor()
-        var _middle  = Vector3(color: middle).to_factor()
-        var _maximum = Vector3(color: maximum).to_factor()
-        var _minOutput = Vector3(color: minOutput).to_factor()
-        var _maxOutput = Vector3(color: maxOutput).to_factor()
-        computeEncoder.setBytes(&_minimum, length: Vector3.size, index: index)
-        computeEncoder.setBytes(&_middle, length: Vector3.size, index: index + 1)
-        computeEncoder.setBytes(&_maximum, length: Vector3.size, index: index + 2)
-        computeEncoder.setBytes(&_minOutput, length: Vector3.size, index: index + 3)
-        computeEncoder.setBytes(&_maxOutput, length: Vector3.size, index: index + 4)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "minimum", index: 0, stage: .compute, value: .float3(Vector3(color: minimum).to_factor())),
+            KernelParameterBinding(name: "middle", index: 1, stage: .compute, value: .float3(Vector3(color: middle).to_factor())),
+            KernelParameterBinding(name: "maximum", index: 2, stage: .compute, value: .float3(Vector3(color: maximum).to_factor())),
+            KernelParameterBinding(name: "minOutput", index: 3, stage: .compute, value: .float3(Vector3(color: minOutput).to_factor())),
+            KernelParameterBinding(name: "maxOutput", index: 4, stage: .compute, value: .float3(Vector3(color: maxOutput).to_factor()))
+        ]
     }
     
     public init(minimum: C7Color = .black, middle: C7Color = .white, maximum: C7Color = .white, minOutput: C7Color = .black, maxOutput: C7Color = .white) {

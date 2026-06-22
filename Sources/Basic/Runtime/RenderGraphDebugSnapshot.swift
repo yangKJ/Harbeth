@@ -43,39 +43,39 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let inputSize: String
         public let outputSize: String
 
-        public init(summary: String,
-                    profile: String,
-                    derivative: String,
-                    graphFingerprint: String,
-                    graphNodeCount: Int,
-                    graphEdgeCount: Int,
-                    optimizedGraphNodeCount: Int,
-                    graphOptimizationDecisions: [String],
-                    persistentBoundaryCount: Int,
-                    transientReuseCandidateCount: Int,
-                    sharedDependencyNodeCount: Int,
-                    inputDirectPlaneBridgeCount: Int,
-                    inputBridgePolicy: String? = nil,
-                    inputYCbCrDecode: String? = nil,
-                    inputPixelPrecision: String,
-                    inputHDRFriendly: Bool,
-                    outputAttachmentLabels: [String],
-                    outputAttachmentDebugViews: [String],
-                    outputAttachmentReadbackPixelFormats: [String],
-                    outputAttachmentMonochromePreviewFlags: [Bool],
-                    optimizationPlan: RenderOptimizationPlan,
-                    allocationStrategy: String,
-                    requestedAllocationStrategy: String? = nil,
-                    allocationFallbackReason: String? = nil,
-                    textureRequestCount: Int,
-                    textureReuseHitCount: Int,
-                    textureReuseHitRatio: Double,
-                    heapBackedAllocationCount: Int,
-                    allocatorDecisions: [String],
-                    stageCount: Int,
-                    compilationSource: String,
-                    inputSize: String,
-                    outputSize: String) {
+        init(summary: String,
+             profile: String,
+             derivative: String,
+             graphFingerprint: String,
+             graphNodeCount: Int,
+             graphEdgeCount: Int,
+             optimizedGraphNodeCount: Int,
+             graphOptimizationDecisions: [String],
+             persistentBoundaryCount: Int,
+             transientReuseCandidateCount: Int,
+             sharedDependencyNodeCount: Int,
+             inputDirectPlaneBridgeCount: Int,
+             inputBridgePolicy: String? = nil,
+             inputYCbCrDecode: String? = nil,
+             inputPixelPrecision: String,
+             inputHDRFriendly: Bool,
+             outputAttachmentLabels: [String],
+             outputAttachmentDebugViews: [String],
+             outputAttachmentReadbackPixelFormats: [String],
+             outputAttachmentMonochromePreviewFlags: [Bool],
+             optimizationPlan: RenderOptimizationPlan,
+             allocationStrategy: String,
+             requestedAllocationStrategy: String? = nil,
+             allocationFallbackReason: String? = nil,
+             textureRequestCount: Int,
+             textureReuseHitCount: Int,
+             textureReuseHitRatio: Double,
+             heapBackedAllocationCount: Int,
+             allocatorDecisions: [String],
+             stageCount: Int,
+             compilationSource: String,
+             inputSize: String,
+             outputSize: String) {
             self.summary = summary
             self.profile = profile
             self.derivative = derivative
@@ -111,7 +111,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.outputSize = outputSize
         }
 
-        public init(diagnostics: RenderPlanDiagnostics) {
+        init(diagnostics: RenderPlanDiagnostics) {
             self.init(
                 summary: diagnostics.summary,
                 profile: String(describing: diagnostics.profile),
@@ -158,12 +158,12 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let filterCount: Int
         public let sourceKind: String?
 
-        public init(id: Int,
-                    kind: String,
-                    name: String,
-                    cachePolicy: String,
-                    filterCount: Int,
-                    sourceKind: String?) {
+        init(id: Int,
+             kind: String,
+             name: String,
+             cachePolicy: String,
+             filterCount: Int,
+             sourceKind: String?) {
             self.id = id
             self.kind = kind
             self.name = name
@@ -178,7 +178,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let to: Int
         public let label: String
 
-        public init(from: Int, to: Int, label: String) {
+        init(from: Int, to: Int, label: String) {
             self.from = from
             self.to = to
             self.label = label
@@ -191,15 +191,15 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
     public let edges: [Edge]
     public let optimizationDecisions: [String]
     public let dotGraph: String
-    public let renderRecipe: RenderRecipe?
+    let renderRecipe: RenderRecipe?
 
-    public init(summary: String,
-                diagnostics: Diagnostics,
-                nodes: [Node],
-                edges: [Edge],
-                optimizationDecisions: [String],
-                dotGraph: String,
-                renderRecipe: RenderRecipe? = nil) {
+    init(summary: String,
+         diagnostics: Diagnostics,
+         nodes: [Node],
+         edges: [Edge],
+         optimizationDecisions: [String],
+         dotGraph: String,
+         renderRecipe: RenderRecipe? = nil) {
         self.summary = summary
         self.diagnostics = diagnostics
         self.nodes = nodes
@@ -209,10 +209,10 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         self.renderRecipe = renderRecipe
     }
 
-    public init(graph: ImageGraph,
-                diagnostics: RenderPlanDiagnostics,
-                optimizationDecisions: [String],
-                renderRecipe: RenderRecipe? = nil) {
+    init(graph: ImageGraph,
+         diagnostics: RenderPlanDiagnostics,
+         optimizationDecisions: [String],
+         renderRecipe: RenderRecipe? = nil) {
         let nodes = graph.nodes.map {
             Node(
                 id: $0.id.rawValue,

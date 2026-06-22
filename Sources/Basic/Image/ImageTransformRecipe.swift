@@ -82,6 +82,9 @@ public struct ImageTransformRecipe {
     public var cropRegion: ImageCropRegion?
     public var targetSize: CGSize?
     public var aspectPolicy: AspectPolicy
+    public var perspectiveTransform: PerspectiveTransform?
+    public var guidedUpright: GuidedUpright?
+    public var projectiveViewportMode: Transform3DViewportMode
     public var rotationDegrees: Float
     public var mirrorsHorizontally: Bool
     public var flipsVertically: Bool
@@ -89,12 +92,18 @@ public struct ImageTransformRecipe {
     public init(cropRegion: ImageCropRegion? = nil,
                 targetSize: CGSize? = nil,
                 aspectPolicy: AspectPolicy = .none,
+                perspectiveTransform: PerspectiveTransform? = nil,
+                guidedUpright: GuidedUpright? = nil,
+                projectiveViewportMode: Transform3DViewportMode = .minimumEnclosing,
                 rotationDegrees: Float = 0,
                 mirrorsHorizontally: Bool = false,
                 flipsVertically: Bool = false) {
         self.cropRegion = cropRegion
         self.targetSize = targetSize
         self.aspectPolicy = aspectPolicy
+        self.perspectiveTransform = perspectiveTransform
+        self.guidedUpright = guidedUpright
+        self.projectiveViewportMode = projectiveViewportMode
         self.rotationDegrees = rotationDegrees
         self.mirrorsHorizontally = mirrorsHorizontally
         self.flipsVertically = flipsVertically
@@ -103,6 +112,8 @@ public struct ImageTransformRecipe {
     public var isIdentity: Bool {
         cropRegion == nil &&
         targetSize == nil &&
+        perspectiveTransform == nil &&
+        guidedUpright == nil &&
         rotationDegrees.truncatingRemainder(dividingBy: 360) == 0 &&
         mirrorsHorizontally == false &&
         flipsVertically == false
@@ -113,6 +124,9 @@ public struct ImageTransformRecipe {
             "crop=\(cropRegion?.fingerprint ?? "none")",
             "target=\(targetSize.map { ImageTransformRecipe.stableSizeDescription($0) } ?? "none")",
             "aspect=\(aspectPolicy.rawValue)",
+            "perspective=\(perspectiveTransform?.fingerprint ?? "none")",
+            "upright=\(guidedUpright?.fingerprint ?? "none")",
+            "projectiveViewport=\(projectiveViewportMode.rawValue)",
             "rotation=\(ImageTransformRecipe.stableFloatDescription(rotationDegrees.truncatingRemainder(dividingBy: 360)))",
             "mirror=\(mirrorsHorizontally ? 1 : 0)",
             "flip=\(flipsVertically ? 1 : 0)"
@@ -136,6 +150,11 @@ public struct ImageTransformRecipe {
                 filters.append(crop)
                 workingSize = crop.resize(input: workingSize)
             }
+        }
+
+        if let projectiveFilter = makeProjectiveFilter(inputSize: workingSize) {
+            filters.append(projectiveFilter)
+            workingSize = projectiveFilter.resize(input: workingSize)
         }
 
         let normalizedRotation = rotationDegrees.truncatingRemainder(dividingBy: 360)
@@ -189,6 +208,20 @@ public struct ImageTransformRecipe {
         }
 
         return filters
+    }
+
+    private func makeProjectiveFilter(inputSize: C7Size) -> C7FilterProtocol? {
+        let resolvedSize = CGSize(width: inputSize.width, height: inputSize.height)
+        if let guidedUpright {
+            return guidedUpright.makeFilter(
+                inputSize: resolvedSize,
+                viewportMode: projectiveViewportMode
+            )
+        }
+        if let perspectiveTransform {
+            return perspectiveTransform.makeFilter(viewportMode: projectiveViewportMode)
+        }
+        return nil
     }
 
     private func makeResize(width: Int, height: Int, quality: Bool) -> C7FilterProtocol {

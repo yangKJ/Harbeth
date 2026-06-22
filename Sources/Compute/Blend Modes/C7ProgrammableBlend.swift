@@ -16,8 +16,10 @@ public struct C7ProgrammableBlend: C7AdvancedMetalKernelProtocol {
         .advancedMetal(capability: capability, function: functionName)
     }
 
-    public var factors: [Float] {
-        [intensity]
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity))
+        ]
     }
 
     public var otherInputTextures: C7InputTextures {

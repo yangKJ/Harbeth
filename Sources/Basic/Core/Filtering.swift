@@ -24,7 +24,11 @@ public protocol C7FilterProtocol: Mirrorable {
     /// Encoder type and corresponding function name.
     var modifier: ModifierEnum { get }
     
-    /// The supports a maximum of 16 `Float` parameters.
+    /// Lightweight Float-only parameter route.
+    ///
+    /// Filters that expose `kernelParameterBindings` use those bindings for
+    /// encoding and descriptor fingerprints. Keep `factors` available for
+    /// lightweight filters and source compatibility.
     var factors: [Float] { get }
     
     /// Multiple input source extensions, an array containing the `MTLTexture`.
@@ -33,23 +37,11 @@ public protocol C7FilterProtocol: Mirrorable {
     /// Explicit shader parameter bindings for compute/render encoders.
     var kernelParameterBindings: [KernelParameterBinding] { get }
     
-    /// Do you need the total number of pixels factor,
-    /// before the special factor and after the factors.
-    var hasCount: Bool { get }
-    
     /// Memory access pattern for threadgroup optimization
     var memoryAccessPattern: MemoryAccessPattern { get }
     
     /// The resize of the output texture.
     func resize(input size: C7Size) -> C7Size
-    
-    /// Special type of parameter factor, such as 4x4 matrix
-    /// It is recommended to pass the parameters directly. Don't use this function if you have to.
-    ///
-    /// - Parameters:
-    ///   - encoder: encoder, can be parallel computation encoder, can also be render 3D encoder
-    ///   - index: Current parameter factor, after use please directly add, Please refer to the `C7ColorMatrix4x4`
-    func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int)
     
     /// If you need to replace the subsequent input source texture, return to a new texture with copied to dest.
     /// - Parameters:
@@ -70,24 +62,23 @@ public protocol C7FilterProtocol: Mirrorable {
 
 extension C7FilterProtocol {
     public var identifier: String {
+        if let pipelineFilter = self as? C7FilterPipelineProtocol {
+            let typeName = String(describing: type(of: self))
+            return "\(typeName)-pipeline-\(pipelineFilter.recipeDescriptor.fingerprint)"
+        }
         let typeName = String(describing: type(of: self))
-        let factorsDes = factors.map { String(format: "%.4f", $0) }.joined(separator: ",")
-        return "\(typeName)-\(factorsDes)-\(otherInputTextures.count)"
+        return "\(typeName)-\(kernelParameterFingerprint)-\(otherInputTextures.count)"
     }
-    /// The supports a maximum of 16 `Float` parameters.
+    /// Lightweight Float-only parameter route.
     public var factors: [Float] { [] }
     /// Multiple input source extensions, an array containing the `MTLTexture`.
     public var otherInputTextures: C7InputTextures { [] }
     /// Explicit shader parameter bindings for compute/render encoders.
     public var kernelParameterBindings: [KernelParameterBinding] { [] }
-    /// Do you need the total number of pixels factor.
-    public var hasCount: Bool { false }
     /// Memory access pattern for threadgroup optimization
     public var memoryAccessPattern: MemoryAccessPattern { .auto }
     /// The resize of the output texture.
     public func resize(input size: C7Size) -> C7Size { size }
-    /// Special type of parameter factor, such as 4x4 matrix.
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) { }
     /// If you need to replace the subsequent input source texture, return to a new texture with copied to dest.
     public func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture {
         return texture
@@ -99,6 +90,30 @@ extension C7FilterProtocol {
     /// Add the filter into the output texture with compute, render and mps filter.
     public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
         try apply(form: texture, to: destTexture, for: buffer, complete: nil)
+    }
+}
+
+extension C7FilterProtocol {
+    var kernelParameterFingerprint: String {
+        if let pipelineFilter = self as? C7FilterPipelineProtocol {
+            return pipelineFilter.recipeDescriptor.fingerprint
+        }
+        let bindings = kernelParameterBindings
+        if bindings.isEmpty {
+            return factors.map { String(format: "%.4f", $0) }.joined(separator: ",")
+        }
+        return bindings
+            .sorted { lhs, rhs in
+                if lhs.index == rhs.index {
+                    if lhs.stage == rhs.stage {
+                        return lhs.name < rhs.name
+                    }
+                    return lhs.stage.rawValue < rhs.stage.rawValue
+                }
+                return lhs.index < rhs.index
+            }
+            .map(\.fingerprint)
+            .joined(separator: "||")
     }
 }
 
@@ -188,6 +203,13 @@ public protocol RenderProtocol: C7FilterProtocol {
 
     /// Render-target quality contract for the primary and auxiliary color attachments.
     var renderOutputContract: RenderOutputContract { get }
+
+    /// Optional runtime sampler override for render-based filters.
+    ///
+    /// Most historical filters continue to use their own inline sampling rules.
+    /// Node-level sampler overrides can bridge through this property on the
+    /// render paths that actually bind a Metal sampler state.
+    var renderSamplerDescriptor: ImageSamplerDescriptor { get }
 }
 
 extension RenderProtocol {
@@ -196,6 +218,7 @@ extension RenderProtocol {
     public func setupVertices(inputSize: C7Size) -> [Float]? { nil }
     public var renderVertexStride: Int { 4 }
     public var renderOutputContract: RenderOutputContract { .preserveInput }
+    public var renderSamplerDescriptor: ImageSamplerDescriptor { .default }
 }
 
 // MARK: - mps filter protocol

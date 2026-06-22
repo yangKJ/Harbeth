@@ -16,7 +16,7 @@ public struct RenderRequest {
     public let source: ImageSourceDescriptor
     public let outputCachePolicy: ImageCachePolicy
     public let diagnostics: RenderPlanDiagnostics
-    public let renderRecipe: RenderRecipe?
+    let renderRecipe: RenderRecipe?
 
     private let renderTextureClosure: () throws -> MTLTexture
     private let renderFrameClosure: ([String: String]) throws -> RenderedFrame

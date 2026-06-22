@@ -20,18 +20,16 @@ public struct C7EdgeGlow: C7FilterProtocol {
         return .compute(kernel: "C7EdgeGlow")
     }
     
-    public var factors: [Float] {
-        return [time, spacing]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var factor = Vector4.init(color: lineColor).to_factor()
-        computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "time", index: 0, stage: .compute, value: .float(time)),
+            KernelParameterBinding(name: "spacing", index: 1, stage: .compute, value: .float(spacing)),
+            KernelParameterBinding(name: "lineColor", index: 2, stage: .compute, value: .float4(Vector4(color: lineColor).to_factor()))
+        ]
     }
     
     public init(time: Float = 0.5, spacing: Float = 0.5, lineColor: C7Color = .green) {

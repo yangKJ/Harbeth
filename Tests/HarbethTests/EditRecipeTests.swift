@@ -7,7 +7,6 @@ final class EditRecipeTests: XCTestCase {
     func testPreviewAndFinalContractsRemainSeparated() {
         let recipe = EditRecipe(
             geometry: ImageTransformRecipe(targetSize: CGSize(width: 320, height: 180), aspectPolicy: .fit),
-            filters: [C7Brightness(brightness: 0.2)],
             previewProfile: .stablePreview,
             finalProfile: .exportQuality
         )
@@ -29,14 +28,13 @@ final class EditRecipeTests: XCTestCase {
                 cropRegion: ImageCropRegion(rect: CGRect(x: 0, y: 0, width: 10, height: 10)),
                 targetSize: CGSize(width: 5, height: 5),
                 aspectPolicy: .fit
-            ),
-            filters: [C7Brightness(brightness: 0.2)]
+            )
         )
 
         let filters = recipe.makeFilterChain(inputSize: C7Size(width: 10, height: 10))
-        XCTAssertGreaterThanOrEqual(filters.count, 3)
+        XCTAssertGreaterThanOrEqual(filters.count, 2)
         XCTAssertEqual(filters.first?.kernelContract.functionIdentity, "compute:C7Crop")
-        XCTAssertEqual(filters.last?.kernelContract.functionIdentity, "compute:C7Brightness")
+        XCTAssertEqual(filters.last?.kernelContract.functionIdentity, "compute:C7LanczosResize")
     }
 
     func testRecipeDrivenFrameExecutionAppliesGeometryAndDerivativeContract() throws {
@@ -48,12 +46,13 @@ final class EditRecipeTests: XCTestCase {
             geometry: ImageTransformRecipe(
                 targetSize: CGSize(width: 4, height: 4),
                 aspectPolicy: .fit
-            ),
-            filters: [C7Brightness(brightness: -0.2)]
+            )
         )
 
-        let frame = try HarbethIO(element: texture, filters: [])
-            .renderFrame(recipe: recipe, mode: .preview, metadata: ["mode": "recipe"])
+        let frame = try ImageNode
+            .recipe(source: .texture(texture), recipe: recipe)
+            .applying(C7Brightness(brightness: -0.2))
+            .makeFrame(metadata: ["mode": "recipe"])
 
         XCTAssertEqual(frame.profile, .stablePreview)
         XCTAssertEqual(frame.renderIntent, .stable)
@@ -62,6 +61,32 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(frame.resolvedOutputSize, C7Size(width: 4, height: 4))
         XCTAssertEqual(frame.metadata["mode"], "recipe")
         XCTAssertFalse(frame.metadata["filterChainFingerprint"]?.isEmpty ?? true)
+    }
+
+    func testRecipePerspectiveGeometryMatchesManualProjectionFilterExecution() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 4, height: 3, pixel: [180, 120, 80, 255])
+        let perspective = PerspectiveTransform(
+            vertical: .pi / 24,
+            horizontal: -.pi / 30,
+            rotate: .pi / 40,
+            scale: 0.98,
+            fieldOfView: .pi / 5
+        )
+        let recipe = EditRecipe(
+            geometry: ImageTransformRecipe(perspectiveTransform: perspective)
+        )
+
+        let recipeOutput = try recipe.makeNode(source: ImageSource.texture(input)).makeTexture()
+        let directOutput: MTLTexture = try HarbethIO(
+            element: input,
+            filters: [RenderTransform3D(perspective: perspective)]
+        ).output()
+
+        XCTAssertEqual(recipeOutput.width, directOutput.width)
+        XCTAssertEqual(recipeOutput.height, directOutput.height)
     }
 
     func testRecipeLocalEffectExecutesThroughMaskBlend() throws {
@@ -79,8 +104,7 @@ final class EditRecipeTests: XCTestCase {
             ]
         )
 
-        let output = try HarbethIO(element: base, filters: [])
-            .renderTexture(recipe: recipe)
+        let output = try recipe.makeNode(source: .texture(base)).makeTexture()
 
         let pixel = try firstPixel(in: output)
         XCTAssertLessThan(pixel.red, 10)
@@ -118,8 +142,7 @@ final class EditRecipeTests: XCTestCase {
             ]
         )
 
-        let output = try HarbethIO(element: base, filters: [])
-            .renderTexture(recipe: recipe)
+        let output = try recipe.makeNode(source: .texture(base)).makeTexture()
 
         let pixel = try firstPixel(in: output)
         XCTAssertEqual(pixel.red, 128, accuracy: 4)
@@ -132,10 +155,11 @@ final class EditRecipeTests: XCTestCase {
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
         let input = try makeTexture(width: 1, height: 1, pixel: [180, 120, 80, 255])
-        let recipe = EditRecipe(filters: [C7Brightness(brightness: -0.2)])
+        let recipe = EditRecipe()
 
-        let recipeOutput = try HarbethIO(element: input, filters: [])
-            .renderTexture(recipe: recipe, mode: .preview)
+        let recipeOutput = try recipe.makeNode(source: .texture(input))
+            .applying(C7Brightness(brightness: -0.2))
+            .makeTexture()
         let directOutput: MTLTexture = try HarbethIO(
             element: input,
             filters: [C7Brightness(brightness: -0.2)]
@@ -162,8 +186,7 @@ final class EditRecipeTests: XCTestCase {
             ]
         )
 
-        let output = try HarbethIO(element: input, filters: [])
-            .renderTexture(recipe: recipe)
+        let output = try recipe.makeNode(source: .texture(input)).makeTexture()
         let pixel = try firstPixel(in: output)
 
         XCTAssertLessThan(pixel.red, 150)
@@ -183,7 +206,7 @@ final class EditRecipeTests: XCTestCase {
             ]
         )
 
-        let output = try HarbethIO(element: input, filters: []).renderTexture(recipe: recipe)
+        let output = try recipe.makeNode(source: .texture(input)).makeTexture()
         let outputPixel = try firstPixel(in: output)
 
         XCTAssertEqual(outputPixel.red, 120)
@@ -205,13 +228,14 @@ final class EditRecipeTests: XCTestCase {
             outputSizePolicy: .exact(C7Size(width: 2, height: 2))
         )
         let recipe = EditRecipe(
-            filters: [C7Brightness(brightness: -0.1)],
             finalProfile: .exportQuality,
             finalDerivative: finalDerivative
         )
 
-        let frame = try HarbethIO(element: input, filters: [])
-            .renderFrame(recipe: recipe, mode: .final)
+        let frame = try ImageNode
+            .recipe(source: .texture(input), recipe: recipe, mode: .final)
+            .applying(C7Brightness(brightness: -0.1))
+            .makeFrame(profile: .exportQuality, derivative: finalDerivative)
 
         XCTAssertEqual(frame.profile, .exportQuality)
         XCTAssertEqual(frame.renderIntent, .export)
@@ -227,7 +251,6 @@ final class EditRecipeTests: XCTestCase {
 
         let input = try makeTexture(width: 4, height: 4, pixel: [255, 255, 255, 255])
         let recipe = EditRecipe(
-            filters: [C7Brightness(brightness: 0.1)],
             localEffects: [
                 LocalEffectRecipe(
                     filters: [C7Contrast(contrast: 1.1)],
@@ -236,10 +259,15 @@ final class EditRecipeTests: XCTestCase {
             ]
         )
 
-        let diagnostics = try HarbethIO(element: input, filters: [])
-            .renderDiagnostics(recipe: recipe, mode: .preview)
-        let diagnosticsString = try HarbethIO(element: input, filters: [])
-            .renderDiagnosticsJSONString(recipe: recipe, mode: .preview, sortedKeys: true)
+        let diagnostics = try ImageNode
+            .recipe(source: .texture(input), recipe: recipe)
+            .applying(C7Brightness(brightness: 0.1))
+            .makeDiagnostics()
+        let diagnosticsString = try ImageNode
+            .recipe(source: .texture(input), recipe: recipe)
+            .applying(C7Brightness(brightness: 0.1))
+            .makeDiagnostics()
+            .jsonString(sortedKeys: true)
 
         XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
         XCTAssertTrue(diagnostics.containsLocalEffectComposite)
@@ -279,8 +307,7 @@ final class EditRecipeTests: XCTestCase {
             ]
         )
 
-        let diagnostics = try HarbethIO(element: input, filters: [])
-            .renderDiagnostics(recipe: recipe, mode: .preview)
+        let diagnostics = try recipe.makeNode(source: .texture(input)).makeDiagnostics()
 
         XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
         XCTAssertTrue(diagnostics.containsLocalEffectComposite)
@@ -293,13 +320,17 @@ final class EditRecipeTests: XCTestCase {
 
         let input = try makeTexture(width: 4, height: 4, pixel: [120, 90, 60, 255])
         let recipe = EditRecipe(
-            geometry: ImageTransformRecipe(targetSize: CGSize(width: 2, height: 2), aspectPolicy: .fit),
-            filters: [C7Brightness(brightness: 0.1)]
+            geometry: ImageTransformRecipe(targetSize: CGSize(width: 2, height: 2), aspectPolicy: .fit)
         )
 
-        let directPlan = try recipe.makeRenderPlan(source: .texture(input), mode: .preview)
-        let nodePlan = try recipe.makeNode(source: .texture(input)).makeRenderPlan()
-        let renderRecipe = try recipe.makeRenderRecipe(source: .texture(input), mode: .preview)
+        let directPlan = try recipe.makeRenderPlan(
+            source: .texture(input),
+            mode: .preview,
+            extraFilters: [C7Brightness(brightness: 0.1)]
+        )
+        let node = recipe.makeNode(source: .texture(input)).applying(C7Brightness(brightness: 0.1))
+        let nodePlan = try node.makeRenderPlan()
+        let renderRecipe = try node.makeRenderRecipe()
 
         XCTAssertEqual(directPlan.diagnostics.outputSize, nodePlan.diagnostics.outputSize)
         XCTAssertEqual(directPlan.diagnostics.stageCount, nodePlan.diagnostics.stageCount)
@@ -450,12 +481,10 @@ final class EditRecipeTests: XCTestCase {
             background: .texture(background),
             layers: [ImageLayer(content: .texture(layer), normalizedFrame: CGRect(x: 0, y: 0, width: 0.5, height: 1))]
         )
-        let io = HarbethIO(element: background, filters: [])
-
-        let directTexture = try io.renderTexture(composite: composite)
-        let nodeTexture = try io.renderTexture(node: composite.makeNode())
-        let diagnostics = try io.renderDiagnostics(composite: composite)
-        let diagnosticsString = try io.renderDiagnosticsJSONString(composite: composite, sortedKeys: true)
+        let directTexture = try ImageNode.layerComposite(composite).makeTexture(profile: composite.profile, derivative: composite.derivative)
+        let nodeTexture = try composite.makeNode().makeTexture(profile: composite.profile, derivative: composite.derivative)
+        let diagnostics = try ImageNode.layerComposite(composite).makeDiagnostics(profile: composite.profile, derivative: composite.derivative)
+        let diagnosticsString = try diagnostics.jsonString(sortedKeys: true)
 
         XCTAssertEqual(directTexture.width, nodeTexture.width)
         XCTAssertEqual(directTexture.height, nodeTexture.height)
@@ -470,8 +499,10 @@ final class EditRecipeTests: XCTestCase {
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
         let input = try makeTexture(width: 2, height: 2, pixel: [120, 120, 120, 255])
-        let recipe = EditRecipe(filters: [C7Brightness(brightness: 0.1)])
-        let recipeRequest = try recipe.makeRenderRequest(source: .texture(input), mode: .preview)
+        let recipe = EditRecipe()
+        let recipeRequest = try recipe.makeNode(source: .texture(input))
+            .applying(C7Brightness(brightness: 0.1))
+            .makeRenderRequest()
 
         XCTAssertEqual(recipeRequest.compilationSource, .editRecipe)
         XCTAssertEqual(recipeRequest.source.kind, "texture")
@@ -496,12 +527,10 @@ final class EditRecipeTests: XCTestCase {
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
         let input = try makeTexture(width: 2, height: 1, pixel: [120, 120, 120, 255])
-        let recipe = EditRecipe(filters: [C7Brightness(brightness: 0.0)])
-        let request = try recipe.makeRenderRequest(
-            source: .texture(input),
-            mode: .preview,
-            extraFilters: [RenderAuxiliaryLuminance()]
-        )
+        let recipe = EditRecipe()
+        let request = try recipe.makeNode(source: .texture(input))
+            .applying(filters: [C7Brightness(brightness: 0.0), RenderAuxiliaryLuminance()])
+            .makeRenderRequest()
 
         let attachmentSet = try XCTUnwrap(request.renderAttachmentSet())
         let bundle = try XCTUnwrap(
@@ -522,8 +551,10 @@ final class EditRecipeTests: XCTestCase {
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
         let input = try makeTexture(width: 2, height: 1, pixel: [255, 0, 0, 255])
-        let request = try EditRecipe(filters: [C7Brightness(brightness: 0.0)])
-            .makeRenderRequest(source: .texture(input), mode: .preview)
+        let request = try EditRecipe()
+            .makeNode(source: .texture(input))
+            .applying(C7Brightness(brightness: 0.0))
+            .makeRenderRequest()
 
         let bundle = try XCTUnwrap(
             request.renderAnalysisBundle(
@@ -552,8 +583,10 @@ final class EditRecipeTests: XCTestCase {
             [0, 255, 0, 255],
             [255, 255, 255, 255]
         ])
-        let request = try EditRecipe(filters: [C7Brightness(brightness: 0.0)])
-            .makeRenderRequest(source: .texture(input), mode: .preview)
+        let request = try EditRecipe()
+            .makeNode(source: .texture(input))
+            .applying(C7Brightness(brightness: 0.0))
+            .makeRenderRequest()
         let scope = TextureAnalysisScope(
             colorRange: TextureColorRange(
                 hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),

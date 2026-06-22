@@ -191,21 +191,16 @@ struct Compute {
             computeEncoder.setTexture(texture, index: index)
         }
         
-        let size = MemoryLayout<Float>.size
-        for i in 0..<filter.factors.count {
-            var factor = filter.factors[i]
-            computeEncoder.setBytes(&factor, length: size, index: i)
+        let parameterBindings = filter.kernelParameterBindings
+        if parameterBindings.isEmpty {
+            let size = MemoryLayout<Float>.size
+            for i in 0..<filter.factors.count {
+                var factor = filter.factors[i]
+                computeEncoder.setBytes(&factor, length: size, index: i)
+            }
+        } else {
+            KernelBindingEncoder.encode(parameterBindings, stage: .compute, on: computeEncoder)
         }
-        /// 配置像素总数参数
-        var index: Int = filter.factors.count
-        if filter.hasCount {
-            var count = destTexture.width * destTexture.height
-            computeEncoder.setBytes(&count, length: size, index: index)
-            index += 1
-        }
-        /// 配置特殊参数非`Float`类型，例如4x4矩阵
-        filter.setupSpecialFactors(for: computeEncoder, index: index)
-        KernelBindingEncoder.encode(filter.kernelParameterBindings, stage: .compute, on: computeEncoder)
         
         // Calculate optimal threadgroup size based on memory access pattern and GPU architecture
         let threadgroupSize = calculateOptimalThreadgroupSize(for: pipelineState, texture: destTexture, filter: filter)

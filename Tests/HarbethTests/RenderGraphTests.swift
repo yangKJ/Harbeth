@@ -713,6 +713,7 @@ final class RenderGraphTests: XCTestCase {
             compilationSource: .nodeGraph,
             imageCachePolicy: .persistent,
             samplerDescriptor: ImageSamplerDescriptor.nearest,
+            samplerExecutionCoverage: .init(mode: .covered, coveredFilterTypes: ["RenderBasicFilter"]),
             containsLocalEffectComposite: false,
             containsTransitionKernel: false,
             containsDerivativeResize: false,
@@ -851,6 +852,7 @@ final class RenderGraphTests: XCTestCase {
             compilationSource: .filtersPrimitive,
             imageCachePolicy: .transient,
             samplerDescriptor: ImageSamplerDescriptor.nearest,
+            samplerExecutionCoverage: .init(mode: .covered, coveredFilterTypes: ["RenderBasicFilter"]),
             containsLocalEffectComposite: false,
             containsTransitionKernel: false,
             containsDerivativeResize: false,
@@ -948,6 +950,7 @@ final class RenderGraphTests: XCTestCase {
             compilationSource: .filtersPrimitive,
             imageCachePolicy: .transient,
             samplerDescriptor: .default,
+            samplerExecutionCoverage: .init(mode: .notApplicable),
             containsLocalEffectComposite: false,
             containsTransitionKernel: false,
             containsDerivativeResize: false,
@@ -1006,6 +1009,45 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("hdrFriendly=1"))
         XCTAssertEqual(diagnostics.outputAttachmentDebugPolicies.map(\.label), ["primaryColor", "luminance"])
         XCTAssertEqual(diagnostics.outputAttachmentDebugPolicies.map(\.interpretation), [.color, .monochrome])
+    }
+
+    func testSamplerExecutionCoverageReportsCoveredRenderPath() {
+        let plan = GraphCompiler.compile(
+            filters: [RenderBasicFilter()],
+            inputSize: C7Size(width: 4, height: 4),
+            profile: .stablePreview,
+            samplerDescriptor: .nearest
+        )
+
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .covered)
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.coveredFilterTypes, ["RenderBasicFilter"])
+        XCTAssertTrue(plan.diagnostics.summary.contains("samplerCoverage=covered"))
+    }
+
+    func testSamplerExecutionCoverageReportsMetadataOnlyForLegacyComputeGeometry() {
+        let plan = GraphCompiler.compile(
+            filters: [C7Rotate(angle: 15)],
+            inputSize: C7Size(width: 4, height: 4),
+            profile: .stablePreview,
+            samplerDescriptor: .nearest
+        )
+
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .metadataOnly)
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes, ["C7Rotate"])
+        XCTAssertTrue(plan.diagnostics.summary.contains("samplerMetadataOnlyFilters=C7Rotate"))
+    }
+
+    func testSamplerExecutionCoverageReportsMixedChain() {
+        let plan = GraphCompiler.compile(
+            filters: [RenderQuadTransform(), C7Rotate(angle: 15)],
+            inputSize: C7Size(width: 4, height: 4),
+            profile: .stablePreview,
+            samplerDescriptor: .nearest
+        )
+
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .partial)
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.coveredFilterTypes, ["RenderQuadTransform"])
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes, ["C7Rotate"])
     }
 
     func testRenderGraphDebugSnapshotSupportsCodableRoundTrip() throws {
@@ -1271,17 +1313,16 @@ final class RenderGraphTests: XCTestCase {
             .applying(C7Brightness(brightness: 0.1))
             .applying(C7Contrast(contrast: 1.1))
 
-        let snapshot = try HarbethIO(element: input, filters: []).renderDebugSnapshot(node: node)
-        let jsonString = try HarbethIO(element: input, filters: []).renderDebugSnapshotJSONString(
-            node: node,
+        let snapshot = try node.makeDebugSnapshot()
+        let jsonString = try node.makeDebugSnapshotJSONString(
             prettyPrinted: false,
             sortedKeys: true
         )
-        let diagnosticsString = try HarbethIO(element: input, filters: []).renderDiagnosticsJSONString(
-            node: node,
-            prettyPrinted: false,
-            sortedKeys: true
-        )
+        let diagnosticsString = try node.makeDiagnostics()
+            .jsonString(
+                prettyPrinted: false,
+                sortedKeys: true
+            )
 
         XCTAssertTrue(snapshot.dotGraph.contains("digraph ImageGraph"))
         XCTAssertFalse(snapshot.nodes.isEmpty)

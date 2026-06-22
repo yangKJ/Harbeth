@@ -52,8 +52,7 @@ float3 linearToSRGB(float3 color) {
 fragment float4 basicFragment(VertexOut vertexOut [[stage_in]],
                               texture2d<float, access::sample> inputTexture [[texture(0)]],
                               sampler textureSampler [[sampler(0)]]) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
     return color;
 }
 
@@ -78,8 +77,7 @@ fragment DualOutputLuminanceFragmentOut dualOutputLuminanceFragment(
     texture2d<float, access::sample> inputTexture [[texture(0)]],
     sampler textureSampler [[sampler(0)]]
 ) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
     float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
 
     DualOutputLuminanceFragmentOut output;
@@ -115,9 +113,8 @@ fragment DualOutputMaskCoverageFragmentOut dualOutputMaskCoverageFragment(
     constant float *maskParameters [[buffer(0)]],
     sampler textureSampler [[sampler(0)]]
 ) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
-    float4 maskColor = maskTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
+    float4 maskColor = maskTexture.sample(textureSampler, vertexOut.textureCoordinate);
 
     float opacity = clamp(maskParameters[0], 0.0, 1.0);
     bool invert = maskParameters[1] > 0.5;
@@ -147,8 +144,7 @@ fragment DualOutputHighlightClippingFragmentOut dualOutputHighlightClippingFragm
     constant float *analysisParameters [[buffer(0)]],
     sampler textureSampler [[sampler(0)]]
 ) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
 
     float threshold = clamp(analysisParameters[0], 0.0, 1.0);
     float softness = clamp(analysisParameters[1], 0.0, 1.0);
@@ -169,8 +165,7 @@ fragment DualOutputShadowClippingFragmentOut dualOutputShadowClippingFragment(
     constant float *analysisParameters [[buffer(0)]],
     sampler textureSampler [[sampler(0)]]
 ) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
 
     float threshold = clamp(analysisParameters[0], 0.0, 1.0);
     float softness = clamp(analysisParameters[1], 0.0, 1.0);
@@ -191,8 +186,7 @@ fragment DualOutputFalseColorExposureFragmentOut dualOutputFalseColorExposureFra
     constant float *analysisParameters [[buffer(0)]],
     sampler textureSampler [[sampler(0)]]
 ) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
     float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
 
     float shadowThreshold = clamp(analysisParameters[0], 0.0, 1.0);
@@ -293,8 +287,7 @@ fragment float4 quadTransformFragment(VertexOut vertexOut [[stage_in]],
 fragment float4 grayscaleFragment(VertexOut vertexOut [[stage_in]],
                                   texture2d<float, access::sample> inputTexture [[texture(0)]],
                                   sampler textureSampler [[sampler(0)]]) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
     float gray = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
     return float4(gray, gray, gray, color.a);
 }
@@ -302,8 +295,7 @@ fragment float4 grayscaleFragment(VertexOut vertexOut [[stage_in]],
 fragment float4 sepiaFragment(VertexOut vertexOut [[stage_in]],
                               texture2d<float, access::sample> inputTexture [[texture(0)]],
                               sampler textureSampler [[sampler(0)]]) {
-    constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float4 color = inputTexture.sample(s, vertexOut.textureCoordinate);
+    float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
     float gray = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
     float4 sepiaColor = float4(gray * 0.9, gray * 0.7, gray * 0.4, color.a);
     return sepiaColor;

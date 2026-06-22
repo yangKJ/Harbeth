@@ -27,20 +27,17 @@ public struct C7ChromaKey: C7FilterProtocol {
         return .compute(kernel: "C7ChromaKey")
     }
     
-    public var factors: [Float] {
-        return [thresholdSensitivity, smoothing]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var chromaFactor = Vector3.init(color: chroma).to_factor()
-        computeEncoder.setBytes(&chromaFactor, length: Vector3.size, index: index)
-        var replaceFactor = Vector4(color: replace).to_factor()
-        computeEncoder.setBytes(&replaceFactor, length: Vector4.size, index: index + 1)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "thresholdSensitivity", index: 0, stage: .compute, value: .float(thresholdSensitivity)),
+            KernelParameterBinding(name: "smoothing", index: 1, stage: .compute, value: .float(smoothing)),
+            KernelParameterBinding(name: "chroma", index: 2, stage: .compute, value: .float3(Vector3(color: chroma).to_factor())),
+            KernelParameterBinding(name: "replace", index: 3, stage: .compute, value: .float4(Vector4(color: replace).to_factor()))
+        ]
     }
     
     public init(thresholdSensitivity: Float = 0.4,

@@ -36,9 +36,7 @@ public struct ImageGraphEdge: Sendable, Equatable, Hashable {
     public let to: ImageGraphNodeID
     public let label: String
 
-    public init(from: ImageGraphNodeID,
-                to: ImageGraphNodeID,
-                label: String = "image") {
+    init(from: ImageGraphNodeID, to: ImageGraphNodeID, label: String = "image") {
         self.from = from
         self.to = to
         self.label = label
@@ -55,14 +53,14 @@ public struct ImageGraphNode: Sendable, Equatable, Hashable {
     public let filterCount: Int
     public let fingerprint: String
 
-    public init(id: ImageGraphNodeID,
-                kind: ImageGraphNodeKind,
-                name: String,
-                cachePolicy: ImageCachePolicy,
-                samplerDescriptor: ImageSamplerDescriptor,
-                sourceKind: String? = nil,
-                filterCount: Int = 0,
-                fingerprint: String) {
+    init(id: ImageGraphNodeID,
+         kind: ImageGraphNodeKind,
+         name: String,
+         cachePolicy: ImageCachePolicy,
+         samplerDescriptor: ImageSamplerDescriptor,
+         sourceKind: String? = nil,
+         filterCount: Int = 0,
+         fingerprint: String) {
         self.id = id
         self.kind = kind
         self.name = name
@@ -90,11 +88,11 @@ public struct ImageGraph: Sendable, Equatable, Hashable {
     public let profile: RenderProfile
     public let derivative: ImageDerivativeSpec
 
-    public init(nodes: [ImageGraphNode],
-                edges: [ImageGraphEdge],
-                rootNodeID: ImageGraphNodeID,
-                profile: RenderProfile,
-                derivative: ImageDerivativeSpec) {
+    init(nodes: [ImageGraphNode],
+         edges: [ImageGraphEdge],
+         rootNodeID: ImageGraphNodeID,
+         profile: RenderProfile,
+         derivative: ImageDerivativeSpec) {
         self.nodes = nodes.sorted { $0.id < $1.id }
         self.edges = edges.sorted {
             if $0.from != $1.from {
@@ -153,18 +151,18 @@ public struct ImageGraph: Sendable, Equatable, Hashable {
     }
 }
 
-public struct ImageGraphOptimizationResult: Sendable, Equatable, Hashable {
-    public let graph: ImageGraph
-    public let decisions: [String]
+struct ImageGraphOptimizationResult: Sendable, Equatable, Hashable {
+    let graph: ImageGraph
+    let decisions: [String]
 
-    public init(graph: ImageGraph, decisions: [String]) {
+    init(graph: ImageGraph, decisions: [String]) {
         self.graph = graph
         self.decisions = decisions
     }
 }
 
-public enum ImageGraphOptimizer {
-    public static func optimize(_ graph: ImageGraph) -> ImageGraphOptimizationResult {
+enum ImageGraphOptimizer {
+    static func optimize(_ graph: ImageGraph) -> ImageGraphOptimizationResult {
         guard graph.nodes.isEmpty == false else {
             return ImageGraphOptimizationResult(graph: graph, decisions: ["emptyGraph"])
         }

@@ -27,29 +27,20 @@ public struct C7ColorBalanceEnhanced: C7FilterProtocol {
         return .compute(kernel: "C7ColorBalanceEnhanced")
     }
     
-    public var factors: [Float] {
-        return [strength]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        
-        // Convert colors to RGB values in range [-1, 1]
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
         let shadowsRGB = colorToRGB(shadows)
         let midtonesRGB = colorToRGB(midtones)
         let highlightsRGB = colorToRGB(highlights)
-        
-        var shadowsFactor = simd_float3(shadowsRGB.r, shadowsRGB.g, shadowsRGB.b)
-        var midtonesFactor = simd_float3(midtonesRGB.r, midtonesRGB.g, midtonesRGB.b)
-        var highlightsFactor = simd_float3(highlightsRGB.r, highlightsRGB.g, highlightsRGB.b)
-        
-        computeEncoder.setBytes(&shadowsFactor, length: MemoryLayout<simd_float3>.size, index: index)
-        computeEncoder.setBytes(&midtonesFactor, length: MemoryLayout<simd_float3>.size, index: index + 1)
-        computeEncoder.setBytes(&highlightsFactor, length: MemoryLayout<simd_float3>.size, index: index + 2)
+        return [
+            KernelParameterBinding(name: "strength", index: 0, stage: .compute, value: .float(strength)),
+            KernelParameterBinding(name: "shadows", index: 1, stage: .compute, value: .float3(SIMD3<Float>(shadowsRGB.r, shadowsRGB.g, shadowsRGB.b))),
+            KernelParameterBinding(name: "midtones", index: 2, stage: .compute, value: .float3(SIMD3<Float>(midtonesRGB.r, midtonesRGB.g, midtonesRGB.b))),
+            KernelParameterBinding(name: "highlights", index: 3, stage: .compute, value: .float3(SIMD3<Float>(highlightsRGB.r, highlightsRGB.g, highlightsRGB.b)))
+        ]
     }
     
     private func colorToRGB(_ color: C7Color) -> (r: Float, g: Float, b: Float) {

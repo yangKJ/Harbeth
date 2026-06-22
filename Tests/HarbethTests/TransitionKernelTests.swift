@@ -65,10 +65,10 @@ final class TransitionKernelTests: XCTestCase {
             profile: .stablePreview
         )
 
-        let io = HarbethIO(element: from, filters: [])
-        let frame = try io.renderTransitionFrame(recipe, metadata: ["path": "transition"])
-        let diagnostics = try io.renderTransitionDiagnostics(recipe)
-        let diagnosticsString = try io.renderTransitionDiagnosticsJSONString(recipe, sortedKeys: true)
+        let node = ImageNode.transition(recipe)
+        let frame = try node.makeFrame(profile: recipe.profile, derivative: recipe.derivative, metadata: ["path": "transition"])
+        let diagnostics = try node.makeDiagnostics(profile: recipe.profile, derivative: recipe.derivative)
+        let diagnosticsString = try diagnostics.jsonString(sortedKeys: true)
 
         XCTAssertEqual(frame.profile, .stablePreview)
         XCTAssertEqual(frame.size.width, 3)
@@ -104,7 +104,7 @@ final class TransitionKernelTests: XCTestCase {
             progress: 0.5
         )
 
-        let diagnostics = try HarbethIO(element: from, filters: []).renderTransitionDiagnostics(recipe)
+        let diagnostics = try ImageNode.transition(recipe).makeDiagnostics(profile: recipe.profile, derivative: recipe.derivative)
 
         XCTAssertEqual(diagnostics.compilationSource, .transition)
         XCTAssertTrue(diagnostics.containsTransitionKernel)
@@ -166,7 +166,7 @@ final class TransitionKernelTests: XCTestCase {
             progress: 0.5
         )
 
-        let diagnostics = try HarbethIO(element: fromSample, filters: []).renderTransitionDiagnostics(recipe)
+        let diagnostics = try ImageNode.transition(recipe).makeDiagnostics(profile: recipe.profile, derivative: recipe.derivative)
 
         XCTAssertEqual(diagnostics.inputColorConversionCount, 2)
         XCTAssertEqual(diagnostics.inputPixelFormatConversionCount, 2)

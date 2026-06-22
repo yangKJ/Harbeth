@@ -13,18 +13,18 @@ public enum EditRecipeMode: String, Sendable, Codable, Equatable, Hashable {
     case final
 }
 
-public struct EditRecipeContract: Sendable, Equatable {
+struct EditRecipeContract: Sendable, Equatable {
     public let mode: EditRecipeMode
     public let profile: RenderProfile
     public let renderIntent: RenderIntent
     public let derivative: ImageDerivativeSpec
     public let sourceTier: ImageSourceTier
 
-    public init(mode: EditRecipeMode,
-                profile: RenderProfile,
-                renderIntent: RenderIntent,
-                derivative: ImageDerivativeSpec,
-                sourceTier: ImageSourceTier) {
+    init(mode: EditRecipeMode,
+         profile: RenderProfile,
+         renderIntent: RenderIntent,
+         derivative: ImageDerivativeSpec,
+         sourceTier: ImageSourceTier) {
         self.mode = mode
         self.profile = profile
         self.renderIntent = renderIntent
@@ -36,7 +36,6 @@ public struct EditRecipeContract: Sendable, Equatable {
 public struct EditRecipe {
     public var sourceLoadingOptions: ImageLoadingOptions
     public var geometry: ImageTransformRecipe
-    public var filters: [C7FilterProtocol]
     public var localEffects: [LocalEffectRecipe]
     public var previewProfile: RenderProfile
     public var finalProfile: RenderProfile
@@ -45,7 +44,6 @@ public struct EditRecipe {
 
     public init(sourceLoadingOptions: ImageLoadingOptions = .default,
                 geometry: ImageTransformRecipe = ImageTransformRecipe(),
-                filters: [C7FilterProtocol] = [],
                 localEffects: [LocalEffectRecipe] = [],
                 previewProfile: RenderProfile = .stablePreview,
                 finalProfile: RenderProfile = .exportQuality,
@@ -53,7 +51,6 @@ public struct EditRecipe {
                 finalDerivative: ImageDerivativeSpec? = nil) {
         self.sourceLoadingOptions = sourceLoadingOptions
         self.geometry = geometry
-        self.filters = filters
         self.localEffects = localEffects
         self.previewProfile = previewProfile
         self.finalProfile = finalProfile
@@ -61,7 +58,7 @@ public struct EditRecipe {
         self.finalDerivative = finalDerivative ?? finalProfile.defaultDerivativeSpec
     }
 
-    public func contract(for mode: EditRecipeMode) -> EditRecipeContract {
+    func contract(for mode: EditRecipeMode) -> EditRecipeContract {
         switch mode {
         case .preview:
             return EditRecipeContract(
@@ -90,10 +87,11 @@ public struct EditRecipe {
         .recipe(source: source, recipe: self, mode: mode)
     }
 
-    public func makeRenderPlan(source: ImageSource,
-                               mode: EditRecipeMode = .preview,
-                               extraFilters: [C7FilterProtocol] = [],
-                               derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
+    func makeRenderPlan(source: ImageSource,
+                        mode: EditRecipeMode = .preview,
+                        extraFilters: [C7FilterProtocol] = [],
+                        derivative: ImageDerivativeSpec? = nil,
+                        samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
         let compiled = try compileExecution(
             source: source,
             mode: mode,
@@ -106,14 +104,16 @@ public struct EditRecipe {
             profile: compiled.profile,
             derivative: compiled.derivative,
             compilationSource: .editRecipe,
+            samplerDescriptor: samplerDescriptor,
             sourceDescriptor: compiled.source.descriptor
         )
     }
 
-    public func makeRenderRecipe(source: ImageSource,
-                                 mode: EditRecipeMode = .preview,
-                                 extraFilters: [C7FilterProtocol] = [],
-                                 derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
+    func makeRenderRecipe(source: ImageSource,
+                          mode: EditRecipeMode = .preview,
+                          extraFilters: [C7FilterProtocol] = [],
+                          derivative: ImageDerivativeSpec? = nil,
+                          samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRecipe {
         let compiled = try compileExecution(
             source: source,
             mode: mode,
@@ -126,6 +126,7 @@ public struct EditRecipe {
             profile: compiled.profile,
             derivative: compiled.derivative,
             compilationSource: .editRecipe,
+            samplerDescriptor: samplerDescriptor,
             sourceDescriptor: compiled.source.descriptor
         )
         return RenderRecipe(
@@ -146,19 +147,19 @@ public struct EditRecipe {
                         parameterValues: diagnostic.parameterSummary
                             .sorted { $0.key < $1.key }
                             .map { "\($0.key)=\($0.value)" },
-                        otherInputTextureCount: 0,
-                        hasCount: false
+                        otherInputTextureCount: 0
                     )
                 },
             localEffects: localEffects.isEmpty ? nil : localEffects.map(\.recipeDescriptor)
         )
     }
 
-    public func makeRenderRequest(source: ImageSource,
-                                  mode: EditRecipeMode = .preview,
-                                  extraFilters: [C7FilterProtocol] = [],
-                                  derivative: ImageDerivativeSpec? = nil,
-                                  identifier: String = UUID().uuidString) throws -> RenderRequest {
+    func makeRenderRequest(source: ImageSource,
+                           mode: EditRecipeMode = .preview,
+                           extraFilters: [C7FilterProtocol] = [],
+                           derivative: ImageDerivativeSpec? = nil,
+                           identifier: String = UUID().uuidString,
+                           samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRequest {
         let compiled = try compileExecution(
             source: source,
             mode: mode,
@@ -169,16 +170,19 @@ public struct EditRecipe {
             source: source,
             mode: mode,
             extraFilters: extraFilters,
-            derivative: derivative
+            derivative: derivative,
+            samplerDescriptor: samplerDescriptor
         )
         let recipeDescriptor = try makeRenderRecipe(
             source: source,
             mode: mode,
             extraFilters: extraFilters,
-            derivative: derivative
+            derivative: derivative,
+            samplerDescriptor: samplerDescriptor
         )
         let attachmentPolicies = try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
             .applying(filters: extraFilters)
+            .withSamplerDescriptor(samplerDescriptor)
             .makeAttachmentDebugPolicies(profile: compiled.profile, derivative: compiled.derivative)
         return RenderRequest(
             compilationSource: .editRecipe,
@@ -191,7 +195,13 @@ public struct EditRecipe {
             renderTexture: {
                 let renderTexture: (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture = { input, filters, profile in
                     guard filters.isEmpty == false else { return input }
-                    return try HarbethIO(element: input, filters: filters)
+                    return try HarbethIO(
+                        element: input,
+                        filters: SamplerExecutionAdapter.adapt(
+                            filters: filters,
+                            samplerDescriptor: samplerDescriptor
+                        )
+                    )
                         .configured(for: profile)
                         .output()
                 }
@@ -223,7 +233,8 @@ public struct EditRecipe {
                     filters: extraFilters,
                     identifier: identifier,
                     metadata: metadata,
-                    derivative: compiled.derivative
+                    derivative: compiled.derivative,
+                    samplerDescriptor: samplerDescriptor
                 ).renderFrame()
             },
             renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
@@ -233,7 +244,8 @@ public struct EditRecipe {
                     mode: mode,
                     filters: extraFilters,
                     identifier: identifier,
-                    derivative: compiled.derivative
+                    derivative: compiled.derivative,
+                    samplerDescriptor: samplerDescriptor
                 ).renderFrame()
                 let histogramAttachment = frame.renderHistogramAttachment(
                     channel: channel,
@@ -267,7 +279,8 @@ public struct EditRecipe {
                     mode: mode,
                     filters: extraFilters,
                     identifier: identifier,
-                    derivative: compiled.derivative
+                    derivative: compiled.derivative,
+                    samplerDescriptor: samplerDescriptor
                 ).renderFrame()
                 let histogramAttachment = frame.renderHistogramAttachment(
                     channel: channel,
@@ -342,7 +355,7 @@ public struct EditRecipe {
     func makeBaseFilterChain(inputSize: C7Size,
                              prefersQualityResize: Bool = true,
                              appending extraFilters: [C7FilterProtocol] = []) -> [C7FilterProtocol] {
-        geometry.makeFilters(inputSize: inputSize, prefersQualityResize: prefersQualityResize) + filters + extraFilters
+        geometry.makeFilters(inputSize: inputSize, prefersQualityResize: prefersQualityResize) + extraFilters
     }
 
     func makeExecutionPreviewChain(inputSize: C7Size,
@@ -397,7 +410,7 @@ public struct EditRecipe {
             appending: extraFilters
         )
         let outputCachePolicy: ImageCachePolicy =
-            (geometry.isIdentity && filters.isEmpty && localEffects.isEmpty && extraFilters.isEmpty)
+            (geometry.isIdentity && localEffects.isEmpty && extraFilters.isEmpty)
             ? resolvedSource.cachePolicy
             : .transient
         return CompiledEditRecipeExecution(

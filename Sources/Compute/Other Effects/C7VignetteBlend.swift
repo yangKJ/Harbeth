@@ -31,18 +31,19 @@ public struct C7VignetteBlend: C7FilterProtocol {
         return .compute(kernel: "C7VignetteBlend")
     }
     
-    public var factors: [Float] {
-        return [center.x, center.y, start, end, Float(blendMode.rawValue)]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var factor = Vector3.init(color: color).to_factor()
-        computeEncoder.setBytes(&factor, length: Vector3.size, index: index)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "centerX", index: 0, stage: .compute, value: .float(center.x)),
+            KernelParameterBinding(name: "centerY", index: 1, stage: .compute, value: .float(center.y)),
+            KernelParameterBinding(name: "start", index: 2, stage: .compute, value: .float(start)),
+            KernelParameterBinding(name: "end", index: 3, stage: .compute, value: .float(end)),
+            KernelParameterBinding(name: "blendMode", index: 4, stage: .compute, value: .float(Float(blendMode.rawValue))),
+            KernelParameterBinding(name: "color", index: 5, stage: .compute, value: .float3(Vector3(color: color).to_factor()))
+        ]
     }
     
     public init(start: Float = 0.3, end: Float = 0.75, color: C7Color = .zero, blendMode: BlendMode = .normal) {

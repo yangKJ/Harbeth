@@ -8,7 +8,7 @@ import Foundation
 @preconcurrency import Metal
 
 /// 外部框架进入 Harbeth 的边界类型。
-public enum RenderBoundaryKind: String, Sendable, Equatable {
+enum RenderBoundaryKind: String, Sendable, Equatable {
     case nativeMetal
     case compatibility
     case cpu
@@ -18,18 +18,18 @@ public enum RenderBoundaryKind: String, Sendable, Equatable {
 }
 
 /// 外部边界的成本描述，供 RenderGraph 调度和缓存决策使用。
-public struct RenderBoundaryCost: Sendable, Equatable {
-    public var usesCPU: Bool
-    public var breaksFusion: Bool
-    public var requiresReadback: Bool
-    public var cacheable: Bool
-    public var supportsLowLatencyFrameFlow: Bool
+struct RenderBoundaryCost: Sendable, Equatable {
+    var usesCPU: Bool
+    var breaksFusion: Bool
+    var requiresReadback: Bool
+    var cacheable: Bool
+    var supportsLowLatencyFrameFlow: Bool
 
-    public init(usesCPU: Bool,
-                breaksFusion: Bool,
-                requiresReadback: Bool,
-                cacheable: Bool,
-                supportsLowLatencyFrameFlow: Bool) {
+    init(usesCPU: Bool,
+         breaksFusion: Bool,
+         requiresReadback: Bool,
+         cacheable: Bool,
+         supportsLowLatencyFrameFlow: Bool) {
         self.usesCPU = usesCPU
         self.breaksFusion = breaksFusion
         self.requiresReadback = requiresReadback
@@ -37,7 +37,7 @@ public struct RenderBoundaryCost: Sendable, Equatable {
         self.supportsLowLatencyFrameFlow = supportsLowLatencyFrameFlow
     }
 
-    public static let nativeMetal = RenderBoundaryCost(
+    static let nativeMetal = RenderBoundaryCost(
         usesCPU: false,
         breaksFusion: false,
         requiresReadback: false,
@@ -45,7 +45,7 @@ public struct RenderBoundaryCost: Sendable, Equatable {
         supportsLowLatencyFrameFlow: true
     )
 
-    public static let compatibilityBoundary = RenderBoundaryCost(
+    static let compatibilityBoundary = RenderBoundaryCost(
         usesCPU: true,
         breaksFusion: true,
         requiresReadback: false,
@@ -55,28 +55,28 @@ public struct RenderBoundaryCost: Sendable, Equatable {
 }
 
 /// Core 只依赖该协议，不直接 import 外部图像或视觉框架。
-public protocol RenderBoundaryAdapter {
+protocol RenderBoundaryAdapter {
     var kind: RenderBoundaryKind { get }
     var cost: RenderBoundaryCost { get }
     func render(input: RenderedFrame, context: RenderContext) throws -> RenderedFrame
 }
 
-public protocol ExternalSourceAdapter {
+protocol ExternalSourceAdapter {
     associatedtype Source
     func makeFrame(from source: Source, context: RenderContext) throws -> RenderedFrame
 }
 
-public protocol ExternalFilterAdapter {
+protocol ExternalFilterAdapter {
     associatedtype Recipe
     func makeBoundary(from recipe: Recipe) throws -> RenderBoundaryAdapter
 }
 
-public struct RenderContext {
-    public var profile: RenderProfile
-    public var identifier: String
-    public var metadata: [String: String]
+struct RenderContext {
+    var profile: RenderProfile
+    var identifier: String
+    var metadata: [String: String]
 
-    public init(profile: RenderProfile = .stablePreview, identifier: String = UUID().uuidString, metadata: [String: String] = [:]) {
+    init(profile: RenderProfile = .stablePreview, identifier: String = UUID().uuidString, metadata: [String: String] = [:]) {
         self.profile = profile
         self.identifier = identifier
         self.metadata = metadata

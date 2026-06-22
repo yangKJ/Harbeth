@@ -34,18 +34,16 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
         return .compute(kernel: "C7ConvolutionMatrix3x3")
     }
     
-    public var factors: [Float] {
-        return [intensity, Float(convolutionPixel)]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var factor = matrix.to_factor()
-        computeEncoder.setBytes(&factor, length: Matrix3x3.size, index: index)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "convolutionPixel", index: 1, stage: .compute, value: .float(Float(convolutionPixel))),
+            KernelParameterBinding(name: "kernelMatrix", index: 2, stage: .compute, value: .matrix3x3(matrix))
+        ]
     }
     
     public init(matrix: Matrix3x3, intensity: Float = 1.0) {

@@ -11,13 +11,13 @@ import CoreGraphics
 import CoreVideo
 import CoreMedia
 
-public protocol ImagePromise {
+protocol ImagePromise {
     var compilationSource: RenderCompilationSource { get }
     func makeTexture(profile: RenderProfile, derivative: ImageDerivativeSpec?) throws -> MTLTexture
     func makeDiagnostics(profile: RenderProfile, derivative: ImageDerivativeSpec?) throws -> RenderPlanDiagnostics
 }
 
-public indirect enum ImageNode {
+indirect enum ImageNodeStorage {
     case source(ImageSource)
     case filters(input: ImageNode, filters: [C7FilterProtocol])
     case kernel(input: ImageNode, descriptor: KernelDescriptor, filter: C7FilterProtocol)
@@ -26,9 +26,43 @@ public indirect enum ImageNode {
     case layerComposite(LayerCompositeRecipe)
     case cachePolicy(input: ImageNode, policy: ImageCachePolicy)
     case samplerDescriptor(input: ImageNode, descriptor: ImageSamplerDescriptor)
+}
 
-    public static func source(_ source: ImageSource, filters: [C7FilterProtocol]) -> ImageNode {
-        .filters(input: .source(source), filters: filters)
+public struct ImageNode {
+    fileprivate let storage: ImageNodeStorage
+
+    fileprivate init(storage: ImageNodeStorage) {
+        self.storage = storage
+    }
+}
+
+extension ImageNode {
+    public static func source(_ source: ImageSource, filters: [C7FilterProtocol] = []) -> ImageNode {
+        let sourceNode = ImageNode(storage: .source(source))
+        guard filters.isEmpty == false else {
+            return sourceNode
+        }
+        return ImageNode(storage: .filters(input: sourceNode, filters: filters))
+    }
+
+    static func filters(input: ImageNode, filters: [C7FilterProtocol]) -> ImageNode {
+        ImageNode(storage: .filters(input: input, filters: filters))
+    }
+
+    static func kernel(input: ImageNode, descriptor: KernelDescriptor, filter: C7FilterProtocol) -> ImageNode {
+        ImageNode(storage: .kernel(input: input, descriptor: descriptor, filter: filter))
+    }
+
+    public static func recipe(source: ImageSource, recipe: EditRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
+        ImageNode(storage: .recipe(source: source, recipe: recipe, mode: mode))
+    }
+
+    public static func transition(_ recipe: TransitionRecipe) -> ImageNode {
+        ImageNode(storage: .transition(recipe))
+    }
+
+    public static func layerComposite(_ recipe: LayerCompositeRecipe) -> ImageNode {
+        ImageNode(storage: .layerComposite(recipe))
     }
 
     public static func texture(_ texture: MTLTexture) -> ImageNode {
@@ -60,31 +94,47 @@ public indirect enum ImageNode {
     }
 
     public func withCachePolicy(_ policy: ImageCachePolicy) -> ImageNode {
-        .cachePolicy(input: self, policy: policy)
+        ImageNode(storage: .cachePolicy(input: self, policy: policy))
     }
 
     public func withSamplerDescriptor(_ descriptor: ImageSamplerDescriptor) -> ImageNode {
-        .samplerDescriptor(input: self, descriptor: descriptor)
+        ImageNode(storage: .samplerDescriptor(input: self, descriptor: descriptor))
     }
 
     public func applying(_ filter: C7FilterProtocol) -> ImageNode {
-        .filters(input: self, filters: [filter])
+        ImageNode(storage: .filters(input: self, filters: [filter]))
     }
 
     public func applying(filters: [C7FilterProtocol]) -> ImageNode {
-        .filters(input: self, filters: filters)
+        ImageNode(storage: .filters(input: self, filters: filters))
     }
 
-    public func applying(_ invocation: KernelInvocation) -> ImageNode {
-        .kernel(input: self, descriptor: invocation.descriptor, filter: invocation.executableFilter)
+    /// 将一个普通滤镜按 kernel contract 方式挂到 `ImageNode` 上。
+    ///
+    /// 这个入口用于把 filter 的 kernel descriptor、兼容性校验和 output contract
+    /// 收口到 `ImageNode` 的高级统一路径，而不是让调用方直接拼装 runtime 对象。
+    ///
+    /// `inputSize` 只影响 descriptor 的静态描述数据；真正执行时仍会基于实际输入尺寸做兼容性校验。
+    public func applyingKernel(_ filter: C7FilterProtocol, inputSize: C7Size? = nil) -> ImageNode {
+        let descriptor = filter.kernelDescriptor(inputSize: inputSize)
+        let invocation = descriptor.makeInvocation(filter: filter, inputSize: inputSize)
+        return applying(invocation)
+    }
+
+    func applying(_ invocation: KernelInvocation) -> ImageNode {
+        ImageNode(storage: .kernel(input: self, descriptor: invocation.descriptor, filter: invocation.executableFilter))
     }
 }
 
 extension ImageNode: ImagePromise {
-    public var compilationSource: RenderCompilationSource {
-        switch self {
-        case .source, .filters, .kernel:
+    var compilationSource: RenderCompilationSource {
+        switch storage {
+        case .source:
             return .nodeGraph
+        case .filters(let input, _):
+            return input.compilationSource
+        case .kernel(let input, _, _):
+            return input.compilationSource
         case .recipe:
             return .editRecipe
         case .transition:
@@ -109,34 +159,54 @@ extension ImageNode: ImagePromise {
         if effectiveCachePolicy == .persistent {
             Shared.shared.performanceMonitor?.recordImageResolutionCacheLookup("imageResolution", hit: false)
         }
-        let texture = try makeTextureUncached(profile: profile, derivative: derivative)
+        let texture = try makeTextureUncached(
+            profile: profile,
+            derivative: derivative,
+            samplerDescriptor: .default
+        )
         if effectiveCachePolicy == .persistent {
             Shared.shared.defaultContext.storeResolvedTexture(texture, for: fingerprint)
         }
         return texture
     }
 
-    private func makeTextureUncached(profile: RenderProfile, derivative: ImageDerivativeSpec?) throws -> MTLTexture {
-        switch self {
+    private func makeTextureUncached(profile: RenderProfile,
+                                     derivative: ImageDerivativeSpec?,
+                                     samplerDescriptor: ImageSamplerDescriptor) throws -> MTLTexture {
+        switch storage {
         case .source(let source):
             let texture = try source.makeTexture()
             return try resizeTextureIfNeeded(texture, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
         case .filters(let input, let filters):
-            let inputTexture = try input.makeTexture(profile: profile, derivative: nil)
+            let inputTexture = try input.makeTextureUncached(
+                profile: profile,
+                derivative: nil,
+                samplerDescriptor: samplerDescriptor
+            )
             guard filters.isEmpty == false else {
                 return try resizeTextureIfNeeded(inputTexture, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
             }
-            let rendered = try HarbethIO(element: inputTexture, filters: filters)
+            let rendered = try HarbethIO(
+                element: inputTexture,
+                filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
+            )
                 .configured(for: profile)
                 .output()
             return try resizeTextureIfNeeded(rendered, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
         case .kernel(let input, let descriptor, let filter):
-            let inputTexture = try input.makeTexture(profile: profile, derivative: nil)
+            let inputTexture = try input.makeTextureUncached(
+                profile: profile,
+                derivative: nil,
+                samplerDescriptor: samplerDescriptor
+            )
             try descriptor.validateCompatibility(
                 with: filter,
                 inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
             )
-            let rendered = try HarbethIO(element: inputTexture, filter: filter)
+            let rendered = try HarbethIO(
+                element: inputTexture,
+                filter: SamplerExecutionAdapter.adapt(filter: filter, samplerDescriptor: samplerDescriptor)
+            )
                 .configured(for: profile)
                 .output()
             let contracted = try ImageNode.applyOutputContractIfNeeded(
@@ -152,22 +222,35 @@ extension ImageNode: ImagePromise {
                 source: source,
                 recipe: recipe,
                 mode: mode,
-                derivative: derivative
+                derivative: derivative,
+                samplerDescriptor: samplerDescriptor
             ).renderTexture()
         case .transition(let recipe):
             return try FrameRenderer(
-                transitionRecipe: recipe
+                transitionRecipe: recipe,
+                samplerDescriptor: samplerDescriptor
             ).renderTexture()
         case .layerComposite(let recipe):
-            return try recipe.makeTexture(derivative: derivative)
+            return try recipe.makeTexture(
+                derivative: derivative,
+                samplerDescriptor: samplerDescriptor
+            )
         case .cachePolicy(let input, _):
-            return try input.makeTexture(profile: profile, derivative: derivative)
-        case .samplerDescriptor(let input, _):
-            return try input.makeTexture(profile: profile, derivative: derivative)
+            return try input.makeTextureUncached(
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptor: samplerDescriptor
+            )
+        case .samplerDescriptor(let input, let descriptor):
+            return try input.makeTextureUncached(
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptor: descriptor
+            )
         }
     }
 
-    public func resolutionFingerprint(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) -> String {
+    func resolutionFingerprint(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) -> String {
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         return [
             nodeFingerprint,
@@ -187,7 +270,7 @@ extension ImageNode: ImagePromise {
         return try builder.build(from: self)
     }
 
-    public func makeOptimizedImageGraph(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> ImageGraphOptimizationResult {
+    func makeOptimizedImageGraph(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> ImageGraphOptimizationResult {
         ImageGraphOptimizer.optimize(try makeImageGraph(profile: profile, derivative: derivative))
     }
 
@@ -224,9 +307,9 @@ extension ImageNode: ImagePromise {
         try makeDiagnostics(profile: profile, derivative: derivative).outputAttachmentDebugPolicies
     }
 
-    public func makeRenderPlan(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
+    func makeRenderPlan(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
-        switch self {
+        switch storage {
         case .source(let source):
             let texture = try source.makeTexture()
             return GraphCompiler.compile(
@@ -241,17 +324,63 @@ extension ImageNode: ImagePromise {
                 graphOptimizationDecisions: optimization.decisions
             )
         case .filters(let input, let filters):
-            let texture = try input.makeTexture(profile: profile, derivative: nil)
-            return GraphCompiler.compile(
-                filters: filters,
-                inputSize: C7Size(width: texture.width, height: texture.height),
-                profile: profile,
-                derivative: derivative ?? profile.defaultDerivativeSpec,
-                compilationSource: .nodeGraph,
-                sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
-                imageGraph: optimization.graph,
-                graphOptimizationDecisions: optimization.decisions
-            )
+            switch input.storage {
+            case .recipe(let source, let recipe, let mode):
+                let plan = try recipe.makeRenderPlan(
+                    source: source,
+                    mode: mode,
+                    extraFilters: filters,
+                    derivative: derivative,
+                    samplerDescriptor: resolvedSamplerDescriptor
+                )
+                return RenderPlan(
+                    graph: plan.graph,
+                    profile: plan.profile,
+                    derivative: plan.diagnostics.derivative,
+                    inputSize: plan.diagnostics.inputSize,
+                    outputSize: plan.diagnostics.outputSize,
+                    nodeDiagnostics: plan.diagnostics.nodes,
+                    compilationSource: plan.diagnostics.compilationSource,
+                    outputContract: plan.diagnostics.outputContract,
+                    imageCachePolicy: plan.diagnostics.imageCachePolicy,
+                    samplerDescriptor: plan.diagnostics.samplerDescriptor,
+                    samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,
+                    sourceDescriptor: source.descriptor,
+                    inputColorConversionCount: plan.diagnostics.inputColorConversionCount,
+                    inputPixelFormatConversionCount: plan.diagnostics.inputPixelFormatConversionCount,
+                    inputAlphaConversionCount: plan.diagnostics.inputAlphaConversionCount,
+                    imageGraph: optimization.graph,
+                    graphOptimizationDecisions: optimization.decisions
+                )
+            case .transition(let recipe):
+                let texture = try recipe.from.makeTexture()
+                let plan = GraphCompiler.compile(
+                    filters: [try recipe.makeFilter()] + filters,
+                    inputSize: C7Size(width: texture.width, height: texture.height),
+                    profile: recipe.profile,
+                    derivative: derivative ?? recipe.derivative,
+                    compilationSource: .transition,
+                    samplerDescriptor: resolvedSamplerDescriptor,
+                    sourceDescriptor: recipe.from.descriptor,
+                    auxiliaryInputDescriptor: recipe.to.descriptor,
+                    imageGraph: optimization.graph,
+                    graphOptimizationDecisions: optimization.decisions
+                )
+                return plan
+            default:
+                let texture = try input.makeTexture(profile: profile, derivative: nil)
+                return GraphCompiler.compile(
+                    filters: filters,
+                    inputSize: C7Size(width: texture.width, height: texture.height),
+                    profile: profile,
+                    derivative: derivative ?? profile.defaultDerivativeSpec,
+                    compilationSource: input.compilationSource,
+                    samplerDescriptor: resolvedSamplerDescriptor,
+                    sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
+                    imageGraph: optimization.graph,
+                    graphOptimizationDecisions: optimization.decisions
+                )
+            }
         case .kernel(let input, let descriptor, let filter):
             let texture = try input.makeTexture(profile: profile, derivative: nil)
             try descriptor.validateCompatibility(
@@ -263,14 +392,20 @@ extension ImageNode: ImagePromise {
                 inputSize: C7Size(width: texture.width, height: texture.height),
                 profile: profile,
                 derivative: derivative ?? profile.defaultDerivativeSpec,
-                compilationSource: .nodeGraph,
+                compilationSource: input.compilationSource,
                 outputContract: descriptor.outputContract,
+                samplerDescriptor: resolvedSamplerDescriptor,
                 sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
                 imageGraph: optimization.graph,
                 graphOptimizationDecisions: optimization.decisions
             )
         case .recipe(let source, let recipe, let mode):
-            return try recipe.makeRenderPlan(source: source, mode: mode, derivative: derivative)
+            return try recipe.makeRenderPlan(
+                source: source,
+                mode: mode,
+                derivative: derivative,
+                samplerDescriptor: resolvedSamplerDescriptor
+            )
         case .transition(let recipe):
             let texture = try recipe.from.makeTexture()
             return GraphCompiler.compile(
@@ -279,13 +414,17 @@ extension ImageNode: ImagePromise {
                 profile: recipe.profile,
                 derivative: derivative ?? recipe.derivative,
                 compilationSource: .transition,
+                samplerDescriptor: resolvedSamplerDescriptor,
                 sourceDescriptor: recipe.from.descriptor,
                 auxiliaryInputDescriptor: recipe.to.descriptor,
                 imageGraph: optimization.graph,
                 graphOptimizationDecisions: optimization.decisions
             )
         case .layerComposite(let recipe):
-            return try recipe.makeRenderPlan(derivative: derivative)
+            return try recipe.makeRenderPlan(
+                derivative: derivative,
+                samplerDescriptor: resolvedSamplerDescriptor
+            )
         case .cachePolicy(let input, let policy):
             let plan = try input.makeRenderPlan(profile: profile, derivative: derivative)
             return RenderPlan(
@@ -330,16 +469,20 @@ extension ImageNode: ImagePromise {
         }
     }
 
-    public func makeRenderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
-        switch self {
+    func makeRenderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
+        switch storage {
         case .recipe(let source, let recipe, let mode):
             return try recipe.makeRenderRecipe(
                 source: source,
                 mode: mode,
-                derivative: derivative
+                derivative: derivative,
+                samplerDescriptor: resolvedSamplerDescriptor
             )
         case .layerComposite(let recipe):
-            return try recipe.makeRenderRecipe(derivative: derivative)
+            return try recipe.makeRenderRecipe(
+                derivative: derivative,
+                samplerDescriptor: resolvedSamplerDescriptor
+            )
         default:
             break
         }
@@ -363,8 +506,7 @@ extension ImageNode: ImagePromise {
                         parameterValues: diagnostic.parameterSummary
                             .sorted { $0.key < $1.key }
                             .map { "\($0.key)=\($0.value)" },
-                        otherInputTextureCount: 0,
-                        hasCount: false
+                        otherInputTextureCount: 0
                     )
                 }
         )
@@ -375,16 +517,31 @@ extension ImageNode: ImagePromise {
                           metadata: [String: String] = [:]) throws -> RenderedFrame {
         let texture = try makeTexture(profile: profile, derivative: derivative)
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        return try FrameRenderer(
-            source: .texture(texture),
-            filters: [],
-            profile: profile,
+        let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
+        let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
+        let primarySource = try resolvedPrimarySource()
+        var renderedMetadata = metadata
+        renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
+        return RenderedFrame(
+            texture: texture,
+            colorSpace: resolvedFrameColorSpace(
+                for: primarySource,
+                outputColorSpace: diagnostics.outputColorSpace
+            ),
+            sourceDescriptor: primarySource.descriptor,
+            derivative: effectiveDerivative,
+            resolvedOutputSize: C7Size(width: texture.width, height: texture.height),
             renderIntent: effectiveDerivative.renderIntent,
-            metadata: metadata,
-            outputSemantic: effectiveDerivative.semantic,
-            outputDerivative: effectiveDerivative,
-            outputCachePolicy: .transient
-        ).renderFrame()
+            sourceTier: primarySource.sourceTier,
+            alphaType: primarySource.alphaType,
+            cachePolicy: resolvedCachePolicy,
+            semantic: effectiveDerivative.semantic,
+            orientation: primarySource.orientation,
+            profile: profile,
+            generation: 0,
+            identifier: "ImageNode.\(nodeFingerprint)",
+            metadata: renderedMetadata
+        )
     }
 
     /// 当 node 最终收敛到单个 `RenderProtocol` primitive 时，
@@ -561,7 +718,7 @@ extension ImageNode: ImagePromise {
     }
 
     fileprivate var resolvedCachePolicy: ImageCachePolicy {
-        switch self {
+        switch storage {
         case .source(let source):
             return source.cachePolicy
         case .filters, .kernel, .recipe, .transition, .layerComposite:
@@ -574,7 +731,7 @@ extension ImageNode: ImagePromise {
     }
 
     fileprivate var resolvedSamplerDescriptor: ImageSamplerDescriptor {
-        switch self {
+        switch storage {
         case .samplerDescriptor(_, let descriptor):
             return descriptor
         case .cachePolicy(let input, _):
@@ -584,8 +741,27 @@ extension ImageNode: ImagePromise {
         }
     }
 
+    fileprivate func resolvedFrameColorSpace(for source: ImageSource,
+                                             outputColorSpace: ImageColorSpaceContract) -> CGColorSpace? {
+        if outputColorSpace.preservesInput == false,
+           let colorSpace = outputColorSpace.cgColorSpace {
+            return colorSpace
+        }
+        if let colorSpace = source.colorSpace {
+            return colorSpace
+        }
+        let sourceDescriptor = source.descriptor
+        if let colorSpace = sourceDescriptor.pixelBufferContract?.attachmentColorSpace?.cgColorSpace {
+            return colorSpace
+        }
+        if let colorSpace = sourceDescriptor.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.cgColorSpace {
+            return colorSpace
+        }
+        return nil
+    }
+
     private var nodeFingerprint: String {
-        switch self {
+        switch storage {
         case .source(let source):
             return "source|\(source.resolutionFingerprint)"
         case .filters(let input, let filters):
@@ -635,7 +811,7 @@ extension ImageNode: ImagePromise {
     }
 
     fileprivate func resolvedPrimarySource() throws -> ImageSource {
-        switch self {
+        switch storage {
         case .source(let source):
             return source
         case .filters(let input, _), .kernel(let input, _, _), .cachePolicy(let input, _), .samplerDescriptor(let input, _):
@@ -650,7 +826,7 @@ extension ImageNode: ImagePromise {
     }
 
     private func resolvedAttachmentAnalysisBridge(profile: RenderProfile) throws -> (inputTexture: MTLTexture, filter: any RenderProtocol)? {
-        switch self {
+        switch storage {
         case .filters(let input, let filters):
             guard let finalFilter = filters.last as? any RenderProtocol else {
                 return nil
@@ -677,8 +853,17 @@ extension ImageNode: ImagePromise {
             return (inputTexture, renderFilter)
         case .cachePolicy(let input, _):
             return try input.resolvedAttachmentAnalysisBridge(profile: profile)
-        case .samplerDescriptor(let input, _):
-            return try input.resolvedAttachmentAnalysisBridge(profile: profile)
+        case .samplerDescriptor(let input, let descriptor):
+            guard let bridge = try input.resolvedAttachmentAnalysisBridge(profile: profile) else {
+                return nil
+            }
+            return (
+                bridge.inputTexture,
+                SamplerExecutionAdapter.adapt(
+                    renderFilter: bridge.filter,
+                    samplerDescriptor: descriptor
+                )
+            )
         case .source, .recipe, .transition, .layerComposite:
             return nil
         }
@@ -686,7 +871,8 @@ extension ImageNode: ImagePromise {
 }
 
 extension LayerCompositeRecipe {
-    func makeRenderPlan(derivative: ImageDerivativeSpec? = nil) throws -> RenderPlan {
+    func makeRenderPlan(derivative: ImageDerivativeSpec? = nil,
+                        samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
         let backgroundTexture = try background.makeTexture()
         let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
         let placeholderTexture = backgroundTexture
@@ -727,11 +913,13 @@ extension LayerCompositeRecipe {
             derivative: derivative ?? self.derivative,
             compilationSource: .layerComposite,
             outputContract: outputContract,
+            samplerDescriptor: samplerDescriptor,
             sourceDescriptor: background.descriptor
         )
     }
 
-    func makeTexture(derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+    func makeTexture(derivative: ImageDerivativeSpec? = nil,
+                     samplerDescriptor: ImageSamplerDescriptor = .default) throws -> MTLTexture {
         var current = try background.makeTexture()
         guard layers.isEmpty == false else {
             return try resizeTextureIfNeeded(current, derivative: derivative ?? self.derivative)
@@ -755,7 +943,13 @@ extension LayerCompositeRecipe {
                 inputSize: C7Size(width: layerTexture.width, height: layerTexture.height)
             ) + layer.filters
             if layerFilters.isEmpty == false {
-                layerTexture = try HarbethIO(element: layerTexture, filters: layerFilters)
+                layerTexture = try HarbethIO(
+                    element: layerTexture,
+                    filters: SamplerExecutionAdapter.adapt(
+                        filters: layerFilters,
+                        samplerDescriptor: samplerDescriptor
+                    )
+                )
                     .configured(for: profile)
                     .output()
             }
@@ -889,7 +1083,7 @@ private final class ImageGraphBuilder {
     }
 
     private func append(_ node: ImageNode) throws -> ImageGraphNodeID {
-        switch node {
+        switch node.storage {
         case .source(let source):
             let nodeID = allocateID()
             nodes.append(
@@ -940,7 +1134,7 @@ private final class ImageGraphBuilder {
             edges.append(ImageGraphEdge(from: inputID, to: nodeID))
             return nodeID
         case .recipe(let source, let recipe, let mode):
-            let sourceID = try append(.source(source))
+            let sourceID = try append(ImageNode.source(source))
             let nodeID = allocateID()
             let contract = recipe.contract(for: mode)
             nodes.append(
@@ -958,8 +1152,8 @@ private final class ImageGraphBuilder {
             edges.append(ImageGraphEdge(from: sourceID, to: nodeID))
             return nodeID
         case .transition(let recipe):
-            let fromID = try append(.source(recipe.from))
-            let toID = try append(.source(recipe.to))
+            let fromID = try append(ImageNode.source(recipe.from))
+            let toID = try append(ImageNode.source(recipe.to))
             let nodeID = allocateID()
             nodes.append(
                 ImageGraphNode(
@@ -982,7 +1176,7 @@ private final class ImageGraphBuilder {
             edges.append(ImageGraphEdge(from: toID, to: nodeID, label: "to"))
             return nodeID
         case .layerComposite(let recipe):
-            let backgroundID = try append(.source(recipe.background))
+            let backgroundID = try append(ImageNode.source(recipe.background))
             let nodeID = allocateID()
             nodes.append(
                 ImageGraphNode(

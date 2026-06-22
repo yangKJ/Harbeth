@@ -19,18 +19,15 @@ public struct C7ColorVector4: C7FilterProtocol {
         return .compute(kernel: "C7ColorVector4")
     }
     
-    public var factors: [Float] {
-        return [intensity]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var factor = vector.to_factor()
-        computeEncoder.setBytes(&factor, length: Vector4.size, index: index)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "vector", index: 1, stage: .compute, value: .float4(vector.to_factor()))
+        ]
     }
     
     public init(vector: Vector4, intensity: Float = 1.0) {

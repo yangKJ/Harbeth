@@ -37,4 +37,37 @@ final class GeometryContractTests: XCTestCase {
         XCTAssertEqual(filters.first?.kernelContract.functionIdentity, "compute:C7Crop")
         XCTAssertEqual(filters.last?.kernelContract.functionIdentity, "compute:C7LanczosResize")
     }
+
+    func testTransformRecipeCanBuildPerspectiveProjectionFilter() {
+        let recipe = ImageTransformRecipe(
+            perspectiveTransform: PerspectiveTransform(
+                vertical: .pi / 18,
+                horizontal: -.pi / 24,
+                rotate: .pi / 36,
+                scale: 0.95,
+                fieldOfView: .pi / 5
+            )
+        )
+
+        let filters = recipe.makeFilters(inputSize: C7Size(width: 12, height: 8))
+        let renderFilter = filters.first as? RenderTransform3D
+
+        XCTAssertEqual(filters.count, 1)
+        XCTAssertNotNil(renderFilter)
+        XCTAssertEqual(renderFilter?.fieldOfView ?? 0, .pi / 5, accuracy: 0.0001)
+    }
+
+    func testTransformRecipeCanBuildGuidedUprightProjectionFilter() {
+        let recipe = ImageTransformRecipe(
+            guidedUpright: GuidedUpright(guides: [
+                .init(start: .init(x: 0.15, y: 0.1), end: .init(x: 0.25, y: 0.9), axis: .vertical),
+                .init(start: .init(x: 0.85, y: 0.1), end: .init(x: 0.75, y: 0.9), axis: .vertical)
+            ])
+        )
+
+        let filters = recipe.makeFilters(inputSize: C7Size(width: 200, height: 100))
+
+        XCTAssertEqual(filters.count, 1)
+        XCTAssertTrue(filters.first is RenderQuadRectifyTransform)
+    }
 }

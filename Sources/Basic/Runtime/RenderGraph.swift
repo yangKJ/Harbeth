@@ -6,7 +6,7 @@
 //
 import Foundation
 
-public enum RenderNodeKind: String, Sendable, Codable, Equatable, Hashable {
+enum RenderNodeKind: String, Sendable, Codable, Equatable, Hashable {
     case compute
     case render
     case blit
@@ -16,18 +16,18 @@ public enum RenderNodeKind: String, Sendable, Codable, Equatable, Hashable {
     case boundary
 }
 
-public struct RenderNode {
-    public let kind: RenderNodeKind
-    public let filter: C7FilterProtocol?
-    public let boundary: (RenderBoundaryAdapter)?
-    public let outputSize: C7Size?
-    public let breaksFusion: Bool
+struct RenderNode {
+    let kind: RenderNodeKind
+    let filter: C7FilterProtocol?
+    let boundary: (RenderBoundaryAdapter)?
+    let outputSize: C7Size?
+    let breaksFusion: Bool
 
-    public init(kind: RenderNodeKind,
-                filter: C7FilterProtocol? = nil,
-                boundary: (RenderBoundaryAdapter)? = nil,
-                outputSize: C7Size? = nil,
-                breaksFusion: Bool = false) {
+    init(kind: RenderNodeKind,
+         filter: C7FilterProtocol? = nil,
+         boundary: (RenderBoundaryAdapter)? = nil,
+         outputSize: C7Size? = nil,
+         breaksFusion: Bool = false) {
         self.kind = kind
         self.filter = filter
         self.boundary = boundary
@@ -36,22 +36,22 @@ public struct RenderNode {
     }
 }
 
-public struct RenderGraph {
-    public let nodes: [RenderNode]
+struct RenderGraph {
+    let nodes: [RenderNode]
 
-    public init(nodes: [RenderNode]) {
+    init(nodes: [RenderNode]) {
         self.nodes = nodes
     }
 }
 
-public enum RenderStageKind: String, Sendable, Codable, Equatable, Hashable {
+enum RenderStageKind: String, Sendable, Codable, Equatable, Hashable {
     case compute
     case render
     case blit
     case boundary
 }
 
-public enum RenderStageBoundaryReason: String, Sendable, Codable, Equatable, Hashable {
+enum RenderStageBoundaryReason: String, Sendable, Codable, Equatable, Hashable {
     case externalBoundary
     case fusionBoundary
     case readbackReady
@@ -206,44 +206,44 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public enum RenderStageMergeClass: String, Sendable, Codable, Equatable, Hashable {
+enum RenderStageMergeClass: String, Sendable, Codable, Equatable, Hashable {
     case pointCompute
     case renderPipeline
     case blitPass
 }
 
-public struct RenderStage: Sendable, Codable, Equatable, Hashable {
-    public let index: Int
-    public let stageKind: RenderStageKind
-    public let mergeClass: RenderStageMergeClass?
-    public let nodeIndices: [Int]
-    public let kinds: [RenderNodeKind]
-    public let filterCount: Int
-    public let breaksFusion: Bool
-    public let inputSize: C7Size
-    public let outputSize: C7Size
-    public let boundaryReason: RenderStageBoundaryReason?
-    public let containsReadbackBoundary: Bool
-    public let createsDestinationTexture: Bool
-    public let containsLocalEffectComposite: Bool
-    public let containsTransitionKernel: Bool
-    public let containsDerivativeResize: Bool
+struct RenderStage: Sendable, Codable, Equatable, Hashable {
+    let index: Int
+    let stageKind: RenderStageKind
+    let mergeClass: RenderStageMergeClass?
+    let nodeIndices: [Int]
+    let kinds: [RenderNodeKind]
+    let filterCount: Int
+    let breaksFusion: Bool
+    let inputSize: C7Size
+    let outputSize: C7Size
+    let boundaryReason: RenderStageBoundaryReason?
+    let containsReadbackBoundary: Bool
+    let createsDestinationTexture: Bool
+    let containsLocalEffectComposite: Bool
+    let containsTransitionKernel: Bool
+    let containsDerivativeResize: Bool
 
-    public init(index: Int,
-                stageKind: RenderStageKind,
-                mergeClass: RenderStageMergeClass?,
-                nodeIndices: [Int],
-                kinds: [RenderNodeKind],
-                filterCount: Int,
-                breaksFusion: Bool,
-                inputSize: C7Size,
-                outputSize: C7Size,
-                boundaryReason: RenderStageBoundaryReason?,
-                containsReadbackBoundary: Bool,
-                createsDestinationTexture: Bool,
-                containsLocalEffectComposite: Bool,
-                containsTransitionKernel: Bool,
-                containsDerivativeResize: Bool) {
+    init(index: Int,
+         stageKind: RenderStageKind,
+         mergeClass: RenderStageMergeClass?,
+         nodeIndices: [Int],
+         kinds: [RenderNodeKind],
+         filterCount: Int,
+         breaksFusion: Bool,
+         inputSize: C7Size,
+         outputSize: C7Size,
+         boundaryReason: RenderStageBoundaryReason?,
+         containsReadbackBoundary: Bool,
+         createsDestinationTexture: Bool,
+         containsLocalEffectComposite: Bool,
+         containsTransitionKernel: Bool,
+         containsDerivativeResize: Bool) {
         self.index = index
         self.stageKind = stageKind
         self.mergeClass = mergeClass
@@ -262,22 +262,22 @@ public struct RenderStage: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct RenderNodeDiagnostic: Sendable, Codable, Equatable, Hashable {
-    public let index: Int
-    public let name: String
-    public let kind: RenderNodeKind
-    public let inputSize: C7Size
-    public let outputSize: C7Size
-    public let breaksFusion: Bool
-    public let parameterSummary: [String: String]
+struct RenderNodeDiagnostic: Sendable, Codable, Equatable, Hashable {
+    let index: Int
+    let name: String
+    let kind: RenderNodeKind
+    let inputSize: C7Size
+    let outputSize: C7Size
+    let breaksFusion: Bool
+    let parameterSummary: [String: String]
 
-    public init(index: Int,
-                name: String,
-                kind: RenderNodeKind,
-                inputSize: C7Size,
-                outputSize: C7Size,
-                breaksFusion: Bool,
-                parameterSummary: [String: String]) {
+    init(index: Int,
+         name: String,
+         kind: RenderNodeKind,
+         inputSize: C7Size,
+         outputSize: C7Size,
+         breaksFusion: Bool,
+         parameterSummary: [String: String]) {
         self.index = index
         self.name = name
         self.kind = kind
@@ -308,6 +308,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     public let compilationSource: RenderCompilationSource
     public let imageCachePolicy: ImageCachePolicy
     public let samplerDescriptor: ImageSamplerDescriptor
+    public let samplerExecutionCoverage: SamplerExecutionCoverage
     public let containsLocalEffectComposite: Bool
     public let containsTransitionKernel: Bool
     public let containsDerivativeResize: Bool
@@ -329,51 +330,52 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     public let colorConversionCount: Int
     public let pixelFormatConversionCount: Int
     public let lossyConversionCount: Int
-    public let nodes: [RenderNodeDiagnostic]
-    public let stages: [RenderStage]
+    let nodes: [RenderNodeDiagnostic]
+    let stages: [RenderStage]
 
-    public init(profile: RenderProfile,
-                derivative: ImageDerivativeSpec,
-                graphFingerprint: String,
-                sourceKind: String?,
-                graphNodeCount: Int,
-                graphEdgeCount: Int,
-                optimizedGraphNodeCount: Int,
-                graphOptimizationDecisions: [String],
-                persistentBoundaryCount: Int,
-                transientReuseCandidateCount: Int,
-                sharedDependencyNodeCount: Int,
-                inputSize: C7Size,
-                outputSize: C7Size,
-                containsBoundary: Bool,
-                requiresCompletedGPUWork: Bool,
-                stageCount: Int,
-                compilationSource: RenderCompilationSource,
-                imageCachePolicy: ImageCachePolicy,
-                samplerDescriptor: ImageSamplerDescriptor,
-                containsLocalEffectComposite: Bool,
-                containsTransitionKernel: Bool,
-                containsDerivativeResize: Bool,
-                optimizationPlan: RenderOptimizationPlan,
-                outputContract: RenderOutputContract,
-                inputColorSpace: ImageColorSpaceContract,
-                outputColorSpace: ImageColorSpaceContract,
-                inputAlphaType: AlphaType?,
-                outputAlphaType: AlphaType?,
-                inputPixelFormat: PixelFormatContract,
-                inputBridgePolicy: PixelBufferBridgePolicy? = nil,
-                inputYCbCrDecodeContract: YCbCrDecodeContract? = nil,
-                outputPixelFormat: PixelFormatContract,
-                inputColorConversionCount: Int,
-                inputPixelFormatConversionCount: Int,
-                inputAlphaConversionCount: Int,
-                inputDirectPlaneBridgeCount: Int = 0,
-                alphaConversionCount: Int,
-                colorConversionCount: Int,
-                pixelFormatConversionCount: Int,
-                lossyConversionCount: Int,
-                nodes: [RenderNodeDiagnostic],
-                stages: [RenderStage]) {
+    init(profile: RenderProfile,
+         derivative: ImageDerivativeSpec,
+         graphFingerprint: String,
+         sourceKind: String?,
+         graphNodeCount: Int,
+         graphEdgeCount: Int,
+         optimizedGraphNodeCount: Int,
+         graphOptimizationDecisions: [String],
+         persistentBoundaryCount: Int,
+         transientReuseCandidateCount: Int,
+         sharedDependencyNodeCount: Int,
+         inputSize: C7Size,
+         outputSize: C7Size,
+         containsBoundary: Bool,
+         requiresCompletedGPUWork: Bool,
+         stageCount: Int,
+         compilationSource: RenderCompilationSource,
+         imageCachePolicy: ImageCachePolicy,
+         samplerDescriptor: ImageSamplerDescriptor,
+         samplerExecutionCoverage: SamplerExecutionCoverage,
+         containsLocalEffectComposite: Bool,
+         containsTransitionKernel: Bool,
+         containsDerivativeResize: Bool,
+         optimizationPlan: RenderOptimizationPlan,
+         outputContract: RenderOutputContract,
+         inputColorSpace: ImageColorSpaceContract,
+         outputColorSpace: ImageColorSpaceContract,
+         inputAlphaType: AlphaType?,
+         outputAlphaType: AlphaType?,
+         inputPixelFormat: PixelFormatContract,
+         inputBridgePolicy: PixelBufferBridgePolicy? = nil,
+         inputYCbCrDecodeContract: YCbCrDecodeContract? = nil,
+         outputPixelFormat: PixelFormatContract,
+         inputColorConversionCount: Int,
+         inputPixelFormatConversionCount: Int,
+         inputAlphaConversionCount: Int,
+         inputDirectPlaneBridgeCount: Int = 0,
+         alphaConversionCount: Int,
+         colorConversionCount: Int,
+         pixelFormatConversionCount: Int,
+         lossyConversionCount: Int,
+         nodes: [RenderNodeDiagnostic],
+         stages: [RenderStage]) {
         self.profile = profile
         self.derivative = derivative
         self.graphFingerprint = graphFingerprint
@@ -393,6 +395,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         self.compilationSource = compilationSource
         self.imageCachePolicy = imageCachePolicy
         self.samplerDescriptor = samplerDescriptor
+        self.samplerExecutionCoverage = samplerExecutionCoverage
         self.containsLocalEffectComposite = containsLocalEffectComposite
         self.containsTransitionKernel = containsTransitionKernel
         self.containsDerivativeResize = containsDerivativeResize
@@ -445,6 +448,9 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "origin=\(sourceKind ?? "unknown")",
             "cachePolicy=\(imageCachePolicy.rawValue)",
             "sampler=\(samplerDescriptor.fingerprint)",
+            "samplerCoverage=\(samplerExecutionCoverage.mode.rawValue)",
+            "samplerCoveredFilters=\(samplerExecutionCoverage.coveredFilterTypes.joined(separator: ","))",
+            "samplerMetadataOnlyFilters=\(samplerExecutionCoverage.metadataOnlyFilterTypes.joined(separator: ","))",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
             "mergedStages=\(optimizationPlan.mergedStageCount)",
@@ -547,6 +553,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             compilationSource: compilationSource,
             imageCachePolicy: policy,
             samplerDescriptor: samplerDescriptor,
+            samplerExecutionCoverage: samplerExecutionCoverage,
             containsLocalEffectComposite: containsLocalEffectComposite,
             containsTransitionKernel: containsTransitionKernel,
             containsDerivativeResize: containsDerivativeResize,
@@ -594,6 +601,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             compilationSource: compilationSource,
             imageCachePolicy: imageCachePolicy,
             samplerDescriptor: descriptor,
+            samplerExecutionCoverage: samplerExecutionCoverage,
             containsLocalEffectComposite: containsLocalEffectComposite,
             containsTransitionKernel: containsTransitionKernel,
             containsDerivativeResize: containsDerivativeResize,
@@ -642,31 +650,32 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct RenderPlan {
-    public let graph: RenderGraph
-    public let profile: RenderProfile
-    public let requiresCompletedGPUWork: Bool
-    public let containsBoundary: Bool
-    public let optimizedStages: [RenderStage]
-    public let diagnostics: RenderPlanDiagnostics
+struct RenderPlan {
+    let graph: RenderGraph
+    let profile: RenderProfile
+    let requiresCompletedGPUWork: Bool
+    let containsBoundary: Bool
+    let optimizedStages: [RenderStage]
+    let diagnostics: RenderPlanDiagnostics
 
-    public init(graph: RenderGraph,
-                profile: RenderProfile,
-                derivative: ImageDerivativeSpec,
-                inputSize: C7Size,
-                outputSize: C7Size,
-                nodeDiagnostics: [RenderNodeDiagnostic],
-                compilationSource: RenderCompilationSource,
-                outputContract: RenderOutputContract = .preserveInput,
-                imageCachePolicy: ImageCachePolicy = .transient,
-                samplerDescriptor: ImageSamplerDescriptor = .default,
-                sourceDescriptor: ImageSourceDescriptor? = nil,
-                auxiliaryInputDescriptor: ImageSourceDescriptor? = nil,
-                inputColorConversionCount: Int? = nil,
-                inputPixelFormatConversionCount: Int? = nil,
-                inputAlphaConversionCount: Int? = nil,
-                imageGraph: ImageGraph? = nil,
-                graphOptimizationDecisions: [String] = []) {
+    init(graph: RenderGraph,
+         profile: RenderProfile,
+         derivative: ImageDerivativeSpec,
+         inputSize: C7Size,
+         outputSize: C7Size,
+         nodeDiagnostics: [RenderNodeDiagnostic],
+         compilationSource: RenderCompilationSource,
+         outputContract: RenderOutputContract = .preserveInput,
+         imageCachePolicy: ImageCachePolicy = .transient,
+         samplerDescriptor: ImageSamplerDescriptor = .default,
+         samplerExecutionCoverage: SamplerExecutionCoverage = SamplerExecutionCoverage(mode: .notApplicable),
+         sourceDescriptor: ImageSourceDescriptor? = nil,
+         auxiliaryInputDescriptor: ImageSourceDescriptor? = nil,
+         inputColorConversionCount: Int? = nil,
+         inputPixelFormatConversionCount: Int? = nil,
+         inputAlphaConversionCount: Int? = nil,
+         imageGraph: ImageGraph? = nil,
+         graphOptimizationDecisions: [String] = []) {
         self.graph = graph
         self.profile = profile
         let requiresCompletedGPUWork = profile.requiresCompletedGPUWorkBeforeReadback
@@ -738,6 +747,7 @@ public struct RenderPlan {
             compilationSource: compilationSource,
             imageCachePolicy: imageCachePolicy,
             samplerDescriptor: samplerDescriptor,
+            samplerExecutionCoverage: samplerExecutionCoverage,
             containsLocalEffectComposite: optimizedStages.contains(where: \.containsLocalEffectComposite),
             containsTransitionKernel: optimizedStages.contains(where: \.containsTransitionKernel),
             containsDerivativeResize: optimizedStages.contains(where: \.containsDerivativeResize),
@@ -836,12 +846,12 @@ private extension RenderPlan {
     }
 }
 
-public enum GraphOptimizer {
-    public static func makeOptimizationPlan(stages: [RenderStage],
-                                            nodeDiagnostics: [RenderNodeDiagnostic],
-                                            outputContract: RenderOutputContract = .preserveInput,
-                                            imageCachePolicy: ImageCachePolicy = .transient,
-                                            inputPixelFormat: PixelFormatContract = .preserveInput) -> RenderOptimizationPlan {
+enum GraphOptimizer {
+    static func makeOptimizationPlan(stages: [RenderStage],
+                                     nodeDiagnostics: [RenderNodeDiagnostic],
+                                     outputContract: RenderOutputContract = .preserveInput,
+                                     imageCachePolicy: ImageCachePolicy = .transient,
+                                     inputPixelFormat: PixelFormatContract = .preserveInput) -> RenderOptimizationPlan {
         let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
         let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
         let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
@@ -1123,7 +1133,7 @@ public enum GraphOptimizer {
         }
     }
 
-    public static func optimize(graph: RenderGraph, nodeDiagnostics: [RenderNodeDiagnostic], profile: RenderProfile) -> [RenderStage] {
+    static func optimize(graph: RenderGraph, nodeDiagnostics: [RenderNodeDiagnostic], profile: RenderProfile) -> [RenderStage] {
         guard graph.nodes.isEmpty == false else { return [] }
 
         var stages: [RenderStage] = []
@@ -1255,19 +1265,19 @@ private extension RenderPlanDiagnostics {
     }
 }
 
-public enum GraphCompiler {
-    public static func compile(filters: [C7FilterProtocol],
-                               inputSize: C7Size,
-                               profile: RenderProfile = .stablePreview,
-                               derivative: ImageDerivativeSpec? = nil,
-                               compilationSource: RenderCompilationSource = .filtersPrimitive,
-                               outputContract: RenderOutputContract = .preserveInput,
-                               imageCachePolicy: ImageCachePolicy = .transient,
-                               samplerDescriptor: ImageSamplerDescriptor = .default,
-                               sourceDescriptor: ImageSourceDescriptor? = nil,
-                               auxiliaryInputDescriptor: ImageSourceDescriptor? = nil,
-                               imageGraph: ImageGraph? = nil,
-                               graphOptimizationDecisions: [String] = []) -> RenderPlan {
+enum GraphCompiler {
+    static func compile(filters: [C7FilterProtocol],
+                        inputSize: C7Size,
+                        profile: RenderProfile = .stablePreview,
+                        derivative: ImageDerivativeSpec? = nil,
+                        compilationSource: RenderCompilationSource = .filtersPrimitive,
+                        outputContract: RenderOutputContract = .preserveInput,
+                        imageCachePolicy: ImageCachePolicy = .transient,
+                        samplerDescriptor: ImageSamplerDescriptor = .default,
+                        sourceDescriptor: ImageSourceDescriptor? = nil,
+                        auxiliaryInputDescriptor: ImageSourceDescriptor? = nil,
+                        imageGraph: ImageGraph? = nil,
+                        graphOptimizationDecisions: [String] = []) -> RenderPlan {
         var currentSize = inputSize
         var nodeDiagnostics: [RenderNodeDiagnostic] = []
         let nodes = filters.enumerated().map { index, filter -> RenderNode in
@@ -1343,6 +1353,10 @@ public enum GraphCompiler {
             outputContract: resolvedOutputContract,
             imageCachePolicy: imageCachePolicy,
             samplerDescriptor: samplerDescriptor,
+            samplerExecutionCoverage: SamplerExecutionAdapter.coverage(
+                for: filters,
+                samplerDescriptor: samplerDescriptor
+            ),
             sourceDescriptor: sourceDescriptor,
             auxiliaryInputDescriptor: auxiliaryInputDescriptor,
             imageGraph: imageGraph,
@@ -1351,7 +1365,8 @@ public enum GraphCompiler {
     }
 
     private static func nodeKind(for filter: C7FilterProtocol) -> RenderNodeKind {
-        if filter is C7CombinationBase { return .combination }
+        if filter is C7FilterPipelineProtocol { return .combination }
+        if filter is LegacyCombinationFilterProtocol { return .combination }
         switch filter.modifier {
         case .compute:
             return .compute

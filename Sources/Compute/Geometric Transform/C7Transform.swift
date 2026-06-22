@@ -19,22 +19,22 @@ public struct C7Transform: C7FilterProtocol {
         return .compute(kernel: "C7AffineTransform")
     }
 
-    public var factors: [Float] {
-        return anchorPoint.toXY() + [Float(samplingMode.rawValue), Float(edgeMode.rawValue)]
-    }
-
     public func resize(input size: C7Size) -> C7Size {
         return mode.transform(transform, size: size)
     }
 
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var factor = matrix_float3x2(columns: (
-            simd_float2(x: Float(transform.a), y: Float(transform.b)),
-            simd_float2(x: Float(transform.c), y: Float(transform.d)),
-            simd_float2(x: Float(transform.tx), y: Float(transform.ty))
-        ))
-        computeEncoder.setBytes(&factor, length: MemoryLayout<matrix_float3x2>.size, index: index)
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "anchorX", index: 0, stage: .compute, value: .float(anchorPoint.x)),
+            KernelParameterBinding(name: "anchorY", index: 1, stage: .compute, value: .float(anchorPoint.y)),
+            KernelParameterBinding(name: "samplingMode", index: 2, stage: .compute, value: .float(Float(samplingMode.rawValue))),
+            KernelParameterBinding(name: "edgeMode", index: 3, stage: .compute, value: .float(Float(edgeMode.rawValue))),
+            KernelParameterBinding(name: "affineTransform", index: 4, stage: .compute, value: .floatArray([
+                Float(transform.a), Float(transform.b),
+                Float(transform.c), Float(transform.d),
+                Float(transform.tx), Float(transform.ty)
+            ]))
+        ]
     }
 
     private var mode: Placement = .fit

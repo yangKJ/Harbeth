@@ -52,8 +52,6 @@ public protocol C7AdvancedMetalKernelProtocol: C7FilterProtocol {
 
     func canUseAdvancedMetal(on device: MTLDevice) -> Bool
 
-    func setupAdvancedMetalParameters(for encoder: MTLComputeCommandEncoder, textures: [MTLTexture])
-
     func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
 
     func encodeAdvanced(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
@@ -87,8 +85,6 @@ extension C7AdvancedMetalKernelProtocol {
     public func canUseAdvancedMetal(on device: MTLDevice) -> Bool {
         Device.metalCapabilityReport(advancedMetalCapability, on: device).isSupported
     }
-
-    public func setupAdvancedMetalParameters(for encoder: MTLComputeCommandEncoder, textures: [MTLTexture]) { }
 
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         if canUseAdvancedMetal(on: Shared.shared.metalDevice) {
@@ -128,12 +124,15 @@ extension C7AdvancedMetalKernelProtocol {
             encoder.setTexture(texture, index: index + 2)
         }
 
-        for (index, factor) in factors.enumerated() {
-            var f = factor
-            encoder.setBytes(&f, length: MemoryLayout<Float>.size, index: index)
+        let parameterBindings = kernelParameterBindings
+        if parameterBindings.isEmpty {
+            for (index, factor) in factors.enumerated() {
+                var f = factor
+                encoder.setBytes(&f, length: MemoryLayout<Float>.size, index: index)
+            }
+        } else {
+            KernelBindingEncoder.encode(parameterBindings, stage: .compute, on: encoder)
         }
-
-        setupAdvancedMetalParameters(for: encoder, textures: textures)
 
         let threadGroupSize = MTLSize(width: 16, height: 16, depth: 1)
         let threadGroups = MTLSize(

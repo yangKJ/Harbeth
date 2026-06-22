@@ -6,7 +6,7 @@
 //
 import Foundation
 
-public extension ImageSourceTier {
+extension ImageSourceTier {
     var rank: Int {
         switch self {
         case .thumbnail:
@@ -33,7 +33,7 @@ public struct ReplayBaseContract: Sendable, Hashable, Codable {
     public let requiresOriginalSource: Bool
     public let allowsDerivedReuse: Bool
 
-    public init(preferredSourceTier: ImageSourceTier, requiresOriginalSource: Bool, allowsDerivedReuse: Bool) {
+    init(preferredSourceTier: ImageSourceTier, requiresOriginalSource: Bool, allowsDerivedReuse: Bool) {
         self.preferredSourceTier = preferredSourceTier
         self.requiresOriginalSource = requiresOriginalSource
         self.allowsDerivedReuse = allowsDerivedReuse
@@ -80,7 +80,7 @@ public extension ImageDerivativeSpec {
     }
 }
 
-public extension ImageSourceDescriptor {
+extension ImageSourceDescriptor {
     func satisfies(_ contract: ReplayBaseContract) -> Bool {
         if contract.requiresOriginalSource {
             return sourceTier == .original
@@ -100,11 +100,11 @@ public struct RenderCacheIdentity: Sendable, Hashable, Codable {
     public let replayBaseFingerprint: String
     public let filterChainFingerprint: String
 
-    public init(sourceFingerprint: String,
-                renderIntent: RenderIntent,
-                derivativeFingerprint: String,
-                replayBaseFingerprint: String,
-                filterChainFingerprint: String) {
+    init(sourceFingerprint: String,
+         renderIntent: RenderIntent,
+         derivativeFingerprint: String,
+         replayBaseFingerprint: String,
+         filterChainFingerprint: String) {
         self.sourceFingerprint = sourceFingerprint
         self.renderIntent = renderIntent
         self.derivativeFingerprint = derivativeFingerprint
@@ -123,7 +123,7 @@ public struct RenderCacheIdentity: Sendable, Hashable, Codable {
     }
 }
 
-public extension RenderRecipe {
+extension RenderRecipe {
     var replayBaseContract: ReplayBaseContract {
         outputDerivative.replayBaseContract
     }
@@ -140,12 +140,12 @@ public extension RenderRecipe {
 }
 
 /// 单个可用 replay base 候选。由上层资源表、磁盘缓存或内存缓存提供。
-public struct ReplaySourceCandidate: Sendable, Hashable, Codable {
-    public let identifier: String
-    public let descriptor: ImageSourceDescriptor
-    public let pixelSize: C7Size?
+struct ReplaySourceCandidate: Sendable, Hashable, Codable {
+    let identifier: String
+    let descriptor: ImageSourceDescriptor
+    let pixelSize: C7Size?
 
-    public init(identifier: String, descriptor: ImageSourceDescriptor, pixelSize: C7Size? = nil) {
+    init(identifier: String, descriptor: ImageSourceDescriptor, pixelSize: C7Size? = nil) {
         self.identifier = identifier
         self.descriptor = descriptor
         self.pixelSize = pixelSize
@@ -153,8 +153,8 @@ public struct ReplaySourceCandidate: Sendable, Hashable, Codable {
 }
 
 /// replay base 选择结果。
-public struct ReplaySourceSelection: Sendable, Hashable, Codable {
-    public enum Strategy: String, Sendable, Hashable, Codable {
+struct ReplaySourceSelection: Sendable, Hashable, Codable {
+    enum Strategy: String, Sendable, Hashable, Codable {
         /// 选中了和 contract 偏好层级一致的资源。
         case exactPreferredTier
         /// 没有更低成本资源时，回退到更高层级的可复用资源。
@@ -165,32 +165,32 @@ public struct ReplaySourceSelection: Sendable, Hashable, Codable {
         case noReusableSource
     }
 
-    public let contract: ReplayBaseContract
-    public let requestedDerivative: ImageDerivativeSpec
-    public let selectedCandidate: ReplaySourceCandidate?
-    public let strategy: Strategy
+    let contract: ReplayBaseContract
+    let requestedDerivative: ImageDerivativeSpec
+    let selectedCandidate: ReplaySourceCandidate?
+    let strategy: Strategy
 
-    public init(contract: ReplayBaseContract,
-                requestedDerivative: ImageDerivativeSpec,
-                selectedCandidate: ReplaySourceCandidate?,
-                strategy: Strategy) {
+    init(contract: ReplayBaseContract,
+         requestedDerivative: ImageDerivativeSpec,
+         selectedCandidate: ReplaySourceCandidate?,
+         strategy: Strategy) {
         self.contract = contract
         self.requestedDerivative = requestedDerivative
         self.selectedCandidate = selectedCandidate
         self.strategy = strategy
     }
 
-    public var requiresOriginalReplay: Bool {
+    var requiresOriginalReplay: Bool {
         strategy == .requiresOriginalReplay || contract.requiresOriginalSource
     }
 
-    public var reusesExistingDerivedSource: Bool {
+    var reusesExistingDerivedSource: Bool {
         guard let candidate = selectedCandidate else { return false }
         return candidate.descriptor.sourceTier != .original
     }
 }
 
-public extension ImageSourceDescriptor {
+extension ImageSourceDescriptor {
     func replayReuseScore(for derivative: ImageDerivativeSpec, contract: ReplayBaseContract) -> Int? {
         guard satisfies(contract) else {
             return nil
@@ -217,7 +217,7 @@ public extension ImageSourceDescriptor {
     }
 }
 
-public extension ImageDerivativeSpec {
+extension ImageDerivativeSpec {
     func selectReplaySource(from candidates: [ReplaySourceCandidate]) -> ReplaySourceSelection {
         let contract = replayBaseContract
 
@@ -275,27 +275,27 @@ public extension ImageDerivativeSpec {
     }
 }
 
-public extension RenderRecipe {
+extension RenderRecipe {
     func selectReplaySource(from candidates: [ReplaySourceCandidate]) -> ReplaySourceSelection {
         outputDerivative.selectReplaySource(from: candidates)
     }
 }
 
 /// 由 derivative + replay selection 推导出的 source 请求计划。
-public struct ReplaySourceRequestPlan: Sendable, Hashable, Codable {
-    public let derivative: ImageDerivativeSpec
-    public let selection: ReplaySourceSelection
-    public let requestedSourceTier: ImageSourceTier
-    public let loadingOptions: ImageLoadingOptions
-    public let canReuseSelectedCandidateDirectly: Bool
-    public let requiresPostLoadResize: Bool
+struct ReplaySourceRequestPlan: Sendable, Hashable, Codable {
+    let derivative: ImageDerivativeSpec
+    let selection: ReplaySourceSelection
+    let requestedSourceTier: ImageSourceTier
+    let loadingOptions: ImageLoadingOptions
+    let canReuseSelectedCandidateDirectly: Bool
+    let requiresPostLoadResize: Bool
 
-    public init(derivative: ImageDerivativeSpec,
-                selection: ReplaySourceSelection,
-                requestedSourceTier: ImageSourceTier,
-                loadingOptions: ImageLoadingOptions,
-                canReuseSelectedCandidateDirectly: Bool,
-                requiresPostLoadResize: Bool) {
+    init(derivative: ImageDerivativeSpec,
+         selection: ReplaySourceSelection,
+         requestedSourceTier: ImageSourceTier,
+         loadingOptions: ImageLoadingOptions,
+         canReuseSelectedCandidateDirectly: Bool,
+         requiresPostLoadResize: Bool) {
         self.derivative = derivative
         self.selection = selection
         self.requestedSourceTier = requestedSourceTier
@@ -304,12 +304,12 @@ public struct ReplaySourceRequestPlan: Sendable, Hashable, Codable {
         self.requiresPostLoadResize = requiresPostLoadResize
     }
 
-    public var shouldDecodeFromUnderlyingSource: Bool {
+    var shouldDecodeFromUnderlyingSource: Bool {
         !canReuseSelectedCandidateDirectly
     }
 }
 
-public extension ImageDerivativeSpec {
+extension ImageDerivativeSpec {
     func makeReplaySourceRequestPlan(from selection: ReplaySourceSelection) -> ReplaySourceRequestPlan {
         let requestedTier: ImageSourceTier
         switch selection.strategy {
@@ -356,15 +356,15 @@ public extension ImageDerivativeSpec {
     }
 }
 
-public extension RenderRecipe {
+extension RenderRecipe {
     func makeReplaySourceRequestPlan(from selection: ReplaySourceSelection) -> ReplaySourceRequestPlan {
         outputDerivative.makeReplaySourceRequestPlan(from: selection)
     }
 }
 
 /// replay/source 请求完成后，该结果在上层资源体系中的落点策略。
-public struct SourceProvisionPolicy: Sendable, Hashable, Codable {
-    public enum DeliveryMode: String, Sendable, Hashable, Codable {
+struct SourceProvisionPolicy: Sendable, Hashable, Codable {
+    enum DeliveryMode: String, Sendable, Hashable, Codable {
         /// 直接复用已存在候选，不触发新的 decode / replay。
         case reuseExistingCandidate
         /// 从底层 source 解码后继续生成目标 derivative。
@@ -373,17 +373,17 @@ public struct SourceProvisionPolicy: Sendable, Hashable, Codable {
         case replayFromOriginal
     }
 
-    public let requestPlan: ReplaySourceRequestPlan
-    public let deliveryMode: DeliveryMode
-    public let producedCachePolicy: ImageCachePolicy
-    public let shouldPersistProducedDerivative: Bool
-    public let shouldStoreAsReusableReplayBase: Bool
+    let requestPlan: ReplaySourceRequestPlan
+    let deliveryMode: DeliveryMode
+    let producedCachePolicy: ImageCachePolicy
+    let shouldPersistProducedDerivative: Bool
+    let shouldStoreAsReusableReplayBase: Bool
 
-    public init(requestPlan: ReplaySourceRequestPlan,
-                deliveryMode: DeliveryMode,
-                producedCachePolicy: ImageCachePolicy,
-                shouldPersistProducedDerivative: Bool,
-                shouldStoreAsReusableReplayBase: Bool) {
+    init(requestPlan: ReplaySourceRequestPlan,
+         deliveryMode: DeliveryMode,
+         producedCachePolicy: ImageCachePolicy,
+         shouldPersistProducedDerivative: Bool,
+         shouldStoreAsReusableReplayBase: Bool) {
         self.requestPlan = requestPlan
         self.deliveryMode = deliveryMode
         self.producedCachePolicy = producedCachePolicy
@@ -392,7 +392,7 @@ public struct SourceProvisionPolicy: Sendable, Hashable, Codable {
     }
 }
 
-public extension ImageDerivativeSpec {
+extension ImageDerivativeSpec {
     func makeSourceProvisionPolicy(from requestPlan: ReplaySourceRequestPlan) -> SourceProvisionPolicy {
         let deliveryMode: SourceProvisionPolicy.DeliveryMode
         if requestPlan.canReuseSelectedCandidateDirectly {
@@ -432,7 +432,7 @@ public extension ImageDerivativeSpec {
     }
 }
 
-public extension RenderRecipe {
+extension RenderRecipe {
     func makeSourceProvisionPolicy(from requestPlan: ReplaySourceRequestPlan) -> SourceProvisionPolicy {
         outputDerivative.makeSourceProvisionPolicy(from: requestPlan)
     }

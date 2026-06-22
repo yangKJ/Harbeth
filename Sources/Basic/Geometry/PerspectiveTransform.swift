@@ -13,7 +13,7 @@ import QuartzCore
 /// This is the Harbeth-side foundational API for the slider-driven geometry
 /// controls that mainstream editors expose before they add auto/guided upright.
 /// It intentionally stays deterministic and image-analysis-free.
-public struct PerspectiveTransform {
+public struct PerspectiveTransform: Equatable, Sendable {
 
     /// Rotation around the x-axis. Positive values pull the bottom closer.
     public var vertical: Float
@@ -50,6 +50,24 @@ public struct PerspectiveTransform {
         transform = CATransform3DRotate(transform, CGFloat(rotate), 0, 0, 1)
         return transform
     }
+
+    public var fingerprint: String {
+        [
+            "vertical=\(stableFloatDescription(vertical))",
+            "horizontal=\(stableFloatDescription(horizontal))",
+            "rotate=\(stableFloatDescription(rotate))",
+            "scale=\(stableFloatDescription(scale))",
+            "fov=\(stableFloatDescription(fieldOfView))"
+        ].joined(separator: "|")
+    }
+
+    public func makeFilter(viewportMode: Transform3DViewportMode = .minimumEnclosing) -> RenderTransform3D {
+        RenderTransform3D(perspective: self, viewportMode: viewportMode)
+    }
+}
+
+private func stableFloatDescription(_ value: Float) -> String {
+    String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
 }
 
 extension RenderTransform3D {

@@ -23,13 +23,12 @@ public struct C7FalseColor: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var fristFactor = Vector3.init(color: fristColor).to_factor()
-        computeEncoder.setBytes(&fristFactor, length: Vector3.size, index: index)
-        var secondFactor = Vector3(color: secondColor).to_factor()
-        computeEncoder.setBytes(&secondFactor, length: Vector3.size, index: index + 1)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "fristColor", index: 0, stage: .compute, value: .float3(Vector3(color: fristColor).to_factor())),
+            KernelParameterBinding(name: "secondColor", index: 1, stage: .compute, value: .float3(Vector3(color: secondColor).to_factor()))
+        ]
     }
     
     public init(fristColor: C7Color = .zero, secondColor: C7Color = .zero) {

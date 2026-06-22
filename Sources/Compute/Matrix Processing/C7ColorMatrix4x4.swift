@@ -20,18 +20,19 @@ public struct C7ColorMatrix4x4: C7FilterProtocol {
         return .compute(kernel: "C7ColorMatrix4x4")
     }
     
-    public var factors: [Float] {
-        return [intensity] + offset.values
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var factor = matrix.to_factor()
-        computeEncoder.setBytes(&factor, length: Matrix4x4.size, index: index)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "offsetR", index: 1, stage: .compute, value: .float(offset.values[0])),
+            KernelParameterBinding(name: "offsetG", index: 2, stage: .compute, value: .float(offset.values[1])),
+            KernelParameterBinding(name: "offsetB", index: 3, stage: .compute, value: .float(offset.values[2])),
+            KernelParameterBinding(name: "offsetA", index: 4, stage: .compute, value: .float(offset.values[3])),
+            KernelParameterBinding(name: "matrix", index: 5, stage: .compute, value: .matrix4x4(matrix))
+        ]
     }
     
     public init(matrix: Matrix4x4, offset: Vector4 = .zero, intensity: Float = 1.0) {

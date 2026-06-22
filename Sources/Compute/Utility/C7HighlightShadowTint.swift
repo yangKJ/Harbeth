@@ -23,20 +23,17 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
         return .compute(kernel: "C7HighlightShadowTint")
     }
     
-    public var factors: [Float] {
-        return [shadows, highlights]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var shadowsFactor = Vector3.init(color: shadowsColor).to_factor()
-        computeEncoder.setBytes(&shadowsFactor, length: Vector3.size, index: index)
-        var highlightsFactor = Vector3(color: highlightsColor).to_factor()
-        computeEncoder.setBytes(&highlightsFactor, length: Vector3.size, index: index + 1)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "shadows", index: 0, stage: .compute, value: .float(shadows)),
+            KernelParameterBinding(name: "highlights", index: 1, stage: .compute, value: .float(highlights)),
+            KernelParameterBinding(name: "shadowsColor", index: 2, stage: .compute, value: .float3(Vector3(color: shadowsColor).to_factor())),
+            KernelParameterBinding(name: "highlightsColor", index: 3, stage: .compute, value: .float3(Vector3(color: highlightsColor).to_factor()))
+        ]
     }
     
     public init(highlights: Float = range.value, highlightsColor: C7Color = .zero, shadows: Float = range.value, shadowsColor: C7Color = .zero) {

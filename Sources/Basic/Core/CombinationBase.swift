@@ -7,8 +7,13 @@
 
 import Foundation
 
+protocol LegacyCombinationFilterProtocol: C7FilterProtocol, AnyObject {
+    var identifier: String { get set }
+}
+
 /// Base class for combination filters, providing common functionality
-open class C7CombinationBase: C7FilterProtocol {
+@available(*, deprecated, message: "Use C7FilterPipelineProtocol instead.")
+open class C7CombinationBase: LegacyCombinationFilterProtocol {
     
     public var identifier: String = "Render"
     
@@ -32,12 +37,6 @@ open class C7CombinationBase: C7FilterProtocol {
         []
     }
     
-    /// Do you need the total number of pixels factor,
-    /// before the special factor and after the factors.
-    open var hasCount: Bool {
-        false
-    }
-    
     /// Memory access pattern for threadgroup optimization
     open var memoryAccessPattern: MemoryAccessPattern {
         .multiTexture
@@ -47,9 +46,6 @@ open class C7CombinationBase: C7FilterProtocol {
     open func resize(input size: C7Size) -> C7Size {
         size
     }
-    
-    /// Special type of parameter factor, such as 4x4 matrix
-    open func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) { }
     
     /// If you need to replace the subsequent input source texture, return to a new texture with copied to dest.
     open func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture {

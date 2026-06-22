@@ -40,49 +40,25 @@ public struct C7Curves: C7FilterProtocol {
         return .compute(kernel: "C7Curves")
     }
     
-    public var factors: [Float] {
-        return [
-            Float(rgbPoints.count), Float(redPoints.count), Float(greenPoints.count), Float(bluePoints.count)
-        ]
-    }
-    
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
-    
-    public func setupSpecialFactors(for encoder: MTLCommandEncoder, index: Int) {
-        guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }
-        var rgbData: [Float] = []
-        rgbData.reserveCapacity(rgbPoints.count * 2)
-        for point in rgbPoints {
-            rgbData.append(point.x)
-            rgbData.append(point.y)
-        }
-        computeEncoder.setBytes(&rgbData, length: rgbData.count * MemoryLayout<Float>.size, index: index)
-        
-        var redData: [Float] = []
-        redData.reserveCapacity(redPoints.count * 2)
-        for point in redPoints {
-            redData.append(point.x)
-            redData.append(point.y)
-        }
-        computeEncoder.setBytes(&redData, length: redData.count * MemoryLayout<Float>.size, index: index + 1)
-        
-        var greenData: [Float] = []
-        greenData.reserveCapacity(greenPoints.count * 2)
-        for point in greenPoints {
-            greenData.append(point.x)
-            greenData.append(point.y)
-        }
-        computeEncoder.setBytes(&greenData, length: greenData.count * MemoryLayout<Float>.size, index: index + 2)
-        
-        var blueData: [Float] = []
-        blueData.reserveCapacity(bluePoints.count * 2)
-        for point in bluePoints {
-            blueData.append(point.x)
-            blueData.append(point.y)
-        }
-        computeEncoder.setBytes(&blueData, length: blueData.count * MemoryLayout<Float>.size, index: index + 3)
+
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "rgbPointCount", index: 0, stage: .compute, value: .float(Float(rgbPoints.count))),
+            KernelParameterBinding(name: "redPointCount", index: 1, stage: .compute, value: .float(Float(redPoints.count))),
+            KernelParameterBinding(name: "greenPointCount", index: 2, stage: .compute, value: .float(Float(greenPoints.count))),
+            KernelParameterBinding(name: "bluePointCount", index: 3, stage: .compute, value: .float(Float(bluePoints.count))),
+            KernelParameterBinding(name: "rgbPoints", index: 4, stage: .compute, value: .floatArray(flattenedPoints(rgbPoints))),
+            KernelParameterBinding(name: "redPoints", index: 5, stage: .compute, value: .floatArray(flattenedPoints(redPoints))),
+            KernelParameterBinding(name: "greenPoints", index: 6, stage: .compute, value: .floatArray(flattenedPoints(greenPoints))),
+            KernelParameterBinding(name: "bluePoints", index: 7, stage: .compute, value: .floatArray(flattenedPoints(bluePoints)))
+        ]
+    }
+
+    private func flattenedPoints(_ points: [C7Point2D]) -> [Float] {
+        points.flatMap { [$0.x, $0.y] }
     }
     
     public init(rgbPoints: [C7Point2D]? = nil, redPoints: [C7Point2D]? = nil, greenPoints: [C7Point2D]? = nil, bluePoints: [C7Point2D]? = nil) {

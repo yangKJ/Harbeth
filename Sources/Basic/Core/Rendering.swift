@@ -126,6 +126,10 @@ struct Rendering {
         let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * size, options: [])!
         renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
+        if let samplerState = Shared.shared.defaultContext.makeSamplerState(filter.renderSamplerDescriptor) {
+            renderEncoder.setFragmentSamplerState(samplerState, index: 0)
+        }
+
         renderEncoder.setFragmentTexture(texture, index: 0)
 
         for (i, inputTexture) in filter.otherInputTextures.enumerated() {

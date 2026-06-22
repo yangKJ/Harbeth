@@ -15,14 +15,14 @@ import CoreGraphics
 /// - validating official guide combinations,
 /// - producing a usable rectification quad when enough line constraints exist,
 /// - falling back to a deterministic straighten transform for 1H + 1V.
-public struct GuidedUpright {
+public struct GuidedUpright: Sendable {
 
-    public enum Axis: String, Codable {
+    public enum Axis: String, Codable, Sendable {
         case horizontal
         case vertical
     }
 
-    public struct Guide: Codable, Equatable {
+    public struct Guide: Codable, Equatable, Sendable {
         public var start: FreePoint2D
         public var end: FreePoint2D
         public var axis: Axis
@@ -72,6 +72,22 @@ public struct GuidedUpright {
         }
 
         return .quadRectify(RenderQuadRectifyTransform(sourceQuad: quad))
+    }
+
+    public var fingerprint: String {
+        guides.map(\.fingerprint).joined(separator: "||")
+    }
+
+    public func makeFilter(inputSize: CGSize,
+                           viewportMode: Transform3DViewportMode = .minimumEnclosing) -> C7FilterProtocol? {
+        switch recommendTransform(inputSize: inputSize) {
+        case .quadRectify(let filter):
+            return filter
+        case .perspective(let transform):
+            return transform.makeFilter(viewportMode: viewportMode)
+        case .none:
+            return nil
+        }
     }
 
     private func sourceQuad(inputSize: CGSize, verticalGuides: [Guide], horizontalGuides: [Guide]) -> RenderQuadTransform.Quad? {
@@ -188,6 +204,16 @@ public struct GuidedUpright {
             x: CGFloat(normalizedPoint.x) * size.width,
             y: CGFloat(normalizedPoint.y) * size.height
         )
+    }
+}
+
+public extension GuidedUpright.Guide {
+    var fingerprint: String {
+        [
+            "start=\(start.x),\(start.y)",
+            "end=\(end.x),\(end.y)",
+            "axis=\(axis.rawValue)"
+        ].joined(separator: "|")
     }
 }
 

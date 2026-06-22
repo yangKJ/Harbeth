@@ -7,101 +7,38 @@
 
 import Foundation
 
-/// 现代胶片模拟组合滤镜
-/// Modern film simulation combination filter
-public final class C7CombinationFilmSimulation: C7CombinationBase {
-    
-    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+public final class C7CombinationFilmSimulation: C7FilterPipelineProtocol {
+
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
-    
-    /// Film type selection: 0 = Standard, 1 = Vivid, 2 = Neutral, 3 = Black & White
     public var filmType: Int = 0
-    
-    /// Grain intensity, ranging from 0.0 to 1.0
-    public var grainIntensity: Float = 0.3 {
-        didSet {
-            grainFilter.grain = grainIntensity
-        }
+    public var grainIntensity: Float = 0.3
+    public var contrast: Float = 1.1
+    public var saturation: Float = 1.05
+    public var vignetteIntensity: Float = 0.2
+
+    public var pipelineFilters: [C7FilterProtocol] {
+        let vignetteEnd = 0.4 + (0.9 - 0.4) * (1.0 - vignetteIntensity)
+        return [
+            C7Contrast(contrast: contrast),
+            C7Saturation(saturation: saturation),
+            C7Granularity(grain: grainIntensity),
+            C7Vignette(start: 0.4, end: vignetteEnd, color: .zero)
+        ]
     }
-    
-    /// Contrast adjustment, ranging from 0.8 to 1.5, with 1.0 being the original
-    public var contrast: Float = 1.1 {
-        didSet {
-            contrastFilter.contrast = contrast
-        }
-    }
-    
-    /// Saturation adjustment, ranging from 0.8 to 1.3, with 1.0 being the original
-    public var saturation: Float = 1.05 {
-        didSet {
-            saturationFilter.saturation = saturation
-        }
-    }
-    
-    /// Vignette intensity, ranging from 0.0 to 1.0
-    public var vignetteIntensity: Float = 0.2 {
-        didSet {
-            vignetteFilter.start = 0.4
-            vignetteFilter.end = 0.4 + (0.9 - 0.4) * (1.0 - vignetteIntensity)
-        }
-    }
-    
-    public override var modifier: ModifierEnum {
-        return .compute(kernel: "C7CombinationFilmSimulation")
-    }
-    
-    public override var factors: [Float] {
-        return [intensity, Float(filmType)]
-    }
-    
-    public override var otherInputTextures: C7InputTextures {
-        return intermediateTextures
-    }
-    
-    private var grainFilter: C7Granularity
-    private var contrastFilter: C7Contrast
-    private var saturationFilter: C7Saturation
-    private var vignetteFilter: C7Vignette
-    
+
     public init(intensity: Float = 1.0) {
         self.intensity = intensity
-        self.grainFilter = C7Granularity(grain: 0.3)
-        self.contrastFilter = C7Contrast(contrast: 1.1)
-        self.saturationFilter = C7Saturation(saturation: 1.05)
-        self.vignetteFilter = C7Vignette(start: 0.4, end: 0.9, color: .zero)
-        super.init()
     }
-    
-    /// Prepare intermediate textures for the film simulation filter
-    public override func prepareIntermediateTextures(buffer: MTLCommandBuffer, source: MTLTexture) throws -> [MTLTexture] {
-        var currentTexture = source
-        
-        // Apply contrast adjustment
-        let contrastDest = try TextureLoader.copyTexture(with: source)
-        currentTexture = try contrastFilter.applyAtTexture(form: currentTexture, to: contrastDest, for: buffer)
-        
-        // Apply saturation adjustment
-        let saturationDest = try TextureLoader.copyTexture(with: source)
-        currentTexture = try saturationFilter.applyAtTexture(form: currentTexture, to: saturationDest, for: buffer)
-        
-        // Apply grain effect
-        let grainDest = try TextureLoader.copyTexture(with: source)
-        currentTexture = try grainFilter.applyAtTexture(form: currentTexture, to: grainDest, for: buffer)
-        
-        // Apply vignette
-        let vignetteDest = try TextureLoader.copyTexture(with: source)
-        currentTexture = try vignetteFilter.applyAtTexture(form: currentTexture, to: vignetteDest, for: buffer)
-        
-        intermediateTextures.append(currentTexture)
-        return intermediateTextures
+
+    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
+        try FilterPipelineExecutor.apply(filter: self, source: texture, destination: destTexture, commandBuffer: buffer)
     }
-    
-    /// Cleanup resources after processing
-    public override func cleanupIntermediateTextures() {
-        // Return textures to pool if possible
-        for texture in intermediateTextures {
-            Shared.shared.defaultTexturePool.enqueueTexture(texture)
-        }
-        super.cleanupIntermediateTextures()
+
+    public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
+        PipelineLeafFilter(
+            modifier: .compute(kernel: "C7CombinationBlendIntensity"),
+            factors: [intensity, Float(filmType)],
+            otherInputTextures: otherInputTextures ?? []
+        )
     }
 }

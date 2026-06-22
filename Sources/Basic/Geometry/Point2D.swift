@@ -68,7 +68,7 @@ extension C7Point2D: Equatable {
 ///
 /// Unlike `C7Point2D`, this type intentionally allows values outside `0...1`
 /// so geometry tools can preserve out-of-bounds corner positions.
-public struct FreePoint2D: Codable, Equatable {
+public struct FreePoint2D: Codable, Equatable, Sendable {
 
     public static let zero = FreePoint2D(x: 0, y: 0)
     public static let center = FreePoint2D(x: 0.5, y: 0.5)

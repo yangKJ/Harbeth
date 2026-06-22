@@ -7,77 +7,34 @@
 
 import Foundation
 
-/// 梦幻风格组合滤镜
-/// Dreamy style combination filter
-public final class C7CombinationDreamy: C7CombinationBase {
-    
-    /// Intensity range, used to adjust the mixing ratio of filters and sources.
+public final class C7CombinationDreamy: C7FilterPipelineProtocol {
+
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
-    
-    /// Blur strength, ranging from 0.0 to 1.0
-    public var blurStrength: Float = 0.3 {
-        didSet {
-            blurStrength = max(0.0, min(1.0, blurStrength))
-            gaussianBlurFilter.radius = blurStrength * 5.0
-        }
-    }
-    
-    /// Warmth adjustment, ranging from -1.0 to 1.0, with 0.0 being the original
+    public var blurStrength: Float = 0.3
     public var warmth: Float = 0.2
-    
-    /// Softness adjustment, ranging from 0.0 to 1.0
     public var softness: Float = 0.4
-    
-    public override var modifier: ModifierEnum {
-        return .compute(kernel: "C7CombinationDreamy")
+
+    public var pipelineFilters: [C7FilterProtocol] {
+        [
+            MPSGaussianBlur(radius: max(0.0, min(1.0, blurStrength)) * 5.0),
+            C7Saturation(saturation: 1.1),
+            C7Exposure(exposure: 0.1)
+        ]
     }
-    
-    public override var factors: [Float] {
-        return [intensity, warmth, softness]
-    }
-    
-    public override var otherInputTextures: C7InputTextures {
-        return intermediateTextures
-    }
-    
-    private var gaussianBlurFilter: MPSGaussianBlur
-    private var saturationFilter: C7Saturation
-    private var exposureFilter: C7Exposure
-    
+
     public init(intensity: Float = 1.0) {
         self.intensity = intensity
-        self.gaussianBlurFilter = MPSGaussianBlur(radius: 1.5)
-        self.saturationFilter = C7Saturation(saturation: 1.1)
-        self.exposureFilter = C7Exposure(exposure: 0.1)
-        super.init()
     }
-    
-    /// Prepare intermediate textures for the dreamy filter
-    public override func prepareIntermediateTextures(buffer: MTLCommandBuffer, source: MTLTexture) throws -> [MTLTexture] {
-        var currentTexture = source
-        
-        // Apply Gaussian blur for dreamy effect
-        let blurDest = try TextureLoader.copyTexture(with: source)
-        currentTexture = try gaussianBlurFilter.applyAtTexture(form: currentTexture, to: blurDest, for: buffer)
-        
-        // Apply subtle saturation adjustment
-        let saturationDest = try TextureLoader.copyTexture(with: source)
-        currentTexture = try saturationFilter.applyAtTexture(form: currentTexture, to: saturationDest, for: buffer)
-        
-        // Apply subtle exposure adjustment for brightness
-        let exposureDest = try TextureLoader.copyTexture(with: source)
-        currentTexture = try exposureFilter.applyAtTexture(form: currentTexture, to: exposureDest, for: buffer)
-        
-        intermediateTextures.append(currentTexture)
-        return intermediateTextures
+
+    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
+        try FilterPipelineExecutor.apply(filter: self, source: texture, destination: destTexture, commandBuffer: buffer)
     }
-    
-    /// Cleanup resources after processing
-    public override func cleanupIntermediateTextures() {
-        // Return textures to pool if possible
-        for texture in intermediateTextures {
-            Shared.shared.defaultTexturePool.enqueueTexture(texture)
-        }
-        super.cleanupIntermediateTextures()
+
+    public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
+        PipelineLeafFilter(
+            modifier: .compute(kernel: "C7CombinationDreamy"),
+            factors: [intensity, warmth, softness],
+            otherInputTextures: otherInputTextures ?? []
+        )
     }
 }

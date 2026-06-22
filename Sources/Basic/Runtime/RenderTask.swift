@@ -63,13 +63,11 @@ public final class RenderTask<Output> {
         return commandBufferStatus == .completed || commandBufferStatus == .error
     }
 
-    public func diagnosticsJSONData(prettyPrinted: Bool = false,
-                                    sortedKeys: Bool = true) throws -> Data? {
+    public func diagnosticsJSONData(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> Data? {
         try diagnostics?.jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
-    public func diagnosticsJSONString(prettyPrinted: Bool = false,
-                                      sortedKeys: Bool = true) throws -> String? {
+    public func diagnosticsJSONString(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> String? {
         try diagnostics?.jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 

@@ -33,7 +33,7 @@ public enum AlphaType: String, Sendable, Codable, Equatable {
         }
     }
 
-    public var cgImageAlphaInfoForRGBA: CGImageAlphaInfo {
+    var cgImageAlphaInfoForRGBA: CGImageAlphaInfo {
         switch self {
         case .premultiplied:
             return .premultipliedLast
@@ -53,7 +53,7 @@ public enum ImageAlphaContract: Sendable, Codable, Equatable, Hashable {
     case forcePremultiply
     case forceUnpremultiply
 
-    public var expectedAlphaType: AlphaType? {
+    var expectedAlphaType: AlphaType? {
         switch self {
         case .opaque:
             return .alphaIsOne
@@ -213,7 +213,7 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         self.transferFunction = try container.decodeIfPresent(ImageTransferFunction.self, forKey: .transferFunction) ?? .preserveInput
     }
 
-    public func transferConversionMode(from source: ImageColorSpaceContract) -> C7RGBTransferConversion.Mode? {
+    func transferConversionMode(from source: ImageColorSpaceContract) -> C7RGBTransferConversion.Mode? {
         guard preservesInput == false,
               source.preservesInput == false,
               supportsTransferOnlyConversion(from: source) else {
@@ -229,11 +229,11 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         }
     }
 
-    public func makeTransferConversionFilter(from source: ImageColorSpaceContract) -> C7RGBTransferConversion? {
+    func makeTransferConversionFilter(from source: ImageColorSpaceContract) -> C7RGBTransferConversion? {
         C7RGBTransferConversion(from: source, to: self)
     }
 
-    public func colorConversionMode(from source: ImageColorSpaceContract) -> C7RGBColorSpaceConversion.Mode? {
+    func colorConversionMode(from source: ImageColorSpaceContract) -> C7RGBColorSpaceConversion.Mode? {
         guard preservesInput == false,
               source.preservesInput == false else {
             return nil
@@ -250,7 +250,7 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         }
     }
 
-    public func makeColorConversionFilters(from source: ImageColorSpaceContract) -> [C7FilterProtocol] {
+    func makeColorConversionFilters(from source: ImageColorSpaceContract) -> [C7FilterProtocol] {
         guard preservesInput == false,
               source.preservesInput == false else {
             return []

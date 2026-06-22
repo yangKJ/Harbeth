@@ -130,8 +130,6 @@ public struct MTLTextureCompatible_ {
         let width = target.width
         let height = target.height
         let currentFormat = pixelFormat ?? target.pixelFormat
-        synchronizeForCPUReadIfNeeded()
-        
         // For non-float formats, use the original direct approach
         switch currentFormat {
         case .a8Unorm, .r8Unorm, .r8Uint:
@@ -242,7 +240,6 @@ public struct MTLTextureCompatible_ {
         guard target.pixelFormat == .bgra8Unorm || target.pixelFormat == .rgba8Unorm else {
             return nil
         }
-        synchronizeForCPUReadIfNeeded()
         let width = target.width
         let height = target.height
         let rowBytes = width * 4
@@ -261,18 +258,19 @@ public struct MTLTextureCompatible_ {
         return Data(bytes: buffer, count: totalBytes)
     }
 
-    private func synchronizeForCPUReadIfNeeded() {
-        #if os(macOS)
-        guard target.storageMode == .managed,
-              let commandQueue = target.device.makeCommandQueue(),
-              let commandBuffer = commandQueue.makeCommandBuffer(),
-              let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
-            return
-        }
-        blitEncoder.synchronize(resource: target)
-        blitEncoder.endEncoding()
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-        #endif
+    /// Uploads tightly packed host bytes into the current texture using Harbeth's
+    /// alignment-safe texture replacement contract.
+    public func replacePackedBytes(region: MTLRegion,
+                                   mipmapLevel: Int = 0,
+                                   bytes: [UInt8],
+                                   packedBytesPerRow: Int) {
+        TextureLoader.replaceTexture(
+            target,
+            region: region,
+            mipmapLevel: mipmapLevel,
+            bytes: bytes,
+            packedBytesPerRow: packedBytesPerRow
+        )
     }
+
 }
