@@ -238,6 +238,26 @@ final class ImageNodeTests: XCTestCase {
         )
     }
 
+    func testNodeApplyingMaskDescriptorSingleFilterConvenienceMatchesArrayOverload() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let mask = MaskDescriptor(
+            texture: try makeTexture(width: 4, height: 3, pixel: [255, 0, 0, 255]),
+            component: .red,
+            opacity: 1
+        )
+        let singleNode = ImageNode
+            .texture(input)
+            .applying(mask: mask, filter: C7Brightness(brightness: 0.1))
+        let arrayNode = ImageNode
+            .texture(input)
+            .applying(mask: mask, filters: [C7Brightness(brightness: 0.1)])
+
+        XCTAssertEqual(
+            try singleNode.makeRenderRecipe(profile: .stablePreview).localEffects,
+            try arrayNode.makeRenderRecipe(profile: .stablePreview).localEffects
+        )
+    }
+
     func testNodeApplyingGradientMaskConvenienceMatchesExplicitEditRecipe() throws {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
         let mask = MaskGradientRecipe(

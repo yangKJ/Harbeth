@@ -155,7 +155,7 @@ let finalTexture = try ImageNode
 
 `EditRecipe`, `LayerCompositeRecipe`, and `TransitionRecipe` are editing primitives. Mask, local effect, geometry, layer, and transition value types stay in the recipe layer, while execution is unified through `ImageNode`.
 
-For the common "local mask + filters" case, start with the convenience facade first and only drop down to `LocalEffectRecipe` or `EditRecipe` when the caller needs to build richer editing structures:
+For public `ImageNode` usage, treat `.applying(mask: ...)` as the default local-effect entry. `LocalEffectRecipe` is the advanced structural primitive behind that facade, not the default learning path. Only drop down to `LocalEffectRecipe` or `EditRecipe` when the caller is explicitly building richer editing structures:
 
 ```swift
 let previewFrame = try ImageNode
@@ -179,9 +179,21 @@ let previewFrame = try ImageNode
 
 This convenience still lowers to `LocalEffectRecipe + editing(...)` internally, so `RenderRequest`, `RenderRecipe`, diagnostics, and plugin integration keep the same editing contract.
 
+When the local effect only needs one filter, keep it fully inline:
+
+```swift
+let previewFrame = try ImageNode
+    .texture(inputTexture)
+    .applying(
+        mask: MaskDescriptor(texture: maskTexture),
+        filter: C7Exposure(exposure: 0.12)
+    )
+    .makeFrame(profile: .stablePreview)
+```
+
 For `editing(...)`, `transforming(...)`, `transition(...)`, and `layerComposite(...)`, `ImageNode` keeps the original source contract in `RenderRequest`, `RenderRecipe`, and diagnostics even when execution has already materialized the upstream source into an intermediate texture. This matters for `pixelBuffer`, `sampleBuffer`, YCbCr, and HDR-aware paths.
 
-Private plugin packages also stay inside this route. `HarbethPluginOutput` can carry source-like results such as `texture`, `image`, `pixelBuffer`, and `sampleBuffer`, or editing-side results such as `filters`, `EditRecipe`, `LocalEffectRecipe`, `LayerCompositeRecipe`, and `MaskDescriptor`. The host still materializes them back through `ImageNode.source(...)`, `node.applying(pluginOutput:)`, or `node.applying(plugin:)` instead of introducing a third public route.
+Private plugin packages also stay inside this route. `HarbethPluginOutput` can carry source-like results such as `texture`, `image`, `pixelBuffer`, and `sampleBuffer`, or editing-side results such as `filters`, `EditRecipe`, `LocalEffectRecipe`, and `LayerCompositeRecipe`. `LocalEffectRecipe` remains the advanced plugin-facing primitive for local edits, while ordinary app code should still prefer `.applying(mask: ...)`. The host still materializes them back through `ImageNode.source(...)`, `node.applying(pluginOutput:)`, or `node.applying(plugin:)` instead of introducing a third public route.
 
 ```swift
 let pluginNode = try ImageNode
@@ -196,6 +208,8 @@ let pluginNode = try ImageNode
 let preview = try pluginNode.makePreviewFrame(profile: .stablePreview)
 renderView.display(preview)
 ```
+
+`makePreviewFrame(...)` is now just a preview-named convenience over `RenderedFrame`. Harbeth does not introduce a separate preview frame type; diagnostics remain available through `makeDiagnostics(...)` when needed.
 
 ### Graph and Diagnostics with ImageNode
 
@@ -240,7 +254,8 @@ Deferred execution and asynchronous execution are supporting forms of these path
 Harbeth now includes reusable editor-grade primitives without turning the core into a product-specific editor:
 
 - `ImageCropRegion`, `ImageTransformRecipe`, `AspectPolicy`, `CoordinateSpace`
-- `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`, `LocalEffectRecipe`
+- `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`
+- `LocalEffectRecipe` as the advanced structural primitive behind `.applying(mask: ...)`
 - `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing with normalized placement, layer-local transform, opacity, masks, corner radius, and common blend modes
 - `LayerLayoutUnit`, `LayerFlipOptions`, and `LayerCornerCurve` for more explicit layer layout and compositing contracts
 - `TransitionRecipe` and `TransitionKernelDescriptor` for dissolve, directional wipe, luma wipe, and displacement transitions

@@ -216,7 +216,7 @@ let previewNode = try ImageNode
 let previewFrame = try previewNode.makeFrame(profile: .stablePreview)
 ```
 
-如果调用方需要组合 geometry、多段 local effects 或更复杂的编辑结构，再下沉到 `LocalEffectRecipe + EditRecipe`：
+对外默认优先把局部能力表达成 `.applying(mask: ...)`。`LocalEffectRecipe` 的定位是这层 facade 背后的高级结构化 primitive，不是普通调用方的默认学习入口。只有在调用方明确需要组合 geometry、多段 local effects、或复用结构化编辑配方时，再下沉到 `LocalEffectRecipe + EditRecipe`：
 
 ```swift
 let recipe = EditRecipe(
@@ -253,8 +253,10 @@ renderView.display(previewFrame)
 
 - source-like 插件输出，例如 `texture`、`image`、`cgImage`、`pixelBuffer`、`sampleBuffer`，先回到 `ImageSource`
 - editing-like 插件输出，例如 `filters`、`EditRecipe`、`LocalEffectRecipe`、`LayerCompositeRecipe`，继续进入现有 `ImageNode` 路径
-- 裸 `MaskDescriptor` 只是局部区域描述，不会单独形成可见结果；如果要直接作用到 node，插件应返回 `LocalEffectRecipe` 或 `EditRecipe`
-- `applying(mask:, filters:)` 只是 convenience facade；底层仍统一 lowering 到 `LocalEffectRecipe + editing(...)`
+- 插件层不再返回裸 `MaskDescriptor`；局部能力必须直接包装成 `LocalEffectRecipe` 或 `EditRecipe`
+- `applying(mask:, filters:)` 是 `ImageNode` 面向普通调用方的首选局部入口；底层仍统一 lowering 到 `LocalEffectRecipe + editing(...)`
+- 如果局部效果只有一个 filter，优先使用 `applying(mask:filter:)`，避免为了轻量用法再包一层数组
+- `applying(localEffect:)` 只作为高级 primitive 入口保留，适合插件桥接、结构化编辑状态和多段 local effect 复用
 
 layer composite：
 
@@ -447,7 +449,6 @@ source contract 一致性说明：
 - `RenderGraphDebugSnapshot`
 - `ImageGraph`
 - `RenderedFrame`
-- `HarbethPreviewFrame`
 - `RenderedAttachmentSet`
 - `RenderedAnalysisBundle`
 - `RenderedAttachmentAnalysisBundle`
@@ -464,7 +465,7 @@ source contract 一致性说明：
 
 - 它们是私有插件包、GPU preview host 和 `ImageNode` 之间的桥接支撑层
 - 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
-- `RenderView` 只是 `HarbethPreviewDisplaying` 的默认实现，不代表 Harbeth 额外新增了一条公开路线
+- `RenderView` 只是 `HarbethPreviewDisplaying` 的默认实现，显示对象统一回到 `RenderedFrame`
 - `ReplayBaseContract`
 - `RenderCacheIdentity`
 

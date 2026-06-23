@@ -141,22 +141,7 @@ final class HarbethPluginTests: XCTestCase {
         XCTAssertEqual(try firstPixel(in: direct), try firstPixel(in: bridged))
     }
 
-    func testBareMaskPluginOutputFailsWithExplicitError() throws {
-        let input = try makeTexture(pixel: [120, 120, 120, 255])
-        let maskTexture = try makeTexture(pixel: [255, 255, 255, 255])
-        let node = ImageNode.source(ImageSource.texture(input))
-
-        XCTAssertThrowsError(
-            try node.applying(pluginOutput: .mask(MaskDescriptor(texture: maskTexture)))
-        ) { error in
-            guard case HarbethError.configurationInvalid(let description) = error else {
-                return XCTFail("Expected configurationInvalid, got \(error)")
-            }
-            XCTAssertTrue(description.contains("mask cannot be applied directly"))
-        }
-    }
-
-    func testImageNodePreviewFrameCarriesDiagnostics() throws {
+    func testImageNodePreviewFrameMatchesRenderedFrameContract() throws {
         let input = try makeTexture(pixel: [140, 100, 60, 255])
         let frame = try ImageNode
             .source(.texture(input))
@@ -166,16 +151,18 @@ final class HarbethPluginTests: XCTestCase {
         XCTAssertTrue(frame.texture.width > 0)
         XCTAssertEqual(frame.sourceDescriptor.kind, "texture")
         XCTAssertEqual(frame.profile, .stablePreview)
-        XCTAssertEqual(frame.diagnostics?.compilationSource, .nodeGraph)
+        XCTAssertEqual(frame.renderIntent, .stable)
     }
 
     #if canImport(UIKit) && !os(watchOS)
-    func testRenderViewDisplayUpdatesPreviewFrameWithoutLosingTextureCompatibility() throws {
+    func testRenderViewDisplayUpdatesRenderedFrameWithoutLosingTextureCompatibility() throws {
         let texture = try makeTexture(width: 4, height: 2, pixel: [80, 120, 160, 255])
-        let previewFrame = HarbethPreviewFrame(
+        let previewFrame = RenderedFrame(
             texture: texture,
             sourceDescriptor: ImageSource.texture(texture).descriptor,
-            profile: .stablePreview
+            profile: .stablePreview,
+            generation: 1,
+            identifier: "preview"
         )
         let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 32), device: MTLCreateSystemDefaultDevice())
 
@@ -183,7 +170,7 @@ final class HarbethPluginTests: XCTestCase {
         view.display(previewFrame)
 
         XCTAssertTrue(view.texture === texture)
-        XCTAssertEqual(view.currentPreviewFrame?.sourceDescriptor.kind, "texture")
+        XCTAssertEqual(view.currentRenderedFrame?.sourceDescriptor.kind, "texture")
         XCTAssertEqual(view.drawableSize.width, 64)
         XCTAssertEqual(view.drawableSize.height, 32)
 
@@ -191,7 +178,7 @@ final class HarbethPluginTests: XCTestCase {
         view.texture = replacement
 
         XCTAssertTrue(view.texture === replacement)
-        XCTAssertNil(view.currentPreviewFrame)
+        XCTAssertNil(view.currentRenderedFrame)
     }
     #endif
 

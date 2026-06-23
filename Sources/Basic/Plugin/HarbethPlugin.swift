@@ -26,7 +26,6 @@ public enum HarbethPluginOutput {
     case editRecipe(EditRecipe)
     case localEffect(LocalEffectRecipe)
     case layerComposite(LayerCompositeRecipe)
-    case mask(MaskDescriptor)
 }
 
 extension HarbethPluginOutput {
@@ -50,8 +49,6 @@ extension HarbethPluginOutput {
             return "localEffect"
         case .layerComposite:
             return "layerComposite"
-        case .mask:
-            return "mask"
         }
     }
 
@@ -59,7 +56,7 @@ extension HarbethPluginOutput {
         switch self {
         case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer:
             return true
-        case .filters, .editRecipe, .localEffect, .layerComposite, .mask:
+        case .filters, .editRecipe, .localEffect, .layerComposite:
             return false
         }
     }
@@ -76,7 +73,7 @@ extension HarbethPluginOutput {
             return .pixelBuffer(pixelBuffer)
         case .sampleBuffer(let sampleBuffer):
             return .sampleBuffer(sampleBuffer)
-        case .filters, .editRecipe, .localEffect, .layerComposite, .mask:
+        case .filters, .editRecipe, .localEffect, .layerComposite:
             throw HarbethError.configurationInvalid(
                 "Plugin output \(kind) cannot be materialized as an ImageSource."
             )
@@ -87,15 +84,8 @@ extension HarbethPluginOutput {
         try makeImageSource().descriptor
     }
 
-    public func makePreviewFrame(profile: RenderProfile = .stablePreview, diagnostics: RenderPlanDiagnostics? = nil) throws -> HarbethPreviewFrame {
-        let source = try makeImageSource()
-        let texture = try source.makeTexture()
-        return HarbethPreviewFrame(
-            texture: texture,
-            sourceDescriptor: source.descriptor,
-            profile: profile,
-            diagnostics: diagnostics
-        )
+    public func makePreviewFrame(profile: RenderProfile = .stablePreview) throws -> RenderedFrame {
+        try FrameRenderer(source: makeImageSource(), profile: profile).renderFrame()
     }
 }
 
@@ -117,35 +107,11 @@ public protocol HarbethTexturePlugin: HarbethPlugin { }
 /// 适合“返回 filters / edit recipe / layer composite”的插件。
 public protocol HarbethFilterPlugin: HarbethPlugin { }
 
-/// 适合“返回 mask / local effect”等局部区域结果的插件。
+/// 适合“返回 local effect / edit recipe”等局部编辑结果的插件。
 public protocol HarbethMaskPlugin: HarbethPlugin { }
-
-/// GPU 预览面向 UI 层的标准帧对象。
-public struct HarbethPreviewFrame: @unchecked Sendable {
-    public let texture: MTLTexture
-    public let sourceDescriptor: ImageSourceDescriptor
-    public let profile: RenderProfile
-    public let diagnostics: RenderPlanDiagnostics?
-
-    public init(texture: MTLTexture, sourceDescriptor: ImageSourceDescriptor, profile: RenderProfile, diagnostics: RenderPlanDiagnostics? = nil) {
-        self.texture = texture
-        self.sourceDescriptor = sourceDescriptor
-        self.profile = profile
-        self.diagnostics = diagnostics
-    }
-
-    public init(frame: RenderedFrame, diagnostics: RenderPlanDiagnostics? = nil) {
-        self.init(
-            texture: frame.texture,
-            sourceDescriptor: frame.sourceDescriptor,
-            profile: frame.profile,
-            diagnostics: diagnostics
-        )
-    }
-}
 
 public protocol HarbethPreviewDisplaying: AnyObject {
     var texture: MTLTexture? { get set }
-    var currentPreviewFrame: HarbethPreviewFrame? { get }
-    func display(_ frame: HarbethPreviewFrame?)
+    var currentRenderedFrame: RenderedFrame? { get }
+    func display(_ frame: RenderedFrame?)
 }

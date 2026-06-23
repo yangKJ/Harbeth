@@ -478,3 +478,212 @@ public struct LayerCompositeRecipe {
         return descriptors.isEmpty ? nil : descriptors
     }
 }
+
+extension LayerCompositeRecipe {
+    func makeRenderPlan(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
+        let backgroundTexture = try background.makeTexture()
+        let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
+        let placeholderTexture = backgroundTexture
+        let layerPreparationFilters = layers.flatMap { layer -> [C7FilterProtocol] in
+            var layerTransform = layer.transform
+            if layer.rotation.truncatingRemainder(dividingBy: 360) != 0 {
+                layerTransform.rotationDegrees += layer.rotation
+            }
+            if layer.flipOptions.horizontal {
+                layerTransform.mirrorsHorizontally.toggle()
+            }
+            if layer.flipOptions.vertical {
+                layerTransform.flipsVertically.toggle()
+            }
+            return layerTransform.makeFilters(
+                inputSize: C7Size(width: placeholderTexture.width, height: placeholderTexture.height)
+            ) + layer.filters
+        }
+        let filters = try layers.flatMap { layer -> [C7FilterProtocol] in
+            let resolvedMask = try layer.resolvedMaskDescriptor()
+            let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
+            let composite = LayerComposite(
+                layerTexture: placeholderTexture,
+                mask: resolvedMask,
+                compositingMask: resolvedCompositingMask,
+                normalizedFrame: layer.normalizedFrame,
+                contentRegion: layer.contentRegion,
+                opacity: layer.opacity,
+                blendMode: layer.programmableBlend == nil ? layer.blendMode : .sourceOver,
+                cornerRadius: layer.cornerRadius,
+                cornerCurve: layer.cornerCurve,
+                tintColor: layer.tintColor
+            )
+            guard let programmableBlend = layer.programmableBlend else {
+                return [composite]
+            }
+            return [
+                composite,
+                C7ProgrammableBlend(
+                    functionName: programmableBlend.functionName,
+                    blendTexture: placeholderTexture,
+                    intensity: programmableBlend.intensity,
+                    capability: programmableBlend.capability,
+                    librarySource: programmableBlend.librarySource,
+                    functionConstants: programmableBlend.functionConstants
+                )
+            ]
+        }
+        let plan = GraphCompiler.compile(
+            filters: filters,
+            inputSize: backgroundSize,
+            profile: profile,
+            derivative: derivative ?? self.derivative,
+            compilationSource: .layerComposite,
+            outputContract: outputContract,
+            samplerDescriptor: samplerDescriptor,
+            sourceDescriptor: background.descriptor
+        )
+        let preparationCoverage = SamplerExecutionAdapter.coverage(
+            for: layerPreparationFilters,
+            samplerDescriptor: samplerDescriptor
+        )
+        return plan.withSamplerExecutionCoverage(
+            SamplerExecutionAdapter.merge(plan.diagnostics.samplerExecutionCoverage, preparationCoverage)
+        )
+    }
+
+    func makeTexture(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> MTLTexture {
+        var current = try background.makeTexture()
+        guard layers.isEmpty == false else {
+            return try resizeTextureIfNeeded(current, derivative: derivative ?? self.derivative)
+        }
+
+        for layer in layers {
+            var layerTexture = try layer.content.makeTexture()
+            let resolvedMask = try layer.resolvedMaskDescriptor()
+            let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
+            var layerTransform = layer.transform
+            if layer.rotation.truncatingRemainder(dividingBy: 360) != 0 {
+                layerTransform.rotationDegrees += layer.rotation
+            }
+            if layer.flipOptions.horizontal {
+                layerTransform.mirrorsHorizontally.toggle()
+            }
+            if layer.flipOptions.vertical {
+                layerTransform.flipsVertically.toggle()
+            }
+            let layerFilters = layerTransform.makeFilters(
+                inputSize: C7Size(width: layerTexture.width, height: layerTexture.height)
+            ) + layer.filters
+            if layerFilters.isEmpty == false {
+                layerTexture = try HarbethIO(
+                    element: layerTexture,
+                    filters: SamplerExecutionAdapter.adapt(
+                        filters: layerFilters,
+                        samplerDescriptor: samplerDescriptor
+                    )
+                )
+                .configured(for: profile)
+                .output()
+            }
+            if let programmableBlend = layer.programmableBlend {
+                let preparedLayer = try makeTransparentCanvas(matching: current)
+                let layerCanvas = try HarbethIO(
+                    element: preparedLayer,
+                    filter: LayerComposite(
+                        layerTexture: layerTexture,
+                        mask: resolvedMask,
+                        compositingMask: resolvedCompositingMask,
+                        normalizedFrame: layer.normalizedFrame,
+                        contentRegion: layer.contentRegion,
+                        opacity: layer.opacity,
+                        blendMode: .sourceOver,
+                        cornerRadius: layer.cornerRadius,
+                        cornerCurve: layer.cornerCurve,
+                        tintColor: layer.tintColor
+                    )
+                )
+                .configured(for: profile)
+                .output()
+                current = try HarbethIO(
+                    element: current,
+                    filter: C7ProgrammableBlend(
+                        functionName: programmableBlend.functionName,
+                        blendTexture: layerCanvas,
+                        intensity: programmableBlend.intensity,
+                        capability: programmableBlend.capability,
+                        librarySource: programmableBlend.librarySource,
+                        functionConstants: programmableBlend.functionConstants
+                    )
+                )
+                .configured(for: profile)
+                .output()
+                continue
+            }
+            current = try HarbethIO(
+                element: current,
+                filter: LayerComposite(
+                    layerTexture: layerTexture,
+                    mask: resolvedMask,
+                    compositingMask: resolvedCompositingMask,
+                    normalizedFrame: layer.normalizedFrame,
+                    contentRegion: layer.contentRegion,
+                    opacity: layer.opacity,
+                    blendMode: layer.blendMode,
+                    cornerRadius: layer.cornerRadius,
+                    cornerCurve: layer.cornerCurve,
+                    tintColor: layer.tintColor
+                )
+            )
+            .configured(for: profile)
+            .output()
+        }
+        let contracted = try ImageNode.applyOutputContractIfNeeded(
+            outputContract,
+            to: current,
+            sourceAlphaType: outputContract.inputAlphaExpectation.expectedAlphaType,
+            profile: profile
+        )
+        return try resizeTextureIfNeeded(contracted, derivative: derivative ?? self.derivative)
+    }
+
+    func makeDiagnostics(derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+        try makeRenderPlan(derivative: derivative).diagnostics
+    }
+
+    private func resizeTextureIfNeeded(_ texture: MTLTexture, derivative: ImageDerivativeSpec) throws -> MTLTexture {
+        let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
+        guard targetSize.width != texture.width || targetSize.height != texture.height else {
+            return texture
+        }
+        return try HarbethIO(
+            element: texture,
+            filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height))
+        )
+        .configured(for: profile)
+        .output()
+    }
+
+    private func makeTransparentCanvas(matching texture: MTLTexture) throws -> MTLTexture {
+        let canvas = try TextureLoader.makeTexture(width: texture.width, height: texture.height, options: [
+            .texturePixelFormat: texture.pixelFormat,
+            .textureUsage: texture.usage,
+            .textureSampleCount: texture.sampleCount
+        ], identifier: "LayerCompositeRecipe.TransparentCanvas")
+
+        let bytesPerPixel: Int
+        switch texture.pixelFormat {
+        case .rgba8Unorm, .bgra8Unorm, .rgba8Snorm, .rgba8Unorm_srgb, .bgra8Unorm_srgb:
+            bytesPerPixel = 4
+        case .rgba16Float:
+            bytesPerPixel = 8
+        default:
+            throw HarbethError.filterParameterInvalid("Unsupported programmable layer canvas pixel format: \(texture.pixelFormat)")
+        }
+        let bytesPerRow = texture.width * bytesPerPixel
+        let zeroBytes = [UInt8](repeating: 0, count: texture.height * bytesPerRow)
+        canvas.replace(
+            region: MTLRegionMake2D(0, 0, texture.width, texture.height),
+            mipmapLevel: 0,
+            withBytes: zeroBytes,
+            bytesPerRow: bytesPerRow
+        )
+        return canvas
+    }
+}

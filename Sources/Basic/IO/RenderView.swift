@@ -15,12 +15,12 @@ import AppKit
 
 open class RenderView: MTKView {
 
-    public private(set) var currentPreviewFrame: HarbethPreviewFrame?
+    public private(set) var currentRenderedFrame: RenderedFrame?
 
     public var texture: MTLTexture? {
         didSet {
-            if currentPreviewFrame?.texture !== texture {
-                currentPreviewFrame = nil
+            if currentRenderedFrame?.texture !== texture {
+                currentRenderedFrame = nil
             }
             framebufferOnly = false
             updateDrawableSizeIfNeeded()
@@ -122,8 +122,8 @@ open class RenderView: MTKView {
 }
 
 extension RenderView: HarbethPreviewDisplaying {
-    public func display(_ frame: HarbethPreviewFrame?) {
-        currentPreviewFrame = frame
+    public func display(_ frame: RenderedFrame?) {
+        currentRenderedFrame = frame
         texture = frame?.texture
     }
 }

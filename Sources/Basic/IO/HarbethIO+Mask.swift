@@ -84,9 +84,7 @@ extension HarbethIO where Dest == MTLTexture {
     ///
     /// 调用方只需要提供背景、前景和 mask，仍然继续走 `HarbethIO` 路线；
     /// 底层执行 primitive `MaskRegionBlend` 保持内部化。
-    public static func maskedBlend(background: MTLTexture,
-                                   foreground: MTLTexture,
-                                   mask: MaskDescriptor) -> HarbethIO<MTLTexture> {
+    public static func maskedBlend(background: MTLTexture, foreground: MTLTexture, mask: MaskDescriptor) -> HarbethIO<MTLTexture> {
         HarbethIO(
             element: background,
             filter: MaskRegionBlend(effectTexture: foreground, mask: mask)
