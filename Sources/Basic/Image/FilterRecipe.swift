@@ -118,10 +118,14 @@ public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
 struct LocalEffectRecipeDescriptor: Sendable, Hashable, Codable {
     let filters: [FilterRecipeDescriptor]
     let mask: MaskGraphDescriptor
+    let foregroundBlendMode: String?
+    let foregroundBlendOpacity: Float
 
-    init(filters: [FilterRecipeDescriptor], mask: MaskGraphDescriptor) {
+    init(filters: [FilterRecipeDescriptor], mask: MaskGraphDescriptor, foregroundBlendMode: String? = nil, foregroundBlendOpacity: Float = 1.0) {
         self.filters = filters
         self.mask = mask
+        self.foregroundBlendMode = foregroundBlendMode
+        self.foregroundBlendOpacity = foregroundBlendOpacity
     }
 }
 
@@ -145,7 +149,10 @@ struct RenderRecipe: Sendable, Hashable, Codable {
     let layerMasks: [LayerMaskRecipeDescriptor]?
 
     var fingerprint: String {
-        let localEffectPart = localEffects?.map { $0.mask.fingerprint }.joined(separator: "||") ?? "none"
+        let localEffectPart = localEffects?.map { descriptor in
+            let blend = descriptor.foregroundBlendMode ?? "none"
+            return "\(descriptor.mask.fingerprint):blend=\(blend):opacity=\(String(format: "%.4f", descriptor.foregroundBlendOpacity))"
+        }.joined(separator: "||") ?? "none"
         let layerMaskPart = layerMasks?.map { descriptor in
             "layer=\(descriptor.layerIndex):mask=\(descriptor.mask?.fingerprint ?? "none"):compositing=\(descriptor.compositingMask?.fingerprint ?? "none")"
         }.joined(separator: "||") ?? "none"

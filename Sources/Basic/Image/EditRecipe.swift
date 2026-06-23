@@ -202,7 +202,17 @@ public struct EditRecipe {
                 }
                 var currentTexture = try renderTexture(compiled.inputTexture, compiled.baseFilters, compiled.profile)
                 for localEffect in compiled.localEffects {
-                    let effectTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
+                    let filteredTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
+                    let effectTexture: MTLTexture
+                    if let blendType = localEffect.foregroundBlendType {
+                        effectTexture = try renderTexture(
+                            currentTexture,
+                            [C7Blend(with: blendType, blendTexture: filteredTexture, intensity: localEffect.foregroundBlendOpacity)],
+                            compiled.profile
+                        )
+                    } else {
+                        effectTexture = filteredTexture
+                    }
                     currentTexture = try renderTexture(
                         currentTexture,
                         [MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
@@ -395,7 +405,12 @@ public struct EditRecipe {
         let effectiveDerivative = derivative ?? contract.derivative
         let baseFilters = makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)
         let resolvedLocalEffects = try localEffects.map { effect in
-            try ResolvedLocalEffect(filters: effect.filters, mask: effect.resolvedMaskDescriptor())
+            try ResolvedLocalEffect(
+                filters: effect.filters,
+                mask: effect.resolvedMaskDescriptor(),
+                foregroundBlendType: effect.foregroundBlendType,
+                foregroundBlendOpacity: effect.foregroundBlendOpacity
+            )
         }
         let diagnosticFilters = makeExecutionPreviewChain(
             inputSize: inputSize,
@@ -425,6 +440,8 @@ public struct EditRecipe {
 struct ResolvedLocalEffect {
     let filters: [C7FilterProtocol]
     let mask: MaskDescriptor
+    let foregroundBlendType: C7Blend.BlendType?
+    let foregroundBlendOpacity: Float
 }
 
 struct CompiledEditRecipeExecution {

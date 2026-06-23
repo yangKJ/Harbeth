@@ -606,7 +606,17 @@ private struct CompiledRecipeExecution {
         self.renderTextureClosure = {
             var currentTexture = try renderTexture(compiled.inputTexture, compiled.baseFilters, compiled.profile)
             for localEffect in compiled.localEffects {
-                let effectTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
+                let filteredTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
+                let effectTexture: MTLTexture
+                if let blendType = localEffect.foregroundBlendType {
+                    effectTexture = try renderTexture(
+                        currentTexture,
+                        [C7Blend(with: blendType, blendTexture: filteredTexture, intensity: localEffect.foregroundBlendOpacity)],
+                        compiled.profile
+                    )
+                } else {
+                    effectTexture = filteredTexture
+                }
                 currentTexture = try renderTexture(
                     currentTexture,
                     [MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],

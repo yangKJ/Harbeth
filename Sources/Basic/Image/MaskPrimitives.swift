@@ -824,19 +824,25 @@ public struct LocalEffectRecipe {
     public var mask: MaskDescriptor
     public var maskRecipe: MaskCompositeRecipe?
     public var maskGraphOverride: MaskGraphDescriptor?
+    public var foregroundBlendType: C7Blend.BlendType?
+    public var foregroundBlendOpacity: Float
 
-    public init(filters: [C7FilterProtocol], mask: MaskDescriptor) {
+    public init(filters: [C7FilterProtocol], mask: MaskDescriptor, foregroundBlendType: C7Blend.BlendType? = nil, foregroundBlendOpacity: Float = 1.0) {
         self.filters = filters
         self.mask = mask
         self.maskRecipe = nil
         self.maskGraphOverride = nil
+        self.foregroundBlendType = foregroundBlendType
+        self.foregroundBlendOpacity = min(max(foregroundBlendOpacity, 0), 1)
     }
 
-    public init(filters: [C7FilterProtocol], maskRecipe: MaskCompositeRecipe) {
+    public init(filters: [C7FilterProtocol], maskRecipe: MaskCompositeRecipe, foregroundBlendType: C7Blend.BlendType? = nil, foregroundBlendOpacity: Float = 1.0) {
         self.filters = filters
         self.mask = maskRecipe.baseMask
         self.maskRecipe = maskRecipe
         self.maskGraphOverride = nil
+        self.foregroundBlendType = foregroundBlendType
+        self.foregroundBlendOpacity = min(max(foregroundBlendOpacity, 0), 1)
     }
 
     public init(filters: [C7FilterProtocol],
@@ -845,7 +851,9 @@ public struct LocalEffectRecipe {
                 blendMode: MaskBlendMode = .mix,
                 invert: Bool = false,
                 featherPolicy: MaskFeatherPolicy = .none,
-                opacity: Float = 1.0) throws {
+                opacity: Float = 1.0,
+                foregroundBlendType: C7Blend.BlendType? = nil,
+                foregroundBlendOpacity: Float = 1.0) throws {
         self.filters = filters
         self.mask = try maskGradientRecipe.makeMaskDescriptor(
             component: component,
@@ -862,6 +870,8 @@ public struct LocalEffectRecipe {
             featherPolicy: featherPolicy,
             opacity: opacity
         )
+        self.foregroundBlendType = foregroundBlendType
+        self.foregroundBlendOpacity = min(max(foregroundBlendOpacity, 0), 1)
     }
 
     public init(filters: [C7FilterProtocol],
@@ -870,7 +880,9 @@ public struct LocalEffectRecipe {
                 blendMode: MaskBlendMode = .mix,
                 invert: Bool = false,
                 featherPolicy: MaskFeatherPolicy = .none,
-                opacity: Float = 1.0) throws {
+                opacity: Float = 1.0,
+                foregroundBlendType: C7Blend.BlendType? = nil,
+                foregroundBlendOpacity: Float = 1.0) throws {
         self.filters = filters
         self.mask = try maskShapeRecipe.makeMaskDescriptor(
             component: component,
@@ -887,6 +899,8 @@ public struct LocalEffectRecipe {
             featherPolicy: featherPolicy,
             opacity: opacity
         )
+        self.foregroundBlendType = foregroundBlendType
+        self.foregroundBlendOpacity = min(max(foregroundBlendOpacity, 0), 1)
     }
 
     public init(filters: [C7FilterProtocol],
@@ -895,7 +909,9 @@ public struct LocalEffectRecipe {
                 blendMode: MaskBlendMode = .mix,
                 invert: Bool = false,
                 featherPolicy: MaskFeatherPolicy = .none,
-                opacity: Float = 1.0) throws {
+                opacity: Float = 1.0,
+                foregroundBlendType: C7Blend.BlendType? = nil,
+                foregroundBlendOpacity: Float = 1.0) throws {
         self.filters = filters
         self.mask = try maskPathRecipe.makeMaskDescriptor(
             component: component,
@@ -912,6 +928,8 @@ public struct LocalEffectRecipe {
             featherPolicy: featherPolicy,
             opacity: opacity
         )
+        self.foregroundBlendType = foregroundBlendType
+        self.foregroundBlendOpacity = min(max(foregroundBlendOpacity, 0), 1)
     }
 
     func resolvedMaskDescriptor() throws -> MaskDescriptor {
@@ -924,7 +942,9 @@ public struct LocalEffectRecipe {
     var recipeDescriptor: LocalEffectRecipeDescriptor {
         LocalEffectRecipeDescriptor(
             filters: filters.map(\.recipeDescriptor),
-            mask: (maskGraphOverride ?? maskRecipe?.graphDescriptor) ?? mask.graphDescriptor
+            mask: (maskGraphOverride ?? maskRecipe?.graphDescriptor) ?? mask.graphDescriptor,
+            foregroundBlendMode: foregroundBlendType.map(String.init(describing:)),
+            foregroundBlendOpacity: foregroundBlendOpacity
         )
     }
 }

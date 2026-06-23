@@ -13,7 +13,23 @@ extension ImageNode {
     }
 
     public func applying(mask: MaskDescriptor, filters: [C7FilterProtocol], mode: EditRecipeMode = .preview) -> ImageNode {
-        applying(localEffect: Self.makeLocalEffect(filters: filters, mask: mask), mode: mode)
+        applying(mask: mask, filters: filters, foregroundBlendType: nil, foregroundBlendOpacity: 1.0, mode: mode)
+    }
+
+    public func applying(mask: MaskDescriptor,
+                         filters: [C7FilterProtocol],
+                         foregroundBlendType: C7Blend.BlendType?,
+                         foregroundBlendOpacity: Float = 1.0,
+                         mode: EditRecipeMode = .preview) -> ImageNode {
+        applying(
+            localEffect: Self.makeLocalEffect(
+                filters: filters,
+                mask: mask,
+                foregroundBlendType: foregroundBlendType,
+                foregroundBlendOpacity: foregroundBlendOpacity
+            ),
+            mode: mode
+        )
     }
 
     public func applying(mask: MaskCompositeRecipe, filter: C7FilterProtocol, mode: EditRecipeMode = .preview) -> ImageNode {
@@ -21,7 +37,29 @@ extension ImageNode {
     }
 
     public func applying(mask: MaskCompositeRecipe, filters: [C7FilterProtocol], mode: EditRecipeMode = .preview) -> ImageNode {
-        applying(localEffect: Self.makeLocalEffect(filters: filters, mask: mask), mode: mode)
+        applying(
+            mask: mask,
+            filters: filters,
+            foregroundBlendType: nil,
+            foregroundBlendOpacity: 1.0,
+            mode: mode
+        )
+    }
+
+    public func applying(mask: MaskCompositeRecipe,
+                         filters: [C7FilterProtocol],
+                         foregroundBlendType: C7Blend.BlendType?,
+                         foregroundBlendOpacity: Float = 1.0,
+                         mode: EditRecipeMode = .preview) -> ImageNode {
+        applying(
+            localEffect: Self.makeLocalEffect(
+                filters: filters,
+                mask: mask,
+                foregroundBlendType: foregroundBlendType,
+                foregroundBlendOpacity: foregroundBlendOpacity
+            ),
+            mode: mode
+        )
     }
 
     public func applying(mask: MaskGradientRecipe,
@@ -31,6 +69,8 @@ extension ImageNode {
                          invert: Bool = false,
                          featherPolicy: MaskFeatherPolicy = .none,
                          opacity: Float = 1.0,
+                         foregroundBlendType: C7Blend.BlendType? = nil,
+                         foregroundBlendOpacity: Float = 1.0,
                          mode: EditRecipeMode = .preview) throws -> ImageNode {
         try applying(
             mask: mask,
@@ -40,6 +80,8 @@ extension ImageNode {
             invert: invert,
             featherPolicy: featherPolicy,
             opacity: opacity,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity,
             mode: mode
         )
     }
@@ -51,6 +93,8 @@ extension ImageNode {
                          invert: Bool = false,
                          featherPolicy: MaskFeatherPolicy = .none,
                          opacity: Float = 1.0,
+                         foregroundBlendType: C7Blend.BlendType? = nil,
+                         foregroundBlendOpacity: Float = 1.0,
                          mode: EditRecipeMode = .preview) throws -> ImageNode {
         try applying(
             localEffect: Self.makeLocalEffect(
@@ -60,7 +104,9 @@ extension ImageNode {
                 blendMode: blendMode,
                 invert: invert,
                 featherPolicy: featherPolicy,
-                opacity: opacity
+                opacity: opacity,
+                foregroundBlendType: foregroundBlendType,
+                foregroundBlendOpacity: foregroundBlendOpacity
             ),
             mode: mode
         )
@@ -73,6 +119,8 @@ extension ImageNode {
                          invert: Bool = false,
                          featherPolicy: MaskFeatherPolicy = .none,
                          opacity: Float = 1.0,
+                         foregroundBlendType: C7Blend.BlendType? = nil,
+                         foregroundBlendOpacity: Float = 1.0,
                          mode: EditRecipeMode = .preview) throws -> ImageNode {
         try applying(
             mask: mask,
@@ -82,6 +130,8 @@ extension ImageNode {
             invert: invert,
             featherPolicy: featherPolicy,
             opacity: opacity,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity,
             mode: mode
         )
     }
@@ -93,6 +143,8 @@ extension ImageNode {
                          invert: Bool = false,
                          featherPolicy: MaskFeatherPolicy = .none,
                          opacity: Float = 1.0,
+                         foregroundBlendType: C7Blend.BlendType? = nil,
+                         foregroundBlendOpacity: Float = 1.0,
                          mode: EditRecipeMode = .preview) throws -> ImageNode {
         try applying(
             localEffect: Self.makeLocalEffect(
@@ -102,7 +154,9 @@ extension ImageNode {
                 blendMode: blendMode,
                 invert: invert,
                 featherPolicy: featherPolicy,
-                opacity: opacity
+                opacity: opacity,
+                foregroundBlendType: foregroundBlendType,
+                foregroundBlendOpacity: foregroundBlendOpacity
             ),
             mode: mode
         )
@@ -115,6 +169,8 @@ extension ImageNode {
                          invert: Bool = false,
                          featherPolicy: MaskFeatherPolicy = .none,
                          opacity: Float = 1.0,
+                         foregroundBlendType: C7Blend.BlendType? = nil,
+                         foregroundBlendOpacity: Float = 1.0,
                          mode: EditRecipeMode = .preview) throws -> ImageNode {
         try applying(
             mask: mask,
@@ -124,6 +180,8 @@ extension ImageNode {
             invert: invert,
             featherPolicy: featherPolicy,
             opacity: opacity,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity,
             mode: mode
         )
     }
@@ -135,6 +193,8 @@ extension ImageNode {
                          invert: Bool = false,
                          featherPolicy: MaskFeatherPolicy = .none,
                          opacity: Float = 1.0,
+                         foregroundBlendType: C7Blend.BlendType? = nil,
+                         foregroundBlendOpacity: Float = 1.0,
                          mode: EditRecipeMode = .preview) throws -> ImageNode {
         try applying(
             localEffect: Self.makeLocalEffect(
@@ -144,18 +204,36 @@ extension ImageNode {
                 blendMode: blendMode,
                 invert: invert,
                 featherPolicy: featherPolicy,
-                opacity: opacity
+                opacity: opacity,
+                foregroundBlendType: foregroundBlendType,
+                foregroundBlendOpacity: foregroundBlendOpacity
             ),
             mode: mode
         )
     }
 
-    private static func makeLocalEffect(filters: [C7FilterProtocol], mask: MaskDescriptor) -> LocalEffectRecipe {
-        LocalEffectRecipe(filters: filters, mask: mask)
+    private static func makeLocalEffect(filters: [C7FilterProtocol],
+                                        mask: MaskDescriptor,
+                                        foregroundBlendType: C7Blend.BlendType?,
+                                        foregroundBlendOpacity: Float) -> LocalEffectRecipe {
+        LocalEffectRecipe(
+            filters: filters,
+            mask: mask,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity
+        )
     }
 
-    private static func makeLocalEffect(filters: [C7FilterProtocol], mask: MaskCompositeRecipe) -> LocalEffectRecipe {
-        LocalEffectRecipe(filters: filters, maskRecipe: mask)
+    private static func makeLocalEffect(filters: [C7FilterProtocol],
+                                        mask: MaskCompositeRecipe,
+                                        foregroundBlendType: C7Blend.BlendType?,
+                                        foregroundBlendOpacity: Float) -> LocalEffectRecipe {
+        LocalEffectRecipe(
+            filters: filters,
+            maskRecipe: mask,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity
+        )
     }
 
     private static func makeLocalEffect(filters: [C7FilterProtocol],
@@ -164,7 +242,9 @@ extension ImageNode {
                                         blendMode: MaskBlendMode,
                                         invert: Bool,
                                         featherPolicy: MaskFeatherPolicy,
-                                        opacity: Float) throws -> LocalEffectRecipe {
+                                        opacity: Float,
+                                        foregroundBlendType: C7Blend.BlendType?,
+                                        foregroundBlendOpacity: Float) throws -> LocalEffectRecipe {
         try LocalEffectRecipe(
             filters: filters,
             maskGradientRecipe: mask,
@@ -172,7 +252,9 @@ extension ImageNode {
             blendMode: blendMode,
             invert: invert,
             featherPolicy: featherPolicy,
-            opacity: opacity
+            opacity: opacity,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity
         )
     }
 
@@ -182,7 +264,9 @@ extension ImageNode {
                                         blendMode: MaskBlendMode,
                                         invert: Bool,
                                         featherPolicy: MaskFeatherPolicy,
-                                        opacity: Float) throws -> LocalEffectRecipe {
+                                        opacity: Float,
+                                        foregroundBlendType: C7Blend.BlendType?,
+                                        foregroundBlendOpacity: Float) throws -> LocalEffectRecipe {
         try LocalEffectRecipe(
             filters: filters,
             maskShapeRecipe: mask,
@@ -190,7 +274,9 @@ extension ImageNode {
             blendMode: blendMode,
             invert: invert,
             featherPolicy: featherPolicy,
-            opacity: opacity
+            opacity: opacity,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity
         )
     }
 
@@ -200,7 +286,9 @@ extension ImageNode {
                                         blendMode: MaskBlendMode,
                                         invert: Bool,
                                         featherPolicy: MaskFeatherPolicy,
-                                        opacity: Float) throws -> LocalEffectRecipe {
+                                        opacity: Float,
+                                        foregroundBlendType: C7Blend.BlendType?,
+                                        foregroundBlendOpacity: Float) throws -> LocalEffectRecipe {
         try LocalEffectRecipe(
             filters: filters,
             maskPathRecipe: mask,
@@ -208,7 +296,9 @@ extension ImageNode {
             blendMode: blendMode,
             invert: invert,
             featherPolicy: featherPolicy,
-            opacity: opacity
+            opacity: opacity,
+            foregroundBlendType: foregroundBlendType,
+            foregroundBlendOpacity: foregroundBlendOpacity
         )
     }
 }
