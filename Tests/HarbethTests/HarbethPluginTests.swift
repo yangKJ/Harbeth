@@ -156,7 +156,7 @@ final class HarbethPluginTests: XCTestCase {
 
     #if canImport(UIKit) && !os(watchOS)
     func testRenderViewDisplayUpdatesRenderedFrameWithoutLosingTextureCompatibility() throws {
-        let texture = try makeTexture(width: 4, height: 2, pixel: [80, 120, 160, 255])
+        let texture = try makeTexture(width: 256, height: 128, pixel: [80, 120, 160, 255])
         let previewFrame = RenderedFrame(
             texture: texture,
             sourceDescriptor: ImageSource.texture(texture).descriptor,
@@ -165,6 +165,7 @@ final class HarbethPluginTests: XCTestCase {
             identifier: "preview"
         )
         let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 32), device: MTLCreateSystemDefaultDevice())
+        view.preferredDrawableScale = 1
 
         view.layoutSubviews()
         view.display(previewFrame)
@@ -179,6 +180,16 @@ final class HarbethPluginTests: XCTestCase {
 
         XCTAssertTrue(view.texture === replacement)
         XCTAssertNil(view.currentRenderedFrame)
+    }
+
+    func testRenderViewPreferredDrawableScaleControlsDrawableSize() {
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 48, height: 24), device: MTLCreateSystemDefaultDevice())
+        view.preferredDrawableScale = 2
+
+        view.layoutSubviews()
+
+        XCTAssertEqual(view.drawableSize.width, 96)
+        XCTAssertEqual(view.drawableSize.height, 48)
     }
     #endif
 
