@@ -407,6 +407,32 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertTrue(localEffect.mask.fingerprint.contains("kind=linear"))
     }
 
+    func testGradientLocalEffectDescriptorPreservesMaskControls() throws {
+        let localEffect = try LocalEffectRecipe(
+            filters: [C7Brightness(brightness: -0.1)],
+            maskGradientRecipe: MaskGradientRecipe(
+                size: C7Size(width: 3, height: 1),
+                kind: .linear(
+                    startPoint: CGPoint(x: 0, y: 0.5),
+                    endPoint: CGPoint(x: 1, y: 0.5)
+                )
+            ),
+            component: .green,
+            blendMode: .add,
+            invert: true,
+            featherPolicy: .normalized(0.2),
+            opacity: 0.7
+        )
+        let descriptor = localEffect.recipeDescriptor
+
+        XCTAssertEqual(descriptor.mask.kind, "maskGradientRecipe")
+        XCTAssertEqual(descriptor.mask.component, .green)
+        XCTAssertEqual(descriptor.mask.blendMode, .add)
+        XCTAssertTrue(descriptor.mask.invert)
+        XCTAssertEqual(descriptor.mask.opacity, 0.7, accuracy: 0.0001)
+        XCTAssertEqual(descriptor.mask.featherAmount, 0.2, accuracy: 0.0001)
+    }
+
     func testRecipeRenderRecipePreservesParametricCompositeMaskStepDescriptors() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
@@ -469,6 +495,29 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(localEffect.mask.kind, "maskShapeRecipe")
         XCTAssertEqual(localEffect.mask.shape?.kind, "rectangle")
         XCTAssertTrue(localEffect.mask.shape?.parameterValues.contains("size=3x1") == true)
+    }
+
+    func testShapeLocalEffectDescriptorPreservesMaskControls() throws {
+        let localEffect = try LocalEffectRecipe(
+            filters: [C7Brightness(brightness: -0.1)],
+            maskShapeRecipe: MaskShapeRecipe(
+                size: C7Size(width: 3, height: 1),
+                kind: .ellipse(rect: CGRect(x: 0.25, y: 0, width: 0.5, height: 1), feather: 0.3)
+            ),
+            component: .blue,
+            blendMode: .multiply,
+            invert: false,
+            featherPolicy: .normalized(0.4),
+            opacity: 0.65
+        )
+        let descriptor = localEffect.recipeDescriptor
+
+        XCTAssertEqual(descriptor.mask.kind, "maskShapeRecipe")
+        XCTAssertEqual(descriptor.mask.component, .blue)
+        XCTAssertEqual(descriptor.mask.blendMode, .multiply)
+        XCTAssertFalse(descriptor.mask.invert)
+        XCTAssertEqual(descriptor.mask.opacity, 0.65, accuracy: 0.0001)
+        XCTAssertEqual(descriptor.mask.featherAmount, 0.4, accuracy: 0.0001)
     }
 
     func testLayerCompositeDirectPathMatchesNodePath() throws {

@@ -183,6 +183,200 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
     }
 
+    func testNodeApplyingLocalEffectConvenienceUsesEditRoute() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let mask = try makeTexture(width: 4, height: 3, pixel: [255, 0, 0, 255])
+        let localEffect = LocalEffectRecipe(
+            filters: [C7Brightness(brightness: 0.1)],
+            mask: MaskDescriptor(texture: mask, opacity: 0.8)
+        )
+        let node = ImageNode
+            .texture(input)
+            .applying(localEffect: localEffect)
+
+        let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
+        let renderRecipe = try node.makeRenderRecipe(profile: .stablePreview)
+        let effect = try XCTUnwrap(renderRecipe.localEffects?.first)
+
+        XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
+        XCTAssertEqual(effect.mask.kind, "maskDescriptor")
+        XCTAssertEqual(effect.mask.opacity, 0.8, accuracy: 0.0001)
+    }
+
+    func testNodeApplyingMaskDescriptorConvenienceMatchesExplicitEditRecipe() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let mask = MaskDescriptor(
+            texture: try makeTexture(width: 4, height: 3, pixel: [255, 0, 0, 255]),
+            component: .alpha,
+            blendMode: .replace,
+            invert: true,
+            featherPolicy: .normalized(0.25),
+            opacity: 0.6
+        )
+        let convenienceNode = ImageNode
+            .texture(input)
+            .applying(mask: mask, filters: [C7Brightness(brightness: 0.1)])
+        let explicitNode = ImageNode
+            .texture(input)
+            .editing(
+                EditRecipe(
+                    localEffects: [
+                        LocalEffectRecipe(
+                            filters: [C7Brightness(brightness: 0.1)],
+                            mask: mask
+                        )
+                    ]
+                )
+            )
+
+        let convenienceRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
+        let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
+        XCTAssertEqual(convenienceRecipe.localEffects, explicitRecipe.localEffects)
+        XCTAssertEqual(
+            try convenienceNode.makeDiagnostics(profile: .stablePreview).compilationSource,
+            .editRecipe
+        )
+    }
+
+    func testNodeApplyingGradientMaskConvenienceMatchesExplicitEditRecipe() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let mask = MaskGradientRecipe(
+            size: C7Size(width: 4, height: 3),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        )
+        let convenienceNode = try ImageNode
+            .texture(input)
+            .applying(
+                mask: mask,
+                filters: [C7Brightness(brightness: 0.1)],
+                component: .green,
+                blendMode: .add,
+                invert: true,
+                featherPolicy: .normalized(0.2),
+                opacity: 0.7
+            )
+        let explicitNode = ImageNode
+            .texture(input)
+            .editing(
+                EditRecipe(
+                    localEffects: [
+                        try LocalEffectRecipe(
+                            filters: [C7Brightness(brightness: 0.1)],
+                            maskGradientRecipe: mask,
+                            component: .green,
+                            blendMode: .add,
+                            invert: true,
+                            featherPolicy: .normalized(0.2),
+                            opacity: 0.7
+                        )
+                    ]
+                )
+            )
+        let renderRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+        let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
+
+        XCTAssertEqual(
+            renderRecipe.localEffects,
+            explicitRecipe.localEffects
+        )
+        XCTAssertEqual(localEffect.mask.kind, "maskGradientRecipe")
+        XCTAssertEqual(localEffect.mask.component, .green)
+        XCTAssertEqual(localEffect.mask.blendMode, .add)
+        XCTAssertEqual(localEffect.mask.opacity, 0.7, accuracy: 0.0001)
+    }
+
+    func testNodeApplyingShapeMaskConvenienceMatchesExplicitEditRecipe() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let mask = MaskShapeRecipe(
+            size: C7Size(width: 4, height: 3),
+            kind: .ellipse(rect: CGRect(x: 0.25, y: 0, width: 0.5, height: 1), feather: 0.3)
+        )
+        let convenienceNode = try ImageNode
+            .texture(input)
+            .applying(
+                mask: mask,
+                filters: [C7Contrast(contrast: 1.1)],
+                component: .blue,
+                blendMode: .multiply,
+                featherPolicy: .normalized(0.4),
+                opacity: 0.65
+            )
+        let explicitNode = ImageNode
+            .texture(input)
+            .editing(
+                EditRecipe(
+                    localEffects: [
+                        try LocalEffectRecipe(
+                            filters: [C7Contrast(contrast: 1.1)],
+                            maskShapeRecipe: mask,
+                            component: .blue,
+                            blendMode: .multiply,
+                            featherPolicy: .normalized(0.4),
+                            opacity: 0.65
+                        )
+                    ]
+                )
+            )
+        let renderRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+        let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
+
+        XCTAssertEqual(
+            renderRecipe.localEffects,
+            explicitRecipe.localEffects
+        )
+        XCTAssertEqual(localEffect.mask.kind, "maskShapeRecipe")
+        XCTAssertEqual(localEffect.mask.component, .blue)
+        XCTAssertEqual(localEffect.mask.blendMode, .multiply)
+        XCTAssertEqual(localEffect.mask.opacity, 0.65, accuracy: 0.0001)
+    }
+
+    func testNodeApplyingCompositeMaskConvenienceMatchesExplicitEditRecipe() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+        let base = MaskGradientRecipe(
+            size: C7Size(width: 4, height: 3),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        )
+        let subtract = MaskShapeRecipe(
+            size: C7Size(width: 4, height: 3),
+            kind: .rectangle(rect: CGRect(x: 0.25, y: 0, width: 0.25, height: 1))
+        )
+        let mask = try MaskCompositeRecipe(baseGradientRecipe: base)
+            .subtracting(subtract, name: "subtract-center")
+        let convenienceNode = ImageNode
+            .texture(input)
+            .applying(mask: mask, filters: [C7Saturation(saturation: 1.2)])
+        let explicitNode = ImageNode
+            .texture(input)
+            .editing(
+                EditRecipe(
+                    localEffects: [
+                        LocalEffectRecipe(
+                            filters: [C7Saturation(saturation: 1.2)],
+                            maskRecipe: mask
+                        )
+                    ]
+                )
+            )
+        let renderRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+        let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
+
+        XCTAssertEqual(
+            renderRecipe.localEffects,
+            explicitRecipe.localEffects
+        )
+        XCTAssertEqual(localEffect.mask.kind, "maskCompositeRecipe")
+        XCTAssertEqual(localEffect.mask.steps.first?.name, "subtract-center")
+    }
+
     func testPersistentNodeResolutionReusesCachedTexture() throws {
         let context = Shared.shared.defaultContext
         context.resetCaches()

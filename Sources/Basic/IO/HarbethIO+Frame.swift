@@ -9,8 +9,7 @@ import Foundation
 import MetalKit
 
 extension HarbethIO {
-    private func resolvedExecutionContext(profile: RenderProfile,
-                                          derivative: ImageDerivativeSpec? = nil) throws -> (sourceObject: ImageSource, sourceTexture: MTLTexture, effectiveDerivative: ImageDerivativeSpec, effectiveFilters: [C7FilterProtocol]) {
+    private func resolvedExecutionContext(profile: RenderProfile, derivative: ImageDerivativeSpec? = nil) throws -> (sourceObject: ImageSource, sourceTexture: MTLTexture, effectiveDerivative: ImageDerivativeSpec, effectiveFilters: [C7FilterProtocol]) {
         let sourceObject = try makeImageSource()
         let sourceTexture = try sourceObject.makeTexture()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
@@ -122,9 +121,7 @@ extension HarbethIO {
         }
     }
 
-    private func resolvePixelBufferFormatType(requestedPixelFormatType: OSType,
-                                              outputPixelFormat: PixelFormatContract,
-                                              renderedTexture: MTLTexture) throws -> OSType {
+    private func resolvePixelBufferFormatType(requestedPixelFormatType: OSType, outputPixelFormat: PixelFormatContract, renderedTexture: MTLTexture) throws -> OSType {
         if outputPixelFormat.preservesInput {
             return requestedPixelFormatType
         }
@@ -159,8 +156,7 @@ extension HarbethIO {
     }
 
     /// texture-first task output for callers that need to observe GPU completion.
-    public func startRenderTextureTask(profile: RenderProfile = .stablePreview,
-                                       derivative: ImageDerivativeSpec? = nil) throws -> RenderTask<MTLTexture> {
+    public func startRenderTextureTask(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderTask<MTLTexture> {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
         let diagnostics = GraphCompiler.compile(
             filters: context.effectiveFilters,
@@ -226,12 +222,13 @@ extension HarbethIO {
             outputSemantic: context.effectiveDerivative.semantic,
             alphaType: context.sourceObject.alphaType,
             orientation: context.sourceObject.orientation,
-            filters: context.effectiveFilters.map(\.recipeDescriptor)
+            filters: context.effectiveFilters.map(\.recipeDescriptor),
+            localEffects: nil,
+            layerMasks: nil
         )
     }
 
-    public func makeRenderRequest(profile: RenderProfile = .stablePreview,
-                                  derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
+    public func makeRenderRequest(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let renderRecipe = try renderRecipe(profile: profile, derivative: effectiveDerivative)
         let diagnostics = try renderDiagnostics(profile: profile, derivative: effectiveDerivative)
@@ -649,5 +646,4 @@ extension HarbethIO {
             }
         }
     }
-
 }

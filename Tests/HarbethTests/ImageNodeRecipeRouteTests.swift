@@ -27,6 +27,45 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertEqual(request.source.kind, "texture")
     }
 
+    func testMaskConvenienceNodePreservesEditRouteContracts() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let input = try makeTexture(width: 4, height: 4, pixel: [200, 120, 80, 255])
+        let gradient = MaskGradientRecipe(
+            size: C7Size(width: 4, height: 4),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        )
+        let node = try ImageNode
+            .texture(input)
+            .applying(
+                mask: gradient,
+                filters: [C7Brightness(brightness: -0.2)],
+                component: .green,
+                blendMode: .add,
+                invert: true,
+                featherPolicy: .normalized(0.15),
+                opacity: 0.75
+            )
+
+        let request = try node.makeRenderRequest()
+        let renderRecipe = try XCTUnwrap(request.renderRecipe)
+        let snapshot = try node.makeDebugSnapshot()
+        let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
+
+        XCTAssertEqual(request.compilationSource, .editRecipe)
+        XCTAssertEqual(request.source.kind, "texture")
+        XCTAssertEqual(renderRecipe.source.kind, "texture")
+        XCTAssertEqual(snapshot.renderRecipe?.source.kind, "texture")
+        XCTAssertEqual(localEffect.mask.kind, "maskGradientRecipe")
+        XCTAssertEqual(localEffect.mask.component, .green)
+        XCTAssertEqual(localEffect.mask.blendMode, .add)
+        XCTAssertEqual(localEffect.mask.opacity, 0.75, accuracy: 0.0001)
+    }
+
     func testLayerCompositeNodeProducesTextureFrameAndRequest() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
@@ -589,6 +628,28 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertEqual(texture.width, 2)
         XCTAssertEqual(try firstPixel(in: frame.texture).blue, 255)
         XCTAssertEqual(frame.metadata["route"], "transition")
+        XCTAssertEqual(diagnostics.compilationSource, .transition)
+        XCTAssertTrue(diagnostics.containsTransitionKernel)
+    }
+
+    func testTransitionNodeConvenienceFactoryProducesTransitionRoute() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+
+        let from = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
+        let node = ImageNode.transition(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .dissolve,
+            progress: 1
+        )
+
+        let request = try node.makeRenderRequest()
+        let diagnostics = try node.makeDiagnostics()
+
+        XCTAssertEqual(request.compilationSource, .transition)
+        XCTAssertEqual(request.source.kind, "texture")
         XCTAssertEqual(diagnostics.compilationSource, .transition)
         XCTAssertTrue(diagnostics.containsTransitionKernel)
     }

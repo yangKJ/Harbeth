@@ -47,10 +47,7 @@ public struct TextureLoader {
         public let bridgePlan: PixelBufferTextureBridgePlan
         public let retainedOwners: [AnyObject]
 
-        public init(primaryTexture: MTLTexture,
-                    planeTextures: [MTLTexture],
-                    bridgePlan: PixelBufferTextureBridgePlan,
-                    retainedOwners: [AnyObject] = []) {
+        public init(primaryTexture: MTLTexture, planeTextures: [MTLTexture], bridgePlan: PixelBufferTextureBridgePlan, retainedOwners: [AnyObject] = []) {
             self.primaryTexture = primaryTexture
             self.planeTextures = planeTextures
             self.bridgePlan = bridgePlan
@@ -124,11 +121,7 @@ public struct TextureLoader {
     ///
     /// Prefer this helper when the source row stride is tightly packed, for example
     /// `width * 4` RGBA8 buffers built in tests, diagnostics, or lightweight host-side tools.
-    public static func replaceTexture(_ texture: MTLTexture,
-                                      region: MTLRegion,
-                                      mipmapLevel: Int = 0,
-                                      bytes: [UInt8],
-                                      packedBytesPerRow: Int) {
+    public static func replaceTexture(_ texture: MTLTexture, region: MTLRegion, mipmapLevel: Int = 0, bytes: [UInt8], packedBytesPerRow: Int) {
         let upload = alignedTextureBytes(
             bytes,
             packedBytesPerRow: packedBytesPerRow,

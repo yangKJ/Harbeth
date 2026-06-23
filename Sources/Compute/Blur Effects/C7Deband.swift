@@ -31,10 +31,7 @@ public struct C7Deband: C7FilterProtocol {
         .neighborhood
     }
 
-    public init(radius: Float = 2,
-                threshold: Float = 0.12,
-                amount: Float = 0.7,
-                dither: Float = 0.15) {
+    public init(radius: Float = 2, threshold: Float = 0.12, amount: Float = 0.7, dither: Float = 0.15) {
         self.radius = radius
         self.threshold = threshold
         self.amount = amount

@@ -53,24 +53,6 @@ struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
     let expectedPixelFormat: PixelFormatContract
     let compatibilitySummary: String
 
-    init(filterName: String,
-         kind: KernelFunctionKind,
-         passes: [KernelExecutionPass],
-         outputContract: RenderOutputContract,
-         inputTextureCount: Int,
-         usesFunctionConstants: Bool,
-         expectedPixelFormat: PixelFormatContract,
-         compatibilitySummary: String) {
-        self.filterName = filterName
-        self.kind = kind
-        self.passes = passes
-        self.outputContract = outputContract
-        self.inputTextureCount = inputTextureCount
-        self.usesFunctionConstants = usesFunctionConstants
-        self.expectedPixelFormat = expectedPixelFormat
-        self.compatibilitySummary = compatibilitySummary
-    }
-
     var fingerprint: String {
         [
             "filter=\(filterName)",
@@ -104,8 +86,7 @@ protocol KernelExecutable {
 }
 
 enum KernelEncoder {
-    static func makeExecutionPlan(descriptor: KernelDescriptor,
-                                  compatibilitySummary: String = "compatible") -> KernelExecutionPlan {
+    static func makeExecutionPlan(descriptor: KernelDescriptor, compatibilitySummary: String = "compatible") -> KernelExecutionPlan {
         let kind = descriptor.functionIdentity.kind
         let parameterFingerprint = descriptor.parameters
             .sorted { $0.key < $1.key }

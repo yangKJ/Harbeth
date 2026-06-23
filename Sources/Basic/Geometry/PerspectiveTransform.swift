@@ -30,11 +30,7 @@ public struct PerspectiveTransform: Equatable, Sendable {
     /// Perspective strength in radians. `0` disables perspective projection.
     public var fieldOfView: Float
 
-    public init(vertical: Float = 0,
-                horizontal: Float = 0,
-                rotate: Float = 0,
-                scale: Float = 1,
-                fieldOfView: Float = .pi / 6) {
+    public init(vertical: Float = 0, horizontal: Float = 0, rotate: Float = 0, scale: Float = 1, fieldOfView: Float = .pi / 6) {
         self.vertical = vertical
         self.horizontal = horizontal
         self.rotate = rotate

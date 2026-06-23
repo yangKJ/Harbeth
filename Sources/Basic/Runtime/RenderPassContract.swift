@@ -53,9 +53,9 @@ struct ColorAttachmentContract: Sendable, Codable, Equatable, Hashable {
     let clearsOnLoad: Bool
 
     init(index: Int = 0,
-                pixelFormat: MTLPixelFormat? = nil,
-                loadBehavior: RenderAttachmentLoadBehavior = .clear,
-                storeBehavior: RenderAttachmentStoreBehavior = .store) {
+         pixelFormat: MTLPixelFormat? = nil,
+         loadBehavior: RenderAttachmentLoadBehavior = .clear,
+         storeBehavior: RenderAttachmentStoreBehavior = .store) {
         self.index = index
         self.pixelFormat = pixelFormat.map { PixelFormatContract(pixelFormat: $0, preservesInput: false).name }
         self.loadBehavior = loadBehavior
@@ -81,10 +81,10 @@ struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
     let usesCustomVertexLayout: Bool
 
     init(colorAttachments: [ColorAttachmentContract],
-                sampleCount: Int = 1,
-                hasDepthAttachment: Bool = false,
-                hasStencilAttachment: Bool = false,
-                usesCustomVertexLayout: Bool = false) {
+         sampleCount: Int = 1,
+         hasDepthAttachment: Bool = false,
+         hasStencilAttachment: Bool = false,
+         usesCustomVertexLayout: Bool = false) {
         self.colorAttachments = colorAttachments.sorted { $0.index < $1.index }
         self.sampleCount = max(sampleCount, 1)
         self.hasDepthAttachment = hasDepthAttachment
@@ -92,9 +92,7 @@ struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
         self.usesCustomVertexLayout = usesCustomVertexLayout
     }
 
-    static func singleColor(pixelFormat: MTLPixelFormat? = nil,
-                                   sampleCount: Int = 1,
-                                   usesCustomVertexLayout: Bool = false) -> RenderPassContract {
+    static func singleColor(pixelFormat: MTLPixelFormat? = nil, sampleCount: Int = 1, usesCustomVertexLayout: Bool = false) -> RenderPassContract {
         RenderPassContract(
             colorAttachments: [
                 ColorAttachmentContract(
@@ -152,9 +150,7 @@ struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
         return (try? makeDescriptor(destinationTexturesByAttachmentIndex: bindings)) ?? MTLRenderPassDescriptor()
     }
 
-    private func validate(texture: MTLTexture,
-                          for attachment: ColorAttachmentContract,
-                          referenceTexture: MTLTexture) throws {
+    private func validate(texture: MTLTexture, for attachment: ColorAttachmentContract, referenceTexture: MTLTexture) throws {
         guard texture.width == referenceTexture.width,
               texture.height == referenceTexture.height else {
             throw HarbethError.configurationInvalid(

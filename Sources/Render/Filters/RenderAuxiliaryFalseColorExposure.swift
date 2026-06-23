@@ -40,10 +40,7 @@ public struct RenderAuxiliaryFalseColorExposure: RenderProtocol {
         )
     }
 
-    public init(shadowThreshold: Float = 0.10,
-                lowMidThreshold: Float = 0.35,
-                highMidThreshold: Float = 0.70,
-                highlightThreshold: Float = 0.92) {
+    public init(shadowThreshold: Float = 0.10, lowMidThreshold: Float = 0.35, highMidThreshold: Float = 0.70, highlightThreshold: Float = 0.92) {
         self.shadowThreshold = shadowThreshold
         self.lowMidThreshold = lowMidThreshold
         self.highMidThreshold = highMidThreshold

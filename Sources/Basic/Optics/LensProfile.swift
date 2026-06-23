@@ -22,10 +22,7 @@ public struct LensProfile: Codable, Equatable {
         public var vignette: Float
         public var diffraction: Float
 
-        public init(distortion: Float = 1,
-                    chromaticAberration: Float = 1,
-                    vignette: Float = 1,
-                    diffraction: Float = 1) {
+        public init(distortion: Float = 1, chromaticAberration: Float = 1, vignette: Float = 1, diffraction: Float = 1) {
             self.distortion = distortion
             self.chromaticAberration = chromaticAberration
             self.vignette = vignette
@@ -41,10 +38,7 @@ public struct LensProfile: Codable, Equatable {
         public var cubicDistortion: Float
         public var scale: Float
 
-        public init(center: C7Point2D = .center,
-                    distortion: Float = 0,
-                    cubicDistortion: Float = 0,
-                    scale: Float = 1) {
+        public init(center: C7Point2D = .center, distortion: Float = 0, cubicDistortion: Float = 0, scale: Float = 1) {
             self.center = center
             self.distortion = distortion
             self.cubicDistortion = cubicDistortion
@@ -70,10 +64,7 @@ public struct LensProfile: Codable, Equatable {
         public var start: Float
         public var end: Float
 
-        public init(center: C7Point2D = .center,
-                    amount: Float = 0,
-                    start: Float = 0.35,
-                    end: Float = 1.0) {
+        public init(center: C7Point2D = .center, amount: Float = 0, start: Float = 0.35, end: Float = 1.0) {
             self.center = center
             self.amount = amount
             self.start = start
@@ -86,9 +77,7 @@ public struct LensProfile: Codable, Equatable {
         public var radius: Float
         public var edgeThreshold: Float
 
-        public init(amount: Float = 0,
-                    radius: Float = 1,
-                    edgeThreshold: Float = 0.08) {
+        public init(amount: Float = 0, radius: Float = 1, edgeThreshold: Float = 0.08) {
             self.amount = amount
             self.radius = radius
             self.edgeThreshold = edgeThreshold

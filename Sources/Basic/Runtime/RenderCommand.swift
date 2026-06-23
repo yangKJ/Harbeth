@@ -78,10 +78,10 @@ struct RenderCommandBatchDescriptor: Sendable, Codable, Equatable, Hashable {
     let commandFingerprints: [String]
 
     init(renderPass: RenderPassContract,
-                outputContract: RenderOutputContract,
-                commandCount: Int,
-                drawCallCount: Int,
-                commandFingerprints: [String]) {
+         outputContract: RenderOutputContract,
+         commandCount: Int,
+         drawCallCount: Int,
+         commandFingerprints: [String]) {
         self.renderPass = renderPass
         self.outputContract = outputContract
         self.commandCount = max(commandCount, 0)

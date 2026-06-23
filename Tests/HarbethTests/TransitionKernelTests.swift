@@ -112,6 +112,36 @@ final class TransitionKernelTests: XCTestCase {
         XCTAssertEqual(diagnostics.stages.first?.containsTransitionKernel, true)
     }
 
+    func testTransitionNodeConvenienceFactoryMatchesRecipeRoute() throws {
+        let from = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 2, height: 2, pixel: [0, 255, 0, 255])
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .directionalWipe(angleDegrees: 45, softness: 0.05),
+            progress: 0.5
+        )
+        let recipeNode = ImageNode.transition(recipe)
+        let convenienceNode = ImageNode.transition(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .directionalWipe(angleDegrees: 45, softness: 0.05),
+            progress: 0.5
+        )
+
+        let recipeDiagnostics = try recipeNode.makeDiagnostics(profile: recipe.profile, derivative: recipe.derivative)
+        let convenienceDiagnostics = try convenienceNode.makeDiagnostics(profile: recipe.profile, derivative: recipe.derivative)
+        let recipeRequest = try recipeNode.makeRenderRequest(profile: recipe.profile, derivative: recipe.derivative)
+        let convenienceRequest = try convenienceNode.makeRenderRequest(profile: recipe.profile, derivative: recipe.derivative)
+
+        XCTAssertEqual(recipeDiagnostics.compilationSource, .transition)
+        XCTAssertEqual(convenienceDiagnostics.compilationSource, .transition)
+        XCTAssertEqual(recipeRequest.compilationSource, .transition)
+        XCTAssertEqual(convenienceRequest.compilationSource, .transition)
+        XCTAssertEqual(recipeRequest.renderRecipe?.filters, convenienceRequest.renderRecipe?.filters)
+        XCTAssertEqual(recipeRequest.renderRecipe?.source, convenienceRequest.renderRecipe?.source)
+    }
+
     func testTransitionDiagnosticsTracksDualInputConversions() throws {
         var fromBuffer: CVPixelBuffer?
         var toBuffer: CVPixelBuffer?

@@ -69,10 +69,7 @@ public extension C7FilterPipelineProtocol {
 }
 
 enum FilterPipelineExecutor {
-    static func apply(filter: C7FilterPipelineProtocol,
-                      source: MTLTexture,
-                      destination: MTLTexture,
-                      commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
+    static func apply(filter: C7FilterPipelineProtocol, source: MTLTexture, destination: MTLTexture, commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
         let style = filter.pipelineExecutionStyle
         let pipelineFilters = filter.pipelineFilters
         let auxiliaryTextures: [MTLTexture]

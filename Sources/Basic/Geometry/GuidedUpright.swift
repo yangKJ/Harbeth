@@ -78,8 +78,7 @@ public struct GuidedUpright: Sendable {
         guides.map(\.fingerprint).joined(separator: "||")
     }
 
-    public func makeFilter(inputSize: CGSize,
-                           viewportMode: Transform3DViewportMode = .minimumEnclosing) -> C7FilterProtocol? {
+    public func makeFilter(inputSize: CGSize, viewportMode: Transform3DViewportMode = .minimumEnclosing) -> C7FilterProtocol? {
         switch recommendTransform(inputSize: inputSize) {
         case .quadRectify(let filter):
             return filter

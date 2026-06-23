@@ -36,10 +36,7 @@ public struct C7LensVignetteCorrection: C7FilterProtocol {
         .point
     }
 
-    public init(center: C7Point2D = .center,
-                amount: Float = 0,
-                start: Float = 0.35,
-                end: Float = 1.0) {
+    public init(center: C7Point2D = .center, amount: Float = 0, start: Float = 0.35, end: Float = 1.0) {
         self.center = center
         self.amount = amount
         self.start = start

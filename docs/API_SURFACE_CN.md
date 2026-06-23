@@ -105,6 +105,21 @@ let output = try HarbethIO(
 ).output()
 ```
 
+如果调用方已经手里有 `backgroundTexture + foregroundTexture + mask`，例如大图 tile、repair 局部回贴，或私有插件先算出局部结果再贴回背景，也继续走 `HarbethIO` 路线：
+
+```swift
+let output = try HarbethIO
+    .maskedBlend(
+        background: backgroundTexture,
+        foreground: foregroundTexture,
+        mask: MaskDescriptor(texture: maskTexture, component: .red, opacity: 0.8)
+    )
+    .configured(for: .stablePreview)
+    .output()
+```
+
+这里的 `maskedBlend(...)` 是公开 convenience；底层执行 primitive `MaskRegionBlend` 保持内部化，不再作为普通用户 API 暴露。
+
 边界：
 
 - `HarbethIO` 不负责结构化编辑描述
@@ -182,6 +197,28 @@ let texture = try node.makeTexture(profile: .stablePreview)
 recipe-driven editing：
 
 ```swift
+let previewNode = try ImageNode
+    .texture(inputTexture)
+    .applying(
+        mask: MaskGradientRecipe(
+            size: C7Size(width: inputTexture.width, height: inputTexture.height),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        ),
+        filters: [C7Exposure(exposure: 0.12)],
+        opacity: 0.8,
+        mode: .preview
+    )
+    .applying(C7Brightness(brightness: 0.08))
+
+let previewFrame = try previewNode.makeFrame(profile: .stablePreview)
+```
+
+如果调用方需要组合 geometry、多段 local effects 或更复杂的编辑结构，再下沉到 `LocalEffectRecipe + EditRecipe`：
+
+```swift
 let recipe = EditRecipe(
     geometry: ImageTransformRecipe(
         targetSize: CGSize(width: 1600, height: 900),
@@ -194,13 +231,6 @@ let recipe = EditRecipe(
         )
     ]
 )
-
-let node = ImageNode
-    .texture(inputTexture)
-    .editing(recipe, mode: .preview)
-    .applying(C7Brightness(brightness: 0.08))
-
-let previewFrame = try node.makeFrame(profile: .stablePreview)
 ```
 
 私有插件包如果要接进 `ImageNode`，也仍然走这条路线，不新增独立 `PluginNode`：
@@ -224,6 +254,7 @@ renderView.display(previewFrame)
 - source-like 插件输出，例如 `texture`、`image`、`cgImage`、`pixelBuffer`、`sampleBuffer`，先回到 `ImageSource`
 - editing-like 插件输出，例如 `filters`、`EditRecipe`、`LocalEffectRecipe`、`LayerCompositeRecipe`，继续进入现有 `ImageNode` 路径
 - 裸 `MaskDescriptor` 只是局部区域描述，不会单独形成可见结果；如果要直接作用到 node，插件应返回 `LocalEffectRecipe` 或 `EditRecipe`
+- `applying(mask:, filters:)` 只是 convenience facade；底层仍统一 lowering 到 `LocalEffectRecipe + editing(...)`
 
 layer composite：
 
@@ -248,16 +279,25 @@ let frame = try ImageNode
 transition：
 
 ```swift
+let snapshot = try ImageNode
+    .transition(
+        from: .texture(fromTexture),
+        to: .texture(toTexture),
+        kernel: .directionalWipe(angleDegrees: 45, softness: 0.08),
+        progress: 0.35
+    )
+    .makeDebugSnapshot(profile: .stablePreview)
+```
+
+如果调用方需要显式持有 preview/final contract 或重复复用 transition 配置，再保留 `TransitionRecipe`：
+
+```swift
 let recipe = TransitionRecipe(
     from: .texture(fromTexture),
     to: .texture(toTexture),
     kernel: .directionalWipe(angleDegrees: 45, softness: 0.08),
     progress: 0.35
 )
-
-let snapshot = try ImageNode
-    .transition(recipe)
-    .makeDebugSnapshot(profile: recipe.profile, derivative: recipe.derivative)
 ```
 
 Geometry 在 `ImageNode` 里的结构化入口：

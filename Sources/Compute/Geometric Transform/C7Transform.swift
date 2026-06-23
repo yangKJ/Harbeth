@@ -39,10 +39,7 @@ public struct C7Transform: C7FilterProtocol {
 
     private var mode: Placement = .fit
 
-    public init(mode: Placement = .fit,
-                transform: CGAffineTransform,
-                samplingMode: SpatialSamplingMode = .adaptive,
-                edgeMode: SpatialEdgeMode = .transparent) {
+    public init(mode: Placement = .fit, transform: CGAffineTransform, samplingMode: SpatialSamplingMode = .adaptive, edgeMode: SpatialEdgeMode = .transparent) {
         self.transform = transform
         self.samplingMode = samplingMode
         self.edgeMode = edgeMode

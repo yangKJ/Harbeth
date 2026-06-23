@@ -30,9 +30,9 @@ indirect enum ImageNodeStorage {
 }
 
 public struct ImageNode {
-    fileprivate let storage: ImageNodeStorage
+    let storage: ImageNodeStorage
 
-    fileprivate init(storage: ImageNodeStorage) {
+    init(storage: ImageNodeStorage) {
         self.storage = storage
     }
 }
@@ -61,10 +61,6 @@ extension ImageNode {
 
     public static func recipe(source: ImageSource, recipe: EditRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
         ImageNode.source(source).editing(recipe, mode: mode)
-    }
-
-    public static func transition(_ recipe: TransitionRecipe) -> ImageNode {
-        ImageNode(storage: .transition(recipe))
     }
 
     public static func layerComposite(_ recipe: LayerCompositeRecipe) -> ImageNode {
@@ -119,8 +115,85 @@ extension ImageNode {
         applying(filters: settings.makeFilters())
     }
 
-    public func applying(pluginOutput: HarbethPluginOutput,
+    public func applying(localEffect: LocalEffectRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
+        editing(EditRecipe(localEffects: [localEffect]), mode: mode)
+    }
+
+    public func applying(mask: MaskDescriptor, filters: [C7FilterProtocol], mode: EditRecipeMode = .preview) -> ImageNode {
+        applying(localEffect: Self.makeLocalEffect(filters: filters, mask: mask), mode: mode)
+    }
+
+    public func applying(mask: MaskCompositeRecipe, filters: [C7FilterProtocol], mode: EditRecipeMode = .preview) -> ImageNode {
+        applying(localEffect: Self.makeLocalEffect(filters: filters, mask: mask), mode: mode)
+    }
+
+    public func applying(mask: MaskGradientRecipe,
+                         filters: [C7FilterProtocol],
+                         component: MaskComponent = .red,
+                         blendMode: MaskBlendMode = .mix,
+                         invert: Bool = false,
+                         featherPolicy: MaskFeatherPolicy = .none,
+                         opacity: Float = 1.0,
                          mode: EditRecipeMode = .preview) throws -> ImageNode {
+        try applying(
+            localEffect: Self.makeLocalEffect(
+                filters: filters,
+                mask: mask,
+                component: component,
+                blendMode: blendMode,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            mode: mode
+        )
+    }
+
+    public func applying(mask: MaskShapeRecipe,
+                         filters: [C7FilterProtocol],
+                         component: MaskComponent = .red,
+                         blendMode: MaskBlendMode = .mix,
+                         invert: Bool = false,
+                         featherPolicy: MaskFeatherPolicy = .none,
+                         opacity: Float = 1.0,
+                         mode: EditRecipeMode = .preview) throws -> ImageNode {
+        try applying(
+            localEffect: Self.makeLocalEffect(
+                filters: filters,
+                mask: mask,
+                component: component,
+                blendMode: blendMode,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            mode: mode
+        )
+    }
+
+    public func applying(mask: MaskPathRecipe,
+                         filters: [C7FilterProtocol],
+                         component: MaskComponent = .red,
+                         blendMode: MaskBlendMode = .mix,
+                         invert: Bool = false,
+                         featherPolicy: MaskFeatherPolicy = .none,
+                         opacity: Float = 1.0,
+                         mode: EditRecipeMode = .preview) throws -> ImageNode {
+        try applying(
+            localEffect: Self.makeLocalEffect(
+                filters: filters,
+                mask: mask,
+                component: component,
+                blendMode: blendMode,
+                invert: invert,
+                featherPolicy: featherPolicy,
+                opacity: opacity
+            ),
+            mode: mode
+        )
+    }
+
+    public func applying(pluginOutput: HarbethPluginOutput, mode: EditRecipeMode = .preview) throws -> ImageNode {
         switch pluginOutput {
         case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer:
             return try ImageNode.source(pluginOutput)
@@ -129,7 +202,7 @@ extension ImageNode {
         case .editRecipe(let recipe):
             return editing(recipe, mode: mode)
         case .localEffect(let localEffect):
-            return editing(EditRecipe(localEffects: [localEffect]), mode: mode)
+            return applying(localEffect: localEffect, mode: mode)
         case .layerComposite(let recipe):
             return ImageNode.layerComposite(recipe)
         case .mask:
@@ -148,8 +221,7 @@ extension ImageNode {
         return try applying(pluginOutput: output, mode: mode)
     }
 
-    public func makePreviewFrame(profile: RenderProfile = .stablePreview,
-                                 derivative: ImageDerivativeSpec? = nil) throws -> HarbethPreviewFrame {
+    public func makePreviewFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> HarbethPreviewFrame {
         let frame = try makeFrame(profile: profile, derivative: derivative)
         let diagnostics = try makeDiagnostics(
             profile: profile,
@@ -180,6 +252,68 @@ extension ImageNode {
 
     func applying(_ invocation: KernelInvocation) -> ImageNode {
         ImageNode(storage: .kernel(input: self, descriptor: invocation.descriptor, filter: invocation.executableFilter))
+    }
+
+    private static func makeLocalEffect(filters: [C7FilterProtocol], mask: MaskDescriptor) -> LocalEffectRecipe {
+        LocalEffectRecipe(filters: filters, mask: mask)
+    }
+
+    private static func makeLocalEffect(filters: [C7FilterProtocol], mask: MaskCompositeRecipe) -> LocalEffectRecipe {
+        LocalEffectRecipe(filters: filters, maskRecipe: mask)
+    }
+
+    private static func makeLocalEffect(filters: [C7FilterProtocol],
+                                        mask: MaskGradientRecipe,
+                                        component: MaskComponent,
+                                        blendMode: MaskBlendMode,
+                                        invert: Bool,
+                                        featherPolicy: MaskFeatherPolicy,
+                                        opacity: Float) throws -> LocalEffectRecipe {
+        try LocalEffectRecipe(
+            filters: filters,
+            maskGradientRecipe: mask,
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+    }
+
+    private static func makeLocalEffect(filters: [C7FilterProtocol],
+                                        mask: MaskShapeRecipe,
+                                        component: MaskComponent,
+                                        blendMode: MaskBlendMode,
+                                        invert: Bool,
+                                        featherPolicy: MaskFeatherPolicy,
+                                        opacity: Float) throws -> LocalEffectRecipe {
+        try LocalEffectRecipe(
+            filters: filters,
+            maskShapeRecipe: mask,
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
+    }
+
+    private static func makeLocalEffect(filters: [C7FilterProtocol],
+                                        mask: MaskPathRecipe,
+                                        component: MaskComponent,
+                                        blendMode: MaskBlendMode,
+                                        invert: Bool,
+                                        featherPolicy: MaskFeatherPolicy,
+                                        opacity: Float) throws -> LocalEffectRecipe {
+        try LocalEffectRecipe(
+            filters: filters,
+            maskPathRecipe: mask,
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity
+        )
     }
 }
 
@@ -248,9 +382,7 @@ extension ImageNode: ImagePromise {
             let rendered = try HarbethIO(
                 element: inputTexture,
                 filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
-            )
-                .configured(for: profile)
-                .output()
+            ).configured(for: profile).output()
             return try resizeTextureIfNeeded(rendered, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
         case .kernel(let input, let descriptor, let filter):
             let inputTexture = try input.makeTextureUncached(
@@ -265,9 +397,7 @@ extension ImageNode: ImagePromise {
             let rendered = try HarbethIO(
                 element: inputTexture,
                 filter: SamplerExecutionAdapter.adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-            )
-                .configured(for: profile)
-                .output()
+            ).configured(for: profile).output()
             let contracted = try ImageNode.applyOutputContractIfNeeded(
                 descriptor.outputContract,
                 to: rendered,
@@ -659,6 +789,20 @@ extension ImageNode: ImagePromise {
         }
         let plan = try makeRenderPlan(profile: profile, derivative: derivative)
         let primarySource = try resolvedPrimarySource()
+        let filters = plan.diagnostics.nodes
+            .filter { $0.name != "DerivativeResize" }
+            .map { diagnostic in
+                FilterRecipeDescriptor(
+                    stableTypeID: diagnostic.name,
+                    modifier: diagnostic.kind.rawValue,
+                    parameterValues: diagnostic.parameterSummary
+                        .sorted { $0.key < $1.key }
+                        .map { "\($0.key)=\($0.value)" },
+                    otherInputTextureCount: 0,
+                    pipelineFilterFingerprints: [],
+                    finalFilterFingerprint: nil
+                )
+            }
         return RenderRecipe(
             renderProfile: String(describing: plan.profile),
             renderIntent: plan.diagnostics.derivative.renderIntent,
@@ -668,18 +812,9 @@ extension ImageNode: ImagePromise {
             outputSemantic: plan.diagnostics.derivative.semantic,
             alphaType: primarySource.alphaType,
             orientation: primarySource.orientation,
-            filters: plan.diagnostics.nodes
-                .filter { $0.name != "DerivativeResize" }
-                .map { diagnostic in
-                    FilterRecipeDescriptor(
-                        stableTypeID: diagnostic.name,
-                        modifier: diagnostic.kind.rawValue,
-                        parameterValues: diagnostic.parameterSummary
-                            .sorted { $0.key < $1.key }
-                            .map { "\($0.key)=\($0.value)" },
-                        otherInputTextureCount: 0
-                    )
-                }
+            filters: filters,
+            localEffects: nil,
+            layerMasks: nil
         )
     }
 
@@ -721,9 +856,7 @@ extension ImageNode: ImagePromise {
     /// 这个入口不会把所有 node 都抬成 MRT runtime。
     /// 如果当前 node 不满足“最终一步是 render primitive”的条件，则返回 `nil`。
     public func makeAttachmentSet(profile: RenderProfile = .readbackQuality) throws -> RenderedAttachmentSet? {
-        guard let bridge = try resolvedAttachmentAnalysisBridge(
-            profile: profile
-        ) else {
+        guard let bridge = try resolvedAttachmentAnalysisBridge(profile: profile) else {
             return nil
         }
         return try bridge.filter.renderAttachmentSet(
@@ -742,9 +875,7 @@ extension ImageNode: ImagePromise {
                                              histogramHeight: Int = 64,
                                              region: MTLRegion? = nil,
                                              preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
-        guard let bridge = try resolvedAttachmentAnalysisBridge(
-            profile: profile
-        ) else {
+        guard let bridge = try resolvedAttachmentAnalysisBridge(profile: profile) else {
             return nil
         }
         return try bridge.filter.renderAttachmentAnalysisBundle(
@@ -762,9 +893,7 @@ extension ImageNode: ImagePromise {
                                              histogramHeight: Int = 64,
                                              scope: TextureAnalysisScope,
                                              preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
-        guard let bridge = try resolvedAttachmentAnalysisBridge(
-            profile: profile
-        ) else {
+        guard let bridge = try resolvedAttachmentAnalysisBridge(profile: profile) else {
             return nil
         }
         return try bridge.filter.renderAttachmentAnalysisBundle(
@@ -873,9 +1002,7 @@ extension ImageNode: ImagePromise {
         )
     }
 
-    private func resizeTextureIfNeeded(_ texture: MTLTexture,
-                                       derivative: ImageDerivativeSpec,
-                                       profile: RenderProfile) throws -> MTLTexture {
+    private func resizeTextureIfNeeded(_ texture: MTLTexture, derivative: ImageDerivativeSpec, profile: RenderProfile) throws -> MTLTexture {
         let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
         guard targetSize.width != texture.width || targetSize.height != texture.height else {
             return texture
@@ -912,8 +1039,7 @@ extension ImageNode: ImagePromise {
         }
     }
 
-    fileprivate func resolvedFrameColorSpace(for source: ImageSource,
-                                             outputColorSpace: ImageColorSpaceContract) -> CGColorSpace? {
+    fileprivate func resolvedFrameColorSpace(for source: ImageSource, outputColorSpace: ImageColorSpaceContract) -> CGColorSpace? {
         if outputColorSpace.preservesInput == false,
            let colorSpace = outputColorSpace.cgColorSpace {
             return colorSpace
@@ -1091,8 +1217,7 @@ extension ImageNode: ImagePromise {
 }
 
 extension LayerCompositeRecipe {
-    func makeRenderPlan(derivative: ImageDerivativeSpec? = nil,
-                        samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
+    func makeRenderPlan(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
         let backgroundTexture = try background.makeTexture()
         let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
         let placeholderTexture = backgroundTexture
@@ -1160,8 +1285,7 @@ extension LayerCompositeRecipe {
         )
     }
 
-    func makeTexture(derivative: ImageDerivativeSpec? = nil,
-                     samplerDescriptor: ImageSamplerDescriptor = .default) throws -> MTLTexture {
+    func makeTexture(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> MTLTexture {
         var current = try background.makeTexture()
         guard layers.isEmpty == false else {
             return try resizeTextureIfNeeded(current, derivative: derivative ?? self.derivative)
@@ -1192,8 +1316,8 @@ extension LayerCompositeRecipe {
                         samplerDescriptor: samplerDescriptor
                     )
                 )
-                    .configured(for: profile)
-                    .output()
+                .configured(for: profile)
+                .output()
             }
             if let programmableBlend = layer.programmableBlend {
                 let preparedLayer = try makeTransparentCanvas(matching: current)

@@ -149,10 +149,7 @@ public enum ImageSource {
                 pixelBufferContract: pixelBuffer.c7.contract,
                 pixelBufferBridgePlan: bridgePlan,
                 pixelBufferBridgePolicy: TextureLoader.makeBridgePolicy(for: bridgePlan),
-                yCbCrDecodeContract: TextureLoader.makeYCbCrDecodeContract(
-                    for: pixelBuffer,
-                    bridgePlan: bridgePlan
-                )
+                yCbCrDecodeContract: TextureLoader.makeYCbCrDecodeContract(for: pixelBuffer, bridgePlan: bridgePlan)
             )
         case .sampleBuffer(let sampleBuffer):
             let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)

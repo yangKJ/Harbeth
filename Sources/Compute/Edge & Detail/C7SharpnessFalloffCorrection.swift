@@ -39,11 +39,7 @@ public struct C7SharpnessFalloffCorrection: C7FilterProtocol {
         .neighborhood
     }
 
-    public init(center: C7Point2D = .center,
-                amount: Float = 0,
-                start: Float = 0.45,
-                end: Float = 1.0,
-                edgeThreshold: Float = 0.2) {
+    public init(center: C7Point2D = .center, amount: Float = 0, start: Float = 0.45, end: Float = 1.0, edgeThreshold: Float = 0.2) {
         self.center = center
         self.amount = amount
         self.start = start

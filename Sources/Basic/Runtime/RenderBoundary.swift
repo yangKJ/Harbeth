@@ -25,18 +25,6 @@ struct RenderBoundaryCost: Sendable, Equatable {
     var cacheable: Bool
     var supportsLowLatencyFrameFlow: Bool
 
-    init(usesCPU: Bool,
-         breaksFusion: Bool,
-         requiresReadback: Bool,
-         cacheable: Bool,
-         supportsLowLatencyFrameFlow: Bool) {
-        self.usesCPU = usesCPU
-        self.breaksFusion = breaksFusion
-        self.requiresReadback = requiresReadback
-        self.cacheable = cacheable
-        self.supportsLowLatencyFrameFlow = supportsLowLatencyFrameFlow
-    }
-
     static let nativeMetal = RenderBoundaryCost(
         usesCPU: false,
         breaksFusion: false,

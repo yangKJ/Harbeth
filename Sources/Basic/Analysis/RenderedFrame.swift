@@ -487,8 +487,7 @@ struct FrameRenderer {
         return value
     }
 
-    private func resolvedFrameColorSpace(source: ImageSource,
-                                         filterChain: [C7FilterProtocol]) -> CGColorSpace? {
+    private func resolvedFrameColorSpace(source: ImageSource, filterChain: [C7FilterProtocol]) -> CGColorSpace? {
         let inputSize: C7Size?
         if let texture = try? source.makeTexture() {
             inputSize = C7Size(width: texture.width, height: texture.height)
@@ -541,21 +540,17 @@ struct FrameRenderer {
         )
     }
 
-    private func renderTexture(input: MTLTexture,
-                               filters: [C7FilterProtocol],
-                               profile: RenderProfile) throws -> MTLTexture {
+    private func renderTexture(input: MTLTexture, filters: [C7FilterProtocol], profile: RenderProfile) throws -> MTLTexture {
         guard filters.isEmpty == false else { return input }
         return try HarbethIO(
             element: input,
             filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
         )
-            .configured(for: profile)
-            .output()
+        .configured(for: profile)
+        .output()
     }
 
-    private func resizeTextureIfNeeded(_ texture: MTLTexture,
-                                       derivative: ImageDerivativeSpec,
-                                       profile: RenderProfile) throws -> MTLTexture {
+    private func resizeTextureIfNeeded(_ texture: MTLTexture,  derivative: ImageDerivativeSpec, profile: RenderProfile) throws -> MTLTexture {
         let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
         guard targetSize.width != texture.width || targetSize.height != texture.height else {
             return texture
@@ -568,8 +563,7 @@ struct FrameRenderer {
         .output()
     }
 
-    private func compiledRecipeExecution(_ recipe: EditRecipe,
-                                         mode: EditRecipeMode) throws -> CompiledRecipeExecution {
+    private func compiledRecipeExecution(_ recipe: EditRecipe, mode: EditRecipeMode) throws -> CompiledRecipeExecution {
         let compiled = try recipe.compileExecution(
             source: source,
             mode: mode,

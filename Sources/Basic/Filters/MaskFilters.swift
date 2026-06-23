@@ -91,6 +91,38 @@ struct ShapeMask: C7FilterProtocol {
     }
 }
 
+struct PathMask: C7FilterProtocol {
+    let recipe: MaskPathRecipe
+
+    init(recipe: MaskPathRecipe) {
+        self.recipe = recipe
+    }
+
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerPathMask")
+    }
+
+    var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+
+    var kernelParameterBindings: [KernelParameterBinding] {
+        let encoded = recipe.encodedPath()
+        let metadata: [Float] = [
+            Float(encoded.points.count),
+            Float(encoded.ranges.count),
+            recipe.fillRule == .evenOdd ? 1 : 0
+        ]
+        let pointValues = encoded.points.flatMap { [Float($0.x), Float($0.y)] }
+        let rangeValues = encoded.ranges.flatMap { [$0.x, $0.y] }
+        return [
+            KernelParameterBinding(name: "metadata", index: 0, stage: .compute, value: .floatArray(metadata)),
+            KernelParameterBinding(name: "points", index: 1, stage: .compute, value: .floatArray(pointValues)),
+            KernelParameterBinding(name: "ranges", index: 2, stage: .compute, value: .floatArray(rangeValues))
+        ]
+    }
+}
+
 struct MaskRegionBlend: C7FilterProtocol {
     let effectTexture: MTLTexture
     let mask: MaskDescriptor

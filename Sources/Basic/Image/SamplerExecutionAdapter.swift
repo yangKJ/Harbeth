@@ -20,9 +20,7 @@ public struct SamplerExecutionCoverage: Sendable, Codable, Equatable, Hashable {
     public let coveredFilterTypes: [String]
     public let metadataOnlyFilterTypes: [String]
 
-    public init(mode: SamplerExecutionCoverageMode,
-                coveredFilterTypes: [String] = [],
-                metadataOnlyFilterTypes: [String] = []) {
+    public init(mode: SamplerExecutionCoverageMode, coveredFilterTypes: [String] = [], metadataOnlyFilterTypes: [String] = []) {
         self.mode = mode
         self.coveredFilterTypes = coveredFilterTypes
         self.metadataOnlyFilterTypes = metadataOnlyFilterTypes
@@ -38,8 +36,7 @@ public struct SamplerExecutionCoverage: Sendable, Codable, Equatable, Hashable {
 }
 
 enum SamplerExecutionAdapter {
-    static func merge(_ lhs: SamplerExecutionCoverage,
-                      _ rhs: SamplerExecutionCoverage) -> SamplerExecutionCoverage {
+    static func merge(_ lhs: SamplerExecutionCoverage, _ rhs: SamplerExecutionCoverage) -> SamplerExecutionCoverage {
         let covered = Array(Set(lhs.coveredFilterTypes + rhs.coveredFilterTypes)).sorted()
         let metadataOnly = Array(Set(lhs.metadataOnlyFilterTypes + rhs.metadataOnlyFilterTypes)).sorted()
         let mode: SamplerExecutionCoverageMode
@@ -98,16 +95,14 @@ enum SamplerExecutionAdapter {
         return filter
     }
 
-    static func adapt(renderFilter: any RenderProtocol,
-                      samplerDescriptor: ImageSamplerDescriptor) -> any RenderProtocol {
+    static func adapt(renderFilter: any RenderProtocol, samplerDescriptor: ImageSamplerDescriptor) -> any RenderProtocol {
         guard samplerDescriptor != .default else {
             return renderFilter
         }
         return RenderSamplerOverride(base: renderFilter, samplerDescriptor: samplerDescriptor)
     }
 
-    static func coverage(for filters: [C7FilterProtocol],
-                         samplerDescriptor: ImageSamplerDescriptor) -> SamplerExecutionCoverage {
+    static func coverage(for filters: [C7FilterProtocol], samplerDescriptor: ImageSamplerDescriptor) -> SamplerExecutionCoverage {
         guard samplerDescriptor != .default else {
             return SamplerExecutionCoverage(mode: .notApplicable)
         }
@@ -190,8 +185,7 @@ enum SamplerExecutionAdapter {
         return resolved
     }
 
-    private static func adapt(filter: C7LensDistortionCorrection,
-                              samplerDescriptor: ImageSamplerDescriptor) -> C7LensDistortionCorrection {
+    private static func adapt(filter: C7LensDistortionCorrection, samplerDescriptor: ImageSamplerDescriptor) -> C7LensDistortionCorrection {
         var resolved = filter
         if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
             resolved.samplingMode = samplingMode
@@ -202,8 +196,7 @@ enum SamplerExecutionAdapter {
         return resolved
     }
 
-    private static func adapt(filter: C7ChromaticAberrationCorrection,
-                              samplerDescriptor: ImageSamplerDescriptor) -> C7ChromaticAberrationCorrection {
+    private static func adapt(filter: C7ChromaticAberrationCorrection, samplerDescriptor: ImageSamplerDescriptor) -> C7ChromaticAberrationCorrection {
         var resolved = filter
         if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
             resolved.samplingMode = samplingMode
@@ -252,8 +245,7 @@ enum SamplerExecutionAdapter {
         }
     }
 
-    static func isExecutionCovered(_ filter: C7FilterProtocol,
-                                   samplerDescriptor: ImageSamplerDescriptor) -> Bool {
+    static func isExecutionCovered(_ filter: C7FilterProtocol, samplerDescriptor: ImageSamplerDescriptor) -> Bool {
         if isExecutionCovered(filter) {
             return true
         }

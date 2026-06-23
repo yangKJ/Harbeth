@@ -33,9 +33,7 @@ public struct C7DiffractionCorrection: C7FilterProtocol {
         .neighborhood
     }
 
-    public init(amount: Float = amountRange.value,
-                radius: Float = radiusRange.value,
-                edgeThreshold: Float = 0.08) {
+    public init(amount: Float = amountRange.value, radius: Float = radiusRange.value, edgeThreshold: Float = 0.08) {
         self.amount = amount
         self.radius = radius
         self.edgeThreshold = edgeThreshold

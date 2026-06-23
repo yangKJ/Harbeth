@@ -27,9 +27,7 @@ public struct TextureHistogram: Sendable, Equatable {
     public let bins: [UInt32]
     public let totalSampleCount: Int
 
-    init(channel: TextureHistogramChannel,
-         bins: [UInt32],
-         totalSampleCount: Int) {
+    init(channel: TextureHistogramChannel, bins: [UInt32], totalSampleCount: Int) {
         self.channel = channel
         self.bins = bins
         self.totalSampleCount = max(totalSampleCount, 0)
@@ -114,8 +112,7 @@ public struct RenderedHistogramAttachment: @unchecked Sendable {
         self.attachment = attachment
     }
 
-    public func makeCGImage(colorSpace: CGColorSpace? = nil,
-                            alphaType: AlphaType = .premultiplied) -> CGImage? {
+    public func makeCGImage(colorSpace: CGColorSpace? = nil, alphaType: AlphaType = .premultiplied) -> CGImage? {
         attachment.makeCGImage(colorSpace: colorSpace, alphaType: alphaType)
     }
 }
@@ -168,22 +165,19 @@ public extension MTLTextureCompatible_ {
                 coverageThreshold: coverageThreshold
             )
         case .gpuMPS:
-            return makeGPUHistogram(channel: channel, bins: bins, region: region)
-                ?? makeCPUHistogram(
-                    channel: channel,
-                    bins: bins,
-                    region: region,
-                    mask: mask,
-                    luminanceRange: luminanceRange,
-                    colorRange: colorRange,
-                    coverageThreshold: coverageThreshold
-                )
+            return makeGPUHistogram(channel: channel, bins: bins, region: region) ?? makeCPUHistogram(
+                channel: channel,
+                bins: bins,
+                region: region,
+                mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
+                coverageThreshold: coverageThreshold
+            )
         }
     }
 
-    func makeGPUHistogram(channel: TextureHistogramChannel = .luminance,
-                          bins: Int = 256,
-                          region: MTLRegion? = nil) -> TextureHistogram? {
+    func makeGPUHistogram(channel: TextureHistogramChannel = .luminance, bins: Int = 256, region: MTLRegion? = nil) -> TextureHistogram? {
         GPUHistogramSupport.makeHistogram(from: target, channel: channel, bins: bins, region: region)
     }
 
@@ -264,9 +258,7 @@ public extension MTLTextureCompatible_ {
         guard let bytes = bytes() else { return nil }
         let width = target.width
         let height = target.height
-        guard let resolvedRegion = resolvedHistogramRegion(region),
-              width > 0,
-              height > 0 else {
+        guard let resolvedRegion = resolvedHistogramRegion(region), width > 0, height > 0 else {
             return TextureHistogram(channel: channel, bins: [UInt32](repeating: 0, count: clampedBins), totalSampleCount: 0)
         }
 
@@ -327,8 +319,7 @@ public extension MTLTextureCompatible_ {
         )
     }
 
-    private func makePreviewTexture(from histogram: TextureHistogram,
-                                    height: Int) -> MTLTexture? {
+    private func makePreviewTexture(from histogram: TextureHistogram, height: Int) -> MTLTexture? {
         guard let image = histogram.makePreviewCGImage(height: height) else {
             return nil
         }
@@ -397,14 +388,8 @@ struct MaskCoverageSample {
     let opacity: Float
     let normalizedCoverage: Bool
 
-    func coverage(atSourceX x: Int,
-                  y: Int,
-                  sourceWidth: Int,
-                  sourceHeight: Int) -> Float {
-        guard width > 0,
-              height > 0,
-              sourceWidth > 0,
-              sourceHeight > 0 else {
+    func coverage(atSourceX x: Int, y: Int, sourceWidth: Int, sourceHeight: Int) -> Float {
+        guard width > 0, height > 0, sourceWidth > 0, sourceHeight > 0 else {
             return 0
         }
         let maskX = min(max((x * width) / sourceWidth, 0), width - 1)

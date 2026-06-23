@@ -325,6 +325,52 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(Array(bytes[8..<12]), [0, 0, 0, 255])
     }
 
+    func testHarbethIOCanMaterializeColorRangeMaskDescriptor() throws {
+        let texture = try makeTexture(width: 3, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [255, 255, 255, 255]
+        ])
+        let io = HarbethIO<MTLTexture>(
+            element: texture,
+            filters: [C7Brightness(brightness: 0.0)]
+        )
+        let scope = TextureAnalysisScope(
+            colorRange: TextureColorRange(
+                hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
+                saturation: TextureComponentRange(minimum: 0.8, maximum: 1.0)
+            )
+        )
+
+        let mask = try XCTUnwrap(io.renderMaskDescriptor(scope: scope))
+        let bytes = try XCTUnwrap(mask.texture.c7.bytes())
+
+        XCTAssertEqual(mask.component, .red)
+        XCTAssertEqual(Array(bytes[0..<4]), [255, 255, 255, 255])
+        XCTAssertEqual(Array(bytes[4..<8]), [0, 0, 0, 255])
+        XCTAssertEqual(Array(bytes[8..<12]), [0, 0, 0, 255])
+    }
+
+    func testHarbethIOCanMaterializeAttachmentMaskDescriptor() throws {
+        let image = try makeFixtureCGImage()
+        let io = HarbethIO<CGImage>(
+            element: image,
+            filters: [RenderAuxiliaryLuminance()]
+        )
+        let scope = TextureAnalysisScope(region: MTLRegionMake2D(0, 0, 8, 8))
+
+        let mask = try XCTUnwrap(
+            io.renderAttachmentMaskDescriptor(
+                semantic: .luminance,
+                scope: scope
+            )
+        )
+
+        XCTAssertEqual(mask.component, .red)
+        XCTAssertEqual(mask.texture.width, image.width)
+        XCTAssertEqual(mask.texture.height, image.height)
+    }
+
     func testHarbethIOC7ImageOutputAppliesExplicitRenderOutputColorSpace() throws {
         let cgImage = try makeFixtureCGImage()
         let image = C7Image(cgImage: cgImage)

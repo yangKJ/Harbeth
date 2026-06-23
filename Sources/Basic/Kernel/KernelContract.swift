@@ -13,18 +13,6 @@ struct FilterKernelContractDescriptor: Sendable, Equatable {
     let otherInputTextureCount: Int
     let resourceUsage: KernelResourceUsage
     let alphaBehavior: KernelAlphaBehavior
-
-    init(functionIdentity: String,
-         modifierName: String,
-         otherInputTextureCount: Int,
-         resourceUsage: KernelResourceUsage,
-         alphaBehavior: KernelAlphaBehavior) {
-        self.functionIdentity = functionIdentity
-        self.modifierName = modifierName
-        self.otherInputTextureCount = otherInputTextureCount
-        self.resourceUsage = resourceUsage
-        self.alphaBehavior = alphaBehavior
-    }
 }
 
 extension C7FilterProtocol {

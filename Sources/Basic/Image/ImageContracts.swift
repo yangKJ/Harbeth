@@ -729,13 +729,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         let alpha = try container.decodeIfPresent(ImageAlphaContract.self, forKey: .alpha) ?? .preserveInput
         let colorSpace = try container.decodeIfPresent(ImageColorSpaceContract.self, forKey: .colorSpace) ?? .preserveInput
         let pixelFormat = try container.decodeIfPresent(PixelFormatContract.self, forKey: .pixelFormat) ?? .preserveInput
-        self.init(
-            index: index,
-            semantic: semantic,
-            alpha: alpha,
-            colorSpace: colorSpace,
-            pixelFormat: pixelFormat
-        )
+        self.init(index: index, semantic: semantic, alpha: alpha, colorSpace: colorSpace, pixelFormat: pixelFormat)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -760,8 +754,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         )
     }
 
-    public static func maskCoverage(index: Int,
-                                    pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
+    public static func maskCoverage(index: Int, pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
         RenderOutputAttachmentContract(
             index: index,
             semantic: .maskCoverage,
@@ -771,8 +764,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         )
     }
 
-    public static func luminance(index: Int,
-                                 pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
+    public static func luminance(index: Int, pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
         RenderOutputAttachmentContract(
             index: index,
             semantic: .luminance,
@@ -782,8 +774,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         )
     }
 
-    public static func analysis(index: Int,
-                                pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
+    public static func analysis(index: Int, pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
         RenderOutputAttachmentContract(
             index: index,
             semantic: .analysis,
@@ -793,8 +784,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         )
     }
 
-    public static func histogram(index: Int,
-                                 pixelFormat: PixelFormatContract = .rgba16Float) -> RenderOutputAttachmentContract {
+    public static func histogram(index: Int, pixelFormat: PixelFormatContract = .rgba16Float) -> RenderOutputAttachmentContract {
         RenderOutputAttachmentContract(
             index: index,
             semantic: .histogram,

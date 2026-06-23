@@ -32,10 +32,7 @@ public struct C7Rotate: C7FilterProtocol {
 
     private var mode: Placement = .fit
 
-    public init(mode: Placement = .fit,
-                angle: Float = 0,
-                samplingMode: SpatialSamplingMode = .adaptive,
-                edgeMode: SpatialEdgeMode = .transparent) {
+    public init(mode: Placement = .fit, angle: Float = 0, samplingMode: SpatialSamplingMode = .adaptive, edgeMode: SpatialEdgeMode = .transparent) {
         self.angle = angle
         self.samplingMode = samplingMode
         self.edgeMode = edgeMode

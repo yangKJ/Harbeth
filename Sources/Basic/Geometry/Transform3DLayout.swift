@@ -19,10 +19,7 @@ struct Transform3DLayout {
         )
     }
 
-    static func resolvedViewport(for inputSize: CGSize,
-                                 transform: CATransform3D,
-                                 fieldOfView: Float,
-                                 viewportMode: Transform3DViewportMode) -> CGRect {
+    static func resolvedViewport(for inputSize: CGSize, transform: CATransform3D, fieldOfView: Float, viewportMode: Transform3DViewportMode) -> CGRect {
         switch viewportMode {
         case .original:
             return defaultViewport(for: inputSize)
@@ -31,9 +28,7 @@ struct Transform3DLayout {
         }
     }
 
-    static func minimumEnclosingViewport(for inputSize: CGSize,
-                                         transform: CATransform3D,
-                                         fieldOfView: Float) -> CGRect {
+    static func minimumEnclosingViewport(for inputSize: CGSize, transform: CATransform3D, fieldOfView: Float) -> CGRect {
         let imageRect = defaultViewport(for: inputSize)
         let matrix = transformMatrix(inputSize: inputSize, viewport: imageRect, transform: transform, fieldOfView: fieldOfView)
         var points = transformedCorners(of: imageRect, matrix: matrix)
@@ -60,10 +55,7 @@ struct Transform3DLayout {
         )
     }
 
-    static func projectedVertices(for inputSize: CGSize,
-                                  transform: CATransform3D,
-                                  fieldOfView: Float,
-                                  viewport: CGRect) -> [Float] {
+    static func projectedVertices(for inputSize: CGSize, transform: CATransform3D, fieldOfView: Float, viewport: CGRect) -> [Float] {
         let imageRect = defaultViewport(for: inputSize)
         let matrix = transformMatrix(inputSize: inputSize, viewport: viewport, transform: transform, fieldOfView: fieldOfView)
         let corners = transformedCorners(of: imageRect, matrix: matrix)
@@ -84,10 +76,7 @@ struct Transform3DLayout {
         return [tl, tr, bl, br].map { simd_mul($0, matrix) }
     }
 
-    private static func transformMatrix(inputSize: CGSize,
-                                        viewport: CGRect,
-                                        transform: CATransform3D,
-                                        fieldOfView: Float) -> simd_float4x4 {
+    private static func transformMatrix(inputSize: CGSize, viewport: CGRect, transform: CATransform3D, fieldOfView: Float) -> simd_float4x4 {
         if fieldOfView > 0 {
             let near = -Float(inputSize.width) * 0.5 / tan(fieldOfView / 2.0)
             let far = near * 2.0
@@ -117,12 +106,7 @@ struct Transform3DLayout {
         }
     }
 
-    private static func makeOrthographicMatrix(left: Float,
-                                               right: Float,
-                                               top: Float,
-                                               bottom: Float,
-                                               near: Float,
-                                               far: Float) -> simd_float4x4 {
+    private static func makeOrthographicMatrix(left: Float, right: Float, top: Float, bottom: Float, near: Float, far: Float) -> simd_float4x4 {
         let r_l = right - left
         let t_b = bottom - top
         let f_n = far - near
@@ -138,12 +122,7 @@ struct Transform3DLayout {
         return matrix
     }
 
-    private static func makePerspectiveMatrix(left: Float,
-                                              right: Float,
-                                              top: Float,
-                                              bottom: Float,
-                                              near: Float,
-                                              far: Float) -> simd_float4x4 {
+    private static func makePerspectiveMatrix(left: Float, right: Float, top: Float, bottom: Float, near: Float, far: Float) -> simd_float4x4 {
         let near = -near
         let far = -far
 

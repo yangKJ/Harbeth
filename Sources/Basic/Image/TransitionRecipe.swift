@@ -42,23 +42,23 @@ public enum TransitionKernelDescriptor {
     func makeFilter(toTexture: MTLTexture, progress: Float) throws -> C7FilterProtocol {
         switch self {
         case .dissolve:
-            return C7DissolveTransition(toTexture: toTexture, progress: progress)
+            return DissolveTransition(toTexture: toTexture, progress: progress)
         case .directionalWipe(let angleDegrees, let softness):
-            return C7DirectionalWipeTransition(
+            return DirectionalWipeTransition(
                 toTexture: toTexture,
                 progress: progress,
                 angleDegrees: angleDegrees,
                 softness: softness
             )
         case .lumaWipe(let lumaSource, let softness):
-            return C7LumaWipeTransition(
+            return LumaWipeTransition(
                 toTexture: toTexture,
                 lumaTexture: try lumaSource.makeTexture(),
                 progress: progress,
                 softness: softness
             )
         case .displacement(let displacementSource, let scale):
-            return C7DisplacementTransition(
+            return DisplacementTransition(
                 toTexture: toTexture,
                 displacementTexture: try displacementSource.makeTexture(),
                 progress: progress,
@@ -102,6 +102,30 @@ public struct TransitionRecipe {
         try kernel.makeFilter(
             toTexture: to.makeTexture(),
             progress: progress
+        )
+    }
+}
+
+extension ImageNode {
+    public static func transition(_ recipe: TransitionRecipe) -> ImageNode {
+        ImageNode(storage: .transition(recipe))
+    }
+
+    public static func transition(from: ImageSource,
+                                  to: ImageSource,
+                                  kernel: TransitionKernelDescriptor,
+                                  progress: Float,
+                                  profile: RenderProfile = .stablePreview,
+                                  derivative: ImageDerivativeSpec? = nil) -> ImageNode {
+        transition(
+            TransitionRecipe(
+                from: from,
+                to: to,
+                kernel: kernel,
+                progress: progress,
+                profile: profile,
+                derivative: derivative
+            )
         )
     }
 }

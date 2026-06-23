@@ -17,10 +17,7 @@ public struct RenderedAttachment: @unchecked Sendable {
     public let pixelFormat: MTLPixelFormat
     public let debugPolicy: RenderOutputAttachmentDebugPolicy
 
-    init(index: Int,
-         semantic: RenderOutputAttachmentSemantic,
-         texture: MTLTexture,
-         debugPolicy: RenderOutputAttachmentDebugPolicy) {
+    init(index: Int, semantic: RenderOutputAttachmentSemantic, texture: MTLTexture, debugPolicy: RenderOutputAttachmentDebugPolicy) {
         self.index = index
         self.semantic = semantic
         self.texture = texture
@@ -28,8 +25,7 @@ public struct RenderedAttachment: @unchecked Sendable {
         self.debugPolicy = debugPolicy
     }
 
-    public func makeCGImage(colorSpace: CGColorSpace? = nil,
-                            alphaType: AlphaType = .premultiplied) -> CGImage? {
+    public func makeCGImage(colorSpace: CGColorSpace? = nil, alphaType: AlphaType = .premultiplied) -> CGImage? {
         texture.c7.toCGImage(
             colorSpace: colorSpace,
             pixelFormat: debugPolicy.preferredReadbackPixelFormat.metalPixelFormat,
@@ -121,9 +117,7 @@ public extension RenderProtocol {
         )
     }
 
-    private func makeDestinationTextures(outputContract: RenderOutputContract,
-                                         outputSize: C7Size,
-                                         identifier: String) throws -> [Int: MTLTexture] {
+    private func makeDestinationTextures(outputContract: RenderOutputContract, outputSize: C7Size, identifier: String) throws -> [Int: MTLTexture] {
         var textures: [Int: MTLTexture] = [:]
         for attachment in outputContract.attachments {
             let pixelFormat = attachment.pixelFormat.metalPixelFormat ?? .rgba8Unorm

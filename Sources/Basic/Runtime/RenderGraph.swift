@@ -228,38 +228,6 @@ struct RenderStage: Sendable, Codable, Equatable, Hashable {
     let containsLocalEffectComposite: Bool
     let containsTransitionKernel: Bool
     let containsDerivativeResize: Bool
-
-    init(index: Int,
-         stageKind: RenderStageKind,
-         mergeClass: RenderStageMergeClass?,
-         nodeIndices: [Int],
-         kinds: [RenderNodeKind],
-         filterCount: Int,
-         breaksFusion: Bool,
-         inputSize: C7Size,
-         outputSize: C7Size,
-         boundaryReason: RenderStageBoundaryReason?,
-         containsReadbackBoundary: Bool,
-         createsDestinationTexture: Bool,
-         containsLocalEffectComposite: Bool,
-         containsTransitionKernel: Bool,
-         containsDerivativeResize: Bool) {
-        self.index = index
-        self.stageKind = stageKind
-        self.mergeClass = mergeClass
-        self.nodeIndices = nodeIndices
-        self.kinds = kinds
-        self.filterCount = filterCount
-        self.breaksFusion = breaksFusion
-        self.inputSize = inputSize
-        self.outputSize = outputSize
-        self.boundaryReason = boundaryReason
-        self.containsReadbackBoundary = containsReadbackBoundary
-        self.createsDestinationTexture = createsDestinationTexture
-        self.containsLocalEffectComposite = containsLocalEffectComposite
-        self.containsTransitionKernel = containsTransitionKernel
-        self.containsDerivativeResize = containsDerivativeResize
-    }
 }
 
 struct RenderNodeDiagnostic: Sendable, Codable, Equatable, Hashable {
@@ -270,22 +238,6 @@ struct RenderNodeDiagnostic: Sendable, Codable, Equatable, Hashable {
     let outputSize: C7Size
     let breaksFusion: Bool
     let parameterSummary: [String: String]
-
-    init(index: Int,
-         name: String,
-         kind: RenderNodeKind,
-         inputSize: C7Size,
-         outputSize: C7Size,
-         breaksFusion: Bool,
-         parameterSummary: [String: String]) {
-        self.index = index
-        self.name = name
-        self.kind = kind
-        self.inputSize = inputSize
-        self.outputSize = outputSize
-        self.breaksFusion = breaksFusion
-        self.parameterSummary = parameterSummary
-    }
 }
 
 public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
@@ -676,8 +628,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         )
     }
 
-    public func jsonData(prettyPrinted: Bool = false,
-                         sortedKeys: Bool = true) throws -> Data {
+    public func jsonData(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> Data {
         let encoder = JSONEncoder()
         if prettyPrinted {
             encoder.outputFormatting.insert(.prettyPrinted)
@@ -688,8 +639,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         return try encoder.encode(self)
     }
 
-    public func jsonString(prettyPrinted: Bool = false,
-                           sortedKeys: Bool = true) throws -> String {
+    public func jsonString(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> String {
         let data = try jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
         guard let string = String(data: data, encoding: .utf8) else {
             throw HarbethError.configurationInvalid("RenderPlanDiagnostics JSON encoding is not valid UTF-8.")
@@ -853,8 +803,7 @@ struct RenderPlan {
 }
 
 private extension RenderPlan {
-    static func resolveInputColorSpace(primary descriptor: ImageSourceDescriptor?,
-                                       auxiliary auxiliaryDescriptor: ImageSourceDescriptor?) -> ImageColorSpaceContract {
+    static func resolveInputColorSpace(primary descriptor: ImageSourceDescriptor?, auxiliary auxiliaryDescriptor: ImageSourceDescriptor?) -> ImageColorSpaceContract {
         if let colorSpace = resolveAttachmentColorSpace(from: descriptor)
             ?? resolveAttachmentColorSpace(from: auxiliaryDescriptor) {
             return colorSpace
@@ -1071,8 +1020,7 @@ enum GraphOptimizer {
         }
     }
 
-    private static func estimatedByteCount(for size: C7Size,
-                                           pixelFormat: PixelFormatContract) -> Int {
+    private static func estimatedByteCount(for size: C7Size, pixelFormat: PixelFormatContract) -> Int {
         max(size.width, 0) * max(size.height, 0) * bytesPerPixel(for: pixelFormat)
     }
 
@@ -1166,8 +1114,7 @@ enum GraphOptimizer {
         }
     }
 
-    private static func resolvedReservationPixelFormat(preferred: PixelFormatContract,
-                                                       fallback: PixelFormatContract) -> PixelFormatContract {
+    private static func resolvedReservationPixelFormat(preferred: PixelFormatContract, fallback: PixelFormatContract) -> PixelFormatContract {
         guard preferred.preservesInput else {
             return preferred
         }

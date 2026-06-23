@@ -329,12 +329,25 @@ public struct LayerCompositeRecipe {
         .layerComposite(self)
     }
 
-    func makeRenderRecipe(derivative: ImageDerivativeSpec? = nil,
-                          samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRecipe {
+    func makeRenderRecipe(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRecipe {
         let plan = try makeRenderPlan(
             derivative: derivative,
             samplerDescriptor: samplerDescriptor
         )
+        let filters = plan.diagnostics.nodes
+            .filter { $0.name != "DerivativeResize" }
+            .map { diagnostic in
+                FilterRecipeDescriptor(
+                    stableTypeID: diagnostic.name,
+                    modifier: diagnostic.kind.rawValue,
+                    parameterValues: diagnostic.parameterSummary
+                        .sorted { $0.key < $1.key }
+                        .map { "\($0.key)=\($0.value)" },
+                    otherInputTextureCount: 0,
+                    pipelineFilterFingerprints: [],
+                    finalFilterFingerprint: nil
+                )
+            }
         return RenderRecipe(
             renderProfile: String(describing: profile),
             renderIntent: plan.diagnostics.derivative.renderIntent,
@@ -344,24 +357,13 @@ public struct LayerCompositeRecipe {
             outputSemantic: plan.diagnostics.derivative.semantic,
             alphaType: background.alphaType,
             orientation: background.orientation,
-            filters: plan.diagnostics.nodes
-                .filter { $0.name != "DerivativeResize" }
-                .map { diagnostic in
-                    FilterRecipeDescriptor(
-                        stableTypeID: diagnostic.name,
-                        modifier: diagnostic.kind.rawValue,
-                        parameterValues: diagnostic.parameterSummary
-                            .sorted { $0.key < $1.key }
-                            .map { "\($0.key)=\($0.value)" },
-                        otherInputTextureCount: 0
-                    )
-                },
+            filters: filters,
+            localEffects: nil,
             layerMasks: layerMaskDescriptors
         )
     }
 
-    func makeRenderRequest(derivative: ImageDerivativeSpec? = nil,
-                           samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRequest {
+    func makeRenderRequest(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRequest {
         let effectiveDerivative = derivative ?? self.derivative
         let node = makeNode().withSamplerDescriptor(samplerDescriptor)
         let diagnostics = try node.makeDiagnostics(profile: profile, derivative: effectiveDerivative)

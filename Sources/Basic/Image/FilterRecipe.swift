@@ -18,20 +18,6 @@ struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
     let pipelineFilterFingerprints: [String]
     let finalFilterFingerprint: String?
 
-    init(stableTypeID: String,
-         modifier: String,
-         parameterValues: [String],
-         otherInputTextureCount: Int,
-         pipelineFilterFingerprints: [String] = [],
-         finalFilterFingerprint: String? = nil) {
-        self.stableTypeID = stableTypeID
-        self.modifier = modifier
-        self.parameterValues = parameterValues
-        self.otherInputTextureCount = otherInputTextureCount
-        self.pipelineFilterFingerprints = pipelineFilterFingerprints
-        self.finalFilterFingerprint = finalFilterFingerprint
-    }
-
     var fingerprint: String {
         var components = [
             stableTypeID,
@@ -70,6 +56,7 @@ public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
     public let featherAmount: Float
     public let gradient: MaskGradientDescriptor?
     public let shape: MaskShapeDescriptor?
+    public let path: MaskPathDescriptor?
 
     public var fingerprint: String {
         var parts = [
@@ -85,6 +72,9 @@ public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
         }
         if let shape {
             parts.append("shape=\(shape.fingerprint)")
+        }
+        if let path {
+            parts.append("path=\(path.fingerprint)")
         }
         return parts.joined(separator: ",")
     }
@@ -102,6 +92,14 @@ public struct MaskShapeDescriptor: Sendable, Hashable, Codable {
     public let parameterValues: [String]
 }
 
+public struct MaskPathDescriptor: Sendable, Hashable, Codable {
+    public let fillRule: String
+    public let fingerprint: String
+    public let pointCount: Int
+    public let subpathCount: Int
+    public let parameterValues: [String]
+}
+
 public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
     public let kind: String
     public let fingerprint: String
@@ -114,6 +112,7 @@ public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
     public let steps: [MaskCompositeStepDescriptor]
     public let gradient: MaskGradientDescriptor?
     public let shape: MaskShapeDescriptor?
+    public let path: MaskPathDescriptor?
 }
 
 struct LocalEffectRecipeDescriptor: Sendable, Hashable, Codable {
@@ -130,14 +129,6 @@ struct LayerMaskRecipeDescriptor: Sendable, Hashable, Codable {
     let layerIndex: Int
     let mask: MaskGraphDescriptor?
     let compositingMask: MaskGraphDescriptor?
-
-    init(layerIndex: Int,
-         mask: MaskGraphDescriptor?,
-         compositingMask: MaskGraphDescriptor?) {
-        self.layerIndex = layerIndex
-        self.mask = mask
-        self.compositingMask = compositingMask
-    }
 }
 
 struct RenderRecipe: Sendable, Hashable, Codable {
@@ -152,30 +143,6 @@ struct RenderRecipe: Sendable, Hashable, Codable {
     let filters: [FilterRecipeDescriptor]
     let localEffects: [LocalEffectRecipeDescriptor]?
     let layerMasks: [LayerMaskRecipeDescriptor]?
-
-    init(renderProfile: String,
-         renderIntent: RenderIntent,
-         source: ImageSourceDescriptor,
-         outputDerivative: ImageDerivativeSpec,
-         outputCachePolicy: ImageCachePolicy,
-         outputSemantic: ImageSemanticDescriptor,
-         alphaType: AlphaType,
-         orientation: FrameOrientation,
-         filters: [FilterRecipeDescriptor],
-         localEffects: [LocalEffectRecipeDescriptor]? = nil,
-         layerMasks: [LayerMaskRecipeDescriptor]? = nil) {
-        self.renderProfile = renderProfile
-        self.renderIntent = renderIntent
-        self.source = source
-        self.outputDerivative = outputDerivative
-        self.outputCachePolicy = outputCachePolicy
-        self.outputSemantic = outputSemantic
-        self.alphaType = alphaType
-        self.orientation = orientation
-        self.filters = filters
-        self.localEffects = localEffects
-        self.layerMasks = layerMasks
-    }
 
     var fingerprint: String {
         let localEffectPart = localEffects?.map { $0.mask.fingerprint }.joined(separator: "||") ?? "none"
@@ -217,7 +184,9 @@ extension C7FilterProtocol {
             stableTypeID: stableTypeID,
             modifier: modifier.recipeName,
             parameterValues: bindings.isEmpty ? factors.map { Self.stableFloatDescription($0) } : bindings.map(\.fingerprint),
-            otherInputTextureCount: otherInputTextures.count
+            otherInputTextureCount: otherInputTextures.count,
+            pipelineFilterFingerprints: [],
+            finalFilterFingerprint: nil
         )
     }
 

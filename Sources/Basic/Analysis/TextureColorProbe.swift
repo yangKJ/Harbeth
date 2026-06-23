@@ -192,8 +192,7 @@ public extension RenderedAttachment {
 }
 
 public extension RenderedAttachmentSet {
-    func makeColorProbe(for semantic: RenderOutputAttachmentSemantic,
-                        scope: TextureAnalysisScope) -> TextureColorProbe? {
+    func makeColorProbe(for semantic: RenderOutputAttachmentSemantic, scope: TextureAnalysisScope) -> TextureColorProbe? {
         attachment(for: semantic)?.makeColorProbe(scope: scope)
     }
 

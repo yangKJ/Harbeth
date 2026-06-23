@@ -87,11 +87,7 @@ public struct OpticsSettings: Codable, Equatable {
         public var end: Float
         public var edgeThreshold: Float
 
-        public init(center: C7Point2D = .center,
-                    amount: Float = 0,
-                    start: Float = 0.45,
-                    end: Float = 1.0,
-                    edgeThreshold: Float = 0.2) {
+        public init(center: C7Point2D = .center, amount: Float = 0, start: Float = 0.45, end: Float = 1.0, edgeThreshold: Float = 0.2) {
             self.center = center
             self.amount = amount
             self.start = start

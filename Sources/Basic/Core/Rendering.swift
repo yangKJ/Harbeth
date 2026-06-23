@@ -17,10 +17,7 @@ struct Rendering {
          1.0,  1.0, 1.0, 0.0,
     ]
     
-    static func makeRenderPipelineState(with vertex: String,
-                                        fragment: String,
-                                        pixelFormat: MTLPixelFormat,
-                                        sampleCount: Int = 1) throws -> MTLRenderPipelineState {
+    static func makeRenderPipelineState(with vertex: String, fragment: String, pixelFormat: MTLPixelFormat, sampleCount: Int = 1) throws -> MTLRenderPipelineState {
         try Shared.shared.defaultContext.makeRenderPipelineState(
             vertex: vertex,
             fragment: fragment,

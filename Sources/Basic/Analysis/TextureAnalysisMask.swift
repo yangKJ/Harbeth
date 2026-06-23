@@ -9,13 +9,11 @@ import Foundation
 import Metal
 
 public extension MTLTextureCompatible_ {
-    func makeMaskTexture(scope: TextureAnalysisScope,
-                         pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture? {
+    func makeMaskTexture(scope: TextureAnalysisScope, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture? {
         guard let bytes = bytes() else { return nil }
         let width = target.width
         let height = target.height
-        guard width > 0,
-              height > 0,
+        guard width > 0, height > 0,
               let resolvedRegion = resolvedHistogramRegion(scope.region) else {
             return nil
         }
@@ -108,8 +106,7 @@ public extension MTLTextureCompatible_ {
 }
 
 public extension RenderedAttachment {
-    func makeMaskTexture(scope: TextureAnalysisScope,
-                         pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture? {
+    func makeMaskTexture(scope: TextureAnalysisScope, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture? {
         try texture.c7.makeMaskTexture(scope: scope, pixelFormat: pixelFormat)
     }
 
@@ -160,8 +157,7 @@ public extension RenderedAttachmentSet {
 }
 
 public extension RenderedFrame {
-    func makeMaskTexture(scope: TextureAnalysisScope,
-                         pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture? {
+    func makeMaskTexture(scope: TextureAnalysisScope, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture? {
         try texture.c7.makeMaskTexture(scope: scope, pixelFormat: pixelFormat)
     }
 

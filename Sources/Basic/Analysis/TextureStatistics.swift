@@ -60,9 +60,7 @@ public extension MTLTextureCompatible_ {
         guard let bytes = bytes() else { return nil }
         let width = target.width
         let height = target.height
-        guard let resolvedRegion = resolvedHistogramRegion(region),
-              width > 0,
-              height > 0 else {
+        guard let resolvedRegion = resolvedHistogramRegion(region), width > 0, height > 0 else {
             return TextureStatistics(
                 sampleCount: 0,
                 meanRed: 0,
@@ -176,8 +174,7 @@ public extension RenderedAttachment {
 }
 
 public extension RenderedAttachmentSet {
-    func makeStatistics(for semantic: RenderOutputAttachmentSemantic,
-                        scope: TextureAnalysisScope) -> TextureStatistics? {
+    func makeStatistics(for semantic: RenderOutputAttachmentSemantic, scope: TextureAnalysisScope) -> TextureStatistics? {
         makeStatistics(
             for: semantic,
             region: scope.region,

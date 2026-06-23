@@ -45,9 +45,7 @@ public struct TextureColorRange: Sendable, Equatable, Hashable {
     public let saturation: TextureComponentRange?
     public let lightness: TextureComponentRange?
 
-    public init(hue: TextureComponentRange? = nil,
-                saturation: TextureComponentRange? = nil,
-                lightness: TextureComponentRange? = nil) {
+    public init(hue: TextureComponentRange? = nil, saturation: TextureComponentRange? = nil, lightness: TextureComponentRange? = nil) {
         self.hue = hue
         self.saturation = saturation
         self.lightness = lightness
@@ -130,8 +128,7 @@ public struct TextureAnalysisScope: @unchecked Sendable, Equatable {
         TextureAnalysisScope(region: region)
     }
 
-    public static func mask(_ mask: MaskDescriptor,
-                            coverageThreshold: Float = 0.5) -> TextureAnalysisScope {
+    public static func mask(_ mask: MaskDescriptor, coverageThreshold: Float = 0.5) -> TextureAnalysisScope {
         TextureAnalysisScope(mask: mask, coverageThreshold: coverageThreshold)
     }
 

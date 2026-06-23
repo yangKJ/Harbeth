@@ -14,23 +14,11 @@ public enum EditRecipeMode: String, Sendable, Codable, Equatable, Hashable {
 }
 
 struct EditRecipeContract: Sendable, Equatable {
-    public let mode: EditRecipeMode
-    public let profile: RenderProfile
-    public let renderIntent: RenderIntent
-    public let derivative: ImageDerivativeSpec
-    public let sourceTier: ImageSourceTier
-
-    init(mode: EditRecipeMode,
-         profile: RenderProfile,
-         renderIntent: RenderIntent,
-         derivative: ImageDerivativeSpec,
-         sourceTier: ImageSourceTier) {
-        self.mode = mode
-        self.profile = profile
-        self.renderIntent = renderIntent
-        self.derivative = derivative
-        self.sourceTier = sourceTier
-    }
+    let mode: EditRecipeMode
+    let profile: RenderProfile
+    let renderIntent: RenderIntent
+    let derivative: ImageDerivativeSpec
+    let sourceTier: ImageSourceTier
 }
 
 public struct EditRecipe {
@@ -132,29 +120,32 @@ public struct EditRecipe {
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: compiled.source.descriptor
         )
-        let resolvedSourceDescriptor = sourceDescriptorOverride ?? compiled.source.descriptor
+        let filters = plan.diagnostics.nodes
+            .filter { $0.name != "DerivativeResize" }
+            .map { diagnostic in
+                FilterRecipeDescriptor(
+                    stableTypeID: diagnostic.name,
+                    modifier: diagnostic.kind.rawValue,
+                    parameterValues: diagnostic.parameterSummary
+                        .sorted { $0.key < $1.key }
+                        .map { "\($0.key)=\($0.value)" },
+                    otherInputTextureCount: 0,
+                    pipelineFilterFingerprints: [],
+                    finalFilterFingerprint: nil
+                )
+            }
         return RenderRecipe(
             renderProfile: String(describing: compiled.profile),
             renderIntent: compiled.derivative.renderIntent,
-            source: resolvedSourceDescriptor,
+            source: sourceDescriptorOverride ?? compiled.source.descriptor,
             outputDerivative: compiled.derivative,
             outputCachePolicy: compiled.outputCachePolicy,
             outputSemantic: compiled.derivative.semantic,
             alphaType: alphaTypeOverride ?? compiled.source.alphaType,
             orientation: orientationOverride ?? compiled.source.orientation,
-            filters: plan.diagnostics.nodes
-                .filter { $0.name != "DerivativeResize" }
-                .map { diagnostic in
-                    FilterRecipeDescriptor(
-                        stableTypeID: diagnostic.name,
-                        modifier: diagnostic.kind.rawValue,
-                        parameterValues: diagnostic.parameterSummary
-                            .sorted { $0.key < $1.key }
-                            .map { "\($0.key)=\($0.value)" },
-                        otherInputTextureCount: 0
-                    )
-                },
-            localEffects: localEffects.isEmpty ? nil : localEffects.map(\.recipeDescriptor)
+            filters: filters,
+            localEffects: localEffects.isEmpty ? nil : localEffects.map(\.recipeDescriptor),
+            layerMasks: nil
         )
     }
 
@@ -206,8 +197,8 @@ public struct EditRecipe {
                             samplerDescriptor: samplerDescriptor
                         )
                     )
-                        .configured(for: profile)
-                        .output()
+                    .configured(for: profile)
+                    .output()
                 }
                 var currentTexture = try renderTexture(compiled.inputTexture, compiled.baseFilters, compiled.profile)
                 for localEffect in compiled.localEffects {

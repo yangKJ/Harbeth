@@ -235,8 +235,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         )
     }
 
-    public func jsonData(prettyPrinted: Bool = false,
-                         sortedKeys: Bool = true) throws -> Data {
+    public func jsonData(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> Data {
         let encoder = JSONEncoder()
         if prettyPrinted {
             encoder.outputFormatting.insert(.prettyPrinted)
@@ -247,8 +246,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         return try encoder.encode(self)
     }
 
-    public func jsonString(prettyPrinted: Bool = false,
-                           sortedKeys: Bool = true) throws -> String {
+    public func jsonString(prettyPrinted: Bool = false, sortedKeys: Bool = true) throws -> String {
         let data = try jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
         guard let string = String(data: data, encoding: .utf8) else {
             throw HarbethError.configurationInvalid("RenderGraphDebugSnapshot JSON encoding is not valid UTF-8.")

@@ -127,10 +127,7 @@ public struct HarbethPreviewFrame: @unchecked Sendable {
     public let profile: RenderProfile
     public let diagnostics: RenderPlanDiagnostics?
 
-    public init(texture: MTLTexture,
-                sourceDescriptor: ImageSourceDescriptor,
-                profile: RenderProfile,
-                diagnostics: RenderPlanDiagnostics? = nil) {
+    public init(texture: MTLTexture, sourceDescriptor: ImageSourceDescriptor, profile: RenderProfile, diagnostics: RenderPlanDiagnostics? = nil) {
         self.texture = texture
         self.sourceDescriptor = sourceDescriptor
         self.profile = profile

@@ -254,20 +254,6 @@ struct KernelArgumentDescriptor: Sendable, Codable, Equatable, Hashable {
     let required: Bool
     let valueFingerprint: String?
 
-    init(name: String,
-         index: Int,
-         role: KernelArgumentRole,
-         dataType: KernelArgumentDataType,
-         required: Bool = true,
-         valueFingerprint: String? = nil) {
-        self.name = name
-        self.index = index
-        self.role = role
-        self.dataType = dataType
-        self.required = required
-        self.valueFingerprint = valueFingerprint
-    }
-
     var fingerprint: String {
         [
             "arg=\(index)",
@@ -516,8 +502,7 @@ struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
 }
 
 extension KernelDescriptor {
-    func compatibilitySummary(with filter: C7FilterProtocol,
-                              inputSize: C7Size? = nil) -> String {
+    func compatibilitySummary(with filter: C7FilterProtocol, inputSize: C7Size? = nil) -> String {
         let runtimeDescriptor = filter.kernelDescriptor(inputSize: inputSize)
         if functionIdentity != runtimeDescriptor.functionIdentity {
             return "functionIdentityMismatch"
@@ -546,8 +531,7 @@ extension KernelDescriptor {
         }
     }
 
-    func makeInvocation(filter: C7FilterProtocol,
-                        inputSize: C7Size? = nil) -> KernelInvocation {
+    func makeInvocation(filter: C7FilterProtocol, inputSize: C7Size? = nil) -> KernelInvocation {
         KernelInvocation(
             descriptor: self,
             executableFilter: filter,

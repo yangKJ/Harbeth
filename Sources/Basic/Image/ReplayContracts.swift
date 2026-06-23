@@ -100,18 +100,6 @@ public struct RenderCacheIdentity: Sendable, Hashable, Codable {
     public let replayBaseFingerprint: String
     public let filterChainFingerprint: String
 
-    init(sourceFingerprint: String,
-         renderIntent: RenderIntent,
-         derivativeFingerprint: String,
-         replayBaseFingerprint: String,
-         filterChainFingerprint: String) {
-        self.sourceFingerprint = sourceFingerprint
-        self.renderIntent = renderIntent
-        self.derivativeFingerprint = derivativeFingerprint
-        self.replayBaseFingerprint = replayBaseFingerprint
-        self.filterChainFingerprint = filterChainFingerprint
-    }
-
     public var fingerprint: String {
         [
             sourceFingerprint,
@@ -144,12 +132,6 @@ struct ReplaySourceCandidate: Sendable, Hashable, Codable {
     let identifier: String
     let descriptor: ImageSourceDescriptor
     let pixelSize: C7Size?
-
-    init(identifier: String, descriptor: ImageSourceDescriptor, pixelSize: C7Size? = nil) {
-        self.identifier = identifier
-        self.descriptor = descriptor
-        self.pixelSize = pixelSize
-    }
 }
 
 /// replay base 选择结果。
@@ -169,16 +151,6 @@ struct ReplaySourceSelection: Sendable, Hashable, Codable {
     let requestedDerivative: ImageDerivativeSpec
     let selectedCandidate: ReplaySourceCandidate?
     let strategy: Strategy
-
-    init(contract: ReplayBaseContract,
-         requestedDerivative: ImageDerivativeSpec,
-         selectedCandidate: ReplaySourceCandidate?,
-         strategy: Strategy) {
-        self.contract = contract
-        self.requestedDerivative = requestedDerivative
-        self.selectedCandidate = selectedCandidate
-        self.strategy = strategy
-    }
 
     var requiresOriginalReplay: Bool {
         strategy == .requiresOriginalReplay || contract.requiresOriginalSource
@@ -290,20 +262,6 @@ struct ReplaySourceRequestPlan: Sendable, Hashable, Codable {
     let canReuseSelectedCandidateDirectly: Bool
     let requiresPostLoadResize: Bool
 
-    init(derivative: ImageDerivativeSpec,
-         selection: ReplaySourceSelection,
-         requestedSourceTier: ImageSourceTier,
-         loadingOptions: ImageLoadingOptions,
-         canReuseSelectedCandidateDirectly: Bool,
-         requiresPostLoadResize: Bool) {
-        self.derivative = derivative
-        self.selection = selection
-        self.requestedSourceTier = requestedSourceTier
-        self.loadingOptions = loadingOptions
-        self.canReuseSelectedCandidateDirectly = canReuseSelectedCandidateDirectly
-        self.requiresPostLoadResize = requiresPostLoadResize
-    }
-
     var shouldDecodeFromUnderlyingSource: Bool {
         !canReuseSelectedCandidateDirectly
     }
@@ -378,18 +336,6 @@ struct SourceProvisionPolicy: Sendable, Hashable, Codable {
     let producedCachePolicy: ImageCachePolicy
     let shouldPersistProducedDerivative: Bool
     let shouldStoreAsReusableReplayBase: Bool
-
-    init(requestPlan: ReplaySourceRequestPlan,
-         deliveryMode: DeliveryMode,
-         producedCachePolicy: ImageCachePolicy,
-         shouldPersistProducedDerivative: Bool,
-         shouldStoreAsReusableReplayBase: Bool) {
-        self.requestPlan = requestPlan
-        self.deliveryMode = deliveryMode
-        self.producedCachePolicy = producedCachePolicy
-        self.shouldPersistProducedDerivative = shouldPersistProducedDerivative
-        self.shouldStoreAsReusableReplayBase = shouldStoreAsReusableReplayBase
-    }
 }
 
 extension ImageDerivativeSpec {

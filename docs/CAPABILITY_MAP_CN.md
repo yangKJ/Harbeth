@@ -256,5 +256,6 @@ Harbeth 对外只保留两条路线：
 
 - `Sources/Compute/Blend Modes/`：旧滤镜目录里的 blend catalog，例如 `C7MaskedForegroundBlend`、`C7Blend(mask)`，表达的是“几张 texture 直接做一次混合”
 - `Sources/Basic/Filters/`：新 editing / `ImageNode` / local-effect / layer-composite 的内部执行 primitive，例如 `GradientMask`、`ShapeMask`、`MaskCoverageExtract`、`MaskCoverageBlend`、`MaskRegionBlend`、`LayerComposite`
+- `Sources/Basic/IO/HarbethIO+Mask.swift`：texture-first 场景的公开局部 mask compositing facade；内部消费 `MaskRegionBlend`，但不把 primitive 本身暴露给普通调用方
 
 不要只因为名字里都带 `Mask` 就机械搬到同一个目录；它们的输入 contract 和宿主语义并不相同。

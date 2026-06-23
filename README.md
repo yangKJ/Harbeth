@@ -124,6 +124,19 @@ let frame = try io.renderFrame(profile: .stablePreview)
 
 When this path injects derivative-driven resizing or other effective execution filters, `renderTexture`, `renderFrame`, `makeRenderRequest`, and diagnostics now report the same effective chain instead of drifting between execution and debug surfaces.
 
+When the caller already has a background texture, a precomputed foreground texture, and a mask, keep the work on the `HarbethIO` route through the mask compositing convenience instead of touching internal primitives:
+
+```swift
+let output = try HarbethIO
+    .maskedBlend(
+        background: backgroundTexture,
+        foreground: foregroundTexture,
+        mask: MaskDescriptor(texture: maskTexture, component: .red, opacity: 0.8)
+    )
+    .configured(for: .stablePreview)
+    .output()
+```
+
 ### Editing and Diagnostics with ImageNode
 
 Use `ImageNode` when the work has edit structure: geometry, local effects, layer compositing, transitions, or preview/final output contracts.
@@ -141,6 +154,30 @@ let finalTexture = try ImageNode
 ```
 
 `EditRecipe`, `LayerCompositeRecipe`, and `TransitionRecipe` are editing primitives. Mask, local effect, geometry, layer, and transition value types stay in the recipe layer, while execution is unified through `ImageNode`.
+
+For the common "local mask + filters" case, start with the convenience facade first and only drop down to `LocalEffectRecipe` or `EditRecipe` when the caller needs to build richer editing structures:
+
+```swift
+let previewFrame = try ImageNode
+    .texture(inputTexture)
+    .applying(
+        mask: MaskGradientRecipe(
+            size: C7Size(width: inputTexture.width, height: inputTexture.height),
+            kind: .linear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5)
+            )
+        ),
+        filters: [
+            C7Exposure(exposure: 0.12),
+            C7Contrast(contrast: 1.05)
+        ],
+        opacity: 0.8
+    )
+    .makeFrame(profile: .stablePreview)
+```
+
+This convenience still lowers to `LocalEffectRecipe + editing(...)` internally, so `RenderRequest`, `RenderRecipe`, diagnostics, and plugin integration keep the same editing contract.
 
 For `editing(...)`, `transforming(...)`, `transition(...)`, and `layerComposite(...)`, `ImageNode` keeps the original source contract in `RenderRequest`, `RenderRecipe`, and diagnostics even when execution has already materialized the upstream source into an intermediate texture. This matters for `pixelBuffer`, `sampleBuffer`, YCbCr, and HDR-aware paths.
 
@@ -206,7 +243,7 @@ Harbeth now includes reusable editor-grade primitives without turning the core i
 - `MaskDescriptor`, `MaskBlendMode`, `MaskFeatherPolicy`, `LocalEffectRecipe`
 - `ImageLayer`, `LayerCompositeRecipe`, and `LayerBlendMode` for single-frame texture compositing with normalized placement, layer-local transform, opacity, masks, corner radius, and common blend modes
 - `LayerLayoutUnit`, `LayerFlipOptions`, and `LayerCornerCurve` for more explicit layer layout and compositing contracts
-- `TransitionKernel` with built-in dissolve, directional wipe, luma wipe, and displacement transitions
+- `TransitionRecipe` and `TransitionKernelDescriptor` for dissolve, directional wipe, luma wipe, and displacement transitions
 - `EditRecipe` for lightweight preview/final render contracts
 - `C7ProgrammableBlend` for lightweight custom compute blend seams without introducing a heavy render-registry surface
 
@@ -262,16 +299,14 @@ let cleanedFrame = try ImageNode
 ```
 
 ```swift
-let transition = TransitionRecipe(
+let transitionFrame = try ImageNode.transition(
     from: .texture(fromTexture),
     to: .texture(toTexture),
     kernel: .directionalWipe(angleDegrees: 90, softness: 0.08),
     progress: 0.35,
     profile: .stablePreview
 )
-
-let transitionFrame = try ImageNode.transition(transition)
-    .makeFrame(profile: transition.profile, derivative: transition.derivative)
+.makeFrame(profile: .stablePreview)
 ```
 
 ```swift
