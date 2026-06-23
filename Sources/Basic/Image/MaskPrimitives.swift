@@ -118,9 +118,7 @@ public struct MaskGradientRecipe {
     public var kind: MaskGradientKind
     public var profile: RenderProfile
 
-    public init(size: C7Size,
-                kind: MaskGradientKind,
-                profile: RenderProfile = .stablePreview) {
+    public init(size: C7Size, kind: MaskGradientKind, profile: RenderProfile = .stablePreview) {
         self.size = size
         self.kind = kind
         self.profile = profile
@@ -232,9 +230,7 @@ public struct MaskShapeRecipe {
     public var kind: MaskShapeKind
     public var profile: RenderProfile
 
-    public init(size: C7Size,
-                kind: MaskShapeKind,
-                profile: RenderProfile = .stablePreview) {
+    public init(size: C7Size, kind: MaskShapeKind, profile: RenderProfile = .stablePreview) {
         self.size = size
         self.kind = kind
         self.profile = profile
@@ -471,22 +467,19 @@ public struct MaskCompositeStep {
         )
     }
 
-    public static func add(_ mask: MaskDescriptor,
-                           name: String = "add") -> MaskCompositeStep {
+    public static func add(_ mask: MaskDescriptor, name: String = "add") -> MaskCompositeStep {
         var descriptor = mask
         descriptor.blendMode = .add
         return MaskCompositeStep(name: name, mask: descriptor)
     }
 
-    public static func intersect(_ mask: MaskDescriptor,
-                                 name: String = "intersect") -> MaskCompositeStep {
+    public static func intersect(_ mask: MaskDescriptor, name: String = "intersect") -> MaskCompositeStep {
         var descriptor = mask
         descriptor.blendMode = .multiply
         return MaskCompositeStep(name: name, mask: descriptor)
     }
 
-    public static func subtract(_ mask: MaskDescriptor,
-                                name: String = "subtract") -> MaskCompositeStep {
+    public static func subtract(_ mask: MaskDescriptor, name: String = "subtract") -> MaskCompositeStep {
         var descriptor = mask
         descriptor.blendMode = .subtract
         return MaskCompositeStep(name: name, mask: descriptor)
@@ -613,9 +606,7 @@ public struct MaskCompositeRecipe {
     public var steps: [MaskCompositeStep]
     public var profile: RenderProfile
 
-    public init(baseMask: MaskDescriptor,
-                masks: [MaskDescriptor] = [],
-                profile: RenderProfile = .stablePreview) {
+    public init(baseMask: MaskDescriptor, masks: [MaskDescriptor] = [], profile: RenderProfile = .stablePreview) {
         self.baseMask = baseMask
         self.baseGraphOverride = nil
         self.steps = masks.enumerated().map { index, mask in
@@ -624,9 +615,7 @@ public struct MaskCompositeRecipe {
         self.profile = profile
     }
 
-    public init(baseMask: MaskDescriptor,
-                steps: [MaskCompositeStep],
-                profile: RenderProfile = .stablePreview) {
+    public init(baseMask: MaskDescriptor, steps: [MaskCompositeStep], profile: RenderProfile = .stablePreview) {
         self.baseMask = baseMask
         self.baseGraphOverride = nil
         self.steps = steps
@@ -691,22 +680,19 @@ public struct MaskCompositeRecipe {
         steps.map(\.mask)
     }
 
-    public func adding(_ mask: MaskDescriptor,
-                       name: String = "add") -> MaskCompositeRecipe {
+    public func adding(_ mask: MaskDescriptor, name: String = "add") -> MaskCompositeRecipe {
         var copy = self
         copy.steps.append(.add(mask, name: name))
         return copy
     }
 
-    public func intersecting(_ mask: MaskDescriptor,
-                             name: String = "intersect") -> MaskCompositeRecipe {
+    public func intersecting(_ mask: MaskDescriptor, name: String = "intersect") -> MaskCompositeRecipe {
         var copy = self
         copy.steps.append(.intersect(mask, name: name))
         return copy
     }
 
-    public func subtracting(_ mask: MaskDescriptor,
-                            name: String = "subtract") -> MaskCompositeRecipe {
+    public func subtracting(_ mask: MaskDescriptor, name: String = "subtract") -> MaskCompositeRecipe {
         var copy = self
         copy.steps.append(.subtract(mask, name: name))
         return copy

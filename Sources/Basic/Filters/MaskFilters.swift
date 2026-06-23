@@ -8,6 +8,11 @@
 import Foundation
 import Metal
 
+/// 新 editing / ImageNode 路线里的参数化 mask 生成 primitive。
+///
+/// 这一组类型和 `Sources/Compute/Blend Modes/` 的旧 blend-with-mask catalog 不在同一抽象层：
+/// - 这里服务 `MaskDescriptor`、`LocalEffectRecipe`、`MaskCompositeRecipe`、`LayerCompositeRecipe`
+/// - 那边服务“直接拿几张 texture 做一次混合”的旧滤镜目录
 public struct C7GradientMask: C7FilterProtocol {
     public let kind: MaskGradientKind
 

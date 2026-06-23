@@ -252,3 +252,9 @@ Harbeth 对外只保留两条路线：
 1. 它该归 `HarbethIO` 还是 `ImageNode`
 2. 如果都不是，它是不是 supporting / authoring / runtime support
 3. 如果还不是，就不该变成新的公开路线
+关于 mask 相关源码分布，当前要区分两层：
+
+- `Sources/Compute/Blend Modes/`：旧滤镜目录里的 blend catalog，例如 `C7MaskedForegroundBlend`、`C7Blend(mask)`，表达的是“几张 texture 直接做一次混合”
+- `Sources/Basic/Filters/`：新 editing / `ImageNode` / local-effect / layer-composite 支撑 primitive，例如 `C7GradientMask`、`C7ShapeMask`、`C7MaskCoverageExtract`、`C7MaskCoverageBlend`、`C7MaskRegionBlend`、`C7LayerComposite`
+
+不要只因为名字里都带 `Mask` 就机械搬到同一个目录；它们的输入 contract 和宿主语义并不相同。

@@ -803,9 +803,8 @@ Combination filters allow you to create complex effects by combining multiple in
 - **C7BlendSoftLight**: Gently lightens or darkens the base layer based on the blend layer values
 - **C7BlendSourceOver**: The default blending mode where the blend layer is drawn over the base layer
 - **C7BlendSubtract**: Subtracts the blend layer colors from the base layer colors, resulting in a darker image
-- **C7BlendWithMask**: Uses a separate mask texture to control the blending of two layers
+- **C7MaskedForegroundBlend**: Uses a separate mask texture to composite a foreground texture into the current input
 - **C7ColorBurnEnhancedBlend**: Enhanced color burn blend mode
-- **C7XORBlendWithMask**: XOR hybrid filter is used to achieve the effect of odd and even
 
 #### 🔍 Edge & Detail
 - **C7Canny**: Applies the Canny edge detection algorithm, a multi-stage process that identifies edges with high accuracy and low noise

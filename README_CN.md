@@ -220,9 +220,8 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **C7BlendSoftLight**（柔光）- 柔和的混合效果
 - **C7BlendSourceOver**（源覆盖）- 默认混合模式，混合层绘制在基础层之上
 - **C7BlendSubtract**（减去）- 从基础层颜色中减去混合层颜色，产生更暗的图像
-- **C7BlendWithMask**（带蒙版混合）- 使用单独的蒙版纹理控制两个图层的混合
+- **C7MaskedForegroundBlend**（前景蒙版混合）- 使用单独的蒙版纹理把前景合成到当前输入背景上
 - **C7ColorBurnEnhancedBlend**（增强版颜色加深混合模式）- 增强版颜色加深混合模式
-- **C7XORBlendWithMask**（XOR蒙版混合）- 使用蒙版进行XOR混合
 
 #### 🎛️ 实用工具
 - **C7ChromaKey**（色度键控）- 绿幕抠图效果
