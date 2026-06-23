@@ -30,6 +30,9 @@ public extension C7FilterPipelineProtocol {
             return pipelineFilters.count
         }
     }
+    func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
+        try FilterPipelineExecutor.apply(filter: self, source: texture, destination: destTexture, commandBuffer: buffer)
+    }
 }
 
 struct PipelineLeafFilter: C7FilterProtocol {

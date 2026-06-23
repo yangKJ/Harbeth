@@ -714,6 +714,60 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(request.diagnostics.compilationSource, .editRecipe)
     }
 
+    func testImageNodeEditingPreservesHDRBiPlanarSampleBufferContractAcrossAllSurfaces() throws {
+        let pixelBuffer = try makeHDRBiPlanarPixelBuffer()
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create HDR bi-planar sample buffer.")
+            return
+        }
+
+        let node = ImageNode
+            .sampleBuffer(sampleBuffer)
+            .editing(
+                EditRecipe(
+                    geometry: ImageTransformRecipe(
+                        targetSize: CGSize(width: 2, height: 2),
+                        aspectPolicy: .fit
+                    )
+                )
+            )
+            .applying(C7Brightness(brightness: 0.0))
+
+        let frame = try node.makeFrame(profile: .stablePreview)
+        let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
+        let request = try node.makeRenderRequest(profile: .stablePreview)
+        let renderRecipe = try XCTUnwrap(request.renderRecipe)
+        let snapshot = try node.makeDebugSnapshot(profile: .stablePreview)
+
+        XCTAssertEqual(request.source.kind, "sampleBuffer")
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(request.source.yCbCrDecodeContract?.matrix, .bt601FullRange)
+        XCTAssertEqual(request.source.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.gamut, .ituR2020)
+        XCTAssertEqual(request.source.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.transferFunction, .perceptualQuantizer)
+
+        XCTAssertEqual(renderRecipe.source.kind, "sampleBuffer")
+        XCTAssertEqual(renderRecipe.source.yCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertEqual(renderRecipe.source.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.gamut, .ituR2020)
+        XCTAssertEqual(renderRecipe.source.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.transferFunction, .perceptualQuantizer)
+
+        XCTAssertTrue(diagnostics.inputIsHDRFriendly)
+        XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.layout, .biPlanar)
+        XCTAssertTrue(diagnostics.inputPixelPrecision == .float16 || diagnostics.inputPixelPrecision == .custom)
+        XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
+        XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=biPlanar"))
+        XCTAssertTrue(diagnostics.summary.contains("inputHDRFriendly=1"))
+
+        XCTAssertEqual(snapshot.renderRecipe?.source.kind, "sampleBuffer")
+        XCTAssertEqual(snapshot.diagnostics.inputYCbCrDecode, diagnostics.inputYCbCrDecodeContract?.fingerprint)
+        XCTAssertTrue(snapshot.diagnostics.inputHDRFriendly)
+        XCTAssertTrue(snapshot.summary.contains("origin=sampleBuffer"))
+
+        XCTAssertEqual(frame.sourceDescriptor.kind, "sampleBuffer")
+        XCTAssertEqual(frame.sourceDescriptor.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.gamut, .ituR2020)
+        XCTAssertEqual(frame.sourceDescriptor.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.transferFunction, .perceptualQuantizer)
+        XCTAssertEqual(request.diagnostics.compilationSource, .editRecipe)
+    }
+
     func testFilteringSampleBufferPreservesTimingAndAttachments() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
@@ -1015,6 +1069,27 @@ final class PixelBufferOutputTests: XCTestCase {
         guard let pixelBuffer else {
             XCTFail("Failed to create bi-planar pixel buffer.")
             throw XCTSkip()
+        }
+        return pixelBuffer
+    }
+
+    private func makeHDRBiPlanarPixelBuffer(width: Int = 4, height: Int = 4) throws -> CVPixelBuffer {
+        let pixelBuffer = try makeBiPlanarPixelBuffer(width: width, height: height)
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferColorPrimariesKey,
+                kCVImageBufferColorPrimaries_ITU_R_2020,
+                .shouldPropagate
+            )
+            CVBufferSetAttachment(
+                pixelBuffer,
+                kCVImageBufferTransferFunctionKey,
+                kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ,
+                .shouldPropagate
+            )
+        } else {
+            throw XCTSkip("HDR attachments are unavailable on this platform.")
         }
         return pixelBuffer
     }

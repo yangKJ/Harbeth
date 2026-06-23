@@ -29,10 +29,6 @@ public final class C7CombinationCreativeAtmosphere: C7FilterPipelineProtocol {
         self.intensity = intensity
     }
 
-    public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
-        try FilterPipelineExecutor.apply(filter: self, source: texture, destination: destTexture, commandBuffer: buffer)
-    }
-
     public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
         PipelineLeafFilter(
             modifier: .compute(kernel: "C7CombinationBlendIntensity"),

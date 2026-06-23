@@ -38,6 +38,27 @@ public struct SamplerExecutionCoverage: Sendable, Codable, Equatable, Hashable {
 }
 
 enum SamplerExecutionAdapter {
+    static func merge(_ lhs: SamplerExecutionCoverage,
+                      _ rhs: SamplerExecutionCoverage) -> SamplerExecutionCoverage {
+        let covered = Array(Set(lhs.coveredFilterTypes + rhs.coveredFilterTypes)).sorted()
+        let metadataOnly = Array(Set(lhs.metadataOnlyFilterTypes + rhs.metadataOnlyFilterTypes)).sorted()
+        let mode: SamplerExecutionCoverageMode
+        switch (covered.isEmpty, metadataOnly.isEmpty) {
+        case (true, true):
+            mode = .notApplicable
+        case (true, false):
+            mode = .metadataOnly
+        case (false, true):
+            mode = .covered
+        case (false, false):
+            mode = .partial
+        }
+        return SamplerExecutionCoverage(
+            mode: mode,
+            coveredFilterTypes: covered,
+            metadataOnlyFilterTypes: metadataOnly
+        )
+    }
 
     static func adapt(filters: [C7FilterProtocol], samplerDescriptor: ImageSamplerDescriptor) -> [C7FilterProtocol] {
         guard filters.isEmpty == false, samplerDescriptor != .default else {

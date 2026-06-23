@@ -628,6 +628,54 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         )
     }
 
+    public func withSamplerExecutionCoverage(_ coverage: SamplerExecutionCoverage) -> RenderPlanDiagnostics {
+        RenderPlanDiagnostics(
+            profile: profile,
+            derivative: derivative,
+            graphFingerprint: graphFingerprint,
+            sourceKind: sourceKind,
+            graphNodeCount: graphNodeCount,
+            graphEdgeCount: graphEdgeCount,
+            optimizedGraphNodeCount: optimizedGraphNodeCount,
+            graphOptimizationDecisions: graphOptimizationDecisions,
+            persistentBoundaryCount: persistentBoundaryCount,
+            transientReuseCandidateCount: transientReuseCandidateCount,
+            sharedDependencyNodeCount: sharedDependencyNodeCount,
+            inputSize: inputSize,
+            outputSize: outputSize,
+            containsBoundary: containsBoundary,
+            requiresCompletedGPUWork: requiresCompletedGPUWork,
+            stageCount: stageCount,
+            compilationSource: compilationSource,
+            imageCachePolicy: imageCachePolicy,
+            samplerDescriptor: samplerDescriptor,
+            samplerExecutionCoverage: coverage,
+            containsLocalEffectComposite: containsLocalEffectComposite,
+            containsTransitionKernel: containsTransitionKernel,
+            containsDerivativeResize: containsDerivativeResize,
+            optimizationPlan: optimizationPlan,
+            outputContract: outputContract,
+            inputColorSpace: inputColorSpace,
+            outputColorSpace: outputColorSpace,
+            inputAlphaType: inputAlphaType,
+            outputAlphaType: outputAlphaType,
+            inputPixelFormat: inputPixelFormat,
+            inputBridgePolicy: inputBridgePolicy,
+            inputYCbCrDecodeContract: inputYCbCrDecodeContract,
+            outputPixelFormat: outputPixelFormat,
+            inputColorConversionCount: inputColorConversionCount,
+            inputPixelFormatConversionCount: inputPixelFormatConversionCount,
+            inputAlphaConversionCount: inputAlphaConversionCount,
+            inputDirectPlaneBridgeCount: inputDirectPlaneBridgeCount,
+            alphaConversionCount: alphaConversionCount,
+            colorConversionCount: colorConversionCount,
+            pixelFormatConversionCount: pixelFormatConversionCount,
+            lossyConversionCount: lossyConversionCount,
+            nodes: nodes,
+            stages: stages
+        )
+    }
+
     public func jsonData(prettyPrinted: Bool = false,
                          sortedKeys: Bool = true) throws -> Data {
         let encoder = JSONEncoder()
@@ -657,6 +705,20 @@ struct RenderPlan {
     let containsBoundary: Bool
     let optimizedStages: [RenderStage]
     let diagnostics: RenderPlanDiagnostics
+
+    init(graph: RenderGraph,
+         profile: RenderProfile,
+         requiresCompletedGPUWork: Bool,
+         containsBoundary: Bool,
+         optimizedStages: [RenderStage],
+         diagnostics: RenderPlanDiagnostics) {
+        self.graph = graph
+        self.profile = profile
+        self.requiresCompletedGPUWork = requiresCompletedGPUWork
+        self.containsBoundary = containsBoundary
+        self.optimizedStages = optimizedStages
+        self.diagnostics = diagnostics
+    }
 
     init(graph: RenderGraph,
          profile: RenderProfile,
@@ -776,6 +838,17 @@ struct RenderPlan {
 
     public var debugSummary: String {
         diagnostics.summary
+    }
+
+    func withSamplerExecutionCoverage(_ coverage: SamplerExecutionCoverage) -> RenderPlan {
+        RenderPlan(
+            graph: graph,
+            profile: profile,
+            requiresCompletedGPUWork: requiresCompletedGPUWork,
+            containsBoundary: containsBoundary,
+            optimizedStages: optimizedStages,
+            diagnostics: diagnostics.withSamplerExecutionCoverage(coverage)
+        )
     }
 }
 

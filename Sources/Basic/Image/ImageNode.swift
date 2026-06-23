@@ -1052,6 +1052,21 @@ extension LayerCompositeRecipe {
         let backgroundTexture = try background.makeTexture()
         let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
         let placeholderTexture = backgroundTexture
+        let layerPreparationFilters = layers.flatMap { layer -> [C7FilterProtocol] in
+            var layerTransform = layer.transform
+            if layer.rotation.truncatingRemainder(dividingBy: 360) != 0 {
+                layerTransform.rotationDegrees += layer.rotation
+            }
+            if layer.flipOptions.horizontal {
+                layerTransform.mirrorsHorizontally.toggle()
+            }
+            if layer.flipOptions.vertical {
+                layerTransform.flipsVertically.toggle()
+            }
+            return layerTransform.makeFilters(
+                inputSize: C7Size(width: placeholderTexture.width, height: placeholderTexture.height)
+            ) + layer.filters
+        }
         let filters = try layers.flatMap { layer -> [C7FilterProtocol] in
             let resolvedMask = try layer.resolvedMaskDescriptor()
             let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
@@ -1082,7 +1097,7 @@ extension LayerCompositeRecipe {
                 )
             ]
         }
-        return GraphCompiler.compile(
+        let plan = GraphCompiler.compile(
             filters: filters,
             inputSize: backgroundSize,
             profile: profile,
@@ -1091,6 +1106,13 @@ extension LayerCompositeRecipe {
             outputContract: outputContract,
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: background.descriptor
+        )
+        let preparationCoverage = SamplerExecutionAdapter.coverage(
+            for: layerPreparationFilters,
+            samplerDescriptor: samplerDescriptor
+        )
+        return plan.withSamplerExecutionCoverage(
+            SamplerExecutionAdapter.merge(plan.diagnostics.samplerExecutionCoverage, preparationCoverage)
         )
     }
 

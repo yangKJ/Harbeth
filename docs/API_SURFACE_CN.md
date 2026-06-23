@@ -296,6 +296,7 @@ let recipe = EditRecipe(
 - 普通 `RenderProtocol` filters：通过 runtime sampler state 绑定生效
 - `RenderQuadTransform` / `RenderQuadRectifyTransform`：通过 geometry adapter 映射到 `SpatialSamplingMode` / `SpatialEdgeMode`
 - `EditRecipe` / `TransitionRecipe` / `LayerCompositeRecipe` 进入 `ImageNode` 后，最终执行会继续沿用同一个 sampler contract
+- `LayerCompositeRecipe` 的 layer-local transform / filters 现在也会进入同一份 route-level `samplerExecutionCoverage` 诊断，而不是只在真实执行里生效、在 diagnostics 里丢失
 
 当前已经进入真实执行覆盖的 family：
 
@@ -338,6 +339,7 @@ source contract 一致性说明：
 
 - `ImageNode` 在 `editing(...)`、`transforming(...)`、`transition(...)`、`layerComposite(...)` 这些高级路径里，即使执行期已经把 source 物化成上游 texture，`RenderRequest`、`RenderRecipe`、`RenderGraphDebugSnapshot` 仍以最终 node contract 为准
 - `sampleBuffer`、`pixelBuffer`、YCbCr、HDR、attachment-derived color contract 不会因为内部先解成 texture 就在调试面退化成裸 `texture` source
+- 这条规则同样覆盖 HDR-friendly bi-planar sampleBuffer：YCbCr decode contract、attachment color contract、HDR friendliness 会在 request / recipe / snapshot / diagnostics / frame source descriptor 上保持同一套语义
 - 目标是让执行、request、recipe、diagnostics 四个 surface 讲的是同一件事
 
 ## 2. Supporting Public

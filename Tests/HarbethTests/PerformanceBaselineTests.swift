@@ -71,6 +71,79 @@ final class PerformanceBaselineTests: XCTestCase {
         }
     }
 
+    func testImageNodeEditRouteClockBaseline() throws {
+        let input = try makeTexture(width: 256, height: 256, pixel: [180, 96, 48, 255])
+        let node = ImageNode
+            .texture(input)
+            .editing(
+                EditRecipe(
+                    geometry: ImageTransformRecipe(
+                        targetSize: CGSize(width: 220, height: 220),
+                        aspectPolicy: .fit
+                    )
+                )
+            )
+            .applying(C7Brightness(brightness: 0.06))
+
+        measure(metrics: [XCTClockMetric()]) {
+            autoreleasepool {
+                do {
+                    _ = try node.makeTexture(profile: .stablePreview)
+                } catch {
+                    XCTFail("Expected edit route baseline render to succeed: \(error)")
+                }
+            }
+        }
+    }
+
+    func testImageNodeLayerCompositeRouteClockBaseline() throws {
+        let background = try makeTexture(width: 256, height: 256, pixel: [48, 48, 48, 255])
+        let layer = try makeTexture(width: 128, height: 128, pixel: [220, 128, 64, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+                    opacity: 0.9
+                )
+            ]
+        )
+        let node = ImageNode.layerComposite(recipe)
+
+        measure(metrics: [XCTClockMetric()]) {
+            autoreleasepool {
+                do {
+                    _ = try node.makeTexture(profile: recipe.profile, derivative: recipe.derivative)
+                } catch {
+                    XCTFail("Expected layer composite route baseline render to succeed: \(error)")
+                }
+            }
+        }
+    }
+
+    func testImageNodeTransitionRouteClockBaseline() throws {
+        let from = try makeTexture(width: 256, height: 256, pixel: [255, 64, 64, 255])
+        let to = try makeTexture(width: 256, height: 256, pixel: [64, 64, 255, 255])
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .dissolve,
+            progress: 0.5
+        )
+        let node = ImageNode.transition(recipe)
+
+        measure(metrics: [XCTClockMetric()]) {
+            autoreleasepool {
+                do {
+                    _ = try node.makeTexture(profile: recipe.profile, derivative: recipe.derivative)
+                } catch {
+                    XCTFail("Expected transition route baseline render to succeed: \(error)")
+                }
+            }
+        }
+    }
+
     func testPixelBufferYCbCrBridgeClockBaseline() throws {
         let pixelBuffer = try makeBiPlanarPixelBuffer(width: 320, height: 180)
         let io = HarbethIO(

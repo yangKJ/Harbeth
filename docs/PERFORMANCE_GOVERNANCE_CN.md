@@ -44,6 +44,9 @@ Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜
 - `PerformanceBaselineTests/testHarbethIOFilterChainClockBaseline`
 - `PerformanceBaselineTests/testImageNodeFilterChainClockBaseline`
 - `PerformanceBaselineTests/testImageNodeGeometrySamplerClockBaseline`
+- `PerformanceBaselineTests/testImageNodeEditRouteClockBaseline`
+- `PerformanceBaselineTests/testImageNodeLayerCompositeRouteClockBaseline`
+- `PerformanceBaselineTests/testImageNodeTransitionRouteClockBaseline`
 - `PerformanceBaselineTests/testPixelBufferYCbCrBridgeClockBaseline`
 
 建议命令：
@@ -57,14 +60,30 @@ xcrun swift test --filter PerformanceBaselineTests
 - `HarbethIO` 轻量滤镜链
 - `ImageNode` 统一链路
 - geometry + sampler override
+- edit / layer composite / transition advanced routes
 - pixelBuffer / YCbCr bridge
 
 仓库当前还补了两类执行证据：
 
 - `RenderGraphTests/testExecutionPrewarmReservationsIncreaseTextureReuseForBoundaryChain`
 - `RenderGraphTests/testExecutionPrewarmReservationsIncreaseTextureReuseForDoubleBufferChain`
+- `ImageNodeRecipeRouteTests/testEditRoutePersistentCachePolicyAddsPersistentBoundaryAndReservation`
+- `ImageNodeRecipeRouteTests/testEditRoutePointFiltersExposeMergedStageBenefit`
+- `ImageNodeRecipeRouteTests/testLayerCompositeRouteKeepsLayerLocalPreparationOutsideTopLevelMergeMetrics`
+- `ImageNodeRecipeRouteTests/testLayerCompositeRoutePersistentCachePolicyAddsPersistentReservationRelativeToTransientNode`
+- `ImageNodeRecipeRouteTests/testTransitionRoutePersistentCachePolicyAddsPersistentReservationRelativeToTransientNode`
+- `ImageNodeRecipeRouteTests/testTransitionRouteKeepsTransitionBoundaryWhileMergingTrailingPointFilters`
+- `ImageNodeRecipeRouteTests/testLayerCompositeRoutePersistentNodeExposesPrewarmReservations`
+- `ImageNodeRecipeRouteTests/testTransitionRoutePersistentNodePreservesBoundaryAcrossGraphAndPlan`
 
 这两条不是时钟基线，而是用 texture pool reuse hit 去证明 optimizer 的 prewarm hint 已经进入真实执行，而不只是停留在 diagnostics。
+
+同时，这批 route-level tests 也明确了另一层边界：
+
+- `edit` 与 `transition` 路线可以在顶层 plan 上直接观察到 `mergeCompatibleStages`
+- `layerComposite` 的 layer-local filter preparation 当前仍封装在组合语义内部，不会虚假抬高顶层 `mergedStageCount`
+- `edit`、`layerComposite`、`transition` 三条高级路线现在都已经有 route-level `covered / partial / metadataOnly` sampler coverage 证据
+- 对于等价的普通 filters 链，`HarbethIO` 与 `ImageNode` 现在也有 diagnostics 对齐测试，确保 `mergedStageCount`、`fusionEligibleNodeCount`、`prewarmReservations` 等 optimization metrics 不会漂移
 
 ## 基准场景
 

@@ -232,6 +232,70 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 
+    func testHarbethIOAndImageNodeAlignOptimizationMetricsForEquivalentFilterChain() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        Shared.shared.deinitDevice()
+
+        let input = try TextureLoader.makeTexture(width: 12, height: 10, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "io-node-metrics-align-input")
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.1),
+            C7Contrast(contrast: 1.05),
+            C7Resize(width: 6, height: 5),
+            C7Gamma(gamma: 1.3)
+        ]
+
+        let ioDiagnostics = try HarbethIO(element: input, filters: filters)
+            .renderDiagnostics(profile: .inspectionQuality)
+        let nodeDiagnostics = try ImageNode
+            .texture(input)
+            .applying(filters: filters)
+            .makeDiagnostics(profile: .inspectionQuality)
+
+        XCTAssertEqual(ioDiagnostics.compilationSource, .filtersPrimitive)
+        XCTAssertEqual(nodeDiagnostics.compilationSource, .nodeGraph)
+        XCTAssertEqual(ioDiagnostics.outputSize, nodeDiagnostics.outputSize)
+        XCTAssertEqual(ioDiagnostics.stageCount, nodeDiagnostics.stageCount)
+        XCTAssertEqual(ioDiagnostics.containsBoundary, nodeDiagnostics.containsBoundary)
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.mergedStageCount, nodeDiagnostics.optimizationPlan.mergedStageCount)
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.fusionEligibleNodeCount, nodeDiagnostics.optimizationPlan.fusionEligibleNodeCount)
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.transientStageCount, nodeDiagnostics.optimizationPlan.transientStageCount)
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.renderStageCount, nodeDiagnostics.optimizationPlan.renderStageCount)
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.prewarmReservations, nodeDiagnostics.optimizationPlan.prewarmReservations)
+        XCTAssertEqual(ioDiagnostics.samplerExecutionCoverage, nodeDiagnostics.samplerExecutionCoverage)
+    }
+
+    func testHarbethIOAndImageNodeAlignOptimizationMetricsForPointComputeChain() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        Shared.shared.deinitDevice()
+
+        let input = try TextureLoader.makeTexture(width: 8, height: 6, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "io-node-point-align-input")
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.1),
+            C7Contrast(contrast: 1.05)
+        ]
+
+        let ioDiagnostics = try HarbethIO(element: input, filters: filters)
+            .renderDiagnostics(profile: .stablePreview)
+        let nodeDiagnostics = try ImageNode
+            .texture(input)
+            .applying(filters: filters)
+            .makeDiagnostics(profile: .stablePreview)
+
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.mergedStageCount, 1)
+        XCTAssertEqual(nodeDiagnostics.optimizationPlan.mergedStageCount, 1)
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.fusionEligibleNodeCount, nodeDiagnostics.optimizationPlan.fusionEligibleNodeCount)
+        XCTAssertEqual(ioDiagnostics.stageCount, 1)
+        XCTAssertEqual(nodeDiagnostics.stageCount, 1)
+        XCTAssertEqual(ioDiagnostics.optimizationPlan.prewarmReservations, nodeDiagnostics.optimizationPlan.prewarmReservations)
+        XCTAssertEqual(ioDiagnostics.summary.contains("mergedStages=1"), nodeDiagnostics.summary.contains("mergedStages=1"))
+    }
+
     func testOptimizerKeepsNeighborhoodComputeInSeparateStage() {
         let filters: [C7FilterProtocol] = [
             C7Brightness(brightness: 0.1),
