@@ -144,6 +144,22 @@ let finalTexture = try ImageNode
 
 For `editing(...)`, `transforming(...)`, `transition(...)`, and `layerComposite(...)`, `ImageNode` keeps the original source contract in `RenderRequest`, `RenderRecipe`, and diagnostics even when execution has already materialized the upstream source into an intermediate texture. This matters for `pixelBuffer`, `sampleBuffer`, YCbCr, and HDR-aware paths.
 
+Private plugin packages also stay inside this route. `HarbethPluginOutput` can carry source-like results such as `texture`, `image`, `pixelBuffer`, and `sampleBuffer`, or editing-side results such as `filters`, `EditRecipe`, `LocalEffectRecipe`, `LayerCompositeRecipe`, and `MaskDescriptor`. The host still materializes them back through `ImageNode.source(...)`, `node.applying(pluginOutput:)`, or `node.applying(plugin:)` instead of introducing a third public route.
+
+```swift
+let pluginNode = try ImageNode
+    .texture(inputTexture)
+    .applying(pluginOutput: .localEffect(
+        LocalEffectRecipe(
+            filters: [C7Exposure(exposure: 0.12)],
+            mask: MaskDescriptor(texture: maskTexture)
+        )
+    ))
+
+let preview = try pluginNode.makePreviewFrame(profile: .stablePreview)
+renderView.display(preview)
+```
+
 ### Graph and Diagnostics with ImageNode
 
 Use `ImageNode` when the caller needs graph inspection, cache policy, diagnostics, or debug output.

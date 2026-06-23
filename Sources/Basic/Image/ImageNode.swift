@@ -46,6 +46,11 @@ extension ImageNode {
         return ImageNode(storage: .filters(input: sourceNode, filters: filters))
     }
 
+    @_disfavoredOverload
+    public static func source(_ output: HarbethPluginOutput) throws -> ImageNode {
+        .source(try output.makeImageSource())
+    }
+
     static func filters(input: ImageNode, filters: [C7FilterProtocol]) -> ImageNode {
         ImageNode(storage: .filters(input: input, filters: filters))
     }
@@ -67,31 +72,31 @@ extension ImageNode {
     }
 
     public static func texture(_ texture: MTLTexture) -> ImageNode {
-        .source(.texture(texture))
+        .source(ImageSource.texture(texture))
     }
 
     public static func image(_ image: C7Image) -> ImageNode {
-        .source(.image(image))
+        .source(ImageSource.image(image))
     }
 
     public static func cgImage(_ image: CGImage) -> ImageNode {
-        .source(.cgImage(image))
+        .source(ImageSource.cgImage(image))
     }
 
     public static func pixelBuffer(_ pixelBuffer: CVPixelBuffer) -> ImageNode {
-        .source(.pixelBuffer(pixelBuffer))
+        .source(ImageSource.pixelBuffer(pixelBuffer))
     }
 
     public static func sampleBuffer(_ sampleBuffer: CMSampleBuffer) -> ImageNode {
-        .source(.sampleBuffer(sampleBuffer))
+        .source(ImageSource.sampleBuffer(sampleBuffer))
     }
 
     public static func data(_ data: Data) -> ImageNode {
-        .source(.data(data))
+        .source(ImageSource.data(data))
     }
 
     public static func asset(_ asset: ImageAsset) -> ImageNode {
-        .source(.asset(asset))
+        .source(ImageSource.asset(asset))
     }
 
     public func withCachePolicy(_ policy: ImageCachePolicy) -> ImageNode {
@@ -112,6 +117,45 @@ extension ImageNode {
 
     public func applying(optics settings: OpticsSettings) -> ImageNode {
         applying(filters: settings.makeFilters())
+    }
+
+    public func applying(pluginOutput: HarbethPluginOutput,
+                         mode: EditRecipeMode = .preview) throws -> ImageNode {
+        switch pluginOutput {
+        case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer:
+            return try ImageNode.source(pluginOutput)
+        case .filters(let filters):
+            return applying(filters: filters)
+        case .editRecipe(let recipe):
+            return editing(recipe, mode: mode)
+        case .localEffect(let localEffect):
+            return editing(EditRecipe(localEffects: [localEffect]), mode: mode)
+        case .layerComposite(let recipe):
+            return ImageNode.layerComposite(recipe)
+        case .mask:
+            throw HarbethError.configurationInvalid(
+                "Plugin output mask cannot be applied directly. Wrap it in LocalEffectRecipe or EditRecipe first."
+            )
+        }
+    }
+
+    public func applying<Plugin: HarbethPlugin>(plugin: Plugin,
+                                                profile: RenderProfile = .stablePreview,
+                                                derivative: ImageDerivativeSpec? = nil,
+                                                mode: EditRecipeMode = .preview) throws -> ImageNode {
+        let frame = try makeFrame(profile: profile, derivative: derivative)
+        let output = try plugin.makeOutput(frame: frame)
+        return try applying(pluginOutput: output, mode: mode)
+    }
+
+    public func makePreviewFrame(profile: RenderProfile = .stablePreview,
+                                 derivative: ImageDerivativeSpec? = nil) throws -> HarbethPreviewFrame {
+        let frame = try makeFrame(profile: profile, derivative: derivative)
+        let diagnostics = try makeDiagnostics(
+            profile: profile,
+            derivative: derivative ?? profile.defaultDerivativeSpec
+        )
+        return HarbethPreviewFrame(frame: frame, diagnostics: diagnostics)
     }
 
     public func editing(_ recipe: EditRecipe, mode: EditRecipeMode = .preview) -> ImageNode {

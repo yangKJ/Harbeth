@@ -203,6 +203,28 @@ let node = ImageNode
 let previewFrame = try node.makeFrame(profile: .stablePreview)
 ```
 
+私有插件包如果要接进 `ImageNode`，也仍然走这条路线，不新增独立 `PluginNode`：
+
+```swift
+let pluginNode = try ImageNode
+    .texture(inputTexture)
+    .applying(pluginOutput: .localEffect(
+        LocalEffectRecipe(
+            filters: [C7Exposure(exposure: 0.12)],
+            mask: MaskDescriptor(texture: maskTexture)
+        )
+    ))
+
+let previewFrame = try pluginNode.makePreviewFrame(profile: .stablePreview)
+renderView.display(previewFrame)
+```
+
+规则：
+
+- source-like 插件输出，例如 `texture`、`image`、`cgImage`、`pixelBuffer`、`sampleBuffer`，先回到 `ImageSource`
+- editing-like 插件输出，例如 `filters`、`EditRecipe`、`LocalEffectRecipe`、`LayerCompositeRecipe`，继续进入现有 `ImageNode` 路径
+- 裸 `MaskDescriptor` 只是局部区域描述，不会单独形成可见结果；如果要直接作用到 node，插件应返回 `LocalEffectRecipe` 或 `EditRecipe`
+
 layer composite：
 
 ```swift
@@ -385,9 +407,24 @@ source contract 一致性说明：
 - `RenderGraphDebugSnapshot`
 - `ImageGraph`
 - `RenderedFrame`
+- `HarbethPreviewFrame`
 - `RenderedAttachmentSet`
 - `RenderedAnalysisBundle`
 - `RenderedAttachmentAnalysisBundle`
+
+插件支撑层相关类型：
+
+- `HarbethPluginOutput`
+- `HarbethTexturePlugin`
+- `HarbethFilterPlugin`
+- `HarbethMaskPlugin`
+- `HarbethPreviewDisplaying`
+
+定位：
+
+- 它们是私有插件包、GPU preview host 和 `ImageNode` 之间的桥接支撑层
+- 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
+- `RenderView` 只是 `HarbethPreviewDisplaying` 的默认实现，不代表 Harbeth 额外新增了一条公开路线
 - `ReplayBaseContract`
 - `RenderCacheIdentity`
 
