@@ -44,19 +44,19 @@ static inline half combine_coverage(half baseCoverage, half maskCoverage, int bl
     }
 }
 
-kernel void C7MaskCoverageBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                texture2d<half, access::read> baseTexture [[texture(1)]],
-                                texture2d<half, access::read> maskTexture [[texture(2)]],
-                                constant float *baseOpacityPointer [[buffer(0)]],
-                                constant float *baseInvertPointer [[buffer(1)]],
-                                constant float *baseComponentPointer [[buffer(2)]],
-                                constant float *baseFeatherPointer [[buffer(3)]],
-                                constant float *maskOpacityPointer [[buffer(4)]],
-                                constant float *maskInvertPointer [[buffer(5)]],
-                                constant float *maskComponentPointer [[buffer(6)]],
-                                constant float *maskBlendModePointer [[buffer(7)]],
-                                constant float *maskFeatherPointer [[buffer(8)]],
-                                uint2 gid [[thread_position_in_grid]]) {
+kernel void InnerMaskCoverageBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                   texture2d<half, access::read> baseTexture [[texture(1)]],
+                                   texture2d<half, access::read> maskTexture [[texture(2)]],
+                                   constant float *baseOpacityPointer [[buffer(0)]],
+                                   constant float *baseInvertPointer [[buffer(1)]],
+                                   constant float *baseComponentPointer [[buffer(2)]],
+                                   constant float *baseFeatherPointer [[buffer(3)]],
+                                   constant float *maskOpacityPointer [[buffer(4)]],
+                                   constant float *maskInvertPointer [[buffer(5)]],
+                                   constant float *maskComponentPointer [[buffer(6)]],
+                                   constant float *maskBlendModePointer [[buffer(7)]],
+                                   constant float *maskFeatherPointer [[buffer(8)]],
+                                   uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }

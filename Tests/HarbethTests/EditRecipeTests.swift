@@ -311,7 +311,7 @@ final class EditRecipeTests: XCTestCase {
 
         XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
         XCTAssertTrue(diagnostics.containsLocalEffectComposite)
-        XCTAssertTrue(diagnostics.nodes.contains(where: { $0.name.contains("C7MaskRegionBlend") }))
+        XCTAssertTrue(diagnostics.nodes.contains(where: { $0.name.contains("MaskRegionBlend") }))
     }
 
     func testRecipeCompilationPlanAndNodePathStayAligned() throws {
@@ -490,7 +490,7 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(directTexture.height, nodeTexture.height)
         XCTAssertEqual(try firstPixel(in: directTexture).green, try firstPixel(in: nodeTexture).green)
         XCTAssertEqual(diagnostics.compilationSource, .layerComposite)
-        XCTAssertEqual(diagnostics.nodes.first?.name.contains("C7LayerComposite"), true)
+        XCTAssertEqual(diagnostics.nodes.first?.name.contains("LayerComposite"), true)
         XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 

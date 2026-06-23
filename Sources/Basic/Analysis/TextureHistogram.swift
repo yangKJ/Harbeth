@@ -362,7 +362,7 @@ public extension MTLTextureCompatible_ {
         guard let mask else { return nil }
         guard let coverageTexture = try? HarbethIO(
             element: mask.texture,
-            filter: C7MaskCoverageExtract(mask: mask)
+            filter: MaskCoverageExtract(mask: mask)
         ).renderTexture(profile: .readbackQuality),
         let bytes = coverageTexture.c7.bytes() else {
             guard let bytes = mask.texture.c7.bytes() else { return nil }

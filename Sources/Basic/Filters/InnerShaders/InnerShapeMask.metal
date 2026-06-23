@@ -1,15 +1,15 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7ShapeMask(texture2d<half, access::write> outputTexture [[texture(0)]],
-                        texture2d<half, access::read> inputTexture [[texture(1)]],
-                        constant float *kindPointer [[buffer(0)]],
-                        constant float *xPointer [[buffer(1)]],
-                        constant float *yPointer [[buffer(2)]],
-                        constant float *widthPointer [[buffer(3)]],
-                        constant float *heightPointer [[buffer(4)]],
-                        constant float *featherPointer [[buffer(5)]],
-                        uint2 grid [[thread_position_in_grid]]) {
+kernel void InnerShapeMask(texture2d<half, access::write> outputTexture [[texture(0)]],
+                           texture2d<half, access::read> inputTexture [[texture(1)]],
+                           constant float *kindPointer [[buffer(0)]],
+                           constant float *xPointer [[buffer(1)]],
+                           constant float *yPointer [[buffer(2)]],
+                           constant float *widthPointer [[buffer(3)]],
+                           constant float *heightPointer [[buffer(4)]],
+                           constant float *featherPointer [[buffer(5)]],
+                           uint2 grid [[thread_position_in_grid]]) {
     const float2 uv = (float2(grid) + 0.5f) / float2(outputTexture.get_width(), outputTexture.get_height());
     const float kind = *kindPointer;
     const float2 origin = float2(*xPointer, *yPointer);

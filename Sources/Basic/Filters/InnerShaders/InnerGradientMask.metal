@@ -1,16 +1,16 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7GradientMask(texture2d<half, access::write> outputTexture [[texture(0)]],
-                           texture2d<half, access::read> inputTexture [[texture(1)]],
-                           constant float *kindPointer [[buffer(0)]],
-                           constant float *value1Pointer [[buffer(1)]],
-                           constant float *value2Pointer [[buffer(2)]],
-                           constant float *value3Pointer [[buffer(3)]],
-                           constant float *value4Pointer [[buffer(4)]],
-                           constant float *value5Pointer [[buffer(5)]],
-                           constant float *value6Pointer [[buffer(6)]],
-                           uint2 grid [[thread_position_in_grid]]) {
+kernel void InnerGradientMask(texture2d<half, access::write> outputTexture [[texture(0)]],
+                              texture2d<half, access::read> inputTexture [[texture(1)]],
+                              constant float *kindPointer [[buffer(0)]],
+                              constant float *value1Pointer [[buffer(1)]],
+                              constant float *value2Pointer [[buffer(2)]],
+                              constant float *value3Pointer [[buffer(3)]],
+                              constant float *value4Pointer [[buffer(4)]],
+                              constant float *value5Pointer [[buffer(5)]],
+                              constant float *value6Pointer [[buffer(6)]],
+                              uint2 grid [[thread_position_in_grid]]) {
     const float2 size = float2(outputTexture.get_width(), outputTexture.get_height());
     const float2 uv = (float2(grid) + 0.5f) / size;
     const float kind = *kindPointer;

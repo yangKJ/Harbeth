@@ -1284,7 +1284,7 @@ enum GraphOptimizer {
                     boundaryReason: boundaryReason(for: stageNodes, diagnostics: diagnostics),
                     containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback && currentNodeIndices.last == graph.nodes.indices.last,
                     createsDestinationTexture: stageNodes.contains(where: { $0.filter != nil }),
-                    containsLocalEffectComposite: diagnostics.contains(where: { $0.name.contains("C7MaskRegionBlend") }),
+                    containsLocalEffectComposite: diagnostics.contains(where: { $0.name.contains("MaskRegionBlend") }),
                     containsTransitionKernel: diagnostics.contains(where: { $0.name.contains("Transition") }),
                     containsDerivativeResize: diagnostics.contains(where: { $0.name.contains("DerivativeResize") })
                 )

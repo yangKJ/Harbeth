@@ -12,16 +12,16 @@ static inline half mask_component_value(half4 color, int component) {
     }
 }
 
-kernel void C7MaskRegionBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::read> inputTexture [[texture(1)]],
-                              texture2d<half, access::read> effectTexture [[texture(2)]],
-                              texture2d<half, access::read> maskTexture [[texture(3)]],
-                              constant float *opacityPointer [[buffer(0)]],
-                              constant float *invertPointer [[buffer(1)]],
-                              constant float *componentPointer [[buffer(2)]],
-                              constant float *blendModePointer [[buffer(3)]],
-                              constant float *featherPointer [[buffer(4)]],
-                              uint2 gid [[thread_position_in_grid]]) {
+kernel void InnerMaskRegionBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                 texture2d<half, access::read> inputTexture [[texture(1)]],
+                                 texture2d<half, access::read> effectTexture [[texture(2)]],
+                                 texture2d<half, access::read> maskTexture [[texture(3)]],
+                                 constant float *opacityPointer [[buffer(0)]],
+                                 constant float *invertPointer [[buffer(1)]],
+                                 constant float *componentPointer [[buffer(2)]],
+                                 constant float *blendModePointer [[buffer(3)]],
+                                 constant float *featherPointer [[buffer(4)]],
+                                 uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }

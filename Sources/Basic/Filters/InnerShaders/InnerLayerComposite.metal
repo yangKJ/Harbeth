@@ -1,8 +1,8 @@
 //
-//  C7LayerComposite.metal
+//  InnerLayerComposite.metal
 //  Harbeth
 //
-//  Created by Condy on 2026/6/21.
+//  Created by Condy on 2026/6/23.
 //
 
 #include <metal_stdlib>
@@ -92,41 +92,41 @@ static inline half combineMaskCoverage(half current, half maskValue, int blendMo
     }
 }
 
-kernel void C7LayerComposite(texture2d<half, access::write> outputTexture [[texture(0)]],
-                             texture2d<half, access::read> backgroundTexture [[texture(1)]],
-                             texture2d<half, access::sample> layerTexture [[texture(2)]],
-                             texture2d<half, access::sample> maskTexture [[texture(3)]],
-                             texture2d<half, access::sample> compositingMaskTexture [[texture(4)]],
-                             constant float *frameX [[buffer(0)]],
-                             constant float *frameY [[buffer(1)]],
-                             constant float *frameWidth [[buffer(2)]],
-                             constant float *frameHeight [[buffer(3)]],
-                             constant float *contentX [[buffer(4)]],
-                             constant float *contentY [[buffer(5)]],
-                             constant float *contentWidth [[buffer(6)]],
-                             constant float *contentHeight [[buffer(7)]],
-                             constant float *opacity [[buffer(8)]],
-                             constant float *blendMode [[buffer(9)]],
-                             constant float *hasMask [[buffer(10)]],
-                             constant float *maskComponent [[buffer(11)]],
-                             constant float *maskBlendMode [[buffer(12)]],
-                             constant float *maskInvert [[buffer(13)]],
-                             constant float *maskOpacity [[buffer(14)]],
-                             constant float *maskFeather [[buffer(15)]],
-                             constant float *hasCompositingMask [[buffer(16)]],
-                             constant float *compositingMaskComponent [[buffer(17)]],
-                             constant float *compositingMaskBlendMode [[buffer(18)]],
-                             constant float *compositingMaskInvert [[buffer(19)]],
-                             constant float *compositingMaskOpacity [[buffer(20)]],
-                             constant float *compositingMaskFeather [[buffer(21)]],
-                             constant float *cornerRadius [[buffer(22)]],
-                             constant float *continuousCorner [[buffer(23)]],
-                             constant float *tintR [[buffer(24)]],
-                             constant float *tintG [[buffer(25)]],
-                             constant float *tintB [[buffer(26)]],
-                             constant float *tintA [[buffer(27)]],
-                             constant float *hasTint [[buffer(28)]],
-                             uint2 grid [[thread_position_in_grid]]) {
+kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                texture2d<half, access::read> backgroundTexture [[texture(1)]],
+                                texture2d<half, access::sample> layerTexture [[texture(2)]],
+                                texture2d<half, access::sample> maskTexture [[texture(3)]],
+                                texture2d<half, access::sample> compositingMaskTexture [[texture(4)]],
+                                constant float *frameX [[buffer(0)]],
+                                constant float *frameY [[buffer(1)]],
+                                constant float *frameWidth [[buffer(2)]],
+                                constant float *frameHeight [[buffer(3)]],
+                                constant float *contentX [[buffer(4)]],
+                                constant float *contentY [[buffer(5)]],
+                                constant float *contentWidth [[buffer(6)]],
+                                constant float *contentHeight [[buffer(7)]],
+                                constant float *opacity [[buffer(8)]],
+                                constant float *blendMode [[buffer(9)]],
+                                constant float *hasMask [[buffer(10)]],
+                                constant float *maskComponent [[buffer(11)]],
+                                constant float *maskBlendMode [[buffer(12)]],
+                                constant float *maskInvert [[buffer(13)]],
+                                constant float *maskOpacity [[buffer(14)]],
+                                constant float *maskFeather [[buffer(15)]],
+                                constant float *hasCompositingMask [[buffer(16)]],
+                                constant float *compositingMaskComponent [[buffer(17)]],
+                                constant float *compositingMaskBlendMode [[buffer(18)]],
+                                constant float *compositingMaskInvert [[buffer(19)]],
+                                constant float *compositingMaskOpacity [[buffer(20)]],
+                                constant float *compositingMaskFeather [[buffer(21)]],
+                                constant float *cornerRadius [[buffer(22)]],
+                                constant float *continuousCorner [[buffer(23)]],
+                                constant float *tintR [[buffer(24)]],
+                                constant float *tintG [[buffer(25)]],
+                                constant float *tintB [[buffer(26)]],
+                                constant float *tintA [[buffer(27)]],
+                                constant float *hasTint [[buffer(28)]],
+                                uint2 grid [[thread_position_in_grid]]) {
     const half4 background = backgroundTexture.read(grid);
     const float outputWidth = float(outputTexture.get_width());
     const float outputHeight = float(outputTexture.get_height());

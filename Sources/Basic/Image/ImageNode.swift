@@ -1114,7 +1114,7 @@ extension LayerCompositeRecipe {
         let filters = try layers.flatMap { layer -> [C7FilterProtocol] in
             let resolvedMask = try layer.resolvedMaskDescriptor()
             let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
-            let composite = C7LayerComposite(
+            let composite = LayerComposite(
                 layerTexture: placeholderTexture,
                 mask: resolvedMask,
                 compositingMask: resolvedCompositingMask,
@@ -1199,7 +1199,7 @@ extension LayerCompositeRecipe {
                 let preparedLayer = try makeTransparentCanvas(matching: current)
                 let layerCanvas = try HarbethIO(
                     element: preparedLayer,
-                    filter: C7LayerComposite(
+                    filter: LayerComposite(
                         layerTexture: layerTexture,
                         mask: resolvedMask,
                         compositingMask: resolvedCompositingMask,
@@ -1231,7 +1231,7 @@ extension LayerCompositeRecipe {
             }
             current = try HarbethIO(
                 element: current,
-                filter: C7LayerComposite(
+                filter: LayerComposite(
                     layerTexture: layerTexture,
                     mask: resolvedMask,
                     compositingMask: resolvedCompositingMask,

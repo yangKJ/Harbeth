@@ -262,17 +262,17 @@ final class ImageNodeTests: XCTestCase {
         let firstIdentity = KernelFunctionIdentity(
             kind: .render,
             primaryName: "C7VertexPassthrough",
-            secondaryName: "C7LayerComposite",
+            secondaryName: "LayerComposite",
             functionConstants: constants
         )
         let secondIdentity = KernelFunctionIdentity(
             kind: .render,
             primaryName: "C7VertexPassthrough",
-            secondaryName: "C7LayerComposite",
+            secondaryName: "LayerComposite",
             functionConstants: reversedConstants
         )
         let descriptor = KernelDescriptor(
-            filterName: "C7LayerComposite",
+            filterName: "LayerComposite",
             functionIdentity: firstIdentity,
             parameters: ["opacity": .float(0.5)],
             resourceUsage: .multiInput
@@ -571,7 +571,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(try pixel(in: output, x: 0, y: 0).green, 255)
         XCTAssertEqual(try pixel(in: output, x: 1, y: 0).red, 255)
         XCTAssertEqual(diagnostics.compilationSource, .layerComposite)
-        XCTAssertEqual(diagnostics.nodes.first?.name.contains("C7LayerComposite"), true)
+        XCTAssertEqual(diagnostics.nodes.first?.name.contains("LayerComposite"), true)
         XCTAssertEqual(diagnostics.optimizationPlan.destinationTextureCreationCount, 1)
     }
 

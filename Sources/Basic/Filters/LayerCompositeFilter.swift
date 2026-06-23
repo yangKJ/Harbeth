@@ -2,34 +2,34 @@
 //  LayerCompositeFilter.swift
 //  Harbeth
 //
-//  Created by Condy on 2026/6/22.
+//  Created by Condy on 2026/6/23.
 //
 
 import CoreGraphics
 import Metal
 
-public struct C7LayerComposite: C7FilterProtocol {
-    public let layerTexture: MTLTexture
-    public let mask: MaskDescriptor?
-    public let compositingMask: MaskDescriptor?
-    public let normalizedFrame: CGRect
-    public let contentRegion: CGRect
-    public let opacity: Float
-    public let blendMode: LayerBlendMode
-    public let cornerRadius: Float
-    public let cornerCurve: LayerCornerCurve
-    public let tintColor: SIMD4<Float>?
+struct LayerComposite: C7FilterProtocol {
+    let layerTexture: MTLTexture
+    let mask: MaskDescriptor?
+    let compositingMask: MaskDescriptor?
+    let normalizedFrame: CGRect
+    let contentRegion: CGRect
+    let opacity: Float
+    let blendMode: LayerBlendMode
+    let cornerRadius: Float
+    let cornerCurve: LayerCornerCurve
+    let tintColor: SIMD4<Float>?
 
-    public init(layerTexture: MTLTexture,
-                mask: MaskDescriptor? = nil,
-                compositingMask: MaskDescriptor? = nil,
-                normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
-                contentRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
-                opacity: Float = 1,
-                blendMode: LayerBlendMode = .sourceOver,
-                cornerRadius: Float = 0,
-                cornerCurve: LayerCornerCurve = .circular,
-                tintColor: SIMD4<Float>? = nil) {
+    init(layerTexture: MTLTexture,
+         mask: MaskDescriptor? = nil,
+         compositingMask: MaskDescriptor? = nil,
+         normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+         contentRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+         opacity: Float = 1,
+         blendMode: LayerBlendMode = .sourceOver,
+         cornerRadius: Float = 0,
+         cornerCurve: LayerCornerCurve = .circular,
+         tintColor: SIMD4<Float>? = nil) {
         self.layerTexture = layerTexture
         self.mask = mask
         self.compositingMask = compositingMask
@@ -42,11 +42,11 @@ public struct C7LayerComposite: C7FilterProtocol {
         self.tintColor = tintColor
     }
 
-    public var modifier: ModifierEnum {
-        .compute(kernel: "C7LayerComposite")
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerLayerComposite")
     }
 
-    public var factors: [Float] {
+    var factors: [Float] {
         [
             Float(normalizedFrame.origin.x),
             Float(normalizedFrame.origin.y),
@@ -80,7 +80,7 @@ public struct C7LayerComposite: C7FilterProtocol {
         ]
     }
 
-    public var otherInputTextures: C7InputTextures {
+    var otherInputTextures: C7InputTextures {
         [
             layerTexture,
             mask?.texture ?? layerTexture,
@@ -88,7 +88,7 @@ public struct C7LayerComposite: C7FilterProtocol {
         ]
     }
 
-    public var memoryAccessPattern: MemoryAccessPattern {
+    var memoryAccessPattern: MemoryAccessPattern {
         .multiTexture
     }
 }

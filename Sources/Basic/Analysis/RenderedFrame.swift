@@ -615,7 +615,7 @@ private struct CompiledRecipeExecution {
                 let effectTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
                 currentTexture = try renderTexture(
                     currentTexture,
-                    [C7MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
+                    [MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
                     compiled.profile
                 )
             }

@@ -12,7 +12,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effect, mask: descriptor)
         ).output()
 
         let pixel = try firstPixel(in: output)
@@ -28,7 +28,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effect, mask: descriptor)
         ).output()
 
         let pixel = try firstPixel(in: output)
@@ -43,14 +43,14 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let transparentOutput: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(
+            filter: MaskRegionBlend(
                 effectTexture: effect,
                 mask: MaskDescriptor(texture: maskTexture, opacity: 0)
             )
         ).output()
         let opaqueOutput: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(
+            filter: MaskRegionBlend(
                 effectTexture: effect,
                 mask: MaskDescriptor(texture: maskTexture, opacity: 1)
             )
@@ -68,14 +68,14 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let redOutput: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(
+            filter: MaskRegionBlend(
                 effectTexture: effect,
                 mask: MaskDescriptor(texture: redMask, component: .red, opacity: 1)
             )
         ).output()
         let greenOutput: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(
+            filter: MaskRegionBlend(
                 effectTexture: effect,
                 mask: MaskDescriptor(texture: greenMask, component: .red, opacity: 1)
             )
@@ -93,7 +93,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effect, mask: descriptor)
         ).output()
 
         let pixel = try firstPixel(in: output)
@@ -111,7 +111,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effect, mask: descriptor)
         ).output()
 
         let pixel = try firstPixel(in: output)
@@ -129,7 +129,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effect, mask: descriptor)
         ).output()
 
         let pixel = try firstPixel(in: output)
@@ -146,7 +146,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: baseCoverage,
-            filter: C7MaskCoverageBlend(mask: descriptor)
+            filter: MaskCoverageBlend(mask: descriptor)
         ).output()
 
         let pixel = try firstPixel(in: output)
@@ -160,7 +160,7 @@ final class MaskPrimitiveTests: XCTestCase {
         let maskTexture = try makeTexture(pixel: [128, 64, 32, 255])
         let output: MTLTexture = try HarbethIO(
             element: maskTexture,
-            filter: C7MaskCoverageExtract(
+            filter: MaskCoverageExtract(
                 mask: MaskDescriptor(
                     texture: maskTexture,
                     component: .red,
@@ -185,14 +185,14 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let combinedMask: MTLTexture = try HarbethIO(
             element: baseCoverage,
-            filter: C7MaskCoverageBlend(
+            filter: MaskCoverageBlend(
                 mask: MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
             )
         ).output()
 
         let output: MTLTexture = try HarbethIO(
             element: baseImage,
-            filter: C7MaskRegionBlend(
+            filter: MaskRegionBlend(
                 effectTexture: effectImage,
                 mask: MaskDescriptor(texture: combinedMask, component: .red, opacity: 1)
             )
@@ -222,7 +222,7 @@ final class MaskPrimitiveTests: XCTestCase {
         let effectImage = try makeTexture(pixel: [0, 0, 0, 255])
         let output: MTLTexture = try HarbethIO(
             element: baseImage,
-            filter: C7MaskRegionBlend(effectTexture: effectImage, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effectImage, mask: descriptor)
         ).output()
         let pixel = try firstPixel(in: output)
 
@@ -381,7 +381,7 @@ final class MaskPrimitiveTests: XCTestCase {
             featherPolicy: .normalized(0.4),
             opacity: 0.75
         )
-        let filter = C7MaskRegionBlend(effectTexture: maskTexture, mask: descriptor)
+        let filter = MaskRegionBlend(effectTexture: maskTexture, mask: descriptor)
 
         XCTAssertEqual(filter.factors[0], 0.75, accuracy: 0.0001)
         XCTAssertEqual(filter.factors[2], Float(MaskComponent.red.rawValue), accuracy: 0.0001)
@@ -440,7 +440,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effect, mask: descriptor)
         ).output()
         let bytes = try bytes(in: output)
 
@@ -492,7 +492,7 @@ final class MaskPrimitiveTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: base,
-            filter: C7MaskRegionBlend(effectTexture: effect, mask: descriptor)
+            filter: MaskRegionBlend(effectTexture: effect, mask: descriptor)
         ).output()
         let bytes = try bytes(in: output)
 

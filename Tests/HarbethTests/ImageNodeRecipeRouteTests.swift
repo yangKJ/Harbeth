@@ -325,7 +325,7 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertEqual(plan.diagnostics.optimizationPlan.mergedStageCount, 0)
         XCTAssertEqual(plan.diagnostics.optimizationPlan.fusionEligibleNodeCount, 0)
         XCTAssertFalse(plan.diagnostics.optimizationPlan.decisions.contains("mergeCompatibleStages"))
-        XCTAssertTrue(plan.diagnostics.nodes.first?.name.contains("C7LayerComposite") == true)
+        XCTAssertTrue(plan.diagnostics.nodes.first?.name.contains("LayerComposite") == true)
     }
 
     func testEditRoutePersistentNodePreservesRecipeBoundaryAcrossOptimizedGraphAndSnapshot() throws {

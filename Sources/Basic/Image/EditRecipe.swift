@@ -214,7 +214,7 @@ public struct EditRecipe {
                     let effectTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
                     currentTexture = try renderTexture(
                         currentTexture,
-                        [C7MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
+                        [MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
                         compiled.profile
                     )
                 }
@@ -372,7 +372,7 @@ public struct EditRecipe {
         resolvedLocalEffects.forEach { effect in
             compiled.append(contentsOf: effect.filters)
             let placeholderMask = effect.mask
-            compiled.append(C7MaskRegionBlend(effectTexture: placeholderMask.texture, mask: placeholderMask))
+            compiled.append(MaskRegionBlend(effectTexture: placeholderMask.texture, mask: placeholderMask))
         }
         guard includeDerivativeResize else {
             return compiled

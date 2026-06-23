@@ -1211,7 +1211,7 @@ final class RenderedFrameTests: XCTestCase {
         let fingerprint = frame.metadata["filterChainFingerprint"] ?? ""
         XCTAssertFalse(fingerprint.isEmpty)
         XCTAssertTrue(fingerprint.contains("C7Brightness"))
-        XCTAssertTrue(fingerprint.contains("C7MaskRegionBlend"))
+        XCTAssertTrue(fingerprint.contains("MaskRegionBlend"))
     }
 
     func testRenderFrameCarriesExplicitRenderOutputColorSpace() throws {

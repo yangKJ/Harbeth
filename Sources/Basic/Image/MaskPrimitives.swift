@@ -194,7 +194,7 @@ public struct MaskGradientRecipe {
         )
         return try HarbethIO(
             element: seed,
-            filter: C7GradientMask(kind: kind)
+            filter: GradientMask(kind: kind)
         )
         .configured(for: profile)
         .output()
@@ -217,7 +217,7 @@ public struct MaskGradientRecipe {
     }
 
     static func stableFloatDescription(_ value: Float) -> String {
-        C7GradientMask.stableFloatDescription(value)
+        GradientMask.stableFloatDescription(value)
     }
 }
 
@@ -308,7 +308,7 @@ public struct MaskShapeRecipe {
         )
         return try HarbethIO(
             element: seed,
-            filter: C7ShapeMask(kind: kind)
+            filter: ShapeMask(kind: kind)
         )
         .configured(for: profile)
         .output()
@@ -331,7 +331,7 @@ public struct MaskShapeRecipe {
     }
 
     static func stableFloatDescription(_ value: Float) -> String {
-        C7ShapeMask.stableFloatDescription(value)
+        ShapeMask.stableFloatDescription(value)
     }
 }
 
@@ -854,7 +854,7 @@ public struct MaskCompositeRecipe {
     public func makeTexture() throws -> MTLTexture {
         var current = try HarbethIO(
             element: baseMask.texture,
-            filter: C7MaskCoverageExtract(mask: baseMask)
+            filter: MaskCoverageExtract(mask: baseMask)
         )
         .configured(for: profile)
         .output()
@@ -862,7 +862,7 @@ public struct MaskCompositeRecipe {
         for step in steps {
             current = try HarbethIO(
                 element: current,
-                filter: C7MaskCoverageBlend(baseComponent: .red, mask: step.mask)
+                filter: MaskCoverageBlend(baseComponent: .red, mask: step.mask)
             )
             .configured(for: profile)
             .output()

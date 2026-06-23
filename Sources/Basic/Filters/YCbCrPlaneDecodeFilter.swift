@@ -2,7 +2,7 @@
 //  YCbCrPlaneDecodeFilter.swift
 //  Harbeth
 //
-//  Created by Condy on 2026/6/22.
+//  Created by Condy on 2026/6/23.
 //
 
 import Foundation
@@ -16,9 +16,9 @@ struct YCbCrPlaneDecodeFilter: C7FilterProtocol {
         var kernelName: String {
             switch self {
             case .biPlanar:
-                return "C7YCbCrBiPlanarToRGBA"
+                return "InnerYCbCrBiPlanarToRGBA"
             case .triPlanar:
-                return "C7YCbCrTriPlanarToRGBA"
+                return "InnerYCbCrTriPlanarToRGBA"
             }
         }
     }
@@ -46,5 +46,4 @@ struct YCbCrPlaneDecodeFilter: C7FilterProtocol {
             KernelParameterBinding(name: "conversionOffset", index: 1, stage: .compute, value: .float3(conversionOffset))
         ]
     }
-
 }

@@ -2,33 +2,31 @@
 //  MaskFilters.swift
 //  Harbeth
 //
-//  Created by Condy on 2026/6/22.
+//  Created by Condy on 2026/6/23.
 //
 
 import Foundation
 import Metal
 
-/// 新 editing / ImageNode 路线里的参数化 mask 生成 primitive。
+/// `ImageNode.editing(...)` 路线内部使用的参数化 mask 生成 primitive。
 ///
-/// 这一组类型和 `Sources/Compute/Blend Modes/` 的旧 blend-with-mask catalog 不在同一抽象层：
-/// - 这里服务 `MaskDescriptor`、`LocalEffectRecipe`、`MaskCompositeRecipe`、`LayerCompositeRecipe`
-/// - 那边服务“直接拿几张 texture 做一次混合”的旧滤镜目录
-public struct C7GradientMask: C7FilterProtocol {
-    public let kind: MaskGradientKind
+/// 这组类型属于执行层，不作为普通用户公开 API 暴露。
+struct GradientMask: C7FilterProtocol {
+    let kind: MaskGradientKind
 
-    public init(kind: MaskGradientKind) {
+    init(kind: MaskGradientKind) {
         self.kind = kind
     }
 
-    public var modifier: ModifierEnum {
-        .compute(kernel: "C7GradientMask")
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerGradientMask")
     }
 
-    public var memoryAccessPattern: MemoryAccessPattern {
+    var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
 
-    public var factors: [Float] {
+    var factors: [Float] {
         switch kind {
         case .linear(let startPoint, let endPoint):
             return [
@@ -54,22 +52,22 @@ public struct C7GradientMask: C7FilterProtocol {
     }
 }
 
-public struct C7ShapeMask: C7FilterProtocol {
-    public let kind: MaskShapeKind
+struct ShapeMask: C7FilterProtocol {
+    let kind: MaskShapeKind
 
-    public init(kind: MaskShapeKind) {
+    init(kind: MaskShapeKind) {
         self.kind = kind
     }
 
-    public var modifier: ModifierEnum {
-        .compute(kernel: "C7ShapeMask")
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerShapeMask")
     }
 
-    public var memoryAccessPattern: MemoryAccessPattern {
+    var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
 
-    public var factors: [Float] {
+    var factors: [Float] {
         switch kind {
         case .rectangle(let rect, let feather):
             return [
@@ -93,20 +91,20 @@ public struct C7ShapeMask: C7FilterProtocol {
     }
 }
 
-public struct C7MaskRegionBlend: C7FilterProtocol {
-    public let effectTexture: MTLTexture
-    public let mask: MaskDescriptor
+struct MaskRegionBlend: C7FilterProtocol {
+    let effectTexture: MTLTexture
+    let mask: MaskDescriptor
 
-    public init(effectTexture: MTLTexture, mask: MaskDescriptor) {
+    init(effectTexture: MTLTexture, mask: MaskDescriptor) {
         self.effectTexture = effectTexture
         self.mask = mask
     }
 
-    public var modifier: ModifierEnum {
-        .compute(kernel: "C7MaskRegionBlend")
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerMaskRegionBlend")
     }
 
-    public var factors: [Float] {
+    var factors: [Float] {
         [
             mask.opacity,
             mask.invert ? 1 : 0,
@@ -116,33 +114,28 @@ public struct C7MaskRegionBlend: C7FilterProtocol {
         ]
     }
 
-    public var otherInputTextures: C7InputTextures {
+    var otherInputTextures: C7InputTextures {
         [effectTexture, mask.texture]
     }
 
-    public var memoryAccessPattern: MemoryAccessPattern {
+    var memoryAccessPattern: MemoryAccessPattern {
         .multiTexture
     }
 }
 
 /// 把任意 `MaskDescriptor` 规范化成 coverage texture。
-///
-/// 输出为灰度 coverage surface：
-/// - RGB 写入相同 coverage 值
-/// - alpha 固定为 1
-/// - 可作为后续 `C7MaskCoverageBlend` / `C7MaskRegionBlend` / layer mask 的统一输入
-public struct C7MaskCoverageExtract: C7FilterProtocol {
-    public let mask: MaskDescriptor
+struct MaskCoverageExtract: C7FilterProtocol {
+    let mask: MaskDescriptor
 
-    public init(mask: MaskDescriptor) {
+    init(mask: MaskDescriptor) {
         self.mask = mask
     }
 
-    public var modifier: ModifierEnum {
-        .compute(kernel: "C7MaskCoverageExtract")
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerMaskCoverageExtract")
     }
 
-    public var factors: [Float] {
+    var factors: [Float] {
         [
             mask.opacity,
             mask.invert ? 1 : 0,
@@ -153,23 +146,18 @@ public struct C7MaskCoverageExtract: C7FilterProtocol {
 }
 
 /// 组合已有 coverage texture 与额外 mask，输出新的 coverage texture。
-///
-/// 这层 primitive 保持 Harbeth 轻量：
-/// - 输入仍然只是 texture + mask descriptor
-/// - 不引入 selection stack / editor state
-/// - 但能承接 add / subtract / multiply 这类局部选择组合语义
-public struct C7MaskCoverageBlend: C7FilterProtocol {
-    public var baseComponent: MaskComponent
-    public var baseInvert: Bool
-    public var baseFeatherPolicy: MaskFeatherPolicy
-    public var baseOpacity: Float
-    public let mask: MaskDescriptor
+struct MaskCoverageBlend: C7FilterProtocol {
+    var baseComponent: MaskComponent
+    var baseInvert: Bool
+    var baseFeatherPolicy: MaskFeatherPolicy
+    var baseOpacity: Float
+    let mask: MaskDescriptor
 
-    public init(baseComponent: MaskComponent = .alpha,
-                baseInvert: Bool = false,
-                baseFeatherPolicy: MaskFeatherPolicy = .none,
-                baseOpacity: Float = 1.0,
-                mask: MaskDescriptor) {
+    init(baseComponent: MaskComponent = .alpha,
+         baseInvert: Bool = false,
+         baseFeatherPolicy: MaskFeatherPolicy = .none,
+         baseOpacity: Float = 1.0,
+         mask: MaskDescriptor) {
         self.baseComponent = baseComponent
         self.baseInvert = baseInvert
         self.baseFeatherPolicy = baseFeatherPolicy
@@ -177,11 +165,11 @@ public struct C7MaskCoverageBlend: C7FilterProtocol {
         self.mask = mask
     }
 
-    public var modifier: ModifierEnum {
-        .compute(kernel: "C7MaskCoverageBlend")
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerMaskCoverageBlend")
     }
 
-    public var factors: [Float] {
+    var factors: [Float] {
         [
             baseOpacity,
             baseInvert ? 1 : 0,
@@ -195,11 +183,11 @@ public struct C7MaskCoverageBlend: C7FilterProtocol {
         ]
     }
 
-    public var otherInputTextures: C7InputTextures {
+    var otherInputTextures: C7InputTextures {
         [mask.texture]
     }
 
-    public var memoryAccessPattern: MemoryAccessPattern {
+    var memoryAccessPattern: MemoryAccessPattern {
         .multiTexture
     }
 }
