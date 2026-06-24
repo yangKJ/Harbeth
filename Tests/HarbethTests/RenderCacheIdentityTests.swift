@@ -68,7 +68,9 @@ final class RenderCacheIdentityTests: XCTestCase {
             filters: [
                 C7Brightness(brightness: 0.2).recipeDescriptor,
                 C7Contrast(contrast: 1.1).recipeDescriptor
-            ]
+            ],
+            localEffects: nil,
+            layerMasks: nil
         )
 
         XCTAssertEqual(recipe.replayBaseContract.preferredSourceTier, .thumbnail)
@@ -132,7 +134,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                     orientation: .up,
                     cachePolicy: .persistent,
                     semantic: .sourceOriginal
-                )
+                ),
+                pixelSize: nil
             ),
             ReplaySourceCandidate(
                 identifier: "display",
@@ -143,7 +146,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                     orientation: .up,
                     cachePolicy: .persistent,
                     semantic: ImageSemanticDescriptor(role: .derivative, purpose: .stable, fidelity: .displayOptimized)
-                )
+                ),
+                pixelSize: nil
             )
         ]
 
@@ -167,7 +171,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                     orientation: .up,
                     cachePolicy: .persistent,
                     semantic: .sourceOriginal
-                )
+                ),
+                pixelSize: nil
             ),
             ReplaySourceCandidate(
                 identifier: "display",
@@ -178,7 +183,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                     orientation: .up,
                     cachePolicy: .persistent,
                     semantic: ImageSemanticDescriptor(role: .derivative, purpose: .stable, fidelity: .displayOptimized)
-                )
+                ),
+                pixelSize: nil
             )
         ]
 
@@ -201,7 +207,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                     orientation: .up,
                     cachePolicy: .persistent,
                     semantic: ImageSemanticDescriptor(role: .derivative, purpose: .inspection, fidelity: .fullResolution)
-                )
+                ),
+                pixelSize: nil
             ),
             ReplaySourceCandidate(
                 identifier: "original",
@@ -212,7 +219,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                     orientation: .up,
                     cachePolicy: .persistent,
                     semantic: .sourceOriginal
-                )
+                ),
+                pixelSize: nil
             )
         ]
 
@@ -235,7 +243,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                     orientation: .up,
                     cachePolicy: .persistent,
                     semantic: ImageSemanticDescriptor(role: .derivative, purpose: .thumbnail, fidelity: .thumbnailOptimized)
-                )
+                ),
+                pixelSize: nil
             )
         ]
 
@@ -361,7 +370,8 @@ final class RenderCacheIdentityTests: XCTestCase {
                 orientation: .up,
                 cachePolicy: .persistent,
                 semantic: derivative.semantic
-            )
+            ),
+            pixelSize: nil
         )
 
         let selection = derivative.selectReplaySource(from: [candidate])

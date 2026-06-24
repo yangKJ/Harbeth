@@ -12,11 +12,11 @@ final class TransitionKernelTests: XCTestCase {
 
         let start: MTLTexture = try HarbethIO(
             element: from,
-            filter: C7DissolveTransition(toTexture: to, progress: 0)
+            filter: DissolveTransition(toTexture: to, progress: 0)
         ).output()
         let end: MTLTexture = try HarbethIO(
             element: from,
-            filter: C7DissolveTransition(toTexture: to, progress: 1)
+            filter: DissolveTransition(toTexture: to, progress: 1)
         ).output()
 
         XCTAssertEqual(try firstPixel(in: start).red, 255)
@@ -29,7 +29,7 @@ final class TransitionKernelTests: XCTestCase {
 
         let output: MTLTexture = try HarbethIO(
             element: from,
-            filter: C7DirectionalWipeTransition(toTexture: to, progress: 0.5, angleDegrees: 90)
+            filter: DirectionalWipeTransition(toTexture: to, progress: 0.5, angleDegrees: 90)
         ).output()
 
         XCTAssertEqual(output.width, 3)
@@ -43,11 +43,11 @@ final class TransitionKernelTests: XCTestCase {
 
         let lumaOutput: MTLTexture = try HarbethIO(
             element: from,
-            filter: C7LumaWipeTransition(toTexture: to, lumaTexture: aux, progress: 1)
+            filter: LumaWipeTransition(toTexture: to, lumaTexture: aux, progress: 1)
         ).output()
         let displacementOutput: MTLTexture = try HarbethIO(
             element: from,
-            filter: C7DisplacementTransition(toTexture: to, displacementTexture: aux, progress: 1)
+            filter: DisplacementTransition(toTexture: to, displacementTexture: aux, progress: 1)
         ).output()
 
         XCTAssertEqual(try firstPixel(in: lumaOutput).green, 255)

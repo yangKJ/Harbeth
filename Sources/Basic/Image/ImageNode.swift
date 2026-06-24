@@ -154,8 +154,14 @@ extension ImageNode {
         let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
         let primarySource = try resolvedPrimarySource()
         let colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: diagnostics.outputColorSpace)
+        let previewHostPayload = makePreviewHostPayload(
+            source: primarySource,
+            renderedTexture: texture,
+            renderRecipe: renderRecipe
+        )
         var renderedMetadata = metadata
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
+        let token = FrameRenderToken(identifier: "ImageNode.\(nodeFingerprint)", generation: 0)
         return RenderedFrame(
             texture: texture,
             colorSpace: colorSpace,
@@ -169,9 +175,9 @@ extension ImageNode {
             semantic: effectiveDerivative.semantic,
             orientation: primarySource.orientation,
             profile: profile,
-            generation: 0,
-            identifier: "ImageNode.\(nodeFingerprint)",
-            metadata: renderedMetadata
+            token: token,
+            metadata: renderedMetadata,
+            previewHostPayload: previewHostPayload
         )
     }
 
@@ -891,6 +897,63 @@ extension ImageNode: ImagePromise {
             return colorSpace
         }
         return nil
+    }
+
+    fileprivate func makePreviewHostPayload(source: ImageSource,
+                                            renderedTexture: MTLTexture,
+                                            renderRecipe: RenderRecipe) -> RenderedFramePreviewHostPayload? {
+        guard case .sampleBuffer(let sampleBuffer) = source else {
+            return nil
+        }
+        let sourceImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
+        let sourceWidth = sourceImageBuffer.map(CVPixelBufferGetWidth)
+        let sourceHeight = sourceImageBuffer.map(CVPixelBufferGetHeight)
+        let preservesDisplaySemantics = renderRecipe.filters.isEmpty
+            && sourceWidth == renderedTexture.width
+            && sourceHeight == renderedTexture.height
+        if preservesDisplaySemantics {
+            return RenderedFramePreviewHostPayload(passthroughSampleBuffer: sampleBuffer)
+        }
+        return RenderedFramePreviewHostPayload(sampleBufferFactory: {
+            try Self.makePreviewHostRematerializedSampleBuffer(
+                texture: renderedTexture,
+                referenceSampleBuffer: sampleBuffer
+            )
+        })
+    }
+
+    fileprivate static func makePreviewHostRematerializedSampleBuffer(texture: MTLTexture,
+                                                                      referenceSampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer? {
+        let referencePixelBuffer = CMSampleBufferGetImageBuffer(referenceSampleBuffer)
+        let referenceFormatType = referencePixelBuffer.map(CVPixelBufferGetPixelFormatType)
+        let resolvedFormatType: OSType
+        if let referencePixelBuffer,
+           referencePixelBuffer.c7.contract.planar == false,
+           let preferredType = RenderPixelBufferDescriptor.pixelFormatType(for: texture.pixelFormat),
+           preferredType == referenceFormatType {
+            resolvedFormatType = preferredType
+        } else if let fallbackType = RenderPixelBufferDescriptor.pixelFormatType(for: texture.pixelFormat) {
+            resolvedFormatType = fallbackType
+        } else {
+            resolvedFormatType = kCVPixelFormatType_32BGRA
+        }
+        let pool = try PixelBufferPool(
+            width: texture.width,
+            height: texture.height,
+            pixelFormatType: resolvedFormatType,
+            minimumBufferCount: 1
+        )
+        let pixelBuffer = try pool.makePixelBuffer()
+        if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
+            throw compatibilityError
+        }
+        guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
+            throw HarbethError.pixelBufferCopyFailed
+        }
+        if let imageBuffer = referencePixelBuffer {
+            pixelBuffer.c7.copyAttachments(from: imageBuffer)
+        }
+        return pixelBuffer.c7.toCMSampleBuffer(reference: referenceSampleBuffer)
     }
 
     private var nodeFingerprint: String {

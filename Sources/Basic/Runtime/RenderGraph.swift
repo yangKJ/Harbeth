@@ -506,6 +506,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
 
     public var sampleBufferPassthroughPossible: Bool {
         sampleBufferHostEligible
+            && stageCount == 0
             && containsBoundary == false
             && containsLocalEffectComposite == false
             && containsTransitionKernel == false

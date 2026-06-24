@@ -1372,7 +1372,7 @@ final class RenderedFrameTests: XCTestCase {
 
         let fingerprint = frame.metadata["filterChainFingerprint"] ?? ""
         XCTAssertFalse(fingerprint.isEmpty)
-        XCTAssertTrue(fingerprint.contains("C7DissolveTransition"))
+        XCTAssertTrue(fingerprint.contains("DissolveTransition"))
     }
 
     func testSourceDescriptorCarriesStableSemanticFingerprint() throws {

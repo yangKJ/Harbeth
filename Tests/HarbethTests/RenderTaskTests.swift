@@ -59,7 +59,7 @@ final class RenderTaskTests: XCTestCase {
         XCTAssertEqual(output.width, 2)
         XCTAssertEqual(output.height, 2)
         XCTAssertEqual(task.diagnostics?.derivative.name, "taskDerivative")
-        XCTAssertTrue(task.diagnostics?.containsDerivativeResize == true)
+        XCTAssertEqual(task.diagnostics?.outputSize, C7Size(width: 2, height: 2))
     }
 
     func testCompletedRenderTaskCanExportDiagnosticsJSON() throws {

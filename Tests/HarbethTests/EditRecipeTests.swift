@@ -273,7 +273,7 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertTrue(diagnostics.containsLocalEffectComposite)
         XCTAssertFalse(diagnostics.containsTransitionKernel)
         XCTAssertTrue(diagnostics.summary.contains("source=editRecipe"))
-        XCTAssertFalse(diagnostics.summary.contains("preview"))
+        XCTAssertTrue(diagnostics.summary.contains("previewHostStrategy="))
         XCTAssertFalse(diagnostics.summary.contains("presentation"))
         XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
