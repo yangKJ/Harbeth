@@ -760,9 +760,15 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertTrue(frame.frameHostSourceDescriptor.mirrorHorizontally)
         XCTAssertTrue(frame.frameHostSourceDescriptor.followsDeviceOrientation)
         XCTAssertEqual(request.frameHostRuntimeHint, frame.frameHostRuntimeHint)
+        XCTAssertEqual(frame.previewHostStrategyResolution.strategy, .sampleBufferRematerializedHost)
         XCTAssertEqual(snapshot.diagnostics.frameHostSource, request.frameHostSourceDescriptor.fingerprint)
         XCTAssertEqual(snapshot.diagnostics.frameHostDecision, request.frameHostRuntimeHint.decision.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostMetadataCompleteness, request.frameHostRuntimeHint.metadataCompleteness.fingerprint)
+        XCTAssertEqual(snapshot.diagnostics.resolvedPreviewHostStrategy, request.diagnostics.resolvedPreviewHostStrategy)
+        XCTAssertEqual(snapshot.diagnostics.sampleBufferHostEligible, request.diagnostics.sampleBufferHostEligible)
+        XCTAssertEqual(snapshot.diagnostics.sampleBufferHostPayloadAvailable, request.diagnostics.sampleBufferHostPayloadAvailable)
+        XCTAssertEqual(snapshot.diagnostics.sampleBufferHostRequiresRematerialization, request.diagnostics.sampleBufferHostRequiresRematerialization)
+        XCTAssertEqual(snapshot.diagnostics.hostRecoveryPolicy, request.diagnostics.hostRecoveryPolicy)
     }
 
     func testNodeRenderRecipeTracksSampleBufferSourceContract() throws {

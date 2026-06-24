@@ -30,6 +30,13 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let frameHostSupportsVisibilityPause: Bool
         public let frameHostRequiresPlaneAwareDecode: Bool
         public let frameHostMetadataCompleteness: String
+        public let resolvedPreviewHostStrategy: String
+        public let sampleBufferHostEligible: Bool
+        public let sampleBufferHostPayloadAvailable: Bool
+        public let sampleBufferHostRequiresRematerialization: Bool
+        public let hostRecoveryPolicy: String
+        public let hostRecoveredByFlush: Bool
+        public let hostFellBackToMetal: Bool
         public let inputPixelPrecision: String
         public let inputHDRFriendly: Bool
         public let outputAttachmentLabels: [String]
@@ -78,6 +85,13 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 hasTiming: false,
                 hasSampleAttachments: false
              ).fingerprint,
+             resolvedPreviewHostStrategy: String = PreviewHostStrategy.metalTextureHost.rawValue,
+             sampleBufferHostEligible: Bool = false,
+             sampleBufferHostPayloadAvailable: Bool = false,
+             sampleBufferHostRequiresRematerialization: Bool = false,
+             hostRecoveryPolicy: String = PreviewHostRecoveryPolicy.flushThenFallbackToMetal.rawValue,
+             hostRecoveredByFlush: Bool = false,
+             hostFellBackToMetal: Bool = false,
              inputPixelPrecision: String,
              inputHDRFriendly: Bool,
              outputAttachmentLabels: [String],
@@ -118,6 +132,13 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.frameHostSupportsVisibilityPause = frameHostSupportsVisibilityPause
             self.frameHostRequiresPlaneAwareDecode = frameHostRequiresPlaneAwareDecode
             self.frameHostMetadataCompleteness = frameHostMetadataCompleteness
+            self.resolvedPreviewHostStrategy = resolvedPreviewHostStrategy
+            self.sampleBufferHostEligible = sampleBufferHostEligible
+            self.sampleBufferHostPayloadAvailable = sampleBufferHostPayloadAvailable
+            self.sampleBufferHostRequiresRematerialization = sampleBufferHostRequiresRematerialization
+            self.hostRecoveryPolicy = hostRecoveryPolicy
+            self.hostRecoveredByFlush = hostRecoveredByFlush
+            self.hostFellBackToMetal = hostFellBackToMetal
             self.inputPixelPrecision = inputPixelPrecision
             self.inputHDRFriendly = inputHDRFriendly
             self.outputAttachmentLabels = outputAttachmentLabels
@@ -163,6 +184,13 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 frameHostSupportsVisibilityPause: frameHostHint.supportsVisibilityPause,
                 frameHostRequiresPlaneAwareDecode: frameHostHint.requiresPlaneAwareDecode,
                 frameHostMetadataCompleteness: frameHostHint.metadataCompleteness.fingerprint,
+                resolvedPreviewHostStrategy: diagnostics.resolvedPreviewHostStrategy,
+                sampleBufferHostEligible: diagnostics.sampleBufferHostEligible,
+                sampleBufferHostPayloadAvailable: diagnostics.sampleBufferHostPayloadAvailable,
+                sampleBufferHostRequiresRematerialization: diagnostics.sampleBufferHostRequiresRematerialization,
+                hostRecoveryPolicy: diagnostics.hostRecoveryPolicy,
+                hostRecoveredByFlush: diagnostics.hostRecoveredByFlush,
+                hostFellBackToMetal: diagnostics.hostFellBackToMetal,
                 inputPixelPrecision: diagnostics.inputPixelPrecision.rawValue,
                 inputHDRFriendly: diagnostics.inputIsHDRFriendly,
                 outputAttachmentLabels: diagnostics.outputContract.attachmentDebugPolicies.map(\.label),

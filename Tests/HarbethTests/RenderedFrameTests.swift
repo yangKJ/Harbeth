@@ -1,5 +1,8 @@
 import XCTest
 import Metal
+import CoreVideo
+import CoreMedia
+import ImageIO
 @testable import Harbeth
 
 final class RenderedFrameTests: XCTestCase {
@@ -1256,6 +1259,94 @@ final class RenderedFrameTests: XCTestCase {
         ).renderFrame(profile: .stablePreview)
 
         XCTAssertEqual(frame.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
+    }
+
+    func testSampleBufferPreviewHostStrategyUsesPassthroughForUnchangedFrame() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        CMSetAttachment(
+            sampleBuffer,
+            key: kCGImagePropertyOrientation,
+            value: NSNumber(value: CGImagePropertyOrientation.right.rawValue),
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameMirrorHorizontallyAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+
+        let frame = try HarbethIO(element: sampleBuffer, filters: [])
+            .renderFrame(profile: .interactiveLatency)
+        let hostSampleBuffer = try frame.makePreviewHostSampleBuffer()
+
+        XCTAssertEqual(frame.previewHostStrategyResolution.strategy, .sampleBufferPassthroughHost)
+        XCTAssertTrue(frame.previewHostStrategyResolution.sampleBufferHostEligible)
+        XCTAssertTrue(frame.previewHostStrategyResolution.sampleBufferHostPayloadAvailable)
+        XCTAssertFalse(frame.previewHostStrategyResolution.sampleBufferHostRequiresRematerialization)
+        XCTAssertTrue(hostSampleBuffer === sampleBuffer)
+    }
+
+    func testSampleBufferPreviewHostStrategyRematerializesAndPreservesMetadata() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferColorPrimariesKey,
+            kCVImageBufferColorPrimaries_P3_D65,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        CMSetAttachment(
+            sampleBuffer,
+            key: kCGImagePropertyOrientation,
+            value: NSNumber(value: CGImagePropertyOrientation.left.rawValue),
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameMirrorHorizontallyAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameFollowsDeviceOrientationAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+
+        let frame = try HarbethIO(
+            element: sampleBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).renderFrame(profile: .interactiveLatency)
+        let hostSampleBuffer = try XCTUnwrap(frame.makePreviewHostSampleBuffer())
+
+        XCTAssertEqual(frame.previewHostStrategyResolution.strategy, .sampleBufferRematerializedHost)
+        XCTAssertTrue(frame.previewHostStrategyResolution.sampleBufferHostEligible)
+        XCTAssertTrue(frame.previewHostStrategyResolution.sampleBufferHostPayloadAvailable)
+        XCTAssertTrue(frame.previewHostStrategyResolution.sampleBufferHostRequiresRematerialization)
+        XCTAssertFalse(hostSampleBuffer === sampleBuffer)
+        XCTAssertEqual(hostSampleBuffer.c7.presentationTimeStamp, sampleBuffer.c7.presentationTimeStamp)
+        XCTAssertEqual(hostSampleBuffer.c7.decodeTimeStamp, sampleBuffer.c7.decodeTimeStamp)
+        XCTAssertEqual(hostSampleBuffer.c7.duration, sampleBuffer.c7.duration)
+        XCTAssertEqual(hostSampleBuffer.c7.contract.frameContract.orientation, .left)
+        XCTAssertEqual(hostSampleBuffer.c7.contract.frameContract.mirrorHorizontally, true)
+        XCTAssertEqual(hostSampleBuffer.c7.contract.frameContract.followsDeviceOrientation, true)
+        XCTAssertEqual(hostSampleBuffer.c7.contract.pixelBufferContract?.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(hostSampleBuffer.c7.contract.pixelBufferContract?.transferFunctionAttachment, .sRGB)
     }
 
     func testTransitionFrameCarriesPredictableFilterFingerprint() throws {

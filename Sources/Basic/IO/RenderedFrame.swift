@@ -94,6 +94,52 @@ public struct FrameRenderToken: Sendable, Equatable {
     }
 }
 
+enum PreviewHostStrategy: String, Sendable, Codable, Equatable, Hashable {
+    case metalTextureHost
+    case sampleBufferPassthroughHost
+    case sampleBufferRematerializedHost
+}
+
+enum PreviewHostRecoveryPolicy: String, Sendable, Codable, Equatable, Hashable {
+    case flushThenFallbackToMetal
+}
+
+struct PreviewHostStrategyResolution: Sendable, Equatable, Hashable {
+    let strategy: PreviewHostStrategy
+    let sampleBufferHostEligible: Bool
+    let sampleBufferHostPayloadAvailable: Bool
+    let sampleBufferHostRequiresRematerialization: Bool
+    let recoveryPolicy: PreviewHostRecoveryPolicy
+    let hostRecoveredByFlush: Bool
+    let hostFellBackToMetal: Bool
+}
+
+final class RenderedFramePreviewHostPayload: @unchecked Sendable {
+    let passthroughSampleBuffer: CMSampleBuffer?
+    private let sampleBufferFactory: (() throws -> CMSampleBuffer?)?
+
+    init(passthroughSampleBuffer: CMSampleBuffer? = nil,
+         sampleBufferFactory: (() throws -> CMSampleBuffer?)? = nil) {
+        self.passthroughSampleBuffer = passthroughSampleBuffer
+        self.sampleBufferFactory = sampleBufferFactory
+    }
+
+    var supportsPassthrough: Bool {
+        passthroughSampleBuffer != nil
+    }
+
+    var supportsRematerialization: Bool {
+        sampleBufferFactory != nil
+    }
+
+    func makeSampleBuffer() throws -> CMSampleBuffer? {
+        if let passthroughSampleBuffer {
+            return passthroughSampleBuffer
+        }
+        return try sampleBufferFactory?()
+    }
+}
+
 /// texture-first 渲染结果的稳定元数据包装。
 public struct RenderedFrame: @unchecked Sendable {
     public let texture: MTLTexture
@@ -117,6 +163,7 @@ public struct RenderedFrame: @unchecked Sendable {
     /// Optional texture lifetime handle. A frame keeps this strongly so advanced
     /// callers can bind texture ownership to a host-managed display lifetime.
     public let lease: TextureLease?
+    let previewHostPayload: RenderedFramePreviewHostPayload?
 
     public init(texture: MTLTexture,
                 colorSpace: CGColorSpace? = nil,
@@ -169,6 +216,42 @@ public struct RenderedFrame: @unchecked Sendable {
                 token: FrameRenderToken,
                 metadata: [String: String] = [:],
                 lease: TextureLease? = nil) {
+        self.init(
+            texture: texture,
+            colorSpace: colorSpace,
+            sourceDescriptor: sourceDescriptor,
+            derivative: derivative,
+            resolvedOutputSize: resolvedOutputSize,
+            renderIntent: renderIntent,
+            sourceTier: sourceTier,
+            alphaType: alphaType,
+            cachePolicy: cachePolicy,
+            semantic: semantic,
+            orientation: orientation,
+            profile: profile,
+            token: token,
+            metadata: metadata,
+            lease: lease,
+            previewHostPayload: nil
+        )
+    }
+
+    init(texture: MTLTexture,
+         colorSpace: CGColorSpace? = nil,
+         sourceDescriptor: ImageSourceDescriptor? = nil,
+         derivative: ImageDerivativeSpec? = nil,
+         resolvedOutputSize: C7Size? = nil,
+         renderIntent: RenderIntent? = nil,
+         sourceTier: ImageSourceTier = .original,
+         alphaType: AlphaType = .premultiplied,
+         cachePolicy: ImageCachePolicy = .transient,
+         semantic: ImageSemanticDescriptor? = nil,
+         orientation: FrameOrientation = .up,
+         profile: RenderProfile,
+         token: FrameRenderToken,
+         metadata: [String: String] = [:],
+         lease: TextureLease? = nil,
+         previewHostPayload: RenderedFramePreviewHostPayload? = nil) {
         self.texture = texture
         self.size = CGSize(width: texture.width, height: texture.height)
         self.pixelFormat = texture.pixelFormat
@@ -197,6 +280,7 @@ public struct RenderedFrame: @unchecked Sendable {
         self.token = token
         self.metadata = metadata
         self.lease = lease
+        self.previewHostPayload = previewHostPayload
     }
 
     public func isCurrent(comparedTo latestToken: FrameRenderToken) -> Bool {
@@ -235,6 +319,47 @@ public struct RenderedFrame: @unchecked Sendable {
 
     public var frameHostRuntimeHint: FrameHostRuntimeHint {
         FrameHostRuntimeHint(source: frameHostSourceDescriptor, profile: profile)
+    }
+
+    var previewHostStrategyResolution: PreviewHostStrategyResolution {
+        #if os(watchOS)
+        return PreviewHostStrategyResolution(
+            strategy: .metalTextureHost,
+            sampleBufferHostEligible: false,
+            sampleBufferHostPayloadAvailable: false,
+            sampleBufferHostRequiresRematerialization: false,
+            recoveryPolicy: .flushThenFallbackToMetal,
+            hostRecoveredByFlush: false,
+            hostFellBackToMetal: false
+        )
+        #else
+        let eligible = sourceDescriptor.kind == "sampleBuffer"
+            && frameHostRuntimeHint.isRealtimePreviewEligible
+        let payloadAvailable = previewHostPayload != nil
+        let requiresRematerialization = previewHostPayload?.supportsPassthrough == false
+            && previewHostPayload?.supportsRematerialization == true
+        let strategy: PreviewHostStrategy
+        if eligible == false || payloadAvailable == false {
+            strategy = .metalTextureHost
+        } else if requiresRematerialization {
+            strategy = .sampleBufferRematerializedHost
+        } else {
+            strategy = .sampleBufferPassthroughHost
+        }
+        return PreviewHostStrategyResolution(
+            strategy: strategy,
+            sampleBufferHostEligible: eligible,
+            sampleBufferHostPayloadAvailable: payloadAvailable,
+            sampleBufferHostRequiresRematerialization: requiresRematerialization,
+            recoveryPolicy: .flushThenFallbackToMetal,
+            hostRecoveredByFlush: false,
+            hostFellBackToMetal: false
+        )
+        #endif
+    }
+
+    func makePreviewHostSampleBuffer() throws -> CMSampleBuffer? {
+        try previewHostPayload?.makeSampleBuffer()
     }
 
     public var cacheIdentity: RenderCacheIdentity {
@@ -550,7 +675,12 @@ struct FrameRenderer {
                              resolvedSize: C7Size,
                              filterChain: [C7FilterProtocol],
                              lease: TextureLease? = nil) throws -> RenderedFrame {
-        RenderedFrame(
+        let previewHostPayload = makePreviewHostPayload(
+            source: source,
+            renderedTexture: renderedTexture,
+            filterChain: filterChain
+        )
+        return RenderedFrame(
             texture: renderedTexture,
             colorSpace: resolvedFrameColorSpace(source: source, filterChain: filterChain),
             sourceDescriptor: source.descriptor,
@@ -565,7 +695,8 @@ struct FrameRenderer {
             profile: profile,
             token: token,
             metadata: renderedMetadata(filterChain: filterChain),
-            lease: lease
+            lease: lease,
+            previewHostPayload: previewHostPayload
         )
     }
 
@@ -615,6 +746,63 @@ struct FrameRenderer {
             renderTexture: renderTexture(input:filters:profile:),
             resizeTextureIfNeeded: resizeTextureIfNeeded(_:derivative:profile:)
         )
+    }
+
+    private func makePreviewHostPayload(source: ImageSource,
+                                        renderedTexture: MTLTexture,
+                                        filterChain: [C7FilterProtocol]) -> RenderedFramePreviewHostPayload? {
+        guard case .sampleBuffer(let sampleBuffer) = source else {
+            return nil
+        }
+        let sourceImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
+        let sourceWidth = sourceImageBuffer.map(CVPixelBufferGetWidth)
+        let sourceHeight = sourceImageBuffer.map(CVPixelBufferGetHeight)
+        let preservesDisplaySemantics = filterChain.isEmpty
+            && sourceWidth == renderedTexture.width
+            && sourceHeight == renderedTexture.height
+        if preservesDisplaySemantics {
+            return RenderedFramePreviewHostPayload(passthroughSampleBuffer: sampleBuffer)
+        }
+        return RenderedFramePreviewHostPayload(sampleBufferFactory: {
+            try Self.makeRematerializedSampleBuffer(
+                texture: renderedTexture,
+                referenceSampleBuffer: sampleBuffer
+            )
+        })
+    }
+
+    private static func makeRematerializedSampleBuffer(texture: MTLTexture,
+                                                       referenceSampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer? {
+        let referencePixelBuffer = CMSampleBufferGetImageBuffer(referenceSampleBuffer)
+        let referenceFormatType = referencePixelBuffer.map(CVPixelBufferGetPixelFormatType)
+        let resolvedFormatType: OSType
+        if let referencePixelBuffer,
+           referencePixelBuffer.c7.contract.planar == false,
+           let preferredType = RenderPixelBufferDescriptor.pixelFormatType(for: texture.pixelFormat),
+           preferredType == referenceFormatType {
+            resolvedFormatType = preferredType
+        } else if let fallbackType = RenderPixelBufferDescriptor.pixelFormatType(for: texture.pixelFormat) {
+            resolvedFormatType = fallbackType
+        } else {
+            resolvedFormatType = kCVPixelFormatType_32BGRA
+        }
+        let pool = try PixelBufferPool(
+            width: texture.width,
+            height: texture.height,
+            pixelFormatType: resolvedFormatType,
+            minimumBufferCount: 1
+        )
+        let pixelBuffer = try pool.makePixelBuffer()
+        if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
+            throw compatibilityError
+        }
+        guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
+            throw HarbethError.pixelBufferCopyFailed
+        }
+        if let imageBuffer = referencePixelBuffer {
+            pixelBuffer.c7.copyAttachments(from: imageBuffer)
+        }
+        return pixelBuffer.c7.toCMSampleBuffer(reference: referenceSampleBuffer)
     }
 }
 

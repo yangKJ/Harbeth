@@ -433,6 +433,13 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "hostVisibilityPause=\(frameHostRuntimeHint.supportsVisibilityPause ? 1 : 0)",
             "hostPlaneAwareDecode=\(frameHostRuntimeHint.requiresPlaneAwareDecode ? 1 : 0)",
             "hostMetadata=\(frameHostRuntimeHint.metadataCompleteness.fingerprint)",
+            "previewHostStrategy=\(resolvedPreviewHostStrategy)",
+            "sampleBufferHostEligible=\(sampleBufferHostEligible ? 1 : 0)",
+            "sampleBufferHostPayload=\(sampleBufferHostPayloadAvailable ? 1 : 0)",
+            "sampleBufferHostRematerialize=\(sampleBufferHostRequiresRematerialization ? 1 : 0)",
+            "hostRecoveryPolicy=\(hostRecoveryPolicy)",
+            "hostRecoveredByFlush=\(hostRecoveredByFlush ? 1 : 0)",
+            "hostFellBackToMetal=\(hostFellBackToMetal ? 1 : 0)",
             "inputColor=\(inputColorSpace.name)",
             "outputColor=\(outputColorSpace.name)",
             "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
@@ -487,6 +494,60 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             )
         )
         return FrameHostRuntimeHint(source: source, profile: profile)
+    }
+
+    public var sampleBufferHostEligible: Bool {
+        #if os(watchOS)
+        return false
+        #else
+        return sourceKind == "sampleBuffer" && frameHostRuntimeHint.isRealtimePreviewEligible
+        #endif
+    }
+
+    public var sampleBufferPassthroughPossible: Bool {
+        sampleBufferHostEligible
+            && containsBoundary == false
+            && containsLocalEffectComposite == false
+            && containsTransitionKernel == false
+            && containsDerivativeResize == false
+            && inputSize == outputSize
+            && inputColorConversionCount == 0
+            && inputPixelFormatConversionCount == 0
+            && inputAlphaConversionCount == 0
+            && alphaConversionCount == 0
+            && colorConversionCount == 0
+            && pixelFormatConversionCount == 0
+            && lossyConversionCount == 0
+    }
+
+    public var resolvedPreviewHostStrategy: String {
+        if sampleBufferHostEligible == false {
+            return PreviewHostStrategy.metalTextureHost.rawValue
+        }
+        if sampleBufferPassthroughPossible {
+            return PreviewHostStrategy.sampleBufferPassthroughHost.rawValue
+        }
+        return PreviewHostStrategy.sampleBufferRematerializedHost.rawValue
+    }
+
+    public var sampleBufferHostPayloadAvailable: Bool {
+        sampleBufferHostEligible
+    }
+
+    public var sampleBufferHostRequiresRematerialization: Bool {
+        resolvedPreviewHostStrategy == PreviewHostStrategy.sampleBufferRematerializedHost.rawValue
+    }
+
+    public var hostRecoveryPolicy: String {
+        PreviewHostRecoveryPolicy.flushThenFallbackToMetal.rawValue
+    }
+
+    public var hostRecoveredByFlush: Bool {
+        false
+    }
+
+    public var hostFellBackToMetal: Bool {
+        false
     }
 
     public var inputIsHighPrecision: Bool {

@@ -157,7 +157,6 @@ final class HarbethPluginTests: XCTestCase {
 
     #if canImport(UIKit) && !os(watchOS)
     func testRenderViewDisplayUpdatesRenderedFrameWithoutLosingTextureCompatibility() throws {
-        let texture = try makeTexture(width: 256, height: 128, pixel: [80, 120, 160, 255])
         let pixelBuffer = try makePixelBuffer(width: 256, height: 128)
         guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
             XCTFail("Failed to create sample buffer.")
@@ -181,24 +180,21 @@ final class HarbethPluginTests: XCTestCase {
             value: kCFBooleanTrue,
             attachmentMode: kCMAttachmentMode_ShouldPropagate
         )
-        let previewFrame = RenderedFrame(
-            texture: texture,
-            sourceDescriptor: ImageSource.sampleBuffer(sampleBuffer).descriptor,
-            profile: .interactiveLatency,
-            generation: 1,
-            identifier: "preview"
-        )
+        let previewFrame = try HarbethIO(element: sampleBuffer, filters: [])
+            .renderFrame(profile: .interactiveLatency)
         let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 32), device: MTLCreateSystemDefaultDevice())
         view.preferredDrawableScale = 1
 
         view.layoutSubviews()
         view.display(previewFrame)
 
-        XCTAssertTrue(view.texture === texture)
+        XCTAssertTrue(view.texture === previewFrame.texture)
         XCTAssertEqual(view.currentRenderedFrame?.sourceDescriptor.kind, "sampleBuffer")
         XCTAssertTrue(view.isRealtimePreviewFriendly)
         XCTAssertTrue(view.supportsVisibilityPauseForCurrentFrame)
         XCTAssertTrue(view.hasCompleteRealtimePreviewMetadata)
+        XCTAssertEqual(view.currentPreviewHostStrategy, PreviewHostStrategy.sampleBufferPassthroughHost.rawValue)
+        XCTAssertTrue(view.isUsingSampleBufferPreviewHost)
         XCTAssertTrue(view.isPaused)
         XCTAssertTrue(view.enableSetNeedsDisplay)
         XCTAssertEqual(view.drawableSize.width, 64)
@@ -209,6 +205,32 @@ final class HarbethPluginTests: XCTestCase {
 
         XCTAssertTrue(view.texture === replacement)
         XCTAssertNil(view.currentRenderedFrame)
+        XCTAssertFalse(view.isUsingSampleBufferPreviewHost)
+        XCTAssertEqual(view.currentPreviewHostStrategy, PreviewHostStrategy.metalTextureHost.rawValue)
+    }
+
+    func testRenderViewFallsBackToMetalStateWhenDisplayingNonSampleBufferFrame() throws {
+        let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        let sampleFrame = try HarbethIO(element: sampleBuffer, filters: [])
+            .renderFrame(profile: .interactiveLatency)
+        let texture = try makeTexture(width: 64, height: 64, pixel: [200, 50, 20, 255])
+        let textureFrame = try HarbethIO(element: texture, filters: [])
+            .renderFrame(profile: .stablePreview)
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+
+        view.layoutSubviews()
+        view.display(sampleFrame)
+        XCTAssertTrue(view.isUsingSampleBufferPreviewHost)
+
+        view.display(textureFrame)
+
+        XCTAssertFalse(view.isUsingSampleBufferPreviewHost)
+        XCTAssertEqual(view.currentPreviewHostStrategy, PreviewHostStrategy.metalTextureHost.rawValue)
+        XCTAssertFalse(view.hostFellBackCurrentFrameToMetal)
     }
 
     func testRenderViewPreferredDrawableScaleControlsDrawableSize() {

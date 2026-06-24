@@ -7,6 +7,9 @@
 
 import Foundation
 import MetalKit
+#if canImport(AVFoundation) && !os(watchOS)
+import AVFoundation
+#endif
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -39,6 +42,10 @@ open class RenderView: MTKView {
     public private(set) var isRealtimePreviewFriendly: Bool = false
     public private(set) var supportsVisibilityPauseForCurrentFrame: Bool = false
     public private(set) var hasCompleteRealtimePreviewMetadata: Bool = false
+    public private(set) var currentPreviewHostStrategy: String = PreviewHostStrategy.metalTextureHost.rawValue
+    public private(set) var isUsingSampleBufferPreviewHost: Bool = false
+    public private(set) var hostRecoveredCurrentFrameByFlush: Bool = false
+    public private(set) var hostFellBackCurrentFrameToMetal: Bool = false
 
     open override var colorPixelFormat: MTLPixelFormat {
         didSet {
@@ -75,6 +82,10 @@ open class RenderView: MTKView {
         didSet {
             if currentRenderedFrame?.texture !== texture {
                 currentRenderedFrame = nil
+                deactivateSampleBufferPreviewHost()
+                currentPreviewHostStrategy = PreviewHostStrategy.metalTextureHost.rawValue
+                hostRecoveredCurrentFrameByFlush = false
+                hostFellBackCurrentFrameToMetal = false
             }
             updateDrawableSizeIfNeeded()
             invalidateDisplay()
@@ -85,6 +96,10 @@ open class RenderView: MTKView {
     private var cachedPipelinePixelFormat: MTLPixelFormat?
     private var cachedPipelineSampleCount: Int = 0
     private var previewHostDisplayMode: PreviewHostDisplayMode = .stablePreview
+    #if canImport(AVFoundation) && !os(watchOS)
+    private var sampleBufferPreviewLayerLease: SampleBufferPreviewLayerLease?
+    private var lastSampleBufferPreviewFrame: CMSampleBuffer?
+    #endif
 
     private lazy var samplerState: MTLSamplerState? = {
         Shared.shared.defaultContext.makeSamplerState()
@@ -101,6 +116,10 @@ open class RenderView: MTKView {
             device = Shared.shared.metalDevice
         }
         commonInit()
+    }
+
+    deinit {
+        deactivateSampleBufferPreviewHost()
     }
 
     private func commonInit() {
@@ -121,6 +140,7 @@ open class RenderView: MTKView {
         super.layoutSubviews()
         updateDrawableSizeIfNeeded()
         updatePreviewHostScheduling()
+        updateSampleBufferPreviewVisibilityIfNeeded()
         invalidateDisplay()
     }
 
@@ -128,6 +148,7 @@ open class RenderView: MTKView {
         super.didMoveToWindow()
         updateDrawableSizeIfNeeded()
         updatePreviewHostScheduling()
+        updateSampleBufferPreviewVisibilityIfNeeded()
         invalidateDisplay()
     }
     #elseif canImport(AppKit)
@@ -135,6 +156,7 @@ open class RenderView: MTKView {
         super.layout()
         updateDrawableSizeIfNeeded()
         updatePreviewHostScheduling()
+        updateSampleBufferPreviewVisibilityIfNeeded()
         needsDisplay = true
     }
     #endif
@@ -249,7 +271,12 @@ extension RenderView: HarbethPreviewDisplaying {
         supportsVisibilityPauseForCurrentFrame = hint?.supportsVisibilityPause ?? false
         hasCompleteRealtimePreviewMetadata = hint?.metadataCompleteness.isCompleteForRealtimePreview ?? false
         previewHostDisplayMode = Self.displayMode(for: hint?.timingPolicy)
+        let initialResolution = frame?.previewHostStrategyResolution
+        currentPreviewHostStrategy = initialResolution?.strategy.rawValue ?? PreviewHostStrategy.metalTextureHost.rawValue
+        hostRecoveredCurrentFrameByFlush = initialResolution?.hostRecoveredByFlush ?? false
+        hostFellBackCurrentFrameToMetal = initialResolution?.hostFellBackToMetal ?? false
         updatePreviewHostScheduling()
+        resolvePreviewHost(for: frame)
         if isPaused == false {
             draw()
         }
@@ -263,6 +290,9 @@ extension RenderView: MTKViewDelegate {
     }
     
     public func draw(in view: MTKView) {
+        guard isUsingSampleBufferPreviewHost == false else {
+            return
+        }
         guard let texture,
               let renderPassDescriptor = currentRenderPassDescriptor,
               let drawable = currentDrawable,
@@ -310,6 +340,11 @@ private extension RenderView {
 
     func updatePreviewHostScheduling() {
         let shouldPauseForVisibility = supportsVisibilityPauseForCurrentFrame && isCurrentlyHostVisible == false
+        if isUsingSampleBufferPreviewHost {
+            isPaused = true
+            enableSetNeedsDisplay = true
+            return
+        }
         switch previewHostDisplayMode {
         case .lowLatency:
             isPaused = shouldPauseForVisibility
@@ -329,4 +364,132 @@ private extension RenderView {
         return true
         #endif
     }
+
+    func resolvePreviewHost(for frame: RenderedFrame?) {
+        guard let frame else {
+            currentPreviewHostStrategy = PreviewHostStrategy.metalTextureHost.rawValue
+            hostRecoveredCurrentFrameByFlush = false
+            hostFellBackCurrentFrameToMetal = false
+            deactivateSampleBufferPreviewHost()
+            return
+        }
+        let resolution = frame.previewHostStrategyResolution
+        switch resolution.strategy {
+        case .metalTextureHost:
+            currentPreviewHostStrategy = PreviewHostStrategy.metalTextureHost.rawValue
+            deactivateSampleBufferPreviewHost()
+        case .sampleBufferPassthroughHost, .sampleBufferRematerializedHost:
+            #if canImport(AVFoundation) && !os(watchOS)
+            guard displayWithSampleBufferPreviewHost(frame: frame, resolution: resolution) else {
+                fallbackToMetalPreviewHost(frame: frame, recoveredByFlush: hostRecoveredCurrentFrameByFlush)
+                return
+            }
+            currentPreviewHostStrategy = resolution.strategy.rawValue
+            #else
+            fallbackToMetalPreviewHost(frame: frame, recoveredByFlush: false)
+            #endif
+        }
+    }
+
+    func fallbackToMetalPreviewHost(frame: RenderedFrame, recoveredByFlush: Bool) {
+        deactivateSampleBufferPreviewHost()
+        currentRenderedFrame = frame
+        texture = frame.texture
+        currentPreviewHostStrategy = PreviewHostStrategy.metalTextureHost.rawValue
+        hostRecoveredCurrentFrameByFlush = recoveredByFlush
+        hostFellBackCurrentFrameToMetal = true
+        updatePreviewHostScheduling()
+        invalidateDisplay()
+    }
+
+    func deactivateSampleBufferPreviewHost() {
+        #if canImport(AVFoundation) && !os(watchOS)
+        SampleBufferPreviewLayerPool.return(sampleBufferPreviewLayerLease)
+        sampleBufferPreviewLayerLease = nil
+        lastSampleBufferPreviewFrame = nil
+        #endif
+        isUsingSampleBufferPreviewHost = false
+    }
+
+    func updateSampleBufferPreviewVisibilityIfNeeded() {
+        #if canImport(AVFoundation) && !os(watchOS)
+        guard isUsingSampleBufferPreviewHost else { return }
+        layoutSampleBufferPreviewLayerIfNeeded()
+        guard isCurrentlyHostVisible else { return }
+        if let sampleBuffer = lastSampleBufferPreviewFrame {
+            _ = enqueueSampleBufferPreviewFrame(sampleBuffer, allowRecovery: true)
+        }
+        #endif
+    }
+
+    #if canImport(AVFoundation) && !os(watchOS)
+    func displayWithSampleBufferPreviewHost(frame: RenderedFrame,
+                                            resolution: PreviewHostStrategyResolution) -> Bool {
+        guard let sampleBuffer = try? frame.makePreviewHostSampleBuffer() else {
+            return false
+        }
+        let lease = sampleBufferPreviewLayerLease ?? SampleBufferPreviewLayerPool.take()
+        sampleBufferPreviewLayerLease = lease
+        attachSampleBufferPreviewLayerIfNeeded(lease)
+        layoutSampleBufferPreviewLayerIfNeeded()
+        lastSampleBufferPreviewFrame = sampleBuffer
+        isUsingSampleBufferPreviewHost = true
+        hostRecoveredCurrentFrameByFlush = false
+        hostFellBackCurrentFrameToMetal = false
+        if supportsVisibilityPauseForCurrentFrame && isCurrentlyHostVisible == false {
+            return true
+        }
+        let enqueueSucceeded = enqueueSampleBufferPreviewFrame(sampleBuffer, allowRecovery: true)
+        if enqueueSucceeded == false {
+            return false
+        }
+        hostRecoveredCurrentFrameByFlush = hostRecoveredCurrentFrameByFlush || resolution.hostRecoveredByFlush
+        return true
+    }
+
+    func attachSampleBufferPreviewLayerIfNeeded(_ lease: SampleBufferPreviewLayerLease) {
+        guard let hostLayer = layer else { return }
+        guard lease.layer.superlayer !== layer else {
+            return
+        }
+        hostLayer.addSublayer(lease.layer)
+    }
+
+    func layoutSampleBufferPreviewLayerIfNeeded() {
+        guard let lease = sampleBufferPreviewLayerLease else { return }
+        lease.prepare(frame: bounds, contentsScale: resolvedDrawableScale())
+        switch resizingMode {
+        case .aspectFit:
+            lease.layer.videoGravity = .resizeAspect
+        case .aspectFill:
+            lease.layer.videoGravity = .resizeAspectFill
+        case .scaleToFill:
+            lease.layer.videoGravity = .resize
+        }
+    }
+
+    func enqueueSampleBufferPreviewFrame(_ sampleBuffer: CMSampleBuffer, allowRecovery: Bool) -> Bool {
+        guard let layer = sampleBufferPreviewLayerLease?.layer else {
+            return false
+        }
+        if layer.status == .failed || sampleBufferPreviewLayerRequiresFlushToResume(layer) {
+            hostRecoveredCurrentFrameByFlush = true
+            layer.flush()
+        }
+        layer.enqueue(sampleBuffer)
+        if allowRecovery && layer.status == .failed {
+            hostRecoveredCurrentFrameByFlush = true
+            layer.flush()
+            layer.enqueue(sampleBuffer)
+        }
+        return layer.status != .failed
+    }
+
+    func sampleBufferPreviewLayerRequiresFlushToResume(_ layer: AVSampleBufferDisplayLayer) -> Bool {
+        if #available(macOS 11.0, iOS 11.0, tvOS 11.0, *) {
+            return layer.requiresFlushToResumeDecoding
+        }
+        return false
+    }
+    #endif
 }
