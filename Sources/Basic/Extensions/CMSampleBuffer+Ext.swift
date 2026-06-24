@@ -60,7 +60,13 @@ extension HarbethWrapper where Base: CMSampleBuffer {
                 ownerRetained: bridgePlan?.preservesOwnerReference ?? false,
                 conversionStrategy: bridgePlan?.loadStrategy,
                 directPlaneBridgeCount: bridgePlan?.directPlaneBridgeCount ?? 0,
-                orientation: .up
+                orientation: .up,
+                mirrorHorizontally: false,
+                mirrorVertically: false,
+                followsDeviceOrientation: false,
+                hasExplicitOrientation: false,
+                hasExplicitMirror: false,
+                hasExplicitDeviceOrientation: false
             ),
             attachments: attachmentContract
         )

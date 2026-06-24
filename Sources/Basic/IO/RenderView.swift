@@ -23,6 +23,14 @@ open class RenderView: MTKView {
 
     public private(set) var currentRenderedFrame: RenderedFrame?
 
+    public var currentFrameHostSourceDescriptor: FrameHostSourceDescriptor? {
+        currentRenderedFrame?.frameHostSourceDescriptor
+    }
+
+    public var currentFrameHostRuntimeHint: FrameHostRuntimeHint? {
+        currentRenderedFrame?.frameHostRuntimeHint
+    }
+
     open override var colorPixelFormat: MTLPixelFormat {
         didSet {
             guard oldValue != colorPixelFormat else { return }
@@ -223,6 +231,16 @@ extension RenderView: HarbethPreviewDisplaying {
     public func display(_ frame: RenderedFrame?) {
         currentRenderedFrame = frame
         texture = frame?.texture
+        if let frame {
+            switch frame.frameHostRuntimeHint.timingPolicy {
+            case .lowLatency, .displayStable:
+                isPaused = true
+                enableSetNeedsDisplay = true
+            case .completedGPUReadback:
+                isPaused = true
+                enableSetNeedsDisplay = true
+            }
+        }
     }
 }
 

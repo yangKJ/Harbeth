@@ -23,6 +23,13 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let inputDirectPlaneBridgeCount: Int
         public let inputBridgePolicy: String?
         public let inputYCbCrDecode: String?
+        public let frameHostSource: String?
+        public let frameHostDecision: String
+        public let frameHostTimingPolicy: String
+        public let frameHostRealtimePreviewEligible: Bool
+        public let frameHostSupportsVisibilityPause: Bool
+        public let frameHostRequiresPlaneAwareDecode: Bool
+        public let frameHostMetadataCompleteness: String
         public let inputPixelPrecision: String
         public let inputHDRFriendly: Bool
         public let outputAttachmentLabels: [String]
@@ -57,6 +64,20 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
              inputDirectPlaneBridgeCount: Int,
              inputBridgePolicy: String? = nil,
              inputYCbCrDecode: String? = nil,
+             frameHostSource: String? = nil,
+             frameHostDecision: String = PreviewHostRenderingDecision.directTexturePassthrough.rawValue,
+             frameHostTimingPolicy: String = PreviewHostTimingPolicy.displayStable.rawValue,
+             frameHostRealtimePreviewEligible: Bool = false,
+             frameHostSupportsVisibilityPause: Bool = false,
+             frameHostRequiresPlaneAwareDecode: Bool = false,
+             frameHostMetadataCompleteness: String = FrameHostMetadataCompleteness(
+                hasFrameSize: false,
+                hasOrientation: false,
+                hasMirror: false,
+                hasDeviceOrientation: false,
+                hasTiming: false,
+                hasSampleAttachments: false
+             ).fingerprint,
              inputPixelPrecision: String,
              inputHDRFriendly: Bool,
              outputAttachmentLabels: [String],
@@ -90,6 +111,13 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.inputDirectPlaneBridgeCount = inputDirectPlaneBridgeCount
             self.inputBridgePolicy = inputBridgePolicy
             self.inputYCbCrDecode = inputYCbCrDecode
+            self.frameHostSource = frameHostSource
+            self.frameHostDecision = frameHostDecision
+            self.frameHostTimingPolicy = frameHostTimingPolicy
+            self.frameHostRealtimePreviewEligible = frameHostRealtimePreviewEligible
+            self.frameHostSupportsVisibilityPause = frameHostSupportsVisibilityPause
+            self.frameHostRequiresPlaneAwareDecode = frameHostRequiresPlaneAwareDecode
+            self.frameHostMetadataCompleteness = frameHostMetadataCompleteness
             self.inputPixelPrecision = inputPixelPrecision
             self.inputHDRFriendly = inputHDRFriendly
             self.outputAttachmentLabels = outputAttachmentLabels
@@ -112,6 +140,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         }
 
         init(diagnostics: RenderPlanDiagnostics) {
+            let frameHostHint = diagnostics.frameHostRuntimeHint
             self.init(
                 summary: diagnostics.summary,
                 profile: String(describing: diagnostics.profile),
@@ -127,6 +156,13 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 inputDirectPlaneBridgeCount: diagnostics.inputDirectPlaneBridgeCount,
                 inputBridgePolicy: diagnostics.inputBridgePolicy?.rawValue,
                 inputYCbCrDecode: diagnostics.inputYCbCrDecodeContract?.fingerprint,
+                frameHostSource: diagnostics.frameHostSourceDescriptor?.fingerprint,
+                frameHostDecision: frameHostHint.decision.rawValue,
+                frameHostTimingPolicy: frameHostHint.timingPolicy.rawValue,
+                frameHostRealtimePreviewEligible: frameHostHint.isRealtimePreviewEligible,
+                frameHostSupportsVisibilityPause: frameHostHint.supportsVisibilityPause,
+                frameHostRequiresPlaneAwareDecode: frameHostHint.requiresPlaneAwareDecode,
+                frameHostMetadataCompleteness: frameHostHint.metadataCompleteness.fingerprint,
                 inputPixelPrecision: diagnostics.inputPixelPrecision.rawValue,
                 inputHDRFriendly: diagnostics.inputIsHDRFriendly,
                 outputAttachmentLabels: diagnostics.outputContract.attachmentDebugPolicies.map(\.label),

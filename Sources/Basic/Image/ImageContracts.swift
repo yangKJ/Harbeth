@@ -1373,15 +1373,33 @@ public struct SampleBufferFrameContract: Sendable, Codable, Equatable, Hashable 
     public let conversionStrategy: PixelBufferTextureLoadStrategy?
     public let directPlaneBridgeCount: Int
     public let orientation: FrameOrientation
+    public let mirrorHorizontally: Bool
+    public let mirrorVertically: Bool
+    public let followsDeviceOrientation: Bool
+    public let hasExplicitOrientation: Bool
+    public let hasExplicitMirror: Bool
+    public let hasExplicitDeviceOrientation: Bool
 
     public init(ownerRetained: Bool,
                 conversionStrategy: PixelBufferTextureLoadStrategy?,
                 directPlaneBridgeCount: Int = 0,
-                orientation: FrameOrientation = .up) {
+                orientation: FrameOrientation = .up,
+                mirrorHorizontally: Bool = false,
+                mirrorVertically: Bool = false,
+                followsDeviceOrientation: Bool = false,
+                hasExplicitOrientation: Bool = false,
+                hasExplicitMirror: Bool = false,
+                hasExplicitDeviceOrientation: Bool = false) {
         self.ownerRetained = ownerRetained
         self.conversionStrategy = conversionStrategy
         self.directPlaneBridgeCount = directPlaneBridgeCount
         self.orientation = orientation
+        self.mirrorHorizontally = mirrorHorizontally
+        self.mirrorVertically = mirrorVertically
+        self.followsDeviceOrientation = followsDeviceOrientation
+        self.hasExplicitOrientation = hasExplicitOrientation
+        self.hasExplicitMirror = hasExplicitMirror
+        self.hasExplicitDeviceOrientation = hasExplicitDeviceOrientation
     }
 
     public var supportsDirectPlaneTextures: Bool {
@@ -1393,7 +1411,144 @@ public struct SampleBufferFrameContract: Sendable, Codable, Equatable, Hashable 
             "owner=\(ownerRetained ? 1 : 0)",
             "strategy=\(conversionStrategy?.rawValue ?? "none")",
             "directPlanes=\(directPlaneBridgeCount)",
-            "orientation=\(orientation.rawValue)"
+            "orientation=\(orientation.rawValue)",
+            "mirrorH=\(mirrorHorizontally ? 1 : 0)",
+            "mirrorV=\(mirrorVertically ? 1 : 0)",
+            "followDevice=\(followsDeviceOrientation ? 1 : 0)",
+            "hasOrientation=\(hasExplicitOrientation ? 1 : 0)",
+            "hasMirror=\(hasExplicitMirror ? 1 : 0)",
+            "hasDeviceOrientation=\(hasExplicitDeviceOrientation ? 1 : 0)"
+        ].joined(separator: "|")
+    }
+}
+
+public struct FrameHostMetadataCompleteness: Sendable, Codable, Equatable, Hashable {
+    public let hasFrameSize: Bool
+    public let hasOrientation: Bool
+    public let hasMirror: Bool
+    public let hasDeviceOrientation: Bool
+    public let hasTiming: Bool
+    public let hasSampleAttachments: Bool
+
+    public init(hasFrameSize: Bool,
+                hasOrientation: Bool,
+                hasMirror: Bool,
+                hasDeviceOrientation: Bool,
+                hasTiming: Bool,
+                hasSampleAttachments: Bool) {
+        self.hasFrameSize = hasFrameSize
+        self.hasOrientation = hasOrientation
+        self.hasMirror = hasMirror
+        self.hasDeviceOrientation = hasDeviceOrientation
+        self.hasTiming = hasTiming
+        self.hasSampleAttachments = hasSampleAttachments
+    }
+
+    public var isCompleteForRealtimePreview: Bool {
+        hasFrameSize && hasTiming
+    }
+
+    public var fingerprint: String {
+        [
+            "frameSize=\(hasFrameSize ? 1 : 0)",
+            "orientation=\(hasOrientation ? 1 : 0)",
+            "mirror=\(hasMirror ? 1 : 0)",
+            "deviceOrientation=\(hasDeviceOrientation ? 1 : 0)",
+            "timing=\(hasTiming ? 1 : 0)",
+            "attachments=\(hasSampleAttachments ? 1 : 0)"
+        ].joined(separator: "|")
+    }
+}
+
+public struct FrameHostSourceDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let frameSize: C7Size
+    public let orientation: FrameOrientation
+    public let mirrorHorizontally: Bool
+    public let mirrorVertically: Bool
+    public let followsDeviceOrientation: Bool
+    public let directPlaneBridgeCount: Int
+    public let bridgePolicy: PixelBufferBridgePolicy?
+    public let yCbCrDecodeContract: YCbCrDecodeContract?
+    public let metadataCompleteness: FrameHostMetadataCompleteness
+
+    public init(frameSize: C7Size,
+                orientation: FrameOrientation,
+                mirrorHorizontally: Bool = false,
+                mirrorVertically: Bool = false,
+                followsDeviceOrientation: Bool = false,
+                directPlaneBridgeCount: Int = 0,
+                bridgePolicy: PixelBufferBridgePolicy? = nil,
+                yCbCrDecodeContract: YCbCrDecodeContract? = nil,
+                metadataCompleteness: FrameHostMetadataCompleteness) {
+        self.frameSize = frameSize
+        self.orientation = orientation
+        self.mirrorHorizontally = mirrorHorizontally
+        self.mirrorVertically = mirrorVertically
+        self.followsDeviceOrientation = followsDeviceOrientation
+        self.directPlaneBridgeCount = directPlaneBridgeCount
+        self.bridgePolicy = bridgePolicy
+        self.yCbCrDecodeContract = yCbCrDecodeContract
+        self.metadataCompleteness = metadataCompleteness
+    }
+
+    public var fingerprint: String {
+        [
+            "size=\(frameSize.width)x\(frameSize.height)",
+            "orientation=\(orientation.rawValue)",
+            "mirrorH=\(mirrorHorizontally ? 1 : 0)",
+            "mirrorV=\(mirrorVertically ? 1 : 0)",
+            "followDevice=\(followsDeviceOrientation ? 1 : 0)",
+            "directPlanes=\(directPlaneBridgeCount)",
+            "bridgePolicy=\(bridgePolicy?.rawValue ?? "none")",
+            "ycbcr=\(yCbCrDecodeContract?.fingerprint ?? "none")",
+            "completeness={\(metadataCompleteness.fingerprint)}"
+        ].joined(separator: "|")
+    }
+}
+
+public enum PreviewHostRenderingDecision: String, Sendable, Codable, Equatable, Hashable {
+    case directTexturePassthrough
+    case directPlanePassthrough
+    case directPlaneDecodeToRGBA
+    case materializedFallback
+}
+
+public enum PreviewHostTimingPolicy: String, Sendable, Codable, Equatable, Hashable {
+    case lowLatency
+    case displayStable
+    case completedGPUReadback
+}
+
+public struct FrameHostRuntimeHint: Sendable, Codable, Equatable, Hashable {
+    public let decision: PreviewHostRenderingDecision
+    public let timingPolicy: PreviewHostTimingPolicy
+    public let isRealtimePreviewEligible: Bool
+    public let supportsVisibilityPause: Bool
+    public let requiresPlaneAwareDecode: Bool
+    public let metadataCompleteness: FrameHostMetadataCompleteness
+
+    public init(decision: PreviewHostRenderingDecision,
+                timingPolicy: PreviewHostTimingPolicy,
+                isRealtimePreviewEligible: Bool,
+                supportsVisibilityPause: Bool,
+                requiresPlaneAwareDecode: Bool,
+                metadataCompleteness: FrameHostMetadataCompleteness) {
+        self.decision = decision
+        self.timingPolicy = timingPolicy
+        self.isRealtimePreviewEligible = isRealtimePreviewEligible
+        self.supportsVisibilityPause = supportsVisibilityPause
+        self.requiresPlaneAwareDecode = requiresPlaneAwareDecode
+        self.metadataCompleteness = metadataCompleteness
+    }
+
+    public var fingerprint: String {
+        [
+            "decision=\(decision.rawValue)",
+            "timing=\(timingPolicy.rawValue)",
+            "realtime=\(isRealtimePreviewEligible ? 1 : 0)",
+            "visibilityPause=\(supportsVisibilityPause ? 1 : 0)",
+            "planeAwareDecode=\(requiresPlaneAwareDecode ? 1 : 0)",
+            "completeness={\(metadataCompleteness.fingerprint)}"
         ].joined(separator: "|")
     }
 }
@@ -1542,6 +1697,47 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
         }
         return parts.joined(separator: "|")
     }
+
+    public var frameHostSourceDescriptor: FrameHostSourceDescriptor {
+        let size = C7Size(
+            width: sampleBufferContract?.pixelBufferContract?.width
+                ?? pixelBufferContract?.width
+                ?? 0,
+            height: sampleBufferContract?.pixelBufferContract?.height
+                ?? pixelBufferContract?.height
+                ?? 0
+        )
+        let sampleFrameContract = sampleBufferContract?.frameContract
+        let completeness = FrameHostMetadataCompleteness(
+            hasFrameSize: size.width > 0 && size.height > 0,
+            hasOrientation: sampleFrameContract?.hasExplicitOrientation ?? false,
+            hasMirror: sampleFrameContract?.hasExplicitMirror ?? false,
+            hasDeviceOrientation: sampleFrameContract?.hasExplicitDeviceOrientation ?? false,
+            hasTiming: sampleBufferContract.map {
+                $0.presentationTimeStamp.isValid || $0.decodeTimeStamp.isValid || $0.duration.isValid
+            } ?? false,
+            hasSampleAttachments: sampleBufferContract.map {
+                $0.attachments.notSync != nil
+                    || $0.attachments.dependsOnOthers != nil
+                    || $0.attachments.earlierDisplayTimesAllowed != nil
+                    || $0.attachments.displayImmediately != nil
+                    || $0.attachments.doNotDisplay != nil
+            } ?? false
+        )
+        return FrameHostSourceDescriptor(
+            frameSize: size,
+            orientation: sampleFrameContract?.orientation ?? orientation,
+            mirrorHorizontally: sampleFrameContract?.mirrorHorizontally ?? false,
+            mirrorVertically: sampleFrameContract?.mirrorVertically ?? false,
+            followsDeviceOrientation: sampleFrameContract?.followsDeviceOrientation ?? false,
+            directPlaneBridgeCount: sampleFrameContract?.directPlaneBridgeCount
+                ?? pixelBufferBridgePlan?.directPlaneBridgeCount
+                ?? 0,
+            bridgePolicy: pixelBufferBridgePolicy,
+            yCbCrDecodeContract: yCbCrDecodeContract,
+            metadataCompleteness: completeness
+        )
+    }
 }
 
 /// 图像在处理链路中的职责角色。
@@ -1604,6 +1800,17 @@ public struct ImageSemanticDescriptor: Sendable, Hashable, Codable {
 }
 
 public extension RenderProfile {
+    var defaultFrameHostTimingPolicy: PreviewHostTimingPolicy {
+        switch self {
+        case .interactiveLatency, .responseLatency:
+            return .lowLatency
+        case .stablePreview, .inspectionQuality:
+            return .displayStable
+        case .exportQuality, .readbackQuality:
+            return .completedGPUReadback
+        }
+    }
+
     var defaultImageSemantic: ImageSemanticDescriptor {
         switch self {
         case .interactiveLatency:
@@ -1643,6 +1850,36 @@ public extension RenderProfile {
                 fidelity: .fullResolution
             )
         }
+    }
+}
+
+public extension FrameHostRuntimeHint {
+    init(source: ImageSourceDescriptor, profile: RenderProfile) {
+        let hostSource = source.frameHostSourceDescriptor
+        let decision: PreviewHostRenderingDecision
+        switch hostSource.bridgePolicy {
+        case .directTexturePassthrough, .none:
+            decision = .directTexturePassthrough
+        case .directPlanePassthrough:
+            decision = .directPlanePassthrough
+        case .directPlaneDecodeToRGBA:
+            decision = .directPlaneDecodeToRGBA
+        case .cgImageMaterialization, .cpuCopyMaterialization:
+            decision = .materializedFallback
+        }
+        let timingPolicy = profile.defaultFrameHostTimingPolicy
+        let requiresPlaneAwareDecode = hostSource.yCbCrDecodeContract != nil || hostSource.bridgePolicy == .directPlaneDecodeToRGBA
+        let isRealtimePreviewEligible = timingPolicy != .completedGPUReadback
+            && decision != .materializedFallback
+            && hostSource.metadataCompleteness.hasFrameSize
+        self.init(
+            decision: decision,
+            timingPolicy: timingPolicy,
+            isRealtimePreviewEligible: isRealtimePreviewEligible,
+            supportsVisibilityPause: isRealtimePreviewEligible,
+            requiresPlaneAwareDecode: requiresPlaneAwareDecode,
+            metadataCompleteness: hostSource.metadataCompleteness
+        )
     }
 }
 

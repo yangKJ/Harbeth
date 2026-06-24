@@ -64,6 +64,14 @@ public struct RenderRequest {
         try renderFrameClosure(metadata)
     }
 
+    public var frameHostSourceDescriptor: FrameHostSourceDescriptor {
+        diagnostics.inputFrameHostDescriptor ?? source.frameHostSourceDescriptor
+    }
+
+    public var frameHostRuntimeHint: FrameHostRuntimeHint {
+        FrameHostRuntimeHint(source: source, profile: profile)
+    }
+
     public func renderAnalysisBundle(channel: TextureHistogramChannel = .luminance,
                                      bins: Int = 256,
                                      histogramHeight: Int = 64,

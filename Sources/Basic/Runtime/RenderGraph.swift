@@ -278,6 +278,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     public let inputPixelFormatConversionCount: Int
     public let inputAlphaConversionCount: Int
     public let inputDirectPlaneBridgeCount: Int
+    public let inputFrameHostDescriptor: FrameHostSourceDescriptor?
     public let alphaConversionCount: Int
     public let colorConversionCount: Int
     public let pixelFormatConversionCount: Int
@@ -322,6 +323,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
          inputPixelFormatConversionCount: Int,
          inputAlphaConversionCount: Int,
          inputDirectPlaneBridgeCount: Int = 0,
+         inputFrameHostDescriptor: FrameHostSourceDescriptor? = nil,
          alphaConversionCount: Int,
          colorConversionCount: Int,
          pixelFormatConversionCount: Int,
@@ -365,6 +367,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         self.inputPixelFormatConversionCount = inputPixelFormatConversionCount
         self.inputAlphaConversionCount = inputAlphaConversionCount
         self.inputDirectPlaneBridgeCount = inputDirectPlaneBridgeCount
+        self.inputFrameHostDescriptor = inputFrameHostDescriptor
         self.alphaConversionCount = alphaConversionCount
         self.colorConversionCount = colorConversionCount
         self.pixelFormatConversionCount = pixelFormatConversionCount
@@ -424,6 +427,12 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "inputPixelFormatConversions=\(inputPixelFormatConversionCount)",
             "inputAlphaConversions=\(inputAlphaConversionCount)",
             "inputDirectPlanes=\(inputDirectPlaneBridgeCount)",
+            "hostDecision=\(frameHostRuntimeHint.decision.rawValue)",
+            "hostTiming=\(frameHostRuntimeHint.timingPolicy.rawValue)",
+            "hostRealtime=\(frameHostRuntimeHint.isRealtimePreviewEligible ? 1 : 0)",
+            "hostVisibilityPause=\(frameHostRuntimeHint.supportsVisibilityPause ? 1 : 0)",
+            "hostPlaneAwareDecode=\(frameHostRuntimeHint.requiresPlaneAwareDecode ? 1 : 0)",
+            "hostMetadata=\(frameHostRuntimeHint.metadataCompleteness.fingerprint)",
             "inputColor=\(inputColorSpace.name)",
             "outputColor=\(outputColorSpace.name)",
             "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
@@ -455,6 +464,52 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
 
     public var inputPixelPrecision: PixelPrecision {
         inputPixelFormat.precision
+    }
+
+    public var frameHostSourceDescriptor: FrameHostSourceDescriptor? {
+        inputFrameHostDescriptor
+    }
+
+    public var frameHostRuntimeHint: FrameHostRuntimeHint {
+        let source = inputFrameHostDescriptor ?? FrameHostSourceDescriptor(
+            frameSize: inputSize,
+            orientation: .up,
+            directPlaneBridgeCount: inputDirectPlaneBridgeCount,
+            bridgePolicy: inputBridgePolicy,
+            yCbCrDecodeContract: inputYCbCrDecodeContract,
+            metadataCompleteness: FrameHostMetadataCompleteness(
+                hasFrameSize: inputSize.width > 0 && inputSize.height > 0,
+                hasOrientation: false,
+                hasMirror: false,
+                hasDeviceOrientation: false,
+                hasTiming: false,
+                hasSampleAttachments: false
+            )
+        )
+        let decision: PreviewHostRenderingDecision
+        switch inputBridgePolicy {
+        case .directTexturePassthrough, .none:
+            decision = .directTexturePassthrough
+        case .directPlanePassthrough:
+            decision = .directPlanePassthrough
+        case .directPlaneDecodeToRGBA:
+            decision = .directPlaneDecodeToRGBA
+        case .cgImageMaterialization, .cpuCopyMaterialization:
+            decision = .materializedFallback
+        }
+        let timingPolicy = profile.defaultFrameHostTimingPolicy
+        return FrameHostRuntimeHint(
+            decision: decision,
+            timingPolicy: timingPolicy,
+            isRealtimePreviewEligible: timingPolicy != .completedGPUReadback
+                && decision != .materializedFallback
+                && source.metadataCompleteness.hasFrameSize,
+            supportsVisibilityPause: timingPolicy != .completedGPUReadback
+                && decision != .materializedFallback
+                && source.metadataCompleteness.hasFrameSize,
+            requiresPlaneAwareDecode: inputYCbCrDecodeContract != nil || inputBridgePolicy == .directPlaneDecodeToRGBA,
+            metadataCompleteness: source.metadataCompleteness
+        )
     }
 
     public var inputIsHighPrecision: Bool {
@@ -523,6 +578,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             inputPixelFormatConversionCount: inputPixelFormatConversionCount,
             inputAlphaConversionCount: inputAlphaConversionCount,
             inputDirectPlaneBridgeCount: inputDirectPlaneBridgeCount,
+            inputFrameHostDescriptor: inputFrameHostDescriptor,
             alphaConversionCount: alphaConversionCount,
             colorConversionCount: colorConversionCount,
             pixelFormatConversionCount: pixelFormatConversionCount,
@@ -571,6 +627,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             inputPixelFormatConversionCount: inputPixelFormatConversionCount,
             inputAlphaConversionCount: inputAlphaConversionCount,
             inputDirectPlaneBridgeCount: inputDirectPlaneBridgeCount,
+            inputFrameHostDescriptor: inputFrameHostDescriptor,
             alphaConversionCount: alphaConversionCount,
             colorConversionCount: colorConversionCount,
             pixelFormatConversionCount: pixelFormatConversionCount,
@@ -619,6 +676,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             inputPixelFormatConversionCount: inputPixelFormatConversionCount,
             inputAlphaConversionCount: inputAlphaConversionCount,
             inputDirectPlaneBridgeCount: inputDirectPlaneBridgeCount,
+            inputFrameHostDescriptor: inputFrameHostDescriptor,
             alphaConversionCount: alphaConversionCount,
             colorConversionCount: colorConversionCount,
             pixelFormatConversionCount: pixelFormatConversionCount,
@@ -711,6 +769,7 @@ struct RenderPlan {
         let resolvedInputDirectPlaneBridgeCount = sourceDirectPlaneBridgeCount + auxiliaryDirectPlaneBridgeCount
         let resolvedInputBridgePolicy = sourceDescriptor?.pixelBufferBridgePolicy ?? auxiliaryInputDescriptor?.pixelBufferBridgePolicy
         let resolvedInputYCbCrDecodeContract = sourceDescriptor?.yCbCrDecodeContract ?? auxiliaryInputDescriptor?.yCbCrDecodeContract
+        let resolvedInputFrameHostDescriptor = sourceDescriptor?.frameHostSourceDescriptor ?? auxiliaryInputDescriptor?.frameHostSourceDescriptor
         let resolvedInputColorSpace = RenderPlan.resolveInputColorSpace(
             primary: sourceDescriptor,
             auxiliary: auxiliaryInputDescriptor
@@ -777,6 +836,7 @@ struct RenderPlan {
             inputPixelFormatConversionCount: resolvedInputPixelFormatConversionCount,
             inputAlphaConversionCount: resolvedInputAlphaConversionCount,
             inputDirectPlaneBridgeCount: resolvedInputDirectPlaneBridgeCount,
+            inputFrameHostDescriptor: resolvedInputFrameHostDescriptor,
             alphaConversionCount: outputContract.requiresAlphaConversion ? 1 : 0,
             colorConversionCount: outputContract.requiresColorSpaceConversion ? 1 : 0,
             pixelFormatConversionCount: outputContract.requiresPixelFormatConversion ? max(optimizationPlan.formatConversionCount, 1) : optimizationPlan.formatConversionCount,

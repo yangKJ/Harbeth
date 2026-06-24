@@ -482,6 +482,9 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertNil(request.source.yCbCrDecodeContract)
         XCTAssertTrue(request.source.fingerprint.contains("bridge={"))
         XCTAssertTrue(request.source.fingerprint.contains("bridgePolicy=directTexturePassthrough"))
+        XCTAssertEqual(request.frameHostSourceDescriptor.frameSize, C7Size(width: 4, height: 3))
+        XCTAssertEqual(request.frameHostRuntimeHint.decision, .directTexturePassthrough)
+        XCTAssertTrue(request.frameHostRuntimeHint.isRealtimePreviewEligible)
         XCTAssertEqual(renderRecipe.source.kind, "pixelBuffer")
         XCTAssertEqual(renderRecipe.source.pixelBufferContract?.planeCount, 1)
         XCTAssertEqual(renderRecipe.alphaType, .premultiplied)
@@ -511,11 +514,15 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.componentBitDepth, 8)
         XCTAssertEqual(diagnostics.colorConversionCount, 0)
         XCTAssertEqual(diagnostics.pixelFormatConversionCount, 0)
+        XCTAssertEqual(diagnostics.frameHostSourceDescriptor?.frameSize, C7Size(width: 4, height: 4))
+        XCTAssertEqual(diagnostics.frameHostRuntimeHint.decision, .directPlaneDecodeToRGBA)
+        XCTAssertTrue(diagnostics.frameHostRuntimeHint.requiresPlaneAwareDecode)
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=1"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=2"))
         XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directPlaneDecodeToRGBA"))
         XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=biPlanar|matrix=bt601FullRange|bitDepth=8"))
+        XCTAssertTrue(diagnostics.summary.contains("hostDecision=directPlaneDecodeToRGBA"))
     }
 
     func testRenderDiagnosticsTracksTriPlanarPixelBufferInputConversions() throws {
@@ -641,6 +648,7 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(diagnostics.inputDirectPlaneBridgeCount, 1)
         XCTAssertEqual(diagnostics.inputBridgePolicy, .directTexturePassthrough)
         XCTAssertEqual(diagnostics.sourceKind, "sampleBuffer")
+        XCTAssertTrue(diagnostics.frameHostRuntimeHint.metadataCompleteness.hasTiming)
         XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
         XCTAssertTrue(diagnostics.summary.contains("inputColorConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=0"))
@@ -760,11 +768,15 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(snapshot.renderRecipe?.source.kind, "sampleBuffer")
         XCTAssertEqual(snapshot.diagnostics.inputYCbCrDecode, diagnostics.inputYCbCrDecodeContract?.fingerprint)
         XCTAssertTrue(snapshot.diagnostics.inputHDRFriendly)
+        XCTAssertEqual(snapshot.diagnostics.frameHostDecision, PreviewHostRenderingDecision.directPlaneDecodeToRGBA.rawValue)
+        XCTAssertEqual(snapshot.diagnostics.frameHostTimingPolicy, PreviewHostTimingPolicy.displayStable.rawValue)
+        XCTAssertEqual(snapshot.diagnostics.frameHostSource, frame.frameHostSourceDescriptor.fingerprint)
         XCTAssertTrue(snapshot.summary.contains("origin=sampleBuffer"))
 
         XCTAssertEqual(frame.sourceDescriptor.kind, "sampleBuffer")
         XCTAssertEqual(frame.sourceDescriptor.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.gamut, .ituR2020)
         XCTAssertEqual(frame.sourceDescriptor.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.transferFunction, .perceptualQuantizer)
+        XCTAssertTrue(frame.frameHostRuntimeHint.requiresPlaneAwareDecode)
         XCTAssertEqual(request.diagnostics.compilationSource, .editRecipe)
     }
 

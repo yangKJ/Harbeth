@@ -37,6 +37,9 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(frame.metadata["filterChainFingerprint"], "")
         XCTAssertEqual(frame.cacheIdentity.renderIntent, .stable)
         XCTAssertTrue(frame.cacheIdentity.fingerprint.contains("kind=texture"))
+        XCTAssertEqual(frame.frameHostSourceDescriptor.frameSize, C7Size(width: 4, height: 3))
+        XCTAssertEqual(frame.frameHostRuntimeHint.timingPolicy, .displayStable)
+        XCTAssertTrue(frame.frameHostRuntimeHint.isRealtimePreviewEligible)
         XCTAssertNil(frame.lease, "直接复用调用方输入纹理时不应伪造 lease。")
         XCTAssertFalse(frame.identifier.isEmpty)
         XCTAssertGreaterThan(frame.generation, 0)
@@ -102,6 +105,7 @@ final class RenderedFrameTests: XCTestCase {
 
         XCTAssertEqual(frame.token, token)
         XCTAssertEqual(frame.profile, .responseLatency)
+        XCTAssertEqual(frame.frameHostRuntimeHint.timingPolicy, .lowLatency)
     }
 
     func testHarbethIOAttachmentDebugPoliciesExposeAuxiliaryHints() throws {
