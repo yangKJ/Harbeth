@@ -14,6 +14,11 @@ import AppKit
 #endif
 
 open class RenderView: MTKView {
+    private enum PreviewHostDisplayMode {
+        case lowLatency
+        case stablePreview
+        case completedReadback
+    }
 
     public enum ResizingMode: Sendable, Equatable {
         case aspectFit
@@ -30,6 +35,10 @@ open class RenderView: MTKView {
     public var currentFrameHostRuntimeHint: FrameHostRuntimeHint? {
         currentRenderedFrame?.frameHostRuntimeHint
     }
+
+    public private(set) var isRealtimePreviewFriendly: Bool = false
+    public private(set) var supportsVisibilityPauseForCurrentFrame: Bool = false
+    public private(set) var hasCompleteRealtimePreviewMetadata: Bool = false
 
     open override var colorPixelFormat: MTLPixelFormat {
         didSet {
@@ -75,6 +84,7 @@ open class RenderView: MTKView {
     private var cachedPipelineState: MTLRenderPipelineState?
     private var cachedPipelinePixelFormat: MTLPixelFormat?
     private var cachedPipelineSampleCount: Int = 0
+    private var previewHostDisplayMode: PreviewHostDisplayMode = .stablePreview
 
     private lazy var samplerState: MTLSamplerState? = {
         Shared.shared.defaultContext.makeSamplerState()
@@ -110,18 +120,21 @@ open class RenderView: MTKView {
     public override func layoutSubviews() {
         super.layoutSubviews()
         updateDrawableSizeIfNeeded()
+        updatePreviewHostScheduling()
         invalidateDisplay()
     }
 
     public override func didMoveToWindow() {
         super.didMoveToWindow()
         updateDrawableSizeIfNeeded()
+        updatePreviewHostScheduling()
         invalidateDisplay()
     }
     #elseif canImport(AppKit)
     public override func layout() {
         super.layout()
         updateDrawableSizeIfNeeded()
+        updatePreviewHostScheduling()
         needsDisplay = true
     }
     #endif
@@ -231,15 +244,14 @@ extension RenderView: HarbethPreviewDisplaying {
     public func display(_ frame: RenderedFrame?) {
         currentRenderedFrame = frame
         texture = frame?.texture
-        if let frame {
-            switch frame.frameHostRuntimeHint.timingPolicy {
-            case .lowLatency, .displayStable:
-                isPaused = true
-                enableSetNeedsDisplay = true
-            case .completedGPUReadback:
-                isPaused = true
-                enableSetNeedsDisplay = true
-            }
+        let hint = frame?.frameHostRuntimeHint
+        isRealtimePreviewFriendly = hint?.isRealtimePreviewEligible ?? false
+        supportsVisibilityPauseForCurrentFrame = hint?.supportsVisibilityPause ?? false
+        hasCompleteRealtimePreviewMetadata = hint?.metadataCompleteness.isCompleteForRealtimePreview ?? false
+        previewHostDisplayMode = Self.displayMode(for: hint?.timingPolicy)
+        updatePreviewHostScheduling()
+        if isPaused == false {
+            draw()
         }
     }
 }
@@ -281,5 +293,40 @@ extension RenderView: MTKViewDelegate {
 
         commandBuffer.present(drawable)
         commandBuffer.commit()
+    }
+}
+
+private extension RenderView {
+    private static func displayMode(for timingPolicy: PreviewHostTimingPolicy?) -> PreviewHostDisplayMode {
+        switch timingPolicy {
+        case .lowLatency:
+            return .lowLatency
+        case .completedGPUReadback:
+            return .completedReadback
+        case .displayStable, .none:
+            return .stablePreview
+        }
+    }
+
+    func updatePreviewHostScheduling() {
+        let shouldPauseForVisibility = supportsVisibilityPauseForCurrentFrame && isCurrentlyHostVisible == false
+        switch previewHostDisplayMode {
+        case .lowLatency:
+            isPaused = shouldPauseForVisibility
+            enableSetNeedsDisplay = shouldPauseForVisibility
+        case .stablePreview, .completedReadback:
+            isPaused = true
+            enableSetNeedsDisplay = true
+        }
+    }
+
+    var isCurrentlyHostVisible: Bool {
+        #if canImport(UIKit)
+        return window != nil && isHidden == false && alpha > 0.001
+        #elseif canImport(AppKit)
+        return window != nil && isHidden == false
+        #else
+        return true
+        #endif
     }
 }

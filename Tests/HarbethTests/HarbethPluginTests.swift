@@ -3,6 +3,7 @@ import Metal
 import CoreGraphics
 import CoreVideo
 import CoreMedia
+import ImageIO
 #if canImport(UIKit) && !os(watchOS)
 import UIKit
 #endif
@@ -157,10 +158,33 @@ final class HarbethPluginTests: XCTestCase {
     #if canImport(UIKit) && !os(watchOS)
     func testRenderViewDisplayUpdatesRenderedFrameWithoutLosingTextureCompatibility() throws {
         let texture = try makeTexture(width: 256, height: 128, pixel: [80, 120, 160, 255])
+        let pixelBuffer = try makePixelBuffer(width: 256, height: 128)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        CMSetAttachment(
+            sampleBuffer,
+            key: kCGImagePropertyOrientation,
+            value: NSNumber(value: CGImagePropertyOrientation.right.rawValue),
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameMirrorHorizontallyAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameFollowsDeviceOrientationAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
         let previewFrame = RenderedFrame(
             texture: texture,
-            sourceDescriptor: ImageSource.texture(texture).descriptor,
-            profile: .stablePreview,
+            sourceDescriptor: ImageSource.sampleBuffer(sampleBuffer).descriptor,
+            profile: .interactiveLatency,
             generation: 1,
             identifier: "preview"
         )
@@ -171,7 +195,12 @@ final class HarbethPluginTests: XCTestCase {
         view.display(previewFrame)
 
         XCTAssertTrue(view.texture === texture)
-        XCTAssertEqual(view.currentRenderedFrame?.sourceDescriptor.kind, "texture")
+        XCTAssertEqual(view.currentRenderedFrame?.sourceDescriptor.kind, "sampleBuffer")
+        XCTAssertTrue(view.isRealtimePreviewFriendly)
+        XCTAssertTrue(view.supportsVisibilityPauseForCurrentFrame)
+        XCTAssertTrue(view.hasCompleteRealtimePreviewMetadata)
+        XCTAssertTrue(view.isPaused)
+        XCTAssertTrue(view.enableSetNeedsDisplay)
         XCTAssertEqual(view.drawableSize.width, 64)
         XCTAssertEqual(view.drawableSize.height, 32)
 
@@ -218,6 +247,22 @@ final class HarbethPluginTests: XCTestCase {
             bytesPerRow: width * 4
         )
         return texture
+    }
+
+    private func makePixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &pixelBuffer),
+            kCVReturnSuccess
+        )
+        return try XCTUnwrap(pixelBuffer)
     }
 
     private func firstPixel(in texture: MTLTexture) throws -> [UInt8] {

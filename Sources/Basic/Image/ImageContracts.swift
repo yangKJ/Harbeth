@@ -1855,7 +1855,11 @@ public extension RenderProfile {
 
 public extension FrameHostRuntimeHint {
     init(source: ImageSourceDescriptor, profile: RenderProfile) {
-        let hostSource = source.frameHostSourceDescriptor
+        self.init(source: source.frameHostSourceDescriptor, profile: profile)
+    }
+
+    init(source: FrameHostSourceDescriptor, profile: RenderProfile) {
+        let hostSource = source
         let decision: PreviewHostRenderingDecision
         switch hostSource.bridgePolicy {
         case .directTexturePassthrough, .none:

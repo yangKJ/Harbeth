@@ -2,6 +2,7 @@ import XCTest
 import Metal
 import CoreVideo
 import CoreMedia
+import ImageIO
 @testable import Harbeth
 
 final class PixelBufferOutputTests: XCTestCase {
@@ -376,6 +377,69 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertTrue(contract.fingerprint.contains("directPlanes=2"))
     }
 
+    func testSampleBufferContractDefaultsFrameMetadataWithoutHostAttachments() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 4, height: 3)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let contract = sampleBuffer.c7.contract
+
+        XCTAssertEqual(contract.frameContract.orientation, .up)
+        XCTAssertFalse(contract.frameContract.mirrorHorizontally)
+        XCTAssertFalse(contract.frameContract.mirrorVertically)
+        XCTAssertFalse(contract.frameContract.followsDeviceOrientation)
+        XCTAssertFalse(contract.frameContract.hasExplicitOrientation)
+        XCTAssertFalse(contract.frameContract.hasExplicitMirror)
+        XCTAssertFalse(contract.frameContract.hasExplicitDeviceOrientation)
+    }
+
+    func testSampleBufferContractPrefersExplicitHostMetadataAttachments() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 4, height: 3)
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCGImagePropertyOrientation,
+            NSNumber(value: CGImagePropertyOrientation.left.rawValue),
+            .shouldPropagate
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        CMSetAttachment(
+            sampleBuffer,
+            key: kCGImagePropertyOrientation,
+            value: NSNumber(value: CGImagePropertyOrientation.right.rawValue),
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameMirrorHorizontallyAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameFollowsDeviceOrientationAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+
+        let contract = sampleBuffer.c7.contract
+
+        XCTAssertEqual(contract.frameContract.orientation, .right)
+        XCTAssertTrue(contract.frameContract.mirrorHorizontally)
+        XCTAssertFalse(contract.frameContract.mirrorVertically)
+        XCTAssertTrue(contract.frameContract.followsDeviceOrientation)
+        XCTAssertTrue(contract.frameContract.hasExplicitOrientation)
+        XCTAssertTrue(contract.frameContract.hasExplicitMirror)
+        XCTAssertTrue(contract.frameContract.hasExplicitDeviceOrientation)
+        XCTAssertTrue(contract.fingerprint.contains("orientation=right"))
+        XCTAssertTrue(contract.fingerprint.contains("mirrorH=1"))
+        XCTAssertTrue(contract.fingerprint.contains("followDevice=1"))
+    }
+
     func testTriPlanarPixelBufferContractPrefersDirectPlaneTopLevelAndThreePlaneBridge() throws {
         let pixelBuffer = try makeTriPlanarPixelBuffer()
 
@@ -654,6 +718,51 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertTrue(diagnostics.summary.contains("inputPixelFormatConversions=0"))
         XCTAssertTrue(diagnostics.summary.contains("inputBridgePolicy=directTexturePassthrough"))
         XCTAssertTrue(diagnostics.summary.contains("inputDirectPlanes=1"))
+    }
+
+    func testSampleBufferFrameMetadataStaysConsistentAcrossRequestFrameAndSnapshot() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 4, height: 3)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        CMSetAttachment(
+            sampleBuffer,
+            key: kCGImagePropertyOrientation,
+            value: NSNumber(value: CGImagePropertyOrientation.right.rawValue),
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameMirrorHorizontallyAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        CMSetAttachment(
+            sampleBuffer,
+            key: harbethFrameFollowsDeviceOrientationAttachmentKey,
+            value: kCFBooleanTrue,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+
+        let node = ImageNode
+            .sampleBuffer(sampleBuffer)
+            .applying(C7Brightness(brightness: 0.1))
+
+        let request = try node.makeRenderRequest(profile: .stablePreview)
+        let frame = try node.makeFrame(profile: .stablePreview)
+        let snapshot = try node.makeDebugSnapshot(profile: .stablePreview)
+
+        XCTAssertEqual(request.frameHostSourceDescriptor.orientation, .right)
+        XCTAssertTrue(request.frameHostSourceDescriptor.mirrorHorizontally)
+        XCTAssertTrue(request.frameHostSourceDescriptor.followsDeviceOrientation)
+        XCTAssertEqual(frame.frameHostSourceDescriptor.orientation, .right)
+        XCTAssertTrue(frame.frameHostSourceDescriptor.mirrorHorizontally)
+        XCTAssertTrue(frame.frameHostSourceDescriptor.followsDeviceOrientation)
+        XCTAssertEqual(request.frameHostRuntimeHint, frame.frameHostRuntimeHint)
+        XCTAssertEqual(snapshot.diagnostics.frameHostSource, request.frameHostSourceDescriptor.fingerprint)
+        XCTAssertEqual(snapshot.diagnostics.frameHostDecision, request.frameHostRuntimeHint.decision.rawValue)
+        XCTAssertEqual(snapshot.diagnostics.frameHostMetadataCompleteness, request.frameHostRuntimeHint.metadataCompleteness.fingerprint)
     }
 
     func testNodeRenderRecipeTracksSampleBufferSourceContract() throws {

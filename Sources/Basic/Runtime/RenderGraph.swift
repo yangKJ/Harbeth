@@ -486,30 +486,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
                 hasSampleAttachments: false
             )
         )
-        let decision: PreviewHostRenderingDecision
-        switch inputBridgePolicy {
-        case .directTexturePassthrough, .none:
-            decision = .directTexturePassthrough
-        case .directPlanePassthrough:
-            decision = .directPlanePassthrough
-        case .directPlaneDecodeToRGBA:
-            decision = .directPlaneDecodeToRGBA
-        case .cgImageMaterialization, .cpuCopyMaterialization:
-            decision = .materializedFallback
-        }
-        let timingPolicy = profile.defaultFrameHostTimingPolicy
-        return FrameHostRuntimeHint(
-            decision: decision,
-            timingPolicy: timingPolicy,
-            isRealtimePreviewEligible: timingPolicy != .completedGPUReadback
-                && decision != .materializedFallback
-                && source.metadataCompleteness.hasFrameSize,
-            supportsVisibilityPause: timingPolicy != .completedGPUReadback
-                && decision != .materializedFallback
-                && source.metadataCompleteness.hasFrameSize,
-            requiresPlaneAwareDecode: inputYCbCrDecodeContract != nil || inputBridgePolicy == .directPlaneDecodeToRGBA,
-            metadataCompleteness: source.metadataCompleteness
-        )
+        return FrameHostRuntimeHint(source: source, profile: profile)
     }
 
     public var inputIsHighPrecision: Bool {

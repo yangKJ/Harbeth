@@ -234,7 +234,7 @@ public struct RenderedFrame: @unchecked Sendable {
     }
 
     public var frameHostRuntimeHint: FrameHostRuntimeHint {
-        FrameHostRuntimeHint(source: sourceDescriptor, profile: profile)
+        FrameHostRuntimeHint(source: frameHostSourceDescriptor, profile: profile)
     }
 
     public var cacheIdentity: RenderCacheIdentity {

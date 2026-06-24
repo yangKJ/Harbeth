@@ -69,7 +69,7 @@ public struct RenderRequest {
     }
 
     public var frameHostRuntimeHint: FrameHostRuntimeHint {
-        FrameHostRuntimeHint(source: source, profile: profile)
+        diagnostics.frameHostRuntimeHint
     }
 
     public func renderAnalysisBundle(channel: TextureHistogramChannel = .luminance,

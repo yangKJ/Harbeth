@@ -9,6 +9,7 @@ import Foundation
 import CoreVideo
 import MetalKit
 import VideoToolbox
+import ImageIO
 
 extension CVPixelBuffer: HarbethCompatible { }
 
@@ -340,6 +341,10 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         if contract.requiresYCbCrConversion {
             copyAttachment(kCVImageBufferYCbCrMatrixKey, from: imageBuffer)
         }
+        copyAttachment(kCGImagePropertyOrientation, from: imageBuffer)
+        copyAttachment(harbethFrameMirrorHorizontallyAttachmentKey, from: imageBuffer)
+        copyAttachment(harbethFrameMirrorVerticallyAttachmentKey, from: imageBuffer)
+        copyAttachment(harbethFrameFollowsDeviceOrientationAttachmentKey, from: imageBuffer)
         copyAttachment(kCVImageBufferColorPrimariesKey, from: imageBuffer)
         if sourceContract.colorPrimariesAttachment == nil,
            let fallbackPrimaries = sourceContract.yCbCrMatrixAttachment?.fallbackColorPrimariesAttachment {

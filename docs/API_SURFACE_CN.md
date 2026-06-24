@@ -466,6 +466,7 @@ source contract 一致性说明：
 - 它们是私有插件包、GPU preview host 和 `ImageNode` 之间的桥接支撑层
 - 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
 - `RenderView` 只是 `HarbethPreviewDisplaying` 的默认实现，显示对象统一回到 `RenderedFrame`
+- `RenderView` 现在会消费 `RenderedFrame` 暴露的 frame host metadata / runtime hint，用来区分 low-latency、stable preview 和 readback-style host 行为
 - `ReplayBaseContract`
 - `RenderCacheIdentity`
 

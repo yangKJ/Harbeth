@@ -52,6 +52,7 @@ Harbeth 对外只保留两条路线：
 
 - 保住最轻量的主路径
 - 让调用方不需要先理解 node、graph、runtime
+- `RenderView` 继续只是默认 preview host；它现在会消费 frame metadata / runtime hint，但不扩张成新的 `SampleBufferDisplayView` 或 Telegram 式调度器
 
 ### `Image/`
 
