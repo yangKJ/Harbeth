@@ -233,6 +233,155 @@ final class HarbethPluginTests: XCTestCase {
         XCTAssertFalse(view.hostFellBackCurrentFrameToMetal)
     }
 
+    func testRenderViewExecutionReportDoesNotRewriteStaticRequestDiagnostics() throws {
+        PreviewHostFleetRegistry.resetForTesting()
+        PreviewHostRuntimeSummaryCache.resetForTesting()
+        let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        let node = ImageNode.sampleBuffer(sampleBuffer).applying(C7Brightness(brightness: 0.1))
+        let request = try node.makeRenderRequest(profile: .stablePreview)
+        let expectedStrategy = request.diagnostics.resolvedPreviewHostStrategy
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+
+        view.layoutSubviews()
+        view.display(try node.makeFrame(profile: .stablePreview))
+        view.debugSimulatePreviewHostFallbackForTesting()
+
+        XCTAssertEqual(request.diagnostics.resolvedPreviewHostStrategy, expectedStrategy)
+        XCTAssertEqual(request.diagnostics.hostFellBackToMetal, false)
+        XCTAssertEqual(view.currentPreviewHostExecutionReport.predictedStrategy, expectedStrategy)
+        XCTAssertEqual(view.currentPreviewHostExecutionReport.actualResolvedHostStrategy, PreviewHostStrategy.metalTextureHost.rawValue)
+        XCTAssertEqual(view.currentPreviewHostExecutionReport.state, PreviewHostExecutionState.fallbackMetal.rawValue)
+        XCTAssertTrue(view.hostFellBackCurrentFrameToMetal)
+    }
+
+    func testRenderViewSampleBufferHostPoolCoordinatesMultipleViews() throws {
+        SampleBufferPreviewLayerPool.resetForTesting()
+        PreviewHostFleetRegistry.resetForTesting()
+        PreviewHostRuntimeSummaryCache.resetForTesting()
+        let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        let frame = try HarbethIO(element: sampleBuffer, filters: [])
+            .renderFrame(profile: .interactiveLatency)
+        let first = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let second = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+
+        first.layoutSubviews()
+        second.layoutSubviews()
+        first.display(frame)
+        second.display(frame)
+
+        let activeSnapshot = SampleBufferPreviewLayerPool.snapshot()
+        let activeFleet = PreviewHostFleetRegistry.snapshot()
+        XCTAssertEqual(activeSnapshot.activeLeaseCount, 2)
+        XCTAssertEqual(activeSnapshot.totalTakeCount, 2)
+        XCTAssertEqual(activeSnapshot.totalReturnCount, 0)
+        XCTAssertEqual(activeFleet.activeSampleBufferHostCount, 2)
+        XCTAssertEqual(activeFleet.maxConcurrentSampleBufferHosts, 2)
+
+        first.display(nil)
+        second.display(nil)
+
+        let returnedSnapshot = SampleBufferPreviewLayerPool.snapshot()
+        let returnedFleet = PreviewHostFleetRegistry.snapshot()
+        XCTAssertEqual(returnedSnapshot.activeLeaseCount, 0)
+        XCTAssertEqual(returnedSnapshot.totalReturnCount, 2)
+        XCTAssertGreaterThanOrEqual(returnedSnapshot.pooledLayerCount, 2)
+        XCTAssertEqual(returnedFleet.activeHostCount, 0)
+
+        let reused = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        reused.layoutSubviews()
+        reused.display(frame)
+
+        let reusedSnapshot = SampleBufferPreviewLayerPool.snapshot()
+        let reusedFleet = PreviewHostFleetRegistry.snapshot()
+        XCTAssertGreaterThanOrEqual(reusedSnapshot.totalReuseCount, 1)
+        XCTAssertEqual(reusedSnapshot.activeLeaseCount, 1)
+        XCTAssertEqual(reusedFleet.activeSampleBufferHostCount, 1)
+
+        reused.display(nil)
+        SampleBufferPreviewLayerPool.resetForTesting()
+        PreviewHostFleetRegistry.resetForTesting()
+    }
+
+    func testRenderViewSampleBufferHostSuspendsAndResumesForApplicationLifecycle() throws {
+        SampleBufferPreviewLayerPool.resetForTesting()
+        PreviewHostFleetRegistry.resetForTesting()
+        PreviewHostRuntimeSummaryCache.resetForTesting()
+        let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        let frame = try HarbethIO(element: sampleBuffer, filters: [])
+            .renderFrame(profile: .interactiveLatency)
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+
+        view.layoutSubviews()
+        view.display(frame)
+        let initialEnqueueCount = view.currentPreviewHostEnqueueCount
+
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+
+        XCTAssertEqual(view.currentPreviewHostSuspensionReason, PreviewHostSuspensionReason.applicationInactive.rawValue)
+        XCTAssertEqual(view.currentPreviewHostLifecyclePauseCount, 1)
+        XCTAssertEqual(view.currentPreviewHostVisibilityPauseCount, 0)
+        XCTAssertEqual(view.currentPreviewHostExecutionReport.state, PreviewHostExecutionState.suspended.rawValue)
+
+        NotificationCenter.default.post(name: UIApplication.willEnterForegroundNotification, object: nil)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+
+        XCTAssertNil(view.currentPreviewHostSuspensionReason)
+        XCTAssertEqual(view.currentPreviewHostLifecycleResumeCount, 1)
+        XCTAssertGreaterThan(view.currentPreviewHostEnqueueCount, initialEnqueueCount)
+        XCTAssertEqual(view.currentPreviewHostExecutionReport.state, PreviewHostExecutionState.sampleBufferActive.rawValue)
+
+        let snapshot = SampleBufferPreviewLayerPool.snapshot()
+        let fleet = PreviewHostFleetRegistry.snapshot()
+        XCTAssertGreaterThanOrEqual(snapshot.totalLifecyclePauseCount, 1)
+        XCTAssertGreaterThanOrEqual(snapshot.totalLifecycleResumeCount, 1)
+        XCTAssertGreaterThanOrEqual(fleet.totalLifecycleSuspensionCount, 1)
+
+        view.display(nil)
+        SampleBufferPreviewLayerPool.resetForTesting()
+        PreviewHostFleetRegistry.resetForTesting()
+    }
+
+    func testRenderViewRuntimePreviewHostSummaryBridgesExecutionAndFleetState() throws {
+        PreviewHostFleetRegistry.resetForTesting()
+        PreviewHostRuntimeSummaryCache.resetForTesting()
+        let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        let frame = try HarbethIO(element: sampleBuffer, filters: [])
+            .renderFrame(profile: .interactiveLatency)
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+
+        view.layoutSubviews()
+        view.display(frame)
+        view.debugSimulatePreviewHostRecoveryForTesting()
+
+        let summary = view.makeCurrentRuntimePreviewHostSummary()
+
+        XCTAssertEqual(summary.predictedStrategy, PreviewHostStrategy.sampleBufferPassthroughHost.rawValue)
+        XCTAssertEqual(summary.actualBackingKind, PreviewHostBackingKind.sampleBufferDisplayLayer.rawValue)
+        XCTAssertEqual(summary.state, PreviewHostExecutionState.recovering.rawValue)
+        XCTAssertEqual(summary.recoveryCount, 1)
+        XCTAssertGreaterThanOrEqual(summary.fleetActiveSampleBufferHostCount, 1)
+
+        view.display(nil)
+        PreviewHostFleetRegistry.resetForTesting()
+    }
+
     func testRenderViewPreferredDrawableScaleControlsDrawableSize() {
         let view = RenderView(frame: CGRect(x: 0, y: 0, width: 48, height: 24), device: MTLCreateSystemDefaultDevice())
         view.preferredDrawableScale = 2
@@ -298,6 +447,40 @@ final class HarbethPluginTests: XCTestCase {
         return bytes
     }
 }
+
+#if canImport(AppKit) && !os(watchOS)
+extension HarbethPluginTests {
+    func testRenderGraphDebugSnapshotIncludesRuntimePreviewHostSummaryAfterDisplay() throws {
+        PreviewHostFleetRegistry.resetForTesting()
+        PreviewHostRuntimeSummaryCache.resetForTesting()
+        let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        let node = ImageNode.sampleBuffer(sampleBuffer).applying(C7Brightness(brightness: 0.1))
+        let preflightSnapshot = try node.makeDebugSnapshot(profile: .interactiveLatency)
+        XCTAssertNil(preflightSnapshot.diagnostics.runtimePreviewHostSummary)
+
+        let frame = try node.makeFrame(profile: .interactiveLatency)
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        view.layout()
+        view.display(frame)
+
+        let runtimeSnapshot = try node.makeDebugSnapshot(profile: .interactiveLatency)
+        let summary = try XCTUnwrap(runtimeSnapshot.diagnostics.runtimePreviewHostSummary)
+
+        XCTAssertEqual(summary.predictedStrategy, view.currentPreviewHostExecutionReport.predictedStrategy)
+        XCTAssertEqual(summary.actualBackingKind, view.currentPreviewHostExecutionReport.actualBackingKind)
+        XCTAssertEqual(summary.actualResolvedHostStrategy, view.currentPreviewHostExecutionReport.actualResolvedHostStrategy)
+        XCTAssertEqual(summary.state, view.currentPreviewHostExecutionReport.state)
+        XCTAssertEqual(summary.fleetActiveHostCount, view.currentPreviewHostFleetSnapshot.activeHostCount)
+
+        view.display(nil)
+        PreviewHostFleetRegistry.resetForTesting()
+    }
+}
+#endif
 
 private struct MockFilterPlugin: HarbethFilterPlugin {
     let output: HarbethPluginOutput

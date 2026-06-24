@@ -470,4 +470,102 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertEqual(summary.totalImageResolutionCacheHits, 1)
         XCTAssertEqual(summary.imageResolutionCacheHitRate, 0.5)
     }
+
+    func testPerformanceMonitorTracksPreviewHostTelemetry() {
+        let monitor = PerformanceMonitor(enabled: true)
+        let identifier = "preview-host-monitor"
+
+        monitor.beginMonitoring(identifier)
+        monitor.recordPreviewHostStrategy(identifier, strategy: .sampleBufferPassthroughHost)
+        monitor.recordPreviewHostStrategy(identifier, strategy: .sampleBufferRematerializedHost)
+        monitor.recordPreviewHostEnqueue(identifier)
+        monitor.recordPreviewHostEnqueue(identifier)
+        monitor.recordPreviewHostRecovery(identifier)
+        monitor.recordPreviewHostFallbackToMetal(identifier)
+        monitor.recordPreviewHostVisibilityPause(identifier)
+        monitor.recordPreviewHostVisibilityResume(identifier)
+        monitor.recordPreviewHostLifecyclePause(identifier, reason: .applicationInactive)
+        monitor.recordPreviewHostLifecycleResume(identifier)
+        monitor.recordPreviewHostFailure(identifier, reason: .sampleBufferEnqueueFailed)
+        monitor.recordPreviewHostExecution(
+            identifier,
+            report: PreviewHostExecutionReport(
+                predictedStrategy: .sampleBufferPassthroughHost,
+                actualBackingKind: .sampleBufferDisplayLayer,
+                actualResolvedHostStrategy: .sampleBufferPassthroughHost,
+                payloadMode: .passthrough,
+                state: .sampleBufferActive,
+                enqueueCount: 2,
+                lifecyclePauseCount: 1,
+                lifecycleResumeCount: 1,
+                visibilityPauseCount: 1,
+                visibilityResumeCount: 1,
+                strategySwitchCount: 1,
+                activationCount: 1,
+                deactivationCount: 0,
+                recoveryCount: 1,
+                fallbackCount: 1,
+                failureCountsByReason: [PreviewHostFailureReason.sampleBufferEnqueueFailed.rawValue: 1]
+            )
+        )
+        monitor.recordPreviewHostFleetSnapshot(
+            identifier,
+            snapshot: PreviewHostFleetSnapshot(
+                activeHostCount: 2,
+                activeSampleBufferHostCount: 1,
+                activeMetalHostCount: 1,
+                suspendedHostCount: 1,
+                recoveringHostCount: 0,
+                fallbackHostCount: 1,
+                maxConcurrentSampleBufferHosts: 3,
+                totalStrategySwitchCount: 2,
+                totalActivationCount: 2,
+                totalDeactivationCount: 1,
+                totalRecoveryCount: 1,
+                totalFallbackCount: 1,
+                totalLifecycleSuspensionCount: 1,
+                totalVisibilitySuspensionCount: 1,
+                failureCountsByReason: [PreviewHostFailureReason.sampleBufferEnqueueFailed.rawValue: 1]
+            )
+        )
+        monitor.recordPreviewHostPoolSnapshot(
+            identifier,
+            snapshot: SampleBufferPreviewHostPoolSnapshot(
+                activeLeaseCount: 2,
+                pooledLayerCount: 1,
+                totalTakeCount: 3,
+                totalReuseCount: 1,
+                totalReturnCount: 1,
+                totalFlushCount: 2,
+                totalFlushAndRemoveImageCount: 1,
+                totalRecoveryCount: 1,
+                totalFallbackToMetalCount: 1,
+                totalVisibilityPauseCount: 1,
+                totalVisibilityResumeCount: 1,
+                totalLifecyclePauseCount: 1,
+                totalLifecycleResumeCount: 1
+            )
+        )
+        _ = monitor.endMonitoring(identifier)
+
+        let summary = monitor.getSummary()
+        XCTAssertEqual(summary.totalPreviewHostPassthroughStrategyDecisions, 1)
+        XCTAssertEqual(summary.totalPreviewHostRematerializedStrategyDecisions, 1)
+        XCTAssertEqual(summary.totalPreviewHostEnqueues, 2)
+        XCTAssertEqual(summary.totalPreviewHostRecoveries, 1)
+        XCTAssertEqual(summary.totalPreviewHostFallbacks, 1)
+        XCTAssertEqual(summary.totalPreviewHostVisibilityPauses, 1)
+        XCTAssertEqual(summary.totalPreviewHostVisibilityResumes, 1)
+        XCTAssertEqual(summary.totalPreviewHostLifecyclePauses, 1)
+        XCTAssertEqual(summary.totalPreviewHostLifecycleResumes, 1)
+        XCTAssertEqual(summary.totalPreviewHostFailures, 1)
+        XCTAssertEqual(summary.totalPreviewHostStrategySwitches, 1)
+        XCTAssertEqual(summary.totalPreviewHostActivations, 1)
+        XCTAssertEqual(summary.totalPreviewHostDeactivations, 0)
+        XCTAssertEqual(summary.maxPreviewHostConcurrentSampleBufferHosts, 3)
+        XCTAssertEqual(summary.maxPreviewHostSuspendedHostCount, 1)
+        XCTAssertEqual(summary.maxPreviewHostActiveLeaseCount, 2)
+        XCTAssertEqual(summary.maxPreviewHostPooledLayerCount, 1)
+        XCTAssertEqual(summary.totalPreviewHostPoolReuses, 1)
+    }
 }

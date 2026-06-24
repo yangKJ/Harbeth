@@ -196,7 +196,32 @@ public enum ImageSource {
         case .cgImage(let image):
             return [
                 descriptor.fingerprint,
+                "object=\(ObjectIdentifier(image).hashValue)",
                 "size=\(image.width)x\(image.height)"
+            ].joined(separator: "|")
+        case .image(let image):
+            let objectIdentity = ObjectIdentifier(image).hashValue
+            let pixelWidth = Int((image.size.width * image.scale).rounded())
+            let pixelHeight = Int((image.size.height * image.scale).rounded())
+            var parts = [
+                descriptor.fingerprint,
+                "object=\(objectIdentity)",
+                "size=\(pixelWidth)x\(pixelHeight)",
+                "scale=\(String(format: "%.4f", image.scale))"
+            ]
+            if let cgImage = image.cgImage {
+                parts.append("cgObject=\(ObjectIdentifier(cgImage).hashValue)")
+            }
+            return parts.joined(separator: "|")
+        case .pixelBuffer(let pixelBuffer):
+            return [
+                descriptor.fingerprint,
+                "object=\(ObjectIdentifier(pixelBuffer).hashValue)"
+            ].joined(separator: "|")
+        case .sampleBuffer(let sampleBuffer):
+            return [
+                descriptor.fingerprint,
+                "object=\(ObjectIdentifier(sampleBuffer).hashValue)"
             ].joined(separator: "|")
         case .data(let data):
             return [
@@ -209,8 +234,6 @@ public enum ImageSource {
                 descriptor.fingerprint,
                 asset.storage.resolutionFingerprint
             ].joined(separator: "|")
-        case .image, .pixelBuffer, .sampleBuffer:
-            return descriptor.fingerprint
         }
     }
 }

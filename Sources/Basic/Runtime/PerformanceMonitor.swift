@@ -195,6 +195,150 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.textureLifecycleDecisionCount += plan.lifecycleDecisions.count
         metricsCache[identifier]?.resourceEvents.append(contentsOf: plan.decisions.map { "optimizer:\($0)" })
     }
+
+    func recordPreviewHostStrategy(_ identifier: String, strategy: PreviewHostStrategy) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        switch strategy {
+        case .metalTextureHost:
+            metricsCache[identifier]?.previewHostMetalStrategyCount += 1
+        case .sampleBufferPassthroughHost:
+            metricsCache[identifier]?.previewHostPassthroughStrategyCount += 1
+        case .sampleBufferRematerializedHost:
+            metricsCache[identifier]?.previewHostRematerializedStrategyCount += 1
+        }
+        metricsCache[identifier]?.resourceEvents.append("previewHostExecution:strategy:\(strategy.rawValue)")
+    }
+
+    func recordPreviewHostEnqueue(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostEnqueueCount += 1
+    }
+
+    func recordPreviewHostRecovery(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostRecoveryCount += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostExecution:recovery:flush")
+    }
+
+    func recordPreviewHostFallbackToMetal(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostFallbackCount += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostExecution:fallback:metal")
+    }
+
+    func recordPreviewHostVisibilityPause(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostVisibilityPauseCount += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostLifecycle:visibilityPause")
+    }
+
+    func recordPreviewHostVisibilityResume(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostVisibilityResumeCount += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostLifecycle:visibilityResume")
+    }
+
+    func recordPreviewHostLifecyclePause(_ identifier: String, reason: PreviewHostSuspensionReason) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostLifecyclePauseCount += 1
+        metricsCache[identifier]?.previewHostSuspensionReasons[reason.rawValue, default: 0] += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostLifecycle:pause:\(reason.rawValue)")
+    }
+
+    func recordPreviewHostLifecycleResume(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostLifecycleResumeCount += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostLifecycle:resume")
+    }
+
+    func recordPreviewHostFailure(_ identifier: String, reason: PreviewHostFailureReason) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostFailureCount += 1
+        metricsCache[identifier]?.previewHostFailureReasons[reason.rawValue, default: 0] += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostFailure:\(reason.rawValue)")
+    }
+
+    func recordPreviewHostExecution(_ identifier: String, report: PreviewHostExecutionReport) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostStrategySwitchCount = report.strategySwitchCount
+        metricsCache[identifier]?.previewHostActivationCount = report.activationCount
+        metricsCache[identifier]?.previewHostDeactivationCount = report.deactivationCount
+        metricsCache[identifier]?.previewHostRecoveryCount = report.recoveryCount
+        metricsCache[identifier]?.previewHostFallbackCount = report.fallbackCount
+        metricsCache[identifier]?.previewHostLifecyclePauseCount = report.lifecyclePauseCount
+        metricsCache[identifier]?.previewHostLifecycleResumeCount = report.lifecycleResumeCount
+        metricsCache[identifier]?.previewHostVisibilityPauseCount = report.visibilityPauseCount
+        metricsCache[identifier]?.previewHostVisibilityResumeCount = report.visibilityResumeCount
+        metricsCache[identifier]?.previewHostEnqueueCount = report.enqueueCount
+        metricsCache[identifier]?.previewHostFailureCount = report.failureCountsByReason.values.reduce(0, +)
+        metricsCache[identifier]?.previewHostFailureReasons = report.failureCountsByReason
+        metricsCache[identifier]?.previewHostExecutionState = report.state
+        metricsCache[identifier]?.resourceEvents.append(
+            "previewHostExecution:state=\(report.state):actual=\(report.actualResolvedHostStrategy):backing=\(report.actualBackingKind):payload=\(report.payloadMode)"
+        )
+    }
+
+    func recordPreviewHostFleetSnapshot(_ identifier: String, snapshot: PreviewHostFleetSnapshot) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostConcurrentSampleBufferHostCount = snapshot.activeSampleBufferHostCount
+        metricsCache[identifier]?.previewHostSuspendedHostCount = snapshot.suspendedHostCount
+        metricsCache[identifier]?.previewHostMaxConcurrentSampleBufferHostCount = snapshot.maxConcurrentSampleBufferHosts
+        metricsCache[identifier]?.previewHostFleetStrategySwitchCount = snapshot.totalStrategySwitchCount
+        metricsCache[identifier]?.previewHostFleetActivationCount = snapshot.totalActivationCount
+        metricsCache[identifier]?.previewHostFleetDeactivationCount = snapshot.totalDeactivationCount
+        metricsCache[identifier]?.previewHostFleetRecoveryCount = snapshot.totalRecoveryCount
+        metricsCache[identifier]?.previewHostFleetFallbackCount = snapshot.totalFallbackCount
+        metricsCache[identifier]?.previewHostFleetFailureReasons = snapshot.failureCountsByReason
+        metricsCache[identifier]?.resourceEvents.append(
+            "previewHostFleet:active=\(snapshot.activeHostCount):sampleBuffer=\(snapshot.activeSampleBufferHostCount):suspended=\(snapshot.suspendedHostCount):fallback=\(snapshot.fallbackHostCount)"
+        )
+    }
+
+    func recordPreviewHostPoolSnapshot(_ identifier: String, snapshot: SampleBufferPreviewHostPoolSnapshot) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostActiveLeaseCount = snapshot.activeLeaseCount
+        metricsCache[identifier]?.previewHostPooledLayerCount = snapshot.pooledLayerCount
+        metricsCache[identifier]?.previewHostPoolReuseCount = snapshot.totalReuseCount
+        metricsCache[identifier]?.resourceEvents.append(
+            "previewHostPool:active=\(snapshot.activeLeaseCount):pooled=\(snapshot.pooledLayerCount):reuse=\(snapshot.totalReuseCount)"
+        )
+    }
     
     func recordFilterProcessing(_ identifier: String, filterName: String, duration: TimeInterval) {
         guard configuration.enabled else { return }
@@ -318,6 +462,25 @@ public final class PerformanceMonitor {
             summary.totalRenderTargetCreations += metrics.renderTargetCreations
             summary.totalOptimizerDecisions += metrics.optimizerDecisionCount
             summary.totalTextureLifecycleDecisions += metrics.textureLifecycleDecisionCount
+            summary.totalPreviewHostMetalStrategyDecisions += metrics.previewHostMetalStrategyCount
+            summary.totalPreviewHostPassthroughStrategyDecisions += metrics.previewHostPassthroughStrategyCount
+            summary.totalPreviewHostRematerializedStrategyDecisions += metrics.previewHostRematerializedStrategyCount
+            summary.totalPreviewHostEnqueues += metrics.previewHostEnqueueCount
+            summary.totalPreviewHostRecoveries += metrics.previewHostRecoveryCount
+            summary.totalPreviewHostFallbacks += metrics.previewHostFallbackCount
+            summary.totalPreviewHostVisibilityPauses += metrics.previewHostVisibilityPauseCount
+            summary.totalPreviewHostVisibilityResumes += metrics.previewHostVisibilityResumeCount
+            summary.totalPreviewHostLifecyclePauses += metrics.previewHostLifecyclePauseCount
+            summary.totalPreviewHostLifecycleResumes += metrics.previewHostLifecycleResumeCount
+            summary.totalPreviewHostFailures += metrics.previewHostFailureCount
+            summary.totalPreviewHostStrategySwitches += metrics.previewHostStrategySwitchCount
+            summary.totalPreviewHostActivations += metrics.previewHostActivationCount
+            summary.totalPreviewHostDeactivations += metrics.previewHostDeactivationCount
+            summary.maxPreviewHostConcurrentSampleBufferHosts = max(summary.maxPreviewHostConcurrentSampleBufferHosts, metrics.previewHostMaxConcurrentSampleBufferHostCount)
+            summary.maxPreviewHostSuspendedHostCount = max(summary.maxPreviewHostSuspendedHostCount, metrics.previewHostSuspendedHostCount)
+            summary.maxPreviewHostActiveLeaseCount = max(summary.maxPreviewHostActiveLeaseCount, metrics.previewHostActiveLeaseCount)
+            summary.maxPreviewHostPooledLayerCount = max(summary.maxPreviewHostPooledLayerCount, metrics.previewHostPooledLayerCount)
+            summary.totalPreviewHostPoolReuses += metrics.previewHostPoolReuseCount
             summary.totalFilters += metrics.filterProcessingTimes.count
             summary.totalMemoryAllocated += metrics.totalMemoryAllocated
             summary.peakMemoryAllocation = max(summary.peakMemoryAllocation, metrics.peakMemoryAllocation)
@@ -428,6 +591,25 @@ extension PerformanceMonitor {
         public var totalRenderTargetCreations: Int = 0
         public var totalOptimizerDecisions: Int = 0
         public var totalTextureLifecycleDecisions: Int = 0
+        public var totalPreviewHostMetalStrategyDecisions: Int = 0
+        public var totalPreviewHostPassthroughStrategyDecisions: Int = 0
+        public var totalPreviewHostRematerializedStrategyDecisions: Int = 0
+        public var totalPreviewHostEnqueues: Int = 0
+        public var totalPreviewHostRecoveries: Int = 0
+        public var totalPreviewHostFallbacks: Int = 0
+        public var totalPreviewHostVisibilityPauses: Int = 0
+        public var totalPreviewHostVisibilityResumes: Int = 0
+        public var totalPreviewHostLifecyclePauses: Int = 0
+        public var totalPreviewHostLifecycleResumes: Int = 0
+        public var totalPreviewHostFailures: Int = 0
+        public var totalPreviewHostStrategySwitches: Int = 0
+        public var totalPreviewHostActivations: Int = 0
+        public var totalPreviewHostDeactivations: Int = 0
+        public var maxPreviewHostConcurrentSampleBufferHosts: Int = 0
+        public var maxPreviewHostSuspendedHostCount: Int = 0
+        public var maxPreviewHostActiveLeaseCount: Int = 0
+        public var maxPreviewHostPooledLayerCount: Int = 0
+        public var totalPreviewHostPoolReuses: Int = 0
         public var totalFilters: Int = 0
         public var totalMemoryAllocated: Int = 0
         public var peakMemoryAllocation: Int = 0
@@ -485,6 +667,35 @@ extension PerformanceMonitor {
         public var renderTargetCreations: Int = 0
         public var optimizerDecisionCount: Int = 0
         public var textureLifecycleDecisionCount: Int = 0
+        public var previewHostMetalStrategyCount: Int = 0
+        public var previewHostPassthroughStrategyCount: Int = 0
+        public var previewHostRematerializedStrategyCount: Int = 0
+        public var previewHostEnqueueCount: Int = 0
+        public var previewHostRecoveryCount: Int = 0
+        public var previewHostFallbackCount: Int = 0
+        public var previewHostVisibilityPauseCount: Int = 0
+        public var previewHostVisibilityResumeCount: Int = 0
+        public var previewHostLifecyclePauseCount: Int = 0
+        public var previewHostLifecycleResumeCount: Int = 0
+        public var previewHostFailureCount: Int = 0
+        public var previewHostStrategySwitchCount: Int = 0
+        public var previewHostActivationCount: Int = 0
+        public var previewHostDeactivationCount: Int = 0
+        public var previewHostActiveLeaseCount: Int = 0
+        public var previewHostPooledLayerCount: Int = 0
+        public var previewHostPoolReuseCount: Int = 0
+        public var previewHostConcurrentSampleBufferHostCount: Int = 0
+        public var previewHostMaxConcurrentSampleBufferHostCount: Int = 0
+        public var previewHostSuspendedHostCount: Int = 0
+        public var previewHostSuspensionReasons: [String: Int] = [:]
+        public var previewHostFailureReasons: [String: Int] = [:]
+        public var previewHostFleetFailureReasons: [String: Int] = [:]
+        public var previewHostFleetStrategySwitchCount: Int = 0
+        public var previewHostFleetActivationCount: Int = 0
+        public var previewHostFleetDeactivationCount: Int = 0
+        public var previewHostFleetRecoveryCount: Int = 0
+        public var previewHostFleetFallbackCount: Int = 0
+        public var previewHostExecutionState: String?
         public var textureCacheHitRate: Double {
             let total = textureCreations + textureReuses
             return total > 0 ? Double(textureReuses) / Double(total) : 0
@@ -534,6 +745,35 @@ extension PerformanceMonitor {
             renderTargetCreations = 0
             optimizerDecisionCount = 0
             textureLifecycleDecisionCount = 0
+            previewHostMetalStrategyCount = 0
+            previewHostPassthroughStrategyCount = 0
+            previewHostRematerializedStrategyCount = 0
+            previewHostEnqueueCount = 0
+            previewHostRecoveryCount = 0
+            previewHostFallbackCount = 0
+            previewHostVisibilityPauseCount = 0
+            previewHostVisibilityResumeCount = 0
+            previewHostLifecyclePauseCount = 0
+            previewHostLifecycleResumeCount = 0
+            previewHostFailureCount = 0
+            previewHostStrategySwitchCount = 0
+            previewHostActivationCount = 0
+            previewHostDeactivationCount = 0
+            previewHostActiveLeaseCount = 0
+            previewHostPooledLayerCount = 0
+            previewHostPoolReuseCount = 0
+            previewHostConcurrentSampleBufferHostCount = 0
+            previewHostMaxConcurrentSampleBufferHostCount = 0
+            previewHostSuspendedHostCount = 0
+            previewHostSuspensionReasons.removeAll()
+            previewHostFailureReasons.removeAll()
+            previewHostFleetFailureReasons.removeAll()
+            previewHostFleetStrategySwitchCount = 0
+            previewHostFleetActivationCount = 0
+            previewHostFleetDeactivationCount = 0
+            previewHostFleetRecoveryCount = 0
+            previewHostFleetFallbackCount = 0
+            previewHostExecutionState = nil
             filterProcessingTimes.removeAll()
             performanceCounters.removeAll()
             memoryAllocations.removeAll()

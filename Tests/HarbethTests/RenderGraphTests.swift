@@ -1241,6 +1241,37 @@ final class RenderGraphTests: XCTestCase {
             inputDirectPlaneBridgeCount: 0,
             inputBridgePolicy: "directPlaneDecodeToRGBA",
             inputYCbCrDecode: "layout=biPlanar|matrix=bt601FullRange|bitDepth=8|destPixel=70",
+            runtimePreviewHostSummary: .init(
+                report: PreviewHostExecutionReport(
+                    predictedStrategy: .sampleBufferPassthroughHost,
+                    actualBackingKind: .sampleBufferDisplayLayer,
+                    actualResolvedHostStrategy: .sampleBufferPassthroughHost,
+                    payloadMode: .passthrough,
+                    state: .sampleBufferActive,
+                    enqueueCount: 2,
+                    visibilityPauseCount: 1,
+                    visibilityResumeCount: 1,
+                    strategySwitchCount: 1,
+                    activationCount: 1
+                ),
+                fleet: PreviewHostFleetSnapshot(
+                    activeHostCount: 2,
+                    activeSampleBufferHostCount: 1,
+                    activeMetalHostCount: 1,
+                    suspendedHostCount: 0,
+                    recoveringHostCount: 0,
+                    fallbackHostCount: 0,
+                    maxConcurrentSampleBufferHosts: 1,
+                    totalStrategySwitchCount: 1,
+                    totalActivationCount: 1,
+                    totalDeactivationCount: 0,
+                    totalRecoveryCount: 0,
+                    totalFallbackCount: 0,
+                    totalLifecycleSuspensionCount: 0,
+                    totalVisibilitySuspensionCount: 1,
+                    failureCountsByReason: [:]
+                )
+            ),
             inputPixelPrecision: "preserveInput",
             inputHDRFriendly: false,
             outputAttachmentLabels: ["primaryColor", "maskCoverage"],
@@ -1282,6 +1313,8 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertEqual(decoded.diagnostics.optimizationPlan, optimizationPlan)
         XCTAssertEqual(decoded.diagnostics.inputBridgePolicy, "directPlaneDecodeToRGBA")
         XCTAssertEqual(decoded.diagnostics.inputYCbCrDecode, "layout=biPlanar|matrix=bt601FullRange|bitDepth=8|destPixel=70")
+        XCTAssertEqual(decoded.diagnostics.runtimePreviewHostSummary?.actualBackingKind, PreviewHostBackingKind.sampleBufferDisplayLayer.rawValue)
+        XCTAssertEqual(decoded.diagnostics.runtimePreviewHostSummary?.fleetActiveSampleBufferHostCount, 1)
         XCTAssertEqual(decoded.diagnostics.inputPixelPrecision, "preserveInput")
         XCTAssertFalse(decoded.diagnostics.inputHDRFriendly)
         XCTAssertEqual(decoded.diagnostics.outputAttachmentLabels, ["primaryColor", "maskCoverage"])
@@ -1368,6 +1401,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(string.contains("\"inputHDRFriendly\":false"))
         XCTAssertTrue(string.contains("\"outputAttachmentDebugViews\":[\"color\"]"))
         XCTAssertTrue(string.contains("\"outputAttachmentMonochromePreviewFlags\":[false]"))
+        XCTAssertFalse(string.contains("\"runtimePreviewHostSummary\""))
     }
 
     func testRenderGraphDebugSnapshotPrettyPrintedJSONIsStable() throws {

@@ -9,6 +9,64 @@ import Foundation
 
 public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
     public struct Diagnostics: Sendable, Codable, Equatable, Hashable {
+        public struct RuntimePreviewHostSummary: Sendable, Codable, Equatable, Hashable {
+            public let predictedStrategy: String
+            public let actualBackingKind: String
+            public let actualResolvedHostStrategy: String
+            public let payloadMode: String
+            public let state: String
+            public let currentSuspensionReason: String?
+            public let lastFailureReason: String?
+            public let recoveredByFlush: Bool
+            public let fellBackToMetal: Bool
+            public let enqueueCount: Int
+            public let lifecyclePauseCount: Int
+            public let lifecycleResumeCount: Int
+            public let visibilityPauseCount: Int
+            public let visibilityResumeCount: Int
+            public let strategySwitchCount: Int
+            public let activationCount: Int
+            public let deactivationCount: Int
+            public let recoveryCount: Int
+            public let fallbackCount: Int
+            public let fleetActiveHostCount: Int
+            public let fleetActiveSampleBufferHostCount: Int
+            public let fleetActiveMetalHostCount: Int
+            public let fleetSuspendedHostCount: Int
+            public let fleetRecoveringHostCount: Int
+            public let fleetFallbackHostCount: Int
+            public let fleetMaxConcurrentSampleBufferHosts: Int
+
+            init(report: PreviewHostExecutionReport, fleet: PreviewHostFleetSnapshot) {
+                predictedStrategy = report.predictedStrategy
+                actualBackingKind = report.actualBackingKind
+                actualResolvedHostStrategy = report.actualResolvedHostStrategy
+                payloadMode = report.payloadMode
+                state = report.state
+                currentSuspensionReason = report.currentSuspensionReason
+                lastFailureReason = report.lastFailureReason
+                recoveredByFlush = report.recoveredByFlush
+                fellBackToMetal = report.fellBackToMetal
+                enqueueCount = report.enqueueCount
+                lifecyclePauseCount = report.lifecyclePauseCount
+                lifecycleResumeCount = report.lifecycleResumeCount
+                visibilityPauseCount = report.visibilityPauseCount
+                visibilityResumeCount = report.visibilityResumeCount
+                strategySwitchCount = report.strategySwitchCount
+                activationCount = report.activationCount
+                deactivationCount = report.deactivationCount
+                recoveryCount = report.recoveryCount
+                fallbackCount = report.fallbackCount
+                fleetActiveHostCount = fleet.activeHostCount
+                fleetActiveSampleBufferHostCount = fleet.activeSampleBufferHostCount
+                fleetActiveMetalHostCount = fleet.activeMetalHostCount
+                fleetSuspendedHostCount = fleet.suspendedHostCount
+                fleetRecoveringHostCount = fleet.recoveringHostCount
+                fleetFallbackHostCount = fleet.fallbackHostCount
+                fleetMaxConcurrentSampleBufferHosts = fleet.maxConcurrentSampleBufferHosts
+            }
+        }
+
         public let summary: String
         public let profile: String
         public let derivative: String
@@ -37,6 +95,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let hostRecoveryPolicy: String
         public let hostRecoveredByFlush: Bool
         public let hostFellBackToMetal: Bool
+        public let runtimePreviewHostSummary: RuntimePreviewHostSummary?
         public let inputPixelPrecision: String
         public let inputHDRFriendly: Bool
         public let outputAttachmentLabels: [String]
@@ -92,6 +151,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
              hostRecoveryPolicy: String = PreviewHostRecoveryPolicy.flushThenFallbackToMetal.rawValue,
              hostRecoveredByFlush: Bool = false,
              hostFellBackToMetal: Bool = false,
+             runtimePreviewHostSummary: RuntimePreviewHostSummary? = nil,
              inputPixelPrecision: String,
              inputHDRFriendly: Bool,
              outputAttachmentLabels: [String],
@@ -139,6 +199,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.hostRecoveryPolicy = hostRecoveryPolicy
             self.hostRecoveredByFlush = hostRecoveredByFlush
             self.hostFellBackToMetal = hostFellBackToMetal
+            self.runtimePreviewHostSummary = runtimePreviewHostSummary
             self.inputPixelPrecision = inputPixelPrecision
             self.inputHDRFriendly = inputHDRFriendly
             self.outputAttachmentLabels = outputAttachmentLabels
@@ -160,7 +221,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.outputSize = outputSize
         }
 
-        init(diagnostics: RenderPlanDiagnostics) {
+        init(diagnostics: RenderPlanDiagnostics, runtimePreviewHostSummary: RuntimePreviewHostSummary? = nil) {
             let frameHostHint = diagnostics.frameHostRuntimeHint
             self.init(
                 summary: diagnostics.summary,
@@ -191,6 +252,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 hostRecoveryPolicy: diagnostics.hostRecoveryPolicy,
                 hostRecoveredByFlush: diagnostics.hostRecoveredByFlush,
                 hostFellBackToMetal: diagnostics.hostFellBackToMetal,
+                runtimePreviewHostSummary: runtimePreviewHostSummary,
                 inputPixelPrecision: diagnostics.inputPixelPrecision.rawValue,
                 inputHDRFriendly: diagnostics.inputIsHDRFriendly,
                 outputAttachmentLabels: diagnostics.outputContract.attachmentDebugPolicies.map(\.label),
@@ -288,9 +350,14 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             )
         }
         let edges = graph.edges.map { Edge(from: $0.from.rawValue, to: $0.to.rawValue, label: $0.label) }
+        #if canImport(AVFoundation) && !os(watchOS)
+        let runtimePreviewHostSummary = renderRecipe.flatMap { PreviewHostRuntimeSummaryCache.lookup(cacheIdentityFingerprint: $0.cacheIdentity.fingerprint) }
+        #else
+        let runtimePreviewHostSummary: RuntimePreviewHostSummary? = nil
+        #endif
         self.init(
             summary: diagnostics.summary,
-            diagnostics: Diagnostics(diagnostics: diagnostics),
+            diagnostics: Diagnostics(diagnostics: diagnostics, runtimePreviewHostSummary: runtimePreviewHostSummary),
             nodes: nodes,
             edges: edges,
             optimizationDecisions: optimizationDecisions,
