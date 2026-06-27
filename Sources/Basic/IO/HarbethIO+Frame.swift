@@ -233,7 +233,7 @@ extension HarbethIO {
         let renderRecipe = try renderRecipe(profile: profile, derivative: effectiveDerivative)
         let diagnostics = try renderDiagnostics(profile: profile, derivative: effectiveDerivative)
         let source = try makeImageSource()
-        return RenderRequest(
+        return RenderRequest.makeDelegatedRequest(
             compilationSource: .filtersPrimitive,
             profile: profile,
             derivative: effectiveDerivative,

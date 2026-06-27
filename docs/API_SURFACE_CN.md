@@ -162,6 +162,22 @@ let snapshot = try node.makeDebugSnapshot(profile: .stablePreview)
 let request = try node.makeRenderRequest(profile: .stablePreview)
 ```
 
+同一条 node route 现在也保留了 callback / task / async 三种等价执行面：
+
+```swift
+let task = try node.startRenderFrameTask(profile: .stablePreview)
+let callbackToken = node.transmitFrame(profile: .stablePreview) { result in
+    // handle result
+}
+
+let asyncFrame = try await ImageNode
+    .texture(inputTexture)
+    .editing(recipe)
+    .makeFrameAsync(profile: .stablePreview)
+```
+
+这些入口的目标不是引入第三套执行语义，而是让 `ImageNode` 在同步、callback、task、async 四种宿主接法下仍共享同一条 request / diagnostics / frame contract。
+
 通过 `Data / ImageAsset / pixelBuffer / sampleBuffer` 接入：
 
 ```swift
@@ -465,6 +481,7 @@ source contract 一致性说明：
 
 - 它们是私有插件包、GPU preview host 和 `ImageNode` 之间的桥接支撑层
 - 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
+- `RenderRequest`、`RenderTask` 属于 deferred/supporting read surface，不是第三条 app integration route
 - `RenderView` 只是 `HarbethPreviewDisplaying` 的默认实现，显示对象统一回到 `RenderedFrame`
 - `RenderView` 现在会消费 `RenderedFrame` 暴露的 frame host metadata / runtime hint，用来区分 low-latency、stable preview 和 readback-style host 行为
 - `ReplayBaseContract`
@@ -622,6 +639,8 @@ let probe = frame.makeColorProbe(scope: scope)
 - `HarbethContext`
 - `Homography`
 - `Transform3DLayout`
+
+其中 `HarbethContext` 当前还承载 image-resolution cache；这层缓存已经补齐 namespace + LRU discipline，用来避免跨 source 世代复用旧 resolution 指纹，同时限制长期常驻条目数量。
 
 普通使用者何时不该直接碰它们：
 

@@ -471,6 +471,53 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertEqual(summary.imageResolutionCacheHitRate, 0.5)
     }
 
+    func testImageResolutionCacheRespectsLRULimit() throws {
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        context.setImageResolutionCacheNamespace("lru-limit")
+
+        for index in 0..<70 {
+            let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "image-resolution-lru-\(index)")
+            context.storeResolvedTexture(texture, for: "fingerprint-\(index)")
+        }
+
+        XCTAssertEqual(context.imageResolutionCacheCount(), 64)
+        XCTAssertNil(context.cachedResolvedTexture(for: "fingerprint-0"))
+        XCTAssertNil(context.cachedResolvedTexture(for: "fingerprint-5"))
+        XCTAssertNotNil(context.cachedResolvedTexture(for: "fingerprint-69"))
+    }
+
+    func testImageResolutionCacheNamespaceIsolated() throws {
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "image-resolution-namespace")
+
+        context.setImageResolutionCacheNamespace("namespace-A")
+        context.storeResolvedTexture(texture, for: "shared-fingerprint")
+        XCTAssertNotNil(context.cachedResolvedTexture(for: "shared-fingerprint"))
+
+        context.setImageResolutionCacheNamespace("namespace-B")
+        XCTAssertNil(context.cachedResolvedTexture(for: "shared-fingerprint"))
+
+        context.setImageResolutionCacheNamespace("namespace-A")
+        XCTAssertNotNil(context.cachedResolvedTexture(for: "shared-fingerprint"))
+    }
+
+    func testBumpImageResolutionCacheNamespaceInvalidatesCurrentView() throws {
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "image-resolution-bump")
+
+        context.setImageResolutionCacheNamespace("before-bump")
+        context.storeResolvedTexture(texture, for: "fingerprint")
+        let previousNamespace = context.currentImageResolutionCacheNamespace()
+
+        context.bumpImageResolutionCacheNamespace()
+
+        XCTAssertNotEqual(context.currentImageResolutionCacheNamespace(), previousNamespace)
+        XCTAssertNil(context.cachedResolvedTexture(for: "fingerprint"))
+    }
+
     func testPerformanceMonitorTracksPreviewHostTelemetry() {
         let monitor = PerformanceMonitor(enabled: true)
         let identifier = "preview-host-monitor"

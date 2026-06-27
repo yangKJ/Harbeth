@@ -153,6 +153,7 @@ Harbeth 对外只保留两条路线：
 
 - `Kernel` 通过 `ImageNode.applyingWithContract(...)` 对外间接可见
 - `KernelDescriptor` 等对象不是普通使用入口
+- `KernelExecutionPlan`、`KernelContract` family 更适合被理解成 supporting contract read surface，而不是 app 集成层入口
 
 ### `Runtime/`
 
@@ -178,6 +179,8 @@ Harbeth 对外只保留两条路线：
 
 - `Runtime` 已嵌入 `HarbethIO` 和 `ImageNode`
 - 它不是对外第三路线
+- `RenderRequest`、`RenderTask` 是 deferred execution / observation form，不是新的集成模型
+- `HarbethContext` 的 image-resolution cache 现在带 namespace + LRU discipline，属于 runtime 内部缓存治理，不改变外部路线划分
 
 ### `Core/`
 

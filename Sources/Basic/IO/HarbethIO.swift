@@ -68,8 +68,16 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     }
     
     public init(element: Dest, filters: [C7FilterProtocol]) {
+        self.init(element: element, filters: filters, identifier: UUID().uuidString)
+    }
+
+    init(element: Dest, filter: C7FilterProtocol, identifier: String) {
+        self.init(element: element, filters: [filter], identifier: identifier)
+    }
+
+    init(element: Dest, filters: [C7FilterProtocol], identifier: String) {
         self.element = element
-        self.identifier = UUID().uuidString
+        self.identifier = identifier
         self.filters = filters
     }
     

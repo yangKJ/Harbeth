@@ -8,10 +8,7 @@
 import Foundation
 
 extension ImageNode {
-    /// 高级局部编辑 primitive 入口。
-    ///
-    /// 普通调用方默认优先使用 `.applying(mask: ...)`；
-    /// 只有在调用方已经持有结构化 `LocalEffectRecipe` 时，才直接走这个入口。
+
     public func applying(localEffect: LocalEffectRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
         editing(EditRecipe(localEffects: [localEffect]), mode: mode)
     }
@@ -22,5 +19,13 @@ extension ImageNode {
 
     public func transforming(_ geometry: ImageTransformRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
         editing(EditRecipe(geometry: geometry), mode: mode)
+    }
+
+    public func applying(transition recipe: TransitionRecipe) -> ImageNode {
+        ImageNode.transition(recipe)
+    }
+
+    public func applying(layerComposite recipe: LayerCompositeRecipe) -> ImageNode {
+        ImageNode.layerComposite(recipe)
     }
 }

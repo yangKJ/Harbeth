@@ -1075,6 +1075,40 @@ final class RenderedFrameTests: XCTestCase {
                        "token.generation must be unique across consecutive calls; got \(generations)")
     }
 
+    func testImageNodeTransmitFrameMatchesSynchronousOutput() throws {
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "RenderedFrameTests.transmitFrame")
+        let node = ImageNode.texture(texture).applying(C7Brightness(brightness: 0.1))
+
+        let expected = try node.makeFrame()
+        let result = expectation(description: "image-node-transmit-frame")
+        var received: RenderedFrame?
+
+        node.transmitFrame { output in
+            received = try? output.get()
+            result.fulfill()
+        }
+
+        wait(for: [result], timeout: 1.0)
+        let frame = try XCTUnwrap(received)
+        XCTAssertEqual(frame.texture.width, expected.texture.width)
+        XCTAssertEqual(frame.texture.height, expected.texture.height)
+        XCTAssertEqual(frame.identifier, expected.identifier)
+    }
+
+    func testImageNodeStartRenderFrameTaskReturnsCompletedTask() throws {
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "RenderedFrameTests.frameTask")
+        let node = ImageNode.texture(texture).applying(C7Brightness(brightness: 0.1))
+
+        let task = try node.startRenderFrameTask()
+        XCTAssertEqual(task.commandBufferStatus, .completed)
+
+        let frame = try task.output()
+        XCTAssertTrue(frame.identifier.hasPrefix("ImageNode."))
+        XCTAssertEqual(frame.texture.width, 2)
+        XCTAssertEqual(frame.texture.height, 2)
+        XCTAssertNotNil(task.diagnostics)
+    }
+
     func testRenderProfileSemanticFlags() {
         XCTAssertTrue(RenderProfile.interactiveLatency.usesRealTimeCommit)
         XCTAssertFalse(RenderProfile.interactiveLatency.enablesDoubleBuffer)

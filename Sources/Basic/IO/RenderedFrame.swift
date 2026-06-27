@@ -481,7 +481,7 @@ struct FrameRenderer {
         let input = try source.makeTexture()
         let effectiveFilters = effectiveFilters(for: C7Size(width: input.width, height: input.height))
         guard effectiveFilters.isEmpty == false else { return input }
-        return try HarbethIO(element: input, filters: effectiveFilters)
+        return try makeIO(element: input, filters: effectiveFilters)
             .configured(for: profile)
             .output()
     }
@@ -526,7 +526,7 @@ struct FrameRenderer {
                 renderedTexture = input
                 lease = nil
             } else {
-                let result = try HarbethIO(element: input, filters: effectiveFilters)
+                let result = try makeIO(element: input, filters: effectiveFilters)
                     .configured(for: profile)
                     .renderManagedTexture()
                 renderedTexture = result.texture
@@ -536,7 +536,7 @@ struct FrameRenderer {
             let input = try source.makeTexture()
             let effectiveFilters = effectiveFilters(for: C7Size(width: input.width, height: input.height))
             resolvedSize = resolvedOutputSize(for: C7Size(width: input.width, height: input.height), filters: effectiveFilters)
-            let result = try HarbethIO(element: input, filters: effectiveFilters)
+            let result = try makeIO(element: input, filters: effectiveFilters)
                 .configured(for: profile)
                 .renderManagedTexture()
             renderedTexture = result.texture
@@ -589,7 +589,7 @@ struct FrameRenderer {
                 )))
                 return
             }
-            HarbethIO(element: input, filters: effectiveFilters)
+            makeIO(element: input, filters: effectiveFilters)
                 .configured(for: profile)
                 .transmitManagedTexture { result in
                     switch result {
@@ -706,7 +706,7 @@ struct FrameRenderer {
 
     private func renderTexture(input: MTLTexture, filters: [C7FilterProtocol], profile: RenderProfile) throws -> MTLTexture {
         guard filters.isEmpty == false else { return input }
-        return try HarbethIO(
+        return try makeIO(
             element: input,
             filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
         )
@@ -719,12 +719,20 @@ struct FrameRenderer {
         guard targetSize.width != texture.width || targetSize.height != texture.height else {
             return texture
         }
-        return try HarbethIO(
+        return try makeIO(
             element: texture,
             filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height))
         )
         .configured(for: profile)
         .output()
+    }
+
+    private func makeIO(element: MTLTexture, filters: [C7FilterProtocol]) -> HarbethIO<MTLTexture> {
+        HarbethIO(element: element, filters: filters, identifier: identifier)
+    }
+
+    private func makeIO(element: MTLTexture, filter: C7FilterProtocol) -> HarbethIO<MTLTexture> {
+        HarbethIO(element: element, filter: filter, identifier: identifier)
     }
 
     private func compiledRecipeExecution(_ recipe: EditRecipe, mode: EditRecipeMode) throws -> CompiledRecipeExecution {

@@ -22,6 +22,9 @@ public final class HarbethContext {
     private var renderPipelines: [RenderPipelineCacheKey: MTLRenderPipelineState] = [:]
     private var samplerStates: [SamplerCacheKey: MTLSamplerState] = [:]
     private var imageResolutionCache: [String: MTLTexture] = [:]
+    private var imageResolutionCacheOrder: [String] = []
+    private let imageResolutionCacheLimit: Int = 64
+    private var imageResolutionCacheNamespace: String = "default"
     /// LRU cache for compiled RenderPlan.
     /// Key: `nodeFingerprint|profile.rawValue|derivative.name|samplerDescriptor.fingerprint`
     /// Value: compiled RenderPlan (a large struct, ~10-50 KB)
@@ -211,14 +214,58 @@ public final class HarbethContext {
 
     func cachedResolvedTexture(for fingerprint: String) -> MTLTexture? {
         imageResolutionLock.lock()
-        let texture = imageResolutionCache[fingerprint]
+        let key = namespacedImageResolutionCacheKey(for: fingerprint)
+        guard let texture = imageResolutionCache[key] else {
+            imageResolutionLock.unlock()
+            return nil
+        }
+        imageResolutionCacheOrder.removeAll { $0 == key }
+        imageResolutionCacheOrder.append(key)
         imageResolutionLock.unlock()
         return texture
     }
 
     func storeResolvedTexture(_ texture: MTLTexture, for fingerprint: String) {
         imageResolutionLock.lock()
-        imageResolutionCache[fingerprint] = texture
+        let key = namespacedImageResolutionCacheKey(for: fingerprint)
+        if imageResolutionCache[key] == nil {
+            imageResolutionCacheOrder.append(key)
+        } else {
+            imageResolutionCacheOrder.removeAll { $0 == key }
+            imageResolutionCacheOrder.append(key)
+        }
+        imageResolutionCache[key] = texture
+        while imageResolutionCacheOrder.count > imageResolutionCacheLimit,
+              let oldest = imageResolutionCacheOrder.first {
+            imageResolutionCacheOrder.removeFirst()
+            imageResolutionCache.removeValue(forKey: oldest)
+        }
+        imageResolutionLock.unlock()
+    }
+
+    func imageResolutionCacheCount() -> Int {
+        imageResolutionLock.lock()
+        let count = imageResolutionCache.count
+        imageResolutionLock.unlock()
+        return count
+    }
+
+    func setImageResolutionCacheNamespace(_ namespace: String) {
+        imageResolutionLock.lock()
+        imageResolutionCacheNamespace = namespace
+        imageResolutionLock.unlock()
+    }
+
+    func currentImageResolutionCacheNamespace() -> String {
+        imageResolutionLock.lock()
+        let namespace = imageResolutionCacheNamespace
+        imageResolutionLock.unlock()
+        return namespace
+    }
+
+    func bumpImageResolutionCacheNamespace() {
+        imageResolutionLock.lock()
+        imageResolutionCacheNamespace = UUID().uuidString
         imageResolutionLock.unlock()
     }
 
@@ -282,6 +329,7 @@ public final class HarbethContext {
         samplerLock.unlock()
         imageResolutionLock.lock()
         imageResolutionCache.removeAll()
+        imageResolutionCacheOrder.removeAll()
         imageResolutionLock.unlock()
         removeAllRenderPlans()
         ImageNode.removeAllOutputContractCachedTextures()
@@ -310,6 +358,10 @@ public final class HarbethContext {
             hasTexturePool: true,
             hasCVMetalTextureCache: cvMetalTextureCache != nil
         )
+    }
+
+    private func namespacedImageResolutionCacheKey(for fingerprint: String) -> String {
+        "\(imageResolutionCacheNamespace)||\(fingerprint)"
     }
 }
 

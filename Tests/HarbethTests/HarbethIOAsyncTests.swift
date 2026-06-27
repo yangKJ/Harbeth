@@ -45,6 +45,23 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(asyncValue, callbackValue)
     }
 
+    func testImageNodeMakeFrameAsyncMatchesCallbackResult() async throws {
+        let texture = try makeTexture(width: 4, height: 4, pixel: [110, 90, 70, 255])
+        let node = ImageNode.texture(texture).applying(C7Brightness(brightness: 0.1))
+
+        let callbackFrame = try await withCheckedThrowingContinuation { continuation in
+            node.transmitFrame { result in
+                continuation.resume(with: result)
+            }
+        }
+
+        let asyncFrame = try await node.makeFrameAsync()
+
+        XCTAssertEqual(asyncFrame.texture.width, callbackFrame.texture.width)
+        XCTAssertEqual(asyncFrame.texture.height, callbackFrame.texture.height)
+        XCTAssertEqual(asyncFrame.identifier, callbackFrame.identifier)
+    }
+
     func testAsyncTransmitManagedTexturePrewarmsLifecycleReservations() async throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

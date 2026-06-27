@@ -194,7 +194,19 @@ public struct EditRecipe {
             .applying(filters: extraFilters)
             .withSamplerDescriptor(samplerDescriptor)
             .makeAttachmentDebugPolicies(profile: compiled.profile, derivative: compiled.derivative)
-        return RenderRequest(
+        let renderFrame: ([String: String]) throws -> RenderedFrame = { metadata in
+            try FrameRenderer(
+                source: compiled.source,
+                recipe: self,
+                mode: mode,
+                filters: extraFilters,
+                identifier: identifier,
+                metadata: metadata,
+                derivative: compiled.derivative,
+                samplerDescriptor: samplerDescriptor
+            ).renderFrame()
+        }
+        return RenderRequest.makeFrameBackedRequest(
             compilationSource: .editRecipe,
             profile: compiled.profile,
             derivative: compiled.derivative,
@@ -245,88 +257,8 @@ public struct EditRecipe {
                 .configured(for: compiled.profile)
                 .output()
             },
-            renderFrame: { metadata in
-                try FrameRenderer(
-                    source: compiled.source,
-                    recipe: self,
-                    mode: mode,
-                    filters: extraFilters,
-                    identifier: identifier,
-                    metadata: metadata,
-                    derivative: compiled.derivative,
-                    samplerDescriptor: samplerDescriptor
-                ).renderFrame()
-            },
-            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
-                let frame = try FrameRenderer(
-                    source: compiled.source,
-                    recipe: self,
-                    mode: mode,
-                    filters: extraFilters,
-                    identifier: identifier,
-                    derivative: compiled.derivative,
-                    samplerDescriptor: samplerDescriptor
-                ).renderFrame()
-                let histogramAttachment = frame.renderHistogramAttachment(
-                    channel: channel,
-                    bins: bins,
-                    height: histogramHeight,
-                    region: region,
-                    preferredMethod: preferredMethod
-                )
-                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-                    channel: channel,
-                    bins: bins,
-                    region: region,
-                    preferredMethod: preferredMethod
-                )
-                let statistics = frame.makeStatistics(region: region)
-                let colorProbe = frame.makeColorProbe(region: region)
-                return RenderedAnalysisBundle(
-                    frame: frame,
-                    histogram: histogram,
-                    statistics: statistics,
-                    colorProbe: colorProbe,
-                    histogramAttachment: histogramAttachment,
-                    analysisScopeFingerprint: TextureAnalysisScope(region: region).fingerprint,
-                    attachmentDebugPolicies: attachmentPolicies
-                )
-            },
-            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
-                let frame = try FrameRenderer(
-                    source: compiled.source,
-                    recipe: self,
-                    mode: mode,
-                    filters: extraFilters,
-                    identifier: identifier,
-                    derivative: compiled.derivative,
-                    samplerDescriptor: samplerDescriptor
-                ).renderFrame()
-                let histogramAttachment = frame.renderHistogramAttachment(
-                    channel: channel,
-                    bins: bins,
-                    height: histogramHeight,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-                    channel: channel,
-                    bins: bins,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-                let statistics = frame.makeStatistics(scope: scope)
-                let colorProbe = frame.makeColorProbe(scope: scope)
-                return RenderedAnalysisBundle(
-                    frame: frame,
-                    histogram: histogram,
-                    statistics: statistics,
-                    colorProbe: colorProbe,
-                    histogramAttachment: histogramAttachment,
-                    analysisScopeFingerprint: scope.fingerprint,
-                    attachmentDebugPolicies: attachmentPolicies
-                )
-            },
+            renderFrame: renderFrame,
+            attachmentDebugPolicies: attachmentPolicies,
             renderAttachmentSet: {
                 try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
                     .applying(filters: extraFilters)

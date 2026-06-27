@@ -38,6 +38,7 @@ Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜
 
 - `HarbethIO` 的 diagnostics / request / render recipe 必须和真实 effective chain 一致，不能只看初始化时传入的原始 filters
 - `ImageNode` 的 request / recipe / snapshot 必须保留原始 source contract，不能因为内部先物化成 texture 就把 `sampleBuffer`、YCbCr、HDR 语义抹掉
+- 如果基线依赖 `ImageNode` 的 image-resolution cache，要区分 cold cache 与 hot cache，并记录是否发生过 cache namespace bump
 
 仓库当前已经提供一组可直接运行的基线测试：
 
@@ -213,6 +214,8 @@ let filters: [C7FilterProtocol] = [
 - 默认 `HarbethIO + filters` texture path
 - 线性滤镜链的 transient texture reuse
 - `RenderOptimizationPlan.prewarmReservations` 驱动的同步 texture pool 预热
+- `ImageNode` persistent image-resolution cache 的 hot-path 命中
+- namespace bump 后旧 resolution 指纹失效带来的冷启动回退成本
 - 组合滤镜 sequential pipeline 的中间纹理生命周期
 - analysis / attachment 路径的 readback 控制
 - graph optimizer 对透明 wrapper 和冗余节点的消除
@@ -238,6 +241,15 @@ let filters: [C7FilterProtocol] = [
 3. 组合滤镜：一个 `C7Combination*`。
 4. 局部调整：shape/gradient mask + local effect。
 5. 导出路径：最高质量输出。
+
+对 `ImageNode` 还建议补一条执行面一致性基线：
+
+- `makeFrame(profile:)`
+- `transmitFrame(profile:completion:)`
+- `startRenderFrameTask(profile:)`
+- `makeFrameAsync(profile:)`
+
+这四个入口应共享同一条 route contract、diagnostics 语义和结果指纹；如果其中某一路出现额外 prewarm、额外 readback 或 diagnostics 漂移，应视为回归而不是“异步实现差异”。
 6. 分析路径：histogram + color probe。
 7. 大图路径：由应用自己的大图策略或 tile runtime 承接。
 

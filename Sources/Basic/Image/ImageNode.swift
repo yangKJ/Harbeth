@@ -142,12 +142,35 @@ extension ImageNode {
     }
 
     public func makeFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil, metadata: [String: String] = [:]) throws -> RenderedFrame {
-        let texture = try makeTexture(profile: profile, derivative: derivative)
+        let monitoringIdentifier = self.monitoringIdentifier
+        let monitorEnabled = Shared.shared.enablePerformanceMonitor
+        if monitorEnabled {
+            Shared.shared.performanceMonitor?.beginMonitoring(monitoringIdentifier)
+        }
+        defer {
+            if monitorEnabled {
+                Shared.shared.performanceMonitor?.endMonitoring(monitoringIdentifier)
+            }
+        }
+
+        let texture = try makeTexture(
+            profile: profile,
+            derivative: derivative,
+            executionIdentifier: monitoringIdentifier
+        )
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
         let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
         let primarySource = try resolvedPrimarySource()
         let colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: diagnostics.outputColorSpace)
+        let previewHostStrategy = resolvedPreviewHostStrategy(
+            source: primarySource,
+            renderedTexture: texture,
+            renderRecipe: renderRecipe
+        )
+        if monitorEnabled {
+            Shared.shared.performanceMonitor?.recordPreviewHostStrategy(monitoringIdentifier, strategy: previewHostStrategy)
+        }
         let previewHostPayload = makePreviewHostPayload(
             source: primarySource,
             renderedTexture: texture,
@@ -155,7 +178,7 @@ extension ImageNode {
         )
         var renderedMetadata = metadata
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
-        let token = FrameRenderToken(identifier: "ImageNode.\(nodeFingerprint)", generation: FrameGeneration.next())
+        let token = FrameRenderToken(identifier: monitoringIdentifier, generation: FrameGeneration.next())
         return RenderedFrame(
             texture: texture,
             colorSpace: colorSpace,
@@ -175,7 +198,36 @@ extension ImageNode {
         )
     }
 
+    /// 轻量异步 facade。当前仍复用 `ImageNode` 的同步执行语义，
+    /// 但对外提供与 `HarbethIO` 对称的 callback 入口，便于调用方统一接线。
+    public func transmitFrame(profile: RenderProfile = .stablePreview,
+                              derivative: ImageDerivativeSpec? = nil,
+                              metadata: [String: String] = [:],
+                              complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+        do {
+            complete(.success(try makeFrame(profile: profile, derivative: derivative, metadata: metadata)))
+        } catch {
+            complete(.failure(HarbethError.toHarbethError(error)))
+        }
+    }
+
+    /// `ImageNode` 当前没有独立 command buffer 级 task 管理器，
+    /// 这里先提供 completed task，保持 route-level API 对称和 token 语义一致。
+    public func startRenderFrameTask(profile: RenderProfile = .stablePreview,
+                                     derivative: ImageDerivativeSpec? = nil,
+                                     metadata: [String: String] = [:]) throws -> RenderTask<RenderedFrame> {
+        let frame = try makeFrame(profile: profile, derivative: derivative, metadata: metadata)
+        let diagnostics = try makeDiagnostics(profile: profile, derivative: derivative ?? profile.defaultDerivativeSpec)
+        return .completed(identifier: frame.identifier, output: frame, diagnostics: diagnostics)
+    }
+
     public func makeTexture(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+        try makeTexture(profile: profile, derivative: derivative, executionIdentifier: nil)
+    }
+
+    private func makeTexture(profile: RenderProfile,
+                             derivative: ImageDerivativeSpec?,
+                             executionIdentifier: String?) throws -> MTLTexture {
         let effectiveCachePolicy = resolvedCachePolicy
         let fingerprint = resolutionFingerprint(profile: profile, derivative: derivative)
         if effectiveCachePolicy == .persistent,
@@ -189,7 +241,8 @@ extension ImageNode {
         let texture = try makeTextureUncached(
             profile: profile,
             derivative: derivative,
-            samplerDescriptor: .default
+            samplerDescriptor: .default,
+            executionIdentifier: executionIdentifier
         )
         if effectiveCachePolicy == .persistent {
             Shared.shared.defaultContext.storeResolvedTexture(texture, for: fingerprint)
@@ -284,7 +337,7 @@ extension ImageNode {
         let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
         let source = try resolvedPrimarySource()
         let attachmentPolicies = diagnostics.outputAttachmentDebugPolicies
-        return RenderRequest(
+        return RenderRequest.makeFrameBackedRequest(
             compilationSource: diagnostics.compilationSource,
             profile: profile,
             derivative: effectiveDerivative,
@@ -296,60 +349,7 @@ extension ImageNode {
             renderFrame: { metadata in
                 try makeFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
             },
-            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
-                let frame = try makeFrame(profile: profile, derivative: effectiveDerivative)
-                let histogramAttachment = frame.renderHistogramAttachment(
-                    channel: channel,
-                    bins: bins,
-                    height: histogramHeight,
-                    region: region,
-                    preferredMethod: preferredMethod
-                )
-                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-                    channel: channel,
-                    bins: bins,
-                    region: region,
-                    preferredMethod: preferredMethod
-                )
-                let statistics = frame.makeStatistics(region: region)
-                let colorProbe = frame.makeColorProbe(region: region)
-                return RenderedAnalysisBundle(
-                    frame: frame,
-                    histogram: histogram,
-                    statistics: statistics,
-                    colorProbe: colorProbe,
-                    histogramAttachment: histogramAttachment,
-                    analysisScopeFingerprint: TextureAnalysisScope(region: region).fingerprint,
-                    attachmentDebugPolicies: attachmentPolicies
-                )
-            },
-            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
-                let frame = try makeFrame(profile: profile, derivative: effectiveDerivative)
-                let histogramAttachment = frame.renderHistogramAttachment(
-                    channel: channel,
-                    bins: bins,
-                    height: histogramHeight,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-                    channel: channel,
-                    bins: bins,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-                let statistics = frame.makeStatistics(scope: scope)
-                let colorProbe = frame.makeColorProbe(scope: scope)
-                return RenderedAnalysisBundle(
-                    frame: frame,
-                    histogram: histogram,
-                    statistics: statistics,
-                    colorProbe: colorProbe,
-                    histogramAttachment: histogramAttachment,
-                    analysisScopeFingerprint: scope.fingerprint,
-                    attachmentDebugPolicies: attachmentPolicies
-                )
-            },
+            attachmentDebugPolicies: attachmentPolicies,
             renderAttachmentSet: {
                 try makeAttachmentSet(profile: profile)
             },
@@ -372,6 +372,24 @@ extension ImageNode {
                 )
             }
         )
+    }
+}
+
+@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+extension ImageNode {
+    public func makeFrameAsync(profile: RenderProfile = .stablePreview,
+                               derivative: ImageDerivativeSpec? = nil,
+                               metadata: [String: String] = [:]) async throws -> RenderedFrame {
+        try await withCheckedThrowingContinuation { continuation in
+            transmitFrame(profile: profile, derivative: derivative, metadata: metadata) { result in
+                switch result {
+                case .success(let frame):
+                    continuation.resume(returning: frame)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 }
 
@@ -399,30 +417,51 @@ extension ImageNode: ImagePromise {
         }
     }
 
-    private func makeTextureUncached(profile: RenderProfile, derivative: ImageDerivativeSpec?, samplerDescriptor: ImageSamplerDescriptor) throws -> MTLTexture {
+    private func makeTextureUncached(profile: RenderProfile,
+                                     derivative: ImageDerivativeSpec?,
+                                     samplerDescriptor: ImageSamplerDescriptor,
+                                     executionIdentifier: String?) throws -> MTLTexture {
         switch storage {
         case .source(let source):
             let texture = try source.makeTexture()
-            return try resizeTextureIfNeeded(texture, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
+            return try resizeTextureIfNeeded(
+                texture,
+                derivative: derivative ?? profile.defaultDerivativeSpec,
+                profile: profile,
+                executionIdentifier: executionIdentifier
+            )
         case .filters(let input, let filters):
             let inputTexture = try input.makeTextureUncached(
                 profile: profile,
                 derivative: nil,
-                samplerDescriptor: samplerDescriptor
+                samplerDescriptor: samplerDescriptor,
+                executionIdentifier: executionIdentifier
             )
             guard filters.isEmpty == false else {
-                return try resizeTextureIfNeeded(inputTexture, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
+                return try resizeTextureIfNeeded(
+                    inputTexture,
+                    derivative: derivative ?? profile.defaultDerivativeSpec,
+                    profile: profile,
+                    executionIdentifier: executionIdentifier
+                )
             }
             let rendered = try HarbethIO(
                 element: inputTexture,
-                filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
+                filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor),
+                identifier: executionIdentifier ?? monitoringIdentifier
             ).configured(for: profile).output()
-            return try resizeTextureIfNeeded(rendered, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
+            return try resizeTextureIfNeeded(
+                rendered,
+                derivative: derivative ?? profile.defaultDerivativeSpec,
+                profile: profile,
+                executionIdentifier: executionIdentifier
+            )
         case .kernel(let input, let descriptor, let filter):
             let inputTexture = try input.makeTextureUncached(
                 profile: profile,
                 derivative: nil,
-                samplerDescriptor: samplerDescriptor
+                samplerDescriptor: samplerDescriptor,
+                executionIdentifier: executionIdentifier
             )
             try descriptor.validateCompatibility(
                 with: filter,
@@ -430,21 +469,29 @@ extension ImageNode: ImagePromise {
             )
             let rendered = try HarbethIO(
                 element: inputTexture,
-                filter: SamplerExecutionAdapter.adapt(filter: filter, samplerDescriptor: samplerDescriptor)
+                filter: SamplerExecutionAdapter.adapt(filter: filter, samplerDescriptor: samplerDescriptor),
+                identifier: executionIdentifier ?? monitoringIdentifier
             ).configured(for: profile).output()
             let contracted = try ImageNode.applyOutputContractIfNeeded(
                 descriptor.outputContract,
                 to: rendered,
                 sourceColorSpace: descriptor.inputColorSpace,
                 sourceAlphaType: descriptor.outputContract.inputAlphaExpectation.expectedAlphaType,
-                profile: profile
+                profile: profile,
+                identifier: executionIdentifier ?? monitoringIdentifier
             )
-            return try resizeTextureIfNeeded(contracted, derivative: derivative ?? profile.defaultDerivativeSpec, profile: profile)
+            return try resizeTextureIfNeeded(
+                contracted,
+                derivative: derivative ?? profile.defaultDerivativeSpec,
+                profile: profile,
+                executionIdentifier: executionIdentifier
+            )
         case .recipe(let source, let recipe, let mode):
             return try FrameRenderer(
                 source: source,
                 recipe: recipe,
                 mode: mode,
+                identifier: executionIdentifier ?? monitoringIdentifier,
                 derivative: derivative,
                 samplerDescriptor: samplerDescriptor
             ).renderTexture()
@@ -452,12 +499,14 @@ extension ImageNode: ImagePromise {
             let inputTexture = try input.makeTextureUncached(
                 profile: profile,
                 derivative: nil,
-                samplerDescriptor: samplerDescriptor
+                samplerDescriptor: samplerDescriptor,
+                executionIdentifier: executionIdentifier
             )
             return try FrameRenderer(
                 source: .texture(inputTexture),
                 recipe: recipe,
                 mode: mode,
+                identifier: executionIdentifier ?? monitoringIdentifier,
                 derivative: derivative,
                 samplerDescriptor: samplerDescriptor
             ).renderTexture()
@@ -466,25 +515,29 @@ extension ImageNode: ImagePromise {
                 transitionRecipe: recipe,
                 profile: profile,
                 derivative: derivative,
+                identifier: executionIdentifier ?? monitoringIdentifier,
                 samplerDescriptor: samplerDescriptor
             ).renderTexture()
         case .layerComposite(let recipe):
             return try recipe.makeTexture(
                 profile: profile,
                 derivative: derivative,
-                samplerDescriptor: samplerDescriptor
+                samplerDescriptor: samplerDescriptor,
+                executionIdentifier: executionIdentifier ?? monitoringIdentifier
             )
         case .cachePolicy(let input, _):
             return try input.makeTextureUncached(
                 profile: profile,
                 derivative: derivative,
-                samplerDescriptor: samplerDescriptor
+                samplerDescriptor: samplerDescriptor,
+                executionIdentifier: executionIdentifier
             )
         case .samplerDescriptor(let input, let descriptor):
             return try input.makeTextureUncached(
                 profile: profile,
                 derivative: derivative,
-                samplerDescriptor: descriptor
+                samplerDescriptor: descriptor,
+                executionIdentifier: executionIdentifier
             )
         }
     }
@@ -561,7 +614,8 @@ extension ImageNode: ImagePromise {
                 let inputTexture = try upstream.makeTextureUncached(
                     profile: profile,
                     derivative: nil,
-                    samplerDescriptor: activeSamplerDescriptor
+                    samplerDescriptor: activeSamplerDescriptor,
+                    executionIdentifier: nil
                 )
                 plan = try makeWrappedEditRenderPlan(
                     source: .texture(inputTexture),
@@ -640,7 +694,8 @@ extension ImageNode: ImagePromise {
                 let inputTexture = try upstream.makeTextureUncached(
                     profile: profile,
                     derivative: nil,
-                    samplerDescriptor: activeSamplerDescriptor
+                    samplerDescriptor: activeSamplerDescriptor,
+                    executionIdentifier: nil
                 )
                 try descriptor.validateCompatibility(
                     with: filter,
@@ -698,7 +753,8 @@ extension ImageNode: ImagePromise {
             let inputTexture = try input.makeTextureUncached(
                 profile: profile,
                 derivative: nil,
-                samplerDescriptor: activeSamplerDescriptor
+                samplerDescriptor: activeSamplerDescriptor,
+                executionIdentifier: nil
             )
             plan = try makeWrappedEditRenderPlan(
                 source: .texture(inputTexture),
@@ -815,7 +871,8 @@ extension ImageNode: ImagePromise {
             let inputTexture = try input.makeTextureUncached(
                 profile: profile,
                 derivative: nil,
-                samplerDescriptor: resolvedSamplerDescriptor
+                samplerDescriptor: resolvedSamplerDescriptor,
+                executionIdentifier: nil
             )
             let originalSource = try input.resolvedPrimarySource()
             return try recipe.makeRenderRecipe(
@@ -867,8 +924,16 @@ extension ImageNode: ImagePromise {
         )
     }
 
-    private func resizeTextureIfNeeded(_ texture: MTLTexture, derivative: ImageDerivativeSpec, profile: RenderProfile) throws -> MTLTexture {
-        try ImageNode.applyDerivativeResize(texture, derivative: derivative, profile: profile)
+    private func resizeTextureIfNeeded(_ texture: MTLTexture,
+                                       derivative: ImageDerivativeSpec,
+                                       profile: RenderProfile,
+                                       executionIdentifier: String? = nil) throws -> MTLTexture {
+        try ImageNode.applyDerivativeResize(
+            texture,
+            derivative: derivative,
+            profile: profile,
+            identifier: executionIdentifier ?? monitoringIdentifier
+        )
     }
 
     /// Resize a texture to match the target size defined by `derivative`.
@@ -876,17 +941,25 @@ extension ImageNode: ImagePromise {
     ///
     /// Single source of truth for derivative-driven resizing, shared between
     /// `ImageNode.makeTextureUncached` and `LayerCompositeRecipe.makeTexture`.
-    static func applyDerivativeResize(_ texture: MTLTexture, derivative: ImageDerivativeSpec, profile: RenderProfile) throws -> MTLTexture {
+    static func applyDerivativeResize(_ texture: MTLTexture,
+                                      derivative: ImageDerivativeSpec,
+                                      profile: RenderProfile,
+                                      identifier: String? = nil) throws -> MTLTexture {
         let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
         guard targetSize.width != texture.width || targetSize.height != texture.height else {
             return texture
         }
         return try HarbethIO(
             element: texture,
-            filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height))
+            filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height)),
+            identifier: identifier ?? "ImageNode.DerivativeResize"
         )
         .configured(for: profile)
         .output()
+    }
+
+    private var monitoringIdentifier: String {
+        "ImageNode.\(nodeFingerprint)"
     }
 
     var resolvedCachePolicy: ImageCachePolicy {
@@ -962,6 +1035,27 @@ extension ImageNode: ImagePromise {
                 referenceSampleBuffer: sampleBuffer
             )
         })
+    }
+
+    /// 解析当前 frame 的 preview host strategy。供 `makeFrame` 在 host decision
+    /// 已知处调一次，让 PerformanceMonitor 在 `ImageNode.<nodeFingerprint>` identifier
+    /// 下记录 strategy 计数。
+    /// - 非 sampleBuffer source → `.metalTextureHost`（fallback 到 Metal texture host）
+    /// - sampleBuffer + 保持 display semantics → `.sampleBufferPassthroughHost`（直通）
+    /// - sampleBuffer + 不保持 display semantics → `.sampleBufferRematerializedHost`（重材质化）
+    fileprivate func resolvedPreviewHostStrategy(source: ImageSource,
+                                                 renderedTexture: MTLTexture,
+                                                 renderRecipe: RenderRecipe) -> PreviewHostStrategy {
+        guard case .sampleBuffer(let sampleBuffer) = source else {
+            return .metalTextureHost
+        }
+        let sourceImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
+        let sourceWidth = sourceImageBuffer.map(CVPixelBufferGetWidth)
+        let sourceHeight = sourceImageBuffer.map(CVPixelBufferGetHeight)
+        let preservesDisplaySemantics = renderRecipe.filters.isEmpty
+            && sourceWidth == renderedTexture.width
+            && sourceHeight == renderedTexture.height
+        return preservesDisplaySemantics ? .sampleBufferPassthroughHost : .sampleBufferRematerializedHost
     }
 
     fileprivate static func makePreviewHostRematerializedSampleBuffer(texture: MTLTexture,
@@ -1203,7 +1297,8 @@ extension ImageNode {
                                             to texture: MTLTexture,
                                             sourceColorSpace: ImageColorSpaceContract = .preserveInput,
                                             sourceAlphaType: AlphaType? = nil,
-                                            profile: RenderProfile) throws -> MTLTexture {
+                                            profile: RenderProfile,
+                                            identifier: String? = nil) throws -> MTLTexture {
         let cacheKey = makeOutputContractCacheKey(
             contract: contract,
             inputTexture: texture,
@@ -1219,7 +1314,7 @@ extension ImageNode {
         var output = texture
         let colorFilters = contract.colorSpace.makeColorConversionFilters(from: sourceColorSpace)
         if colorFilters.isEmpty == false {
-            output = try HarbethIO(element: output, filters: colorFilters)
+            output = try HarbethIO(element: output, filters: colorFilters, identifier: identifier ?? "ImageNode.OutputContract")
                 .configured(for: profile)
                 .output()
         }
@@ -1235,12 +1330,12 @@ extension ImageNode {
             filters = []
         }
         if filters.isEmpty == false {
-            output = try HarbethIO(element: output, filters: filters)
+            output = try HarbethIO(element: output, filters: filters, identifier: identifier ?? "ImageNode.OutputContract")
                 .configured(for: profile)
                 .output()
         }
         if let targetPixelFormat = contract.pixelFormat.metalPixelFormat, output.pixelFormat != targetPixelFormat {
-            var io = HarbethIO(element: output, filter: C7PixelFormatChange())
+            var io = HarbethIO(element: output, filter: C7PixelFormatChange(), identifier: identifier ?? "ImageNode.OutputContract")
                 .configured(for: profile)
             io.bufferPixelFormat = targetPixelFormat
             io.createDestTexture = true

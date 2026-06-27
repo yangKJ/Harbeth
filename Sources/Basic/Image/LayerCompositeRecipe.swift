@@ -379,7 +379,7 @@ public struct LayerCompositeRecipe {
             samplerDescriptor: samplerDescriptor
         )
         let attachmentPolicies = try node.makeAttachmentDebugPolicies(profile: effectiveProfile, derivative: effectiveDerivative)
-        return RenderRequest(
+        return RenderRequest.makeFrameBackedRequest(
             compilationSource: .layerComposite,
             profile: effectiveProfile,
             derivative: effectiveDerivative,
@@ -397,60 +397,7 @@ public struct LayerCompositeRecipe {
             renderFrame: { metadata in
                 try node.makeFrame(profile: effectiveProfile, derivative: effectiveDerivative, metadata: metadata)
             },
-            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
-                let frame = try node.makeFrame(profile: effectiveProfile, derivative: effectiveDerivative)
-                let histogramAttachment = frame.renderHistogramAttachment(
-                    channel: channel,
-                    bins: bins,
-                    height: histogramHeight,
-                    region: region,
-                    preferredMethod: preferredMethod
-                )
-                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-                    channel: channel,
-                    bins: bins,
-                    region: region,
-                    preferredMethod: preferredMethod
-                )
-                let statistics = frame.makeStatistics(region: region)
-                let colorProbe = frame.makeColorProbe(region: region)
-                return RenderedAnalysisBundle(
-                    frame: frame,
-                    histogram: histogram,
-                    statistics: statistics,
-                    colorProbe: colorProbe,
-                    histogramAttachment: histogramAttachment,
-                    analysisScopeFingerprint: TextureAnalysisScope(region: region).fingerprint,
-                    attachmentDebugPolicies: attachmentPolicies
-                )
-            },
-            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
-                let frame = try node.makeFrame(profile: effectiveProfile, derivative: effectiveDerivative)
-                let histogramAttachment = frame.renderHistogramAttachment(
-                    channel: channel,
-                    bins: bins,
-                    height: histogramHeight,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-                let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-                    channel: channel,
-                    bins: bins,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-                let statistics = frame.makeStatistics(scope: scope)
-                let colorProbe = frame.makeColorProbe(scope: scope)
-                return RenderedAnalysisBundle(
-                    frame: frame,
-                    histogram: histogram,
-                    statistics: statistics,
-                    colorProbe: colorProbe,
-                    histogramAttachment: histogramAttachment,
-                    analysisScopeFingerprint: scope.fingerprint,
-                    attachmentDebugPolicies: attachmentPolicies
-                )
-            },
+            attachmentDebugPolicies: attachmentPolicies,
             renderAttachmentSet: {
                 try node.makeAttachmentSet(profile: effectiveProfile)
             },
@@ -573,7 +520,8 @@ extension LayerCompositeRecipe {
 
     func makeTexture(profile: RenderProfile? = nil,
                      derivative: ImageDerivativeSpec? = nil,
-                     samplerDescriptor: ImageSamplerDescriptor = .default) throws -> MTLTexture {
+                     samplerDescriptor: ImageSamplerDescriptor = .default,
+                     executionIdentifier: String? = nil) throws -> MTLTexture {
         let effectiveProfile = profile ?? self.profile
         // Layer Compose 智能合并（评估结论：暂不 fusion）
         //
@@ -595,7 +543,8 @@ extension LayerCompositeRecipe {
             return try resizeTextureIfNeeded(
                 current,
                 derivative: derivative ?? self.derivative,
-                profile: effectiveProfile
+                profile: effectiveProfile,
+                executionIdentifier: executionIdentifier
             )
         }
 
@@ -622,7 +571,8 @@ extension LayerCompositeRecipe {
                     filters: SamplerExecutionAdapter.adapt(
                         filters: layerFilters,
                         samplerDescriptor: samplerDescriptor
-                    )
+                    ),
+                    identifier: executionIdentifier ?? "ImageNode.LayerComposite"
                 )
                 .configured(for: effectiveProfile)
                 .output()
@@ -642,7 +592,8 @@ extension LayerCompositeRecipe {
                         cornerRadius: layer.cornerRadius,
                         cornerCurve: layer.cornerCurve,
                         tintColor: layer.tintColor
-                    )
+                    ),
+                    identifier: executionIdentifier ?? "ImageNode.LayerComposite"
                 )
                 .configured(for: effectiveProfile)
                 .output()
@@ -655,7 +606,8 @@ extension LayerCompositeRecipe {
                         capability: programmableBlend.capability,
                         librarySource: programmableBlend.librarySource,
                         functionConstants: programmableBlend.functionConstants
-                    )
+                    ),
+                    identifier: executionIdentifier ?? "ImageNode.LayerComposite"
                 )
                 .configured(for: effectiveProfile)
                 .output()
@@ -674,7 +626,8 @@ extension LayerCompositeRecipe {
                     cornerRadius: layer.cornerRadius,
                     cornerCurve: layer.cornerCurve,
                     tintColor: layer.tintColor
-                )
+                ),
+                identifier: executionIdentifier ?? "ImageNode.LayerComposite"
             )
             .configured(for: effectiveProfile)
             .output()
@@ -683,12 +636,14 @@ extension LayerCompositeRecipe {
             outputContract,
             to: current,
             sourceAlphaType: outputContract.inputAlphaExpectation.expectedAlphaType,
-            profile: effectiveProfile
+            profile: effectiveProfile,
+            identifier: executionIdentifier ?? "ImageNode.LayerComposite"
         )
         return try resizeTextureIfNeeded(
             contracted,
             derivative: derivative ?? self.derivative,
-            profile: effectiveProfile
+            profile: effectiveProfile,
+            executionIdentifier: executionIdentifier
         )
     }
 
@@ -699,8 +654,14 @@ extension LayerCompositeRecipe {
 
     private func resizeTextureIfNeeded(_ texture: MTLTexture,
                                        derivative: ImageDerivativeSpec,
-                                       profile: RenderProfile) throws -> MTLTexture {
-        try ImageNode.applyDerivativeResize(texture, derivative: derivative, profile: profile)
+                                       profile: RenderProfile,
+                                       executionIdentifier: String? = nil) throws -> MTLTexture {
+        try ImageNode.applyDerivativeResize(
+            texture,
+            derivative: derivative,
+            profile: profile,
+            identifier: executionIdentifier ?? "ImageNode.LayerComposite"
+        )
     }
 
     private func makeTransparentCanvas(matching texture: MTLTexture) throws -> MTLTexture {

@@ -58,9 +58,9 @@ public enum ModifierEnum: Equatable, Hashable {
         case .render(let vertex, let fragment):
             return vertex + "_" + fragment
         case .blit:
-            return UUID().uuidString
+            return "blit_"
         case .mps(let performance):
-            return performance.label ?? UUID().uuidString
+            return performance.label ?? String(describing: type(of: performance))
         case .advancedMetal(_, let function):
             return function
         }
