@@ -174,8 +174,8 @@ let assetNode = ImageNode.asset(
     ImageAsset(
         storage: .url(imageURL),
         loadingOptions: .init(
-            sizePolicy: .thumbnail(maxPixelSize: 1024),
-            appliesEXIFOrientation: true
+            sizePolicy: .maxPixelSize(1024),
+            flipsVertically: false
         )
     )
 )
@@ -188,8 +188,8 @@ kernel-aware 路径：
 ```swift
 let node = ImageNode
     .texture(inputTexture)
-    .applyingKernel(C7Brightness(brightness: 0.1))
-    .applyingKernel(C7PremultiplyAlpha())
+    .applyingWithContract(C7Brightness(brightness: 0.1))
+    .applyingWithContract(C7PremultiplyAlpha())
 
 let texture = try node.makeTexture(profile: .stablePreview)
 ```
@@ -245,7 +245,7 @@ let pluginNode = try ImageNode
         )
     ))
 
-let previewFrame = try pluginNode.makePreviewFrame(profile: .stablePreview)
+let previewFrame = try pluginNode.makeFrame(profile: .stablePreview)
 renderView.display(previewFrame)
 ```
 

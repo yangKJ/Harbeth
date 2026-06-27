@@ -29,6 +29,11 @@ indirect enum ImageNodeStorage {
     case samplerDescriptor(input: ImageNode, descriptor: ImageSamplerDescriptor)
 }
 
+private final class BoxedTexture {
+    let texture: MTLTexture
+    init(texture: MTLTexture) { self.texture = texture }
+}
+
 public struct ImageNode {
     let storage: ImageNodeStorage
 
@@ -50,17 +55,8 @@ public struct ImageNode {
 }
 
 extension ImageNode {
-    public static func source(_ source: ImageSource, filters: [C7FilterProtocol] = []) -> ImageNode {
-        let sourceNode = ImageNode(storage: .source(source))
-        guard filters.isEmpty == false else {
-            return sourceNode
-        }
-        return ImageNode(storage: .filters(input: sourceNode, filters: filters))
-    }
-
-    @_disfavoredOverload
-    public static func source(_ output: HarbethPluginOutput) throws -> ImageNode {
-        .source(try output.makeImageSource())
+    public static func source(_ source: ImageSource) -> ImageNode {
+        ImageNode(storage: .source(source))
     }
 
     public static func recipe(source: ImageSource, recipe: EditRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
@@ -115,14 +111,16 @@ extension ImageNode {
         ImageNode(storage: .filters(input: self, filters: filters))
     }
 
-    public func applying(optics settings: OpticsSettings) -> ImageNode {
-        applying(filters: settings.makeFilters())
+    public func applyingWithContract(_ filter: C7FilterProtocol, inputSize: C7Size? = nil) -> ImageNode {
+        let descriptor = filter.kernelDescriptor(inputSize: inputSize)
+        let invocation = descriptor.makeInvocation(filter: filter, inputSize: inputSize)
+        return applying(invocation)
     }
 
     public func applying(pluginOutput: HarbethPluginOutput, mode: EditRecipeMode = .preview) throws -> ImageNode {
         switch pluginOutput {
         case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer:
-            return try ImageNode.source(pluginOutput)
+            return ImageNode.source(try pluginOutput.makeImageSource())
         case .filters(let filters):
             return applying(filters: filters)
         case .editRecipe(let recipe):
@@ -143,10 +141,6 @@ extension ImageNode {
         return try applying(pluginOutput: output, mode: mode)
     }
 
-    public func makePreviewFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderedFrame {
-        try makeFrame(profile: profile, derivative: derivative)
-    }
-
     public func makeFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil, metadata: [String: String] = [:]) throws -> RenderedFrame {
         let texture = try makeTexture(profile: profile, derivative: derivative)
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
@@ -161,7 +155,7 @@ extension ImageNode {
         )
         var renderedMetadata = metadata
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
-        let token = FrameRenderToken(identifier: "ImageNode.\(nodeFingerprint)", generation: 0)
+        let token = FrameRenderToken(identifier: "ImageNode.\(nodeFingerprint)", generation: FrameGeneration.next())
         return RenderedFrame(
             texture: texture,
             colorSpace: colorSpace,
@@ -179,18 +173,6 @@ extension ImageNode {
             metadata: renderedMetadata,
             previewHostPayload: previewHostPayload
         )
-    }
-
-    /// 将一个普通滤镜按 kernel contract 方式挂到 `ImageNode` 上。
-    ///
-    /// 这个入口用于把 filter 的 kernel descriptor、兼容性校验和 output contract
-    /// 收口到 `ImageNode` 的高级统一路径，而不是让调用方直接拼装 runtime 对象。
-    ///
-    /// `inputSize` 只影响 descriptor 的静态描述数据；真正执行时仍会基于实际输入尺寸做兼容性校验。
-    public func applyingKernel(_ filter: C7FilterProtocol, inputSize: C7Size? = nil) -> ImageNode {
-        let descriptor = filter.kernelDescriptor(inputSize: inputSize)
-        let invocation = descriptor.makeInvocation(filter: filter, inputSize: inputSize)
-        return applying(invocation)
     }
 
     public func makeTexture(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
@@ -215,32 +197,16 @@ extension ImageNode {
         return texture
     }
 
-    public func makeDebugSnapshotJSONData(profile: RenderProfile = .stablePreview,
-                                          derivative: ImageDerivativeSpec? = nil,
-                                          prettyPrinted: Bool = false,
-                                          sortedKeys: Bool = true) throws -> Data {
-        try makeDebugSnapshot(profile: profile, derivative: derivative)
-            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
-    }
-
     public func makeDebugSnapshot(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
-        let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
-        let diagnostics = try makeRenderPlan(profile: profile, derivative: derivative).diagnostics
+        let plan = try makeRenderPlan(profile: profile, derivative: derivative)
+        let graph = try plan.imageGraph ?? makeImageGraph(profile: profile, derivative: derivative)
         let renderRecipe = try makeRenderRecipe(profile: profile, derivative: derivative)
         return RenderGraphDebugSnapshot(
-            graph: optimization.graph,
-            diagnostics: diagnostics,
-            optimizationDecisions: optimization.decisions,
+            graph: graph,
+            diagnostics: plan.diagnostics,
+            optimizationDecisions: plan.diagnostics.graphOptimizationDecisions,
             renderRecipe: renderRecipe
         )
-    }
-
-    public func makeDebugSnapshotJSONString(profile: RenderProfile = .stablePreview,
-                                            derivative: ImageDerivativeSpec? = nil,
-                                            prettyPrinted: Bool = false,
-                                            sortedKeys: Bool = true) throws -> String {
-        try makeDebugSnapshot(profile: profile, derivative: derivative)
-            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
     }
 
     public func makeImageGraph(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> ImageGraph {
@@ -317,7 +283,7 @@ extension ImageNode {
         let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
         let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
         let source = try resolvedPrimarySource()
-        let attachmentPolicies = try makeAttachmentDebugPolicies(profile: profile, derivative: effectiveDerivative)
+        let attachmentPolicies = diagnostics.outputAttachmentDebugPolicies
         return RenderRequest(
             compilationSource: diagnostics.compilationSource,
             profile: profile,
@@ -498,10 +464,13 @@ extension ImageNode: ImagePromise {
         case .transition(let recipe):
             return try FrameRenderer(
                 transitionRecipe: recipe,
+                profile: profile,
+                derivative: derivative,
                 samplerDescriptor: samplerDescriptor
             ).renderTexture()
         case .layerComposite(let recipe):
             return try recipe.makeTexture(
+                profile: profile,
                 derivative: derivative,
                 samplerDescriptor: samplerDescriptor
             )
@@ -539,13 +508,32 @@ extension ImageNode: ImagePromise {
                         derivative: ImageDerivativeSpec? = nil,
                         samplerDescriptorOverride: ImageSamplerDescriptor? = nil) throws -> RenderPlan {
         let activeSamplerDescriptor = samplerDescriptorOverride ?? resolvedSamplerDescriptor
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let cacheKey = ImageNode.makeRenderPlanCacheKey(
+            nodeFingerprint: nodeFingerprint,
+            profile: profile,
+            derivative: effectiveDerivative,
+            samplerDescriptor: activeSamplerDescriptor
+        )
+        if let cached = Shared.shared.defaultContext.cachedRenderPlan(for: cacheKey) {
+            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: true)
+            return cached
+        }
+        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: false)
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
+        var plan: RenderPlan
         switch storage {
         case .source(let source):
-            let texture = try source.makeTexture()
-            return GraphCompiler.compile(
+            let inputSize: C7Size
+            if let size = source.resolvedSizeHint {
+                inputSize = size
+            } else {
+                let texture = try source.makeTexture()
+                inputSize = C7Size(width: texture.width, height: texture.height)
+            }
+            plan = GraphCompiler.compile(
                 filters: [],
-                inputSize: C7Size(width: texture.width, height: texture.height),
+                inputSize: inputSize,
                 profile: profile,
                 derivative: derivative ?? profile.defaultDerivativeSpec,
                 compilationSource: .nodeGraph,
@@ -558,7 +546,7 @@ extension ImageNode: ImagePromise {
         case .filters(let input, let filters):
             switch input.storage {
             case .recipe(let source, let recipe, let mode):
-                return try makeWrappedEditRenderPlan(
+                plan = try makeWrappedEditRenderPlan(
                     source: source,
                     recipe: recipe,
                     mode: mode,
@@ -575,7 +563,7 @@ extension ImageNode: ImagePromise {
                     derivative: nil,
                     samplerDescriptor: activeSamplerDescriptor
                 )
-                return try makeWrappedEditRenderPlan(
+                plan = try makeWrappedEditRenderPlan(
                     source: .texture(inputTexture),
                     recipe: recipe,
                     mode: mode,
@@ -587,11 +575,17 @@ extension ImageNode: ImagePromise {
                     optimization: optimization
                 )
             case .transition(let recipe):
-                let texture = try recipe.from.makeTexture()
-                let plan = GraphCompiler.compile(
+                let inputSize: C7Size
+                if let size = recipe.from.resolvedSizeHint {
+                    inputSize = size
+                } else {
+                    let texture = try recipe.from.makeTexture()
+                    inputSize = C7Size(width: texture.width, height: texture.height)
+                }
+                plan = GraphCompiler.compile(
                     filters: [try recipe.makeFilter()] + filters,
-                    inputSize: C7Size(width: texture.width, height: texture.height),
-                    profile: recipe.profile,
+                    inputSize: inputSize,
+                    profile: profile,
                     derivative: derivative ?? recipe.derivative,
                     compilationSource: .transition,
                     samplerDescriptor: activeSamplerDescriptor,
@@ -600,12 +594,17 @@ extension ImageNode: ImagePromise {
                     imageGraph: optimization.graph,
                     graphOptimizationDecisions: optimization.decisions
                 )
-                return plan
             default:
-                let texture = try input.makeTexture(profile: profile, derivative: nil)
-                return GraphCompiler.compile(
+                let inputSize: C7Size
+                if let size = input.resolvedPlanningOutputSizeHint(profile: profile) {
+                    inputSize = size
+                } else {
+                    let texture = try input.makeTexture(profile: profile, derivative: nil)
+                    inputSize = C7Size(width: texture.width, height: texture.height)
+                }
+                plan = GraphCompiler.compile(
                     filters: filters,
-                    inputSize: C7Size(width: texture.width, height: texture.height),
+                    inputSize: inputSize,
                     profile: profile,
                     derivative: derivative ?? profile.defaultDerivativeSpec,
                     compilationSource: input.compilationSource,
@@ -626,7 +625,7 @@ extension ImageNode: ImagePromise {
                         height: sourceTexture.height
                     )
                 )
-                return try makeWrappedEditRenderPlan(
+                plan = try makeWrappedEditRenderPlan(
                     source: source,
                     recipe: recipe,
                     mode: mode,
@@ -647,7 +646,7 @@ extension ImageNode: ImagePromise {
                     with: filter,
                     inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
                 )
-                return try makeWrappedEditRenderPlan(
+                plan = try makeWrappedEditRenderPlan(
                     source: .texture(inputTexture),
                     recipe: recipe,
                     mode: mode,
@@ -659,27 +658,32 @@ extension ImageNode: ImagePromise {
                     optimization: optimization
                 )
             default:
-                break
+                let inputSize: C7Size
+                if let size = input.resolvedPlanningOutputSizeHint(profile: profile) {
+                    inputSize = size
+                } else {
+                    let texture = try input.makeTexture(profile: profile, derivative: nil)
+                    inputSize = C7Size(width: texture.width, height: texture.height)
+                }
+                try descriptor.validateCompatibility(
+                    with: filter,
+                    inputSize: inputSize
+                )
+                plan = GraphCompiler.compile(
+                    filters: [filter],
+                    inputSize: inputSize,
+                    profile: profile,
+                    derivative: derivative ?? profile.defaultDerivativeSpec,
+                    compilationSource: input.compilationSource,
+                    outputContract: descriptor.outputContract,
+                    samplerDescriptor: activeSamplerDescriptor,
+                    sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
+                    imageGraph: optimization.graph,
+                    graphOptimizationDecisions: optimization.decisions
+                )
             }
-            let texture = try input.makeTexture(profile: profile, derivative: nil)
-            try descriptor.validateCompatibility(
-                with: filter,
-                inputSize: C7Size(width: texture.width, height: texture.height)
-            )
-            return GraphCompiler.compile(
-                filters: [filter],
-                inputSize: C7Size(width: texture.width, height: texture.height),
-                profile: profile,
-                derivative: derivative ?? profile.defaultDerivativeSpec,
-                compilationSource: input.compilationSource,
-                outputContract: descriptor.outputContract,
-                samplerDescriptor: activeSamplerDescriptor,
-                sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
-                imageGraph: optimization.graph,
-                graphOptimizationDecisions: optimization.decisions
-            )
         case .recipe(let source, let recipe, let mode):
-            return try makeWrappedEditRenderPlan(
+            plan = try makeWrappedEditRenderPlan(
                 source: source,
                 recipe: recipe,
                 mode: mode,
@@ -696,7 +700,7 @@ extension ImageNode: ImagePromise {
                 derivative: nil,
                 samplerDescriptor: activeSamplerDescriptor
             )
-            return try makeWrappedEditRenderPlan(
+            plan = try makeWrappedEditRenderPlan(
                 source: .texture(inputTexture),
                 recipe: recipe,
                 mode: mode,
@@ -708,11 +712,17 @@ extension ImageNode: ImagePromise {
                 optimization: optimization
             )
         case .transition(let recipe):
-            let texture = try recipe.from.makeTexture()
-            return GraphCompiler.compile(
+            let inputSize: C7Size
+            if let size = recipe.from.resolvedSizeHint {
+                inputSize = size
+            } else {
+                let texture = try recipe.from.makeTexture()
+                inputSize = C7Size(width: texture.width, height: texture.height)
+            }
+            plan = GraphCompiler.compile(
                 filters: [try recipe.makeFilter()],
-                inputSize: C7Size(width: texture.width, height: texture.height),
-                profile: recipe.profile,
+                inputSize: inputSize,
+                profile: profile,
                 derivative: derivative ?? recipe.derivative,
                 compilationSource: .transition,
                 samplerDescriptor: activeSamplerDescriptor,
@@ -722,62 +732,74 @@ extension ImageNode: ImagePromise {
                 graphOptimizationDecisions: optimization.decisions
             )
         case .layerComposite(let recipe):
-            return try recipe.makeRenderPlan(
+            plan = try recipe.makeRenderPlan(
+                profile: profile,
                 derivative: derivative,
                 samplerDescriptor: activeSamplerDescriptor
             )
         case .cachePolicy(let input, let policy):
-            let plan = try input.makeRenderPlan(
+            let innerPlan = try input.makeRenderPlan(
                 profile: profile,
                 derivative: derivative,
                 samplerDescriptorOverride: activeSamplerDescriptor
             )
-            return RenderPlan(
-                graph: plan.graph,
-                profile: plan.profile,
-                derivative: plan.diagnostics.derivative,
-                inputSize: plan.diagnostics.inputSize,
-                outputSize: plan.diagnostics.outputSize,
-                nodeDiagnostics: plan.diagnostics.nodes,
-                compilationSource: plan.diagnostics.compilationSource,
-                outputContract: plan.diagnostics.outputContract,
+            plan = RenderPlan(
+                graph: innerPlan.graph,
+                profile: innerPlan.profile,
+                derivative: innerPlan.diagnostics.derivative,
+                inputSize: innerPlan.diagnostics.inputSize,
+                outputSize: innerPlan.diagnostics.outputSize,
+                nodeDiagnostics: innerPlan.diagnostics.nodes,
+                compilationSource: innerPlan.diagnostics.compilationSource,
+                outputContract: innerPlan.diagnostics.outputContract,
                 imageCachePolicy: policy,
-                samplerDescriptor: plan.diagnostics.samplerDescriptor,
-                samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,
+                samplerDescriptor: innerPlan.diagnostics.samplerDescriptor,
+                samplerExecutionCoverage: innerPlan.diagnostics.samplerExecutionCoverage,
                 sourceDescriptor: try input.resolvedPrimarySource().descriptor,
-                inputColorConversionCount: plan.diagnostics.inputColorConversionCount,
-                inputPixelFormatConversionCount: plan.diagnostics.inputPixelFormatConversionCount,
-                inputAlphaConversionCount: plan.diagnostics.inputAlphaConversionCount,
+                inputColorConversionCount: innerPlan.diagnostics.inputColorConversionCount,
+                inputPixelFormatConversionCount: innerPlan.diagnostics.inputPixelFormatConversionCount,
+                inputAlphaConversionCount: innerPlan.diagnostics.inputAlphaConversionCount,
                 imageGraph: optimization.graph,
                 graphOptimizationDecisions: optimization.decisions
             )
         case .samplerDescriptor(let input, let descriptor):
             _ = Shared.shared.defaultContext.makeSamplerState(descriptor)
-            let plan = try input.makeRenderPlan(
+            let innerPlan = try input.makeRenderPlan(
                 profile: profile,
                 derivative: derivative,
                 samplerDescriptorOverride: descriptor
             )
-            return RenderPlan(
-                graph: plan.graph,
-                profile: plan.profile,
-                derivative: plan.diagnostics.derivative,
-                inputSize: plan.diagnostics.inputSize,
-                outputSize: plan.diagnostics.outputSize,
-                nodeDiagnostics: plan.diagnostics.nodes,
-                compilationSource: plan.diagnostics.compilationSource,
-                outputContract: plan.diagnostics.outputContract,
-                imageCachePolicy: plan.diagnostics.imageCachePolicy,
+            plan = RenderPlan(
+                graph: innerPlan.graph,
+                profile: innerPlan.profile,
+                derivative: innerPlan.diagnostics.derivative,
+                inputSize: innerPlan.diagnostics.inputSize,
+                outputSize: innerPlan.diagnostics.outputSize,
+                nodeDiagnostics: innerPlan.diagnostics.nodes,
+                compilationSource: innerPlan.diagnostics.compilationSource,
+                outputContract: innerPlan.diagnostics.outputContract,
+                imageCachePolicy: innerPlan.diagnostics.imageCachePolicy,
                 samplerDescriptor: descriptor,
-                samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,
+                samplerExecutionCoverage: innerPlan.diagnostics.samplerExecutionCoverage,
                 sourceDescriptor: try input.resolvedPrimarySource().descriptor,
-                inputColorConversionCount: plan.diagnostics.inputColorConversionCount,
-                inputPixelFormatConversionCount: plan.diagnostics.inputPixelFormatConversionCount,
-                inputAlphaConversionCount: plan.diagnostics.inputAlphaConversionCount,
+                inputColorConversionCount: innerPlan.diagnostics.inputColorConversionCount,
+                inputPixelFormatConversionCount: innerPlan.diagnostics.inputPixelFormatConversionCount,
+                inputAlphaConversionCount: innerPlan.diagnostics.inputAlphaConversionCount,
                 imageGraph: optimization.graph,
                 graphOptimizationDecisions: optimization.decisions
             )
         }
+        Shared.shared.defaultContext.storeRenderPlan(plan, for: cacheKey)
+        return plan
+    }
+
+    /// Builds the LRU cache key for a `makeRenderPlan` call.
+    /// Same `(node, profile, derivative, samplerDescriptor)` → same key.
+    static func makeRenderPlanCacheKey(nodeFingerprint: String,
+                                       profile: RenderProfile,
+                                       derivative: ImageDerivativeSpec,
+                                       samplerDescriptor: ImageSamplerDescriptor) -> String {
+        "\(nodeFingerprint)|profile=\(profile.rawValue)|derivative=\(derivative.name)|sampler=\(samplerDescriptor.fingerprint)"
     }
 
     func makeRenderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
@@ -807,6 +829,7 @@ extension ImageNode: ImagePromise {
             )
         case .layerComposite(let recipe):
             return try recipe.makeRenderRecipe(
+                profile: profile,
                 derivative: derivative,
                 samplerDescriptor: resolvedSamplerDescriptor
             )
@@ -845,6 +868,15 @@ extension ImageNode: ImagePromise {
     }
 
     private func resizeTextureIfNeeded(_ texture: MTLTexture, derivative: ImageDerivativeSpec, profile: RenderProfile) throws -> MTLTexture {
+        try ImageNode.applyDerivativeResize(texture, derivative: derivative, profile: profile)
+    }
+
+    /// Resize a texture to match the target size defined by `derivative`.
+    /// Returns the input unchanged when sizes already match.
+    ///
+    /// Single source of truth for derivative-driven resizing, shared between
+    /// `ImageNode.makeTextureUncached` and `LayerCompositeRecipe.makeTexture`.
+    static func applyDerivativeResize(_ texture: MTLTexture, derivative: ImageDerivativeSpec, profile: RenderProfile) throws -> MTLTexture {
         let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
         guard targetSize.width != texture.width || targetSize.height != texture.height else {
             return texture
@@ -861,8 +893,18 @@ extension ImageNode: ImagePromise {
         switch storage {
         case .source(let source):
             return source.cachePolicy
-        case .filters, .kernel, .recipe, .edit, .transition, .layerComposite:
-            return .transient
+        case .filters(let input, _):
+            return input.resolvedCachePolicy
+        case .kernel(let input, _, _):
+            return input.resolvedCachePolicy
+        case .recipe(let source, _, _):
+            return source.cachePolicy
+        case .edit(let input, _, _):
+            return input.resolvedCachePolicy
+        case .transition(let recipe):
+            return recipe.from.cachePolicy
+        case .layerComposite(let recipe):
+            return recipe.background.cachePolicy
         case .cachePolicy(_, let policy):
             return policy
         case .samplerDescriptor(let input, _):
@@ -956,6 +998,29 @@ extension ImageNode: ImagePromise {
         return pixelBuffer.c7.toCMSampleBuffer(reference: referenceSampleBuffer)
     }
 
+    func resolvedPlanningOutputSizeHint(profile: RenderProfile) -> C7Size? {
+        switch storage {
+        case .source(let source):
+            return source.resolvedSizeHint
+        case .filters(let input, let filters):
+            guard let inputSize = input.resolvedPlanningOutputSizeHint(profile: profile) else {
+                return nil
+            }
+            return filters.reduce(inputSize) { size, filter in
+                filter.resize(input: size)
+            }
+        case .kernel(let input, _, let filter):
+            guard let inputSize = input.resolvedPlanningOutputSizeHint(profile: profile) else {
+                return nil
+            }
+            return filter.resize(input: inputSize)
+        case .recipe, .edit, .transition, .layerComposite:
+            return nil
+        case .cachePolicy(let input, _), .samplerDescriptor(let input, _):
+            return input.resolvedPlanningOutputSizeHint(profile: profile)
+        }
+    }
+
     private var nodeFingerprint: String {
         switch storage {
         case .source(let source):
@@ -974,24 +1039,20 @@ extension ImageNode: ImagePromise {
                 filter.recipeDescriptor.fingerprint
             ].joined(separator: "|")
         case .recipe(let source, let recipe, let mode):
-            let contract = recipe.contract(for: mode)
+            let planning = recipe.planningDescriptor(for: mode)
             return [
                 "recipe",
                 source.resolutionFingerprint,
                 "mode=\(mode.rawValue)",
-                "profile=\(contract.profile)",
-                contract.derivative.fingerprint,
-                recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).chainRecipe.fingerprint
+                planning.fingerprint
             ].joined(separator: "|")
         case .edit(let input, let recipe, let mode):
-            let contract = recipe.contract(for: mode)
+            let planning = recipe.planningDescriptor(for: mode)
             return [
                 "edit",
                 input.nodeFingerprint,
                 "mode=\(mode.rawValue)",
-                "profile=\(contract.profile)",
-                contract.derivative.fingerprint,
-                recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).chainRecipe.fingerprint
+                planning.fingerprint
             ].joined(separator: "|")
         case .transition(let recipe):
             return [
@@ -1116,11 +1177,45 @@ extension ImageNode: ImagePromise {
 }
 
 extension ImageNode {
+    /// output contract 结果缓存。
+    ///
+    /// `applyOutputContractIfNeeded` 在 `.kernel` 路径里最多触发 3 次
+    /// HarbethIO (color + alpha + pixelFormat),如果 `output contract`
+    /// 不随帧变(典型场景:preview 流),按
+    /// `(outputContractFingerprint, inputTextureFingerprint)`
+    /// 缓存结果可以省掉重复 dispatch。
+    ///
+    /// `inputTextureFingerprint` 必须包含 `ObjectIdentifier(inputTexture)`,
+    /// 避免同尺寸、同格式但来自不同来源(被复用/被回收)的纹理误命中。
+    /// 用 NSCache 而不是 dict:纹理生命周期归 Metal / TexturePool 管理,
+    /// NSCache 在内存压力下自动释放,避免我们持有已销毁纹理。
+    private static let outputContractResultCache: NSCache<NSString, BoxedTexture> = {
+        let cache = NSCache<NSString, BoxedTexture>()
+        cache.countLimit = 32
+        return cache
+    }()
+
+    static func removeAllOutputContractCachedTextures() {
+        outputContractResultCache.removeAllObjects()
+    }
+
     static func applyOutputContractIfNeeded(_ contract: RenderOutputContract,
                                             to texture: MTLTexture,
                                             sourceColorSpace: ImageColorSpaceContract = .preserveInput,
                                             sourceAlphaType: AlphaType? = nil,
                                             profile: RenderProfile) throws -> MTLTexture {
+        let cacheKey = makeOutputContractCacheKey(
+            contract: contract,
+            inputTexture: texture,
+            sourceColorSpace: sourceColorSpace,
+            sourceAlphaType: sourceAlphaType,
+            profile: profile
+        )
+        if cacheKey.isEffective,
+           let cached = outputContractResultCache.object(forKey: cacheKey.key as NSString) {
+            return cached.texture
+        }
+
         var output = texture
         let colorFilters = contract.colorSpace.makeColorConversionFilters(from: sourceColorSpace)
         if colorFilters.isEmpty == false {
@@ -1144,14 +1239,60 @@ extension ImageNode {
                 .configured(for: profile)
                 .output()
         }
-        if let targetPixelFormat = contract.pixelFormat.metalPixelFormat,
-           output.pixelFormat != targetPixelFormat {
-            var io = HarbethIO(element: output, filter: C7Brightness(brightness: 0))
+        if let targetPixelFormat = contract.pixelFormat.metalPixelFormat, output.pixelFormat != targetPixelFormat {
+            var io = HarbethIO(element: output, filter: C7PixelFormatChange())
                 .configured(for: profile)
             io.bufferPixelFormat = targetPixelFormat
             io.createDestTexture = true
             output = try io.output()
         }
+        let didProduceNewTexture = output !== texture
+        if cacheKey.isEffective, didProduceNewTexture {
+            outputContractResultCache.setObject(
+                BoxedTexture(texture: output),
+                forKey: cacheKey.key as NSString
+            )
+        }
         return output
+    }
+
+    /// 输出 contract 缓存键。
+    /// 组成:`contract.fingerprint` + `inputTexture` 的
+    /// `ObjectIdentifier + width × height × pixelFormat`。
+    /// `ObjectIdentifier` 让 cache 在纹理被释放后自动失配(下次 miss 重建),
+    /// 不会跨 texture 误命中。
+    private static func makeOutputContractCacheKey(contract: RenderOutputContract,
+                                                   inputTexture: MTLTexture,
+                                                   sourceColorSpace: ImageColorSpaceContract,
+                                                   sourceAlphaType: AlphaType?,
+                                                   profile: RenderProfile) -> (key: String, isEffective: Bool) {
+        let inputFingerprint = "tex|\(ObjectIdentifier(inputTexture).hashValue)|\(inputTexture.width)x\(inputTexture.height)|\(inputTexture.pixelFormat.rawValue)"
+        let key = [
+            "contract=\(contract.fingerprint)",
+            "srcColorSpace=\(sourceColorSpace.fingerprint)",
+            "srcAlpha=\(sourceAlphaType.map(String.init(describing:)) ?? "nil")",
+            "profile=\(profile.rawValue)",
+            inputFingerprint
+        ].joined(separator: "||")
+        let needsColor = !contract.colorSpace.makeColorConversionFilters(from: sourceColorSpace).isEmpty
+        let needsAlpha: Bool
+        switch contract.alpha {
+        case .premultiplied, .forcePremultiply:
+            needsAlpha = sourceAlphaType != .premultiplied
+        case .nonPremultiplied, .forceUnpremultiply:
+            needsAlpha = sourceAlphaType != .nonPremultiplied
+        case .opaque:
+            needsAlpha = sourceAlphaType != .alphaIsOne
+        case .preserveInput:
+            needsAlpha = false
+        }
+        let needsPixelFormat: Bool
+        if let targetPixelFormat = contract.pixelFormat.metalPixelFormat {
+            needsPixelFormat = inputTexture.pixelFormat != targetPixelFormat
+        } else {
+            needsPixelFormat = false
+        }
+        let isEffective = needsColor || needsAlpha || needsPixelFormat
+        return (key, isEffective)
     }
 }

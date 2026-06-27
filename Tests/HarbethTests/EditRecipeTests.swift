@@ -37,6 +37,30 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertEqual(filters.last?.kernelContract.functionIdentity, "compute:C7LanczosResize")
     }
 
+    func testPlanningDescriptorIncludesLocalEffectsAndLoadingOptions() throws {
+        let maskTexture = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
+        let base = EditRecipe()
+        let withLocalEffect = EditRecipe(
+            sourceLoadingOptions: ImageLoadingOptions(sizePolicy: .maxPixelSize(512), flipsVertically: true),
+            localEffects: [
+                LocalEffectRecipe(
+                    filters: [C7Brightness(brightness: -0.2)],
+                    mask: MaskDescriptor(texture: maskTexture, opacity: 1),
+                    foregroundBlendType: .normal,
+                    foregroundBlendOpacity: 0.5
+                )
+            ]
+        )
+
+        let basePlanning = base.planningDescriptor(for: EditRecipeMode.preview)
+        let localPlanning = withLocalEffect.planningDescriptor(for: EditRecipeMode.preview)
+
+        XCTAssertNotEqual(basePlanning.fingerprint, localPlanning.fingerprint)
+        XCTAssertEqual(localPlanning.filterCount, 3)
+        XCTAssertTrue(localPlanning.fingerprint.contains("flip=1"))
+        XCTAssertTrue(localPlanning.fingerprint.contains("localEffects="))
+    }
+
     func testRecipeDrivenFrameExecutionAppliesGeometryAndDerivativeContract() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")

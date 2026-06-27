@@ -29,7 +29,7 @@ final class ImageNodeTests: XCTestCase {
             .withCachePolicy(.persistent)
         let persistentDiagnostics = try persistentNode.makeDiagnostics()
 
-        XCTAssertEqual(sourceDiagnostics.imageCachePolicy, .persistent)
+        XCTAssertEqual(sourceDiagnostics.imageCachePolicy, .transient)
         XCTAssertEqual(persistentDiagnostics.imageCachePolicy, .persistent)
         XCTAssertTrue(persistentDiagnostics.optimizationPlan.decisions.contains("preservePersistentImageNode"))
         XCTAssertTrue(persistentDiagnostics.summary.contains("cachePolicy=persistent"))
@@ -416,6 +416,53 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(context.debugCacheSnapshot().imageResolutionCount, 0)
     }
 
+    func testTransientNodeResolutionDoesNotReuseCachedTexture() throws {
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let input = try makeTexture(width: 4, height: 4, pixel: [80, 40, 20, 255])
+        let node = ImageNode
+            .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
+
+        let first = try node.makeTexture()
+        let second = try node.makeTexture()
+
+        XCTAssertFalse(first === second)
+        XCTAssertEqual(context.debugCacheSnapshot().imageResolutionCount, 0)
+    }
+
+    func testResetCachesClearsOutputContractTextureCache() throws {
+        let context = Shared.shared.defaultContext
+        context.resetCaches()
+        let input = try makeTexture(width: 1, height: 1, pixel: [128, 64, 32, 128])
+        let contract = RenderOutputContract(alpha: .premultiplied)
+
+        let first = try ImageNode.applyOutputContractIfNeeded(
+            contract,
+            to: input,
+            sourceAlphaType: .nonPremultiplied,
+            profile: .stablePreview
+        )
+        let second = try ImageNode.applyOutputContractIfNeeded(
+            contract,
+            to: input,
+            sourceAlphaType: .nonPremultiplied,
+            profile: .stablePreview
+        )
+
+        XCTAssertTrue(first === second)
+
+        context.resetCaches()
+
+        let third = try ImageNode.applyOutputContractIfNeeded(
+            contract,
+            to: input,
+            sourceAlphaType: .nonPremultiplied,
+            profile: .stablePreview
+        )
+
+        XCTAssertFalse(first === third)
+    }
+
     func testKernelDescriptorExposesStableFunctionAndContract() throws {
         let filter = C7Brightness(brightness: 0.2)
         let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 8, height: 6))
@@ -614,7 +661,7 @@ final class ImageNodeTests: XCTestCase {
 
         let node = ImageNode
             .texture(input)
-            .applyingKernel(filter, inputSize: C7Size(width: 4, height: 3))
+            .applyingWithContract(filter, inputSize: C7Size(width: 4, height: 3))
 
         let nodeOutput = try node.makeTexture()
         let directOutput: MTLTexture = try HarbethIO(element: input, filter: filter).output()
@@ -632,8 +679,8 @@ final class ImageNodeTests: XCTestCase {
         let input = try makeTexture(width: 1, height: 1, pixel: [200, 100, 50, 128])
         let node = ImageNode
             .texture(input)
-            .applyingKernel(C7Brightness(brightness: 0))
-            .applyingKernel(C7PremultiplyAlpha())
+            .applyingWithContract(C7Brightness(brightness: 0))
+            .applyingWithContract(C7PremultiplyAlpha())
 
         let output = try node.makeTexture()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
@@ -641,6 +688,32 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertLessThan(outputPixel.red, 200)
         XCTAssertLessThan(outputPixel.green, 100)
         XCTAssertEqual(outputPixel.alpha, 128)
+    }
+
+    func testImageSourceResolvedSizeHintCoversTexturePixelBufferAndSampleBuffer() throws {
+        let texture = try makeTexture(width: 4, height: 3, pixel: [12, 34, 56, 255])
+        let pixelBuffer = try makePixelBuffer(width: 5, height: 2, pixel: [8, 16, 32, 255])
+        let sampleBuffer = try makeSampleBuffer(width: 6, height: 4, pixel: [2, 4, 8, 255])
+
+        XCTAssertEqual(ImageSource.texture(texture).resolvedSizeHint, C7Size(width: 4, height: 3))
+        XCTAssertEqual(ImageSource.pixelBuffer(pixelBuffer).resolvedSizeHint, C7Size(width: 5, height: 2))
+        XCTAssertEqual(ImageSource.sampleBuffer(sampleBuffer).resolvedSizeHint, C7Size(width: 6, height: 4))
+        XCTAssertNil(ImageSource.data(Data([1, 2, 3])).resolvedSizeHint)
+    }
+
+    func testImageNodeResolvedPlanningOutputSizeHintTracksFilterAndKernelResize() throws {
+        let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
+
+        let filterNode = ImageNode
+            .texture(input)
+            .applying(C7Resize(width: 2, height: 1))
+        let kernelNode = ImageNode
+            .texture(input)
+            .applyingWithContract(C7Resize(width: 2, height: 1), inputSize: C7Size(width: 4, height: 3))
+
+        XCTAssertEqual(ImageNode.texture(input).resolvedPlanningOutputSizeHint(profile: .stablePreview), C7Size(width: 4, height: 3))
+        XCTAssertEqual(filterNode.resolvedPlanningOutputSizeHint(profile: .stablePreview), C7Size(width: 2, height: 1))
+        XCTAssertEqual(kernelNode.resolvedPlanningOutputSizeHint(profile: .stablePreview), C7Size(width: 2, height: 1))
     }
 
     func testKernelDescriptorDetectsIncompatibleInvocation() {
@@ -2938,6 +3011,53 @@ final class ImageNodeTests: XCTestCase {
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {
         let bytes = Array(repeating: pixel, count: width * height)
         return try makeTexture(width: width, height: height, pixels: bytes)
+    }
+
+    private func makePixelBuffer(width: Int, height: Int, pixel: [UInt8]) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        XCTAssertEqual(
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                width,
+                height,
+                kCVPixelFormatType_32BGRA,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
+            kCVReturnSuccess
+        )
+        guard let pixelBuffer else {
+            throw HarbethError.texture2Image
+        }
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw HarbethError.texture2Image
+        }
+        let byteCount = CVPixelBufferGetDataSize(pixelBuffer)
+        let pointer = baseAddress.assumingMemoryBound(to: UInt8.self)
+        for index in stride(from: 0, to: byteCount, by: 4) {
+            pointer[index] = pixel[2]
+            pointer[index + 1] = pixel[1]
+            pointer[index + 2] = pixel[0]
+            pointer[index + 3] = pixel[3]
+        }
+        return pixelBuffer
+    }
+
+    private func makeSampleBuffer(width: Int, height: Int, pixel: [UInt8]) throws -> CMSampleBuffer {
+        let pixelBuffer = try makePixelBuffer(width: width, height: height, pixel: pixel)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            throw HarbethError.texture2Image
+        }
+        return sampleBuffer
     }
 
     private func makeTexture(width: Int, height: Int, pixels: [[UInt8]]) throws -> MTLTexture {

@@ -151,7 +151,7 @@ Harbeth 对外只保留两条路线：
 
 结论：
 
-- `Kernel` 通过 `ImageNode.applyingKernel(...)` 对外间接可见
+- `Kernel` 通过 `ImageNode.applyingWithContract(...)` 对外间接可见
 - `KernelDescriptor` 等对象不是普通使用入口
 
 ### `Runtime/`

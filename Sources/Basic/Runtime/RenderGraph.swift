@@ -747,6 +747,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
 
 struct RenderPlan {
     let graph: RenderGraph
+    let imageGraph: ImageGraph?
     let profile: RenderProfile
     let requiresCompletedGPUWork: Bool
     let containsBoundary: Bool
@@ -754,12 +755,14 @@ struct RenderPlan {
     let diagnostics: RenderPlanDiagnostics
 
     init(graph: RenderGraph,
+         imageGraph: ImageGraph? = nil,
          profile: RenderProfile,
          requiresCompletedGPUWork: Bool,
          containsBoundary: Bool,
          optimizedStages: [RenderStage],
          diagnostics: RenderPlanDiagnostics) {
         self.graph = graph
+        self.imageGraph = imageGraph
         self.profile = profile
         self.requiresCompletedGPUWork = requiresCompletedGPUWork
         self.containsBoundary = containsBoundary
@@ -786,6 +789,7 @@ struct RenderPlan {
          imageGraph: ImageGraph? = nil,
          graphOptimizationDecisions: [String] = []) {
         self.graph = graph
+        self.imageGraph = imageGraph
         self.profile = profile
         let requiresCompletedGPUWork = profile.requiresCompletedGPUWorkBeforeReadback
         let containsBoundary = graph.nodes.contains(where: { $0.kind == .boundary || $0.breaksFusion })

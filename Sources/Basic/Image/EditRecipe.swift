@@ -75,6 +75,21 @@ public struct EditRecipe {
         .recipe(source: source, recipe: self, mode: mode)
     }
 
+    func planningDescriptor(for mode: EditRecipeMode) -> EditRecipePlanningDescriptor {
+        let baseFilters = makeBaseFilterChain(inputSize: C7Size(width: 1, height: 1))
+        let localEffectDescriptors = localEffects.map(\.recipeDescriptor)
+        let localEffectCount = localEffects.reduce(0) { partial, effect in
+            partial + effect.filters.count + 1 + (effect.foregroundBlendType == nil ? 0 : 1)
+        }
+        return EditRecipePlanningDescriptor(
+            sourceLoadingOptions: sourceLoadingOptions,
+            contract: contract(for: mode),
+            baseFilterChain: FilterChainRecipe(filters: baseFilters.map(\.recipeDescriptor)),
+            localEffects: localEffectDescriptors,
+            filterCount: baseFilters.count + localEffectCount
+        )
+    }
+
     func makeRenderPlan(source: ImageSource,
                         mode: EditRecipeMode = .preview,
                         extraFilters: [C7FilterProtocol] = [],
@@ -442,6 +457,26 @@ struct ResolvedLocalEffect {
     let mask: MaskDescriptor
     let foregroundBlendType: C7Blend.BlendType?
     let foregroundBlendOpacity: Float
+}
+
+struct EditRecipePlanningDescriptor {
+    let sourceLoadingOptions: ImageLoadingOptions
+    let contract: EditRecipeContract
+    let baseFilterChain: FilterChainRecipe
+    let localEffects: [LocalEffectRecipeDescriptor]
+    let filterCount: Int
+
+    var fingerprint: String {
+        let baseFingerprint = baseFilterChain.filters.isEmpty ? "none" : baseFilterChain.fingerprint
+        let localEffectsFingerprint = localEffects.isEmpty ? "none" : localEffects.map(\.fingerprint).joined(separator: "||")
+        return [
+            "loading=\(sourceLoadingOptions.fingerprint)",
+            "profile=\(contract.profile)",
+            contract.derivative.fingerprint,
+            "base=\(baseFingerprint)",
+            "localEffects=\(localEffectsFingerprint)"
+        ].joined(separator: "|")
+    }
 }
 
 struct CompiledEditRecipeExecution {

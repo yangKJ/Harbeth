@@ -449,6 +449,8 @@ struct FrameRenderer {
 
     init(transitionRecipe: TransitionRecipe,
          filters: [C7FilterProtocol] = [],
+         profile: RenderProfile? = nil,
+         derivative: ImageDerivativeSpec? = nil,
          identifier: String = UUID().uuidString,
          metadata: [String: String] = [:],
          samplerDescriptor: ImageSamplerDescriptor = .default) {
@@ -458,13 +460,15 @@ struct FrameRenderer {
         self.recipeMode = nil
         self.transitionRecipe = transitionRecipe
         self.samplerDescriptor = samplerDescriptor
-        self.profile = transitionRecipe.profile
-        self.renderIntent = transitionRecipe.derivative.renderIntent
+        let effectiveProfile = profile ?? transitionRecipe.profile
+        let effectiveDerivative = derivative ?? transitionRecipe.derivative
+        self.profile = effectiveProfile
+        self.renderIntent = effectiveDerivative.renderIntent
         self.identifier = identifier
         self.metadata = metadata
         self.outputCachePolicy = .transient
-        self.outputSemantic = transitionRecipe.derivative.semantic
-        self.outputDerivative = transitionRecipe.derivative
+        self.outputSemantic = effectiveDerivative.semantic
+        self.outputDerivative = effectiveDerivative
     }
 
     func renderTexture() throws -> MTLTexture {
@@ -742,6 +746,7 @@ struct FrameRenderer {
             source: recipe.from,
             recipe: recipe,
             extraFilters: filters,
+            profile: profile,
             outputDerivative: outputDerivative,
             renderTexture: renderTexture(input:filters:profile:),
             resizeTextureIfNeeded: resizeTextureIfNeeded(_:derivative:profile:)
@@ -859,6 +864,7 @@ private struct CompiledTransitionExecution {
     init(source: ImageSource,
          recipe: TransitionRecipe,
          extraFilters: [C7FilterProtocol],
+         profile: RenderProfile,
          outputDerivative: ImageDerivativeSpec,
          renderTexture: @escaping (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture,
          resizeTextureIfNeeded: @escaping (MTLTexture, ImageDerivativeSpec, RenderProfile) throws -> MTLTexture) throws {
@@ -873,14 +879,14 @@ private struct CompiledTransitionExecution {
             filters.append(C7Resize(width: Float(derivativeOutputSize.width), height: Float(derivativeOutputSize.height)))
         }
         self.source = source
-        self.profile = recipe.profile
+        self.profile = profile
         self.diagnosticFilters = filters
         self.resolvedOutputSize = filters.reduce(inputSize) { size, filter in
             filter.resize(input: size)
         }
         self.renderTextureClosure = {
-            let rendered = try renderTexture(input, [try recipe.makeFilter()] + extraFilters, recipe.profile)
-            return try resizeTextureIfNeeded(rendered, outputDerivative, recipe.profile)
+            let rendered = try renderTexture(input, [try recipe.makeFilter()] + extraFilters, profile)
+            return try resizeTextureIfNeeded(rendered, outputDerivative, profile)
         }
     }
 

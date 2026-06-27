@@ -88,6 +88,35 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertEqual(request.source.kind, "texture")
     }
 
+    func testLayerCompositeNodeHonorsOverrideProfileAndDerivativeAcrossPlanRecipeAndTexture() throws {
+        let background = try makeTexture(width: 6, height: 4, pixel: [255, 0, 0, 255])
+        let layer = try makeTexture(width: 2, height: 2, pixel: [0, 255, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [ImageLayer(content: .texture(layer), normalizedFrame: CGRect(x: 0, y: 0, width: 0.5, height: 0.5))],
+            profile: .stablePreview
+        )
+        let overrideDerivative = ImageDerivativeSpec(
+            name: "layerCompositeOverride",
+            renderIntent: .delivery,
+            sourceTier: .thumbnail,
+            semantic: ImageSemanticDescriptor(role: .derivative, purpose: .thumbnail, fidelity: .thumbnailOptimized),
+            outputSizePolicy: .exact(C7Size(width: 3, height: 2))
+        )
+        let node = ImageNode.layerComposite(recipe)
+
+        let plan = try node.makeRenderPlan(profile: .exportQuality, derivative: overrideDerivative)
+        let renderRecipe = try node.makeRenderRecipe(profile: .exportQuality, derivative: overrideDerivative)
+        let texture = try node.makeTexture(profile: .exportQuality, derivative: overrideDerivative)
+
+        XCTAssertEqual(plan.profile, .exportQuality)
+        XCTAssertEqual(plan.diagnostics.derivative.name, "layerCompositeOverride")
+        XCTAssertEqual(renderRecipe.renderProfile, String(describing: RenderProfile.exportQuality))
+        XCTAssertEqual(renderRecipe.outputDerivative.name, "layerCompositeOverride")
+        XCTAssertEqual(texture.width, 3)
+        XCTAssertEqual(texture.height, 2)
+    }
+
     func testLayerCompositeNodePreservesSampleBufferSourceContractAcrossRequestRecipeAndSnapshot() throws {
         var sampleBuffer = try makeSampleBuffer(width: 2, height: 2, pixel: [255, 0, 0, 255])
         sampleBuffer.c7.isNotSync = true
@@ -630,6 +659,37 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertEqual(frame.metadata["route"], "transition")
         XCTAssertEqual(diagnostics.compilationSource, .transition)
         XCTAssertTrue(diagnostics.containsTransitionKernel)
+    }
+
+    func testTransitionNodeHonorsOverrideProfileAndDerivativeAcrossPlanAndTexture() throws {
+        let from = try makeTexture(width: 6, height: 4, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 6, height: 4, pixel: [0, 0, 255, 255])
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .dissolve,
+            progress: 0.5,
+            profile: .stablePreview
+        )
+        let overrideDerivative = ImageDerivativeSpec(
+            name: "transitionOverride",
+            renderIntent: .delivery,
+            sourceTier: .thumbnail,
+            semantic: ImageSemanticDescriptor(role: .derivative, purpose: .thumbnail, fidelity: .thumbnailOptimized),
+            outputSizePolicy: .exact(C7Size(width: 3, height: 2))
+        )
+        let node = ImageNode.transition(recipe)
+
+        let plan = try node.makeRenderPlan(profile: .exportQuality, derivative: overrideDerivative)
+        let renderRecipe = try node.makeRenderRecipe(profile: .exportQuality, derivative: overrideDerivative)
+        let texture = try node.makeTexture(profile: .exportQuality, derivative: overrideDerivative)
+
+        XCTAssertEqual(plan.profile, .exportQuality)
+        XCTAssertEqual(plan.diagnostics.derivative.name, "transitionOverride")
+        XCTAssertEqual(renderRecipe.renderProfile, String(describing: RenderProfile.exportQuality))
+        XCTAssertEqual(renderRecipe.outputDerivative.name, "transitionOverride")
+        XCTAssertEqual(texture.width, 3)
+        XCTAssertEqual(texture.height, 2)
     }
 
     func testTransitionNodeConvenienceFactoryProducesTransitionRoute() throws {

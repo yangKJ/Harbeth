@@ -84,7 +84,7 @@ final class ImageGraphBuilder {
         case .recipe(let source, let recipe, let mode):
             let sourceID = try append(ImageNode.source(source))
             let nodeID = allocateID()
-            let contract = recipe.contract(for: mode)
+            let planning = recipe.planningDescriptor(for: mode)
             nodes.append(
                 ImageGraphNode(
                     id: nodeID,
@@ -93,8 +93,8 @@ final class ImageGraphBuilder {
                     cachePolicy: node.resolvedCachePolicy,
                     samplerDescriptor: node.resolvedSamplerDescriptor,
                     sourceKind: source.kindName,
-                    filterCount: recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).count,
-                    fingerprint: "profile=\(contract.profile)|\(contract.derivative.fingerprint)"
+                    filterCount: planning.filterCount,
+                    fingerprint: planning.fingerprint
                 )
             )
             edges.append(ImageGraphEdge(from: sourceID, to: nodeID))
@@ -102,7 +102,7 @@ final class ImageGraphBuilder {
         case .edit(let input, let recipe, let mode):
             let inputID = try append(input)
             let nodeID = allocateID()
-            let contract = recipe.contract(for: mode)
+            let planning = recipe.planningDescriptor(for: mode)
             nodes.append(
                 ImageGraphNode(
                     id: nodeID,
@@ -111,11 +111,10 @@ final class ImageGraphBuilder {
                     cachePolicy: node.resolvedCachePolicy,
                     samplerDescriptor: node.resolvedSamplerDescriptor,
                     sourceKind: try node.resolvedPrimarySource().kindName,
-                    filterCount: recipe.makeFilterChain(inputSize: C7Size(width: 1, height: 1)).count,
+                    filterCount: planning.filterCount,
                     fingerprint: [
                         "input=\(input.resolutionFingerprint(profile: profile, derivative: derivative))",
-                        "profile=\(contract.profile)",
-                        contract.derivative.fingerprint
+                        planning.fingerprint
                     ].joined(separator: "|")
                 )
             )

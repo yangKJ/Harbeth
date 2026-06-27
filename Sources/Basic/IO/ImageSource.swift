@@ -184,6 +184,35 @@ public enum ImageSource {
         }
     }
 
+    var resolvedSizeHint: C7Size? {
+        switch self {
+        case .texture(let texture):
+            return C7Size(width: texture.width, height: texture.height)
+        case .cgImage(let image):
+            return C7Size(width: image.width, height: image.height)
+        case .image(let image):
+            let pixelWidth = max(Int((image.size.width * image.scale).rounded()), 1)
+            let pixelHeight = max(Int((image.size.height * image.scale).rounded()), 1)
+            return C7Size(width: pixelWidth, height: pixelHeight)
+        case .pixelBuffer(let pixelBuffer):
+            return C7Size(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+        case .sampleBuffer(let sampleBuffer):
+            guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+                return nil
+            }
+            return C7Size(width: CVPixelBufferGetWidth(imageBuffer), height: CVPixelBufferGetHeight(imageBuffer))
+        case .data:
+            return nil
+        case .asset(let asset):
+            switch asset.storage {
+            case .cgImage(let image):
+                return C7Size(width: image.width, height: image.height)
+            case .data, .url:
+                return nil
+            }
+        }
+    }
+
     var resolutionFingerprint: String {
         switch self {
         case .texture(let texture):

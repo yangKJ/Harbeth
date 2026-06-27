@@ -127,6 +127,16 @@ struct LocalEffectRecipeDescriptor: Sendable, Hashable, Codable {
         self.foregroundBlendMode = foregroundBlendMode
         self.foregroundBlendOpacity = foregroundBlendOpacity
     }
+
+    var fingerprint: String {
+        let chain = filters.isEmpty ? "none" : FilterChainRecipe(filters: filters).fingerprint
+        return [
+            "filters=\(chain)",
+            "mask=\(mask.fingerprint)",
+            "blend=\(foregroundBlendMode ?? "none")",
+            "opacity=\(String(format: "%.4f", foregroundBlendOpacity))"
+        ].joined(separator: "|")
+    }
 }
 
 struct LayerMaskRecipeDescriptor: Sendable, Hashable, Codable {

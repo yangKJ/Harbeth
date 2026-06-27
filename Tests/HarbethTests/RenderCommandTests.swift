@@ -177,6 +177,22 @@ final class RenderCommandTests: XCTestCase {
         XCTAssertTrue(descriptor.fingerprint.contains("attachment=1"))
     }
 
+    func testResolveRenderPassKeepsSingleColorShapeForMultiAttachmentFilter() throws {
+        let destination = try makeTexture(width: 8, height: 6, pixelFormat: .rgba8Unorm)
+
+        let renderPass = Rendering.resolveRenderPass(
+            filter: RenderMultiAttachmentTestFilter(),
+            inputSize: C7Size(width: 8, height: 6),
+            destTexture: destination,
+            usesCustomVertexLayout: false
+        )
+
+        XCTAssertEqual(renderPass.colorAttachments.count, 1)
+        XCTAssertEqual(renderPass.colorAttachments[0].index, 0)
+        XCTAssertEqual(renderPass.colorAttachments[0].pixelFormat, "rgba8Unorm")
+        XCTAssertEqual(renderPass.sampleCount, 1)
+    }
+
     func testRenderCommandBatchRejectsMismatchedOutputContracts() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

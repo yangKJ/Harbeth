@@ -1051,6 +1051,30 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertTrue(frame.isCurrent(comparedTo: unrelated))
     }
 
+    func testImageNodeMakeFrameMonotonicallyIncrementsTokenGeneration() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "RenderedFrameTests.tokenGeneration")
+        let node = ImageNode.source(.texture(texture))
+
+        let count = 8
+        var generations: [UInt64] = []
+        for _ in 0..<count {
+            let frame = try node.makeFrame(profile: RenderProfile.stablePreview)
+            generations.append(frame.token.generation)
+        }
+
+        // Strictly increasing across consecutive makeFrame() calls on the same node.
+        let pairs = zip(generations, generations.dropFirst())
+        XCTAssertTrue(pairs.allSatisfy { $0 < $1 },
+                      "token.generation must be strictly increasing across consecutive makeFrame() calls; got \(generations)")
+
+        // The set of generations must contain count distinct values (no reuse / wrap).
+        XCTAssertEqual(Set(generations).count, count,
+                       "token.generation must be unique across consecutive calls; got \(generations)")
+    }
+
     func testRenderProfileSemanticFlags() {
         XCTAssertTrue(RenderProfile.interactiveLatency.usesRealTimeCommit)
         XCTAssertFalse(RenderProfile.interactiveLatency.enablesDoubleBuffer)

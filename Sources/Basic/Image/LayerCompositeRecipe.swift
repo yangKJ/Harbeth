@@ -329,8 +329,11 @@ public struct LayerCompositeRecipe {
         .layerComposite(self)
     }
 
-    func makeRenderRecipe(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRecipe {
+    func makeRenderRecipe(profile: RenderProfile? = nil,
+                          derivative: ImageDerivativeSpec? = nil,
+                          samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRecipe {
         let plan = try makeRenderPlan(
+            profile: profile,
             derivative: derivative,
             samplerDescriptor: samplerDescriptor
         )
@@ -349,7 +352,7 @@ public struct LayerCompositeRecipe {
                 )
             }
         return RenderRecipe(
-            renderProfile: String(describing: profile),
+            renderProfile: String(describing: plan.profile),
             renderIntent: plan.diagnostics.derivative.renderIntent,
             source: background.descriptor,
             outputDerivative: plan.diagnostics.derivative,
@@ -363,29 +366,39 @@ public struct LayerCompositeRecipe {
         )
     }
 
-    func makeRenderRequest(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRequest {
+    func makeRenderRequest(profile: RenderProfile? = nil,
+                           derivative: ImageDerivativeSpec? = nil,
+                           samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRequest {
+        let effectiveProfile = profile ?? self.profile
         let effectiveDerivative = derivative ?? self.derivative
         let node = makeNode().withSamplerDescriptor(samplerDescriptor)
-        let diagnostics = try node.makeDiagnostics(profile: profile, derivative: effectiveDerivative)
+        let diagnostics = try node.makeDiagnostics(profile: effectiveProfile, derivative: effectiveDerivative)
         let recipeDescriptor = try makeRenderRecipe(
+            profile: effectiveProfile,
             derivative: effectiveDerivative,
             samplerDescriptor: samplerDescriptor
         )
-        let attachmentPolicies = try node.makeAttachmentDebugPolicies(profile: profile, derivative: effectiveDerivative)
+        let attachmentPolicies = try node.makeAttachmentDebugPolicies(profile: effectiveProfile, derivative: effectiveDerivative)
         return RenderRequest(
             compilationSource: .layerComposite,
-            profile: profile,
+            profile: effectiveProfile,
             derivative: effectiveDerivative,
             source: background.descriptor,
             outputCachePolicy: .transient,
             diagnostics: diagnostics,
             renderRecipe: recipeDescriptor,
-            renderTexture: { try makeTexture(derivative: effectiveDerivative, samplerDescriptor: samplerDescriptor) },
+            renderTexture: {
+                try makeTexture(
+                    profile: effectiveProfile,
+                    derivative: effectiveDerivative,
+                    samplerDescriptor: samplerDescriptor
+                )
+            },
             renderFrame: { metadata in
-                try node.makeFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+                try node.makeFrame(profile: effectiveProfile, derivative: effectiveDerivative, metadata: metadata)
             },
             renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
-                let frame = try node.makeFrame(profile: profile, derivative: effectiveDerivative)
+                let frame = try node.makeFrame(profile: effectiveProfile, derivative: effectiveDerivative)
                 let histogramAttachment = frame.renderHistogramAttachment(
                     channel: channel,
                     bins: bins,
@@ -412,7 +425,7 @@ public struct LayerCompositeRecipe {
                 )
             },
             renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
-                let frame = try node.makeFrame(profile: profile, derivative: effectiveDerivative)
+                let frame = try node.makeFrame(profile: effectiveProfile, derivative: effectiveDerivative)
                 let histogramAttachment = frame.renderHistogramAttachment(
                     channel: channel,
                     bins: bins,
@@ -439,11 +452,11 @@ public struct LayerCompositeRecipe {
                 )
             },
             renderAttachmentSet: {
-                try node.makeAttachmentSet(profile: profile)
+                try node.makeAttachmentSet(profile: effectiveProfile)
             },
             renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
                 try node.makeAttachmentAnalysisBundle(
-                    profile: profile,
+                    profile: effectiveProfile,
                     bins: bins,
                     histogramHeight: histogramHeight,
                     region: region,
@@ -452,7 +465,7 @@ public struct LayerCompositeRecipe {
             },
             renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
                 try node.makeAttachmentAnalysisBundle(
-                    profile: profile,
+                    profile: effectiveProfile,
                     bins: bins,
                     histogramHeight: histogramHeight,
                     scope: scope,
@@ -480,10 +493,20 @@ public struct LayerCompositeRecipe {
 }
 
 extension LayerCompositeRecipe {
-    func makeRenderPlan(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
-        let backgroundTexture = try background.makeTexture()
-        let backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
-        let placeholderTexture = backgroundTexture
+    func makeRenderPlan(profile: RenderProfile? = nil,
+                        derivative: ImageDerivativeSpec? = nil,
+                        samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
+        let effectiveProfile = profile ?? self.profile
+        let backgroundSize: C7Size
+        let placeholderTexture: MTLTexture
+        if let size = background.resolvedSizeHint {
+            backgroundSize = size
+            placeholderTexture = try background.makeTexture()
+        } else {
+            let backgroundTexture = try background.makeTexture()
+            backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
+            placeholderTexture = backgroundTexture
+        }
         let layerPreparationFilters = layers.flatMap { layer -> [C7FilterProtocol] in
             var layerTransform = layer.transform
             if layer.rotation.truncatingRemainder(dividingBy: 360) != 0 {
@@ -532,7 +555,7 @@ extension LayerCompositeRecipe {
         let plan = GraphCompiler.compile(
             filters: filters,
             inputSize: backgroundSize,
-            profile: profile,
+            profile: effectiveProfile,
             derivative: derivative ?? self.derivative,
             compilationSource: .layerComposite,
             outputContract: outputContract,
@@ -548,10 +571,32 @@ extension LayerCompositeRecipe {
         )
     }
 
-    func makeTexture(derivative: ImageDerivativeSpec? = nil, samplerDescriptor: ImageSamplerDescriptor = .default) throws -> MTLTexture {
+    func makeTexture(profile: RenderProfile? = nil,
+                     derivative: ImageDerivativeSpec? = nil,
+                     samplerDescriptor: ImageSamplerDescriptor = .default) throws -> MTLTexture {
+        let effectiveProfile = profile ?? self.profile
+        // Layer Compose 智能合并（评估结论：暂不 fusion）
+        //
+        // 评估过把 N 个 layer 折叠为单 compute pass：
+        //   * `LayerComposite` 是 `RenderProtocol`（render encoder），
+        //     不是 compute kernel。它的 `layerTexture` 是 `otherInputTextures`
+        //     之一，必须在 render encoder 当帧绑定，无法用单个 compute pass
+        //     "一次性" 串起多张 layer 输入。
+        //   * 即便全部强制 compute，`LayerComposite` 当前没有 compute shader
+        //     实现，重写成本与正确性风险远大于节省的 dispatch。
+        //   * `programmableBlend` 分支额外引入了 "layer canvas + programmable blend"
+        //     双 render pass，结构和普通 layer 不一致，单 pass fusion 会跳过它，
+        //     反而引入行为分歧。
+        //
+        // 结论：保留 "每个 layer 一个 render pass + 末尾 output contract" 的现状。
+        // 后续若提供 `LayerComposite.compute(otherInputs:)` 入口，可再开启 fusion。
         var current = try background.makeTexture()
         guard layers.isEmpty == false else {
-            return try resizeTextureIfNeeded(current, derivative: derivative ?? self.derivative)
+            return try resizeTextureIfNeeded(
+                current,
+                derivative: derivative ?? self.derivative,
+                profile: effectiveProfile
+            )
         }
 
         for layer in layers {
@@ -579,7 +624,7 @@ extension LayerCompositeRecipe {
                         samplerDescriptor: samplerDescriptor
                     )
                 )
-                .configured(for: profile)
+                .configured(for: effectiveProfile)
                 .output()
             }
             if let programmableBlend = layer.programmableBlend {
@@ -599,7 +644,7 @@ extension LayerCompositeRecipe {
                         tintColor: layer.tintColor
                     )
                 )
-                .configured(for: profile)
+                .configured(for: effectiveProfile)
                 .output()
                 current = try HarbethIO(
                     element: current,
@@ -612,7 +657,7 @@ extension LayerCompositeRecipe {
                         functionConstants: programmableBlend.functionConstants
                     )
                 )
-                .configured(for: profile)
+                .configured(for: effectiveProfile)
                 .output()
                 continue
             }
@@ -631,33 +676,31 @@ extension LayerCompositeRecipe {
                     tintColor: layer.tintColor
                 )
             )
-            .configured(for: profile)
+            .configured(for: effectiveProfile)
             .output()
         }
         let contracted = try ImageNode.applyOutputContractIfNeeded(
             outputContract,
             to: current,
             sourceAlphaType: outputContract.inputAlphaExpectation.expectedAlphaType,
-            profile: profile
+            profile: effectiveProfile
         )
-        return try resizeTextureIfNeeded(contracted, derivative: derivative ?? self.derivative)
+        return try resizeTextureIfNeeded(
+            contracted,
+            derivative: derivative ?? self.derivative,
+            profile: effectiveProfile
+        )
     }
 
-    func makeDiagnostics(derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
-        try makeRenderPlan(derivative: derivative).diagnostics
+    func makeDiagnostics(profile: RenderProfile? = nil,
+                         derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+        try makeRenderPlan(profile: profile, derivative: derivative).diagnostics
     }
 
-    private func resizeTextureIfNeeded(_ texture: MTLTexture, derivative: ImageDerivativeSpec) throws -> MTLTexture {
-        let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
-        guard targetSize.width != texture.width || targetSize.height != texture.height else {
-            return texture
-        }
-        return try HarbethIO(
-            element: texture,
-            filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height))
-        )
-        .configured(for: profile)
-        .output()
+    private func resizeTextureIfNeeded(_ texture: MTLTexture,
+                                       derivative: ImageDerivativeSpec,
+                                       profile: RenderProfile) throws -> MTLTexture {
+        try ImageNode.applyDerivativeResize(texture, derivative: derivative, profile: profile)
     }
 
     private func makeTransparentCanvas(matching texture: MTLTexture) throws -> MTLTexture {

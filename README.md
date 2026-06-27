@@ -205,11 +205,9 @@ let pluginNode = try ImageNode
         )
     ))
 
-let preview = try pluginNode.makePreviewFrame(profile: .stablePreview)
+let preview = try pluginNode.makeFrame(profile: .stablePreview)
 renderView.display(preview)
 ```
-
-`makePreviewFrame(...)` is now just a preview-named convenience over `RenderedFrame`. Harbeth does not introduce a separate preview frame type; diagnostics remain available through `makeDiagnostics(...)` when needed.
 
 ### Graph and Diagnostics with ImageNode
 

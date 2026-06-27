@@ -28,7 +28,7 @@ final class HarbethPluginTests: XCTestCase {
 
         for (output, expectedKind) in cases {
             let descriptor = try output.sourceDescriptor()
-            let node = try ImageNode.source(output)
+            let node = ImageNode.source(try output.makeImageSource())
             let request = try node.makeRenderRequest(profile: .stablePreview)
             let previewFrame = try output.makePreviewFrame(profile: .stablePreview)
 
@@ -147,7 +147,7 @@ final class HarbethPluginTests: XCTestCase {
         let frame = try ImageNode
             .source(.texture(input))
             .applying(C7Brightness(brightness: 0.1))
-            .makePreviewFrame(profile: .stablePreview)
+            .makeFrame(profile: .stablePreview)
 
         XCTAssertTrue(frame.texture.width > 0)
         XCTAssertEqual(frame.sourceDescriptor.kind, "texture")

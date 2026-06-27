@@ -18,9 +18,17 @@ public final class HarbethContext {
     private let renderPipelineLock = NSLock()
     private let samplerLock = NSLock()
     private let imageResolutionLock = NSLock()
+    private let renderPlanLock = NSLock()
     private var renderPipelines: [RenderPipelineCacheKey: MTLRenderPipelineState] = [:]
     private var samplerStates: [SamplerCacheKey: MTLSamplerState] = [:]
     private var imageResolutionCache: [String: MTLTexture] = [:]
+    /// LRU cache for compiled RenderPlan.
+    /// Key: `nodeFingerprint|profile.rawValue|derivative.name|samplerDescriptor.fingerprint`
+    /// Value: compiled RenderPlan (a large struct, ~10-50 KB)
+    /// On hit, the key moves to the tail as most-recently-used.
+    private var renderPlanCache: [String: RenderPlan] = [:]
+    private var renderPlanCacheOrder: [String] = []
+    private let renderPlanCacheLimit: Int = 100
 
     init(device: Device) {
         self.legacyDevice = device
@@ -214,6 +222,55 @@ public final class HarbethContext {
         imageResolutionLock.unlock()
     }
 
+    /// Returns a cached RenderPlan for the given fingerprint and marks it as
+    /// most-recently-used. `nil` means cache miss.
+    func cachedRenderPlan(for fingerprint: String) -> RenderPlan? {
+        renderPlanLock.lock()
+        guard let plan = renderPlanCache[fingerprint] else {
+            renderPlanLock.unlock()
+            return nil
+        }
+        // Move to most-recently-used position.
+        renderPlanCacheOrder.removeAll { $0 == fingerprint }
+        renderPlanCacheOrder.append(fingerprint)
+        renderPlanLock.unlock()
+        return plan
+    }
+
+    /// Stores a RenderPlan in the LRU cache. When the cache exceeds its
+    /// limit, the least-recently-used entries are evicted from the head of
+    /// `renderPlanCacheOrder`.
+    func storeRenderPlan(_ plan: RenderPlan, for fingerprint: String) {
+        renderPlanLock.lock()
+        if renderPlanCache[fingerprint] == nil {
+            renderPlanCacheOrder.append(fingerprint)
+        }
+        renderPlanCache[fingerprint] = plan
+        while renderPlanCacheOrder.count > renderPlanCacheLimit,
+              let oldest = renderPlanCacheOrder.first {
+            renderPlanCacheOrder.removeFirst()
+            renderPlanCache.removeValue(forKey: oldest)
+        }
+        renderPlanLock.unlock()
+    }
+
+    /// Clears all cached RenderPlans. Wired into `resetCaches()` so that
+    /// callers invalidating the underlying device also drop the plan cache.
+    func removeAllRenderPlans() {
+        renderPlanLock.lock()
+        renderPlanCache.removeAll()
+        renderPlanCacheOrder.removeAll()
+        renderPlanLock.unlock()
+    }
+
+    /// Current count of cached RenderPlans (mostly for tests / diagnostics).
+    func renderPlanCacheCount() -> Int {
+        renderPlanLock.lock()
+        let count = renderPlanCache.count
+        renderPlanLock.unlock()
+        return count
+    }
+
     public func resetCaches() {
         legacyDevice.removePipelineStates()
         legacyDevice.removeFunctionCache()
@@ -226,6 +283,8 @@ public final class HarbethContext {
         imageResolutionLock.lock()
         imageResolutionCache.removeAll()
         imageResolutionLock.unlock()
+        removeAllRenderPlans()
+        ImageNode.removeAllOutputContractCachedTextures()
     }
 
     public func debugCacheSnapshot() -> CacheSnapshot {
@@ -238,12 +297,16 @@ public final class HarbethContext {
         imageResolutionLock.lock()
         let imageResolutionCount = imageResolutionCache.count
         imageResolutionLock.unlock()
+        renderPlanLock.lock()
+        let renderPlanCount = renderPlanCache.count
+        renderPlanLock.unlock()
         return CacheSnapshot(
             functionCacheCount: legacyDevice.functionCacheCount,
             computePipelineCount: legacyDevice.pipelineCount,
             renderPipelineCount: renderCount,
             samplerCount: samplerCount,
             imageResolutionCount: imageResolutionCount,
+            renderPlanCount: renderPlanCount,
             hasTexturePool: true,
             hasCVMetalTextureCache: cvMetalTextureCache != nil
         )
@@ -257,6 +320,7 @@ public extension HarbethContext {
         public let renderPipelineCount: Int
         public let samplerCount: Int
         public let imageResolutionCount: Int
+        public let renderPlanCount: Int
         public let hasTexturePool: Bool
         public let hasCVMetalTextureCache: Bool
     }
