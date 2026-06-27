@@ -59,14 +59,9 @@ extension HarbethIO {
             inputSize: C7Size(width: inTexture.width, height: inTexture.height)
         )
         let texture = try filtering(texture: inTexture)
-        if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
-            throw compatibilityError
-        }
-        guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
-            throw HarbethError.pixelBufferCopyFailed
-        }
-        pixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
-        return pixelBuffer
+        let outputPixelBuffer = try pixelBuffer.c7.copyOutputTextureToCompatiblePixelBuffer(with: texture)
+        outputPixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
+        return outputPixelBuffer
     }
 
     func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
@@ -115,16 +110,13 @@ extension HarbethIO {
             filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let outputTexture):
-                    if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: outputTexture) {
-                        complete(.failure(compatibilityError))
-                        return
+                    do {
+                        let outputPixelBuffer = try pixelBuffer.c7.copyOutputTextureToCompatiblePixelBuffer(with: outputTexture)
+                        outputPixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
+                        complete(.success(outputPixelBuffer))
+                    } catch {
+                        complete(.failure(HarbethError.toHarbethError(error)))
                     }
-                    guard pixelBuffer.c7.copyToPixelBuffer(with: outputTexture) else {
-                        complete(.failure(.pixelBufferCopyFailed))
-                        return
-                    }
-                    pixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
-                    complete(.success(pixelBuffer))
                 case .failure(let error):
                     complete(.failure(error))
                 }

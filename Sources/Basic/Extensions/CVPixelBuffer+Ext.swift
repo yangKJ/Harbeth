@@ -404,6 +404,64 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         return nil
     }
     
+    public func makeCompatibleOutputPixelBuffer(for texture: MTLTexture, minimumBufferCount: Int = 1) throws -> CVPixelBuffer {
+        if let compatibilityError = textureCopyCompatibilityError(for: texture) {
+            switch compatibilityError {
+            case .textureSizeMismatch:
+                throw compatibilityError
+            default:
+                break
+            }
+        }
+        guard let resolvedPixelFormatType = RenderPixelBufferDescriptor.pixelFormatType(for: texture.pixelFormat) else {
+            throw HarbethError.configurationInvalid(
+                "Pixel buffer output does not support Metal pixel format \(texture.pixelFormat)."
+            )
+        }
+        do {
+            let pool = try PixelBufferPool(
+                width: texture.width,
+                height: texture.height,
+                pixelFormatType: resolvedPixelFormatType,
+                minimumBufferCount: minimumBufferCount
+            )
+            let pixelBuffer = try pool.makePixelBuffer()
+            if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
+                throw compatibilityError
+            }
+            guard pixelBuffer.c7.copyToPixelBuffer(with: texture) else {
+                throw HarbethError.pixelBufferCopyFailed
+            }
+            pixelBuffer.c7.copyAttachments(from: base)
+            return pixelBuffer
+        } catch {
+            guard let fallbackPixelFormatType = Self.fallbackRenderablePixelFormatType(for: texture.pixelFormat),
+                  fallbackPixelFormatType != resolvedPixelFormatType else {
+                throw error
+            }
+            let pixelBuffer = try HarbethIO(element: texture, filters: []).renderPixelBuffer(
+                pixelFormatType: fallbackPixelFormatType
+            )
+            pixelBuffer.c7.copyAttachments(from: base)
+            return pixelBuffer
+        }
+    }
+    
+    public func copyOutputTextureToCompatiblePixelBuffer(with texture: MTLTexture) throws -> CVPixelBuffer {
+        if let compatibilityError = textureCopyCompatibilityError(for: texture) {
+            switch compatibilityError {
+            case .textureSizeMismatch:
+                throw compatibilityError
+            default:
+                return try makeCompatibleOutputPixelBuffer(for: texture)
+            }
+        }
+        guard copyToPixelBuffer(with: texture) else {
+            throw HarbethError.pixelBufferCopyFailed
+        }
+        return base
+    }
+    
     /// Creates new pixel buffer from texture
     /// - Parameter texture: Source Metal texture
     /// - Returns: New pixel buffer
@@ -501,7 +559,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         let texture = try TextureLoader.makeTexture(width: width, height: height, options: [
             .texturePixelFormat: pixelFormat
         ])
-        let success = base.c7.copyToPixelBuffer(with: texture)
+        let success = isPlanar ? copyDataTo(texture: texture, planeIndex: planeIndex) : copyDataTo(texture: texture)
         if !success {
             throw HarbethError.textureCopyPixelBufferFailed
         }
@@ -593,5 +651,49 @@ extension HarbethWrapper where Base: CVPixelBuffer {
 
     private static func bytesPerRow(of pixelBuffer: CVPixelBuffer, planeIndex: Int, planar: Bool) -> Int {
         planar ? CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, planeIndex) : CVPixelBufferGetBytesPerRow(pixelBuffer)
+    }
+
+    private static func fallbackRenderablePixelFormatType(for texturePixelFormat: MTLPixelFormat) -> OSType? {
+        switch texturePixelFormat {
+        case .rgba8Unorm, .rgba8Unorm_srgb, .bgra8Unorm, .bgra8Unorm_srgb:
+            return kCVPixelFormatType_32BGRA
+        case .rgba16Float:
+            return kCVPixelFormatType_64RGBAHalf
+        case .r8Unorm:
+            return kCVPixelFormatType_OneComponent8
+        default:
+            return nil
+        }
+    }
+    
+    private func copyDataTo(texture: MTLTexture, planeIndex: Int = 0) -> Bool {
+        let width = texture.width
+        let height = texture.height
+        let planar = CVPixelBufferIsPlanar(base)
+        let expectedWidth = Self.width(of: base, planeIndex: planeIndex, planar: planar)
+        let expectedHeight = Self.height(of: base, planeIndex: planeIndex, planar: planar)
+        guard width == expectedWidth, height == expectedHeight else {
+            return false
+        }
+        let lockStatus = lockBaseAddress(.readOnly)
+        guard lockStatus == kCVReturnSuccess else {
+            return false
+        }
+        defer { unlockBaseAddress(.readOnly) }
+        let sourceBytes: UnsafeMutableRawPointer?
+        let bytesPerRow: Int
+        if planar {
+            sourceBytes = CVPixelBufferGetBaseAddressOfPlane(base, planeIndex)
+            bytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(base, planeIndex)
+        } else {
+            sourceBytes = CVPixelBufferGetBaseAddress(base)
+            bytesPerRow = CVPixelBufferGetBytesPerRow(base)
+        }
+        guard let sourceBytes else {
+            return false
+        }
+        let region = MTLRegionMake2D(0, 0, width, height)
+        texture.replace(region: region, mipmapLevel: 0, withBytes: sourceBytes, bytesPerRow: bytesPerRow)
+        return true
     }
 }

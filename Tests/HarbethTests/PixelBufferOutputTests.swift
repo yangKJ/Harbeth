@@ -214,6 +214,16 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(CVPixelBufferGetPixelFormatType(output), kCVPixelFormatType_64RGBAHalf)
     }
 
+    func testCreateMTLTextureCopiesPixelBufferBytesIntoTexture() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 1, height: 1)
+        fill(pixelBuffer: pixelBuffer, withBGRA: [10, 20, 30, 255])
+
+        let texture = try pixelBuffer.c7.createMTLTexture(pixelFormat: .bgra8Unorm)
+        let bytes = try XCTUnwrap(texture.c7.bytes())
+
+        XCTAssertEqual(Array(bytes), [30, 20, 10, 255])
+    }
+
     func testBiPlanarPixelBufferContractPrefersDirectPlaneTopLevelAndDirectPlaneBridge() throws {
         let pixelBuffer = try makeBiPlanarPixelBuffer()
 
@@ -513,6 +523,61 @@ final class PixelBufferOutputTests: XCTestCase {
 
         XCTAssertEqual(output.width, 4)
         XCTAssertEqual(output.height, 4)
+    }
+
+    func testFilteringBiPlanarPixelBufferMaterializesCompatibleOutputBuffer() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferYCbCrMatrixKey,
+            kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+            .shouldPropagate
+        )
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferTransferFunctionKey,
+            kCVImageBufferTransferFunction_sRGB,
+            .shouldPropagate
+        )
+
+        let output: CVPixelBuffer = try HarbethIO(
+            element: pixelBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).output()
+
+        XCTAssertFalse(output === pixelBuffer)
+        XCTAssertEqual(CVPixelBufferGetWidth(output), 4)
+        XCTAssertEqual(CVPixelBufferGetHeight(output), 4)
+        XCTAssertFalse(output.c7.contract.planar)
+        XCTAssertEqual(output.c7.contract.colorPrimariesAttachment, .ituR709_2)
+        XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .sRGB)
+    }
+
+    func testFilteringBiPlanarSampleBufferMaterializesDerivedOutputImageBuffer() throws {
+        let pixelBuffer = try makeBiPlanarPixelBuffer()
+        CVBufferSetAttachment(
+            pixelBuffer,
+            kCVImageBufferYCbCrMatrixKey,
+            kCVImageBufferYCbCrMatrix_ITU_R_709_2,
+            .shouldPropagate
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create bi-planar sample buffer.")
+            return
+        }
+
+        let output: CMSampleBuffer = try HarbethIO(
+            element: sampleBuffer,
+            filter: C7Brightness(brightness: 0.1)
+        ).output()
+
+        guard let outputImageBuffer = CMSampleBufferGetImageBuffer(output) else {
+            return XCTFail("Expected output sample buffer image buffer.")
+        }
+        XCTAssertEqual(output.c7.presentationTimeStamp, sampleBuffer.c7.presentationTimeStamp)
+        XCTAssertFalse(outputImageBuffer === pixelBuffer)
+        XCTAssertFalse(outputImageBuffer.c7.contract.planar)
+        XCTAssertEqual(output.c7.contract.pixelBufferContract?.colorPrimariesAttachment, .ituR709_2)
     }
 
     func testRenderRequestTracksPixelBufferSourceContract() throws {
@@ -1275,6 +1340,29 @@ final class PixelBufferOutputTests: XCTestCase {
             throw XCTSkip()
         }
         return pixelBuffer
+    }
+
+    private func fill(pixelBuffer: CVPixelBuffer, withBGRA pixel: [UInt8]) {
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            XCTFail("Failed to access pixel buffer base address.")
+            return
+        }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let pointer = baseAddress.assumingMemoryBound(to: UInt8.self)
+        for row in 0..<height {
+            let rowStart = row * bytesPerRow
+            for column in 0..<width {
+                let offset = rowStart + column * 4
+                pointer[offset] = pixel[0]
+                pointer[offset + 1] = pixel[1]
+                pointer[offset + 2] = pixel[2]
+                pointer[offset + 3] = pixel[3]
+            }
+        }
     }
 }
 
