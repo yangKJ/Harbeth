@@ -8,13 +8,13 @@
 import Foundation
 import Metal
 
-protocol TransitionKernel: C7FilterProtocol {
-    var toTexture: MTLTexture { get }
+public protocol TransitionKernel: C7FilterProtocol {
+    var toTexture: MTLTexture { get set }
     var progress: Float { get set }
     var auxiliaryTextures: [MTLTexture] { get }
 }
 
-extension TransitionKernel {
+public extension TransitionKernel {
     var otherInputTextures: C7InputTextures {
         [toTexture] + auxiliaryTextures
     }
@@ -25,7 +25,7 @@ extension TransitionKernel {
 }
 
 struct DissolveTransition: TransitionKernel {
-    let toTexture: MTLTexture
+    var toTexture: MTLTexture
     var progress: Float
     var auxiliaryTextures: [MTLTexture] { [] }
 
@@ -39,7 +39,7 @@ struct DissolveTransition: TransitionKernel {
 }
 
 struct DirectionalWipeTransition: TransitionKernel {
-    let toTexture: MTLTexture
+    var toTexture: MTLTexture
     var progress: Float
     var angleDegrees: Float
     var softness: Float
@@ -57,7 +57,7 @@ struct DirectionalWipeTransition: TransitionKernel {
 }
 
 struct LumaWipeTransition: TransitionKernel {
-    let toTexture: MTLTexture
+    var toTexture: MTLTexture
     let lumaTexture: MTLTexture
     var progress: Float
     var softness: Float
@@ -75,7 +75,7 @@ struct LumaWipeTransition: TransitionKernel {
 }
 
 struct DisplacementTransition: TransitionKernel {
-    let toTexture: MTLTexture
+    var toTexture: MTLTexture
     let displacementTexture: MTLTexture
     var progress: Float
     var scale: Float

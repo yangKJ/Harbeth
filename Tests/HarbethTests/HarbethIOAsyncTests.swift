@@ -128,7 +128,7 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(recipe.renderIntent, .stable)
         XCTAssertEqual(recipe.source.kind, "cgImage")
         XCTAssertEqual(recipe.source.sourceTier, .original)
-        XCTAssertEqual(recipe.source.cachePolicy, ImageCachePolicy.persistent)
+        XCTAssertEqual(recipe.source.cachePolicy, ImageCachePolicy.transient)
         XCTAssertEqual(recipe.source.semantic, .sourceOriginal)
         XCTAssertEqual(recipe.outputCachePolicy, ImageCachePolicy.transient)
         XCTAssertEqual(recipe.outputSemantic.role, .derivative)

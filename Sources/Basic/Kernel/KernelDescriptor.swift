@@ -532,11 +532,7 @@ extension KernelDescriptor {
     }
 
     func makeInvocation(filter: C7FilterProtocol, inputSize: C7Size? = nil) -> KernelInvocation {
-        KernelInvocation(
-            descriptor: self,
-            executableFilter: filter,
-            inputSize: inputSize
-        )
+        KernelInvocation(descriptor: self, executableFilter: filter, inputSize: inputSize)
     }
 }
 

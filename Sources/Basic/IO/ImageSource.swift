@@ -101,7 +101,7 @@ public enum ImageSource {
     }
 
     public var cachePolicy: ImageCachePolicy {
-        .persistent
+        .transient
     }
 
     public var kindName: String {

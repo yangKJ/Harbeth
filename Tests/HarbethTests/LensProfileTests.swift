@@ -177,7 +177,7 @@ final class LensProfileTests: XCTestCase {
 
         let node = ImageNode
             .texture(input)
-            .applying(optics: settings)
+            .applying(filters: settings.makeFilters())
 
         let output = try node.makeTexture(profile: .stablePreview)
         let diagnostics = try node.makeDiagnostics(profile: .stablePreview)

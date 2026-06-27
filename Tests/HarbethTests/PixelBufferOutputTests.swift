@@ -538,7 +538,7 @@ final class PixelBufferOutputTests: XCTestCase {
         let renderRecipe = try XCTUnwrap(request.renderRecipe)
 
         XCTAssertEqual(request.source.kind, "pixelBuffer")
-        XCTAssertEqual(request.source.cachePolicy, .persistent)
+        XCTAssertEqual(request.source.cachePolicy, .transient)
         XCTAssertEqual(request.compilationSource, .filtersPrimitive)
         XCTAssertEqual(request.source.pixelBufferContract?.colorModel, .rgba)
         XCTAssertEqual(request.source.pixelBufferBridgePlan?.loadStrategy, .directMetalTexture)

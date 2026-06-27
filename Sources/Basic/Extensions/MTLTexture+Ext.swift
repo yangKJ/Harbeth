@@ -101,12 +101,9 @@ public struct MTLTextureCompatible_ {
         C7Size(width: target.width, height: target.height)
     }
     
-    public func toImage(colorSpace: CGColorSpace? = nil,
-                        alphaType: AlphaType = .premultiplied) -> C7Image? {
-        guard let cgImage = toCGImage(colorSpace: colorSpace, alphaType: alphaType) else {
-            return nil
-        }
-        return cgImage.c7.toC7Image()
+    public func toImage(colorSpace: CGColorSpace? = nil, alphaType: AlphaType = .premultiplied) -> C7Image? {
+        let cgImage = toCGImage(colorSpace: colorSpace, alphaType: alphaType)
+        return cgImage?.c7.toC7Image()
     }
     
     public func fixImageOrientation(refImage: C7Image,
@@ -272,5 +269,4 @@ public struct MTLTextureCompatible_ {
             packedBytesPerRow: packedBytesPerRow
         )
     }
-
 }

@@ -1487,7 +1487,7 @@ final class RenderGraphTests: XCTestCase {
             .applying(C7Contrast(contrast: 1.1))
 
         let snapshot = try node.makeDebugSnapshot()
-        let jsonString = try node.makeDebugSnapshotJSONString(
+        let jsonString = try snapshot.jsonString(
             prettyPrinted: false,
             sortedKeys: true
         )

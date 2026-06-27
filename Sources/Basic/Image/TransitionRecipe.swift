@@ -9,6 +9,7 @@ import Foundation
 import Metal
 
 public enum TransitionKernelDescriptor {
+    case custom(TransitionKernel)
     case dissolve
     case directionalWipe(angleDegrees: Float = 0, softness: Float = 0.02)
     case lumaWipe(lumaSource: ImageSource, softness: Float = 0.1)
@@ -16,6 +17,8 @@ public enum TransitionKernelDescriptor {
 
     var fingerprint: String {
         switch self {
+        case .custom(let filter):
+            return "custom|\(filter.identifier)"
         case .dissolve:
             return "dissolve"
         case .directionalWipe(let angleDegrees, let softness):
@@ -41,6 +44,11 @@ public enum TransitionKernelDescriptor {
 
     func makeFilter(toTexture: MTLTexture, progress: Float) throws -> C7FilterProtocol {
         switch self {
+        case .custom(var filter):
+            // Refresh per-frame source texture and progress; preserve user-provided auxiliary textures.
+            filter.toTexture = toTexture
+            filter.progress = progress
+            return filter
         case .dissolve:
             return DissolveTransition(toTexture: toTexture, progress: progress)
         case .directionalWipe(let angleDegrees, let softness):
