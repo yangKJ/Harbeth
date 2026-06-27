@@ -49,7 +49,10 @@ struct BlendView: View {
                     Image(c7Image: image)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .padding()
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                        .padding(.horizontal, 16)
                     
                     VStack(alignment: .leading) {
                         Picker(blendMode.kernel, selection: $blendMode, content: {
@@ -58,14 +61,15 @@ struct BlendView: View {
                             }
                         })
                         .blendModesPickerStyle()
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.background, lineWidth: 2))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06), lineWidth: 1))
                         
                         VStack(alignment: .leading) {
-                            Text("Intensity: \(intensity, specifier: "%.2f")")
-                            Slider(value: $intensity, in: R.iRange.min...R.iRange.max)
+                            Text("Intensity: \(intensity, specifier: "%.2f")").foregroundColor(.white.opacity(0.94))
+                            Slider(value: $intensity, in: R.iRange.min...R.iRange.max).accentColor(Color(hex: "#5E9EFF"))
                         }
                         .padding()
-                        .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     }
                     .padding()
                 }
@@ -104,3 +108,21 @@ extension Picker {
         #endif
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

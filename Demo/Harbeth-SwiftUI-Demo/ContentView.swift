@@ -8,6 +8,37 @@
 import SwiftUI
 import Harbeth
 
+// MARK: - Platform Layout Strategy
+private enum StudioLayout {
+    case macOSWide, macOSCompact, iOSPhone, iOSiPad
+
+    static func resolved(size: CGSize) -> StudioLayout {
+        #if os(iOS)
+        let idiom = UIDevice.current.userInterfaceIdiom
+        if idiom == .phone { return .iOSPhone }
+        return size.width >= 980 ? .macOSWide : .macOSCompact
+        #else
+        return size.width >= 980 ? .macOSWide : .macOSCompact
+        #endif
+    }
+}
+
+// MARK: - Design System Colors
+fileprivate let dsAccentBlue   = Color(red: 94.0/255.0, green: 158.0/255.0, blue: 255.0/255.0)   // #5E9EFF
+fileprivate let dsAccentPurple = Color(red: 167.0/255.0, green: 139.0/255.0, blue: 250.0/255.0)  // #A78BFA
+fileprivate let dsAccentGreen  = Color(red: 52.0/255.0, green: 211.0/255.0, blue: 153.0/255.0)   // #34D399
+fileprivate let dsAccentAmber  = Color(red: 251.0/255.0, green: 191.0/255.0, blue: 36.0/255.0)   // #FBBF24
+fileprivate let dsSurfaceDeep     = Color(red: 10.0/255.0, green: 10.0/255.0, blue: 12.0/255.0)  // #0A0A0C
+fileprivate let dsSurfaceCard     = Color(red: 20.0/255.0, green: 20.0/255.0, blue: 24.0/255.0)  // #141418
+fileprivate let dsSurfaceElevated = Color(red: 28.0/255.0, green: 28.0/255.0, blue: 34.0/255.0)  // #1C1C22
+fileprivate let dsGlassBg         = Color.white.opacity(0.06)
+fileprivate let dsGlassBorder     = Color.white.opacity(0.10)
+fileprivate let dsBorderSubtle    = Color.white.opacity(0.06)
+fileprivate let dsTextPrimary     = Color.white.opacity(0.94)
+fileprivate let dsTextSecondary   = Color.white.opacity(0.62)
+fileprivate let dsTextTertiary    = Color.white.opacity(0.38)
+
+
 struct ContentView: View {
     @Namespace private var showcaseNamespace
     @State private var route: ShowcaseRoute = .showcase
@@ -15,9 +46,11 @@ struct ContentView: View {
     @State private var studioEntryID = UUID()
     @State private var studioSeed = StudioRecipe.heroRecipe
 
+    @Environment(\.colorScheme) private var systemColorScheme
+
     var body: some View {
         ZStack {
-            Color.black
+            (systemColorScheme == .dark ? Color.black : Color.white)
                 .ignoresSafeArea()
 
             if route == .showcase {
@@ -49,7 +82,10 @@ struct ContentView: View {
                 LabsView(onDone: { showsLabs = false })
                     .inlineNavigationBarTitle("Labs")
             }
-            .stackNavigationViewStyle()
+            #if os(macOS)
+            .navigationViewStyle(.automatic)
+            .frame(minWidth: 800, minHeight: 600)
+            #endif
         }
     }
 
@@ -74,8 +110,6 @@ private struct ShowcaseHomeView: View {
 
     @State private var activeStoryID = StudioStory.showcaseStories[0].id
     @State private var heroSplit: CGFloat = 0.64
-
-    private let timer = Timer.publish(every: 4.2, on: .main, in: .common).autoconnect()
 
     private var stories: [StudioStory] {
         StudioStory.showcaseStories
@@ -120,8 +154,23 @@ private struct ShowcaseHomeView: View {
                         onOpenStory: openStory
                     )
 
+                    HStack(spacing: 0) {
+                        Spacer()
+                        ShowcasePageIndicator(
+                            total: stories.count,
+                            activeIndex: stories.firstIndex(where: { $0.id == activeStoryID }) ?? 0,
+                            onSelect: { idx in
+                                withAnimation(.spring(response: 0.6, dampingFraction: 0.86)) {
+                                    activeStoryID = stories[idx].id
+                                }
+                            }
+                        )
+                        Spacer()
+                    }
+
                     showcaseSignalStrip
                     showcaseGallery
+                    showcaseLabsEntry
                 }
                 .padding(.horizontal, isWide ? 32 : 18)
                 .padding(.top, isWide ? 24 : 16)
@@ -131,14 +180,6 @@ private struct ShowcaseHomeView: View {
                 ShowcaseBackdrop(image: activeStory.recipe.sourceImage)
             )
         }
-        .onReceive(timer) { _ in
-            guard let currentIndex = stories.firstIndex(where: { $0.id == activeStoryID }) else { return }
-            let nextIndex = (currentIndex + 1) % stories.count
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.88)) {
-                activeStoryID = stories[nextIndex].id
-                heroSplit = heroSplit > 0.5 ? 0.34 : 0.68
-            }
-        }
     }
 
     private var showcaseTopBar: some View {
@@ -146,13 +187,23 @@ private struct ShowcaseHomeView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Harbeth")
                     .font(.headline)
-                    .foregroundColor(.white.opacity(0.96))
+                    .foregroundColor(dsTextPrimary)
                 Text("SwiftUI Showcase")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.52))
+                    .foregroundColor(dsTextTertiary)
             }
             Spacer()
-            ShowcaseGhostButton(title: "Open Labs", icon: "square.grid.2x2", action: openLabs)
+            HStack(spacing: 8) {
+                Link(destination: URL(string: "https://github.com/yangKJ/Harbeth")!) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "link")
+                        Text("GitHub")
+                    }
+                    .font(.caption)
+                    .foregroundColor(dsTextSecondary)
+                }
+                ShowcaseGhostButton(title: "Open Labs", icon: "square.grid.2x2", action: openLabs)
+            }
         }
     }
 
@@ -160,16 +211,22 @@ private struct ShowcaseHomeView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text(activeStory.kicker.uppercased())
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.white.opacity(0.62))
+                .foregroundColor(dsTextSecondary)
 
             Text(activeStory.title)
                 .font(.system(size: 48, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.white, dsAccentBlue.opacity(0.7)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(activeStory.subtitle)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.72))
+                .foregroundColor(dsTextSecondary)
 
             HStack(spacing: 10) {
                 CapabilityTag(text: "Image Editing")
@@ -181,22 +238,102 @@ private struct ShowcaseHomeView: View {
                 ShowcasePrimaryButton(title: "Start Editing") {
                     openStory(activeStory)
                 }
+                .accessibilityLabel("Start editing \(activeStory.title)")
+                .accessibilityHint("Opens the photo studio editor with this filter recipe")
                 ShowcaseGhostButton(title: "Open Labs", icon: "sparkles.tv", action: openLabs)
+            }
+
+            DisclosureGroup {
+                Text(codeSnippet)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(dsTextPrimary.opacity(0.85))
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(dsGlassBg, in: RoundedRectangle(cornerRadius: 10))
+            } label: {
+                Text("Show code snippet")
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(dsTextSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var codeSnippet: String {
+        let lookName = activeStory.recipe.lookPreset.title
+        return """
+        // Harbeth filter chain example — GPU-accelerated via Metal Performance Shaders
+        let source = C7Image(named: "\(activeStory.recipe.sourceName.resourceName)")
+        let filters: [C7FilterProtocol] = [
+            C7ColorCube(cubeName: "\(lookName.lowercased())", intensity: 0.85),
+            C7Exposure(exposure: \(String(format: "%.2f", activeStory.recipe.exposure))),
+            C7Contrast(contrast: \(String(format: "%.2f", activeStory.recipe.contrast))),
+            C7Saturation(saturation: \(String(format: "%.2f", activeStory.recipe.saturation))),
+            C7Temperature(temperature: \(String(format: "%.0f", activeStory.recipe.temperature)))
+        ]
+        var dest = HarbethIO(element: source, filters: filters)
+        let result = try dest.output()
+        """
+    }
+
     private var showcaseSignalStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ShowcaseSignalPill(title: "Texture-first", subtitle: "Interactive path")
-                ShowcaseSignalPill(title: "Preview / Final", subtitle: "Same recipe")
-                ShowcaseSignalPill(title: "Sharpen / Denoise", subtitle: "Detail recovery")
-                ShowcaseSignalPill(title: "Blend", subtitle: "Dual input proof")
-                ShowcaseSignalPill(title: "Crop / Rotate", subtitle: "Geometry layer")
+                ShowcaseSignalPill(title: "Metal Performance Shaders", subtitle: "GPU-accelerated zero-copy pipeline")
+                ShowcaseSignalPill(title: "Preview / Final", subtitle: "Same recipe, dual-surface render")
+                ShowcaseSignalPill(title: "Sharpen / Denoise", subtitle: "Unsharp mask + noise reduction")
+                ShowcaseSignalPill(title: "Dual-input Blend", subtitle: "Multi-texture compositing proof")
+                ShowcaseSignalPill(title: "Crop / Rotate", subtitle: "Geometry layer with resize")
             }
         }
+    }
+
+    private var showcaseLabsEntry: some View {
+        Button(action: openLabs) {
+            HStack(spacing: 0) {
+                // Accent glow bar
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(dsAccentBlue)
+                    .frame(width: 4)
+                    .padding(.vertical, 20)
+
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Explore Labs")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(dsTextPrimary)
+                        Text("Color pipeline, composite tests, kernel experiments, and focused capability checks.")
+                            .font(.subheadline)
+                            .foregroundColor(dsTextSecondary)
+                            .multilineTextAlignment(.leading)
+                        HStack(spacing: 8) {
+                            CapabilityTag(text: "LUT · Curves · HSL")
+                            CapabilityTag(text: "Blend · Key · Buffer")
+                            CapabilityTag(text: "Kernel Examples")
+                        }
+                    }
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Text("Open Labs")
+                            .font(.subheadline.weight(.semibold))
+                        Image(systemName: "arrow.right")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundColor(dsAccentBlue)
+                }
+                .padding(22)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(dsGlassBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(dsGlassBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var showcaseGallery: some View {
@@ -204,11 +341,11 @@ private struct ShowcaseHomeView: View {
             HStack {
                 Text("Selected Frames")
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(dsTextPrimary)
                 Spacer()
                 Text("Tap a scene to jump into the studio.")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.52))
+                    .foregroundColor(dsTextTertiary)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -232,19 +369,35 @@ private struct ShowcaseBackdrop: View {
 
     var body: some View {
         ZStack {
+            // Deep base layer
+            dsSurfaceDeep.ignoresSafeArea()
+
             Image(c7Image: image)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .blur(radius: 90)
                 .scaleEffect(1.18)
-                .overlay(Color.black.opacity(0.42))
+                .overlay(Color.black.opacity(0.34))
                 .ignoresSafeArea()
+
+            // Subtle radial accent glow
+            RadialGradient(
+                colors: [
+                    dsAccentBlue.opacity(0.06),
+                    dsAccentBlue.opacity(0.02),
+                    Color.clear
+                ],
+                center: .topLeading,
+                startRadius: 120,
+                endRadius: 600
+            )
+            .ignoresSafeArea()
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.72),
-                    Color.black.opacity(0.28),
-                    Color.black.opacity(0.76)
+                    Color.black.opacity(0.48),
+                    Color.black.opacity(0.18),
+                    Color.black.opacity(0.52)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -262,6 +415,7 @@ private struct ShowcaseHeroStage: View {
     @State private var previewOutput: StudioRenderOutput?
     @State private var finalOutput: StudioRenderOutput?
     @State private var errorMessage: String?
+    @State private var renderWorkItem: DispatchWorkItem?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -275,12 +429,12 @@ private struct ShowcaseHeroStage: View {
         }
         .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.ultraThinMaterial.opacity(0.9))
+            RoundedRectangle(cornerRadius: 14)
+                .fill(dsSurfaceCard)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(dsGlassBorder, lineWidth: 1)
         )
         .onAppear(perform: renderStory)
         .onChange(of: story.id) { _ in
@@ -351,21 +505,26 @@ private struct ShowcaseHeroStage: View {
             }
         }
         .padding(14)
-        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 8))
+        .background(dsGlassBg, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func showcaseLabel(title: String) -> some View {
         Text(title)
             .font(.caption.weight(.semibold))
-            .foregroundColor(.white)
+            .foregroundColor(dsTextPrimary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color.black.opacity(0.46), in: Capsule())
+            .background(dsSurfaceElevated.opacity(0.7), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(dsGlassBorder, lineWidth: 1)
+            )
     }
 
     private func renderStory() {
+        renderWorkItem?.cancel()
         let currentStory = story
-        DispatchQueue.global(qos: .userInitiated).async {
+        let workItem = DispatchWorkItem {
             let previewResult = Result(catching: {
                 try StudioRenderer.render(recipe: currentStory.recipe, surface: .preview)
             })
@@ -389,6 +548,8 @@ private struct ShowcaseHeroStage: View {
                 }
             }
         }
+        renderWorkItem = workItem
+        DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
     }
 }
 
@@ -404,7 +565,7 @@ private struct ShowcaseStoryPicker: View {
                     Button {
                         withAnimation(.spring(response: 0.6, dampingFraction: 0.86)) {
                             activeStoryID = story.id
-                    }
+                        }
                     } label: {
                         ZStack(alignment: .bottomLeading) {
                             Image(c7Image: story.recipe.sourceImage)
@@ -412,42 +573,44 @@ private struct ShowcaseStoryPicker: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 248, height: 172)
                                 .clipped()
-
+                            
                             LinearGradient(
                                 colors: [
                                     .clear,
-                                    Color.black.opacity(0.1),
-                                    Color.black.opacity(0.84)
+                                    dsSurfaceCard.opacity(0.3),
+                                    dsSurfaceCard.opacity(0.9)
                                 ],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
-
+                            
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(story.kicker.uppercased())
                                     .font(.caption2.weight(.semibold))
-                                    .foregroundColor(.white.opacity(0.62))
+                                    .foregroundColor(dsTextSecondary)
                                 Text(story.title)
                                     .font(.headline)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(dsTextPrimary)
                                 Text(story.badgeText)
                                     .font(.caption.weight(.medium))
-                                    .foregroundColor(.white.opacity(0.84))
+                                    .foregroundColor(dsAccentBlue.opacity(0.85))
                             }
                             .padding(16)
                         }
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(activeStoryID == story.id ? Color.white.opacity(0.16) : Color.white.opacity(0.08))
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(activeStoryID == story.id ? dsGlassBg : dsSurfaceCard.opacity(0.5))
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(activeStoryID == story.id ? Color.white.opacity(0.32) : Color.white.opacity(0.08), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(activeStoryID == story.id ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: activeStoryID == story.id ? 1.5 : 1)
                         )
-                        .scaleEffect(activeStoryID == story.id ? 1.0 : 0.97)
+                        .scaleEffect(activeStoryID == story.id ? 1.0 : 0.96)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(story.title)
+                    .accessibilityHint("Double-tap to view \(story.kicker) preview")
                     .contextMenu {
                         Button("Start Editing") {
                             onOpenStory(story)
@@ -459,25 +622,54 @@ private struct ShowcaseStoryPicker: View {
     }
 }
 
+private struct ShowcasePageIndicator: View {
+    let total: Int
+    let activeIndex: Int
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<total, id: \.self) { index in
+                Button {
+                    onSelect(index)
+                } label: {
+                    Circle()
+                        .fill(index == activeIndex ? dsAccentBlue : Color.white.opacity(0.24))
+                        .frame(width: 8, height: 8)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
 private struct ShowcaseSignalPill: View {
     let title: String
     let subtitle: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(.white)
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundColor(.white.opacity(0.58))
+        HStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(dsAccentBlue)
+                .frame(width: 3)
+                .padding(.vertical, 8)
+                .padding(.trailing, 10)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(dsTextPrimary)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(dsTextTertiary)
+            }
+            .padding(.vertical, 8)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Color.white.opacity(0.08), in: Capsule())
+        .background(dsGlassBg, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(dsGlassBorder, lineWidth: 1)
         )
     }
 }
@@ -496,41 +688,51 @@ private struct ShowcaseThumbnailCard: View {
                     .frame(width: 280, height: 210)
                     .clipped()
 
+                // Glass gradient overlay
                 LinearGradient(
                     colors: [
                         .clear,
-                        Color.black.opacity(0.12),
-                        Color.black.opacity(0.84)
+                        dsSurfaceCard.opacity(0.4),
+                        dsSurfaceCard.opacity(0.92)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
 
                 VStack(alignment: .leading, spacing: 8) {
+                    if isActive {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(dsAccentBlue)
+                            .frame(width: 24, height: 3)
+                    }
                     Text(story.title)
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(dsTextPrimary)
                     Text(story.cardSummary)
                         .font(.caption)
-                        .foregroundColor(.white.opacity(0.72))
+                        .foregroundColor(dsTextSecondary)
                     HStack {
                         CapabilityTag(text: story.badgeText)
                         Spacer()
                         Image(systemName: "arrow.up.right")
-                            .foregroundColor(.white.opacity(0.72))
+                            .foregroundColor(dsTextSecondary)
                     }
                 }
                 .padding(16)
             }
             .frame(width: 280, height: 210)
-            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .background(dsGlassBg, in: RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isActive ? Color.white.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isActive ? dsAccentBlue.opacity(0.5) : dsGlassBorder, lineWidth: isActive ? 1.5 : 1)
             )
+            .scaleEffect(isActive ? 1.02 : 0.98)
         }
         .buttonStyle(.plain)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isActive)
+        .accessibilityLabel(story.title)
+        .accessibilityHint("Double-tap to open \(story.kicker) in the studio editor")
     }
 }
 
@@ -544,22 +746,22 @@ private struct ShowcaseBandCard<Content: View>: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.title3.weight(.semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(dsTextPrimary)
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.62))
+                    .foregroundColor(dsTextSecondary)
             }
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(22)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.06))
+            RoundedRectangle(cornerRadius: 14)
+                .fill(dsGlassBg)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(dsGlassBorder, lineWidth: 1)
         )
     }
 }
@@ -572,16 +774,16 @@ private struct ShowcaseResultCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(dsTextPrimary)
             Text(detail)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.68))
+                .foregroundColor(dsTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(dsGlassBg)
         )
     }
 }
@@ -594,16 +796,16 @@ private struct ShowcaseSignalCard: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.white.opacity(0.52))
+                .foregroundColor(dsTextSecondary)
             Text(subtitle)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(dsTextPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.05))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(dsGlassBg)
         )
     }
 }
@@ -616,13 +818,14 @@ private struct ShowcasePrimaryButton: View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(.black)
-                .padding(.horizontal, 18)
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white)
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(dsAccentBlue)
                 )
+                .shadow(color: dsAccentBlue.opacity(0.35), radius: 12, x: 0, y: 4)
         }
         .buttonStyle(.plain)
     }
@@ -637,16 +840,16 @@ private struct ShowcaseGhostButton: View {
         Button(action: action) {
             Label(title, systemImage: icon)
                 .font(.subheadline.weight(.medium))
-                .foregroundColor(.white.opacity(0.92))
+                .foregroundColor(dsTextSecondary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(dsGlassBg)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(dsGlassBorder, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -657,12 +860,21 @@ private struct CapabilityTag: View {
     let text: String
 
     var body: some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .foregroundColor(.white.opacity(0.92))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.white.opacity(0.08), in: Capsule())
+        HStack(spacing: 5) {
+            Circle()
+                .fill(dsAccentBlue.opacity(0.7))
+                .frame(width: 5, height: 5)
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(dsTextPrimary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(dsGlassBg, in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(dsGlassBorder, lineWidth: 1)
+        )
     }
 }
 
@@ -699,6 +911,9 @@ private struct PhotoStudioView: View {
     @State private var isRendering = false
     @State private var renderGeneration = UUID()
     @State private var splitPosition: CGFloat = 0.52
+    @State private var renderWorkItem: DispatchWorkItem?
+    @State private var isSaving = false
+    @State private var isParamExpanded = false
 
     init(
         namespace: Namespace.ID,
@@ -717,41 +932,19 @@ private struct PhotoStudioView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let isWide = proxy.size.width >= 980
-            let compactWidth = max(proxy.size.width - 32, 0)
+            let layout = StudioLayout.resolved(size: proxy.size)
             ZStack {
                 StudioBackdrop(image: activeOutput?.image ?? recipe.sourceImage)
-
-                VStack(spacing: 0) {
-                    studioTopBar(isWide: isWide)
-                        .frame(maxWidth: isWide ? .infinity : compactWidth, alignment: .leading)
-                        .padding(.horizontal, isWide ? 24 : 16)
-                        .padding(.top, isWide ? 20 : 14)
-                        .padding(.bottom, 12)
-
-                    if isWide {
-                        HStack(spacing: 20) {
-                            studioCanvas(isCompact: false)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            studioInspector
-                                .frame(width: 340)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 22)
-                    } else {
-                        VStack(spacing: 16) {
-                            studioCanvas(isCompact: true)
-                                .frame(width: compactWidth, alignment: .leading)
-                                .frame(maxHeight: .infinity)
-                            compactStudioControls
-                                .frame(width: compactWidth, alignment: .leading)
-                        }
-                        .frame(width: compactWidth, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 18)
-                    }
+                switch layout {
+                case .macOSWide:
+                    macOSWideBody(proxy: proxy)
+                case .macOSCompact:
+                    macOSCompactBody(proxy: proxy)
+                case .iOSPhone:
+                    iOSPhoneBody(proxy: proxy)
+                case .iOSiPad:
+                    macOSWideBody(proxy: proxy)
                 }
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             }
             .onAppear(perform: refreshRenders)
             .onChange(of: recipe) { _ in
@@ -771,6 +964,7 @@ private struct PhotoStudioView: View {
                     studioTopChip(title: recipe.sourceName.title)
                     studioTopChip(title: activeRenderSurface.title)
                     controlsMenu
+                    saveShareButton
                     labsButton
                 }
             }
@@ -779,6 +973,7 @@ private struct PhotoStudioView: View {
                 HStack(spacing: 10) {
                     backButton
                     Spacer(minLength: 0)
+                    saveShareButton
                     labsButton
                 }
 
@@ -794,19 +989,79 @@ private struct PhotoStudioView: View {
         }
     }
 
+    private var saveShareButton: some View {
+        Button {
+            saveImage()
+        } label: {
+            HStack(spacing: 6) {
+                if isSaving {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .tint(.white)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                Text("Export")
+            }
+            .font(.caption.weight(.medium))
+            .foregroundColor(dsTextPrimary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(dsGlassBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(dsGlassBorder, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isSaving || (activeOutput == nil && exportOutput == nil))
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func saveImage() {
+        guard let image = (activeOutput?.image ?? exportOutput?.image) else { return }
+        isSaving = true
+        #if os(macOS)
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = "Harbeth_Export.png"
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                if let data = image.pngData() {
+                    try? data.write(to: url)
+                }
+            }
+            isSaving = false
+        }
+        #else
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        isSaving = false
+        #endif
+    }
+
     private var backButton: some View {
         Button(action: onBackToShowcase) {
             HStack(spacing: 8) {
                 Image(systemName: "chevron.left")
                 Text("Showcase")
             }
+            .accessibilityLabel("Back to Showcase")
+            .accessibilityHint("Returns to the filter story gallery")
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(.white.opacity(0.92))
+            .foregroundColor(dsTextSecondary)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.08), in: Capsule())
+            .background(dsGlassBg, in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(dsGlassBorder, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var controlsMenu: some View {
@@ -828,18 +1083,25 @@ private struct PhotoStudioView: View {
         .buttonStyle(.plain)
     }
 
-    private func studioTopChip(title: String, icon: String? = nil) -> some View {
-        HStack(spacing: 6) {
+    private func studioTopChip(title: String, icon: String? = nil, compact: Bool = false) -> some View {
+        HStack(spacing: compact ? 4 : 6) {
             if let icon {
                 Image(systemName: icon)
+                #if os(iOS)
+                    .font(compact ? .caption2 : .caption)
+                #endif
             }
             Text(title)
         }
-        .font(.caption.weight(.semibold))
-        .foregroundColor(.white.opacity(0.94))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(0.08), in: Capsule())
+        .font(compact ? .caption2 : .caption.weight(.semibold))
+        .foregroundColor(dsTextPrimary)
+        .padding(.horizontal, compact ? 8 : 12)
+        .padding(.vertical, compact ? 6 : 8)
+        .background(dsGlassBg, in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(dsGlassBorder, lineWidth: 1)
+        )
         .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -868,8 +1130,9 @@ private struct PhotoStudioView: View {
         }
     }
 
-    private func studioCanvas(isCompact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+    private func studioCanvas(isCompact: Bool, canvasStageHeight: CGFloat? = nil) -> some View {
+        let stageHeight = canvasStageHeight ?? 420
+        return VStack(alignment: .leading, spacing: 16) {
             if isCompact {
                 VStack(alignment: .leading, spacing: 12) {
                     studioCanvasTitle(isCompact: true)
@@ -885,14 +1148,14 @@ private struct PhotoStudioView: View {
             }
 
             ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(0.06))
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(dsSurfaceCard)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(dsBorderSubtle, lineWidth: 1)
                     )
 
-                canvasStage
+                canvasStage(height: stageHeight)
                     .padding(18)
 
                 VStack(alignment: .leading, spacing: 12) {
@@ -926,13 +1189,13 @@ private struct PhotoStudioView: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(recipe.sourceName.heroTitle)
                 .font((isCompact ? Font.title3 : Font.title2).weight(.semibold))
-                .foregroundColor(.white)
-                .lineLimit(isCompact ? 3 : 2)
+                .foregroundColor(dsTextPrimary)
+                .lineLimit(nil)
                 .multilineTextAlignment(.leading)
             Text(recipe.sourceName.heroSubtitle)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.62))
-                .lineLimit(isCompact ? 4 : 3)
+                .foregroundColor(dsTextSecondary)
+                .lineLimit(nil)
                 .multilineTextAlignment(.leading)
             studioRecipeSummary
         }
@@ -950,12 +1213,16 @@ private struct PhotoStudioView: View {
                     } label: {
                         Text(mode.title)
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(comparisonMode == mode ? .black : .white.opacity(0.84))
-                            .padding(.horizontal, 12)
+                            .foregroundColor(comparisonMode == mode ? .white : dsTextSecondary)
+                            .padding(.horizontal, 10)
                             .padding(.vertical, 8)
                             .background(
                                 Capsule()
-                                    .fill(comparisonMode == mode ? Color.white : Color.white.opacity(0.08))
+                                    .fill(comparisonMode == mode ? dsAccentBlue : dsGlassBg)
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(comparisonMode == mode ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: 1)
                             )
                     }
                     .buttonStyle(.plain)
@@ -963,6 +1230,7 @@ private struct PhotoStudioView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .layoutPriority(-1)
     }
 
     private var studioRecipeSummary: some View {
@@ -984,22 +1252,27 @@ private struct PhotoStudioView: View {
     }
 
     @ViewBuilder
-    private var canvasStage: some View {
+    private func canvasStage(height: CGFloat = 420) -> some View {
         if let renderError {
             StudioMessageView(message: renderError)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if isRendering && previewOutput == nil && exportOutput == nil {
-            ProgressView("Rendering...")
-                .tint(.white)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .tint(.white)
+                Text("Processing filters via Metal GPU pipeline...")
+                    .font(.caption)
+                    .foregroundColor(dsTextTertiary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             switch comparisonMode {
             case .original:
-                PreviewImageCard(title: "Original", image: recipe.sourceImage, height: 420)
+                PreviewImageCard(title: "Original", image: recipe.sourceImage, height: height)
             case .edited:
                 if let output = activeOutput {
-                    PreviewImageCard(title: activeRenderSurface.previewTitle, image: output.image, height: 420)
+                    PreviewImageCard(title: activeRenderSurface.previewTitle, image: output.image, height: height)
                 } else {
                     StudioMessageView(message: "No rendered output.")
                 }
@@ -1010,7 +1283,7 @@ private struct PhotoStudioView: View {
                         edited: output.image,
                         splitPosition: $splitPosition
                     )
-                    .frame(minHeight: 420)
+                    .frame(minHeight: height)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else {
                     StudioMessageView(message: "No rendered output.")
@@ -1031,7 +1304,7 @@ private struct PhotoStudioView: View {
     }
 
     private var floatingModeStrip: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             ForEach(StudioToolGroup.editingCases) { group in
                 Button {
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.86)) {
@@ -1040,11 +1313,15 @@ private struct PhotoStudioView: View {
                 } label: {
                     Image(systemName: group.symbolName)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(selectedTool == group ? .black : .white.opacity(0.88))
+                        .foregroundColor(selectedTool == group ? .white : dsTextSecondary)
                         .frame(width: 38, height: 38)
                         .background(
                             Circle()
-                                .fill(selectedTool == group ? Color.white : Color.black.opacity(0.32))
+                                .fill(selectedTool == group ? dsAccentBlue : dsGlassBg)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(selectedTool == group ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -1056,37 +1333,41 @@ private struct PhotoStudioView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption2)
-                .foregroundColor(.white.opacity(0.56))
+                .foregroundColor(dsTextTertiary)
             Text(value)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.white)
+                .foregroundColor(dsTextPrimary)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .background(Color.black.opacity(0.34), in: Capsule())
+        .background(dsSurfaceElevated.opacity(0.6), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(dsGlassBorder, lineWidth: 1)
+        )
     }
 
     private var studioInspector: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             StudioToolRail(selectedTool: $selectedTool)
             activeToolPanel(isCompact: false)
             StudioStatusCard(recipe: recipe, previewOutput: previewOutput, exportOutput: exportOutput)
         }
         .padding(18)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.06))
+            RoundedRectangle(cornerRadius: 14)
+                .fill(dsSurfaceCard)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(dsBorderSubtle, lineWidth: 1)
         )
     }
 
     private var compactStudioControls: some View {
         VStack(spacing: 14) {
             Capsule()
-                .fill(Color.white.opacity(0.24))
+                .fill(dsTextTertiary)
                 .frame(width: 38, height: 4)
                 .padding(.top, 4)
 
@@ -1101,11 +1382,15 @@ private struct PhotoStudioView: View {
                             VStack(spacing: 6) {
                                 Image(systemName: group.symbolName)
                             }
-                            .foregroundColor(selectedTool == group ? .black : .white.opacity(0.88))
+                            .foregroundColor(selectedTool == group ? .white : dsTextSecondary)
                             .frame(width: 58, height: 58)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(selectedTool == group ? Color.white : Color.white.opacity(0.08))
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(selectedTool == group ? dsAccentBlue : dsGlassBg)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(selectedTool == group ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: 1)
                             )
                         }
                         .buttonStyle(.plain)
@@ -1120,11 +1405,11 @@ private struct PhotoStudioView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(Color.black.opacity(0.42))
+                .fill(dsSurfaceCard)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(dsBorderSubtle, lineWidth: 1)
         )
     }
 
@@ -1154,10 +1439,10 @@ private struct PhotoStudioView: View {
             }
         case .adjust:
             StudioPanelCard(title: "Adjust", subtitle: "Exposure, tone, and warmth remain immediate and cinematic.") {
-                sliderRow(title: "Exposure", value: $recipe.exposure, range: -1.2...1.2)
-                sliderRow(title: "Contrast", value: $recipe.contrast, range: 0.6...1.8)
-                sliderRow(title: "Saturation", value: $recipe.saturation, range: 0...2)
-                sliderRow(title: "Temperature", value: $recipe.temperature, range: 3500...7600, format: "%.0f")
+                FilterSlider(title: "Exposure", value: $recipe.exposure, range: -1.2...1.2)
+                FilterSlider(title: "Contrast", value: $recipe.contrast, range: 0.6...1.8)
+                FilterSlider(title: "Saturation", value: $recipe.saturation, range: 0...2)
+                FilterSlider(title: "Temperature", value: $recipe.temperature, range: 3500...7600, format: "%.0f")
             }
         case .crop:
             StudioPanelCard(title: "Crop", subtitle: "Frame the image first, then let the edit breathe.") {
@@ -1184,9 +1469,9 @@ private struct PhotoStudioView: View {
             }
         case .detail:
             StudioPanelCard(title: "Detail", subtitle: "Recover sharpness and suppress noise without over-explaining the pipeline.") {
-                sliderRow(title: "Sharpen", value: $recipe.sharpen, range: 0...1.6)
-                sliderRow(title: "Denoise", value: $recipe.noiseReduction, range: 0...1)
-                sliderRow(title: "Edge Preserve", value: $recipe.edgePreservation, range: 0.2...0.95)
+                FilterSlider(title: "Sharpen", value: $recipe.sharpen, range: 0...1.6)
+                FilterSlider(title: "Denoise", value: $recipe.noiseReduction, range: 0...1)
+                FilterSlider(title: "Edge Preserve", value: $recipe.edgePreservation, range: 0.2...0.95)
                 Picker("Resize", selection: $recipe.resizeQuality) {
                     ForEach(StudioResizeQuality.allCases) { quality in
                         Text(quality.title).tag(quality)
@@ -1202,14 +1487,15 @@ private struct PhotoStudioView: View {
                     }
                 }
                 .pickerStyle(MenuPickerStyle())
-                sliderRow(title: "Intensity", value: $recipe.blendIntensity, range: 0...1)
+                FilterSlider(title: "Intensity", value: $recipe.blendIntensity, range: 0...1)
                 Text("Composite stays part of the frame processor. The Demo does not turn it into a media workflow.")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.62))
+                    .foregroundColor(dsTextTertiary)
             }
         }
     }
 
+    @available(*, deprecated, message: "Use FilterSlider instead")
     private func sliderRow(
         title: String,
         value: Binding<Float>,
@@ -1243,13 +1529,14 @@ private struct PhotoStudioView: View {
     }
 
     private func refreshRenders() {
+        renderWorkItem?.cancel()
         let currentGeneration = UUID()
         let currentRecipe = recipe
         renderGeneration = currentGeneration
         renderError = nil
         isRendering = true
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        let workItem = DispatchWorkItem {
             let previewResult = Result(catching: {
                 try StudioRenderer.render(recipe: currentRecipe, surface: .preview)
             })
@@ -1278,6 +1565,151 @@ private struct PhotoStudioView: View {
                 }
             }
         }
+        renderWorkItem = workItem
+        DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
+    }
+
+    // MARK: - Platform Body Methods
+
+    private func macOSWideBody(proxy: GeometryProxy) -> some View {
+        VStack(spacing: 0) {
+            studioTopBar(isWide: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 12)
+            HStack(spacing: 20) {
+                studioCanvas(isCompact: false)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ScrollView(.vertical, showsIndicators: false) {
+                    studioInspector
+                }
+                .frame(width: 340)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 22)
+        }
+        //.frame(minWidth: proxy.size.width, maxHeight: proxy.size.height, alignment: .topLeading)
+    }
+
+    private func macOSCompactBody(proxy: GeometryProxy) -> some View {
+        let compactWidth = max(proxy.size.width - 32, 0)
+        return VStack(spacing: 0) {
+            studioTopBar(isWide: false)
+                .frame(maxWidth: compactWidth, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 12)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 16) {
+                    studioCanvas(isCompact: true)
+                        .frame(width: compactWidth, alignment: .leading)
+                        .frame(minHeight: 420)
+                    compactStudioControls
+                        .frame(width: compactWidth, alignment: .leading)
+                }
+                .frame(width: compactWidth, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 18)
+            }
+        }
+        .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)
+    }
+
+    private func iOSPhoneBody(proxy: GeometryProxy) -> some View {
+        VStack(spacing: 0) {
+            // Top bar 44pt — backButton + source · renderSurface chips only
+            HStack(spacing: 8) {
+                backButton
+                Spacer()
+                studioTopChip(title: recipe.sourceName.title, compact: true)
+                studioTopChip(title: activeRenderSurface.title, compact: true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(height: 44)
+            .background(dsGlassBg)
+
+            // Full-screen canvas area
+            studioCanvas(isCompact: true, canvasStageHeight: 280)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+
+            // Asset horizontal scroll bar 36pt
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(StudioSourceAsset.editingCases) { asset in
+                        StudioAssetPillCompact(
+                            title: asset.title,
+                            isSelected: recipe.sourceName == asset
+                        ) {
+                            recipe = StudioRecipe.seed(for: asset)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+            }
+            .frame(height: 36)
+
+            // Bottom toolbar 56pt — 4 tool icons + export
+            HStack(spacing: 16) {
+                ForEach(StudioToolGroup.editingCases) { group in
+                    Button {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.86)) {
+                            if selectedTool == group {
+                                isParamExpanded.toggle()
+                            } else {
+                                selectedTool = group
+                                isParamExpanded = true
+                            }
+                        }
+                    } label: {
+                        Image(systemName: group.symbolName)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(selectedTool == group ? .white : dsTextSecondary)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(selectedTool == group ? dsAccentBlue : dsGlassBg)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(selectedTool == group ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+                saveShareButton
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(height: 56)
+            .background(dsGlassBg)
+
+            // Parameter panel — slides up from bottom when a tool is selected
+            if isParamExpanded {
+                VStack(spacing: 0) {
+                    Capsule()
+                        .fill(dsTextTertiary)
+                        .frame(width: 38, height: 4)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
+                    ScrollView {
+                        activeToolPanel(isCompact: true)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 16)
+                    }
+                }
+                .frame(maxHeight: proxy.size.height * 0.45)
+                .background(
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(dsSurfaceCard)
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)
     }
 }
 
@@ -1286,19 +1718,21 @@ private struct StudioBackdrop: View {
 
     var body: some View {
         ZStack {
+            dsSurfaceDeep.ignoresSafeArea()
+
             Image(c7Image: image)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .blur(radius: 100)
                 .scaleEffect(1.16)
-                .overlay(Color.black.opacity(0.54))
+                .overlay(Color.black.opacity(0.40))
                 .ignoresSafeArea()
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.74),
-                    Color.black.opacity(0.24),
-                    Color.black.opacity(0.78)
+                    Color.black.opacity(0.50),
+                    Color.black.opacity(0.16),
+                    Color.black.opacity(0.54)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -1334,19 +1768,20 @@ private struct SplitComparisonView: View {
                     )
 
                 Rectangle()
-                    .fill(Color.white.opacity(0.92))
+                    .fill(dsAccentBlue.opacity(0.8))
                     .frame(width: 2)
                     .frame(maxHeight: .infinity)
                     .offset(x: proxy.size.width * clamped)
 
                 Circle()
-                    .fill(Color.white)
+                    .fill(dsAccentBlue)
                     .frame(width: 34, height: 34)
                     .overlay(
                         Image(systemName: "arrow.left.and.right")
                             .font(.caption.weight(.bold))
-                            .foregroundColor(.black)
+                            .foregroundColor(.white)
                     )
+                    .shadow(color: dsAccentBlue.opacity(0.4), radius: 8, x: 0, y: 2)
                     .offset(x: proxy.size.width * clamped - 17)
                     .frame(maxHeight: .infinity)
             }
@@ -1378,12 +1813,16 @@ private struct StudioToolRail: View {
                         Text(group.title)
                             .font(.subheadline.weight(.semibold))
                     }
-                    .foregroundColor(selectedTool == group ? .black : .white.opacity(0.92))
+                    .foregroundColor(selectedTool == group ? .white : dsTextSecondary)
                     .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
                     .padding(12)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(selectedTool == group ? Color.white : Color.white.opacity(0.08))
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(selectedTool == group ? dsAccentBlue : dsGlassBg)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(selectedTool == group ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -1398,10 +1837,14 @@ private struct StudioMetaPill: View {
     var body: some View {
         Text(title)
             .font(.caption2.weight(.semibold))
-            .foregroundColor(.white.opacity(0.86))
+            .foregroundColor(dsTextSecondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color.white.opacity(0.08), in: Capsule())
+            .background(dsGlassBg, in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(dsGlassBorder, lineWidth: 1)
+            )
     }
 }
 
@@ -1418,18 +1861,18 @@ private struct StudioPresetCard: View {
                     .font(.subheadline.weight(.semibold))
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundColor(isSelected ? .black.opacity(0.74) : .white.opacity(0.6))
+                    .foregroundColor(isSelected ? dsTextPrimary.opacity(0.8) : dsTextTertiary)
             }
-            .foregroundColor(isSelected ? .black : .white)
+            .foregroundColor(isSelected ? dsTextPrimary : dsTextSecondary)
             .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
             .padding(12)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.white : Color.white.opacity(0.06))
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? dsAccentBlue.opacity(0.25) : dsGlassBg)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.white.opacity(0.24) : Color.white.opacity(0.08), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? dsAccentBlue.opacity(0.45) : dsGlassBorder, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -1446,21 +1889,21 @@ private struct StudioPanelCard<Content: View>: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(dsTextPrimary)
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.58))
+                    .foregroundColor(dsTextSecondary)
             }
             content
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.045))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(dsSurfaceCard)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(dsBorderSubtle, lineWidth: 1)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1479,6 +1922,29 @@ private extension View {
             self.pickerStyle(SegmentedPickerStyle())
         case .menu:
             self.pickerStyle(MenuPickerStyle())
+        }
+    }
+}
+
+private struct FilterSlider: View {
+    let title: String
+    @Binding var value: Float
+    let range: ClosedRange<Float>
+    var format: String = "%.2f"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(dsTextPrimary)
+                Spacer()
+                Text(String(format: format, value))
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundColor(dsAccentBlue)
+            }
+            Slider(value: $value, in: range)
+                .accentColor(dsAccentBlue)
         }
     }
 }
@@ -1505,10 +1971,10 @@ private struct StudioStatusCard: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.white.opacity(0.52))
+                .foregroundColor(dsTextSecondary)
             Text(value)
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.86))
+                .foregroundColor(dsTextSecondary)
         }
     }
 }
@@ -1522,12 +1988,41 @@ private struct StudioAssetPill: View {
         Button(action: action) {
             Text(title)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(isSelected ? .black : .white.opacity(0.92))
+                .foregroundColor(isSelected ? .white : dsTextSecondary)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.white : Color.white.opacity(0.08))
+                        .fill(isSelected ? dsAccentBlue : dsGlassBg)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct StudioAssetPillCompact: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(isSelected ? .white : dsTextSecondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? dsAccentBlue : dsGlassBg)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? dsAccentBlue.opacity(0.4) : dsGlassBorder, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -1543,14 +2038,14 @@ private struct PreviewImageCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(.white)
+                .foregroundColor(dsTextSecondary)
             Image(c7Image: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity, minHeight: height)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white.opacity(0.04))
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(dsSurfaceCard.opacity(0.6))
                 )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1564,17 +2059,17 @@ private struct StudioMessageView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.title2)
-                .foregroundColor(.white)
+                .foregroundColor(dsAccentAmber)
             Text(message)
                 .font(.body)
                 .multilineTextAlignment(.center)
-                .foregroundColor(.white.opacity(0.72))
+                .foregroundColor(dsTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(24)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(dsGlassBg)
         )
     }
 }
@@ -1588,10 +2083,10 @@ private struct LabsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Focused Capability Checks")
                         .font(.title2.weight(.semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(dsTextPrimary)
                     Text("Labs stays behind the Showcase. It keeps the narrow experiments, integration checks, and filter-specific surfaces available without defining the product story.")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.66))
+                        .foregroundColor(dsTextSecondary)
                     HStack(spacing: 8) {
                         CapabilityTag(text: "Color")
                         CapabilityTag(text: "Composite")
@@ -1649,16 +2144,16 @@ private struct LabsView: View {
             .padding(20)
         }
         .background(
-            LinearGradient(
-                colors: [
-                    Color.black,
-                    Color(red: 0.08, green: 0.08, blue: 0.12),
-                    Color.black
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            ZStack {
+                dsSurfaceDeep.ignoresSafeArea()
+                RadialGradient(
+                    colors: [dsAccentPurple.opacity(0.04), Color.clear],
+                    center: .top,
+                    startRadius: 100,
+                    endRadius: 500
+                )
+                .ignoresSafeArea()
+            }
         )
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -1676,19 +2171,19 @@ private struct LabsSectionCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(dsTextPrimary)
             VStack(spacing: 10) {
                 content
             }
         }
-        .padding(16)
+        .padding(18)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.05))
+            RoundedRectangle(cornerRadius: 14)
+                .fill(dsGlassBg)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(dsGlassBorder, lineWidth: 1)
         )
     }
 }
@@ -1702,21 +2197,21 @@ private struct LabsRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(dsTextPrimary)
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.62))
+                    .foregroundColor(dsTextSecondary)
             }
             Spacer()
             Image(systemName: "arrow.up.right")
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.white.opacity(0.42))
+                .foregroundColor(dsTextTertiary)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(dsSurfaceCard.opacity(0.5))
         )
     }
 }
@@ -1759,6 +2254,22 @@ private struct StudioStory: Identifiable {
                 cardSummary: "High-chroma snow rider demo tuned for quality and obvious before/after payoff.",
                 badgeText: "Outdoor / Export / Tone",
                 recipe: .seed(for: .snowRider)
+            ),
+            StudioStory(
+                kicker: "Warm Portrait",
+                title: "Layer glow, curve shaping, and blend intensity into a polished portrait finish.",
+                subtitle: "Harbeth's compositing layer remains transparent while delivering multi-input results.",
+                cardSummary: "A cinematic portrait recipe with soft blend, faded curves, and temperature warmth.",
+                badgeText: "Portrait / Blend / Warmth",
+                recipe: .seed(for: .img0020)
+            ),
+            StudioStory(
+                kicker: "Color Adjustment",
+                title: "Saturation, exposure, and temperature control driven by the same GPU pipeline.",
+                subtitle: "Adjustments remain reactive at preview quality and accurate at final export resolution.",
+                cardSummary: "Bear asset tuned for exposure, temperature, and saturation demonstration.",
+                badgeText: "Adjust / Exposure / Temp",
+                recipe: .seed(for: .bear)
             )
         ]
     }
@@ -1785,6 +2296,17 @@ private struct StudioRenderOutput {
     let image: C7Image
     let profile: RenderProfile
     let summary: String
+}
+
+private struct FilterParameter<T: Hashable>: Identifiable where T: CaseIterable & Identifiable {
+    let id: T
+    let title: String
+    let range: ClosedRange<Float>?
+    let defaultValue: Float?
+
+    static func all(from cases: T.Type, titles: [T: String]) -> [FilterParameter<T>] {
+        T.allCases.map { FilterParameter(id: $0, title: titles[$0] ?? "\($0)", range: nil, defaultValue: nil) }
+    }
 }
 
 private struct StudioRecipe: Equatable {

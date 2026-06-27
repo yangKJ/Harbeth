@@ -142,6 +142,7 @@ struct MetalKernelViews: View {
         .listStyle(.sidebar)
         .textCase(.none)
         .groupedListStyle()
+        .background(Color(hex: "#0A0A0C"))
         .inlineNavigationBarTitle("Metal Filters")
     }
 }
@@ -166,8 +167,8 @@ struct HighlightShadowToneView: View {
                 $0.resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: 400)
-                    .cornerRadius(10)
-                    .shadow(radius: 5)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
             }
             
             VStack(spacing: 15) {
@@ -179,7 +180,7 @@ struct HighlightShadowToneView: View {
                         Spacer()
                         Text("1")
                     }
-                    Slider(value: $shadows, in: -1.0...1.0)
+                    Slider(value: $shadows, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 VStack(alignment: .leading) {
@@ -190,7 +191,7 @@ struct HighlightShadowToneView: View {
                         Spacer()
                         Text("1")
                     }
-                    Slider(value: $highlights, in: -1.0...1.0)
+                    Slider(value: $highlights, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 VStack(alignment: .leading) {
@@ -201,7 +202,7 @@ struct HighlightShadowToneView: View {
                         Spacer()
                         Text("1")
                     }
-                    Slider(value: $midtones, in: -1.0...1.0)
+                    Slider(value: $midtones, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 VStack(alignment: .leading) {
@@ -212,12 +213,12 @@ struct HighlightShadowToneView: View {
                         Spacer()
                         Text("1")
                     }
-                    Slider(value: $contrast, in: -1.0...1.0)
+                    Slider(value: $contrast, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
         }
         .padding()
         .navigationTitle("Highlight Shadow Tone")
@@ -248,7 +249,7 @@ struct SharpenDetailView: View {
         VStack(spacing: 20) {
             Text("C7 Sharpen Detail Test")
                 .font(.title)
-                .bold()
+                .foregroundColor(.white.opacity(0.94))
             
             HarbethView(image: inputImage, filters: [C7SharpenDetail(
                 sharpen: sharpen,
@@ -258,8 +259,8 @@ struct SharpenDetailView: View {
                 $0.resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: 400)
-                    .cornerRadius(10)
-                    .shadow(radius: 5)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
             }
             
             VStack(spacing: 15) {
@@ -271,7 +272,7 @@ struct SharpenDetailView: View {
                         Spacer()
                         Text("High")
                     }
-                    Slider(value: $sharpen, in: 0.0...1.0)
+                    Slider(value: $sharpen, in: 0.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 VStack(alignment: .leading) {
@@ -282,7 +283,7 @@ struct SharpenDetailView: View {
                         Spacer()
                         Text("High")
                     }
-                    Slider(value: $clarity, in: 0.0...1.0)
+                    Slider(value: $clarity, in: 0.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 VStack(alignment: .leading) {
@@ -293,12 +294,12 @@ struct SharpenDetailView: View {
                         Spacer()
                         Text("High")
                     }
-                    Slider(value: $detail, in: 0.0...1.0)
+                    Slider(value: $detail, in: 0.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
         }
         .padding()
         .navigationTitle("Sharpen Detail")
@@ -321,7 +322,7 @@ struct ColorCorrectionView: View {
         VStack(spacing: 20) {
             Text("C7 Color Correction Test")
                 .font(.title)
-                .bold()
+                .foregroundColor(.white.opacity(0.94))
             
             HarbethView(image: inputImage, filters: [C7ColorCorrection(
                 levels: levels,
@@ -331,8 +332,8 @@ struct ColorCorrectionView: View {
                 $0.resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: 400)
-                    .cornerRadius(10)
-                    .shadow(radius: 5)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
             }
             
             VStack(spacing: 15) {
@@ -344,7 +345,7 @@ struct ColorCorrectionView: View {
                         Spacer()
                         Text("1")
                     }
-                    Slider(value: $levels, in: -1.0...1.0)
+                    Slider(value: $levels, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 VStack(alignment: .leading) {
@@ -355,7 +356,7 @@ struct ColorCorrectionView: View {
                         Spacer()
                         Text("1")
                     }
-                    Slider(value: $curves, in: -1.0...1.0)
+                    Slider(value: $curves, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 VStack(alignment: .leading) {
@@ -366,12 +367,12 @@ struct ColorCorrectionView: View {
                         Spacer()
                         Text("1")
                     }
-                    Slider(value: $colorBalance, in: -1.0...1.0)
+                    Slider(value: $colorBalance, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
         }
         .padding()
         .navigationTitle("Color Correction")
@@ -383,3 +384,21 @@ struct ColorCorrectionView_Previews: PreviewProvider {
         ColorCorrectionView()
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

@@ -22,13 +22,28 @@ struct ErrorView: View {
                     Button("Dismiss") {
                         self.error = nil
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                    .foregroundColor(.white.opacity(0.94))
                     RetryButton()
                 }
             }
             .padding()
-            .background(.red)
-            .foregroundColor(.white)
-            .cornerRadius(10)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#141418")))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.red.opacity(0.5), lineWidth: 1)
+            )
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(Color.red)
+                    .frame(width: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                    .padding(.leading, 0)
+            }
+            .foregroundColor(.white.opacity(0.94))
         }
     }
 }
@@ -72,3 +87,21 @@ struct RetryButton: View {
         }
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

@@ -24,18 +24,22 @@ struct ColorRGBAView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: 400)
             }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
+            .padding(.horizontal, 16)
             
             VStack(spacing: 20) {
                 // 强度调整滑块
                 VStack(alignment: .leading) {
                     Text("Intensity: \(String(format: "%.2f", intensity))")
-                    Slider(value: $intensity, in: 0...1)
+                    Slider(value: $intensity, in: 0...1).accentColor(Color(hex: "#5E9EFF"))
                         .padding(.horizontal)
                 }
                 
                 // 颜色选择器
                 VStack(alignment: .leading) {
-                    Text("Select Color:")
+                    Text("Select Color:").foregroundColor(.white.opacity(0.94))
                     HStack(spacing: 10) {
                         ForEach(colors, id: \.self) {
                             color in
@@ -44,7 +48,7 @@ struct ColorRGBAView: View {
                                 .frame(width: 30, height: 30)
                                 .overlay(
                                     selectedColor == color ?
-                                        Circle().stroke(Color.white, lineWidth: 3)
+                                        Circle().stroke(Color(hex: "#5E9EFF"), lineWidth: 3)
                                         : nil
                                 )
                                 .onTapGesture {
@@ -56,8 +60,13 @@ struct ColorRGBAView: View {
                 
                 // 颜色预览
                 HStack {
-                    Text("Current Color:")
+                    Text("Current Color:").foregroundColor(.white.opacity(0.94))
                     ZStack {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.06))
+                            .frame(width: 50, height: 30)
+                            .cornerRadius(6)
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.06), lineWidth: 1))
                         ColorPicker("", selection: $selectedColor)
                             .labelsHidden()
                         Rectangle()
@@ -89,3 +98,21 @@ struct C7ColorRGBAView_Previews: PreviewProvider {
         }
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

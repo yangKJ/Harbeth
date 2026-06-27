@@ -36,9 +36,9 @@ struct CompactCurvesView: View {
                             .font(.system(size: 12))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(selectedChannel == channel ? Color.blue : Color.gray.opacity(0.2))
-                            .foregroundColor(selectedChannel == channel ? .white : .black)
-                            .cornerRadius(4)
+                            .background(selectedChannel == channel ? Color(hex: "#5E9EFF") : Color.white.opacity(0.06))
+                            .foregroundColor(selectedChannel == channel ? .white : .white.opacity(0.94))
+                            .cornerRadius(6)
                     }
                 }
             }
@@ -51,7 +51,7 @@ struct CompactCurvesView: View {
                     CompactGridView(size: geometry.size)
                     
                     // 曲线
-                    CompactCurvePath(controlPoints: controlPoints, size: geometry.size)
+                    CompactCurvePath(controlPoints: controlPoints, size: geometry.size).stroke(Color(hex: "#5E9EFF"), lineWidth: 2)
                     
                     // 控制点
                     ForEach(0..<controlPoints.count, id: \.self) {
@@ -83,8 +83,8 @@ struct CompactCurvesView: View {
                                 )
                 }
                 .frame(height: 120)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(6)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color(hex: "#141418")))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.06), lineWidth: 1))
                 .padding(.horizontal, 12)
             }
             
@@ -97,9 +97,9 @@ struct CompactCurvesView: View {
                         .font(.system(size: 12))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.gray)
-                        .foregroundColor(.white)
-                        .cornerRadius(4)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.06)))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                        .foregroundColor(.white.opacity(0.94))
                 }
                 
                 Spacer()
@@ -341,3 +341,21 @@ struct CompactCurvesView_Previews: PreviewProvider {
         .background(Color.white)
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

@@ -48,6 +48,7 @@ struct CurvesView: View {
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
+                .accentColor(Color(hex: "#5E9EFF"))
                 .padding()
                 
                 // 曲线编辑器
@@ -85,8 +86,8 @@ struct CurvesView: View {
                         }
                     }
                     .frame(height: 200)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#141418")))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     .padding()
                     .contentShape(Rectangle())
                     .gesture(
@@ -290,8 +291,8 @@ private struct CurvePath: View {
                 }
             }
         }
-        .stroke(Color.purple, lineWidth: 2)
-        .shadow(color: Color.purple.opacity(0.3), radius: 2, x: 0, y: 1)
+        .stroke(Color(hex: "#5E9EFF"), lineWidth: 2)
+        .shadow(color: Color(hex: "#5E9EFF").opacity(0.3), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -358,3 +359,21 @@ struct CurvesView_Previews: PreviewProvider {
         CurvesView()
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

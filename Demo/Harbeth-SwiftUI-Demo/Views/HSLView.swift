@@ -51,6 +51,7 @@ struct HSLView: View {
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
+                .accentColor(Color(hex: "#5E9EFF"))
                 .padding()
                 .onChange(of: selectedParameter) {
                     newValue in
@@ -70,10 +71,10 @@ struct HSLView: View {
                         value: $currentValue,
                         in: rangeForSelectedParameter(),
                         step: 0.01
-                    )
+                    ).accentColor(Color(hex: "#5E9EFF"))
                     .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     .padding()
                     .onChange(of: currentValue) {
                         newValue in
@@ -95,7 +96,7 @@ struct HSLView: View {
                     }
                     .padding(.horizontal, 30)
                     .font(.system(size: 12))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.white.opacity(0.62))
                 }
                 
                 // 预设效果
@@ -271,16 +272,16 @@ struct ParameterValueView: View {
         VStack {
             Text(label)
                 .font(.system(size: 12))
-                .foregroundColor(.gray)
+                .foregroundColor(.white.opacity(0.62))
             Text(String(format: "%.2f", value))
                 .font(.system(size: 14, weight: .bold))
             Text("\(range.0) to \(range.1)")
                 .font(.system(size: 10))
-                .foregroundColor(.gray)
+                .foregroundColor(.white.opacity(0.62))
         }
         .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(8)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06), lineWidth: 1))
         .frame(minWidth: 80)
     }
 }
@@ -294,8 +295,9 @@ struct PresetButton: View {
             action()
         }
         .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.06), lineWidth: 1))
+        .foregroundColor(.white.opacity(0.94))
         .font(.system(size: 12))
     }
 }
@@ -305,3 +307,21 @@ struct HSLView_Previews: PreviewProvider {
         HSLView()
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

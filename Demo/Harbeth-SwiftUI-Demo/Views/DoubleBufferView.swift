@@ -34,7 +34,7 @@ struct DoubleBufferView: View {
                     VStack(spacing: 10) {
                         Text("Double Buffer")
                             .font(.headline)
-                            .foregroundColor(.blue)
+                            .foregroundColor(Color(hex: "#5E9EFF"))
                         if let doubleBufferImage = doubleBufferImage {
                             Image(c7Image: doubleBufferImage)
                                 .resizable()
@@ -52,14 +52,14 @@ struct DoubleBufferView: View {
                             .fontWeight(.medium)
                     }
                     .padding()
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     
                     // 右边：传统方式
                     VStack(spacing: 10) {
                         Text("Traditional")
                             .font(.headline)
-                            .foregroundColor(.indigo)
+                            .foregroundColor(Color(hex: "#A78BFA"))
                         if let traditionalImage = traditionalImage {
                             Image(c7Image: traditionalImage)
                                 .resizable()
@@ -77,8 +77,8 @@ struct DoubleBufferView: View {
                             .fontWeight(.medium)
                     }
                     .padding()
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                 }
                 
                 // 处理按钮
@@ -87,10 +87,9 @@ struct DoubleBufferView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#5E9EFF")))
                         .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .shadow(radius: 3)
+                        .shadow(color: Color(hex: "#5E9EFF").opacity(0.3), radius: 8, y: 4)
                 })
                 .disabled(isProcessing)
                 .opacity(isProcessing ? 0.7 : 1.0)
@@ -111,7 +110,7 @@ struct DoubleBufferView: View {
                     ), in: 1...Double(maxFilterCount))
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
                 .cornerRadius(12)
                 
                 // 对比结果
@@ -123,11 +122,11 @@ struct DoubleBufferView: View {
                         HStack {
                             Text("Double Buffer: \(doubleBufferMemory)")
                                 .font(.system(size: 14))
-                                .foregroundColor(.blue)
+                                .foregroundColor(Color(hex: "#5E9EFF"))
                             Spacer()
                             Text("Traditional: \(traditionalMemory)")
                                 .font(.system(size: 14))
-                                .foregroundColor(.indigo)
+                                .foregroundColor(Color(hex: "#A78BFA"))
                         }
                         // 内存差异指示器
                         if !doubleBufferMemory.isEmpty && !traditionalMemory.isEmpty {
@@ -136,12 +135,12 @@ struct DoubleBufferView: View {
                             let difference = (doubleBufferMemoryValue - traditionalMemoryValue) / traditionalMemoryValue * 100
                             Text("Memory Difference: \(String(format: "%.1f%%", abs(difference))) \(difference > 0 ? "more" : "less")")
                                 .font(.system(size: 12))
-                                .foregroundColor(difference > 0 ? .red : .green)
+                                .foregroundColor(difference > 0 ? Color(hex: "#34D399") : Color(hex: "#A78BFA"))
                         }
                     }
                     .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     
                     // 纹理池统计对比
                     VStack(alignment: .leading, spacing: 8) {
@@ -150,22 +149,22 @@ struct DoubleBufferView: View {
                         
                         Text("Double Buffer:")
                             .font(.subheadline)
-                            .foregroundColor(.blue)
+                            .foregroundColor(Color(hex: "#5E9EFF"))
                         Text(doubleBufferStats)
                             .font(.system(size: 12))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.white.opacity(0.62))
                         
                         Text("Traditional Method:")
                             .font(.subheadline)
-                            .foregroundColor(.indigo)
+                            .foregroundColor(Color(hex: "#A78BFA"))
                         Text(traditionalStats)
                             .font(.system(size: 12))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.white.opacity(0.62))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                 }
                 
                 // 底部空间
@@ -276,3 +275,21 @@ struct DoubleBufferView_Previews: PreviewProvider {
         DoubleBufferView()
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

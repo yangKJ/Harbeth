@@ -27,25 +27,28 @@ struct ChromaKeyView: View {
             ], content: { image in
                 image.resizable()
                     .aspectRatio(contentMode: .fit)
-                    .padding()
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                    .padding(.horizontal, 16)
             }, async: true)
             
             VStack(alignment: .leading, spacing: 20) {
                 // Threshold Sensitivity
                 VStack(alignment: .leading) {
                     Text("Threshold Sensitivity: \(thresholdSensitivity, specifier: "%.2f")")
-                    Slider(value: $thresholdSensitivity, in: 0.0...1.0)
+                    Slider(value: $thresholdSensitivity, in: 0.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 // Smoothing
                 VStack(alignment: .leading) {
                     Text("Smoothing: \(smoothing, specifier: "%.2f")")
-                    Slider(value: $smoothing, in: 0.0...1.0)
+                    Slider(value: $smoothing, in: 0.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                 }
                 
                 // Chroma Color
                 HStack {
-                    Text("Chroma Color")
+                    Text("Chroma Color").foregroundColor(.white.opacity(0.94))
                     Spacer()
                     ZStack {
                         ColorPicker("", selection: $chromaColor)
@@ -54,13 +57,14 @@ struct ChromaKeyView: View {
                             .fill(chromaColor)
                             .frame(width: 30, height: 30)
                             .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.06), lineWidth: 1))
                             .allowsHitTesting(false)
                     }
                 }
                 
                 // Replace Color
                 HStack {
-                    Text("Replace Color")
+                    Text("Replace Color").foregroundColor(.white.opacity(0.94))
                     Spacer()
                     ZStack {
                         ColorPicker("", selection: $replaceColor)
@@ -74,7 +78,8 @@ struct ChromaKeyView: View {
                 }
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
             .padding()
         }
         .padding(.bottom)
@@ -88,3 +93,21 @@ struct ChromaKeyView_Previews: PreviewProvider {
         ChromaKeyView()
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

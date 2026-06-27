@@ -36,10 +36,11 @@ struct CustomViews<F: C7FilterProtocol>: View {
             
             VStack(alignment: .leading) {
                 Text("Parameter Value: \(value, specifier: "%.2f")")
-                Slider(value: $value, in: min...max)
+                Slider(value: $value, in: min...max).accentColor(Color(hex: "#5E9EFF"))
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
             .padding()
         }
         .padding(.bottom)
@@ -54,3 +55,21 @@ struct CustomViews_Previews: PreviewProvider {
         }, min: C7Brightness.range.min, max: C7Brightness.range.max)
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")

@@ -24,6 +24,7 @@ struct CubeView: View {
                 Text("Vista200").tag(CubeType.vista200)
             }
             .pickerStyle(SegmentedPickerStyle())
+            .accentColor(Color(hex: "#5E9EFF"))
             .padding()
             
             if let image = outImage {
@@ -31,17 +32,18 @@ struct CubeView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(idealHeight: R.width-30 / 2 * 3)
-                    .background(RoundedRectangle(cornerRadius: 10).foregroundColor(Color.background))
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     .padding()
                 
                 Text(getFilterDescription())
                     .font(.body)
                     .textCase(.none)
                     .padding(.all, 20)
-                    .foregroundColor(.black)
-                    .shadow(radius: 20)
+                    .foregroundColor(.white.opacity(0.94))
+                    
             } else {
-                Text("loading..")
+                Text("loading..").foregroundColor(.white.opacity(0.62))
             }
         }
         .onAppear(perform: setupImage)
@@ -76,3 +78,21 @@ struct CubeView_Previews: PreviewProvider {
         CubeView()
     }
 }
+
+
+
+// MARK: - Design System Colors (synced with ContentView)
+private extension View {
+    var dsSurfaceGlass: Color { Color.white.opacity(0.06) }
+    var dsSurfaceCard: Color { Color(hex: "#141418") }
+    var dsBackground: Color { Color(hex: "#0A0A0C") }
+    var dsBorderSubtle: Color { Color.white.opacity(0.06) }
+    var dsBorderActive: Color { Color.white.opacity(0.14) }
+    var dsTextPrimary: Color { Color.white.opacity(0.94) }
+    var dsTextSecondary: Color { Color.white.opacity(0.62) }
+    var dsTextTertiary: Color { Color.white.opacity(0.38) }
+}
+
+private let dsAccentPrimary = Color(hex: "#5E9EFF")
+private let dsAccentSecondary = Color(hex: "#A78BFA")
+private let dsAccentSuccess = Color(hex: "#34D399")
