@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="nm2-aA-1NX">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="24506" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="nm2-aA-1NX">
     <device id="retina5_5" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24504"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
         <capability name="System colors in document resources" minToolsVersion="11.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -94,14 +94,14 @@
             </objects>
             <point key="canvasLocation" x="2861" y="-1331"/>
         </scene>
-        <!--Camera-->
+        <!--Live Frames-->
         <scene sceneID="jwh-4O-wdy">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="hAI-wz-YaY" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Camera" image="camera.metering.center.weighted" catalog="system" id="C0e-U0-IJg"/>
+                    <tabBarItem key="tabBarItem" title="Live Frames" image="camera.metering.center.weighted" catalog="system" id="C0e-U0-IJg"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" restorationIdentifier="520" id="qzX-ol-Pg4">
-                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                        <rect key="frame" x="0.0" y="20" width="414" height="54"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
@@ -113,14 +113,14 @@
             </objects>
             <point key="canvasLocation" x="1952" y="776"/>
         </scene>
-        <!--Video-->
+        <!--Video Frames-->
         <scene sceneID="zNV-35-XHe">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="UNy-GX-PbX" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Video" image="play.tv" catalog="system" id="EcX-bS-zyh"/>
+                    <tabBarItem key="tabBarItem" title="Video Frames" image="play.tv" catalog="system" id="EcX-bS-zyh"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="wJY-4Y-X5H">
-                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                        <rect key="frame" x="0.0" y="20" width="414" height="54"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
@@ -132,14 +132,14 @@
             </objects>
             <point key="canvasLocation" x="1952" y="-633"/>
         </scene>
-        <!--Image-->
+        <!--Image Pipeline-->
         <scene sceneID="Dkz-4X-huC">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="43K-dr-XFz" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Image" image="scribble.variable" catalog="system" id="nam-0e-5kZ"/>
+                    <tabBarItem key="tabBarItem" title="Image Pipeline" image="scribble.variable" catalog="system" id="nam-0e-5kZ"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="0zv-sn-3Ys">
-                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                        <rect key="frame" x="0.0" y="20" width="414" height="54"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
@@ -151,14 +151,14 @@
             </objects>
             <point key="canvasLocation" x="1952.1739130434785" y="69.642857142857139"/>
         </scene>
-        <!--Test-->
+        <!--ImageNode Lab-->
         <scene sceneID="exH-T0-fje">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="D7T-AE-VIp" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Test" image="photo.on.rectangle.angled" catalog="system" id="WNI-CL-ALG"/>
+                    <tabBarItem key="tabBarItem" title="ImageNode Lab" image="photo.on.rectangle.angled" catalog="system" id="WNI-CL-ALG"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="Wvl-p4-8Vd">
-                        <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
+                        <rect key="frame" x="0.0" y="20" width="414" height="54"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
@@ -172,10 +172,10 @@
         </scene>
     </scenes>
     <resources>
-        <image name="camera.metering.center.weighted" catalog="system" width="32" height="32"/>
+        <image name="camera.metering.center.weighted" catalog="system" width="128" height="93"/>
         <image name="photo.on.rectangle.angled" catalog="system" width="128" height="98"/>
-        <image name="play.tv" catalog="system" width="32" height="32"/>
-        <image name="scribble.variable" catalog="system" width="32" height="32"/>
+        <image name="play.tv" catalog="system" width="128" height="95"/>
+        <image name="scribble.variable" catalog="system" width="128" height="119"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
