@@ -36,6 +36,40 @@ final class TransitionKernelTests: XCTestCase {
         XCTAssertEqual(output.height, 2)
     }
 
+    func testDirectionalTransitionNearEndpointsStayOnExpectedSide() throws {
+        let from = try makeTexture(width: 3, height: 3, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 3, height: 3, pixel: [0, 255, 0, 255])
+
+        let nearStart: MTLTexture = try HarbethIO(
+            element: from,
+            filter: DirectionalWipeTransition(toTexture: to, progress: 0.001, angleDegrees: 35, softness: 0.08)
+        ).output()
+        let nearEnd: MTLTexture = try HarbethIO(
+            element: from,
+            filter: DirectionalWipeTransition(toTexture: to, progress: 0.999, angleDegrees: 35, softness: 0.08)
+        ).output()
+
+        let startPixel = try pixel(in: nearStart, x: 1, y: 1)
+        let endPixel = try pixel(in: nearEnd, x: 1, y: 1)
+
+        XCTAssertGreaterThan(startPixel.red, startPixel.green, "接近 0 时不应突然跳成目标图。")
+        XCTAssertGreaterThan(endPixel.green, endPixel.red, "接近 1 时不应突然跳回源图。")
+    }
+
+    func testLumaTransitionNearEndpointsStayContinuous() throws {
+        let from = try makeTexture(pixel: [255, 0, 0, 255])
+        let to = try makeTexture(pixel: [0, 255, 0, 255])
+        let luma = try makeTexture(pixel: [255, 255, 255, 255])
+
+        let nearStart: MTLTexture = try HarbethIO(
+            element: from,
+            filter: LumaWipeTransition(toTexture: to, lumaTexture: luma, progress: 0.001, softness: 0.1)
+        ).output()
+
+        let pixel = try firstPixel(in: nearStart)
+        XCTAssertGreaterThan(pixel.red, pixel.green, "接近 0 时 luma wipe 不应直接翻成目标图。")
+    }
+
     func testLumaAndDisplacementTransitionsReachTargetAtProgressOne() throws {
         let from = try makeTexture(pixel: [255, 0, 0, 255])
         let to = try makeTexture(pixel: [0, 255, 0, 255])
@@ -233,5 +267,18 @@ final class TransitionKernelTests: XCTestCase {
             throw HarbethError.texture2Image
         }
         return (bytes[0], bytes[1], bytes[2], bytes[3])
+    }
+
+    private func pixel(in texture: MTLTexture, x: Int, y: Int) throws -> (red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
+        guard let bytes = texture.c7.bytes() else {
+            XCTFail("Expected readable bytes.")
+            throw HarbethError.texture2Image
+        }
+        let index = ((y * texture.width) + x) * 4
+        guard index + 3 < bytes.count else {
+            XCTFail("Pixel index out of bounds.")
+            throw HarbethError.texture2Image
+        }
+        return (bytes[index], bytes[index + 1], bytes[index + 2], bytes[index + 3])
     }
 }

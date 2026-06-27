@@ -612,21 +612,15 @@ kernel void InnerDirectionalWipeTransition(texture2d<half, access::write> output
         return;
     }
     const float progressValue = clamp(*progressPointer, 0.0f, 1.0f);
-    if (progressValue <= 0.0f) {
-        outputTexture.write(safe_read(fromTexture, gid), gid);
-        return;
-    }
-    if (progressValue >= 1.0f) {
-        outputTexture.write(safe_read(toTexture, gid), gid);
-        return;
-    }
     const half2 uv = half2(float(gid.x) / max(float(outputTexture.get_width() - 1), 1.0f),
                            float(gid.y) / max(float(outputTexture.get_height() - 1), 1.0f));
     const half2 direction = normalize(half2(cos(*anglePointer), sin(*anglePointer)));
-    const half projection = dot(uv - 0.5h, direction) + 0.5h;
+    const half projection = dot(uv - 0.5h, direction);
     const half softness = half(max(*softnessPointer, 0.0001f));
     const half progress = half(progressValue);
-    const half mixFactor = smoothstep(progress - softness, progress + softness, projection);
+    const half halfRange = (abs(direction.x) + abs(direction.y)) * 0.5h;
+    const half boundary = mix(halfRange + softness, -halfRange - softness, progress);
+    const half mixFactor = smoothstep(boundary - softness, boundary + softness, projection);
     const half4 from = safe_read(fromTexture, gid);
     const half4 to = safe_read(toTexture, gid);
     outputTexture.write(mix(from, to, mixFactor), gid);
@@ -643,19 +637,12 @@ kernel void InnerLumaWipeTransition(texture2d<half, access::write> outputTexture
         return;
     }
     const float progressValue = clamp(*progressPointer, 0.0f, 1.0f);
-    if (progressValue <= 0.0f) {
-        outputTexture.write(safe_read(fromTexture, gid), gid);
-        return;
-    }
-    if (progressValue >= 1.0f) {
-        outputTexture.write(safe_read(toTexture, gid), gid);
-        return;
-    }
     const half4 lumaSample = safe_read(lumaTexture, gid);
     const half luma = dot(lumaSample.rgb, half3(0.299h, 0.587h, 0.114h));
     const half softness = half(max(*softnessPointer, 0.0001f));
     const half progress = half(progressValue);
-    const half mixFactor = smoothstep(progress - softness, progress + softness, luma);
+    const half boundary = mix(1.0h + softness, -softness, progress);
+    const half mixFactor = smoothstep(boundary - softness, boundary + softness, luma);
     const half4 from = safe_read(fromTexture, gid);
     const half4 to = safe_read(toTexture, gid);
     outputTexture.write(mix(from, to, mixFactor), gid);
