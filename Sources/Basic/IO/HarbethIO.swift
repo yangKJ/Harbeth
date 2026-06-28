@@ -297,12 +297,26 @@ extension HarbethIO {
 extension HarbethIO {
     
     func makeRenderPlan(input texture: MTLTexture) -> RenderPlan {
+        let inputSize = C7Size(width: texture.width, height: texture.height)
+        // Cache key covers exactly what `GraphCompiler.compile` consumes on this path: the filter
+        // chain recipe (type + kernel + parameters, via the same `chainRecipe` fingerprint ImageNode
+        // uses), the input dimensions, and the render profile (which also fixes the derivative).
+        // `compilationSource` is constant (`.filtersPrimitive`) here, so it is a fixed prefix. Same
+        // key ⇒ identical plan, so a stable chain rendered repeatedly (realtime / video) only
+        // compiles the render graph once instead of on every frame.
+        let cacheKey = "filtersPrimitive|\(filters.chainRecipe.fingerprint)|input=\(inputSize.width)x\(inputSize.height)|profile=\(renderProfile.rawValue)"
+        if let cached = Shared.shared.defaultContext.cachedRenderPlan(for: cacheKey) {
+            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: true)
+            return cached
+        }
+        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: false)
         let plan = GraphCompiler.compile(
             filters: filters,
-            inputSize: C7Size(width: texture.width, height: texture.height),
+            inputSize: inputSize,
             profile: renderProfile,
             compilationSource: .filtersPrimitive
         )
+        Shared.shared.defaultContext.storeRenderPlan(plan, for: cacheKey)
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
             if plan.requiresCompletedGPUWork {

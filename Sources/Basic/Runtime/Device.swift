@@ -115,7 +115,18 @@ extension Device {
     }
 
     private static var fallbackLibraries: [String: MTLLibrary] = [:]
+    /// Function names confirmed absent from on-disk `.metal` sources, cached so a missing kernel
+    /// is scanned for at most once instead of re-walking the whole bundle on every lookup.
+    private static var fallbackMisses: Set<String> = []
+    /// Cached list of `.metal` source files in the bundle. The set is process-stable, so the
+    /// expensive recursive enumeration runs at most once even when several kernels miss.
+    private static var cachedMetalFiles: [URL]?
     private static let fallbackLibraryLock = NSLock()
+    /// Regression gate: number of times the source-fallback bundle scan actually ran. The
+    /// contract is "precompiled libraries are tried first, the scan is only a last resort", so a
+    /// kernel present in any library must add 0 here. `SourceFallbackGateTests` asserts this to
+    /// stop a future refactor from silently making the fallback eager again.
+    static var sourceFallbackScanCount: Int = 0
 
     private static var existingSharedDevice: Device? {
         Shared.shared.hasDevice ? Shared.shared.defaultDevice : nil
@@ -450,6 +461,11 @@ extension Device {
             fallbackLibraryLock.unlock()
             return cached
         }
+        if fallbackMisses.contains(functionName) {
+            fallbackLibraryLock.unlock()
+            return nil
+        }
+        sourceFallbackScanCount += 1
         fallbackLibraryLock.unlock()
 
         if let library = makeSourceLibraryForFunction(device, functionName: functionName) {
@@ -458,6 +474,10 @@ extension Device {
             fallbackLibraryLock.unlock()
             return library
         }
+        // Remember the miss so a kernel that genuinely has no on-disk source is not rescanned.
+        fallbackLibraryLock.lock()
+        fallbackMisses.insert(functionName)
+        fallbackLibraryLock.unlock()
         return nil
     }
 
@@ -492,6 +512,13 @@ extension Device {
     }
 
     private static func candidateMetalFiles() -> [URL] {
+        fallbackLibraryLock.lock()
+        if let cachedMetalFiles {
+            fallbackLibraryLock.unlock()
+            return cachedMetalFiles
+        }
+        fallbackLibraryLock.unlock()
+
         let fileURL = URL(fileURLWithPath: #filePath)
         let sourcesRoot = fileURL
             .deletingLastPathComponent()
@@ -529,6 +556,9 @@ extension Device {
                 files.append(fileURL)
             }
         }
+        fallbackLibraryLock.lock()
+        cachedMetalFiles = files
+        fallbackLibraryLock.unlock()
         return files
     }
     
@@ -584,15 +614,17 @@ extension Device {
         let candidateLibraries: [MTLLibrary] = {
             switch identity.librarySource {
             case .automatic:
+                // Precompiled libraries only. The source fallback — which recursively scans
+                // every bundle for `.metal` files and compiles them (hundreds of ms to
+                // seconds) — is deferred to a last resort tried AFTER these all miss (see the
+                // post-loop fallback below), so a kernel that already lives in the metallib
+                // never pays the filesystem walk.
                 var libraries = resolvedDevice.externalLibraries()
                 if let library = resolvedDevice.defaultLibrary {
                     libraries.append(library)
                 }
                 if let library = resolvedDevice.harbethLibrary {
                     libraries.append(library)
-                }
-                if let fallbackLibrary = makeSourceFallbackLibrary(resolvedDevice.device, functionName: functionName) {
-                    libraries.append(fallbackLibrary)
                 }
                 return libraries
             case .defaultLibrary:
@@ -628,6 +660,17 @@ extension Device {
                 resolvedDevice.setCachedFunction(function, for: identity)
                 return function
             }
+        }
+
+        // Last resort for `.automatic`: only when the function is in NO precompiled library
+        // do we pay for the source-fallback bundle scan + compile. This keeps the common
+        // path (kernel present in the metallib) free of the recursive filesystem walk that
+        // previously ran eagerly on every cold lookup.
+        if case .automatic = identity.librarySource,
+           let fallbackLibrary = makeSourceFallbackLibrary(resolvedDevice.device, functionName: functionName),
+           let function = makeFunction(from: fallbackLibrary) {
+            resolvedDevice.setCachedFunction(function, for: identity)
+            return function
         }
 
         #if DEBUG
