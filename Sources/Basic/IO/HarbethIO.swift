@@ -283,8 +283,15 @@ extension HarbethIO {
     private func processInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
         prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         var outputTexture = input
+        // Use self.filters (current state) instead of node.filter (cached snapshot).
+        // The plan provides DAG structure; filter state (including otherInputTextures) must
+        // come from the live filters array so that texture changes (e.g. moving a mask) are
+        // reflected in every render without invalidating the structural cache.
+        var filterIndex = 0
         for node in plan.graph.nodes {
-            guard let filter = node.filter else { continue }
+            guard node.filter != nil else { continue }
+            let filter = filters[filterIndex]
+            filterIndex += 1
             let commandBuffer = try makeCommandBuffer(for: nil)
             outputTexture = try textureIO(input: outputTexture, filter: filter, for: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
@@ -486,9 +493,11 @@ extension HarbethIO {
     private func singleBuffer(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (MTLTexture, [MTLTexture]) {
         var currentTexture = input
         var producedTextures: [MTLTexture] = []
-        
+        var filterIndex = 0
         for node in plan.graph.nodes {
-            guard let filter = node.filter else { continue }
+            guard node.filter != nil else { continue }
+            let filter = filters[filterIndex]
+            filterIndex += 1
             let next = try textureIO(input: currentTexture, filter: filter, for: commandBuffer)
             producedTextures.append(next)
             currentTexture = next
@@ -503,7 +512,7 @@ extension HarbethIO {
     
 
     private func shouldUseDoubleBuffer(input: MTLTexture, plan: RenderPlan, minimumFilterCount: Int) -> Bool {
-        let filters = plan.graph.nodes.compactMap(\.filter)
+        let filters = self.filters
         guard enableDoubleBuffer, filters.count >= minimumFilterCount else {
             return false
         }
@@ -523,7 +532,8 @@ extension HarbethIO {
 
     /// Use double buffer technology to handle filter chains.
     private func doubleBuffering(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
-        let filters = plan.graph.nodes.compactMap(\.filter)
+        // Use self.filters rather than extracting from the cached plan nodes; see processInterleavedFilters.
+        let filters = self.filters
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
@@ -724,9 +734,11 @@ extension HarbethIO where Dest == MTLTexture {
         prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         var currentTexture = input
         var currentLease: TextureLease?
-
+        var filterIndex = 0
         for node in plan.graph.nodes {
-            guard let filter = node.filter else { continue }
+            guard node.filter != nil else { continue }
+            let filter = filters[filterIndex]
+            filterIndex += 1
             let commandBuffer = try makeCommandBuffer(for: nil)
             let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
@@ -756,9 +768,11 @@ extension HarbethIO where Dest == MTLTexture {
                                      commandBuffer: MTLCommandBuffer) throws -> (result: ManagedTextureResult, intermediateLeases: [TextureLease]) {
         var currentTexture = input
         var producedLeases: [TextureLease] = []
-
+        var filterIndex = 0
         for node in plan.graph.nodes {
-            guard let filter = node.filter else { continue }
+            guard node.filter != nil else { continue }
+            let filter = filters[filterIndex]
+            filterIndex += 1
             let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
             if let lease = stage.lease {
                 producedLeases.append(lease)
@@ -779,7 +793,8 @@ extension HarbethIO where Dest == MTLTexture {
     private func doubleBufferingManaged(input: MTLTexture,
                                         plan: RenderPlan,
                                         commandBuffer: MTLCommandBuffer) throws -> (result: ManagedTextureResult, intermediateLeases: [TextureLease]) {
-        let filters = plan.graph.nodes.compactMap(\.filter)
+        // Use self.filters rather than extracting from the cached plan nodes; see processInterleavedFilters.
+        let filters = self.filters
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
