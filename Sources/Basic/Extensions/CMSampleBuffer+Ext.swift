@@ -108,6 +108,13 @@ extension HarbethWrapper where Base: CMSampleBuffer {
         return sampleBuffer
     }
 
+    public func makeLightweightReferenceSampleBuffer() -> CMSampleBuffer? {
+        guard let imageBuffer = CMSampleBufferGetImageBuffer(base) else {
+            return nil
+        }
+        return makeDerivedSampleBuffer(imageBuffer: imageBuffer)
+    }
+
     public func copyAttachments(to sampleBuffer: CMSampleBuffer) {
         let values: [(CFString, Bool?)] = [
             (kCMSampleAttachmentKey_NotSync, base.getAttachmentValue(for: kCMSampleAttachmentKey_NotSync)),

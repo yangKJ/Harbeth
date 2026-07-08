@@ -471,7 +471,7 @@ private extension RenderView {
         }
         let resolution = frame.previewHostStrategyResolution
         switch resolution.strategy {
-        case .metalTextureHost:
+        case .metalTextureHost, .sampleBufferRematerializedHost:
             setPreviewHostExecutionState(
                 .metalActive,
                 strategy: .metalTextureHost,
@@ -482,7 +482,7 @@ private extension RenderView {
                 clearLastFailure: true
             )
             deactivateSampleBufferPreviewHost()
-        case .sampleBufferPassthroughHost, .sampleBufferRematerializedHost:
+        case .sampleBufferPassthroughHost:
             #if canImport(AVFoundation) && !os(watchOS)
             guard displayWithSampleBufferPreviewHost(frame: frame, resolution: resolution) else {
                 fallbackToMetalPreviewHost(frame: frame, recoveredByFlush: hostRecoveredCurrentFrameByFlush)

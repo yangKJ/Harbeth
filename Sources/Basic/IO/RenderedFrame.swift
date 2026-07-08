@@ -769,13 +769,14 @@ struct FrameRenderer {
         let sourceWidth = sourceImageBuffer.map(CVPixelBufferGetWidth)
         let sourceHeight = sourceImageBuffer.map(CVPixelBufferGetHeight)
         let preservesDisplaySemantics = filterChain.isEmpty && sourceWidth == renderedTexture.width && sourceHeight == renderedTexture.height
+        let referenceSampleBuffer = sampleBuffer.c7.makeLightweightReferenceSampleBuffer()
         if preservesDisplaySemantics {
-            return RenderedFramePreviewHostPayload(passthroughSampleBuffer: sampleBuffer)
+            return RenderedFramePreviewHostPayload(passthroughSampleBuffer: referenceSampleBuffer)
         }
         return RenderedFramePreviewHostPayload(sampleBufferFactory: {
             try Self.makeRematerializedSampleBuffer(
                 texture: renderedTexture,
-                referenceSampleBuffer: sampleBuffer
+                referenceSampleBuffer: referenceSampleBuffer ?? sampleBuffer
             )
         })
     }

@@ -624,10 +624,12 @@ extension HarbethIO {
             inputSize: C7Size(width: inTexture.width, height: inTexture.height)
         )
         let texture = try filtering(texture: inTexture)
-        return try texture.c7.fixImageOrientation(
-            refImage: image,
+        guard let outputImage = texture.c7.toImage(
             colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
-        )
+        ) else {
+            throw HarbethError.texture2Image
+        }
+        return outputImage
     }
 
     private func filtering(pixelBuffer: CVPixelBuffer, complete: @escaping (Result<CVPixelBuffer, HarbethError>) -> Void) {
@@ -708,15 +710,13 @@ extension HarbethIO {
             filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let texture):
-                    do {
-                        let outputImage = try texture.c7.fixImageOrientation(
-                            refImage: image,
-                            colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
-                        )
-                        complete(.success(outputImage))
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
+                    guard let outputImage = texture.c7.toImage(
+                        colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
+                    ) else {
+                        complete(.failure(HarbethError.texture2Image))
+                        return
                     }
+                    complete(.success(outputImage))
                 case .failure(let error):
                     complete(.failure(HarbethError.toHarbethError(error)))
                 }

@@ -684,7 +684,7 @@ final class TextureReadbackTests: XCTestCase {
         #endif
     }
 
-    func testDecodedYCbCrTextureRetainsBridgeOwners() throws {
+    func testDecodedYCbCrTextureReleasesBridgeOwnersAfterMaterialization() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
         #else
@@ -700,13 +700,11 @@ final class TextureReadbackTests: XCTestCase {
         let texture = try TextureLoader(with: pixelBuffer).texture
         let owners = TextureOwnerRegistry.owners(for: texture)
 
-        XCTAssertEqual(owners.count, 2)
-        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
-        XCTAssertTrue(owners.contains { $0 !== pixelBuffer })
+        XCTAssertTrue(owners.isEmpty)
         #endif
     }
 
-    func testDecodedTenBitYCbCrTextureRetainsBridgeOwners() throws {
+    func testDecodedTenBitYCbCrTextureReleasesBridgeOwnersAfterMaterialization() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
         #else
@@ -723,13 +721,11 @@ final class TextureReadbackTests: XCTestCase {
         let owners = TextureOwnerRegistry.owners(for: texture)
 
         XCTAssertEqual(texture.pixelFormat, .rgba16Float)
-        XCTAssertEqual(owners.count, 2)
-        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
-        XCTAssertTrue(owners.contains { $0 !== pixelBuffer })
+        XCTAssertTrue(owners.isEmpty)
         #endif
     }
 
-    func testSampleBufferTextureSourceRetainsSampleBufferAlongsideBridgeOwners() throws {
+    func testSampleBufferTextureSourceRetainsPixelBufferBridgeOwnersOnly() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
         #else
@@ -749,17 +745,17 @@ final class TextureReadbackTests: XCTestCase {
         let source = try TextureLoader.resolveTextureSource(with: sampleBuffer)
         let owners = TextureOwnerRegistry.owners(for: source.primaryTexture)
 
-        XCTAssertEqual(source.retainedOwners.count, 3)
+        XCTAssertEqual(source.retainedOwners.count, 2)
         XCTAssertTrue(source.retainedOwners.contains { $0 === pixelBuffer })
-        XCTAssertTrue(source.retainedOwners.contains { $0 === sampleBuffer })
-        XCTAssertEqual(owners.count, 3)
+        XCTAssertFalse(source.retainedOwners.contains { $0 === sampleBuffer })
+        XCTAssertEqual(owners.count, 2)
         XCTAssertTrue(owners.contains { $0 === pixelBuffer })
-        XCTAssertTrue(owners.contains { $0 === sampleBuffer })
-        XCTAssertTrue(owners.contains { $0 !== pixelBuffer && $0 !== sampleBuffer })
+        XCTAssertFalse(owners.contains { $0 === sampleBuffer })
+        XCTAssertTrue(owners.contains { $0 !== pixelBuffer })
         #endif
     }
 
-    func testDecodedSampleBufferTextureRetainsSampleBufferOwner() throws {
+    func testDecodedSampleBufferTextureReleasesPixelBufferBridgeOwnersAfterMaterialization() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
         #else
@@ -779,10 +775,7 @@ final class TextureReadbackTests: XCTestCase {
         let texture = try TextureLoader(with: sampleBuffer).texture
         let owners = TextureOwnerRegistry.owners(for: texture)
 
-        XCTAssertEqual(owners.count, 3)
-        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
-        XCTAssertTrue(owners.contains { $0 === sampleBuffer })
-        XCTAssertTrue(owners.contains { $0 !== pixelBuffer && $0 !== sampleBuffer })
+        XCTAssertTrue(owners.isEmpty)
         #endif
     }
 

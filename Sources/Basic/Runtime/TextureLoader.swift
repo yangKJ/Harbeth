@@ -189,11 +189,20 @@ extension TextureLoader {
     ///   - image: A UIImage / NSImage.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with image: C7Image, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        let normalizedImage = image.imageOrientation == .up ? image : image.c7.flattened(isOpaque: false)
+        if let cgImage = normalizedImage.cgImage {
+            try self.init(with: cgImage, options: options)
+        } else {
+            throw HarbethError.image2CGImage
+        }
+        #else
         if let cgImage = image.cgImage {
             try self.init(with: cgImage, options: options)
         } else {
             throw HarbethError.image2CGImage
         }
+        #endif
     }
     
     /// Creates a new MTLTexture from a Data.
@@ -364,16 +373,11 @@ extension TextureLoader {
             throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
         let source = try resolveTextureSource(with: pixelBuffer, options: options)
-        attachOwner(sampleBuffer, to: source.primaryTexture)
-        source.planeTextures.forEach { attachOwner(sampleBuffer, to: $0) }
-        let retainedOwners = source.retainedOwners.contains { $0 === sampleBuffer }
-            ? source.retainedOwners
-            : source.retainedOwners + [sampleBuffer]
         return PixelBufferTextureSource(
             primaryTexture: source.primaryTexture,
             planeTextures: source.planeTextures,
             bridgePlan: source.bridgePlan,
-            retainedOwners: retainedOwners
+            retainedOwners: source.retainedOwners
         )
     }
 
@@ -554,8 +558,6 @@ extension TextureLoader {
         commandBuffer.label = "Harbeth.YCbCrDecode.\(strategy.descriptor)"
         _ = try filter.applyAtTexture(form: source.primaryTexture, to: outputTexture, for: commandBuffer)
         commandBuffer.commitAndWaitUntilCompleted(identifier: "YCbCrDecode")
-        let owners = source.retainedOwners.isEmpty ? [owner] : source.retainedOwners
-        TextureOwnerRegistry.attach(owners, to: outputTexture)
         return outputTexture
     }
 

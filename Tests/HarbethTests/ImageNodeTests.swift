@@ -1,6 +1,9 @@
 import XCTest
 import Metal
 import CoreVideo
+#if canImport(UIKit) && !os(watchOS)
+import UIKit
+#endif
 @testable import Harbeth
 
 final class ImageNodeTests: XCTestCase {
@@ -96,6 +99,26 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(nearestDiagnostics.samplerExecutionCoverage.mode, .covered)
         XCTAssertEqual(nearestDiagnostics.samplerExecutionCoverage.coveredFilterTypes, ["C7Crop"])
     }
+
+    #if canImport(UIKit) && !os(watchOS)
+    func testUIImageSourceOrientationIsAppliedBeforeTextureCreation() throws {
+        let rawTexture = try makeTexture(width: 2, height: 3, pixels: [
+            [255, 0, 0, 255], [0, 255, 0, 255],
+            [0, 0, 255, 255], [255, 255, 0, 255],
+            [255, 0, 255, 255], [0, 255, 255, 255]
+        ])
+        let cgImage = try XCTUnwrap(rawTexture.c7.toCGImage())
+        let orientedImage = UIImage(cgImage: cgImage, scale: 1, orientation: .right)
+
+        let frame = try ImageNode.image(orientedImage).makeFrame(profile: .exportQuality)
+
+        XCTAssertEqual(frame.texture.width, 3)
+        XCTAssertEqual(frame.texture.height, 2)
+        XCTAssertEqual(frame.resolvedOutputSize.width, 3)
+        XCTAssertEqual(frame.resolvedOutputSize.height, 2)
+        XCTAssertEqual(frame.orientation, .right)
+    }
+    #endif
 
     func testNodeWrappedPlanPreservesSourceConversionDiagnostics() throws {
         var pixelBuffer: CVPixelBuffer?

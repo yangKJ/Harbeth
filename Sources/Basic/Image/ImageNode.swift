@@ -1373,13 +1373,14 @@ extension ImageNode: ImagePromise {
         let preservesDisplaySemantics = renderRecipe.filters.isEmpty
             && sourceWidth == renderedTexture.width
             && sourceHeight == renderedTexture.height
+        let referenceSampleBuffer = sampleBuffer.c7.makeLightweightReferenceSampleBuffer()
         if preservesDisplaySemantics {
-            return RenderedFramePreviewHostPayload(passthroughSampleBuffer: sampleBuffer)
+            return RenderedFramePreviewHostPayload(passthroughSampleBuffer: referenceSampleBuffer)
         }
         return RenderedFramePreviewHostPayload(sampleBufferFactory: {
             try Self.makePreviewHostRematerializedSampleBuffer(
                 texture: renderedTexture,
-                referenceSampleBuffer: sampleBuffer
+                referenceSampleBuffer: referenceSampleBuffer ?? sampleBuffer
             )
         })
     }
