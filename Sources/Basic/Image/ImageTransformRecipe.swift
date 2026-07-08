@@ -142,11 +142,7 @@ public struct ImageTransformRecipe {
                 in: CGSize(width: inputSize.width, height: inputSize.height)
             )
             if cropRect.width > 0, cropRect.height > 0 {
-                let crop = C7Crop(
-                    rect: cropRect,
-                    samplingMode: .adaptive,
-                    edgeMode: .transparent
-                )
+                let crop = C7Crop(rect: cropRect, samplingMode: .adaptive, edgeMode: .transparent)
                 filters.append(crop)
                 workingSize = crop.resize(input: workingSize)
             }
@@ -197,13 +193,8 @@ public struct ImageTransformRecipe {
                 filters.append(makeResize(width: filledWidth, height: filledHeight, quality: prefersQualityResize))
                 let cropX = max((filledWidth - exactTarget.width) / 2, 0)
                 let cropY = max((filledHeight - exactTarget.height) / 2, 0)
-                filters.append(
-                    C7Crop(
-                        rect: CGRect(x: cropX, y: cropY, width: exactTarget.width, height: exactTarget.height),
-                        samplingMode: .adaptive,
-                        edgeMode: .transparent
-                    )
-                )
+                let rect_ = CGRect(x: cropX, y: cropY, width: exactTarget.width, height: exactTarget.height)
+                filters.append(C7Crop(rect: rect_, samplingMode: .adaptive, edgeMode: .transparent))
             }
         }
 
@@ -213,10 +204,7 @@ public struct ImageTransformRecipe {
     private func makeProjectiveFilter(inputSize: C7Size) -> C7FilterProtocol? {
         let resolvedSize = CGSize(width: inputSize.width, height: inputSize.height)
         if let guidedUpright {
-            return guidedUpright.makeFilter(
-                inputSize: resolvedSize,
-                viewportMode: projectiveViewportMode
-            )
+            return guidedUpright.makeFilter(inputSize: resolvedSize, viewportMode: projectiveViewportMode)
         }
         if let perspectiveTransform {
             return perspectiveTransform.makeFilter(viewportMode: projectiveViewportMode)

@@ -102,12 +102,10 @@ public struct ImageLayer {
     public var tintColor: SIMD4<Float>?
     public var mask: MaskDescriptor?
     public var maskRecipe: MaskCompositeRecipe?
-    public var maskGradientRecipe: MaskGradientRecipe?
-    public var maskShapeRecipe: MaskShapeRecipe?
+    var maskSource: AnyMaskRecipe?
     public var compositingMask: MaskDescriptor?
     public var compositingMaskRecipe: MaskCompositeRecipe?
-    public var compositingMaskGradientRecipe: MaskGradientRecipe?
-    public var compositingMaskShapeRecipe: MaskShapeRecipe?
+    var compositingMaskSource: AnyMaskRecipe?
     public var programmableBlend: LayerProgrammableBlend?
     public var cornerRadius: Float
     public var cornerCurve: LayerCornerCurve
@@ -126,16 +124,58 @@ public struct ImageLayer {
                 tintColor: SIMD4<Float>? = nil,
                 mask: MaskDescriptor? = nil,
                 maskRecipe: MaskCompositeRecipe? = nil,
-                maskGradientRecipe: MaskGradientRecipe? = nil,
-                maskShapeRecipe: MaskShapeRecipe? = nil,
                 compositingMask: MaskDescriptor? = nil,
                 compositingMaskRecipe: MaskCompositeRecipe? = nil,
-                compositingMaskGradientRecipe: MaskGradientRecipe? = nil,
-                compositingMaskShapeRecipe: MaskShapeRecipe? = nil,
                 programmableBlend: LayerProgrammableBlend? = nil,
                 cornerRadius: Float = 0,
                 cornerCurve: LayerCornerCurve = .circular,
                 rasterSampleCount: Int = 1) {
+        self.init(
+            content: content,
+            filters: filters,
+            normalizedFrame: normalizedFrame,
+            contentRegion: contentRegion,
+            layoutUnit: layoutUnit,
+            opacity: opacity,
+            blendMode: blendMode,
+            transform: transform,
+            flipOptions: flipOptions,
+            rotation: rotation,
+            tintColor: tintColor,
+            mask: mask,
+            maskRecipe: maskRecipe,
+            maskSource: nil,
+            compositingMask: compositingMask,
+            compositingMaskRecipe: compositingMaskRecipe,
+            compositingMaskSource: nil,
+            programmableBlend: programmableBlend,
+            cornerRadius: cornerRadius,
+            cornerCurve: cornerCurve,
+            rasterSampleCount: rasterSampleCount
+        )
+    }
+
+    init(content: ImageSource,
+         filters: [C7FilterProtocol] = [],
+         normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+         contentRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+         layoutUnit: LayerLayoutUnit = .normalized,
+         opacity: Float = 1,
+         blendMode: LayerBlendMode = .sourceOver,
+         transform: ImageTransformRecipe = ImageTransformRecipe(),
+         flipOptions: LayerFlipOptions = LayerFlipOptions(),
+         rotation: Float = 0,
+         tintColor: SIMD4<Float>? = nil,
+         mask: MaskDescriptor? = nil,
+         maskRecipe: MaskCompositeRecipe? = nil,
+         maskSource: AnyMaskRecipe? = nil,
+         compositingMask: MaskDescriptor? = nil,
+         compositingMaskRecipe: MaskCompositeRecipe? = nil,
+         compositingMaskSource: AnyMaskRecipe? = nil,
+         programmableBlend: LayerProgrammableBlend? = nil,
+         cornerRadius: Float = 0,
+         cornerCurve: LayerCornerCurve = .circular,
+         rasterSampleCount: Int = 1) {
         self.content = content
         self.filters = filters
         self.normalizedFrame = ImageLayer.clampedNormalizedFrame(normalizedFrame)
@@ -149,27 +189,106 @@ public struct ImageLayer {
         self.tintColor = tintColor
         self.mask = mask
         self.maskRecipe = maskRecipe
-        self.maskGradientRecipe = maskGradientRecipe
-        self.maskShapeRecipe = maskShapeRecipe
+        self.maskSource = maskSource ?? maskRecipe.map(AnyMaskRecipe.init)
         self.compositingMask = compositingMask
         self.compositingMaskRecipe = compositingMaskRecipe
-        self.compositingMaskGradientRecipe = compositingMaskGradientRecipe
-        self.compositingMaskShapeRecipe = compositingMaskShapeRecipe
+        self.compositingMaskSource = compositingMaskSource ?? compositingMaskRecipe.map(AnyMaskRecipe.init)
         self.programmableBlend = programmableBlend
         self.cornerRadius = max(cornerRadius, 0)
         self.cornerCurve = cornerCurve
         self.rasterSampleCount = max(rasterSampleCount, 1)
     }
 
+    public init<R: MaskRecipe>(content: ImageSource,
+                               filters: [C7FilterProtocol] = [],
+                               normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+                               contentRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+                               layoutUnit: LayerLayoutUnit = .normalized,
+                               opacity: Float = 1,
+                               blendMode: LayerBlendMode = .sourceOver,
+                               transform: ImageTransformRecipe = ImageTransformRecipe(),
+                               flipOptions: LayerFlipOptions = LayerFlipOptions(),
+                               rotation: Float = 0,
+                               tintColor: SIMD4<Float>? = nil,
+                               mask recipe: R,
+                               programmableBlend: LayerProgrammableBlend? = nil,
+                               cornerRadius: Float = 0,
+                               cornerCurve: LayerCornerCurve = .circular,
+                               rasterSampleCount: Int = 1) {
+        self.init(
+            content: content,
+            filters: filters,
+            normalizedFrame: normalizedFrame,
+            contentRegion: contentRegion,
+            layoutUnit: layoutUnit,
+            opacity: opacity,
+            blendMode: blendMode,
+            transform: transform,
+            flipOptions: flipOptions,
+            rotation: rotation,
+            tintColor: tintColor,
+            mask: nil,
+            maskRecipe: recipe as? MaskCompositeRecipe,
+            maskSource: AnyMaskRecipe(recipe),
+            compositingMask: nil,
+            compositingMaskRecipe: nil,
+            compositingMaskSource: nil,
+            programmableBlend: programmableBlend,
+            cornerRadius: cornerRadius,
+            cornerCurve: cornerCurve,
+            rasterSampleCount: rasterSampleCount
+        )
+    }
+
+    public init<R: MaskRecipe, C: MaskRecipe>(content: ImageSource,
+                                              filters: [C7FilterProtocol] = [],
+                                              normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+                                              contentRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
+                                              layoutUnit: LayerLayoutUnit = .normalized,
+                                              opacity: Float = 1,
+                                              blendMode: LayerBlendMode = .sourceOver,
+                                              transform: ImageTransformRecipe = ImageTransformRecipe(),
+                                              flipOptions: LayerFlipOptions = LayerFlipOptions(),
+                                              rotation: Float = 0,
+                                              tintColor: SIMD4<Float>? = nil,
+                                              mask recipe: R,
+                                              compositingMask compositingRecipe: C,
+                                              programmableBlend: LayerProgrammableBlend? = nil,
+                                              cornerRadius: Float = 0,
+                                              cornerCurve: LayerCornerCurve = .circular,
+                                              rasterSampleCount: Int = 1) {
+        self.init(
+            content: content,
+            filters: filters,
+            normalizedFrame: normalizedFrame,
+            contentRegion: contentRegion,
+            layoutUnit: layoutUnit,
+            opacity: opacity,
+            blendMode: blendMode,
+            transform: transform,
+            flipOptions: flipOptions,
+            rotation: rotation,
+            tintColor: tintColor,
+            mask: nil,
+            maskRecipe: recipe as? MaskCompositeRecipe,
+            maskSource: AnyMaskRecipe(recipe),
+            compositingMask: nil,
+            compositingMaskRecipe: compositingRecipe as? MaskCompositeRecipe,
+            compositingMaskSource: AnyMaskRecipe(compositingRecipe),
+            programmableBlend: programmableBlend,
+            cornerRadius: cornerRadius,
+            cornerCurve: cornerCurve,
+            rasterSampleCount: rasterSampleCount
+        )
+    }
+
     public var hasMask: Bool {
         mask != nil
         || maskRecipe != nil
-        || maskGradientRecipe != nil
-        || maskShapeRecipe != nil
+        || maskSource != nil
         || compositingMask != nil
         || compositingMaskRecipe != nil
-        || compositingMaskGradientRecipe != nil
-        || compositingMaskShapeRecipe != nil
+        || compositingMaskSource != nil
     }
 
     public var fingerprint: String {
@@ -178,12 +297,8 @@ public struct ImageLayer {
         let tintFingerprint = tintColor.map { "\($0.x),\($0.y),\($0.z),\($0.w)" } ?? "none"
         let filterFingerprint = filters.isEmpty ? "none" : filters.chainRecipe.fingerprint
         let maskFingerprint: String
-        if let maskShapeRecipe {
-            maskFingerprint = "shape{\(maskShapeRecipe.fingerprint)}"
-        } else if let maskGradientRecipe {
-            maskFingerprint = "gradient{\(maskGradientRecipe.fingerprint)}"
-        } else if let maskRecipe {
-            maskFingerprint = "recipe{\(maskRecipe.fingerprint)}"
+        if let maskSource {
+            maskFingerprint = MaskSource.recipe(maskSource).fingerprintLabel
         } else if let mask {
             maskFingerprint = Self.maskFingerprint(mask)
         } else {
@@ -191,12 +306,8 @@ public struct ImageLayer {
         }
 
         let compositingMaskFingerprint: String
-        if let compositingMaskShapeRecipe {
-            compositingMaskFingerprint = "shape{\(compositingMaskShapeRecipe.fingerprint)}"
-        } else if let compositingMaskGradientRecipe {
-            compositingMaskFingerprint = "gradient{\(compositingMaskGradientRecipe.fingerprint)}"
-        } else if let compositingMaskRecipe {
-            compositingMaskFingerprint = "recipe{\(compositingMaskRecipe.fingerprint)}"
+        if let compositingMaskSource {
+            compositingMaskFingerprint = MaskSource.recipe(compositingMaskSource).fingerprintLabel
         } else if let compositingMask {
             compositingMaskFingerprint = Self.maskFingerprint(compositingMask)
         } else {
@@ -234,43 +345,43 @@ public struct ImageLayer {
     }
 
     func resolvedMaskDescriptor() throws -> MaskDescriptor? {
-        if let maskShapeRecipe {
-            return try maskShapeRecipe.makeMaskDescriptor()
-        }
-        if let maskGradientRecipe {
-            return try maskGradientRecipe.makeMaskDescriptor()
-        }
         if let maskRecipe {
             return try maskRecipe.makeMaskDescriptor()
+        }
+        if let maskSource {
+            return try maskSource.makeMaskDescriptor(
+                component: .red,
+                blendMode: .mix,
+                invert: false,
+                featherPolicy: .none,
+                opacity: 1.0
+            )
         }
         return mask
     }
 
     func resolvedCompositingMaskDescriptor() throws -> MaskDescriptor? {
-        if let compositingMaskShapeRecipe {
-            return try compositingMaskShapeRecipe.makeMaskDescriptor()
-        }
-        if let compositingMaskGradientRecipe {
-            return try compositingMaskGradientRecipe.makeMaskDescriptor()
-        }
         if let compositingMaskRecipe {
             return try compositingMaskRecipe.makeMaskDescriptor()
+        }
+        if let compositingMaskSource {
+            return try compositingMaskSource.makeMaskDescriptor(
+                component: .red,
+                blendMode: .mix,
+                invert: false,
+                featherPolicy: .none,
+                opacity: 1.0
+            )
         }
         return compositingMask
     }
 
     var maskGraphDescriptor: MaskGraphDescriptor? {
-        maskShapeRecipe?.graphDescriptor
-        ?? maskGradientRecipe?.graphDescriptor
-        ?? maskRecipe?.graphDescriptor
-        ?? mask?.graphDescriptor
+        maskSource?.graphDescriptor ?? maskRecipe?.graphDescriptor ?? mask?.graphDescriptor
     }
 
     var compositingMaskGraphDescriptor: MaskGraphDescriptor? {
-        compositingMaskShapeRecipe?.graphDescriptor
-        ?? compositingMaskGradientRecipe?.graphDescriptor
-        ?? compositingMaskRecipe?.graphDescriptor
-        ?? compositingMask?.graphDescriptor
+        compositingMaskSource?.graphDescriptor ?? compositingMaskRecipe?.graphDescriptor ?? compositingMask?.graphDescriptor
     }
 
     private static func clampedNormalizedFrame(_ rect: CGRect) -> CGRect {
@@ -523,21 +634,6 @@ extension LayerCompositeRecipe {
                      samplerDescriptor: ImageSamplerDescriptor = .default,
                      executionIdentifier: String? = nil) throws -> MTLTexture {
         let effectiveProfile = profile ?? self.profile
-        // Layer Compose 智能合并（评估结论：暂不 fusion）
-        //
-        // 评估过把 N 个 layer 折叠为单 compute pass：
-        //   * `LayerComposite` 是 `RenderProtocol`（render encoder），
-        //     不是 compute kernel。它的 `layerTexture` 是 `otherInputTextures`
-        //     之一，必须在 render encoder 当帧绑定，无法用单个 compute pass
-        //     "一次性" 串起多张 layer 输入。
-        //   * 即便全部强制 compute，`LayerComposite` 当前没有 compute shader
-        //     实现，重写成本与正确性风险远大于节省的 dispatch。
-        //   * `programmableBlend` 分支额外引入了 "layer canvas + programmable blend"
-        //     双 render pass，结构和普通 layer 不一致，单 pass fusion 会跳过它，
-        //     反而引入行为分歧。
-        //
-        // 结论：保留 "每个 layer 一个 render pass + 末尾 output contract" 的现状。
-        // 后续若提供 `LayerComposite.compute(otherInputs:)` 入口，可再开启 fusion。
         var current = try background.makeTexture()
         guard layers.isEmpty == false else {
             return try resizeTextureIfNeeded(
@@ -568,10 +664,7 @@ extension LayerCompositeRecipe {
             if layerFilters.isEmpty == false {
                 layerTexture = try HarbethIO(
                     element: layerTexture,
-                    filters: SamplerExecutionAdapter.adapt(
-                        filters: layerFilters,
-                        samplerDescriptor: samplerDescriptor
-                    ),
+                    filters: SamplerExecutionAdapter.adapt(filters: layerFilters, samplerDescriptor: samplerDescriptor),
                     identifier: executionIdentifier ?? "ImageNode.LayerComposite"
                 )
                 .configured(for: effectiveProfile)
@@ -647,8 +740,7 @@ extension LayerCompositeRecipe {
         )
     }
 
-    func makeDiagnostics(profile: RenderProfile? = nil,
-                         derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
+    func makeDiagnostics(profile: RenderProfile? = nil, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
         try makeRenderPlan(profile: profile, derivative: derivative).diagnostics
     }
 

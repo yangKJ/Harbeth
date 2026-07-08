@@ -342,16 +342,15 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(Array(bytes[8..<12]), [0, 0, 0, 255])
     }
 
-    func testHarbethIOCanMaterializeColorRangeMaskDescriptor() throws {
+    func testImageNodeCanMaterializeColorRangeMaskDescriptor() throws {
         let texture = try makeTexture(width: 3, height: 1, pixels: [
             [255, 0, 0, 255],
             [0, 255, 0, 255],
             [255, 255, 255, 255]
         ])
-        let io = HarbethIO<MTLTexture>(
-            element: texture,
-            filters: [C7Brightness(brightness: 0.0)]
-        )
+        let request = try ImageNode.texture(texture)
+            .applying(C7Brightness(brightness: 0.0))
+            .makeRenderRequest(profile: .readbackQuality)
         let scope = TextureAnalysisScope(
             colorRange: TextureColorRange(
                 hue: TextureComponentRange(minimum: 0.95, maximum: 0.05, wrapsAroundUnit: true),
@@ -359,7 +358,7 @@ final class HarbethIOAsyncTests: XCTestCase {
             )
         )
 
-        let mask = try XCTUnwrap(io.renderMaskDescriptor(scope: scope))
+        let mask = try XCTUnwrap(request.renderMaskDescriptor(scope: scope))
         let bytes = try XCTUnwrap(mask.texture.c7.bytes())
 
         XCTAssertEqual(mask.component, .red)
@@ -368,20 +367,15 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(Array(bytes[8..<12]), [0, 0, 0, 255])
     }
 
-    func testHarbethIOCanMaterializeAttachmentMaskDescriptor() throws {
+    func testImageNodeCanMaterializeAttachmentMaskDescriptor() throws {
         let image = try makeFixtureCGImage()
-        let io = HarbethIO<CGImage>(
-            element: image,
-            filters: [RenderAuxiliaryLuminance()]
-        )
+        let request = try ImageNode.cgImage(image)
+            .applying(RenderAuxiliaryLuminance())
+            .makeRenderRequest(profile: .readbackQuality)
         let scope = TextureAnalysisScope(region: MTLRegionMake2D(0, 0, 8, 8))
 
-        let mask = try XCTUnwrap(
-            io.renderAttachmentMaskDescriptor(
-                semantic: .luminance,
-                scope: scope
-            )
-        )
+        let attachmentSet = try XCTUnwrap(request.renderAttachmentSet())
+        let mask = try XCTUnwrap(attachmentSet.makeMaskDescriptor(for: .luminance, scope: scope))
 
         XCTAssertEqual(mask.component, .red)
         XCTAssertEqual(mask.texture.width, image.width)
@@ -418,16 +412,6 @@ final class HarbethIOAsyncTests: XCTestCase {
         let image = C7Image(cgImage: try makeFixtureCGImage(colorSpace: displayP3))
 
         let data = try XCTUnwrap(image.c7.encodedPNGData())
-
-        XCTAssertEqual(decodedImageColorSpaceName(from: data), CGColorSpace.displayP3 as String)
-    }
-
-    func testHarbethIORenderJPEGDataAppliesExplicitRenderOutputColorSpace() throws {
-        let image = C7Image(cgImage: try makeFixtureCGImage())
-        let data = try HarbethIO(
-            element: image,
-            filters: [HarbethIOC7ImageDisplayP3RenderFilter()]
-        ).renderJPEGData()
 
         XCTAssertEqual(decodedImageColorSpaceName(from: data), CGColorSpace.displayP3 as String)
     }

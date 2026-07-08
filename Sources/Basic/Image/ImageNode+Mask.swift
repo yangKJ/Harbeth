@@ -236,62 +236,18 @@ extension ImageNode {
         )
     }
 
-    private static func makeLocalEffect(filters: [C7FilterProtocol],
-                                        mask: MaskGradientRecipe,
-                                        component: MaskComponent,
-                                        blendMode: MaskBlendMode,
-                                        invert: Bool,
-                                        featherPolicy: MaskFeatherPolicy,
-                                        opacity: Float,
-                                        foregroundBlendType: C7Blend.BlendType?,
-                                        foregroundBlendOpacity: Float) throws -> LocalEffectRecipe {
+    private static func makeLocalEffect<R: MaskRecipe>(filters: [C7FilterProtocol],
+                                                       mask: R,
+                                                       component: MaskComponent,
+                                                       blendMode: MaskBlendMode,
+                                                       invert: Bool,
+                                                       featherPolicy: MaskFeatherPolicy,
+                                                       opacity: Float,
+                                                       foregroundBlendType: C7Blend.BlendType?,
+                                                       foregroundBlendOpacity: Float) throws -> LocalEffectRecipe {
         try LocalEffectRecipe(
             filters: filters,
-            maskGradientRecipe: mask,
-            component: component,
-            blendMode: blendMode,
-            invert: invert,
-            featherPolicy: featherPolicy,
-            opacity: opacity,
-            foregroundBlendType: foregroundBlendType,
-            foregroundBlendOpacity: foregroundBlendOpacity
-        )
-    }
-
-    private static func makeLocalEffect(filters: [C7FilterProtocol],
-                                        mask: MaskShapeRecipe,
-                                        component: MaskComponent,
-                                        blendMode: MaskBlendMode,
-                                        invert: Bool,
-                                        featherPolicy: MaskFeatherPolicy,
-                                        opacity: Float,
-                                        foregroundBlendType: C7Blend.BlendType?,
-                                        foregroundBlendOpacity: Float) throws -> LocalEffectRecipe {
-        try LocalEffectRecipe(
-            filters: filters,
-            maskShapeRecipe: mask,
-            component: component,
-            blendMode: blendMode,
-            invert: invert,
-            featherPolicy: featherPolicy,
-            opacity: opacity,
-            foregroundBlendType: foregroundBlendType,
-            foregroundBlendOpacity: foregroundBlendOpacity
-        )
-    }
-
-    private static func makeLocalEffect(filters: [C7FilterProtocol],
-                                        mask: MaskPathRecipe,
-                                        component: MaskComponent,
-                                        blendMode: MaskBlendMode,
-                                        invert: Bool,
-                                        featherPolicy: MaskFeatherPolicy,
-                                        opacity: Float,
-                                        foregroundBlendType: C7Blend.BlendType?,
-                                        foregroundBlendOpacity: Float) throws -> LocalEffectRecipe {
-        try LocalEffectRecipe(
-            filters: filters,
-            maskPathRecipe: mask,
+            maskSource: mask,
             component: component,
             blendMode: blendMode,
             invert: invert,

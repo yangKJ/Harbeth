@@ -411,7 +411,7 @@ final class EditRecipeTests: XCTestCase {
             localEffects: [
                 try LocalEffectRecipe(
                     filters: [C7Brightness(brightness: -0.1)],
-                    maskGradientRecipe: MaskGradientRecipe(
+                    mask: MaskGradientRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .linear(
                             startPoint: CGPoint(x: 0, y: 0.5),
@@ -434,7 +434,7 @@ final class EditRecipeTests: XCTestCase {
     func testGradientLocalEffectDescriptorPreservesMaskControls() throws {
         let localEffect = try LocalEffectRecipe(
             filters: [C7Brightness(brightness: -0.1)],
-            maskGradientRecipe: MaskGradientRecipe(
+            mask: MaskGradientRecipe(
                 size: C7Size(width: 3, height: 1),
                 kind: .linear(
                     startPoint: CGPoint(x: 0, y: 0.5),
@@ -478,7 +478,7 @@ final class EditRecipeTests: XCTestCase {
                 LocalEffectRecipe(
                     filters: [C7Brightness(brightness: -0.1)],
                     maskRecipe: try MaskCompositeRecipe(
-                        baseGradientRecipe: baseGradient
+                        baseRecipe: baseGradient
                     )
                     .subtracting(subtractShape, name: "centerSubtract")
                 )
@@ -505,7 +505,7 @@ final class EditRecipeTests: XCTestCase {
             localEffects: [
                 try LocalEffectRecipe(
                     filters: [C7Brightness(brightness: -0.1)],
-                    maskShapeRecipe: MaskShapeRecipe(
+                    mask: MaskShapeRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
                     )
@@ -524,7 +524,7 @@ final class EditRecipeTests: XCTestCase {
     func testShapeLocalEffectDescriptorPreservesMaskControls() throws {
         let localEffect = try LocalEffectRecipe(
             filters: [C7Brightness(brightness: -0.1)],
-            maskShapeRecipe: MaskShapeRecipe(
+            mask: MaskShapeRecipe(
                 size: C7Size(width: 3, height: 1),
                 kind: .ellipse(rect: CGRect(x: 0.25, y: 0, width: 0.5, height: 1), feather: 0.3)
             ),
@@ -542,6 +542,31 @@ final class EditRecipeTests: XCTestCase {
         XCTAssertFalse(descriptor.mask.invert)
         XCTAssertEqual(descriptor.mask.opacity, 0.65, accuracy: 0.0001)
         XCTAssertEqual(descriptor.mask.featherAmount, 0.4, accuracy: 0.0001)
+    }
+
+    func testParametricShapeLocalEffectDescriptorPreservesShapeSemantic() throws {
+        let localEffect = try LocalEffectRecipe(
+            filters: [C7Brightness(brightness: -0.1)],
+            mask: MaskShapeRecipe.star(
+                size: C7Size(width: 8, height: 8),
+                rect: CGRect(x: 0.15, y: 0.15, width: 0.7, height: 0.7),
+                points: 6,
+                innerRadiusRatio: 0.32,
+                feather: 0.18
+            ),
+            component: .red,
+            blendMode: .mix,
+            invert: false,
+            featherPolicy: .none,
+            opacity: 0.75
+        )
+        let descriptor = localEffect.recipeDescriptor
+
+        XCTAssertEqual(descriptor.mask.kind, "maskShapeRecipe")
+        XCTAssertEqual(descriptor.mask.shape?.kind, "star")
+        XCTAssertTrue(descriptor.mask.shape?.parameterValues.contains("points=6") == true)
+        XCTAssertTrue(descriptor.mask.shape?.parameterValues.contains("innerRadiusRatio=0.320000") == true)
+        XCTAssertEqual(descriptor.mask.opacity, 0.75, accuracy: 0.0001)
     }
 
     func testLayerCompositeDirectPathMatchesNodePath() throws {

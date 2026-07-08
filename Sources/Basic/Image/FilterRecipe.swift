@@ -6,10 +6,6 @@
 //
 import Foundation
 
-private func stableRecipeFloatDescription(_ value: Float) -> String {
-    String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
-}
-
 struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
     let stableTypeID: String
     let modifier: String
@@ -45,104 +41,6 @@ struct FilterChainRecipe: Sendable, Hashable, Codable {
     var fingerprint: String {
         filters.map(\.fingerprint).joined(separator: " -> ")
     }
-}
-
-public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
-    public let name: String
-    public let component: MaskComponent
-    public let blendMode: MaskBlendMode
-    public let invert: Bool
-    public let opacity: Float
-    public let featherAmount: Float
-    public let gradient: MaskGradientDescriptor?
-    public let shape: MaskShapeDescriptor?
-    public let path: MaskPathDescriptor?
-
-    public var fingerprint: String {
-        var parts = [
-            "name=\(name)",
-            "component=\(component.rawValue)",
-            "blend=\(blendMode.rawValue)",
-            "invert=\(invert ? 1 : 0)",
-            "opacity=\(stableRecipeFloatDescription(opacity))",
-            "feather=\(stableRecipeFloatDescription(featherAmount))"
-        ]
-        if let gradient {
-            parts.append("gradient=\(gradient.fingerprint)")
-        }
-        if let shape {
-            parts.append("shape=\(shape.fingerprint)")
-        }
-        if let path {
-            parts.append("path=\(path.fingerprint)")
-        }
-        return parts.joined(separator: ",")
-    }
-}
-
-public struct MaskGradientDescriptor: Sendable, Hashable, Codable {
-    public let kind: String
-    public let fingerprint: String
-    public let parameterValues: [String]
-}
-
-public struct MaskShapeDescriptor: Sendable, Hashable, Codable {
-    public let kind: String
-    public let fingerprint: String
-    public let parameterValues: [String]
-}
-
-public struct MaskPathDescriptor: Sendable, Hashable, Codable {
-    public let fillRule: String
-    public let fingerprint: String
-    public let pointCount: Int
-    public let subpathCount: Int
-    public let parameterValues: [String]
-}
-
-public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
-    public let kind: String
-    public let fingerprint: String
-    public let component: MaskComponent
-    public let blendMode: MaskBlendMode
-    public let invert: Bool
-    public let opacity: Float
-    public let featherAmount: Float
-    public let stepCount: Int
-    public let steps: [MaskCompositeStepDescriptor]
-    public let gradient: MaskGradientDescriptor?
-    public let shape: MaskShapeDescriptor?
-    public let path: MaskPathDescriptor?
-}
-
-struct LocalEffectRecipeDescriptor: Sendable, Hashable, Codable {
-    let filters: [FilterRecipeDescriptor]
-    let mask: MaskGraphDescriptor
-    let foregroundBlendMode: String?
-    let foregroundBlendOpacity: Float
-
-    init(filters: [FilterRecipeDescriptor], mask: MaskGraphDescriptor, foregroundBlendMode: String? = nil, foregroundBlendOpacity: Float = 1.0) {
-        self.filters = filters
-        self.mask = mask
-        self.foregroundBlendMode = foregroundBlendMode
-        self.foregroundBlendOpacity = foregroundBlendOpacity
-    }
-
-    var fingerprint: String {
-        let chain = filters.isEmpty ? "none" : FilterChainRecipe(filters: filters).fingerprint
-        return [
-            "filters=\(chain)",
-            "mask=\(mask.fingerprint)",
-            "blend=\(foregroundBlendMode ?? "none")",
-            "opacity=\(String(format: "%.4f", foregroundBlendOpacity))"
-        ].joined(separator: "|")
-    }
-}
-
-struct LayerMaskRecipeDescriptor: Sendable, Hashable, Codable {
-    let layerIndex: Int
-    let mask: MaskGraphDescriptor?
-    let compositingMask: MaskGraphDescriptor?
 }
 
 struct RenderRecipe: Sendable, Hashable, Codable {
@@ -208,7 +106,7 @@ extension C7FilterProtocol {
     }
 
     static func stableFloatDescription(_ value: Float) -> String {
-        stableRecipeFloatDescription(value)
+        String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
     }
 }
 

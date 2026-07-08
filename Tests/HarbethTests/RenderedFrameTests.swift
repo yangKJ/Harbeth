@@ -850,13 +850,13 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
     }
 
-    func testHarbethIORenderAttachmentSetBridgesNodeFacade() throws {
+    func testNodeAttachmentSetConvenienceReturnsAttachmentResultLayer() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
         let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
-        ], identifier: "RenderedFrameTests.nodeAttachmentSetFacade")
+        ], identifier: "RenderedFrameTests.nodeAttachmentResultLayer")
         texture.replace(
             region: MTLRegionMake2D(0, 0, 2, 1),
             mipmapLevel: 0,
@@ -876,14 +876,14 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(attachmentSet.attachments.count, 2)
     }
 
-    func testHarbethIORenderAttachmentAnalysisBundleBridgesNodeScopeFacade() throws {
+    func testNodeAttachmentAnalysisBundleConvenienceReturnsAttachmentResultLayer() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
         let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
             .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
-        ], identifier: "RenderedFrameTests.nodeAttachmentAnalysisFacade")
+        ], identifier: "RenderedFrameTests.nodeAttachmentAnalysisResultLayer")
         texture.replace(
             region: MTLRegionMake2D(0, 0, 2, 1),
             mipmapLevel: 0,
@@ -896,7 +896,7 @@ final class RenderedFrameTests: XCTestCase {
         let mask = try TextureLoader.makeTexture(width: 2, height: 1, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
             .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
-        ], identifier: "RenderedFrameTests.nodeAttachmentAnalysisFacade.mask")
+        ], identifier: "RenderedFrameTests.nodeAttachmentAnalysisResultLayer.mask")
         mask.replace(
             region: MTLRegionMake2D(0, 0, 2, 1),
             mipmapLevel: 0,
@@ -1008,7 +1008,7 @@ final class RenderedFrameTests: XCTestCase {
     }
 
 
-    func testHarbethIORenderHistogramFromNodePathReturnsTextureHistogram() throws {
+    func testNodeHistogramConvenienceReturnsTextureHistogram() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
@@ -1025,7 +1025,14 @@ final class RenderedFrameTests: XCTestCase {
             .texture(texture)
             .applying(C7Brightness(brightness: 0))
 
-        let histogram = try XCTUnwrap(node.makeFrame(profile: .readbackQuality).makeHistogram(channel: .red, bins: 4))
+        let histogram = try XCTUnwrap(
+            node.makeHistogram(
+                profile: .readbackQuality,
+                channel: .red,
+                bins: 4,
+                preferredMethod: .cpuReadback
+            )
+        )
 
         XCTAssertEqual(histogram.channel, .red)
         XCTAssertEqual(histogram.totalSampleCount, 1)

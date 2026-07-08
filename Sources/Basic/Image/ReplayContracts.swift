@@ -4,28 +4,8 @@
 //
 //  Created by Condy on 2026/6/20.
 //
+
 import Foundation
-
-extension ImageSourceTier {
-    var rank: Int {
-        switch self {
-        case .thumbnail:
-            return 0
-        case .deliveryReusable:
-            return 1
-        case .stableReusable:
-            return 2
-        case .fullResolutionReusable:
-            return 3
-        case .original:
-            return 4
-        }
-    }
-
-    func satisfies(_ requiredTier: ImageSourceTier) -> Bool {
-        rank >= requiredTier.rank
-    }
-}
 
 /// 描述某个渲染结果允许从哪一级资源重放。
 public struct ReplayBaseContract: Sendable, Hashable, Codable {

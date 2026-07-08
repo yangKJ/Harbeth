@@ -285,7 +285,7 @@ final class ImageNodeTests: XCTestCase {
                     localEffects: [
                         try LocalEffectRecipe(
                             filters: [C7Brightness(brightness: 0.1)],
-                            maskGradientRecipe: mask,
+                            mask: mask,
                             component: .green,
                             blendMode: .add,
                             invert: true,
@@ -332,7 +332,7 @@ final class ImageNodeTests: XCTestCase {
                     localEffects: [
                         try LocalEffectRecipe(
                             filters: [C7Contrast(contrast: 1.1)],
-                            maskShapeRecipe: mask,
+                            mask: mask,
                             component: .blue,
                             blendMode: .multiply,
                             featherPolicy: .normalized(0.4),
@@ -368,7 +368,7 @@ final class ImageNodeTests: XCTestCase {
             size: C7Size(width: 4, height: 3),
             kind: .rectangle(rect: CGRect(x: 0.25, y: 0, width: 0.25, height: 1))
         )
-        let mask = try MaskCompositeRecipe(baseGradientRecipe: base)
+        let mask = try MaskCompositeRecipe(baseRecipe: base)
             .subtracting(subtract, name: "subtract-center")
         let convenienceNode = ImageNode
             .texture(input)
@@ -1164,6 +1164,159 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
     }
 
+    func testNodeAnalysisConveniencesMatchResultObjectLayer() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let node = ImageNode
+            .texture(input)
+            .applying(C7Brightness(brightness: 0.0))
+        let scope = TextureAnalysisScope.region(MTLRegionMake2D(1, 0, 1, 1))
+        let frame = try node.makeFrame(profile: .readbackQuality)
+
+        let histogram = try XCTUnwrap(
+            node.makeHistogram(
+                profile: .readbackQuality,
+                channel: .red,
+                bins: 4,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let statistics = try XCTUnwrap(
+            node.makeStatistics(profile: .readbackQuality, scope: scope)
+        )
+        let probe = try XCTUnwrap(
+            node.makeColorProbe(profile: .readbackQuality, scope: scope)
+        )
+        let histogramAttachment = try XCTUnwrap(
+            node.makeHistogramAttachment(
+                profile: .readbackQuality,
+                channel: .red,
+                bins: 4,
+                height: 16,
+                scope: scope,
+                preferredMethod: .gpuMPS
+            )
+        )
+        let bundle = try node.makeAnalysisBundle(
+            profile: .readbackQuality,
+            channel: .red,
+            bins: 4,
+            histogramHeight: 16,
+            scope: scope,
+            preferredMethod: .cpuReadback
+        )
+
+        XCTAssertEqual(histogram, frame.makeHistogram(channel: .red, bins: 4, scope: scope, preferredMethod: .cpuReadback))
+        XCTAssertEqual(statistics, frame.makeStatistics(scope: scope))
+        XCTAssertEqual(probe.meanColor8, frame.makeColorProbe(scope: scope)?.meanColor8)
+        XCTAssertEqual(histogramAttachment.histogram.channel, .red)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+        XCTAssertEqual(bundle.statistics, statistics)
+        XCTAssertEqual(bundle.colorProbe?.meanColor8, probe.meanColor8)
+    }
+
+    func testNodeScopedMaskConveniencesMatchResultObjectLayer() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 0, 255, 255]
+        ])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [
+            [255, 0, 0, 255],
+            [0, 0, 0, 255]
+        ])
+        let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
+        let node = ImageNode.texture(input)
+        let frame = try node.makeFrame(profile: .readbackQuality)
+
+        let scopedMaskTexture = try XCTUnwrap(
+            node.makeMaskTexture(profile: .readbackQuality, scope: scope)
+        )
+        let scopedMaskDescriptor = try XCTUnwrap(
+            node.makeMaskDescriptor(profile: .readbackQuality, scope: scope)
+        )
+
+        XCTAssertEqual(scopedMaskTexture.width, frame.texture.width)
+        XCTAssertEqual(scopedMaskTexture.height, frame.texture.height)
+        XCTAssertEqual(scopedMaskDescriptor.texture.width, frame.texture.width)
+        XCTAssertEqual(scopedMaskDescriptor.texture.height, frame.texture.height)
+        XCTAssertEqual(
+            try pixel(in: scopedMaskDescriptor.texture, x: 0, y: 0).red,
+            try pixel(in: try XCTUnwrap(frame.makeMaskDescriptor(scope: scope)?.texture), x: 0, y: 0).red
+        )
+    }
+
+    func testNodeAttachmentConveniencesMatchAttachmentResultLayer() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
+        let node = ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let attachmentSet = try XCTUnwrap(node.makeAttachmentSet(profile: .readbackQuality))
+
+        let attachment = try XCTUnwrap(
+            node.makeAttachment(profile: .readbackQuality, semantic: .luminance)
+        )
+        let histogram = try XCTUnwrap(
+            node.makeAttachmentHistogram(
+                profile: .readbackQuality,
+                semantic: .luminance,
+                bins: 4,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let statistics = try XCTUnwrap(
+            node.makeAttachmentStatistics(
+                profile: .readbackQuality,
+                semantic: .luminance,
+                scope: scope
+            )
+        )
+        let probe = try XCTUnwrap(
+            node.makeAttachmentColorProbe(
+                profile: .readbackQuality,
+                semantic: .luminance,
+                scope: scope
+            )
+        )
+        let scopedMask = try XCTUnwrap(
+            node.makeAttachmentMaskDescriptor(
+                profile: .readbackQuality,
+                semantic: .luminance,
+                scope: scope
+            )
+        )
+        let analysis = try XCTUnwrap(
+            node.makeAttachmentAnalysis(
+                profile: .readbackQuality,
+                semantic: .luminance,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+
+        XCTAssertEqual(attachment.semantic, attachmentSet.attachment(for: .luminance)?.semantic)
+        XCTAssertEqual(histogram, attachmentSet.makeHistogram(for: .luminance, bins: 4, scope: scope, preferredMethod: .cpuReadback))
+        XCTAssertEqual(statistics, attachmentSet.makeStatistics(for: .luminance, scope: scope))
+        XCTAssertEqual(probe.meanColor8, attachmentSet.makeColorProbe(for: .luminance, scope: scope)?.meanColor8)
+        XCTAssertEqual(scopedMask.texture.width, attachment.texture.width)
+        XCTAssertEqual(analysis.attachment.semantic, .luminance)
+        XCTAssertEqual(analysis.histogram, histogram)
+        XCTAssertEqual(analysis.statistics, statistics)
+    }
+
     func testNodeRenderRequestKeepsAttachmentOutputsOptionalForNonRenderPath() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
         let node = ImageNode
@@ -1286,6 +1439,79 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(bundle.analysis(for: .primaryColor)?.colorProbe?.meanColor8.z, 0)
     }
 
+    func testNodeRenderRequestConveniencesMatchAttachmentAndAnalysisPaths() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [
+            [0, 0, 0, 255],
+            [255, 0, 0, 255]
+        ])
+        let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
+        let request = try ImageNode
+            .texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+            .makeRenderRequest(profile: .readbackQuality)
+
+        let histogram = try XCTUnwrap(
+            request.renderHistogram(
+                channel: .red,
+                bins: 4,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let statistics = try XCTUnwrap(request.renderStatistics(scope: scope))
+        let attachment = try XCTUnwrap(request.renderAttachment(semantic: .luminance))
+        let attachmentHistogram = try XCTUnwrap(
+            request.renderAttachmentHistogram(
+                semantic: .luminance,
+                bins: 4,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+        let attachmentStatistics = try XCTUnwrap(
+            request.renderAttachmentStatistics(
+                semantic: .luminance,
+                scope: scope
+            )
+        )
+        let attachmentProbe = try XCTUnwrap(
+            request.renderAttachmentColorProbe(
+                semantic: .luminance,
+                scope: scope
+            )
+        )
+        let attachmentMask = try XCTUnwrap(
+            request.renderAttachmentMaskDescriptor(
+                semantic: .luminance,
+                scope: scope
+            )
+        )
+        let attachmentAnalysis = try XCTUnwrap(
+            request.renderAttachmentAnalysis(
+                semantic: .luminance,
+                bins: 4,
+                histogramHeight: 16,
+                scope: scope,
+                preferredMethod: .cpuReadback
+            )
+        )
+
+        XCTAssertEqual(histogram.totalSampleCount, 1)
+        XCTAssertEqual(statistics.sampleCount, 1)
+        XCTAssertEqual(attachment.semantic, .luminance)
+        XCTAssertEqual(attachmentHistogram.totalSampleCount, 1)
+        XCTAssertEqual(attachmentStatistics.sampleCount, 1)
+        XCTAssertEqual(attachmentProbe.sampleCount, 1)
+        XCTAssertEqual(attachmentMask.texture.width, attachment.texture.width)
+        XCTAssertEqual(attachmentAnalysis.attachment.semantic, .luminance)
+        XCTAssertEqual(attachmentAnalysis.histogram, attachmentHistogram)
+        XCTAssertEqual(attachmentAnalysis.statistics, attachmentStatistics)
+    }
+
     func testLayerCompositeRenderRecipeExposesLayerMaskGraphDescriptors() throws {
         let background = try makeTexture(width: 2, height: 2, pixel: [255, 255, 255, 255])
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
@@ -1369,14 +1595,14 @@ final class ImageNodeTests: XCTestCase {
             layers: [
                 ImageLayer(
                     content: .texture(layer),
-                    maskGradientRecipe: MaskGradientRecipe(
+                    mask: MaskGradientRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .linear(
                             startPoint: CGPoint(x: 0, y: 0.5),
                             endPoint: CGPoint(x: 1, y: 0.5)
                         )
                     ),
-                    compositingMaskGradientRecipe: MaskGradientRecipe(
+                    compositingMask: MaskGradientRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .radial(
                             center: CGPoint(x: 0.5, y: 0.5),
@@ -1407,7 +1633,7 @@ final class ImageNodeTests: XCTestCase {
                 layers: [
                     ImageLayer(
                         content: .texture(layer),
-                        maskGradientRecipe: MaskGradientRecipe(
+                        mask: MaskGradientRecipe(
                             size: C7Size(width: 3, height: 1),
                             kind: .linear(
                                 startPoint: CGPoint(x: 0, y: 0.5),
@@ -1435,7 +1661,7 @@ final class ImageNodeTests: XCTestCase {
             layers: [
                 ImageLayer(
                     content: .texture(layer),
-                    maskGradientRecipe: MaskGradientRecipe(
+                    mask: MaskGradientRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .linear(
                             startPoint: CGPoint(x: 0, y: 0.5),
@@ -1465,11 +1691,11 @@ final class ImageNodeTests: XCTestCase {
             layers: [
                 ImageLayer(
                     content: .texture(layer),
-                    maskShapeRecipe: MaskShapeRecipe(
+                    mask: MaskShapeRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
                     ),
-                    compositingMaskShapeRecipe: MaskShapeRecipe(
+                    compositingMask: MaskShapeRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .ellipse(rect: CGRect(x: 0, y: 0, width: 1, height: 1))
                     )
@@ -1495,7 +1721,7 @@ final class ImageNodeTests: XCTestCase {
                 layers: [
                     ImageLayer(
                         content: .texture(layer),
-                        maskShapeRecipe: MaskShapeRecipe(
+                        mask: MaskShapeRecipe(
                             size: C7Size(width: 3, height: 1),
                             kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
                         )
@@ -1509,6 +1735,38 @@ final class ImageNodeTests: XCTestCase {
 
         XCTAssertEqual(layerMask.mask?.kind, "maskShapeRecipe")
         XCTAssertEqual(layerMask.mask?.shape?.kind, "rectangle")
+    }
+
+    func testLayerCompositePreservesParametricShapeMaskDescriptors() throws {
+        let background = try makeTexture(width: 8, height: 8, pixel: [255, 255, 255, 255])
+        let layer = try makeTexture(width: 8, height: 8, pixel: [0, 0, 0, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    mask: MaskShapeRecipe.star(
+                        size: C7Size(width: 8, height: 8),
+                        rect: CGRect(x: 0.15, y: 0.15, width: 0.7, height: 0.7),
+                        points: 6,
+                        innerRadiusRatio: 0.32,
+                        feather: 0.18
+                    )
+                )
+            ]
+        )
+
+        let renderRecipe = try recipe.makeRenderRecipe()
+        let snapshot = try ImageNode.layerComposite(recipe).makeDebugSnapshot()
+        let renderLayerMask = try XCTUnwrap(renderRecipe.layerMasks?.first?.mask)
+        let snapshotLayerMask = try XCTUnwrap(snapshot.renderRecipe?.layerMasks?.first?.mask)
+
+        XCTAssertEqual(renderLayerMask.kind, "maskShapeRecipe")
+        XCTAssertEqual(renderLayerMask.shape?.kind, "star")
+        XCTAssertTrue(renderLayerMask.shape?.parameterValues.contains("points=6") == true)
+        XCTAssertTrue(renderLayerMask.shape?.parameterValues.contains("innerRadiusRatio=0.320000") == true)
+        XCTAssertEqual(snapshotLayerMask.kind, "maskShapeRecipe")
+        XCTAssertEqual(snapshotLayerMask.shape?.kind, "star")
     }
 
     func testLayerCompositeRenderRecipePreservesParametricCompositeMaskStepDescriptors() throws {
@@ -1531,7 +1789,7 @@ final class ImageNodeTests: XCTestCase {
                 ImageLayer(
                     content: .texture(layer),
                     maskRecipe: try MaskCompositeRecipe(
-                        baseGradientRecipe: gradient
+                        baseRecipe: gradient
                     )
                     .intersecting(shape, name: "subjectIntersect")
                 )
@@ -1557,7 +1815,7 @@ final class ImageNodeTests: XCTestCase {
             layers: [
                 ImageLayer(
                     content: .texture(layer),
-                    maskShapeRecipe: MaskShapeRecipe(
+                    mask: MaskShapeRecipe(
                         size: C7Size(width: 3, height: 1),
                         kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
                     )

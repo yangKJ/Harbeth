@@ -376,7 +376,7 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue(newContext.device === newDevice.device)
     }
 
-    func testPixelBufferBackedTextureRetainsOwnerReference() throws {
+    func testDirectPixelBufferBackedTextureDoesNotRetainOwnerReference() throws {
         var pixelBuffer: CVPixelBuffer?
         let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
@@ -399,7 +399,7 @@ final class HarbethContextTests: XCTestCase {
 
         let texture = try TextureLoader(with: pixelBuffer).texture
         let owner = TextureOwnerRegistry.owner(for: texture)
-        XCTAssertNotNil(owner)
+        XCTAssertNil(owner)
     }
 
     func testPlaneTexturesRetainOwnerReference() throws {

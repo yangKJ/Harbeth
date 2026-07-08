@@ -4,6 +4,42 @@ import Metal
 
 final class RenderGraphTests: XCTestCase {
 
+    func testPluginBoundaryAdapterStillMarksBoundaryStage() {
+        let size = C7Size(width: 2, height: 2)
+        let node = RenderNode(
+            kind: .boundary,
+            boundary: MockPluginBoundaryAdapter(capability: .cpu),
+            outputSize: size,
+            breaksFusion: true
+        )
+        let graph = RenderGraph(nodes: [node])
+        let diagnostics = RenderNodeDiagnostic(
+            index: 0,
+            name: "PluginBoundary",
+            kind: .boundary,
+            inputSize: size,
+            outputSize: size,
+            breaksFusion: true,
+            parameterSummary: ["capability": PluginBoundaryKind.cpu.rawValue]
+        )
+        let profile = RenderProfile.readbackQuality
+        let plan = RenderPlan(
+            graph: graph,
+            profile: profile,
+            derivative: profile.defaultDerivativeSpec,
+            inputSize: size,
+            outputSize: size,
+            nodeDiagnostics: [diagnostics],
+            compilationSource: .nodeGraph
+        )
+
+        XCTAssertTrue(plan.containsBoundary)
+        XCTAssertTrue(plan.requiresCompletedGPUWork)
+        XCTAssertEqual(plan.optimizedStages.first?.stageKind, .boundary)
+        XCTAssertEqual(plan.optimizedStages.first?.boundaryReason, .externalBoundary)
+        XCTAssertEqual(graph.nodes.first?.boundary?.capability, .cpu)
+    }
+
     func testCompileLinearMetalFiltersIntoNativeNodes() {
         let filters: [C7FilterProtocol] = [
             C7Brightness(brightness: 0.2),
@@ -1546,5 +1582,13 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(snapshot.diagnostics.inputHDRFriendly)
         XCTAssertTrue(snapshot.summary.contains("inputPixelPrecision=float16"))
         XCTAssertTrue(snapshot.summary.contains("inputHDRFriendly=1"))
+    }
+}
+
+private struct MockPluginBoundaryAdapter: PluginBoundaryAdapter {
+    let capability: PluginCapability
+
+    func render(input: RenderedFrame, context: PluginContext) throws -> RenderedFrame {
+        input
     }
 }

@@ -88,11 +88,7 @@ public struct ImageGraph: Sendable, Equatable, Hashable {
     public let profile: RenderProfile
     public let derivative: ImageDerivativeSpec
 
-    init(nodes: [ImageGraphNode],
-         edges: [ImageGraphEdge],
-         rootNodeID: ImageGraphNodeID,
-         profile: RenderProfile,
-         derivative: ImageDerivativeSpec) {
+    init(nodes: [ImageGraphNode], edges: [ImageGraphEdge], rootNodeID: ImageGraphNodeID, profile: RenderProfile, derivative: ImageDerivativeSpec) {
         self.nodes = nodes.sorted { $0.id < $1.id }
         self.edges = edges.sorted {
             if $0.from != $1.from {

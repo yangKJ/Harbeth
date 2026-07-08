@@ -77,6 +77,9 @@ final class TextureReadbackTests: XCTestCase {
         let texture = pixelBuffer.c7.convert2MTLTexture(textureCache: cache, pixelFormat: .rgba16Float)
 
         XCTAssertEqual(texture?.pixelFormat, .rgba16Float)
+        if let texture {
+            XCTAssertNil(TextureOwnerRegistry.owner(for: texture))
+        }
         #endif
     }
 

@@ -83,10 +83,7 @@ public enum ImageAlphaContract: Sendable, Codable, Equatable, Hashable {
         case "forceUnpremultiply":
             self = .forceUnpremultiply
         default:
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Unknown ImageAlphaContract value: \(rawValue)"
-            )
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown ImageAlphaContract value: \(rawValue)")
         }
     }
 
@@ -135,10 +132,7 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     public let gamut: ImageColorGamut
     public let transferFunction: ImageTransferFunction
 
-    public init(name: String = "preserveInput",
-                preservesInput: Bool = true,
-                gamut: ImageColorGamut = .preserveInput,
-                transferFunction: ImageTransferFunction = .preserveInput) {
+    public init(name: String = "preserveInput", preservesInput: Bool = true, gamut: ImageColorGamut = .preserveInput, transferFunction: ImageTransferFunction = .preserveInput) {
         self.name = name
         self.preservesInput = preservesInput
         self.gamut = gamut
@@ -214,9 +208,7 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     }
 
     func transferConversionMode(from source: ImageColorSpaceContract) -> C7RGBTransferConversion.Mode? {
-        guard preservesInput == false,
-              source.preservesInput == false,
-              supportsTransferOnlyConversion(from: source) else {
+        guard preservesInput == false, source.preservesInput == false, supportsTransferOnlyConversion(from: source) else {
             return nil
         }
         switch (source.transferFunction, transferFunction) {
@@ -234,16 +226,13 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     }
 
     func colorConversionMode(from source: ImageColorSpaceContract) -> C7RGBColorSpaceConversion.Mode? {
-        guard preservesInput == false,
-              source.preservesInput == false else {
+        guard preservesInput == false, source.preservesInput == false else {
             return nil
         }
         switch (source.gamut, gamut) {
-        case (.sRGB, .displayP3),
-             (.extendedLinearSRGB, .displayP3):
+        case (.sRGB, .displayP3), (.extendedLinearSRGB, .displayP3):
             return .linearSRGBToLinearDisplayP3
-        case (.displayP3, .sRGB),
-             (.displayP3, .extendedLinearSRGB):
+        case (.displayP3, .sRGB), (.displayP3, .extendedLinearSRGB):
             return .linearDisplayP3ToLinearSRGB
         default:
             return nil
@@ -251,8 +240,7 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     }
 
     func makeColorConversionFilters(from source: ImageColorSpaceContract) -> [C7FilterProtocol] {
-        guard preservesInput == false,
-              source.preservesInput == false else {
+        guard preservesInput == false, source.preservesInput == false else {
             return []
         }
         if let transferOnly = C7RGBTransferConversion(from: source, to: self) {
@@ -261,10 +249,8 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         guard let gamutMode = colorConversionMode(from: source) else {
             return []
         }
-        let decodeTransfer = source.transferFunction == .sRGB
-            && (source.gamut == .sRGB || source.gamut == .displayP3)
-        let encodeTransfer = transferFunction == .sRGB
-            && (gamut == .sRGB || gamut == .displayP3)
+        let decodeTransfer = source.transferFunction == .sRGB && (source.gamut == .sRGB || source.gamut == .displayP3)
+        let encodeTransfer = transferFunction == .sRGB && (gamut == .sRGB || gamut == .displayP3)
 
         var filters: [C7FilterProtocol] = []
         if decodeTransfer {
@@ -325,9 +311,7 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
     public let metalPixelFormatRawValue: UInt?
     public let precision: PixelPrecision
 
-    public init(pixelFormat: MTLPixelFormat? = nil,
-                preservesInput: Bool = true,
-                precision: PixelPrecision? = nil) {
+    public init(pixelFormat: MTLPixelFormat? = nil, preservesInput: Bool = true, precision: PixelPrecision? = nil) {
         self.name = PixelFormatContract.name(for: pixelFormat)
         self.preservesInput = preservesInput
         self.metalPixelFormatRawValue = pixelFormat?.rawValue
@@ -462,20 +446,9 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
 
     public static let preserveInput = RenderOutputContract()
 
-    public static let displayP3Texture = RenderOutputContract(
-        colorSpace: .displayP3,
-        pixelFormat: .rgba8Unorm
-    )
-
-    public static let highPrecisionLinearTexture = RenderOutputContract(
-        colorSpace: .extendedLinearSRGB,
-        pixelFormat: .rgba16Float
-    )
-
-    public static let highPrecisionLinearDisplayP3Texture = RenderOutputContract(
-        colorSpace: .extendedLinearDisplayP3,
-        pixelFormat: .rgba16Float
-    )
+    public static let displayP3Texture = RenderOutputContract(colorSpace: .displayP3, pixelFormat: .rgba8Unorm)
+    public static let highPrecisionLinearTexture = RenderOutputContract(colorSpace: .extendedLinearSRGB, pixelFormat: .rgba16Float)
+    public static let highPrecisionLinearDisplayP3Texture = RenderOutputContract(colorSpace: .extendedLinearDisplayP3, pixelFormat: .rgba16Float)
 
     public var primaryAttachment: RenderOutputAttachmentContract {
         attachments.first ?? RenderOutputAttachmentContract(index: 0)
@@ -630,8 +603,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         try container.encode(preservesOrientation, forKey: .preservesOrientation)
     }
 
-    private static func normalizeAttachments(primary: RenderOutputAttachmentContract,
-                                             additional: [RenderOutputAttachmentContract]) -> [RenderOutputAttachmentContract] {
+    private static func normalizeAttachments(primary: RenderOutputAttachmentContract, additional: [RenderOutputAttachmentContract]) -> [RenderOutputAttachmentContract] {
         let combined = [primary] + additional
         let normalized = combined.map { attachment in
             RenderOutputAttachmentContract(
@@ -695,9 +667,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         RenderOutputAttachmentDebugPolicy(
             label: semantic.defaultDebugLabel(for: index),
             interpretation: semantic.debugInterpretation,
-            preferredReadbackPixelFormat: semantic.preferredReadbackPixelFormat(
-                declared: pixelFormat
-            ),
+            preferredReadbackPixelFormat: semantic.preferredReadbackPixelFormat(declared: pixelFormat),
             preservesDynamicRange: semantic.preservesDynamicRange(declared: pixelFormat),
             prefersMonochromePreview: semantic.prefersMonochromePreview
         )
@@ -724,8 +694,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let index = try container.decode(Int.self, forKey: .index)
-        let semantic = try container.decodeIfPresent(RenderOutputAttachmentSemantic.self, forKey: .semantic)
-            ?? (index == 0 ? .primaryColor : .auxiliaryColor)
+        let semantic = try container.decodeIfPresent(RenderOutputAttachmentSemantic.self, forKey: .semantic) ?? (index == 0 ? .primaryColor : .auxiliaryColor)
         let alpha = try container.decodeIfPresent(ImageAlphaContract.self, forKey: .alpha) ?? .preserveInput
         let colorSpace = try container.decodeIfPresent(ImageColorSpaceContract.self, forKey: .colorSpace) ?? .preserveInput
         let pixelFormat = try container.decodeIfPresent(PixelFormatContract.self, forKey: .pixelFormat) ?? .preserveInput
@@ -946,12 +915,7 @@ public struct PixelBufferPlaneContract: Sendable, Codable, Equatable, Hashable {
     public let cvPixelFormatType: OSType
     public let metalPixelFormatRawValue: UInt?
 
-    public init(index: Int,
-                width: Int,
-                height: Int,
-                bytesPerRow: Int,
-                cvPixelFormatType: OSType,
-                metalPixelFormat: MTLPixelFormat?) {
+    public init(index: Int, width: Int, height: Int, bytesPerRow: Int, cvPixelFormatType: OSType, metalPixelFormat: MTLPixelFormat?) {
         self.index = index
         self.width = width
         self.height = height
@@ -981,10 +945,7 @@ public struct PixelBufferPlaneBridgeDescriptor: Sendable, Codable, Equatable, Ha
     public let conversionStrategy: PixelBufferTextureLoadStrategy
     public let preservesOwnerReference: Bool
 
-    public init(index: Int,
-                metalPixelFormat: MTLPixelFormat?,
-                conversionStrategy: PixelBufferTextureLoadStrategy,
-                preservesOwnerReference: Bool) {
+    public init(index: Int, metalPixelFormat: MTLPixelFormat?, conversionStrategy: PixelBufferTextureLoadStrategy, preservesOwnerReference: Bool) {
         self.index = index
         self.metalPixelFormatRawValue = metalPixelFormat?.rawValue
         self.conversionStrategy = conversionStrategy
@@ -1131,16 +1092,12 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
         guard colorPrimariesAttachment != nil || transferFunctionAttachment != nil || yCbCrMatrixAttachment != nil else {
             return nil
         }
-        let gamut = colorPrimariesAttachment?.imageColorGamut
-            ?? yCbCrMatrixAttachment?.imageColorGamut
-            ?? .custom
+        let gamut = colorPrimariesAttachment?.imageColorGamut ?? yCbCrMatrixAttachment?.imageColorGamut ?? .custom
         let transferFunction = transferFunctionAttachment?.imageTransferFunction ?? .custom
         let name = [
             colorPrimariesAttachment?.rawValue ?? yCbCrMatrixAttachment?.rawValue,
             transferFunctionAttachment?.rawValue
-        ]
-        .compactMap { $0 }
-        .joined(separator: "+")
+        ].compactMap { $0 }.joined(separator: "+")
         return ImageColorSpaceContract(
             name: name.isEmpty ? "attachmentDerived" : name,
             preservesInput: false,
@@ -1171,10 +1128,7 @@ public struct PixelBufferTextureBridgePlan: Sendable, Codable, Equatable, Hashab
     public let preservesOwnerReference: Bool
     public let planes: [PixelBufferPlaneBridgeDescriptor]
 
-    public init(contract: PixelBufferContract,
-                loadStrategy: PixelBufferTextureLoadStrategy,
-                preservesOwnerReference: Bool,
-                planes: [PixelBufferPlaneBridgeDescriptor] = []) {
+    public init(contract: PixelBufferContract, loadStrategy: PixelBufferTextureLoadStrategy, preservesOwnerReference: Bool, planes: [PixelBufferPlaneBridgeDescriptor] = []) {
         self.contract = contract
         self.loadStrategy = loadStrategy
         self.preservesOwnerReference = preservesOwnerReference
@@ -1227,10 +1181,7 @@ public struct YCbCrDecodeContract: Sendable, Codable, Equatable, Hashable {
     public let componentBitDepth: Int
     public let destinationPixelFormatRawValue: UInt
 
-    public init(layout: YCbCrPlaneLayout,
-                matrix: YCbCrDecodeMatrix,
-                componentBitDepth: Int = 8,
-                destinationPixelFormat: MTLPixelFormat) {
+    public init(layout: YCbCrPlaneLayout, matrix: YCbCrDecodeMatrix, componentBitDepth: Int = 8, destinationPixelFormat: MTLPixelFormat) {
         self.layout = layout
         self.matrix = matrix
         self.componentBitDepth = componentBitDepth
@@ -1700,12 +1651,8 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
 
     public var frameHostSourceDescriptor: FrameHostSourceDescriptor {
         let size = C7Size(
-            width: sampleBufferContract?.pixelBufferContract?.width
-                ?? pixelBufferContract?.width
-                ?? 0,
-            height: sampleBufferContract?.pixelBufferContract?.height
-                ?? pixelBufferContract?.height
-                ?? 0
+            width: sampleBufferContract?.pixelBufferContract?.width ?? pixelBufferContract?.width ?? 0,
+            height: sampleBufferContract?.pixelBufferContract?.height ?? pixelBufferContract?.height ?? 0
         )
         let sampleFrameContract = sampleBufferContract?.frameContract
         let completeness = FrameHostMetadataCompleteness(
@@ -1730,9 +1677,7 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
             mirrorHorizontally: sampleFrameContract?.mirrorHorizontally ?? false,
             mirrorVertically: sampleFrameContract?.mirrorVertically ?? false,
             followsDeviceOrientation: sampleFrameContract?.followsDeviceOrientation ?? false,
-            directPlaneBridgeCount: sampleFrameContract?.directPlaneBridgeCount
-                ?? pixelBufferBridgePlan?.directPlaneBridgeCount
-                ?? 0,
+            directPlaneBridgeCount: sampleFrameContract?.directPlaneBridgeCount ?? pixelBufferBridgePlan?.directPlaneBridgeCount ?? 0,
             bridgePolicy: pixelBufferBridgePolicy,
             yCbCrDecodeContract: yCbCrDecodeContract,
             metadataCompleteness: completeness
@@ -1814,41 +1759,17 @@ public extension RenderProfile {
     var defaultImageSemantic: ImageSemanticDescriptor {
         switch self {
         case .interactiveLatency:
-            return ImageSemanticDescriptor(
-                role: .derivative,
-                purpose: .interactive,
-                fidelity: .lowLatency
-            )
+            return ImageSemanticDescriptor(role: .derivative, purpose: .interactive, fidelity: .lowLatency)
         case .responseLatency:
-            return ImageSemanticDescriptor(
-                role: .derivative,
-                purpose: .responsive,
-                fidelity: .displayOptimized
-            )
+            return ImageSemanticDescriptor(role: .derivative, purpose: .responsive, fidelity: .displayOptimized)
         case .stablePreview:
-            return ImageSemanticDescriptor(
-                role: .derivative,
-                purpose: .stable,
-                fidelity: .displayOptimized
-            )
+            return ImageSemanticDescriptor(role: .derivative, purpose: .stable, fidelity: .displayOptimized)
         case .inspectionQuality:
-            return ImageSemanticDescriptor(
-                role: .derivative,
-                purpose: .inspection,
-                fidelity: .fullResolution
-            )
+            return ImageSemanticDescriptor(role: .derivative, purpose: .inspection, fidelity: .fullResolution)
         case .exportQuality:
-            return ImageSemanticDescriptor(
-                role: .output,
-                purpose: .export,
-                fidelity: .fullResolution
-            )
+            return ImageSemanticDescriptor(role: .output, purpose: .export, fidelity: .fullResolution)
         case .readbackQuality:
-            return ImageSemanticDescriptor(
-                role: .output,
-                purpose: .readback,
-                fidelity: .fullResolution
-            )
+            return ImageSemanticDescriptor(role: .output, purpose: .readback, fidelity: .fullResolution)
         }
     }
 }
@@ -1873,9 +1794,7 @@ public extension FrameHostRuntimeHint {
         }
         let timingPolicy = profile.defaultFrameHostTimingPolicy
         let requiresPlaneAwareDecode = hostSource.yCbCrDecodeContract != nil || hostSource.bridgePolicy == .directPlaneDecodeToRGBA
-        let isRealtimePreviewEligible = timingPolicy != .completedGPUReadback
-            && decision != .materializedFallback
-            && hostSource.metadataCompleteness.hasFrameSize
+        let isRealtimePreviewEligible = timingPolicy != .completedGPUReadback && decision != .materializedFallback && hostSource.metadataCompleteness.hasFrameSize
         self.init(
             decision: decision,
             timingPolicy: timingPolicy,
@@ -1919,8 +1838,7 @@ public enum ImageSourceSizePolicy: Sendable, Hashable, Codable {
     }
 
     public static func fit(_ size: CGSize) -> ImageSourceSizePolicy {
-        .fit(width: Int(max(size.width.rounded(.up), 1)),
-             height: Int(max(size.height.rounded(.up), 1)))
+        .fit(width: Int(max(size.width.rounded(.up), 1)), height: Int(max(size.height.rounded(.up), 1)))
     }
 }
 
@@ -1929,8 +1847,7 @@ public struct ImageLoadingOptions: Sendable, Hashable, Codable {
     public let sizePolicy: ImageSourceSizePolicy
     public let flipsVertically: Bool
 
-    public init(sizePolicy: ImageSourceSizePolicy = .original,
-                flipsVertically: Bool = false) {
+    public init(sizePolicy: ImageSourceSizePolicy = .original, flipsVertically: Bool = false) {
         self.sizePolicy = sizePolicy
         self.flipsVertically = flipsVertically
     }
@@ -2023,11 +1940,7 @@ public struct ImageDerivativeSpec: Sendable, Hashable, Codable {
     public let semantic: ImageSemanticDescriptor
     public let outputSizePolicy: OutputSizePolicy
 
-    public init(name: String,
-                renderIntent: RenderIntent,
-                sourceTier: ImageSourceTier,
-                semantic: ImageSemanticDescriptor,
-                outputSizePolicy: OutputSizePolicy) {
+    public init(name: String, renderIntent: RenderIntent, sourceTier: ImageSourceTier, semantic: ImageSemanticDescriptor, outputSizePolicy: OutputSizePolicy) {
         self.name = name
         self.renderIntent = renderIntent
         self.sourceTier = sourceTier

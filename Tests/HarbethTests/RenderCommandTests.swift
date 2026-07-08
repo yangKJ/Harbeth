@@ -553,6 +553,104 @@ final class RenderCommandTests: XCTestCase {
         )
         return (bytes[0], bytes[1], bytes[2], bytes[3])
     }
+
+    func testRenderAuxiliaryMaskCoverageAttachmentRespectsComponentAndInvert() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        guard let commandQueue = Shared.shared.defaultDevice.device.makeCommandQueue() else {
+            XCTFail("Failed to create Metal command queue.")
+            return
+        }
+
+        let source = try makeTexture(width: 5, height: 1, pixelFormat: .rgba8Unorm, bytes: [
+            100, 100, 100, 255,
+            100, 100, 100, 255,
+            100, 100, 100, 255,
+            100, 100, 100, 255,
+            100, 100, 100, 255
+        ])
+        let mask = source
+
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
+            XCTFail("Failed to create first command buffer.")
+            return
+        }
+        let redCmd = RenderCommand(
+            filter: RenderAuxiliaryMaskCoverage(
+                mask: MaskDescriptor(texture: mask, component: .red, invert: false, opacity: 1)
+            ),
+            sourceTexture: source
+        )
+        let redPrimary = try makeTexture(width: 5, height: 1, pixelFormat: .rgba8Unorm)
+        let redCoverage = try makeTexture(width: 5, height: 1, pixelFormat: .rgba8Unorm)
+        let redBatch = try RenderCommandBatch(
+            renderPass: redCmd.descriptor.renderPass,
+            destinationTexturesByAttachmentIndex: [0: redPrimary, 1: redCoverage],
+            commands: [redCmd]
+        )
+        try Rendering.encode(batch: redBatch, commandBuffer: commandBuffer)
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        let redCoveragePixel = try pixel(in: redCoverage, x: 2, y: 0)
+        let redPrimaryPixel = try pixel(in: redPrimary, x: 2, y: 0)
+
+        XCTAssertEqual(redCoveragePixel.red, 100, accuracy: 3, ".red component coverage 应等于 R 通道")
+        XCTAssertEqual(redPrimaryPixel.red, 100, accuracy: 2, "主颜色 attachment 不应被 mask 污染")
+
+        guard let commandBuffer2 = commandQueue.makeCommandBuffer() else {
+            XCTFail("Failed to create second command buffer.")
+            return
+        }
+        let lumCmd = RenderCommand(
+            filter: RenderAuxiliaryMaskCoverage(
+                mask: MaskDescriptor(texture: mask, component: .luminance, invert: false, opacity: 1)
+            ),
+            sourceTexture: source
+        )
+        let lumPrimary = try makeTexture(width: 5, height: 1, pixelFormat: .rgba8Unorm)
+        let lumCoverage = try makeTexture(width: 5, height: 1, pixelFormat: .rgba8Unorm)
+        let lumBatch = try RenderCommandBatch(
+            renderPass: lumCmd.descriptor.renderPass,
+            destinationTexturesByAttachmentIndex: [0: lumPrimary, 1: lumCoverage],
+            commands: [lumCmd]
+        )
+        try Rendering.encode(batch: lumBatch, commandBuffer: commandBuffer2)
+        commandBuffer2.commit()
+        commandBuffer2.waitUntilCompleted()
+
+        let lumCoveragePixel = try pixel(in: lumCoverage, x: 2, y: 0)
+        // luminance = 0.299*100 + 0.587*100 + 0.114*100 = 100(因为 R=G=B)
+        XCTAssertEqual(lumCoveragePixel.red, 100, accuracy: 3, "灰度图 .luminance 应等于 R")
+
+        guard let commandBuffer3 = commandQueue.makeCommandBuffer() else {
+            XCTFail("Failed to create third command buffer.")
+            return
+        }
+        let invCmd = RenderCommand(
+            filter: RenderAuxiliaryMaskCoverage(
+                mask: MaskDescriptor(texture: mask, component: .red, invert: true, opacity: 0.5)
+            ),
+            sourceTexture: source
+        )
+        let invPrimary = try makeTexture(width: 5, height: 1, pixelFormat: .rgba8Unorm)
+        let invCoverage = try makeTexture(width: 5, height: 1, pixelFormat: .rgba8Unorm)
+        let invBatch = try RenderCommandBatch(
+            renderPass: invCmd.descriptor.renderPass,
+            destinationTexturesByAttachmentIndex: [0: invPrimary, 1: invCoverage],
+            commands: [invCmd]
+        )
+        try Rendering.encode(batch: invBatch, commandBuffer: commandBuffer3)
+        commandBuffer3.commit()
+        commandBuffer3.waitUntilCompleted()
+
+        let invCoveragePixel = try pixel(in: invCoverage, x: 2, y: 0)
+        // invert 后 coverage = (255 - 100) * 0.5 = 77.5,转为 8 位 ≈ 77 或 78
+        XCTAssertEqual(
+            invCoveragePixel.red, 78, accuracy: 4,
+            "invert=true + opacity=0.5: (255-100)*0.5 ≈ 78,验证 invert 与 opacity 链路都生效"
+        )
+    }
 }
 
 private struct RenderOverlayTestFilter: RenderProtocol {
