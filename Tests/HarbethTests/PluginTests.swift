@@ -9,7 +9,43 @@ import UIKit
 #endif
 @testable import Harbeth
 
-final class HarbethPluginTests: XCTestCase {
+final class PluginTests: XCTestCase {
+
+    func testPluginDefaultCapabilityIsNativeMetal() {
+        let plugin = MockFilterPlugin(output: .filters([]))
+
+        XCTAssertEqual(plugin.capability, .nativeMetal)
+        XCTAssertEqual(plugin.capability.kind, .nativeMetal)
+        XCTAssertFalse(plugin.capability.usesCPU)
+        XCTAssertFalse(plugin.capability.requiresReadback)
+        XCTAssertTrue(plugin.capability.cacheable)
+        XCTAssertTrue(plugin.capability.supportsLowLatencyFrameFlow)
+    }
+
+    func testPluginContextPathReceivesCustomCapability() throws {
+        let input = try makeTexture(pixel: [90, 120, 180, 255])
+        let plugin = ContextCapturingPlugin(
+            output: .filters([C7Brightness(brightness: 0.05)]),
+            capability: .cpu
+        )
+        let direct = try ImageNode
+            .source(.texture(input))
+            .applying(pluginOutput: plugin.output)
+            .makeTexture(profile: .stablePreview)
+        let bridged = try ImageNode
+            .source(.texture(input))
+            .applying(plugin: plugin, profile: .readbackQuality)
+            .makeTexture(profile: .stablePreview)
+
+        XCTAssertEqual(try firstPixel(in: direct), try firstPixel(in: bridged))
+        XCTAssertEqual(plugin.capturedContext?.profile, .readbackQuality)
+        XCTAssertEqual(plugin.capturedContext?.identifier, plugin.pluginIdentifier)
+        XCTAssertEqual(plugin.capturedContext?.metadata["pluginIdentifier"], plugin.pluginIdentifier)
+        XCTAssertEqual(plugin.capturedContext?.metadata["pluginBoundaryKind"], PluginBoundaryKind.cpu.rawValue)
+        XCTAssertTrue(plugin.capability.usesCPU)
+        XCTAssertTrue(plugin.capability.requiresReadback)
+        XCTAssertFalse(plugin.capability.supportsLowLatencyFrameFlow)
+    }
 
     func testPluginSourceOutputsPreserveSourceDescriptors() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [120, 80, 40, 255])
@@ -18,7 +54,7 @@ final class HarbethPluginTests: XCTestCase {
         let pixelBuffer = try XCTUnwrap(cgImage.c7.toPixelBuffer())
         let sampleBuffer = try XCTUnwrap(pixelBuffer.c7.toCMSampleBuffer())
 
-        let cases: [(HarbethPluginOutput, String)] = [
+        let cases: [(PluginOutput, String)] = [
             (.texture(input), "texture"),
             (.image(image), "image"),
             (.cgImage(cgImage), "cgImage"),
@@ -48,7 +84,7 @@ final class HarbethPluginTests: XCTestCase {
                 C7Contrast(contrast: 1.08)
             ])
             .makeTexture(profile: .stablePreview)
-        let pluginOutput = HarbethPluginOutput.filters([
+        let pluginOutput = PluginOutput.filters([
             C7Brightness(brightness: 0.12),
             C7Contrast(contrast: 1.08)
         ])
@@ -449,7 +485,7 @@ final class HarbethPluginTests: XCTestCase {
 }
 
 #if canImport(AppKit) && !os(watchOS)
-extension HarbethPluginTests {
+extension PluginTests {
     func testRenderGraphDebugSnapshotIncludesRuntimePreviewHostSummaryAfterDisplay() throws {
         PreviewHostFleetRegistry.resetForTesting()
         PreviewHostRuntimeSummaryCache.resetForTesting()
@@ -482,14 +518,38 @@ extension HarbethPluginTests {
 }
 #endif
 
-private struct MockFilterPlugin: HarbethFilterPlugin {
-    let output: HarbethPluginOutput
+private struct MockFilterPlugin: FilterPlugin {
+    let output: PluginOutput
 
     var pluginIdentifier: String {
         "mock.filter"
     }
 
-    func makeOutput(frame: RenderedFrame) throws -> HarbethPluginOutput {
+    func makeOutput(frame: RenderedFrame) throws -> PluginOutput {
         output
+    }
+}
+
+private final class ContextCapturingPlugin: FilterPlugin {
+    let output: PluginOutput
+    let capability: PluginCapability
+    private(set) var capturedContext: PluginContext?
+
+    init(output: PluginOutput, capability: PluginCapability) {
+        self.output = output
+        self.capability = capability
+    }
+
+    var pluginIdentifier: String {
+        "mock.context"
+    }
+
+    func makeOutput(frame: RenderedFrame) throws -> PluginOutput {
+        output
+    }
+
+    func makeOutput(frame: RenderedFrame, context: PluginContext) throws -> PluginOutput {
+        capturedContext = context
+        return output
     }
 }

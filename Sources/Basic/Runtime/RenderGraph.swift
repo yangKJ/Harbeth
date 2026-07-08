@@ -19,13 +19,13 @@ enum RenderNodeKind: String, Sendable, Codable, Equatable, Hashable {
 struct RenderNode {
     let kind: RenderNodeKind
     let filter: C7FilterProtocol?
-    let boundary: (RenderBoundaryAdapter)?
+    let boundary: PluginBoundaryAdapter?
     let outputSize: C7Size?
     let breaksFusion: Bool
 
     init(kind: RenderNodeKind,
          filter: C7FilterProtocol? = nil,
-         boundary: (RenderBoundaryAdapter)? = nil,
+         boundary: PluginBoundaryAdapter? = nil,
          outputSize: C7Size? = nil,
          breaksFusion: Bool = false) {
         self.kind = kind
@@ -85,11 +85,7 @@ public struct RenderTextureReservation: Sendable, Codable, Equatable, Hashable {
     public let reason: RenderTextureReservationReason
     public let count: Int
 
-    public init(stageIndices: [Int],
-                size: C7Size,
-                pixelFormat: PixelFormatContract,
-                reason: RenderTextureReservationReason,
-                count: Int = 1) {
+    public init(stageIndices: [Int], size: C7Size, pixelFormat: PixelFormatContract, reason: RenderTextureReservationReason, count: Int = 1) {
         self.stageIndices = stageIndices
         self.size = size
         self.pixelFormat = pixelFormat
@@ -104,10 +100,7 @@ public struct RenderTextureLifecycleDecision: Sendable, Codable, Equatable, Hash
     public let size: C7Size
     public let reason: String
 
-    public init(stageIndex: Int,
-                action: RenderTextureLifecycleAction,
-                size: C7Size,
-                reason: String) {
+    public init(stageIndex: Int, action: RenderTextureLifecycleAction, size: C7Size, reason: String) {
         self.stageIndex = stageIndex
         self.action = action
         self.size = size
@@ -795,11 +788,7 @@ struct RenderPlan {
         let containsBoundary = graph.nodes.contains(where: { $0.kind == .boundary || $0.breaksFusion })
         self.requiresCompletedGPUWork = requiresCompletedGPUWork
         self.containsBoundary = containsBoundary
-        self.optimizedStages = GraphOptimizer.optimize(
-            graph: graph,
-            nodeDiagnostics: nodeDiagnostics,
-            profile: profile
-        )
+        self.optimizedStages = GraphOptimizer.optimize(graph: graph, nodeDiagnostics: nodeDiagnostics, profile: profile)
         let sourceDerivedInputColorConversions = RenderPlan.resolveInputColorConversionCount(from: sourceDescriptor)
         let sourceDerivedInputPixelFormatConversions = RenderPlan.resolveInputPixelFormatConversionCount(from: sourceDescriptor)
         let sourceDirectPlaneBridgeCount = RenderPlan.resolveInputDirectPlaneBridgeCount(from: sourceDescriptor)
@@ -813,10 +802,7 @@ struct RenderPlan {
         let resolvedInputBridgePolicy = sourceDescriptor?.pixelBufferBridgePolicy ?? auxiliaryInputDescriptor?.pixelBufferBridgePolicy
         let resolvedInputYCbCrDecodeContract = sourceDescriptor?.yCbCrDecodeContract ?? auxiliaryInputDescriptor?.yCbCrDecodeContract
         let resolvedInputFrameHostDescriptor = sourceDescriptor?.frameHostSourceDescriptor ?? auxiliaryInputDescriptor?.frameHostSourceDescriptor
-        let resolvedInputColorSpace = RenderPlan.resolveInputColorSpace(
-            primary: sourceDescriptor,
-            auxiliary: auxiliaryInputDescriptor
-        )
+        let resolvedInputColorSpace = RenderPlan.resolveInputColorSpace(primary: sourceDescriptor, auxiliary: auxiliaryInputDescriptor)
         let resolvedInputPixelFormat = RenderPlan.resolveInputPixelFormat(from: sourceDescriptor)
         let optimizationPlan = GraphOptimizer.makeOptimizationPlan(
             stages: optimizedStages,
@@ -907,8 +893,7 @@ struct RenderPlan {
 
 private extension RenderPlan {
     static func resolveInputColorSpace(primary descriptor: ImageSourceDescriptor?, auxiliary auxiliaryDescriptor: ImageSourceDescriptor?) -> ImageColorSpaceContract {
-        if let colorSpace = resolveAttachmentColorSpace(from: descriptor)
-            ?? resolveAttachmentColorSpace(from: auxiliaryDescriptor) {
+        if let colorSpace = resolveAttachmentColorSpace(from: descriptor) ?? resolveAttachmentColorSpace(from: auxiliaryDescriptor) {
             return colorSpace
         }
         return .preserveInput
@@ -928,8 +913,7 @@ private extension RenderPlan {
         guard let descriptor else {
             return 0
         }
-        if let bridgePlan = descriptor.pixelBufferBridgePlan,
-           bridgePlan.requiresColorConversion {
+        if let bridgePlan = descriptor.pixelBufferBridgePlan, bridgePlan.requiresColorConversion {
             return 1
         }
         if descriptor.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true {
@@ -942,8 +926,7 @@ private extension RenderPlan {
         guard let descriptor else {
             return 0
         }
-        if let bridgePlan = descriptor.pixelBufferBridgePlan,
-           bridgePlan.loadStrategy != .directMetalTexture {
+        if let bridgePlan = descriptor.pixelBufferBridgePlan, bridgePlan.loadStrategy != .directMetalTexture {
             return 1
         }
         if descriptor.sampleBufferContract?.pixelBufferContract?.colorModel == .yCbCrBiPlanar
@@ -1044,10 +1027,8 @@ enum GraphOptimizer {
         }
         if inputPixelFormat.isHighPrecision,
            prewarmReservations.contains(where: {
-               resolvedReservationPixelFormat(
-                   preferred: $0.pixelFormat,
-                   fallback: inputPixelFormat
-               ).metalPixelFormat == inputPixelFormat.metalPixelFormat
+               resolvedReservationPixelFormat(preferred: $0.pixelFormat, fallback: inputPixelFormat)
+                   .metalPixelFormat == inputPixelFormat.metalPixelFormat
            }) {
             decisions.append("preserveInputPixelFormatForReservations")
         }
@@ -1127,9 +1108,7 @@ enum GraphOptimizer {
         max(size.width, 0) * max(size.height, 0) * bytesPerPixel(for: pixelFormat)
     }
 
-    private static func makePrewarmReservations(lifecycleDecisions: [RenderTextureLifecycleDecision],
-                                                outputContract: RenderOutputContract,
-                                                inputPixelFormat: PixelFormatContract) -> [RenderTextureReservation] {
+    private static func makePrewarmReservations(lifecycleDecisions: [RenderTextureLifecycleDecision], outputContract: RenderOutputContract, inputPixelFormat: PixelFormatContract) -> [RenderTextureReservation] {
         var grouped: [String: RenderTextureReservation] = [:]
         for decision in lifecycleDecisions {
             let reason: RenderTextureReservationReason?
@@ -1200,20 +1179,12 @@ enum GraphOptimizer {
         }
     }
 
-    private static func pixelFormat(for decision: RenderTextureLifecycleDecision,
-                                    outputContract: RenderOutputContract,
-                                    inputPixelFormat: PixelFormatContract) -> PixelFormatContract {
+    private static func pixelFormat(for decision: RenderTextureLifecycleDecision, outputContract: RenderOutputContract, inputPixelFormat: PixelFormatContract) -> PixelFormatContract {
         switch decision.action {
         case .reuseTransient, .allocateTransient:
-            return resolvedReservationPixelFormat(
-                preferred: .preserveInput,
-                fallback: inputPixelFormat
-            )
+            return resolvedReservationPixelFormat(preferred: .preserveInput, fallback: inputPixelFormat)
         case .allocatePersistentOutput, .preserveForReadback:
-            return resolvedReservationPixelFormat(
-                preferred: outputContract.pixelFormat,
-                fallback: inputPixelFormat
-            )
+            return resolvedReservationPixelFormat(preferred: outputContract.pixelFormat, fallback: inputPixelFormat)
         }
     }
 
@@ -1343,8 +1314,7 @@ enum GraphOptimizer {
         }
 
         func canMerge(_ current: RenderNode, _ next: RenderNode) -> Bool {
-            guard let currentClass = mergeClass(for: current),
-                  let nextClass = mergeClass(for: next) else {
+            guard let currentClass = mergeClass(for: current), let nextClass = mergeClass(for: next) else {
                 return false
             }
             return currentClass == nextClass
@@ -1373,9 +1343,7 @@ enum GraphOptimizer {
 }
 
 private extension RenderPlanDiagnostics {
-    static func makeGraphFingerprint(nodes: [RenderNodeDiagnostic],
-                                     stages: [RenderStage],
-                                     compilationSource: RenderCompilationSource) -> String {
+    static func makeGraphFingerprint(nodes: [RenderNodeDiagnostic], stages: [RenderStage], compilationSource: RenderCompilationSource) -> String {
         let nodePart = nodes
             .map { "\($0.index):\($0.name):\($0.kind.rawValue):\($0.outputSize.width)x\($0.outputSize.height)" }
             .joined(separator: "|")
@@ -1423,6 +1391,7 @@ enum GraphCompiler {
             return RenderNode(
                 kind: kind,
                 filter: filter,
+                boundary: nil,
                 outputSize: outputSize,
                 breaksFusion: resizes || kind == .combination
             )
@@ -1457,6 +1426,7 @@ enum GraphCompiler {
                 RenderNode(
                     kind: .compute,
                     filter: nil,
+                    boundary: nil,
                     outputSize: derivativeOutputSize,
                     breaksFusion: true
                 )
@@ -1476,10 +1446,7 @@ enum GraphCompiler {
             outputContract: resolvedOutputContract,
             imageCachePolicy: imageCachePolicy,
             samplerDescriptor: samplerDescriptor,
-            samplerExecutionCoverage: SamplerExecutionAdapter.coverage(
-                for: filters,
-                samplerDescriptor: samplerDescriptor
-            ),
+            samplerExecutionCoverage: SamplerExecutionAdapter.coverage(for: filters, samplerDescriptor: samplerDescriptor),
             sourceDescriptor: sourceDescriptor,
             auxiliaryInputDescriptor: auxiliaryInputDescriptor,
             imageGraph: imageGraph,
