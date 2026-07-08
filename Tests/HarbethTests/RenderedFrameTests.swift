@@ -50,6 +50,23 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(frame.token.generation, frame.generation)
     }
 
+    func testHarbethIOMakeFramePublicWrapperMatchesRenderFrame() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "RenderedFrameTests.publicWrapper")
+        let frame = try HarbethIO(element: texture, filters: [])
+            .makeFrame(profile: .stablePreview, metadata: ["route": "public"])
+
+        XCTAssertEqual(frame.size.width, 2)
+        XCTAssertEqual(frame.size.height, 2)
+        XCTAssertEqual(frame.displaySize.width, 2)
+        XCTAssertEqual(frame.displaySize.height, 2)
+        XCTAssertEqual(frame.outputImageSize.width, 2)
+        XCTAssertEqual(frame.outputImageSize.height, 2)
+        XCTAssertEqual(frame.metadata["route"], "public")
+    }
+
     func testFrameRendererGenerationIncreases() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -1353,7 +1370,10 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertTrue(frame.previewHostStrategyResolution.sampleBufferHostEligible)
         XCTAssertTrue(frame.previewHostStrategyResolution.sampleBufferHostPayloadAvailable)
         XCTAssertFalse(frame.previewHostStrategyResolution.sampleBufferHostRequiresRematerialization)
-        XCTAssertTrue(hostSampleBuffer === sampleBuffer)
+        XCTAssertNotNil(hostSampleBuffer)
+        XCTAssertEqual(hostSampleBuffer?.c7.presentationTimeStamp, sampleBuffer.c7.presentationTimeStamp)
+        XCTAssertEqual(hostSampleBuffer?.c7.contract.frameContract.orientation, .right)
+        XCTAssertEqual(hostSampleBuffer?.c7.contract.frameContract.mirrorHorizontally, true)
     }
 
     func testSampleBufferPreviewHostStrategyRematerializesAndPreservesMetadata() throws {
@@ -1412,6 +1432,21 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertEqual(hostSampleBuffer.c7.contract.frameContract.followsDeviceOrientation, true)
         XCTAssertEqual(hostSampleBuffer.c7.contract.pixelBufferContract?.colorPrimariesAttachment, .p3D65)
         XCTAssertEqual(hostSampleBuffer.c7.contract.pixelBufferContract?.transferFunctionAttachment, .sRGB)
+    }
+
+    func testPixelBufferPreviewHostStrategyUsesMetalTextureHost() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 4, height: 3)
+        let frame = try ImageNode
+            .pixelBuffer(pixelBuffer)
+            .makeFrame(profile: .interactiveLatency, metadata: [
+                "previewRoute": "ImageNode+RenderView(pixelBuffer)"
+            ])
+
+        XCTAssertEqual(frame.previewHostStrategyResolution.strategy, .metalTextureHost)
+        XCTAssertFalse(frame.previewHostStrategyResolution.sampleBufferHostEligible)
+        XCTAssertEqual(frame.frameHostRuntimeHint.timingPolicy, .lowLatency)
+        XCTAssertEqual(frame.displaySize.width, 4)
+        XCTAssertEqual(frame.displaySize.height, 3)
     }
 
     func testTransitionFrameCarriesPredictableFilterFingerprint() throws {

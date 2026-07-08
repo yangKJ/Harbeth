@@ -253,7 +253,10 @@ public struct RenderedFrame: @unchecked Sendable {
          lease: TextureLease? = nil,
          previewHostPayload: RenderedFramePreviewHostPayload? = nil) {
         self.texture = texture
-        self.size = CGSize(width: texture.width, height: texture.height)
+        self.size = CGSize(
+            width: resolvedOutputSize?.width ?? texture.width,
+            height: resolvedOutputSize?.height ?? texture.height
+        )
         self.pixelFormat = texture.pixelFormat
         self.colorSpace = colorSpace
         self.sourceDescriptor = sourceDescriptor ?? ImageSourceDescriptor(
@@ -333,6 +336,17 @@ public struct RenderedFrame: @unchecked Sendable {
             hostFellBackToMetal: false
         )
         #else
+        if metadata["previewHostStrategy"] == PreviewHostStrategy.metalTextureHost.rawValue {
+            return PreviewHostStrategyResolution(
+                strategy: .metalTextureHost,
+                sampleBufferHostEligible: false,
+                sampleBufferHostPayloadAvailable: previewHostPayload != nil,
+                sampleBufferHostRequiresRematerialization: false,
+                recoveryPolicy: .flushThenFallbackToMetal,
+                hostRecoveredByFlush: false,
+                hostFellBackToMetal: false
+            )
+        }
         let eligible = sourceDescriptor.kind == "sampleBuffer" && frameHostRuntimeHint.isRealtimePreviewEligible
         let payloadAvailable = previewHostPayload != nil
         let requiresRematerialization = previewHostPayload?.supportsPassthrough == false && previewHostPayload?.supportsRematerialization == true
@@ -368,6 +382,30 @@ public struct RenderedFrame: @unchecked Sendable {
             replayBaseFingerprint: replayBaseContract.fingerprint,
             filterChainFingerprint: metadata["filterChainFingerprint"] ?? ""
         )
+    }
+
+    public var textureSize: CGSize {
+        CGSize(width: texture.width, height: texture.height)
+    }
+
+    public var sourcePixelSize: CGSize {
+        let sourceSize = frameHostSourceDescriptor.frameSize
+        guard sourceSize.width > 0, sourceSize.height > 0 else {
+            return size
+        }
+        return CGSize(width: sourceSize.width, height: sourceSize.height)
+    }
+
+    public var displaySize: CGSize {
+        size
+    }
+
+    public var outputImageSize: CGSize {
+        size
+    }
+
+    public func makeImage(colorSpace: CGColorSpace? = nil) throws -> C7Image? {
+        texture.c7.toImage(colorSpace: colorSpace ?? self.colorSpace)
     }
 }
 
@@ -518,8 +556,9 @@ struct FrameRenderer {
         let resolvedSize: C7Size
         if filters.isEmpty {
             let input = try source.makeTexture()
-            let effectiveFilters = effectiveFilters(for: C7Size(width: input.width, height: input.height))
-            resolvedSize = resolvedOutputSize(for: C7Size(width: input.width, height: input.height), filters: effectiveFilters)
+            let baseSize = source.resolvedSizeHint ?? C7Size(width: input.width, height: input.height)
+            let effectiveFilters = effectiveFilters(for: baseSize)
+            resolvedSize = resolvedOutputSize(for: baseSize, filters: effectiveFilters)
             if effectiveFilters.isEmpty {
                 renderedTexture = input
                 lease = nil
@@ -532,7 +571,7 @@ struct FrameRenderer {
             }
         } else {
             let input = try source.makeTexture()
-            let size_ = C7Size(width: input.width, height: input.height)
+            let size_ = source.resolvedSizeHint ?? C7Size(width: input.width, height: input.height)
             let effectiveFilters = effectiveFilters(for: size_)
             resolvedSize = resolvedOutputSize(for: size_, filters: effectiveFilters)
             let result = try makeIO(element: input, filters: effectiveFilters)
@@ -566,7 +605,7 @@ struct FrameRenderer {
         }
         do {
             let input = try source.makeTexture()
-            let size_ = C7Size(width: input.width, height: input.height)
+            let size_ = source.resolvedSizeHint ?? C7Size(width: input.width, height: input.height)
             let effectiveFilters = effectiveFilters(for: size_)
             let resolvedSize = resolvedOutputSize(for: size_, filters: effectiveFilters)
             guard effectiveFilters.isEmpty == false else {
@@ -909,4 +948,30 @@ enum FrameGeneration {
         current &+= 1
         return current
     }
+}
+
+private extension FrameOrientation {
+    var imageOrientation: C7ImageOrientation {
+        switch self {
+        case .up:
+            return .up
+        case .down:
+            return .down
+        case .left:
+            return .left
+        case .right:
+            return .right
+        case .upMirrored:
+            return .upMirrored
+        case .downMirrored:
+            return .downMirrored
+        case .leftMirrored:
+            return .leftMirrored
+        case .rightMirrored:
+            return .rightMirrored
+        case .unknown:
+            return .up
+        }
+    }
+
 }

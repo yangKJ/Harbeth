@@ -202,21 +202,26 @@ extension HarbethWrapper where Base: CGImage {
             return base
         }
         let width = CGFloat(base.width), height = CGFloat(base.height)
+        let isQuarterTurnOrientation: Bool = {
+            switch orientation {
+            case .left, .leftMirrored, .right, .rightMirrored:
+                return true
+            default:
+                return false
+            }
+        }()
+        let canvasWidth = isQuarterTurnOrientation ? height : width
+        let canvasHeight = isQuarterTurnOrientation ? width : height
         let transform = base.c7.fixTransform(from: orientation)
         let context = CGContext(data: nil,
-                                width: Int(width),
-                                height: Int(height),
+                                width: Int(canvasWidth),
+                                height: Int(canvasHeight),
                                 bitsPerComponent: base.bitsPerComponent,
                                 bytesPerRow: 0,
                                 space: colorSpace,
                                 bitmapInfo: base.bitmapInfo.rawValue)
         context?.concatenate(transform)
-        switch orientation {
-        case .left, .leftMirrored, .right, .rightMirrored:
-            context?.draw(base, in: CGRect(x: 0, y: 0, width: height, height: width))
-        default:
-            context?.draw(base, in: CGRect(x: 0, y: 0, width: width, height: height))
-        }
+        context?.draw(base, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
         return context?.makeImage() ?? base
     }
 }

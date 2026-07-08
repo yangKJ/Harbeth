@@ -30,7 +30,8 @@ public enum ImageSource {
         case .cgImage(let image):
             return try TextureLoader(with: image).texture
         case .pixelBuffer(let pixelBuffer):
-            if let texture = pixelBuffer.c7.toMTLTexture() {
+            if pixelBuffer.c7.makeTextureBridgePlan().loadStrategy == .directMetalTexture,
+               let texture = pixelBuffer.c7.toMTLTexture() {
                 return texture
             }
             return try TextureLoader(with: pixelBuffer).texture

@@ -111,12 +111,24 @@ final class ImageNodeTests: XCTestCase {
         let orientedImage = UIImage(cgImage: cgImage, scale: 1, orientation: .right)
 
         let frame = try ImageNode.image(orientedImage).makeFrame(profile: .exportQuality)
+        let outputImage = try XCTUnwrap(frame.makeImage())
 
         XCTAssertEqual(frame.texture.width, 3)
         XCTAssertEqual(frame.texture.height, 2)
-        XCTAssertEqual(frame.resolvedOutputSize.width, 3)
-        XCTAssertEqual(frame.resolvedOutputSize.height, 2)
+        XCTAssertEqual(frame.textureSize.width, 3)
+        XCTAssertEqual(frame.textureSize.height, 2)
+        XCTAssertEqual(frame.size.width, 2)
+        XCTAssertEqual(frame.size.height, 3)
+        XCTAssertEqual(frame.resolvedOutputSize.width, 2)
+        XCTAssertEqual(frame.resolvedOutputSize.height, 3)
         XCTAssertEqual(frame.orientation, .right)
+        XCTAssertEqual(frame.displaySize.width, 2)
+        XCTAssertEqual(frame.displaySize.height, 3)
+        XCTAssertEqual(frame.outputImageSize.width, 2)
+        XCTAssertEqual(frame.outputImageSize.height, 3)
+        XCTAssertEqual(outputImage.size.width, 2)
+        XCTAssertEqual(outputImage.size.height, 3)
+        XCTAssertEqual(outputImage.imageOrientation, .up)
     }
     #endif
 

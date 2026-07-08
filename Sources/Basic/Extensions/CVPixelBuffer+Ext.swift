@@ -176,6 +176,20 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
     }
 
+    func createPlaneTextureReferences(textureCache: CVMetalTextureCache? = nil) -> [(texture: MTLTexture, owner: AnyObject)] {
+        let plan = makeTextureBridgePlan()
+        guard plan.contract.nativeTextureLayout == .planeTextures else {
+            return []
+        }
+        let cache: CVMetalTextureCache? = textureCache ?? Shared.shared.sharedTextureCache
+        return plan.contract.planes.compactMap { plane in
+            guard let pixelFormat = plane.metalPixelFormat else {
+                return nil
+            }
+            return convertPlaneTextureReference(textureCache: cache, pixelFormat: pixelFormat, planeIndex: plane.index)
+        }
+    }
+
     private func convertPlaneTextureReference(textureCache: CVMetalTextureCache?, pixelFormat: MTLPixelFormat, planeIndex: Int) -> (texture: MTLTexture, owner: AnyObject)? {
         guard let textureCache = textureCache else {
             return nil

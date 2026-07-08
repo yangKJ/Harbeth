@@ -320,29 +320,26 @@ extension TextureLoader {
                 )
             )
             #else
-            let textures = pixelBuffer.c7.createPlaneTextures()
-            if let primary = textures.first {
+            let references = pixelBuffer.c7.createPlaneTextureReferences()
+            let textures = references.map(\.texture)
+            if let primary = textures.first, textures.count == bridgePlan.directPlaneBridgeCount {
                 return PixelBufferTextureSource(
                     primaryTexture: primary,
                     planeTextures: textures,
                     bridgePlan: bridgePlan,
-                    retainedOwners: TextureLoader.resolveRetainedOwners(
-                        primaryTexture: primary,
-                        fallbackOwner: pixelBuffer
-                    )
+                    retainedOwners: [pixelBuffer] + references.map(\.owner)
                 )
             }
-            guard let texture = pixelBuffer.c7.toMTLTexture() else {
+            guard let cgImage = pixelBuffer.c7.toCGImage() else {
                 throw HarbethError.source2Texture
             }
+            let texture = try TextureLoader(with: cgImage, options: options).texture
+            TextureOwnerRegistry.attach(pixelBuffer, to: texture)
             return PixelBufferTextureSource(
                 primaryTexture: texture,
                 planeTextures: [texture],
                 bridgePlan: bridgePlan,
-                retainedOwners: TextureLoader.resolveRetainedOwners(
-                    primaryTexture: texture,
-                    fallbackOwner: pixelBuffer
-                )
+                retainedOwners: [pixelBuffer]
             )
             #endif
         case .cgImageFallback:

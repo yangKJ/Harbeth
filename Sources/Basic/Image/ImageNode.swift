@@ -187,12 +187,13 @@ extension ImageNode {
         var renderedMetadata = metadata
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
         let token = FrameRenderToken(identifier: monitoringIdentifier, generation: FrameGeneration.next())
+        let logicalOutputSize = primarySource.resolvedSizeHint ?? C7Size(width: texture.width, height: texture.height)
         return RenderedFrame(
             texture: texture,
             colorSpace: colorSpace,
             sourceDescriptor: primarySource.descriptor,
             derivative: effectiveDerivative,
-            resolvedOutputSize: C7Size(width: texture.width, height: texture.height),
+            resolvedOutputSize: logicalOutputSize,
             renderIntent: effectiveDerivative.renderIntent,
             sourceTier: primarySource.sourceTier,
             alphaType: primarySource.alphaType,

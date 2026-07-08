@@ -99,6 +99,11 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         }
     }
     
+    /// Directly convert the current input and filter chain into `RenderedFrame`.
+    public func makeFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil, metadata: [String: String] = [:]) throws -> RenderedFrame {
+        try renderFrame(profile: profile, derivative: derivative, metadata: metadata)
+    }
+    
     /// Add filters to sources synchronously. If it fails, it returns element.
     public func filtered() -> Dest {
         return (try? self.output()) ?? element

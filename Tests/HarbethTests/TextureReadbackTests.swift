@@ -121,7 +121,61 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(texture.pixelFormat, .rgba8Unorm)
         XCTAssertEqual(texture.width, 4)
         XCTAssertEqual(texture.height, 4)
-        XCTAssertNotNil(TextureOwnerRegistry.owner(for: texture))
+        XCTAssertNil(TextureOwnerRegistry.owner(for: texture))
+        #endif
+    }
+
+    func testImageNodePixelBufferUsesPlaneAwareDecodeForBiPlanarYUV() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+
+        let frame = try ImageNode
+            .pixelBuffer(pixelBuffer)
+            .makeFrame(profile: .interactiveLatency)
+
+        XCTAssertEqual(frame.texture.pixelFormat, .rgba8Unorm)
+        XCTAssertEqual(frame.texture.width, 4)
+        XCTAssertEqual(frame.texture.height, 4)
+        XCTAssertEqual(frame.sourceDescriptor.pixelBufferBridgePolicy, .directPlaneDecodeToRGBA)
+        XCTAssertNil(TextureOwnerRegistry.owner(for: frame.texture))
+        #endif
+    }
+
+    func testImageNodeSampleBufferUsesPlaneAwareDecodeForBiPlanarYUV() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
+        #else
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let pixelBuffer = try makePixelBuffer(
+            width: 4,
+            height: 4,
+            pixelFormatType: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            unavailableMessage: "Bi-planar pixel buffer is unavailable in this environment."
+        )
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+
+        let frame = try ImageNode
+            .sampleBuffer(sampleBuffer)
+            .makeFrame(profile: .interactiveLatency)
+
+        XCTAssertEqual(frame.texture.pixelFormat, .rgba8Unorm)
+        XCTAssertEqual(frame.texture.width, 4)
+        XCTAssertEqual(frame.texture.height, 4)
+        XCTAssertEqual(frame.sourceDescriptor.pixelBufferBridgePolicy, .directPlaneDecodeToRGBA)
+        XCTAssertEqual(frame.sourceDescriptor.sampleBufferContract?.pixelBufferContract?.cvPixelFormatType, kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)
         #endif
     }
 
@@ -167,7 +221,7 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(texture.pixelFormat, .rgba8Unorm)
         XCTAssertEqual(texture.width, 6)
         XCTAssertEqual(texture.height, 4)
-        XCTAssertNotNil(TextureOwnerRegistry.owner(for: texture))
+        XCTAssertNil(TextureOwnerRegistry.owner(for: texture))
         #endif
     }
 
@@ -348,7 +402,7 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(texture.pixelFormat, .rgba16Float)
         XCTAssertEqual(texture.width, 8)
         XCTAssertEqual(texture.height, 4)
-        XCTAssertNotNil(TextureOwnerRegistry.owner(for: texture))
+        XCTAssertNil(TextureOwnerRegistry.owner(for: texture))
         #endif
     }
 
@@ -370,7 +424,7 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(texture.pixelFormat, .rgba16Float)
         XCTAssertEqual(texture.width, 8)
         XCTAssertEqual(texture.height, 4)
-        XCTAssertNotNil(TextureOwnerRegistry.owner(for: texture))
+        XCTAssertNil(TextureOwnerRegistry.owner(for: texture))
         #endif
     }
 
@@ -645,12 +699,13 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertTrue(source.requiresPlaneAwareDecoding)
         XCTAssertTrue(source.exposesAllDirectPlaneTextures)
         XCTAssertEqual(source.planeTextures.count, 2)
-        XCTAssertEqual(source.retainedOwners.count, 2)
+        XCTAssertEqual(source.retainedOwners.count, 3)
         XCTAssertEqual(source.primaryTexture.pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[0].pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[1].pixelFormat, .rg8Unorm)
         XCTAssertEqual(ObjectIdentifier(source.primaryTexture), ObjectIdentifier(source.planeTextures[0]))
-        XCTAssertNotNil(TextureOwnerRegistry.owner(for: source.primaryTexture))
+        XCTAssertNil(TextureOwnerRegistry.owner(for: source.primaryTexture))
+        XCTAssertTrue(source.retainedOwners.contains { $0 === pixelBuffer })
         #endif
     }
 
@@ -674,13 +729,14 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertTrue(source.requiresPlaneAwareDecoding)
         XCTAssertTrue(source.exposesAllDirectPlaneTextures)
         XCTAssertEqual(source.planeTextures.count, 3)
-        XCTAssertEqual(source.retainedOwners.count, 2)
+        XCTAssertEqual(source.retainedOwners.count, 4)
         XCTAssertEqual(source.primaryTexture.pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[0].pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[1].pixelFormat, .r8Unorm)
         XCTAssertEqual(source.planeTextures[2].pixelFormat, .r8Unorm)
         XCTAssertEqual(ObjectIdentifier(source.primaryTexture), ObjectIdentifier(source.planeTextures[0]))
-        XCTAssertNotNil(TextureOwnerRegistry.owner(for: source.primaryTexture))
+        XCTAssertNil(TextureOwnerRegistry.owner(for: source.primaryTexture))
+        XCTAssertTrue(source.retainedOwners.contains { $0 === pixelBuffer })
         #endif
     }
 
@@ -745,13 +801,10 @@ final class TextureReadbackTests: XCTestCase {
         let source = try TextureLoader.resolveTextureSource(with: sampleBuffer)
         let owners = TextureOwnerRegistry.owners(for: source.primaryTexture)
 
-        XCTAssertEqual(source.retainedOwners.count, 2)
+        XCTAssertEqual(source.retainedOwners.count, 3)
         XCTAssertTrue(source.retainedOwners.contains { $0 === pixelBuffer })
         XCTAssertFalse(source.retainedOwners.contains { $0 === sampleBuffer })
-        XCTAssertEqual(owners.count, 2)
-        XCTAssertTrue(owners.contains { $0 === pixelBuffer })
-        XCTAssertFalse(owners.contains { $0 === sampleBuffer })
-        XCTAssertTrue(owners.contains { $0 !== pixelBuffer })
+        XCTAssertTrue(owners.isEmpty)
         #endif
     }
 
