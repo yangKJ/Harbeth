@@ -1570,6 +1570,36 @@ public struct ImageSamplerDescriptor: Sendable, Codable, Equatable, Hashable {
     }
 }
 
+public extension ImageSamplerDescriptor {
+    var compatibleSpatialSamplingMode: SpatialSamplingMode? {
+        if minFilter == .nearest, magFilter == .nearest {
+            return .nearest
+        }
+        if minFilter == .linear, magFilter == .linear {
+            return .linear
+        }
+        return nil
+    }
+
+    var compatibleSpatialEdgeMode: SpatialEdgeMode? {
+        guard sAddressMode == tAddressMode else {
+            return nil
+        }
+        switch sAddressMode {
+        case .clampToZero:
+            return .transparent
+        case .clampToEdge:
+            return .clamp
+        case .repeat:
+            return .repeat
+        case .mirrorRepeat:
+            return .mirrorRepeat
+        default:
+            return nil
+        }
+    }
+}
+
 /// 图像或纹理结果的缓存语义。
 ///
 /// 延续 Harbeth 的 transient / persistent 区分，并保持 Harbeth 当前

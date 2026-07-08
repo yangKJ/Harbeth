@@ -393,18 +393,17 @@ let recipe = EditRecipe(
 当前已经进入真实执行覆盖的 family：
 
 - 普通 `RenderProtocol`
-- `RenderQuadTransform`
-- `RenderQuadRectifyTransform`
 - `C7Crop`
 - `C7Rotate`
 - `C7Transform`
 - `C7LensDistortionCorrection`
 - `C7ChromaticAberrationCorrection`
+- `RenderQuadTransform` / `RenderQuadRectifyTransform`
 
 但这里有一个边界要明确：
 
 - render path 可以直接绑定 `MTLSamplerState`
-- 上述历史 compute geometry / optics family 只能桥接到 `SpatialSamplingMode` / `SpatialEdgeMode`
+- 上述历史 compute geometry / optics family，以及 `RenderQuadTransform` / `RenderQuadRectifyTransform`，都只能桥接到 `SpatialSamplingMode` / `SpatialEdgeMode`
 - 因此只有当 `ImageSamplerDescriptor` 能被映射成 nearest/linear 和 clamp/repeat 这类空间采样语义时，它们才算真实覆盖
 - 如果调用方传入的是当前 compute family 不能完整表达的 sampler 组合，diagnostics 仍会把它记成 `metadataOnly` 或 `partial`
 

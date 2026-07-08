@@ -11,7 +11,7 @@ import Foundation
 ///
 /// 通过沿图像中心到边缘的径向方向对各颜色通道做重对齐，
 /// 用于修正镜头在高反差边缘产生的红/青、蓝/黄类色边。
-public struct C7ChromaticAberrationCorrection: C7FilterProtocol {
+public struct C7ChromaticAberrationCorrection: C7FilterProtocol, SamplerAdaptableFilter {
 
     public var center: C7Point2D = .center
 
@@ -41,6 +41,25 @@ public struct C7ChromaticAberrationCorrection: C7FilterProtocol {
 
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
+    }
+
+    public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        var resolved = self
+        if let samplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return .covered(resolved)
     }
 
     public init(center: C7Point2D = .center,

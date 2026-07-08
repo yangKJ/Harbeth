@@ -12,7 +12,7 @@ import Foundation
 /// `distortion` 用于一次径向畸变，`cubicDistortion` 用于更强的外圈修正。
 /// 正负号的实际视觉取决于原图是桶形还是枕形畸变，因此这里保持底座中立，
 /// 由上层产品用预设或 profile 决定默认值。
-public struct C7LensDistortionCorrection: C7FilterProtocol {
+public struct C7LensDistortionCorrection: C7FilterProtocol, SamplerAdaptableFilter {
 
     public var center: C7Point2D = .center
     public var distortion: Float
@@ -39,6 +39,25 @@ public struct C7LensDistortionCorrection: C7FilterProtocol {
 
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
+    }
+
+    public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        var resolved = self
+        if let samplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return .covered(resolved)
     }
 
     public init(center: C7Point2D = .center,

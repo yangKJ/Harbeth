@@ -9,7 +9,7 @@ import Foundation
 
 /// For use class.
 /// See: https://stackoverflow.com/questions/49253299/cannot-assign-to-property-self-is-immutable-i-know-how-to-fix-but-needs-unde
-public final class C7Crop: C7FilterProtocol {
+public final class C7Crop: C7FilterProtocol, SamplerAdaptableFilter {
 
     /// The adjusted contrast, from 0 to 1.0, with a default of 0.0
     public var origin: C7Point2D = C7Point2D.zero
@@ -30,6 +30,18 @@ public final class C7Crop: C7FilterProtocol {
 
     public func resize(input size: C7Size) -> C7Size {
         return crop(size: size)
+    }
+
+    public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        return .covered(resolved(samplingMode: samplingMode, edgeMode: edgeMode))
     }
 
     private var cropType: CropType = CropType.size(width: 0, height: 0)

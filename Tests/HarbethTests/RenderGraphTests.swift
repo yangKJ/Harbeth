@@ -1170,9 +1170,9 @@ final class RenderGraphTests: XCTestCase {
             samplerDescriptor: unsupported
         )
 
-        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .partial)
-        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.coveredFilterTypes, ["RenderQuadTransform"])
-        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes, ["C7Rotate"])
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .metadataOnly)
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.coveredFilterTypes, [])
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes, ["C7Rotate", "RenderQuadTransform"])
     }
 
     func testExecutionPrewarmReservationsIncreaseTextureReuseForBoundaryChain() throws {

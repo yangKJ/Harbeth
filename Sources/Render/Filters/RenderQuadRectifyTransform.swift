@@ -13,7 +13,7 @@ import simd
 ///
 /// This is the geometric primitive behind document correction, guided upright
 /// region solving, and perspective crop workflows.
-public struct RenderQuadRectifyTransform: RenderProtocol {
+public struct RenderQuadRectifyTransform: RenderProtocol, SamplerAdaptableFilter {
 
     public var sourceQuad: RenderQuadTransform.Quad
     public var samplingMode: SpatialSamplingMode
@@ -51,6 +51,25 @@ public struct RenderQuadRectifyTransform: RenderProtocol {
             -1.0,  1.0, 0.0, 0.0,
              1.0,  1.0, 1.0, 0.0,
         ]
+    }
+
+    public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        var resolved = self
+        if let samplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return .covered(resolved)
     }
 
     public func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer? {

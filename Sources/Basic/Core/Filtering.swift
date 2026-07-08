@@ -213,6 +213,19 @@ extension RenderProtocol {
     public var renderSamplerDescriptor: ImageSamplerDescriptor { .default }
 }
 
+/// Narrow sampler bridge for filters that can translate an image sampler
+/// descriptor into their own execution parameters.
+public protocol SamplerAdaptableFilter: C7FilterProtocol {
+    func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation
+}
+
+/// Result of attempting to apply a sampler descriptor to a filter.
+public enum SamplerAdaptation {
+    case covered(any C7FilterProtocol)
+    case metadataOnly
+    case notApplicable
+}
+
 // MARK: - mps filter protocol
 public protocol MPSKernelProtocol: C7FilterProtocol {
     /// Encode a MPSKernel into a command buffer. The operation shall proceed out-of-place.

@@ -65,39 +65,20 @@ enum SamplerExecutionAdapter {
     }
 
     static func adapt(filter: C7FilterProtocol, samplerDescriptor: ImageSamplerDescriptor) -> C7FilterProtocol {
-        guard samplerDescriptor != .default else {
-            return filter
-        }
-        if let filter = filter as? C7Crop {
-            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        if let filter = filter as? C7Rotate {
-            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        if let filter = filter as? C7Transform {
-            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        if let filter = filter as? C7LensDistortionCorrection {
-            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        if let filter = filter as? C7ChromaticAberrationCorrection {
-            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        if let filter = filter as? RenderQuadTransform {
-            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        if let filter = filter as? RenderQuadRectifyTransform {
-            return adapt(filter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        if let filter = filter as? any RenderProtocol {
-            return adapt(renderFilter: filter, samplerDescriptor: samplerDescriptor)
-        }
-        return filter
+        resolve(filter: filter, samplerDescriptor: samplerDescriptor).filter
     }
 
     static func adapt(renderFilter: any RenderProtocol, samplerDescriptor: ImageSamplerDescriptor) -> any RenderProtocol {
         guard samplerDescriptor != .default else {
             return renderFilter
+        }
+        if let configurable = renderFilter as? SamplerAdaptableFilter {
+            switch configurable.samplerAdaptation(for: samplerDescriptor) {
+            case .covered(let adaptedFilter):
+                return adaptedFilter as? any RenderProtocol ?? renderFilter
+            case .metadataOnly, .notApplicable:
+                return renderFilter
+            }
         }
         return RenderSamplerOverride(base: renderFilter, samplerDescriptor: samplerDescriptor)
     }
@@ -107,7 +88,7 @@ enum SamplerExecutionAdapter {
             return SamplerExecutionCoverage(mode: .notApplicable)
         }
 
-        let relevantFilters = filters.filter(isSamplerSensitive)
+        let relevantFilters = filters.filter { isSamplerRelevant($0) }
         guard relevantFilters.isEmpty == false else {
             return SamplerExecutionCoverage(mode: .notApplicable)
         }
@@ -117,10 +98,16 @@ enum SamplerExecutionAdapter {
 
         for filter in relevantFilters {
             let typeName = String(describing: type(of: filter))
-            if isExecutionCovered(filter, samplerDescriptor: samplerDescriptor) {
+            switch resolve(filter: filter, samplerDescriptor: samplerDescriptor).coverage {
+            case .covered:
                 covered.append(typeName)
-            } else {
+            case .partial:
+                covered.append(typeName)
                 metadataOnly.append(typeName)
+            case .metadataOnly:
+                metadataOnly.append(typeName)
+            case .notApplicable:
+                break
             }
         }
 
@@ -145,122 +132,37 @@ enum SamplerExecutionAdapter {
         )
     }
 
-    private static func adapt(filter: RenderQuadTransform, samplerDescriptor: ImageSamplerDescriptor) -> RenderQuadTransform {
-        var resolved = filter
-        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
-            resolved.samplingMode = samplingMode
+    private static func resolve(filter: C7FilterProtocol, samplerDescriptor: ImageSamplerDescriptor) -> SamplerExecutionResolution {
+        guard samplerDescriptor != .default else {
+            return SamplerExecutionResolution(filter: filter, coverage: .notApplicable)
         }
-        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
-            resolved.edgeMode = edgeMode
+        if let configurable = filter as? SamplerAdaptableFilter {
+            switch configurable.samplerAdaptation(for: samplerDescriptor) {
+            case .covered(let adaptedFilter):
+                return SamplerExecutionResolution(filter: adaptedFilter, coverage: .covered)
+            case .metadataOnly:
+                return SamplerExecutionResolution(filter: filter, coverage: .metadataOnly)
+            case .notApplicable:
+                break
+            }
         }
-        return resolved
+        if let renderFilter = filter as? any RenderProtocol {
+            return SamplerExecutionResolution(
+                filter: RenderSamplerOverride(base: renderFilter, samplerDescriptor: samplerDescriptor),
+                coverage: .covered
+            )
+        }
+        return SamplerExecutionResolution(filter: filter, coverage: .notApplicable)
     }
 
-    private static func adapt(filter: C7Crop, samplerDescriptor: ImageSamplerDescriptor) -> C7Crop {
-        filter.resolved(
-            samplingMode: samplerDescriptor.preferredSpatialSamplingMode,
-            edgeMode: samplerDescriptor.preferredSpatialEdgeMode
-        )
+    private static func isSamplerRelevant(_ filter: C7FilterProtocol) -> Bool {
+        filter is SamplerAdaptableFilter || filter is RenderProtocol
     }
+}
 
-    private static func adapt(filter: C7Rotate, samplerDescriptor: ImageSamplerDescriptor) -> C7Rotate {
-        var resolved = filter
-        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
-            resolved.samplingMode = samplingMode
-        }
-        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
-            resolved.edgeMode = edgeMode
-        }
-        return resolved
-    }
-
-    private static func adapt(filter: C7Transform, samplerDescriptor: ImageSamplerDescriptor) -> C7Transform {
-        var resolved = filter
-        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
-            resolved.samplingMode = samplingMode
-        }
-        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
-            resolved.edgeMode = edgeMode
-        }
-        return resolved
-    }
-
-    private static func adapt(filter: C7LensDistortionCorrection, samplerDescriptor: ImageSamplerDescriptor) -> C7LensDistortionCorrection {
-        var resolved = filter
-        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
-            resolved.samplingMode = samplingMode
-        }
-        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
-            resolved.edgeMode = edgeMode
-        }
-        return resolved
-    }
-
-    private static func adapt(filter: C7ChromaticAberrationCorrection, samplerDescriptor: ImageSamplerDescriptor) -> C7ChromaticAberrationCorrection {
-        var resolved = filter
-        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
-            resolved.samplingMode = samplingMode
-        }
-        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
-            resolved.edgeMode = edgeMode
-        }
-        return resolved
-    }
-
-    private static func adapt(filter: RenderQuadRectifyTransform, samplerDescriptor: ImageSamplerDescriptor) -> RenderQuadRectifyTransform {
-        var resolved = filter
-        if let samplingMode = samplerDescriptor.preferredSpatialSamplingMode {
-            resolved.samplingMode = samplingMode
-        }
-        if let edgeMode = samplerDescriptor.preferredSpatialEdgeMode {
-            resolved.edgeMode = edgeMode
-        }
-        return resolved
-    }
-
-    private static func isSamplerSensitive(_ filter: C7FilterProtocol) -> Bool {
-        if filter is RenderProtocol {
-            return true
-        }
-        switch filter {
-        case is C7Crop,
-             is C7Rotate,
-             is C7Transform,
-             is C7LensDistortionCorrection,
-             is C7ChromaticAberrationCorrection:
-            return true
-        default:
-            return false
-        }
-    }
-
-    private static func isExecutionCovered(_ filter: C7FilterProtocol) -> Bool {
-        switch filter {
-        case is RenderQuadTransform, is RenderQuadRectifyTransform:
-            return true
-        case is RenderProtocol:
-            return true
-        default:
-            return false
-        }
-    }
-
-    static func isExecutionCovered(_ filter: C7FilterProtocol, samplerDescriptor: ImageSamplerDescriptor) -> Bool {
-        if isExecutionCovered(filter) {
-            return true
-        }
-        switch filter {
-        case is C7Crop,
-             is C7Rotate,
-             is C7Transform,
-             is C7LensDistortionCorrection,
-             is C7ChromaticAberrationCorrection:
-            return samplerDescriptor.preferredSpatialSamplingMode != nil
-                || samplerDescriptor.preferredSpatialEdgeMode != nil
-        default:
-            return false
-        }
-    }
+private struct SamplerExecutionResolution {
+    let filter: C7FilterProtocol
+    let coverage: SamplerExecutionCoverageMode
 }
 
 private struct RenderSamplerOverride: RenderProtocol {
@@ -302,35 +204,5 @@ private struct RenderSamplerOverride: RenderProtocol {
 
     func setupVertices(inputSize: C7Size) -> [Float]? {
         base.setupVertices(inputSize: inputSize)
-    }
-}
-
-private extension ImageSamplerDescriptor {
-    var preferredSpatialSamplingMode: SpatialSamplingMode? {
-        if minFilter == .nearest, magFilter == .nearest {
-            return .nearest
-        }
-        if minFilter == .linear, magFilter == .linear {
-            return .linear
-        }
-        return nil
-    }
-
-    var preferredSpatialEdgeMode: SpatialEdgeMode? {
-        guard sAddressMode == tAddressMode else {
-            return nil
-        }
-        switch sAddressMode {
-        case .clampToZero:
-            return .transparent
-        case .clampToEdge:
-            return .clamp
-        case .repeat:
-            return .repeat
-        case .mirrorRepeat:
-            return .mirrorRepeat
-        default:
-            return nil
-        }
     }
 }

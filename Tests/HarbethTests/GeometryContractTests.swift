@@ -157,4 +157,83 @@ final class GeometryContractTests: XCTestCase {
         XCTAssertEqual(coverage.coveredFilterTypes, [])
         XCTAssertEqual(coverage.metadataOnlyFilterTypes, ["C7Rotate"])
     }
+
+    func testSamplerExecutionAdapterSupportsCustomSamplerAdaptableFilter() {
+        let sampler = ImageSamplerDescriptor.nearest
+        let filter = SamplerConfiguredProbeFilter()
+
+        let adapted = SamplerExecutionAdapter.adapt(filter: filter, samplerDescriptor: sampler) as? SamplerConfiguredProbeFilter
+        XCTAssertEqual(adapted?.samplingMode, .nearest)
+        XCTAssertEqual(adapted?.edgeMode, .clamp)
+
+        let coverage = SamplerExecutionAdapter.coverage(for: [filter], samplerDescriptor: sampler)
+        XCTAssertEqual(coverage.mode, .covered)
+        XCTAssertEqual(coverage.coveredFilterTypes, ["SamplerConfiguredProbeFilter"])
+        XCTAssertTrue(coverage.metadataOnlyFilterTypes.isEmpty)
+    }
+
+    func testSamplerExecutionAdapterSupportsRenderQuadTransformProtocolMapping() {
+        let sampler = ImageSamplerDescriptor.nearest
+        let renderQuad = RenderQuadTransform()
+
+        let adapted = SamplerExecutionAdapter.adapt(filter: renderQuad, samplerDescriptor: sampler) as? RenderQuadTransform
+        XCTAssertEqual(adapted?.samplingMode, .nearest)
+        XCTAssertEqual(adapted?.edgeMode, .clamp)
+
+        let coverage = SamplerExecutionAdapter.coverage(for: [renderQuad], samplerDescriptor: sampler)
+        XCTAssertEqual(coverage.mode, .covered)
+        XCTAssertEqual(coverage.coveredFilterTypes, ["RenderQuadTransform"])
+        XCTAssertTrue(coverage.metadataOnlyFilterTypes.isEmpty)
+    }
+
+    func testSamplerExecutionAdapterMarksProtocolConfiguredGeometryAsMetadataOnlyWhenDescriptorCannotMap() {
+        let unsupported = ImageSamplerDescriptor(
+            minFilter: .nearest,
+            magFilter: .linear,
+            sAddressMode: .clampToEdge,
+            tAddressMode: .repeat
+        )
+
+        let renderQuad = RenderQuadTransform()
+        let adaptedRenderQuad = SamplerExecutionAdapter.adapt(filter: renderQuad, samplerDescriptor: unsupported) as? RenderQuadTransform
+        XCTAssertEqual(adaptedRenderQuad?.samplingMode, .adaptive)
+        XCTAssertEqual(adaptedRenderQuad?.edgeMode, .transparent)
+
+        let coverage = SamplerExecutionAdapter.coverage(for: [renderQuad], samplerDescriptor: unsupported)
+        XCTAssertEqual(coverage.mode, .metadataOnly)
+        XCTAssertEqual(coverage.coveredFilterTypes, [])
+        XCTAssertEqual(coverage.metadataOnlyFilterTypes, ["RenderQuadTransform"])
+    }
+}
+
+private struct SamplerConfiguredProbeFilter: SamplerAdaptableFilter {
+    var samplingMode: SpatialSamplingMode = .adaptive
+    var edgeMode: SpatialEdgeMode = .transparent
+
+    var modifier: ModifierEnum { .compute(kernel: "SamplerConfiguredProbeFilter") }
+    var factors: [Float] { [Float(samplingMode.rawValue), Float(edgeMode.rawValue)] }
+    var memoryAccessPattern: MemoryAccessPattern { .point }
+
+    func resize(input size: C7Size) -> C7Size {
+        size
+    }
+
+    func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        var resolved = self
+        if let samplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return .covered(resolved)
+    }
 }

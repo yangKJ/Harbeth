@@ -13,7 +13,7 @@ import simd
 ///
 /// This is the low-level primitive behind live perspective, corner pin,
 /// document correction, and future guided upright style workflows.
-public struct RenderQuadTransform: RenderProtocol {
+public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
 
     public struct Quad: Equatable, Codable {
         public static let identity = Quad(
@@ -75,6 +75,25 @@ public struct RenderQuadTransform: RenderProtocol {
             -1.0,  1.0, 0.0, 0.0,
              1.0,  1.0, 1.0, 0.0,
         ]
+    }
+
+    public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        var resolved = self
+        if let samplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return .covered(resolved)
     }
 
     public func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer? {

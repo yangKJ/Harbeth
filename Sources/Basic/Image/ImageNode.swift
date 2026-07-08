@@ -1558,13 +1558,11 @@ extension ImageNode: ImagePromise {
             guard let bridge = try input.resolvedAttachmentAnalysisBridge(profile: profile) else {
                 return nil
             }
-            return (
-                bridge.inputTexture,
-                SamplerExecutionAdapter.adapt(
-                    renderFilter: bridge.filter,
-                    samplerDescriptor: descriptor
-                )
+            let adaptedFilter: any RenderProtocol = SamplerExecutionAdapter.adapt(
+                renderFilter: bridge.filter,
+                samplerDescriptor: descriptor
             )
+            return (bridge.inputTexture, adaptedFilter)
         case .source, .recipe, .edit, .transition, .layerComposite:
             return nil
         }

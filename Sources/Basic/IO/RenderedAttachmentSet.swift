@@ -110,10 +110,7 @@ public extension RenderProtocol {
                 debugPolicy: attachment.debugPolicy
             )
         }
-        return RenderedAttachmentSet(
-            outputContract: descriptor.outputContract,
-            attachments: attachments
-        )
+        return RenderedAttachmentSet(outputContract: descriptor.outputContract, attachments: attachments)
     }
 
     private func makeDestinationTextures(outputContract: RenderOutputContract, outputSize: C7Size, identifier: String) throws -> [Int: MTLTexture] {

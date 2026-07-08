@@ -8,7 +8,7 @@
 import Foundation
 import simd
 
-public struct C7Transform: C7FilterProtocol {
+public struct C7Transform: C7FilterProtocol, SamplerAdaptableFilter {
 
     public var transform: CGAffineTransform
     public var anchorPoint: C7Point2D = C7Point2D.zero
@@ -21,6 +21,25 @@ public struct C7Transform: C7FilterProtocol {
 
     public func resize(input size: C7Size) -> C7Size {
         return mode.transform(transform, size: size)
+    }
+
+    public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        var resolved = self
+        if let samplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return .covered(resolved)
     }
 
     public var kernelParameterBindings: [KernelParameterBinding] {

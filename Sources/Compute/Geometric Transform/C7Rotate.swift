@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct C7Rotate: C7FilterProtocol {
+public struct C7Rotate: C7FilterProtocol, SamplerAdaptableFilter {
 
     /// Angle to rotate, unit is degree
     @DegreeRange public var angle: Float
@@ -28,6 +28,25 @@ public struct C7Rotate: C7FilterProtocol {
 
     public func resize(input size: C7Size) -> C7Size {
         return mode.rotate(angle: Degree(value: angle).radians, size: size)
+    }
+
+    public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        guard descriptor != .default else {
+            return .notApplicable
+        }
+        let samplingMode = descriptor.compatibleSpatialSamplingMode
+        let edgeMode = descriptor.compatibleSpatialEdgeMode
+        guard samplingMode != nil || edgeMode != nil else {
+            return .metadataOnly
+        }
+        var resolved = self
+        if let samplingMode {
+            resolved.samplingMode = samplingMode
+        }
+        if let edgeMode {
+            resolved.edgeMode = edgeMode
+        }
+        return .covered(resolved)
     }
 
     private var mode: Placement = .fit
