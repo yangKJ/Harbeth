@@ -88,6 +88,52 @@ public struct RenderRequest {
         try renderAnalysisScopeBundleClosure?(channel, bins, histogramHeight, scope, preferredMethod)
     }
 
+    public func renderHistogram(channel: TextureHistogramChannel = .luminance,
+                                bins: Int = 256,
+                                region: MTLRegion? = nil,
+                                preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderAnalysisBundle(
+            channel: channel,
+            bins: bins,
+            histogramHeight: 64,
+            region: region,
+            preferredMethod: preferredMethod
+        )?.histogram
+    }
+
+    public func renderHistogram(channel: TextureHistogramChannel = .luminance,
+                                bins: Int = 256,
+                                scope: TextureAnalysisScope,
+                                preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderAnalysisBundle(
+            channel: channel,
+            bins: bins,
+            histogramHeight: 64,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )?.histogram
+    }
+
+    public func renderStatistics(region: MTLRegion? = nil,
+                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureStatistics? {
+        try renderAnalysisBundle(
+            bins: 256,
+            histogramHeight: 64,
+            region: region,
+            preferredMethod: preferredMethod
+        )?.statistics
+    }
+
+    public func renderStatistics(scope: TextureAnalysisScope,
+                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureStatistics? {
+        try renderAnalysisBundle(
+            bins: 256,
+            histogramHeight: 64,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )?.statistics
+    }
+
     public func renderColorProbe(region: MTLRegion? = nil) throws -> TextureColorProbe? {
         try renderAnalysisBundle(region: region, preferredMethod: .cpuReadback)?.colorProbe
     }
@@ -119,6 +165,126 @@ public struct RenderRequest {
                                                scope: TextureAnalysisScope,
                                                preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
         try renderAttachmentAnalysisScopeBundleClosure?(bins, histogramHeight, scope, preferredMethod)
+    }
+
+    public func renderAttachment(semantic: RenderOutputAttachmentSemantic) throws -> RenderedAttachment? {
+        try renderAttachmentSet()?.attachment(for: semantic)
+    }
+
+    public func renderAttachmentAnalysis(semantic: RenderOutputAttachmentSemantic,
+                                         bins: Int = 256,
+                                         histogramHeight: Int = 64,
+                                         region: MTLRegion? = nil,
+                                         preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysis? {
+        try renderAttachmentAnalysisBundle(
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: region,
+            preferredMethod: preferredMethod
+        )?.analysis(for: semantic)
+    }
+
+    public func renderAttachmentAnalysis(semantic: RenderOutputAttachmentSemantic,
+                                         bins: Int = 256,
+                                         histogramHeight: Int = 64,
+                                         scope: TextureAnalysisScope,
+                                         preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysis? {
+        try renderAttachmentAnalysisBundle(
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )?.analysis(for: semantic)
+    }
+
+    public func renderAttachmentHistogram(semantic: RenderOutputAttachmentSemantic,
+                                          channel: TextureHistogramChannel? = nil,
+                                          bins: Int = 256,
+                                          region: MTLRegion? = nil,
+                                          preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderAttachmentSet()?.makeHistogram(
+            for: semantic,
+            channel: channel,
+            bins: bins,
+            region: region,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAttachmentHistogram(semantic: RenderOutputAttachmentSemantic,
+                                          channel: TextureHistogramChannel? = nil,
+                                          bins: Int = 256,
+                                          scope: TextureAnalysisScope,
+                                          preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
+        try renderAttachmentSet()?.makeHistogram(
+            for: semantic,
+            channel: channel,
+            bins: bins,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    public func renderAttachmentStatistics(semantic: RenderOutputAttachmentSemantic,
+                                           region: MTLRegion? = nil,
+                                           mask: MaskDescriptor? = nil,
+                                           luminanceRange: TextureLuminanceRange? = nil,
+                                           colorRange: TextureColorRange? = nil,
+                                           coverageThreshold: Float = 0.5) throws -> TextureStatistics? {
+        try renderAttachmentSet()?.makeStatistics(
+            for: semantic,
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
+            coverageThreshold: coverageThreshold
+        )
+    }
+
+    public func renderAttachmentStatistics(semantic: RenderOutputAttachmentSemantic,
+                                           scope: TextureAnalysisScope) throws -> TextureStatistics? {
+        try renderAttachmentSet()?.makeStatistics(for: semantic, scope: scope)
+    }
+
+    public func renderAttachmentColorProbe(semantic: RenderOutputAttachmentSemantic,
+                                           region: MTLRegion? = nil,
+                                           mask: MaskDescriptor? = nil,
+                                           luminanceRange: TextureLuminanceRange? = nil,
+                                           colorRange: TextureColorRange? = nil,
+                                           coverageThreshold: Float = 0.5) throws -> TextureColorProbe? {
+        try renderAttachmentSet()?.makeColorProbe(
+            for: semantic,
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
+            coverageThreshold: coverageThreshold
+        )
+    }
+
+    public func renderAttachmentColorProbe(semantic: RenderOutputAttachmentSemantic,
+                                           scope: TextureAnalysisScope) throws -> TextureColorProbe? {
+        try renderAttachmentSet()?.makeColorProbe(for: semantic, scope: scope)
+    }
+
+    public func renderAttachmentMaskDescriptor(semantic: RenderOutputAttachmentSemantic,
+                                               scope: TextureAnalysisScope,
+                                               component: MaskComponent = .red,
+                                               blendMode: MaskBlendMode = .mix,
+                                               invert: Bool = false,
+                                               featherPolicy: MaskFeatherPolicy = .none,
+                                               opacity: Float = 1.0,
+                                               pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MaskDescriptor? {
+        try renderAttachmentSet()?.makeMaskDescriptor(
+            for: semantic,
+            scope: scope,
+            component: component,
+            blendMode: blendMode,
+            invert: invert,
+            featherPolicy: featherPolicy,
+            opacity: opacity,
+            pixelFormat: pixelFormat
+        )
     }
 }
 

@@ -39,13 +39,13 @@ struct RenderCommandDescriptor: Sendable, Codable, Equatable, Hashable {
     let parameterBindings: [KernelParameterBinding]
 
     init(vertexFunction: KernelFunctionIdentity,
-                fragmentFunction: KernelFunctionIdentity,
-                renderPass: RenderPassContract,
-                outputContract: RenderOutputContract,
-                geometry: RenderGeometryDescriptor,
-                fragmentTextureCount: Int,
-                parameterFingerprint: String,
-                parameterBindings: [KernelParameterBinding] = []) {
+         fragmentFunction: KernelFunctionIdentity,
+         renderPass: RenderPassContract,
+         outputContract: RenderOutputContract,
+         geometry: RenderGeometryDescriptor,
+         fragmentTextureCount: Int,
+         parameterFingerprint: String,
+         parameterBindings: [KernelParameterBinding] = []) {
         self.vertexFunction = vertexFunction
         self.fragmentFunction = fragmentFunction
         self.renderPass = renderPass

@@ -53,6 +53,7 @@ open class RenderView: MTKView {
     public private(set) var currentPreviewHostLifecycleResumeCount: Int = 0
     public private(set) var currentPreviewHostSuspensionReason: String?
     public private(set) var currentPreviewHostLastFailureReason: String?
+
     var currentPreviewHostExecutionReport: PreviewHostExecutionReport {
         previewHostExecutionReport
     }
@@ -294,10 +295,7 @@ open class RenderView: MTKView {
     }
 
     func makeCurrentRuntimePreviewHostSummary(fleet: PreviewHostFleetSnapshot) -> RenderGraphDebugSnapshot.Diagnostics.RuntimePreviewHostSummary {
-        RenderGraphDebugSnapshot.Diagnostics.RuntimePreviewHostSummary(
-            report: previewHostExecutionReport,
-            fleet: fleet
-        )
+        RenderGraphDebugSnapshot.Diagnostics.RuntimePreviewHostSummary(report: previewHostExecutionReport, fleet: fleet)
     }
 
     func debugSimulatePreviewHostRecoveryForTesting() {
@@ -326,7 +324,7 @@ open class RenderView: MTKView {
     }
 }
 
-extension RenderView: HarbethPreviewDisplaying {
+extension RenderView: PreviewDisplaying {
     public func display(_ frame: RenderedFrame?) {
         let previousFrame = currentRenderedFrame
         if previousFrame?.cacheIdentity.fingerprint != frame?.cacheIdentity.fingerprint {
@@ -352,9 +350,7 @@ extension RenderView: HarbethPreviewDisplaying {
         currentPreviewHostLastFailureReason = nil
         lastPreviewHostVisibilityState = nil
         lastPreviewHostSuspensionReason = nil
-        previewHostExecutionReport = .inactive(
-            predictedStrategy: initialResolution?.strategy ?? .metalTextureHost
-        )
+        previewHostExecutionReport = .inactive(predictedStrategy: initialResolution?.strategy ?? .metalTextureHost)
         syncPublicPreviewHostState()
         publishPreviewHostExecutionReport()
         if let strategy = initialResolution?.strategy {
@@ -557,8 +553,7 @@ private extension RenderView {
     }
 
     #if canImport(AVFoundation) && !os(watchOS)
-    func displayWithSampleBufferPreviewHost(frame: RenderedFrame,
-                                            resolution: PreviewHostStrategyResolution) -> Bool {
+    func displayWithSampleBufferPreviewHost(frame: RenderedFrame, resolution: PreviewHostStrategyResolution) -> Bool {
         guard let sampleBuffer = try? frame.makePreviewHostSampleBuffer() else {
             recordPreviewHostFailure(.missingSampleBufferPayload)
             return false

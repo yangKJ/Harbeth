@@ -178,7 +178,7 @@ public extension MTLTextureCompatible_ {
     }
 
     func makeGPUHistogram(channel: TextureHistogramChannel = .luminance, bins: Int = 256, region: MTLRegion? = nil) -> TextureHistogram? {
-        GPUHistogramSupport.makeHistogram(from: target, channel: channel, bins: bins, region: region)
+        GPUHistogramBackend.makeHistogram(from: target, channel: channel, bins: bins, region: region)
     }
 
     func renderHistogramAttachment(channel: TextureHistogramChannel = .luminance,
@@ -193,7 +193,7 @@ public extension MTLTextureCompatible_ {
         if mask == nil && luminanceRange == nil && colorRange == nil {
             switch preferredMethod {
             case .gpuMPS:
-                if let output = GPUHistogramSupport.makeRenderedHistogramAttachment(
+                if let output = GPUHistogramBackend.makeRenderedHistogramAttachment(
                     from: target,
                     channel: channel,
                     bins: bins,

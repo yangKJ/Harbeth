@@ -230,9 +230,7 @@ class TexturePoolAllocator: TextureAllocator {
 }
 
 final class ExactTextureAllocator: TexturePoolAllocator {
-    init(texturePool: TexturePool,
-         requestedStrategy: TextureAllocationStrategy? = nil,
-         allocationFallbackReason: String? = nil) {
+    init(texturePool: TexturePool, requestedStrategy: TextureAllocationStrategy? = nil, allocationFallbackReason: String? = nil) {
         super.init(
             texturePool: texturePool,
             strategy: .exact,

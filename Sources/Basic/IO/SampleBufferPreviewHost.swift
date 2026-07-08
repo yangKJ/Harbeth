@@ -255,18 +255,13 @@ enum PreviewHostRuntimeSummaryCache {
     private static let lock = NSLock()
     private static var entries: [String: Entry] = [:]
 
-    static func store(cacheIdentityFingerprint: String,
-                      instanceID: String,
-                      summary: RenderGraphDebugSnapshot.Diagnostics.RuntimePreviewHostSummary) {
+    static func store(cacheIdentityFingerprint: String, instanceID: String, summary: RenderGraphDebugSnapshot.Diagnostics.RuntimePreviewHostSummary) {
         lock.lock()
         entries[cacheIdentityFingerprint] = Entry(instanceID: instanceID, summary: summary)
         lock.unlock()
     }
 
-    static func store(cacheIdentityFingerprint: String,
-                      instanceID: String,
-                      report: PreviewHostExecutionReport,
-                      fleet: PreviewHostFleetSnapshot) {
+    static func store(cacheIdentityFingerprint: String, instanceID: String, report: PreviewHostExecutionReport, fleet: PreviewHostFleetSnapshot) {
         store(
             cacheIdentityFingerprint: cacheIdentityFingerprint,
             instanceID: instanceID,
@@ -426,8 +421,7 @@ private enum SampleBufferPreviewHostCoordinator {
 }
 
 private final class SampleBufferPreviewLayerNullAction: NSObject, CAAction {
-    @objc func run(forKey event: String, object anObject: Any, arguments dict: [AnyHashable : Any]?) {
-    }
+    @objc func run(forKey event: String, object anObject: Any, arguments dict: [AnyHashable : Any]?) {}
 }
 
 private final class SampleBufferPreviewLayerImpl: AVSampleBufferDisplayLayer {

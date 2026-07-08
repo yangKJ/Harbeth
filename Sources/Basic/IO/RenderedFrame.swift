@@ -333,11 +333,9 @@ public struct RenderedFrame: @unchecked Sendable {
             hostFellBackToMetal: false
         )
         #else
-        let eligible = sourceDescriptor.kind == "sampleBuffer"
-            && frameHostRuntimeHint.isRealtimePreviewEligible
+        let eligible = sourceDescriptor.kind == "sampleBuffer" && frameHostRuntimeHint.isRealtimePreviewEligible
         let payloadAvailable = previewHostPayload != nil
-        let requiresRematerialization = previewHostPayload?.supportsPassthrough == false
-            && previewHostPayload?.supportsRematerialization == true
+        let requiresRematerialization = previewHostPayload?.supportsPassthrough == false && previewHostPayload?.supportsRematerialization == true
         let strategy: PreviewHostStrategy
         if eligible == false || payloadAvailable == false {
             strategy = .metalTextureHost
@@ -534,8 +532,9 @@ struct FrameRenderer {
             }
         } else {
             let input = try source.makeTexture()
-            let effectiveFilters = effectiveFilters(for: C7Size(width: input.width, height: input.height))
-            resolvedSize = resolvedOutputSize(for: C7Size(width: input.width, height: input.height), filters: effectiveFilters)
+            let size_ = C7Size(width: input.width, height: input.height)
+            let effectiveFilters = effectiveFilters(for: size_)
+            resolvedSize = resolvedOutputSize(for: size_, filters: effectiveFilters)
             let result = try makeIO(element: input, filters: effectiveFilters)
                 .configured(for: profile)
                 .renderManagedTexture()
@@ -567,8 +566,9 @@ struct FrameRenderer {
         }
         do {
             let input = try source.makeTexture()
-            let effectiveFilters = effectiveFilters(for: C7Size(width: input.width, height: input.height))
-            let resolvedSize = resolvedOutputSize(for: C7Size(width: input.width, height: input.height), filters: effectiveFilters)
+            let size_ = C7Size(width: input.width, height: input.height)
+            let effectiveFilters = effectiveFilters(for: size_)
+            let resolvedSize = resolvedOutputSize(for: size_, filters: effectiveFilters)
             guard effectiveFilters.isEmpty == false else {
                 complete(.success(RenderedFrame(
                     texture: input,
@@ -761,18 +761,14 @@ struct FrameRenderer {
         )
     }
 
-    private func makePreviewHostPayload(source: ImageSource,
-                                        renderedTexture: MTLTexture,
-                                        filterChain: [C7FilterProtocol]) -> RenderedFramePreviewHostPayload? {
+    private func makePreviewHostPayload(source: ImageSource, renderedTexture: MTLTexture, filterChain: [C7FilterProtocol]) -> RenderedFramePreviewHostPayload? {
         guard case .sampleBuffer(let sampleBuffer) = source else {
             return nil
         }
         let sourceImageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
         let sourceWidth = sourceImageBuffer.map(CVPixelBufferGetWidth)
         let sourceHeight = sourceImageBuffer.map(CVPixelBufferGetHeight)
-        let preservesDisplaySemantics = filterChain.isEmpty
-            && sourceWidth == renderedTexture.width
-            && sourceHeight == renderedTexture.height
+        let preservesDisplaySemantics = filterChain.isEmpty && sourceWidth == renderedTexture.width && sourceHeight == renderedTexture.height
         if preservesDisplaySemantics {
             return RenderedFramePreviewHostPayload(passthroughSampleBuffer: sampleBuffer)
         }
@@ -784,8 +780,7 @@ struct FrameRenderer {
         })
     }
 
-    private static func makeRematerializedSampleBuffer(texture: MTLTexture,
-                                                       referenceSampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer? {
+    private static func makeRematerializedSampleBuffer(texture: MTLTexture, referenceSampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer? {
         let referencePixelBuffer = CMSampleBufferGetImageBuffer(referenceSampleBuffer)
         let referenceFormatType = referencePixelBuffer.map(CVPixelBufferGetPixelFormatType)
         let resolvedFormatType: OSType

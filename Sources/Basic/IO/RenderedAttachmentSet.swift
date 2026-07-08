@@ -64,9 +64,7 @@ public struct RenderedAttachmentSet: @unchecked Sendable {
         attachment(for: semantic)?.texture
     }
 
-    public func makeCGImage(for semantic: RenderOutputAttachmentSemantic,
-                            colorSpace: CGColorSpace? = nil,
-                            alphaType: AlphaType = .premultiplied) -> CGImage? {
+    public func makeCGImage(for semantic: RenderOutputAttachmentSemantic, colorSpace: CGColorSpace? = nil, alphaType: AlphaType = .premultiplied) -> CGImage? {
         attachment(for: semantic)?.makeCGImage(colorSpace: colorSpace, alphaType: alphaType)
     }
 }
@@ -74,7 +72,8 @@ public struct RenderedAttachmentSet: @unchecked Sendable {
 public extension RenderProtocol {
     /// 直接执行一次多 attachment render，并把所有输出 attachment 以稳定结构返回。
     ///
-    /// 这个入口刻意保持轻量，只服务单个 render primitive 的附件输出调试与分析读取，
+    /// 这个入口刻意保持为 attachment output bridge：
+    /// 服务单个 render primitive 的附件读取、调试与后续分析装配，
     /// 不把 Harbeth 扩展成重型 editor runtime。
     func renderAttachmentSet(from sourceTexture: MTLTexture, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
         let inputSize = C7Size(width: sourceTexture.width, height: sourceTexture.height)

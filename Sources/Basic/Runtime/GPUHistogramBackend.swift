@@ -1,5 +1,5 @@
 //
-//  GPUHistogram.swift
+//  GPUHistogramBackend.swift
 //  Harbeth
 //
 //  Created by Condy on 2026/6/22.
@@ -11,12 +11,10 @@ import Metal
 import MetalPerformanceShaders
 import simd
 
-enum GPUHistogramSupport {
+/// Internal GPU backend for histogram computation and preview generation.
+enum GPUHistogramBackend {
 
-    static func makeHistogram(from texture: MTLTexture,
-                              channel: TextureHistogramChannel,
-                              bins: Int,
-                              region: MTLRegion? = nil) -> TextureHistogram? {
+    static func makeHistogram(from texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, region: MTLRegion? = nil) -> TextureHistogram? {
         makeHistogramArtifacts(from: texture, channel: channel, bins: bins, region: region).histogram
     }
 
@@ -48,10 +46,7 @@ enum GPUHistogramSupport {
         )
     }
 
-    private static func makeHistogramArtifacts(from texture: MTLTexture,
-                                               channel: TextureHistogramChannel,
-                                               bins: Int,
-                                               region: MTLRegion?) -> HistogramArtifacts {
+    private static func makeHistogramArtifacts(from texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, region: MTLRegion?) -> HistogramArtifacts {
         let clampedBins = max(1, bins)
         guard let resolvedRegion = resolvedRegion(region, for: texture) else {
             return HistogramArtifacts(texture: texture, histogram: nil, buffer: nil, resolvedChannel: channel, sampleCount: 0)
@@ -227,11 +222,8 @@ private struct HistogramPreviewParameters {
     let peakCount: UInt32
 }
 #else
-enum GPUHistogramSupport {
-    static func makeHistogram(from texture: MTLTexture,
-                              channel: TextureHistogramChannel,
-                              bins: Int,
-                              region: MTLRegion? = nil) -> TextureHistogram? {
+enum GPUHistogramBackend {
+    static func makeHistogram(from texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, region: MTLRegion? = nil) -> TextureHistogram? {
         nil
     }
 

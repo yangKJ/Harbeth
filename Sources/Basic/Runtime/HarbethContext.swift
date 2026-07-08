@@ -235,8 +235,7 @@ public final class HarbethContext {
             imageResolutionCacheOrder.append(key)
         }
         imageResolutionCache[key] = texture
-        while imageResolutionCacheOrder.count > imageResolutionCacheLimit,
-              let oldest = imageResolutionCacheOrder.first {
+        while imageResolutionCacheOrder.count > imageResolutionCacheLimit, let oldest = imageResolutionCacheOrder.first {
             imageResolutionCacheOrder.removeFirst()
             imageResolutionCache.removeValue(forKey: oldest)
         }

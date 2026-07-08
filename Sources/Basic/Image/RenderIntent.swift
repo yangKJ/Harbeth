@@ -36,6 +36,25 @@ public enum ImageSourceTier: String, Sendable, Codable, Hashable {
     case thumbnail
     /// 面向展示交付但不要求原始分辨率的可复用资源。
     case deliveryReusable
+
+    var rank: Int {
+        switch self {
+        case .thumbnail:
+            return 0
+        case .deliveryReusable:
+            return 1
+        case .stableReusable:
+            return 2
+        case .fullResolutionReusable:
+            return 3
+        case .original:
+            return 4
+        }
+    }
+
+    func satisfies(_ requiredTier: ImageSourceTier) -> Bool {
+        rank >= requiredTier.rank
+    }
 }
 
 public extension RenderProfile {
