@@ -63,11 +63,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
         let imageBuffer = CMSampleBufferGetImageBuffer(base)
         let imageBufferContract = imageBuffer?.c7.contract
         let bridgePlan = imageBuffer.map { $0.c7.makeTextureBridgePlan() }
-        let frameContract = resolveFrameContract(
-            formatDescription: formatDescription,
-            imageBuffer: imageBuffer,
-            bridgePlan: bridgePlan
-        )
+        let frameContract = resolveFrameContract(formatDescription: formatDescription, imageBuffer: imageBuffer, bridgePlan: bridgePlan)
         return SampleBufferContract(
             numSamples: Int(CMSampleBufferGetNumSamples(base)),
             isValid: CMSampleBufferIsValid(base),
@@ -194,9 +190,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
         CMSampleBufferGetPresentationTimeStamp(base)
     }
 
-    private func resolveFrameContract(formatDescription: CMFormatDescription?,
-                                      imageBuffer: CVImageBuffer?,
-                                      bridgePlan: PixelBufferTextureBridgePlan?) -> SampleBufferFrameContract {
+    private func resolveFrameContract(formatDescription: CMFormatDescription?, imageBuffer: CVImageBuffer?, bridgePlan: PixelBufferTextureBridgePlan?) -> SampleBufferFrameContract {
         let explicitOrientation = resolveOrientation(formatDescription: formatDescription, imageBuffer: imageBuffer)
         let orientation = explicitOrientation ?? .up
         let explicitMirror = resolveMirrorFlags(formatDescription: formatDescription, imageBuffer: imageBuffer)
@@ -220,13 +214,11 @@ extension HarbethWrapper where Base: CMSampleBuffer {
         )
     }
 
-    private func resolveOrientation(formatDescription: CMFormatDescription?,
-                                    imageBuffer: CVImageBuffer?) -> FrameOrientation? {
+    private func resolveOrientation(formatDescription: CMFormatDescription?, imageBuffer: CVImageBuffer?) -> FrameOrientation? {
         resolveOrientationAttachment(kCGImagePropertyOrientation, formatDescription: formatDescription, imageBuffer: imageBuffer)
     }
 
-    private func resolveMirrorFlags(formatDescription: CMFormatDescription?,
-                                    imageBuffer: CVImageBuffer?) -> (horizontal: Bool, vertical: Bool)? {
+    private func resolveMirrorFlags(formatDescription: CMFormatDescription?, imageBuffer: CVImageBuffer?) -> (horizontal: Bool, vertical: Bool)? {
         let horizontal = resolveBoolAttachment(
             harbethFrameMirrorHorizontallyAttachmentKey,
             formatDescription: formatDescription,
@@ -243,9 +235,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
         return (horizontal ?? false, vertical ?? false)
     }
 
-    private func resolveOrientationAttachment(_ key: CFString,
-                                              formatDescription: CMFormatDescription?,
-                                              imageBuffer: CVImageBuffer?) -> FrameOrientation? {
+    private func resolveOrientationAttachment(_ key: CFString, formatDescription: CMFormatDescription?, imageBuffer: CVImageBuffer?) -> FrameOrientation? {
         if let value = base.getSampleBufferAttachmentValue(for: key),
            let orientation = Self.frameOrientation(from: value) {
             return orientation
@@ -264,9 +254,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
         return nil
     }
 
-    private func resolveBoolAttachment(_ key: CFString,
-                                       formatDescription: CMFormatDescription?,
-                                       imageBuffer: CVImageBuffer?) -> Bool? {
+    private func resolveBoolAttachment(_ key: CFString, formatDescription: CMFormatDescription?, imageBuffer: CVImageBuffer?) -> Bool? {
         if let value = base.getSampleBufferAttachmentValue(for: key),
            let boolValue = Self.boolValue(from: value) {
             return boolValue

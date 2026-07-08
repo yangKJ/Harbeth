@@ -475,6 +475,12 @@ final class UnitTestViewController: UIViewController {
         previousPerformanceMonitorEnabled = Shared.shared.enablePerformanceMonitor
         Shared.shared.enablePerformanceMonitor = false
         title = "ImageNode Lab"
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Mask Lab",
+            style: .plain,
+            target: self,
+            action: #selector(openMaskLab)
+        )
         view.backgroundColor = .systemBackground
         setupUI()
         configureInitialState()
@@ -783,7 +789,7 @@ private extension UnitTestViewController {
                 C7Exposure(exposure: 0.05 + intensity * 0.22),
                 C7Contrast(contrast: 1.08 + intensity * 0.15)
             ],
-            maskGradientRecipe: maskRecipe,
+            mask: maskRecipe,
             opacity: 0.55 + intensity * 0.25
         )
         let recipe = EditRecipe(
@@ -839,7 +845,7 @@ private extension UnitTestViewController {
             opacity: 0.58 + intensity * 0.28,
             blendMode: .exclusion,
             transform: ImageTransformRecipe(rotationDegrees: -8 + intensity * 18),
-            maskShapeRecipe: overlayMask,
+            mask: overlayMask,
             cornerRadius: 28,
             cornerCurve: .continuous
         )
@@ -1053,12 +1059,15 @@ private extension UnitTestViewController {
     func reportText(for result: ScenarioResult, mode: ReportMode) -> String {
         switch mode {
         case .overview:
-            let highlights = result.highlights.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+            let highlights = result.highlights.enumerated().map {
+                "\($0.offset + 1). \($0.element)"
+            }.joined(separator: "\n")
             // `result.summary` carries per-scenario extras such as the cache
             // hit timing table; surface it after the diagnostics summary so
             // the on-screen text actually reflects slider movements (e.g.
             // changing the Iterations slider updates the timing table).
             let summaryBlock = result.summary.isEmpty ? "" : "\n\n\(result.summary)"
+            let codeBlock = result.codeSnippet.map { "\n\nCanonical Usage\n\($0)" } ?? ""
             return """
             Scenario: \(result.scenario.title)
             Source: \(result.sourceTitle)
@@ -1069,7 +1078,7 @@ private extension UnitTestViewController {
             \(highlights)
 
             Diagnostics Summary
-            \(result.diagnostics.summary)\(summaryBlock)
+            \(result.diagnostics.summary)\(summaryBlock)\(codeBlock)
             """
         case .diagnostics:
             return prettyJSON(result.diagnostics)
@@ -1395,6 +1404,10 @@ private extension UnitTestViewController {
                 self.showBanner(text: message, kind: kind, autoHideAfter: 4.0)
             }
         }
+    }
+
+    @objc func openMaskLab() {
+        navigationController?.pushViewController(MaskShowcaseViewController(), animated: true)
     }
 
     func presentActionSheet(title: String, sourceView: UIView, options: [(String, () -> Void)]) {

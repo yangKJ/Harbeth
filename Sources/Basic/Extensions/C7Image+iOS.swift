@@ -56,10 +56,10 @@ extension HarbethWrapper where Base: C7Image {
     public func transparentColor(colorMasking: [CGFloat], compressionQuality: CGFloat = 1.0) -> C7Image? {
         UIGraphicsBeginImageContext(base.size)
         defer { UIGraphicsEndImageContext() }
-        
         guard let maskedImageRef = base.cgImage?.copy(maskingColorComponents: colorMasking),
-              let context = UIGraphicsGetCurrentContext() else { return nil }
-        
+              let context = UIGraphicsGetCurrentContext() else {
+            return nil
+        }
         let rect = CGRect(origin: .zero, size: base.size)
         context.translateBy(x: 0, y: base.size.height)
         context.scaleBy(x: 1, y: -1)

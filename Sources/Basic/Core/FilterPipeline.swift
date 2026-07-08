@@ -77,10 +77,7 @@ enum FilterPipelineExecutor {
 
         switch style {
         case .sequential:
-            let execution = try executeSequentialPipeline(filters: pipelineFilters,
-                                                          source: source,
-                                                          destination: destination,
-                                                          commandBuffer: commandBuffer)
+            let execution = try executeSequentialPipeline(filters: pipelineFilters, source: source, destination: destination, commandBuffer: commandBuffer)
             auxiliaryTextures = execution.auxiliaryTextures
             transientTextures = execution.transientTextures
         case .parallelFromSource:

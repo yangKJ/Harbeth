@@ -129,9 +129,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     ///   - pixelFormat: Specifies the Metal pixel format.
     ///   - planeIndex: Specifies the plane of the CVImageBuffer to map bind.  Ignored for non-planar CVImageBuffers.
     /// - Returns: Metal texture.
-    public func convert2MTLTexture(textureCache: CVMetalTextureCache?,
-                                   pixelFormat: MTLPixelFormat = .bgra8Unorm,
-                                   planeIndex: Int = 0) -> MTLTexture? {
+    public func convert2MTLTexture(textureCache: CVMetalTextureCache?, pixelFormat: MTLPixelFormat = .bgra8Unorm, planeIndex: Int = 0) -> MTLTexture? {
         guard let textureCache = textureCache else {
             return nil
         }
@@ -147,7 +145,9 @@ extension HarbethWrapper where Base: CVPixelBuffer {
                                                   planeIndex,
                                                   &cvmTexture)
         if let cvmTexture = cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) {
-            TextureOwnerRegistry.attach([base, cvmTexture], to: texture)
+            // Realtime camera bridge: this texture is a borrowed frame view.
+            // Do not retain the CVPixelBuffer/CVMetalTexture on the MTLTexture, or the
+            // AVCapture buffer pool can stall and the preview will look frozen.
             return texture
         }
         #endif
@@ -164,12 +164,40 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             guard let pixelFormat = plane.metalPixelFormat else {
                 return nil
             }
-            return convert2MTLTexture(
-                textureCache: cache,
-                pixelFormat: pixelFormat,
-                planeIndex: plane.index
-            )
+            if let reference = convertPlaneTextureReference(textureCache: cache, pixelFormat: pixelFormat, planeIndex: plane.index) {
+                // Plane-aware decode materializes Harbeth-owned RGBA output from borrowed
+                // YCbCr planes, so the plane bridge owners must stay attached until decode
+                // completion. This does not restore owner attachment for the realtime
+                // single-plane passthrough path that was freezing camera preview.
+                TextureOwnerRegistry.attach([base, reference.owner], to: reference.texture)
+                return reference.texture
+            }
+            return convert2MTLTexture(textureCache: cache, pixelFormat: pixelFormat, planeIndex: plane.index)
         }
+    }
+
+    private func convertPlaneTextureReference(textureCache: CVMetalTextureCache?, pixelFormat: MTLPixelFormat, planeIndex: Int) -> (texture: MTLTexture, owner: AnyObject)? {
+        guard let textureCache = textureCache else {
+            return nil
+        }
+        #if !targetEnvironment(simulator)
+        var cvmTexture: CVMetalTexture?
+        CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
+                                                  textureCache,
+                                                  self.base,
+                                                  nil,
+                                                  pixelFormat,
+                                                  CVPixelBufferGetWidthOfPlane(base, planeIndex),
+                                                  CVPixelBufferGetHeightOfPlane(base, planeIndex),
+                                                  planeIndex,
+                                                  &cvmTexture)
+        guard let cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) else {
+            return nil
+        }
+        return (texture, cvmTexture)
+        #else
+        return nil
+        #endif
     }
 
     private static func yCbCrMatrixAttachment(for pixelBuffer: CVPixelBuffer) -> YCbCrMatrixAttachment? {
@@ -521,11 +549,8 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return base.c7.toCGImage()?.c7.toTexture(pixelFormat: .rgba8Unorm)
             #else
             let cache = textureCache ?? Shared.shared.sharedTextureCache
-            return convert2MTLTexture(
-                textureCache: cache,
-                pixelFormat: bridgePlan.contract.preferredMetalPixelFormat ?? .bgra8Unorm,
-                planeIndex: 0
-            )
+            let pixelFormat = bridgePlan.contract.preferredMetalPixelFormat ?? .bgra8Unorm
+            return convert2MTLTexture(textureCache: cache, pixelFormat: pixelFormat, planeIndex: 0)
             #endif
         case .directPlaneTexture:
             #if targetEnvironment(simulator)
@@ -605,9 +630,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
     }
 
-    private static func preferredMetalPixelFormat(for pixelFormatType: OSType,
-                                                  planeIndex: Int,
-                                                  planar: Bool) -> MTLPixelFormat? {
+    private static func preferredMetalPixelFormat(for pixelFormatType: OSType, planeIndex: Int, planar: Bool) -> MTLPixelFormat? {
         if planar == false {
             switch pixelFormatType {
             case kCVPixelFormatType_32BGRA:

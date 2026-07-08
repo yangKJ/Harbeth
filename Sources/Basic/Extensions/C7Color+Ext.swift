@@ -11,12 +11,14 @@ extension C7Color: HarbethCompatible {
     /// Empty color, Dooo default. cannot get rgba.
     public static let zero = C7Color.init(white: 0, alpha: 0)
     /// Random color
-    public static let random = {
-        C7Color(hue: CGFloat(arc4random() % 256 / 256),
-                saturation: CGFloat(arc4random() % 128 / 256) + 0.5,
-                brightness: CGFloat(arc4random() % 128 / 256) + 0.5,
-                alpha: 1.0)
-    }()
+    public static var random: C7Color {
+        get {
+            return C7Color(hue: CGFloat(arc4random() % 256 / 256),
+                           saturation: CGFloat(arc4random() % 128 / 256) + 0.5,
+                           brightness: CGFloat(arc4random() % 128 / 256) + 0.5,
+                           alpha: 1.0)
+        }
+    }
     
     public convenience init(hex: Int, alpha: CGFloat) {
         let mask = 0xFF
@@ -72,11 +74,12 @@ extension HarbethWrapper where Base: C7Color {
     /// - Parameter size: Image size.
     /// - Returns: C7Image.
     public func colorImage(with size: CGSize = .onePixel) -> C7Image? {
-        let texture = try? TextureLoader.makeTexture(at: size)
+        guard let texture = try? TextureLoader.makeTexture(at: size) else {
+            return nil
+        }
         let filter = C7SolidColor(color: base)
-        let dest = HarbethIO(element: texture, filter: filter)
-        let image = (try? dest.output())?.c7.toImage()
-        return image
+        let dest = try? HarbethIO(element: texture, filter: filter).output()
+        return dest?.c7.toImage()
     }
 }
 

@@ -106,9 +106,7 @@ public struct MTLTextureCompatible_ {
         return cgImage?.c7.toC7Image()
     }
     
-    public func fixImageOrientation(refImage: C7Image,
-                                    colorSpace: CGColorSpace? = nil,
-                                    alphaType: AlphaType = .premultiplied) throws -> C7Image {
+    public func fixImageOrientation(refImage: C7Image, colorSpace: CGColorSpace? = nil, alphaType: AlphaType = .premultiplied) throws -> C7Image {
         guard let cgImage = toCGImage(colorSpace: colorSpace, alphaType: alphaType) else {
             throw HarbethError.texture2Image
         }
@@ -257,10 +255,7 @@ public struct MTLTextureCompatible_ {
 
     /// Uploads tightly packed host bytes into the current texture using Harbeth's
     /// alignment-safe texture replacement contract.
-    public func replacePackedBytes(region: MTLRegion,
-                                   mipmapLevel: Int = 0,
-                                   bytes: [UInt8],
-                                   packedBytesPerRow: Int) {
+    public func replacePackedBytes(region: MTLRegion, mipmapLevel: Int = 0, bytes: [UInt8], packedBytesPerRow: Int) {
         TextureLoader.replaceTexture(
             target,
             region: region,

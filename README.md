@@ -48,7 +48,7 @@ Harbeth is designed as a capability-first processing core. The current repositor
 
 - **Source ingestion**: image, texture, pixel buffer, and sample buffer inputs can enter the same Metal-based processing pipeline.
 - **Filter execution**: color, blur, blend, geometry, optics, LUT, and MPS-backed operations can be chained as reusable technical capabilities.
-- **Frame rendering**: texture-first and frame-first outputs support interactive rendering, stable reusable derivatives, export outputs, and readback-oriented delivery.
+- **Frame rendering**: texture-first and frame-backed result objects support interactive rendering, stable reusable derivatives, export outputs, and readback-oriented delivery.
 - **Correction and replay**: render profiles, frame metadata, cache identity, and reusable derivative contracts support repeated rendering and higher-level host workflows.
 
 ### ⚡ Performance Advantage
@@ -116,30 +116,19 @@ Use `HarbethIO` when the operation is a direct source -> filters -> output flow.
 let io = HarbethIO(element: inputImage, filters: filters)
 
 let image = try io.output()
-let texture = try io.renderTexture(profile: .stablePreview)
-let frame = try io.renderFrame(profile: .stablePreview)
 ```
 
-`RenderProfile` is an option on this path. It expresses latency and quality intent, not a separate usage model. For `Data`, `URL`, and `ImageAsset`, use `renderTexture`, `renderFrame`, or `makeRenderRequest` instead of relying on typed `output()` round-trips.
-
-When this path injects derivative-driven resizing or other effective execution filters, `renderTexture`, `renderFrame`, `makeRenderRequest`, and diagnostics now report the same effective chain instead of drifting between execution and debug surfaces.
-
-When the caller already has a background texture, a precomputed foreground texture, and a mask, keep the work on the `HarbethIO` route through the mask compositing convenience instead of touching internal primitives:
-
-```swift
-let output = try HarbethIO
-    .maskedBlend(
-        background: backgroundTexture,
-        foreground: foregroundTexture,
-        mask: MaskDescriptor(texture: maskTexture, component: .red, opacity: 0.8)
-    )
-    .configured(for: .stablePreview)
-    .output()
-```
+`HarbethIO` stays focused on the lightweight direct-processing route. Use `ImageNode` for frame metadata, render profiles, diagnostics, recipes, masks, analysis, and deferred render requests.
 
 ### Editing and Diagnostics with ImageNode
 
 Use `ImageNode` when the work has edit structure: geometry, local effects, layer compositing, transitions, or preview/final output contracts.
+
+The recommended layering is fixed:
+
+1. `ImageNode`: the advanced primary route for source, filters, recipes, and editing
+2. `RenderRequest`: the deferred execution and advanced read surface derived from `ImageNode`
+3. `RenderedFrame`: only when the host explicitly needs metadata, preview-host details, or replay contracts
 
 ```swift
 let previewNode = ImageNode
@@ -193,7 +182,7 @@ let previewFrame = try ImageNode
 
 For `editing(...)`, `transforming(...)`, `transition(...)`, and `layerComposite(...)`, `ImageNode` keeps the original source contract in `RenderRequest`, `RenderRecipe`, and diagnostics even when execution has already materialized the upstream source into an intermediate texture. This matters for `pixelBuffer`, `sampleBuffer`, YCbCr, and HDR-aware paths.
 
-Private plugin packages also stay inside this route. `HarbethPluginOutput` can carry source-like results such as `texture`, `image`, `pixelBuffer`, and `sampleBuffer`, or editing-side results such as `filters`, `EditRecipe`, `LocalEffectRecipe`, and `LayerCompositeRecipe`. `LocalEffectRecipe` remains the advanced plugin-facing primitive for local edits, while ordinary app code should still prefer `.applying(mask: ...)`. The host still materializes them back through `ImageNode.source(...)`, `node.applying(pluginOutput:)`, or `node.applying(plugin:)` instead of introducing a third public route.
+Private plugin packages also stay inside this route. `PluginOutput` can carry source-like results such as `texture`, `image`, `pixelBuffer`, and `sampleBuffer`, or editing-side results such as `filters`, `EditRecipe`, `LocalEffectRecipe`, and `LayerCompositeRecipe`. `LocalEffectRecipe` remains the advanced plugin-facing primitive for local edits, while ordinary app code should still prefer `.applying(mask: ...)`. The host still materializes them back through `ImageNode.source(...)`, `node.applying(pluginOutput:)`, or `node.applying(plugin:)` instead of introducing a third public route.
 
 ```swift
 let pluginNode = try ImageNode
@@ -245,7 +234,18 @@ Current behavior is intentionally conservative:
 
 `RenderOptimizationPlan.prewarmReservations` is also part of real execution now. `HarbethIO` and `ImageNode` both prewarm pool reservations before encoding, so texture reuse evidence is observable in tests instead of living only in diagnostics.
 
-Deferred execution and asynchronous execution are supporting forms of these paths through `RenderRequest` and `RenderTask`; they are not separate integration models. Analysis is also not a third route: render through `HarbethIO` or `ImageNode` first, then inspect `RenderedFrame` or attachment outputs.
+Deferred execution and asynchronous execution are supporting forms of these paths through `RenderRequest` and `RenderTask`; they are not separate integration models. Analysis is also not a third route: render through `HarbethIO` or `ImageNode` first, then inspect via `ImageNode` analysis conveniences, `RenderRequest`, `RenderedFrame`, or attachment outputs.
+
+When the host wants to compile first and choose when to render or inspect attachments later, drop from `ImageNode` to `RenderRequest`:
+
+```swift
+let request = try node.makeRenderRequest(profile: .readbackQuality)
+
+let diagnostics = request.diagnostics
+let texture = try request.renderTexture()
+let histogram = try request.renderHistogram(channel: .luminance)
+let attachment = try request.renderAttachment(semantic: .luminance)
+```
 
 ### Geometry, Local Mask, and Transition Primitives
 
@@ -406,9 +406,9 @@ ImageView.image = try? inputImage.make(filters: filters)
 ImageView.image = inputImage ->> filter1 ->> filter2 ->> filter3
 ```
 
-#### 🧱 Frame-First Rendering
+#### 🧱 Frame-Backed Result Objects
 
-Use frame rendering when the host app needs metadata, replay, or profile-based output control:
+Use `RenderedFrame` when the host app explicitly needs metadata, preview-host details, replay, or profile-based output control. For ordinary analysis and inspection, prefer `ImageNode` or `RenderRequest` analysis conveniences first:
 
 ```swift
 let filters: [C7FilterProtocol] = [
@@ -416,11 +416,14 @@ let filters: [C7FilterProtocol] = [
     C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
 ]
 
-let io = HarbethIO(element: inputImage, filters: filters)
-let frame = try io.renderFrame(profile: .stablePreview)
+let frame = try ImageNode
+    .image(inputImage)
+    .applying(filters: filters)
+    .makeFrame(profile: .stablePreview)
 
 let renderedImage = frame.image
 let semantic = frame.semantic
+let frameHostHint = frame.frameHostRuntimeHint
 let replayContract = frame.replayBaseContract
 ```
 
@@ -502,6 +505,49 @@ let corrected = try ImageNode
         )
     )
     .makeFrame(profile: .stablePreview)
+```
+
+#### Analysis and Inspection
+
+Prefer `ImageNode` or `RenderRequest` analysis conveniences first. Only drop down to `RenderedFrame` when the host explicitly needs frame metadata, preview-host details, or replay contracts.
+
+```swift
+let node = ImageNode
+    .image(inputImage)
+    .applying(filters: [
+        C7Exposure(exposure: 0.12),
+        C7Contrast(contrast: 1.05)
+    ])
+
+let histogram = try node.makeHistogram(
+    profile: .readbackQuality,
+    channel: .luminance
+)
+let statistics = try node.makeStatistics(profile: .readbackQuality)
+let probe = try node.makeColorProbe(profile: .readbackQuality)
+```
+
+```swift
+let scope = TextureAnalysisScope.region(MTLRegionMake2D(100, 80, 256, 256))
+
+let localHistogram = try node.makeHistogram(
+    profile: .readbackQuality,
+    channel: .red,
+    scope: scope
+)
+let localMask = try node.makeMaskDescriptor(
+    profile: .readbackQuality,
+    scope: scope
+)
+```
+
+```swift
+let request = try node.makeRenderRequest(profile: .readbackQuality)
+let luminanceAttachment = try request.renderAttachment(semantic: .luminance)
+let attachmentProbe = try request.renderAttachmentColorProbe(
+    semantic: .luminance,
+    scope: scope
+)
 ```
 
 #### ⚡ Asynchronous Processing (Best Performance)

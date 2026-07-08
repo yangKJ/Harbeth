@@ -23,9 +23,10 @@ Harbeth 对外只保留两条路线：
 
 | 目录 | 主要职责 | 对外归属 |
 | --- | --- | --- |
-| `Sources/Basic/IO/` | 直接 source + filters -> output | `HarbethIO` 主路线 |
+| `Sources/Basic/IO/` | 直接 source + filters -> output，以及 frame / attachment 结果对象与 preview host | `HarbethIO` 主路线与结果对象层 |
 | `Sources/Basic/Image/` | node、recipe、graph 入口、编辑 primitive | `ImageNode` 主路线 |
-| `Sources/Basic/Analysis/` | render 后读取、统计、探针、attachment 分析 | 两条路线的 post-render inspection |
+| `Sources/Basic/Analysis/` | render 后读取、统计、探针、analysis bundle | 两条路线的 post-render inspection |
+| `Sources/Basic/Mask/` | mask 模型、recipe 与 scope 派生 mask 桥接 | editing / local effect / scoped mask |
 | `Sources/Basic/Filters/` | mask、transition、layer composite、YCbCr decode 等底座滤镜 | `HarbethIO` / `ImageNode` 共享执行能力 |
 | `Sources/Basic/Geometry/` | projective、upright、homography、采样等几何语义 | `ImageNode` 结构化入口的支撑层 |
 | `Sources/Basic/Optics/` | lens profile、optics settings | 通过 filters 接入两条路线 |
@@ -45,12 +46,15 @@ Harbeth 对外只保留两条路线：
 - `HarbethIO`
 - `ImageSource`
 - `Outputable`
+- `RenderedFrame`
+- `RenderedAttachmentSet`
 - `RenderView`
 - operators
 
 存在意义：
 
 - 保住最轻量的主路径
+- 承接结果对象层，避免再扩出第三条公开路线
 - 让调用方不需要先理解 node、graph、runtime
 - `RenderView` 继续只是默认 preview host；它现在会消费 frame metadata / runtime hint，但不扩张成新的 `SampleBufferDisplayView` 或 Telegram 式调度器
 
@@ -75,15 +79,12 @@ Harbeth 对外只保留两条路线：
 
 负责：
 
-- `RenderedFrame`
-- `RenderedAttachmentSet`
 - `RenderedAnalysisBundle`
 - `RenderedAttachmentAnalysisBundle`
 - `TextureHistogram`
 - `TextureStatistics`
 - `TextureColorProbe`
 - `TextureAnalysisScope`
-- `TextureAnalysisMask`
 - `ReplayBaseContract`
 - `RenderCacheIdentity`
 
@@ -97,6 +98,18 @@ Harbeth 对外只保留两条路线：
 - `Analysis` 不是路线三
 - 它是 render 之后的 inspection layer
 - replay/cache identity 也只是结果读取与缓存协商面，不是新入口
+- 普通高级调用优先从 `ImageNode` 的 analysis convenience 进入，再按需下沉到 `RenderRequest`、`RenderedFrame` / attachment output
+
+### `Mask/`
+
+补充一类 bridge：
+
+- `TextureScopedMask`
+
+存在意义：
+
+- 把 `TextureAnalysisScope` 派生成可复用 mask texture / descriptor
+- 供 `RenderedFrame`、`RenderedAttachmentSet`、`RenderRequest` 和 `ImageNode` 高级工作流消费
 
 ### `Geometry/`
 
@@ -260,6 +273,7 @@ Harbeth 对外只保留两条路线：
 
 - `Sources/Compute/Blend Modes/`：旧滤镜目录里的 blend catalog，例如 `C7MaskedForegroundBlend`、`C7Blend(mask)`，表达的是“几张 texture 直接做一次混合”
 - `Sources/Basic/Filters/`：新 editing / `ImageNode` / local-effect / layer-composite 的内部执行 primitive，例如 `GradientMask`、`ShapeMask`、`MaskCoverageExtract`、`MaskCoverageBlend`、`MaskRegionBlend`、`LayerComposite`
-- `Sources/Basic/IO/HarbethIO+Mask.swift`：texture-first 场景的公开局部 mask compositing facade；内部消费 `MaskRegionBlend`，但不把 primitive 本身暴露给普通调用方
+- `Sources/Basic/Mask/TextureScopedMask.swift`：scope 派生 mask 能力，供 `RenderedFrame`、`RenderedAttachmentSet`、`RenderRequest` 和 `ImageNode` 高级工作流消费
+- `ImageNode` editing / recipe 路线：承接高级 mask compositing 语义，`HarbethIO` 不再提供独立 mask facade
 
 不要只因为名字里都带 `Mask` 就机械搬到同一个目录；它们的输入 contract 和宿主语义并不相同。

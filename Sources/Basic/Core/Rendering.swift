@@ -38,9 +38,7 @@ struct Rendering {
         )
     }
 
-    static func makeRenderPipelineState(vertexIdentity: KernelFunctionIdentity,
-                                        fragmentIdentity: KernelFunctionIdentity,
-                                        renderPass: RenderPassContract) throws -> MTLRenderPipelineState {
+    static func makeRenderPipelineState(vertexIdentity: KernelFunctionIdentity, fragmentIdentity: KernelFunctionIdentity, renderPass: RenderPassContract) throws -> MTLRenderPipelineState {
         try Shared.shared.defaultContext.makeRenderPipelineState(
             vertexIdentity: vertexIdentity,
             fragmentIdentity: fragmentIdentity,
@@ -62,11 +60,7 @@ struct Rendering {
             destTexture: destTexture,
             usesCustomVertexLayout: usesCustomVertexLayout
         )
-        let command = RenderCommand(
-            filter: renderFilter,
-            sourceTexture: texture,
-            renderPass: renderPass
-        )
+        let command = RenderCommand(filter: renderFilter, sourceTexture: texture, renderPass: renderPass)
         guard let batch = try? RenderCommandBatch(
             renderPass: renderPass,
             destinationTexturesByAttachmentIndex: [0: destTexture],
@@ -171,10 +165,7 @@ struct Rendering {
     /// - MRT / additional attachments are NOT yet adopted — shaders don't
     ///   universally declare MRT output, so widening the contract would
     ///   risk silent visual regressions. Kept as a future toggle.
-    static func resolveRenderPass(filter: RenderProtocol,
-                                  inputSize: C7Size,
-                                  destTexture: MTLTexture,
-                                  usesCustomVertexLayout: Bool) -> RenderPassContract {
+    static func resolveRenderPass(filter: RenderProtocol, inputSize: C7Size, destTexture: MTLTexture, usesCustomVertexLayout: Bool) -> RenderPassContract {
         let fallback = RenderPassContract.singleColor(
             pixelFormat: destTexture.pixelFormat,
             sampleCount: max(destTexture.sampleCount, 1),

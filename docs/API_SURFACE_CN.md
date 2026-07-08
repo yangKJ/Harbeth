@@ -40,31 +40,17 @@ let filters: [C7FilterProtocol] = [
 let image = try HarbethIO(element: inputImage, filters: filters).output()
 ```
 
-texture-first / frame-first：
+texture 输入仍然只走同一个 direct processing 出口：
 
 ```swift
 let io = HarbethIO(element: inputTexture, filters: filters)
 
-let texture = try io.renderTexture(profile: .stablePreview)
-let frame = try io.renderFrame(profile: .stablePreview)
-let request = try io.makeRenderRequest(profile: .stablePreview)
+let texture = try io.output()
 ```
 
-buffer / encoded output：
+异步 direct processing：
 
 ```swift
-let pixelBuffer = try io.renderPixelBuffer(profile: .exportQuality)
-let pngData = try HarbethIO(element: inputImage, filters: filters).renderPNGData()
-let jpegData = try HarbethIO(element: inputImage, filters: filters)
-    .renderJPEGData(compressionQuality: 0.92)
-```
-
-deferred / async：
-
-```swift
-let task = try io.startRenderTextureTask(profile: .interactiveLatency)
-let request = try io.makeRenderRequest(profile: .stablePreview)
-
 io.transmitOutput { result in
     // handle result
 }
@@ -72,24 +58,14 @@ io.transmitOutput { result in
 
 一致性说明：
 
-- 如果 `HarbethIO` 因为 derivative、output contract 或内部执行条件生成了 effective chain，`renderTexture(...)`、`renderFrame(...)`、`makeRenderRequest(...)`、`renderDiagnostics(...)`、`renderRecipe(...)` 会统一反映同一条执行链
-- 不再允许“真正执行已经注入附加 resize/filter，但 diagnostics 或 request 仍像原始 filters”的漂移
+- `HarbethIO` 对外只表达 `source + filters -> output/transmitOutput`
+- `RenderProfile`、`RenderRequest`、`RenderedFrame`、diagnostics、analysis、task 等高级概念不作为 `HarbethIO` 普通用户入口表达
+- 内部可以继续复用 render plan、texture pool、frame runtime，但这些属于 implementation detail
 
 输入类型上的实际判断：
 
 - `C7Image / CGImage / MTLTexture / CVPixelBuffer / CMSampleBuffer` 支持 `output()` typed round-trip
-- `Data / URL / ImageAsset` 会先通过 `makeImageSource()` 进入统一 source contract，但不保证 `output()` 还能 typed round-trip 回原始输入类型
-- 对 `Data / URL / ImageAsset`，推荐使用 `renderTexture(...)`、`renderFrame(...)` 或 `makeRenderRequest(...)`
-
-示例：
-
-```swift
-let frame = try HarbethIO(element: imageData, filters: filters)
-    .renderFrame(profile: .stablePreview)
-
-let texture = try HarbethIO(element: imageURL, filters: filters)
-    .renderTexture(profile: .stablePreview)
-```
+- `Data / URL / ImageAsset` 更适合作为 `ImageNode` source 进入高级路线
 
 `OpticsSettings` / `LensProfile` 继续按 filter builder 接入：
 
@@ -105,25 +81,11 @@ let output = try HarbethIO(
 ).output()
 ```
 
-如果调用方已经手里有 `backgroundTexture + foregroundTexture + mask`，例如大图 tile、repair 局部回贴，或私有插件先算出局部结果再贴回背景，也继续走 `HarbethIO` 路线：
-
-```swift
-let output = try HarbethIO
-    .maskedBlend(
-        background: backgroundTexture,
-        foreground: foregroundTexture,
-        mask: MaskDescriptor(texture: maskTexture, component: .red, opacity: 0.8)
-    )
-    .configured(for: .stablePreview)
-    .output()
-```
-
-这里的 `maskedBlend(...)` 是公开 convenience；底层执行 primitive `MaskRegionBlend` 保持内部化，不再作为普通用户 API 暴露。
-
 边界：
 
 - `HarbethIO` 不负责结构化编辑描述
 - 不负责 graph / optimizer / snapshot 的主心智
+- 不负责 mask facade、analysis facade、frame facade、task facade
 - 不新增 optics runtime、kernel runtime 或 recipe runtime facade
 
 ### 路线二：ImageNode
@@ -134,6 +96,12 @@ let output = try HarbethIO
 - 承接 graph、cache、diagnostics、analysis
 - 承接 recipe-driven editing
 - 承接 kernel-aware execution、transition、layer composite
+
+推荐理解顺序：
+
+1. 先用 `ImageNode` 直接表达 source、filters、recipe 和 editing
+2. 需要延迟执行、异步调度或高级读取时，再从 `ImageNode` 下沉到 `RenderRequest`
+3. 只有明确需要 frame metadata、preview host 信息、replay contract 或稳定 attachment 输出时，再显式拿 `RenderedFrame` / `RenderedAttachmentSet`
 
 `ImageNode` 当前真实 source 面：
 
@@ -177,6 +145,48 @@ let asyncFrame = try await ImageNode
 ```
 
 这些入口的目标不是引入第三套执行语义，而是让 `ImageNode` 在同步、callback、task、async 四种宿主接法下仍共享同一条 request / diagnostics / frame contract。
+
+### RenderRequest：延迟执行与高级读取
+
+`RenderRequest` 不是第三条公开路线。
+
+它的定位是：
+
+- 从 `ImageNode` 派生出来的 deferred single-frame render contract
+- 适合先编译、后执行，或把 diagnostics / source contract 和真正 render 拆开
+- 适合把 analysis、attachment 读取和 frame render 收口在同一个 request 上
+
+典型用法：
+
+```swift
+let request = try ImageNode
+    .texture(inputTexture)
+    .applying(filters: filters)
+    .makeRenderRequest(profile: .readbackQuality)
+
+let diagnostics = request.diagnostics
+let texture = try request.renderTexture()
+let frame = try request.renderFrame()
+```
+
+如果调用方已经明确要走延迟读取面，优先在 `RenderRequest` 上完成 analysis / attachment inspection，而不是先拿 `RenderedFrame` 再绕回去：
+
+```swift
+let request = try node.makeRenderRequest(profile: .readbackQuality)
+
+let histogram = try request.renderHistogram(channel: .luminance)
+let statistics = try request.renderStatistics()
+let probe = try request.renderColorProbe(x: 240, y: 180)
+
+let attachment = try request.renderAttachment(semantic: .luminance)
+let attachmentAnalysis = try request.renderAttachmentAnalysis(semantic: .luminance)
+```
+
+所以这里的推荐层级固定为：
+
+- `ImageNode`：高级主入口
+- `RenderRequest`：deferred / async / analysis / attachment read surface
+- `RenderedFrame` / `RenderedAttachmentSet`：结果对象层
 
 通过 `Data / ImageAsset / pixelBuffer / sampleBuffer` 接入：
 
@@ -248,6 +258,8 @@ let recipe = EditRecipe(
     ]
 )
 ```
+
+如果调用方手里已经有 `background texture + foreground texture + MaskDescriptor`，并且需要保留完整的 component / invert / feather / opacity 语义，推荐继续走 `ImageNode.layerComposite(...)` 或 `ImageNode.applying(mask: ...)`。`HarbethIO` 不再提供独立的 texture mask compositing facade。
 
 私有插件包如果要接进 `ImageNode`，也仍然走这条路线，不新增独立 `PluginNode`：
 
@@ -435,8 +447,10 @@ source contract 一致性说明：
 - `LocalEffectRecipe`
 - `MaskDescriptor`
 - `MaskCompositeRecipe`
+- `MaskRecipe`
 - `MaskGradientRecipe`
 - `MaskShapeRecipe`
+- `MaskPathRecipe`
 - `ImageLayer`
 
 边界：
@@ -451,11 +465,16 @@ source contract 一致性说明：
 - `MaskCompositeStepDescriptor`
 - `MaskGradientDescriptor`
 - `MaskShapeDescriptor`
+- `MaskPathDescriptor`
 
 定位：
 
 - 这些 descriptor 主要服务 diagnostics、render recipe、debug snapshot 和 host-side inspection
 - 它们不是新的 mask 执行入口
+- `MaskRecipe` 是参数化 mask recipe 的统一合同；普通调用仍优先走 `ImageNode` / `EditRecipe`
+- `MaskShapeRecipe` 是基础参数化形状主入口：`rectangle`、`ellipse`、`roundedRect`、`triangle`、`regularPolygon`、`star`
+- `MaskPathRecipe` 负责自定义 subpaths、freehand、镂空路径和 decorative vector path；它不是普通调用方选择基础形状的首选入口
+- 当前 `regularPolygon` / `star` 虽然内部仍可 lower 到 path 执行，但对外语义和 diagnostics 仍保持 `MaskShapeRecipe`
 
 ### Deferred / Results / Diagnostics
 
@@ -471,25 +490,28 @@ source contract 一致性说明：
 
 插件支撑层相关类型：
 
-- `HarbethPluginOutput`
-- `HarbethTexturePlugin`
-- `HarbethFilterPlugin`
-- `HarbethMaskPlugin`
-- `HarbethPreviewDisplaying`
+- `PluginOutput`
+- `PluginCapability`
+- `PluginContext`
+- `TexturePlugin`
+- `FilterPlugin`
+- `MaskPlugin`
+- `PreviewDisplaying`
 
 定位：
 
 - 它们是私有插件包、GPU preview host 和 `ImageNode` 之间的桥接支撑层
+- 外部能力统一通过 `Plugin` 接入；Runtime boundary 只是内部调度和诊断实现
 - 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
 - `RenderRequest`、`RenderTask` 属于 deferred/supporting read surface，不是第三条 app integration route
-- `RenderView` 只是 `HarbethPreviewDisplaying` 的默认实现，显示对象统一回到 `RenderedFrame`
+- `RenderView` 只是 `PreviewDisplaying` 的默认实现，显示对象统一回到 `RenderedFrame`
 - `RenderView` 现在会消费 `RenderedFrame` 暴露的 frame host metadata / runtime hint，用来区分 low-latency、stable preview 和 readback-style host 行为
 - `ReplayBaseContract`
 - `RenderCacheIdentity`
 
 定位：
 
-- 它们是两条主路线的返回值或延迟执行面
+- 它们是两条主路线的结果对象层或延迟执行面
 - 不应被包装成新的 runtime facade
 
 其中：
@@ -554,18 +576,22 @@ let node = ImageNode
 1. 先 render
 2. 再 inspect
 
-从 `RenderedFrame` 分析：
+从 `ImageNode` 直接分析：
 
 ```swift
-let frame = try HarbethIO(element: inputImage, filters: filters)
-    .renderFrame(profile: .stablePreview)
+let node = ImageNode
+    .image(inputImage)
+    .applying(filters: filters)
 
-let histogram = frame.makeHistogram(channel: .luminance)
-let statistics = frame.makeStatistics()
-let probe = frame.makeColorProbe()
+let histogram = try node.makeHistogram(
+    profile: .readbackQuality,
+    channel: .luminance
+)
+let statistics = try node.makeStatistics(profile: .readbackQuality)
+let probe = try node.makeColorProbe(profile: .readbackQuality)
 ```
 
-从 `ImageNode` 分析：
+如果需要拿完整 frame、preview host 信息或 replay contract，再下沉到 `RenderedFrame`：
 
 ```swift
 let node = ImageNode
@@ -573,10 +599,18 @@ let node = ImageNode
     .applying(C7Brightness(brightness: 0.1))
 
 let frame = try node.makeFrame(profile: .stablePreview)
-let histogram = frame.makeHistogram(channel: .red)
+let replayContract = frame.replayBaseContract
+let frameHostSource = frame.frameHostSourceDescriptor
+let frameHostHint = frame.frameHostRuntimeHint
 
-let attachmentSet = try node.makeAttachmentSet(profile: .readbackQuality)
-let analysisBundle = try node.makeAttachmentAnalysisBundle(profile: .readbackQuality)
+let attachment = try node.makeAttachment(
+    profile: .readbackQuality,
+    semantic: .luminance
+)
+let analysis = try node.makeAttachmentAnalysis(
+    profile: .readbackQuality,
+    semantic: .luminance
+)
 ```
 
 局部分析：
@@ -584,15 +618,31 @@ let analysisBundle = try node.makeAttachmentAnalysisBundle(profile: .readbackQua
 ```swift
 let scope = TextureAnalysisScope(region: region)
 
-let histogram = frame.makeHistogram(channel: .luminance, scope: scope)
-let statistics = frame.makeStatistics(scope: scope)
-let probe = frame.makeColorProbe(scope: scope)
+let histogram = try node.makeHistogram(
+    profile: .readbackQuality,
+    channel: .luminance,
+    scope: scope
+)
+let statistics = try node.makeStatistics(
+    profile: .readbackQuality,
+    scope: scope
+)
+let probe = try node.makeColorProbe(
+    profile: .readbackQuality,
+    scope: scope
+)
+let mask = try node.makeMaskDescriptor(
+    profile: .readbackQuality,
+    scope: scope
+)
 ```
 
-这一层的主要对象分成两类：
+这一层的主要对象分成三类：
 
+- 入口层：`ImageNode`、`RenderRequest`
 - 结果对象：`RenderedFrame`、`RenderedAttachmentSet`、`RenderedAnalysisBundle`、`RenderedAttachmentAnalysisBundle`
-- 分析工具：`TextureHistogram`、`TextureStatistics`、`TextureColorProbe`、`TextureAnalysisScope`、`TextureAnalysisMask`
+- 分析工具：`TextureHistogram`、`TextureStatistics`、`TextureColorProbe`、`TextureAnalysisScope`
+- scope mask bridge：`makeMaskTexture(scope:)`、`makeMaskDescriptor(scope:)`
 
 所以 `Analysis` 的正确理解是：
 
@@ -630,7 +680,6 @@ let probe = frame.makeColorProbe(scope: scope)
 - `KernelInvocation`
 - `KernelExecutionPlan`
 - `KernelContract` family
-- `RenderBoundary*`
 - `RenderCommand*`
 - `TextureAllocator`
 - `TexturePool`

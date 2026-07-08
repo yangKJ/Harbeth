@@ -127,12 +127,7 @@ extension HarbethWrapper where Base: CGImage {
 
     public func encodedData(utType: CFString, properties: [CFString: Any] = [:]) -> Data? {
         let data = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(
-            data as CFMutableData,
-            utType,
-            1,
-            nil
-        ) else {
+        guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, utType, 1, nil) else {
             return nil
         }
         CGImageDestinationAddImage(destination, base, properties as CFDictionary)

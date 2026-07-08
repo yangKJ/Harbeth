@@ -127,11 +127,7 @@ extension C7FilterProtocol {
                 let textures = [destTexture, texture] + self.otherInputTextures
                 Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self, complete: complete)
             case .render(let vertex, let fragment):
-                let pipelineState = try Rendering.makeRenderPipelineState(
-                    with: vertex,
-                    fragment: fragment,
-                    pixelFormat: destTexture.pixelFormat
-                )
+                let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment, pixelFormat: destTexture.pixelFormat)
                 Rendering.drawing(pipelineState, commandBuffer: buffer, texture: texture, destTexture: destTexture, filter: self)
                 complete(.success(destTexture))
             case .blit where self is BlitProtocol:
@@ -158,11 +154,7 @@ extension C7FilterProtocol {
             let textures = [destTexture, texture] + self.otherInputTextures
             return try Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self)
         case .render(let vertex, let fragment):
-            let pipelineState = try Rendering.makeRenderPipelineState(
-                with: vertex,
-                fragment: fragment,
-                pixelFormat: destTexture.pixelFormat
-            )
+            let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment, pixelFormat: destTexture.pixelFormat)
             Rendering.drawing(pipelineState, commandBuffer: buffer, texture: texture, destTexture: destTexture, filter: self)
         case .blit where self is BlitProtocol:
             let textures = [destTexture, texture] + self.otherInputTextures

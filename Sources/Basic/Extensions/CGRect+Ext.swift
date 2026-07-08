@@ -17,7 +17,6 @@ extension HarbethWrapper where Base == CGRect {
     }
     
     public func toPoint2D(with size: C7Size) -> C7Point2D {
-        C7Point2D(x: Float(base.origin.x) / Float(size.width),
-                  y: Float(base.origin.y) / Float(size.height))
+        C7Point2D(x: Float(base.origin.x) / Float(size.width), y: Float(base.origin.y) / Float(size.height))
     }
 }

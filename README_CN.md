@@ -43,7 +43,7 @@ Harbeth 现在更适合被理解成一个能力底座，而不是单纯的滤镜
 
 - **输入接入层**：image、texture、pixelBuffer、sampleBuffer 等多种输入可进入同一条 Metal 处理链。
 - **滤镜执行层**：颜色、模糊、混合、几何、光学、LUT 和 MPS 能力都以技术能力的方式组合。
-- **帧渲染层**：同时支持 texture-first 和 frame-first 输出，可面向交互、稳定复用、导出和读回场景选择不同 contract。
+- **帧结果层**：同时支持 texture-first 和 frame-backed 结果对象，可面向交互、稳定复用、导出和读回场景选择不同 contract。
 - **复用与重放层**：render profile、frame metadata、cache identity 和 reusable derivative contract 让上层宿主可以稳定重放与复用结果。
 
 ### 🔌 集成边界
@@ -350,17 +350,19 @@ Harbeth 支持多种自定义滤镜方式：
 let io = HarbethIO(element: originalImage, filters: filters)
 
 let image = try io.output()
-let texture = try io.renderTexture(profile: .stablePreview)
-let frame = try io.renderFrame(profile: .stablePreview)
 ```
 
-`RenderProfile` 是这条路线上的输出档位选项，用来表达延迟和质量意图，不是新的使用方式。
-
-当这条路线因为 derivative 或其他条件注入了真实执行链上的附加滤镜时，`renderTexture`、`renderFrame`、`makeRenderRequest` 和 diagnostics 现在都会反映同一条 effective chain，不再出现执行和调试面各说各话。
+`HarbethIO` 只保留轻量直接处理心智。frame metadata、render profile、diagnostics、recipe、mask、analysis、deferred render request 等高级能力统一走 `ImageNode`。
 
 ### ImageNode：编辑、图结构与诊断
 
 当处理包含几何、局部效果、图层合成、转场或 preview/final 输出合同时，统一使用 `ImageNode`。
+
+推荐层级固定为：
+
+1. `ImageNode`：高级主入口，直接表达 source、filters、recipe、editing
+2. `RenderRequest`：从 `ImageNode` 派生出来的延迟执行与高级读取面
+3. `RenderedFrame`：只有宿主明确需要 metadata、preview host 信息或 replay contract 时才显式拿
 
 ```swift
 let previewNode = ImageNode
@@ -415,6 +417,17 @@ print(diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes)
 `RenderOptimizationPlan.prewarmReservations` 也已经进入真实执行层。`HarbethIO` 与 `ImageNode` 都会在编码前预热 pool reservation，因此 texture reuse 的收益可以在测试里直接观测，而不是只停留在 diagnostics 描述里。
 
 `RenderRequest` 和 `RenderTask` 是延迟执行和异步执行形态，服务于以上路线，不单独构成新的接入模型。
+
+如果调用方想先编译 contract、再决定何时 render 或读取 attachment / analysis，就从 `ImageNode` 下沉到 `RenderRequest`：
+
+```swift
+let request = try node.makeRenderRequest(profile: .readbackQuality)
+
+let diagnostics = request.diagnostics
+let texture = try request.renderTexture()
+let histogram = try request.renderHistogram(channel: .luminance)
+let attachment = try request.renderAttachment(semantic: .luminance)
+```
 
 ### 几何、局部蒙版与转场 Primitive
 
@@ -612,9 +625,9 @@ io.transmitOutput { [weak self] image in
 }
 ```
 
-#### 6. Frame-First 渲染
+#### 6. Frame-Backed 结果对象
 
-当宿主需要 profile、metadata、replay contract 或稳定复用输出时，优先使用 frame-first：
+只有当宿主明确需要 profile、metadata、preview host 信息、replay contract 或稳定复用输出时，再显式使用 `RenderedFrame`。普通分析与检查优先走 `ImageNode` 或 `RenderRequest` 的 analysis convenience：
 
 ```swift
 let filters: [C7FilterProtocol] = [
@@ -622,11 +635,14 @@ let filters: [C7FilterProtocol] = [
     C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
 ]
 
-let io = HarbethIO(element: originalImage, filters: filters)
-let frame = try io.renderFrame(profile: .stablePreview)
+let frame = try ImageNode
+    .image(originalImage)
+    .applying(filters: filters)
+    .makeFrame(profile: .stablePreview)
 
 let renderedImage = frame.image
 let semantic = frame.semantic
+let frameHostHint = frame.frameHostRuntimeHint
 let replayContract = frame.replayBaseContract
 ```
 
@@ -708,6 +724,49 @@ let correctedFrame = try ImageNode
         )
     )
     .makeFrame(profile: .stablePreview)
+```
+
+#### 分析与检查
+
+优先从 `ImageNode` 或 `RenderRequest` 的 analysis convenience 进入；只有确实需要 frame metadata、preview host 信息或 replay contract 时，再显式拿 `RenderedFrame`。
+
+```swift
+let node = ImageNode
+    .image(originalImage)
+    .applying(filters: [
+        C7Exposure(exposure: 0.12),
+        C7Contrast(contrast: 1.05)
+    ])
+
+let histogram = try node.makeHistogram(
+    profile: .readbackQuality,
+    channel: .luminance
+)
+let statistics = try node.makeStatistics(profile: .readbackQuality)
+let probe = try node.makeColorProbe(profile: .readbackQuality)
+```
+
+```swift
+let scope = TextureAnalysisScope.region(MTLRegionMake2D(100, 80, 256, 256))
+
+let localHistogram = try node.makeHistogram(
+    profile: .readbackQuality,
+    channel: .red,
+    scope: scope
+)
+let localMask = try node.makeMaskDescriptor(
+    profile: .readbackQuality,
+    scope: scope
+)
+```
+
+```swift
+let request = try node.makeRenderRequest(profile: .readbackQuality)
+let luminanceAttachment = try request.renderAttachment(semantic: .luminance)
+let attachmentProbe = try request.renderAttachmentColorProbe(
+    semantic: .luminance,
+    scope: scope
+)
 ```
 
 ### 推荐工作流
