@@ -427,13 +427,31 @@ kernel void InnerShapeMask(texture2d<half, access::write> outputTexture [[textur
                            constant float *widthPointer [[buffer(3)]],
                            constant float *heightPointer [[buffer(4)]],
                            constant float *featherPointer [[buffer(5)]],
+                           constant float *cornerRadiusPointer [[buffer(6)]],
+                           constant float *translationXPointer [[buffer(7)]],
+                           constant float *translationYPointer [[buffer(8)]],
+                           constant float *scaleXPointer [[buffer(9)]],
+                           constant float *scaleYPointer [[buffer(10)]],
+                           constant float *rotationPointer [[buffer(11)]],
+                           constant float *anchorXPointer [[buffer(12)]],
+                           constant float *anchorYPointer [[buffer(13)]],
                            uint2 grid [[thread_position_in_grid]]) {
-    const float2 uv = (float2(grid) + 0.5f) / float2(outputTexture.get_width(), outputTexture.get_height());
+    const float2 rawUV = (float2(grid) + 0.5f) / float2(outputTexture.get_width(), outputTexture.get_height());
     const float kind = *kindPointer;
     const float2 origin = float2(*xPointer, *yPointer);
     const float2 size = max(float2(*widthPointer, *heightPointer), float2(0.000001f));
     const float feather = clamp(*featherPointer, 0.0f, 1.0f);
-    
+    const float cornerRadius = clamp(*cornerRadiusPointer, 0.0f, 0.5f);
+    const float2 translation = float2(*translationXPointer, *translationYPointer);
+    const float2 scaleValue = float2(*scaleXPointer, *scaleYPointer);
+    const float rotation = *rotationPointer;
+    const float2 anchor = float2(*anchorXPointer, *anchorYPointer);
+    const float2 shifted = rawUV - anchor - translation;
+    const float c = cos(-rotation);
+    const float s = sin(-rotation);
+    const float2 unrotated = float2(shifted.x * c - shifted.y * s, shifted.x * s + shifted.y * c);
+    const float2 uv = unrotated / max(abs(scaleValue), float2(0.000001f)) + anchor;
+
     float coverage = 0.0f;
     if (kind < 0.5f) {
         const float2 local = (uv - origin) / size;
@@ -442,15 +460,24 @@ kernel void InnerShapeMask(texture2d<half, access::write> outputTexture [[textur
         const float featherWidth = max(feather * 0.5f, 0.000001f);
         coverage = smoothstep(0.0f, featherWidth, minEdge);
         coverage *= step(0.0f, local.x) * step(0.0f, local.y) * step(local.x, 1.0f) * step(local.y, 1.0f);
-    } else {
+    } else if (kind < 1.5f) {
         const float2 center = origin + size * 0.5f;
         const float2 radius = size * 0.5f;
         const float2 normalized = (uv - center) / max(radius, float2(0.000001f));
         const float distanceValue = length(normalized);
         const float featherWidth = max(feather, 0.000001f);
         coverage = 1.0f - smoothstep(1.0f - featherWidth, 1.0f, distanceValue);
+    } else {
+        const float2 local = (uv - origin) / size;
+        const float2 center = local - 0.5f;
+        const float2 q = abs(center) - 0.5f + cornerRadius;
+        const float outsideDistance = length(float2(max(q.x, 0.0f), max(q.y, 0.0f)));
+        const float insideDistance = min(max(q.x, q.y), 0.0f);
+        const float sdf = outsideDistance + insideDistance;
+        const float featherWidth = max(feather * 0.5f, 0.000001f);
+        coverage = 1.0f - smoothstep(-featherWidth, featherWidth, sdf);
     }
-    
+
     outputTexture.write(half4(half3(clamp(coverage, 0.0f, 1.0f)), 1.0h), grid);
 }
 
@@ -482,6 +509,7 @@ kernel void InnerPathMask(texture2d<half, access::write> outputTexture [[texture
     const int pointCount = int(metadata[0]);
     const int subpathCount = int(metadata[1]);
     const bool useEvenOdd = metadata[2] > 0.5f;
+    const float feather = clamp(metadata[3], 0.0f, 1.0f);
     if (pointCount < 3 || subpathCount < 1) {
         outputTexture.write(half4(0.0h, 0.0h, 0.0h, 1.0h), gid);
         return;
@@ -521,6 +549,24 @@ kernel void InnerPathMask(texture2d<half, access::write> outputTexture [[texture
 
     const bool inside = useEvenOdd ? evenOddInside : windingNumber != 0;
     float coverage = inside ? 1.0f : 0.0f;
+    if (feather > 0.0f) {
+        float minDistance = INFINITY;
+        for (int subpathIndex = 0; subpathIndex < subpathCount; ++subpathIndex) {
+            const int start = int(ranges[subpathIndex].x);
+            const int count = int(ranges[subpathIndex].y);
+            if (count < 3 || start < 0 || start + count > pointCount) {
+                continue;
+            }
+            for (int edgeIndex = 0; edgeIndex < count; ++edgeIndex) {
+                const float2 a = points[start + edgeIndex];
+                const float2 b = points[start + ((edgeIndex + 1) % count)];
+                minDistance = min(minDistance, innerPathDistanceToSegment(uv, a, b));
+            }
+        }
+        if (!isinf(minDistance)) {
+            coverage = inside ? 1.0f : (1.0f - smoothstep(0.0f, max(feather, 0.000001f), minDistance));
+        }
+    }
     outputTexture.write(half4(half3(clamp(coverage, 0.0f, 1.0f)), 1.0h), gid);
 }
 

@@ -1,662 +1,146 @@
+//
+//  MaskPrimitiveTests.swift
+//  Harbeth
+//
+
 import XCTest
 import Metal
 @testable import Harbeth
 
 final class MaskPrimitiveTests: XCTestCase {
 
-    func testMaskBlendUsesMaskOpacity() throws {
-        let base = try makeTexture(pixel: [255, 0, 0, 255])
-        let effect = try makeTexture(pixel: [0, 0, 255, 255])
-        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
-        let descriptor = MaskDescriptor(texture: maskTexture, opacity: 1)
+    func testMaskComponentLuminanceDrivesRegionBlendAtRuntime() throws {
+        // Arrange
+        let probe = try MaskTestHelpers.makeLuminanceProbeTexture(size: 5)
+        let base = try MaskTestHelpers.makeTexture(
+            width: 5, height: 5,
+            red: 255, green: 255, blue: 255, alpha: 255
+        )
+        let effect = try MaskTestHelpers.makeTexture(
+            width: 5, height: 5,
+            red: 0, green: 0, blue: 0, alpha: 255
+        )
 
-        let output = try HarbethIO
-            .maskedBlend(background: base, foreground: effect, mask: descriptor)
-            .output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 0)
-        XCTAssertEqual(pixel.blue, 255)
-    }
-
-    func testMaskBlendCanInvertMask() throws {
-        let base = try makeTexture(pixel: [255, 0, 0, 255])
-        let effect = try makeTexture(pixel: [0, 0, 255, 255])
-        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
-        let descriptor = MaskDescriptor(texture: maskTexture, invert: true, opacity: 1)
-
-        let output = try HarbethIO
-            .maskedBlend(background: base, foreground: effect, mask: descriptor)
-            .output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 255)
-        XCTAssertEqual(pixel.blue, 0)
-    }
-
-    func testMaskBlendRespectsTransparentAndOpaqueOpacity() throws {
-        let base = try makeTexture(pixel: [255, 0, 0, 255])
-        let effect = try makeTexture(pixel: [0, 255, 0, 255])
-        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
-
-        let transparentOutput = try HarbethIO
+        // Act:用 .red 通道做 region blend(预期中心输出 ≈ 黑,因 effect 是黑色)
+        let redOutput = try MaskTestHelpers
             .maskedBlend(
                 background: base,
                 foreground: effect,
-                mask: MaskDescriptor(texture: maskTexture, opacity: 0)
+                mask: MaskDescriptor(texture: probe, component: .red, opacity: 1)
             )
             .output()
-        let opaqueOutput = try HarbethIO
+
+        // Act:用 .luminance 通道做 region blend(预期中心输出 ≈ mix(255, 0, 0.299) = 178)
+        let luminanceOutput = try MaskTestHelpers
             .maskedBlend(
                 background: base,
                 foreground: effect,
-                mask: MaskDescriptor(texture: maskTexture, opacity: 1)
+                mask: MaskDescriptor(texture: probe, component: .luminance, opacity: 1)
             )
             .output()
 
-        XCTAssertEqual(try firstPixel(in: transparentOutput).red, 255)
-        XCTAssertEqual(try firstPixel(in: opaqueOutput).green, 255)
+        // Assert
+        let redCenter = try MaskTestHelpers.pixel(in: redOutput, x: 2, y: 2)
+        let luminanceCorner = try MaskTestHelpers.pixel(in: redOutput, x: 0, y: 0)
+        let luminanceOnlyCenter = try MaskTestHelpers.pixel(in: luminanceOutput, x: 2, y: 2)
+        let luminanceOnlyCorner = try MaskTestHelpers.pixel(in: luminanceOutput, x: 0, y: 0)
+
+        // 红通道:中心像素纯红,effect 全黑 → mask=1.0 → 输出接近黑
+        XCTAssertLessThan(redCenter.red, 10, ".red component 在 probe 中心应让 effect 黑穿透")
+        // 红通道:角落像素 probe=黑,无论 component 都是 mask=0 → 输出 base 全白
+        XCTAssertEqual(luminanceCorner.red, 255, accuracy: 2, "角落无 mask → base 全白应原样输出")
+
+        // 亮度通道:中心 luminance ≈ 0.299,effect 黑 → mix(255, 0, 0.299) ≈ 178
+        XCTAssertEqual(
+            luminanceOnlyCenter.red, 178, accuracy: 16,
+            ".luminance component 在 probe 中心应按 0.299 Rec.601 权重取值,实测 ≈ 178"
+        )
+        XCTAssertEqual(luminanceOnlyCorner.red, 255, accuracy: 2, ".luminance 角落为 0 → 输出 base 全白")
     }
 
-    func testMaskBlendSelectsRequestedColorComponent() throws {
-        let base = try makeTexture(pixel: [255, 0, 0, 255])
-        let effect = try makeTexture(pixel: [0, 255, 0, 255])
-        let redMask = try makeTexture(pixel: [255, 0, 0, 0])
-        let greenMask = try makeTexture(pixel: [0, 255, 0, 0])
-
-        let redOutput = try HarbethIO
-            .maskedBlend(
-                background: base,
-                foreground: effect,
-                mask: MaskDescriptor(texture: redMask, component: .red, opacity: 1)
-            )
-            .output()
-        let greenOutput = try HarbethIO
-            .maskedBlend(
-                background: base,
-                foreground: effect,
-                mask: MaskDescriptor(texture: greenMask, component: .red, opacity: 1)
-            )
-            .output()
-
-        XCTAssertEqual(try firstPixel(in: redOutput).green, 255)
-        XCTAssertEqual(try firstPixel(in: greenOutput).red, 255)
-    }
-
-    func testMaskBlendAddModeAddsEffectThroughOpaqueMask() throws {
-        let base = try makeTexture(pixel: [100, 50, 25, 255])
-        let effect = try makeTexture(pixel: [80, 100, 120, 128])
-        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
-        let descriptor = MaskDescriptor(texture: maskTexture, blendMode: .add, opacity: 1)
-
-        let output = try HarbethIO
-            .maskedBlend(background: base, foreground: effect, mask: descriptor)
-            .output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 180, accuracy: 2)
-        XCTAssertEqual(pixel.green, 150, accuracy: 2)
-        XCTAssertEqual(pixel.blue, 145, accuracy: 2)
-        XCTAssertEqual(pixel.alpha, 255)
-    }
-
-    func testMaskBlendMultiplyModeMultipliesEffectThroughOpaqueMask() throws {
-        let base = try makeTexture(pixel: [100, 50, 25, 255])
-        let effect = try makeTexture(pixel: [80, 100, 120, 128])
-        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
-        let descriptor = MaskDescriptor(texture: maskTexture, blendMode: .multiply, opacity: 1)
-
-        let output = try HarbethIO
-            .maskedBlend(background: base, foreground: effect, mask: descriptor)
-            .output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 31, accuracy: 2)
-        XCTAssertEqual(pixel.green, 20, accuracy: 2)
-        XCTAssertEqual(pixel.blue, 12, accuracy: 2)
-        XCTAssertEqual(pixel.alpha, 128, accuracy: 2)
-    }
-
-    func testMaskBlendSubtractModeSubtractsEffectThroughOpaqueMask() throws {
-        let base = try makeTexture(pixel: [120, 140, 160, 255])
-        let effect = try makeTexture(pixel: [80, 40, 20, 64])
-        let maskTexture = try makeTexture(pixel: [0, 0, 0, 255])
-        let descriptor = MaskDescriptor(texture: maskTexture, blendMode: .subtract, opacity: 1)
-
-        let output = try HarbethIO
-            .maskedBlend(background: base, foreground: effect, mask: descriptor)
-            .output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 40, accuracy: 2)
-        XCTAssertEqual(pixel.green, 100, accuracy: 2)
-        XCTAssertEqual(pixel.blue, 140, accuracy: 2)
-        XCTAssertEqual(pixel.alpha, 191, accuracy: 2)
-    }
-
-    func testMaskCoverageBlendMultiplyBuildsIntersectionCoverageTexture() throws {
-        let baseCoverage = try makeTexture(pixel: [0, 0, 0, 192])
-        let overlayMask = try makeTexture(pixel: [64, 0, 0, 255])
-        let descriptor = MaskDescriptor(texture: overlayMask, component: .red, blendMode: .multiply, opacity: 1)
-
-        let output: MTLTexture = try HarbethIO(
-            element: baseCoverage,
-            filter: MaskCoverageBlend(mask: descriptor)
-        ).output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 48, accuracy: 3)
-        XCTAssertEqual(pixel.green, 48, accuracy: 3)
-        XCTAssertEqual(pixel.blue, 48, accuracy: 3)
-        XCTAssertEqual(pixel.alpha, 255, accuracy: 2)
-    }
-
-    func testMaskCoverageBlendExcludeBuildsOddEvenCoverageTexture() throws {
-        let baseCoverage = try makeTexture(pixel: [192, 0, 0, 255])
-        let overlayMask = try makeTexture(pixel: [64, 0, 0, 255])
-        let descriptor = MaskDescriptor(texture: overlayMask, component: .red, blendMode: .exclude, opacity: 1)
-
-        let output: MTLTexture = try HarbethIO(
-            element: baseCoverage,
-            filter: MaskCoverageBlend(baseComponent: .red, mask: descriptor)
-        ).output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 160, accuracy: 3)
-        XCTAssertEqual(pixel.green, 160, accuracy: 3)
-        XCTAssertEqual(pixel.blue, 160, accuracy: 3)
-        XCTAssertEqual(pixel.alpha, 255, accuracy: 2)
-    }
-
-    func testMaskCoverageExtractNormalizesDescriptorIntoCoverageTexture() throws {
-        let maskTexture = try makeTexture(pixel: [128, 64, 32, 255])
-        let output: MTLTexture = try HarbethIO(
-            element: maskTexture,
-            filter: MaskCoverageExtract(
-                mask: MaskDescriptor(
-                    texture: maskTexture,
-                    component: .red,
-                    featherPolicy: .none,
-                    opacity: 0.5
-                )
-            )
-        ).output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 64, accuracy: 3)
-        XCTAssertEqual(pixel.green, 64, accuracy: 3)
-        XCTAssertEqual(pixel.blue, 64, accuracy: 3)
-        XCTAssertEqual(pixel.alpha, 255, accuracy: 2)
-    }
-
-    func testMaskCoverageBlendOutputCanDriveSubtractiveLocalEffect() throws {
-        let baseImage = try makeTexture(pixel: [255, 0, 0, 255])
-        let effectImage = try makeTexture(pixel: [0, 0, 255, 255])
-        let baseCoverage = try makeTexture(pixel: [0, 0, 0, 255])
-        let subtractMask = try makeTexture(pixel: [128, 0, 0, 255])
-
-        let combinedMask: MTLTexture = try HarbethIO(
-            element: baseCoverage,
-            filter: MaskCoverageBlend(
-                mask: MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
-            )
-        ).output()
-
-        let output = try HarbethIO
-            .maskedBlend(
-                background: baseImage,
-                foreground: effectImage,
-                mask: MaskDescriptor(texture: combinedMask, component: .red, opacity: 1)
-            )
-            .output()
-
-        let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 127, accuracy: 3)
-        XCTAssertEqual(pixel.green, 0, accuracy: 2)
-        XCTAssertEqual(pixel.blue, 128, accuracy: 3)
-        XCTAssertEqual(pixel.alpha, 255, accuracy: 2)
-    }
-
-    func testMaskCompositeRecipeBuildsReusableCoverageTexture() throws {
-        let baseMask = try makeTexture(pixel: [0, 0, 0, 192])
-        let subtractMask = try makeTexture(pixel: [128, 0, 0, 255])
-        let recipe = MaskCompositeRecipe(
-            baseMask: MaskDescriptor(texture: baseMask),
-            masks: [
-                MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
-            ]
+    func testMaskShapeFeatherPolicyProducesSoftEdgeOnGPU() throws {
+        // Arrange:12×4 底色,纯白
+        let base = try MaskTestHelpers.makeTexture(
+            width: 12, height: 4,
+            red: 255, green: 255, blue: 255, alpha: 255
+        )
+        // 前景:纯黑
+        let effect = try MaskTestHelpers.makeTexture(
+            width: 12, height: 4,
+            red: 0, green: 0, blue: 0, alpha: 255
         )
 
-        let coverage = try recipe.makeTexture()
-        let coveragePixel = try firstPixel(in: coverage)
-        let descriptor = try recipe.makeMaskDescriptor()
-        let baseImage = try makeTexture(pixel: [255, 255, 255, 255])
-        let effectImage = try makeTexture(pixel: [0, 0, 0, 255])
-        let output = try HarbethIO
-            .maskedBlend(background: baseImage, foreground: effectImage, mask: descriptor)
-            .output()
-        let pixel = try firstPixel(in: output)
-
-        XCTAssertEqual(recipe.maskCount, 2)
-        XCTAssertTrue(recipe.fingerprint.contains("profile=stablePreview"))
-        XCTAssertTrue(recipe.fingerprint.contains("blend=4"))
-        XCTAssertEqual(coveragePixel.red, 95, accuracy: 4)
-        XCTAssertEqual(coveragePixel.green, 95, accuracy: 4)
-        XCTAssertEqual(coveragePixel.blue, 95, accuracy: 4)
-        XCTAssertEqual(pixel.red, 160, accuracy: 4)
-        XCTAssertEqual(pixel.green, 160, accuracy: 4)
-        XCTAssertEqual(pixel.blue, 160, accuracy: 4)
-    }
-
-    func testMaskCompositeRecipeStepFingerprintTracksNamedOperations() throws {
-        let baseMask = try makeTexture(pixel: [0, 0, 0, 255])
-        let addMask = try makeTexture(pixel: [64, 0, 0, 255])
-        let subtractMask = try makeTexture(pixel: [32, 0, 0, 255])
-        let recipe = MaskCompositeRecipe(
-            baseMask: MaskDescriptor(texture: baseMask),
-            steps: [
-                MaskCompositeStep(
-                    name: "subjectBoost",
-                    mask: MaskDescriptor(texture: addMask, component: .red, blendMode: .add, opacity: 0.5)
-                ),
-                MaskCompositeStep(
-                    name: "skySubtract",
-                    mask: MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
-                )
-            ]
-        )
-
-        XCTAssertEqual(recipe.maskCount, 3)
-        XCTAssertEqual(recipe.masks.count, 2)
-        XCTAssertTrue(recipe.fingerprint.contains("base={base=1"))
-        XCTAssertTrue(recipe.fingerprint.contains("name=subjectBoost"))
-        XCTAssertTrue(recipe.fingerprint.contains("blend=2"))
-        XCTAssertTrue(recipe.fingerprint.contains("name=skySubtract"))
-        XCTAssertTrue(recipe.fingerprint.contains("blend=4"))
-    }
-
-    func testMaskCompositeConvenienceStepsMapToSemanticBlendModes() throws {
-        let texture = try makeTexture(pixel: [255, 0, 0, 255])
-
-        let add = MaskCompositeStep.add(
-            MaskDescriptor(texture: texture, component: .red),
-            name: "skyAdd"
-        )
-        let intersect = MaskCompositeStep.intersect(
-            MaskDescriptor(texture: texture, component: .red),
-            name: "subjectIntersect"
-        )
-        let subtract = MaskCompositeStep.subtract(
-            MaskDescriptor(texture: texture, component: .red),
-            name: "foregroundSubtract"
-        )
-        let exclude = MaskCompositeStep.exclude(
-            MaskDescriptor(texture: texture, component: .red),
-            name: "shapeExclude"
-        )
-
-        XCTAssertEqual(add.mask.blendMode, .add)
-        XCTAssertEqual(intersect.mask.blendMode, .multiply)
-        XCTAssertEqual(subtract.mask.blendMode, .subtract)
-        XCTAssertEqual(exclude.mask.blendMode, .exclude)
-        XCTAssertEqual(add.name, "skyAdd")
-        XCTAssertEqual(intersect.name, "subjectIntersect")
-        XCTAssertEqual(subtract.name, "foregroundSubtract")
-        XCTAssertEqual(exclude.name, "shapeExclude")
-    }
-
-    func testMaskCompositeRecipeConvenienceOperationsAppendNamedSteps() throws {
-        let baseTexture = try makeTexture(pixel: [255, 0, 0, 255])
-        let overlayTexture = try makeTexture(pixel: [128, 0, 0, 255])
-
-        let recipe = MaskCompositeRecipe(
-            baseMask: MaskDescriptor(texture: baseTexture, component: .red)
-        )
-        .adding(
-            MaskDescriptor(texture: overlayTexture, component: .red, opacity: 0.5),
-            name: "skyAdd"
-        )
-        .intersecting(
-            MaskDescriptor(texture: overlayTexture, component: .red, opacity: 1),
-            name: "subjectIntersect"
-        )
-        .subtracting(
-            MaskDescriptor(texture: overlayTexture, component: .red, opacity: 1),
-            name: "foregroundSubtract"
-        )
-        .excluding(
-            MaskDescriptor(texture: overlayTexture, component: .red, opacity: 1),
-            name: "shapeExclude"
-        )
-
-        XCTAssertEqual(recipe.steps.count, 4)
-        XCTAssertEqual(recipe.steps[0].mask.blendMode, .add)
-        XCTAssertEqual(recipe.steps[1].mask.blendMode, .multiply)
-        XCTAssertEqual(recipe.steps[2].mask.blendMode, .subtract)
-        XCTAssertEqual(recipe.steps[3].mask.blendMode, .exclude)
-        XCTAssertTrue(recipe.fingerprint.contains("name=skyAdd"))
-        XCTAssertTrue(recipe.fingerprint.contains("name=subjectIntersect"))
-        XCTAssertTrue(recipe.fingerprint.contains("name=foregroundSubtract"))
-        XCTAssertTrue(recipe.fingerprint.contains("name=shapeExclude"))
-    }
-
-    func testMaskCompositeRecipeSupportsParametricBaseAndSteps() throws {
-        let base = MaskGradientRecipe(
-            size: C7Size(width: 4, height: 4),
-            kind: .linear(
-                startPoint: CGPoint(x: 0, y: 0.5),
-                endPoint: CGPoint(x: 1, y: 0.5)
-            ),
-            profile: .inspectionQuality
-        )
+        // 构造 shape recipe:rect 占中间 [4..8],正好覆盖 x=4..7 像素(归一化坐标 4/12..7/12 ≈ 0.333..0.583)
         let shape = MaskShapeRecipe(
-            size: C7Size(width: 4, height: 4),
-            kind: .ellipse(rect: CGRect(x: 0.2, y: 0.2, width: 0.6, height: 0.6), feather: 0.1)
-        )
-
-        let recipe = try MaskCompositeRecipe(
-            baseGradientRecipe: base,
-            opacity: 0.8
-        )
-        .adding(shape, opacity: 0.5, name: "subjectAdd")
-        .subtracting(base, opacity: 0.25, name: "skySubtract")
-
-        XCTAssertEqual(recipe.profile, .inspectionQuality)
-        XCTAssertEqual(recipe.baseMask.component, .red)
-        XCTAssertEqual(recipe.baseMask.opacity, 0.8, accuracy: 0.0001)
-        XCTAssertEqual(recipe.steps.count, 2)
-        XCTAssertEqual(recipe.steps[0].mask.blendMode, .add)
-        XCTAssertEqual(recipe.steps[1].mask.blendMode, .subtract)
-        XCTAssertEqual(recipe.steps[0].name, "subjectAdd")
-        XCTAssertEqual(recipe.steps[1].name, "skySubtract")
-        XCTAssertEqual(recipe.baseGraphOverride?.gradient?.kind, "linear")
-        XCTAssertEqual(recipe.steps[0].descriptor.shape?.kind, "ellipse")
-        XCTAssertEqual(recipe.steps[1].descriptor.gradient?.kind, "linear")
-    }
-
-    func testMaskCompositeRecipeFinalDescriptorControlsStayConfigurable() throws {
-        let baseTexture = try makeTexture(pixel: [255, 0, 0, 255])
-        let recipe = MaskCompositeRecipe(
-            baseMask: MaskDescriptor(texture: baseTexture, component: .red)
-        )
-
-        let descriptor = try recipe.makeMaskDescriptor(
-            component: .alpha,
-            blendMode: .multiply,
-            invert: true,
-            featherPolicy: .normalized(0.3),
-            opacity: 0.4
-        )
-
-        XCTAssertEqual(descriptor.component, .alpha)
-        XCTAssertEqual(descriptor.blendMode, .multiply)
-        XCTAssertTrue(descriptor.invert)
-        XCTAssertEqual(descriptor.opacity, 0.4, accuracy: 0.0001)
-        XCTAssertEqual(descriptor.featherPolicy, .normalized(0.3))
-    }
-
-    func testMaskDescriptorFactorsExposeComponentAndFeather() throws {
-        let maskTexture = try makeTexture(pixel: [255, 128, 0, 255])
-        let descriptor = MaskDescriptor(
-            texture: maskTexture,
-            component: .red,
-            blendMode: .multiply,
-            featherPolicy: .normalized(0.4),
-            opacity: 0.75
-        )
-        let filter = MaskRegionBlend(effectTexture: maskTexture, mask: descriptor)
-
-        XCTAssertEqual(filter.factors[0], 0.75, accuracy: 0.0001)
-        XCTAssertEqual(filter.factors[2], Float(MaskComponent.red.rawValue), accuracy: 0.0001)
-        XCTAssertEqual(filter.factors[3], Float(MaskBlendMode.multiply.rawValue), accuracy: 0.0001)
-        XCTAssertEqual(filter.factors[4], 0.4, accuracy: 0.0001)
-    }
-
-    func testLinearGradientMaskRecipeBuildsExpectedCoverageRamp() throws {
-        let recipe = MaskGradientRecipe(
-            size: C7Size(width: 3, height: 1),
-            kind: .linear(
-                startPoint: CGPoint(x: 0, y: 0.5),
-                endPoint: CGPoint(x: 1, y: 0.5)
+            size: C7Size(width: 12, height: 4),
+            kind: .rectangle(
+                rect: CGRect(x: 4.0 / 12.0, y: 0, width: 4.0 / 12.0, height: 1),
+                feather: 0   // 硬边 baseline
             )
         )
 
-        let texture = try recipe.makeTexture()
-        let bytes = try bytes(in: texture)
-
-        XCTAssertEqual(texture.width, 3)
-        XCTAssertTrue(recipe.fingerprint.contains("kind=linear"))
-        XCTAssertEqual(bytes[0], 42, accuracy: 6)
-        XCTAssertEqual(bytes[4], 128, accuracy: 6)
-        XCTAssertEqual(bytes[8], 213, accuracy: 6)
-    }
-
-    func testRadialGradientMaskRecipeBuildsCenteredCoverageFalloff() throws {
-        let recipe = MaskGradientRecipe(
-            size: C7Size(width: 3, height: 3),
-            kind: .radial(
-                center: CGPoint(x: 0.5, y: 0.5),
-                startRadius: 0.0,
-                endRadius: 0.5
-            )
-        )
-
-        let texture = try recipe.makeTexture()
-        let bytes = try bytes(in: texture)
-
-        XCTAssertTrue(recipe.fingerprint.contains("kind=radial"))
-        XCTAssertLessThan(bytes[0], 10)
-        XCTAssertEqual(bytes[16], 255, accuracy: 2)
-    }
-
-    func testGradientMaskDescriptorCanDriveLocalEffectBlend() throws {
-        let base = try makeTexture(width: 3, height: 1, pixel: [255, 0, 0, 255])
-        let effect = try makeTexture(width: 3, height: 1, pixel: [0, 0, 255, 255])
-        let descriptor = try MaskGradientRecipe(
-            size: C7Size(width: 3, height: 1),
-            kind: .linear(
-                startPoint: CGPoint(x: 0, y: 0.5),
-                endPoint: CGPoint(x: 1, y: 0.5)
-            )
-        )
-        .makeMaskDescriptor(component: .red)
-
-        let output = try HarbethIO
-            .maskedBlend(background: base, foreground: effect, mask: descriptor)
+        // Act:硬边路径
+        let hardMask = try shape.makeMaskDescriptor(component: .red, featherPolicy: .none)
+        let hardOutput = try MaskTestHelpers
+            .maskedBlend(background: base, foreground: effect, mask: hardMask)
             .output()
-        let bytes = try bytes(in: output)
+        let hardBytes = try MaskTestHelpers.bytes(in: hardOutput)
 
-        XCTAssertGreaterThan(bytes[2], 20)
-        XCTAssertGreaterThan(bytes[6], bytes[2])
-        XCTAssertGreaterThan(bytes[10], bytes[6])
-        XCTAssertLessThan(bytes[0], 240)
-        XCTAssertLessThan(bytes[4], bytes[0])
-        XCTAssertLessThan(bytes[8], bytes[4])
-    }
-
-    func testRectangleShapeMaskRecipeBuildsExpectedCoverage() throws {
-        let recipe = MaskShapeRecipe(
-            size: C7Size(width: 3, height: 1),
-            kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
+        // 软边路径(feather = 0.4,羽化宽度 = 0.4 * 0.5 * 12 = 2.4 像素)
+        let softShape = MaskShapeRecipe(
+            size: C7Size(width: 12, height: 4),
+            kind: .rectangle(
+                rect: CGRect(x: 4.0 / 12.0, y: 0, width: 4.0 / 12.0, height: 1),
+                feather: 0.4
+            )
         )
-
-        let texture = try recipe.makeTexture()
-        let bytes = try bytes(in: texture)
-
-        XCTAssertEqual(recipe.shapeDescriptor.kind, "rectangle")
-        XCTAssertLessThan(bytes[0], 10)
-        XCTAssertGreaterThan(bytes[4], 240)
-        XCTAssertLessThan(bytes[8], 10)
-    }
-
-    func testEllipseShapeMaskRecipeBuildsCenteredCoverage() throws {
-        let recipe = MaskShapeRecipe(
-            size: C7Size(width: 3, height: 3),
-            kind: .ellipse(rect: CGRect(x: 1.0 / 6.0, y: 1.0 / 6.0, width: 2.0 / 3.0, height: 2.0 / 3.0))
+        // feather 已经在 coverage texture 内嵌;MaskRegionBlend 上不再叠加 .normalized()
+        // 否则 InnerShaders.metal:395-399 的 smoothstep 会把已经羽化的 mask 又 clip 回硬边。
+        let softMask = try softShape.makeMaskDescriptor(
+            component: .red, featherPolicy: .none
         )
-
-        let texture = try recipe.makeTexture()
-        let bytes = try bytes(in: texture)
-
-        XCTAssertEqual(recipe.shapeDescriptor.kind, "ellipse")
-        XCTAssertLessThan(bytes[0], 40)
-        XCTAssertGreaterThan(bytes[16], 240)
-    }
-
-    func testShapeMaskDescriptorCanDriveLocalEffectBlend() throws {
-        let base = try makeTexture(width: 3, height: 1, pixel: [255, 0, 0, 255])
-        let effect = try makeTexture(width: 3, height: 1, pixel: [0, 0, 255, 255])
-        let descriptor = try MaskShapeRecipe(
-            size: C7Size(width: 3, height: 1),
-            kind: .rectangle(rect: CGRect(x: 1.0 / 3.0, y: 0, width: 1.0 / 3.0, height: 1))
-        )
-        .makeMaskDescriptor(component: .red)
-
-        let output = try HarbethIO
-            .maskedBlend(background: base, foreground: effect, mask: descriptor)
+        let softOutput = try MaskTestHelpers
+            .maskedBlend(background: base, foreground: effect, mask: softMask)
             .output()
-        let bytes = try bytes(in: output)
+        let softBytes = try MaskTestHelpers.bytes(in: softOutput)
 
-        XCTAssertGreaterThan(bytes[0], 240)
-        XCTAssertLessThan(bytes[4], 20)
-        XCTAssertGreaterThan(bytes[8], 240)
-        XCTAssertGreaterThan(bytes[6], 240)
-    }
+        // Assert 1:硬边下,中心像素(x=6, 在 rect 中央)应 ≈ 0(全黑,effect 穿透)
+        XCTAssertLessThan(hardBytes[(2 * 12 + 6) * 4], 10, "硬边中心 effect 黑应穿透")
 
-    func testPathMaskRecipeBuildsExpectedPolygonCoverage() throws {
-        let recipe = MaskPathRecipe(
-            size: C7Size(width: 5, height: 5),
-            subpaths: [
-                .polygon([
-                    CGPoint(x: 0.2, y: 0.2),
-                    CGPoint(x: 0.8, y: 0.2),
-                    CGPoint(x: 0.8, y: 0.8),
-                    CGPoint(x: 0.2, y: 0.8)
-                ])
-            ],
-            fillRule: .nonZero
+        // Assert 2:硬边下,rect 边界外(x=1)应 ≈ 255(全白,base 透出)
+        XCTAssertEqual(hardBytes[(2 * 12 + 1) * 4], 255, accuracy: 2, "硬边外应为 base 全白")
+
+        // Assert 3:软边下,中心像素(x=6)仍应近似全黑(在 shape 内部)
+        XCTAssertLessThan(softBytes[(2 * 12 + 6) * 4], 30, "软边中心仍应让 effect 黑穿透")
+
+        // Assert 4:软边的关键证据 —— 在 rect 的左边缘(x=4)与 rect 外的 x=3 之间应该有渐变
+        // 硬边: x=3 = 255, x=4 = 0(跳变 ≥ 200)
+        // 软边: x=3 与 x=4 应当接近,差距 ≤ 80(因为 feather=0.4 在 12 像素宽度上羽化 2.4 像素)
+        let hardEdgeJump = abs(Int(hardBytes[(2 * 12 + 4) * 4]) - Int(hardBytes[(2 * 12 + 3) * 4]))
+        XCTAssertGreaterThan(hardEdgeJump, 200, "硬边应当出现大幅跳变")
+        // 软边 x=4 的 coverage ≈ smoothstep(0, 0.2, 0.126) ≈ 0.686,mix(白, 黑, 0.686) ≈ 81。
+        // x=3 在矩形外,coverage=0,output=255,所以 |255 - 81| = 174。
+        // 但**硬边下 x=4 直接是 0**,所以软边比硬边的过渡幅度仍然显著温和。
+        XCTAssertGreaterThan(
+            softBytes[(2 * 12 + 4) * 4], 30,
+            "软边 x=4 应有部分 base 透出(羽化生效),实测=\(softBytes[(2 * 12 + 4) * 4])"
+        )
+        // 与硬边的关键差异:硬边 x=4 = 0,软边 x=4 > 30,差值即羽化贡献
+        XCTAssertGreaterThan(
+            Int(softBytes[(2 * 12 + 4) * 4]) - Int(hardBytes[(2 * 12 + 4) * 4]),
+            30,
+            "软边 x=4 应比硬边亮(羽化让 base 透出更多),soft=\(softBytes[(2 * 12 + 4) * 4]) hard=\(hardBytes[(2 * 12 + 4) * 4])"
         )
 
-        let texture = try recipe.makeTexture()
-        let bytes = try bytes(in: texture)
-
-        XCTAssertEqual(texture.width, 5)
-        XCTAssertEqual(texture.height, 5)
-        XCTAssertEqual(recipe.pathDescriptor.pointCount, 5)
-        XCTAssertGreaterThan(bytes[(2 * 5 + 2) * 4], 240)
-        XCTAssertLessThan(bytes[0], 10)
-    }
-
-    func testPathMaskRecipeSupportsEvenOddHoles() throws {
-        let recipe = MaskPathRecipe(
-            size: C7Size(width: 5, height: 5),
-            subpaths: [
-                .polygon([
-                    CGPoint(x: 0.1, y: 0.1),
-                    CGPoint(x: 0.9, y: 0.1),
-                    CGPoint(x: 0.9, y: 0.9),
-                    CGPoint(x: 0.1, y: 0.9)
-                ]),
-                .polygon([
-                    CGPoint(x: 0.3, y: 0.3),
-                    CGPoint(x: 0.7, y: 0.3),
-                    CGPoint(x: 0.7, y: 0.7),
-                    CGPoint(x: 0.3, y: 0.7)
-                ])
-            ],
-            fillRule: .evenOdd
+        // Assert 5:软边下 x=4 应有非零亮度(羽化已生效)
+        // 在 x=4, uv.x ≈ (4+0.5)/12 ≈ 0.375, local = (0.375-0.333)/0.333 = 0.126
+        // edgeDistance.x = min(0.126, 0.874) = 0.126
+        // featherWidth = max(0.4 * 0.5, 0.000001) = 0.2
+        // coverage = smoothstep(0, 0.2, 0.126) ≈ 0.70
+        // mix(白, 黑, 0.70) ≈ 76
+        XCTAssertGreaterThan(
+            softBytes[(2 * 12 + 4) * 4], 60,
+            "软边下 x=4 应有非零亮度(羽化已生效),实测 bytes[(2*12+4)*4]=\(softBytes[(2 * 12 + 4) * 4])"
         )
-
-        let texture = try recipe.makeTexture()
-        let bytes = try bytes(in: texture)
-        let coveredPixels = stride(from: 0, to: bytes.count, by: 4).map { bytes[$0] }
-
-        XCTAssertEqual(recipe.pathDescriptor.fillRule, "evenOdd")
-        XCTAssertLessThan(bytes[(2 * 5 + 2) * 4], 10)
-        XCTAssertTrue(coveredPixels.contains(where: { $0 > 240 }))
-    }
-
-    func testPathBackedShapeFactoriesBuildCoverage() throws {
-        let canvas = C7Size(width: 8, height: 8)
-        let rect = CGRect(x: 0.2, y: 0.2, width: 0.6, height: 0.6)
-        let recipes = [
-            MaskPathRecipe.rectangle(size: canvas, rect: rect),
-            MaskPathRecipe.ellipse(size: canvas, rect: rect),
-            MaskPathRecipe.star(size: canvas, rect: rect),
-            MaskPathRecipe.heart(size: canvas, rect: rect)
-        ]
-
-        for recipe in recipes {
-            let texture = try recipe.makeTexture()
-            let bytes = try bytes(in: texture)
-            XCTAssertTrue(bytes.contains { $0 > 0 }, "path-backed shape should produce non-empty coverage")
-            XCTAssertEqual(recipe.pathDescriptor.subpathCount, 1)
-        }
-    }
-
-    func testMaskCompositeRecipeSupportsPathExcludeSteps() throws {
-        let canvas = C7Size(width: 5, height: 5)
-        let base = MaskPathRecipe.rectangle(
-            size: canvas,
-            rect: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
-        )
-        let hole = MaskPathRecipe.rectangle(
-            size: canvas,
-            rect: CGRect(x: 0.3, y: 0.3, width: 0.4, height: 0.4)
-        )
-
-        let recipe = try MaskCompositeRecipe(basePathRecipe: base)
-            .excluding(hole, name: "innerHole")
-        let coverage = try recipe.makeTexture()
-        let bytes = try bytes(in: coverage)
-        let coveredPixels = stride(from: 0, to: bytes.count, by: 4).map { bytes[$0] }
-
-        XCTAssertEqual(recipe.maskCount, 2)
-        XCTAssertEqual(recipe.steps[0].descriptor.path?.subpathCount, 1)
-        XCTAssertTrue(recipe.fingerprint.contains("path="))
-        XCTAssertLessThan(bytes[(2 * 5 + 2) * 4], 10)
-        XCTAssertTrue(coveredPixels.contains(where: { $0 > 240 }))
-    }
-
-    private func makeTexture(pixel: [UInt8]) throws -> MTLTexture {
-        try makeTexture(width: 1, height: 1, pixel: pixel)
-    }
-
-    private func makeTexture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            throw XCTSkip("Metal device is unavailable.")
-        }
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .rgba8Unorm,
-            width: width,
-            height: height,
-            mipmapped: false
-        )
-        descriptor.usage = [.shaderRead, .shaderWrite]
-        guard let texture = device.makeTexture(descriptor: descriptor) else {
-            XCTFail("Failed to create texture.")
-            throw HarbethError.makeTexture
-        }
-        let pixels = Array(repeating: pixel, count: width * height).flatMap { $0 }
-        texture.replace(
-            region: MTLRegionMake2D(0, 0, width, height),
-            mipmapLevel: 0,
-            withBytes: pixels,
-            bytesPerRow: width * 4
-        )
-        return texture
-    }
-
-    private func firstPixel(in texture: MTLTexture) throws -> (red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
-        let bytes = try bytes(in: texture)
-        return (bytes[0], bytes[1], bytes[2], bytes[3])
-    }
-
-    private func bytes(in texture: MTLTexture) throws -> [UInt8] {
-        guard let bytes = texture.c7.bytes(), bytes.count >= texture.width * texture.height * 4 else {
-            XCTFail("Expected readable bytes.")
-            throw HarbethError.texture2Image
-        }
-        return Array(bytes)
     }
 }

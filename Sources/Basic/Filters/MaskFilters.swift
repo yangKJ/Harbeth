@@ -54,9 +54,11 @@ struct GradientMask: C7FilterProtocol {
 
 struct ShapeMask: C7FilterProtocol {
     let kind: MaskShapeKind
+    let transform: MaskPathTransform
 
-    init(kind: MaskShapeKind) {
+    init(kind: MaskShapeKind, transform: MaskPathTransform = .identity) {
         self.kind = kind
+        self.transform = transform
     }
 
     var modifier: ModifierEnum {
@@ -76,8 +78,10 @@ struct ShapeMask: C7FilterProtocol {
                 Float(rect.origin.y),
                 Float(rect.width),
                 Float(rect.height),
-                min(max(feather, 0), 1)
+                min(max(feather, 0), 1),
+                0
             ]
+            + transformFactors
         case .ellipse(let rect, let feather):
             return [
                 1,
@@ -85,17 +89,46 @@ struct ShapeMask: C7FilterProtocol {
                 Float(rect.origin.y),
                 Float(rect.width),
                 Float(rect.height),
-                min(max(feather, 0), 1)
+                min(max(feather, 0), 1),
+                0
             ]
+            + transformFactors
+        case .roundedRect(let rect, let cornerRadius, let feather):
+            return [
+                2,
+                Float(rect.origin.x),
+                Float(rect.origin.y),
+                Float(rect.width),
+                Float(rect.height),
+                min(max(feather, 0), 1),
+                min(max(cornerRadius, 0), 0.5)
+            ]
+            + transformFactors
+        case .regularPolygon, .star:
+            preconditionFailure("regularPolygon/star should be lowered to PathMask before execution.")
         }
+    }
+
+    private var transformFactors: [Float] {
+        [
+            Float(transform.translation.x),
+            Float(transform.translation.y),
+            Float(transform.scale.x),
+            Float(transform.scale.y),
+            Float(transform.rotationRadians),
+            Float(transform.anchor.x),
+            Float(transform.anchor.y)
+        ]
     }
 }
 
 struct PathMask: C7FilterProtocol {
     let recipe: MaskPathRecipe
+    let feather: Float
 
-    init(recipe: MaskPathRecipe) {
+    init(recipe: MaskPathRecipe, feather: Float = 0) {
         self.recipe = recipe
+        self.feather = min(max(feather, 0), 1)
     }
 
     var modifier: ModifierEnum {
@@ -111,7 +144,8 @@ struct PathMask: C7FilterProtocol {
         let metadata: [Float] = [
             Float(encoded.points.count),
             Float(encoded.ranges.count),
-            recipe.fillRule == .evenOdd ? 1 : 0
+            recipe.fillRule == .evenOdd ? 1 : 0,
+            feather
         ]
         let pointValues = encoded.points.flatMap { [Float($0.x), Float($0.y)] }
         let rangeValues = encoded.ranges.flatMap { [$0.x, $0.y] }
