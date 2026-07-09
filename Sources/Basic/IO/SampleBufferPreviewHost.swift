@@ -48,27 +48,27 @@ enum PreviewHostExecutionState: String, Sendable, Codable, Equatable, Hashable {
     case fallbackMetal
 }
 
-struct PreviewHostExecutionReport: Sendable, Codable, Equatable, Hashable {
-    let predictedStrategy: String
-    let actualBackingKind: String
-    let actualResolvedHostStrategy: String
-    let payloadMode: String
-    let state: String
-    let currentSuspensionReason: String?
-    let lastFailureReason: String?
-    let recoveredByFlush: Bool
-    let fellBackToMetal: Bool
-    let enqueueCount: Int
-    let lifecyclePauseCount: Int
-    let lifecycleResumeCount: Int
-    let visibilityPauseCount: Int
-    let visibilityResumeCount: Int
-    let strategySwitchCount: Int
-    let activationCount: Int
-    let deactivationCount: Int
-    let recoveryCount: Int
-    let fallbackCount: Int
-    let failureCountsByReason: [String: Int]
+public struct PreviewHostExecutionReport: Sendable, Codable, Equatable, Hashable {
+    public let predictedStrategy: String
+    public let actualBackingKind: String
+    public let actualResolvedHostStrategy: String
+    public let payloadMode: String
+    public let state: String
+    public let currentSuspensionReason: String?
+    public let lastFailureReason: String?
+    public let recoveredByFlush: Bool
+    public let fellBackToMetal: Bool
+    public let enqueueCount: Int
+    public let lifecyclePauseCount: Int
+    public let lifecycleResumeCount: Int
+    public let visibilityPauseCount: Int
+    public let visibilityResumeCount: Int
+    public let strategySwitchCount: Int
+    public let activationCount: Int
+    public let deactivationCount: Int
+    public let recoveryCount: Int
+    public let fallbackCount: Int
+    public let failureCountsByReason: [String: Int]
 
     init(predictedStrategy: PreviewHostStrategy,
          actualBackingKind: PreviewHostBackingKind = .metalTextureHost,
@@ -117,22 +117,22 @@ struct PreviewHostExecutionReport: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-struct PreviewHostFleetSnapshot: Sendable, Codable, Equatable, Hashable {
-    let activeHostCount: Int
-    let activeSampleBufferHostCount: Int
-    let activeMetalHostCount: Int
-    let suspendedHostCount: Int
-    let recoveringHostCount: Int
-    let fallbackHostCount: Int
-    let maxConcurrentSampleBufferHosts: Int
-    let totalStrategySwitchCount: Int
-    let totalActivationCount: Int
-    let totalDeactivationCount: Int
-    let totalRecoveryCount: Int
-    let totalFallbackCount: Int
-    let totalLifecycleSuspensionCount: Int
-    let totalVisibilitySuspensionCount: Int
-    let failureCountsByReason: [String: Int]
+public struct PreviewHostFleetSnapshot: Sendable, Codable, Equatable, Hashable {
+    public let activeHostCount: Int
+    public let activeSampleBufferHostCount: Int
+    public let activeMetalHostCount: Int
+    public let suspendedHostCount: Int
+    public let recoveringHostCount: Int
+    public let fallbackHostCount: Int
+    public let maxConcurrentSampleBufferHosts: Int
+    public let totalStrategySwitchCount: Int
+    public let totalActivationCount: Int
+    public let totalDeactivationCount: Int
+    public let totalRecoveryCount: Int
+    public let totalFallbackCount: Int
+    public let totalLifecycleSuspensionCount: Int
+    public let totalVisibilitySuspensionCount: Int
+    public let failureCountsByReason: [String: Int]
 }
 
 enum PreviewHostFleetRegistry {

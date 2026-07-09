@@ -17,9 +17,6 @@
 		872661DE2994DA4700E612C7 /* Harbeth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; };
 		872661DF2994DA4700E612C7 /* Harbeth.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 872661DD2994DA4700E612C7 /* Harbeth.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		874035862A988C07001D0A98 /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874035852A988C07001D0A98 /* ErrorView.swift */; };
-		875CD59E2A49705400C114C3 /* C7Collector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59A2A49705400C114C3 /* C7Collector.swift */; };
-		875CD5A02A49705400C114C3 /* C7CollectorCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */; };
-		875CD5A12A49705400C114C3 /* C7CollectorVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875CD59D2A49705400C114C3 /* C7CollectorVideo.swift */; };
 		8767F21029C95CE600FB5301 /* HarbethExamples.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8767F20F29C95CE600FB5301 /* HarbethExamples.swift */; };
 		8767F21229C95CE600FB5301 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8767F21129C95CE600FB5301 /* ContentView.swift */; };
 		8767F21429C95CE700FB5301 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8767F21329C95CE700FB5301 /* Assets.xcassets */; };
@@ -110,9 +107,6 @@
 		872661D02994D8CE00E612C7 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		872661DD2994DA4700E612C7 /* Harbeth.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Harbeth.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		874035852A988C07001D0A98 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
-		875CD59A2A49705400C114C3 /* C7Collector.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7Collector.swift; sourceTree = "<group>"; };
-		875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorCamera.swift; sourceTree = "<group>"; };
-		875CD59D2A49705400C114C3 /* C7CollectorVideo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = C7CollectorVideo.swift; sourceTree = "<group>"; };
 		8767F20D29C95CE600FB5301 /* Harbeth-SwiftUI-Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Harbeth-SwiftUI-Demo.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8767F20F29C95CE600FB5301 /* HarbethExamples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarbethExamples.swift; sourceTree = "<group>"; };
 		8767F21129C95CE600FB5301 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -231,16 +225,6 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		875CD5992A49705400C114C3 /* Collector */ = {
-			isa = PBXGroup;
-			children = (
-				875CD59A2A49705400C114C3 /* C7Collector.swift */,
-				875CD59C2A49705400C114C3 /* C7CollectorCamera.swift */,
-				875CD59D2A49705400C114C3 /* C7CollectorVideo.swift */,
-			);
-			path = Collector;
-			sourceTree = "<group>";
-		};
 		8767F20E29C95CE600FB5301 /* Harbeth-SwiftUI-Demo */ = {
 			isa = PBXGroup;
 			children = (
@@ -271,7 +255,6 @@
 				8784450E2994DE4A001D856B /* HomeViewModel.swift */,
 				8784450C2994DE4A001D856B /* HomeViewType.swift */,
 				8784450F2994DE4A001D856B /* HomeViewType+Ext.swift */,
-				875CD5992A49705400C114C3 /* Collector */,
 				878445142994DE81001D856B /* Modules */,
 				8784451D2994DE9F001D856B /* Resources */,
 			);
@@ -516,11 +499,8 @@
 				878445102994DE4A001D856B /* HomeViewType.swift in Sources */,
 				878444F52994DDA0001D856B /* AppDelegate.swift in Sources */,
 				878444F72994DDA0001D856B /* SceneDelegate.swift in Sources */,
-				875CD5A12A49705400C114C3 /* C7CollectorVideo.swift in Sources */,
 				878445192994DE81001D856B /* PlayerViewController.swift in Sources */,
 				8784451C2994DE81001D856B /* ImageViewController.swift in Sources */,
-				875CD5A02A49705400C114C3 /* C7CollectorCamera.swift in Sources */,
-				875CD59E2A49705400C114C3 /* C7Collector.swift in Sources */,
 				F70CFB012FF27CB90092DA36 /* MaskShowcaseViewController.swift in Sources */,
 				878445122994DE4A001D856B /* HomeViewModel.swift in Sources */,
 				8784451A2994DE81001D856B /* CameraViewController.swift in Sources */,
@@ -819,13 +799,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera usage description";
+				INFOPLIST_KEY_NSCameraUsageDescription = "此应用需要访问相机以进行拍照";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "此应用需要访问相册以保存拍摄的照片";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -853,13 +834,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Harbeth-iOS-Demo/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Harbeth;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera usage description";
+				INFOPLIST_KEY_NSCameraUsageDescription = "此应用需要访问相机以进行拍照";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "此应用需要访问相册以保存拍摄的照片";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

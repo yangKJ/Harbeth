@@ -12,7 +12,7 @@ public final class PerformanceMonitor {
     
     public struct Configuration {
         public var enabled: Bool = false
-        public var logLevel: LogLevel = .info
+        public var logLevel: LogLevel = .warning
         public var maxStoredMetrics: Int = 100
         public var autoCleanupInterval: TimeInterval = 300
         public var gpuTimeWarningThreshold: TimeInterval = 0.016
@@ -109,6 +109,14 @@ public final class PerformanceMonitor {
         defer { cacheLock.unlock() }
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.resourceEvents.append("reuse:\(source)")
+    }
+
+    public func recordResourceEvent(_ identifier: String, event: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.resourceEvents.append(event)
     }
 
     func recordPipelineCacheLookup(_ identifier: String, hit: Bool) {

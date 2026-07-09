@@ -834,13 +834,16 @@ struct FrameRenderer {
         } else {
             resolvedFormatType = kCVPixelFormatType_32BGRA
         }
-        let pool = try PixelBufferPool(
-            width: texture.width,
-            height: texture.height,
-            pixelFormatType: resolvedFormatType,
-            minimumBufferCount: 1
+        let acquisition = try PixelBufferPool.acquire(
+            for: RenderPixelBufferDescriptor(
+                width: texture.width,
+                height: texture.height,
+                pixelFormatType: resolvedFormatType,
+                minimumBufferCount: 1
+            ),
+            realtime: true
         )
-        let pixelBuffer = try pool.makePixelBuffer()
+        let pixelBuffer = acquisition.buffer
         if let compatibilityError = pixelBuffer.c7.textureCopyCompatibilityError(for: texture) {
             throw compatibilityError
         }

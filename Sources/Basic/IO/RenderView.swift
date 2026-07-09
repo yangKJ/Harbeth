@@ -17,6 +17,9 @@ import AppKit
 #endif
 
 open class RenderView: MTKView {
+    public var onPreviewHostExecutionReportUpdated: ((PreviewHostExecutionReport) -> Void)?
+    public var onPreviewHostFleetSnapshotUpdated: ((PreviewHostFleetSnapshot) -> Void)?
+
     private enum PreviewHostDisplayMode {
         case lowLatency
         case stablePreview
@@ -144,8 +147,8 @@ open class RenderView: MTKView {
     deinit {
         stopObservingPreviewHostLifecycle()
         previewHostExecutionReport = PreviewHostExecutionReport.inactive(predictedStrategy: resolvedPredictedPreviewHostStrategy())
-        publishPreviewHostExecutionReport()
-        publishPreviewHostFleetSnapshot(PreviewHostFleetRegistry.unregister(instanceID: previewHostInstanceIdentifier))
+        publishPreviewHostExecutionReport(deliverCallbacks: false)
+        publishPreviewHostFleetSnapshot(PreviewHostFleetRegistry.unregister(instanceID: previewHostInstanceIdentifier), deliverCallbacks: false)
         clearPreviewHostRuntimeSummary(for: currentRenderedFrame)
         deactivateSampleBufferPreviewHost()
     }
@@ -273,9 +276,7 @@ open class RenderView: MTKView {
     }
 
     private func currentRenderPipelineState() -> MTLRenderPipelineState? {
-        if let cachedPipelineState,
-           cachedPipelinePixelFormat == colorPixelFormat,
-           cachedPipelineSampleCount == sampleCount {
+        if let cachedPipelineState, cachedPipelinePixelFormat == colorPixelFormat, cachedPipelineSampleCount == sampleCount {
             return cachedPipelineState
         }
         let pipelineState = try? Shared.shared.defaultContext.makeRenderPipelineState(
@@ -1124,7 +1125,7 @@ private extension RenderView {
         }
     }
 
-    func publishPreviewHostExecutionReport() {
+    func publishPreviewHostExecutionReport(deliverCallbacks: Bool = true) {
         let snapshot = PreviewHostFleetRegistry.update(instanceID: previewHostInstanceIdentifier, report: previewHostExecutionReport)
         if let cacheIdentityFingerprint = currentRenderedFrame?.cacheIdentity.fingerprint {
             PreviewHostRuntimeSummaryCache.store(
@@ -1135,11 +1136,22 @@ private extension RenderView {
             )
         }
         Shared.shared.performanceMonitor?.recordPreviewHostExecution(previewHostTelemetryIdentifier, report: previewHostExecutionReport)
-        publishPreviewHostFleetSnapshot(snapshot)
+        if deliverCallbacks {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.onPreviewHostExecutionReportUpdated?(self.previewHostExecutionReport)
+            }
+        }
+        publishPreviewHostFleetSnapshot(snapshot, deliverCallbacks: deliverCallbacks)
     }
 
-    func publishPreviewHostFleetSnapshot(_ snapshot: PreviewHostFleetSnapshot) {
+    func publishPreviewHostFleetSnapshot(_ snapshot: PreviewHostFleetSnapshot, deliverCallbacks: Bool = true) {
         Shared.shared.performanceMonitor?.recordPreviewHostFleetSnapshot(previewHostTelemetryIdentifier, snapshot: snapshot)
+        if deliverCallbacks {
+            DispatchQueue.main.async { [weak self] in
+                self?.onPreviewHostFleetSnapshotUpdated?(snapshot)
+            }
+        }
     }
 
     func resolvedPredictedPreviewHostStrategy() -> PreviewHostStrategy {
