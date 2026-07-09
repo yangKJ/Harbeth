@@ -149,7 +149,10 @@ extension ImageNode {
         return try applying(pluginOutput: output, mode: mode)
     }
 
-    public func makeFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil, metadata: [String: String] = [:]) throws -> RenderedFrame {
+    public func makeFrame(profile: RenderProfile = .stablePreview,
+                          derivative: ImageDerivativeSpec? = nil,
+                          outputColorSpace: ImageColorSpaceContract? = nil,
+                          metadata: [String: String] = [:]) throws -> RenderedFrame {
         let monitoringIdentifier = self.monitoringIdentifier
         let monitorEnabled = Shared.shared.enablePerformanceMonitor
         if monitorEnabled {
@@ -161,16 +164,13 @@ extension ImageNode {
             }
         }
 
-        let texture = try makeTexture(
-            profile: profile,
-            derivative: derivative,
-            executionIdentifier: monitoringIdentifier
-        )
+        let texture = try makeTexture(profile: profile, derivative: derivative, executionIdentifier: monitoringIdentifier)
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
         let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
         let primarySource = try resolvedPrimarySource()
-        let colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: diagnostics.outputColorSpace)
+        let resolvedOutputColorSpace = outputColorSpace ?? diagnostics.outputColorSpace
+        let colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: resolvedOutputColorSpace)
         let previewHostStrategy = resolvedPreviewHostStrategy(
             source: primarySource,
             renderedTexture: texture,
@@ -186,6 +186,9 @@ extension ImageNode {
         )
         var renderedMetadata = metadata
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
+        renderedMetadata["outputDynamicRange"] = resolvedOutputColorSpace.dynamicRange.rawValue
+        renderedMetadata["outputColorSpace"] = resolvedOutputColorSpace.name
+        renderedMetadata["outputToneMappingPolicy"] = diagnostics.outputContract.toneMappingPolicy.rawValue
         let token = FrameRenderToken(identifier: monitoringIdentifier, generation: FrameGeneration.next())
         let logicalOutputSize = primarySource.resolvedSizeHint ?? C7Size(width: texture.width, height: texture.height)
         return RenderedFrame(
@@ -209,10 +212,11 @@ extension ImageNode {
 
     public func transmitFrame(profile: RenderProfile = .stablePreview,
                               derivative: ImageDerivativeSpec? = nil,
+                              outputColorSpace: ImageColorSpaceContract? = nil,
                               metadata: [String: String] = [:],
                               complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
         do {
-            complete(.success(try makeFrame(profile: profile, derivative: derivative, metadata: metadata)))
+            complete(.success(try makeFrame(profile: profile, derivative: derivative, outputColorSpace: outputColorSpace, metadata: metadata)))
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
         }
@@ -233,8 +237,7 @@ extension ImageNode {
     private func makeTexture(profile: RenderProfile, derivative: ImageDerivativeSpec?, executionIdentifier: String?) throws -> MTLTexture {
         let effectiveCachePolicy = resolvedCachePolicy
         let fingerprint = resolutionFingerprint(profile: profile, derivative: derivative)
-        if effectiveCachePolicy == .persistent,
-           let cached = Shared.shared.defaultContext.cachedResolvedTexture(for: fingerprint) {
+        if effectiveCachePolicy == .persistent, let cached = Shared.shared.defaultContext.cachedResolvedTexture(for: fingerprint) {
             Shared.shared.performanceMonitor?.recordImageResolutionCacheLookup("imageResolution", hit: true)
             return cached
         }
@@ -729,15 +732,13 @@ extension ImageNode {
 extension ImageNode {
     public func makeFrameAsync(profile: RenderProfile = .stablePreview,
                                derivative: ImageDerivativeSpec? = nil,
+                               outputColorSpace: ImageColorSpaceContract? = nil,
                                metadata: [String: String] = [:]) async throws -> RenderedFrame {
         try await withCheckedThrowingContinuation { continuation in
-            transmitFrame(profile: profile, derivative: derivative, metadata: metadata) { result in
-                switch result {
-                case .success(let frame):
-                    continuation.resume(returning: frame)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
+            do {
+                continuation.resume(returning: try makeFrame(profile: profile, derivative: derivative, outputColorSpace: outputColorSpace, metadata: metadata))
+            } catch {
+                continuation.resume(throwing: error)
             }
         }
     }
@@ -1645,8 +1646,35 @@ extension ImageNode {
         }
 
         var output = texture
+        let toneMappingFilters = contract.toneMappingPolicy.makeToneMappingFilters(
+            sourceColorSpace: sourceColorSpace,
+            targetColorSpace: contract.colorSpace
+        )
         let colorFilters = contract.colorSpace.makeColorConversionFilters(from: sourceColorSpace)
-        if colorFilters.isEmpty == false {
+        if toneMappingFilters.isEmpty == false {
+            if let first = colorFilters.first as? C7RGBTransferConversion, first.mode.isDecodeTransfer {
+                output = try HarbethIO(element: output, filters: [first], identifier: identifier ?? "ImageNode.OutputContract")
+                    .configured(for: profile)
+                    .output()
+                output = try HarbethIO(element: output, filters: toneMappingFilters, identifier: identifier ?? "ImageNode.OutputContract")
+                    .configured(for: profile)
+                    .output()
+                if colorFilters.count > 1 {
+                    output = try HarbethIO(element: output, filters: Array(colorFilters.dropFirst()), identifier: identifier ?? "ImageNode.OutputContract")
+                        .configured(for: profile)
+                        .output()
+                }
+            } else {
+                output = try HarbethIO(element: output, filters: toneMappingFilters, identifier: identifier ?? "ImageNode.OutputContract")
+                    .configured(for: profile)
+                    .output()
+                if colorFilters.isEmpty == false {
+                    output = try HarbethIO(element: output, filters: colorFilters, identifier: identifier ?? "ImageNode.OutputContract")
+                        .configured(for: profile)
+                        .output()
+                }
+            }
+        } else if colorFilters.isEmpty == false {
             output = try HarbethIO(element: output, filters: colorFilters, identifier: identifier ?? "ImageNode.OutputContract")
                 .configured(for: profile)
                 .output()
@@ -1703,6 +1731,10 @@ extension ImageNode {
             inputFingerprint
         ].joined(separator: "||")
         let needsColor = !contract.colorSpace.makeColorConversionFilters(from: sourceColorSpace).isEmpty
+        let needsToneMapping = !contract.toneMappingPolicy.makeToneMappingFilters(
+            sourceColorSpace: sourceColorSpace,
+            targetColorSpace: contract.colorSpace
+        ).isEmpty
         let needsAlpha: Bool
         switch contract.alpha {
         case .premultiplied, .forcePremultiply:
@@ -1720,7 +1752,7 @@ extension ImageNode {
         } else {
             needsPixelFormat = false
         }
-        let isEffective = needsColor || needsAlpha || needsPixelFormat
+        let isEffective = needsColor || needsToneMapping || needsAlpha || needsPixelFormat
         return (key, isEffective)
     }
 }

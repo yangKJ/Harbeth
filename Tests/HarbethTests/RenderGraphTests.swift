@@ -1324,7 +1324,10 @@ final class RenderGraphTests: XCTestCase {
             stageCount: 2,
             compilationSource: "nodeGraph",
             inputSize: "16x12",
-            outputSize: "16x12"
+            outputSize: "16x12",
+            inputDynamicRange: "standardDynamicRange",
+            outputDynamicRange: "standardDynamicRange",
+            outputToneMappingPolicy: "preserveInput"
         )
         let snapshot = RenderGraphDebugSnapshot(
             summary: diagnostics.summary,

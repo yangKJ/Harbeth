@@ -182,6 +182,8 @@ let previewFrame = try ImageNode
 
 For `editing(...)`, `transforming(...)`, `transition(...)`, and `layerComposite(...)`, `ImageNode` keeps the original source contract in `RenderRequest`, `RenderRecipe`, and diagnostics even when execution has already materialized the upstream source into an intermediate texture. This matters for `pixelBuffer`, `sampleBuffer`, YCbCr, and HDR-aware paths.
 
+If you need an explicit HDR / EDR output contract and tone mapping policy, use `HarbethIO.output(outputColorSpace:)` or `ImageNode.makeFrame(outputColorSpace:)` together with presets such as `RenderOutputContract.hdrPQTexture`, `RenderOutputContract.hdrHLGTexture`, and `RenderOutputContract.toneMappedDisplayP3Texture`.
+
 Private plugin packages also stay inside this route. `PluginOutput` can carry source-like results such as `texture`, `image`, `pixelBuffer`, and `sampleBuffer`, or editing-side results such as `filters`, `EditRecipe`, `LocalEffectRecipe`, and `LayerCompositeRecipe`. `LocalEffectRecipe` remains the advanced plugin-facing primitive for local edits, while ordinary app code should still prefer `.applying(mask: ...)`. The host still materializes them back through `ImageNode.source(...)`, `node.applying(pluginOutput:)`, or `node.applying(plugin:)` instead of introducing a third public route.
 
 ```swift

@@ -354,6 +354,15 @@ let image = try io.output()
 
 `HarbethIO` 只保留轻量直接处理心智。frame metadata、render profile、diagnostics、recipe、mask、analysis、deferred render request 等高级能力统一走 `ImageNode`。
 
+如果当前链路需要保留 HDR / EDR 输出语义，可以直接指定输出色彩空间：
+
+```swift
+let hdrImage = try HarbethIO(element: originalPixelBuffer, filters: filters)
+    .output(outputColorSpace: .hdrPQ)
+```
+
+推荐的输出合同预设是 `RenderOutputContract.hdrPQTexture`、`RenderOutputContract.hdrHLGTexture` 和 `RenderOutputContract.toneMappedDisplayP3Texture`；`toneMappingPolicy` 用来标明当前输出是保留 HDR / EDR，还是明确 tone map 到 SDR。
+
 ### ImageNode：编辑、图结构与诊断
 
 当处理包含几何、局部效果、图层合成、转场或 preview/final 输出合同时，统一使用 `ImageNode`。

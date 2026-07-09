@@ -939,18 +939,26 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(renderRecipe.source.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace?.transferFunction, .perceptualQuantizer)
 
         XCTAssertTrue(diagnostics.inputIsHDRFriendly)
+        XCTAssertEqual(diagnostics.inputDynamicRange, .highDynamicRange)
         XCTAssertEqual(diagnostics.inputYCbCrDecodeContract?.layout, .biPlanar)
         XCTAssertTrue(diagnostics.inputPixelPrecision == .float16 || diagnostics.inputPixelPrecision == .custom)
         XCTAssertTrue(diagnostics.summary.contains("origin=sampleBuffer"))
         XCTAssertTrue(diagnostics.summary.contains("inputYCbCrDecode=layout=biPlanar"))
         XCTAssertTrue(diagnostics.summary.contains("inputHDRFriendly=1"))
+        XCTAssertTrue(diagnostics.summary.contains("inputDynamicRange=highDynamicRange"))
+        XCTAssertTrue(diagnostics.summary.contains("toneMapping=preserveInput"))
 
         XCTAssertEqual(snapshot.renderRecipe?.source.kind, "sampleBuffer")
         XCTAssertEqual(snapshot.diagnostics.inputYCbCrDecode, diagnostics.inputYCbCrDecodeContract?.fingerprint)
         XCTAssertTrue(snapshot.diagnostics.inputHDRFriendly)
+        XCTAssertEqual(snapshot.diagnostics.inputDynamicRange, .highDynamicRange.rawValue)
+        XCTAssertEqual(snapshot.diagnostics.outputToneMappingPolicy, diagnostics.outputToneMappingPolicy.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostDecision, PreviewHostRenderingDecision.directPlaneDecodeToRGBA.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostTimingPolicy, PreviewHostTimingPolicy.displayStable.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostSource, frame.frameHostSourceDescriptor.fingerprint)
+        XCTAssertEqual(frame.metadata["outputDynamicRange"], diagnostics.outputDynamicRange.rawValue)
+        XCTAssertEqual(frame.metadata["outputColorSpace"], diagnostics.outputColorSpace.name)
+        XCTAssertEqual(frame.metadata["outputToneMappingPolicy"], diagnostics.outputToneMappingPolicy.rawValue)
         XCTAssertTrue(snapshot.summary.contains("origin=sampleBuffer"))
 
         XCTAssertEqual(frame.sourceDescriptor.kind, "sampleBuffer")
@@ -1104,6 +1112,22 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .sRGB)
         XCTAssertEqual(output.c7.contract.attachmentColorSpace?.gamut, .displayP3)
         XCTAssertEqual(output.c7.contract.attachmentColorSpace?.transferFunction, .sRGB)
+    }
+
+    func testRenderPixelBufferCanOverrideOutputHDRColorSpaceWithoutFilters() throws {
+        let pixelBuffer = try makeBGRAPixelBuffer(width: 2, height: 2)
+
+        let output: CVPixelBuffer = try HarbethIO(
+            element: pixelBuffer,
+            filters: []
+        ).output(outputColorSpace: .extendedLinearDisplayP3)
+
+        XCTAssertFalse(output === pixelBuffer)
+        XCTAssertEqual(output.c7.contract.colorPrimariesAttachment, .p3D65)
+        XCTAssertEqual(output.c7.contract.transferFunctionAttachment, .linear)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.gamut, .displayP3)
+        XCTAssertEqual(output.c7.contract.attachmentColorSpace?.transferFunction, .linear)
+        XCTAssertEqual(output.c7.contract.dynamicRange, .extendedDynamicRange)
     }
 
     func testFilteringSampleBufferAppliesExplicitRenderOutputColorAttachments() throws {

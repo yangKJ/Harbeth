@@ -2835,14 +2835,17 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(RenderOutputContract.preserveInput.alpha, .preserveInput)
     }
 
-    func testRenderOutputContractTracksWideGamutAndHighPrecisionOutput() {
+    func testRenderOutputContractTracksWideGamutHighPrecisionAndHDROutputs() {
         let displayP3 = RenderOutputContract.displayP3Texture
         let highPrecision = RenderOutputContract.highPrecisionLinearTexture
         let linearDisplayP3 = RenderOutputContract.highPrecisionLinearDisplayP3Texture
+        let hdrPQ = RenderOutputContract.hdrPQTexture
+        let toneMapped = RenderOutputContract.toneMappedDisplayP3Texture
 
         XCTAssertTrue(displayP3.isWideGamutOutput)
         XCTAssertFalse(displayP3.isHighPrecisionOutput)
         XCTAssertTrue(displayP3.isHDRFriendlyOutput)
+        XCTAssertEqual(displayP3.toneMappingPolicy, .preserveInput)
         XCTAssertEqual(displayP3.colorSpace.gamut, .displayP3)
         XCTAssertEqual(displayP3.colorSpace.transferFunction, .sRGB)
         XCTAssertEqual(displayP3.pixelFormat.precision, .unorm8)
@@ -2850,6 +2853,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(highPrecision.isWideGamutOutput)
         XCTAssertTrue(highPrecision.isHighPrecisionOutput)
         XCTAssertTrue(highPrecision.isHDRFriendlyOutput)
+        XCTAssertEqual(highPrecision.toneMappingPolicy, .preserveInput)
         XCTAssertEqual(highPrecision.colorSpace.transferFunction, .linear)
         XCTAssertEqual(highPrecision.pixelFormat.precision, .float16)
         XCTAssertTrue(highPrecision.fingerprint.contains("gamut=extendedLinearSRGB"))
@@ -2858,10 +2862,68 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(linearDisplayP3.isWideGamutOutput)
         XCTAssertTrue(linearDisplayP3.isHighPrecisionOutput)
         XCTAssertTrue(linearDisplayP3.isHDRFriendlyOutput)
+        XCTAssertEqual(linearDisplayP3.toneMappingPolicy, .preserveInput)
         XCTAssertEqual(linearDisplayP3.colorSpace.gamut, .displayP3)
         XCTAssertEqual(linearDisplayP3.colorSpace.transferFunction, .linear)
         XCTAssertEqual(linearDisplayP3.pixelFormat.precision, .float16)
         XCTAssertTrue(linearDisplayP3.fingerprint.contains("color=extendedLinearDisplayP3"))
+
+        XCTAssertTrue(hdrPQ.isHDRFriendlyOutput)
+        XCTAssertEqual(hdrPQ.toneMappingPolicy, .toneMapToHDR)
+        XCTAssertEqual(hdrPQ.colorSpace.gamut, .ituR2020)
+        XCTAssertEqual(hdrPQ.colorSpace.transferFunction, .perceptualQuantizer)
+        XCTAssertEqual(hdrPQ.pixelFormat.precision, .float16)
+        XCTAssertTrue(hdrPQ.fingerprint.contains("toneMap=toneMapToHDR"))
+
+        XCTAssertTrue(toneMapped.isWideGamutOutput)
+        XCTAssertEqual(toneMapped.toneMappingPolicy, .toneMapToSDR)
+        XCTAssertEqual(toneMapped.colorSpace.gamut, .displayP3)
+        XCTAssertEqual(toneMapped.pixelFormat.precision, .unorm8)
+        XCTAssertTrue(toneMapped.fingerprint.contains("toneMap=toneMapToSDR"))
+    }
+
+    func testHDRColorSpaceContractsExposeCoreGraphicsHDRSpaces() {
+        XCTAssertEqual(ImageColorSpaceContract.hdrPQ.dynamicRange, .highDynamicRange)
+        XCTAssertEqual(ImageColorSpaceContract.hdrHLG.dynamicRange, .highDynamicRange)
+
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
+            let pq = ImageColorSpaceContract.hdrPQ.cgColorSpace
+            let hlg = ImageColorSpaceContract.hdrHLG.cgColorSpace
+
+            XCTAssertEqual(pq, CGColorSpace(name: CGColorSpace.itur_2020_PQ_EOTF))
+            XCTAssertEqual(hlg, CGColorSpace(name: CGColorSpace.itur_2100_HLG))
+            if let hlg {
+                XCTAssertTrue(CGColorSpaceIsHLGBased(hlg))
+            }
+        }
+    }
+
+    func testHDRToneMappingPolicyBuildsExpectedFilters() {
+        let hdr = ImageColorSpaceContract.hdrPQ
+        let sdr = ImageColorSpaceContract.displayP3
+
+        let sdrFilters = ImageToneMappingPolicy.toneMapToSDR.makeToneMappingFilters(sourceColorSpace: hdr, targetColorSpace: sdr)
+        let hdrFilters = ImageToneMappingPolicy.toneMapToHDR.makeToneMappingFilters(sourceColorSpace: hdr, targetColorSpace: hdr)
+
+        XCTAssertEqual(sdrFilters.count, 2)
+        XCTAssertTrue(sdrFilters[0] is C7HighlightShadowTone)
+        XCTAssertTrue(sdrFilters[1] is C7Exposure)
+        XCTAssertTrue(hdrFilters.isEmpty)
+    }
+
+    func testRenderOutputContractToneMapsHDRSourceIntoSDROutput() throws {
+        let input = try makeTexture(width: 1, height: 1, pixel: [240, 180, 90, 255])
+        let output = try ImageNode.applyOutputContractIfNeeded(
+            .toneMappedDisplayP3Texture,
+            to: input,
+            sourceColorSpace: .hdrPQ,
+            profile: .stablePreview
+        )
+        let outputPixel = try pixel(in: output, x: 0, y: 0)
+        let inputPixel = try pixel(in: input, x: 0, y: 0)
+
+        XCTAssertNotEqual(ObjectIdentifier(output), ObjectIdentifier(input))
+        XCTAssertNotEqual((outputPixel.red, outputPixel.green, outputPixel.blue), (inputPixel.red, inputPixel.green, inputPixel.blue))
     }
 
     func testRenderDiagnosticsExposeOutputQualityContract() {
@@ -2877,6 +2939,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("transfer=linear"))
         XCTAssertTrue(plan.diagnostics.summary.contains("pixelPrecision=float16"))
         XCTAssertTrue(plan.diagnostics.summary.contains("hdrFriendly=1"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("toneMapping=preserveInput"))
         XCTAssertEqual(plan.diagnostics.outputColorSpace, .extendedLinearSRGB)
         XCTAssertEqual(plan.diagnostics.outputPixelFormat, .rgba16Float)
     }
@@ -2901,7 +2964,9 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(output.pixelFormat, .rgba16Float)
     }
 
-    func testRGBTransferConversionRunsOnlyForExplicitCompatibleContracts() throws {
+    func testColorTransferConversionRunsOnlyForExplicitCompatibleContracts() throws {
+        let linearITU2020 = ImageColorSpaceContract(name: "linearITU2020", preservesInput: false, gamut: .ituR2020, transferFunction: .linear)
+
         XCTAssertEqual(
             ImageColorSpaceContract.extendedLinearSRGB.transferConversionMode(from: .sRGB),
             .sRGBToLinear
@@ -2918,6 +2983,10 @@ final class ImageNodeTests: XCTestCase {
             ImageColorSpaceContract.displayP3.transferConversionMode(from: .extendedLinearDisplayP3),
             .linearToSRGB
         )
+        XCTAssertEqual(ImageColorSpaceContract.hdrPQ.transferConversionMode(from: linearITU2020), .linearToPQ)
+        XCTAssertEqual(linearITU2020.transferConversionMode(from: ImageColorSpaceContract.hdrPQ), .pqToLinear)
+        XCTAssertEqual(ImageColorSpaceContract.hdrHLG.transferConversionMode(from: linearITU2020), .linearToHLG)
+        XCTAssertEqual(linearITU2020.transferConversionMode(from: ImageColorSpaceContract.hdrHLG), .hlgToLinear)
         XCTAssertNil(ImageColorSpaceContract.displayP3.transferConversionMode(from: .sRGB))
         XCTAssertNil(ImageColorSpaceContract.extendedLinearSRGB.transferConversionMode(from: .preserveInput))
 
@@ -2935,7 +3004,16 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(outputPixel.alpha, 255)
     }
 
-    func testRGBColorSpaceConversionSupportsDisplayP3Contracts() {
+    func testHDRColorSpaceConversionFiltersBridgeThroughLinearLight() {
+        let filters = ImageColorSpaceContract.displayP3.makeColorConversionFilters(from: .hdrPQ)
+
+        XCTAssertEqual(filters.count, 3)
+        XCTAssertEqual((filters[0] as? C7RGBTransferConversion)?.mode, .pqToLinear)
+        XCTAssertEqual((filters[1] as? C7RGBColorSpaceConversion)?.mode, .linearITU2020ToLinearDisplayP3)
+        XCTAssertEqual((filters[2] as? C7RGBTransferConversion)?.mode, .linearToSRGB)
+    }
+
+    func testColorSpaceConversionSupportsDisplayP3AndHDRContracts() {
         XCTAssertEqual(
             ImageColorSpaceContract.displayP3.colorConversionMode(from: .sRGB),
             .linearSRGBToLinearDisplayP3
@@ -2959,6 +3037,30 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(
             ImageColorSpaceContract.displayP3.colorConversionMode(from: .extendedLinearSRGB),
             .linearSRGBToLinearDisplayP3
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.displayP3.colorConversionMode(from: ImageColorSpaceContract.hdrPQ),
+            .linearITU2020ToLinearDisplayP3
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.hdrPQ.colorConversionMode(from: .displayP3),
+            .linearDisplayP3ToLinearITU2020
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.extendedLinearSRGB.colorConversionMode(from: ImageColorSpaceContract.hdrPQ),
+            .linearITU2020ToLinearSRGB
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.hdrPQ.colorConversionMode(from: .extendedLinearSRGB),
+            .linearSRGBToLinearITU2020
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.sRGB.colorConversionMode(from: ImageColorSpaceContract.hdrPQ),
+            .linearITU2020ToLinearSRGB
+        )
+        XCTAssertEqual(
+            ImageColorSpaceContract.hdrPQ.colorConversionMode(from: .sRGB),
+            .linearSRGBToLinearITU2020
         )
         XCTAssertNil(ImageColorSpaceContract.extendedLinearDisplayP3.colorConversionMode(from: .displayP3))
         XCTAssertNil(ImageColorSpaceContract.displayP3.colorConversionMode(from: .preserveInput))

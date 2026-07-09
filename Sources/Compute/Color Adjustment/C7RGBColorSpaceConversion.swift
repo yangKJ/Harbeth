@@ -17,6 +17,10 @@ public struct C7RGBColorSpaceConversion: C7FilterProtocol {
     public enum Mode: Float, Sendable, Codable, Equatable, Hashable {
         case linearSRGBToLinearDisplayP3 = 0
         case linearDisplayP3ToLinearSRGB = 1
+        case linearITU2020ToLinearDisplayP3 = 2
+        case linearDisplayP3ToLinearITU2020 = 3
+        case linearITU2020ToLinearSRGB = 4
+        case linearSRGBToLinearITU2020 = 5
     }
 
     public let mode: Mode

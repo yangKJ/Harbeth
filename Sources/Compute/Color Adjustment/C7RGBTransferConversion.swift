@@ -16,6 +16,10 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
     public enum Mode: Float, Sendable, Codable, Equatable, Hashable {
         case sRGBToLinear = 0
         case linearToSRGB = 1
+        case pqToLinear = 2
+        case linearToPQ = 3
+        case hlgToLinear = 4
+        case linearToHLG = 5
     }
 
     public let mode: Mode
@@ -41,5 +45,16 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
             return nil
         }
         self.init(mode: mode)
+    }
+}
+
+extension C7RGBTransferConversion.Mode {
+    var isDecodeTransfer: Bool {
+        switch self {
+        case .sRGBToLinear, .pqToLinear, .hlgToLinear:
+            return true
+        case .linearToSRGB, .linearToPQ, .linearToHLG:
+            return false
+        }
     }
 }

@@ -56,6 +56,13 @@ io.transmitOutput { result in
 }
 ```
 
+HDR / EDR 输出建议：
+
+- `HarbethIO.output(outputColorSpace:)` 和 `HarbethIO.transmitOutput(outputColorSpace:)` 允许显式指定输出色彩空间
+- `ImageNode.makeFrame(outputColorSpace:)` 允许把同一份输出 contract 继续带到 frame / diagnostics / metadata
+- `RenderOutputContract.hdrPQTexture`、`RenderOutputContract.hdrHLGTexture`、`RenderOutputContract.toneMappedDisplayP3Texture` 是当前推荐的 HDR / EDR / SDR 输出预设
+- `RenderOutputContract.toneMappingPolicy` 用来声明当前输出是保留 HDR / EDR，还是显式 tone map 到 SDR
+
 一致性说明：
 
 - `HarbethIO` 对外只表达 `source + filters -> output/transmitOutput`

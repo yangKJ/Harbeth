@@ -10,8 +10,8 @@ import MetalKit
 
 extension HarbethIO {
 
-    func resolvedOutputColorSpace(inputSize: C7Size) -> ImageColorSpaceContract {
-        filters.reduce(.preserveInput) { current, filter in
+    func resolvedOutputColorSpace(inputSize: C7Size, outputColorSpace: ImageColorSpaceContract? = nil) -> ImageColorSpaceContract {
+        outputColorSpace ?? filters.reduce(.preserveInput) { current, filter in
             let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
             return declared.preservesInput ? current : declared
         }
@@ -74,12 +74,14 @@ extension HarbethIO {
                            derivative: ImageDerivativeSpec? = nil,
                            pool: PixelBufferPool? = nil,
                            pixelFormatType: OSType = kCVPixelFormatType_32BGRA,
-                           outputPixelFormat: PixelFormatContract = .preserveInput) throws -> CVPixelBuffer {
+                           outputPixelFormat: PixelFormatContract = .preserveInput,
+                           outputColorSpace: ImageColorSpaceContract? = nil) throws -> CVPixelBuffer {
         let result = try renderTextureForPixelBuffer(
             profile: profile,
             derivative: derivative,
             requestedPixelFormatType: pixelFormatType,
-            outputPixelFormat: outputPixelFormat
+            outputPixelFormat: outputPixelFormat,
+            outputColorSpace: outputColorSpace
         )
         let texture = result.texture
         let resolvedPixelFormatType = try resolvePixelBufferFormatType(
@@ -474,7 +476,7 @@ extension HarbethIO {
     }
 
     /// texture-first 同步帧输出，携带稳定元数据。
-    func renderFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil, metadata: [String: String] = [:]) throws -> RenderedFrame {
+    func renderFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil, outputColorSpace: ImageColorSpaceContract? = nil, metadata: [String: String] = [:]) throws -> RenderedFrame {
         let source = try makeImageSource()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let renderer = FrameRenderer(
@@ -484,6 +486,7 @@ extension HarbethIO {
             renderIntent: effectiveDerivative.renderIntent,
             identifier: identifier,
             metadata: metadata,
+            outputColorSpace: outputColorSpace,
             outputSemantic: effectiveDerivative.semantic,
             outputDerivative: effectiveDerivative
         )
@@ -497,6 +500,7 @@ extension HarbethIO {
     func renderFrame(profile: RenderProfile = .stablePreview,
                      derivative: ImageDerivativeSpec? = nil,
                      token: FrameRenderToken,
+                     outputColorSpace: ImageColorSpaceContract? = nil,
                      metadata: [String: String] = [:]) throws -> RenderedFrame {
         let source = try makeImageSource()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
@@ -507,6 +511,7 @@ extension HarbethIO {
             renderIntent: effectiveDerivative.renderIntent,
             identifier: identifier,
             metadata: metadata,
+            outputColorSpace: outputColorSpace,
             outputSemantic: effectiveDerivative.semantic,
             outputDerivative: effectiveDerivative
         ).renderFrame(token: token)
@@ -516,12 +521,14 @@ extension HarbethIO {
     /// 应走读回路径并等待 GPU 完成。
     func transmitFrame(profile: RenderProfile = .stablePreview,
                        derivative: ImageDerivativeSpec? = nil,
+                       outputColorSpace: ImageColorSpaceContract? = nil,
                        metadata: [String: String] = [:],
                        complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
         transmitFrame(
             profile: profile,
             derivative: derivative,
             token: makeFrameRenderToken(),
+            outputColorSpace: outputColorSpace,
             metadata: metadata,
             complete: complete
         )
@@ -530,6 +537,7 @@ extension HarbethIO {
     func transmitFrame(profile: RenderProfile = .stablePreview,
                        derivative: ImageDerivativeSpec? = nil,
                        token: FrameRenderToken,
+                       outputColorSpace: ImageColorSpaceContract? = nil,
                        metadata: [String: String] = [:],
                        complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
         do {
@@ -542,6 +550,7 @@ extension HarbethIO {
                 renderIntent: effectiveDerivative.renderIntent,
                 identifier: identifier,
                 metadata: metadata,
+                outputColorSpace: outputColorSpace,
                 outputSemantic: effectiveDerivative.semantic,
                 outputDerivative: effectiveDerivative
             ).transmitFrame(token: token, complete: complete)
@@ -595,7 +604,8 @@ extension HarbethIO {
     private func renderTextureForPixelBuffer(profile: RenderProfile,
                                              derivative: ImageDerivativeSpec?,
                                              requestedPixelFormatType: OSType,
-                                             outputPixelFormat: PixelFormatContract) throws -> (texture: MTLTexture, outputColorSpace: ImageColorSpaceContract) {
+                                             outputPixelFormat: PixelFormatContract,
+                                             outputColorSpace: ImageColorSpaceContract? = nil) throws -> (texture: MTLTexture, outputColorSpace: ImageColorSpaceContract) {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
         var effectiveFilters = context.effectiveFilters
         let targetPixelFormat: MTLPixelFormat? = {
@@ -621,7 +631,7 @@ extension HarbethIO {
             effectiveFilters = [C7Brightness(brightness: 0)]
         }
         guard effectiveFilters.isEmpty == false else {
-            return (context.sourceTexture, .preserveInput)
+            return (context.sourceTexture, outputColorSpace ?? .preserveInput)
         }
         var io = HarbethIO<MTLTexture>(element: context.sourceTexture, filters: effectiveFilters)
             .configured(for: profile)
@@ -630,7 +640,8 @@ extension HarbethIO {
             io.createDestTexture = true
         }
         let outputColorSpace = io.resolvedOutputColorSpace(
-            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height)
+            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height),
+            outputColorSpace: outputColorSpace
         )
         let texture = try io.output()
         return (texture, outputColorSpace)

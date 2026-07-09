@@ -426,6 +426,8 @@ struct FrameRenderer {
     let recipeMode: EditRecipeMode?
     let transitionRecipe: TransitionRecipe?
     let samplerDescriptor: ImageSamplerDescriptor
+    let outputColorSpace: ImageColorSpaceContract?
+    let outputToneMappingPolicy: ImageToneMappingPolicy?
     var profile: RenderProfile
     var renderIntent: RenderIntent
     var identifier: String
@@ -440,6 +442,8 @@ struct FrameRenderer {
          renderIntent: RenderIntent? = nil,
          identifier: String = UUID().uuidString,
          metadata: [String: String] = [:],
+         outputColorSpace: ImageColorSpaceContract? = nil,
+         outputToneMappingPolicy: ImageToneMappingPolicy? = nil,
          outputSemantic: ImageSemanticDescriptor? = nil,
          outputDerivative: ImageDerivativeSpec? = nil,
          outputCachePolicy: ImageCachePolicy? = nil,
@@ -450,6 +454,8 @@ struct FrameRenderer {
         self.recipeMode = nil
         self.transitionRecipe = nil
         self.samplerDescriptor = samplerDescriptor
+        self.outputColorSpace = outputColorSpace
+        self.outputToneMappingPolicy = outputToneMappingPolicy
         self.profile = profile
         self.renderIntent = renderIntent ?? profile.defaultRenderIntent
         self.identifier = identifier
@@ -466,6 +472,8 @@ struct FrameRenderer {
          identifier: String = UUID().uuidString,
          metadata: [String: String] = [:],
          derivative: ImageDerivativeSpec? = nil,
+         outputColorSpace: ImageColorSpaceContract? = nil,
+         outputToneMappingPolicy: ImageToneMappingPolicy? = nil,
          samplerDescriptor: ImageSamplerDescriptor = .default) {
         let contract = recipe.contract(for: mode)
         self.source = source
@@ -474,6 +482,8 @@ struct FrameRenderer {
         self.recipeMode = mode
         self.transitionRecipe = nil
         self.samplerDescriptor = samplerDescriptor
+        self.outputColorSpace = outputColorSpace
+        self.outputToneMappingPolicy = outputToneMappingPolicy
         self.profile = contract.profile
         self.renderIntent = contract.renderIntent
         self.identifier = identifier
@@ -489,6 +499,8 @@ struct FrameRenderer {
          derivative: ImageDerivativeSpec? = nil,
          identifier: String = UUID().uuidString,
          metadata: [String: String] = [:],
+         outputColorSpace: ImageColorSpaceContract? = nil,
+         outputToneMappingPolicy: ImageToneMappingPolicy? = nil,
          samplerDescriptor: ImageSamplerDescriptor = .default) {
         self.source = transitionRecipe.from
         self.filters = filters
@@ -496,6 +508,8 @@ struct FrameRenderer {
         self.recipeMode = nil
         self.transitionRecipe = transitionRecipe
         self.samplerDescriptor = samplerDescriptor
+        self.outputColorSpace = outputColorSpace
+        self.outputToneMappingPolicy = outputToneMappingPolicy
         let effectiveProfile = profile ?? transitionRecipe.profile
         let effectiveDerivative = derivative ?? transitionRecipe.derivative
         self.profile = effectiveProfile
@@ -519,7 +533,7 @@ struct FrameRenderer {
         guard effectiveFilters.isEmpty == false else { return input }
         return try makeIO(element: input, filters: effectiveFilters)
             .configured(for: profile)
-            .output()
+            .output(outputColorSpace: outputColorSpace)
     }
 
     func makeToken() -> FrameRenderToken {
@@ -681,6 +695,13 @@ struct FrameRenderer {
         if filterChain.isEmpty == false || value["filterChainFingerprint"] == nil {
             value["filterChainFingerprint"] = filterChain.chainRecipe.fingerprint
         }
+        if let outputColorSpace {
+            value["outputColorSpace"] = outputColorSpace.name
+            value["outputDynamicRange"] = outputColorSpace.dynamicRange.rawValue
+        }
+        if let outputToneMappingPolicy {
+            value["outputToneMappingPolicy"] = outputToneMappingPolicy.rawValue
+        }
         return value
     }
 
@@ -691,7 +712,7 @@ struct FrameRenderer {
         } else {
             inputSize = nil
         }
-        let explicitOutput = filterChain.reduce(ImageColorSpaceContract.preserveInput) { current, filter in
+        let explicitOutput = outputColorSpace ?? filterChain.reduce(ImageColorSpaceContract.preserveInput) { current, filter in
             let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
             return declared.preservesInput ? current : declared
         }

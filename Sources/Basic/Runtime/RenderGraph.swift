@@ -442,7 +442,10 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "inputYCbCrDecode=\(inputYCbCrDecodeContract?.fingerprint ?? "none")",
             "inputPixelPrecision=\(inputPixelPrecision.rawValue)",
             "inputHDRFriendly=\(inputIsHDRFriendly ? 1 : 0)",
+            "inputDynamicRange=\(inputDynamicRange.rawValue)",
             "outputPixel=\(outputPixelFormat.name)",
+            "outputDynamicRange=\(outputDynamicRange.rawValue)",
+            "toneMapping=\(outputContract.toneMappingPolicy.rawValue)",
             "alphaContract=\(outputContract.alpha)",
             "colorGamut=\(outputContract.colorSpace.gamut.rawValue)",
             "transfer=\(outputContract.colorSpace.transferFunction.rawValue)",
@@ -550,6 +553,21 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
 
     public var inputIsHDRFriendly: Bool {
         inputPixelFormat.isHighPrecision || inputColorSpace.isWideGamut || inputColorSpace.isHDRTransfer
+    }
+
+    public var inputDynamicRange: ImageDynamicRangeContract {
+        if inputColorSpace.dynamicRange != .preserveInput {
+            return inputColorSpace.dynamicRange
+        }
+        return inputPixelFormat.dynamicRange
+    }
+
+    public var outputDynamicRange: ImageDynamicRangeContract {
+        outputContract.dynamicRange
+    }
+
+    public var outputToneMappingPolicy: ImageToneMappingPolicy {
+        outputContract.toneMappingPolicy
     }
 
     public var outputAttachmentCount: Int {
@@ -823,14 +841,12 @@ struct RenderPlan {
         let resolvedPersistentBoundaryCount = imageGraph?.persistentBoundaryCount ?? (containsBoundary ? 1 : 0)
         let resolvedTransientReuseCandidateCount = imageGraph?.transientReuseCandidateCount ?? max(nodeDiagnostics.count - 1, 0)
         let resolvedSharedDependencyNodeCount = imageGraph?.sharedDependencyNodeCount ?? 0
+        let pixelFormatConversionCount = outputContract.requiresPixelFormatConversion ? max(optimizationPlan.formatConversionCount, 1) : optimizationPlan.formatConversionCount
+        let graphFingerprint = RenderPlanDiagnostics.makeGraphFingerprint(nodes: nodeDiagnostics, stages: optimizedStages, compilationSource: compilationSource)
         self.diagnostics = RenderPlanDiagnostics(
             profile: profile,
             derivative: derivative,
-            graphFingerprint: RenderPlanDiagnostics.makeGraphFingerprint(
-                nodes: nodeDiagnostics,
-                stages: optimizedStages,
-                compilationSource: compilationSource
-            ),
+            graphFingerprint: graphFingerprint,
             sourceKind: sourceDescriptor?.kind,
             graphNodeCount: resolvedGraphNodeCount,
             graphEdgeCount: resolvedGraphEdgeCount,
@@ -868,7 +884,7 @@ struct RenderPlan {
             inputFrameHostDescriptor: resolvedInputFrameHostDescriptor,
             alphaConversionCount: outputContract.requiresAlphaConversion ? 1 : 0,
             colorConversionCount: outputContract.requiresColorSpaceConversion ? 1 : 0,
-            pixelFormatConversionCount: outputContract.requiresPixelFormatConversion ? max(optimizationPlan.formatConversionCount, 1) : optimizationPlan.formatConversionCount,
+            pixelFormatConversionCount: pixelFormatConversionCount,
             lossyConversionCount: resolvedLossyConversionCount,
             nodes: nodeDiagnostics,
             stages: optimizedStages
@@ -1025,11 +1041,9 @@ enum GraphOptimizer {
         if imageCachePolicy == .persistent {
             decisions.append("preservePersistentImageNode")
         }
-        if inputPixelFormat.isHighPrecision,
-           prewarmReservations.contains(where: {
-               resolvedReservationPixelFormat(preferred: $0.pixelFormat, fallback: inputPixelFormat)
-                   .metalPixelFormat == inputPixelFormat.metalPixelFormat
-           }) {
+        if inputPixelFormat.isHighPrecision, prewarmReservations.contains(where: {
+            resolvedReservationPixelFormat(preferred: $0.pixelFormat, fallback: inputPixelFormat).metalPixelFormat == inputPixelFormat.metalPixelFormat
+        }) {
             decisions.append("preserveInputPixelFormatForReservations")
         }
         if prewarmReservations.contains(where: {

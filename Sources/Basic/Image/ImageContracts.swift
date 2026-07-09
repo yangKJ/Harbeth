@@ -126,6 +126,14 @@ public enum ImageTransferFunction: String, Sendable, Codable, Equatable, Hashabl
     case custom
 }
 
+public enum ImageDynamicRangeContract: String, Sendable, Codable, Equatable, Hashable {
+    case preserveInput
+    case standardDynamicRange
+    case extendedDynamicRange
+    case highDynamicRange
+    case custom
+}
+
 public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let preservesInput: Bool
@@ -164,6 +172,18 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         gamut: .extendedLinearSRGB,
         transferFunction: .linear
     )
+    public static let hdrPQ = ImageColorSpaceContract(
+        name: "ituR2020PQ",
+        preservesInput: false,
+        gamut: .ituR2020,
+        transferFunction: .perceptualQuantizer
+    )
+    public static let hdrHLG = ImageColorSpaceContract(
+        name: "ituR2020HLG",
+        preservesInput: false,
+        gamut: .ituR2020,
+        transferFunction: .hybridLogGamma
+    )
 
     public var isWideGamut: Bool {
         switch gamut {
@@ -181,6 +201,26 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         case .preserveInput, .sRGB, .linear, .custom:
             return false
         }
+    }
+
+    public var dynamicRange: ImageDynamicRangeContract {
+        if preservesInput {
+            return .preserveInput
+        }
+        switch transferFunction {
+        case .perceptualQuantizer, .hybridLogGamma:
+            return .highDynamicRange
+        case .linear:
+            return .extendedDynamicRange
+        case .sRGB:
+            return .standardDynamicRange
+        case .preserveInput, .custom:
+            return .custom
+        }
+    }
+
+    public var isHighDynamicRange: Bool {
+        dynamicRange == .highDynamicRange
     }
 
     public var fingerprint: String {
@@ -216,6 +256,14 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
             return .sRGBToLinear
         case (.linear, .sRGB):
             return .linearToSRGB
+        case (.perceptualQuantizer, .linear):
+            return .pqToLinear
+        case (.linear, .perceptualQuantizer):
+            return .linearToPQ
+        case (.hybridLogGamma, .linear):
+            return .hlgToLinear
+        case (.linear, .hybridLogGamma):
+            return .linearToHLG
         default:
             return nil
         }
@@ -234,6 +282,14 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
             return .linearSRGBToLinearDisplayP3
         case (.displayP3, .sRGB), (.displayP3, .extendedLinearSRGB):
             return .linearDisplayP3ToLinearSRGB
+        case (.ituR2020, .displayP3):
+            return .linearITU2020ToLinearDisplayP3
+        case (.displayP3, .ituR2020):
+            return .linearDisplayP3ToLinearITU2020
+        case (.ituR2020, .sRGB), (.ituR2020, .extendedLinearSRGB):
+            return .linearITU2020ToLinearSRGB
+        case (.sRGB, .ituR2020), (.extendedLinearSRGB, .ituR2020):
+            return .linearSRGBToLinearITU2020
         default:
             return nil
         }
@@ -243,22 +299,26 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         guard preservesInput == false, source.preservesInput == false else {
             return []
         }
+        if source == self {
+            return []
+        }
         if let transferOnly = C7RGBTransferConversion(from: source, to: self) {
             return [transferOnly]
         }
-        guard let gamutMode = colorConversionMode(from: source) else {
-            return []
-        }
-        let decodeTransfer = source.transferFunction == .sRGB && (source.gamut == .sRGB || source.gamut == .displayP3)
-        let encodeTransfer = transferFunction == .sRGB && (gamut == .sRGB || gamut == .displayP3)
-
         var filters: [C7FilterProtocol] = []
-        if decodeTransfer {
-            filters.append(C7RGBTransferConversion(mode: .sRGBToLinear))
+        let sourceLinear = ImageColorSpaceContract(name: "linearBridge", preservesInput: false, gamut: source.gamut, transferFunction: .linear)
+        let targetLinear = ImageColorSpaceContract(name: "linearBridge", preservesInput: false, gamut: gamut, transferFunction: .linear)
+        let decodeTransfer = source.transferFunction != .linear
+        let encodeTransfer = transferFunction != .linear
+
+        if decodeTransfer, let transfer = C7RGBTransferConversion(from: source, to: sourceLinear) {
+            filters.append(transfer)
         }
-        filters.append(C7RGBColorSpaceConversion(mode: gamutMode))
-        if encodeTransfer {
-            filters.append(C7RGBTransferConversion(mode: .linearToSRGB))
+        if let gamutMode = colorConversionMode(from: source) {
+            filters.append(C7RGBColorSpaceConversion(mode: gamutMode))
+        }
+        if encodeTransfer, let transfer = C7RGBTransferConversion(from: targetLinear, to: self) {
+            filters.append(transfer)
         }
         return filters
     }
@@ -269,7 +329,8 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
              (.displayP3, .displayP3),
              (.sRGB, .extendedLinearSRGB),
              (.extendedLinearSRGB, .sRGB),
-             (.extendedLinearSRGB, .extendedLinearSRGB):
+             (.extendedLinearSRGB, .extendedLinearSRGB),
+             (.ituR2020, .ituR2020):
             return true
         default:
             return false
@@ -291,6 +352,16 @@ extension ImageColorSpaceContract {
             return CGColorSpace(name: CGColorSpace.displayP3)
         case (.extendedLinearSRGB, _):
             return CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+        case (.ituR2020, .perceptualQuantizer):
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
+                return CGColorSpace(name: CGColorSpace.itur_2020_PQ_EOTF)
+            }
+            return nil
+        case (.ituR2020, .hybridLogGamma):
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
+                return CGColorSpace(name: CGColorSpace.itur_2100_HLG)
+            }
+            return nil
         case (.preserveInput, _), (.ituR2020, _), (.custom, _):
             return nil
         }
@@ -331,6 +402,10 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
         case .preserveInput, .unorm8, .custom:
             return false
         }
+    }
+
+    public var dynamicRange: ImageDynamicRangeContract {
+        isHighPrecision ? .extendedDynamicRange : .standardDynamicRange
     }
 
     public var fingerprint: String {
@@ -414,6 +489,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
     public let inputAlphaExpectation: ImageAlphaContract
     public let attachments: [RenderOutputAttachmentContract]
     public let colorTransferPolicy: ColorTransferPolicy
+    public let toneMappingPolicy: ImageToneMappingPolicy
     public let pixelFormatFallbackPolicy: PixelFormatFallbackPolicy
     public let allowsLossyConversion: Bool
     public let preservesOrientation: Bool
@@ -424,6 +500,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
                 pixelFormat: PixelFormatContract = .preserveInput,
                 additionalAttachments: [RenderOutputAttachmentContract] = [],
                 colorTransferPolicy: ColorTransferPolicy = .automatic,
+                toneMappingPolicy: ImageToneMappingPolicy = .preserveInput,
                 pixelFormatFallbackPolicy: PixelFormatFallbackPolicy = .preserveInput,
                 allowsLossyConversion: Bool = false,
                 preservesOrientation: Bool = true) {
@@ -439,6 +516,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
             additional: additionalAttachments
         )
         self.colorTransferPolicy = colorTransferPolicy
+        self.toneMappingPolicy = toneMappingPolicy
         self.pixelFormatFallbackPolicy = pixelFormatFallbackPolicy
         self.allowsLossyConversion = allowsLossyConversion
         self.preservesOrientation = preservesOrientation
@@ -449,6 +527,24 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
     public static let displayP3Texture = RenderOutputContract(colorSpace: .displayP3, pixelFormat: .rgba8Unorm)
     public static let highPrecisionLinearTexture = RenderOutputContract(colorSpace: .extendedLinearSRGB, pixelFormat: .rgba16Float)
     public static let highPrecisionLinearDisplayP3Texture = RenderOutputContract(colorSpace: .extendedLinearDisplayP3, pixelFormat: .rgba16Float)
+    public static let hdrPQTexture = RenderOutputContract(
+        colorSpace: .hdrPQ,
+        pixelFormat: .rgba16Float,
+        colorTransferPolicy: .convertToOutput,
+        toneMappingPolicy: .toneMapToHDR
+    )
+    public static let hdrHLGTexture = RenderOutputContract(
+        colorSpace: .hdrHLG,
+        pixelFormat: .rgba16Float,
+        colorTransferPolicy: .convertToOutput,
+        toneMappingPolicy: .toneMapToHDR
+    )
+    public static let toneMappedDisplayP3Texture = RenderOutputContract(
+        colorSpace: .displayP3,
+        pixelFormat: .rgba8Unorm,
+        colorTransferPolicy: .convertToOutput,
+        toneMappingPolicy: .toneMapToSDR
+    )
 
     public var primaryAttachment: RenderOutputAttachmentContract {
         attachments.first ?? RenderOutputAttachmentContract(index: 0)
@@ -523,6 +619,19 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         colorSpace.isWideGamut || colorSpace.isHDRTransfer || pixelFormat.isHighPrecision
     }
 
+    public var dynamicRange: ImageDynamicRangeContract {
+        if colorSpace.isHighDynamicRange {
+            return .highDynamicRange
+        }
+        if colorSpace.dynamicRange == .extendedDynamicRange || pixelFormat.isHighPrecision {
+            return .extendedDynamicRange
+        }
+        if colorSpace.dynamicRange == .preserveInput {
+            return pixelFormat.preservesInput ? .preserveInput : .custom
+        }
+        return .standardDynamicRange
+    }
+
     public var hasWideGamutAttachment: Bool {
         attachments.contains(where: { $0.colorSpace.isWideGamut })
     }
@@ -540,6 +649,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
             "inputAlpha=\(inputAlphaExpectation)",
             "attachments=\(attachments.map(\.fingerprint).joined(separator: "||"))",
             "transferPolicy=\(colorTransferPolicy.rawValue)",
+            "toneMap=\(toneMappingPolicy.rawValue)",
             "pixelFallback=\(pixelFormatFallbackPolicy.rawValue)",
             "lossy=\(allowsLossyConversion ? 1 : 0)",
             "orientation=\(preservesOrientation ? "preserve" : "reset")"
@@ -553,6 +663,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         case pixelFormat
         case attachments
         case colorTransferPolicy
+        case toneMappingPolicy
         case pixelFormatFallbackPolicy
         case allowsLossyConversion
         case preservesOrientation
@@ -562,6 +673,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let inputAlphaExpectation = try container.decodeIfPresent(ImageAlphaContract.self, forKey: .inputAlphaExpectation) ?? .preserveInput
         let colorTransferPolicy = try container.decodeIfPresent(ColorTransferPolicy.self, forKey: .colorTransferPolicy) ?? .automatic
+        let toneMappingPolicy = try container.decodeIfPresent(ImageToneMappingPolicy.self, forKey: .toneMappingPolicy) ?? .preserveInput
         let pixelFormatFallbackPolicy = try container.decodeIfPresent(PixelFormatFallbackPolicy.self, forKey: .pixelFormatFallbackPolicy) ?? .preserveInput
         let allowsLossyConversion = try container.decodeIfPresent(Bool.self, forKey: .allowsLossyConversion) ?? false
         let preservesOrientation = try container.decodeIfPresent(Bool.self, forKey: .preservesOrientation) ?? true
@@ -584,6 +696,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
             pixelFormat: primaryAttachment.pixelFormat,
             additionalAttachments: Array((storedAttachments ?? [primaryAttachment]).dropFirst()),
             colorTransferPolicy: colorTransferPolicy,
+            toneMappingPolicy: toneMappingPolicy,
             pixelFormatFallbackPolicy: pixelFormatFallbackPolicy,
             allowsLossyConversion: allowsLossyConversion,
             preservesOrientation: preservesOrientation
@@ -598,6 +711,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         try container.encode(pixelFormat, forKey: .pixelFormat)
         try container.encode(attachments, forKey: .attachments)
         try container.encode(colorTransferPolicy, forKey: .colorTransferPolicy)
+        try container.encode(toneMappingPolicy, forKey: .toneMappingPolicy)
         try container.encode(pixelFormatFallbackPolicy, forKey: .pixelFormatFallbackPolicy)
         try container.encode(allowsLossyConversion, forKey: .allowsLossyConversion)
         try container.encode(preservesOrientation, forKey: .preservesOrientation)
@@ -872,6 +986,51 @@ public enum ColorTransferPolicy: String, Sendable, Codable, Equatable, Hashable 
     case convertToOutput
 }
 
+public enum ImageToneMappingPolicy: String, Sendable, Codable, Equatable, Hashable {
+    case preserveInput
+    case none
+    case toneMapToSDR
+    case toneMapToEDR
+    case toneMapToHDR
+    case custom
+}
+
+extension ImageToneMappingPolicy {
+    func makeToneMappingFilters(sourceColorSpace: ImageColorSpaceContract, targetColorSpace: ImageColorSpaceContract) -> [C7FilterProtocol] {
+        switch self {
+        case .preserveInput, .none, .custom:
+            return []
+        case .toneMapToSDR:
+            guard sourceColorSpace.dynamicRange == .highDynamicRange,
+                  targetColorSpace.dynamicRange == .standardDynamicRange else {
+                return []
+            }
+            return [
+                C7HighlightShadowTone(shadows: 0.12, highlights: -0.28, midtones: 0.06, contrast: 0.08),
+                C7Exposure(exposure: -0.18)
+            ]
+        case .toneMapToEDR:
+            guard sourceColorSpace.dynamicRange == .highDynamicRange,
+                  targetColorSpace.dynamicRange == .extendedDynamicRange else {
+                return []
+            }
+            return [
+                C7HighlightShadowTone(shadows: 0.08, highlights: -0.14, midtones: 0.03, contrast: 0.04),
+                C7Exposure(exposure: -0.06)
+            ]
+        case .toneMapToHDR:
+            guard targetColorSpace.dynamicRange == .highDynamicRange,
+                  sourceColorSpace.dynamicRange != .highDynamicRange else {
+                return []
+            }
+            return [
+                C7Exposure(exposure: 0.14),
+                C7HighlightShadowTone(shadows: -0.04, highlights: 0.10, midtones: 0.04, contrast: 0.05)
+            ]
+        }
+    }
+}
+
 public enum PixelFormatFallbackPolicy: String, Sendable, Codable, Equatable, Hashable {
     case preserveInput
     case nearestSupported
@@ -1106,6 +1265,22 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
         )
     }
 
+    public var dynamicRange: ImageDynamicRangeContract {
+        if let attachmentColorSpace {
+            switch attachmentColorSpace.dynamicRange {
+            case .highDynamicRange:
+                return .highDynamicRange
+            case .extendedDynamicRange:
+                return .extendedDynamicRange
+            case .standardDynamicRange:
+                return preferredMetalPixelFormat?.isHighPrecision == true ? .extendedDynamicRange : .standardDynamicRange
+            case .preserveInput, .custom:
+                break
+            }
+        }
+        return preferredMetalPixelFormat?.isHighPrecision == true ? .extendedDynamicRange : .standardDynamicRange
+    }
+
     public var fingerprint: String {
         [
             "size=\(width)x\(height)",
@@ -1119,6 +1294,17 @@ public struct PixelBufferContract: Sendable, Codable, Equatable, Hashable {
             "transferAttachment=\(transferFunctionAttachment?.rawValue ?? "none")",
             planes.map(\.fingerprint).joined(separator: "||")
         ].joined(separator: "|")
+    }
+}
+
+extension MTLPixelFormat {
+    var isHighPrecision: Bool {
+        switch self {
+        case .rgba16Float, .rgba32Float, .r16Float, .rg16Float, .r32Float, .rg32Float:
+            return true
+        default:
+            return false
+        }
     }
 }
 

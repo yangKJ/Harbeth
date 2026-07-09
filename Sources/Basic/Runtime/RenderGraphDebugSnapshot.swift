@@ -115,6 +115,9 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let compilationSource: String
         public let inputSize: String
         public let outputSize: String
+        public let inputDynamicRange: String
+        public let outputDynamicRange: String
+        public let outputToneMappingPolicy: String
 
         init(summary: String,
              profile: String,
@@ -170,7 +173,10 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
              stageCount: Int,
              compilationSource: String,
              inputSize: String,
-             outputSize: String) {
+             outputSize: String,
+             inputDynamicRange: String,
+             outputDynamicRange: String,
+             outputToneMappingPolicy: String) {
             self.summary = summary
             self.profile = profile
             self.derivative = derivative
@@ -219,6 +225,9 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             self.compilationSource = compilationSource
             self.inputSize = inputSize
             self.outputSize = outputSize
+            self.inputDynamicRange = inputDynamicRange
+            self.outputDynamicRange = outputDynamicRange
+            self.outputToneMappingPolicy = outputToneMappingPolicy
         }
 
         init(diagnostics: RenderPlanDiagnostics, runtimePreviewHostSummary: RuntimePreviewHostSummary? = nil) {
@@ -271,7 +280,10 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 stageCount: diagnostics.stageCount,
                 compilationSource: diagnostics.compilationSource.rawValue,
                 inputSize: "\(diagnostics.inputSize.width)x\(diagnostics.inputSize.height)",
-                outputSize: "\(diagnostics.outputSize.width)x\(diagnostics.outputSize.height)"
+                outputSize: "\(diagnostics.outputSize.width)x\(diagnostics.outputSize.height)",
+                inputDynamicRange: diagnostics.inputDynamicRange.rawValue,
+                outputDynamicRange: diagnostics.outputDynamicRange.rawValue,
+                outputToneMappingPolicy: diagnostics.outputToneMappingPolicy.rawValue
             )
         }
     }

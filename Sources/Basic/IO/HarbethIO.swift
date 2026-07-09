@@ -86,9 +86,9 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     }
 
     @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
-    public func transmitOutput() async throws -> Dest {
+    public func transmitOutput(outputColorSpace: ImageColorSpaceContract? = nil) async throws -> Dest {
         try await withCheckedThrowingContinuation { continuation in
-            transmitOutput(complete: { result in
+            transmitOutput(outputColorSpace: outputColorSpace, complete: { result in
                 switch result {
                 case .success(let output):
                     continuation.resume(returning: output)
@@ -100,8 +100,11 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     }
     
     /// Directly convert the current input and filter chain into `RenderedFrame`.
-    public func makeFrame(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil, metadata: [String: String] = [:]) throws -> RenderedFrame {
-        try renderFrame(profile: profile, derivative: derivative, metadata: metadata)
+    public func makeFrame(profile: RenderProfile = .stablePreview,
+                          derivative: ImageDerivativeSpec? = nil,
+                          outputColorSpace: ImageColorSpaceContract? = nil,
+                          metadata: [String: String] = [:]) throws -> RenderedFrame {
+        try renderFrame(profile: profile, derivative: derivative, outputColorSpace: outputColorSpace, metadata: metadata)
     }
     
     /// Add filters to sources synchronously. If it fails, it returns element.
@@ -111,9 +114,23 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     
     /// Add filters to sources asynchronously.
     /// - Returns: The result of adding filters to the sources asynchronously.
-    public func output() throws -> Dest {
+    public func output(outputColorSpace: ImageColorSpaceContract? = nil) throws -> Dest {
         if self.filters.isEmpty {
-            return element
+            guard let outputColorSpace else {
+                return element
+            }
+            switch element {
+            case let ee as C7Image:
+                return try filtering(image: ee, outputColorSpace: outputColorSpace) as! Dest
+            case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
+                return try filtering(cgImage: ee as! CGImage, outputColorSpace: outputColorSpace) as! Dest
+            case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
+                return try filtering(pixelBuffer: ee as! CVPixelBuffer, outputColorSpace: outputColorSpace) as! Dest
+            case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
+                return try filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace) as! Dest
+            default:
+                return element
+            }
         }
         if Shared.shared.enablePerformanceMonitor {
             Shared.shared.performanceMonitor?.beginMonitoring(identifier)
@@ -123,13 +140,13 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
         case let ee as MTLTexture:
             return try filtering(texture: ee) as! Dest
         case let ee as C7Image:
-            return try filtering(image: ee) as! Dest
+            return try filtering(image: ee, outputColorSpace: outputColorSpace) as! Dest
         case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
-            return try filtering(cgImage: ee as! CGImage) as! Dest
+            return try filtering(cgImage: ee as! CGImage, outputColorSpace: outputColorSpace) as! Dest
         case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
-            return try filtering(pixelBuffer: ee as! CVPixelBuffer) as! Dest
+            return try filtering(pixelBuffer: ee as! CVPixelBuffer, outputColorSpace: outputColorSpace) as! Dest
         case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
-            return try filtering(sampleBuffer: ee as! CMSampleBuffer) as! Dest
+            return try filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace) as! Dest
         default:
             return element
         }
@@ -138,7 +155,7 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     /// Asynchronous quickly add filters to sources.
     /// - Parameter complete: The conversion is complete of adding filters to the sources asynchronously.
     public func transmitOutput(success: @escaping (Dest) -> Void, failed: ((HarbethError) -> Void)? = nil) {
-        transmitOutput { result in
+        transmitOutput(outputColorSpace: nil) { result in
             switch result {
             case .success(let output):
                 success(output)
@@ -150,9 +167,24 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
     
     /// Convert to texture and add filters.
     /// - Parameter complete: The conversion is complete.
-    public func transmitOutput(complete: @escaping (Result<Dest, HarbethError>) -> Void) {
+    public func transmitOutput(outputColorSpace: ImageColorSpaceContract? = nil, complete: @escaping (Result<Dest, HarbethError>) -> Void) {
         if self.filters.isEmpty {
-            complete(.success(element))
+            guard let outputColorSpace else {
+                complete(.success(element))
+                return
+            }
+            switch element {
+            case let ee as C7Image:
+                do { complete(.success(try filtering(image: ee, outputColorSpace: outputColorSpace) as! Dest)) } catch { complete(.failure(HarbethError.toHarbethError(error))) }
+            case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
+                do { complete(.success(try filtering(cgImage: ee as! CGImage, outputColorSpace: outputColorSpace) as! Dest)) } catch { complete(.failure(HarbethError.toHarbethError(error))) }
+            case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
+                do { complete(.success(try filtering(pixelBuffer: ee as! CVPixelBuffer, outputColorSpace: outputColorSpace) as! Dest)) } catch { complete(.failure(HarbethError.toHarbethError(error))) }
+            case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
+                do { complete(.success(try filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace) as! Dest)) } catch { complete(.failure(HarbethError.toHarbethError(error))) }
+            default:
+                complete(.success(element))
+            }
             return
         }
         if Shared.shared.enablePerformanceMonitor {
@@ -165,22 +197,22 @@ public typealias BoxxIO<Dest> = HarbethIO<Dest>
                 Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
             })
         case let ee as C7Image:
-            filtering(image: ee, complete: {
+            filtering(image: ee, outputColorSpace: outputColorSpace, complete: {
                 complete($0.map { $0 as! Dest })
                 Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
-            filtering(cgImage: ee as! CGImage, complete: {
+            filtering(cgImage: ee as! CGImage, outputColorSpace: outputColorSpace, complete: {
                 complete($0.map { $0 as! Dest })
                 Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
-            filtering(pixelBuffer: ee as! CVPixelBuffer, complete: {
+            filtering(pixelBuffer: ee as! CVPixelBuffer, outputColorSpace: outputColorSpace, complete: {
                 complete($0.map { $0 as! Dest })
                 Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
-            filtering(sampleBuffer: ee as! CMSampleBuffer, complete: {
+            filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace, complete: {
                 complete($0.map { $0 as! Dest })
                 Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
             })
@@ -587,10 +619,11 @@ extension HarbethIO {
         return finalTexture
     }
 
-    private func filtering(pixelBuffer: CVPixelBuffer) throws -> CVPixelBuffer {
+    private func filtering(pixelBuffer: CVPixelBuffer, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CVPixelBuffer {
         let inTexture = try TextureLoader(with: pixelBuffer).texture
         let outputColorSpace = resolvedOutputColorSpace(
-            inputSize: C7Size(width: inTexture.width, height: inTexture.height)
+            inputSize: C7Size(width: inTexture.width, height: inTexture.height),
+            outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
         let outputPixelBuffer = try pixelBuffer.c7.copyOutputTextureToCompatiblePixelBuffer(with: texture)
@@ -598,21 +631,22 @@ extension HarbethIO {
         return outputPixelBuffer
     }
 
-    private func filtering(sampleBuffer: CMSampleBuffer) throws -> CMSampleBuffer {
+    private func filtering(sampleBuffer: CMSampleBuffer, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CMSampleBuffer {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
-        let outputPixelBuffer = try filtering(pixelBuffer: pixelBuffer)
+        let outputPixelBuffer = try filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace)
         guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: sampleBuffer) else {
             throw HarbethError.CVPixelBufferToCMSampleBuffer
         }
         return buffer
     }
 
-    private func filtering(cgImage: CGImage) throws -> CGImage {
+    private func filtering(cgImage: CGImage, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CGImage {
         let inTexture = try TextureLoader(with: cgImage).texture
         let outputColorSpace = resolvedOutputColorSpace(
-            inputSize: C7Size(width: inTexture.width, height: inTexture.height)
+            inputSize: C7Size(width: inTexture.width, height: inTexture.height),
+            outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
         guard let cgImg = texture.c7.toCGImage(
@@ -623,10 +657,11 @@ extension HarbethIO {
         return cgImg
     }
 
-    private func filtering(image: C7Image) throws -> C7Image {
+    private func filtering(image: C7Image, outputColorSpace: ImageColorSpaceContract? = nil) throws -> C7Image {
         let inTexture = try TextureLoader(with: image).texture
         let outputColorSpace = resolvedOutputColorSpace(
-            inputSize: C7Size(width: inTexture.width, height: inTexture.height)
+            inputSize: C7Size(width: inTexture.width, height: inTexture.height),
+            outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
         guard let outputImage = texture.c7.toImage(
@@ -637,11 +672,12 @@ extension HarbethIO {
         return outputImage
     }
 
-    private func filtering(pixelBuffer: CVPixelBuffer, complete: @escaping (Result<CVPixelBuffer, HarbethError>) -> Void) {
+    private func filtering(pixelBuffer: CVPixelBuffer, outputColorSpace: ImageColorSpaceContract? = nil, complete: @escaping (Result<CVPixelBuffer, HarbethError>) -> Void) {
         do {
             let texture = try TextureLoader(with: pixelBuffer).texture
             let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(width: texture.width, height: texture.height)
+                inputSize: C7Size(width: texture.width, height: texture.height),
+                outputColorSpace: outputColorSpace
             )
             filtering(texture: texture, complete: { result in
                 switch result {
@@ -662,12 +698,12 @@ extension HarbethIO {
         }
     }
 
-    private func filtering(sampleBuffer: CMSampleBuffer, complete: @escaping (Result<CMSampleBuffer, HarbethError>) -> Void) {
+    private func filtering(sampleBuffer: CMSampleBuffer, outputColorSpace: ImageColorSpaceContract? = nil, complete: @escaping (Result<CMSampleBuffer, HarbethError>) -> Void) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             complete(.failure(HarbethError.CMSampleBufferToCVPixelBuffer))
             return
         }
-        filtering(pixelBuffer: pixelBuffer, complete: { result in
+        filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace, complete: { result in
             switch result {
             case .success(let outputPixelBuffer):
                 guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: sampleBuffer) else {
@@ -681,11 +717,12 @@ extension HarbethIO {
         })
     }
 
-    private func filtering(cgImage: CGImage, complete: @escaping (Result<CGImage, HarbethError>) -> Void) {
+    private func filtering(cgImage: CGImage, outputColorSpace: ImageColorSpaceContract? = nil, complete: @escaping (Result<CGImage, HarbethError>) -> Void) {
         do {
             let texture = try TextureLoader(with: cgImage).texture
             let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(width: texture.width, height: texture.height)
+                inputSize: C7Size(width: texture.width, height: texture.height),
+                outputColorSpace: outputColorSpace
             )
             filtering(texture: texture, complete: { result in
                 switch result {
@@ -706,11 +743,12 @@ extension HarbethIO {
         }
     }
 
-    private func filtering(image: C7Image, complete: @escaping (Result<C7Image, HarbethError>) -> Void) {
+    private func filtering(image: C7Image, outputColorSpace: ImageColorSpaceContract? = nil, complete: @escaping (Result<C7Image, HarbethError>) -> Void) {
         do {
             let texture = try TextureLoader(with: image).texture
             let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(width: texture.width, height: texture.height)
+                inputSize: C7Size(width: texture.width, height: texture.height),
+                outputColorSpace: outputColorSpace
             )
             filtering(texture: texture, complete: { result in
                 switch result {
