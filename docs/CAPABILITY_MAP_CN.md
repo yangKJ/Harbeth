@@ -136,7 +136,7 @@ Harbeth 对外只保留两条路线：
 负责：
 
 - `LensProfile`
-- `OpticsSettings`
+- `OpticsRecipe`
 
 存在意义：
 
@@ -144,8 +144,9 @@ Harbeth 对外只保留两条路线：
 
 结论：
 
-- `Optics` 本质上是结构化 filter builder
-- 当前合理接法是生成 filters 后交给 `HarbethIO` 或 `ImageNode`
+- `Optics` 本质上是结构化镜头校正入口
+- 当前合理接法是通过 `ImageNode.applying(optics:)` 进入
+- 底层仍然可以显式转成 filters，但不再作为普通用户主路线
 - 它不单独扩成第三条路线
 
 ### `Kernel/`

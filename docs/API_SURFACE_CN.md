@@ -74,17 +74,17 @@ HDR / EDR 输出建议：
 - `C7Image / CGImage / MTLTexture / CVPixelBuffer / CMSampleBuffer` 支持 `output()` typed round-trip
 - `Data / URL / ImageAsset` 更适合作为 `ImageNode` source 进入高级路线
 
-`OpticsSettings` / `LensProfile` 继续按 filter builder 接入：
+`OpticsRecipe` / `LensProfile` 推荐直接通过 `ImageNode.applying(optics:)` 进入结构化编辑路线；如果只想做低层直通处理，也可以直接显式构造 `filters` 再交给 `HarbethIO(filters:)`：
 
 ```swift
-let optics = OpticsSettings(
-    profile: lensProfile,
-    defringe: .init(purpleAmount: 0.2)
-)
+let filters: [C7FilterProtocol] = [
+    C7LensDistortionCorrection(distortion: -0.2, cubicDistortion: 0.04, scale: 1.01),
+    C7DefringeCorrection(purpleAmount: 0.5)
+]
 
 let output = try HarbethIO(
     element: inputImage,
-    filters: optics.makeFilters()
+    filters: filters
 ).output()
 ```
 
@@ -548,24 +548,22 @@ source contract 一致性说明：
 ### Structured Filter Builders
 
 - `LensProfile`
-- `OpticsSettings`
+- `OpticsRecipe`
 
 定位：
 
-- 它们是带语义的 filter builders
-- 最自然的接法仍然是进入 `HarbethIO(filters:)` 或 `ImageNode.applying(optics:)`
+- 它们是带语义的 optics builders
+- 主入口是进入 `ImageNode.applying(optics:)`；低层直接处理时再用 `HarbethIO(filters:)`
 
 示例：
 
 ```swift
-let settings = OpticsSettings(
-    profile: lensProfile,
-    defringe: .init(purpleAmount: 0.2)
-)
+let optics = OpticsRecipe.profile(lensProfile)
+    .adding(.defringe(.init(purpleAmount: 0.5)))
 
 let node = ImageNode
     .texture(inputTexture)
-    .applying(optics: settings)
+    .applying(optics: optics)
 ```
 
 ## 3. Analysis 如何使用

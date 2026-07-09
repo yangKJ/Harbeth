@@ -97,7 +97,7 @@ Harbeth also provides a reusable correction and transform layer for editor-grade
 
 - **Lens correction**: distortion, chromatic aberration, vignette, diffraction, defringe, and sharpness-falloff compensation.
 - **Transform correction**: affine, perspective, quad rectify, quad warp, and 3D projection transforms.
-- **Profile-driven composition**: `LensProfile` and `OpticsSettings` can assemble multiple optics corrections into a stable pipeline.
+- **Profile-driven composition**: `LensProfile` and `OpticsRecipe` can assemble multiple optics corrections into a stable pipeline.
 - **Guide-driven upright**: `GuidedUpright` can turn vertical and horizontal guide lines into a recommended rectify transform.
 
 ## Requirements
@@ -464,27 +464,25 @@ let filters: [C7FilterProtocol] = [
 let corrected = try inputImage.make(filters: filters)
 ```
 
-You can also build profile-driven correction from `LensProfile` and `OpticsSettings`:
+You can also build profile-driven correction from `LensProfile` and `OpticsRecipe`:
 
 ```swift
 let profile = LensProfile(
     make: "Demo",
     model: "Wide",
     profileName: "Default",
-    distortionCorrection: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.01),
-    vignetteCorrection: .init(amount: 0.2),
-    chromaticAberrationCorrection: .init(redCyanShift: -0.01, blueYellowShift: 0.015)
+    distortion: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.01),
+    vignette: .init(amount: 0.2),
+    chromaticAberration: .init(redCyanShift: -0.01, blueYellowShift: 0.015)
 )
 
-let settings = OpticsSettings(
-    profile: profile,
-    defringe: .init(purpleAmount: 0.2),
-    sharpnessFalloff: .init(amount: 0.25)
-)
+let optics = OpticsRecipe.profile(profile)
+    .adding(.defringe(.init(purpleAmount: 0.2)))
+    .adding(.sharpnessFalloff(.init(amount: 0.25)))
 
 let corrected = try ImageNode
     .image(inputImage)
-    .applying(optics: settings)
+    .applying(optics: optics)
     .makeFrame(profile: .stablePreview)
 ```
 
@@ -1025,7 +1023,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **RenderQuadRectifyTransform**: Rectifies a source quad back into a regular output frame
 - **GuidedUpright**: Builds a recommended perspective or quad rectify transform from vertical and horizontal guides
 - **LensProfile**: Describes reusable lens correction coefficients for a device or lens
-- **OpticsSettings**: Composes profile-driven optics corrections with strength overrides into a filter pipeline
+- **OpticsRecipe**: Composes profile-driven optics corrections into a structured recipe for `ImageNode.applying(optics:)`
 
 #### 🎨 Generators
 - **C7ColorGradient**: Generates a color gradient, creating a smooth transition between two or more colors, useful for backgrounds or overlays

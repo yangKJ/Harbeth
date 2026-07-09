@@ -9,7 +9,7 @@ import Foundation
 import simd
 
 /// 4维向量
-public struct Vector4: Matrix {
+public struct Vector4: Matrix, Sendable, Equatable, Hashable {
     
     public static let zero: Vector4 = .init(values: [0, 0, 0, 0])
     

@@ -8,7 +8,7 @@
 import Foundation
 
 /// 4 x 5 颜色矩阵
-public struct Matrix4x5 {
+public struct Matrix4x5: Sendable, Equatable, Hashable, Codable {
     
     public let matrix4x4: Matrix4x4
     public let vector4: Vector4

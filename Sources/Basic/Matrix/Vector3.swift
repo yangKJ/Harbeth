@@ -9,7 +9,7 @@ import Foundation
 import simd
 
 /// 3维向量
-public struct Vector3: Matrix {
+public struct Vector3: Matrix, Sendable, Equatable, Hashable {
     
     public typealias MatrixType = vector_float3
     

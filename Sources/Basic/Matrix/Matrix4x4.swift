@@ -20,6 +20,24 @@ public struct Matrix4x4: Matrix, Sendable, Equatable, Hashable {
         }
         self.values = values
     }
+
+    /// Input is stored in row-major order, matching the current public `values` layout.
+    public init(rowMajor values: [Float]) {
+        self.init(values: values)
+    }
+
+    /// Input is provided in column-major order and converted into Harbeth's row-major storage.
+    public init(columnMajor values: [Float]) {
+        if values.count != 16 {
+            HarbethError.failed("There must be 16 values for 4x4 Matrix.")
+        }
+        self.init(values: [
+            values[0], values[4], values[8], values[12],
+            values[1], values[5], values[9], values[13],
+            values[2], values[6], values[10], values[14],
+            values[3], values[7], values[11], values[15],
+        ])
+    }
     
     /// The 4x4 matrix is obtained by CATransform3D
     public init(transform3D: CATransform3D) {

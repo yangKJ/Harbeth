@@ -30,17 +30,18 @@ final class LensProfileTests: XCTestCase {
             make: "Demo",
             model: "UltraWide",
             profileName: "Default",
-            distortionCorrection: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.02),
-            chromaticAberrationCorrection: .init(redCyanShift: -0.01, blueYellowShift: 0.015),
-            vignetteCorrection: .init(amount: 1.1, start: 0.3, end: 0.95),
-            diffractionCorrection: .init(amount: 0.6, radius: 1.5, edgeThreshold: 0.09)
+            distortion: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.02),
+            chromaticAberration: .init(redCyanShift: -0.01, blueYellowShift: 0.015),
+            vignette: .init(amount: 1.1, start: 0.3, end: 0.95),
+            diffraction: .init(amount: 0.6, radius: 1.5, edgeThreshold: 0.09)
         )
 
-        XCTAssertNotNil(profile.makeDistortionFilter())
-        XCTAssertNotNil(profile.makeChromaticAberrationFilter())
-        XCTAssertNotNil(profile.makeVignetteFilter())
-        XCTAssertNotNil(profile.makeDiffractionFilter())
-        XCTAssertEqual(profile.makeCorrectionFilters().count, 4)
+        let filters = OpticsRecipe.profile(profile).makeFilters()
+        XCTAssertEqual(filters.count, 4)
+        XCTAssertTrue(filters[0] is C7LensDistortionCorrection)
+        XCTAssertTrue(filters[1] is C7ChromaticAberrationCorrection)
+        XCTAssertTrue(filters[2] is C7LensVignetteCorrection)
+        XCTAssertTrue(filters[3] is C7DiffractionCorrection)
     }
 
     func testDefringeIdentityKeepsSinglePixelVisible() throws {
@@ -107,23 +108,21 @@ final class LensProfileTests: XCTestCase {
         XCTAssertEqual(pixel.alpha, 255)
     }
 
-    func testOpticsSettingsBuildFiltersInStableOrder() {
+    func testOpticsRecipeBuildsAllOpticsFiltersInStableOrder() {
         let profile = LensProfile(
             make: "Demo",
             model: "UltraWide",
             profileName: "Default",
-            distortionCorrection: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.02),
-            chromaticAberrationCorrection: .init(redCyanShift: -0.01, blueYellowShift: 0.015),
-            vignetteCorrection: .init(amount: 1.1, start: 0.3, end: 0.95),
-            diffractionCorrection: .init(amount: 0.6, radius: 1.5, edgeThreshold: 0.09)
+            distortion: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.02),
+            chromaticAberration: .init(redCyanShift: -0.01, blueYellowShift: 0.015),
+            vignette: .init(amount: 1.1, start: 0.3, end: 0.95),
+            diffraction: .init(amount: 0.6, radius: 1.5, edgeThreshold: 0.09)
         )
-        let settings = OpticsSettings(
-            profile: profile,
-            defringe: .init(purpleAmount: 0.8),
-            sharpnessFalloff: .init(amount: 0.6)
-        )
+        let recipe = OpticsRecipe.profile(profile)
+            .adding(.defringe(.init(purpleAmount: 0.8)))
+            .adding(.sharpnessFalloff(.init(amount: 0.6)))
 
-        let filters = settings.makeFilters()
+        let filters = recipe.makeFilters()
         XCTAssertEqual(filters.count, 6)
         XCTAssertTrue(filters[0] is C7LensDistortionCorrection)
         XCTAssertTrue(filters[1] is C7ChromaticAberrationCorrection)
@@ -133,22 +132,19 @@ final class LensProfileTests: XCTestCase {
         XCTAssertTrue(filters[5] is C7SharpnessFalloffCorrection)
     }
 
-    func testOpticsSettingsCanScaleProfileCorrections() {
+    func testOpticsRecipeCanScaleProfileCorrections() {
         let profile = LensProfile(
             make: "Demo",
             model: "UltraWide",
             profileName: "Default",
-            distortionCorrection: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.02),
-            chromaticAberrationCorrection: .init(redCyanShift: -0.01, blueYellowShift: 0.015),
-            vignetteCorrection: .init(amount: 1.1, start: 0.3, end: 0.95),
-            diffractionCorrection: .init(amount: 0.6, radius: 1.5, edgeThreshold: 0.09)
+            distortion: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.02),
+            chromaticAberration: .init(redCyanShift: -0.01, blueYellowShift: 0.015),
+            vignette: .init(amount: 1.1, start: 0.3, end: 0.95),
+            diffraction: .init(amount: 0.6, radius: 1.5, edgeThreshold: 0.09)
         )
-        let settings = OpticsSettings(
-            profile: profile,
-            profileStrength: .init(distortion: 0.5, chromaticAberration: 0.25, vignette: 0.75, diffraction: 0.5)
-        )
+        let recipe = OpticsRecipe.profile(profile, strength: 0.5)
 
-        let filters = settings.makeFilters()
+        let filters = recipe.makeFilters()
         let distortion = filters[0] as? C7LensDistortionCorrection
         let chromatic = filters[1] as? C7ChromaticAberrationCorrection
         let vignette = filters[2] as? C7LensVignetteCorrection
@@ -162,29 +158,29 @@ final class LensProfileTests: XCTestCase {
         XCTAssertEqual(distortion!.distortion, Float(-0.1), accuracy: Float(0.0001))
         XCTAssertEqual(distortion!.cubicDistortion, Float(0.02), accuracy: Float(0.0001))
         XCTAssertEqual(distortion!.scale, Float(1.01), accuracy: Float(0.0001))
-        XCTAssertEqual(chromatic!.redCyanShift, Float(-0.0025), accuracy: Float(0.0001))
-        XCTAssertEqual(chromatic!.blueYellowShift, Float(0.00375), accuracy: Float(0.0001))
-        XCTAssertEqual(vignette!.amount, Float(0.825), accuracy: Float(0.0001))
+        XCTAssertEqual(chromatic!.redCyanShift, Float(-0.005), accuracy: Float(0.0001))
+        XCTAssertEqual(chromatic!.blueYellowShift, Float(0.0075), accuracy: Float(0.0001))
+        XCTAssertEqual(vignette!.amount, Float(0.55), accuracy: Float(0.0001))
         XCTAssertEqual(diffraction!.amount, Float(0.3), accuracy: Float(0.0001))
     }
 
-    func testImageNodeCanApplyOpticsSettingsConvenience() throws {
+    func testImageNodeCanApplyOpticsRecipeConvenience() throws {
         let input = try makeSolidTexture(red: 120, green: 140, blue: 160, alpha: 255)
-        let settings = OpticsSettings(
-            defringe: .init(purpleAmount: 0.2),
-            sharpnessFalloff: .init(amount: 0.3)
-        )
+        let recipe = OpticsRecipe(corrections: [
+            .defringe(.init(purpleAmount: 0.2)),
+            .sharpnessFalloff(.init(amount: 0.3))
+        ])
 
         let node = ImageNode
             .texture(input)
-            .applying(filters: settings.makeFilters())
+            .applying(optics: recipe)
 
         let output = try node.makeTexture(profile: .stablePreview)
         let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
 
         XCTAssertEqual(output.width, 1)
         XCTAssertEqual(output.height, 1)
-        XCTAssertEqual(diagnostics.compilationSource, .nodeGraph)
+        XCTAssertEqual(diagnostics.compilationSource, .editRecipe)
         XCTAssertEqual(diagnostics.nodes.count, 2)
         XCTAssertTrue(diagnostics.nodes[0].name.contains("C7DefringeCorrection"))
         XCTAssertTrue(diagnostics.nodes[1].name.contains("C7SharpnessFalloffCorrection"))
@@ -259,12 +255,9 @@ final class LensProfileTests: XCTestCase {
             XCTFail("Expected readable RGBA bytes.")
             throw HarbethError.texture2Image
         }
-
-        var result: [(red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8)] = []
-        for index in 0..<count {
+        return (0..<count).map { index in
             let offset = index * 4
-            result.append((bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]))
+            return (bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3])
         }
-        return result
     }
 }

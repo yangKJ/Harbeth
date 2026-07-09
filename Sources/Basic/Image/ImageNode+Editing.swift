@@ -13,6 +13,10 @@ extension ImageNode {
         editing(EditRecipe(localEffects: [localEffect]), mode: mode)
     }
 
+    public func applying(optics recipe: OpticsRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
+        recipe.isIdentity ? self : editing(EditRecipe(optics: recipe), mode: mode)
+    }
+
     public func editing(_ recipe: EditRecipe, mode: EditRecipeMode = .preview) -> ImageNode {
         ImageNode(storage: .edit(input: self, recipe: recipe, mode: mode))
     }

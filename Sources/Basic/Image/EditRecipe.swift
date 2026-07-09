@@ -23,6 +23,7 @@ struct EditRecipeContract: Sendable, Equatable {
 
 public struct EditRecipe {
     public var sourceLoadingOptions: ImageLoadingOptions
+    public var optics: OpticsRecipe?
     public var geometry: ImageTransformRecipe
     public var localEffects: [LocalEffectRecipe]
     public var previewProfile: RenderProfile
@@ -31,6 +32,7 @@ public struct EditRecipe {
     public var finalDerivative: ImageDerivativeSpec
 
     public init(sourceLoadingOptions: ImageLoadingOptions = .default,
+                optics: OpticsRecipe? = nil,
                 geometry: ImageTransformRecipe = ImageTransformRecipe(),
                 localEffects: [LocalEffectRecipe] = [],
                 previewProfile: RenderProfile = .stablePreview,
@@ -38,6 +40,7 @@ public struct EditRecipe {
                 previewDerivative: ImageDerivativeSpec? = nil,
                 finalDerivative: ImageDerivativeSpec? = nil) {
         self.sourceLoadingOptions = sourceLoadingOptions
+        self.optics = optics
         self.geometry = geometry
         self.localEffects = localEffects
         self.previewProfile = previewProfile
@@ -141,9 +144,7 @@ public struct EditRecipe {
                 FilterRecipeDescriptor(
                     stableTypeID: diagnostic.name,
                     modifier: diagnostic.kind.rawValue,
-                    parameterValues: diagnostic.parameterSummary
-                        .sorted { $0.key < $1.key }
-                        .map { "\($0.key)=\($0.value)" },
+                    parameterValues: diagnostic.parameterSummary.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" },
                     otherInputTextureCount: 0,
                     pipelineFilterFingerprints: [],
                     finalFilterFingerprint: nil
@@ -219,10 +220,7 @@ public struct EditRecipe {
                     guard filters.isEmpty == false else { return input }
                     return try HarbethIO(
                         element: input,
-                        filters: SamplerExecutionAdapter.adapt(
-                            filters: filters,
-                            samplerDescriptor: samplerDescriptor
-                        )
+                        filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
                     )
                     .configured(for: profile)
                     .output()
@@ -307,7 +305,13 @@ public struct EditRecipe {
     func makeBaseFilterChain(inputSize: C7Size,
                              prefersQualityResize: Bool = true,
                              appending extraFilters: [C7FilterProtocol] = []) -> [C7FilterProtocol] {
-        geometry.makeFilters(inputSize: inputSize, prefersQualityResize: prefersQualityResize) + extraFilters
+        var filters: [C7FilterProtocol] = []
+        if let optics, optics.isIdentity == false {
+            filters.append(contentsOf: optics.makeFilters())
+        }
+        filters.append(contentsOf: geometry.makeFilters(inputSize: inputSize, prefersQualityResize: prefersQualityResize))
+        filters.append(contentsOf: extraFilters)
+        return filters
     }
 
     func makeExecutionPreviewChain(inputSize: C7Size,
@@ -367,7 +371,7 @@ public struct EditRecipe {
             appending: extraFilters
         )
         let outputCachePolicy: ImageCachePolicy =
-            (geometry.isIdentity && localEffects.isEmpty && extraFilters.isEmpty)
+            (geometry.isIdentity && (optics?.isIdentity ?? true) && localEffects.isEmpty && extraFilters.isEmpty)
             ? resolvedSource.cachePolicy
             : .transient
         return CompiledEditRecipeExecution(

@@ -4,35 +4,15 @@
 //
 //  Created by Condy on 2026/6/20.
 //
+
 import Foundation
 
-/// 光学校正 profile 承载底座。
+/// 光学校正 profile 数据模型。
 ///
-/// 当前先承载 Harbeth 已有的基础 optics 参数：
-/// - geometric distortion
-/// - chromatic aberration
-/// - vignette compensation
-///
-/// 后续可以继续扩展 metadata、焦段区间、机身适配和序列化。
-public struct LensProfile: Codable, Equatable {
+/// 这里只承载镜头数据，不负责编译和执行。实际的 optics 入口由 `OpticsRecipe` 提供。
+public struct LensProfile: Codable, Equatable, Hashable {
 
-    public struct CorrectionStrength: Codable, Equatable {
-        public var distortion: Float
-        public var chromaticAberration: Float
-        public var vignette: Float
-        public var diffraction: Float
-
-        public init(distortion: Float = 1, chromaticAberration: Float = 1, vignette: Float = 1, diffraction: Float = 1) {
-            self.distortion = distortion
-            self.chromaticAberration = chromaticAberration
-            self.vignette = vignette
-            self.diffraction = diffraction
-        }
-
-        public static let unity = CorrectionStrength()
-    }
-
-    public struct DistortionCorrection: Codable, Equatable {
+    public struct Distortion: Codable, Equatable, Hashable {
         public var center: C7Point2D
         public var distortion: Float
         public var cubicDistortion: Float
@@ -44,9 +24,44 @@ public struct LensProfile: Codable, Equatable {
             self.cubicDistortion = cubicDistortion
             self.scale = scale
         }
+
+        var isIdentity: Bool {
+            sanitizedFinite(distortion, fallback: 0) == 0
+            && sanitizedFinite(cubicDistortion, fallback: 0) == 0
+            && sanitizedFinite(scale, fallback: 1) == 1
+        }
+
+        func normalized() -> Distortion {
+            Distortion(
+                center: center.normalized(),
+                distortion: sanitizedFinite(distortion, fallback: 0),
+                cubicDistortion: sanitizedFinite(cubicDistortion, fallback: 0),
+                scale: sanitizedFinite(scale, fallback: 1)
+            )
+        }
+
+        func makeFilter(samplingMode: SpatialSamplingMode, edgeMode: SpatialEdgeMode, strength: Float) -> C7LensDistortionCorrection {
+            C7LensDistortionCorrection(
+                center: center.normalized(),
+                distortion: sanitizedFinite(distortion, fallback: 0) * strength,
+                cubicDistortion: sanitizedFinite(cubicDistortion, fallback: 0) * strength,
+                scale: 1 + (sanitizedFinite(scale, fallback: 1) - 1) * strength,
+                samplingMode: samplingMode,
+                edgeMode: edgeMode
+            )
+        }
+
+        var fingerprint: String {
+            [
+                "center=\(center.normalized().fingerprint)",
+                "distortion=\(stableFloatDescription(distortion))",
+                "cubic=\(stableFloatDescription(cubicDistortion))",
+                "scale=\(stableFloatDescription(scale))"
+            ].joined(separator: ",")
+        }
     }
 
-    public struct ChromaticAberrationCorrection: Codable, Equatable {
+    public struct ChromaticAberration: Codable, Equatable, Hashable {
         public var center: C7Point2D
         public var redCyanShift: Float
         public var blueYellowShift: Float
@@ -56,9 +71,40 @@ public struct LensProfile: Codable, Equatable {
             self.redCyanShift = redCyanShift
             self.blueYellowShift = blueYellowShift
         }
+
+        var isIdentity: Bool {
+            sanitizedFinite(redCyanShift, fallback: 0) == 0
+            && sanitizedFinite(blueYellowShift, fallback: 0) == 0
+        }
+
+        func normalized() -> ChromaticAberration {
+            ChromaticAberration(
+                center: center.normalized(),
+                redCyanShift: sanitizedFinite(redCyanShift, fallback: 0),
+                blueYellowShift: sanitizedFinite(blueYellowShift, fallback: 0)
+            )
+        }
+
+        func makeFilter(samplingMode: SpatialSamplingMode, edgeMode: SpatialEdgeMode, strength: Float) -> C7ChromaticAberrationCorrection {
+            C7ChromaticAberrationCorrection(
+                center: center.normalized(),
+                redCyanShift: sanitizedFinite(redCyanShift, fallback: 0) * strength,
+                blueYellowShift: sanitizedFinite(blueYellowShift, fallback: 0) * strength,
+                samplingMode: samplingMode,
+                edgeMode: edgeMode
+            )
+        }
+
+        var fingerprint: String {
+            [
+                "center=\(center.normalized().fingerprint)",
+                "redCyan=\(stableFloatDescription(redCyanShift))",
+                "blueYellow=\(stableFloatDescription(blueYellowShift))"
+            ].joined(separator: ",")
+        }
     }
 
-    public struct VignetteCorrection: Codable, Equatable {
+    public struct Vignette: Codable, Equatable, Hashable {
         public var center: C7Point2D
         public var amount: Float
         public var start: Float
@@ -70,9 +116,40 @@ public struct LensProfile: Codable, Equatable {
             self.start = start
             self.end = end
         }
+
+        var isIdentity: Bool {
+            sanitizedFinite(amount, fallback: 0) == 0
+        }
+
+        func normalized() -> Vignette {
+            Vignette(
+                center: center.normalized(),
+                amount: sanitizedNonNegative(amount, fallback: 0),
+                start: sanitizedNonNegative(start, fallback: 0.35),
+                end: sanitizedNonNegative(end, fallback: 1.0)
+            )
+        }
+
+        func makeFilter(strength: Float) -> C7LensVignetteCorrection {
+            C7LensVignetteCorrection(
+                center: center.normalized(),
+                amount: sanitizedFinite(amount, fallback: 0) * strength,
+                start: sanitizedNonNegative(start, fallback: 0.35),
+                end: sanitizedNonNegative(end, fallback: 1.0)
+            )
+        }
+
+        var fingerprint: String {
+            [
+                "center=\(center.normalized().fingerprint)",
+                "amount=\(stableFloatDescription(amount))",
+                "start=\(stableFloatDescription(start))",
+                "end=\(stableFloatDescription(end))"
+            ].joined(separator: ",")
+        }
     }
 
-    public struct DiffractionCorrection: Codable, Equatable {
+    public struct Diffraction: Codable, Equatable, Hashable {
         public var amount: Float
         public var radius: Float
         public var edgeThreshold: Float
@@ -82,108 +159,182 @@ public struct LensProfile: Codable, Equatable {
             self.radius = radius
             self.edgeThreshold = edgeThreshold
         }
+
+        var isIdentity: Bool {
+            sanitizedFinite(amount, fallback: 0) == 0
+        }
+
+        func normalized() -> Diffraction {
+            Diffraction(
+                amount: sanitizedNonNegative(amount, fallback: 0),
+                radius: sanitizedNonNegative(radius, fallback: 1),
+                edgeThreshold: sanitizedNonNegative(edgeThreshold, fallback: 0.08)
+            )
+        }
+
+        func makeFilter(strength: Float) -> C7DiffractionCorrection {
+            C7DiffractionCorrection(
+                amount: sanitizedFinite(amount, fallback: 0) * strength,
+                radius: sanitizedNonNegative(radius, fallback: 1),
+                edgeThreshold: sanitizedNonNegative(edgeThreshold, fallback: 0.08)
+            )
+        }
+
+        var fingerprint: String {
+            [
+                "amount=\(stableFloatDescription(amount))",
+                "radius=\(stableFloatDescription(radius))",
+                "edge=\(stableFloatDescription(edgeThreshold))"
+            ].joined(separator: ",")
+        }
     }
 
     public var make: String
     public var model: String
     public var profileName: String
-    public var distortionCorrection: DistortionCorrection?
-    public var chromaticAberrationCorrection: ChromaticAberrationCorrection?
-    public var vignetteCorrection: VignetteCorrection?
-    public var diffractionCorrection: DiffractionCorrection?
+    public var distortion: Distortion?
+    public var chromaticAberration: ChromaticAberration?
+    public var vignette: Vignette?
+    public var diffraction: Diffraction?
+
+    internal var metadata: LensProfileMetadata?
 
     public init(make: String,
                 model: String,
                 profileName: String,
-                distortionCorrection: DistortionCorrection? = nil,
-                chromaticAberrationCorrection: ChromaticAberrationCorrection? = nil,
-                vignetteCorrection: VignetteCorrection? = nil,
-                diffractionCorrection: DiffractionCorrection? = nil) {
+                distortion: Distortion? = nil,
+                chromaticAberration: ChromaticAberration? = nil,
+                vignette: Vignette? = nil,
+                diffraction: Diffraction? = nil) {
         self.make = make
         self.model = model
         self.profileName = profileName
-        self.distortionCorrection = distortionCorrection
-        self.chromaticAberrationCorrection = chromaticAberrationCorrection
-        self.vignetteCorrection = vignetteCorrection
-        self.diffractionCorrection = diffractionCorrection
+        self.distortion = distortion
+        self.chromaticAberration = chromaticAberration
+        self.vignette = vignette
+        self.diffraction = diffraction
+        self.metadata = nil
     }
 
-    public func makeDistortionFilter(samplingMode: SpatialSamplingMode = .adaptive,
-                                     edgeMode: SpatialEdgeMode = .transparent,
-                                     strength: Float = 1) -> C7LensDistortionCorrection? {
-        guard let correction = distortionCorrection else { return nil }
-        let clampedStrength = max(0, strength)
-        return C7LensDistortionCorrection(
-            center: correction.center,
-            distortion: correction.distortion * clampedStrength,
-            cubicDistortion: correction.cubicDistortion * clampedStrength,
-            scale: 1 + (correction.scale - 1) * clampedStrength,
-            samplingMode: samplingMode,
-            edgeMode: edgeMode
+    internal var isIdentity: Bool {
+        (distortion?.isIdentity ?? true)
+        && (chromaticAberration?.isIdentity ?? true)
+        && (vignette?.isIdentity ?? true)
+        && (diffraction?.isIdentity ?? true)
+    }
+
+    internal var fingerprint: String {
+        [
+            "make=\(make)",
+            "model=\(model)",
+            "profile=\(profileName)",
+            "distortion=\(distortion?.fingerprint ?? "none")",
+            "chromatic=\(chromaticAberration?.fingerprint ?? "none")",
+            "vignette=\(vignette?.fingerprint ?? "none")",
+            "diffraction=\(diffraction?.fingerprint ?? "none")",
+            "metadata=\(metadata?.fingerprint ?? "none")"
+        ].joined(separator: "|")
+    }
+
+    internal func normalized() -> LensProfile {
+        LensProfile(
+            make: make.trimmingCharacters(in: .whitespacesAndNewlines),
+            model: model.trimmingCharacters(in: .whitespacesAndNewlines),
+            profileName: profileName.trimmingCharacters(in: .whitespacesAndNewlines),
+            distortion: distortion?.normalized(),
+            chromaticAberration: chromaticAberration?.normalized(),
+            vignette: vignette?.normalized(),
+            diffraction: diffraction?.normalized()
         )
     }
 
-    public func makeChromaticAberrationFilter(samplingMode: SpatialSamplingMode = .adaptive,
-                                              edgeMode: SpatialEdgeMode = .transparent,
-                                              strength: Float = 1) -> C7ChromaticAberrationCorrection? {
-        guard let correction = chromaticAberrationCorrection else { return nil }
-        let clampedStrength = max(0, strength)
-        return C7ChromaticAberrationCorrection(
-            center: correction.center,
-            redCyanShift: correction.redCyanShift * clampedStrength,
-            blueYellowShift: correction.blueYellowShift * clampedStrength,
-            samplingMode: samplingMode,
-            edgeMode: edgeMode
-        )
+    internal func isApplicable(to metadata: LensProfileMetadata?) -> Bool {
+        guard let metadata else { return true }
+        if metadata.sourceIdentifier.isEmpty == false {
+            let sourceIdentifier = [make, model, profileName].joined(separator: " ").lowercased()
+            if sourceIdentifier.contains(metadata.sourceIdentifier.lowercased()) == false {
+                return false
+            }
+        }
+        if let focalLengthRange = metadata.focalLengthRange, focalLengthRange.isEmpty {
+            return false
+        }
+        if let apertureRange = metadata.apertureRange, apertureRange.isEmpty {
+            return false
+        }
+        if let cropFactorRange = metadata.cropFactorRange, cropFactorRange.isEmpty {
+            return false
+        }
+        return true
     }
 
-    public func makeVignetteFilter(strength: Float = 1) -> C7LensVignetteCorrection? {
-        guard let correction = vignetteCorrection else { return nil }
-        let clampedStrength = max(0, strength)
-        return C7LensVignetteCorrection(
-            center: correction.center,
-            amount: correction.amount * clampedStrength,
-            start: correction.start,
-            end: correction.end
-        )
-    }
+    internal func makeCorrectionFilters(samplingMode: SpatialSamplingMode, edgeMode: SpatialEdgeMode, strength: Float) -> [C7FilterProtocol] {
+        let normalizedStrength = max(0, sanitizedFinite(strength, fallback: 1))
+        guard normalizedStrength > 0, isIdentity == false else { return [] }
 
-    public func makeDiffractionFilter(strength: Float = 1) -> C7DiffractionCorrection? {
-        guard let correction = diffractionCorrection else { return nil }
-        let clampedStrength = max(0, strength)
-        return C7DiffractionCorrection(
-            amount: correction.amount * clampedStrength,
-            radius: correction.radius,
-            edgeThreshold: correction.edgeThreshold
-        )
-    }
-
-    /// 以当前 profile 产出完整 optics 校正链。
-    ///
-    /// 默认顺序：
-    /// 1. distortion
-    /// 2. chromatic aberration
-    /// 3. vignette compensation
-    /// 4. diffraction correction
-    ///
-    /// 这样能先把几何与色边坐标对齐，再做边缘亮度补偿，
-    /// 最后进行 capture sharpening。
-    public func makeCorrectionFilters(samplingMode: SpatialSamplingMode = .adaptive,
-                                      edgeMode: SpatialEdgeMode = .transparent,
-                                      strength: CorrectionStrength = .unity) -> [C7FilterProtocol] {
         var filters: [C7FilterProtocol] = []
-        if let distortion = makeDistortionFilter(samplingMode: samplingMode, edgeMode: edgeMode, strength: strength.distortion) {
-            filters.append(distortion)
+        if let distortion {
+            filters.append(distortion.makeFilter(samplingMode: samplingMode, edgeMode: edgeMode, strength: normalizedStrength))
         }
-        if let chromaticAberration = makeChromaticAberrationFilter(samplingMode: samplingMode, edgeMode: edgeMode, strength: strength.chromaticAberration) {
-            filters.append(chromaticAberration)
+        if let chromaticAberration {
+            filters.append(chromaticAberration.makeFilter(samplingMode: samplingMode, edgeMode: edgeMode, strength: normalizedStrength))
         }
-        if let vignette = makeVignetteFilter(strength: strength.vignette) {
-            filters.append(vignette)
+        if let vignette {
+            filters.append(vignette.makeFilter(strength: normalizedStrength))
         }
-        if let diffraction = makeDiffractionFilter(strength: strength.diffraction) {
-            filters.append(diffraction)
+        if let diffraction {
+            filters.append(diffraction.makeFilter(strength: normalizedStrength))
         }
         return filters
     }
+}
+
+internal struct LensProfileMetadata: Codable, Equatable, Hashable {
+    var profileVersion: String
+    var sourceIdentifier: String
+    var focalLengthRange: ClosedRange<Float>?
+    var apertureRange: ClosedRange<Float>?
+    var sensorFormat: String?
+    var cropFactorRange: ClosedRange<Float>?
+    var confidence: LensProfileConfidence
+
+    var fingerprint: String {
+        [
+            "version=\(profileVersion)",
+            "source=\(sourceIdentifier)",
+            "focal=\(focalLengthRange?.fingerprint ?? "none")",
+            "aperture=\(apertureRange?.fingerprint ?? "none")",
+            "sensor=\(sensorFormat ?? "none")",
+            "crop=\(cropFactorRange?.fingerprint ?? "none")",
+            "confidence=\(confidence.rawValue)"
+        ].joined(separator: "|")
+    }
+}
+
+internal enum LensProfileConfidence: String, Codable, Hashable {
+    case low
+    case medium
+    case high
+}
+
+private extension ClosedRange where Bound == Float {
+    var isEmpty: Bool {
+        lowerBound > upperBound
+    }
+
+    var fingerprint: String {
+        "\(stableFloatDescription(lowerBound))...\(stableFloatDescription(upperBound))"
+    }
+}
+
+private func sanitizedFinite(_ value: Float, fallback: Float) -> Float {
+    value.isFinite ? value : fallback
+}
+
+private func sanitizedNonNegative(_ value: Float, fallback: Float) -> Float {
+    max(0, sanitizedFinite(value, fallback: fallback))
+}
+
+private func stableFloatDescription(_ value: Float) -> String {
+    String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), sanitizedFinite(value, fallback: 0))
 }
