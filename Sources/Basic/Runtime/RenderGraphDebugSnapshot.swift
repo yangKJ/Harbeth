@@ -36,6 +36,8 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             public let fleetRecoveringHostCount: Int
             public let fleetFallbackHostCount: Int
             public let fleetMaxConcurrentSampleBufferHosts: Int
+            public let predictionDrifted: Bool
+            public let predictionDriftReason: String?
 
             init(report: PreviewHostExecutionReport, fleet: PreviewHostFleetSnapshot) {
                 predictedStrategy = report.predictedStrategy
@@ -64,6 +66,14 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 fleetRecoveringHostCount = fleet.recoveringHostCount
                 fleetFallbackHostCount = fleet.fallbackHostCount
                 fleetMaxConcurrentSampleBufferHosts = fleet.maxConcurrentSampleBufferHosts
+                predictionDrifted = report.predictedStrategy != report.actualResolvedHostStrategy || report.fellBackToMetal
+                if report.predictedStrategy != report.actualResolvedHostStrategy {
+                    predictionDriftReason = "strategyMismatch"
+                } else if report.fellBackToMetal {
+                    predictionDriftReason = "fallbackToMetal"
+                } else {
+                    predictionDriftReason = nil
+                }
             }
         }
 
@@ -174,9 +184,9 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
              compilationSource: String,
              inputSize: String,
              outputSize: String,
-             inputDynamicRange: String,
-             outputDynamicRange: String,
-             outputToneMappingPolicy: String) {
+             inputDynamicRange: String = ImageDynamicRangeContract.standardDynamicRange.rawValue,
+             outputDynamicRange: String = ImageDynamicRangeContract.standardDynamicRange.rawValue,
+             outputToneMappingPolicy: String = ImageToneMappingPolicy.preserveInput.rawValue) {
             self.summary = summary
             self.profile = profile
             self.derivative = derivative

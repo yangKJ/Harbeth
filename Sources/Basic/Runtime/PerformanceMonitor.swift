@@ -246,6 +246,15 @@ public final class PerformanceMonitor {
         metricsCache[identifier]?.resourceEvents.append("previewHostExecution:fallback:metal")
     }
 
+    func recordPreviewHostPredictionDrift(_ identifier: String, predicted: PreviewHostStrategy, actual: PreviewHostStrategy) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.previewHostPredictionDriftCount += 1
+        metricsCache[identifier]?.resourceEvents.append("previewHostExecution:drift:\(predicted.rawValue)->\(actual.rawValue)")
+    }
+
     func recordPreviewHostVisibilityPause(_ identifier: String) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -476,6 +485,7 @@ public final class PerformanceMonitor {
             summary.totalPreviewHostEnqueues += metrics.previewHostEnqueueCount
             summary.totalPreviewHostRecoveries += metrics.previewHostRecoveryCount
             summary.totalPreviewHostFallbacks += metrics.previewHostFallbackCount
+            summary.totalPreviewHostPredictionDrifts += metrics.previewHostPredictionDriftCount
             summary.totalPreviewHostVisibilityPauses += metrics.previewHostVisibilityPauseCount
             summary.totalPreviewHostVisibilityResumes += metrics.previewHostVisibilityResumeCount
             summary.totalPreviewHostLifecyclePauses += metrics.previewHostLifecyclePauseCount
@@ -605,6 +615,7 @@ extension PerformanceMonitor {
         public var totalPreviewHostEnqueues: Int = 0
         public var totalPreviewHostRecoveries: Int = 0
         public var totalPreviewHostFallbacks: Int = 0
+        public var totalPreviewHostPredictionDrifts: Int = 0
         public var totalPreviewHostVisibilityPauses: Int = 0
         public var totalPreviewHostVisibilityResumes: Int = 0
         public var totalPreviewHostLifecyclePauses: Int = 0
@@ -681,6 +692,7 @@ extension PerformanceMonitor {
         public var previewHostEnqueueCount: Int = 0
         public var previewHostRecoveryCount: Int = 0
         public var previewHostFallbackCount: Int = 0
+        public var previewHostPredictionDriftCount: Int = 0
         public var previewHostVisibilityPauseCount: Int = 0
         public var previewHostVisibilityResumeCount: Int = 0
         public var previewHostLifecyclePauseCount: Int = 0
@@ -759,6 +771,7 @@ extension PerformanceMonitor {
             previewHostEnqueueCount = 0
             previewHostRecoveryCount = 0
             previewHostFallbackCount = 0
+            previewHostPredictionDriftCount = 0
             previewHostVisibilityPauseCount = 0
             previewHostVisibilityResumeCount = 0
             previewHostLifecyclePauseCount = 0

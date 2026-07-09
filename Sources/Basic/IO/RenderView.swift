@@ -1136,6 +1136,15 @@ private extension RenderView {
             )
         }
         Shared.shared.performanceMonitor?.recordPreviewHostExecution(previewHostTelemetryIdentifier, report: previewHostExecutionReport)
+        let predictedStrategy = previewHostStrategy(from: previewHostExecutionReport.predictedStrategy)
+        let actualStrategy = previewHostStrategy(from: previewHostExecutionReport.actualResolvedHostStrategy)
+        if predictedStrategy != actualStrategy {
+            Shared.shared.performanceMonitor?.recordPreviewHostPredictionDrift(
+                previewHostTelemetryIdentifier,
+                predicted: predictedStrategy,
+                actual: actualStrategy
+            )
+        }
         if deliverCallbacks {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }

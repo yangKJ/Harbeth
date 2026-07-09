@@ -18,7 +18,7 @@ public final class TextureLease {
 
     public init(texture: MTLTexture, logicalExtent: C7Size? = nil, releaseHandler: (() -> Void)? = nil) {
         self.texture = texture
-        self.logicalExtent = logicalExtent ?? C7Size(width: texture.width, height: texture.height)
+        self.logicalExtent = logicalExtent ?? C7Size(texture: texture)
         self.releaseHandler = releaseHandler
     }
 

@@ -246,7 +246,7 @@ public struct EditRecipe {
                         compiled.profile
                     )
                 }
-                let targetSize = compiled.derivative.resolvedOutputSize(for: C7Size(width: currentTexture.width, height: currentTexture.height))
+                let targetSize = compiled.derivative.resolvedOutputSize(for: C7Size(texture: currentTexture))
                 guard targetSize.width != currentTexture.width || targetSize.height != currentTexture.height else {
                     return currentTexture
                 }
@@ -347,7 +347,7 @@ public struct EditRecipe {
                           derivative: ImageDerivativeSpec? = nil) throws -> CompiledEditRecipeExecution {
         let resolvedSource = resolvedSource(source)
         let input = try resolvedSource.makeTexture()
-        let inputSize = C7Size(width: input.width, height: input.height)
+        let inputSize = C7Size(texture: input)
         let contract = contract(for: mode)
         let effectiveDerivative = derivative ?? contract.derivative
         let baseFilters = makeBaseFilterChain(inputSize: inputSize, appending: extraFilters)

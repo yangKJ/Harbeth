@@ -109,7 +109,7 @@ struct RenderCommand {
         self.filter = filter
         self.sourceTexture = sourceTexture
         self.descriptor = filter.renderCommandDescriptor(
-            inputSize: C7Size(width: sourceTexture.width, height: sourceTexture.height),
+            inputSize: C7Size(texture: sourceTexture),
             renderPass: renderPass
         )
     }

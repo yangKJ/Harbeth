@@ -357,7 +357,7 @@ private extension HarbethIO {
 extension HarbethIO {
     
     private func makeRenderPlan(input texture: MTLTexture) -> RenderPlan {
-        let inputSize = C7Size(width: texture.width, height: texture.height)
+        let inputSize = C7Size(texture: texture)
         // Cache key covers exactly what `GraphCompiler.compile` consumes on this path: the filter
         // chain recipe (type + kernel + parameters, via the same `chainRecipe` fingerprint ImageNode
         // uses), the input dimensions, and the render profile (which also fixes the derivative).
@@ -437,7 +437,7 @@ extension HarbethIO {
             return sourceTexture
         }
         let targetPixelFormat = setupBufferPixelFormat(with: sourceTexture)
-        var resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
+        var resize = filter.resize(input: C7Size(texture: sourceTexture))
         
         // Calculate target size considering device limits
         let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
@@ -469,7 +469,7 @@ extension HarbethIO {
             return nil
         }
         let targetPixelFormat = setupBufferPixelFormat(with: sourceTexture)
-        var resize = filter.resize(input: C7Size(width: sourceTexture.width, height: sourceTexture.height))
+        var resize = filter.resize(input: C7Size(texture: sourceTexture))
         let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
         resize = C7Size(width: deviceMaxWidth, height: deviceMaxHeight)
         let lease = try TextureLoader.makeTextureLease(width: resize.width, height: resize.height, options: [
@@ -551,7 +551,7 @@ extension HarbethIO {
         guard plan.containsBoundary == false else {
             return false
         }
-        var inputSize = C7Size(width: input.width, height: input.height)
+        var inputSize = C7Size(texture: input)
         for filter in filters {
             let outputSize = filter.resize(input: inputSize)
             if outputSize.width != inputSize.width || outputSize.height != inputSize.height {
@@ -622,11 +622,13 @@ extension HarbethIO {
     private func filtering(pixelBuffer: CVPixelBuffer, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CVPixelBuffer {
         let inTexture = try TextureLoader(with: pixelBuffer).texture
         let outputColorSpace = resolvedOutputColorSpace(
-            inputSize: C7Size(width: inTexture.width, height: inTexture.height),
+            inputSize: C7Size(texture: inTexture),
             outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
-        let outputPixelBuffer = try pixelBuffer.c7.copyOutputTextureToCompatiblePixelBuffer(with: texture)
+        let outputPixelBuffer = try outputColorSpace.preservesInput
+            ? pixelBuffer.c7.copyOutputTextureToCompatiblePixelBuffer(with: texture)
+            : pixelBuffer.c7.makeCompatibleOutputPixelBuffer(for: texture)
         outputPixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
         return outputPixelBuffer
     }
@@ -635,9 +637,16 @@ extension HarbethIO {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw HarbethError.CMSampleBufferToCVPixelBuffer
         }
+        let outputColorSpace = resolvedOutputColorSpace(
+            inputSize: C7Size(pixelBuffer: pixelBuffer),
+            outputColorSpace: outputColorSpace
+        )
         let outputPixelBuffer = try filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace)
         guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: sampleBuffer) else {
             throw HarbethError.CVPixelBufferToCMSampleBuffer
+        }
+        if outputColorSpace.preservesInput == false, let imageBuffer = CMSampleBufferGetImageBuffer(buffer) {
+            imageBuffer.c7.setColorSpaceAttachments(outputColorSpace)
         }
         return buffer
     }
@@ -645,7 +654,7 @@ extension HarbethIO {
     private func filtering(cgImage: CGImage, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CGImage {
         let inTexture = try TextureLoader(with: cgImage).texture
         let outputColorSpace = resolvedOutputColorSpace(
-            inputSize: C7Size(width: inTexture.width, height: inTexture.height),
+            inputSize: C7Size(texture: inTexture),
             outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
@@ -660,7 +669,7 @@ extension HarbethIO {
     private func filtering(image: C7Image, outputColorSpace: ImageColorSpaceContract? = nil) throws -> C7Image {
         let inTexture = try TextureLoader(with: image).texture
         let outputColorSpace = resolvedOutputColorSpace(
-            inputSize: C7Size(width: inTexture.width, height: inTexture.height),
+            inputSize: C7Size(texture: inTexture),
             outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
@@ -676,7 +685,7 @@ extension HarbethIO {
         do {
             let texture = try TextureLoader(with: pixelBuffer).texture
             let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(width: texture.width, height: texture.height),
+                inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
             filtering(texture: texture, complete: { result in
@@ -703,12 +712,19 @@ extension HarbethIO {
             complete(.failure(HarbethError.CMSampleBufferToCVPixelBuffer))
             return
         }
+        let outputColorSpace = resolvedOutputColorSpace(
+            inputSize: C7Size(pixelBuffer: pixelBuffer),
+            outputColorSpace: outputColorSpace
+        )
         filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace, complete: { result in
             switch result {
             case .success(let outputPixelBuffer):
                 guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: sampleBuffer) else {
                     complete(.failure(HarbethError.CVPixelBufferToCMSampleBuffer))
                     return
+                }
+                if outputColorSpace.preservesInput == false, let imageBuffer = CMSampleBufferGetImageBuffer(buffer) {
+                    imageBuffer.c7.setColorSpaceAttachments(outputColorSpace)
                 }
                 complete(.success(buffer))
             case .failure(let error):
@@ -721,7 +737,7 @@ extension HarbethIO {
         do {
             let texture = try TextureLoader(with: cgImage).texture
             let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(width: texture.width, height: texture.height),
+                inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
             filtering(texture: texture, complete: { result in
@@ -747,7 +763,7 @@ extension HarbethIO {
         do {
             let texture = try TextureLoader(with: image).texture
             let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(width: texture.width, height: texture.height),
+                inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
             filtering(texture: texture, complete: { result in

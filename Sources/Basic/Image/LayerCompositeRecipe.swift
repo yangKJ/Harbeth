@@ -562,7 +562,7 @@ extension LayerCompositeRecipe {
             placeholderTexture = try background.makeTexture()
         } else {
             let backgroundTexture = try background.makeTexture()
-            backgroundSize = C7Size(width: backgroundTexture.width, height: backgroundTexture.height)
+            backgroundSize = C7Size(texture: backgroundTexture)
             placeholderTexture = backgroundTexture
         }
         let layerPreparationFilters = layers.flatMap { layer -> [C7FilterProtocol] in
@@ -577,7 +577,7 @@ extension LayerCompositeRecipe {
                 layerTransform.flipsVertically.toggle()
             }
             return layerTransform.makeFilters(
-                inputSize: C7Size(width: placeholderTexture.width, height: placeholderTexture.height)
+                inputSize: C7Size(texture: placeholderTexture)
             ) + layer.filters
         }
         let filters = try layers.flatMap { layer -> [C7FilterProtocol] in
@@ -659,7 +659,7 @@ extension LayerCompositeRecipe {
                 layerTransform.flipsVertically.toggle()
             }
             let layerFilters = layerTransform.makeFilters(
-                inputSize: C7Size(width: layerTexture.width, height: layerTexture.height)
+                inputSize: C7Size(texture: layerTexture)
             ) + layer.filters
             if layerFilters.isEmpty == false {
                 layerTexture = try HarbethIO(

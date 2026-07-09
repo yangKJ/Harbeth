@@ -116,11 +116,9 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         CVPixelBufferGetHeight(base)
     }
     
-    /// Calculated size based on plane 0
+    /// Calculated size based on the buffer extent
     private var size: C7Size {
-        let width = CVPixelBufferGetWidthOfPlane(self.base, 0)
-        let height = CVPixelBufferGetHeightOfPlane(self.base, 0)
-        return C7Size(width: width, height: height)
+        C7Size(pixelBuffer: base)
     }
     
     /// Converts pixel buffer to Metal texture

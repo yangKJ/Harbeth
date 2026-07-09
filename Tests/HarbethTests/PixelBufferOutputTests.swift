@@ -951,7 +951,7 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(snapshot.renderRecipe?.source.kind, "sampleBuffer")
         XCTAssertEqual(snapshot.diagnostics.inputYCbCrDecode, diagnostics.inputYCbCrDecodeContract?.fingerprint)
         XCTAssertTrue(snapshot.diagnostics.inputHDRFriendly)
-        XCTAssertEqual(snapshot.diagnostics.inputDynamicRange, .highDynamicRange.rawValue)
+        XCTAssertEqual(snapshot.diagnostics.inputDynamicRange, ImageDynamicRangeContract.highDynamicRange.rawValue)
         XCTAssertEqual(snapshot.diagnostics.outputToneMappingPolicy, diagnostics.outputToneMappingPolicy.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostDecision, PreviewHostRenderingDecision.directPlaneDecodeToRGBA.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostTimingPolicy, PreviewHostTimingPolicy.displayStable.rawValue)

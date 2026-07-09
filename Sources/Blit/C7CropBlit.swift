@@ -24,7 +24,7 @@ public struct C7CropBlit: C7FilterProtocol, BlitProtocol {
     }
     
     public func resize(input size: C7Size) -> C7Size {
-        return C7Size(width: Int(rect.width), height: Int(rect.height))
+        return C7Size(size: rect.size)
     }
     
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {

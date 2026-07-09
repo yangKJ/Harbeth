@@ -6,6 +6,10 @@
 //
 
 import Foundation
+import CoreGraphics
+import CoreMedia
+import CoreVideo
+import MetalKit
 
 public struct C7Size: Codable, Sendable {
 
@@ -19,8 +23,31 @@ public struct C7Size: Codable, Sendable {
         self.height = height
     }
 
+    public init(size: CGSize) {
+        self.init(width: Int(size.width), height: Int(size.height))
+    }
+
     public init(cgSize: CGSize) {
-        self.init(width: Int(cgSize.width), height: Int(cgSize.height))
+        self.init(size: cgSize)
+    }
+
+    public init(texture: MTLTexture) {
+        self.init(width: texture.width, height: texture.height)
+    }
+
+    public init(pixelBuffer: CVPixelBuffer) {
+        self.init(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+    }
+
+    public init(cgImage: CGImage) {
+        self.init(width: cgImage.width, height: cgImage.height)
+    }
+
+    public init?(sampleBuffer: CMSampleBuffer) {
+        guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return nil
+        }
+        self.init(pixelBuffer: imageBuffer)
     }
 
     private enum CodingKeys: String, CodingKey {

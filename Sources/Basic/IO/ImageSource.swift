@@ -188,26 +188,23 @@ public enum ImageSource {
     var resolvedSizeHint: C7Size? {
         switch self {
         case .texture(let texture):
-            return C7Size(width: texture.width, height: texture.height)
+            return C7Size(texture: texture)
         case .cgImage(let image):
-            return C7Size(width: image.width, height: image.height)
+            return C7Size(cgImage: image)
         case .image(let image):
             let pixelWidth = max(Int((image.size.width * image.scale).rounded()), 1)
             let pixelHeight = max(Int((image.size.height * image.scale).rounded()), 1)
             return C7Size(width: pixelWidth, height: pixelHeight)
         case .pixelBuffer(let pixelBuffer):
-            return C7Size(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+            return C7Size(pixelBuffer: pixelBuffer)
         case .sampleBuffer(let sampleBuffer):
-            guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-                return nil
-            }
-            return C7Size(width: CVPixelBufferGetWidth(imageBuffer), height: CVPixelBufferGetHeight(imageBuffer))
+            return C7Size(sampleBuffer: sampleBuffer)
         case .data:
             return nil
         case .asset(let asset):
             switch asset.storage {
             case .cgImage(let image):
-                return C7Size(width: image.width, height: image.height)
+                return C7Size(cgImage: image)
             case .data, .url:
                 return nil
             }

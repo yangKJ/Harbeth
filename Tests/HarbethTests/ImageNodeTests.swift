@@ -2923,7 +2923,7 @@ final class ImageNodeTests: XCTestCase {
         let inputPixel = try pixel(in: input, x: 0, y: 0)
 
         XCTAssertNotEqual(ObjectIdentifier(output), ObjectIdentifier(input))
-        XCTAssertNotEqual((outputPixel.red, outputPixel.green, outputPixel.blue), (inputPixel.red, inputPixel.green, inputPixel.blue))
+        XCTAssertFalse(outputPixel.red == inputPixel.red && outputPixel.green == inputPixel.green && outputPixel.blue == inputPixel.blue)
     }
 
     func testRenderDiagnosticsExposeOutputQualityContract() {

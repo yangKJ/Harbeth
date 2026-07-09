@@ -76,7 +76,7 @@ public extension RenderProtocol {
     /// 服务单个 render primitive 的附件读取、调试与后续分析装配，
     /// 不把 Harbeth 扩展成重型 editor runtime。
     func renderAttachmentSet(from sourceTexture: MTLTexture, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
-        let inputSize = C7Size(width: sourceTexture.width, height: sourceTexture.height)
+        let inputSize = C7Size(texture: sourceTexture)
         let descriptor = renderCommandDescriptor(inputSize: inputSize)
         let outputSize = resize(input: inputSize)
         let destinationTextures = try makeDestinationTextures(

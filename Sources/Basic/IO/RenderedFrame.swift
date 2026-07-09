@@ -270,7 +270,7 @@ public struct RenderedFrame: @unchecked Sendable {
         )
         let resolvedDerivative = derivative ?? profile.defaultDerivativeSpec
         self.derivative = resolvedDerivative
-        self.resolvedOutputSize = resolvedOutputSize ?? C7Size(width: texture.width, height: texture.height)
+        self.resolvedOutputSize = resolvedOutputSize ?? C7Size(texture: texture)
         self.renderIntent = renderIntent ?? profile.defaultRenderIntent
         self.sourceTier = sourceTier
         self.alphaType = alphaType
@@ -299,7 +299,7 @@ public struct RenderedFrame: @unchecked Sendable {
         let sourceHost = sourceDescriptor.frameHostSourceDescriptor
         guard sourceHost.frameSize.width > 0, sourceHost.frameSize.height > 0 else {
             return FrameHostSourceDescriptor(
-                frameSize: C7Size(width: texture.width, height: texture.height),
+                frameSize: C7Size(texture: texture),
                 orientation: orientation,
                 mirrorHorizontally: sourceHost.mirrorHorizontally,
                 mirrorVertically: sourceHost.mirrorVertically,
@@ -529,7 +529,7 @@ struct FrameRenderer {
             return try compiledRecipeExecution(recipe, mode: mode).renderTexture()
         }
         let input = try source.makeTexture()
-        let effectiveFilters = effectiveFilters(for: C7Size(width: input.width, height: input.height))
+        let effectiveFilters = effectiveFilters(for: C7Size(texture: input))
         guard effectiveFilters.isEmpty == false else { return input }
         return try makeIO(element: input, filters: effectiveFilters)
             .configured(for: profile)
@@ -570,7 +570,7 @@ struct FrameRenderer {
         let resolvedSize: C7Size
         if filters.isEmpty {
             let input = try source.makeTexture()
-            let baseSize = source.resolvedSizeHint ?? C7Size(width: input.width, height: input.height)
+            let baseSize = source.resolvedSizeHint ?? C7Size(texture: input)
             let effectiveFilters = effectiveFilters(for: baseSize)
             resolvedSize = resolvedOutputSize(for: baseSize, filters: effectiveFilters)
             if effectiveFilters.isEmpty {
@@ -585,7 +585,7 @@ struct FrameRenderer {
             }
         } else {
             let input = try source.makeTexture()
-            let size_ = source.resolvedSizeHint ?? C7Size(width: input.width, height: input.height)
+            let size_ = source.resolvedSizeHint ?? C7Size(texture: input)
             let effectiveFilters = effectiveFilters(for: size_)
             resolvedSize = resolvedOutputSize(for: size_, filters: effectiveFilters)
             let result = try makeIO(element: input, filters: effectiveFilters)
@@ -619,7 +619,7 @@ struct FrameRenderer {
         }
         do {
             let input = try source.makeTexture()
-            let size_ = source.resolvedSizeHint ?? C7Size(width: input.width, height: input.height)
+            let size_ = source.resolvedSizeHint ?? C7Size(texture: input)
             let effectiveFilters = effectiveFilters(for: size_)
             let resolvedSize = resolvedOutputSize(for: size_, filters: effectiveFilters)
             guard effectiveFilters.isEmpty == false else {
@@ -708,7 +708,7 @@ struct FrameRenderer {
     private func resolvedFrameColorSpace(source: ImageSource, filterChain: [C7FilterProtocol]) -> CGColorSpace? {
         let inputSize: C7Size?
         if let texture = try? source.makeTexture() {
-            inputSize = C7Size(width: texture.width, height: texture.height)
+            inputSize = C7Size(texture: texture)
         } else {
             inputSize = nil
         }
@@ -775,7 +775,7 @@ struct FrameRenderer {
     }
 
     private func resizeTextureIfNeeded(_ texture: MTLTexture,  derivative: ImageDerivativeSpec, profile: RenderProfile) throws -> MTLTexture {
-        let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
+        let targetSize = derivative.resolvedOutputSize(for: C7Size(texture: texture))
         guard targetSize.width != texture.width || targetSize.height != texture.height else {
             return texture
         }
@@ -936,7 +936,7 @@ private struct CompiledTransitionExecution {
          renderTexture: @escaping (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture,
          resizeTextureIfNeeded: @escaping (MTLTexture, ImageDerivativeSpec, RenderProfile) throws -> MTLTexture) throws {
         let input = try source.makeTexture()
-        let inputSize = C7Size(width: input.width, height: input.height)
+        let inputSize = C7Size(texture: input)
         var filters = [try recipe.makeFilter()] + extraFilters
         let baseOutputSize = filters.reduce(inputSize) { size, filter in
             filter.resize(input: size)

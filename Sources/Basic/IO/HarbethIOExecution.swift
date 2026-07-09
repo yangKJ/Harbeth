@@ -111,7 +111,7 @@ extension HarbethIO {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
         let diagnostics = GraphCompiler.compile(
             filters: context.effectiveFilters,
-            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height),
+            inputSize: C7Size(texture: context.sourceTexture),
             profile: profile,
             derivative: context.effectiveDerivative,
             compilationSource: .filtersPrimitive,
@@ -130,7 +130,7 @@ extension HarbethIO {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
         let plan = GraphCompiler.compile(
             filters: context.effectiveFilters,
-            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height),
+            inputSize: C7Size(texture: context.sourceTexture),
             profile: profile,
             derivative: context.effectiveDerivative,
             compilationSource: .filtersPrimitive,
@@ -595,7 +595,7 @@ extension HarbethIO {
         let sourceTexture = try sourceObject.makeTexture()
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let effectiveFilters = makeEffectiveFilters(
-            inputSize: C7Size(width: sourceTexture.width, height: sourceTexture.height),
+            inputSize: C7Size(texture: sourceTexture),
             derivative: effectiveDerivative
         )
         return (sourceObject, sourceTexture, effectiveDerivative, effectiveFilters)
@@ -640,7 +640,7 @@ extension HarbethIO {
             io.createDestTexture = true
         }
         let outputColorSpace = io.resolvedOutputColorSpace(
-            inputSize: C7Size(width: context.sourceTexture.width, height: context.sourceTexture.height),
+            inputSize: C7Size(texture: context.sourceTexture),
             outputColorSpace: outputColorSpace
         )
         let texture = try io.output()

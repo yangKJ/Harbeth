@@ -190,7 +190,7 @@ extension ImageNode {
         renderedMetadata["outputColorSpace"] = resolvedOutputColorSpace.name
         renderedMetadata["outputToneMappingPolicy"] = diagnostics.outputContract.toneMappingPolicy.rawValue
         let token = FrameRenderToken(identifier: monitoringIdentifier, generation: FrameGeneration.next())
-        let logicalOutputSize = primarySource.resolvedSizeHint ?? C7Size(width: texture.width, height: texture.height)
+        let logicalOutputSize = C7Size(texture: texture)
         return RenderedFrame(
             texture: texture,
             colorSpace: colorSpace,
@@ -816,7 +816,7 @@ extension ImageNode: ImagePromise {
             )
             try descriptor.validateCompatibility(
                 with: filter,
-                inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
+                inputSize: C7Size(texture: inputTexture)
             )
             let rendered = try HarbethIO(
                 element: inputTexture,
@@ -933,7 +933,7 @@ extension ImageNode: ImagePromise {
                 inputSize = size
             } else {
                 let texture = try source.makeTexture()
-                inputSize = C7Size(width: texture.width, height: texture.height)
+                inputSize = C7Size(texture: texture)
             }
             plan = GraphCompiler.compile(
                 filters: [],
@@ -985,7 +985,7 @@ extension ImageNode: ImagePromise {
                     inputSize = size
                 } else {
                     let texture = try recipe.from.makeTexture()
-                    inputSize = C7Size(width: texture.width, height: texture.height)
+                    inputSize = C7Size(texture: texture)
                 }
                 plan = GraphCompiler.compile(
                     filters: [try recipe.makeFilter()] + filters,
@@ -1005,7 +1005,7 @@ extension ImageNode: ImagePromise {
                     inputSize = size
                 } else {
                     let texture = try input.makeTexture(profile: profile, derivative: nil)
-                    inputSize = C7Size(width: texture.width, height: texture.height)
+                    inputSize = C7Size(texture: texture)
                 }
                 plan = GraphCompiler.compile(
                     filters: filters,
@@ -1050,7 +1050,7 @@ extension ImageNode: ImagePromise {
                 )
                 try descriptor.validateCompatibility(
                     with: filter,
-                    inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
+                    inputSize: C7Size(texture: inputTexture)
                 )
                 plan = try makeWrappedEditRenderPlan(
                     source: .texture(inputTexture),
@@ -1069,7 +1069,7 @@ extension ImageNode: ImagePromise {
                     inputSize = size
                 } else {
                     let texture = try input.makeTexture(profile: profile, derivative: nil)
-                    inputSize = C7Size(width: texture.width, height: texture.height)
+                    inputSize = C7Size(texture: texture)
                 }
                 try descriptor.validateCompatibility(
                     with: filter,
@@ -1124,7 +1124,7 @@ extension ImageNode: ImagePromise {
                 inputSize = size
             } else {
                 let texture = try recipe.from.makeTexture()
-                inputSize = C7Size(width: texture.width, height: texture.height)
+                inputSize = C7Size(texture: texture)
             }
             plan = GraphCompiler.compile(
                 filters: [try recipe.makeFilter()],
@@ -1296,7 +1296,7 @@ extension ImageNode: ImagePromise {
                                       derivative: ImageDerivativeSpec,
                                       profile: RenderProfile,
                                       identifier: String? = nil) throws -> MTLTexture {
-        let targetSize = derivative.resolvedOutputSize(for: C7Size(width: texture.width, height: texture.height))
+            let targetSize = derivative.resolvedOutputSize(for: C7Size(texture: texture))
         guard targetSize.width != texture.width || targetSize.height != texture.height else {
             return texture
         }
@@ -1559,7 +1559,7 @@ extension ImageNode: ImagePromise {
             let inputTexture = try input.makeTexture(profile: profile, derivative: nil)
             try descriptor.validateCompatibility(
                 with: filter,
-                inputSize: C7Size(width: inputTexture.width, height: inputTexture.height)
+                inputSize: C7Size(texture: inputTexture)
             )
             return (inputTexture, renderFilter)
         case .cachePolicy(let input, _):

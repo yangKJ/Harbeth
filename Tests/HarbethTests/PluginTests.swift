@@ -515,6 +515,37 @@ extension PluginTests {
         view.display(nil)
         PreviewHostFleetRegistry.resetForTesting()
     }
+
+    func testRenderGraphDebugSnapshotMarksRuntimePredictionDriftAfterFallback() throws {
+        PreviewHostFleetRegistry.resetForTesting()
+        PreviewHostRuntimeSummaryCache.resetForTesting()
+        let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create sample buffer.")
+            return
+        }
+        let frame = try HarbethIO(element: sampleBuffer, filters: [])
+            .renderFrame(profile: .interactiveLatency)
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+
+        view.layout()
+        view.display(frame)
+        view.debugSimulatePreviewHostFallbackForTesting()
+
+        let summary = try XCTUnwrap(
+            try ImageNode.sampleBuffer(sampleBuffer)
+                .makeDebugSnapshot(profile: .interactiveLatency)
+                .diagnostics.runtimePreviewHostSummary
+        )
+
+        XCTAssertTrue(summary.predictionDrifted)
+        XCTAssertEqual(summary.predictionDriftReason, "strategyMismatch")
+        XCTAssertEqual(summary.actualResolvedHostStrategy, PreviewHostStrategy.metalTextureHost.rawValue)
+        XCTAssertTrue(summary.fellBackToMetal)
+
+        view.display(nil)
+        PreviewHostFleetRegistry.resetForTesting()
+    }
 }
 #endif
 
