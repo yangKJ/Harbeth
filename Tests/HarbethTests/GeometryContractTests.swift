@@ -19,6 +19,23 @@ final class GeometryContractTests: XCTestCase {
         XCTAssertEqual(descriptor.passes.first?.renderPass?.colorAttachments.count, 2)
     }
 
+    func testCylindricalCanvasDeclaresExplicitCanvasAndCoverageAttachment() {
+        let filter = RenderCylindricalCanvas(
+            canvasToProjected: matrix_identity_float3x3,
+            focalLength: 120,
+            principalPoint: SIMD2(48, 32),
+            outputSize: C7Size(width: 96, height: 64),
+            edgeFeatherFraction: 0.05
+        )
+        let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 96, height: 64))
+
+        XCTAssertEqual(filter.resize(input: C7Size(width: 96, height: 64)), C7Size(width: 96, height: 64))
+        XCTAssertEqual(descriptor.outputContract.primaryAttachment.pixelFormat, .rgba16Float)
+        XCTAssertEqual(descriptor.outputContract.attachmentContract(at: 1)?.semantic, .coverage)
+        XCTAssertEqual(descriptor.outputContract.attachmentContract(at: 1)?.pixelFormat, .r16Float)
+        XCTAssertEqual(descriptor.passes.first?.renderPass?.colorAttachments.count, 2)
+    }
+
     func testNormalizedCropRegionResolvesIntoPixelRect() {
         let region = ImageCropRegion(
             rect: CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5),

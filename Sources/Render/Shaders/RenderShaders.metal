@@ -24,6 +24,16 @@ struct ProjectiveCanvasUniforms {
     float3 padding;
 };
 
+struct CylindricalCanvasUniforms {
+    float3x3 canvasToProjected;
+    float2 principalPoint;
+    float2 sourceSize;
+    float2 outputSize;
+    float focalLength;
+    float edgeFeatherFraction;
+    float2 padding;
+};
+
 vertex VertexOut basicVertex(uint vertexID [[vertex_id]], constant float *vertices [[buffer(0)]]) {
     VertexOut vertexOut;
 
@@ -87,6 +97,48 @@ fragment ProjectiveCanvasFragmentOut projectiveCanvasFragment(
     }
     sourcePoint /= sourcePoint.z;
     const float2 uv = sourcePoint.xy / uniforms.sourceSize;
+    if (any(uv < float2(0.0)) || any(uv > float2(1.0))) {
+        return output;
+    }
+
+    const float4 color = inputTexture.sample(linearTransparent, uv);
+    float feather = 1.0;
+    if (uniforms.edgeFeatherFraction > 0.0) {
+        const float edgeDistance = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+        feather = smoothstep(0.0, uniforms.edgeFeatherFraction, edgeDistance);
+    }
+    output.primaryColor = color;
+    output.coverage = color.a * feather;
+    return output;
+}
+
+fragment ProjectiveCanvasFragmentOut cylindricalCanvasFragment(
+    VertexOut vertexOut [[stage_in]],
+    texture2d<float, access::sample> inputTexture [[texture(0)]],
+    constant CylindricalCanvasUniforms &uniforms [[buffer(0)]]) {
+    constexpr sampler linearTransparent(coord::normalized, address::clamp_to_zero, filter::linear);
+
+    ProjectiveCanvasFragmentOut output;
+    output.primaryColor = float4(0.0);
+    output.coverage = 0.0;
+
+    const float2 canvasPoint = vertexOut.textureCoordinate * uniforms.outputSize;
+    float3 projectedPoint = uniforms.canvasToProjected * float3(canvasPoint, 1.0);
+    if (!isfinite(projectedPoint.z) || abs(projectedPoint.z) < 1e-6) {
+        return output;
+    }
+    projectedPoint /= projectedPoint.z;
+
+    const float safeFocal = max(uniforms.focalLength, 1.0);
+    const float theta = (projectedPoint.x - uniforms.principalPoint.x) / safeFocal;
+    const float cosTheta = cos(theta);
+    if (!isfinite(cosTheta) || abs(cosTheta) < 1e-4) {
+        return output;
+    }
+
+    const float sourceX = safeFocal * tan(theta) + uniforms.principalPoint.x;
+    const float sourceY = (projectedPoint.y - uniforms.principalPoint.y) / cosTheta + uniforms.principalPoint.y;
+    const float2 uv = float2(sourceX / uniforms.sourceSize.x, sourceY / uniforms.sourceSize.y);
     if (any(uv < float2(0.0)) || any(uv > float2(1.0))) {
         return output;
     }
