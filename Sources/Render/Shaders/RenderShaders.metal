@@ -15,6 +15,15 @@ struct QuadTransformUniforms {
     uint2 padding;
 };
 
+struct ProjectiveCanvasUniforms {
+    float3x3 canvasToSource;
+    float2 canvasOrigin;
+    float2 sourceSize;
+    float2 outputSize;
+    float edgeFeatherFraction;
+    float3 padding;
+};
+
 vertex VertexOut basicVertex(uint vertexID [[vertex_id]], constant float *vertices [[buffer(0)]]) {
     VertexOut vertexOut;
 
@@ -54,6 +63,43 @@ fragment float4 basicFragment(VertexOut vertexOut [[stage_in]],
                               sampler textureSampler [[sampler(0)]]) {
     float4 color = inputTexture.sample(textureSampler, vertexOut.textureCoordinate);
     return color;
+}
+
+struct ProjectiveCanvasFragmentOut {
+    float4 primaryColor [[color(0)]];
+    float coverage [[color(1)]];
+};
+
+fragment ProjectiveCanvasFragmentOut projectiveCanvasFragment(
+    VertexOut vertexOut [[stage_in]],
+    texture2d<float, access::sample> inputTexture [[texture(0)]],
+    constant ProjectiveCanvasUniforms &uniforms [[buffer(0)]]) {
+    constexpr sampler linearTransparent(coord::normalized, address::clamp_to_zero, filter::linear);
+
+    ProjectiveCanvasFragmentOut output;
+    output.primaryColor = float4(0.0);
+    output.coverage = 0.0;
+
+    const float2 canvasPoint = uniforms.canvasOrigin + vertexOut.textureCoordinate * uniforms.outputSize;
+    float3 sourcePoint = uniforms.canvasToSource * float3(canvasPoint, 1.0);
+    if (!isfinite(sourcePoint.z) || abs(sourcePoint.z) < 1e-6) {
+        return output;
+    }
+    sourcePoint /= sourcePoint.z;
+    const float2 uv = sourcePoint.xy / uniforms.sourceSize;
+    if (any(uv < float2(0.0)) || any(uv > float2(1.0))) {
+        return output;
+    }
+
+    const float4 color = inputTexture.sample(linearTransparent, uv);
+    float feather = 1.0;
+    if (uniforms.edgeFeatherFraction > 0.0) {
+        const float edgeDistance = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+        feather = smoothstep(0.0, uniforms.edgeFeatherFraction, edgeDistance);
+    }
+    output.primaryColor = color;
+    output.coverage = color.a * feather;
+    return output;
 }
 
 struct DualOutputLuminanceFragmentOut {

@@ -4,6 +4,21 @@ import Metal
 
 final class GeometryContractTests: XCTestCase {
 
+    func testProjectiveCanvasDeclaresExplicitCanvasAndCoverageAttachment() {
+        let filter = RenderProjectiveCanvas(
+            canvasToSource: matrix_identity_float3x3,
+            outputSize: C7Size(width: 320, height: 180),
+            edgeFeatherFraction: 0.08
+        )
+        let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 100, height: 80))
+
+        XCTAssertEqual(filter.resize(input: C7Size(width: 100, height: 80)), C7Size(width: 320, height: 180))
+        XCTAssertEqual(descriptor.outputContract.primaryAttachment.pixelFormat, .rgba16Float)
+        XCTAssertEqual(descriptor.outputContract.attachmentContract(at: 1)?.semantic, .coverage)
+        XCTAssertEqual(descriptor.outputContract.attachmentContract(at: 1)?.pixelFormat, .r16Float)
+        XCTAssertEqual(descriptor.passes.first?.renderPass?.colorAttachments.count, 2)
+    }
+
     func testNormalizedCropRegionResolvesIntoPixelRect() {
         let region = ImageCropRegion(
             rect: CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5),

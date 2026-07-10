@@ -465,7 +465,7 @@ public extension RenderedAttachment {
             return .red
         }
         switch semantic {
-        case .histogram, .maskCoverage, .luminance, .analysis:
+        case .histogram, .coverage, .maskCoverage, .luminance, .analysis:
             return .luminance
         case .primaryColor, .auxiliaryColor, .debug:
             return .luminance

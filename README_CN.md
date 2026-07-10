@@ -256,6 +256,7 @@ Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
 - **RenderTransform3D**（3D 变换）- 应用 3D 投影变换，并可配置输出视口策略
 - **RenderQuadTransform**（Quad 变换）- 按目标四边形对图像做 warp 变换
 - **RenderQuadRectifyTransform**（Quad 矫正）- 将源四边形区域矫正回规则输出画幅
+- **RenderProjectiveCanvas**（投影画布）- 按逆 Homography 投影到显式像素画布，并独立输出几何 coverage attachment
 - **GuidedUpright**（引导式拉正）- 根据垂直/水平引导线生成推荐的透视或 quad 矫正变换
 - **LensProfile**（镜头配置）- 描述设备或镜头可复用的光学校正参数
 - **OpticsSettings**（光学校正配置）- 把 profile 驱动的多项光学校正按强度组合成一条处理链

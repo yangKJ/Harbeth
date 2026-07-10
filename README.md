@@ -1021,6 +1021,7 @@ Combination filters allow you to create complex effects by combining multiple in
 - **RenderTransform3D**: Applies 3D projection transforms with configurable viewport behavior
 - **RenderQuadTransform**: Warps an image using a destination quad
 - **RenderQuadRectifyTransform**: Rectifies a source quad back into a regular output frame
+- **RenderProjectiveCanvas**: Projects an image into an explicit pixel canvas and emits geometric coverage as a separate render attachment
 - **GuidedUpright**: Builds a recommended perspective or quad rectify transform from vertical and horizontal guides
 - **LensProfile**: Describes reusable lens correction coefficients for a device or lens
 - **OpticsRecipe**: Composes profile-driven optics corrections into a structured recipe for `ImageNode.applying(optics:)`

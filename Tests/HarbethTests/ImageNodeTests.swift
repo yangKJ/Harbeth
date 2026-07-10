@@ -3292,6 +3292,7 @@ final class ImageNodeTests: XCTestCase {
             pixelFormat: .rgba16Float
         )
         let mask = RenderOutputAttachmentContract.maskCoverage(index: 2)
+        let coverage = RenderOutputAttachmentContract.coverage(index: 6, pixelFormat: .r16Float)
         let luminance = RenderOutputAttachmentContract.luminance(index: 3)
         let analysis = RenderOutputAttachmentContract.analysis(index: 4)
         let histogram = RenderOutputAttachmentContract.histogram(index: 5)
@@ -3300,6 +3301,9 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(auxiliary.colorSpace.gamut, .displayP3)
         XCTAssertEqual(mask.semantic, .maskCoverage)
         XCTAssertEqual(mask.alpha, .opaque)
+        XCTAssertEqual(coverage.semantic, .coverage)
+        XCTAssertEqual(coverage.pixelFormat, .r16Float)
+        XCTAssertEqual(coverage.debugPolicy.label, "coverage")
         XCTAssertEqual(luminance.semantic, .luminance)
         XCTAssertEqual(analysis.semantic, .analysis)
         XCTAssertEqual(histogram.semantic, .histogram)

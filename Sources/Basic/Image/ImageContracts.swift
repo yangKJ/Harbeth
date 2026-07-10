@@ -392,6 +392,8 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
     public static let preserveInput = PixelFormatContract()
     public static let rgba8Unorm = PixelFormatContract(pixelFormat: .rgba8Unorm, preservesInput: false)
     public static let bgra8Unorm = PixelFormatContract(pixelFormat: .bgra8Unorm, preservesInput: false)
+    public static let r8Unorm = PixelFormatContract(pixelFormat: .r8Unorm, preservesInput: false)
+    public static let r16Float = PixelFormatContract(pixelFormat: .r16Float, preservesInput: false)
     public static let rgba16Float = PixelFormatContract(pixelFormat: .rgba16Float, preservesInput: false)
     public static let rgba32Float = PixelFormatContract(pixelFormat: .rgba32Float, preservesInput: false)
 
@@ -847,6 +849,16 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         )
     }
 
+    public static func coverage(index: Int, pixelFormat: PixelFormatContract = .r8Unorm) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .coverage,
+            alpha: .opaque,
+            colorSpace: .preserveInput,
+            pixelFormat: pixelFormat
+        )
+    }
+
     public static func luminance(index: Int, pixelFormat: PixelFormatContract = .rgba8Unorm) -> RenderOutputAttachmentContract {
         RenderOutputAttachmentContract(
             index: index,
@@ -881,6 +893,7 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
 public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable, Hashable {
     case primaryColor
     case auxiliaryColor
+    case coverage
     case maskCoverage
     case luminance
     case histogram
@@ -891,7 +904,7 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
         switch self {
         case .primaryColor, .auxiliaryColor, .debug:
             return .color
-        case .maskCoverage, .luminance:
+        case .coverage, .maskCoverage, .luminance:
             return .monochrome
         case .histogram, .analysis:
             return .scalarField
@@ -900,7 +913,7 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
 
     fileprivate var prefersMonochromePreview: Bool {
         switch self {
-        case .maskCoverage, .luminance, .histogram:
+        case .coverage, .maskCoverage, .luminance, .histogram:
             return true
         case .primaryColor, .auxiliaryColor, .analysis, .debug:
             return false
@@ -909,6 +922,8 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
 
     fileprivate func preferredReadbackPixelFormat(declared: PixelFormatContract) -> PixelFormatContract {
         switch self {
+        case .coverage:
+            return declared.preservesInput ? .r8Unorm : declared
         case .maskCoverage, .luminance:
             return .rgba8Unorm
         case .histogram:
@@ -929,7 +944,7 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
             return true
         case .primaryColor, .auxiliaryColor, .analysis, .debug:
             return declared.isHighPrecision
-        case .maskCoverage, .luminance:
+        case .coverage, .maskCoverage, .luminance:
             return false
         }
     }
@@ -940,6 +955,8 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
             return "primaryColor"
         case .auxiliaryColor:
             return "auxiliaryColor\(index)"
+        case .coverage:
+            return "coverage"
         case .maskCoverage:
             return "maskCoverage"
         case .luminance:

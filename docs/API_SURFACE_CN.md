@@ -343,6 +343,19 @@ Geometry 在 `ImageNode` 里的结构化入口：
 - `PerspectiveTransform`
 - `GuidedUpright`
 
+当调用方已经拥有外部求解的 Homography，并需要投影到显式像素画布时，使用底层 `RenderProjectiveCanvas`。它只负责几何投影、透明边界和独立 `.coverage` attachment，不负责配准、接缝、曝光或裁边策略：
+
+```swift
+let filter = RenderProjectiveCanvas(
+    canvasToSource: inverseHomography,
+    outputSize: C7Size(width: 2048, height: 1024),
+    edgeFeatherFraction: 0.04
+)
+let outputs = try filter.renderAttachmentSet(from: sourceTexture)
+let color = outputs.primary?.texture
+let coverage = outputs.texture(for: .coverage)
+```
+
 最自然的接法现在是直接挂在已有 node 上，而不是先切回单独执行入口：
 
 ```swift

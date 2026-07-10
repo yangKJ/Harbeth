@@ -119,6 +119,7 @@ Harbeth 对外只保留两条路线：
 - `GuidedUpright`
 - `Homography`
 - `Transform3DLayout`
+- `RenderProjectiveCanvas`：显式逆 Homography + 像素画布，并通过 attachment 独立输出 coverage
 - 采样和几何辅助结构
 
 存在意义：
