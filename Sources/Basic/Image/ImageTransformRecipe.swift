@@ -19,6 +19,60 @@ public enum AspectPolicy: String, Sendable, Codable, Equatable, Hashable {
     case fill
 }
 
+public enum ImageCanvasMode: String, Sendable, Codable, Equatable, Hashable {
+    case minimumEnclosing
+    case preserveInput
+}
+
+public enum ImageCropAnchor: String, Sendable, Codable, Equatable, Hashable {
+    case center
+    case top
+    case bottom
+    case leading
+    case trailing
+    case topLeading
+    case topTrailing
+    case bottomLeading
+    case bottomTrailing
+
+    func resolvedOffset(fillSize: CGSize, targetSize: CGSize) -> CGPoint {
+        let overflowX = max(fillSize.width - targetSize.width, 0)
+        let overflowY = max(fillSize.height - targetSize.height, 0)
+        let x: CGFloat
+        let y: CGFloat
+        switch self {
+        case .center:
+            x = overflowX * 0.5
+            y = overflowY * 0.5
+        case .top:
+            x = overflowX * 0.5
+            y = 0
+        case .bottom:
+            x = overflowX * 0.5
+            y = overflowY
+        case .leading:
+            x = 0
+            y = overflowY * 0.5
+        case .trailing:
+            x = overflowX
+            y = overflowY * 0.5
+        case .topLeading:
+            x = 0
+            y = 0
+        case .topTrailing:
+            x = overflowX
+            y = 0
+        case .bottomLeading:
+            x = 0
+            y = overflowY
+        case .bottomTrailing:
+            x = overflowX
+            y = overflowY
+        }
+        return CGPoint(x: x, y: y)
+    }
+}
+
 public struct ImageCropRegion: Sendable, Codable, Equatable, Hashable {
     public let rect: CGRect
     public let coordinateSpace: CoordinateSpace
@@ -82,6 +136,9 @@ public struct ImageTransformRecipe {
     public var cropRegion: ImageCropRegion?
     public var targetSize: CGSize?
     public var aspectPolicy: AspectPolicy
+    public var canvasMode: ImageCanvasMode
+    public var cropAnchor: ImageCropAnchor
+    public var quadTransform: RenderQuadTransform.Quad?
     public var perspectiveTransform: PerspectiveTransform?
     public var guidedUpright: GuidedUpright?
     public var projectiveViewportMode: Transform3DViewportMode
@@ -92,6 +149,9 @@ public struct ImageTransformRecipe {
     public init(cropRegion: ImageCropRegion? = nil,
                 targetSize: CGSize? = nil,
                 aspectPolicy: AspectPolicy = .none,
+                canvasMode: ImageCanvasMode = .minimumEnclosing,
+                cropAnchor: ImageCropAnchor = .center,
+                quadTransform: RenderQuadTransform.Quad? = nil,
                 perspectiveTransform: PerspectiveTransform? = nil,
                 guidedUpright: GuidedUpright? = nil,
                 projectiveViewportMode: Transform3DViewportMode = .minimumEnclosing,
@@ -101,6 +161,9 @@ public struct ImageTransformRecipe {
         self.cropRegion = cropRegion
         self.targetSize = targetSize
         self.aspectPolicy = aspectPolicy
+        self.canvasMode = canvasMode
+        self.cropAnchor = cropAnchor
+        self.quadTransform = quadTransform
         self.perspectiveTransform = perspectiveTransform
         self.guidedUpright = guidedUpright
         self.projectiveViewportMode = projectiveViewportMode
@@ -112,6 +175,7 @@ public struct ImageTransformRecipe {
     public var isIdentity: Bool {
         cropRegion == nil &&
         targetSize == nil &&
+        quadTransform == nil &&
         perspectiveTransform == nil &&
         guidedUpright == nil &&
         rotationDegrees.truncatingRemainder(dividingBy: 360) == 0 &&
@@ -124,6 +188,9 @@ public struct ImageTransformRecipe {
             "crop=\(cropRegion?.fingerprint ?? "none")",
             "target=\(targetSize.map { ImageTransformRecipe.stableSizeDescription($0) } ?? "none")",
             "aspect=\(aspectPolicy.rawValue)",
+            "canvas=\(canvasMode.rawValue)",
+            "anchor=\(cropAnchor.rawValue)",
+            "quad=\(quadTransform.map { ImageTransformRecipe.stableQuadDescription($0) } ?? "none")",
             "perspective=\(perspectiveTransform?.fingerprint ?? "none")",
             "upright=\(guidedUpright?.fingerprint ?? "none")",
             "projectiveViewport=\(projectiveViewportMode.rawValue)",
@@ -148,14 +215,22 @@ public struct ImageTransformRecipe {
             }
         }
 
-        if let projectiveFilter = makeProjectiveFilter(inputSize: workingSize) {
+        let resolvedProjectiveViewportMode: Transform3DViewportMode = canvasMode == .preserveInput ? .original : projectiveViewportMode
+
+        if let quadTransform {
+            let quad = RenderQuadTransform(quad: quadTransform, viewportMode: resolvedProjectiveViewportMode)
+            filters.append(quad)
+            workingSize = quad.resize(input: workingSize)
+        }
+
+        if let projectiveFilter = makeProjectiveFilter(inputSize: workingSize, viewportMode: resolvedProjectiveViewportMode) {
             filters.append(projectiveFilter)
             workingSize = projectiveFilter.resize(input: workingSize)
         }
 
         let normalizedRotation = rotationDegrees.truncatingRemainder(dividingBy: 360)
         if normalizedRotation != 0 {
-            let rotate = C7Rotate(angle: normalizedRotation)
+            let rotate = C7Rotate(mode: canvasMode == .preserveInput ? .fixed : .fit, angle: normalizedRotation)
             filters.append(rotate)
             workingSize = rotate.resize(input: workingSize)
         }
@@ -191,9 +266,12 @@ public struct ImageTransformRecipe {
                 let filledWidth = max(Int((CGFloat(workingSize.width) * scale).rounded(.up)), exactTarget.width)
                 let filledHeight = max(Int((CGFloat(workingSize.height) * scale).rounded(.up)), exactTarget.height)
                 filters.append(makeResize(width: filledWidth, height: filledHeight, quality: prefersQualityResize))
-                let cropX = max((filledWidth - exactTarget.width) / 2, 0)
-                let cropY = max((filledHeight - exactTarget.height) / 2, 0)
-                let rect_ = CGRect(x: cropX, y: cropY, width: exactTarget.width, height: exactTarget.height)
+                let exactTargetSize = CGSize(width: exactTarget.width, height: exactTarget.height)
+                let cropOrigin = cropAnchor.resolvedOffset(
+                    fillSize: CGSize(width: filledWidth, height: filledHeight),
+                    targetSize: exactTargetSize
+                )
+                let rect_ = CGRect(origin: cropOrigin, size: exactTargetSize).integral
                 filters.append(C7Crop(rect: rect_, samplingMode: .adaptive, edgeMode: .transparent))
             }
         }
@@ -201,13 +279,13 @@ public struct ImageTransformRecipe {
         return filters
     }
 
-    private func makeProjectiveFilter(inputSize: C7Size) -> C7FilterProtocol? {
+    private func makeProjectiveFilter(inputSize: C7Size, viewportMode: Transform3DViewportMode) -> C7FilterProtocol? {
         let resolvedSize = CGSize(width: inputSize.width, height: inputSize.height)
         if let guidedUpright {
-            return guidedUpright.makeFilter(inputSize: resolvedSize, viewportMode: projectiveViewportMode)
+            return guidedUpright.makeFilter(inputSize: resolvedSize, viewportMode: viewportMode)
         }
         if let perspectiveTransform {
-            return perspectiveTransform.makeFilter(viewportMode: projectiveViewportMode)
+            return perspectiveTransform.makeFilter(viewportMode: viewportMode)
         }
         return nil
     }
@@ -238,5 +316,95 @@ public struct ImageTransformRecipe {
             stableFloatDescription(Float(size.width)),
             stableFloatDescription(Float(size.height))
         ].joined(separator: "x")
+    }
+
+    fileprivate static func stableQuadDescription(_ quad: RenderQuadTransform.Quad) -> String {
+        [
+            stablePointDescription(quad.topLeft),
+            stablePointDescription(quad.topRight),
+            stablePointDescription(quad.bottomLeft),
+            stablePointDescription(quad.bottomRight)
+        ].joined(separator: "|")
+    }
+
+    fileprivate static func stablePointDescription(_ point: FreePoint2D) -> String {
+        [
+            stableFloatDescription(point.x),
+            stableFloatDescription(point.y)
+        ].joined(separator: ",")
+    }
+}
+
+public extension ImageTransformRecipe {
+    static func crop(_ region: ImageCropRegion) -> ImageTransformRecipe {
+        ImageTransformRecipe(cropRegion: region)
+    }
+
+    static func fit(targetSize: CGSize,
+                    canvasMode: ImageCanvasMode = .minimumEnclosing,
+                    cropAnchor: ImageCropAnchor = .center) -> ImageTransformRecipe {
+        return ImageTransformRecipe(targetSize: targetSize, aspectPolicy: .fit, canvasMode: canvasMode, cropAnchor: cropAnchor)
+    }
+
+    static func fill(targetSize: CGSize,
+                     canvasMode: ImageCanvasMode = .minimumEnclosing,
+                     cropAnchor: ImageCropAnchor = .center) -> ImageTransformRecipe {
+        return ImageTransformRecipe(targetSize: targetSize, aspectPolicy: .fill, canvasMode: canvasMode, cropAnchor: cropAnchor)
+    }
+
+    static func quad(topLeft: FreePoint2D,
+                     topRight: FreePoint2D,
+                     bottomLeft: FreePoint2D,
+                     bottomRight: FreePoint2D,
+                     targetSize: CGSize? = nil,
+                     aspectPolicy: AspectPolicy = .none,
+                     canvasMode: ImageCanvasMode = .minimumEnclosing,
+                     cropAnchor: ImageCropAnchor = .center,
+                     projectiveViewportMode: Transform3DViewportMode = .minimumEnclosing) -> ImageTransformRecipe {
+        ImageTransformRecipe(
+            targetSize: targetSize,
+            aspectPolicy: aspectPolicy,
+            canvasMode: canvasMode,
+            cropAnchor: cropAnchor,
+            quadTransform: RenderQuadTransform.Quad(
+                topLeft: topLeft,
+                topRight: topRight,
+                bottomLeft: bottomLeft,
+                bottomRight: bottomRight
+            ),
+            projectiveViewportMode: projectiveViewportMode
+        )
+    }
+
+    static func perspective(_ transform: PerspectiveTransform,
+                            targetSize: CGSize? = nil,
+                            aspectPolicy: AspectPolicy = .none,
+                            canvasMode: ImageCanvasMode = .minimumEnclosing,
+                            cropAnchor: ImageCropAnchor = .center,
+                            projectiveViewportMode: Transform3DViewportMode = .minimumEnclosing) -> ImageTransformRecipe {
+        ImageTransformRecipe(
+            targetSize: targetSize,
+            aspectPolicy: aspectPolicy,
+            canvasMode: canvasMode,
+            cropAnchor: cropAnchor,
+            perspectiveTransform: transform,
+            projectiveViewportMode: projectiveViewportMode
+        )
+    }
+
+    static func upright(_ upright: GuidedUpright,
+                        targetSize: CGSize? = nil,
+                        aspectPolicy: AspectPolicy = .none,
+                        canvasMode: ImageCanvasMode = .minimumEnclosing,
+                        cropAnchor: ImageCropAnchor = .center,
+                        projectiveViewportMode: Transform3DViewportMode = .minimumEnclosing) -> ImageTransformRecipe {
+        ImageTransformRecipe(
+            targetSize: targetSize,
+            aspectPolicy: aspectPolicy,
+            canvasMode: canvasMode,
+            cropAnchor: cropAnchor,
+            guidedUpright: upright,
+            projectiveViewportMode: projectiveViewportMode
+        )
     }
 }
