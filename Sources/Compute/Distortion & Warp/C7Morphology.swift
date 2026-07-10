@@ -11,7 +11,7 @@ import Foundation
 /// Morphological operation filter (corrosion and expansion)
 public struct C7Morphology: C7FilterProtocol {
     
-    public static let range: ParameterRange<Float, Self> = .init(min: 1, max: 10, value: 3)
+    public static let range: ParameterRange<Float, Self> = .init(min: 1, max: 9, value: 3)
     
     public enum OperationType {
         case erosion, dilation
@@ -28,11 +28,26 @@ public struct C7Morphology: C7FilterProtocol {
     
     public var factors: [Float] {
         let operationValue: Float = operation == .erosion ? 0.0 : 1.0
-        return [operationValue, kernelSize]
+        return [operationValue, Float(normalizedKernelSize)]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood
+    }
+
+    public var samplingFootprint: SamplingFootprint {
+        .neighborhood(radius: normalizedKernelSize / 2)
+    }
+
+    /// 形态学 kernel 统一为 1...9 的奇数；偶数向上取整到下一个奇数。
+    /// 例如 0、1、2、4、10 分别归一化为 1、1、3、5、9。
+    public var normalizedKernelSize: Int {
+        let rounded = Int(kernelSize.rounded())
+        let clamped = min(max(rounded, 1), 9)
+        if clamped.isMultiple(of: 2) {
+            return min(clamped + 1, 9)
+        }
+        return clamped
     }
     
     public init(operation: OperationType, kernelSize: Float = range.value) {

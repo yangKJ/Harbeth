@@ -29,16 +29,12 @@ public struct C7CropBlit: C7FilterProtocol, BlitProtocol {
     
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         let destTexture = textures[0], sourceTexture = textures[1]
-        let x = Int(rect.origin.x)
-        let y = Int(rect.origin.y)
-        let width = Int(rect.width)
-        let height = Int(rect.height)
-        
-        // Validate crop region
-        guard x >= 0, y >= 0, x + width <= sourceTexture.width, y + height <= sourceTexture.height else {
+        guard let region = TextureRegionRect(rect: rect), region.fits(in: sourceTexture),
+              destTexture.width >= region.width, destTexture.height >= region.height else {
             throw HarbethError.textureCropFailed
         }
-        
+
+        // Validate crop region
         guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
             throw HarbethError.makeBlitCommandEncoder
         }
@@ -47,8 +43,8 @@ public struct C7CropBlit: C7FilterProtocol, BlitProtocol {
             from: sourceTexture,
             sourceSlice: 0,
             sourceLevel: 0,
-            sourceOrigin: MTLOrigin(x: x, y: y, z: 0),
-            sourceSize: MTLSize(width: width, height: height, depth: 1),
+            sourceOrigin: MTLOrigin(x: region.x, y: region.y, z: 0),
+            sourceSize: MTLSize(width: region.width, height: region.height, depth: 1),
             to: destTexture,
             destinationSlice: 0,
             destinationLevel: 0,

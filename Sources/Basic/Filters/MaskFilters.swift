@@ -257,3 +257,24 @@ struct MaskCoverageBlend: C7FilterProtocol {
         .multiTexture
     }
 }
+
+struct MaskDistanceField: C7FilterProtocol {
+    let maxDistance: Float
+    let threshold: Float
+
+    var modifier: ModifierEnum {
+        .compute(kernel: "MaskDistanceField")
+    }
+
+    var factors: [Float] {
+        [maxDistance, threshold]
+    }
+
+    var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
+
+    var samplingFootprint: SamplingFootprint {
+        .dynamic
+    }
+}

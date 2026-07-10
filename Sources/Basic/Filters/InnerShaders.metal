@@ -722,3 +722,35 @@ kernel void InnerDisplacementTransition(texture2d<half, access::write> outputTex
     const half4 to = safe_read(toTexture, gid);
     outputTexture.write(mix(from, to, progress), gid);
 }
+
+kernel void MaskDistanceField(texture2d<half, access::write> outputTexture [[texture(0)]],
+                              texture2d<half, access::read> inputTexture [[texture(1)]],
+                              constant float &maxDistance [[buffer(0)]],
+                              constant float &threshold [[buffer(1)]],
+                              uint2 gid [[thread_position_in_grid]]) {
+    const uint width = inputTexture.get_width();
+    const uint height = inputTexture.get_height();
+    if (gid.x >= width || gid.y >= height) {
+        return;
+    }
+    const float safeDistance = max(maxDistance, 1.0f);
+    const int radius = int(ceil(safeDistance));
+    const bool inside = inputTexture.read(gid).r >= half(threshold);
+    float best = safeDistance;
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            const int2 position = int2(gid) + int2(x, y);
+            if (position.x < 0 || position.y < 0 || position.x >= int(width) || position.y >= int(height)) {
+                continue;
+            }
+            const bool neighborInside = inputTexture.read(uint2(position)).r >= half(threshold);
+            if (neighborInside == inside) {
+                continue;
+            }
+            const float candidate = length(float2(x, y));
+            best = min(best, candidate);
+        }
+    }
+    const half normalized = half(clamp(best / safeDistance, 0.0f, 1.0f));
+    outputTexture.write(half4(normalized, normalized, normalized, 1.0h), gid);
+}

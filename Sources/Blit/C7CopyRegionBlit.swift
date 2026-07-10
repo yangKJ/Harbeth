@@ -32,23 +32,13 @@ public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
         let destTexture = textures[0], sourceTexture = textures[1]
         let sourceRect = sourceRect ?? CGRect(x: 0, y: 0, width: sourceTexture.width, height: sourceTexture.height)
-        let x = Int(sourceRect.origin.x)
-        let y = Int(sourceRect.origin.y)
-        let width = Int(sourceRect.width)
-        let height = Int(sourceRect.height)
-        
+        guard let region = TextureRegionRect(rect: sourceRect),
+              region.fits(in: sourceTexture),
+              region.fits(at: destOrigin, in: destTexture) else {
+            throw HarbethError.textureCropFailed
+        }
+
         // Validate source region
-        guard x >= 0, y >= 0, x + width <= sourceTexture.width, y + height <= sourceTexture.height else {
-            throw HarbethError.textureCropFailed
-        }
-        
-        // Validate destination region
-        guard destOrigin.x >= 0, destOrigin.y >= 0, 
-              destOrigin.x + width <= destTexture.width, 
-              destOrigin.y + height <= destTexture.height else {
-            throw HarbethError.textureCropFailed
-        }
-        
         guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
             throw HarbethError.makeBlitCommandEncoder
         }
@@ -57,8 +47,8 @@ public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
             from: sourceTexture,
             sourceSlice: 0,
             sourceLevel: 0,
-            sourceOrigin: MTLOrigin(x: x, y: y, z: 0),
-            sourceSize: MTLSize(width: width, height: height, depth: 1),
+            sourceOrigin: MTLOrigin(x: region.x, y: region.y, z: 0),
+            sourceSize: MTLSize(width: region.width, height: region.height, depth: 1),
             to: destTexture,
             destinationSlice: 0,
             destinationLevel: 0,
