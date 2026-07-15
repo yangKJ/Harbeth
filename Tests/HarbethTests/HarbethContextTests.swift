@@ -122,6 +122,54 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue(texture === reused)
     }
 
+    func testSharedCreatesFreshCommandBufferAfterCompatibilityReturn() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+        guard let first = Shared.shared.getCommandBuffer() else {
+            return XCTFail("Expected the shared command queue to create a command buffer.")
+        }
+
+        Shared.shared.returnCommandBuffer(first)
+
+        guard let second = Shared.shared.getCommandBuffer() else {
+            return XCTFail("Expected the shared command queue to create another command buffer.")
+        }
+        XCTAssertFalse(first === second)
+    }
+
+    func testTexturePoolAsyncEvictionStopsWhenIncomingTextureFits() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable.")
+        let pool = TexturePool(maxMemoryUsage: 240)
+
+        func makeTexture(height: Int) throws -> MTLTexture {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .r8Unorm,
+                width: 8,
+                height: height,
+                mipmapped: false
+            )
+            guard let texture = device?.makeTexture(descriptor: descriptor) else {
+                throw HarbethError.makeTexture
+            }
+            return texture
+        }
+
+        let oldest = try makeTexture(height: 8)
+        let retained1 = try makeTexture(height: 9)
+        let retained2 = try makeTexture(height: 10)
+        let incoming = try makeTexture(height: 11)
+        pool.enqueueTexture(oldest)
+        pool.enqueueTexture(retained1)
+        pool.enqueueTexture(retained2)
+        pool.enqueueTexture(incoming)
+
+        XCTAssertNil(pool.dequeueExactTexture(width: 8, height: 8, pixelFormat: .r8Unorm))
+        XCTAssertTrue(pool.dequeueExactTexture(width: 8, height: 9, pixelFormat: .r8Unorm) === retained1)
+        XCTAssertTrue(pool.dequeueExactTexture(width: 8, height: 10, pixelFormat: .r8Unorm) === retained2)
+        XCTAssertTrue(pool.dequeueExactTexture(width: 8, height: 11, pixelFormat: .r8Unorm) === incoming)
+    }
+
     func testSharedOwnsDefaultRuntimeAndContextBridgesToIt() {
         Shared.shared.deinitDevice()
 

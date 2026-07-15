@@ -4,6 +4,36 @@ import Metal
 
 final class RenderCommandTests: XCTestCase {
 
+    func testRenderingDrawingRejectsRenderModifierWithoutRenderProtocol() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let source = try makeTexture(width: 8, height: 6, pixelFormat: .rgba8Unorm)
+        let destination = try makeTexture(width: 8, height: 6, pixelFormat: .rgba8Unorm)
+        let pipelineState = try Rendering.makeRenderPipelineState(
+            with: "basicVertex",
+            fragment: "basicFragment",
+            pixelFormat: .rgba8Unorm
+        )
+        guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
+            return XCTFail("Expected the shared command queue to create a command buffer.")
+        }
+
+        XCTAssertThrowsError(
+            try Rendering.drawing(
+                pipelineState,
+                commandBuffer: commandBuffer,
+                texture: source,
+                destTexture: destination,
+                filter: RenderModifierWithoutRenderProtocol()
+            )
+        ) { error in
+            guard case .filterProcessingFailed(let message)? = error.asHarbethError else {
+                return XCTFail("Expected filterProcessingFailed, got \(error)")
+            }
+            XCTAssertEqual(message, "Render command requires RenderProtocol.")
+        }
+    }
+
     func testRenderAuxiliaryLuminanceDescriptorDeclaresPrimaryAndLuminanceAttachments() {
         let descriptor = RenderAuxiliaryLuminance().renderCommandDescriptor(inputSize: C7Size(width: 8, height: 6))
 
@@ -650,6 +680,12 @@ final class RenderCommandTests: XCTestCase {
             invCoveragePixel.red, 78, accuracy: 4,
             "invert=true + opacity=0.5: (255-100)*0.5 ≈ 78,验证 invert 与 opacity 链路都生效"
         )
+    }
+}
+
+private struct RenderModifierWithoutRenderProtocol: C7FilterProtocol {
+    var modifier: ModifierEnum {
+        .render(vertex: "basicVertex", fragment: "basicFragment")
     }
 }
 

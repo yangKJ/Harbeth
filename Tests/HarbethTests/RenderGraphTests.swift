@@ -75,6 +75,9 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.requiresCompletedGPUWork)
         XCTAssertEqual(plan.optimizedStages.count, 2)
         XCTAssertEqual(plan.optimizedStages.last?.filterCount, 1)
+        XCTAssertNil(plan.optimizedStages.first?.boundaryReason)
+        XCTAssertEqual(plan.optimizedStages.last?.boundaryReason, .fusionBoundary)
+        XCTAssertTrue(plan.optimizedStages.last?.containsReadbackBoundary ?? false)
     }
 
     func testHarbethIOExecutesResizeBoundaryFromRenderPlan() throws {

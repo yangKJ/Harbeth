@@ -1289,7 +1289,8 @@ enum GraphOptimizer {
                 return .fusionBoundary
             }
             if profile.requiresCompletedGPUWorkBeforeReadback,
-               diagnostics.last?.outputSize == diagnostics.last?.outputSize {
+               currentNodeIndices.last == graph.nodes.indices.last,
+               diagnostics.isEmpty == false {
                 return .readbackReady
             }
             return nil
@@ -1319,9 +1320,9 @@ enum GraphOptimizer {
                     boundaryReason: boundaryReason(for: stageNodes, diagnostics: diagnostics),
                     containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback && currentNodeIndices.last == graph.nodes.indices.last,
                     createsDestinationTexture: stageNodes.contains(where: { $0.filter != nil }),
-                    containsLocalEffectComposite: diagnostics.contains(where: { $0.name.contains("MaskRegionBlend") }),
-                    containsTransitionKernel: diagnostics.contains(where: { $0.name.contains("Transition") }),
-                    containsDerivativeResize: diagnostics.contains(where: { $0.name.contains("DerivativeResize") })
+                    containsLocalEffectComposite: stageNodes.contains(where: { $0.filter is MaskRegionBlend }),
+                    containsTransitionKernel: stageNodes.contains(where: { $0.filter is TransitionKernel }),
+                    containsDerivativeResize: diagnostics.contains(where: { $0.name == "DerivativeResize" })
                 )
             )
             currentNodeIndices.removeAll(keepingCapacity: true)

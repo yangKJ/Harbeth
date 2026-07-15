@@ -87,7 +87,7 @@ public final class TexturePool {
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     #endif
 
-    init() {
+    init(maxMemoryUsage: Int? = nil) {
         let physicalMemory = ProcessInfo.processInfo.physicalMemory
         let physicalMemoryMB = physicalMemory / 1024 / 1024
         // Dynamic memory limit based on device memory
@@ -100,7 +100,7 @@ public final class TexturePool {
             memoryPercentage = 0.10 // 10%
         }
         let limitMB = min(Int(Double(physicalMemoryMB) * memoryPercentage), 512)
-        self.maxMemoryUsage = Int(limitMB * 1024 * 1024)
+        self.maxMemoryUsage = maxMemoryUsage ?? Int(limitMB * 1024 * 1024)
         #if os(iOS)
         NotificationCenter.default.addObserver(
             self,
@@ -261,7 +261,7 @@ public final class TexturePool {
                 return
             }
             let textureSize = self.estimatedByteSize(of: texture)
-            let newTotal = self.currentMemoryUsage + textureSize
+            var newTotal = self.currentMemoryUsage + textureSize
             // Evict until under memory limit
             while newTotal > self.maxMemoryUsage && !self.accessQueue.isEmpty {
                 let oldestKey = self.accessQueue.removeFirst()
@@ -272,6 +272,7 @@ public final class TexturePool {
                     self.textureToKey[oldOid] = nil
                     self.currentMemoryUsage -= self.estimatedByteSize(of: oldTexture)
                     self.statistics.currentTextureCount -= 1
+                    newTotal = self.currentMemoryUsage + textureSize
                 }
             }
             // Only enqueue if still under limit

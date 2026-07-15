@@ -46,10 +46,9 @@ struct Rendering {
         )
     }
     
-    static func drawing(_ pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer, texture: MTLTexture, destTexture: MTLTexture, filter: C7FilterProtocol) {
+    static func drawing(_ pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer, texture: MTLTexture, destTexture: MTLTexture, filter: C7FilterProtocol) throws {
         guard let renderFilter = filter as? RenderProtocol else {
-            assertionFailure("Render command requires RenderProtocol.")
-            return
+            throw HarbethError.filterProcessingFailed("Render command requires RenderProtocol.")
         }
         let inputSize = C7Size(width: texture.width, height: texture.height)
         let usesCustomVertexLayout = renderFilter.renderVertexStride != 4
@@ -61,15 +60,12 @@ struct Rendering {
             usesCustomVertexLayout: usesCustomVertexLayout
         )
         let command = RenderCommand(filter: renderFilter, sourceTexture: texture, renderPass: renderPass)
-        guard let batch = try? RenderCommandBatch(
+        let batch = try RenderCommandBatch(
             renderPass: renderPass,
             destinationTexturesByAttachmentIndex: [0: destTexture],
             commands: [command]
-        ) else {
-            assertionFailure("Could not create render command batch.")
-            return
-        }
-        try? encode(batch: batch, with: pipelineState, commandBuffer: commandBuffer)
+        )
+        try encode(batch: batch, with: pipelineState, commandBuffer: commandBuffer)
     }
 
     static func encode(batch: RenderCommandBatch, commandBuffer: MTLCommandBuffer) throws {

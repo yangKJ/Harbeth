@@ -47,9 +47,6 @@ public final class Device: Cacheable {
         return queue
     }()
     
-    /// Command buffer pool for reusing command buffers
-    private var _commandBufferPool: CommandBufferPool
-    
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Could not create Metal Device")
@@ -65,7 +62,6 @@ public final class Device: Cacheable {
         
         self.harbethLibrary = Device.makeFrameworkLibrary(device, for: "Harbeth")
 
-        self._commandBufferPool = CommandBufferPool(maxSize: 4, commandQueue: commandQueue)
     }
     
     deinit {
@@ -107,11 +103,12 @@ extension Device {
     }
 
     func dequeueCommandBuffer() -> MTLCommandBuffer? {
-        _commandBufferPool.get()
+        commandQueue.makeCommandBuffer()
     }
 
     func enqueueCommandBuffer(_ buffer: MTLCommandBuffer) {
-        _commandBufferPool.put(buffer)
+        // Metal command buffers are single-use after encoding/commit. Keep this
+        // compatibility hook as a no-op for callers that still return buffers.
     }
 
     private static var fallbackLibraries: [String: MTLLibrary] = [:]
@@ -756,18 +753,16 @@ extension Device {
         Shared.shared.defaultDevice._memoryLimitMB = value
     }
     
-    /// Get a command buffer from the pool
-    @available(*, deprecated, message: "Use Shared.shared.defaultDevice command buffer pool through Shared instead.")
+    /// Create a command buffer from the shared command queue.
+    @available(*, deprecated, message: "Use Shared.shared.getCommandBuffer() instead.")
     public static func getCommandBuffer() -> MTLCommandBuffer? {
-        return Shared.shared.defaultDevice._commandBufferPool.get()
+        return Shared.shared.defaultDevice.commandQueue.makeCommandBuffer()
     }
-    
-    /// Return a command buffer to the pool
-    @available(*, deprecated, message: "Use Shared.shared.defaultDevice command buffer pool through Shared instead.")
-    public static func returnCommandBuffer(_ buffer: MTLCommandBuffer) {
-        Shared.shared.defaultDevice._commandBufferPool.put(buffer)
-    }
-    
+
+    /// Compatibility hook for the former command-buffer pool. Command buffers
+    /// are single-use and therefore are intentionally not returned to a pool.
+    @available(*, deprecated, message: "Command buffers are single-use; no return is required.")
+    public static func returnCommandBuffer(_ buffer: MTLCommandBuffer) { }
     
     public static func makeTexture2DMaxSize(width: Int, height: Int) -> (width: Int, height: Int) {
         func getMaxTextureDimensions() -> (width: Int, height: Int) {
