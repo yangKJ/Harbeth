@@ -116,6 +116,29 @@ final class RegionalProcessingContractTests: XCTestCase {
         XCTAssertEqual(expanded.logicalExtent, context.logicalExtent)
     }
 
+    func testTextureMappingContextKeepsIndependentInputAndOutputSpaces() throws {
+        let context = try TextureMappingContext(
+            inputLogicalExtent: CGRect(x: 0, y: 0, width: 12_000, height: 8_000),
+            inputRegion: CGRect(x: 7_000, y: 1_000, width: 2_048, height: 2_048),
+            outputLogicalExtent: CGRect(x: 0, y: 0, width: 12_000, height: 8_000),
+            outputRegion: CGRect(x: 2_952, y: 1_000, width: 2_048, height: 2_048)
+        )
+
+        XCTAssertEqual(context.kernelValues, [
+            7_000, 1_000, 12_000, 8_000,
+            2_952, 1_000, 12_000, 8_000
+        ])
+    }
+
+    func testTextureMappingContextRejectsRegionOutsideLogicalExtent() {
+        XCTAssertThrowsError(try TextureMappingContext(
+            inputLogicalExtent: CGRect(x: 0, y: 0, width: 100, height: 80),
+            inputRegion: CGRect(x: 90, y: 0, width: 20, height: 20),
+            outputLogicalExtent: CGRect(x: 0, y: 0, width: 100, height: 80),
+            outputRegion: CGRect(x: 0, y: 0, width: 20, height: 20)
+        ))
+    }
+
     func testPointFootprintLeavesRegionUnchanged() throws {
         let context = try TextureRegionContext(
             logicalExtent: CGRect(x: 0, y: 0, width: 30, height: 30),
