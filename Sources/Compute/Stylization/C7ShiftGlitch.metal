@@ -33,10 +33,12 @@ namespace shift_glitch {
 kernel void C7ShiftGlitch(texture2d<half, access::write> outputTexture [[texture(0)]],
                           texture2d<half, access::read> inputTexture [[texture(1)]],
                           constant float *timePointer [[buffer(0)]],
+                          constant float4 *harbethRegionContext [[buffer(30)]],
                           uint2 grid [[thread_position_in_grid]]) {
-    const float w = outputTexture.get_width();
-    const float h = outputTexture.get_height();
-    const float2 textureCoordinate = float2(grid) / float2(w, h);
+    const float2 inputSize = float2(inputTexture.get_width(), inputTexture.get_height());
+    const float2 logicalSize = max(harbethRegionContext->zw, float2(1.0));
+    const float2 globalPixel = float2(grid) + harbethRegionContext->xy;
+    const float2 textureCoordinate = globalPixel / logicalSize;
     
     const half time = half(*timePointer);
     const float blurX = shift_glitch::noise(float3(time * 10.0, 0.0, 0.0)) * 2.0 - 1.0;
@@ -49,9 +51,12 @@ kernel void C7ShiftGlitch(texture2d<half, access::write> outputTexture [[texture
     const half2 guv = half2(textureCoordinate) + half2(-offsetx, -offsety);
     const half2 buv = half2(textureCoordinate) + half2(0.0h, 0.0h);
     
-    const half r = inputTexture.read(uint2(ruv * half2(w, h))).r;
-    const half g = inputTexture.read(uint2(guv * half2(w, h))).g;
-    const half b = inputTexture.read(uint2(buv * half2(w, h))).b;
+    float2 rLocalPixel = float2(ruv) * logicalSize - harbethRegionContext->xy;
+    float2 gLocalPixel = float2(guv) * logicalSize - harbethRegionContext->xy;
+    float2 bLocalPixel = float2(buv) * logicalSize - harbethRegionContext->xy;
+    const half r = inputTexture.read(uint2(clamp(rLocalPixel, float2(0.0), inputSize - 1.0))).r;
+    const half g = inputTexture.read(uint2(clamp(gLocalPixel, float2(0.0), inputSize - 1.0))).g;
+    const half b = inputTexture.read(uint2(clamp(bLocalPixel, float2(0.0), inputSize - 1.0))).b;
     const half4 outColor = half4(r, g, b, 1.0h);
     
     outputTexture.write(outColor, grid);

@@ -12,13 +12,14 @@ kernel void C7Glitch(texture2d<half, access::write> outputTexture [[texture(0)]]
                      texture2d<half, access::read> inputTexture [[texture(1)]],
                      constant float *progressPointer [[buffer(0)]],
                      constant float *maxJitterPointer [[buffer(1)]],
+                     constant float4 *harbethRegionContext [[buffer(30)]],
                      uint2 grid [[thread_position_in_grid]]) {
-    const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
-    float2 clampedCoord = clamp(textureCoordinate, 0.0, 1.0);
-    uint2 texCoord = uint2(clampedCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
-    const half4 inColor = inputTexture.read(texCoord);
-    const float x = float(grid.x) / outputTexture.get_width();
-    const float y = float(grid.y) / outputTexture.get_height();
+    const float2 logicalSize = max(harbethRegionContext->zw, float2(1.0));
+    const float2 globalPixel = float2(grid) + harbethRegionContext->xy;
+    const float2 textureCoordinate = globalPixel / logicalSize;
+    const half4 inColor = inputTexture.read(grid);
+    const float x = textureCoordinate.x;
+    const float y = textureCoordinate.y;
     
     const half progress = half(*progressPointer) * 2.0h;
     const half maxJitter = half(*maxJitterPointer);
@@ -34,8 +35,11 @@ kernel void C7Glitch(texture2d<half, access::write> outputTexture [[texture(0)]]
     
     float2 maskRCoord = clamp(textureCoords + float2(colorROffset * amplitude, 0.0), 0.0, 1.0);
     float2 maskBCoord = clamp(textureCoords + float2(colorBOffset * amplitude, 0.0), 0.0, 1.0);
-    uint2 maskRTexCoord = uint2(maskRCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
-    uint2 maskBTexCoord = uint2(maskBCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
+    const float2 inputSize = float2(inputTexture.get_width(), inputTexture.get_height());
+    float2 maskRLocalPixel = maskRCoord * logicalSize - harbethRegionContext->xy;
+    float2 maskBLocalPixel = maskBCoord * logicalSize - harbethRegionContext->xy;
+    uint2 maskRTexCoord = uint2(clamp(maskRLocalPixel, float2(0.0), inputSize - 1.0));
+    uint2 maskBTexCoord = uint2(clamp(maskBLocalPixel, float2(0.0), inputSize - 1.0));
     const half4 maskR = inputTexture.read(maskRTexCoord);
     const half4 maskB = inputTexture.read(maskBTexCoord);
     const half4 outColor = half4(maskR.r, inColor.g, maskB.b, inColor.a);

@@ -15,9 +15,12 @@ kernel void C7Vignette(texture2d<half, access::write> outputTexture [[texture(0)
                        constant float *start [[buffer(2)]],
                        constant float *end [[buffer(3)]],
                        constant float3 *colorVector [[buffer(4)]],
+                       constant float4 *harbethRegionContext [[buffer(30)]],
                        uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
-    const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const float2 globalPixel = float2(grid) + harbethRegionContext->xy;
+    const float2 logicalSize = max(harbethRegionContext->zw, float2(1.0));
+    const float2 textureCoordinate = globalPixel / logicalSize;
     
     const half2 center = half2(*centerX, *centerY);
     const float dd = distance(textureCoordinate, float2(center));
