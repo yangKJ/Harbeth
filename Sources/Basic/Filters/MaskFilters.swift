@@ -117,7 +117,8 @@ struct ShapeMask: C7FilterProtocol {
             Float(transform.scale.y),
             Float(transform.rotationRadians),
             Float(transform.anchor.x),
-            Float(transform.anchor.y)
+            Float(transform.anchor.y),
+            Float(transform.rotationAspectRatio)
         ]
     }
 }

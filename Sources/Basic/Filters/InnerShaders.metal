@@ -435,6 +435,7 @@ kernel void InnerShapeMask(texture2d<half, access::write> outputTexture [[textur
                            constant float *rotationPointer [[buffer(11)]],
                            constant float *anchorXPointer [[buffer(12)]],
                            constant float *anchorYPointer [[buffer(13)]],
+                           constant float *rotationAspectPointer [[buffer(14)]],
                            uint2 grid [[thread_position_in_grid]]) {
     const float2 rawUV = (float2(grid) + 0.5f) / float2(outputTexture.get_width(), outputTexture.get_height());
     const float kind = *kindPointer;
@@ -447,10 +448,16 @@ kernel void InnerShapeMask(texture2d<half, access::write> outputTexture [[textur
     const float rotation = *rotationPointer;
     const float2 anchor = float2(*anchorXPointer, *anchorYPointer);
     const float2 shifted = rawUV - anchor - translation;
+    const float rotationAspect = max(abs(*rotationAspectPointer), 0.000001f);
+    const float2 aspectAdjusted = float2(shifted.x * rotationAspect, shifted.y);
     const float c = cos(-rotation);
     const float s = sin(-rotation);
-    const float2 unrotated = float2(shifted.x * c - shifted.y * s, shifted.x * s + shifted.y * c);
-    const float2 uv = unrotated / max(abs(scaleValue), float2(0.000001f)) + anchor;
+    const float2 unrotated = float2(
+        aspectAdjusted.x * c - aspectAdjusted.y * s,
+        aspectAdjusted.x * s + aspectAdjusted.y * c
+    );
+    const float2 normalizedRotation = float2(unrotated.x / rotationAspect, unrotated.y);
+    const float2 uv = normalizedRotation / max(abs(scaleValue), float2(0.000001f)) + anchor;
 
     float coverage = 0.0f;
     if (kind < 0.5f) {

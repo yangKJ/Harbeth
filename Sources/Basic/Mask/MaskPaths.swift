@@ -138,15 +138,19 @@ public struct MaskPathTransform: Sendable, Codable, Equatable, Hashable {
     public var scale: CGPoint
     public var rotationRadians: CGFloat
     public var anchor: CGPoint
+    /// 旋转所在画布的像素宽高比。默认 1 保留归一化坐标空间的既有语义。
+    public var rotationAspectRatio: CGFloat
 
     public init(translation: CGPoint = .zero,
                 scale: CGPoint = CGPoint(x: 1, y: 1),
                 rotationRadians: CGFloat = 0,
-                anchor: CGPoint = CGPoint(x: 0.5, y: 0.5)) {
+                anchor: CGPoint = CGPoint(x: 0.5, y: 0.5),
+                rotationAspectRatio: CGFloat = 1) {
         self.translation = translation
         self.scale = scale
         self.rotationRadians = rotationRadians
         self.anchor = anchor
+        self.rotationAspectRatio = max(rotationAspectRatio, 0.000001)
     }
 
     public static let identity = MaskPathTransform()
@@ -159,7 +163,8 @@ public struct MaskPathTransform: Sendable, Codable, Equatable, Hashable {
             "sy=\(String(format: "%.4f", scale.y))",
             "r=\(String(format: "%.4f", rotationRadians))",
             "ax=\(String(format: "%.4f", anchor.x))",
-            "ay=\(String(format: "%.4f", anchor.y))"
+            "ay=\(String(format: "%.4f", anchor.y))",
+            "rotationAspect=\(String(format: "%.4f", rotationAspectRatio))"
         ].joined(separator: ",")
     }
 
@@ -168,9 +173,10 @@ public struct MaskPathTransform: Sendable, Codable, Equatable, Hashable {
         let scaled = CGPoint(x: anchored.x * scale.x, y: anchored.y * scale.y)
         let cosValue = cos(rotationRadians)
         let sinValue = sin(rotationRadians)
+        let aspect = max(rotationAspectRatio, 0.000001)
         let rotated = CGPoint(
-            x: scaled.x * cosValue - scaled.y * sinValue,
-            y: scaled.x * sinValue + scaled.y * cosValue
+            x: (scaled.x * aspect * cosValue - scaled.y * sinValue) / aspect,
+            y: scaled.x * aspect * sinValue + scaled.y * cosValue
         )
         return CGPoint(
             x: rotated.x + anchor.x + translation.x,

@@ -173,6 +173,48 @@ final class MaskRecipeTests: XCTestCase {
         XCTAssertTrue(encoded.points.contains { $0.x < 0 || $0.y < 0 })
     }
 
+    func testPathRotationUsesPixelSpaceOnWideCanvas() {
+        let recipe = MaskPathRecipe(
+            size: C7Size(width: 200, height: 100),
+            subpaths: [
+                .polygon([
+                    CGPoint(x: 0.25, y: 0.25),
+                    CGPoint(x: 0.75, y: 0.25),
+                    CGPoint(x: 0.75, y: 0.75),
+                    CGPoint(x: 0.25, y: 0.75)
+                ])
+            ],
+            transform: MaskPathTransform(
+                rotationRadians: .pi / 2,
+                rotationAspectRatio: 2
+            )
+        )
+
+        let encoded = recipe.encodedPath().points
+        let pixelWidth = (encoded.map(\.x).max()! - encoded.map(\.x).min()!) * 200
+        let pixelHeight = (encoded.map(\.y).max()! - encoded.map(\.y).min()!) * 100
+
+        XCTAssertEqual(pixelWidth, 50, accuracy: 0.001)
+        XCTAssertEqual(pixelHeight, 100, accuracy: 0.001)
+    }
+
+    func testShapeRotationUsesPixelSpaceOnWideCanvas() throws {
+        let recipe = MaskShapeRecipe.rectangle(
+            size: C7Size(width: 40, height: 20),
+            rect: CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5),
+            transform: MaskPathTransform(
+                rotationRadians: .pi / 2,
+                rotationAspectRatio: 2
+            )
+        )
+
+        let bytes = try MaskTestHelpers.bytes(in: recipe.makeTexture())
+        let covered = { (x: Int, y: Int) in bytes[(y * 40 + x) * 4] }
+
+        XCTAssertGreaterThan(covered(24, 10), 240)
+        XCTAssertLessThan(covered(27, 10), 10)
+    }
+
     func testPathMaskRecipeSupportsEvenOddHoles() throws {
         let recipe = MaskPathRecipe(
             size: C7Size(width: 5, height: 5),
