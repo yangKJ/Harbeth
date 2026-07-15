@@ -77,6 +77,7 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
                               constant float *samplingMode [[buffer(2)]],
                               constant float *edgeMode [[buffer(3)]],
                               constant float3x2 *transformMatrix [[buffer(4)]],
+                              constant float4 *regionContext [[buffer(30)]],
                               uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
@@ -85,8 +86,10 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
     const float3x2 matrix = *transformMatrix;
     const float a = matrix[0][0], b = matrix[0][1];
     const float c = matrix[1][0], d = matrix[1][1];
-    const float w = inputTexture.get_width();
-    const float h = inputTexture.get_height();
+    const float4 inputRegion = regionContext[0];
+    const float4 outputRegion = regionContext[1];
+    const float w = inputRegion.z;
+    const float h = inputRegion.w;
     const float anchorX = (*anchorPointX);
     const float anchorY = (*anchorPointY);
 
@@ -95,8 +98,9 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
         return;
     }
 
-    const float outX = grid.x - outputTexture.get_width() * anchorX;
-    const float outY = grid.y - outputTexture.get_height() * anchorY;
+    const float2 globalOutput = float2(grid) + outputRegion.xy;
+    const float outX = globalOutput.x - outputRegion.z * anchorX;
+    const float outY = globalOutput.y - outputRegion.w * anchorY;
 
     const float tx = matrix[2][0], ty = matrix[2][1];
 
@@ -109,7 +113,9 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
         return;
     }
 
-    float2 sampleCoord = float2(inX, inY);
+    const float2 globalInput = float2(inX * w, inY * h);
+    float2 sampleCoord = (globalInput - inputRegion.xy) /
+        float2(inputTexture.get_width(), inputTexture.get_height());
     const bool orthogonalHint =
         transform::zeroOrOne(a) &&
         transform::zeroOrOne(b) &&

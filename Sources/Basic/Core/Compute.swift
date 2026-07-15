@@ -193,8 +193,15 @@ struct Compute {
         // Canonical kernels may opt into the shared region ABI at buffer(30).
         // Normal rendering receives the complete texture as its logical canvas;
         // region renderers can override this binding through kernelParameterBindings.
-        var defaultRegionContext = SIMD4<Float>(0, 0, Float(destTexture.width), Float(destTexture.height))
-        computeEncoder.setBytes(&defaultRegionContext, length: MemoryLayout<SIMD4<Float>>.stride, index: 30)
+        let inputWidth = textures.count > 1 ? textures[1].width : destTexture.width
+        let inputHeight = textures.count > 1 ? textures[1].height : destTexture.height
+        let defaultRegionContext: [Float] = [
+            0, 0, Float(inputWidth), Float(inputHeight),
+            0, 0, Float(destTexture.width), Float(destTexture.height)
+        ]
+        defaultRegionContext.withUnsafeBytes {
+            computeEncoder.setBytes($0.baseAddress!, length: $0.count, index: 30)
+        }
 
         let parameterBindings = filter.kernelParameterBindings
         if parameterBindings.isEmpty {

@@ -14,14 +14,18 @@ kernel void C7Pinch(texture2d<half, access::write> outputTexture [[texture(0)]],
                     constant float *centerPointerY [[buffer(1)]],
                     constant float *radiusPointer [[buffer(2)]],
                     constant float *scalePointer [[buffer(3)]],
+                    constant float4 *regionContext [[buffer(30)]],
                     uint2 grid [[thread_position_in_grid]]) {
     
     const float2 center = float2(*centerPointerX, *centerPointerY);
     const float radius = float(*radiusPointer);
     const float scale = float(*scalePointer);
-    const float aspectRatio = float(inputTexture.get_height()) / float(inputTexture.get_width());
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) { return; }
+    const float4 inputRegion = regionContext[0];
+    const float4 outputRegion = regionContext[1];
+    const float aspectRatio = outputRegion.w / outputRegion.z;
     
-    const float2 inCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    const float2 inCoordinate = (float2(grid) + outputRegion.xy) / outputRegion.zw;
     float2 textureCoordinateToUse = float2(inCoordinate.x, inCoordinate.y * aspectRatio + 0.5 - 0.5 * aspectRatio);
     const float dist = distance(center, textureCoordinateToUse);
     textureCoordinateToUse = inCoordinate;
@@ -33,8 +37,9 @@ kernel void C7Pinch(texture2d<half, access::write> outputTexture [[texture(0)]],
     }
     
     float2 clampedCoord = clamp(textureCoordinateToUse, 0.0, 1.0);
-    uint2 texCoord = uint2(clampedCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
-    const half4 outColor = inputTexture.read(texCoord);
+    const int2 texCoord = int2(clampedCoord * inputRegion.zw - inputRegion.xy);
+    const int2 safeCoord = clamp(texCoord, int2(0), int2(inputTexture.get_width() - 1, inputTexture.get_height() - 1));
+    const half4 outColor = inputTexture.read(uint2(safeCoord));
     
     outputTexture.write(outColor, grid);
 }

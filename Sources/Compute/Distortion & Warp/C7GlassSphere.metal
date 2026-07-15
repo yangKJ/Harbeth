@@ -15,12 +15,16 @@ kernel void C7GlassSphere(texture2d<half, access::write> outputTexture [[texture
                           constant float *aspectRatio [[buffer(2)]],
                           constant float *centerX [[buffer(3)]],
                           constant float *centerY [[buffer(4)]],
+                          constant float4 *regionContext [[buffer(30)]],
                           uint2 grid [[thread_position_in_grid]]) {
     
     const float _aspectRatio = float(*aspectRatio);
     const float _radius = float(*radius);
     const float2 center = float2(*centerX, *centerY);
-    const float2 textureCoord = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) { return; }
+    const float4 inputRegion = regionContext[0];
+    const float4 outputRegion = regionContext[1];
+    const float2 textureCoord = (float2(grid) + outputRegion.xy) / outputRegion.zw;
     
     const float2 textureCoordinate = float2(textureCoord.x, (textureCoord.y * _aspectRatio + 0.5 - 0.5 * _aspectRatio));
     float distanceFromCenter = distance(center, textureCoordinate);
@@ -36,8 +40,9 @@ kernel void C7GlassSphere(texture2d<half, access::write> outputTexture [[texture
     
     float2 sampleCoord = (refractedVector.xy + 1.0) * 0.5;
     sampleCoord = clamp(sampleCoord, 0.0, 1.0);
-    uint2 texCoord = uint2(sampleCoord * float2(inputTexture.get_width(), inputTexture.get_height()));
-    half3 finalSphereColor = half3(inputTexture.read(texCoord).rgb);
+    const int2 texCoord = int2(sampleCoord * inputRegion.zw - inputRegion.xy);
+    const int2 safeCoord = clamp(texCoord, int2(0), int2(inputTexture.get_width() - 1, inputTexture.get_height() - 1));
+    half3 finalSphereColor = half3(inputTexture.read(uint2(safeCoord)).rgb);
     
     // Grazing angle lighting
     const float3 ambientLightPosition = float3(0.0, 0.0, 1.0);

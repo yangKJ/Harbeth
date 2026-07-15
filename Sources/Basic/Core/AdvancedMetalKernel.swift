@@ -124,6 +124,14 @@ extension C7AdvancedMetalKernelProtocol {
             encoder.setTexture(texture, index: index + 2)
         }
 
+        let defaultRegionContext: [Float] = [
+            0, 0, Float(inputTexture.width), Float(inputTexture.height),
+            0, 0, Float(outputTexture.width), Float(outputTexture.height)
+        ]
+        defaultRegionContext.withUnsafeBytes {
+            encoder.setBytes($0.baseAddress!, length: $0.count, index: 30)
+        }
+
         let parameterBindings = kernelParameterBindings
         if parameterBindings.isEmpty {
             for (index, factor) in factors.enumerated() {

@@ -20,7 +20,7 @@ public struct C7Transform: C7FilterProtocol, SamplerAdaptableFilter {
     }
 
     public func resize(input size: C7Size) -> C7Size {
-        return mode.transform(transform, size: size)
+        return placement.transform(transform, size: size)
     }
 
     public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
@@ -56,12 +56,12 @@ public struct C7Transform: C7FilterProtocol, SamplerAdaptableFilter {
         ]
     }
 
-    private var mode: Placement = .fit
+    public var placement: Placement = .fit
 
     public init(mode: Placement = .fit, transform: CGAffineTransform, samplingMode: SpatialSamplingMode = .adaptive, edgeMode: SpatialEdgeMode = .transparent) {
         self.transform = transform
         self.samplingMode = samplingMode
         self.edgeMode = edgeMode
-        self.mode = mode
+        self.placement = mode
     }
 }

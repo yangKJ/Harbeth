@@ -8,7 +8,7 @@
 import Foundation
 import simd
 
-public enum Placement {
+public enum Placement: String, Codable, Sendable, Equatable, Hashable {
     /// Not scale the content.
     case fixed
     /// True to change image size to fit image size.
