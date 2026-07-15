@@ -9,7 +9,7 @@
 using namespace metal;
 
 // 高斯模糊函数
-float4 gaussianBlur(texture2d<half, access::read> texture, uint2 position, float blurRadius, uint2 size) {
+float4 gaussianBlur(texture2d<half, access::read> texture, int2 position, float blurRadius, int2 size) {
     float4 color = float4(0.0);
     float totalWeight = 0.0;
     
@@ -23,13 +23,9 @@ float4 gaussianBlur(texture2d<half, access::read> texture, uint2 position, float
             float weight = exp(-(distance * distance) / (2.0 * blurRadius * blurRadius));
             
             // 计算采样位置
-            uint2 samplePos = position + uint2(x, y);
-            
-            // 边界检查
-            if (samplePos.x < size.x && samplePos.y < size.y) {
-                color += float4(texture.read(samplePos)) * weight;
-                totalWeight += weight;
-            }
+            const int2 samplePos = clamp(position + int2(x, y), int2(0), size - 1);
+            color += float4(texture.read(uint2(samplePos))) * weight;
+            totalWeight += weight;
         }
     }
     
@@ -43,10 +39,14 @@ kernel void C7TiltShift(texture2d<half, access::write> outputTexture [[texture(0
                       constant float *size [[buffer(2)]],
                       constant float *transition [[buffer(3)]],
                       constant float *isLinear [[buffer(4)]],
+                      constant float4 *regionContext [[buffer(30)]],
                       uint2 grid [[thread_position_in_grid]]) {
     
     const float4 inColor = float4(inputTexture.read(grid));
-    const uint2 textureSize = uint2(inputTexture.get_width(), inputTexture.get_height());
+    const int2 textureSize = int2(inputTexture.get_width(), inputTexture.get_height());
+    const float4 outputRegion = regionContext[1];
+    const float2 globalPixel = float2(grid) + outputRegion.xy;
+    const float2 logicalSize = max(outputRegion.zw, float2(1.0));
     
     float blurAmount = *blurRadius;
     float centerPoint = *center;
@@ -59,14 +59,14 @@ kernel void C7TiltShift(texture2d<half, access::write> outputTexture [[texture(0
     
     if (linearMode) {
         // 线性模式：计算垂直距离
-        float pixelY = float(grid.y) / float(textureSize.y);
+        float pixelY = globalPixel.y / logicalSize.y;
         distance = abs(pixelY - centerPoint);
     } else {
         // 径向模式：计算到中心点的距离
-        float2 centerCoord = float2(textureSize.x * 0.5, textureSize.y * centerPoint);
-        float2 pixelCoord = float2(grid.x, grid.y);
+        float2 centerCoord = float2(logicalSize.x * 0.5, logicalSize.y * centerPoint);
+        float2 pixelCoord = globalPixel;
         float2 delta = pixelCoord - centerCoord;
-        distance = length(delta) / length(float2(textureSize.x * 0.5, textureSize.y * 0.5));
+        distance = length(delta) / length(logicalSize * 0.5);
     }
     
     // 计算模糊强度
@@ -86,7 +86,7 @@ kernel void C7TiltShift(texture2d<half, access::write> outputTexture [[texture(0
     }
     
     // 应用模糊
-    float4 blurredColor = gaussianBlur(inputTexture, grid, blurAmount * 10.0, textureSize);
+    float4 blurredColor = gaussianBlur(inputTexture, int2(grid), blurAmount * 10.0, textureSize);
     float4 finalColor = mix(inColor, blurredColor, blurStrength * blurAmount);
     
     outputTexture.write(half4(finalColor), grid);

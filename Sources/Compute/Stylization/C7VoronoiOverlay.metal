@@ -60,11 +60,11 @@ kernel void C7VoronoiOverlay(texture2d<half, access::write> outputTexture [[text
                              constant float *alphaPointer [[buffer(1)]],
                              constant float *iResolutionX [[buffer(2)]],
                              constant float *iResolutionY [[buffer(3)]],
+                             constant float4 *regionContext [[buffer(30)]],
                              uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
-    const float w = outputTexture.get_width();
-    const float h = outputTexture.get_height();
-    const float2 textureCoordinate = float2(grid) / float2(w, h);
+    const float4 outputRegion = regionContext[1];
+    const float2 textureCoordinate = (float2(grid) + outputRegion.xy) / outputRegion.zw;
     
     const float iTime = float(*timePointer);
     const half alpha = half(*alphaPointer);
