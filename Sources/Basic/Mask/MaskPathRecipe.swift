@@ -167,7 +167,6 @@ public struct MaskPathRecipe {
             transform: .identity,
             profile: profile
         )
-        .clampedToUnitBounds()
     }
 
     public func clampedToUnitBounds() -> MaskPathRecipe {
@@ -215,19 +214,11 @@ public struct MaskPathRecipe {
     }
 
     func encodedPath(curveSegments: Int = defaultCurveSegments) -> (points: [CGPoint], ranges: [SIMD2<Float>]) {
-        func clamp(_ point: CGPoint) -> CGPoint {
-            CGPoint(
-                x: min(max(point.x, 0), 1),
-                y: min(max(point.y, 0), 1)
-            )
-        }
-
         var allPoints: [CGPoint] = []
         var ranges: [SIMD2<Float>] = []
         for subpath in subpaths {
             let flattened = flatten(subpath: subpath, curveSegments: curveSegments)
                 .map(transform.applying(to:))
-                .map(clamp)
             guard flattened.count >= 3 else { continue }
             let start = allPoints.count
             let allowedCount = min(flattened.count, Self.maximumEncodedPointCount - allPoints.count)

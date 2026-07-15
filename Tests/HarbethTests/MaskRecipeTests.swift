@@ -150,6 +150,29 @@ final class MaskRecipeTests: XCTestCase {
         XCTAssertLessThan(bytes[0], 10)
     }
 
+    func testPathMaskRecipeKeepsTransformedVerticesOutsideCanvas() {
+        let recipe = MaskPathRecipe(
+            size: C7Size(width: 100, height: 100),
+            subpaths: [
+                .polygon([
+                    CGPoint(x: 0.1, y: 0.1),
+                    CGPoint(x: 0.9, y: 0.1),
+                    CGPoint(x: 0.9, y: 0.9),
+                    CGPoint(x: 0.1, y: 0.9)
+                ])
+            ],
+            transform: MaskPathTransform(
+                translation: CGPoint(x: 0.35, y: 0),
+                rotationRadians: .pi / 4
+            )
+        )
+
+        let encoded = recipe.encodedPath()
+
+        XCTAssertTrue(encoded.points.contains { $0.x > 1 || $0.y > 1 })
+        XCTAssertTrue(encoded.points.contains { $0.x < 0 || $0.y < 0 })
+    }
+
     func testPathMaskRecipeSupportsEvenOddHoles() throws {
         let recipe = MaskPathRecipe(
             size: C7Size(width: 5, height: 5),
