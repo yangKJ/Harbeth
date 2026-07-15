@@ -139,6 +139,36 @@ final class ImageLoadingOptionsTests: XCTestCase {
         XCTAssertEqual(output.colorSpace?.name as String?, CGColorSpace.displayP3 as String)
     }
 
+    func testZeroBrightnessPreservesDisplayP3JPEGAppearanceForCGImage() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let source = try makeDisplayP3JPEGFixture()
+        let output: CGImage = try HarbethIO(
+            element: source,
+            filters: [C7Brightness(brightness: 0.0)]
+        ).output()
+
+        XCTAssertEqual(output.colorSpace?.name as String?, source.colorSpace?.name as String?)
+        try assertVisuallyEquivalent(source, output)
+    }
+
+    func testZeroBrightnessPreservesDisplayP3JPEGAppearanceForC7Image() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let sourceCGImage = try makeDisplayP3JPEGFixture()
+        let source = C7Image(cgImage: sourceCGImage)
+        let output: C7Image = try HarbethIO(
+            element: source,
+            filters: [C7Brightness(brightness: 0.0)]
+        ).output()
+        let outputCGImage = try XCTUnwrap(output.c7.toCGImage())
+
+        XCTAssertEqual(outputCGImage.colorSpace?.name as String?, sourceCGImage.colorSpace?.name as String?)
+        try assertVisuallyEquivalent(sourceCGImage, outputCGImage)
+    }
+
     private func makeFixtureCGImage(width: Int,
                                     height: Int,
                                     colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()) throws -> CGImage {
@@ -179,6 +209,61 @@ final class ImageLoadingOptionsTests: XCTestCase {
             throw XCTSkip("Failed to finalize PNG data.")
         }
         return data as Data
+    }
+
+    private func makeDisplayP3JPEGFixture() throws -> CGImage {
+        let displayP3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let image = try makeFixtureCGImage(width: 64, height: 48, colorSpace: displayP3)
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, "public.jpeg" as CFString, 1, nil) else {
+            throw XCTSkip("Failed to create JPEG destination.")
+        }
+        CGImageDestinationAddImage(
+            destination,
+            image,
+            [kCGImageDestinationLossyCompressionQuality: 0.95] as CFDictionary
+        )
+        guard CGImageDestinationFinalize(destination),
+              let source = CGImageSourceCreateWithData(data, nil),
+              let decoded = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            throw XCTSkip("Failed to finalize or decode Display P3 JPEG data.")
+        }
+        return decoded
+    }
+
+    private func assertVisuallyEquivalent(_ source: CGImage,
+                                          _ output: CGImage,
+                                          file: StaticString = #filePath,
+                                          line: UInt = #line) throws {
+        let sourceBytes = try makeSRGBBytes(from: source)
+        let outputBytes = try makeSRGBBytes(from: output)
+        XCTAssertEqual(sourceBytes.count, outputBytes.count, file: file, line: line)
+        guard sourceBytes.count == outputBytes.count else { return }
+
+        let differences = zip(sourceBytes, outputBytes).map { abs(Int($0) - Int($1)) }
+        let maximumDifference = differences.max() ?? 0
+        let meanDifference = Double(differences.reduce(0, +)) / Double(max(differences.count, 1))
+        XCTAssertLessThanOrEqual(maximumDifference, 1, "Identity filtering changed a rendered sRGB channel by more than one level.", file: file, line: line)
+        XCTAssertLessThanOrEqual(meanDifference, 0.05, "Identity filtering changed the rendered JPEG appearance.", file: file, line: line)
+    }
+
+    private func makeSRGBBytes(from image: CGImage) throws -> [UInt8] {
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        guard let context = CGContext(
+            data: &bytes,
+            width: image.width,
+            height: image.height,
+            bitsPerComponent: 8,
+            bytesPerRow: image.width * 4,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw XCTSkip("Failed to create sRGB comparison context.")
+        }
+        context.interpolationQuality = .none
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        return bytes
     }
 
     private func writeTemporaryPNG(data: Data) throws -> URL {
