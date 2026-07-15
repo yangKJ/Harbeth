@@ -10,6 +10,7 @@ import Metal
 import MetalKit
 import ImageIO
 import CoreGraphics
+import CoreImage
 import CoreVideo
 import ObjectiveC
 
@@ -139,6 +140,20 @@ public struct TextureLoader {
 }
 
 extension TextureLoader {
+
+    /// Creates a Metal texture by materializing a finite Core Image recipe.
+    public init(with ciImage: CIImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
+        let extent = ciImage.extent.integral
+        guard extent.isNull == false, extent.isInfinite == false,
+              extent.width > 0, extent.height > 0 else {
+            throw HarbethError.configurationInvalid("CIImage input requires a finite, non-empty extent.")
+        }
+        let context = CIContext(mtlDevice: Shared.shared.metalDevice)
+        guard let cgImage = context.createCGImage(ciImage, from: extent) else {
+            throw HarbethError.source2Texture
+        }
+        try self.init(with: cgImage, options: options)
+    }
     
     /// Creates a new MTLTexture from a given bitmap image.
     /// - Parameters:

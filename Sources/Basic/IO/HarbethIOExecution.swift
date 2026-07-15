@@ -34,6 +34,8 @@ extension HarbethIO {
             return .texture(texture)
         case let image as C7Image:
             return .image(image)
+        case let image as CIImage:
+            return .ciImage(image)
         case let data as Data:
             return .data(data)
         case let url as URL:

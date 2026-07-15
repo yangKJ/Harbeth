@@ -8,6 +8,7 @@
 import Foundation
 @preconcurrency import Metal
 import CoreGraphics
+import CoreImage
 import CoreVideo
 import CoreMedia
 
@@ -16,6 +17,7 @@ public enum ImageSource {
     case texture(MTLTexture)
     case image(C7Image)
     case cgImage(CGImage)
+    case ciImage(CIImage)
     case pixelBuffer(CVPixelBuffer)
     case sampleBuffer(CMSampleBuffer)
     case data(Data)
@@ -28,6 +30,8 @@ public enum ImageSource {
         case .image(let image):
             return try TextureLoader(with: image).texture
         case .cgImage(let image):
+            return try TextureLoader(with: image).texture
+        case .ciImage(let image):
             return try TextureLoader(with: image).texture
         case .pixelBuffer(let pixelBuffer):
             if pixelBuffer.c7.makeTextureBridgePlan().loadStrategy == .directMetalTexture,
@@ -67,6 +71,8 @@ public enum ImageSource {
         switch self {
         case .cgImage(let image):
             return image.colorSpace
+        case .ciImage(let image):
+            return image.colorSpace
         case .asset(let asset):
             if case .cgImage(let image) = asset.storage {
                 return image.colorSpace
@@ -81,6 +87,8 @@ public enum ImageSource {
         switch self {
         case .cgImage(let image):
             return image.c7.alphaType
+        case .ciImage:
+            return .premultiplied
         #if os(iOS) || os(tvOS) || os(watchOS)
         case .image(let image):
             if let cgImage = image.cgImage {
@@ -110,6 +118,7 @@ public enum ImageSource {
         case .texture: return "texture"
         case .image: return "image"
         case .cgImage: return "cgImage"
+        case .ciImage: return "ciImage"
         case .pixelBuffer: return "pixelBuffer"
         case .sampleBuffer: return "sampleBuffer"
         case .data: return "data"
@@ -121,7 +130,7 @@ public enum ImageSource {
         switch self {
         case .asset(let asset):
             return asset.loadingOptions
-        case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer, .data:
+        case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer, .data:
             return .default
         }
     }
@@ -130,7 +139,7 @@ public enum ImageSource {
         switch self {
         case .asset(let asset):
             return asset.sourceTier
-        case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer, .data:
+        case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer, .data:
             return .original
         }
     }
@@ -191,6 +200,13 @@ public enum ImageSource {
             return C7Size(texture: texture)
         case .cgImage(let image):
             return C7Size(cgImage: image)
+        case .ciImage(let image):
+            let extent = image.extent.integral
+            guard extent.isNull == false, extent.isInfinite == false,
+                  extent.width > 0, extent.height > 0 else {
+                return nil
+            }
+            return C7Size(width: Int(extent.width), height: Int(extent.height))
         case .image(let image):
             let pixelWidth = max(Int((image.size.width * image.scale).rounded()), 1)
             let pixelHeight = max(Int((image.size.height * image.scale).rounded()), 1)
@@ -225,6 +241,13 @@ public enum ImageSource {
                 descriptor.fingerprint,
                 "object=\(ObjectIdentifier(image).hashValue)",
                 "size=\(image.width)x\(image.height)"
+            ].joined(separator: "|")
+        case .ciImage(let image):
+            let extent = image.extent.integral
+            return [
+                descriptor.fingerprint,
+                "object=\(ObjectIdentifier(image).hashValue)",
+                "extent=\(extent.origin.x),\(extent.origin.y),\(extent.width),\(extent.height)"
             ].joined(separator: "|")
         case .image(let image):
             let objectIdentity = ObjectIdentifier(image).hashValue

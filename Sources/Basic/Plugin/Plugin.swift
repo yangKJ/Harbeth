@@ -8,6 +8,7 @@
 import Foundation
 @preconcurrency import Metal
 import CoreGraphics
+import CoreImage
 import CoreVideo
 import CoreMedia
 
@@ -20,6 +21,7 @@ public enum PluginOutput {
     case texture(MTLTexture)
     case image(C7Image)
     case cgImage(CGImage)
+    case ciImage(CIImage)
     case pixelBuffer(CVPixelBuffer)
     case sampleBuffer(CMSampleBuffer)
     case filters([C7FilterProtocol])
@@ -37,6 +39,8 @@ extension PluginOutput {
             return "image"
         case .cgImage:
             return "cgImage"
+        case .ciImage:
+            return "ciImage"
         case .pixelBuffer:
             return "pixelBuffer"
         case .sampleBuffer:
@@ -54,7 +58,7 @@ extension PluginOutput {
 
     public var isSourceLike: Bool {
         switch self {
-        case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer:
+        case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer:
             return true
         case .filters, .editRecipe, .localEffect, .layerComposite:
             return false
@@ -69,6 +73,8 @@ extension PluginOutput {
             return .image(image)
         case .cgImage(let image):
             return .cgImage(image)
+        case .ciImage(let image):
+            return .ciImage(image)
         case .pixelBuffer(let pixelBuffer):
             return .pixelBuffer(pixelBuffer)
         case .sampleBuffer(let sampleBuffer):

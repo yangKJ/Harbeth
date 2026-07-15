@@ -8,6 +8,7 @@
 import Foundation
 import Metal
 import CoreGraphics
+import CoreImage
 import CoreVideo
 import CoreMedia
 
@@ -79,6 +80,10 @@ extension ImageNode {
         .source(ImageSource.cgImage(image))
     }
 
+    public static func ciImage(_ image: CIImage) -> ImageNode {
+        .source(ImageSource.ciImage(image))
+    }
+
     public static func pixelBuffer(_ pixelBuffer: CVPixelBuffer) -> ImageNode {
         .source(ImageSource.pixelBuffer(pixelBuffer))
     }
@@ -119,7 +124,7 @@ extension ImageNode {
 
     public func applying(pluginOutput: PluginOutput, mode: EditRecipeMode = .preview) throws -> ImageNode {
         switch pluginOutput {
-        case .texture, .image, .cgImage, .pixelBuffer, .sampleBuffer:
+        case .texture, .image, .cgImage, .ciImage, .pixelBuffer, .sampleBuffer:
             return ImageNode.source(try pluginOutput.makeImageSource())
         case .filters(let filters):
             return applying(filters: filters)

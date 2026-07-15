@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreImage
 import CoreVideo
 import MetalKit
 
@@ -35,6 +36,11 @@ public func ->> (left: CGImage, right: C7FilterProtocol) -> CGImage {
 }
 
 @discardableResult @inlinable
+public func ->> (left: CIImage, right: C7FilterProtocol) -> CIImage {
+    HarbethIO(element: left, filter: right).filtered()
+}
+
+@discardableResult @inlinable
 public func ->> (left: CMSampleBuffer, right: C7FilterProtocol) -> CMSampleBuffer {
     HarbethIO(element: left, filter: right).filtered()
 }
@@ -59,6 +65,11 @@ public func -->>> (left: C7Image, right: [C7FilterProtocol]) -> C7Image {
 
 @discardableResult @inlinable
 public func -->>> (left: CGImage, right: [C7FilterProtocol]) -> CGImage {
+    HarbethIO(element: left, filters: right).filtered()
+}
+
+@discardableResult @inlinable
+public func -->>> (left: CIImage, right: [C7FilterProtocol]) -> CIImage {
     HarbethIO(element: left, filters: right).filtered()
 }
 
