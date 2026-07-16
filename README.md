@@ -7,7 +7,10 @@
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Kakapos.svg?style=flat&label=Kakapos&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Kakapos)
-![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
+[![CI](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/yangKJ/Harbeth)](https://github.com/yangKJ/Harbeth/releases)
+[![License](https://img.shields.io/github/license/yangKJ/Harbeth)](LICENSE)
+![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
  
 [**Harbeth**](https://github.com/yangKJ/Harbeth) is a high-performance Swift library for Apple-platform image and frame processing. Built on Metal technology, it integrates GPU filters, frame pipelines, and Metal Performance Shaders into a reusable processing core.
 
@@ -26,6 +29,8 @@ English | [**简体中文**](README_CN.md)
 - [Public API Surface](docs/API_SURFACE_CN.md): choose between `HarbethIO` and `ImageNode`, understand the public API boundary, and see how diagnostics and analysis fit into the runtime.
 - [Capability Map](docs/CAPABILITY_MAP_CN.md): understand the image, texture, pixel buffer, sample buffer, filter, graph, and performance capabilities.
 - [Performance Governance](docs/PERFORMANCE_GOVERNANCE_CN.md): compare and improve performance across single filters, filter chains, and frame pipelines.
+- [Maintaining Harbeth](docs/MAINTAINING.md): validation gates, compatibility rules, capability claims, and release checks.
+- [Changelog](CHANGELOG.md): public changes and migration-relevant updates.
 
 ## Features
 🟣 Harbeth offers a comprehensive set of features for building fast, reusable image and frame processing pipelines:

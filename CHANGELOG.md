@@ -1,0 +1,7 @@
+# Changelog
+
+Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/)。这里只记录库使用者升级后需要知道的公开能力、行为、兼容性和重要修复，不复制内部提交历史。
+
+## [Unreleased]
+
+[Unreleased]: https://github.com/yangKJ/Harbeth/compare/2.0.1...HEAD

@@ -4,8 +4,11 @@
 
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
 [![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
-[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/OpencvQueen.svg?style=flat&label=OpenCV&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/OpencvQueen)
-![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
+[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Kakapos.svg?style=flat&label=Kakapos&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Kakapos)
+[![CI](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/yangKJ/Harbeth)](https://github.com/yangKJ/Harbeth/releases)
+[![License](https://img.shields.io/github/license/yangKJ/Harbeth)](LICENSE)
+![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
 
 ## 📖 项目简介
 
@@ -20,6 +23,8 @@
 - [公开 API 分层](docs/API_SURFACE_CN.md)：说明 `HarbethIO` 与 `ImageNode` 两条路线如何选择、公开 API 分层，以及 diagnostics / analysis 的使用边界。
 - [能力地图](docs/CAPABILITY_MAP_CN.md)：梳理 image、texture、pixelBuffer、sampleBuffer、滤镜、图结构与性能能力。
 - [性能治理指南](docs/PERFORMANCE_GOVERNANCE_CN.md)：说明如何比较和优化单滤镜、滤镜链、组合滤镜与帧链路性能。
+- [维护 Harbeth](docs/MAINTAINING.md)：说明验证门禁、兼容规则、能力口径和发布检查。
+- [变更记录](CHANGELOG.md)：记录公开能力变化与迁移相关更新。
 
 ## 🚀 核心特性
 
