@@ -84,7 +84,70 @@ public struct MaskGradientRecipe {
                     "size=\(size.width)x\(size.height)"
                 ]
             )
+        case .angular(let center, let startAngle, let endAngle, let clockwise):
+            return descriptor(kind: "angular", values: [
+                "centerX=\(Self.stableFloatDescription(Float(center.x)))",
+                "centerY=\(Self.stableFloatDescription(Float(center.y)))",
+                "startAngle=\(Self.stableFloatDescription(startAngle))",
+                "endAngle=\(Self.stableFloatDescription(endAngle))",
+                "clockwise=\(clockwise ? 1 : 0)"
+            ])
+        case .diamond(let center, let startRadius, let endRadius):
+            return descriptor(kind: "diamond", values: [
+                "centerX=\(Self.stableFloatDescription(Float(center.x)))",
+                "centerY=\(Self.stableFloatDescription(Float(center.y)))",
+                "startRadius=\(Self.stableFloatDescription(startRadius))",
+                "endRadius=\(Self.stableFloatDescription(endRadius))"
+            ])
+        case .reflected(let centerPoint, let edgePoint):
+            return descriptor(kind: "reflected", values: [
+                "centerX=\(Self.stableFloatDescription(Float(centerPoint.x)))",
+                "centerY=\(Self.stableFloatDescription(Float(centerPoint.y)))",
+                "edgeX=\(Self.stableFloatDescription(Float(edgePoint.x)))",
+                "edgeY=\(Self.stableFloatDescription(Float(edgePoint.y)))"
+            ])
+        case .band(let startPoint, let endPoint, let halfWidth, let softness):
+            return descriptor(kind: "band", values: [
+                "startX=\(Self.stableFloatDescription(Float(startPoint.x)))",
+                "startY=\(Self.stableFloatDescription(Float(startPoint.y)))",
+                "endX=\(Self.stableFloatDescription(Float(endPoint.x)))",
+                "endY=\(Self.stableFloatDescription(Float(endPoint.y)))",
+                "halfWidth=\(Self.stableFloatDescription(halfWidth))",
+                "softness=\(Self.stableFloatDescription(softness))"
+            ])
+        case .ring(let center, let innerRadius, let peakRadius, let outerRadius):
+            return descriptor(kind: "ring", values: [
+                "centerX=\(Self.stableFloatDescription(Float(center.x)))",
+                "centerY=\(Self.stableFloatDescription(Float(center.y)))",
+                "innerRadius=\(Self.stableFloatDescription(innerRadius))",
+                "peakRadius=\(Self.stableFloatDescription(peakRadius))",
+                "outerRadius=\(Self.stableFloatDescription(outerRadius))"
+            ])
+        case .multiStopLinear(let startPoint, let endPoint, let stops, let curve):
+            let stopValues = MaskGradientKind.multiStopLinear(
+                startPoint: startPoint,
+                endPoint: endPoint,
+                stops: stops,
+                curve: curve
+            ).normalizedStops.enumerated().map {
+                "stop\($0.offset)=\(Self.stableFloatDescription($0.element.location)):\(Self.stableFloatDescription($0.element.coverage))"
+            }
+            return descriptor(kind: "multiStopLinear", values: [
+                "startX=\(Self.stableFloatDescription(Float(startPoint.x)))",
+                "startY=\(Self.stableFloatDescription(Float(startPoint.y)))",
+                "endX=\(Self.stableFloatDescription(Float(endPoint.x)))",
+                "endY=\(Self.stableFloatDescription(Float(endPoint.y)))",
+                "curve=\(curve.rawValue)"
+            ] + stopValues)
         }
+    }
+
+    private func descriptor(kind: String, values: [String]) -> MaskGradientDescriptor {
+        MaskGradientDescriptor(
+            kind: kind,
+            fingerprint: fingerprint,
+            parameterValues: values + ["size=\(size.width)x\(size.height)"]
+        )
     }
 
     public func makeTexture(pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture {

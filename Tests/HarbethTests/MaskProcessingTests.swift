@@ -9,6 +9,68 @@ import Metal
 
 final class MaskProcessingTests: XCTestCase {
 
+    func testGPUAnalysisReportsBoundsCoverageCentroidAndEdges() throws {
+        let texture = try makeTexture(
+            width: 4,
+            height: 4,
+            pixels: pixels(width: 4, height: 4) { x, y in
+                x >= 1 && x <= 2 && y >= 1 && y <= 2 ? [255, 255, 255, 255] : [0, 0, 0, 255]
+            }
+        )
+        let analysis = try MaskProcessingRecipe(
+            mask: MaskDescriptor(texture: texture, component: .red)
+        ).analysis()
+        XCTAssertEqual(analysis.bounds, MaskCoverageBounds(x: 1, y: 1, width: 2, height: 2))
+        XCTAssertEqual(analysis.activePixelCount, 4)
+        XCTAssertEqual(analysis.coverageFraction, 0.25, accuracy: 0.01)
+        XCTAssertEqual(analysis.centroid?.x ?? -1, 0.5, accuracy: 0.01)
+        XCTAssertEqual(analysis.centroid?.y ?? -1, 0.5, accuracy: 0.01)
+        XCTAssertGreaterThan(analysis.edgePixelFraction, 0.9)
+    }
+
+    func testDerivedMaskCompilerFusesOperationsAndCacheReturnsSameResult() throws {
+        let plan = MaskGraphCompiler.compile([
+            .grow(radius: 2), .grow(radius: 3), .threshold(0.2), .threshold(0.6), .shrink(radius: 0)
+        ])
+        XCTAssertEqual(plan.operations, [.grow(radius: 5), .threshold(0.6)])
+        XCTAssertEqual(plan.eliminatedOperationCount, 3)
+
+        let texture = try makeTexture(
+            width: 5,
+            height: 5,
+            pixels: pixels(width: 5, height: 5) { x, y in
+                x == 2 && y == 2 ? [255, 255, 255, 255] : [0, 0, 0, 255]
+            }
+        )
+        let cache = MaskExecutionCache(countLimit: 2)
+        let recipe = MaskDerivedRecipe(
+            baseMask: MaskDescriptor(texture: texture, component: .red),
+            sourceIdentifier: "single-dot",
+            operations: [.grow(radius: 1), .edgeCleanup(blackPoint: 0.1, whitePoint: 0.9)],
+            storageFormat: .rgba8
+        )
+        let first = try recipe.execute(cache: cache)
+        let second = try recipe.execute(cache: cache)
+        XCTAssertFalse(first.cacheHit)
+        XCTAssertTrue(second.cacheHit)
+        XCTAssertEqual(first.analysis.bounds, MaskCoverageBounds(x: 1, y: 1, width: 3, height: 3))
+        XCTAssertEqual(first.dirtyBounds, first.analysis.bounds)
+    }
+
+    func testDerivedMaskHonorsCancellationBeforeExecution() throws {
+        let texture = try makeTexture(width: 2, height: 2, pixels: Array(repeating: UInt8(255), count: 16))
+        let token = TextureMultiPassCancellationToken()
+        token.cancel()
+        let recipe = MaskDerivedRecipe(
+            baseMask: MaskDescriptor(texture: texture, component: .red),
+            sourceIdentifier: "cancelled",
+            operations: [.threshold(0.5)]
+        )
+        XCTAssertThrowsError(try recipe.execute(cancellation: token, cache: nil)) { error in
+            XCTAssertEqual(error as? TextureMultiPassError, .cancelled)
+        }
+    }
+
     func testMaskProcessingNormalizesSelectedComponentCoverage() throws {
         let texture = try makeTexture(
             width: 2,

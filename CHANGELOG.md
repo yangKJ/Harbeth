@@ -4,4 +4,10 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Added angular, diamond, reflected, band, ring, and multi-stop mask gradient primitives with deterministic graph fingerprints.
+- Added pressure-aware open brush masks, luminance/color range masks, generic texture-channel mask sources, and single-channel mask storage formats.
+- Added compiled derived-mask graphs for threshold, grow/shrink, edge bands, distance fields, edge-aware feathering, cleanup, and decontamination, with cancellation, caching, GPU analysis, and dirty bounds.
+
 [Unreleased]: https://github.com/yangKJ/Harbeth/compare/2.0.1...HEAD

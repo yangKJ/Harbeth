@@ -7,9 +7,48 @@
 
 import Foundation
 
+public enum MaskGradientCurve: String, Sendable, Codable, Equatable, Hashable {
+    case linear
+    case easeIn
+    case easeOut
+    case smooth
+    case smoother
+
+    var shaderValue: Float {
+        switch self {
+        case .linear: return 0
+        case .easeIn: return 1
+        case .easeOut: return 2
+        case .smooth: return 3
+        case .smoother: return 4
+        }
+    }
+}
+
+public struct MaskGradientStop: Sendable, Codable, Equatable, Hashable {
+    public let location: Float
+    public let coverage: Float
+
+    public init(location: Float, coverage: Float) {
+        self.location = Self.clampUnit(location)
+        self.coverage = Self.clampUnit(coverage)
+    }
+
+    private static func clampUnit(_ value: Float) -> Float {
+        guard value.isFinite else { return 0 }
+        return min(max(value, 0), 1)
+    }
+}
+
 public enum MaskGradientKind: Sendable, Codable, Equatable, Hashable {
     case linear(startPoint: CGPoint, endPoint: CGPoint)
     case radial(center: CGPoint, startRadius: Float, endRadius: Float)
+    case angular(center: CGPoint, startAngle: Float, endAngle: Float, clockwise: Bool)
+    case diamond(center: CGPoint, startRadius: Float, endRadius: Float)
+    case reflected(centerPoint: CGPoint, edgePoint: CGPoint)
+    case band(startPoint: CGPoint, endPoint: CGPoint, halfWidth: Float, softness: Float)
+    case ring(center: CGPoint, innerRadius: Float, peakRadius: Float, outerRadius: Float)
+    case multiStopLinear(startPoint: CGPoint, endPoint: CGPoint, stops: [MaskGradientStop], curve: MaskGradientCurve)
 
     var fingerprint: String {
         switch self {
@@ -26,7 +65,80 @@ public enum MaskGradientKind: Sendable, Codable, Equatable, Hashable {
                 "startRadius=\(String(format: "%.4f", startRadius))",
                 "endRadius=\(String(format: "%.4f", endRadius))"
             ].joined(separator: "|")
+        case .angular(let center, let startAngle, let endAngle, let clockwise):
+            return [
+                "kind=angular",
+                "center=\(Self.pointFingerprint(center))",
+                "startAngle=\(Self.floatFingerprint(startAngle))",
+                "endAngle=\(Self.floatFingerprint(endAngle))",
+                "clockwise=\(clockwise ? 1 : 0)"
+            ].joined(separator: "|")
+        case .diamond(let center, let startRadius, let endRadius):
+            return [
+                "kind=diamond",
+                "center=\(Self.pointFingerprint(center))",
+                "startRadius=\(Self.floatFingerprint(startRadius))",
+                "endRadius=\(Self.floatFingerprint(endRadius))"
+            ].joined(separator: "|")
+        case .reflected(let centerPoint, let edgePoint):
+            return [
+                "kind=reflected",
+                "center=\(Self.pointFingerprint(centerPoint))",
+                "edge=\(Self.pointFingerprint(edgePoint))"
+            ].joined(separator: "|")
+        case .band(let startPoint, let endPoint, let halfWidth, let softness):
+            return [
+                "kind=band",
+                "start=\(Self.pointFingerprint(startPoint))",
+                "end=\(Self.pointFingerprint(endPoint))",
+                "halfWidth=\(Self.floatFingerprint(halfWidth))",
+                "softness=\(Self.floatFingerprint(softness))"
+            ].joined(separator: "|")
+        case .ring(let center, let innerRadius, let peakRadius, let outerRadius):
+            return [
+                "kind=ring",
+                "center=\(Self.pointFingerprint(center))",
+                "innerRadius=\(Self.floatFingerprint(innerRadius))",
+                "peakRadius=\(Self.floatFingerprint(peakRadius))",
+                "outerRadius=\(Self.floatFingerprint(outerRadius))"
+            ].joined(separator: "|")
+        case .multiStopLinear(let startPoint, let endPoint, let stops, let curve):
+            let stopFingerprint = Self.normalizedStops(stops)
+                .map { "\(Self.floatFingerprint($0.location)):\(Self.floatFingerprint($0.coverage))" }
+                .joined(separator: ",")
+            return [
+                "kind=multiStopLinear",
+                "start=\(Self.pointFingerprint(startPoint))",
+                "end=\(Self.pointFingerprint(endPoint))",
+                "curve=\(curve.rawValue)",
+                "stops=\(stopFingerprint)"
+            ].joined(separator: "|")
         }
+    }
+
+    public var normalizedStops: [MaskGradientStop] {
+        switch self {
+        case .multiStopLinear(_, _, let stops, _):
+            return Self.normalizedStops(stops)
+        default:
+            return []
+        }
+    }
+
+    private static func normalizedStops(_ stops: [MaskGradientStop]) -> [MaskGradientStop] {
+        let sorted = stops.sorted { $0.location < $1.location }
+        if sorted.isEmpty {
+            return [MaskGradientStop(location: 0, coverage: 0), MaskGradientStop(location: 1, coverage: 1)]
+        }
+        return Array(sorted.prefix(8))
+    }
+
+    private static func pointFingerprint(_ point: CGPoint) -> String {
+        "\(String(format: "%.4f", point.x)),\(String(format: "%.4f", point.y))"
+    }
+
+    private static func floatFingerprint(_ value: Float) -> String {
+        String(format: "%.4f", value.isFinite ? value : 0)
     }
 }
 

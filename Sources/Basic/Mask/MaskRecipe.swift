@@ -88,3 +88,7 @@ extension MaskGradientRecipe: MaskRecipe { }
 extension MaskShapeRecipe: MaskRecipe { }
 extension MaskPathRecipe: MaskRecipe { }
 extension MaskCompositeRecipe: MaskRecipe { }
+extension MaskBrushRecipe: MaskRecipe { }
+extension MaskRangeRecipe: MaskRecipe { }
+extension MaskTextureRecipe: MaskRecipe { }
+extension MaskDerivedRecipe: MaskRecipe { }

@@ -26,29 +26,55 @@ struct GradientMask: C7FilterProtocol {
         .point
     }
 
-    var factors: [Float] {
+    var kernelParameterBindings: [KernelParameterBinding] {
+        [KernelParameterBinding(name: "parameters", index: 0, stage: .compute, value: .floatArray(parameters))]
+    }
+
+    private var parameters: [Float] {
+        var values = [Float](repeating: 0, count: 28)
         switch kind {
         case .linear(let startPoint, let endPoint):
-            return [
-                0,
-                Float(startPoint.x),
-                Float(startPoint.y),
-                Float(endPoint.x),
-                Float(endPoint.y),
-                0,
-                0
-            ]
+            values[0] = 0
+            values[1] = Float(startPoint.x); values[2] = Float(startPoint.y)
+            values[3] = Float(endPoint.x); values[4] = Float(endPoint.y)
         case .radial(let center, let startRadius, let endRadius):
-            return [
-                1,
-                Float(center.x),
-                Float(center.y),
-                0,
-                0,
-                startRadius,
-                endRadius
-            ]
+            values[0] = 1
+            values[1] = Float(center.x); values[2] = Float(center.y)
+            values[5] = startRadius; values[6] = endRadius
+        case .angular(let center, let startAngle, let endAngle, let clockwise):
+            values[0] = 2
+            values[1] = Float(center.x); values[2] = Float(center.y)
+            values[5] = startAngle; values[6] = endAngle; values[7] = clockwise ? 1 : 0
+        case .diamond(let center, let startRadius, let endRadius):
+            values[0] = 3
+            values[1] = Float(center.x); values[2] = Float(center.y)
+            values[5] = startRadius; values[6] = endRadius
+        case .reflected(let centerPoint, let edgePoint):
+            values[0] = 4
+            values[1] = Float(centerPoint.x); values[2] = Float(centerPoint.y)
+            values[3] = Float(edgePoint.x); values[4] = Float(edgePoint.y)
+        case .band(let startPoint, let endPoint, let halfWidth, let softness):
+            values[0] = 5
+            values[1] = Float(startPoint.x); values[2] = Float(startPoint.y)
+            values[3] = Float(endPoint.x); values[4] = Float(endPoint.y)
+            values[5] = max(halfWidth, 0); values[6] = min(max(softness, 0), 1)
+        case .ring(let center, let innerRadius, let peakRadius, let outerRadius):
+            values[0] = 6
+            values[1] = Float(center.x); values[2] = Float(center.y)
+            values[5] = innerRadius; values[6] = peakRadius; values[7] = outerRadius
+        case .multiStopLinear(let startPoint, let endPoint, _, let curve):
+            values[0] = 7
+            values[1] = Float(startPoint.x); values[2] = Float(startPoint.y)
+            values[3] = Float(endPoint.x); values[4] = Float(endPoint.y)
+            values[8] = curve.shaderValue
+            let stops = kind.normalizedStops
+            values[9] = Float(stops.count)
+            for (index, stop) in stops.enumerated() {
+                values[10 + index * 2] = stop.location
+                values[11 + index * 2] = stop.coverage
+            }
         }
+        return values
     }
 }
 
@@ -278,4 +304,62 @@ struct MaskDistanceField: C7FilterProtocol {
     var samplingFootprint: SamplingFootprint {
         .dynamic
     }
+}
+
+struct BrushMask: C7FilterProtocol {
+    let points: [MaskBrushPoint]
+    let settings: MaskBrushSettings
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerBrushMask") }
+    var memoryAccessPattern: MemoryAccessPattern { .point }
+
+    var kernelParameterBindings: [KernelParameterBinding] {
+        let metadata: [Float] = [
+            Float(points.count), settings.width, settings.hardness,
+            settings.spacing, settings.mode == .erase ? 1 : 0
+        ]
+        let values = points.reduce(into: [Float]()) { result, point in
+            result.append(contentsOf: [Float(point.point.x), Float(point.point.y), point.pressure, 0])
+        }
+        return [
+            KernelParameterBinding(name: "metadata", index: 0, stage: .compute, value: .floatArray(metadata)),
+            KernelParameterBinding(name: "points", index: 1, stage: .compute, value: .floatArray(values))
+        ]
+    }
+}
+
+struct RangeMask: C7FilterProtocol {
+    let kind: MaskRangeKind
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerRangeMask") }
+    var memoryAccessPattern: MemoryAccessPattern { .point }
+    var kernelParameterBindings: [KernelParameterBinding] {
+        [KernelParameterBinding(name: "parameters", index: 0, stage: .compute, value: .floatArray(kind.shaderParameters))]
+    }
+}
+
+struct MaskPointThreshold: C7FilterProtocol {
+    let threshold: Float
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskPointThreshold") }
+    var factors: [Float] { [min(max(threshold, 0), 1)] }
+    var memoryAccessPattern: MemoryAccessPattern { .point }
+}
+
+struct MaskEdgeCleanup: C7FilterProtocol {
+    let blackPoint: Float
+    let whitePoint: Float
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskEdgeCleanup") }
+    var factors: [Float] { [min(max(blackPoint, 0), 1), min(max(whitePoint, 0), 1)] }
+    var memoryAccessPattern: MemoryAccessPattern { .point }
+}
+
+struct MaskEdgeAwareFeather: C7FilterProtocol {
+    let guideTexture: MTLTexture
+    let radius: Int
+    let edgeSensitivity: Float
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskEdgeAwareFeather") }
+    var factors: [Float] { [Float(min(max(radius, 1), 12)), min(max(edgeSensitivity, 0), 1)] }
+    var otherInputTextures: C7InputTextures { [guideTexture] }
+    var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
+    var samplingFootprint: SamplingFootprint { .neighborhood(radius: min(max(radius, 1), 12)) }
 }

@@ -8,14 +8,6 @@
 import Foundation
 import simd
 
-/// GPU mask kernel 的纯 Swift 数学镜像。
-///
-/// 每个函数对应 `InnerShaders.metal` 中一个 kernel 内部核心公式，
-/// 不依赖 Metal / MTLDevice / MTLTexture，纯 CPU 可执行，可在 <0.1 秒内
-/// 跑完 80+ 单元测试,作为 GPU 渲染数学正确性的 "哨兵"。
-///
-/// 严格按 shader 源码逐行对齐，不做任何 normalize / multiplier / clamp 之外的处理。
-/// `feather` 参数全部按 shader 解释为 normalized [0, 1] 输入。
 public enum MaskMath {
 
     // MARK: - 1. InnerGradientMask (shader line 11-41)
@@ -51,14 +43,88 @@ public enum MaskMath {
     /// coverage = 1.0f - smoothstep(startRadius, endRadius, distanceToCenter);
     /// ```
     /// 数学含义:中心处 coverage = 1,`endRadius` 之外 coverage = 0,中间按 smoothstep 衰减。
-    public static func radialGradientCoverage(uv: SIMD2<Float>,
-                                              center: SIMD2<Float>,
-                                              innerRadius: Float,
-                                              outerRadius: Float) -> Float {
+    public static func radialGradientCoverage(uv: SIMD2<Float>, center: SIMD2<Float>, innerRadius: Float, outerRadius: Float) -> Float {
         let startRadius = max(innerRadius, 0)
         let endRadius = max(outerRadius, startRadius + 0.000001)
         let distance = simd_distance(uv, center)
         return 1 - smoothstep(startRadius, endRadius, distance)
+    }
+
+    /// All public gradient kinds share this CPU mirror for tiled rendering and deterministic tests.
+    public static func gradientCoverage(kind: MaskGradientKind, uv: SIMD2<Float>) -> Float {
+        switch kind {
+        case .linear(let startPoint, let endPoint):
+            return linearGradientCoverage(
+                uv: uv,
+                start: SIMD2(Float(startPoint.x), Float(startPoint.y)),
+                end: SIMD2(Float(endPoint.x), Float(endPoint.y))
+            )
+        case .radial(let center, let startRadius, let endRadius):
+            return radialGradientCoverage(
+                uv: uv,
+                center: SIMD2(Float(center.x), Float(center.y)),
+                innerRadius: startRadius,
+                outerRadius: endRadius
+            )
+        case .angular(let center, let startAngle, let endAngle, let clockwise):
+            let twoPi = Float.pi * 2
+            let angle = atan2(uv.y - Float(center.y), uv.x - Float(center.x))
+            var span = endAngle - startAngle
+            if clockwise { span = -span }
+            if abs(span) < 0.000001 { span = twoPi }
+            var delta = clockwise ? startAngle - angle : angle - startAngle
+            delta.formTruncatingRemainder(dividingBy: twoPi)
+            if delta < 0 { delta += twoPi }
+            return min(max(delta / max(abs(span), 0.000001), 0), 1)
+        case .diamond(let center, let startRadius, let endRadius):
+            let distance = abs(uv.x - Float(center.x)) + abs(uv.y - Float(center.y))
+            return 1 - smoothstep(max(startRadius, 0), max(endRadius, startRadius + 0.000001), distance)
+        case .reflected(let centerPoint, let edgePoint):
+            let center = SIMD2(Float(centerPoint.x), Float(centerPoint.y))
+            let edge = SIMD2(Float(edgePoint.x), Float(edgePoint.y))
+            let delta = edge - center
+            let value = abs(simd_dot(uv - center, delta)) / max(simd_dot(delta, delta), 0.000001)
+            return 1 - min(max(value, 0), 1)
+        case .band(let startPoint, let endPoint, let halfWidth, let softness):
+            let start = SIMD2(Float(startPoint.x), Float(startPoint.y))
+            let end = SIMD2(Float(endPoint.x), Float(endPoint.y))
+            let segment = end - start
+            let t = min(max(simd_dot(uv - start, segment) / max(simd_dot(segment, segment), 0.000001), 0), 1)
+            let distance = simd_distance(uv, start + segment * t)
+            let width = max(halfWidth, 0.000001)
+            let feather = min(max(softness, 0), 1) * width
+            return 1 - smoothstep(max(width - feather, 0), width, distance)
+        case .ring(let center, let innerRadius, let peakRadius, let outerRadius):
+            let distance = simd_distance(uv, SIMD2(Float(center.x), Float(center.y)))
+            let inner = max(innerRadius, 0)
+            let peak = max(peakRadius, inner + 0.000001)
+            let outer = max(outerRadius, peak + 0.000001)
+            return smoothstep(inner, peak, distance) * (1 - smoothstep(peak, outer, distance))
+        case .multiStopLinear(let startPoint, let endPoint, _, let curve):
+            let start = SIMD2(Float(startPoint.x), Float(startPoint.y))
+            let end = SIMD2(Float(endPoint.x), Float(endPoint.y))
+            let delta = end - start
+            var t = min(max(simd_dot(uv - start, delta) / max(simd_dot(delta, delta), 0.000001), 0), 1)
+            switch curve {
+            case .linear: break
+            case .easeIn: t *= t
+            case .easeOut: t = 1 - (1 - t) * (1 - t)
+            case .smooth: t = t * t * (3 - 2 * t)
+            case .smoother: t = t * t * t * (t * (t * 6 - 15) + 10)
+            }
+            let stops = kind.normalizedStops
+            guard let first = stops.first else { return 0 }
+            var coverage = first.coverage
+            for index in 0..<max(stops.count - 1, 0) {
+                let lhs = stops[index]
+                let rhs = stops[index + 1]
+                if t >= lhs.location {
+                    let local = min(max((t - lhs.location) / max(rhs.location - lhs.location, 0.000001), 0), 1)
+                    coverage = lhs.coverage + (rhs.coverage - lhs.coverage) * local
+                }
+            }
+            return min(max(coverage, 0), 1)
+        }
     }
 
     // MARK: - 2. InnerShapeMask (shader line 422-455)
@@ -106,10 +172,7 @@ public enum MaskMath {
     ///   - center: 椭圆中心归一化坐标。
     ///   - radii: 椭圆 x/y 半轴 (normalized [0, 1])。
     ///   - feather: normalized [0, 1] 的软边宽度。
-    public static func ellipseCoverage(point: SIMD2<Float>,
-                                       center: SIMD2<Float>,
-                                       radii: SIMD2<Float>,
-                                       feather: Float) -> Float {
+    public static func ellipseCoverage(point: SIMD2<Float>, center: SIMD2<Float>, radii: SIMD2<Float>, feather: Float) -> Float {
         let radius = SIMD2<Float>(max(radii.x, 0.000001), max(radii.y, 0.000001))
         let normalized = (point - center) / radius
         let distanceValue = simd_length(normalized)
@@ -135,10 +198,7 @@ public enum MaskMath {
     ///   - rect: `(x, y, w, h)` 全部 normalized [0, 1]。
     ///   - cornerRadius: 归一化圆角半径 ∈ [0, 0.5],相对 `min(width, height) * 0.5`。
     ///   - feather: normalized [0, 1] 的软边宽度。
-    public static func roundedRectCoverage(point: SIMD2<Float>,
-                                           rect: SIMD4<Float>,
-                                           cornerRadius: Float,
-                                           feather: Float) -> Float {
+    public static func roundedRectCoverage(point: SIMD2<Float>, rect: SIMD4<Float>, cornerRadius: Float, feather: Float) -> Float {
         let origin = SIMD2<Float>(rect.x, rect.y)
         let size = SIMD2<Float>(max(rect.z, 0.000001), max(rect.w, 0.000001))
         let local = (point - origin) / size
@@ -192,7 +252,6 @@ public enum MaskMath {
                                        feather: Float = 0) -> Float {
         let validSubpaths = subpaths.filter { $0.count >= 3 }
         guard !validSubpaths.isEmpty else { return 0 }
-
         var evenOddInside = false
         var windingNumber = 0
         for subpath in validSubpaths {
@@ -237,10 +296,7 @@ public enum MaskMath {
     /// 不处理 feather / invert / 其他 blendMode (replace/add/multiply/subtract)
     /// —— 那些语义属于组合 kernel `MaskRegionBlend` 的封装,本函数只暴露
     /// 核心的 `mix(base, effect, mask)` 公式,作为 CPU 哨兵。
-    public static func regionBlend(base: SIMD4<Float>,
-                                   effect: SIMD4<Float>,
-                                   coverage: Float,
-                                   opacity: Float) -> SIMD4<Float> {
+    public static func regionBlend(base: SIMD4<Float>, effect: SIMD4<Float>, coverage: Float, opacity: Float) -> SIMD4<Float> {
         let mask = coverage * opacity
         return simd_mix(base, effect, SIMD4<Float>(repeating: mask))
     }
@@ -328,10 +384,7 @@ public enum MaskMath {
     }
 
     /// 不带 feather 的精简版(对应 `extractCoverage` 但 `featherPointer == 0` 的快速路径)。
-    public static func extractCoverage(rgba: SIMD4<Float>,
-                                       component: MaskComponent,
-                                       invert: Bool,
-                                       opacity: Float) -> Float {
+    public static func extractCoverage(rgba: SIMD4<Float>, component: MaskComponent, invert: Bool, opacity: Float) -> Float {
         var coverage = coverageFromRGBA(rgba: rgba, component: component)
         if invert {
             coverage = 1 - coverage
@@ -343,14 +396,12 @@ public enum MaskMath {
     // MARK: - 辅助:Path 数学 (mirror of shader line 457-470)
 
     /// 单边 ray crossing 判断(mirror of shader `innerPathEdgeCrossesRay` line 457-459)。
-    @inlinable
-    static func pathEdgeCrossesRay(point: SIMD2<Float>, a: SIMD2<Float>, b: SIMD2<Float>) -> Bool {
+    @inlinable static func pathEdgeCrossesRay(point: SIMD2<Float>, a: SIMD2<Float>, b: SIMD2<Float>) -> Bool {
         return (a.y > point.y) != (b.y > point.y)
     }
 
     /// 单边 ray 交点 X 坐标(mirror of shader `innerPathRayIntersectionX` line 461-464)。
-    @inlinable
-    static func pathRayIntersectionX(point: SIMD2<Float>, a: SIMD2<Float>, b: SIMD2<Float>) -> Float {
+    @inlinable static func pathRayIntersectionX(point: SIMD2<Float>, a: SIMD2<Float>, b: SIMD2<Float>) -> Float {
         let denominator = b.y - a.y
         let safeDenom = abs(denominator) < 0.0000001 ? 0.0000001 : denominator
         return (b.x - a.x) * (point.y - a.y) / safeDenom + a.x
@@ -402,8 +453,7 @@ public enum MaskMath {
     // MARK: - 辅助:math primitives
 
     /// `step(edge, x)` —— 返回 `x >= edge ? 1 : 0`,mirror of shader `step()`。
-    @inlinable
-    static func step(_ edge: Float, _ x: Float) -> Float {
+    @inlinable static func step(_ edge: Float, _ x: Float) -> Float {
         return x >= edge ? 1 : 0
     }
 
@@ -412,8 +462,7 @@ public enum MaskMath {
     /// t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
     /// return t * t * (3 - 2 * t);
     /// ```
-    @inlinable
-    static func smoothstep(_ edge0: Float, _ edge1: Float, _ x: Float) -> Float {
+    @inlinable static func smoothstep(_ edge0: Float, _ edge1: Float, _ x: Float) -> Float {
         let t = min(max((x - edge0) / (edge1 - edge0), 0), 1)
         return t * t * (3 - 2 * t)
     }

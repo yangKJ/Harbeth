@@ -65,20 +65,16 @@ public struct MaskProcessingRecipe {
     }
 
     public func coverageBounds(matching sourceTexture: MTLTexture? = nil) throws -> MaskCoverageBounds? {
-        let coverageTexture = try makeCoverageTexture(matching: sourceTexture)
-        guard let bytes = coverageTexture.c7.bytes() else {
-            throw HarbethError.texture2Image
-        }
-        return Self.coverageBounds(
-            in: bytes,
-            width: coverageTexture.width,
-            height: coverageTexture.height,
-            threshold: nil
-        )
+        try analysis(matching: sourceTexture).bounds
     }
 
     public func isEmpty(matching sourceTexture: MTLTexture? = nil) throws -> Bool {
-        try coverageBounds(matching: sourceTexture) == nil
+        try analysis(matching: sourceTexture).isEmpty
+    }
+
+    public func analysis(matching sourceTexture: MTLTexture? = nil) throws -> MaskAnalysis {
+        let coverageTexture = try makeCoverageTexture(matching: sourceTexture)
+        return try MaskGPUAnalysisBackend.analyze(texture: coverageTexture, threshold: 0.001)
     }
 }
 
@@ -98,39 +94,9 @@ private extension MaskProcessingRecipe {
     }
 
     func thresholdedCoverageTexture(from texture: MTLTexture, threshold: Float) throws -> MTLTexture {
-        guard let sourceBytes = texture.c7.bytes() else {
-            throw HarbethError.texture2Image
-        }
-
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: texture.pixelFormat,
-            width: texture.width,
-            height: texture.height,
-            mipmapped: false
-        )
-        descriptor.usage = [.shaderRead, .shaderWrite]
-        guard let outputTexture = texture.device.makeTexture(descriptor: descriptor) else {
-            throw HarbethError.makeTexture
-        }
-
-        var outputBytes = [UInt8](repeating: 0, count: texture.width * texture.height * 4)
-        for pixelIndex in 0..<(texture.width * texture.height) {
-            let offset = pixelIndex * 4
-            let coverage = Float(sourceBytes[offset]) / 255.0
-            let value: UInt8 = coverage >= threshold ? 255 : 0
-            outputBytes[offset] = value
-            outputBytes[offset + 1] = value
-            outputBytes[offset + 2] = value
-            outputBytes[offset + 3] = 255
-        }
-
-        outputTexture.replace(
-            region: MTLRegionMake2D(0, 0, texture.width, texture.height),
-            mipmapLevel: 0,
-            withBytes: outputBytes,
-            bytesPerRow: texture.width * 4
-        )
-        return outputTexture
+        try HarbethIO(element: texture, filter: MaskPointThreshold(threshold: threshold))
+            .configured(for: .readbackQuality)
+            .output()
     }
 
     static func coverageBounds(in bytes: Data,

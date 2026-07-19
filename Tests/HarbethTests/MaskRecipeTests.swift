@@ -9,6 +9,110 @@ import Metal
 
 final class MaskRecipeTests: XCTestCase {
 
+    func testAdvancedGradientFamiliesRenderDistinctCoverage() throws {
+        let ring = MaskGradientRecipe(
+            size: C7Size(width: 5, height: 5),
+            kind: .ring(center: CGPoint(x: 0.5, y: 0.5), innerRadius: 0.05, peakRadius: 0.28, outerRadius: 0.48)
+        )
+        let ringBytes = try MaskTestHelpers.bytes(in: ring.makeTexture())
+        XCTAssertLessThan(ringBytes[(2 * 5 + 2) * 4], 20)
+        XCTAssertGreaterThan(ringBytes[(2 * 5 + 3) * 4], 80)
+        XCTAssertEqual(ring.gradientDescriptor.kind, "ring")
+
+        let multi = MaskGradientRecipe(
+            size: C7Size(width: 5, height: 1),
+            kind: .multiStopLinear(
+                startPoint: CGPoint(x: 0, y: 0.5),
+                endPoint: CGPoint(x: 1, y: 0.5),
+                stops: [
+                    MaskGradientStop(location: 0, coverage: 0),
+                    MaskGradientStop(location: 0.5, coverage: 1),
+                    MaskGradientStop(location: 1, coverage: 0)
+                ],
+                curve: .smooth
+            )
+        )
+        let multiBytes = try MaskTestHelpers.bytes(in: multi.makeTexture())
+        XCTAssertGreaterThan(multiBytes[2 * 4], multiBytes[0])
+        XCTAssertGreaterThan(multiBytes[2 * 4], multiBytes[4 * 4])
+        XCTAssertEqual(multi.gradientDescriptor.kind, "multiStopLinear")
+    }
+
+    func testBrushRecipeUsesOpenPressureAwareCenterline() throws {
+        let recipe = MaskBrushRecipe(
+            size: C7Size(width: 7, height: 5),
+            points: [
+                MaskBrushPoint(point: CGPoint(x: 0.15, y: 0.5), pressure: 0.4),
+                MaskBrushPoint(point: CGPoint(x: 0.85, y: 0.5), pressure: 1)
+            ],
+            settings: MaskBrushSettings(width: 0.35, hardness: 0.8, spacing: 0.1, smoothing: 0.2),
+            storageFormat: .rgba8
+        )
+        let bytes = try MaskTestHelpers.bytes(in: recipe.makeTexture())
+        XCTAssertGreaterThan(bytes[(2 * 7 + 3) * 4], 200)
+        XCTAssertLessThan(bytes[0], 10)
+        XCTAssertEqual(recipe.graphDescriptor.kind, "maskBrushRecipe")
+    }
+
+    func testBrushSpacingControlsPreparedSamplingDensity() {
+        let points = [
+            MaskBrushPoint(point: CGPoint(x: 0.1, y: 0.5)),
+            MaskBrushPoint(point: CGPoint(x: 0.9, y: 0.5))
+        ]
+        let dense = MaskBrushRecipe(
+            size: C7Size(width: 64, height: 64),
+            points: points,
+            settings: MaskBrushSettings(width: 0.1, spacing: 0.1, smoothing: 0)
+        )
+        let sparse = MaskBrushRecipe(
+            size: C7Size(width: 64, height: 64),
+            points: points,
+            settings: MaskBrushSettings(width: 0.1, spacing: 0.8, smoothing: 0)
+        )
+
+        XCTAssertGreaterThan(dense.preparedPoints.count, sparse.preparedPoints.count)
+        XCTAssertEqual(dense.preparedPoints.first, points.first)
+        XCTAssertEqual(dense.preparedPoints.last, points.last)
+    }
+
+    func testCoverageStorageUsesSingleChannelTexture() throws {
+        let recipe = MaskBrushRecipe(
+            size: C7Size(width: 8, height: 8),
+            points: [
+                MaskBrushPoint(point: CGPoint(x: 0.2, y: 0.5)),
+                MaskBrushPoint(point: CGPoint(x: 0.8, y: 0.5))
+            ],
+            settings: MaskBrushSettings(width: 0.25),
+            storageFormat: .coverage8
+        )
+        let texture = try recipe.makeTexture()
+
+        XCTAssertEqual(texture.pixelFormat, .r8Unorm)
+        XCTAssertGreaterThan(try MaskTestHelpers.pixel(in: texture, x: 4, y: 4).red, 0)
+    }
+
+    func testRangeAndTextureRecipesProduceReusableCoverage() throws {
+        let red = try MaskTestHelpers.makeTexture(width: 3, height: 2, red: 255, green: 0, blue: 0, alpha: 255)
+        let range = MaskRangeRecipe(
+            sourceTexture: red,
+            sourceIdentifier: "solid-red",
+            kind: .colorDistance(red: 1, green: 0, blue: 0, tolerance: 0.08, softness: 0.02),
+            storageFormat: .rgba8
+        )
+        let rangeBytes = try MaskTestHelpers.bytes(in: range.makeTexture())
+        XCTAssertGreaterThan(rangeBytes[0], 245)
+        XCTAssertEqual(range.graphDescriptor.kind, "maskRangeRecipe")
+
+        let textureRecipe = MaskTextureRecipe(
+            texture: red,
+            sourceIdentifier: "alpha-source",
+            sourceComponent: .alpha,
+            storageFormat: .rgba8
+        )
+        let descriptor = try textureRecipe.makeMaskDescriptor()
+        XCTAssertGreaterThan(try MaskTestHelpers.pixel(in: descriptor.texture, x: 1, y: 1).red, 245)
+    }
+
     func testLinearGradientMaskRecipeBuildsExpectedCoverageRamp() throws {
         let recipe = MaskGradientRecipe(
             size: C7Size(width: 3, height: 1),
