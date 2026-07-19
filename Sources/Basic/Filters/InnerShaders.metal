@@ -370,6 +370,60 @@ kernel void InnerMaskCoverageBlend(texture2d<half, access::write> outputTexture 
     outputTexture.write(output, gid);
 }
 
+kernel void InnerMaskCoverageBlendBatch4(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                         texture2d<half, access::read> baseTexture [[texture(1)]],
+                                         texture2d<half, access::read> mask0 [[texture(2)]],
+                                         texture2d<half, access::read> mask1 [[texture(3)]],
+                                         texture2d<half, access::read> mask2 [[texture(4)]],
+                                         texture2d<half, access::read> mask3 [[texture(5)]],
+                                         constant float *baseOpacity [[buffer(0)]],
+                                         constant float *baseInvert [[buffer(1)]],
+                                         constant float *baseComponent [[buffer(2)]],
+                                         constant float *baseFeather [[buffer(3)]],
+                                         constant float *maskCount [[buffer(4)]],
+                                         constant float *mask0Opacity [[buffer(5)]],
+                                         constant float *mask0Invert [[buffer(6)]],
+                                         constant float *mask0Component [[buffer(7)]],
+                                         constant float *mask0Blend [[buffer(8)]],
+                                         constant float *mask0Feather [[buffer(9)]],
+                                         constant float *mask1Opacity [[buffer(10)]],
+                                         constant float *mask1Invert [[buffer(11)]],
+                                         constant float *mask1Component [[buffer(12)]],
+                                         constant float *mask1Blend [[buffer(13)]],
+                                         constant float *mask1Feather [[buffer(14)]],
+                                         constant float *mask2Opacity [[buffer(15)]],
+                                         constant float *mask2Invert [[buffer(16)]],
+                                         constant float *mask2Component [[buffer(17)]],
+                                         constant float *mask2Blend [[buffer(18)]],
+                                         constant float *mask2Feather [[buffer(19)]],
+                                         constant float *mask3Opacity [[buffer(20)]],
+                                         constant float *mask3Invert [[buffer(21)]],
+                                         constant float *mask3Component [[buffer(22)]],
+                                         constant float *mask3Blend [[buffer(23)]],
+                                         constant float *mask3Feather [[buffer(24)]],
+                                         uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    half coverage = normalizedInnerMaskValue(baseTexture.read(gid), int(*baseComponent), *baseInvert > 0.5f, half(*baseOpacity), half(*baseFeather));
+    const int count = clamp(int(*maskCount), 0, 4);
+    if (count > 0) {
+        const half value = normalizedInnerMaskValue(mask0.read(gid), int(*mask0Component), *mask0Invert > 0.5f, half(*mask0Opacity), half(*mask0Feather));
+        coverage = combineInnerCoverage(coverage, value, int(*mask0Blend));
+    }
+    if (count > 1) {
+        const half value = normalizedInnerMaskValue(mask1.read(gid), int(*mask1Component), *mask1Invert > 0.5f, half(*mask1Opacity), half(*mask1Feather));
+        coverage = combineInnerCoverage(coverage, value, int(*mask1Blend));
+    }
+    if (count > 2) {
+        const half value = normalizedInnerMaskValue(mask2.read(gid), int(*mask2Component), *mask2Invert > 0.5f, half(*mask2Opacity), half(*mask2Feather));
+        coverage = combineInnerCoverage(coverage, value, int(*mask2Blend));
+    }
+    if (count > 3) {
+        const half value = normalizedInnerMaskValue(mask3.read(gid), int(*mask3Component), *mask3Invert > 0.5f, half(*mask3Opacity), half(*mask3Feather));
+        coverage = combineInnerCoverage(coverage, value, int(*mask3Blend));
+    }
+    outputTexture.write(half4(coverage, coverage, coverage, 1.0h), gid);
+}
+
 static inline half extractInnerMaskComponentValue(half4 color, int component) {
     switch (component) {
         case 0: return color.a;

@@ -71,6 +71,49 @@ final class MaskProcessingTests: XCTestCase {
         }
     }
 
+    func testCompositeCompilerBatchesBooleanStepsAndEliminatesNeutralCoverage() throws {
+        let texture = try makeTexture(width: 1, height: 1, pixels: [255, 255, 255, 255])
+        let visible = MaskDescriptor(texture: texture, component: .red, opacity: 1)
+        let neutral = MaskDescriptor(texture: texture, component: .red, opacity: 0)
+        let steps = [
+            MaskCompositeStep.add(neutral),
+            MaskCompositeStep.add(visible), MaskCompositeStep.subtract(visible),
+            MaskCompositeStep.intersect(visible), MaskCompositeStep.exclude(visible),
+            MaskCompositeStep.add(visible), MaskCompositeStep.subtract(visible),
+            MaskCompositeStep.intersect(visible), MaskCompositeStep.exclude(visible)
+        ]
+
+        let plan = MaskCompositeGraphCompiler.compile(steps)
+        XCTAssertEqual(plan.batchSizes, [4, 4])
+        XCTAssertEqual(plan.eliminatedStepCount, 1)
+        XCTAssertEqual(plan.passCount, 3)
+    }
+
+    func testCompositeBatchShaderMatchesSequentialBooleanSemantics() throws {
+        let baseTexture = try makeTexture(width: 2, height: 1, pixels: [64, 64, 64, 255, 192, 192, 192, 255])
+        let values: [UInt8] = [40, 90, 170, 220, 80, 130, 200]
+        let modes: [MaskBlendMode] = [.add, .subtract, .multiply, .exclude, .add, .subtract, .multiply]
+        let masks = try zip(values, modes).map { value, mode in
+            MaskDescriptor(
+                texture: try makeTexture(width: 2, height: 1, pixels: Array(repeating: [value, value, value, UInt8(255)], count: 2).flatMap { $0 }),
+                component: .red,
+                blendMode: mode,
+                opacity: 0.83
+            )
+        }
+        let steps = masks.enumerated().map { MaskCompositeStep(name: "step\($0.offset)", mask: $0.element) }
+        let base = MaskDescriptor(texture: baseTexture, component: .red)
+
+        var sequential = try HarbethIO(element: baseTexture, filter: MaskCoverageExtract(mask: base)).output()
+        for mask in masks {
+            sequential = try HarbethIO(element: sequential, filter: MaskCoverageBlend(baseComponent: .red, mask: mask)).output()
+        }
+        let compiled = try MaskCompositeRecipe(baseMask: base, steps: steps).makeTexture()
+
+        XCTAssertEqual(try coverageByte(in: compiled, x: 0, y: 0), try coverageByte(in: sequential, x: 0, y: 0), accuracy: 2)
+        XCTAssertEqual(try coverageByte(in: compiled, x: 1, y: 0), try coverageByte(in: sequential, x: 1, y: 0), accuracy: 2)
+    }
+
     func testMaskProcessingNormalizesSelectedComponentCoverage() throws {
         let texture = try makeTexture(
             width: 2,

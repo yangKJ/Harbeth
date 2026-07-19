@@ -8,6 +8,38 @@
 import Foundation
 import Metal
 
+public struct MaskCompositeExecutionPlan: Sendable, Equatable {
+    public let batchSizes: [Int]
+    public let eliminatedStepCount: Int
+
+    public var passCount: Int { 1 + batchSizes.count }
+}
+
+public enum MaskCompositeGraphCompiler {
+    public static let maximumMasksPerPass = 4
+
+    public static func compile(_ steps: [MaskCompositeStep]) -> MaskCompositeExecutionPlan {
+        let executable = steps.filter { step in
+            guard step.mask.opacity <= 0.000_001 else { return true }
+            switch step.mask.blendMode {
+            case .add, .subtract, .exclude: return false
+            case .mix, .replace, .multiply: return true
+            }
+        }
+        var batchSizes: [Int] = []
+        var remaining = executable.count
+        while remaining > 0 {
+            let count = min(remaining, maximumMasksPerPass)
+            batchSizes.append(count)
+            remaining -= count
+        }
+        return MaskCompositeExecutionPlan(
+            batchSizes: batchSizes,
+            eliminatedStepCount: steps.count - executable.count
+        )
+    }
+}
+
 public struct MaskCompositeRecipe {
     public var baseMask: MaskDescriptor
     public var steps: [MaskCompositeStep]
@@ -56,6 +88,10 @@ public struct MaskCompositeRecipe {
 
     public var masks: [MaskDescriptor] {
         steps.map(\.mask)
+    }
+
+    public var compiledPlan: MaskCompositeExecutionPlan {
+        MaskCompositeGraphCompiler.compile(steps)
     }
 
     public var baseGraphOverride: MaskGraphDescriptor? {
@@ -228,10 +264,17 @@ public struct MaskCompositeRecipe {
         .configured(for: profile)
         .output()
 
-        for step in steps {
+        let executable = steps.filter { step in
+            guard step.mask.opacity <= 0.000_001 else { return true }
+            switch step.mask.blendMode {
+            case .add, .subtract, .exclude: return false
+            case .mix, .replace, .multiply: return true
+            }
+        }
+        for batch in executable.chunked(maximumCount: MaskCompositeGraphCompiler.maximumMasksPerPass) {
             current = try HarbethIO(
                 element: current,
-                filter: MaskCoverageBlend(baseComponent: .red, mask: step.mask)
+                filter: MaskCoverageBlendBatch(baseComponent: .red, masks: batch.map(\.mask))
             )
             .configured(for: profile)
             .output()
@@ -296,5 +339,14 @@ public struct MaskCompositeRecipe {
             rebasedRecipe.steps.append(rebasedStep)
         }
         return rebasedRecipe
+    }
+}
+
+private extension Array {
+    func chunked(maximumCount: Int) -> [[Element]] {
+        guard maximumCount > 0, !isEmpty else { return [] }
+        return stride(from: 0, to: count, by: maximumCount).map {
+            Array(self[$0..<Swift.min($0 + maximumCount, count)])
+        }
     }
 }

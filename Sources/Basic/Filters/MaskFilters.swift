@@ -285,6 +285,65 @@ struct MaskCoverageBlend: C7FilterProtocol {
     }
 }
 
+/// 一次按顺序融合最多四个 coverage，避免布尔图谱为每层生成中间纹理。
+struct MaskCoverageBlendBatch: C7FilterProtocol {
+    var baseComponent: MaskComponent
+    var baseInvert: Bool
+    var baseFeatherPolicy: MaskFeatherPolicy
+    var baseOpacity: Float
+    let masks: [MaskDescriptor]
+
+    init(baseComponent: MaskComponent = .alpha,
+         baseInvert: Bool = false,
+         baseFeatherPolicy: MaskFeatherPolicy = .none,
+         baseOpacity: Float = 1,
+         masks: [MaskDescriptor]) {
+        self.baseComponent = baseComponent
+        self.baseInvert = baseInvert
+        self.baseFeatherPolicy = baseFeatherPolicy
+        self.baseOpacity = min(max(baseOpacity, 0), 1)
+        self.masks = Array(masks.prefix(4))
+    }
+
+    var modifier: ModifierEnum {
+        .compute(kernel: "InnerMaskCoverageBlendBatch4")
+    }
+
+    var factors: [Float] {
+        var values: [Float] = [
+            baseOpacity,
+            baseInvert ? 1 : 0,
+            Float(baseComponent.rawValue),
+            baseFeatherPolicy.amount,
+            Float(masks.count)
+        ]
+        for index in 0..<4 {
+            if index < masks.count {
+                let mask = masks[index]
+                values.append(contentsOf: [
+                    mask.opacity,
+                    mask.invert ? 1 : 0,
+                    Float(mask.component.rawValue),
+                    Float(mask.blendMode.rawValue),
+                    mask.featherPolicy.amount
+                ])
+            } else {
+                values.append(contentsOf: [0, 0, Float(MaskComponent.red.rawValue), Float(MaskBlendMode.add.rawValue), 0])
+            }
+        }
+        return values
+    }
+
+    var otherInputTextures: C7InputTextures {
+        guard let fallback = masks.last?.texture else { return [] }
+        var textures = masks.map(\.texture)
+        while textures.count < 4 { textures.append(fallback) }
+        return textures
+    }
+
+    var memoryAccessPattern: MemoryAccessPattern { .multiTexture }
+}
+
 struct MaskDistanceField: C7FilterProtocol {
     let maxDistance: Float
     let threshold: Float
