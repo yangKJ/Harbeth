@@ -516,7 +516,7 @@ kernel void InnerPathMask(texture2d<half, access::write> outputTexture [[texture
     const int pointCount = int(metadata[0]);
     const int subpathCount = int(metadata[1]);
     const bool useEvenOdd = metadata[2] > 0.5f;
-    const float feather = clamp(metadata[3], 0.0f, 1.0f);
+    const float feather = max(metadata[3], 0.0f);
     if (pointCount < 3 || subpathCount < 1) {
         outputTexture.write(half4(0.0h, 0.0h, 0.0h, 1.0h), gid);
         return;
@@ -524,6 +524,8 @@ kernel void InnerPathMask(texture2d<half, access::write> outputTexture [[texture
 
     const float2 size = float2(outputTexture.get_width(), outputTexture.get_height());
     const float2 uv = (float2(gid) + 0.5f) / size;
+    const float shortEdge = max(min(size.x, size.y), 1.0f);
+    const float2 distanceMetric = size / shortEdge;
     bool evenOddInside = false;
     int windingNumber = 0;
 
@@ -567,7 +569,7 @@ kernel void InnerPathMask(texture2d<half, access::write> outputTexture [[texture
             for (int edgeIndex = 0; edgeIndex < count; ++edgeIndex) {
                 const float2 a = points[start + edgeIndex];
                 const float2 b = points[start + ((edgeIndex + 1) % count)];
-                minDistance = min(minDistance, innerPathDistanceToSegment(uv, a, b));
+                minDistance = min(minDistance, innerPathDistanceToSegment(uv * distanceMetric, a * distanceMetric, b * distanceMetric));
             }
         }
         if (!isinf(minDistance)) {

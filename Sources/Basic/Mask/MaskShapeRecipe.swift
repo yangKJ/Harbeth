@@ -313,17 +313,36 @@ extension MaskShapeRecipe: MaskRebasableRecipe {
                 CGPoint(x: rect.maxX, y: rect.maxY),
                 CGPoint(x: rect.minX, y: rect.maxY)
             ]
-            return MaskPathRecipe(size: size, subpaths: [.polygon(points)], transform: transform, profile: profile)
+            return MaskPathRecipe(
+                size: size,
+                subpaths: [.polygon(points)],
+                transform: transform,
+                feather: shapeFeather,
+                profile: profile
+            )
         case .ellipse(let rect, _):
-            return MaskPathRecipe(size: size, subpaths: [Self.ellipseSubpath(rect: rect)], transform: transform, profile: profile)
+            return MaskPathRecipe(
+                size: size,
+                subpaths: [Self.ellipseSubpath(rect: rect)],
+                transform: transform,
+                feather: shapeFeather,
+                profile: profile
+            )
         case .roundedRect(let rect, let cornerRadius, _):
-            return MaskPathRecipe(size: size, subpaths: [Self.roundedRectSubpath(rect: rect, cornerRadius: CGFloat(cornerRadius))], transform: transform, profile: profile)
+            return MaskPathRecipe(
+                size: size,
+                subpaths: [Self.roundedRectSubpath(rect: rect, cornerRadius: CGFloat(cornerRadius))],
+                transform: transform,
+                feather: shapeFeather,
+                profile: profile
+            )
         case .regularPolygon(let rect, let sides, _):
             return MaskPathRecipe.regularPolygon(
                 size: size,
                 rect: rect,
                 sides: sides,
                 transform: transform,
+                feather: shapeFeather,
                 profile: profile
             )
         case .star(let rect, let points, let innerRadiusRatio, _):
@@ -333,6 +352,7 @@ extension MaskShapeRecipe: MaskRebasableRecipe {
                 points: points,
                 innerRadiusRatio: CGFloat(innerRadiusRatio),
                 transform: transform,
+                feather: shapeFeather,
                 profile: profile
             )
         }

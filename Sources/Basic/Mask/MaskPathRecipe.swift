@@ -22,17 +22,38 @@ public struct MaskPathRecipe {
     public var subpaths: [MaskPathSubpath]
     public var fillRule: MaskPathFillRule
     public var transform: MaskPathTransform
+    public var feather: Float
     public var profile: RenderProfile
 
     public init(size: C7Size,
                 subpaths: [MaskPathSubpath],
                 fillRule: MaskPathFillRule = .nonZero,
                 transform: MaskPathTransform = .identity,
+                feather: Float = 0,
                 profile: RenderProfile = .stablePreview) {
+        self.init(
+            size: size,
+            subpaths: subpaths,
+            fillRule: fillRule,
+            transform: transform,
+            feather: feather,
+            profile: profile,
+            allowsExtendedFeather: false
+        )
+    }
+
+    private init(size: C7Size,
+                 subpaths: [MaskPathSubpath],
+                 fillRule: MaskPathFillRule,
+                 transform: MaskPathTransform,
+                 feather: Float,
+                 profile: RenderProfile,
+                 allowsExtendedFeather: Bool) {
         self.size = size
         self.subpaths = subpaths
         self.fillRule = fillRule
         self.transform = transform
+        self.feather = allowsExtendedFeather ? max(feather, 0) : min(max(feather, 0), 1)
         self.profile = profile
     }
 
@@ -41,6 +62,7 @@ public struct MaskPathRecipe {
             "size=\(size.width)x\(size.height)",
             "fillRule=\(fillRule.rawValue)",
             "transform={\(transform.fingerprint)}",
+            "feather=\(Self.stableFloatDescription(feather))",
             "subpaths=\(subpaths.map(\.fingerprint).joined(separator: "||"))",
             "profile=\(profile.rawValue)"
         ].joined(separator: "|")
@@ -81,6 +103,7 @@ public struct MaskPathRecipe {
             parameterValues: [
                 "size=\(size.width)x\(size.height)",
                 "fillRule=\(fillRule.rawValue)",
+                "feather=\(Self.stableFloatDescription(feather))",
                 "points=\(encoded.points.count)",
                 "subpaths=\(encoded.ranges.count)"
             ]
@@ -94,7 +117,7 @@ public struct MaskPathRecipe {
             options: [TextureLoader.Option.texturePixelFormat: pixelFormat],
             identifier: "MaskPathRecipe"
         )
-        return try HarbethIO(element: seed, filter: PathMask(recipe: self))
+        return try HarbethIO(element: seed, filter: PathMask(recipe: self, feather: feather))
             .configured(for: profile)
             .output()
     }
@@ -135,6 +158,9 @@ public struct MaskPathRecipe {
         let logicalHeight = max(CGFloat(logicalSize.height), 1)
         let tileWidth = max(CGFloat(tileInputSize.width), 1)
         let tileHeight = max(CGFloat(tileInputSize.height), 1)
+        let logicalShortEdge = max(min(logicalWidth, logicalHeight), 1)
+        let tileShortEdge = max(min(tileWidth, tileHeight), 1)
+        let rebasedFeather = max(feather * Float(logicalShortEdge / tileShortEdge), 0)
 
         func rebase(_ point: CGPoint) -> CGPoint {
             let transformed = transform.applying(to: point)
@@ -165,7 +191,9 @@ public struct MaskPathRecipe {
             subpaths: rebasedSubpaths,
             fillRule: fillRule,
             transform: .identity,
-            profile: profile
+            feather: rebasedFeather,
+            profile: profile,
+            allowsExtendedFeather: true
         )
     }
 
@@ -199,7 +227,9 @@ public struct MaskPathRecipe {
             subpaths: clampedSubpaths,
             fillRule: fillRule,
             transform: transform,
-            profile: profile
+            feather: feather,
+            profile: profile,
+            allowsExtendedFeather: true
         )
     }
 
@@ -289,6 +319,10 @@ public struct MaskPathRecipe {
         }
         return points
     }
+
+    private static func stableFloatDescription(_ value: Float) -> String {
+        String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+    }
 }
 
 public extension MaskPathRecipe {
@@ -297,6 +331,7 @@ public extension MaskPathRecipe {
                                sides: Int,
                                fillRule: MaskPathFillRule = .nonZero,
                                transform: MaskPathTransform = .identity,
+                               feather: Float = 0,
                                profile: RenderProfile = .stablePreview) -> MaskPathRecipe {
         let sideCount = max(sides, 3)
         let center = CGPoint(x: rect.midX, y: rect.midY)
@@ -304,7 +339,7 @@ public extension MaskPathRecipe {
             let angle = -CGFloat.pi / 2 + CGFloat(index) * 2 * CGFloat.pi / CGFloat(sideCount)
             return CGPoint(x: center.x + cos(angle) * rect.width * 0.5, y: center.y + sin(angle) * rect.height * 0.5)
         }
-        return MaskPathRecipe(size: size, subpaths: [.polygon(points)], fillRule: fillRule, transform: transform, profile: profile)
+        return MaskPathRecipe(size: size, subpaths: [.polygon(points)], fillRule: fillRule, transform: transform, feather: feather, profile: profile)
     }
 
     static func star(size: C7Size,
@@ -313,6 +348,7 @@ public extension MaskPathRecipe {
                      innerRadiusRatio: CGFloat = 0.44,
                      fillRule: MaskPathFillRule = .nonZero,
                      transform: MaskPathTransform = .identity,
+                     feather: Float = 0,
                      profile: RenderProfile = .stablePreview) -> MaskPathRecipe {
         let vertexCount = max(count, 2) * 2
         let center = CGPoint(x: rect.midX, y: rect.midY)
@@ -321,13 +357,14 @@ public extension MaskPathRecipe {
             let angle = -CGFloat.pi / 2 + CGFloat(index) * 2 * CGFloat.pi / CGFloat(vertexCount)
             return CGPoint(x: center.x + cos(angle) * rect.width * radius, y: center.y + sin(angle) * rect.height * radius)
         }
-        return MaskPathRecipe(size: size, subpaths: [.polygon(points)], fillRule: fillRule, transform: transform, profile: profile)
+        return MaskPathRecipe(size: size, subpaths: [.polygon(points)], fillRule: fillRule, transform: transform, feather: feather, profile: profile)
     }
 
     static func heart(size: C7Size,
                       rect: CGRect,
                       fillRule: MaskPathFillRule = .nonZero,
                       transform: MaskPathTransform = .identity,
+                      feather: Float = 0,
                       profile: RenderProfile = .stablePreview) -> MaskPathRecipe {
         let points = (0..<96).map { index -> CGPoint in
             let t = CGFloat(index) / 96 * 2 * CGFloat.pi
@@ -338,6 +375,6 @@ public extension MaskPathRecipe {
                 y: rect.midY - (y / 34) * rect.height
             )
         }
-        return MaskPathRecipe(size: size, subpaths: [.polygon(points)], fillRule: fillRule, transform: transform, profile: profile)
+        return MaskPathRecipe(size: size, subpaths: [.polygon(points)], fillRule: fillRule, transform: transform, feather: feather, profile: profile)
     }
 }

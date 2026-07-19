@@ -129,7 +129,7 @@ struct PathMask: C7FilterProtocol {
 
     init(recipe: MaskPathRecipe, feather: Float = 0) {
         self.recipe = recipe
-        self.feather = min(max(feather, 0), 1)
+        self.feather = max(feather, 0)
     }
 
     var modifier: ModifierEnum {

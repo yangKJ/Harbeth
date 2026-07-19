@@ -150,6 +150,149 @@ final class MaskRecipeTests: XCTestCase {
         XCTAssertLessThan(bytes[0], 10)
     }
 
+    func testPathMaskRecipeSpatialFeatherProducesIntermediateCoverage() throws {
+        let points = [
+            CGPoint(x: 0.2, y: 0.2),
+            CGPoint(x: 0.8, y: 0.2),
+            CGPoint(x: 0.8, y: 0.8),
+            CGPoint(x: 0.2, y: 0.8)
+        ]
+        let hard = MaskPathRecipe(
+            size: C7Size(width: 24, height: 24),
+            subpaths: [.polygon(points)]
+        )
+        let soft = MaskPathRecipe(
+            size: C7Size(width: 24, height: 24),
+            subpaths: [.polygon(points)],
+            feather: 0.16
+        )
+
+        let hardBytes = try MaskTestHelpers.bytes(in: hard.makeTexture())
+        let hardCoverage = stride(from: 0, to: hardBytes.count, by: 4).map { hardBytes[$0] }
+        let softBytes = try MaskTestHelpers.bytes(in: soft.makeTexture())
+        let softCoverage = stride(from: 0, to: softBytes.count, by: 4).map { softBytes[$0] }
+
+        XCTAssertFalse(hardCoverage.contains { $0 > 0 && $0 < 255 })
+        XCTAssertTrue(softCoverage.contains { $0 > 0 && $0 < 255 })
+        XCTAssertTrue(soft.pathDescriptor.parameterValues.contains("feather=0.160000"))
+        XCTAssertEqual(try soft.makeMaskDescriptor().featherPolicy, .none)
+    }
+
+    func testPathMaskRecipeRebasePreservesSpatialFeatherWidth() {
+        let recipe = MaskPathRecipe(
+            size: C7Size(width: 400, height: 200),
+            subpaths: [.polygon([
+                CGPoint(x: 0.2, y: 0.2),
+                CGPoint(x: 0.8, y: 0.2),
+                CGPoint(x: 0.8, y: 0.8),
+                CGPoint(x: 0.2, y: 0.8)
+            ])],
+            feather: 0.1
+        )
+
+        let rebased = recipe.rebased(
+            sourceRect: CGRect(x: 100, y: 50, width: 100, height: 100),
+            logicalSize: recipe.size,
+            tileInputSize: C7Size(width: 100, height: 100)
+        )
+
+        XCTAssertEqual(rebased.feather, 0.2, accuracy: 0.0001)
+        XCTAssertTrue(rebased.fingerprint.contains("feather=0.200000"))
+    }
+
+    func testPathMaskRecipeRebaseDoesNotClampWideLogicalFeatherToTileBounds() {
+        let recipe = MaskPathRecipe(
+            size: C7Size(width: 4_000, height: 3_000),
+            subpaths: [
+                .polygon([
+                    CGPoint(x: 0.2, y: 0.2),
+                    CGPoint(x: 0.8, y: 0.2),
+                    CGPoint(x: 0.8, y: 0.8),
+                    CGPoint(x: 0.2, y: 0.8)
+                ])
+            ],
+            feather: 0.8
+        )
+
+        let rebased = recipe.rebased(
+            sourceRect: CGRect(x: 0, y: 0, width: 256, height: 256),
+            logicalSize: C7Size(width: 4_000, height: 3_000),
+            tileInputSize: C7Size(width: 256, height: 256)
+        )
+
+        XCTAssertEqual(rebased.feather, 9.375, accuracy: 0.0001)
+        XCTAssertTrue(rebased.fingerprint.contains("feather=9.375000"))
+    }
+
+    func testPathMaskRecipeRebasePreservesFeatherCoverageOnWideCanvas() throws {
+        let logicalSize = C7Size(width: 400, height: 200)
+        let rectangle = MaskPathRecipe(
+            size: logicalSize,
+            subpaths: [
+                .polygon([
+                    CGPoint(x: 0.25, y: 0.25),
+                    CGPoint(x: 0.75, y: 0.25),
+                    CGPoint(x: 0.75, y: 0.75),
+                    CGPoint(x: 0.25, y: 0.75)
+                ])
+            ],
+            feather: 0.1
+        )
+        let fullRectangle = try MaskTestHelpers.bytes(in: rectangle.makeTexture())
+
+        func coverage(_ bytes: [UInt8], width: Int, x: Int, y: Int) -> UInt8 {
+            bytes[(y * width + x) * 4]
+        }
+
+        let verticalTile = rectangle.rebased(
+            sourceRect: CGRect(x: 80, y: 0, width: 100, height: 100),
+            logicalSize: logicalSize,
+            tileInputSize: C7Size(width: 100, height: 100)
+        )
+        let verticalBytes = try MaskTestHelpers.bytes(in: verticalTile.makeTexture())
+        XCTAssertEqual(
+            coverage(fullRectangle, width: 400, x: 90, y: 75),
+            coverage(verticalBytes, width: 100, x: 10, y: 75),
+            accuracy: 2
+        )
+
+        let horizontalTile = rectangle.rebased(
+            sourceRect: CGRect(x: 50, y: 30, width: 100, height: 100),
+            logicalSize: logicalSize,
+            tileInputSize: C7Size(width: 100, height: 100)
+        )
+        let horizontalBytes = try MaskTestHelpers.bytes(in: horizontalTile.makeTexture())
+        XCTAssertEqual(
+            coverage(fullRectangle, width: 400, x: 125, y: 40),
+            coverage(horizontalBytes, width: 100, x: 75, y: 10),
+            accuracy: 2
+        )
+
+        let diagonal = MaskPathRecipe(
+            size: logicalSize,
+            subpaths: [
+                .polygon([
+                    CGPoint(x: 0.25, y: 0.25),
+                    CGPoint(x: 0.75, y: 0.75),
+                    CGPoint(x: 0.25, y: 0.75)
+                ])
+            ],
+            feather: 0.1
+        )
+        let fullDiagonal = try MaskTestHelpers.bytes(in: diagonal.makeTexture())
+        let diagonalTile = diagonal.rebased(
+            sourceRect: CGRect(x: 150, y: 50, width: 100, height: 100),
+            logicalSize: logicalSize,
+            tileInputSize: C7Size(width: 100, height: 100)
+        )
+        let diagonalBytes = try MaskTestHelpers.bytes(in: diagonalTile.makeTexture())
+        XCTAssertEqual(
+            coverage(fullDiagonal, width: 400, x: 200, y: 90),
+            coverage(diagonalBytes, width: 100, x: 50, y: 40),
+            accuracy: 2
+        )
+    }
+
     func testPathMaskRecipeKeepsTransformedVerticesOutsideCanvas() {
         let recipe = MaskPathRecipe(
             size: C7Size(width: 100, height: 100),
