@@ -155,4 +155,20 @@ final class MaskDescriptorTests: XCTestCase {
         XCTAssertEqual(filter.factors[3], Float(MaskBlendMode.multiply.rawValue), accuracy: 0.0001)
         XCTAssertEqual(filter.factors[4], 0.4, accuracy: 0.0001)
     }
+
+    func testImageNodeMaskedEffectCompositeUsesLocalEffectPrimitive() throws {
+        let base = try MaskTestHelpers.makeTexture(pixel: [255, 0, 0, 255])
+        let effect = try MaskTestHelpers.makeTexture(pixel: [0, 0, 255, 255])
+        let maskTexture = try MaskTestHelpers.makeTexture(pixel: [0, 0, 0, 255])
+        let descriptor = MaskDescriptor(texture: maskTexture, opacity: 1)
+
+        let output = try ImageNode.texture(base)
+            .compositing(effectTexture: effect, mask: descriptor)
+            .makeTexture(profile: .stablePreview)
+        let pixel = try MaskTestHelpers.firstPixel(in: output)
+
+        XCTAssertEqual(pixel.red, 0)
+        XCTAssertEqual(pixel.blue, 255)
+        XCTAssertEqual(pixel.alpha, 255)
+    }
 }

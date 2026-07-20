@@ -6,8 +6,16 @@
 //
 
 import Foundation
+import Metal
 
 extension ImageNode {
+    /// Uses the local-effect pipeline's pixel-exact semantics to composite an
+    /// effect texture onto the current node. Advanced hosts such as tiled image
+    /// renderers can use this narrow entry point without layer resampling.
+    public func compositing(effectTexture: MTLTexture, mask: MaskDescriptor) -> ImageNode {
+        applying(MaskRegionBlend(effectTexture: effectTexture, mask: mask))
+    }
+
     public func applying(mask: MaskDescriptor, filter: C7FilterProtocol, mode: EditRecipeMode = .preview) -> ImageNode {
         applying(mask: mask, filters: [filter], mode: mode)
     }

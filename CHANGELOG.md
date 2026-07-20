@@ -6,6 +6,7 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 
 ### Added
 
+- Added an `ImageNode` masked-effect composite entry point that reuses the same pixel-exact primitive as local edit recipes.
 - Added angular, diamond, reflected, band, ring, and multi-stop mask gradient primitives with deterministic graph fingerprints.
 - Added pressure-aware open brush masks, luminance/color range masks, generic texture-channel mask sources, and single-channel mask storage formats.
 - Added compiled derived-mask graphs for threshold, grow/shrink, edge bands, distance fields, edge-aware feathering, cleanup, and decontamination, with cancellation, caching, GPU analysis, and dirty bounds.
