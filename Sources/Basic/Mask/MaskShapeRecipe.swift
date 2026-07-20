@@ -295,12 +295,70 @@ public extension MaskShapeRecipe {
 
 extension MaskShapeRecipe: MaskRebasableRecipe {
     func rebasedRecipe(sourceRect: CGRect, logicalSize: C7Size, tileInputSize: C7Size) throws -> AnyMaskRecipe? {
-        AnyMaskRecipe(
-            try makePathRecipe().rebased(
-                sourceRect: sourceRect,
-                logicalSize: logicalSize,
-                tileInputSize: tileInputSize
+        switch kind {
+        case .rectangle, .ellipse, .roundedRect:
+            guard transform == .identity else {
+                // 把解析形状降级为路径会改变边界覆盖规则，无法保证 tile 与全帧像素等价。
+                return nil
+            }
+            return AnyMaskRecipe(
+                rebasedAnalyticRecipe(
+                    sourceRect: sourceRect,
+                    logicalSize: logicalSize,
+                    tileInputSize: tileInputSize
+                )
             )
+        case .regularPolygon, .star:
+            return AnyMaskRecipe(
+                try makePathRecipe().rebased(
+                    sourceRect: sourceRect,
+                    logicalSize: logicalSize,
+                    tileInputSize: tileInputSize
+                )
+            )
+        }
+    }
+
+    private func rebasedAnalyticRecipe(
+        sourceRect: CGRect,
+        logicalSize: C7Size,
+        tileInputSize: C7Size
+    ) -> MaskShapeRecipe {
+        let logicalWidth = max(CGFloat(logicalSize.width), 1)
+        let logicalHeight = max(CGFloat(logicalSize.height), 1)
+        let tileWidth = max(CGFloat(tileInputSize.width), 1)
+        let tileHeight = max(CGFloat(tileInputSize.height), 1)
+
+        func rebase(_ rect: CGRect) -> CGRect {
+            CGRect(
+                x: (rect.minX * logicalWidth - sourceRect.minX) / tileWidth,
+                y: (rect.minY * logicalHeight - sourceRect.minY) / tileHeight,
+                width: rect.width * logicalWidth / tileWidth,
+                height: rect.height * logicalHeight / tileHeight
+            )
+        }
+
+        let rebasedKind: MaskShapeKind
+        switch kind {
+        case .rectangle(let rect, let feather):
+            rebasedKind = .rectangle(rect: rebase(rect), feather: feather)
+        case .ellipse(let rect, let feather):
+            rebasedKind = .ellipse(rect: rebase(rect), feather: feather)
+        case .roundedRect(let rect, let cornerRadius, let feather):
+            rebasedKind = .roundedRect(
+                rect: rebase(rect),
+                cornerRadius: cornerRadius,
+                feather: feather
+            )
+        case .regularPolygon, .star:
+            preconditionFailure("Only analytic shapes reach rebasedAnalyticRecipe.")
+        }
+
+        return MaskShapeRecipe(
+            size: tileInputSize,
+            kind: rebasedKind,
+            transform: .identity,
+            profile: profile
         )
     }
 

@@ -86,7 +86,7 @@ final class MaskProcessingTests: XCTestCase {
         let plan = MaskCompositeGraphCompiler.compile(steps)
         XCTAssertEqual(plan.batchSizes, [4, 4])
         XCTAssertEqual(plan.eliminatedStepCount, 1)
-        XCTAssertEqual(plan.passCount, 3)
+        XCTAssertEqual(plan.passCount, 2)
     }
 
     func testCompositeBatchShaderMatchesSequentialBooleanSemantics() throws {
@@ -112,6 +112,52 @@ final class MaskProcessingTests: XCTestCase {
 
         XCTAssertEqual(try coverageByte(in: compiled, x: 0, y: 0), try coverageByte(in: sequential, x: 0, y: 0), accuracy: 2)
         XCTAssertEqual(try coverageByte(in: compiled, x: 1, y: 0), try coverageByte(in: sequential, x: 1, y: 0), accuracy: 2)
+    }
+
+    func testAnalyticShapeRebasePreservesPixelCoverage() throws {
+        let logicalSize = C7Size(width: 96, height: 72)
+        let sourceRect = CGRect(x: 9, y: 10, width: 66, height: 40)
+        let recipe = MaskShapeRecipe.rectangle(
+            size: logicalSize,
+            rect: CGRect(x: 0.50, y: 0.32, width: 0.26, height: 0.34)
+        )
+        let full = try recipe.makeTexture()
+        let rebased = try XCTUnwrap(recipe.rebasedRecipe(
+            sourceRect: sourceRect,
+            logicalSize: logicalSize,
+            tileInputSize: C7Size(width: 66, height: 40)
+        ))
+        let tile = try rebased.makeMaskDescriptor(
+            component: .red,
+            blendMode: .mix,
+            invert: false,
+            featherPolicy: .none,
+            opacity: 1
+        ).texture
+
+        for point in [CGPoint(x: 0, y: 0), CGPoint(x: 39, y: 13), CGPoint(x: 63, y: 37), CGPoint(x: 64, y: 37)] {
+            let tileX = Int(point.x)
+            let tileY = Int(point.y)
+            XCTAssertEqual(
+                try coverageByte(in: tile, x: tileX, y: tileY),
+                try coverageByte(in: full, x: tileX + Int(sourceRect.minX), y: tileY + Int(sourceRect.minY)),
+                accuracy: 1
+            )
+        }
+    }
+
+    func testTransformedAnalyticShapeRebaseFallsBackInsteadOfChangingKernelSemantics() throws {
+        let recipe = MaskShapeRecipe.rectangle(
+            size: C7Size(width: 96, height: 72),
+            rect: CGRect(x: 0.2, y: 0.2, width: 0.3, height: 0.3),
+            transform: MaskPathTransform(rotationRadians: 0.2)
+        )
+
+        XCTAssertNil(try recipe.rebasedRecipe(
+            sourceRect: CGRect(x: 0, y: 0, width: 48, height: 48),
+            logicalSize: C7Size(width: 96, height: 72),
+            tileInputSize: C7Size(width: 48, height: 48)
+        ))
     }
 
     func testMaskProcessingNormalizesSelectedComponentCoverage() throws {

@@ -12,7 +12,9 @@ public struct MaskCompositeExecutionPlan: Sendable, Equatable {
     public let batchSizes: [Int]
     public let eliminatedStepCount: Int
 
-    public var passCount: Int { 1 + batchSizes.count }
+    /// 没有布尔步骤时仍需要一次 coverage 提取；只要存在步骤，首个批次会同时
+    /// 完成 base 的 component / invert / opacity / feather 归一化，不再产生基础中间纹理。
+    public var passCount: Int { max(batchSizes.count, 1) }
 }
 
 public enum MaskCompositeGraphCompiler {
@@ -257,13 +259,6 @@ public struct MaskCompositeRecipe {
     }
 
     public func makeTexture() throws -> MTLTexture {
-        var current = try HarbethIO(
-            element: baseMask.texture,
-            filter: MaskCoverageExtract(mask: baseMask)
-        )
-        .configured(for: profile)
-        .output()
-
         let executable = steps.filter { step in
             guard step.mask.opacity <= 0.000_001 else { return true }
             switch step.mask.blendMode {
@@ -271,10 +266,29 @@ public struct MaskCompositeRecipe {
             case .mix, .replace, .multiply: return true
             }
         }
-        for batch in executable.chunked(maximumCount: MaskCompositeGraphCompiler.maximumMasksPerPass) {
+        guard !executable.isEmpty else {
+            return try HarbethIO(
+                element: baseMask.texture,
+                filter: MaskCoverageExtract(mask: baseMask)
+            )
+            .configured(for: profile)
+            .output()
+        }
+
+        var current = baseMask.texture
+        for (batchIndex, batch) in executable
+            .chunked(maximumCount: MaskCompositeGraphCompiler.maximumMasksPerPass)
+            .enumerated() {
+            let isFirstBatch = batchIndex == 0
             current = try HarbethIO(
                 element: current,
-                filter: MaskCoverageBlendBatch(baseComponent: .red, masks: batch.map(\.mask))
+                filter: MaskCoverageBlendBatch(
+                    baseComponent: isFirstBatch ? baseMask.component : .red,
+                    baseInvert: isFirstBatch ? baseMask.invert : false,
+                    baseFeatherPolicy: isFirstBatch ? baseMask.featherPolicy : .none,
+                    baseOpacity: isFirstBatch ? baseMask.opacity : 1,
+                    masks: batch.map(\.mask)
+                )
             )
             .configured(for: profile)
             .output()
