@@ -57,6 +57,31 @@ final class MaskProcessingTests: XCTestCase {
         XCTAssertEqual(first.dirtyBounds, first.analysis.bounds)
     }
 
+    func testDerivedMaskCacheSeparatesDifferentGuideTextures() throws {
+        let base = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 255, green: 255, blue: 255)
+        let firstGuide = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 0, green: 0, blue: 0)
+        let secondGuide = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 255, green: 255, blue: 255)
+        let cache = MaskExecutionCache(countLimit: 4)
+
+        func recipe(guide: MTLTexture) -> MaskDerivedRecipe {
+            MaskDerivedRecipe(
+                baseMask: MaskDescriptor(texture: base, component: .red),
+                sourceIdentifier: "same-mask-graph",
+                guideTexture: guide,
+                operations: [.smartFeather(radius: 1, edgeSensitivity: 0.5)],
+                storageFormat: .rgba8
+            )
+        }
+
+        let first = try recipe(guide: firstGuide).execute(cache: cache)
+        let second = try recipe(guide: secondGuide).execute(cache: cache)
+        let repeatedSecond = try recipe(guide: secondGuide).execute(cache: cache)
+
+        XCTAssertFalse(first.cacheHit)
+        XCTAssertFalse(second.cacheHit, "A different guide texture must not reuse the previous image's derived mask.")
+        XCTAssertTrue(repeatedSecond.cacheHit)
+    }
+
     func testDerivedMaskHonorsCancellationBeforeExecution() throws {
         let texture = try makeTexture(width: 2, height: 2, pixels: Array(repeating: UInt8(255), count: 16))
         let token = TextureMultiPassCancellationToken()

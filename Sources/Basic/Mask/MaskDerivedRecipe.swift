@@ -174,7 +174,8 @@ public struct MaskDerivedRecipe {
 
     public func execute(cancellation: TextureMultiPassCancellationToken? = nil,
                         cache: MaskExecutionCache? = .shared) throws -> MaskDerivedResult {
-        if let cached = cache?.result(for: fingerprint) {
+        let executionCacheKey = executionCacheKey
+        if let cached = cache?.result(for: executionCacheKey) {
             return MaskDerivedResult(texture: cached.texture, analysis: cached.analysis, plan: cached.plan, cacheHit: true)
         }
         try checkCancellation(cancellation)
@@ -188,7 +189,7 @@ public struct MaskDerivedRecipe {
         current = try convert(current, to: storageFormat.pixelFormat)
         let analysis = try MaskGPUAnalysisBackend.analyze(texture: current, threshold: 0.001)
         let result = MaskDerivedResult(texture: current, analysis: analysis, plan: plan, cacheHit: false)
-        cache?.insert(result, for: fingerprint)
+        cache?.insert(result, for: executionCacheKey)
         return result
     }
 
@@ -211,6 +212,13 @@ public struct MaskDerivedRecipe {
 }
 
 private extension MaskDerivedRecipe {
+    /// The public graph fingerprint remains deterministic, while the in-memory
+    /// execution cache must also distinguish the concrete guide texture.
+    var executionCacheKey: String {
+        guard let guideTexture else { return fingerprint }
+        return "\(fingerprint)|guideTexture=\(ObjectIdentifier(guideTexture as AnyObject))"
+    }
+
     func apply(_ operation: MaskDerivedOperation, to texture: MTLTexture) throws -> MTLTexture {
         let descriptor = MaskDescriptor(texture: texture, component: .red)
         switch operation {

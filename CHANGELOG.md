@@ -12,4 +12,8 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 - Added compiled derived-mask graphs for threshold, grow/shrink, edge bands, distance fields, edge-aware feathering, cleanup, and decontamination, with cancellation, caching, GPU analysis, and dirty bounds.
 - Added compiled composite-mask batches that preserve ordered add, subtract, intersect, XOR, inversion, opacity, and feather semantics while processing up to four mask layers per GPU pass.
 
+### Fixed
+
+- Fixed derived-mask cache collisions when identical graphs use different guide textures.
+
 [Unreleased]: https://github.com/yangKJ/Harbeth/compare/2.0.1...HEAD
