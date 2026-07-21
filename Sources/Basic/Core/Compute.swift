@@ -9,14 +9,15 @@
 /// https://colin19941.gitbooks.io/metal-programming-guide-zh/content/Data-Parallel_Compute_Processing_Compute_Command_Encoder.html
 
 import Foundation
-import MetalKit
+@preconcurrency import MetalKit
 
 struct Compute {
     /// Create a parallel computation pipeline.
     /// Performance intensive operations should not be invoked frequently
     /// - parameter kernel: Specifies the name of the data parallel computing coloring function
     /// - Returns: MTLComputePipelineState
-    @inlinable static func makeComputePipelineState(with kernel: String) throws -> MTLComputePipelineState {
+    @inlinable
+    static func makeComputePipelineState(with kernel: String) throws -> MTLComputePipelineState {
         let context = Shared.shared.defaultContext
         /// 先读取缓存管线
         if let pipelineState = context.computePipelineState(for: kernel) {
@@ -50,7 +51,11 @@ struct Compute {
         return pipeline
     }
     
-    @inlinable static func makeComputePipelineState(with kernel: String, complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
+    @inlinable
+    static func makeComputePipelineState(
+        with kernel: String,
+        complete: @escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void
+    ) {
         let context = Shared.shared.defaultContext
         /// 先读取缓存管线
         if let pipelineState = context.computePipelineState(for: kernel) {
@@ -75,7 +80,10 @@ struct Compute {
         }
     }
 
-    static func makeComputePipelineState(with identity: KernelFunctionIdentity, complete: @escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) {
+    static func makeComputePipelineState(
+        with identity: KernelFunctionIdentity,
+        complete: @escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void
+    ) {
         let context = Shared.shared.defaultContext
         if let pipelineState = context.computePipelineState(for: identity) {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: true)
@@ -98,38 +106,59 @@ struct Compute {
         }
     }
     
-    static func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], filter: C7FilterProtocol) throws -> MTLTexture {
+    static func drawing(
+        with kernel: String,
+        commandBuffer: MTLCommandBuffer,
+        textures: [MTLTexture],
+        filter: C7FilterProtocol
+    ) throws -> MTLTexture {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
         }
         let identity = filter.kernelDescriptor().functionIdentity
         let pipelineState = identity.primaryName == kernel
-            ? try makeComputePipelineState(with: identity)
-            : try makeComputePipelineState(with: kernel)
-        
-        return encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures, filter: filter)
+        ? try makeComputePipelineState(with: identity)
+        : try makeComputePipelineState(with: kernel)
+        return encoding(
+            computeEncoder: computeEncoder,
+            pipelineState: pipelineState,
+            textures: textures,
+            filter: filter
+        )
     }
     
-    static func drawing(with kernel: String, commandBuffer: MTLCommandBuffer, textures: [MTLTexture], filter: C7FilterProtocol, complete: @escaping (Result<MTLTexture, HarbethError>) -> Void) {
+    static func drawing(
+        with kernel: String,
+        commandBuffer: MTLCommandBuffer,
+        textures: [MTLTexture],
+        filter: C7FilterProtocol,
+        complete: @escaping @Sendable (Result<MTLTexture, HarbethError>) -> Void
+    ) {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             complete(.failure(HarbethError.makeComputeCommandEncoder))
             return
         }
         let identity = filter.kernelDescriptor().functionIdentity
-        let makePipeline: (@escaping (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = { callback in
+        let makePipeline: (@escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = {
+            callback in
             if identity.primaryName == kernel {
                 makeComputePipelineState(with: identity, complete: callback)
             } else {
                 makeComputePipelineState(with: kernel, complete: callback)
             }
         }
+        let execution = HarbethUncheckedTransfer(value: (computeEncoder, textures, filter))
         makePipeline { res in
             switch res {
             case .success(let pipelineState):
-                let destTexture = encoding(computeEncoder: computeEncoder, pipelineState: pipelineState, textures: textures, filter: filter)
+                let destTexture = encoding(
+                    computeEncoder: execution.value.0,
+                    pipelineState: pipelineState,
+                    textures: execution.value.1,
+                    filter: execution.value.2
+                )
                 complete(.success(destTexture))
-            case .failure(let error):
-                complete(.failure(error))
+            case .failure(let error): complete(.failure(error))
             }
         }
     }
@@ -137,7 +166,6 @@ struct Compute {
     private static func calculateBaseSize(pattern: MemoryAccessPattern, pipelineState: MTLComputePipelineState) -> MTLSize {
         let maxThreads = pipelineState.maxTotalThreadsPerThreadgroup
         let architecture = Device.detectGPUArchitecture()
-        
         switch (pattern, architecture) {
         case (.point, .appleSilicon):
             let size = min(32, Int(sqrt(Float(maxThreads))))
@@ -174,13 +202,22 @@ struct Compute {
         }
     }
     
-    private static func calculateOptimalThreadgroupSize(for pipelineState: MTLComputePipelineState, texture: MTLTexture, filter: C7FilterProtocol) -> MTLSize {
+    private static func calculateOptimalThreadgroupSize(
+        for pipelineState: MTLComputePipelineState,
+        texture: MTLTexture,
+        filter: C7FilterProtocol
+    ) -> MTLSize {
         let pattern = filter.memoryAccessPattern
         let baseSize = calculateBaseSize(pattern: pattern, pipelineState: pipelineState)
         return adjustForAspectRatio(baseSize, texture: texture)
     }
     
-    private static func encoding(computeEncoder: MTLComputeCommandEncoder, pipelineState: MTLComputePipelineState, textures: [MTLTexture], filter: C7FilterProtocol) -> MTLTexture {
+    private static func encoding(
+        computeEncoder: MTLComputeCommandEncoder,
+        pipelineState: MTLComputePipelineState,
+        textures: [MTLTexture],
+        filter: C7FilterProtocol
+    ) -> MTLTexture {
         if case .compute(let kernel) = filter.modifier {
             computeEncoder.label = kernel + " encoder"
         }
@@ -213,24 +250,21 @@ struct Compute {
         } else {
             KernelBindingEncoder.encode(parameterBindings, stage: .compute, on: computeEncoder)
         }
-        
         // Calculate optimal threadgroup size based on memory access pattern and GPU architecture
         let threadgroupSize = calculateOptimalThreadgroupSize(for: pipelineState, texture: destTexture, filter: filter)
         // -1 pixel to solve the problem that the edges of images are not drawn.
         // Minimum 1 pixel, solve the problem of zero without drawing.
-        let width  = max(Int((destTexture.width + threadgroupSize.width - 1) / threadgroupSize.width), 1)
+        let width = max(Int((destTexture.width + threadgroupSize.width - 1) / threadgroupSize.width), 1)
         let height = max(Int((destTexture.height + threadgroupSize.height - 1) / threadgroupSize.height), 1)
         //let threadGroups = MTLSizeMake(width, height, destTexture.arrayLength)
         let threadgroupCount = MTLSize(width: width, height: height, depth: 1)
         computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
         computeEncoder.endEncoding()
-        
         #if targetEnvironment(macCatalyst)
         let blitEncoder = computeEncoder.commandBuffer?.makeBlitCommandEncoder()
         blitEncoder?.synchronize(resource: destTexture)
         blitEncoder?.endEncoding()
         #endif
-        
         return destTexture
     }
 }

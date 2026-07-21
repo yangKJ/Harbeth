@@ -45,6 +45,31 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(asyncValue, callbackValue)
     }
 
+    func testFilteredTransmitOutputUsesRenderOperationQueue() async throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let input = try makeTexture(width: 4, height: 4, pixel: [80, 100, 120, 255])
+        let io = HarbethIO(element: input, filters: [C7Brightness(brightness: 0.1)])
+        let queue = Shared.shared.renderOperationQueue
+        let state = HarbethIOCallbackState()
+        let completion = HarbethUncheckedTransfer(value: expectation(description: "filtered transmit output"))
+
+        queue.isSuspended = true
+        defer { queue.isSuspended = false }
+
+        io.transmitOutput { result in
+            state.didComplete = true
+            if case .failure(let error) = result { state.error = error }
+            completion.value.fulfill()
+        }
+
+        XCTAssertFalse(state.didComplete, "有滤镜的 transmitOutput 不应在提交调用栈内同步执行。")
+        queue.isSuspended = false
+        await fulfillment(of: [completion.value], timeout: 3.0)
+        XCTAssertTrue(state.didComplete)
+        XCTAssertNil(state.error)
+    }
+
     func testImageNodeMakeFrameAsyncMatchesCallbackResult() async throws {
         let texture = try makeTexture(width: 4, height: 4, pixel: [110, 90, 70, 255])
         let node = ImageNode.texture(texture).applying(C7Brightness(brightness: 0.1))
@@ -490,6 +515,22 @@ final class HarbethIOAsyncTests: XCTestCase {
             bytesPerRow: width * 4
         )
         return texture
+    }
+}
+
+private final class HarbethIOCallbackState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedDidComplete = false
+    private var storedError: HarbethError?
+
+    var didComplete: Bool {
+        get { lock.withLock { storedDidComplete } }
+        set { lock.withLock { storedDidComplete = newValue } }
+    }
+
+    var error: HarbethError? {
+        get { lock.withLock { storedError } }
+        set { lock.withLock { storedError = newValue } }
     }
 }
 

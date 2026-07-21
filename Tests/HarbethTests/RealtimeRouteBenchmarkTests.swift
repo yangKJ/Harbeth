@@ -52,6 +52,7 @@ private struct RouteTimings {
 }
 
 final class RealtimeRouteBenchmarkTests: XCTestCase {
+    @MainActor
     func testRealtimeFrameRouteBenchmark5Paths() {
         guard let device = MTLCreateSystemDefaultDevice() else {
             XCTFail("Metal device is unavailable in this environment.")
@@ -90,7 +91,9 @@ final class RealtimeRouteBenchmarkTests: XCTestCase {
                 let p95 = String(format: "%.3f", report.p95FrameTimeMs)
                 let p99 = String(format: "%.3f", report.p99FrameTimeMs)
                 let first = String(format: "%.3f", report.firstFrameTimeMs)
-                print("[RouteBenchmark] \(report.route) avg=\(avg)ms p95=\(p95)ms p99=\(p99)ms first=\(first)ms dropped=\(report.droppedFrames) fallback=\(report.fallbackCount) memory=\(report.memoryDeltaBytes)B stable=\(report.stableFrames)/\(report.frameCount)")
+                print(
+                    "[RouteBenchmark] \(report.route) avg=\(avg)ms p95=\(p95)ms p99=\(p99)ms first=\(first)ms dropped=\(report.droppedFrames) fallback=\(report.fallbackCount) memory=\(report.memoryDeltaBytes)B stable=\(report.stableFrames)/\(report.frameCount)"
+                )
             }
             print("[RouteBenchmark JSON] \(outputURL.path)")
         } catch {
@@ -99,6 +102,7 @@ final class RealtimeRouteBenchmarkTests: XCTestCase {
     }
 }
 
+@MainActor
 private struct RealtimeRouteBenchmarker {
     private let device: MTLDevice
     private let frameCount = 300
@@ -107,7 +111,7 @@ private struct RealtimeRouteBenchmarker {
     private let inputHeight = 1280
     private let filters: [C7FilterProtocol] = [
         C7ColorMatrix4x4(matrix: Matrix4x4.Color.blackAndWhite),
-        C7GaussianBlur(radius: 1.2)
+        C7GaussianBlur(radius: 1.2),
     ]
 
     init(device: MTLDevice) {
@@ -132,13 +136,7 @@ private struct RealtimeRouteBenchmarker {
         let harbethIO = benchmarkHarbethIO(pixelBuffer: sourcePixelBuffer)
         let renderViewTexture = benchmarkRenderViewTextureAssignment(texture: textureRoute)
 
-        return [
-            sampleBufferDisplay,
-            pixelBufferDisplay,
-            textureDisplay,
-            harbethIO,
-            renderViewTexture
-        ]
+        return [sampleBufferDisplay, pixelBufferDisplay, textureDisplay, harbethIO, renderViewTexture]
     }
 
     func run(iterations: Int? = nil, action: () throws -> Void) -> RouteTimings {
@@ -174,13 +172,7 @@ private struct RealtimeRouteBenchmarker {
         let p95 = percentile(sorted, value: 0.95)
         let p99 = percentile(sorted, value: 0.99)
 
-        return RouteTimings(
-            average: avg,
-            p95: p95,
-            p99: p99,
-            first: first,
-            stableFrames: stableFrames
-        )
+        return RouteTimings(average: avg, p95: p95, p99: p99, first: first, stableFrames: stableFrames)
     }
 
     private func percentile(_ values: [Double], value: Double) -> Double {
@@ -198,8 +190,7 @@ private struct RealtimeRouteBenchmarker {
         let sampleBuffer = sampleBuffers[0].sampleBuffer
 
         let timings = run {
-            let frame = try ImageNode
-                .sampleBuffer(sampleBuffer)
+            let frame = try ImageNode.sampleBuffer(sampleBuffer)
                 .applying(filters: filters)
                 .makeFrame(profile: .interactiveLatency)
             renderView.display(frame)
@@ -228,8 +219,7 @@ private struct RealtimeRouteBenchmarker {
         let pixelBuffer = pixelBuffers[0]
 
         let timings = run {
-            let frame = try ImageNode
-                .pixelBuffer(pixelBuffer)
+            let frame = try ImageNode.pixelBuffer(pixelBuffer)
                 .applying(filters: filters)
                 .makeFrame(profile: .interactiveLatency)
             renderView.display(frame)
@@ -255,8 +245,7 @@ private struct RealtimeRouteBenchmarker {
         let startMemory = currentResidentMemory()
 
         let timings = run {
-            let frame = try ImageNode
-                .texture(texture)
+            let frame = try ImageNode.texture(texture)
                 .applying(filters: filters)
                 .makeFrame(profile: .interactiveLatency)
             renderView.display(frame)
@@ -277,8 +266,10 @@ private struct RealtimeRouteBenchmarker {
     }
 
     func write(runReport: BenchmarkRunReport) throws -> URL {
-        let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("HarbethRealtimeRouteBenchmarks", isDirectory: true)
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(
+            "HarbethRealtimeRouteBenchmarks",
+            isDirectory: true
+        )
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
         let outputURL = directory.appendingPathComponent("latest.json")
         let encoder = JSONEncoder()
@@ -294,10 +285,9 @@ private struct RealtimeRouteBenchmarker {
         let startMemory = currentResidentMemory()
 
         let timings = run {
-            _ = try HarbethIO(
-                element: pixelBuffer,
-                filters: filters
-            ).configured(for: .interactiveLatency).output()
+            _ = try HarbethIO(element: pixelBuffer, filters: filters)
+                .configured(for: .interactiveLatency)
+                .output()
         }
 
         return RouteBenchmarkReport(
@@ -319,9 +309,7 @@ private struct RealtimeRouteBenchmarker {
         let renderView = RenderView(frame: .zero)
         let startMemory = currentResidentMemory()
 
-        let timings = run {
-            renderView.texture = texture
-        }
+        let timings = run { renderView.texture = texture }
 
         return RouteBenchmarkReport(
             route: tag,
@@ -371,9 +359,7 @@ private struct RealtimeRouteBenchmarker {
             sampleTiming: &timing,
             sampleBufferOut: &sampleBuffer
         )
-        guard sampleStatus == noErr, let sampleBuffer else {
-            return nil
-        }
+        guard sampleStatus == noErr, let sampleBuffer else { return nil }
         CMSetAttachment(
             sampleBuffer,
             key: kCGImagePropertyOrientation,
@@ -386,11 +372,9 @@ private struct RealtimeRouteBenchmarker {
     private func makePixelBuffer(width: Int, height: Int, pixelFormatType: OSType) throws -> CVPixelBuffer {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: pixelFormatType,
-            kCVPixelBufferWidthKey: width,
-            kCVPixelBufferHeightKey: height,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
+            kCVPixelBufferPixelFormatTypeKey: pixelFormatType, kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height, kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:],
         ]
         let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
@@ -434,22 +418,15 @@ private struct RealtimeRouteBenchmarker {
     }
 
     private func currentResidentMemory() -> UInt64 {
-        #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+        #if os(macOS) || os(iOS) || os(tvOS)
         var info = task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout.size(ofValue: info) / MemoryLayout<integer_t>.size)
         let result = withUnsafeMutableBytes(of: &info) { bytes in
             bytes.withMemoryRebound(to: integer_t.self) { intPtr in
-                task_info(
-                    mach_task_self_,
-                    task_flavor_t(TASK_BASIC_INFO),
-                    intPtr.baseAddress,
-                    &count
-                )
+                task_info(mach_task_self_, task_flavor_t(TASK_BASIC_INFO), intPtr.baseAddress, &count)
             }
         }
-        guard result == KERN_SUCCESS else {
-            return 0
-        }
+        guard result == KERN_SUCCESS else { return 0 }
         return UInt64(info.resident_size)
         #else
         return 0

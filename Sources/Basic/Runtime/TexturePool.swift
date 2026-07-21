@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Metal
+@preconcurrency import Metal
 import Darwin
 
 #if os(iOS)
@@ -14,17 +14,14 @@ import UIKit
 #endif
 
 /// Enhanced texture pool with LRU, precise memory tracking, and cross-platform memory pressure handling.
-public final class TexturePool {
+public final class TexturePool: @unchecked Sendable {
     public struct PrewarmRequest: Sendable, Equatable, Hashable {
         public let width: Int
         public let height: Int
         public let pixelFormat: MTLPixelFormat
         public let count: Int
 
-        public init(width: Int,
-                    height: Int,
-                    pixelFormat: MTLPixelFormat,
-                    count: Int) {
+        public init(width: Int, height: Int, pixelFormat: MTLPixelFormat, count: Int) {
             self.width = width
             self.height = height
             self.pixelFormat = pixelFormat
@@ -133,7 +130,6 @@ public final class TexturePool {
         memoryPressureSource = nil
         #endif
         memoryMonitorTimer?.invalidate()
-        print("TexturePool is deinit.")
     }
 
     private func startMemoryMonitoring() {
@@ -403,7 +399,7 @@ public final class TexturePool {
         guard filteredRequests.isEmpty == false else { return }
 
         let device = Shared.shared.metalDevice
-        let work = {
+        let work: @Sendable () -> Void = {
             for request in filteredRequests {
                 let key = TextureKey(
                     width: request.width,
@@ -492,19 +488,15 @@ public final class TexturePool {
     public func dumpStatistics() {
         queue.sync {
             let stats = self.statistics
-            print("=== TexturePool Statistics ===")
-            print("Total textures created: \(stats.totalTexturesCreated)")
-            print("Total textures reused: \(stats.totalTexturesReused)")
-            print("Hit rate: \(String(format: "%.2f%%", stats.hitRate * 100))")
-            print("Total memory saved: \(stats.totalMemorySaved / 1024 / 1024) MB")
-            print("Current texture count: \(stats.currentTextureCount)")
-            print("Current memory usage: \(stats.currentMemoryUsage / 1024 / 1024) MB")
-            print("Peak memory usage: \(stats.peakMemoryUsage / 1024 / 1024) MB")
-            print("Average memory usage: \(String(format: "%.2f", stats.averageMemoryUsage / 1024 / 1024)) MB")
-            print("Max memory limit: \(self.maxMemoryUsage / 1024 / 1024) MB")
-            print("Cache entries: \(self.cache.count)")
-            print("Common resolutions: \(self.commonResolutions.count)")
-            print("==============================")
+            HarbethLogger.log(
+                .info,
+                category: "texturePool",
+                message: """
+                    created=\(stats.totalTexturesCreated) reused=\(stats.totalTexturesReused) hitRate=\(String(format: "%.2f%%", stats.hitRate * 100))
+                    memorySaved=\(stats.totalMemorySaved / 1024 / 1024)MB current=\(stats.currentMemoryUsage / 1024 / 1024)MB peak=\(stats.peakMemoryUsage / 1024 / 1024)MB average=\(String(format: "%.2f", stats.averageMemoryUsage / 1024 / 1024))MB
+                    textures=\(stats.currentTextureCount) max=\(self.maxMemoryUsage / 1024 / 1024)MB cacheEntries=\(self.cache.count) commonResolutions=\(self.commonResolutions.count)
+                    """
+            )
         }
     }
 

@@ -15,7 +15,7 @@ import simd
 /// document correction, and future guided upright style workflows.
 public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
 
-    public struct Quad: Equatable, Codable {
+    public struct Quad: Equatable, Codable, Sendable {
         public static let identity = Quad(
             topLeft: .init(x: 0, y: 0),
             topRight: .init(x: 1, y: 0),
@@ -113,7 +113,11 @@ public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
             padding: SIMD2<UInt32>(0, 0)
         )
 
-        return device.makeBuffer(bytes: &uniforms, length: MemoryLayout<RenderQuadTransformFragmentUniforms>.stride, options: [])
+        return device.makeBuffer(
+            bytes: &uniforms,
+            length: MemoryLayout<RenderQuadTransformFragmentUniforms>.stride,
+            options: []
+        )
     }
 }
 
@@ -129,12 +133,7 @@ struct RenderQuadTransformFragmentUniforms {
 private struct RenderQuadTransformLayout {
 
     static func defaultViewport(for inputSize: CGSize) -> CGRect {
-        CGRect(
-            x: -0.5 * inputSize.width,
-            y: -0.5 * inputSize.height,
-            width: inputSize.width,
-            height: inputSize.height
-        )
+        CGRect(x: -0.5 * inputSize.width, y: -0.5 * inputSize.height, width: inputSize.width, height: inputSize.height)
     }
 
     static func resolvedViewport(for inputSize: CGSize, quad: RenderQuadTransform.Quad, viewportMode: Transform3DViewportMode) -> CGRect {
@@ -145,10 +144,7 @@ private struct RenderQuadTransformLayout {
             let points = destinationPoints(for: inputSize, quad: quad)
             let xs = points.map(\.x)
             let ys = points.map(\.y)
-            guard let minX = xs.min(),
-                  let maxX = xs.max(),
-                  let minY = ys.min(),
-                  let maxY = ys.max() else {
+            guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max() else {
                 return defaultViewport(for: inputSize)
             }
             return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
@@ -161,7 +157,7 @@ private struct RenderQuadTransformLayout {
             CGPoint(x: sourceViewport.minX, y: sourceViewport.minY),
             CGPoint(x: sourceViewport.maxX, y: sourceViewport.minY),
             CGPoint(x: sourceViewport.minX, y: sourceViewport.maxY),
-            CGPoint(x: sourceViewport.maxX, y: sourceViewport.maxY)
+            CGPoint(x: sourceViewport.maxX, y: sourceViewport.maxY),
         ]
         let destination = destinationPoints(for: inputSize, quad: quad)
         return Homography.mapping(from: destination, to: source)
@@ -177,11 +173,6 @@ private struct RenderQuadTransformLayout {
             )
         }
 
-        return [
-            point(quad.topLeft),
-            point(quad.topRight),
-            point(quad.bottomLeft),
-            point(quad.bottomRight)
-        ]
+        return [point(quad.topLeft), point(quad.topRight), point(quad.bottomLeft), point(quad.bottomRight)]
     }
 }

@@ -9,23 +9,33 @@ import Foundation
 import MetalPerformanceShaders
 
 /// Canny边缘检测
-@available(iOS 14.0, macOS 11.0, *)
+@available(iOS 14.0, macOS 11.0, tvOS 14.0, *)
 public struct MPSCanny: MPSKernelProtocol {
     
     public static let range: ParameterRange<Float, Self> = .init(min: 0, max: 1, value: 0.1)
     
     /// 低阈值
-    @Clamping(range.min...range.max) public var lowThreshold: Float = range.value {
+    @Clamping(range.min...range.max)
+    public var lowThreshold: Float = range.value {
         didSet {
-            self.canny = MPSImageCanny(device: Shared.shared.metalDevice, linearToGrayScaleTransform: &lowThreshold, sigma: highThreshold)
+            self.canny = MPSImageCanny(
+                device: Shared.shared.metalDevice,
+                linearToGrayScaleTransform: &lowThreshold,
+                sigma: highThreshold
+            )
             self.canny.edgeMode = .clamp
         }
     }
     
     /// 高阈值
-    @Clamping(range.min...range.max) public var highThreshold: Float = range.value * 3 {
+    @Clamping(range.min...range.max)
+    public var highThreshold: Float = range.value * 3 {
         didSet {
-            self.canny = MPSImageCanny(device: Shared.shared.metalDevice, linearToGrayScaleTransform: &lowThreshold, sigma: highThreshold)
+            self.canny = MPSImageCanny(
+                device: Shared.shared.metalDevice,
+                linearToGrayScaleTransform: &lowThreshold,
+                sigma: highThreshold
+            )
             self.canny.edgeMode = .clamp
         }
     }

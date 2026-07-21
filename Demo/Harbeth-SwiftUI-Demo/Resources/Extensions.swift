@@ -73,6 +73,34 @@ extension View {
         return self
         #endif
     }
+    func macOSWindowFrame(width: CGFloat, height: CGFloat) -> some View {
+        #if os(macOS)
+        return self.frame(width: width, height: height)
+        #else
+        return self
+        #endif
+    }
+    func macOSLabsPresentation(minWidth: CGFloat, minHeight: CGFloat) -> some View {
+        #if os(macOS)
+        return self.navigationViewStyle(.automatic).frame(minWidth: minWidth, minHeight: minHeight)
+        #else
+        return self
+        #endif
+    }
+    func inlineNavigationDisplayMode() -> some View {
+        #if os(iOS)
+        return self.navigationBarTitleDisplayMode(.inline)
+        #else
+        return self
+        #endif
+    }
+    func iOSFont(_ font: Font) -> some View {
+        #if os(iOS)
+        return self.font(font)
+        #else
+        return self
+        #endif
+    }
 }
 
 extension Color {

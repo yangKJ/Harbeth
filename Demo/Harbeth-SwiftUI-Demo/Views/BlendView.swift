@@ -97,6 +97,7 @@ struct BlendView_Previews: PreviewProvider {
 }
 
 extension Picker {
+    @MainActor
     func blendModesPickerStyle() -> some View {
         #if os(iOS)
         return self.pickerStyle(WheelPickerStyle())

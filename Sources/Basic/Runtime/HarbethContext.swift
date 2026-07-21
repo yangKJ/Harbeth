@@ -6,9 +6,9 @@
 //
 
 import Foundation
-import Metal
+@preconcurrency import Metal
 
-public final class HarbethContext {
+public final class HarbethContext: @unchecked Sendable {
 
     public static var shared: HarbethContext {
         Shared.shared.defaultContext

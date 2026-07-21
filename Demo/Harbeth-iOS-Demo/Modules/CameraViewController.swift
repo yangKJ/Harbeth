@@ -20,6 +20,10 @@ class CameraViewController: UIViewController {
     private let videoOutput = AVCaptureVideoDataOutput()
     private let photoOutput = AVCapturePhotoOutput()
     private lazy var previewPipeline = RealtimeFramePipeline()
+    private lazy var videoOutputDelegate = CameraVideoOutputDelegate(pipeline: previewPipeline)
+    private lazy var photoCaptureDelegate = CameraPhotoCaptureDelegate { [weak self] result in
+        self?.handlePhotoCaptureResult(result)
+    }
     private let cameraStateLock = NSLock()
     private var deviceInput: AVCaptureDeviceInput?
     private var selectedFilterButton: UIButton?
@@ -288,7 +292,7 @@ class CameraViewController: UIViewController {
             kCVPixelBufferPixelFormatTypeKey as String: pixelFormatType
         ]
         videoOutput.alwaysDiscardsLateVideoFrames = true
-        videoOutput.setSampleBufferDelegate(self, queue: sampleBufferQueue)
+        videoOutput.setSampleBufferDelegate(videoOutputDelegate, queue: sampleBufferQueue)
         if captureSession.canAddOutput(videoOutput) {
             captureSession.addOutput(videoOutput)
         }
@@ -572,6 +576,18 @@ class CameraViewController: UIViewController {
     }
 
     private func capturePhoto() {
+        guard isCapturingPhoto == false else {
+            return
+        }
+        isCapturingPhoto = true
+        let captureSession = captureSession
+        let photoOutput = photoOutput
+        let photoCaptureDelegate = photoCaptureDelegate
+        let device = deviceInput?.device
+        let flashMode = currentFlashMode
+        let isHighResolutionCaptureEnabled = photoOutput.isHighResolutionCaptureEnabled
+        let maxPhotoQualityPrioritization = photoOutput.maxPhotoQualityPrioritization
+
         UIView.animate(withDuration: 0.1, animations: {
             self.previewRenderView.alpha = 0.5
         }) { _ in
@@ -581,32 +597,68 @@ class CameraViewController: UIViewController {
         }
 
         sessionQueue.async {
-            guard self.captureSession.isRunning else {
+            guard captureSession.isRunning else {
                 DispatchQueue.main.async {
+                    self.isCapturingPhoto = false
                     self.showAlert(title: "拍照失败", message: "相机会话未运行")
                 }
                 return
             }
-            guard self.isCapturingPhoto == false else {
-                return
-            }
-            self.isCapturingPhoto = true
 
             let photoSettings = AVCapturePhotoSettings()
-            photoSettings.flashMode = self.safeFlashMode(for: photoSettings)
-            if self.photoOutput.isHighResolutionCaptureEnabled {
+            photoSettings.flashMode = Self.safeFlashMode(for: photoSettings, device: device, mode: flashMode)
+            if isHighResolutionCaptureEnabled {
                 photoSettings.isHighResolutionPhotoEnabled = true
             }
-            photoSettings.photoQualityPrioritization = self.safePhotoQualityPrioritization()
-            self.photoOutput.capturePhoto(with: photoSettings, delegate: self)
+            photoSettings.photoQualityPrioritization = Self.safePhotoQualityPrioritization(maximum: maxPhotoQualityPrioritization)
+            photoOutput.capturePhoto(with: photoSettings, delegate: photoCaptureDelegate)
         }
     }
 
-    private func safeFlashMode(for settings: AVCapturePhotoSettings) -> AVCaptureDevice.FlashMode {
-        guard let device = deviceInput?.device, device.hasFlash else {
+    private func handlePhotoCaptureResult(_ result: CameraPhotoCaptureResult) {
+        isCapturingPhoto = false
+        switch result {
+        case .failure(let message):
+            showAlert(title: "拍照失败", message: message)
+        case .success(let imageData):
+            guard let image = UIImage(data: imageData) else {
+                showAlert(title: "拍照失败", message: "无法解析照片数据")
+                return
+            }
+            renderAndSavePhoto(image)
+        }
+    }
+
+    private func renderAndSavePhoto(_ image: UIImage) {
+        let filters = activeFilters()
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let frame = try ImageNode
+                    .image(image)
+                    .applying(filters: filters)
+                    .makeFrame(profile: .exportQuality, metadata: [
+                        "previewRoute": "RenderView",
+                        "source": "camera.photo"
+                    ])
+                guard let outputImage = try frame.makeImage() else {
+                    throw HarbethError.texture2Image
+                }
+                DispatchQueue.main.async {
+                    UIImageWriteToSavedPhotosAlbum(outputImage, self, #selector(self.image(_:didFinishSavingWithError:contextInfo:)), nil)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.showAlert(title: "拍照失败", message: error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private static func safeFlashMode(for settings: AVCapturePhotoSettings, device: AVCaptureDevice?, mode: FlashMode) -> AVCaptureDevice.FlashMode {
+        guard let device, device.hasFlash else {
             return .off
         }
-        switch currentFlashMode {
+        switch mode {
         case .off:
             return .off
         case .on:
@@ -618,8 +670,8 @@ class CameraViewController: UIViewController {
         }
     }
 
-    private func safePhotoQualityPrioritization() -> AVCapturePhotoOutput.QualityPrioritization {
-        switch photoOutput.maxPhotoQualityPrioritization {
+    private static func safePhotoQualityPrioritization(maximum: AVCapturePhotoOutput.QualityPrioritization) -> AVCapturePhotoOutput.QualityPrioritization {
+        switch maximum {
         case .quality:
             return .quality
         case .balanced:
@@ -790,51 +842,41 @@ class CameraViewController: UIViewController {
     }
 }
 
-extension CameraViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
+private final class CameraVideoOutputDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+    private let pipeline: RealtimeFramePipeline
+
+    init(pipeline: RealtimeFramePipeline) {
+        self.pipeline = pipeline
+    }
+
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        previewPipeline.enqueue(sampleBuffer)
+        pipeline.enqueue(sampleBuffer)
     }
 }
 
-extension CameraViewController: AVCapturePhotoCaptureDelegate {
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        defer {
-            self.isCapturingPhoto = false
-        }
-        if let error {
-            DispatchQueue.main.async {
-                self.showAlert(title: "拍照失败", message: error.localizedDescription)
-            }
-            return
-        }
-        guard let imageData = photo.fileDataRepresentation(), let image = UIImage(data: imageData) else {
-            DispatchQueue.main.async {
-                self.showAlert(title: "拍照失败", message: "无法解析照片数据")
-            }
-            return
-        }
+private enum CameraPhotoCaptureResult {
+    case success(Data)
+    case failure(String)
+}
 
-        let filters = activeFilters()
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                let frame = try ImageNode
-                    .image(image)
-                    .applying(filters: filters)
-                    .makeFrame(profile: .exportQuality, metadata: [
-                        "previewRoute": "RenderView",
-                        "source": "camera.photo"
-                    ])
-                guard let outputImage = try frame.makeImage() else {
-                    throw HarbethError.texture2Image
-                }
-                DispatchQueue.main.async {
-                    UIImageWriteToSavedPhotosAlbum(outputImage, self, #selector(self.image(_:didFinishSavingWithError:contextInfo:)), nil)
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.showAlert(title: "拍照失败", message: error.localizedDescription)
-                }
-            }
+private final class CameraPhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+    private let handler: (CameraPhotoCaptureResult) -> Void
+
+    init(handler: @escaping (CameraPhotoCaptureResult) -> Void) {
+        self.handler = handler
+    }
+
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        let result: CameraPhotoCaptureResult
+        if let error {
+            result = .failure(error.localizedDescription)
+        } else if let imageData = photo.fileDataRepresentation() {
+            result = .success(imageData)
+        } else {
+            result = .failure("无法解析照片数据")
+        }
+        DispatchQueue.main.async { [handler] in
+            handler(result)
         }
     }
 }

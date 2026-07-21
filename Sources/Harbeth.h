@@ -21,36 +21,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// 该组件基于GPU快速实现图片or视频注入滤镜特效，代码零侵入实现图像显示and视频导出功能，支持iOS系统和macOS系统。
+// Harbeth 是面向 Apple 平台、以 texture-first 为核心的 Metal 图像与帧处理引擎。
+// 它负责 image / texture / pixelBuffer / sampleBuffer 的逐帧 GPU 处理与预览宿主支撑，
+// 不接管相机、播放器、时间线、录制、导出或持久化等媒体产品流程。
 
-// 支持多种模式数据源，简单直接使用！！！
-// 如果觉得好用，希望您能STAR支持，你的 ⭐️ 是我持续更新的动力!
-// 传送门：https://github.com/yangKJ/Harbeth/blob/master/README_CN.md <备注：快捷打开浏览器命令，command + 鼠标左键>
-
-
-// This component is a tiny set of utils and extensions
-// over Apple's Metal framework dedicated to make your Swift GPU code much cleaner
-// and let you prototype your pipelines faster.
-
-// Support multiple mode data sources, simple and direct use!!!
-// And it is easy to use when summarizing it, so let's add it slowly.
-// If you find it easy to use, I hope you can support STAR. Your ⭐️ is my motivation for updating!
-// Portal: https://github.com/YangKJ/Harbeth <Note: Open the browser command quickly, command + left mouse button>
-
-// 关于视频添加滤镜并编辑导出，你也可以使用另外的库[Kakapos](https://github.com/YangKJ/Kakapos)
-
-// Add filters about the video and edit export.
-// You can also use another library [Kakapos](https://github.com/YangKJ/Kakapos)
-
-// 关于网络基础库和网络插件等，你也可以使用另外的库[Booming](https://github.com/YangKJ/RxNetworks)
-
-// About network basic libraries and network plug-ins, etc.
-// You can also use another library [Booming](https://github.com/YangKJ/RxNetworks)
-
-// 关于加载和缓存网络图像or动态图像，你也可以使用另外的库[ImageX](https://github.com/YangKJ/ImageX)
-
-// If you need downloading and caching images or GIFs from the web.
-// You can also use another library [ImageX](https://github.com/YangKJ/ImageX)
+// Harbeth is a texture-first Metal render engine for Apple image and frame pipelines.
+// It owns per-frame GPU processing and preview-host support for image, texture,
+// pixel-buffer, and sample-buffer sources without owning the host media workflow.
 
 #import <Foundation/Foundation.h>
 

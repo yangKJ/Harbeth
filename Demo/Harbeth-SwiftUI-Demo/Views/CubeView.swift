@@ -31,7 +31,6 @@ struct CubeView: View {
                 Image(c7Image: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(idealHeight: R.width-30 / 2 * 3)
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     .padding()

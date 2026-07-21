@@ -91,13 +91,8 @@ public enum HarbethError: Swift.Error {
 extension HarbethError: CustomStringConvertible, LocalizedError {
     
     /// For each error type return the appropriate description.
-    public var description: String {
-        localizedDescription
-    }
-    
-    public var errorDescription: String? {
-        localizedDescription
-    }
+    public var description: String { localizedDescription }
+    public var errorDescription: String? { localizedDescription }
     
     /// A textual representation of `self`, suitable for debugging.
     public var localizedDescription: String {
@@ -105,7 +100,7 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .unknown: return "Unknown error occurred."
         case .error(let error): return error.localizedDescription
         case .commandBuffer: return "Make command buffer failed."
-        case .makeBlitCommandEncoder:  return "Create a blit command encoder to encode into this command buffer failed."
+        case .makeBlitCommandEncoder: return "Create a blit command encoder to encode into this command buffer failed."
         case .makeComputeCommandEncoder: return "Create a compute command encoder to encode into this command buffer failed."
         case .makeTexture: return "Create a new metal texture is failed."
         case .textureLoader: return "Using metal texture loader is nil."
@@ -165,7 +160,8 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .resourceNotFound(let name): return "Resource not found: \(name)."
         case .configurationInvalid(let description): return "Invalid configuration: \(description)."
         case .parameterMissing(let parameter): return "Required parameter missing: \(parameter)."
-        case .parameterOutOfRange(let parameter, let range): return "Parameter \(parameter) out of range. Valid range is \(range.lowerBound) to \(range.upperBound)."
+        case .parameterOutOfRange(let parameter, let range):
+            return "Parameter \(parameter) out of range. Valid range is \(range.lowerBound) to \(range.upperBound)."
         }
     }
     
@@ -230,15 +226,13 @@ extension HarbethError: CustomNSError {
         #if DEBUG
         fatalError(message(), file: file, line: line)
         #else
-        print("\(file):\(line): \(message())")
+        HarbethLogger.log(.error, category: "assertion", message: "\(file):\(line): \(message())")
         #endif
     }
     
     public static func check(_ condition: @autoclosure () -> Bool, error: HarbethError, file: StaticString = #file, line: UInt = #line) throws {
         guard condition() else {
-            #if DEBUG
-            print("Error at \(file):\(line): \(error.localizedDescription)")
-            #endif
+            HarbethLogger.log(.error, category: "contract", message: "\(file):\(line): \(error.localizedDescription)")
             throw error
         }
     }

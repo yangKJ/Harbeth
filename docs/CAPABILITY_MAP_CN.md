@@ -45,7 +45,6 @@ Harbeth 对外只保留两条路线：
 
 - `HarbethIO`
 - `ImageSource`
-- `Outputable`
 - `RenderedFrame`
 - `RenderedAttachmentSet`
 - `RenderView`
@@ -54,9 +53,10 @@ Harbeth 对外只保留两条路线：
 存在意义：
 
 - 保住最轻量的主路径
+- 把同步、异步和容错输出统一收口在 `HarbethIO`
 - 承接结果对象层，避免再扩出第三条公开路线
 - 让调用方不需要先理解 node、graph、runtime
-- `RenderView` 继续只是默认 preview host；它现在会消费 frame metadata / runtime hint，但不扩张成新的 `SampleBufferDisplayView` 或 Telegram 式调度器
+- `RenderView` 继续只是默认 preview host；它会消费 frame metadata / runtime hint，但不扩张成媒体生命周期或任务调度器
 
 ### `Image/`
 

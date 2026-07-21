@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="90" y1="70" x2="934" y2="954" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#21103D"/>
+      <stop offset="0.52" stop-color="#140A26"/>
+      <stop offset="1" stop-color="#090512"/>
+    </linearGradient>
+    <radialGradient id="ambient" cx="0" cy="0" r="1" gradientTransform="translate(520 460) rotate(90) scale(470)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity="0.34"/>
+      <stop offset="0.58" stop-color="#6D28D9" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#6D28D9" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="backPlane" x1="234" y1="236" x2="785" y2="736" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C4B5FD" stop-opacity="0.42"/>
+      <stop offset="0.45" stop-color="#8B5CF6" stop-opacity="0.19"/>
+      <stop offset="1" stop-color="#6D28D9" stop-opacity="0.08"/>
+    </linearGradient>
+    <linearGradient id="frontPlane" x1="241" y1="317" x2="774" y2="716" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA" stop-opacity="0.12"/>
+      <stop offset="0.58" stop-color="#6D28D9" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#3B147C" stop-opacity="0.48"/>
+    </linearGradient>
+    <linearGradient id="leftRail" x1="399" y1="298" x2="302" y2="724" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D8CEFF"/>
+      <stop offset="0.36" stop-color="#9F7AEA"/>
+      <stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="rightRail" x1="650" y1="315" x2="562" y2="708" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.68" stop-color="#9F7AEA"/>
+      <stop offset="1" stop-color="#D8CEFF"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="342" y1="548" x2="606" y2="490" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.48" stop-color="#C4B5FD"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <filter id="beamGlow" x="-35%" y="-100%" width="170%" height="300%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#background)"/>
+  <rect width="1024" height="1024" fill="url(#ambient)"/>
+  <circle cx="514" cy="500" r="310" fill="#7C3AED" fill-opacity="0.15" filter="url(#softGlow)"/>
+
+  <g transform="rotate(-8 512 512)">
+    <rect x="224" y="239" width="576" height="430" rx="92" fill="url(#backPlane)" stroke="#C4B5FD" stroke-opacity="0.40" stroke-width="11"/>
+    <path d="M282 310H660C701 310 734 343 734 384V592" fill="none" stroke="#E9E3FF" stroke-opacity="0.30" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <g transform="rotate(7 512 512)">
+    <rect x="238" y="347" width="548" height="388" rx="84" fill="url(#frontPlane)" stroke="#8B5CF6" stroke-opacity="0.58" stroke-width="12"/>
+    <path d="M306 680H659C698 680 730 648 730 609V442" fill="none" stroke="#C4B5FD" stroke-opacity="0.24" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <path d="M388 315L300 708" fill="none" stroke="#6D28D9" stroke-opacity="0.38" stroke-width="116" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M650 315L562 708" fill="none" stroke="#8B5CF6" stroke-opacity="0.34" stroke-width="116" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M388 315L300 708" fill="none" stroke="url(#leftRail)" stroke-width="92" stroke-linecap="round"/>
+  <path d="M650 315L562 708" fill="none" stroke="url(#rightRail)" stroke-width="92" stroke-linecap="round"/>
+
+  <path d="M337 548C430 536 518 514 606 490" fill="none" stroke="#BDA8FF" stroke-opacity="0.48" stroke-width="82" stroke-linecap="round" filter="url(#beamGlow)"/>
+  <path d="M337 548C430 536 518 514 606 490" fill="none" stroke="url(#beam)" stroke-width="68" stroke-linecap="round"/>
+  <path d="M363 529C445 518 522 501 582 490" fill="none" stroke="#F1EDFF" stroke-opacity="0.52" stroke-width="10" stroke-linecap="round"/>
+
+  <circle cx="337" cy="548" r="34" fill="#7C3AED" stroke="#D8CEFF" stroke-width="9"/>
+  <circle cx="606" cy="490" r="34" fill="#8B5CF6" stroke="#E9E3FF" stroke-width="9"/>
+  <circle cx="337" cy="548" r="9" fill="#F5F2FF"/>
+  <circle cx="606" cy="490" r="9" fill="#F5F2FF"/>
+</svg>

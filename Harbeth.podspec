@@ -8,8 +8,13 @@
 
 Pod::Spec.new do |s|
   s.name             = 'Harbeth'
-  s.version          = '2.0.0'
-  s.summary          = 'About image and video add filter for metal.'
+  s.version          = '3.0.0'
+  s.summary          = 'A Metal render engine for Apple image and frame pipelines.'
+  s.description      = <<-DESC
+Harbeth provides a texture-first GPU render core for images, pixel buffers,
+sample buffers, render graphs, filters, masks, transitions, diagnostics and
+preview hosting on iOS, iPadOS, macOS and tvOS.
+                       DESC
   
   # This description is used to generate tags and improve search results.
   #   * Think: What does it do? Why did you write it? What is the focus?
@@ -22,21 +27,20 @@ Pod::Spec.new do |s|
   s.author           = { 'Condy' => 'yangkj310@gmail.com' }
   s.source           = { :git => 'https://github.com/yangKJ/Harbeth.git', :tag => s.version }
   
-  s.swift_version    = '5.0'
-  s.ios.deployment_target = '10.0'
+  s.swift_version    = '6.0'
+  s.ios.deployment_target = '15.0'
   s.macos.deployment_target = '12.0'
-  s.pod_target_xcconfig = { 'SWIFT_VERSION' => '5.0' }
+  s.tvos.deployment_target = '15.0'
+  s.pod_target_xcconfig = { 'SWIFT_VERSION' => '6.0' }
   
   s.requires_arc = true
   s.static_framework = true
   
   s.module_name = 'Harbeth'
-  s.ios.source_files = 'Sources/Harbeth.h'
-  s.macos.source_files = 'Sources/Harbeth.h'
   s.prefix_header_file = false
   
-  s.source_files = 'Sources/**/**/*.swift'
-  s.resource_bundles = { s.name => [ 'Sources/**/**/*.metal' ] }
+  s.source_files = 'Sources/**/*.swift'
+  s.resource_bundles = { s.name => [ 'Sources/**/*.metal' ] }
   s.weak_frameworks = 'ImageIO', 'MetalKit', 'AVFoundation', 'MetalPerformanceShaders'
   
 end

@@ -156,7 +156,9 @@ extension C7ColorCube.Resource {
     }
     
     /// Read Cube file resources.
-    /// - Parameter name: File name
+    /// - Parameters:
+    ///   - name: File name.
+    ///   - bundle: Bundle that contains the cube resource.
     /// - Returns: Cube resource
     public static func readCubeResource(_ name: String, bundle: Bundle = .main) -> C7ColorCube.Resource? {
         let paths = ["cube", "CUBE"].compactMap {
@@ -178,7 +180,9 @@ extension C7ColorCube.Resource {
     public enum Line: Int { case rgb = 3, rgba = 4 }
     
     /// Read in data content with cube file.
-    /// - Parameter contents: Cube text content.
+    /// - Parameters:
+    ///   - contents: Cube text content.
+    ///   - line: Number of color components expected on each data line.
     /// - Returns: A cube data.
     public static func cubeData(with contents: String, line: Line = .rgb) -> Data {
         let fileContents = contents.replacingOccurrences(of: "\r", with: "\n")

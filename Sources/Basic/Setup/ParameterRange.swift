@@ -24,3 +24,5 @@ public struct ParameterRange<T: Comparable, Target> {
         self.value = value
     }
 }
+
+extension ParameterRange: Sendable where T: Sendable {}

@@ -33,16 +33,15 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertNotNil(R.cacheBundles["Harbeth"])
     }
 
-    @available(*, deprecated, message: "Compatibility verification for legacy Device accessors.")
-    func testDeprecatedDeviceAccessorsStillResolveToSharedDefaultRuntime() {
+    func testSharedRuntimeSurfacesResolveToOneDefaultOwner() {
         Shared.shared.deinitDevice()
 
         let owner = Shared.shared.defaultDevice
 
-        XCTAssertTrue(Device.device() === owner.device)
-        XCTAssertTrue(Device.commandQueue() === owner.commandQueue)
-        XCTAssertEqual(Device.colorSpace(), owner.colorSpace)
-        XCTAssertEqual(Device.sharedTextureCache() != nil, owner.textureCache != nil)
+        XCTAssertTrue(Shared.shared.metalDevice === owner.device)
+        XCTAssertTrue(Shared.shared.commandQueue === owner.commandQueue)
+        XCTAssertEqual(Shared.shared.defaultDevice.colorSpace, owner.colorSpace)
+        XCTAssertEqual(Shared.shared.sharedTextureCache != nil, owner.textureCache != nil)
     }
 
     func testLookupAndCubeKeepResourceOwnerMetadataWhenResourcesAreMissing() {
@@ -78,11 +77,7 @@ final class DeviceLibraryTests: XCTestCase {
     }
 
     func testReadMetalFunctionByKernelIdentityUsesLibrarySource() throws {
-        let identity = KernelFunctionIdentity(
-            kind: .compute,
-            primaryName: "C7Brightness",
-            librarySource: .automatic
-        )
+        let identity = KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness", librarySource: .automatic)
 
         let function = try Device.readMTLFunction(identity)
         let description = Device.metalFunctionLookupFailureDescription(identity)
@@ -90,6 +85,21 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertEqual(function.name, "C7Brightness")
         XCTAssertTrue(description.contains("C7Brightness"))
         XCTAssertTrue(description.contains("library=automatic"))
+    }
+
+    func testMissingMetalFunctionThrowsInDebugAndRelease() {
+        let identity = KernelFunctionIdentity(
+            kind: .compute,
+            primaryName: "__harbeth_missing_kernel_for_test__",
+            librarySource: .defaultLibrary
+        )
+
+        XCTAssertThrowsError(try Device.readMTLFunction(identity)) { error in
+            guard case HarbethError.readFunction(let name) = error else {
+                return XCTFail("Expected readFunction, received \(error)")
+            }
+            XCTAssertEqual(name, identity.primaryName)
+        }
     }
 
     func testHeapTexturePoolCapabilityReportUsesStablePlatformContract() {
@@ -105,11 +115,7 @@ final class DeviceLibraryTests: XCTestCase {
 private final class MockExternalLibraryProvider: ExternalMTLLibraryProvider {
     let providerIdentifier: String
 
-    init(identifier: String) {
-        self.providerIdentifier = identifier
-    }
+    init(identifier: String) { self.providerIdentifier = identifier }
 
-    func provideLibrary(for device: MTLDevice) -> MTLLibrary? {
-        nil
-    }
+    func provideLibrary(for device: MTLDevice) -> MTLLibrary? { nil }
 }

@@ -24,14 +24,15 @@ public protocol Cacheable: AnyObject {
     func deferTextureCache()
 }
 
-fileprivate var C7ATCacheContext: UInt8 = 0
+nonisolated(unsafe) fileprivate var C7ATCacheContext: UInt8 = 0
 
 extension Cacheable {
     public var textureCache: CVMetalTextureCache? {
         get {
             return synchronizedCacheable {
                 if let object = objc_getAssociatedObject(self, &C7ATCacheContext) {
-                    return (object as! CVMetalTextureCache)
+                    let textureCache: CVMetalTextureCache = object as! CVMetalTextureCache
+                    return textureCache
                 } else {
                     var textureCache: CVMetalTextureCache?
                     #if !targetEnvironment(simulator)

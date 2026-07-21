@@ -13,19 +13,15 @@ import ImageIO
 extension C7Image: HarbethCompatible { }
 
 extension HarbethWrapper where Base: C7Image {
-    
     /// Image to texture
     ///
     /// Texture loader can not load image data to create texture
     /// Draw image and create texture
     /// - Returns: MTLTexture
     public func toTexture(cgimage: CGImage? = nil) -> MTLTexture? {
-        guard let cgImage = cgimage ?? base.cgImage else {
-            return nil
-        }
+        guard let cgImage = cgimage ?? base.cgImage else { return nil }
         return try? TextureLoader.init(with: cgImage).texture
     }
-    
     public func toCGImage() -> CGImage? {
         #if os(macOS)
         return base.cgImage(forProposedRect: nil, context: nil, hints: nil)
@@ -35,9 +31,7 @@ extension HarbethWrapper where Base: C7Image {
     }
 
     public func encodedData(utType: CFString, properties: [CFString: Any] = [:]) -> Data? {
-        guard let cgImage = toCGImage() else {
-            return nil
-        }
+        guard let cgImage = toCGImage() else { return nil }
         var destinationProperties = properties
         #if !os(macOS)
         destinationProperties[kCGImagePropertyOrientation] = base.imageOrientation.rawValue
@@ -61,41 +55,41 @@ extension HarbethWrapper where Base: C7Image {
     }
 
     #if os(macOS)
-    public func encodedHEICData() -> Data? {
-        encodedData(utType: "public.heic" as CFString)
-    }
+    public func encodedHEICData() -> Data? { encodedData(utType: "public.heic" as CFString) }
     #endif
-    
-    #if canImport(UIKit) && !os(watchOS)
+    #if canImport(UIKit)
     public func toPixelBuffer() -> CVPixelBuffer? {
         let width = base.size.width
         let height = base.size.height
-        let attrs = [
-            kCVPixelBufferCGImageCompatibilityKey: kCFBooleanTrue,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: kCFBooleanTrue
-        ] as CFDictionary
+        let attrs =
+            [
+                kCVPixelBufferCGImageCompatibilityKey: kCFBooleanTrue,
+                kCVPixelBufferCGBitmapContextCompatibilityKey: kCFBooleanTrue,
+            ] as CFDictionary
         var pixelBuffer: CVPixelBuffer?
-        let status = CVPixelBufferCreate(kCFAllocatorDefault,
-                                         Int(width),
-                                         Int(height),
-                                         kCVPixelFormatType_32ARGB,
-                                         attrs,
-                                         &pixelBuffer)
-        guard let resultPixelBuffer = pixelBuffer, status == kCVReturnSuccess else {
-            return nil
-        }
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            Int(width),
+            Int(height),
+            kCVPixelFormatType_32ARGB,
+            attrs,
+            &pixelBuffer
+        )
+        guard let resultPixelBuffer = pixelBuffer, status == kCVReturnSuccess else { return nil }
         CVPixelBufferLockBaseAddress(resultPixelBuffer, CVPixelBufferLockFlags(rawValue: 0))
         let pixelData = CVPixelBufferGetBaseAddress(resultPixelBuffer)
         let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let context = CGContext(data: pixelData,
-                                      width: Int(width),
-                                      height: Int(height),
-                                      bitsPerComponent: 8,
-                                      bytesPerRow: CVPixelBufferGetBytesPerRow(resultPixelBuffer),
-                                      space: rgbColorSpace,
-                                      bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue) else {
-            return nil
-        }
+        guard
+            let context = CGContext(
+                data: pixelData,
+                width: Int(width),
+                height: Int(height),
+                bitsPerComponent: 8,
+                bytesPerRow: CVPixelBufferGetBytesPerRow(resultPixelBuffer),
+                space: rgbColorSpace,
+                bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+            )
+        else { return nil }
         context.translateBy(x: 0, y: height)
         context.scaleBy(x: 1.0, y: -1.0)
         UIGraphicsPushContext(context)
@@ -163,9 +157,7 @@ extension HarbethWrapper where Base: C7Image {
         let result = NSImage(size: canvas)
         result.lockFocus()
         let destRect = CGRect(origin: .zero, size: result.size)
-        if inverting {
-            result.c7.flip(horizontal: true, vertical: true)
-        }
+        if inverting { result.c7.flip(horizontal: true, vertical: true) }
         base.draw(in: destRect, from: .zero, operation: .sourceOver, fraction: scale ?? base.scale)
         result.unlockFocus()
         return result
@@ -273,7 +265,7 @@ extension HarbethWrapper where Base: C7Image {
     /// - Parameter ratio: Cutting ratio.
     public func crop(ratio: CGFloat) -> C7Image {
         if ratio <= 0 { return base }
-        let width  = base.size.width
+        let width = base.size.width
         let height = base.size.height
         let size: CGSize
         if width / height > ratio {
@@ -281,23 +273,23 @@ extension HarbethWrapper where Base: C7Image {
         } else {
             size = CGSize(width: width, height: width / ratio)
         }
-        let rect = CGRectMake((size.width - width ) / 2.0, (size.height - height ) / 2.0, width, height)
+        let rect = CGRectMake((size.width - width) / 2.0, (size.height - height) / 2.0, width, height)
         return base.c7.renderer(rect: rect, canvas: size)
     }
     
     /// Scale the picture to the specified size, and the excess is automatically deleted.
     /// - Parameter newSize: Cut size.
     public func scaled(to newSize: CGSize) -> C7Image {
-        if newSize.width == base.size.width, newSize.height == base.size.height {
-            return base
-        }
+        if newSize.width == base.size.width, newSize.height == base.size.height { return base }
         let aspectWidth = newSize.width / base.size.width
         let aspectHeight = newSize.height / base.size.height
         let aspectRatio = max(aspectWidth, aspectHeight)
-        let rect = CGRect(x: (newSize.width - base.size.width * aspectRatio) / 2.0,
-                          y: (newSize.height - base.size.height * aspectRatio) / 2.0,
-                          width: base.size.width * aspectRatio,
-                          height: base.size.height * aspectRatio)
+        let rect = CGRect(
+            x: (newSize.width - base.size.width * aspectRatio) / 2.0,
+            y: (newSize.height - base.size.height * aspectRatio) / 2.0,
+            width: base.size.width * aspectRatio,
+            height: base.size.height * aspectRatio
+        )
         return base.c7.renderer(rect: rect, canvas: newSize)
     }
     
@@ -305,7 +297,7 @@ extension HarbethWrapper where Base: C7Image {
     /// - Parameter space: Edge pixel size.
     public func crop(space: CGFloat) -> C7Image {
         let size = base.size
-        let rect = CGRect(x: -space, y: -space, width: size.width+2*space, height: size.height+2*space)
+        let rect = CGRect(x: -space, y: -space, width: size.width + 2 * space, height: size.height + 2 * space)
         return base.c7.renderer(rect: rect, canvas: size)
     }
     
@@ -330,12 +322,17 @@ extension HarbethWrapper where Base: C7Image {
         let radians = CGFloat(degrees) / 180.0 * .pi
         let tran = CGAffineTransform(rotationAngle: radians)
         var size = CGRect(origin: .zero, size: base.size).applying(tran).size
-        size.width  = floor(size.width)
+        size.width = floor(size.width)
         size.height = floor(size.height)
-        let rect = CGRect(x: -base.size.width/2, y: -base.size.height/2, width: base.size.width, height: base.size.height)
+        let rect = CGRect(
+            x: -base.size.width / 2,
+            y: -base.size.height / 2,
+            width: base.size.width,
+            height: base.size.height
+        )
         UIGraphicsBeginImageContext(size)
         let context = UIGraphicsGetCurrentContext()
-        context?.translateBy(x: size.width/2, y: size.height/2)
+        context?.translateBy(x: size.width / 2, y: size.height / 2)
         context?.rotate(by: radians)
         base.draw(in: rect)
         let result = UIGraphicsGetImageFromCurrentImageContext()

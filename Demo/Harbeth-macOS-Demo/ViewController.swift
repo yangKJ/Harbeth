@@ -304,7 +304,7 @@ extension SidebarViewController: NSOutlineViewDelegate {
     }
 }
 
-class SidebarDataSource: NSObject, NSOutlineViewDataSource {
+final class SidebarDataSource: NSObject, NSOutlineViewDataSource {
     
     private let groups: [FilterGroup] = FilterGroup.datas
     

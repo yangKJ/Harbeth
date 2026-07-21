@@ -9,12 +9,11 @@ import Foundation
 @_exported import MetalKit
 @_exported import CoreVideo
 @_exported import CoreMedia
-@_exported import AVFoundation
 import ImageIO
 
-#if os(iOS) || os(tvOS) || os(watchOS)
+#if os(iOS) || os(tvOS)
 import UIKit
-public typealias C7View  = UIView
+public typealias C7View = UIView
 public typealias C7Color = UIColor
 public typealias C7Image = UIImage
 public typealias C7EdgeInsets = UIEdgeInsets
@@ -22,7 +21,7 @@ public typealias C7ImageView = UIImageView
 public typealias C7ImageOrientation = UIImage.Orientation
 #elseif os(macOS)
 import AppKit
-public typealias C7View  = NSView
+public typealias C7View = NSView
 public typealias C7Color = NSColor
 public typealias C7Image = NSImage
 public typealias C7EdgeInsets = NSEdgeInsets
@@ -31,8 +30,8 @@ public typealias C7ImageOrientation = CGImagePropertyOrientation
 #endif
 
 public typealias C7InputTextures = [MTLTexture]
-public typealias C7FilterImageCallback = (_ image: C7Image) -> Void
-public typealias C7TextureResultBlock = (Result<MTLTexture, HarbethError>) -> Void
+public typealias C7FilterImageCallback = @Sendable (_ image: C7Image) -> Void
+public typealias C7TextureResultBlock = @Sendable (Result<MTLTexture, HarbethError>) -> Void
 
 public typealias C7KernelFunction = String
 

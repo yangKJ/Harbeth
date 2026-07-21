@@ -22,18 +22,6 @@ struct RenderNode {
     let boundary: PluginBoundaryAdapter?
     let outputSize: C7Size?
     let breaksFusion: Bool
-
-    init(kind: RenderNodeKind,
-         filter: C7FilterProtocol? = nil,
-         boundary: PluginBoundaryAdapter? = nil,
-         outputSize: C7Size? = nil,
-         breaksFusion: Bool = false) {
-        self.kind = kind
-        self.filter = filter
-        self.boundary = boundary
-        self.outputSize = outputSize
-        self.breaksFusion = breaksFusion
-    }
 }
 
 struct RenderGraph {
@@ -370,33 +358,20 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     }
 
     public var summary: String {
-        let stageSummary = stages
-            .map { stage in
-                let kinds = stage.kinds.map(\.rawValue).joined(separator: ",")
-                return "s\(stage.index)[\(kinds)]x\(stage.filterCount)\(stage.breaksFusion ? "*" : "")"
-            }
-            .joined(separator: " -> ")
+        let stageSummary = stages.map { stage in
+            let kinds = stage.kinds.map(\.rawValue).joined(separator: ",")
+            return "s\(stage.index)[\(kinds)]x\(stage.filterCount)\(stage.breaksFusion ? "*" : "")"
+        }.joined(separator: " -> ")
         return [
-            "profile=\(String(describing: profile))",
-            "derivative=\(derivative.name)",
-            "input=\(inputSize.width)x\(inputSize.height)",
-            "output=\(outputSize.width)x\(outputSize.height)",
-            "graph=\(graphFingerprint)",
-            "graphNodes=\(graphNodeCount)",
-            "graphEdges=\(graphEdgeCount)",
-            "optimizedGraphNodes=\(optimizedGraphNodeCount)",
-            "persistentBoundaries=\(persistentBoundaryCount)",
-            "reuseCandidates=\(transientReuseCandidateCount)",
-            "sharedDependencies=\(sharedDependencyNodeCount)",
-            "nodes=\(nodes.count)",
-            "stages=\(stageCount)",
-            "boundary=\(containsBoundary ? 1 : 0)",
-            "readback=\(requiresCompletedGPUWork ? 1 : 0)",
-            "source=\(compilationSource.rawValue)",
-            "origin=\(sourceKind ?? "unknown")",
-            "cachePolicy=\(imageCachePolicy.rawValue)",
-            "sampler=\(samplerDescriptor.fingerprint)",
-            "samplerCoverage=\(samplerExecutionCoverage.mode.rawValue)",
+            "profile=\(String(describing: profile))", "derivative=\(derivative.name)",
+            "input=\(inputSize.width)x\(inputSize.height)", "output=\(outputSize.width)x\(outputSize.height)",
+            "graph=\(graphFingerprint)", "graphNodes=\(graphNodeCount)", "graphEdges=\(graphEdgeCount)",
+            "optimizedGraphNodes=\(optimizedGraphNodeCount)", "persistentBoundaries=\(persistentBoundaryCount)",
+            "reuseCandidates=\(transientReuseCandidateCount)", "sharedDependencies=\(sharedDependencyNodeCount)",
+            "nodes=\(nodes.count)", "stages=\(stageCount)", "boundary=\(containsBoundary ? 1 : 0)",
+            "readback=\(requiresCompletedGPUWork ? 1 : 0)", "source=\(compilationSource.rawValue)",
+            "origin=\(sourceKind ?? "unknown")", "cachePolicy=\(imageCachePolicy.rawValue)",
+            "sampler=\(samplerDescriptor.fingerprint)", "samplerCoverage=\(samplerExecutionCoverage.mode.rawValue)",
             "samplerCoveredFilters=\(samplerExecutionCoverage.coveredFilterTypes.joined(separator: ","))",
             "samplerMetadataOnlyFilters=\(samplerExecutionCoverage.metadataOnlyFilterTypes.joined(separator: ","))",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
@@ -418,8 +393,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "heapBacked=\(optimizationPlan.heapBackedAllocationCount)",
             "inputColorConversions=\(inputColorConversionCount)",
             "inputPixelFormatConversions=\(inputPixelFormatConversionCount)",
-            "inputAlphaConversions=\(inputAlphaConversionCount)",
-            "inputDirectPlanes=\(inputDirectPlaneBridgeCount)",
+            "inputAlphaConversions=\(inputAlphaConversionCount)", "inputDirectPlanes=\(inputDirectPlaneBridgeCount)",
             "hostDecision=\(frameHostRuntimeHint.decision.rawValue)",
             "hostTiming=\(frameHostRuntimeHint.timingPolicy.rawValue)",
             "hostRealtime=\(frameHostRuntimeHint.isRealtimePreviewEligible ? 1 : 0)",
@@ -430,23 +404,16 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "sampleBufferHostEligible=\(sampleBufferHostEligible ? 1 : 0)",
             "sampleBufferHostPayload=\(sampleBufferHostPayloadAvailable ? 1 : 0)",
             "sampleBufferHostRematerialize=\(sampleBufferHostRequiresRematerialization ? 1 : 0)",
-            "hostRecoveryPolicy=\(hostRecoveryPolicy)",
-            "hostRecoveredByFlush=\(hostRecoveredByFlush ? 1 : 0)",
-            "hostFellBackToMetal=\(hostFellBackToMetal ? 1 : 0)",
-            "inputColor=\(inputColorSpace.name)",
-            "outputColor=\(outputColorSpace.name)",
-            "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
-            "outputAlpha=\(outputAlphaType?.rawValue ?? "none")",
-            "inputPixel=\(inputPixelFormat.name)",
+            "hostRecoveryPolicy=\(hostRecoveryPolicy)", "hostRecoveredByFlush=\(hostRecoveredByFlush ? 1 : 0)",
+            "hostFellBackToMetal=\(hostFellBackToMetal ? 1 : 0)", "inputColor=\(inputColorSpace.name)",
+            "outputColor=\(outputColorSpace.name)", "inputAlpha=\(inputAlphaType?.rawValue ?? "none")",
+            "outputAlpha=\(outputAlphaType?.rawValue ?? "none")", "inputPixel=\(inputPixelFormat.name)",
             "inputBridgePolicy=\(inputBridgePolicy?.rawValue ?? "none")",
             "inputYCbCrDecode=\(inputYCbCrDecodeContract?.fingerprint ?? "none")",
-            "inputPixelPrecision=\(inputPixelPrecision.rawValue)",
-            "inputHDRFriendly=\(inputIsHDRFriendly ? 1 : 0)",
-            "inputDynamicRange=\(inputDynamicRange.rawValue)",
-            "outputPixel=\(outputPixelFormat.name)",
+            "inputPixelPrecision=\(inputPixelPrecision.rawValue)", "inputHDRFriendly=\(inputIsHDRFriendly ? 1 : 0)",
+            "inputDynamicRange=\(inputDynamicRange.rawValue)", "outputPixel=\(outputPixelFormat.name)",
             "outputDynamicRange=\(outputDynamicRange.rawValue)",
-            "toneMapping=\(outputContract.toneMappingPolicy.rawValue)",
-            "alphaContract=\(outputContract.alpha)",
+            "toneMapping=\(outputContract.toneMappingPolicy.rawValue)", "alphaContract=\(outputContract.alpha)",
             "colorGamut=\(outputContract.colorSpace.gamut.rawValue)",
             "transfer=\(outputContract.colorSpace.transferFunction.rawValue)",
             "pixelPrecision=\(outputContract.pixelFormat.precision.rawValue)",
@@ -460,8 +427,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "outputAttachmentReadbackPixels=\(outputContract.attachmentDebugPolicies.map { $0.preferredReadbackPixelFormat.name }.joined(separator: ","))",
             "outputAttachmentMonochromePreview=\(outputContract.attachmentDebugPolicies.map { $0.prefersMonochromePreview ? "1" : "0" }.joined(separator: ","))",
             "lossyConversions=\(lossyConversionCount)",
-            "hdrFriendly=\(outputContract.hasHDRFriendlyAttachment ? 1 : 0)",
-            "plan=\(stageSummary)"
+            "hdrFriendly=\(outputContract.hasHDRFriendlyAttachment ? 1 : 0)", "plan=\(stageSummary)",
         ].joined(separator: " ")
     }
 
@@ -493,28 +459,15 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     }
 
     public var sampleBufferHostEligible: Bool {
-        #if os(watchOS)
-        return false
-        #else
-        return sourceKind == "sampleBuffer" && frameHostRuntimeHint.isRealtimePreviewEligible
-        #endif
+        sourceKind == "sampleBuffer" && frameHostRuntimeHint.isRealtimePreviewEligible
     }
 
     public var sampleBufferPassthroughPossible: Bool {
-        sampleBufferHostEligible
-            && stageCount == 0
-            && containsBoundary == false
-            && containsLocalEffectComposite == false
-            && containsTransitionKernel == false
-            && containsDerivativeResize == false
-            && inputSize == outputSize
-            && inputColorConversionCount == 0
-            && inputPixelFormatConversionCount == 0
-            && inputAlphaConversionCount == 0
-            && alphaConversionCount == 0
-            && colorConversionCount == 0
-            && pixelFormatConversionCount == 0
-            && lossyConversionCount == 0
+        sampleBufferHostEligible && stageCount == 0 && containsBoundary == false
+        && containsLocalEffectComposite == false && containsTransitionKernel == false
+        && containsDerivativeResize == false && inputSize == outputSize && inputColorConversionCount == 0
+        && inputPixelFormatConversionCount == 0 && inputAlphaConversionCount == 0 && alphaConversionCount == 0
+        && colorConversionCount == 0 && pixelFormatConversionCount == 0 && lossyConversionCount == 0
     }
 
     public var resolvedPreviewHostStrategy: String {
@@ -756,7 +709,7 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-struct RenderPlan {
+struct RenderPlan: @unchecked Sendable {
     let graph: RenderGraph
     let imageGraph: ImageGraph?
     let profile: RenderProfile
@@ -829,9 +782,7 @@ struct RenderPlan {
             imageCachePolicy: imageCachePolicy,
             inputPixelFormat: resolvedInputPixelFormat
         )
-        let resolvedOutputPixelFormat = outputContract.pixelFormat.preservesInput
-            ? (resolvedInputPixelFormat.preservesInput ? .rgba8Unorm : resolvedInputPixelFormat)
-            : outputContract.pixelFormat
+        let resolvedOutputPixelFormat = outputContract.pixelFormat.preservesInput ? (resolvedInputPixelFormat.preservesInput ? .rgba8Unorm : resolvedInputPixelFormat) : outputContract.pixelFormat
         let resolvedOutputColorSpace = outputContract.colorSpace
         let resolvedOutputAlphaType = outputContract.alpha.expectedAlphaType ?? sourceDescriptor?.alphaType
         let resolvedLossyConversionCount = outputContract.allowsLossyConversion ? 1 : 0
@@ -917,18 +868,16 @@ private extension RenderPlan {
 
     static func resolveAttachmentColorSpace(from descriptor: ImageSourceDescriptor?) -> ImageColorSpaceContract? {
         descriptor?.pixelBufferContract?.attachmentColorSpace
-            ?? descriptor?.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace
+        ?? descriptor?.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace
     }
 
     static func sourceRequiresYCbCrConversion(_ descriptor: ImageSourceDescriptor?) -> Bool {
         descriptor?.pixelBufferBridgePlan?.requiresColorConversion == true
-            || descriptor?.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true
+        || descriptor?.sampleBufferContract?.pixelBufferContract?.requiresYCbCrConversion == true
     }
 
     static func resolveInputColorConversionCount(from descriptor: ImageSourceDescriptor?) -> Int {
-        guard let descriptor else {
-            return 0
-        }
+        guard let descriptor else { return 0 }
         if let bridgePlan = descriptor.pixelBufferBridgePlan, bridgePlan.requiresColorConversion {
             return 1
         }
@@ -939,9 +888,7 @@ private extension RenderPlan {
     }
 
     static func resolveInputPixelFormatConversionCount(from descriptor: ImageSourceDescriptor?) -> Int {
-        guard let descriptor else {
-            return 0
-        }
+        guard let descriptor else { return 0 }
         if let bridgePlan = descriptor.pixelBufferBridgePlan, bridgePlan.loadStrategy != .directMetalTexture {
             return 1
         }
@@ -953,9 +900,7 @@ private extension RenderPlan {
     }
 
     static func resolveInputDirectPlaneBridgeCount(from descriptor: ImageSourceDescriptor?) -> Int {
-        guard let descriptor else {
-            return 0
-        }
+        guard let descriptor else { return 0 }
         if let bridgePlan = descriptor.pixelBufferBridgePlan {
             return bridgePlan.directPlaneBridgeCount
         }
@@ -971,19 +916,19 @@ private extension RenderPlan {
 }
 
 enum GraphOptimizer {
-    static func makeOptimizationPlan(stages: [RenderStage],
-                                     nodeDiagnostics: [RenderNodeDiagnostic],
-                                     outputContract: RenderOutputContract = .preserveInput,
-                                     imageCachePolicy: ImageCachePolicy = .transient,
-                                     inputPixelFormat: PixelFormatContract = .preserveInput) -> RenderOptimizationPlan {
+    static func makeOptimizationPlan(
+        stages: [RenderStage],
+        nodeDiagnostics: [RenderNodeDiagnostic],
+        outputContract: RenderOutputContract = .preserveInput,
+        imageCachePolicy: ImageCachePolicy = .transient,
+        inputPixelFormat: PixelFormatContract = .preserveInput
+    ) -> RenderOptimizationPlan {
         let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
         let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
         let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
         let formatConversionCount = outputContract.requiresPixelFormatConversion ? 1 : 0
         let mergedStageCount = stages.filter { $0.filterCount > 1 && $0.mergeClass != nil }.count
-        let fusionEligibleNodeCount = stages
-            .filter { $0.mergeClass != nil }
-            .reduce(0) { $0 + $1.filterCount }
+        let fusionEligibleNodeCount = stages.filter { $0.mergeClass != nil }.reduce(0) { $0 + $1.filterCount }
         let transientStageCount = stages.filter { stage in
             stage.createsDestinationTexture && stage.index < stages.count - 1
         }.count
@@ -995,30 +940,30 @@ enum GraphOptimizer {
             inputPixelFormat: inputPixelFormat
         )
         let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
-        let estimatedTransientByteCount = lifecycleDecisions
-            .filter { $0.action == .reuseTransient || $0.action == .allocateTransient }
-            .reduce(0) { partial, decision in
-                partial + estimatedByteCount(
-                    for: decision.size,
-                    pixelFormat: pixelFormat(
-                        for: decision,
-                        outputContract: outputContract,
-                        inputPixelFormat: inputPixelFormat
-                    )
+        let estimatedTransientByteCount = lifecycleDecisions.filter {
+            $0.action == .reuseTransient || $0.action == .allocateTransient
+        }.reduce(0) { partial, decision in
+            partial + estimatedByteCount(
+                for: decision.size,
+                pixelFormat: pixelFormat(
+                    for: decision,
+                    outputContract: outputContract,
+                    inputPixelFormat: inputPixelFormat
                 )
-            }
-        let estimatedPersistentByteCount = lifecycleDecisions
-            .filter { $0.action == .allocatePersistentOutput || $0.action == .preserveForReadback }
-            .reduce(0) { partial, decision in
-                partial + estimatedByteCount(
-                    for: decision.size,
-                    pixelFormat: pixelFormat(
-                        for: decision,
-                        outputContract: outputContract,
-                        inputPixelFormat: inputPixelFormat
-                    )
+            )
+        }
+        let estimatedPersistentByteCount = lifecycleDecisions.filter {
+            $0.action == .allocatePersistentOutput || $0.action == .preserveForReadback
+        }.reduce(0) { partial, decision in
+            partial + estimatedByteCount(
+                for: decision.size,
+                pixelFormat: pixelFormat(
+                    for: decision,
+                    outputContract: outputContract,
+                    inputPixelFormat: inputPixelFormat
                 )
-            }
+            )
+        }
         var decisions: [String] = []
         if intermediateTextureCount > 0 {
             decisions.append("reuseTransientIntermediateTextures")
@@ -1042,18 +987,15 @@ enum GraphOptimizer {
             decisions.append("preservePersistentImageNode")
         }
         if inputPixelFormat.isHighPrecision, prewarmReservations.contains(where: {
-            resolvedReservationPixelFormat(preferred: $0.pixelFormat, fallback: inputPixelFormat).metalPixelFormat == inputPixelFormat.metalPixelFormat
+            resolvedReservationPixelFormat(preferred: $0.pixelFormat, fallback: inputPixelFormat)
+                .metalPixelFormat == inputPixelFormat.metalPixelFormat
         }) {
             decisions.append("preserveInputPixelFormatForReservations")
         }
-        if prewarmReservations.contains(where: {
-            $0.reason == .transientReuse && $0.stageIndices.count > $0.count
-        }) {
+        if prewarmReservations.contains(where: { $0.reason == .transientReuse && $0.stageIndices.count > $0.count }) {
             decisions.append("capTransientReusePrewarmToDoubleBuffer")
         }
-        if decisions.isEmpty {
-            decisions.append("singleStageNoOptimizationNeeded")
-        }
+        if decisions.isEmpty { decisions.append("singleStageNoOptimizationNeeded") }
         let allocatorSnapshot = Shared.shared.defaultTextureAllocator.makeSnapshot()
         return RenderOptimizationPlan(
             intermediateTextureCount: intermediateTextureCount,
@@ -1130,10 +1072,7 @@ enum GraphOptimizer {
             switch decision.action {
             case .reuseTransient:
                 reason = .transientReuse
-                pixelFormat = resolvedReservationPixelFormat(
-                    preferred: .preserveInput,
-                    fallback: inputPixelFormat
-                )
+                pixelFormat = resolvedReservationPixelFormat(preferred: .preserveInput, fallback: inputPixelFormat)
             case .allocatePersistentOutput:
                 reason = .persistentOutput
                 pixelFormat = resolvedReservationPixelFormat(
@@ -1148,17 +1087,11 @@ enum GraphOptimizer {
                 )
             case .allocateTransient:
                 reason = nil
-                pixelFormat = resolvedReservationPixelFormat(
-                    preferred: .preserveInput,
-                    fallback: inputPixelFormat
-                )
+                pixelFormat = resolvedReservationPixelFormat(preferred: .preserveInput, fallback: inputPixelFormat)
             }
             guard let reason else { continue }
-            let key = [
-                reason.rawValue,
-                "\(decision.size.width)x\(decision.size.height)",
-                pixelFormat.fingerprint
-            ].joined(separator: "|")
+            let key = [reason.rawValue, "\(decision.size.width)x\(decision.size.height)", pixelFormat.fingerprint]
+                .joined(separator: "|")
             if let existing = grouped[key] {
                 let nextCount: Int
                 if existing.reason == .transientReuse {
@@ -1203,38 +1136,27 @@ enum GraphOptimizer {
     }
 
     private static func resolvedReservationPixelFormat(preferred: PixelFormatContract, fallback: PixelFormatContract) -> PixelFormatContract {
-        guard preferred.preservesInput else {
-            return preferred
-        }
+        guard preferred.preservesInput else { return preferred }
         return concreteReservationPixelFormat(from: fallback) ?? fallback
     }
 
     private static func concreteReservationPixelFormat(from contract: PixelFormatContract) -> PixelFormatContract? {
-        guard let metalPixelFormat = contract.metalPixelFormat else {
-            return nil
-        }
+        guard let metalPixelFormat = contract.metalPixelFormat else { return nil }
         return PixelFormatContract(pixelFormat: metalPixelFormat, preservesInput: false)
     }
 
     private static func bytesPerPixel(for pixelFormat: PixelFormatContract) -> Int {
         switch pixelFormat.precision {
-        case .float32:
-            return 16
-        case .float16:
-            return 8
+        case .float32: return 16
+        case .float16: return 8
         case .unorm8, .preserveInput, .custom:
             if let metalPixelFormat = pixelFormat.metalPixelFormat {
                 switch metalPixelFormat {
-                case .r8Unorm:
-                    return 1
-                case .rg8Unorm:
-                    return 2
-                case .rgba16Float:
-                    return 8
-                case .rgba32Float:
-                    return 16
-                default:
-                    return 4
+                case .r8Unorm: return 1
+                case .rg8Unorm: return 2
+                case .rgba16Float: return 8
+                case .rgba32Float: return 16
+                default: return 4
                 }
             }
             return 4
@@ -1248,15 +1170,9 @@ enum GraphOptimizer {
         var currentNodeIndices: [Int] = []
 
         func stageKind(for kinds: [RenderNodeKind]) -> RenderStageKind {
-            if kinds.contains(.boundary) {
-                return .boundary
-            }
-            if kinds.contains(.render) {
-                return .render
-            }
-            if kinds.contains(.blit) {
-                return .blit
-            }
+            if kinds.contains(.boundary) { return .boundary }
+            if kinds.contains(.render) { return .render }
+            if kinds.contains(.blit) { return .blit }
             return .compute
         }
 
@@ -1318,7 +1234,8 @@ enum GraphOptimizer {
                     inputSize: inputSize,
                     outputSize: outputSize,
                     boundaryReason: boundaryReason(for: stageNodes, diagnostics: diagnostics),
-                    containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback && currentNodeIndices.last == graph.nodes.indices.last,
+                    containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback
+                    && currentNodeIndices.last == graph.nodes.indices.last,
                     createsDestinationTexture: stageNodes.contains(where: { $0.filter != nil }),
                     containsLocalEffectComposite: stageNodes.contains(where: { $0.filter is MaskRegionBlend }),
                     containsTransitionKernel: stageNodes.contains(where: { $0.filter is TransitionKernel }),
@@ -1344,9 +1261,7 @@ enum GraphOptimizer {
             if startsNewStage {
                 flushStage()
             }
-
             currentNodeIndices.append(index)
-
             if node.breaksFusion || node.kind == .boundary {
                 flushStage()
             }
@@ -1412,9 +1327,7 @@ enum GraphCompiler {
             )
         }
         let resolvedOutputContract: RenderOutputContract
-        if outputContract == .preserveInput,
-           let lastFilter = filters.last,
-           case .render = lastFilter.modifier {
+        if outputContract == .preserveInput, let lastFilter = filters.last, case .render = lastFilter.modifier {
             resolvedOutputContract = lastFilter.kernelDescriptor(inputSize: currentSize).outputContract
         } else {
             resolvedOutputContract = outputContract
@@ -1433,7 +1346,7 @@ enum GraphCompiler {
                     breaksFusion: true,
                     parameterSummary: [
                         "derivative": resolvedDerivative.name,
-                        "policy": resolvedDerivative.outputSizePolicy.fingerprint
+                        "policy": resolvedDerivative.outputSizePolicy.fingerprint,
                     ]
                 )
             )
@@ -1470,8 +1383,9 @@ enum GraphCompiler {
     }
 
     private static func nodeKind(for filter: C7FilterProtocol) -> RenderNodeKind {
-        if filter is C7FilterPipelineProtocol { return .combination }
-        if filter is LegacyCombinationFilterProtocol { return .combination }
+        if filter is C7FilterPipelineProtocol {
+            return .combination
+        }
         switch filter.modifier {
         case .compute:
             return .compute

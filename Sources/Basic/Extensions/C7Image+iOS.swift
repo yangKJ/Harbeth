@@ -7,7 +7,7 @@
 
 import Foundation
 
-#if os(iOS) || os(tvOS) || os(watchOS)
+#if os(iOS) || os(tvOS)
 import UIKit
 
 extension HarbethWrapper where Base: C7Image {
@@ -64,7 +64,6 @@ extension HarbethWrapper where Base: C7Image {
         context.translateBy(x: 0, y: base.size.height)
         context.scaleBy(x: 1, y: -1)
         context.draw(maskedImageRef, in: rect)
-        
         return UIGraphicsGetImageFromCurrentImageContext()
     }
     
@@ -107,8 +106,8 @@ extension HarbethWrapper where Base: C7Image {
     public var squared: C7Image {
         let edge = min(base.size.width, base.size.height)
         let difference = base.size.width - base.size.height
-        let x = difference > 0 ? abs(difference/2) : 0
-        let y = difference < 0 ? abs(difference/2) : 0
+        let x = difference > 0 ? abs(difference / 2) : 0
+        let y = difference < 0 ? abs(difference / 2) : 0
         let cropSquare = CGRect(x: x, y: y, width: edge, height: edge)
         guard let imageRef = base.cgImage?.cropping(to: cropSquare) else { return base }
         return C7Image(cgImage: imageRef, scale: base.scale, orientation: base.imageOrientation)
@@ -159,7 +158,6 @@ extension HarbethWrapper where Base: C7Image {
     /// - Returns: Fitted image
     public func fitFixed(width: CGFloat = 0, height: CGFloat = 0) -> C7Image {
         guard let cgImage = base.cgImage else { return base }
-        
         var rect = CGRect(origin: .zero, size: base.size)
         switch (width, height) {
         case (0, 0): return base
@@ -170,7 +168,7 @@ extension HarbethWrapper where Base: C7Image {
             rect.size.width = width
             rect.size.height = base.size.height * (width / base.size.width)
         default:
-            if base.size.width/base.size.height < width/height {
+            if base.size.width / base.size.height < width / height {
                 rect.size.height = height
                 rect.size.width = base.size.width * height / base.size.height
                 rect.origin.x = (width - rect.size.width) * 0.5
@@ -180,7 +178,6 @@ extension HarbethWrapper where Base: C7Image {
                 rect.origin.y = -(height - rect.size.height) * 0.5
             }
         }
-        
         return UIGraphicsImageRenderer(size: rect.size).image { context in
             context.cgContext.translateBy(x: 0, y: rect.size.height)
             context.cgContext.scaleBy(x: 1, y: -1)

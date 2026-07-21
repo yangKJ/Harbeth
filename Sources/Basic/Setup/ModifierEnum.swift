@@ -14,9 +14,6 @@ import Foundation
 import MetalKit
 import MetalPerformanceShaders
 
-@available(*, deprecated, message: "Typo. Use `ModifierEnum` instead", renamed: "ModifierEnum")
-public typealias Modifier = ModifierEnum
-
 public enum ModifierEnum: Equatable, Hashable {
     /// 基于`MTLComputeCommandEncoder`并行计算编码器，可直接生成图片
     /// Based on parallel computing encoder, Pictures can be generated directly.
@@ -34,7 +31,7 @@ public enum ModifierEnum: Equatable, Hashable {
     /// Advanced Metal custom encoder. Concrete filters own availability checks and fallback.
     case advancedMetal(capability: C7MetalCapability, function: String)
 
-    public static func ==(lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
+    public static func == (lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
         switch (lhs, rhs) {
         case (.compute(let lhsKernel), .compute(let rhsKernel)):
             return lhsKernel == rhsKernel

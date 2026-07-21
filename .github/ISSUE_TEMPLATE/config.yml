@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and integration discussions
+    url: https://github.com/yangKJ/Harbeth/discussions
+    about: Use Discussions for usage questions, architecture tradeoffs and integration guidance.

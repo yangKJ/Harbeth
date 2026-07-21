@@ -4,8 +4,8 @@ import CoreGraphics
 import CoreVideo
 import CoreMedia
 import ImageIO
-#if canImport(UIKit) && !os(watchOS)
-import UIKit
+#if canImport(UIKit)
+    import UIKit
 #endif
 @testable import Harbeth
 
@@ -24,16 +24,11 @@ final class PluginTests: XCTestCase {
 
     func testPluginContextPathReceivesCustomCapability() throws {
         let input = try makeTexture(pixel: [90, 120, 180, 255])
-        let plugin = ContextCapturingPlugin(
-            output: .filters([C7Brightness(brightness: 0.05)]),
-            capability: .cpu
-        )
-        let direct = try ImageNode
-            .source(.texture(input))
+        let plugin = ContextCapturingPlugin(output: .filters([C7Brightness(brightness: 0.05)]), capability: .cpu)
+        let direct = try ImageNode.source(.texture(input))
             .applying(pluginOutput: plugin.output)
             .makeTexture(profile: .stablePreview)
-        let bridged = try ImageNode
-            .source(.texture(input))
+        let bridged = try ImageNode.source(.texture(input))
             .applying(plugin: plugin, profile: .readbackQuality)
             .makeTexture(profile: .stablePreview)
 
@@ -59,7 +54,7 @@ final class PluginTests: XCTestCase {
             (.image(image), "image"),
             (.cgImage(cgImage), "cgImage"),
             (.pixelBuffer(pixelBuffer), "pixelBuffer"),
-            (.sampleBuffer(sampleBuffer), "sampleBuffer")
+            (.sampleBuffer(sampleBuffer), "sampleBuffer"),
         ]
 
         for (output, expectedKind) in cases {
@@ -77,19 +72,13 @@ final class PluginTests: XCTestCase {
 
     func testImageNodeApplyingPluginOutputFiltersMatchesDirectRoute() throws {
         let input = try makeTexture(pixel: [120, 80, 40, 255])
-        let direct = try ImageNode
-            .source(.texture(input))
+        let direct = try ImageNode.source(.texture(input))
             .applying(filters: [
-                C7Brightness(brightness: 0.12),
-                C7Contrast(contrast: 1.08)
+                C7Brightness(brightness: 0.12), C7Contrast(contrast: 1.08),
             ])
             .makeTexture(profile: .stablePreview)
-        let pluginOutput = PluginOutput.filters([
-            C7Brightness(brightness: 0.12),
-            C7Contrast(contrast: 1.08)
-        ])
-        let bridged = try ImageNode
-            .source(.texture(input))
+        let pluginOutput = PluginOutput.filters([C7Brightness(brightness: 0.12), C7Contrast(contrast: 1.08)])
+        let bridged = try ImageNode.source(.texture(input))
             .applying(pluginOutput: pluginOutput)
             .makeTexture(profile: .stablePreview)
 
@@ -99,20 +88,14 @@ final class PluginTests: XCTestCase {
     func testImageNodeApplyingFilterPluginMatchesDirectRoute() throws {
         let input = try makeTexture(pixel: [90, 120, 180, 255])
         let plugin = MockFilterPlugin(
-            output: .filters([
-                C7Brightness(brightness: 0.08),
-                C7Saturation(saturation: 1.1)
-            ])
+            output: .filters([C7Brightness(brightness: 0.08), C7Saturation(saturation: 1.1)])
         )
-        let direct = try ImageNode
-            .source(.texture(input))
+        let direct = try ImageNode.source(.texture(input))
             .applying(filters: [
-                C7Brightness(brightness: 0.08),
-                C7Saturation(saturation: 1.1)
+                C7Brightness(brightness: 0.08), C7Saturation(saturation: 1.1),
             ])
             .makeTexture(profile: .stablePreview)
-        let bridged = try ImageNode
-            .source(.texture(input))
+        let bridged = try ImageNode.source(.texture(input))
             .applying(plugin: plugin)
             .makeTexture(profile: .stablePreview)
 
@@ -122,17 +105,12 @@ final class PluginTests: XCTestCase {
     func testImageNodeApplyingEditRecipeOutputMatchesDirectRoute() throws {
         let input = try makeTexture(width: 4, height: 4, pixel: [200, 120, 80, 255])
         let recipe = EditRecipe(
-            geometry: ImageTransformRecipe(
-                targetSize: CGSize(width: 2, height: 2),
-                aspectPolicy: .fit
-            )
+            geometry: ImageTransformRecipe(targetSize: CGSize(width: 2, height: 2), aspectPolicy: .fit)
         )
-        let direct = try ImageNode
-            .source(.texture(input))
+        let direct = try ImageNode.source(.texture(input))
             .editing(recipe)
             .makeTexture(profile: .stablePreview)
-        let bridged = try ImageNode
-            .source(.texture(input))
+        let bridged = try ImageNode.source(.texture(input))
             .applying(pluginOutput: .editRecipe(recipe))
             .makeTexture(profile: .stablePreview)
 
@@ -150,8 +128,7 @@ final class PluginTests: XCTestCase {
         )
         let direct = try ImageNode.layerComposite(recipe)
             .makeTexture(profile: recipe.profile, derivative: recipe.derivative)
-        let bridged = try ImageNode
-            .source(.texture(background))
+        let bridged = try ImageNode.source(.texture(background))
             .applying(pluginOutput: .layerComposite(recipe))
             .makeTexture(profile: recipe.profile, derivative: recipe.derivative)
 
@@ -166,12 +143,10 @@ final class PluginTests: XCTestCase {
             mask: MaskDescriptor(texture: maskTexture)
         )
 
-        let direct = try ImageNode
-            .source(.texture(input))
+        let direct = try ImageNode.source(.texture(input))
             .editing(EditRecipe(localEffects: [localEffect]))
             .makeTexture(profile: .stablePreview)
-        let bridged = try ImageNode
-            .source(.texture(input))
+        let bridged = try ImageNode.source(.texture(input))
             .applying(pluginOutput: .localEffect(localEffect))
             .makeTexture(profile: .stablePreview)
 
@@ -180,8 +155,7 @@ final class PluginTests: XCTestCase {
 
     func testImageNodePreviewFrameMatchesRenderedFrameContract() throws {
         let input = try makeTexture(pixel: [140, 100, 60, 255])
-        let frame = try ImageNode
-            .source(.texture(input))
+        let frame = try ImageNode.source(.texture(input))
             .applying(C7Brightness(brightness: 0.1))
             .makeFrame(profile: .stablePreview)
 
@@ -191,7 +165,7 @@ final class PluginTests: XCTestCase {
         XCTAssertEqual(frame.renderIntent, .stable)
     }
 
-    #if canImport(UIKit) && !os(watchOS)
+    #if canImport(UIKit)
     func testRenderViewDisplayUpdatesRenderedFrameWithoutLosingTextureCompatibility() throws {
         let pixelBuffer = try makePixelBuffer(width: 256, height: 128)
         guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
@@ -218,7 +192,10 @@ final class PluginTests: XCTestCase {
         )
         let previewFrame = try HarbethIO(element: sampleBuffer, filters: [])
             .renderFrame(profile: .interactiveLatency)
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 32), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 32),
+            device: MTLCreateSystemDefaultDevice()
+        )
         view.preferredDrawableScale = 1
 
         view.layoutSubviews()
@@ -256,7 +233,10 @@ final class PluginTests: XCTestCase {
         let texture = try makeTexture(width: 64, height: 64, pixel: [200, 50, 20, 255])
         let textureFrame = try HarbethIO(element: texture, filters: [])
             .renderFrame(profile: .stablePreview)
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
 
         view.layoutSubviews()
         view.display(sampleFrame)
@@ -277,10 +257,14 @@ final class PluginTests: XCTestCase {
             XCTFail("Failed to create sample buffer.")
             return
         }
-        let node = ImageNode.sampleBuffer(sampleBuffer).applying(C7Brightness(brightness: 0.1))
+        let node = ImageNode.sampleBuffer(sampleBuffer)
+            .applying(C7Brightness(brightness: 0.1))
         let request = try node.makeRenderRequest(profile: .stablePreview)
         let expectedStrategy = request.diagnostics.resolvedPreviewHostStrategy
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
 
         view.layoutSubviews()
         view.display(try node.makeFrame(profile: .stablePreview))
@@ -289,8 +273,14 @@ final class PluginTests: XCTestCase {
         XCTAssertEqual(request.diagnostics.resolvedPreviewHostStrategy, expectedStrategy)
         XCTAssertEqual(request.diagnostics.hostFellBackToMetal, false)
         XCTAssertEqual(view.currentPreviewHostExecutionReport.predictedStrategy, expectedStrategy)
-        XCTAssertEqual(view.currentPreviewHostExecutionReport.actualResolvedHostStrategy, PreviewHostStrategy.metalTextureHost.rawValue)
-        XCTAssertEqual(view.currentPreviewHostExecutionReport.state, PreviewHostExecutionState.fallbackMetal.rawValue)
+        XCTAssertEqual(
+            view.currentPreviewHostExecutionReport.actualResolvedHostStrategy,
+            PreviewHostStrategy.metalTextureHost.rawValue
+        )
+        XCTAssertEqual(
+            view.currentPreviewHostExecutionReport.state,
+            PreviewHostExecutionState.fallbackMetal.rawValue
+        )
         XCTAssertTrue(view.hostFellBackCurrentFrameToMetal)
     }
 
@@ -305,8 +295,14 @@ final class PluginTests: XCTestCase {
         }
         let frame = try HarbethIO(element: sampleBuffer, filters: [])
             .renderFrame(profile: .interactiveLatency)
-        let first = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
-        let second = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let first = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
+        let second = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
 
         first.layoutSubviews()
         second.layoutSubviews()
@@ -331,7 +327,10 @@ final class PluginTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(returnedSnapshot.pooledLayerCount, 2)
         XCTAssertEqual(returnedFleet.activeHostCount, 0)
 
-        let reused = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let reused = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
         reused.layoutSubviews()
         reused.display(frame)
 
@@ -357,7 +356,10 @@ final class PluginTests: XCTestCase {
         }
         let frame = try HarbethIO(element: sampleBuffer, filters: [])
             .renderFrame(profile: .interactiveLatency)
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
 
         view.layoutSubviews()
         view.display(frame)
@@ -366,7 +368,10 @@ final class PluginTests: XCTestCase {
         NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
 
-        XCTAssertEqual(view.currentPreviewHostSuspensionReason, PreviewHostSuspensionReason.applicationInactive.rawValue)
+        XCTAssertEqual(
+            view.currentPreviewHostSuspensionReason,
+            PreviewHostSuspensionReason.applicationInactive.rawValue
+        )
         XCTAssertEqual(view.currentPreviewHostLifecyclePauseCount, 1)
         XCTAssertEqual(view.currentPreviewHostVisibilityPauseCount, 0)
         XCTAssertEqual(view.currentPreviewHostExecutionReport.state, PreviewHostExecutionState.suspended.rawValue)
@@ -377,7 +382,10 @@ final class PluginTests: XCTestCase {
         XCTAssertNil(view.currentPreviewHostSuspensionReason)
         XCTAssertEqual(view.currentPreviewHostLifecycleResumeCount, 1)
         XCTAssertGreaterThan(view.currentPreviewHostEnqueueCount, initialEnqueueCount)
-        XCTAssertEqual(view.currentPreviewHostExecutionReport.state, PreviewHostExecutionState.sampleBufferActive.rawValue)
+        XCTAssertEqual(
+            view.currentPreviewHostExecutionReport.state,
+            PreviewHostExecutionState.sampleBufferActive.rawValue
+        )
 
         let snapshot = SampleBufferPreviewLayerPool.snapshot()
         let fleet = PreviewHostFleetRegistry.snapshot()
@@ -400,7 +408,10 @@ final class PluginTests: XCTestCase {
         }
         let frame = try HarbethIO(element: sampleBuffer, filters: [])
             .renderFrame(profile: .interactiveLatency)
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
 
         view.layoutSubviews()
         view.display(frame)
@@ -419,7 +430,10 @@ final class PluginTests: XCTestCase {
     }
 
     func testRenderViewPreferredDrawableScaleControlsDrawableSize() {
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 48, height: 24), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 48, height: 24),
+            device: MTLCreateSystemDefaultDevice()
+        )
         view.preferredDrawableScale = 2
 
         view.layoutSubviews()
@@ -430,9 +444,7 @@ final class PluginTests: XCTestCase {
     #endif
 
     private func makeTexture(width: Int = 1, height: Int = 1, pixel: [UInt8]) throws -> MTLTexture {
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            throw XCTSkip("Metal device is unavailable.")
-        }
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal device is unavailable.") }
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .rgba8Unorm,
             width: width,
@@ -459,14 +471,19 @@ final class PluginTests: XCTestCase {
     private func makePixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferWidthKey: width,
-            kCVPixelBufferHeightKey: height,
-            kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA, kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height, kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:],
         ]
         XCTAssertEqual(
-            CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attributes as CFDictionary, &pixelBuffer),
+            CVPixelBufferCreate(
+                kCFAllocatorDefault,
+                width,
+                height,
+                kCVPixelFormatType_32BGRA,
+                attributes as CFDictionary,
+                &pixelBuffer
+            ),
             kCVReturnSuccess
         )
         return try XCTUnwrap(pixelBuffer)
@@ -474,17 +491,13 @@ final class PluginTests: XCTestCase {
 
     private func firstPixel(in texture: MTLTexture) throws -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: 4)
-        texture.getBytes(
-            &bytes,
-            bytesPerRow: 4,
-            from: MTLRegionMake2D(0, 0, 1, 1),
-            mipmapLevel: 0
-        )
+        texture.getBytes(&bytes, bytesPerRow: 4, from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0)
         return bytes
     }
 }
 
-#if canImport(AppKit) && !os(watchOS)
+#if canImport(AppKit)
+@MainActor
 extension PluginTests {
     func testRenderGraphDebugSnapshotIncludesRuntimePreviewHostSummaryAfterDisplay() throws {
         PreviewHostFleetRegistry.resetForTesting()
@@ -494,12 +507,16 @@ extension PluginTests {
             XCTFail("Failed to create sample buffer.")
             return
         }
-        let node = ImageNode.sampleBuffer(sampleBuffer).applying(C7Brightness(brightness: 0.1))
+        let node = ImageNode.sampleBuffer(sampleBuffer)
+            .applying(C7Brightness(brightness: 0.1))
         let preflightSnapshot = try node.makeDebugSnapshot(profile: .interactiveLatency)
         XCTAssertNil(preflightSnapshot.diagnostics.runtimePreviewHostSummary)
 
         let frame = try node.makeFrame(profile: .interactiveLatency)
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
         view.layout()
         view.display(frame)
 
@@ -508,7 +525,10 @@ extension PluginTests {
 
         XCTAssertEqual(summary.predictedStrategy, view.currentPreviewHostExecutionReport.predictedStrategy)
         XCTAssertEqual(summary.actualBackingKind, view.currentPreviewHostExecutionReport.actualBackingKind)
-        XCTAssertEqual(summary.actualResolvedHostStrategy, view.currentPreviewHostExecutionReport.actualResolvedHostStrategy)
+        XCTAssertEqual(
+            summary.actualResolvedHostStrategy,
+            view.currentPreviewHostExecutionReport.actualResolvedHostStrategy
+        )
         XCTAssertEqual(summary.state, view.currentPreviewHostExecutionReport.state)
         XCTAssertEqual(summary.fleetActiveHostCount, view.currentPreviewHostFleetSnapshot.activeHostCount)
 
@@ -526,7 +546,10 @@ extension PluginTests {
         }
         let frame = try HarbethIO(element: sampleBuffer, filters: [])
             .renderFrame(profile: .interactiveLatency)
-        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 64, height: 64), device: MTLCreateSystemDefaultDevice())
+        let view = RenderView(
+            frame: CGRect(x: 0, y: 0, width: 64, height: 64),
+            device: MTLCreateSystemDefaultDevice()
+        )
 
         view.layout()
         view.display(frame)
@@ -535,7 +558,8 @@ extension PluginTests {
         let summary = try XCTUnwrap(
             try ImageNode.sampleBuffer(sampleBuffer)
                 .makeDebugSnapshot(profile: .interactiveLatency)
-                .diagnostics.runtimePreviewHostSummary
+                .diagnostics
+                .runtimePreviewHostSummary
         )
 
         XCTAssertTrue(summary.predictionDrifted)
@@ -552,13 +576,9 @@ extension PluginTests {
 private struct MockFilterPlugin: FilterPlugin {
     let output: PluginOutput
 
-    var pluginIdentifier: String {
-        "mock.filter"
-    }
+    var pluginIdentifier: String { "mock.filter" }
 
-    func makeOutput(frame: RenderedFrame) throws -> PluginOutput {
-        output
-    }
+    func makeOutput(frame: RenderedFrame) throws -> PluginOutput { output }
 }
 
 private final class ContextCapturingPlugin: FilterPlugin {
@@ -571,13 +591,9 @@ private final class ContextCapturingPlugin: FilterPlugin {
         self.capability = capability
     }
 
-    var pluginIdentifier: String {
-        "mock.context"
-    }
+    var pluginIdentifier: String { "mock.context" }
 
-    func makeOutput(frame: RenderedFrame) throws -> PluginOutput {
-        output
-    }
+    func makeOutput(frame: RenderedFrame) throws -> PluginOutput { output }
 
     func makeOutput(frame: RenderedFrame, context: PluginContext) throws -> PluginOutput {
         capturedContext = context

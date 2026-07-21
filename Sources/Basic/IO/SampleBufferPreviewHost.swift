@@ -7,7 +7,7 @@
 
 import Foundation
 
-#if canImport(AVFoundation) && !os(watchOS)
+#if canImport(AVFoundation)
 import AVFoundation
 import QuartzCore
 import CoreGraphics
@@ -150,7 +150,7 @@ enum PreviewHostFleetRegistry {
     }
 
     private static let lock = NSLock()
-    private static var state = State()
+    nonisolated(unsafe) private static var state = State()
 
     static func update(instanceID: String, report: PreviewHostExecutionReport) -> PreviewHostFleetSnapshot {
         lock.lock()
@@ -253,7 +253,7 @@ enum PreviewHostRuntimeSummaryCache {
     }
 
     private static let lock = NSLock()
-    private static var entries: [String: Entry] = [:]
+    nonisolated(unsafe) private static var entries: [String: Entry] = [:]
 
     static func store(cacheIdentityFingerprint: String, instanceID: String, summary: RenderGraphDebugSnapshot.Diagnostics.RuntimePreviewHostSummary) {
         lock.lock()
@@ -324,15 +324,13 @@ private enum SampleBufferPreviewHostCoordinator {
     }
 
     private static let lock = NSLock()
-    private static var state = State()
+    nonisolated(unsafe) private static var state = State()
 
     static func recordTake(reused: Bool, pooledLayerCount: Int) {
         lock.lock()
         state.activeLeaseCount += 1
         state.totalTakeCount += 1
-        if reused {
-            state.totalReuseCount += 1
-        }
+        if reused { state.totalReuseCount += 1 }
         state.pooledLayerCount = pooledLayerCount
         lock.unlock()
     }
@@ -433,9 +431,7 @@ private final class SampleBufferPreviewLayerImpl: AVSampleBufferDisplayLayer {
 final class SampleBufferPreviewLayerLease {
     let layer: AVSampleBufferDisplayLayer
 
-    init(layer: AVSampleBufferDisplayLayer) {
-        self.layer = layer
-    }
+    init(layer: AVSampleBufferDisplayLayer) { self.layer = layer }
 
     func prepare(frame: CGRect, contentsScale: CGFloat) {
         layer.frame = frame
@@ -457,7 +453,7 @@ final class SampleBufferPreviewLayerLease {
 
 enum SampleBufferPreviewLayerPool {
     private static let lock = NSLock()
-    private static var layers: [AVSampleBufferDisplayLayer] = []
+    nonisolated(unsafe) private static var layers: [AVSampleBufferDisplayLayer] = []
 
     static func take() -> SampleBufferPreviewLayerLease {
         lock.lock()

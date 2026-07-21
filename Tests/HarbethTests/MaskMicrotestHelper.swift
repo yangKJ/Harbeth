@@ -18,15 +18,12 @@ enum MaskMicrotestHelper {
 
     static func prepareKernelMicrotest(size: Int = 8, filter: C7FilterProtocol, customInput: MTLTexture? = nil) throws -> KernelRun {
         guard size > 0 else {
-            throw HarbethError.filterParameterInvalid(
-                "MaskMicrotestHelper: size must be > 0, got \(size)"
-            )
+            throw HarbethError.filterParameterInvalid("MaskMicrotestHelper: size must be > 0, got \(size)")
         }
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
         }
-        guard let commandQueue = device.makeCommandQueue(),
-              let commandBuffer = commandQueue.makeCommandBuffer() else {
+        guard let commandQueue = device.makeCommandQueue(), let commandBuffer = commandQueue.makeCommandBuffer() else {
             XCTFail("Failed to create command queue / buffer.")
             throw HarbethError.commandBuffer
         }
@@ -72,7 +69,7 @@ enum MaskMicrotestHelper {
         gpuPixel: SIMD4<Float>,
         mathValue: Float,
         tolerance: Float = 0.005,
-        file: StaticString = #file,
+        file: StaticString = #filePath,
         line: UInt = #line
     ) {
         let diff = abs(gpuPixel.x - mathValue)
@@ -83,12 +80,7 @@ enum MaskMicrotestHelper {
                 line: line
             )
         } else {
-            XCTAssertTrue(
-                diff <= tolerance,
-                "diff \(diff) 应该 ≤ tolerance \(tolerance)",
-                file: file,
-                line: line
-            )
+            XCTAssertTrue(diff <= tolerance, "diff \(diff) 应该 ≤ tolerance \(tolerance)", file: file, line: line)
         }
     }
 
@@ -132,17 +124,7 @@ enum MaskMicrotestHelper {
 
     static func samplePixel(in texture: MTLTexture, x: Int, y: Int) throws -> SIMD4<Float> {
         var raw = [UInt8](repeating: 0, count: 4)
-        texture.getBytes(
-            &raw,
-            bytesPerRow: 4,
-            from: MTLRegionMake2D(x, y, 1, 1),
-            mipmapLevel: 0
-        )
-        return SIMD4<Float>(
-            Float(raw[0]) / 255.0,
-            Float(raw[1]) / 255.0,
-            Float(raw[2]) / 255.0,
-            Float(raw[3]) / 255.0
-        )
+        texture.getBytes(&raw, bytesPerRow: 4, from: MTLRegionMake2D(x, y, 1, 1), mipmapLevel: 0)
+        return SIMD4<Float>(Float(raw[0]) / 255.0, Float(raw[1]) / 255.0, Float(raw[2]) / 255.0, Float(raw[3]) / 255.0)
     }
 }

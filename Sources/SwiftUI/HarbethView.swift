@@ -6,19 +6,17 @@
 //
 
 import SwiftUI
+@preconcurrency import Metal
 
-@available(*, deprecated, message: "Typo. Use `HarbethView` instead", renamed: "HarbethView")
-@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
-public typealias FilterableView<C: View> = HarbethView<C>
-
-@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 public struct HarbethView<Content>: View where Content: View {
-    
+
     public typealias Block = (Image) -> Content
-    
+
     @ObservedObject private var source: Published_Source<C7Image>
+
     @ViewBuilder private var content: Block
-    
+
     /// Create an instance from the provided value.
     /// - Parameters:
     ///   - image: Will deal image.
@@ -32,7 +30,7 @@ public struct HarbethView<Content>: View where Content: View {
         input.placeholder = image
         self.init(input: input, content: content)
     }
-    
+
     /// Create an instance from the provided value.
     /// - Parameters:
     ///   - input: Input source.
@@ -49,7 +47,7 @@ public struct HarbethView<Content>: View where Content: View {
             self.source = Published_Source(C7Image())
         }
     }
-    
+
     func setup(input: HarbethViewInput) {
         guard !input.filters.isEmpty, let texture = input.texture else {
             return
@@ -67,14 +65,160 @@ public struct HarbethView<Content>: View where Content: View {
             self.source.source = image
         }
     }
-    
+
     public var body: some View {
         self.content(disImage)
     }
-    
+
     public var disImage: Image {
         get {
             Image.init(c7Image: source.source)
         }
     }
 }
+
+/// SwiftUI 中直接承载 Harbeth texture-first 输出的宿主视图。
+///
+/// `HarbethView` 适合把处理结果读回为 `Image`；`HarbethRenderView` 直接复用
+/// `RenderView` 展示 `MTLTexture` 或 `RenderedFrame`，避免为了预览发生 CPU 读回。
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
+public struct HarbethRenderView: View {
+    private let texture: MTLTexture?
+    private let frame: RenderedFrame?
+    private let resizingMode: RenderView.ResizingMode
+    private let preferredDrawableScale: CGFloat?
+    private let onExecutionReport: ((PreviewHostExecutionReport) -> Void)?
+    private let onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+
+    public init(
+        texture: MTLTexture?,
+        resizingMode: RenderView.ResizingMode = .aspectFit,
+        preferredDrawableScale: CGFloat? = nil,
+        onExecutionReport: ((PreviewHostExecutionReport) -> Void)? = nil,
+        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)? = nil
+    ) {
+        self.texture = texture
+        self.frame = nil
+        self.resizingMode = resizingMode
+        self.preferredDrawableScale = preferredDrawableScale
+        self.onExecutionReport = onExecutionReport
+        self.onFleetSnapshot = onFleetSnapshot
+    }
+
+    public init(
+        frame: RenderedFrame?,
+        resizingMode: RenderView.ResizingMode = .aspectFit,
+        preferredDrawableScale: CGFloat? = nil,
+        onExecutionReport: ((PreviewHostExecutionReport) -> Void)? = nil,
+        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)? = nil
+    ) {
+        self.texture = nil
+        self.frame = frame
+        self.resizingMode = resizingMode
+        self.preferredDrawableScale = preferredDrawableScale
+        self.onExecutionReport = onExecutionReport
+        self.onFleetSnapshot = onFleetSnapshot
+    }
+
+    public var body: some View {
+        HarbethRenderViewRepresentable(
+            texture: texture,
+            frame: frame,
+            resizingMode: resizingMode,
+            preferredDrawableScale: preferredDrawableScale,
+            onExecutionReport: onExecutionReport,
+            onFleetSnapshot: onFleetSnapshot
+        )
+    }
+}
+
+#if canImport(UIKit)
+@available(iOS 15.0, tvOS 15.0, *)
+private struct HarbethRenderViewRepresentable: UIViewRepresentable {
+    let texture: MTLTexture?
+    let frame: RenderedFrame?
+    let resizingMode: RenderView.ResizingMode
+    let preferredDrawableScale: CGFloat?
+    let onExecutionReport: ((PreviewHostExecutionReport) -> Void)?
+    let onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+
+    func makeUIView(context: Context) -> RenderView {
+        RenderView(frame: .zero, device: nil)
+    }
+
+    func updateUIView(_ view: RenderView, context: Context) {
+        Self.update(
+            view,
+            texture: texture,
+            frame: frame,
+            resizingMode: resizingMode,
+            preferredDrawableScale: preferredDrawableScale,
+            onExecutionReport: onExecutionReport,
+            onFleetSnapshot: onFleetSnapshot
+        )
+    }
+
+    static func dismantleUIView(_ view: RenderView, coordinator: Void) { reset(view) }
+}
+#elseif canImport(AppKit)
+@available(macOS 12.0, *)
+private struct HarbethRenderViewRepresentable: NSViewRepresentable {
+    let texture: MTLTexture?
+    let frame: RenderedFrame?
+    let resizingMode: RenderView.ResizingMode
+    let preferredDrawableScale: CGFloat?
+    let onExecutionReport: ((PreviewHostExecutionReport) -> Void)?
+    let onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+
+    func makeNSView(context: Context) -> RenderView {
+        RenderView(frame: .zero, device: nil)
+    }
+
+    func updateNSView(_ view: RenderView, context: Context) {
+        Self.update(
+            view,
+            texture: texture,
+            frame: frame,
+            resizingMode: resizingMode,
+            preferredDrawableScale: preferredDrawableScale,
+            onExecutionReport: onExecutionReport,
+            onFleetSnapshot: onFleetSnapshot
+        )
+    }
+
+    static func dismantleNSView(_ view: RenderView, coordinator: Void) { reset(view) }
+}
+#endif
+
+#if canImport(UIKit) || canImport(AppKit)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
+private extension HarbethRenderViewRepresentable {
+    static func update(
+        _ view: RenderView,
+        texture: MTLTexture?,
+        frame: RenderedFrame?,
+        resizingMode: RenderView.ResizingMode,
+        preferredDrawableScale: CGFloat?,
+        onExecutionReport: ((PreviewHostExecutionReport) -> Void)?,
+        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+    ) {
+        view.resizingMode = resizingMode
+        view.preferredDrawableScale = preferredDrawableScale
+        view.onPreviewHostExecutionReportUpdated = onExecutionReport
+        view.onPreviewHostFleetSnapshotUpdated = onFleetSnapshot
+        if let frame {
+            view.display(frame)
+        } else {
+            view.display(nil)
+            view.texture = texture
+        }
+    }
+
+    static func reset(_ view: RenderView) {
+        view.display(nil)
+        view.texture = nil
+        view.onPreviewHostExecutionReportUpdated = nil
+        view.onPreviewHostFleetSnapshotUpdated = nil
+    }
+}
+#endif

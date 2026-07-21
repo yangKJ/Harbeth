@@ -30,21 +30,38 @@ public struct ExternalLibraryProviderSnapshot: Sendable, Equatable {
     }
 }
 
-extension Device {
-    private static var externalLibraryProviders: [ExternalMTLLibraryProvider] = []
+private final class ExternalLibraryProviderRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var providers: [ExternalMTLLibraryProvider] = []
 
-    @discardableResult
-    public static func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
+    func register(_ provider: ExternalMTLLibraryProvider) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         let identifier = provider.providerIdentifier
-        guard externalLibraryProviders.contains(where: { $0.providerIdentifier == identifier }) == false else {
+        guard providers.contains(where: { $0.providerIdentifier == identifier }) == false else {
             return false
         }
-        externalLibraryProviders.append(provider)
+        providers.append(provider)
         return true
     }
 
+    func snapshot() -> [ExternalMTLLibraryProvider] {
+        lock.lock()
+        defer { lock.unlock() }
+        return providers
+    }
+}
+
+extension Device {
+    private static let externalLibraryRegistry = ExternalLibraryProviderRegistry()
+
+    @discardableResult
+    public static func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
+        externalLibraryRegistry.register(provider)
+    }
+
     public static func externalLibraryProviderIdentifiers() -> [String] {
-        externalLibraryProviders.map(\.providerIdentifier)
+        externalLibraryRegistry.snapshot().map(\.providerIdentifier)
     }
 
     public static func externalLibraryRegistryDebugDescription(on device: MTLDevice? = nil) -> String {
@@ -58,17 +75,20 @@ extension Device {
     }
 
     public static func externalLibraryRegistrySnapshot(on device: MTLDevice? = nil) -> [ExternalLibraryProviderSnapshot] {
+        let providers = externalLibraryRegistry.snapshot()
         guard let activeDevice = device else {
-            return externalLibraryProviders.map { ExternalLibraryProviderSnapshot(identifier: $0.providerIdentifier, libraryCount: 0) }
+            return providers.map {
+                ExternalLibraryProviderSnapshot(identifier: $0.providerIdentifier, libraryCount: 0)
+            }
         }
-        return externalLibraryProviders.map {
+        return providers.map {
             let libraries = $0.provideLibrary(for: activeDevice).map { _ in 1 } ?? 0
             return ExternalLibraryProviderSnapshot(identifier: $0.providerIdentifier, libraryCount: libraries)
         }
     }
 
     func externalLibraries(matching identifier: String? = nil) -> [MTLLibrary] {
-        Device.externalLibraryProviders.compactMap { provider in
+        Device.externalLibraryRegistry.snapshot().compactMap { provider in
             if let identifier, provider.providerIdentifier != identifier {
                 return nil
             }

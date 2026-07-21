@@ -2,1166 +2,248 @@
 
 ![Harbeth](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3eaa018dedb9433bb51f408f5bb73faf~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=600&h=234&s=31350&e=jpg&b=f5f4f4)
 
-[![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-brightgreen.svg?style=flat&colorA=28a745&&colorB=4E4E4E)](https://github.com/yangKJ/Harbeth)
-[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Harbeth.svg?style=flat&label=Harbeth&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Harbeth)
-[![CocoaPods Compatible](https://img.shields.io/cocoapods/v/Kakapos.svg?style=flat&label=Kakapos&colorA=28a745&&colorB=4E4E4E)](https://cocoapods.org/pods/Kakapos)
 [![CI](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/yangKJ/Harbeth)](https://github.com/yangKJ/Harbeth/releases)
+[![CocoaPods](https://img.shields.io/cocoapods/v/Harbeth.svg)](https://cocoapods.org/pods/Harbeth)
 [![License](https://img.shields.io/github/license/yangKJ/Harbeth)](LICENSE)
-![Platform](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS-4E4E4E.svg?colorA=28a745)
+![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20iPadOS%20%7C%20macOS%20%7C%20tvOS-6D28D9)
+![Swift](https://img.shields.io/badge/Swift-6.0-F05138)
 
-## 📖 项目简介
+面向 Apple 平台、以 texture-first 为核心的 Metal 图像与帧处理引擎。
 
-**Harbeth** 是面向 Apple 平台的高性能图像与帧处理底座，基于 Metal 着色器技术提供可复用的 GPU 处理能力。
+Harbeth 支持 `UIImage` / `NSImage`、`CGImage`、`CIImage`、`MTLTexture`、`CVPixelBuffer` 与 `CMSampleBuffer`，提供滤镜、渲染图、蒙版、转场、几何与光学 primitive、输出 contract、诊断和预览宿主。相机、播放器、时间线、录制与导出等媒体产品流程仍由宿主负责。
 
-更准确地说，Harbeth 是面向 Apple 平台的 GPU 图像与帧处理核心。它可以处理静态图片、Metal 纹理、CVPixelBuffer 和 CMSampleBuffer，因此适合接入图片处理、实时采集链路、视频播放和逐帧视频处理等真实工程链路。
+[English](README.md) | 简体中文
 
-仓库中的相机和视频示例属于集成 Demo：Harbeth 提供处理核心和参考接线方式，完整的数据采集策略、媒体编排、持久化和产品工作流仍由宿主 App 自己组合。
+## 环境要求
 
-## 📚 文档导航
+| 平台 | 最低版本 |
+| --- | --- |
+| iOS / iPadOS | 15.0 |
+| macOS | 12.0 |
+| tvOS | 15.0 |
+| 工具链 | Xcode 16+、Swift 6 |
 
-- [公开 API 分层](docs/API_SURFACE_CN.md)：说明 `HarbethIO` 与 `ImageNode` 两条路线如何选择、公开 API 分层，以及 diagnostics / analysis 的使用边界。
-- [能力地图](docs/CAPABILITY_MAP_CN.md)：梳理 image、texture、pixelBuffer、sampleBuffer、滤镜、图结构与性能能力。
-- [性能治理指南](docs/PERFORMANCE_GOVERNANCE_CN.md)：说明如何比较和优化单滤镜、滤镜链、组合滤镜与帧链路性能。
-- [维护 Harbeth](docs/MAINTAINING.md)：说明验证门禁、兼容规则、能力口径和发布检查。
-- [变更记录](CHANGELOG.md)：记录公开能力变化与迁移相关更新。
+## 安装
 
-## 🚀 核心特性
-
-Harbeth 提供了一系列强大的特性，用于构建快速、稳定、可复用的图像与帧处理链路：
-
-- **跨平台支持**：在 iOS、macOS、tvOS 和 watchOS 上无缝运行，支持 UIKit/AppKit 和 SwiftUI 框架。
-- **多数据源支持**：应用滤镜到多种图像和视频源，包括 MTLTexture、UIImage、NSImage、CGImage、CMSampleBuffer 和 CVPixelBuffer。
-- **丰富的滤镜生态系统**：超过 200+ 内置滤镜，组织成直观的类别，涵盖从基本颜色调整到高级艺术效果的各种功能。
-- **高级集成**：利用 Metal Performance Shaders (MPS) 实现高性能过滤，并与 Harbeth 原生 Metal 滤镜链协同工作。
-- **Metal 驱动渲染**：texture-first 的处理与渲染操作都由 Metal 加速，确保即使使用复杂滤镜链也能保持流畅性能。
-- **自定义滤镜支持**：使用查找表 LUT、Cube 文件或自定义 Metal 着色器轻松创建和集成自定义滤镜。通过 `C7FilterPipelineProtocol` 组织多阶段组合滤镜，同时保持对外使用轻量。
-- **实时帧处理**：可把滤镜链接入相机预览、视频播放等低延迟帧处理链路。
-- **参考帧接线**：可把相机、播放器或视频帧源接入 Harbeth 处理链，采集策略和产品编排仍由宿主 App 负责。
-- **直观的 API**：享受干净、Swift 友好的 API，具有可链接的滤镜操作和运算符重载，以实现简洁、富有表现力的代码。
-- **SwiftUI 集成**：原生支持 SwiftUI 框架。
-- **性能优化**：受益于自动纹理池、内存管理和多编码器支持，以在各种设备上获得最佳性能。
-
-### 🧱 核心能力分层
-
-Harbeth 现在更适合被理解成一个能力底座，而不是单纯的滤镜列表。当前仓库可以分成四层可组合能力：
-
-- **输入接入层**：image、texture、pixelBuffer、sampleBuffer 等多种输入可进入同一条 Metal 处理链。
-- **滤镜执行层**：颜色、模糊、混合、几何、光学、LUT 和 MPS 能力都以技术能力的方式组合。
-- **帧结果层**：同时支持 texture-first 和 frame-backed 结果对象，可面向交互、稳定复用、导出和读回场景选择不同 contract。
-- **复用与重放层**：render profile、frame metadata、cache identity 和 reusable derivative contract 让上层宿主可以稳定重放与复用结果。
-
-### 🔌 集成边界
-
-- **Harbeth 提供**：GPU 滤镜、链式处理、texture / image / pixelBuffer / sampleBuffer 处理、LUT 管线、MPS / Metal 集成、SwiftUI 渲染承载，以及面向帧链路的参考接线方式。
-- **业务 App 提供**：数据采集策略、媒体编排、持久化、展示承载以及全部产品业务逻辑。
-- **定制集成**：如需定制 LUT、品牌滤镜包、实时相机/视频调优或专用 Metal kernel，可以基于开源示例确认技术基线，再与维护者讨论集成范围。
-
-### 📐 几何与光学能力
-
-Harbeth 现在也提供一层可复用的几何与光学校正能力，适合更接近编辑器内核的处理链路：
-
-- **镜头校正**：覆盖畸变、色差、暗角、衍射、去边和边缘锐度衰减补偿。
-- **几何校正**：覆盖仿射、透视、quad 矫正、quad warp 和 3D 投影变换。
-- **配置化组合**：`LensProfile` 和 `OpticsSettings` 可把多项光学校正稳定组合成一条处理链。
-- **引导式拉正**：`GuidedUpright` 可根据垂直/水平引导线生成推荐的矫正变换。
-
-### 🎨 丰富的滤镜效果
-
-Harbeth 提供了全面的滤镜类别，满足各种图像处理需求：
-
-#### 🎨 颜色调整
-- **C7Brightness**（亮度）- 调整图像亮度
-- **C7ColorConvert**（颜色转换）- 在不同颜色空间之间转换颜色，如RGB到YUV等
-- **C7ColorRGBA**（RGBA调整）- 单独调整红、绿、蓝和透明度通道
-- **C7ColorSpace**（色彩空间）- 转换图像色彩空间
-- **C7Contrast**（对比度）- 增强或降低图像对比度
-- **C7Curves**（曲线调整）- 允许精确调整图像的色调曲线，提供对不同色调范围的亮度和对比度的详细控制
-- **C7Exposure**（曝光）- 模拟相机曝光效果
-- **C7FalseColor**（伪色）- 创建特殊色彩效果
-- **C7Gamma**（伽马校正）- 调整图像灰度曲线
-- **C7Grayed**（灰度化）- 将图像转换为灰度，移除所有颜色信息同时保留亮度
-- **C7Haze**（雾霾）- 应用雾霾效果，降低对比度并添加朦胧或雾气外观
-- **C7HSL**（色相饱和度亮度）- 独立调整图像的色相、饱和度和亮度，提供全面的色彩控制
-- **C7Hue**（色调）- 改变图像整体色调
-- **C7LuminanceAdaptiveContrast**（亮度自适应对比度）- 根据局部像素亮度动态调整对比度，增强暗部和亮部细节
-- **C7Monochrome**（单色）- 转换为单色调效果
-- **C7Nostalgic**（怀旧色调）- 创建复古照片效果
-- **C7Opacity**（不透明度）- 调整图像透明度，使其或多或少透明
-- **C7Posterize**（色调分离）- 减少色彩数量，创建艺术效果
-- **C7Saturation**（饱和度）- 调整色彩鲜艳程度
-- **C7Sepia**（棕褐色调）- 创建老照片效果
-- **C7Vibrance**（自然饱和度）- 智能增强色彩饱和度
-- **C7Temperature**（色温调整）- 调整图像的色温、色调和色彩偏移
-- **C7Warmth**（色温）- 调整图像的色温，从冷色调到暖色调
-- **C7WhiteBalance**（白平衡）- 校正图像色温
-- **C7ColorCorrection**（色彩校正）- 综合色彩校正滤镜，包含色阶、曲线、色彩平衡三个参数调节
-- **C7AppleLogDecode**（Apple Log解码）- 将Apple Log编码的图像转换为线性空间，用于处理HDR内容
-
-#### 🌫️ 模糊效果
-- **C7BilateralBlur**（双边模糊）- 保持边缘清晰的同时模糊图像
-- **C7CircleBlur**（圆形模糊）- 从中心向外模糊
-- **C7DetailPreservingBlur**（细节保留模糊）- 模糊的同时保留细节
-- **C7GaussianBlur**（高斯模糊）- 经典平滑模糊效果
-- **C7MeanBlur**（均值模糊）- 简单平均模糊
-- **C7MotionBlur**（运动模糊）- 模拟物体运动轨迹
-- **C7NoiseReduction**（降噪）- 基于边缘保护的局部降噪
-- **C7Deband**（去色带）- 软化平滑渐变中的 banding，并可加入轻量 dithering
-- **C7RedMonochromeBlur**（红色单色模糊）- 仅模糊红色通道
-- **C7TiltShift**（移轴模糊）- 创建选择性聚焦区域，模拟移轴镜头的浅景深效果
-- **C7ZoomBlur**（缩放模糊）- 模拟相机缩放效果
-
-#### 🔍 边缘与细节
-- **C7Canny**（边缘检测）- 检测图像边缘
-- **C7Clarity**（清晰度）- 通过增加中间调对比度来增强图像清晰度，使细节更加突出
-- **C7ComicStrip**（漫画效果）- 创建漫画风格图像
-- **C7Crosshatch**（交叉线）- 添加交叉线条效果
-- **C7DetailEnhancer**（细节增强）- 增强图像细节而不放大噪声，使图像更清晰
-- **C7EdgeAwareSharpen**（边缘感知锐化）- 仅锐化图像的边缘区域，同时保留平滑区域，避免放大噪声
-- **C7UnsharpMask**（非锐化遮罩）- 通过模糊差值增强边缘清晰度
-- **C7Granularity**（颗粒感）- 添加胶片颗粒效果
-- **C7Sharpen**（锐化）- 增强图像细节
-- **C7SharpenDetail**（锐化细节）- 综合锐化滤镜，结合锐化、清晰度和细节增强，实现专业图像锐化
-- **C7Sketch**（素描）- 将图像转换为素描效果
-- **C7Sobel**（索贝尔边缘检测）- 高级边缘检测算法
-- **C7ThresholdSketch**（阈值素描）- 基于阈值的素描效果
-
-#### 🌀 扭曲与变形
-- **C7Bulge**（凸起）- 创建中心凸起效果
-- **C7ColorCGASpace**（CGA色彩空间）- 应用CGA（Color Graphics Adapter）色彩空间效果，将颜色限制为16色的复古计算机外观
-- **C7ColorPacking**（颜色打包）- 特殊色彩处理效果
-- **C7Fluctuate**（波动）- 创建波动效果，以波浪状图案扭曲图像，类似于热雾或水扭曲
-- **C7GlassSphere**（玻璃球）- 模拟通过玻璃球观察的效果
-- **C7Halftone**（半色调）- 模拟印刷半色调效果
-- **C7Morphology**（形态学）- 应用形态学操作，如腐蚀和膨胀，对边缘检测和噪声减少很有用
-- **C7Pinch**（收缩）- 收缩图像中心
-- **C7Pixellated**（像素化）- 创建低分辨率像素效果
-- **C7PolarPixellate**（极坐标像素化）- 从中心向外像素化
-- **C7PolkaDot**（圆点花纹）- 添加圆点图案效果
-- **C7SphereRefraction**（球面折射）- 模拟光线折射效果
-- **C7Swirl**（漩涡）- 创建漩涡扭曲效果
-- **C7WaterRipple**（水波纹）- 模拟水面波纹效果
-
-#### 🎭 风格化效果
-- **C7OilPainting**（油画）- 模拟油画笔触效果
-- **C7Toon**（卡通）- 创建卡通风格图像
-- **C7Kuwahara**（桑原滤波）- 艺术风格模糊效果
-- **C7Glitch**（故障效果）- 模拟数字故障艺术效果
-- **C7ShiftGlitch**（移位故障）- 水平移位故障效果
-- **C7Fluctuate**（波动）- 创建图像波动效果
-- **C7SoulOut**（灵魂出窍）- 双重曝光效果
-- **C7SplitScreen**（分屏）- 将图像分为多个部分
-- **C7Storyboard**（故事板）- 模拟电影故事板效果
-- **C7VoronoiOverlay**（维诺图叠加）- 添加几何图案叠加
-- **C7ColorCGASpace**（CGA色彩空间）- 模拟早期计算机色彩效果
-
-##### 📷 相机风格滤镜
-- **C7FujiNC**（富士NC滤镜）- 模拟富士胶片NC风格，色彩自然，适合人像和日常拍摄
-- **C7FujiNN**（富士NN滤镜）- 模拟富士胶片NN风格，高对比度黑白效果，适合纪实和艺术摄影
-- **C7FujiFlash**（闪光富士滤镜）- 模拟富士胶片闪光模式，明亮通透，适合晴天和户外场景
-- **C7FujiX100V**（富士X100V滤镜）- 模拟富士X100V相机风格，经典复古色调，适合街拍和人文摄影
-- **C7FujiCC**（富士CC滤镜）- 模拟富士Classic Chrome风格，低饱和度高质感，适合风景和建筑摄影
-- **C7RicohPositive**（理光正片滤镜）- 模拟理光正片风格，色彩鲜艳，层次丰富
-- **C7RicohNegative**（理光负片滤镜）- 模拟理光负片风格，对比度高，暗部细节丰富
-- **C7Universal400**（全能400滤镜）- 模拟通用400胶片风格，适应性强，适合各种场景
-- **C7CPM35**（CPM35滤镜）- 模拟CPM35胶片风格，温暖复古，适合人像和街拍
-- **C7Polaroid**（拍立得滤镜）- 模拟拍立得相机风格，带有边框效果，复古可爱
-
-##### 🌅 场景风格滤镜
-- **C7DarkToneEnhance**（暗调增彩滤镜）- 增强暗部色彩，提升画面层次感，适合低光环境拍摄
-- **C7Sunset**（日暮滤镜）- 模拟日落时分的暖色调效果，适合黄昏和日出场景
-- **C7GrayRemoval**（去灰增白滤镜）- 去除画面灰雾感，提亮增白，适合阴天和雾霾天气拍摄
-
-##### 🎨 艺术风格滤镜
-- **C7PastelDream**（粉彩梦幻）- 创建柔和的粉彩梦幻效果，带有温柔的色彩、微妙的模糊和温暖的光晕，非常适合创造空灵、梦幻的图像
-- **C7NeonPunk**（霓虹朋克）- 应用霓虹朋克效果，带有鲜艳的色彩、发光的边缘和高对比度，捕捉朋克文化的活力和叛逆美学
-- **C7PaperCut**（剪纸艺术）- 创建剪纸艺术效果，带有锐利的边缘、分层的外观和微妙的阴影，模拟复杂的剪纸设计
-
-##### 🚀 科幻与未来主义滤镜
-- **C7Hologram**（全息图）- 创建全息效果，带有青色色调、扫描线和微妙的故障元素，模拟未来派全息显示
-- **C7DigitalGlitch**（数字故障）- 应用数字故障效果，带有随机的行偏移、RGB通道分离和噪声，创建数字数据损坏的外观
-- **C7QuantumDistortion**（量子扭曲）- 创建量子扭曲效果，带有波浪状像素偏移、色差和光晕，模拟时空扭曲
-
-##### 🌿 自然与有机滤镜
-- **C7Watercolor**（水彩画）- 应用水彩画效果，带有柔和的边缘、颜色渗透和纸张纹理，捕捉水彩艺术的流畅和透明特质
-- **C7OrganicGrowth**（有机生长）- 创建有机生长效果，带有基于噪声的图案、自然色彩变化和边缘增强，模拟有机形式和纹理的外观
-- **C7LensFlare**（镜头光晕）- 应用镜头光晕效果，带有光斑、六边形伪影和颜色分散，模拟相机镜头创建的光学光晕
-
-##### 📼 复古与怀旧滤镜
-- **C7VintageFilmGrain**（复古胶片颗粒）- 应用复古胶片颗粒效果，带有温暖的色调、微妙的颗粒噪声、去饱和度和暗角，模拟旧胶片的外观
-- **C7ComicBook**（漫画书）- 创建漫画书风格效果，带有大胆的黑色轮廓、颜色量化和高对比度，类似于手绘漫画艺术
-- **C780sSynthwave**（80年代合成波）- 应用80年代合成波效果，带有霓虹色彩、紫蓝色调、高对比度和微妙的光晕，捕捉1980年代合成波文化的怀旧美学
-
-#### 📊 矩阵处理
-- **C7ColorMatrix4x4**（4x4颜色矩阵）- 通过矩阵变换调整颜色
-- **C7ColorMatrix4x5**（4x5颜色矩阵）- 更复杂的颜色变换
-- **C7ColorVector4**（4维颜色向量）- 基于向量的颜色调整
-- **C7ConvolutionMatrix3x3**（3x3卷积矩阵）- 应用卷积滤镜效果
-- **C7EdgeGlow**（边缘发光）- 增强并照亮图像边缘
-- **C7RGBADilation**（RGBA扩张）- 扩展颜色通道范围
-
-#### 🔗 混合模式
-- **C7Blend**（混合模式基类）- 所有混合模式的基类，为混合操作提供通用功能
-- **C7BlendChromaKey**（色度键控）- 实现色度键（绿幕）功能，允许用另一个图像或透明度替换特定颜色
-- **C7BlendColorAdd**（颜色添加）- 将混合层的颜色值添加到基础层，产生更亮的图像
-- **C7BlendColorAlpha**（颜色透明度）- 基于透明度值混合图层，创建半透明效果
-- **C7BlendColorBurn**（颜色加深）- 通过增加对比度使基础层变暗，创建丰富的深色混合效果
-- **C7BlendColorDodge**（颜色减淡）- 通过降低对比度使基础层变亮，创建提亮效果
-- **C7BlendDarken**（变暗）- 保留两个图层中较暗的像素值，产生整体较暗的图像
-- **C7BlendDifference**（差值）- 从较亮的颜色中减去较暗的颜色，创建高对比度效果
-- **C7BlendDissolve**（溶解）- 随机用混合层的像素替换基础层的像素，创建溶解效果
-- **C7BlendDivide**（分割）- 用基础层颜色除以混合层颜色，产生更亮的图像
-- **C7BlendExclusion**（排除）- 类似于差值模式但对比度更低，创建更柔和的效果
-- **C7BlendHardLight**（强光）- 结合正片叠底和滤色模式，创建强烈的光照效果
-- **C7BlendHue**（色相）- 使用混合层的色相和基础层的饱和度和亮度
-- **C7BlendLighten**（变亮）- 保留两个图层中较亮的像素值，产生整体较亮的图像
-- **C7BlendLinearBurn**（线性加深）- 通过混合层值线性变暗基础层
-- **C7BlendLuminosity**（亮度）- 使用混合层的亮度和基础层的色相和饱和度
-- **C7BlendMask**（蒙版混合）- 使用蒙版控制混合层的可见区域
-- **C7BlendMultiply**（正片叠底）- 模拟颜料混合效果
-- **C7BlendNormal**（正常）- 标准混合模式
-- **C7BlendOverlay**（叠加）- 结合正片叠底和滤色效果
-- **C7BlendScreen**（滤色）- 提亮图像并混合颜色
-- **C7BlendSoftLight**（柔光）- 柔和的混合效果
-- **C7BlendSourceOver**（源覆盖）- 默认混合模式，混合层绘制在基础层之上
-- **C7BlendSubtract**（减去）- 从基础层颜色中减去混合层颜色，产生更暗的图像
-- **C7MaskedForegroundBlend**（前景蒙版混合）- 使用单独的蒙版纹理把前景合成到当前输入背景上
-- **C7ColorBurnEnhancedBlend**（增强版颜色加深混合模式）- 增强版颜色加深混合模式
-
-#### 🎛️ 实用工具
-- **C7ChromaKey**（色度键控）- 绿幕抠图效果
-- **C7DepthLuminance**（深度亮度）- 基于深度信息调整亮度
-- **C7HighlightShadow**（高光阴影）- 单独调整高光和阴影
-- **C7HighlightShadowTint**（高光阴影色调）- 为高光和阴影添加色调
-- **C7HighlightShadowTone**（高光阴影色调调整）- 综合调整阴影、高光、中间调和对比度
-- **C7Highlights**（高光）- 专门调整图像的高光区域，根据需要增亮或变暗它们
-- **C7HighPassSkinSmoothing**（高通皮肤平滑）- 使用频率分离执行皮肤平滑，在平滑皮肤纹理的同时保留细节
-- **C7Levels**（色阶）- 调整图像明暗范围
-- **C7Luminance**（亮度）- 提取或调整图像亮度
-- **C7LuminanceRangeReduction**（亮度范围压缩）- 压缩亮度动态范围
-- **C7LuminanceThreshold**（亮度阈值）- 基于亮度创建黑白图像
-- **C7Opacity**（不透明度）- 调整图像透明度
-- **C7Shadows**（阴影）- 专门调整图像的阴影区域，根据需要增亮或变暗它们
-
-#### 📐 几何变形
-- **C7Crop**（裁剪）- 裁剪图像特定区域
-- **C7Resize**（调整大小）- 改变图像尺寸
-- **C7Rotate**（旋转）- 旋转图像
-- **C7Flip**（翻转）- 水平或垂直翻转图像
-- **C7Mirror**（镜像）- 创建镜像效果
-- **C7Transform**（变换）- 应用仿射变换
-
-#### 📷 几何与光学校正
-- **C7LensDistortionCorrection**（镜头畸变校正）- 校正桶形或枕形畸变，并可附加 cubic distortion 与 scale 补偿
-- **C7ChromaticAberrationCorrection**（色差校正）- 压制高反差边缘附近的红青、蓝黄彩边
-- **C7LensVignetteCorrection**（镜头暗角校正）- 提升镜头边缘衰减造成的暗角，同时保留中心区域稳定性
-- **C7DefringeCorrection**（去边校正）- 抑制强对比边缘的紫边和绿边伪影
-- **C7DiffractionCorrection**（衍射补偿）- 补偿类似衍射模糊造成的边缘软化
-- **C7SharpnessFalloffCorrection**（边缘锐度衰减补偿）- 向图像边缘和角落逐步增加锐度补偿
-- **RenderTransform3D**（3D 变换）- 应用 3D 投影变换，并可配置输出视口策略
-- **RenderQuadTransform**（Quad 变换）- 按目标四边形对图像做 warp 变换
-- **RenderQuadRectifyTransform**（Quad 矫正）- 将源四边形区域矫正回规则输出画幅
-- **RenderProjectiveCanvas**（投影画布）- 按逆 Homography 投影到显式像素画布，并独立输出几何 coverage attachment
-- **GuidedUpright**（引导式拉正）- 根据垂直/水平引导线生成推荐的透视或 quad 矫正变换
-- **LensProfile**（镜头配置）- 描述设备或镜头可复用的光学校正参数
-- **OpticsSettings**（光学校正配置）- 把 profile 驱动的多项光学校正按强度组合成一条处理链
-
-#### 🎨 生成器
-- **C7SolidColor**（纯色）- 创建纯色图像
-- **C7ColorGradient**（颜色渐变）- 创建渐变色背景
-
-#### 📋 查找表
-- **C7ColorCube**（颜色立方体）- 使用CUBE文件创建3D LUT滤镜，通过Metal实现高性能色彩转换，支持专业级色彩调整
-- **C7LookupTable**（查找表）- 使用LUT文件创建自定义滤镜，通过预设的颜色映射实现快速色彩风格转换
-- **C7LookupTable512x512**（查找表）- 512x512 颜色查找表滤镜，用于高质量的颜色调整
-
-#### 🔗 组合滤镜
-- **C7CombinationBeautiful**（美颜组合）- 综合美颜效果，包含磨皮、美白、提亮等多种美颜处理，打造自然清透的肌肤效果
-- **C7CombinationCinematic**（电影风格组合）- 电影风格效果，模拟电影级色彩分级，增强画面对比度和层次感，营造专业电影氛围
-- **C7CombinationColorGrading**（色彩分级组合）- 专业色彩分级效果，包含色温、色调和色调调整，实现电影级色彩控制
-- **C7CombinationCreativeAtmosphere**（创意氛围组合）- 创意氛围效果，添加暖光、冷蓝、黄金时段和忧郁等氛围效果
-- **C7CombinationCyberpunk**（赛博朋克组合）- 赛博朋克风格效果，带有霓虹光晕、色彩偏移和边缘检测，营造未来科技感
-- **C7CombinationDreamy**（梦幻组合）- 梦幻柔和效果，通过高斯模糊、暖色调和降低饱和度，创造出梦幻般的视觉效果
-- **C7CombinationFilmSimulation**（胶片模拟组合）- 现代胶片模拟效果，模拟不同类型胶片的色彩和颗粒特性
-- **C7CombinationHDRBoost**（HDR增强组合）- HDR增强效果，提升动态范围，增强高光和阴影细节
-- **C7CombinationModernHDR**（现代HDR组合）- 现代HDR效果，提升画面动态范围，增强暗部细节和高光层次，呈现更具冲击力的视觉效果
-- **C7CombinationVintage**（复古风格组合）- 复古风格效果，模拟胶片质感，添加怀旧色调和颗粒感，重现经典老照片的韵味
-- **C7CombinationVintageFilm**（复古胶片组合）- 复古胶片效果，模拟老胶片质感，添加颗粒、暗角和棕褐色调，重现经典胶片摄影的魅力
-
-#### 🎚️ 其他效果
-- **C7Fade**（淡入淡出）- 应用淡入淡出效果，使图像逐渐过渡到白色
-- **C7Grayed**（灰度化）- 转换为黑白图像
-- **C7Haze**（雾霾）- 创建雾霾效果
-- **C7Pow**（幂次调整）- 应用幂函数变换
-- **C7Vignette**（暗角）- 添加照片暗角效果
-- **C7VignetteBlend**（暗角混合）- 应用带有多种混合模式的暗角效果，允许不同风格的边缘变暗
-
-#### 📐 几何变换
-- **C7LanczosResize**（Lanczos 缩放）- 高质量缩放，适合导出和精细预览
-
-#### 🖼️ Blit 操作
-- **C7CopyRegionBlit**（区域复制）- 从一个纹理复制特定区域到另一个纹理
-- **C7CropBlit**（裁剪）- 将图像裁剪到指定区域
-- **C7GenerateMipmapsBlit**（生成Mipmaps）- 为纹理生成mipmaps，用于高效下采样
-
-#### ⚡ Metal Performance Shaders
-- **MPSBoxBlur**（MPS盒式模糊）- Metal Performance Shaders盒式模糊
-- **MPSGaussianBlur**（MPS高斯模糊）- Metal Performance Shaders高斯模糊
-- **MPSHistogram**（MPS直方图）- Metal Performance Shaders直方图计算
-- **MPSMedian**（MPS中值模糊）- Metal Performance Shaders中值模糊
-- **MPSCanny**（MPS边缘检测）- Metal Performance Shaders Canny边缘检测
-
-#### 🖼️ Render 模块
-- **RenderGrayscale**: 灰度渲染滤镜
-- **RenderSepia**: 棕褐色渲染滤镜
-
-### 🔍 滤镜查找指南
-
-根据您的需求，选择合适的滤镜类别：
-
-1. **颜色调整** - 改变图像的色彩属性
-2. **模糊效果** - 创建各种模糊和柔化效果
-3. **边缘与细节** - 增强或检测图像细节
-4. **扭曲与变形** - 创建特殊几何效果
-5. **风格化效果** - 应用艺术风格处理
-6. **矩阵处理** - 使用数学矩阵变换图像
-7. **混合模式** - 混合多个图像或效果
-8. **实用工具** - 各种图像处理工具
-9. **几何变形** - 改变图像几何属性
-10. **生成器** - 创建新的图像效果
-11. **查找表** - 使用预设的颜色映射
-12. **组合滤镜** - 综合多种效果
-
-### 📱 相机与视频支持
-
-Harbeth 不是相机 SDK 或视频编辑 SDK。它负责处理已经进入链路的图像、纹理、`CVPixelBuffer` 或 `CMSampleBuffer`，宿主 App 负责采集、播放、时间线、导出和保存策略。
-
-- **实时预览链路**：宿主采集相机帧后，可把帧交给 Harbeth 做滤镜处理。
-- **播放帧链路**：宿主从播放器或解码器取帧后，可使用 Harbeth 进行逐帧处理。
-- **导出帧链路**：宿主负责导出调度，Harbeth 负责每一帧的 GPU 图像处理。
-
-### 🎨 自定义滤镜支持
-
-Harbeth 支持多种自定义滤镜方式：
-
-- **查找表 (LUT)**：使用 .png 格式的 LUT 文件创建自定义滤镜
-- **立方体贴图 (Cube)**：使用 .cube 格式的文件创建专业滤镜
-- **自定义 Metal 着色器**：通过编写 Metal 着色器创建完全自定义的滤镜效果
-
-## 📖 使用指南
-
-### HarbethIO：直接处理
-
-```swift
-let io = HarbethIO(element: originalImage, filters: filters)
-
-let image = try io.output()
-```
-
-`HarbethIO` 只保留轻量直接处理心智。frame metadata、render profile、diagnostics、recipe、mask、analysis、deferred render request 等高级能力统一走 `ImageNode`。
-
-如果当前链路需要保留 HDR / EDR 输出语义，可以直接指定输出色彩空间：
-
-```swift
-let hdrImage = try HarbethIO(element: originalPixelBuffer, filters: filters)
-    .output(outputColorSpace: .hdrPQ)
-```
-
-推荐的输出合同预设是 `RenderOutputContract.hdrPQTexture`、`RenderOutputContract.hdrHLGTexture` 和 `RenderOutputContract.toneMappedDisplayP3Texture`；`toneMappingPolicy` 用来标明当前输出是保留 HDR / EDR，还是明确 tone map 到 SDR。
-
-### ImageNode：编辑、图结构与诊断
-
-当处理包含几何、局部效果、图层合成、转场或 preview/final 输出合同时，统一使用 `ImageNode`。
-
-推荐层级固定为：
-
-1. `ImageNode`：高级主入口，直接表达 source、filters、recipe、editing
-2. `RenderRequest`：从 `ImageNode` 派生出来的延迟执行与高级读取面
-3. `RenderedFrame`：只有宿主明确需要 metadata、preview host 信息或 replay contract 时才显式拿
-
-```swift
-let previewNode = ImageNode
-    .recipe(source: .texture(inputTexture), recipe: recipe, mode: .preview)
-    .applying(filters: filters)
-
-let previewFrame = try previewNode.makeFrame(profile: .stablePreview)
-let finalTexture = try ImageNode
-    .recipe(source: .texture(inputTexture), recipe: recipe, mode: .final)
-    .applying(filters: filters)
-    .makeTexture(profile: .exportQuality)
-```
-
-`EditRecipe`、`LayerCompositeRecipe`、`TransitionRecipe` 是编辑 primitive；mask、local effect、geometry、layer、transition 相关类型都是它们的组件，而不是独立执行入口。
-
-对于 `editing(...)`、`transforming(...)`、`transition(...)`、`layerComposite(...)` 这些 node 路径，即使执行期已经把上游 source 物化成中间 texture，`RenderRequest`、`RenderRecipe` 和 diagnostics 仍会保留原始 source contract。这一点对 `pixelBuffer`、`sampleBuffer`、YCbCr 和 HDR 相关输入尤其重要。
-
-### ImageNode：图结构与诊断
-
-当调用方需要 graph inspection、cache policy、diagnostics 或 debug snapshot 时，使用 `ImageNode`。
-
-```swift
-let node = ImageNode
-    .texture(inputTexture)
-    .applying(C7Brightness(brightness: 0.1))
-    .applying(C7Contrast(contrast: 1.05))
-    .withCachePolicy(.persistent)
-
-let graph = try node.makeImageGraph(profile: .stablePreview)
-let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
-let snapshot = try node.makeDebugSnapshot(profile: .stablePreview)
-
-print(graph.nodeCount)
-print(diagnostics.summary)
-print(snapshot.dotGraph)
-```
-
-当链路带有 `withSamplerDescriptor(_:)` 时，继续通过 diagnostics 判断当前 sampler contract 是真实执行、部分覆盖还是仅 metadata 可见：
-
-```swift
-print(diagnostics.samplerExecutionCoverage.mode)
-print(diagnostics.samplerExecutionCoverage.coveredFilterTypes)
-print(diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes)
-```
-
-当前默认口径：
-
-- 普通 `RenderProtocol` 与 render geometry path 会直接绑定 runtime sampler state
-- `C7Crop`、`C7Rotate`、`C7Transform`、`C7LensDistortionCorrection`、`C7ChromaticAberrationCorrection` 这类历史 compute geometry / optics filter，已经能桥接 nearest/linear 与常见 edge mode
-- 如果 sampler descriptor 超出当前 compute family 可表达范围，diagnostics 仍会保守显示为 `metadataOnly` 或 `partial`
-
-`RenderOptimizationPlan.prewarmReservations` 也已经进入真实执行层。`HarbethIO` 与 `ImageNode` 都会在编码前预热 pool reservation，因此 texture reuse 的收益可以在测试里直接观测，而不是只停留在 diagnostics 描述里。
-
-`RenderRequest` 和 `RenderTask` 是延迟执行和异步执行形态，服务于以上路线，不单独构成新的接入模型。
-
-如果调用方想先编译 contract、再决定何时 render 或读取 attachment / analysis，就从 `ImageNode` 下沉到 `RenderRequest`：
-
-```swift
-let request = try node.makeRenderRequest(profile: .readbackQuality)
-
-let diagnostics = request.diagnostics
-let texture = try request.renderTexture()
-let histogram = try request.renderHistogram(channel: .luminance)
-let attachment = try request.renderAttachment(semantic: .luminance)
-```
-
-### 几何、局部蒙版与转场 Primitive
-
-Harbeth 现在补齐了一批可复用的编辑基础元件，但仍然保持底座定位，不把自己做成完整产品编辑器：
-
-- `ImageCropRegion`、`ImageTransformRecipe`、`AspectPolicy`、`CoordinateSpace`
-- `MaskDescriptor`、`MaskBlendMode`、`MaskFeatherPolicy`、`LocalEffectRecipe`
-- `ImageLayer`、`LayerCompositeRecipe`、`LayerBlendMode`，用于带 normalized placement、layer-local transform、opacity、mask、corner radius 和常见 blend mode 的单帧 texture 图层合成
-- `LayerLayoutUnit`、`LayerFlipOptions`、`LayerCornerCurve`，用于更明确地表达 layer 的布局、翻转和圆角曲线 contract
-- `TransitionKernel` 以及 dissolve、directional wipe、luma wipe、displacement 四个基础转场
-- 用于预览/最终输出分离的轻量 `EditRecipe`
-- 用于轻量自定义 compute blend 扩展缝的 `C7ProgrammableBlend`
-
-```swift
-let geometry = ImageTransformRecipe(
-    cropRegion: ImageCropRegion(
-        rect: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
-        coordinateSpace: .normalized
-    ),
-    targetSize: CGSize(width: 1080, height: 1080),
-    aspectPolicy: .fill
-)
-let mask = MaskDescriptor(texture: maskTexture, opacity: 0.8)
-let recipe = EditRecipe(
-    geometry: geometry,
-    localEffects: [
-        LocalEffectRecipe(
-            filters: [C7UnsharpMask(radius: 2, intensity: 0.6, threshold: 0.02)],
-            mask: mask
-        )
-    ],
-    previewProfile: .stablePreview,
-    finalProfile: .exportQuality
-)
-
-let previewFrame = try ImageNode
-    .image(inputImage)
-    .editing(recipe, mode: .preview)
-    .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
-    .makeFrame(profile: .stablePreview)
-
-let finalTexture = try ImageNode
-    .image(inputImage)
-    .editing(recipe, mode: .final)
-    .applying(C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75))
-    .makeTexture(profile: .exportQuality)
-```
-
-```swift
-let cleanup = EditRecipe(
-    previewProfile: .stablePreview,
-    finalProfile: .exportQuality
-)
-
-let cleanedFrame = try ImageNode
-    .recipe(source: .texture(inputTexture), recipe: cleanup, mode: .preview)
-    .applying(filters: [
-        C7Deband(radius: 2, threshold: 0.12, amount: 0.7, dither: 0.15),
-        C7NoiseReduction(radius: 3, amount: 0.18, edgePreservation: 0.8),
-        C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
-    ])
-    .makeFrame(profile: .stablePreview)
-```
-
-```swift
-let transition = TransitionRecipe(
-    from: .texture(fromTexture),
-    to: .texture(toTexture),
-    kernel: .directionalWipe(angleDegrees: 90, softness: 0.08),
-    progress: 0.35,
-    profile: .stablePreview
-)
-
-let transitionFrame = try ImageNode.transition(transition)
-    .makeFrame(profile: transition.profile, derivative: transition.derivative)
-```
-
-```swift
-let composite = LayerCompositeRecipe(
-    background: .texture(backgroundTexture),
-    layers: [
-        ImageLayer(
-            content: .texture(layerTexture),
-            normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
-            contentRegion: CGRect(x: 0.0, y: 0.0, width: 0.9, height: 0.9),
-            opacity: 0.9,
-            blendMode: .softLight,
-            flipOptions: LayerFlipOptions(horizontal: true),
-            rotation: 90,
-            tintColor: SIMD4<Float>(1.0, 0.9, 0.8, 0.35),
-            mask: MaskDescriptor(texture: maskTexture),
-            programmableBlend: LayerProgrammableBlend(
-                functionName: "C7BlendColorAdd",
-                intensity: 1.0,
-                librarySource: .sourceFallback("layer-programmable-blend")
-            ),
-            cornerRadius: 24,
-            cornerCurve: .continuous
-        )
-    ]
-)
-
-let compositeNode = ImageNode.layerComposite(composite)
-let compositeTexture = try compositeNode.makeTexture(profile: composite.profile, derivative: composite.derivative)
-let compositeDiagnostics = try compositeNode.makeDiagnostics(profile: composite.profile, derivative: composite.derivative)
-let compositeSnapshot = try compositeNode.makeDebugSnapshot(profile: composite.profile, derivative: composite.derivative)
-```
-
-### 🔧 安装方式
-
-#### CocoaPods
-
-在 Podfile 中添加：
-
-```ruby
-pod 'Harbeth'
-```
-
-#### Swift Package Manager
-
-在 Package.swift 文件中添加依赖：
+### Swift Package Manager
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yangKJ/Harbeth.git", branch: "master"),
+    .package(url: "https://github.com/yangKJ/Harbeth.git", from: "3.0.0")
 ]
 ```
 
-或者在 Xcode 中通过 "File > Swift Packages > Add Package Dependency" 添加。
+把 `Harbeth` 添加到实际执行图片或帧渲染的 target。
 
-### 🚀 快速开始
+### CocoaPods
 
-Harbeth 提供了多种使用方式，适应不同的场景需求：
-
-#### 1. 基本使用
-
-```swift
-// 创建滤镜
-let brightness = C7Brightness(brightness: 0.2)  // 增加亮度
-let contrast = C7Contrast(contrast: 1.5)        // 增加对比度
-let saturation = C7Saturation(saturation: 1.2)  // 增加饱和度
-
-// 应用滤镜到图像
-let filteredImage = try? originalImage ->> brightness ->> contrast ->> saturation
-imageView.image = filteredImage
+```ruby
+pod 'Harbeth', '~> 3.0'
 ```
 
-#### 2. 链式操作
+## 只需选择两条路线之一
+
+Harbeth 对普通使用者只表达两条路线。Runtime、Analysis、Recipe 与 Preview Host 都是两条路线的支撑层，不是额外入口。
+
+| 路线 | 适用场景 | 标准结果入口 |
+| --- | --- | --- |
+| `HarbethIO` | 已经有输入源与滤镜链，需要直接处理 | `try output()` / `await transmitOutput()` |
+| `ImageNode` | 需要 Harbeth 的高级统一图、编辑合同、检查与交付能力 | `makeTexture()` / `makeFrame()` / `makeFrameAsync()` |
+
+### 输入与结果速查
+
+| 输入 | `HarbethIO` 直接结果 | `ImageNode` 高级结果 |
+| --- | --- | --- |
+| `UIImage` / `NSImage`（`C7Image`） | 同类型图片 | texture、frame、图片读回 |
+| `CGImage` / `CIImage` | 同输入类型 | texture、frame、图片读回 |
+| `MTLTexture` | `MTLTexture` | texture 或携带元数据的 frame |
+| `CVPixelBuffer` | `CVPixelBuffer` | texture、frame、attachments |
+| `CMSampleBuffer` | `CMSampleBuffer` | texture、frame、preview-host metadata |
+| `Data` / `ImageAsset` | 解码资产优先使用 `ImageNode` | texture、frame、diagnostics |
+
+### 1. 使用 `HarbethIO` 直接处理
 
 ```swift
-// 使用运算符链式操作
-let filters: [C7FilterProtocol] = [
-    C7Brightness(brightness: 0.2),
-    C7Contrast(contrast: 1.5),
-    C7Saturation(saturation: 1.2)
-]
-
-imageView.image = originalImage -->>> filters
-```
-
-#### 3. 函数式编程
-
-```swift
-// 函数式编程风格
-var resultImage = originalImage
-filters.forEach { resultImage = try! resultImage ->> $0 }
-imageView.image = resultImage
-```
-
-#### 4. 不定参数
-
-```swift
-// 不定参数方式
-imageView.image = originalImage.filtering(
-    C7Brightness(brightness: 0.2),
-    C7Contrast(contrast: 1.5),
-    C7Saturation(saturation: 1.2)
-)
-```
-
-#### 5. HarbethIO 方式
-
-```swift
-// 使用 HarbethIO 方式
-let io = HarbethIO(element: originalImage, filters: filters)
-
-// 同步处理
-imageView.image = try? io.output()
-
-// 异步处理
-io.transmitOutput { [weak self] image in
-    DispatchQueue.main.async {
-        self?.imageView.image = image
-    }
-}
-```
-
-#### 6. Frame-Backed 结果对象
-
-只有当宿主明确需要 profile、metadata、preview host 信息、replay contract 或稳定复用输出时，再显式使用 `RenderedFrame`。普通分析与检查优先走 `ImageNode` 或 `RenderRequest` 的 analysis convenience：
-
-```swift
-let filters: [C7FilterProtocol] = [
-    C7NoiseReduction(radius: 4, amount: 0.2, edgePreservation: 0.75),
-    C7UnsharpMask(radius: 2, intensity: 0.35, threshold: 0.02)
-]
-
-let frame = try ImageNode
-    .image(originalImage)
-    .applying(filters: filters)
-    .makeFrame(profile: .stablePreview)
-
-let renderedImage = frame.image
-let semantic = frame.semantic
-let frameHostHint = frame.frameHostRuntimeHint
-let replayContract = frame.replayBaseContract
-```
-
-#### 7. 轻量 Programmable Blend
-
-当宿主需要自定义 compute blend kernel，但仍希望保持 Harbeth 现有轻量滤镜链表面时，可以直接使用 `C7ProgrammableBlend`：
-
-```swift
-let programmableBlend = C7ProgrammableBlend(
-    functionName: "C7BlendSourceOver",
-    blendTexture: overlayTexture,
-    intensity: 1.0,
-    librarySource: .sourceFallback("custom-overlay-source")
-)
-
-let blendedTexture = try HarbethIO(element: baseTexture, filter: programmableBlend).output()
-```
-
-#### 8. 几何与光学校正链路
-
-几何与光学能力和普通滤镜一样，可以直接组合进处理链：
-
-```swift
-let correctionFilters: [C7FilterProtocol] = [
-    C7LensDistortionCorrection(
-        amount: -0.18,
-        cubicDistortion: 0.03,
-        scale: 1.02
-    ),
-    C7ChromaticAberrationCorrection(intensity: 0.45),
-    C7LensVignetteCorrection(intensity: 0.3),
-    C7DefringeCorrection(amount: 0.4),
-    C7SharpnessFalloffCorrection(intensity: 0.25)
-]
-
-let correctedImage = try originalImage.make(filters: correctionFilters)
-```
-
-也可以通过 `LensProfile` 和 `OpticsSettings` 做 profile 驱动的组合校正：
-
-```swift
-let profile = LensProfile(
-    make: "Demo",
-    model: "Wide",
-    profileName: "Default",
-    distortionCorrection: .init(distortion: -0.2, cubicDistortion: 0.04, scale: 1.01),
-    vignetteCorrection: .init(amount: 0.2),
-    chromaticAberrationCorrection: .init(redCyanShift: -0.01, blueYellowShift: 0.015)
-)
-
-let settings = OpticsSettings(
-    profile: profile,
-    defringe: .init(purpleAmount: 0.2),
-    sharpnessFalloff: .init(amount: 0.25)
-)
-
-let correctedFrame = try ImageNode
-    .image(originalImage)
-    .applying(optics: settings)
-    .makeFrame(profile: .stablePreview)
-```
-
-对于引导式透视拉正：
-
-```swift
-let upright = GuidedUpright(
-    guides: [
-        .vertical(start: CGPoint(x: 0.2, y: 0.1), end: CGPoint(x: 0.22, y: 0.9)),
-        .vertical(start: CGPoint(x: 0.8, y: 0.1), end: CGPoint(x: 0.78, y: 0.9))
+let outputImage = try HarbethIO(
+    element: inputImage,
+    filters: [
+        C7Exposure(exposure: 0.25),
+        C7Contrast(contrast: 1.08),
+        C7Saturation(saturation: 0.94)
     ]
+).output()
+```
+
+`output()` 是主要同步入口，因为渲染失败对调用方可见；`transmitOutput(...)` 是与它同等级的核心异步入口。
+
+不希望当前调用方等待 GPU 完成时，使用对应的异步入口：
+
+```swift
+let outputImage = try await HarbethIO(
+    element: inputImage,
+    filters: filters
+).transmitOutput()
+```
+
+回调式接入可使用 `transmitOutput(outputColorSpace:complete:)`。存在滤镜任务时，Harbeth 会在内部 render operation queue 编码，并在默认 profile 下等待 GPU 完成后回调。回调线程不固定，更新 UI 时需显式回到 `MainActor`；空滤镜快速路径因为没有异步渲染工作，可能在当前调用栈内直接完成。
+
+高频纹理链路应显式选择 render profile：
+
+```swift
+let frame = try HarbethIO(
+    element: inputTexture,
+    filters: filters
 )
-
-let correctedFrame = try ImageNode
-    .image(originalImage)
-    .transforming(
-        ImageTransformRecipe(
-            guidedUpright: upright,
-            projectiveViewportMode: .minimumEnclosing
-        )
-    )
-    .makeFrame(profile: .stablePreview)
+.configured(for: .interactiveLatency)
+.makeFrame()
 ```
 
-#### 分析与检查
+`interactiveLatency` 可在 command buffer 已 scheduled、尚未 completed 时交付纹理。该低延迟合同只适用于 texture-first 链路；图片与 pixel buffer 输出在 CPU 读回前仍会等待 GPU 完成。
 
-优先从 `ImageNode` 或 `RenderRequest` 的 analysis convenience 进入；只有确实需要 frame metadata、preview host 信息或 replay contract 时，再显式拿 `RenderedFrame`。
+### 2. 使用 `ImageNode` 组织结构化处理
+
+`ImageNode` 是 Harbeth 的高级统一入口。当一次处理不只是简单滤镜链，还要承载可复用输入、结构化编辑、输出意图、元数据、缓存策略、诊断或多种交付形态时，应由它组织整条链路。
 
 ```swift
-let node = ImageNode
-    .image(originalImage)
-    .applying(filters: [
-        C7Exposure(exposure: 0.12),
-        C7Contrast(contrast: 1.05)
-    ])
+let node = ImageNode.image(inputImage)
+    .applying(C7Exposure(exposure: 0.25))
+    .applying(C7Contrast(contrast: 1.08))
+    .transforming(ImageTransformRecipe(rotationDegrees: 90))
+    .withCachePolicy(.transient)
 
-let histogram = try node.makeHistogram(
-    profile: .readbackQuality,
-    channel: .luminance
-)
-let statistics = try node.makeStatistics(profile: .readbackQuality)
-let probe = try node.makeColorProbe(profile: .readbackQuality)
+let previewFrame = try node.makeFrame(profile: .stablePreview)
+let backgroundFrame = try await node.makeFrameAsync(profile: .stablePreview)
+let exportTexture = try node.makeTexture(profile: .exportQuality)
 ```
 
-```swift
-let scope = TextureAnalysisScope.region(MTLRegionMake2D(100, 80, 256, 256))
+它承接的核心能力包括：
 
-let localHistogram = try node.makeHistogram(
-    profile: .readbackQuality,
-    channel: .red,
-    scope: scope
-)
-let localMask = try node.makeMaskDescriptor(
-    profile: .readbackQuality,
-    scope: scope
-)
+- 统一输入：image、`CGImage`、`CIImage`、texture、pixel buffer、sample buffer、编码数据与 `ImageAsset`。
+- 可组合处理：普通滤镜、显式 kernel contract、plugin、缓存策略与 sampler 策略。
+- 结构化编辑：`EditRecipe`、Geometry、Optics、局部效果、渐变/形状/路径/组合蒙版，以及可复用的 preview/final 模式。
+- 多源合成：转场和有序图层合成，并保留蒙版、变换、混合与输出合同。
+- 稳定交付语义：`RenderProfile`、`ImageDerivativeSpec`、颜色/Alpha/方向/source tier 元数据与纹理所有权共同进入 `RenderedFrame`。
+- 检查与重放：image graph、diagnostics、debug snapshot、延迟执行的 `RenderRequest`，以及 histogram/statistics/color probe、mask 与 output attachment。
+
+只需要纹理结果时用 `makeTexture()`；需要元数据与宿主交付时用 `makeFrame()`；不阻塞调用方时用真正进入 render operation queue 的 `makeFrameAsync()`；需要延迟执行或检查计划时用 `makeRenderRequest()`。已有 node 时优先使用 `node.editing(...)`、`node.transforming(...)`、`node.applying(optics: ...)` 这类实例链。各类 Recipe 是 `ImageNode` 内部的编辑描述 primitive，不单独形成第三条路线。
+
+## Texture-first 预览
+
+UIKit 与 AppKit 可直接承载 `RenderedFrame`：
+
+```swift
+renderView.display(previewFrame)
 ```
 
+SwiftUI 使用同一套 Harbeth 预览底座，不需要先把纹理读回成图片：
+
 ```swift
-let request = try node.makeRenderRequest(profile: .readbackQuality)
-let luminanceAttachment = try request.renderAttachment(semantic: .luminance)
-let attachmentProbe = try request.renderAttachmentColorProbe(
-    semantic: .luminance,
-    scope: scope
+HarbethRenderView(
+    frame: previewFrame,
+    resizingMode: .aspectFit
 )
 ```
 
-### 推荐工作流
+`RenderView` 与 `HarbethRenderView` 是渲染输出宿主。Harbeth 负责保留帧元数据、选择可用宿主策略、处理 visibility pause/resume，并暴露执行报告；宿主应用继续负责采集、播放、录制、时间线、导出和持久化。
 
-- **图片编辑链路**：先使用 `stablePreview` 做稳定预览，最终切到 `inspectionQuality` 或 `exportQuality`。
-- **实时帧链路**：优先保持 texture-first，并使用 `interactiveLatency` 和更紧凑的滤镜链。
-- **视频逐帧处理**：把相机/播放器当作宿主侧帧提供者，Harbeth 只负责逐帧处理能力。
-- **几何或光学校正**：尽量先做校正，再叠加调色和风格化滤镜。
-- **重读回链路**：涉及 CPU 分析、导出拼装或宿主侧像素检查时，优先使用 `readbackQuality`。
+只有明确需要读回为 SwiftUI `Image` 时使用 `HarbethView`；texture-first 预览使用 `HarbethRenderView`。
 
-### 📱 相机采集示例
+## 引擎能力
+
+- image、texture、pixelBuffer、sampleBuffer 输入输出链路。
+- compute、render、blit、MPS 与 advanced Metal 执行路径；当前 164 个公开执行类型与 30 种 `C7Blend` 模式见[滤镜目录](docs/FILTER_CATALOG.md)。
+- 颜色、模糊、混合、边缘与细节、几何、光学、LUT/Cube、Utility、Generator 与质量滤镜。
+- 通过 `C7FilterPipelineProtocol` 实现的公开 Combination 滤镜。
+- 蒙版、局部效果、图层合成、转场和编辑 Recipe primitive。
+- 纹理池、heap allocator、预热、render-plan cache 与稳定 fingerprint。
+- Alpha、色彩空间、YUV、HDR metadata、输出尺寸、方向和读回 contract。
+- 渲染后的直方图、统计、探针、图快照和性能指标。
+- 自定义 `.metal`、`.metallib` 与外部 library provider 接入。
+
+Harbeth 采用 capability-driven 语义：支持某个 contract 或平台，不代表所有设备都具备相同 Metal 特性。高级能力应结合 capability report 与对应 fallback 行为使用。
+
+## 错误、日志与 Issue
+
+标准处理 API 通过 `HarbethError` 抛出失败，Harbeth 默认静默。需要时可把结构化事件接入宿主日志系统：
 
 ```swift
-// 创建相机采集器
-let camera = C7CollectorCamera(delegate: self)
-camera.captureSession.sessionPreset = .hd1280x720
-
-// 添加滤镜
-let edgeDetection = C7EdgeGlow(lineColor: .red)
-let grain = C7Granularity(grain: 0.8)
-camera.filters = [edgeDetection, grain]
-
-// 实现代理方法
-extension ViewController: C7CollectorImageDelegate {
-    func preview(_ collector: C7Collector, fliter image: C7Image) {
-        // 显示处理后的图像
-        DispatchQueue.main.async {
-            self.imageView.image = image
-        }
-    }
+HarbethLogger.minimumLevel = .warning
+HarbethLogger.handler = { event in
+    appLogger.log("[\(event.category)] \(event.message)")
 }
 ```
 
-### 🎬 视频处理示例
+提交 GitHub Issue 时可生成不包含图片与用户数据的环境摘要：
 
 ```swift
-// 创建视频处理器
-let videoURL = URL(string: "https://example.com/video.mp4")!
-let asset = AVURLAsset(url: videoURL)
-let playerItem = AVPlayerItem(asset: asset)
-let player = AVPlayer(playerItem: playerItem)
-
-let videoProcessor = C7CollectorVideo(player: player, delegate: self)
-
-// 添加滤镜
-let vintageFilter = C7ColorMatrix4x4(matrix: Matrix4x4.Color.sepia)
-videoProcessor.filters = [vintageFilter]
-
-// 播放视频
-videoProcessor.play()
-
-// 实现代理方法
-extension ViewController: C7CollectorImageDelegate {
-    func preview(_ collector: C7Collector, fliter image: C7Image) {
-        // 显示处理后的视频帧
-        DispatchQueue.main.async {
-            self.imageView.image = image
-        }
-    }
-}
+let supportJSON = try HarbethSupportSnapshot.capture().json()
 ```
 
-### 🎨 SwiftUI 集成
+快照只包含 Harbeth 版本、平台、操作系统、Metal 设备名和性能监控状态。
 
-Harbeth 原生支持 SwiftUI 框架：
+## 性能口径
 
-```swift
-import SwiftUI
-import Harbeth
+Harbeth 让高频路径保持 texture-first，并复用 render plan、pipeline state 与纹理分配。真实耗时由设备、输入尺寸、像素格式、滤镜链和输出 contract 共同决定，因此项目不再宣称一个适用于所有场景的倍数。
 
-struct FilterView: View {
-    @State private var inputImage: UIImage = UIImage(named: "sample")!
-    @State private var intensity: Float = 0.5
-    
-    var body: some View {
-        let filters: [C7FilterProtocol] = [
-            C7HighlightShadow(highlight: intensity),
-            C7WaterRipple(ripple: intensity),
-        ]
-        
-        VStack {
-            HarbethView(image: inputImage, filters: filters) {
-                $0.resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: .infinity, maxHeight: 400)
-            }
-            
-            Slider(value: $intensity, in: 0...1)
-                .padding()
-        }
-        .padding()
-    }
-}
-```
+低延迟展示使用 `RenderProfile.interactiveLatency`，稳定预览使用 `stablePreview`，需要 GPU 完成或 CPU 读回时使用 `exportQuality` / `readbackQuality`。可复现的测量规则见[性能治理指南](docs/PERFORMANCE_GOVERNANCE_CN.md)。
 
-### 🖥️ macOS 支持
+## Demo
 
-Harbeth 完全支持 macOS 平台，为桌面应用提供强大的图像处理能力，打造原生、优化的用户体验：
+工作区包含三个接入工作台：
 
-#### 🎨 macOS 展示
+- [`Harbeth-iOS-Demo`](Demo/Harbeth-iOS-Demo)：UIKit Showcase、ImageNode Lab、相机帧参考接线、Mask 与完整滤镜目录。
+- [`Harbeth-SwiftUI-Demo`](Demo/Harbeth-SwiftUI-Demo)：SwiftUI 路线选择与输出宿主示例。
+- [`Harbeth-macOS-Demo`](Demo/Harbeth-macOS-Demo)：AppKit 滤镜和桌面端接入示例。
 
-探索 Harbeth 在 macOS 上的强大功能：
+它们用于验证 Harbeth 渲染能力，不是封装好的相机或视频编辑 SDK。
 
-<div align="center" style="margin-top: 20px; margin-bottom: 20px;">
-  <table style="border-collapse: collapse; width: 100%;">
-    <tr style="height: 100%;">
-      <td align="center" style="padding: 10px 5px; height: 100%;">
-        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac1.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">基础色彩调整</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">亮度、对比度和饱和度控制</p>
-      </td>
-      <td align="center" style="padding: 10px 5px; height: 100%;">
-        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac2.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">高级滤镜</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">模糊、边缘检测和艺术效果</p>
-      </td>
-      <td align="center" style="padding: 10px 5px; height: 100%;">
-        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac3.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">组合效果</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">同时应用多种滤镜</p>
-      </td>
-    </tr>
-    <tr style="height: 100%;">
-      <td align="center" style="padding: 10px 5px; height: 100%;">
-        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac4.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">实时预览</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">实时滤镜调整</p>
-      </td>
-      <td align="center" style="padding: 10px 5px; height: 100%;">
-        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac5.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">批量处理</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">高效处理多张图像</p>
-      </td>
-      <td align="center" style="padding: 10px 5px; height: 100%;">
-        <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/mac6.png" width=98% style="display: block;" />
-        <p style="margin-top: 8px; margin-bottom: 4px; font-size: 14px; font-weight: 500;">自定义设置</p>
-        <p style="margin-top: 4px; font-size: 12px; color: #666;">精细调整滤镜参数</p>
-      </td>
-    </tr>
-  </table>
-</div>
+## 文档
 
-#### 🌟 macOS 体验
+- [文档总导航](docs/README.md)
+- [DocC 入口](Sources/Harbeth.docc/Harbeth.md)
+- [完整滤镜目录](docs/FILTER_CATALOG.md)
+- [自定义滤镜指南](docs/CUSTOM_FILTERS.md)
+- [故障排查](docs/TROUBLESHOOTING.md)
+- [公开 API 分层](docs/API_SURFACE_CN.md)
+- [能力地图](docs/CAPABILITY_MAP_CN.md)
+- [性能治理指南](docs/PERFORMANCE_GOVERNANCE_CN.md)
+- [维护与发布检查](docs/MAINTAINING.md)
+- [变更记录](CHANGELOG.md)
 
-#### ✨ 核心特性
-- **原生 AppKit 集成** - 与 NSImage 和 AppKit 组件无缝协作
-- **高分辨率支持** - 针对 Retina 显示器和大图像处理进行优化
-- **拖拽支持** - 轻松集成 macOS 拖拽功能
-- **性能优化** - 充分利用 Mac 设备的 GPU 性能
-- **多窗口支持** - 可同时处理多个窗口的图像
+## 参与贡献
 
-#### 🚀 实现示例
+Bug 请使用仓库 Issue 表单，并附最小 `HarbethIO` / `ImageNode` 复现和 `HarbethSupportSnapshot`。接入问题与架构取舍请使用 [Discussions](https://github.com/yangKJ/Harbeth/discussions)。
 
-```swift
-import Cocoa
-import Harbeth
+## 支持 Harbeth 持续演进
 
-class ImageProcessingViewController: NSViewController {
-    @IBOutlet weak var imageView: NSImageView!
-    
-    func applyFilter(to image: NSImage) {
-        // 创建滤镜链
-        let filters: [C7FilterProtocol] = [
-            C7Brightness(brightness: 0.1),
-            C7Contrast(contrast: 1.2),
-            C7Saturation(saturation: 1.1)
-        ]
-        
-        // 使用 HarbethIO 处理图像
-        let dest = HarbethIO(element: image, filters: filters)
-        
-        // 对于大图像使用异步处理
-        dest.transmitOutput { [weak self] result in
-            switch result {
-            case .success(let output):
-                DispatchQueue.main.async {
-                    self?.imageView.image = output
-                }
-            case .failure(let error):
-                print("滤镜应用失败: \(error)")
-            }
-        }
-    }
-}
-```
+Harbeth 不是一次性示例，而是我长期维护的 Apple GPU 图像处理底座。真正让一个底座值得依赖的，往往是那些不太显眼却持续发生的工作：跟进 Apple 平台变化、复现边界问题、分析真实负载、收紧 API 合同，以及让文档始终与代码一致。
 
-#### 💡 macOS 最佳实践
-- **对于大图像**：使用异步处理避免阻塞主线程
-- **对于批量处理**：利用 HarbethIO 的高效纹理池
-- **对于实时预览**：启用 `transmitOutputRealTimeCommit` 获得更流畅的交互体验
-- **对于内存管理**：使用 `Device.setMemoryLimitMB()` 设置适当的内存限制
-- **对于多显示器设置**：处理图像时考虑屏幕缩放因子
+如果 Harbeth 曾替你省下一段 Metal 基础建设、避开一个线上问题，或已经成为项目里可靠的一环，欢迎把这份实际价值转化为对维护工作的支持：
 
-### 📊 性能优化
+- 点亮 Star 或分享项目，让更多 Apple 平台开发者发现它。
+- 通过 [GitHub Sponsors](https://github.com/sponsors/yangKJ) 提供持续支持。
+- 通过 Buy Me a Coffee、支付宝或微信提供一次性支持。
 
-Harbeth 内置了多种性能优化机制：
+支持不是使用门票，也不是任何人的义务。Harbeth 仍然按照 MIT License 开放；赞助的意义，只是让我能更从容地认真处理平台变化、回归问题和那些真正棘手的边界情况。
 
-- **纹理池**：重用 Metal 纹理，减少内存分配
-- **批处理**：合并多个滤镜操作，减少 GPU 往返
-- **异步处理**：支持后台线程处理，避免阻塞主线程
-- **内存监控**：自动管理内存使用，避免内存溢出
+<a href="https://www.buymeacoffee.com/yangkj3102">
+  <img width="180" alt="请作者喝杯咖啡" src="https://user-images.githubusercontent.com/1888355/146226808-eb2e9ee0-c6bd-44a2-a330-3bbc8a6244cf.png">
+</a>
 
-### 🛠️ 性能监控
+<a href="https://github.com/sponsors/yangKJ">
+  <img alt="GitHub Sponsors" src="https://img.shields.io/badge/GitHub-Sponsors-blue?style=for-the-badge">
+</a>
 
-Harbeth 提供了性能监控工具，帮助开发者优化应用：
+支付宝或微信一次性支持：
 
-```swift
-// 启用性能监控
-Shared.shared.enablePerformanceMonitor = true
-
-let io = HarbethIO(element: image, filters: filters)
-
-// 应用滤镜
-let result = try? io.output()
-
-// 查看汇总统计
-if let summary = Shared.shared.performanceMonitor?.getSummary() {
-    print(summary)
-}
-```
-
-## 📖 API 参考
-
-### 核心类
-
-#### HarbethIO
-
-`HarbethIO` 是 Harbeth 的核心处理类，负责管理滤镜应用过程。以下是其详细属性说明：
-
-| 属性 | 类型 | 默认值 | 描述 |
-| :--- | :--- | :--- | :--- |
-| `element` | `Dest` | - | 要应用滤镜的输入元素。支持 UIImage/NSImage、CGImage、MTLTexture、CMSampleBuffer 和 CVPixelBuffer。 |
-| `filters` | `[C7FilterProtocol]` | - | 要应用到输入元素的滤镜数组。 |
-| `bufferPixelFormat` | `MTLPixelFormat` | `.bgra8Unorm` | 输出缓冲区的像素格式。对于相机捕获尤为重要，通常使用 `kCVPixelFormatType_32BGRA` 以避免蓝色 tint 问题。 |
-| `createDestTexture` | `Bool` | `true` | 是否创建单独的输出纹理。禁用此选项可能会导致纹理覆盖问题。 |
-| `transmitOutputRealTimeCommit` | `Bool` | `false` | 是否对 Metal 纹理输出使用实时提交。启用 `MTLCommandBuffer.asyncCommit` 以获得更快的处理速度。 |
-| `enableDoubleBuffer` | `Bool` | `true` | 是否为金属滤镜启用双缓冲优化。减少内存使用并提高纹理池效率。 |
-
-**使用示例：**
-
-```swift
-// 基本用法
-let dest = HarbethIO(element: image, filters: [filter1, filter2])
-
-// 自定义配置
-var dest = HarbethIO(element: image, filters: [filter1, filter2])
-dest.bufferPixelFormat = .rgba8Unorm
-dest.enableDoubleBuffer = true
-
-// 带有自定义配置的异步处理
-var dest = HarbethIO(element: image, filters: [filter1, filter2])
-dest.transmitOutputRealTimeCommit = true
-dest.transmitOutput { result in
-    switch result {
-    case .success(let output):
-        // 处理成功输出
-    case .failure(let error):
-        // 处理错误
-    }
-}
-```
-
-**性能优化技巧：**
-
-1. **对于实时处理**（例如相机捕获）：
-   - 设置 `transmitOutputRealTimeCommit = true`
-   - 启用 `enableDoubleBuffer` 以更好地管理内存
-
-2. **对于内存受限设备**：
-   - 使用 `Device.setMemoryLimitMB(value)` 设置较低的内存限制
-   - 确保 `enableDoubleBuffer = true`
-   - 使用异步处理以避免内存峰值
-
-3. **对于高质量输出**：
-   - 设置 `createDestTexture = true` 以避免纹理覆盖
-   - 根据输出需求使用适当的 `bufferPixelFormat`
-
-4. **对于性能监控**：
-   - 使用 `Shared.shared.enablePerformanceMonitor = true` 启用性能监控
-   - 使用 `Shared.shared.performanceMonitor?.getSummary()` 查看汇总统计
-
-```swift
-public struct HarbethIO<Dest> {
-    public let element: Dest
-    public let filters: [C7FilterProtocol]
-    public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm
-    public var mirrored: Bool = false
-    public var createDestTexture: Bool = true
-    public var transmitOutputRealTimeCommit: Bool = false
-    public var enableDoubleBuffer: Bool = true
-    
-    public func output() throws -> Dest
-    public func transmitOutput(success: @escaping (Dest) -> Void, failed: ((HarbethError) -> Void)? = nil)
-}
-```
-
-#### C7FilterProtocol
-
-`C7FilterProtocol` 是所有滤镜的基础协议：
-
-```swift
-public protocol C7FilterProtocol {
-    var modifier: ModifierEnum { get }
-    var factors: [Float] { get }
-    var kernelParameterBindings: [KernelParameterBinding] { get }
-    var otherInputTextures: C7InputTextures { get }
-    
-    func resize(input size: C7Size) -> C7Size
-    func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture
-    func combinationAfter(for buffer: MTLCommandBuffer, input texture: MTLTexture, source texture2: MTLTexture) throws -> MTLTexture
-    func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture
-}
-```
-
-#### C7FilterPipelineProtocol
-
-推荐通过 `C7FilterPipelineProtocol` 定义组合滤镜，把中间 pass 描述为普通滤镜链，再把最终混合 kernel 作为 leaf filter 暴露出来：
-
-```swift
-struct FinalBlendLeaf: C7FilterProtocol {
-    var modifier: ModifierEnum {
-        .compute(kernel: "customCombinationKernel")
-    }
-
-    var factors: [Float] {
-        [0.75]
-    }
-}
-
-final class CustomCombinationFilter: C7FilterPipelineProtocol {
-    var pipelineFilters: [C7FilterProtocol] {
-        [
-            C7Contrast(contrast: 1.1),
-            C7Saturation(saturation: 0.9)
-        ]
-    }
-
-    func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
-        FinalBlendLeaf()
-    }
-}
-```
-
-`C7CombinationBase` 仍然保留为兼容层，但新的组合滤镜不再推荐继承它。
-
-## 🤝 贡献指南
-
-我们欢迎社区贡献，包括：
-
-1. **错误修复** - 报告和修复 bug
-2. **功能增强** - 添加新功能和滤镜
-3. **文档改进** - 完善文档和示例
-4. **性能优化** - 提高框架性能
-
-## 📄 许可证
-
-Harbeth 使用 MIT 许可证，详情请参阅 LICENSE 文件。
-
-## 📞 联系我们
-
-如果您有任何问题或建议，欢迎联系我们：
-
-- **GitHub Issues**：[https://github.com/yangKJ/Harbeth/issues](https://github.com/yangKJ/Harbeth/issues)
-- **邮箱**：[ykj310@126.com](mailto:ykj310@126.com)
-
-## 🙏 致谢
-
-感谢所有为 Harbeth 做出贡献的开发者和用户！
-
----
-
-**如果 Harbeth 对您有所帮助，欢迎给项目一个 ⭐️ Star，这是对我们最大的鼓励！**
-
----
-
-<p align="center">
-  <img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bfb6d859b345472aa3a4bf224dee5969~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=828&h=828&s=112330&e=jpg&b=59be6d" width=20% hspace="10px">
-  <img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6f4bb3a1b49d427fbe0405edc6b7f7ee~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1200&h=1200&s=185343&e=jpg&b=3977f5" width=20% hspace="10px">
+<p align="left">
+  <img src="Screenshot/WechatIMG1.jpg" width="220" alt="支付宝赞赏二维码">
+  <img src="Screenshot/WechatIMG2.jpg" width="220" hspace="15" alt="微信赞赏二维码">
 </p>
 
-<p align="center">
-  <small>支持开发者，让项目持续改进</small>
-</p>
+维护者：[yangKJ](https://github.com/yangKJ) · [yangkj310@gmail.com](mailto:yangkj310@gmail.com)
+
+## License
+
+Harbeth 使用 [MIT License](LICENSE)。

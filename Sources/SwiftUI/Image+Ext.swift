@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 extension Image {
     
     public init(cgImage: CGImage) {
@@ -16,7 +16,7 @@ extension Image {
     }
     
     public init(c7Image: C7Image) {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         self.init(uiImage: c7Image)
         #elseif os(macOS)
         self.init(nsImage: c7Image)

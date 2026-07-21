@@ -148,12 +148,12 @@ public final class PixelBufferPool {
     public let descriptor: RenderPixelBufferDescriptor
     private let pool: CVPixelBufferPool
     private static let realtimePoolQueue = DispatchQueue(label: "harbeth.realtime.pixelbufferpool")
-    private static var realtimePoolStore: [String: CVPixelBufferPool] = [:]
-    private static var realtimePoolLRUTimestamp: [String: Date] = [:]
+    nonisolated(unsafe) private static var realtimePoolStore: [String: CVPixelBufferPool] = [:]
+    nonisolated(unsafe) private static var realtimePoolLRUTimestamp: [String: Date] = [:]
     private static let realtimePoolMaxEntryCount = 4
-    public static private(set) var realtimePoolHitCount: Int = 0
-    public static private(set) var realtimePoolMissCount: Int = 0
-    public static private(set) var realtimeAllocationFallbackCount: Int = 0
+    nonisolated(unsafe) public static private(set) var realtimePoolHitCount: Int = 0
+    nonisolated(unsafe) public static private(set) var realtimePoolMissCount: Int = 0
+    nonisolated(unsafe) public static private(set) var realtimeAllocationFallbackCount: Int = 0
 
     public init(descriptor: RenderPixelBufferDescriptor) throws {
         self.descriptor = descriptor

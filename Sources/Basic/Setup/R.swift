@@ -12,12 +12,41 @@ import UIKit
 import AppKit
 #endif
 
+private final class ResourceBundleCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [String: Bundle] = [:]
+
+    func bundle(named name: String) -> Bundle? {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage[name]
+    }
+
+    func store(_ bundle: Bundle, named name: String) {
+        lock.lock()
+        storage[name] = bundle
+        lock.unlock()
+    }
+
+    func snapshot() -> [String: Bundle] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func replace(with bundles: [String: Bundle]) {
+        lock.lock()
+        storage = bundles
+        lock.unlock()
+    }
+}
+
 /// 资源文件读取
 public struct R {
-    
+
     /// Returns the host app's bundle (safe for app extensions).
     public static let app: Bundle = {
-        #if os(iOS) || os(tvOS) || os(watchOS)
+        #if os(iOS) || os(tvOS)
         if Bundle.main.bundleURL.pathExtension == "appex" {
             // Running inside an app extension
             let container = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
@@ -26,13 +55,17 @@ public struct R {
         #endif
         return Bundle.main
     }()
-    
-    public static var cacheBundles = [String: Bundle]()
-    
+    private static let bundleCache = ResourceBundleCache()
+
+    public static var cacheBundles: [String: Bundle] {
+        get { bundleCache.snapshot() }
+        set { bundleCache.replace(with: newValue) }
+    }
+
     /// Read image resources
     public static func image(_ named: String, forResource: String = "Harbeth") -> C7Image? {
         let readImageblock = { (bundle: Bundle) -> C7Image? in
-            #if os(iOS) || os(tvOS) || os(watchOS)
+            #if os(iOS) || os(tvOS)
             return C7Image(named: named, in: bundle, compatibleWith: nil)
             #elseif os(macOS)
             return bundle.image(forResource: named)
@@ -48,12 +81,12 @@ public struct R {
         }
         return readImageblock(bundle)
     }
-    
+
     /// Read color resource
     @available(iOS 11.0, macOS 10.13, *)
     public static func color(_ named: String, forResource: String = "Harbeth") -> C7Color? {
         let readColorblock = { (bundle: Bundle) -> C7Color? in
-            #if os(iOS) || os(tvOS) || os(watchOS)
+            #if os(iOS) || os(tvOS)
             return C7Color.init(named: named, in: bundle, compatibleWith: nil)
             #elseif os(macOS)
             return C7Color.init(named: named, bundle: bundle)
@@ -69,9 +102,9 @@ public struct R {
         }
         return readColorblock(bundle)
     }
-    
+
     public static func readFrameworkBundle(with bundleName: String) -> Bundle? {
-        if let bundle = cacheBundles[bundleName] {
+        if let bundle = bundleCache.bundle(named: bundleName) {
             return bundle
         }
         let bundle__ = Bundle(for: R__.self)
@@ -88,11 +121,11 @@ public struct R {
         for candidate in candidates {
             let bundlePath = candidate?.appendingPathComponent(bundleName + ".bundle")
             if let bundle = bundlePath.flatMap(Bundle.init(url:)) {
-                cacheBundles[bundleName] = bundle
+                bundleCache.store(bundle, named: bundleName)
                 return bundle
             }
         }
-        cacheBundles[bundleName] = bundle__
+        bundleCache.store(bundle__, named: bundleName)
         return bundle__
     }
 }
@@ -105,30 +138,4 @@ extension R {
     /// 强度范围
     /// Intensity range, used to adjust the mixing ratio of filters and sources.
     public static let intensityRange = iRange
-    
-    /// Screen width (main screen)
-    public static var width: CGFloat {
-        #if os(iOS) || os(tvOS)
-        return UIScreen.main.bounds.width
-        #elseif os(watchOS)
-        return WKInterfaceDevice.current().screenBounds.width
-        #elseif os(macOS)
-        return NSScreen.main?.frame.width ?? 0
-        #else
-        return 0
-        #endif
-    }
-    
-    /// Screen height (main screen)
-    public static var height: CGFloat {
-        #if os(iOS) || os(tvOS)
-        return UIScreen.main.bounds.height
-        #elseif os(watchOS)
-        return WKInterfaceDevice.current().screenBounds.height
-        #elseif os(macOS)
-        return NSScreen.main?.frame.height ?? 0
-        #else
-        return 0
-        #endif
-    }
 }

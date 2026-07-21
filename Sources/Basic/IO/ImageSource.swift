@@ -49,7 +49,7 @@ public enum ImageSource {
     }
 
     public var orientation: FrameOrientation {
-        #if os(iOS) || os(tvOS) || os(watchOS)
+        #if os(iOS) || os(tvOS)
         if case .image(let image) = self {
             switch image.imageOrientation {
             case .up: return .up
@@ -85,11 +85,10 @@ public enum ImageSource {
 
     public var alphaType: AlphaType {
         switch self {
-        case .cgImage(let image):
-            return image.c7.alphaType
+        case .cgImage(let image): return image.c7.alphaType
         case .ciImage:
             return .premultiplied
-        #if os(iOS) || os(tvOS) || os(watchOS)
+        #if os(iOS) || os(tvOS)
         case .image(let image):
             if let cgImage = image.cgImage {
                 return cgImage.c7.alphaType
@@ -202,8 +201,7 @@ public enum ImageSource {
             return C7Size(cgImage: image)
         case .ciImage(let image):
             let extent = image.extent.integral
-            guard extent.isNull == false, extent.isInfinite == false,
-                  extent.width > 0, extent.height > 0 else {
+            guard extent.isNull == false, extent.isInfinite == false, extent.width > 0, extent.height > 0 else {
                 return nil
             }
             return C7Size(width: Int(extent.width), height: Int(extent.height))

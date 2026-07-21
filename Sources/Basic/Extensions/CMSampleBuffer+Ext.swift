@@ -10,9 +10,10 @@ import CoreMedia
 import CoreVideo
 import ImageIO
 
-let harbethFrameMirrorHorizontallyAttachmentKey = "io.harbeth.frame.mirrorHorizontally" as CFString
-let harbethFrameMirrorVerticallyAttachmentKey = "io.harbeth.frame.mirrorVertically" as CFString
-let harbethFrameFollowsDeviceOrientationAttachmentKey = "io.harbeth.frame.followsDeviceOrientation" as CFString
+nonisolated(unsafe) let harbethFrameMirrorHorizontallyAttachmentKey = "io.harbeth.frame.mirrorHorizontally" as CFString
+nonisolated(unsafe) let harbethFrameMirrorVerticallyAttachmentKey = "io.harbeth.frame.mirrorVertically" as CFString
+nonisolated(unsafe) let harbethFrameFollowsDeviceOrientationAttachmentKey =
+    "io.harbeth.frame.followsDeviceOrientation" as CFString
 
 extension CMSampleBuffer: HarbethCompatible {
     @inline(__always)

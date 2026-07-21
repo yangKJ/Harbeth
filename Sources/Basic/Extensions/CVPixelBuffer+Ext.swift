@@ -133,15 +133,17 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
         #if !targetEnvironment(simulator)
         var cvmTexture: CVMetalTexture?
-        CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                  textureCache,
-                                                  self.base,
-                                                  nil,
-                                                  pixelFormat,
-                                                  CVPixelBufferGetWidthOfPlane(base, planeIndex),
-                                                  CVPixelBufferGetHeightOfPlane(base, planeIndex),
-                                                  planeIndex,
-                                                  &cvmTexture)
+        CVMetalTextureCacheCreateTextureFromImage(
+            kCFAllocatorDefault,
+            textureCache,
+            self.base,
+            nil,
+            pixelFormat,
+            CVPixelBufferGetWidthOfPlane(base, planeIndex),
+            CVPixelBufferGetHeightOfPlane(base, planeIndex),
+            planeIndex,
+            &cvmTexture
+        )
         if let cvmTexture = cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) {
             // Realtime camera bridge: this texture is a borrowed frame view.
             // Do not retain the CVPixelBuffer/CVMetalTexture on the MTLTexture, or the
@@ -176,36 +178,30 @@ extension HarbethWrapper where Base: CVPixelBuffer {
 
     func createPlaneTextureReferences(textureCache: CVMetalTextureCache? = nil) -> [(texture: MTLTexture, owner: AnyObject)] {
         let plan = makeTextureBridgePlan()
-        guard plan.contract.nativeTextureLayout == .planeTextures else {
-            return []
-        }
+        guard plan.contract.nativeTextureLayout == .planeTextures else { return [] }
         let cache: CVMetalTextureCache? = textureCache ?? Shared.shared.sharedTextureCache
         return plan.contract.planes.compactMap { plane in
-            guard let pixelFormat = plane.metalPixelFormat else {
-                return nil
-            }
+            guard let pixelFormat = plane.metalPixelFormat else { return nil }
             return convertPlaneTextureReference(textureCache: cache, pixelFormat: pixelFormat, planeIndex: plane.index)
         }
     }
 
     private func convertPlaneTextureReference(textureCache: CVMetalTextureCache?, pixelFormat: MTLPixelFormat, planeIndex: Int) -> (texture: MTLTexture, owner: AnyObject)? {
-        guard let textureCache = textureCache else {
-            return nil
-        }
+        guard let textureCache = textureCache else { return nil }
         #if !targetEnvironment(simulator)
         var cvmTexture: CVMetalTexture?
-        CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                  textureCache,
-                                                  self.base,
-                                                  nil,
-                                                  pixelFormat,
-                                                  CVPixelBufferGetWidthOfPlane(base, planeIndex),
-                                                  CVPixelBufferGetHeightOfPlane(base, planeIndex),
-                                                  planeIndex,
-                                                  &cvmTexture)
-        guard let cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) else {
-            return nil
-        }
+        CVMetalTextureCacheCreateTextureFromImage(
+            kCFAllocatorDefault,
+            textureCache,
+            self.base,
+            nil,
+            pixelFormat,
+            CVPixelBufferGetWidthOfPlane(base, planeIndex),
+            CVPixelBufferGetHeightOfPlane(base, planeIndex),
+            planeIndex,
+            &cvmTexture
+        )
+        guard let cvmTexture, let texture = CVMetalTextureGetTexture(cvmTexture) else { return nil }
         return (texture, cvmTexture)
         #else
         return nil
@@ -213,7 +209,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     }
 
     private static func yCbCrMatrixAttachment(for pixelBuffer: CVPixelBuffer) -> YCbCrMatrixAttachment? {
-        guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, nil)?.takeUnretainedValue() else {
+        guard let attachment = CVBufferCopyAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, nil) else {
             return nil
         }
         if CFEqual(attachment, kCVImageBufferYCbCrMatrix_ITU_R_709_2) {
@@ -234,7 +230,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     }
 
     private static func colorPrimariesAttachment(for pixelBuffer: CVPixelBuffer) -> ColorPrimariesAttachment? {
-        guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferColorPrimariesKey, nil)?.takeUnretainedValue() else {
+        guard let attachment = CVBufferCopyAttachment(pixelBuffer, kCVImageBufferColorPrimariesKey, nil) else {
             return nil
         }
         if CFEqual(attachment, kCVImageBufferColorPrimaries_ITU_R_709_2) {
@@ -292,7 +288,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     }
 
     private static func transferFunctionAttachment(for pixelBuffer: CVPixelBuffer) -> ColorTransferAttachment? {
-        guard let attachment = CVBufferGetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, nil)?.takeUnretainedValue() else {
+        guard let attachment = CVBufferCopyAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, nil) else {
             return nil
         }
         if CFEqual(attachment, kCVImageBufferTransferFunction_ITU_R_709_2) {
@@ -356,10 +352,8 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     /// - Parameter texture: Source Metal texture
     @discardableResult
     public func copyToPixelBuffer(with texture: MTLTexture) -> Bool {
-        guard textureCopyCompatibilityError(for: texture) == nil else {
-            return false
-        }
-        guard lockBaseAddress([]) == kCVReturnSuccess else {
+        guard textureCopyCompatibilityError(for: texture) == nil,
+              lockBaseAddress([]) == kCVReturnSuccess else {
             return false
         }
         defer { unlockBaseAddress([]) }
@@ -395,26 +389,18 @@ extension HarbethWrapper where Base: CVPixelBuffer {
 
     public func copyAttachment(_ key: CFString, from imageBuffer: CVImageBuffer) {
         var attachmentMode = CVAttachmentMode.shouldPropagate
-        guard let attachment = CVBufferGetAttachment(imageBuffer, key, &attachmentMode) else {
-            return
-        }
-        CVBufferSetAttachment(base, key, attachment.takeUnretainedValue(), attachmentMode)
+        guard let attachment = CVBufferCopyAttachment(imageBuffer, key, &attachmentMode) else { return }
+        CVBufferSetAttachment(base, key, attachment, attachmentMode)
     }
 
     public func setColorPrimariesAttachmentIfMissing(_ primaries: ColorPrimariesAttachment) {
-        guard CVBufferGetAttachment(base, kCVImageBufferColorPrimariesKey, nil) == nil else {
-            return
-        }
-        guard let value = Self.cvColorPrimariesValue(for: primaries) else {
-            return
-        }
+        if CVBufferCopyAttachment(base, kCVImageBufferColorPrimariesKey, nil) != nil { return }
+        guard let value = Self.cvColorPrimariesValue(for: primaries) else { return }
         CVBufferSetAttachment(base, kCVImageBufferColorPrimariesKey, value, .shouldPropagate)
     }
 
     public func setColorSpaceAttachments(_ colorSpace: ImageColorSpaceContract) {
-        guard colorSpace.preservesInput == false else {
-            return
-        }
+        guard colorSpace.preservesInput == false else { return }
         if let primaries = Self.cvColorPrimariesValue(for: colorSpace.gamut) {
             CVBufferSetAttachment(base, kCVImageBufferColorPrimariesKey, primaries, .shouldPropagate)
         }
@@ -510,14 +496,18 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         defer { unlockBaseAddress(.readOnly) }
         var outPixelbuffer: CVPixelBuffer? = base
         if let datas = texture.buffer?.contents() {
-            CVPixelBufferCreateWithBytes(kCFAllocatorDefault,
-                                         texture.width,
-                                         texture.height,
-                                         kCVPixelFormatType_64RGBAHalf,
-                                         datas,
-                                         texture.bufferBytesPerRow,
-                                         nil, nil, nil,
-                                         &outPixelbuffer);
+            CVPixelBufferCreateWithBytes(
+                kCFAllocatorDefault,
+                texture.width,
+                texture.height,
+                kCVPixelFormatType_64RGBAHalf,
+                datas,
+                texture.bufferBytesPerRow,
+                nil,
+                nil,
+                nil,
+                &outPixelbuffer
+            );
         }
         return outPixelbuffer ?? base
     }
@@ -534,19 +524,22 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         var newSampleBuffer: CMSampleBuffer?
         var timimgInfo = CMSampleTimingInfo.invalid
         var videoInfo: CMVideoFormatDescription?
-        
-        CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: base, formatDescriptionOut: &videoInfo)
-        guard let videoInfo = videoInfo else {
-            return nil
-        }
-        CMSampleBufferCreateForImageBuffer(allocator: kCFAllocatorDefault,
-                                           imageBuffer: base,
-                                           dataReady: true,
-                                           makeDataReadyCallback: nil,
-                                           refcon: nil,
-                                           formatDescription: videoInfo,
-                                           sampleTiming: &timimgInfo,
-                                           sampleBufferOut: &newSampleBuffer)
+        CMVideoFormatDescriptionCreateForImageBuffer(
+            allocator: nil,
+            imageBuffer: base,
+            formatDescriptionOut: &videoInfo
+        )
+        guard let videoInfo = videoInfo else { return nil }
+        CMSampleBufferCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: base,
+            dataReady: true,
+            makeDataReadyCallback: nil,
+            refcon: nil,
+            formatDescription: videoInfo,
+            sampleTiming: &timimgInfo,
+            sampleBufferOut: &newSampleBuffer
+        )
         return newSampleBuffer
     }
     
@@ -570,9 +563,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             #else
             let cache = textureCache ?? Shared.shared.sharedTextureCache
             let textures = createPlaneTextures(textureCache: cache)
-            guard let primary = textures.first else {
-                return nil
-            }
+            guard let primary = textures.first else { return nil }
             TextureOwnerRegistry.attach(base, to: primary)
             return primary
             #endif
@@ -707,13 +698,9 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         let planar = CVPixelBufferIsPlanar(base)
         let expectedWidth = Self.width(of: base, planeIndex: planeIndex, planar: planar)
         let expectedHeight = Self.height(of: base, planeIndex: planeIndex, planar: planar)
-        guard width == expectedWidth, height == expectedHeight else {
-            return false
-        }
+        guard width == expectedWidth, height == expectedHeight else { return false }
         let lockStatus = lockBaseAddress(.readOnly)
-        guard lockStatus == kCVReturnSuccess else {
-            return false
-        }
+        guard lockStatus == kCVReturnSuccess else { return false }
         defer { unlockBaseAddress(.readOnly) }
         let sourceBytes: UnsafeMutableRawPointer?
         let bytesPerRow: Int
@@ -724,9 +711,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             sourceBytes = CVPixelBufferGetBaseAddress(base)
             bytesPerRow = CVPixelBufferGetBytesPerRow(base)
         }
-        guard let sourceBytes else {
-            return false
-        }
+        guard let sourceBytes else { return false }
         let region = MTLRegionMake2D(0, 0, width, height)
         texture.replace(region: region, mipmapLevel: 0, withBytes: sourceBytes, bytesPerRow: bytesPerRow)
         return true

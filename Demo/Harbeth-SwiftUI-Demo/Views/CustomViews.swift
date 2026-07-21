@@ -30,7 +30,6 @@ struct CustomViews<F: C7FilterProtocol>: View {
             HarbethView(image: inputImage, filters: [filtering(value)], content: { image in
                 image.resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(idealHeight: R.width-30 / 2 * 3)
                     .padding()
             }, async: true)
             

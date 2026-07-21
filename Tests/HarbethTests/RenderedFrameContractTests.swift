@@ -19,7 +19,7 @@ final class RenderedFrameContractTests: XCTestCase {
         XCTAssertEqual(Int(frame.outputImageSize.height), sourceHeight)
     }
 
-    func testSampleBufferToFrameContractAndImageSize() throws {
+    @MainActor func testSampleBufferToFrameContractAndImageSize() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
@@ -132,7 +132,7 @@ final class RenderedFrameContractTests: XCTestCase {
         XCTAssertNil(try frame.makePreviewHostSampleBuffer())
     }
 
-    func testSampleBufferDisplayRouteContract() throws {
+    @MainActor func testSampleBufferDisplayRouteContract() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 

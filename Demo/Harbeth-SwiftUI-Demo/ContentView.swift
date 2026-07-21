@@ -12,6 +12,7 @@ import Harbeth
 private enum StudioLayout {
     case macOSWide, macOSCompact, iOSPhone, iOSiPad
 
+    @MainActor
     static func resolved(size: CGSize) -> StudioLayout {
         #if os(iOS)
         let idiom = UIDevice.current.userInterfaceIdiom
@@ -24,20 +25,19 @@ private enum StudioLayout {
 }
 
 // MARK: - Design System Colors
-fileprivate let dsAccentBlue   = Color(red: 94.0/255.0, green: 158.0/255.0, blue: 255.0/255.0)   // #5E9EFF
-fileprivate let dsAccentPurple = Color(red: 167.0/255.0, green: 139.0/255.0, blue: 250.0/255.0)  // #A78BFA
-fileprivate let dsAccentGreen  = Color(red: 52.0/255.0, green: 211.0/255.0, blue: 153.0/255.0)   // #34D399
-fileprivate let dsAccentAmber  = Color(red: 251.0/255.0, green: 191.0/255.0, blue: 36.0/255.0)   // #FBBF24
-fileprivate let dsSurfaceDeep     = Color(red: 10.0/255.0, green: 10.0/255.0, blue: 12.0/255.0)  // #0A0A0C
-fileprivate let dsSurfaceCard     = Color(red: 20.0/255.0, green: 20.0/255.0, blue: 24.0/255.0)  // #141418
-fileprivate let dsSurfaceElevated = Color(red: 28.0/255.0, green: 28.0/255.0, blue: 34.0/255.0)  // #1C1C22
-fileprivate let dsGlassBg         = Color.white.opacity(0.06)
-fileprivate let dsGlassBorder     = Color.white.opacity(0.10)
-fileprivate let dsBorderSubtle    = Color.white.opacity(0.06)
-fileprivate let dsTextPrimary     = Color.white.opacity(0.94)
-fileprivate let dsTextSecondary   = Color.white.opacity(0.62)
-fileprivate let dsTextTertiary    = Color.white.opacity(0.38)
-
+fileprivate let dsAccentBlue = Color(red: 94.0 / 255.0, green: 158.0 / 255.0, blue: 255.0 / 255.0) // #5E9EFF
+fileprivate let dsAccentPurple = Color(red: 167.0 / 255.0, green: 139.0 / 255.0, blue: 250.0 / 255.0) // #A78BFA
+fileprivate let dsAccentGreen = Color(red: 52.0 / 255.0, green: 211.0 / 255.0, blue: 153.0 / 255.0) // #34D399
+fileprivate let dsAccentAmber = Color(red: 251.0 / 255.0, green: 191.0 / 255.0, blue: 36.0 / 255.0) // #FBBF24
+fileprivate let dsSurfaceDeep = Color(red: 10.0 / 255.0, green: 10.0 / 255.0, blue: 12.0 / 255.0) // #0A0A0C
+fileprivate let dsSurfaceCard = Color(red: 20.0 / 255.0, green: 20.0 / 255.0, blue: 24.0 / 255.0) // #141418
+fileprivate let dsSurfaceElevated = Color(red: 28.0 / 255.0, green: 28.0 / 255.0, blue: 34.0 / 255.0) // #1C1C22
+fileprivate let dsGlassBg = Color.white.opacity(0.06)
+fileprivate let dsGlassBorder = Color.white.opacity(0.10)
+fileprivate let dsBorderSubtle = Color.white.opacity(0.06)
+fileprivate let dsTextPrimary = Color.white.opacity(0.94)
+fileprivate let dsTextSecondary = Color.white.opacity(0.62)
+fileprivate let dsTextTertiary = Color.white.opacity(0.38)
 
 struct ContentView: View {
     @Namespace private var showcaseNamespace
@@ -260,26 +260,24 @@ private struct ShowcaseHomeView: View {
     }
 
     private var codeSnippet: String {
-        let lookName = activeStory.recipe.lookPreset.title
         return """
-        // Harbeth filter chain example — GPU-accelerated via Metal Performance Shaders
-        let source = C7Image(named: "\(activeStory.recipe.sourceName.resourceName)")
-        let filters: [C7FilterProtocol] = [
-            C7ColorCube(cubeName: "\(lookName.lowercased())", intensity: 0.85),
-            C7Exposure(exposure: \(String(format: "%.2f", activeStory.recipe.exposure))),
-            C7Contrast(contrast: \(String(format: "%.2f", activeStory.recipe.contrast))),
-            C7Saturation(saturation: \(String(format: "%.2f", activeStory.recipe.saturation))),
-            C7Temperature(temperature: \(String(format: "%.0f", activeStory.recipe.temperature)))
-        ]
-        var dest = HarbethIO(element: source, filters: filters)
-        let result = try dest.output()
-        """
+            // HarbethIO direct route
+            guard let source = C7Image(named: "\(activeStory.recipe.sourceName.resourceName)") else { return }
+            let filters: [C7FilterProtocol] = [
+            \(activeStory.recipe.codeLookFilter)
+                C7Exposure(exposure: \(String(format: "%.2f", activeStory.recipe.exposure))),
+                C7Contrast(contrast: \(String(format: "%.2f", activeStory.recipe.contrast))),
+                C7Saturation(saturation: \(String(format: "%.2f", activeStory.recipe.saturation))),
+                C7Temperature(temperature: \(String(format: "%.0f", activeStory.recipe.temperature)))
+            ]
+            let result = try HarbethIO(element: source, filters: filters).output()
+            """
     }
 
     private var showcaseSignalStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ShowcaseSignalPill(title: "Metal Performance Shaders", subtitle: "GPU-accelerated zero-copy pipeline")
+                ShowcaseSignalPill(title: "Metal render engine", subtitle: "Texture-first output pipeline")
                 ShowcaseSignalPill(title: "Preview / Final", subtitle: "Same recipe, dual-surface render")
                 ShowcaseSignalPill(title: "Sharpen / Denoise", subtitle: "Unsharp mask + noise reduction")
                 ShowcaseSignalPill(title: "Dual-input Blend", subtitle: "Multi-texture compositing proof")
@@ -415,7 +413,7 @@ private struct ShowcaseHeroStage: View {
     @State private var previewOutput: StudioRenderOutput?
     @State private var finalOutput: StudioRenderOutput?
     @State private var errorMessage: String?
-    @State private var renderWorkItem: DispatchWorkItem?
+    @State private var renderTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -442,6 +440,9 @@ private struct ShowcaseHeroStage: View {
             finalOutput = nil
             errorMessage = nil
             renderStory()
+        }
+        .onDisappear {
+            renderTask?.cancel()
         }
     }
 
@@ -476,18 +477,9 @@ private struct ShowcaseHeroStage: View {
 
     private var heroFooter: some View {
         HStack(spacing: 12) {
-            ShowcaseSignalCard(
-                title: "Preview",
-                subtitle: previewOutput?.summary ?? "Preparing preview surface"
-            )
-            ShowcaseSignalCard(
-                title: "Final",
-                subtitle: finalOutput?.summary ?? "Preparing final render"
-            )
-            ShowcaseSignalCard(
-                title: "Recipe",
-                subtitle: story.badgeText
-            )
+            ShowcaseSignalCard(title: "Preview", subtitle: previewOutput?.summary ?? "Preparing preview surface")
+            ShowcaseSignalCard(title: "Final", subtitle: finalOutput?.summary ?? "Preparing final render")
+            ShowcaseSignalCard(title: "Recipe", subtitle: story.badgeText)
         }
     }
 
@@ -522,16 +514,18 @@ private struct ShowcaseHeroStage: View {
     }
 
     private func renderStory() {
-        renderWorkItem?.cancel()
-        let currentStory = story
-        let workItem = DispatchWorkItem {
+        renderTask?.cancel()
+        let currentRecipe = story.recipe
+        renderTask = Task.detached(priority: .userInitiated) {
             let previewResult = Result(catching: {
-                try StudioRenderer.render(recipe: currentStory.recipe, surface: .preview)
+                try StudioRenderer.render(recipe: currentRecipe, surface: .preview)
             })
+            guard !Task.isCancelled else { return }
             let finalResult = Result(catching: {
-                try StudioRenderer.render(recipe: currentStory.recipe, surface: .export)
+                try StudioRenderer.render(recipe: currentRecipe, surface: .export)
             })
-            DispatchQueue.main.async {
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
                 switch previewResult {
                 case .success(let output):
                     previewOutput = output
@@ -548,8 +542,6 @@ private struct ShowcaseHeroStage: View {
                 }
             }
         }
-        renderWorkItem = workItem
-        DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
     }
 }
 
@@ -583,7 +575,6 @@ private struct ShowcaseStoryPicker: View {
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
-                            
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(story.kicker.uppercased())
                                     .font(.caption2.weight(.semibold))
@@ -911,7 +902,7 @@ private struct PhotoStudioView: View {
     @State private var isRendering = false
     @State private var renderGeneration = UUID()
     @State private var splitPosition: CGFloat = 0.52
-    @State private var renderWorkItem: DispatchWorkItem?
+    @State private var renderTask: Task<Void, Never>?
     @State private var isSaving = false
     @State private var isParamExpanded = false
 
@@ -949,6 +940,9 @@ private struct PhotoStudioView: View {
             .onAppear(perform: refreshRenders)
             .onChange(of: recipe) { _ in
                 refreshRenders()
+            }
+            .onDisappear {
+                renderTask?.cancel()
             }
         }
         .id(entryID)
@@ -1529,22 +1523,24 @@ private struct PhotoStudioView: View {
     }
 
     private func refreshRenders() {
-        renderWorkItem?.cancel()
+        renderTask?.cancel()
         let currentGeneration = UUID()
         let currentRecipe = recipe
         renderGeneration = currentGeneration
         renderError = nil
         isRendering = true
 
-        let workItem = DispatchWorkItem {
+        renderTask = Task.detached(priority: .userInitiated) {
             let previewResult = Result(catching: {
                 try StudioRenderer.render(recipe: currentRecipe, surface: .preview)
             })
+            guard !Task.isCancelled else { return }
             let exportResult = Result(catching: {
                 try StudioRenderer.render(recipe: currentRecipe, surface: .export)
             })
+            guard !Task.isCancelled else { return }
 
-            DispatchQueue.main.async {
+            await MainActor.run {
                 guard renderGeneration == currentGeneration else { return }
                 isRendering = false
                 switch previewResult {
@@ -1565,8 +1561,6 @@ private struct PhotoStudioView: View {
                 }
             }
         }
-        renderWorkItem = workItem
-        DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
     }
 
     // MARK: - Platform Body Methods
@@ -2308,7 +2302,7 @@ private struct FilterParameter<T: Hashable>: Identifiable where T: CaseIterable 
     }
 }
 
-private struct StudioRecipe: Equatable {
+private struct StudioRecipe: Equatable, @unchecked Sendable {
     struct HSLAdjustment: Equatable {
         var hue: Float = 0
         var saturation: Float = 0
@@ -2430,6 +2424,19 @@ private struct StudioRecipe: Equatable {
 
     var sourceImage: C7Image {
         R.image(sourceName.resourceName) ?? R.image("IMG_2606")!
+    }
+
+    var codeLookFilter: String {
+        switch lookPreset {
+        case .clean:
+            return ""
+        case .cinematic:
+            return "    C7ColorCube(cubeName: \"violet\", intensity: 0.8),"
+        case .vintage:
+            return "    C7ColorCube(cubeName: \"vista200 v1\", intensity: 0.9),"
+        case .mono:
+            return "    C7LookupTable1D(name: \"bw_vintage_curves1\", intensity: 0.95),"
+        }
     }
 
     func filters(source: C7Image, surface: StudioRenderSurface) throws -> [C7FilterProtocol] {
@@ -2816,7 +2823,7 @@ private enum StudioComparisonMode: String, CaseIterable, Identifiable {
     }
 }
 
-private enum StudioRenderSurface: String, CaseIterable, Identifiable {
+private enum StudioRenderSurface: String, CaseIterable, Identifiable, Sendable {
     case preview
     case export
 

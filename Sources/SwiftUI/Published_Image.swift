@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 public final class Published_Image: ObservableObject {
     
     @Published public var image: C7Image
@@ -17,7 +17,7 @@ public final class Published_Image: ObservableObject {
     }
 }
 
-@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 public final class Published_Source<T>: ObservableObject {
     
     @Published public var source: T

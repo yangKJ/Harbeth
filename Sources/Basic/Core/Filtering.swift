@@ -102,18 +102,15 @@ extension C7FilterProtocol {
         if bindings.isEmpty {
             return factors.map { String(format: "%.4f", $0) }.joined(separator: ",")
         }
-        return bindings
-            .sorted { lhs, rhs in
-                if lhs.index == rhs.index {
-                    if lhs.stage == rhs.stage {
-                        return lhs.name < rhs.name
-                    }
-                    return lhs.stage.rawValue < rhs.stage.rawValue
+        return bindings.sorted { lhs, rhs in
+            if lhs.index == rhs.index {
+                if lhs.stage == rhs.stage {
+                    return lhs.name < rhs.name
                 }
-                return lhs.index < rhs.index
+                return lhs.stage.rawValue < rhs.stage.rawValue
             }
-            .map(\.fingerprint)
-            .joined(separator: "||")
+            return lhs.index < rhs.index
+        }.map(\.fingerprint).joined(separator: "||")
     }
 }
 
@@ -127,46 +124,97 @@ extension C7FilterProtocol {
                 let textures = [destTexture, texture] + self.otherInputTextures
                 Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self, complete: complete)
             case .render(let vertex, let fragment):
-                let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment, pixelFormat: destTexture.pixelFormat)
-                try Rendering.drawing(pipelineState, commandBuffer: buffer, texture: texture, destTexture: destTexture, filter: self)
+                let pipelineState = try Rendering.makeRenderPipelineState(
+                    with: vertex,
+                    fragment: fragment,
+                    pixelFormat: destTexture.pixelFormat
+                )
+                try Rendering.drawing(
+                    pipelineState,
+                    commandBuffer: buffer,
+                    texture: texture,
+                    destTexture: destTexture,
+                    filter: self
+                )
                 complete(.success(destTexture))
-            case .blit where self is BlitProtocol:
+            case .blit:
                 let textures = [destTexture, texture] + self.otherInputTextures
-                let blitTexture = try (self as! BlitProtocol).encode(commandBuffer: buffer, textures: textures)
+                guard let filter = self as? BlitProtocol else {
+                    throw HarbethError.filterError(
+                        name: String(describing: type(of: self)),
+                        reason: "Blit modifier requires BlitProtocol."
+                    )
+                }
+                let blitTexture = try filter.encode(commandBuffer: buffer, textures: textures)
                 complete(.success(blitTexture))
-            case .mps where self is MPSKernelProtocol:
+            case .mps:
                 let textures = [destTexture, texture] + self.otherInputTextures
-                let mpsTexture = try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+                guard let filter = self as? MPSKernelProtocol else {
+                    throw HarbethError.filterError(
+                        name: String(describing: type(of: self)),
+                        reason: "MPS modifier requires MPSKernelProtocol."
+                    )
+                }
+                let mpsTexture = try filter.encode(commandBuffer: buffer, textures: textures)
                 complete(.success(mpsTexture))
-            case .advancedMetal where self is C7AdvancedMetalKernelProtocol:
+            case .advancedMetal:
                 let textures = [destTexture, texture] + self.otherInputTextures
-                let advancedTexture = try (self as! C7AdvancedMetalKernelProtocol).encode(commandBuffer: buffer, textures: textures)
+                guard let filter = self as? C7AdvancedMetalKernelProtocol else {
+                    throw HarbethError.filterError(
+                        name: String(describing: type(of: self)),
+                        reason: "Advanced Metal modifier requires C7AdvancedMetalKernelProtocol."
+                    )
+                }
+                let advancedTexture = try filter.encode(commandBuffer: buffer, textures: textures)
                 complete(.success(advancedTexture))
-            default:
-                complete(.success(texture))
             }
             return destTexture
         }
-        
         /// Sync apply at texture.
         switch self.modifier {
         case .compute(let kernel):
             let textures = [destTexture, texture] + self.otherInputTextures
             return try Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self)
         case .render(let vertex, let fragment):
-            let pipelineState = try Rendering.makeRenderPipelineState(with: vertex, fragment: fragment, pixelFormat: destTexture.pixelFormat)
-            try Rendering.drawing(pipelineState, commandBuffer: buffer, texture: texture, destTexture: destTexture, filter: self)
-        case .blit where self is BlitProtocol:
+            let pipelineState = try Rendering.makeRenderPipelineState(
+                with: vertex,
+                fragment: fragment,
+                pixelFormat: destTexture.pixelFormat
+            )
+            try Rendering.drawing(
+                pipelineState,
+                commandBuffer: buffer,
+                texture: texture,
+                destTexture: destTexture,
+                filter: self
+            )
+        case .blit:
             let textures = [destTexture, texture] + self.otherInputTextures
-            return try (self as! BlitProtocol).encode(commandBuffer: buffer, textures: textures)
-        case .mps where self is MPSKernelProtocol:
+            guard let filter = self as? BlitProtocol else {
+                throw HarbethError.filterError(
+                    name: String(describing: type(of: self)),
+                    reason: "Blit modifier requires BlitProtocol."
+                )
+            }
+            return try filter.encode(commandBuffer: buffer, textures: textures)
+        case .mps:
             let textures = [destTexture, texture] + self.otherInputTextures
-            return try (self as! MPSKernelProtocol).encode(commandBuffer: buffer, textures: textures)
-        case .advancedMetal where self is C7AdvancedMetalKernelProtocol:
+            guard let filter = self as? MPSKernelProtocol else {
+                throw HarbethError.filterError(
+                    name: String(describing: type(of: self)),
+                    reason: "MPS modifier requires MPSKernelProtocol."
+                )
+            }
+            return try filter.encode(commandBuffer: buffer, textures: textures)
+        case .advancedMetal:
             let textures = [destTexture, texture] + self.otherInputTextures
-            return try (self as! C7AdvancedMetalKernelProtocol).encode(commandBuffer: buffer, textures: textures)
-        default:
-            break
+            guard let filter = self as? C7AdvancedMetalKernelProtocol else {
+                throw HarbethError.filterError(
+                    name: String(describing: type(of: self)),
+                    reason: "Advanced Metal modifier requires C7AdvancedMetalKernelProtocol."
+                )
+            }
+            return try filter.encode(commandBuffer: buffer, textures: textures)
         }
         return destTexture
     }
@@ -241,8 +289,7 @@ public protocol BlitProtocol: C7FilterProtocol {
     /// Encode a blit operation into a command buffer.
     /// - Parameters:
     ///   - commandBuffer: A valid MTLCommandBuffer to receive the encoded filter.
-    ///   - sourceTexture: Input source texture.
-    ///   - destTexture: Output destination texture.
+    ///   - textures: Texture array. The first texture is the output and the second is the input.
     /// - Returns: Return output metal texture.
     func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
 }

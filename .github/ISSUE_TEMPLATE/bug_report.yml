@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a reproducible Harbeth rendering or runtime issue.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Harbeth. Please reduce the issue to one `HarbethIO` or `ImageNode` route when possible.
+  - type: dropdown
+    id: route
+    attributes:
+      label: Public route
+      options:
+        - HarbethIO
+        - ImageNode
+        - RenderView / HarbethRenderView
+        - Filter development / runtime
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the actual result and the expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest source type, filter chain and output call that reproduces the issue.
+      render: swift
+    validations:
+      required: true
+  - type: textarea
+    id: snapshot
+    attributes:
+      label: Support snapshot
+      description: Paste `try HarbethSupportSnapshot.capture().json()` here. It contains no image or user content.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Harbeth logs or diagnostics
+      description: If relevant, attach structured `HarbethLogger` events, a render graph snapshot or an execution report.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I reproduced this with the current Harbeth release.
+          required: true
+        - label: I removed private images, tokens and business data from the report.
+          required: true

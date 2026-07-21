@@ -6,25 +6,25 @@
 //
 
 import Foundation
-import Metal
+@preconcurrency import Metal
 
 /// A GPU render task handle for callers that need to observe command-buffer status.
-public final class RenderTask<Output> {
+public final class RenderTask<Output>: @unchecked Sendable {
     public let identifier: String
     public let diagnostics: RenderPlanDiagnostics?
 
     private let commandBuffer: MTLCommandBuffer?
     private let outputValue: Output
     private let lock = NSLock()
-    private var completionHandlers: [(RenderTask<Output>) -> Void] = []
-    private var cleanup: (() -> Void)?
+    private var completionHandlers: [@Sendable (RenderTask<Output>) -> Void] = []
+    private var cleanup: (@Sendable () -> Void)?
     private var completed = false
 
     init(identifier: String,
          commandBuffer: MTLCommandBuffer,
          output: Output,
          diagnostics: RenderPlanDiagnostics?,
-         cleanup: (() -> Void)? = nil) {
+         cleanup: (@Sendable () -> Void)? = nil) {
         self.identifier = identifier
         self.commandBuffer = commandBuffer
         self.outputValue = output
@@ -44,9 +44,7 @@ public final class RenderTask<Output> {
         self.completed = true
     }
 
-    public static func completed(identifier: String = UUID().uuidString,
-                                 output: Output,
-                                 diagnostics: RenderPlanDiagnostics? = nil) -> RenderTask<Output> {
+    public static func completed(identifier: String = UUID().uuidString, output: Output, diagnostics: RenderPlanDiagnostics? = nil) -> RenderTask<Output> {
         RenderTask(identifier: identifier, output: output, diagnostics: diagnostics)
     }
 
@@ -73,23 +71,19 @@ public final class RenderTask<Output> {
 
     public func waitUntilCompleted() {
         commandBuffer?.waitUntilCompleted()
-        if commandBuffer == nil {
-            finish()
-        }
+        if commandBuffer == nil { finish() }
     }
 
     public func output() throws -> Output {
         waitUntilCompleted()
-        if let error {
-            throw error
-        }
+        if let error { throw error }
         guard commandBufferStatus == .completed else {
             throw HarbethError.commandBufferAsyncCommit(commandBufferStatus)
         }
         return outputValue
     }
 
-    public func observeCompletion(_ handler: @escaping (RenderTask<Output>) -> Void) {
+    public func observeCompletion(_ handler: @escaping @Sendable (RenderTask<Output>) -> Void) {
         lock.lock()
         let shouldCallNow = completed || isCompleted
         if shouldCallNow == false {
@@ -97,9 +91,7 @@ public final class RenderTask<Output> {
         }
         lock.unlock()
 
-        if shouldCallNow {
-            handler(self)
-        }
+        if shouldCallNow { handler(self) }
     }
 
     private func finish() {

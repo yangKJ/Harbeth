@@ -89,7 +89,7 @@ public struct MaskDerivedResult {
     public var dirtyBounds: MaskCoverageBounds? { analysis.bounds }
 }
 
-public final class MaskExecutionCache {
+public final class MaskExecutionCache: @unchecked Sendable {
     public static let shared = MaskExecutionCache()
 
     private final class EntryBox {

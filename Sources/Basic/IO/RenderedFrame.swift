@@ -118,8 +118,7 @@ final class RenderedFramePreviewHostPayload: @unchecked Sendable {
     let passthroughSampleBuffer: CMSampleBuffer?
     private let sampleBufferFactory: (() throws -> CMSampleBuffer?)?
 
-    init(passthroughSampleBuffer: CMSampleBuffer? = nil,
-         sampleBufferFactory: (() throws -> CMSampleBuffer?)? = nil) {
+    init(passthroughSampleBuffer: CMSampleBuffer? = nil, sampleBufferFactory: (() throws -> CMSampleBuffer?)? = nil) {
         self.passthroughSampleBuffer = passthroughSampleBuffer
         self.sampleBufferFactory = sampleBufferFactory
     }
@@ -325,17 +324,6 @@ public struct RenderedFrame: @unchecked Sendable {
     }
 
     var previewHostStrategyResolution: PreviewHostStrategyResolution {
-        #if os(watchOS)
-        return PreviewHostStrategyResolution(
-            strategy: .metalTextureHost,
-            sampleBufferHostEligible: false,
-            sampleBufferHostPayloadAvailable: false,
-            sampleBufferHostRequiresRematerialization: false,
-            recoveryPolicy: .flushThenFallbackToMetal,
-            hostRecoveredByFlush: false,
-            hostFellBackToMetal: false
-        )
-        #else
         if metadata["previewHostStrategy"] == PreviewHostStrategy.metalTextureHost.rawValue {
             return PreviewHostStrategyResolution(
                 strategy: .metalTextureHost,
@@ -367,7 +355,6 @@ public struct RenderedFrame: @unchecked Sendable {
             hostRecoveredByFlush: false,
             hostFellBackToMetal: false
         )
-        #endif
     }
 
     func makePreviewHostSampleBuffer() throws -> CMSampleBuffer? {
@@ -390,19 +377,13 @@ public struct RenderedFrame: @unchecked Sendable {
 
     public var sourcePixelSize: CGSize {
         let sourceSize = frameHostSourceDescriptor.frameSize
-        guard sourceSize.width > 0, sourceSize.height > 0 else {
-            return size
-        }
+        guard sourceSize.width > 0, sourceSize.height > 0 else { return size }
         return CGSize(width: sourceSize.width, height: sourceSize.height)
     }
 
-    public var displaySize: CGSize {
-        size
-    }
+    public var displaySize: CGSize { size }
 
-    public var outputImageSize: CGSize {
-        size
-    }
+    public var outputImageSize: CGSize { size }
 
     public func makeImage(colorSpace: CGColorSpace? = nil) throws -> C7Image? {
         texture.c7.toImage(colorSpace: colorSpace ?? self.colorSpace)
@@ -419,7 +400,7 @@ enum RenderTarget: Sendable, Equatable {
 }
 
 /// 面向产品级调用方的 texture-first 渲染器，提供稳定帧元数据。
-struct FrameRenderer {
+struct FrameRenderer: @unchecked Sendable {
     let source: ImageSource
     let filters: [C7FilterProtocol]
     let recipe: EditRecipe?
@@ -604,11 +585,11 @@ struct FrameRenderer {
         )
     }
 
-    public func transmitFrame(complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+    public func transmitFrame(complete: @escaping @Sendable (Result<RenderedFrame, HarbethError>) -> Void) {
         transmitFrame(token: makeToken(), complete: complete)
     }
 
-    public func transmitFrame(token: FrameRenderToken, complete: @escaping (Result<RenderedFrame, HarbethError>) -> Void) {
+    public func transmitFrame(token: FrameRenderToken, complete: @escaping @Sendable (Result<RenderedFrame, HarbethError>) -> Void) {
         if transitionRecipe != nil || recipe != nil {
             do {
                 complete(.success(try renderFrame(token: token)))
@@ -623,32 +604,10 @@ struct FrameRenderer {
             let effectiveFilters = effectiveFilters(for: size_)
             let resolvedSize = resolvedOutputSize(for: size_, filters: effectiveFilters)
             guard effectiveFilters.isEmpty == false else {
-                complete(.success(RenderedFrame(
-                    texture: input,
-                    colorSpace: resolvedFrameColorSpace(source: source, filterChain: filters),
-                    sourceDescriptor: source.descriptor,
-                    derivative: outputDerivative,
-                    resolvedOutputSize: resolvedSize,
-                    renderIntent: renderIntent,
-                    sourceTier: source.sourceTier,
-                    alphaType: source.alphaType,
-                    cachePolicy: outputCachePolicy,
-                    semantic: outputSemantic,
-                    orientation: source.orientation,
-                    profile: profile,
-                    token: token,
-                    metadata: renderedMetadata(filterChain: filters),
-                    lease: nil
-                )))
-                return
-            }
-            makeIO(element: input, filters: effectiveFilters)
-                .configured(for: profile)
-                .transmitManagedTexture { result in
-                    switch result {
-                    case .success(let output):
-                        complete(.success(RenderedFrame(
-                            texture: output.texture,
+                complete(
+                    .success(
+                        RenderedFrame(
+                            texture: input,
                             colorSpace: resolvedFrameColorSpace(source: source, filterChain: filters),
                             sourceDescriptor: source.descriptor,
                             derivative: outputDerivative,
@@ -662,12 +621,41 @@ struct FrameRenderer {
                             profile: profile,
                             token: token,
                             metadata: renderedMetadata(filterChain: filters),
-                            lease: output.lease
-                        )))
-                    case .failure(let error):
-                        complete(.failure(HarbethError.toHarbethError(error)))
-                    }
+                            lease: nil
+                        )
+                    )
+                )
+                return
+            }
+            makeIO(element: input, filters: effectiveFilters).configured(for: profile).transmitManagedTexture {
+                result in
+                switch result {
+                case .success(let output):
+                    complete(
+                        .success(
+                            RenderedFrame(
+                                texture: output.texture,
+                                colorSpace: resolvedFrameColorSpace(source: source, filterChain: filters),
+                                sourceDescriptor: source.descriptor,
+                                derivative: outputDerivative,
+                                resolvedOutputSize: resolvedSize,
+                                renderIntent: renderIntent,
+                                sourceTier: source.sourceTier,
+                                alphaType: source.alphaType,
+                                cachePolicy: outputCachePolicy,
+                                semantic: outputSemantic,
+                                orientation: source.orientation,
+                                profile: profile,
+                                token: token,
+                                metadata: renderedMetadata(filterChain: filters),
+                                lease: output.lease
+                            )
+                        )
+                    )
+                case .failure(let error):
+                    complete(.failure(HarbethError.toHarbethError(error)))
                 }
+            }
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
         }
@@ -964,7 +952,7 @@ private struct CompiledTransitionExecution {
 
 enum FrameGeneration {
     private static let lock = NSLock()
-    private static var current: UInt64 = 0
+    nonisolated(unsafe) private static var current: UInt64 = 0
 
     static func next() -> UInt64 {
         lock.lock()

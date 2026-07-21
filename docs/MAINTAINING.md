@@ -16,25 +16,28 @@ xcodebuild build \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-Swift 或 Metal 核心逻辑至少运行 SwiftPM build/test；平台条件、资源打包、公开 API 或 preview surface 改动还应运行对应的 Xcode build。CocoaPods 发布前另行运行 `pod lib lint Harbeth.podspec`。
+Swift 代码以现有排版和可读性为先：函数或方法的声明、调用在参数不超过 3 个且单行仍清晰时保持单行；参数超过 3 个默认采用结构化多行，复杂闭包、条件、集合与明显超长表达式也应主动分行。`.swift-format` 只用于本次触及文件的辅助检查，不递归重排全仓。Swift 或 Metal 核心逻辑至少运行 SwiftPM build/test；平台条件、资源打包、公开 API 或 preview surface 改动还应运行对应的 Xcode build。CocoaPods 发布前另行运行 `pod lib lint Harbeth.podspec`。
 
 ## CI 门禁
 
 `.github/workflows/ci.yml` 在 `master` push 与 pull request 上执行：
 
-1. SwiftPM build；
-2. SwiftPM 全量测试；
-3. iOS Simulator framework build。
+1. SwiftPM build；runner 有 Metal 设备时执行全量测试，否则编译并枚举完整测试 inventory，同时输出显式 warning；
+2. iOS、macOS、tvOS framework build；
+3. UIKit、SwiftUI、AppKit Demo build；
+4. DocC build 与 CocoaPods lint。
 
 CI 证明的是编译、测试与基础资源链路，不替代真机相机/视频性能、HDR/EDR 视觉质量、CocoaPods resource bundle 或全部 Apple 平台运行时验证。
 
-## 兼容性原则
+## 版本演进原则
 
-- 保留已经发布的公开 API，breaking change 只在明确的 major release 中进行。
-- `Sources/Compute/Combination/` 的既有组合滤镜继续作为公开兼容能力维护；新的私有 look、preset 和商业资源不回灌到 Harbeth。
+- Harbeth 3.0 以当前底座定位作为新的公开基线，不为历史 typo alias、旧 runtime facade 或已退出的平台继续叠加兼容层。
+- `Sources/Compute/Combination/` 的既有组合滤镜继续作为公开能力维护；新的私有 look、preset 和商业资源不回灌到 Harbeth。
 - `RenderView`、`SampleBufferPreviewHost` 与 PreviewHost contract 属于 Harbeth 的核心 texture/frame preview substrate；camera、player、recorder、timeline 和 export 编排属于上层媒体引擎或宿主。
 - 通用 mask、geometry、optics、transition 和 post-render analysis 属于 Harbeth primitive；模型、审美策略、产品任务编排与私有资产不属于 Harbeth。
-- 不为了消除警告批量删除 deprecated alias；先提供替代入口和迁移窗口。
+- `HarbethIO.output()` 是文档、Demo 和新接入的标准错误可观察入口。
+- `HarbethIO.transmitOutput(...)` 是对应的核心异步入口；有滤镜时进入 render operation queue，回调线程不保证，空滤镜路径允许同步完成。
+- 重大定位调整在 major release 直接形成清晰的新表面，不为不再成立的历史形态背包袱。
 
 ## 事实口径
 
@@ -56,8 +59,8 @@ CI 证明的是编译、测试与基础资源链路，不替代真机相机/视�
 
 1. 复核 `CHANGELOG.md` 的 `Unreleased`，只保留本次版本实际交付且使用者需要知道的条目；
 2. 运行 SwiftPM build/test；
-3. 构建受影响的 iOS/macOS/SwiftUI target；
+3. 构建 iOS、macOS、tvOS framework 与 UIKit、SwiftUI、AppKit Demo；
 4. 验证 Metal library 与新增 kernel 可加载；
-5. 运行 CocoaPods lint 或明确记录未验证项；
+5. 运行 DocC build 与 CocoaPods lint，或明确记录未验证项；
 6. 核对 README、Package.swift、podspec 与 release tag 的版本和平台口径；
 7. 确认本地维护文件、Agent 规则和临时证据没有进入提交。

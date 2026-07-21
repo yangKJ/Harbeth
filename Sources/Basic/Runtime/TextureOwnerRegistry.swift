@@ -19,7 +19,7 @@ enum TextureOwnerRegistry {
         }
     }
 
-    private static var ownerKey: UInt8 = 0
+    nonisolated(unsafe) private static var ownerKey: UInt8 = 0
 
     static func attach(_ owner: AnyObject, to texture: MTLTexture) {
         objc_setAssociatedObject(texture, &ownerKey, owner, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)

@@ -8,6 +8,7 @@ final class RenderGraphTests: XCTestCase {
         let size = C7Size(width: 2, height: 2)
         let node = RenderNode(
             kind: .boundary,
+            filter: nil,
             boundary: MockPluginBoundaryAdapter(capability: .cpu),
             outputSize: size,
             breaksFusion: true

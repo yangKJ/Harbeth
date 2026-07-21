@@ -18,7 +18,7 @@ enum MaskTestHelpers {
         MTLCreateSystemDefaultDevice()
     }
 
-    static func requireDevice(file: StaticString = #file, line: UInt = #line) throws -> MTLDevice {
+    static func requireDevice(file: StaticString = #filePath, line: UInt = #line) throws -> MTLDevice {
         guard let device = device else {
             throw XCTSkip("Metal device is unavailable.", file: file, line: line)
         }
@@ -42,9 +42,7 @@ enum MaskTestHelpers {
             height: height,
             mipmapped: false
         )
-        descriptor.usage = renderTarget
-            ? [.shaderRead, .shaderWrite, .renderTarget]
-            : [.shaderRead, .shaderWrite]
+        descriptor.usage = renderTarget ? [.shaderRead, .shaderWrite, .renderTarget] : [.shaderRead, .shaderWrite]
         guard let texture = device.makeTexture(descriptor: descriptor) else {
             XCTFail("Failed to create \(width)x\(height) texture.")
             throw HarbethError.makeTexture
@@ -65,10 +63,7 @@ enum MaskTestHelpers {
             XCTFail("pixel must be 4 RGBA bytes, got \(pixel.count).")
             throw HarbethError.makeTexture
         }
-        return try makeTexture(
-            width: 1, height: 1,
-            red: pixel[0], green: pixel[1], blue: pixel[2], alpha: pixel[3]
-        )
+        return try makeTexture(width: 1, height: 1, red: pixel[0], green: pixel[1], blue: pixel[2], alpha: pixel[3])
     }
 
     /// 创建一张 `width × height` 的纯色 mask(原 `MaskedForegroundBlendAlphaTests.makeMaskTexture` 语义)。
@@ -106,12 +101,7 @@ enum MaskTestHelpers {
     /// 读取任意 `(x, y)` 像素的 RGBA(给多像素断言用,例如 feather 渐变)。
     static func pixel(in texture: MTLTexture, x: Int, y: Int) throws -> (red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
         var buf = [UInt8](repeating: 0, count: 4)
-        texture.getBytes(
-            &buf,
-            bytesPerRow: 4,
-            from: MTLRegionMake2D(x, y, 1, 1),
-            mipmapLevel: 0
-        )
+        texture.getBytes(&buf, bytesPerRow: 4, from: MTLRegionMake2D(x, y, 1, 1), mipmapLevel: 0)
         return (buf[0], buf[1], buf[2], buf[3])
     }
 
@@ -159,9 +149,6 @@ enum MaskTestHelpers {
     }
 
     static func maskedBlend(background: MTLTexture, foreground: MTLTexture, mask: MaskDescriptor) -> HarbethIO<MTLTexture> {
-        HarbethIO(
-            element: background,
-            filter: MaskRegionBlend(effectTexture: foreground, mask: mask)
-        )
+        HarbethIO(element: background, filter: MaskRegionBlend(effectTexture: foreground, mask: mask))
     }
 }

@@ -47,7 +47,10 @@ public final class C7Crop: C7FilterProtocol, SamplerAdaptableFilter {
     private var cropType: CropType = CropType.size(width: 0, height: 0)
 
     /// Specifies the border area clipping initialization.
-    /// - Parameter space: Cutting dimension around, Unit of pixel.
+    /// - Parameters:
+    ///   - space: Cutting dimension around, in pixels.
+    ///   - samplingMode: Sampling mode used by the crop operation.
+    ///   - edgeMode: Behavior used when sampling outside the source extent.
     public required init(space: Float, samplingMode: SpatialSamplingMode = .adaptive, edgeMode: SpatialEdgeMode = .transparent) {
         self.samplingMode = samplingMode
         self.edgeMode = edgeMode

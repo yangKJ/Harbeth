@@ -116,10 +116,11 @@ public struct MTLTextureCompatible_ {
     /// Create a CGImage with the data and information we provided.
     /// Each pixel contains of 4 UInt8s or 32 bits, each byte is representing one channel.
     /// The layout of the pixels is described with bitmap info.
-    /// Process steps：``Data => CFData => CGDataProvider => CGImage``
+    /// Process steps: `Data -> CFData -> CGDataProvider -> CGImage`.
     /// - Parameters:
     ///   - colorSpace: Color space
     ///   - pixelFormat: Current Metal texture pixel format.
+    ///   - alphaType: Alpha representation used by the resulting image.
     /// - Returns: CGImage
     public func toCGImage(colorSpace: CGColorSpace? = nil, pixelFormat: MTLPixelFormat? = nil, alphaType: AlphaType = .premultiplied) -> CGImage? {
         let width = target.width

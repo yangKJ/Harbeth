@@ -9,10 +9,10 @@ import Foundation
 import ObjectiveC
 import Metal
 
-public final class Shared {
-    
+public final class Shared: @unchecked Sendable {
+
     public static let shared = Shared()
-    
+
     /// Enable performance monitoring
     public var enablePerformanceMonitor: Bool = false {
         didSet {
@@ -25,9 +25,9 @@ public final class Shared {
             }
         }
     }
-    
+
     private init() { }
-    
+
     /// Release the Device resource
     /// Considering that there are quite a lot of performance-consuming objects in `Device`, design a singleton for global use.
     /// Once Metal is no longer used, call this method to release it.
@@ -43,30 +43,26 @@ public final class Shared {
             performanceMonitor = nil
         }
     }
-    
+
     public func advanceSetupDevice() {
         let _ = self.defaultDevice
     }
-    
+
     public var hasDevice: Bool {
-        return synchronizedDevice {
-            existingDevice != nil
-        }
+        return synchronizedDevice { existingDevice != nil }
     }
 
     public var hasContext: Bool {
-        synchronizedDevice {
-            existingContext != nil
-        }
+        synchronizedDevice { existingContext != nil }
     }
 }
 
-private var C7ATSharedDeviceContext: UInt8 = 0
-private var C7ATSharedTexturePoolContext: UInt8 = 0
-private var C7ATSharedPerformanceMonitorContext: UInt8 = 0
-private var C7ATSharedContext: UInt8 = 0
-private var C7ATSharedTextureAllocatorContext: UInt8 = 0
-private var C7ATSharedTextureAllocationStrategyContext: UInt8 = 0
+nonisolated(unsafe) private var C7ATSharedDeviceContext: UInt8 = 0
+nonisolated(unsafe) private var C7ATSharedTexturePoolContext: UInt8 = 0
+nonisolated(unsafe) private var C7ATSharedPerformanceMonitorContext: UInt8 = 0
+nonisolated(unsafe) private var C7ATSharedContext: UInt8 = 0
+nonisolated(unsafe) private var C7ATSharedTextureAllocatorContext: UInt8 = 0
+nonisolated(unsafe) private var C7ATSharedTextureAllocationStrategyContext: UInt8 = 0
 
 extension Shared {
 
@@ -109,7 +105,7 @@ extension Shared {
             on: existingDevice?.device
         )
     }
-    
+
     public var defaultDevice: Device {
         synchronizedDevice {
             if let device = existingDevice {
@@ -153,9 +149,7 @@ extension Shared {
     }
 
     public var currentMetalDevice: MTLDevice? {
-        synchronizedDevice {
-            existingDevice?.device
-        }
+        synchronizedDevice { existingDevice?.device }
     }
 
     public var renderOperationQueue: OperationQueue {
@@ -177,9 +171,7 @@ extension Shared {
 
     public var defaultTexturePool: TexturePool {
         synchronizedDevice {
-            if let pool = existingTexturePool {
-                return pool
-            }
+            if let pool = existingTexturePool { return pool }
             let pool = TexturePool()
             existingTexturePool = pool
             return pool
@@ -187,11 +179,7 @@ extension Shared {
     }
 
     public var defaultTextureAllocationStrategy: TextureAllocationStrategy {
-        get {
-            synchronizedDevice {
-                resolvedDefaultTextureAllocationStrategy()
-            }
-        }
+        get { synchronizedDevice { resolvedDefaultTextureAllocationStrategy() } }
         set {
             synchronizedDevice {
                 existingTextureAllocationStrategy = newValue.rawValue as NSString
@@ -203,95 +191,18 @@ extension Shared {
     var defaultTextureAllocator: TextureAllocator {
         get {
             synchronizedDevice {
-                if let allocator = existingTextureAllocator {
-                    return allocator
-                }
+                if let allocator = existingTextureAllocator { return allocator }
                 let allocator = makeDefaultTextureAllocatorLocked()
                 existingTextureAllocator = allocator
                 return allocator
             }
         }
-        set {
-            synchronizedDevice {
-                existingTextureAllocator = newValue
-            }
-        }
+        set { synchronizedDevice { existingTextureAllocator = newValue } }
     }
 
-    /// Compatibility surface. Use `defaultDevice` for the default runtime owner.
-    @available(*, deprecated, message: "Use Shared.shared.defaultDevice instead.")
-    public weak var device: Device? {
-        get {
-            synchronizedDevice {
-                if let device = existingDevice {
-                    return device
-                }
-                let device = Device()
-                existingDevice = device
-                return device
-            }
-        }
-        set {
-            synchronizedDevice {
-                existingDevice = newValue
-                existingContext = nil
-            }
-        }
-    }
-    
-    /// Compatibility surface. Use `defaultTexturePool` for the default runtime owner.
-    @available(*, deprecated, message: "Use Shared.shared.defaultTexturePool instead.")
-    public weak var texturePool: TexturePool? {
-        get {
-            synchronizedDevice {
-                if let pool = existingTexturePool {
-                    return pool
-                }
-                let pool = TexturePool()
-                existingTexturePool = pool
-                return pool
-            }
-        }
-        set {
-            synchronizedDevice {
-                existingTexturePool = newValue
-            }
-        }
-    }
-
-    /// Compatibility surface. Use `defaultContext` for the default execution context.
-    @available(*, deprecated, message: "Use Shared.shared.defaultContext instead.")
-    public var context: HarbethContext? {
-        get {
-            synchronizedDevice {
-                if let context = existingContext {
-                    return context
-                }
-                let device: Device
-                if let existingDevice {
-                    device = existingDevice
-                } else {
-                    let created = Device()
-                    existingDevice = created
-                    device = created
-                }
-                let context = HarbethContext(device: device)
-                existingContext = context
-                return context
-            }
-        }
-        set {
-            synchronizedDevice {
-                existingContext = newValue
-            }
-        }
-    }
-    
     public var performanceMonitor: PerformanceMonitor? {
         get {
-            if !enablePerformanceMonitor {
-                return nil
-            }
+            if !enablePerformanceMonitor { return nil }
             return synchronizedDevice {
                 if let object = objc_getAssociatedObject(self, &C7ATSharedPerformanceMonitorContext) {
                     return object as? PerformanceMonitor
@@ -308,8 +219,8 @@ extension Shared {
             }
         }
     }
-    
-    private func synchronizedDevice<T>( _ action: () -> T) -> T {
+
+    private func synchronizedDevice<T>(_ action: () -> T) -> T {
         objc_sync_enter(self)
         let result = action()
         objc_sync_exit(self)
@@ -326,9 +237,7 @@ extension Shared {
         defaultTexturePool.prewarm(resolutions: resolutions, count: count)
     }
 
-    public func prewarmTexturePool(reservations: [RenderTextureReservation],
-                                   fallbackPixelFormat: MTLPixelFormat,
-                                   defaultCount: Int = 1) {
+    public func prewarmTexturePool(reservations: [RenderTextureReservation], fallbackPixelFormat: MTLPixelFormat, defaultCount: Int = 1) {
         defaultTexturePool.prewarm(
             requests: makePrewarmRequests(
                 from: reservations,
@@ -338,9 +247,7 @@ extension Shared {
         )
     }
 
-    public func prewarmTexturePoolSync(reservations: [RenderTextureReservation],
-                                       fallbackPixelFormat: MTLPixelFormat,
-                                       defaultCount: Int = 1) {
+    public func prewarmTexturePoolSync(reservations: [RenderTextureReservation], fallbackPixelFormat: MTLPixelFormat, defaultCount: Int = 1) {
         defaultTexturePool.prewarmSync(
             requests: makePrewarmRequests(
                 from: reservations,
@@ -349,20 +256,18 @@ extension Shared {
             )
         )
     }
-    
+
     /// Get the statistics of the texture pool
     public var texturePoolStatistics: TexturePool.Statistics? {
         return defaultTexturePool.statistics
     }
-    
+
     /// Reset the statistics of the texture pool
     public func resetTexturePoolStatistics() {
         defaultTexturePool.resetStatisticsSync()
     }
 
-    private func makePrewarmRequests(from reservations: [RenderTextureReservation],
-                                     fallbackPixelFormat: MTLPixelFormat,
-                                     defaultCount: Int) -> [TexturePool.PrewarmRequest] {
+    private func makePrewarmRequests(from reservations: [RenderTextureReservation], fallbackPixelFormat: MTLPixelFormat, defaultCount: Int) -> [TexturePool.PrewarmRequest] {
         reservations.map { reservation in
             TexturePool.PrewarmRequest(
                 width: reservation.size.width,

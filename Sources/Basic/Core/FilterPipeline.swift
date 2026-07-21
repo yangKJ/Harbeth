@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import MetalKit
+@preconcurrency import MetalKit
 
 public enum FilterPipelineExecutionStyle: String, Sendable, Codable, Equatable, Hashable {
     case sequential
@@ -51,10 +51,9 @@ struct PipelineLeafFilter: C7FilterProtocol {
 
 public extension C7FilterPipelineProtocol {
     var modifier: ModifierEnum {
-        guard let finalFilter = makeFinalFilter(otherInputTextures: nil) else {
-            fatalError("Pipeline combination filters must provide a final filter.")
-        }
-        return finalFilter.modifier
+        makeFinalFilter(otherInputTextures: nil)?.modifier
+        ?? pipelineFilters.last?.modifier
+        ?? .compute(kernel: "__harbeth_invalid_pipeline__")
     }
 
     var factors: [Float] {
@@ -77,59 +76,72 @@ enum FilterPipelineExecutor {
 
         switch style {
         case .sequential:
-            let execution = try executeSequentialPipeline(filters: pipelineFilters, source: source, destination: destination, commandBuffer: commandBuffer)
+            let execution = try executeSequentialPipeline(
+                filters: pipelineFilters,
+                source: source,
+                destination: destination,
+                commandBuffer: commandBuffer
+            )
             auxiliaryTextures = execution.auxiliaryTextures
             transientTextures = execution.transientTextures
         case .parallelFromSource:
-            let execution = try executeParallelPipeline(filters: pipelineFilters, source: source, commandBuffer: commandBuffer)
+            let execution = try executeParallelPipeline(
+                filters: pipelineFilters,
+                source: source,
+                commandBuffer: commandBuffer
+            )
             auxiliaryTextures = execution.auxiliaryTextures
             transientTextures = execution.transientTextures
         }
 
-        if let finalFilter = filter.makeFinalFilter(otherInputTextures: auxiliaryTextures) {
-            _ = try finalFilter.apply(form: source, to: destination, for: commandBuffer, complete: nil)
+        guard let finalFilter = filter.makeFinalFilter(otherInputTextures: auxiliaryTextures) else {
+            throw HarbethError.configurationInvalid("Filter pipeline must provide a final filter.")
         }
+        _ = try finalFilter.apply(form: source, to: destination, for: commandBuffer, complete: nil)
 
         let texturesToRecycle = transientTextures.filter { $0 !== destination && $0 !== source }
         if texturesToRecycle.isEmpty == false {
+            let transfer = HarbethUncheckedTransfer(value: texturesToRecycle)
             commandBuffer.addCompletedHandler { _ in
-                Shared.shared.defaultTexturePool.enqueueTexturesSync(texturesToRecycle)
+                Shared.shared.defaultTexturePool.enqueueTexturesSync(transfer.value)
             }
         }
         return destination
     }
 
-    private static func executeSequentialPipeline(filters: [C7FilterProtocol],
-                                                  source: MTLTexture,
-                                                  destination: MTLTexture,
-                                                  commandBuffer: MTLCommandBuffer) throws -> (auxiliaryTextures: [MTLTexture], transientTextures: [MTLTexture]) {
-        guard filters.isEmpty == false else {
-            return ([], [])
-        }
+    private static func executeSequentialPipeline(
+        filters: [C7FilterProtocol],
+        source: MTLTexture,
+        destination: MTLTexture,
+        commandBuffer: MTLCommandBuffer
+    ) throws -> (auxiliaryTextures: [MTLTexture], transientTextures: [MTLTexture]) {
+        guard filters.isEmpty == false else { return ([], []) }
         var currentTexture = source
         var transientTextures: [MTLTexture] = []
 
         for (index, stageFilter) in filters.enumerated() {
             let stageIsFinalOutput = index == filters.count - 1
-            let stageDestination = stageIsFinalOutput
-                ? destination
-                : try makeIntermediateTexture(source: currentTexture, filter: stageFilter)
-            let outputTexture = try stageFilter.applyAtTexture(form: currentTexture, to: stageDestination, for: commandBuffer)
+            let stageDestination = stageIsFinalOutput ? destination : try makeIntermediateTexture(source: currentTexture, filter: stageFilter)
+            let outputTexture = try stageFilter.applyAtTexture(
+                form: currentTexture,
+                to: stageDestination,
+                for: commandBuffer
+            )
             if stageDestination !== destination && stageDestination !== source {
                 transientTextures.append(stageDestination)
             }
             currentTexture = outputTexture
         }
 
-        if currentTexture === destination {
-            return ([destination], transientTextures.filter { $0 !== destination })
-        }
+        if currentTexture === destination { return ([destination], transientTextures.filter { $0 !== destination }) }
         return ([currentTexture], transientTextures)
     }
 
-    private static func executeParallelPipeline(filters: [C7FilterProtocol],
-                                                source: MTLTexture,
-                                                commandBuffer: MTLCommandBuffer) throws -> (auxiliaryTextures: [MTLTexture], transientTextures: [MTLTexture]) {
+    private static func executeParallelPipeline(
+        filters: [C7FilterProtocol],
+        source: MTLTexture,
+        commandBuffer: MTLCommandBuffer
+    ) throws -> (auxiliaryTextures: [MTLTexture], transientTextures: [MTLTexture]) {
         var outputs: [MTLTexture] = []
         var transientTextures: [MTLTexture] = []
         for stageFilter in filters {
@@ -146,8 +158,11 @@ enum FilterPipelineExecutor {
     private static func makeIntermediateTexture(source: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         let inputSize = C7Size(width: source.width, height: source.height)
         let outputSize = filter.resize(input: inputSize)
-        return try TextureLoader.makeTexture(width: outputSize.width, height: outputSize.height, options: [
-            .texturePixelFormat: source.pixelFormat
-        ], identifier: "FilterPipelineExecutor")
+        return try TextureLoader.makeTexture(
+            width: outputSize.width,
+            height: outputSize.height,
+            options: [.texturePixelFormat: source.pixelFormat],
+            identifier: "FilterPipelineExecutor"
+        )
     }
 }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Degree: Codable {
+public struct Degree: Codable, Sendable {
 
     public let value: Float
 
@@ -37,7 +37,7 @@ public prefix func -(degree: Degree) -> Degree {
 }
 
 /// `0.0 ..< 360.0` 范围角度区间属性包装器
-@propertyWrapper public struct DegreeRange: Codable {
+@propertyWrapper public struct DegreeRange: Codable, Sendable {
 
     public var wrappedValue: Float {
         didSet {

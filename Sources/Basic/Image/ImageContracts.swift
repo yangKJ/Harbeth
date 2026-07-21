@@ -83,7 +83,10 @@ public enum ImageAlphaContract: Sendable, Codable, Equatable, Hashable {
         case "forceUnpremultiply":
             self = .forceUnpremultiply
         default:
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown ImageAlphaContract value: \(rawValue)")
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown ImageAlphaContract value: \(rawValue)"
+            )
         }
     }
 
@@ -248,7 +251,9 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     }
 
     func transferConversionMode(from source: ImageColorSpaceContract) -> C7RGBTransferConversion.Mode? {
-        guard preservesInput == false, source.preservesInput == false, supportsTransferOnlyConversion(from: source) else {
+        guard preservesInput == false,
+              source.preservesInput == false,
+              supportsTransferOnlyConversion(from: source) else {
             return nil
         }
         switch (source.transferFunction, transferFunction) {
@@ -296,18 +301,24 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     }
 
     func makeColorConversionFilters(from source: ImageColorSpaceContract) -> [C7FilterProtocol] {
-        guard preservesInput == false, source.preservesInput == false else {
-            return []
-        }
-        if source == self {
-            return []
-        }
+        guard preservesInput == false, source.preservesInput == false else { return [] }
+        if source == self { return [] }
         if let transferOnly = C7RGBTransferConversion(from: source, to: self) {
             return [transferOnly]
         }
         var filters: [C7FilterProtocol] = []
-        let sourceLinear = ImageColorSpaceContract(name: "linearBridge", preservesInput: false, gamut: source.gamut, transferFunction: .linear)
-        let targetLinear = ImageColorSpaceContract(name: "linearBridge", preservesInput: false, gamut: gamut, transferFunction: .linear)
+        let sourceLinear = ImageColorSpaceContract(
+            name: "linearBridge",
+            preservesInput: false,
+            gamut: source.gamut,
+            transferFunction: .linear
+        )
+        let targetLinear = ImageColorSpaceContract(
+            name: "linearBridge",
+            preservesInput: false,
+            gamut: gamut,
+            transferFunction: .linear
+        )
         let decodeTransfer = source.transferFunction != .linear
         let encodeTransfer = transferFunction != .linear
 
@@ -344,7 +355,7 @@ extension ImageColorSpaceContract {
         case (.sRGB, _):
             return CGColorSpace(name: CGColorSpace.sRGB)
         case (.displayP3, .linear):
-            if #available(macOS 10.14.3, iOS 12.3, tvOS 12.3, watchOS 5.1, *) {
+            if #available(macOS 10.14.3, iOS 12.3, tvOS 12.3, *) {
                 return CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)
             }
             return CGColorSpace(name: CGColorSpace.displayP3)
@@ -353,12 +364,12 @@ extension ImageColorSpaceContract {
         case (.extendedLinearSRGB, _):
             return CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
         case (.ituR2020, .perceptualQuantizer):
-            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
-                return CGColorSpace(name: CGColorSpace.itur_2020_PQ_EOTF)
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+                return CGColorSpace(name: CGColorSpace.itur_2100_PQ)
             }
             return nil
         case (.ituR2020, .hybridLogGamma):
-            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
+            if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
                 return CGColorSpace(name: CGColorSpace.itur_2100_HLG)
             }
             return nil
@@ -419,40 +430,24 @@ public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
         ].joined(separator: "|")
     }
 
-    public var metalPixelFormat: MTLPixelFormat? {
-        metalPixelFormatRawValue.flatMap { MTLPixelFormat(rawValue: $0) }
-    }
+    public var metalPixelFormat: MTLPixelFormat? { metalPixelFormatRawValue.flatMap { MTLPixelFormat(rawValue: $0) } }
 
     private static func name(for pixelFormat: MTLPixelFormat?) -> String {
         switch pixelFormat {
-        case .none:
-            return "preserveInput"
-        case .some(.rgba8Unorm):
-            return "rgba8Unorm"
-        case .some(.bgra8Unorm):
-            return "bgra8Unorm"
-        case .some(.rgba8Unorm_srgb):
-            return "rgba8Unorm_srgb"
-        case .some(.bgra8Unorm_srgb):
-            return "bgra8Unorm_srgb"
-        case .some(.rgba16Float):
-            return "rgba16Float"
-        case .some(.rgba32Float):
-            return "rgba32Float"
-        case .some(.r8Unorm):
-            return "r8Unorm"
-        case .some(.rg8Unorm):
-            return "rg8Unorm"
-        case .some(.r16Float):
-            return "r16Float"
-        case .some(.rg16Float):
-            return "rg16Float"
-        case .some(.r32Float):
-            return "r32Float"
-        case .some(.rg32Float):
-            return "rg32Float"
-        case .some(let format):
-            return "raw:\(format.rawValue)"
+        case .none: return "preserveInput"
+        case .some(.rgba8Unorm): return "rgba8Unorm"
+        case .some(.bgra8Unorm): return "bgra8Unorm"
+        case .some(.rgba8Unorm_srgb): return "rgba8Unorm_srgb"
+        case .some(.bgra8Unorm_srgb): return "bgra8Unorm_srgb"
+        case .some(.rgba16Float): return "rgba16Float"
+        case .some(.rgba32Float): return "rgba32Float"
+        case .some(.r8Unorm): return "r8Unorm"
+        case .some(.rg8Unorm): return "rg8Unorm"
+        case .some(.r16Float): return "r16Float"
+        case .some(.rg16Float): return "rg16Float"
+        case .some(.r32Float): return "r32Float"
+        case .some(.rg32Float): return "rg32Float"
+        case .some(let format): return "raw:\(format.rawValue)"
         }
     }
 
@@ -527,8 +522,14 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
     public static let preserveInput = RenderOutputContract()
 
     public static let displayP3Texture = RenderOutputContract(colorSpace: .displayP3, pixelFormat: .rgba8Unorm)
-    public static let highPrecisionLinearTexture = RenderOutputContract(colorSpace: .extendedLinearSRGB, pixelFormat: .rgba16Float)
-    public static let highPrecisionLinearDisplayP3Texture = RenderOutputContract(colorSpace: .extendedLinearDisplayP3, pixelFormat: .rgba16Float)
+    public static let highPrecisionLinearTexture = RenderOutputContract(
+        colorSpace: .extendedLinearSRGB,
+        pixelFormat: .rgba16Float
+    )
+    public static let highPrecisionLinearDisplayP3Texture = RenderOutputContract(
+        colorSpace: .extendedLinearDisplayP3,
+        pixelFormat: .rgba16Float
+    )
     public static let hdrPQTexture = RenderOutputContract(
         colorSpace: .hdrPQ,
         pixelFormat: .rgba16Float,
@@ -826,10 +827,12 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
         try container.encode(pixelFormat, forKey: .pixelFormat)
     }
 
-    public static func auxiliaryColor(index: Int,
-                                      alpha: ImageAlphaContract = .preserveInput,
-                                      colorSpace: ImageColorSpaceContract = .preserveInput,
-                                      pixelFormat: PixelFormatContract = .preserveInput) -> RenderOutputAttachmentContract {
+    public static func auxiliaryColor(
+        index: Int,
+        alpha: ImageAlphaContract = .preserveInput,
+        colorSpace: ImageColorSpaceContract = .preserveInput,
+        pixelFormat: PixelFormatContract = .preserveInput
+    ) -> RenderOutputAttachmentContract {
         RenderOutputAttachmentContract(
             index: index,
             semantic: .auxiliaryColor,

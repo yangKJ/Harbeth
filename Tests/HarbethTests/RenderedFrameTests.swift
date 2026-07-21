@@ -1105,15 +1105,15 @@ final class RenderedFrameTests: XCTestCase {
 
         let expected = try node.makeFrame()
         let result = expectation(description: "image-node-transmit-frame")
-        var received: RenderedFrame?
+        let state = RenderedFrameCallbackState()
 
         node.transmitFrame { output in
-            received = try? output.get()
+            state.frame = try? output.get()
             result.fulfill()
         }
 
         wait(for: [result], timeout: 1.0)
-        let frame = try XCTUnwrap(received)
+        let frame = try XCTUnwrap(state.frame)
         XCTAssertEqual(frame.texture.width, expected.texture.width)
         XCTAssertEqual(frame.texture.height, expected.texture.height)
         XCTAssertEqual(frame.identifier, expected.identifier)
@@ -1528,6 +1528,16 @@ final class RenderedFrameTests: XCTestCase {
             throw XCTSkip()
         }
         return pixelBuffer
+    }
+}
+
+private final class RenderedFrameCallbackState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedFrame: RenderedFrame?
+
+    var frame: RenderedFrame? {
+        get { lock.withLock { storedFrame } }
+        set { lock.withLock { storedFrame = newValue } }
     }
 }
 

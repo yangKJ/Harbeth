@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:6.0
 //
 //  Harbeth
 //
@@ -22,29 +22,24 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //  THE SOFTWARE.
 
+import Foundation
 import PackageDescription
+
+let sourcesPath = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Sources").path
+let metalResourcePaths = FileManager.default.enumerator(atPath: sourcesPath)?.compactMap { item -> String? in
+    guard let path = item as? String, path.hasSuffix(".metal") else { return nil }
+    return path
+}.sorted() ?? []
+let metalResources = metalResourcePaths.map { Resource.process($0) }
 
 let package = Package(
     name: "Harbeth",
-    platforms: [
-        .iOS(.v10),
-        .macOS(.v10_13),
-        .tvOS(.v12),
-        .watchOS(.v5)
-    ],
-    products: [
-        .library(name: "Harbeth", targets: ["Harbeth"]),
-    ],
+    platforms: [.iOS(.v15), .macOS(.v12), .tvOS(.v15)],
+    products: [.library(name: "Harbeth", targets: ["Harbeth"])],
     targets: [
-        .target(
-            name: "Harbeth",
-            path: "Sources",
-        ),
-        .testTarget(
-            name: "HarbethTests",
-            dependencies: ["Harbeth"],
-            path: "Tests/HarbethTests"
-        ),
+        .target(name: "Harbeth", path: "Sources", resources: metalResources),
+        .testTarget(name: "HarbethTests", dependencies: ["Harbeth"], path: "Tests/HarbethTests"),
+        .testTarget(name: "HarbethPublicAPITests", dependencies: ["Harbeth"], path: "Tests/HarbethPublicAPITests"),
     ],
-    swiftLanguageVersions: [.v5]
+    swiftLanguageModes: [.v6]
 )

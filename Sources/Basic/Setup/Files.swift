@@ -33,7 +33,7 @@ public struct Files {
             }
             let url = directoryURL.appendingPathComponent(relativePath).absoluteURL
             if let attributes = enumerator.fileAttributes {
-                let type = attributes[.type] as! FileAttributeType
+                guard let type = attributes[.type] as? FileAttributeType else { return nil }
                 if type == .typeDirectory {
                     if let filter = filteringSubdirectories, !filter(url) {
                         enumerator.skipDescendants()

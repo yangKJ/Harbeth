@@ -7,7 +7,7 @@
 
 import Foundation
 import MetalKit
-#if canImport(AVFoundation) && !os(watchOS)
+#if canImport(AVFoundation)
 import AVFoundation
 #endif
 #if canImport(UIKit)
@@ -116,7 +116,7 @@ open class RenderView: MTKView {
     private var cachedPipelinePixelFormat: MTLPixelFormat?
     private var cachedPipelineSampleCount: Int = 0
     private var previewHostDisplayMode: PreviewHostDisplayMode = .stablePreview
-    #if canImport(AVFoundation) && !os(watchOS)
+    #if canImport(AVFoundation)
     private var sampleBufferPreviewLayerLease: SampleBufferPreviewLayerLease?
     private var lastSampleBufferPreviewFrame: CMSampleBuffer?
     #endif
@@ -144,11 +144,16 @@ open class RenderView: MTKView {
         commonInit()
     }
 
-    deinit {
+    isolated deinit {
         stopObservingPreviewHostLifecycle()
-        previewHostExecutionReport = PreviewHostExecutionReport.inactive(predictedStrategy: resolvedPredictedPreviewHostStrategy())
+        previewHostExecutionReport = PreviewHostExecutionReport.inactive(
+            predictedStrategy: resolvedPredictedPreviewHostStrategy()
+        )
         publishPreviewHostExecutionReport(deliverCallbacks: false)
-        publishPreviewHostFleetSnapshot(PreviewHostFleetRegistry.unregister(instanceID: previewHostInstanceIdentifier), deliverCallbacks: false)
+        publishPreviewHostFleetSnapshot(
+            PreviewHostFleetRegistry.unregister(instanceID: previewHostInstanceIdentifier),
+            deliverCallbacks: false
+        )
         clearPreviewHostRuntimeSummary(for: currentRenderedFrame)
         deactivateSampleBufferPreviewHost()
     }
@@ -195,32 +200,22 @@ open class RenderView: MTKView {
 
     private func updateDrawableSizeIfNeeded() {
         let targetSize = bounds.size
-        guard targetSize.width > 0, targetSize.height > 0 else {
-            return
-        }
+        guard targetSize.width > 0, targetSize.height > 0 else { return }
         let scale = resolvedDrawableScale()
         #if canImport(UIKit)
-        if contentScaleFactor != scale {
-            contentScaleFactor = scale
-        }
+        if contentScaleFactor != scale { contentScaleFactor = scale }
         #endif
         let drawableSize = CGSize(
             width: max(ceil(targetSize.width * scale), 1),
             height: max(ceil(targetSize.height * scale), 1)
         )
-        guard self.drawableSize != drawableSize else {
-            return
-        }
+        guard self.drawableSize != drawableSize else { return }
         self.drawableSize = drawableSize
     }
 
     private func quadVertices(for texture: MTLTexture, drawableSize: CGSize) -> [Float] {
-        guard drawableSize.width > 0, drawableSize.height > 0 else {
-            return Rendering.defaultVertices
-        }
-        if resizingMode == .scaleToFill {
-            return Rendering.defaultVertices
-        }
+        guard drawableSize.width > 0, drawableSize.height > 0 else { return Rendering.defaultVertices }
+        if resizingMode == .scaleToFill { return Rendering.defaultVertices }
         let textureAspect = Float(texture.width) / Float(max(texture.height, 1))
         let viewAspect = Float(drawableSize.width / drawableSize.height)
         let scaleX: Float
@@ -263,9 +258,7 @@ open class RenderView: MTKView {
     }
 
     private func resolvedDrawableScale() -> CGFloat {
-        if let preferredDrawableScale {
-            return max(preferredDrawableScale, 1)
-        }
+        if let preferredDrawableScale { return max(preferredDrawableScale, 1) }
         #if canImport(UIKit)
         return max(window?.screen.scale ?? UIScreen.main.scale, 1)
         #elseif canImport(AppKit)
@@ -325,7 +318,7 @@ open class RenderView: MTKView {
     }
 }
 
-extension RenderView: PreviewDisplaying {
+extension RenderView: @preconcurrency PreviewDisplaying {
     public func display(_ frame: RenderedFrame?) {
         let previousFrame = currentRenderedFrame
         if previousFrame?.cacheIdentity.fingerprint != frame?.cacheIdentity.fingerprint {
@@ -484,7 +477,7 @@ private extension RenderView {
             )
             deactivateSampleBufferPreviewHost()
         case .sampleBufferPassthroughHost:
-            #if canImport(AVFoundation) && !os(watchOS)
+            #if canImport(AVFoundation)
             guard displayWithSampleBufferPreviewHost(frame: frame, resolution: resolution) else {
                 fallbackToMetalPreviewHost(frame: frame, recoveredByFlush: hostRecoveredCurrentFrameByFlush)
                 return
@@ -511,7 +504,7 @@ private extension RenderView {
             fellBackToMetal: true
         )
         incrementPreviewHostFallbackCount()
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordFallbackToMetal()
         #endif
         Shared.shared.performanceMonitor?.recordPreviewHostFallbackToMetal(previewHostTelemetryIdentifier)
@@ -521,7 +514,7 @@ private extension RenderView {
     }
 
     func deactivateSampleBufferPreviewHost() {
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.return(sampleBufferPreviewLayerLease)
         sampleBufferPreviewLayerLease = nil
         lastSampleBufferPreviewFrame = nil
@@ -534,7 +527,7 @@ private extension RenderView {
     }
 
     func updateSampleBufferPreviewVisibilityIfNeeded() {
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         guard isUsingSampleBufferPreviewHost else { return }
         layoutSampleBufferPreviewLayerIfNeeded()
         if let suspensionReason = currentPreviewHostSuspension {
@@ -553,8 +546,9 @@ private extension RenderView {
         #endif
     }
 
-    #if canImport(AVFoundation) && !os(watchOS)
-    func displayWithSampleBufferPreviewHost(frame: RenderedFrame, resolution: PreviewHostStrategyResolution) -> Bool {
+    #if canImport(AVFoundation)
+    func displayWithSampleBufferPreviewHost(frame: RenderedFrame, resolution: PreviewHostStrategyResolution) -> Bool
+    {
         guard let sampleBuffer = try? frame.makePreviewHostSampleBuffer() else {
             recordPreviewHostFailure(.missingSampleBufferPayload)
             return false
@@ -565,7 +559,8 @@ private extension RenderView {
         layoutSampleBufferPreviewLayerIfNeeded()
         lastSampleBufferPreviewFrame = sampleBuffer
         isUsingSampleBufferPreviewHost = true
-        let payloadMode: PreviewHostPayloadMode = resolution.strategy == .sampleBufferPassthroughHost ? .passthrough : .rematerialized
+        let payloadMode: PreviewHostPayloadMode =
+            resolution.strategy == .sampleBufferPassthroughHost ? .passthrough : .rematerialized
         setPreviewHostExecutionState(
             .sampleBufferActive,
             strategy: resolution.strategy,
@@ -577,9 +572,7 @@ private extension RenderView {
         )
         if let suspensionReason = currentPreviewHostSuspension {
             recordPreviewHostSuspensionIfNeeded(suspensionReason)
-            if suspensionReason == .hostHidden {
-                recordPreviewHostVisibilityPauseIfNeeded()
-            }
+            if suspensionReason == .hostHidden { recordPreviewHostVisibilityPauseIfNeeded() }
             flushSampleBufferPreviewLayerForSuspendIfNeeded()
             return true
         }
@@ -622,9 +615,7 @@ private extension RenderView {
     func attachSampleBufferPreviewLayerIfNeeded(_ lease: SampleBufferPreviewLayerLease) {
         let hostLayer: CALayer? = self.layer
         guard let hostLayer else { return }
-        guard lease.layer.superlayer !== hostLayer else {
-            return
-        }
+        guard lease.layer.superlayer !== hostLayer else { return }
         hostLayer.addSublayer(lease.layer)
     }
 
@@ -642,12 +633,8 @@ private extension RenderView {
     }
 
     func enqueueSampleBufferPreviewFrame(_ sampleBuffer: CMSampleBuffer, allowRecovery: Bool) -> Bool {
-        guard let layer = sampleBufferPreviewLayerLease?.layer else {
-            return false
-        }
-        guard currentPreviewHostSuspension == nil else {
-            return true
-        }
+        guard let layer = sampleBufferPreviewLayerLease?.layer else { return false }
+        guard currentPreviewHostSuspension == nil else { return true }
         recordPreviewHostPoolSnapshot()
         if layer.status == .failed || sampleBufferPreviewLayerRequiresFlushToResume(layer) {
             if sampleBufferPreviewLayerRequiresFlushToResume(layer) {
@@ -719,50 +706,30 @@ private extension RenderView {
     #endif
 
     func startObservingPreviewHostLifecycle() {
-        #if canImport(UIKit) && !os(watchOS)
+        #if canImport(UIKit)
         isApplicationPreviewHostActive = UIApplication.shared.applicationState != .background
         let center = NotificationCenter.default
         previewHostNotificationObservers = [
-            center.addObserver(
-                forName: UIApplication.didEnterBackgroundNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.handlePreviewHostApplicationActiveState(false)
+            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handlePreviewHostApplicationActiveState(false) }
             },
-            center.addObserver(
-                forName: UIApplication.willEnterForegroundNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.handlePreviewHostApplicationActiveState(true)
+            center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handlePreviewHostApplicationActiveState(true) }
             },
-            center.addObserver(
-                forName: UIApplication.didBecomeActiveNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.handlePreviewHostApplicationActiveState(true)
-            }
+            center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handlePreviewHostApplicationActiveState(true) }
+            },
         ]
         #elseif canImport(AppKit)
         isApplicationPreviewHostActive = NSApp?.isActive ?? true
         let center = NotificationCenter.default
         previewHostNotificationObservers = [
-            center.addObserver(
-                forName: NSApplication.didResignActiveNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.handlePreviewHostApplicationActiveState(false)
+            center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handlePreviewHostApplicationActiveState(false) }
             },
-            center.addObserver(
-                forName: NSApplication.didBecomeActiveNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.handlePreviewHostApplicationActiveState(true)
-            }
+            center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handlePreviewHostApplicationActiveState(true) }
+            },
         ]
         #endif
     }
@@ -792,7 +759,7 @@ private extension RenderView {
     }
 
     func recordPreviewHostPoolSnapshot() {
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         Shared.shared.performanceMonitor?.recordPreviewHostPoolSnapshot(
             previewHostTelemetryIdentifier,
             snapshot: SampleBufferPreviewLayerPool.snapshot()
@@ -804,7 +771,7 @@ private extension RenderView {
         guard lastPreviewHostVisibilityState != false else { return }
         lastPreviewHostVisibilityState = false
         incrementPreviewHostVisibilityPauseCount()
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordVisibilityPause()
         #endif
         Shared.shared.performanceMonitor?.recordPreviewHostVisibilityPause(previewHostTelemetryIdentifier)
@@ -814,7 +781,7 @@ private extension RenderView {
         guard lastPreviewHostVisibilityState != true else { return }
         lastPreviewHostVisibilityState = true
         incrementPreviewHostVisibilityResumeCount()
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordVisibilityResume()
         #endif
         Shared.shared.performanceMonitor?.recordPreviewHostVisibilityResume(previewHostTelemetryIdentifier)
@@ -847,7 +814,7 @@ private extension RenderView {
                 failureCountsByReason: $0.failureCountsByReason
             )
         }
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordLifecycleResume()
         #endif
         Shared.shared.performanceMonitor?.recordPreviewHostLifecycleResume(previewHostTelemetryIdentifier)
@@ -885,10 +852,13 @@ private extension RenderView {
                 failureCountsByReason: $0.failureCountsByReason
             )
         }
-        #if canImport(AVFoundation) && !os(watchOS)
+        #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordLifecyclePause()
         #endif
-        Shared.shared.performanceMonitor?.recordPreviewHostLifecyclePause(previewHostTelemetryIdentifier, reason: reason)
+        Shared.shared.performanceMonitor?.recordPreviewHostLifecyclePause(
+            previewHostTelemetryIdentifier,
+            reason: reason
+        )
     }
 
     func recordPreviewHostFailure(_ reason: PreviewHostFailureReason) {
@@ -954,17 +924,11 @@ private extension RenderView {
             let previousState = previewHostExecutionState(from: $0.state)
             let previousStrategy = previewHostStrategy(from: $0.actualResolvedHostStrategy)
             var strategySwitchCount = $0.strategySwitchCount
-            if previousStrategy != strategy {
-                strategySwitchCount += 1
-            }
+            if previousStrategy != strategy { strategySwitchCount += 1 }
             var activationCount = $0.activationCount
-            if previousState == .inactive && state != .inactive {
-                activationCount += 1
-            }
+            if previousState == .inactive && state != .inactive { activationCount += 1 }
             var deactivationCount = $0.deactivationCount
-            if previousState != .inactive && state == .inactive {
-                deactivationCount += 1
-            }
+            if previousState != .inactive && state == .inactive { deactivationCount += 1 }
             $0 = PreviewHostExecutionReport(
                 predictedStrategy: previewHostStrategy(from: $0.predictedStrategy),
                 actualBackingKind: backingKind,
@@ -1135,7 +1099,10 @@ private extension RenderView {
                 fleet: snapshot
             )
         }
-        Shared.shared.performanceMonitor?.recordPreviewHostExecution(previewHostTelemetryIdentifier, report: previewHostExecutionReport)
+        Shared.shared.performanceMonitor?.recordPreviewHostExecution(
+            previewHostTelemetryIdentifier,
+            report: previewHostExecutionReport
+        )
         let predictedStrategy = previewHostStrategy(from: previewHostExecutionReport.predictedStrategy)
         let actualStrategy = previewHostStrategy(from: previewHostExecutionReport.actualResolvedHostStrategy)
         if predictedStrategy != actualStrategy {
@@ -1155,11 +1122,12 @@ private extension RenderView {
     }
 
     func publishPreviewHostFleetSnapshot(_ snapshot: PreviewHostFleetSnapshot, deliverCallbacks: Bool = true) {
-        Shared.shared.performanceMonitor?.recordPreviewHostFleetSnapshot(previewHostTelemetryIdentifier, snapshot: snapshot)
+        Shared.shared.performanceMonitor?.recordPreviewHostFleetSnapshot(
+            previewHostTelemetryIdentifier,
+            snapshot: snapshot
+        )
         if deliverCallbacks {
-            DispatchQueue.main.async { [weak self] in
-                self?.onPreviewHostFleetSnapshotUpdated?(snapshot)
-            }
+            DispatchQueue.main.async { [weak self] in self?.onPreviewHostFleetSnapshotUpdated?(snapshot) }
         }
     }
 

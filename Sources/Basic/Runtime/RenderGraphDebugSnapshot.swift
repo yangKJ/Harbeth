@@ -306,12 +306,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         public let filterCount: Int
         public let sourceKind: String?
 
-        init(id: Int,
-             kind: String,
-             name: String,
-             cachePolicy: String,
-             filterCount: Int,
-             sourceKind: String?) {
+        init(id: Int, kind: String, name: String, cachePolicy: String, filterCount: Int, sourceKind: String?) {
             self.id = id
             self.kind = kind
             self.name = name
@@ -357,10 +352,7 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
         self.renderRecipe = renderRecipe
     }
 
-    init(graph: ImageGraph,
-         diagnostics: RenderPlanDiagnostics,
-         optimizationDecisions: [String],
-         renderRecipe: RenderRecipe? = nil) {
+    init(graph: ImageGraph, diagnostics: RenderPlanDiagnostics, optimizationDecisions: [String], renderRecipe: RenderRecipe? = nil) {
         let nodes = graph.nodes.map {
             Node(
                 id: $0.id.rawValue,
@@ -372,8 +364,10 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
             )
         }
         let edges = graph.edges.map { Edge(from: $0.from.rawValue, to: $0.to.rawValue, label: $0.label) }
-        #if canImport(AVFoundation) && !os(watchOS)
-        let runtimePreviewHostSummary = renderRecipe.flatMap { PreviewHostRuntimeSummaryCache.lookup(cacheIdentityFingerprint: $0.cacheIdentity.fingerprint) }
+        #if canImport(AVFoundation)
+        let runtimePreviewHostSummary = renderRecipe.flatMap {
+            PreviewHostRuntimeSummaryCache.lookup(cacheIdentityFingerprint: $0.cacheIdentity.fingerprint)
+        }
         #else
         let runtimePreviewHostSummary: RuntimePreviewHostSummary? = nil
         #endif
@@ -414,10 +408,8 @@ public struct RenderGraphDebugSnapshot: Sendable, Codable, Equatable, Hashable {
                 "kind=\(node.kind)",
                 "cache=\(node.cachePolicy)",
                 "filters=\(node.filterCount)",
-                node.sourceKind.map { "source=\($0)" } ?? nil
-            ]
-            .compactMap { $0 }
-            .joined(separator: "\\n")
+                node.sourceKind.map { "source=\($0)" } ?? nil,
+            ].compactMap { $0 }.joined(separator: "\\n")
             return "  n\(node.id) [label=\"\(label)\"];"
         }
         let edgeLines = edges.map { edge in

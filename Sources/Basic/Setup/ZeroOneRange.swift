@@ -9,7 +9,8 @@ import Foundation
 
 /// 0.0 ~ 1.0 范围区间属性包装器
 /// 0.0 ~ 1.0 Range Interval Property Packer.
-@propertyWrapper public struct ZeroOneRange: Codable {
+@propertyWrapper
+public struct ZeroOneRange: Codable, Sendable {
     
     public var wrappedValue: Float {
         didSet {

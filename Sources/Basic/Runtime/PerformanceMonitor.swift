@@ -9,7 +9,6 @@ import Foundation
 import Metal
 
 public final class PerformanceMonitor {
-    
     public struct Configuration {
         public var enabled: Bool = false
         public var logLevel: LogLevel = .warning
@@ -26,7 +25,6 @@ public final class PerformanceMonitor {
         case warning = 1
         case info = 2
         case debug = 3
-        
         public static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
             lhs.rawValue < rhs.rawValue
         }
@@ -48,9 +46,7 @@ public final class PerformanceMonitor {
         cleanupTimer.resume()
     }
     
-    deinit {
-        cleanupTimer.cancel()
-    }
+    deinit { cleanupTimer.cancel() }
     
     public func configure(_ config: Configuration) {
         cacheLock.lock()
@@ -85,9 +81,7 @@ public final class PerformanceMonitor {
         guard var metrics = metricsCache[identifier] else { return nil }
         metrics.endTime = CACurrentMediaTime()
         metricsCache[identifier] = metrics
-        if pendingGPUOperations[identifier] == 0 {
-            logMetrics(metrics, for: identifier, isFinal: true)
-        }
+        if pendingGPUOperations[identifier] == 0 { logMetrics(metrics, for: identifier, isFinal: true) }
         return metrics
     }
     
@@ -381,7 +375,7 @@ public final class PerformanceMonitor {
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.errors.append(error.localizedDescription)
         if configuration.logLevel >= .error {
-            print("[PerformanceMonitor Error] \(identifier): \(error.localizedDescription)")
+            HarbethLogger.log(.error, category: "performance", message: "\(identifier): \(error.localizedDescription)")
         }
     }
     
@@ -436,7 +430,11 @@ public final class PerformanceMonitor {
             let duration = CACurrentMediaTime() - startTime
             recordFilterProcessing(identifier, filterName: operation, duration: duration)
             if configuration.logLevel >= .debug {
-                print("[PerformanceMonitor Debug] \(identifier) - \(operation): \(String(format: "%.4f", duration))s")
+                HarbethLogger.log(
+                    .debug,
+                    category: "performance",
+                    message: "\(identifier) - \(operation): \(String(format: "%.4f", duration))s"
+                )
             }
             return result
         } catch {
@@ -459,7 +457,6 @@ public final class PerformanceMonitor {
         defer { cacheLock.unlock() }
         var summary = Summary()
         summary.totalOperations = metricsCache.count
-        
         for (_, metrics) in metricsCache {
             summary.totalProcessingTime += metrics.totalProcessingTime
             summary.totalCPUTime += metrics.cpuTime
@@ -503,7 +500,6 @@ public final class PerformanceMonitor {
             summary.totalMemoryAllocated += metrics.totalMemoryAllocated
             summary.peakMemoryAllocation = max(summary.peakMemoryAllocation, metrics.peakMemoryAllocation)
             summary.totalErrors += metrics.errors.count
-            
             if metrics.totalProcessingTime > summary.longestOperationTime {
                 summary.longestOperationTime = metrics.totalProcessingTime
             }
@@ -511,7 +507,6 @@ public final class PerformanceMonitor {
                 summary.shortestOperationTime = metrics.totalProcessingTime
             }
         }
-        
         let totalOps = Double(metricsCache.count)
         if totalOps > 0 {
             summary.averageProcessingTime = summary.totalProcessingTime / totalOps
@@ -522,7 +517,6 @@ public final class PerformanceMonitor {
                 summary.gpuCpuRatio = summary.totalGPUTime / summary.totalProcessingTime
             }
         }
-        
         return summary
     }
     
@@ -544,13 +538,11 @@ public final class PerformanceMonitor {
         let pipelineHit = String(format: "%.1f", metrics.pipelineCacheHitRate * 100)
         let memAlloc = String(format: "%.1f", Double(metrics.totalMemoryAllocated) / 1_000_000)
         let peakMem = String(format: "%.1f", Double(metrics.peakMemoryAllocation) / 1_000_000)
-        
         var counterStr = ""
         if !metrics.performanceCounters.isEmpty {
             let counters = metrics.performanceCounters.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
             counterStr = "\nPerformance Counters: \(counters)"
         }
-        
         var filterStr = ""
         if !metrics.filterProcessingTimes.isEmpty {
             if let slowest = metrics.slowestFilter {
@@ -563,20 +555,30 @@ public final class PerformanceMonitor {
             filterStr += "\nAverage Filter Time: \(avgFilterTime)ms"
             filterStr += "\nTotal Filters: \(metrics.filterProcessingTimes.count)"
         }
-        
-        print("""
-        [PerformanceMonitor Info] \(identifier):
-        Total Time: \(totalTimeStr)ms | CPU Time: \(cpuTimeStr)ms | GPU Time: \(gpuTimeStr)ms
-        GPU Utilization: \(gpuUtilizationStr)% | Texture Hit Rate: \(texHit)% | Pipeline Hit Rate: \(pipelineHit)%
-        Memory Allocated: \(memAlloc) MB | Peak Memory: \(peakMem) MB | Errors: \(metrics.errors.count)\(filterStr)\(counterStr)
-        """)
-        
+        HarbethLogger.log(
+            .info,
+            category: "performance",
+            message: """
+                \(identifier):
+                Total Time: \(totalTimeStr)ms | CPU Time: \(cpuTimeStr)ms | GPU Time: \(gpuTimeStr)ms
+                GPU Utilization: \(gpuUtilizationStr)% | Texture Hit Rate: \(texHit)% | Pipeline Hit Rate: \(pipelineHit)%
+                Memory Allocated: \(memAlloc) MB | Peak Memory: \(peakMem) MB | Errors: \(metrics.errors.count)\(filterStr)\(counterStr)
+                """
+        )
         if isFinal && configuration.logLevel >= .warning {
             if gpuTime > configuration.gpuTimeWarningThreshold {
-                print("⚠️ [PERF ALERT] exceeded GPU threshold: \(gpuTimeStr)ms > \(Int(configuration.gpuTimeWarningThreshold * 1000))ms")
+                HarbethLogger.log(
+                    .warning,
+                    category: "performance",
+                    message: "GPU time \(gpuTimeStr)ms exceeded \(Int(configuration.gpuTimeWarningThreshold * 1000))ms"
+                )
             }
             if metrics.cpuTime > configuration.cpuTimeWarningThreshold {
-                print("⚠️ [PERF ALERT] exceeded CPU threshold: \(cpuTimeStr)ms > \(Int(configuration.cpuTimeWarningThreshold * 1000))ms")
+                HarbethLogger.log(
+                    .warning,
+                    category: "performance",
+                    message: "CPU time \(cpuTimeStr)ms exceeded \(Int(configuration.cpuTimeWarningThreshold * 1000))ms"
+                )
             }
         }
     }
@@ -654,24 +656,19 @@ extension PerformanceMonitor {
         public var startTime: TimeInterval = 0
         public var endTime: TimeInterval = 0
         public var gpuTotalTimeNanoseconds: UInt64 = 0
-        
         public var totalProcessingTime: TimeInterval {
             guard endTime > 0 else { return 0 }
             return endTime - startTime
         }
-        
         public var gpuTotalTime: TimeInterval {
             TimeInterval(gpuTotalTimeNanoseconds) / 1_000_000_000.0
         }
-        
         public var cpuTime: TimeInterval {
             totalProcessingTime - gpuTotalTime
         }
-        
         public var gpuUtilization: Double {
             totalProcessingTime > 0 ? gpuTotalTime / totalProcessingTime : 0
         }
-        
         public var textureCreations: Int = 0
         public var textureReuses: Int = 0
         public var pipelineCacheHits: Int = 0
@@ -730,13 +727,11 @@ extension PerformanceMonitor {
             let total = imageResolutionCacheHits + imageResolutionCacheMisses
             return total > 0 ? Double(imageResolutionCacheHits) / Double(total) : 0
         }
-        
         public var filterProcessingTimes: [String: TimeInterval] = [:]
         public var performanceCounters: [String: Double] = [:]
         public var memoryAllocations: [MemoryAllocation] = []
         public var errors: [String] = []
         public var resourceEvents: [String] = []
-        
         public struct MemoryAllocation {
             public let timestamp: TimeInterval
             public let bytes: Int
@@ -803,13 +798,11 @@ extension PerformanceMonitor {
         }
         
         public var slowestFilter: (name: String, time: TimeInterval)? {
-            filterProcessingTimes.max(by: { $0.value < $1.value })
-                .map { (name: $0.key, time: $0.value) }
+            filterProcessingTimes.max(by: { $0.value < $1.value }).map { (name: $0.key, time: $0.value) }
         }
         
         public var fastestFilter: (name: String, time: TimeInterval)? {
-            filterProcessingTimes.min(by: { $0.value < $1.value })
-                .map { (name: $0.key, time: $0.value) }
+            filterProcessingTimes.min(by: { $0.value < $1.value }).map { (name: $0.key, time: $0.value) }
         }
         
         public var averageFilterTime: TimeInterval {

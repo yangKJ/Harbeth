@@ -49,7 +49,8 @@ struct ErrorView: View {
 }
 
 @available(iOS 15.0, *)
-class RefreshActionPerformer: ObservableObject {
+@MainActor
+final class RefreshActionPerformer: ObservableObject {
     @Published private(set) var isPerforming = false
     
     func perform(_ action: RefreshAction) async {
@@ -70,7 +71,7 @@ struct RetryButton: View {
     var body: some View {
         if let action = action {
             Button {
-                Task {
+                Task { @MainActor in
                     await actionPerformer.perform(action)
                 }
             } label: {

@@ -9,7 +9,7 @@ import Foundation
 @preconcurrency import Metal
 
 /// 纹理租约：用于把资源归还和 command buffer 生命周期绑定。
-public final class TextureLease {
+public final class TextureLease: @unchecked Sendable {
     public let texture: MTLTexture
     public let logicalExtent: C7Size
     private let releaseHandler: (() -> Void)?

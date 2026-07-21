@@ -9,7 +9,7 @@ struct FilterItem {
     let callback: ((Float) -> C7FilterProtocol)?
 }
 
-class FilterGroup {
+final class FilterGroup {
     let name: String
     var items: [FilterItem]
     

@@ -1,7 +1,7 @@
 import XCTest
 import Metal
 import CoreVideo
-#if canImport(UIKit) && !os(watchOS)
+#if canImport(UIKit)
 import UIKit
 #endif
 @testable import Harbeth
@@ -27,9 +27,10 @@ final class ImageNodeTests: XCTestCase {
     func testNodeCachePolicyIsVisibleInDiagnostics() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
         let sourceDiagnostics = try ImageNode.source(.texture(input)).makeDiagnostics()
-        let persistentNode = ImageNode
-            .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
-            .withCachePolicy(.persistent)
+        let persistentNode = ImageNode.filters(
+            input: .source(.texture(input)),
+            filters: [C7Brightness(brightness: 0.1)]
+        ).withCachePolicy(.persistent)
         let persistentDiagnostics = try persistentNode.makeDiagnostics()
 
         XCTAssertEqual(sourceDiagnostics.imageCachePolicy, .transient)
@@ -40,9 +41,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testNodeSamplerDescriptorIsVisibleInDiagnostics() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
-        let node = ImageNode
-            .source(.texture(input))
-            .withSamplerDescriptor(.nearest)
+        let node = ImageNode.source(.texture(input)).withSamplerDescriptor(.nearest)
         let diagnostics = try node.makeDiagnostics()
 
         XCTAssertEqual(diagnostics.samplerDescriptor, .nearest)
@@ -50,14 +49,9 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeSamplerDescriptorAffectsCoveredRenderExecutionPath() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [255, 0, 0, 255],
-            [0, 0, 255, 255]
-        ])
+        let input = try makeTexture(width: 2, height: 1, pixels: [[255, 0, 0, 255], [0, 0, 255, 255]])
 
-        let linearNode = ImageNode
-            .texture(input)
-            .applying(SamplerProbeFilter())
+        let linearNode = ImageNode.texture(input).applying(SamplerProbeFilter())
         let nearestNode = linearNode.withSamplerDescriptor(.nearest)
 
         let linearPixel = try pixel(in: linearNode.makeTexture(), x: 0, y: 0)
@@ -71,20 +65,17 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeSamplerDescriptorAffectsLegacyComputeCropExecutionPath() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [255, 0, 0, 255],
-            [0, 0, 255, 255]
-        ])
+        let input = try makeTexture(width: 2, height: 1, pixels: [[255, 0, 0, 255], [0, 0, 255, 255]])
 
-        let linearNode = ImageNode
-            .texture(input)
-            .applying(C7Crop(
+        let linearNode = ImageNode.texture(input).applying(
+            C7Crop(
                 origin: C7Point2D(x: 0.5, y: 0),
                 width: 1,
                 height: 1,
                 samplingMode: .adaptive,
                 edgeMode: .transparent
-            ))
+            )
+        )
         let nearestNode = linearNode.withSamplerDescriptor(.nearest)
 
         let linearPixel = try pixel(in: linearNode.makeTexture(), x: 0, y: 0)
@@ -100,13 +91,20 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(nearestDiagnostics.samplerExecutionCoverage.coveredFilterTypes, ["C7Crop"])
     }
 
-    #if canImport(UIKit) && !os(watchOS)
+    #if canImport(UIKit)
     func testUIImageSourceOrientationIsAppliedBeforeTextureCreation() throws {
-        let rawTexture = try makeTexture(width: 2, height: 3, pixels: [
-            [255, 0, 0, 255], [0, 255, 0, 255],
-            [0, 0, 255, 255], [255, 255, 0, 255],
-            [255, 0, 255, 255], [0, 255, 255, 255]
-        ])
+        let rawTexture = try makeTexture(
+            width: 2,
+            height: 3,
+            pixels: [
+                [255, 0, 0, 255],
+                [0, 255, 0, 255],
+                [0, 0, 255, 255],
+                [255, 255, 0, 255],
+                [255, 0, 255, 255],
+                [0, 255, 255, 255],
+            ]
+        )
         let cgImage = try XCTUnwrap(rawTexture.c7.toCGImage())
         let orientedImage = UIImage(cgImage: cgImage, scale: 1, orientation: .right)
 
@@ -139,7 +137,7 @@ final class ImageNodeTests: XCTestCase {
             kCVPixelBufferWidthKey: 4,
             kCVPixelBufferHeightKey: 4,
             kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
+            kCVPixelBufferIOSurfacePropertiesKey: [:],
         ]
         XCTAssertEqual(
             CVPixelBufferCreate(
@@ -157,8 +155,7 @@ final class ImageNodeTests: XCTestCase {
             return
         }
 
-        let node = ImageNode
-            .source(.pixelBuffer(pixelBuffer))
+        let node = ImageNode.source(.pixelBuffer(pixelBuffer))
             .applying(C7Brightness(brightness: 0.1))
             .withCachePolicy(.persistent)
             .withSamplerDescriptor(.nearest)
@@ -177,8 +174,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testNodeEditingCanAttachRecipeToExistingNodeChain() throws {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
-        let node = ImageNode
-            .texture(input)
+        let node = ImageNode.texture(input)
             .applying(C7Brightness(brightness: 0.1))
             .editing(
                 EditRecipe(
@@ -201,14 +197,9 @@ final class ImageNodeTests: XCTestCase {
 
     func testNodeTransformingConvenienceUsesEditRoute() throws {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
-        let node = ImageNode
-            .texture(input)
-            .transforming(
-                ImageTransformRecipe(
-                    targetSize: CGSize(width: 3, height: 2),
-                    aspectPolicy: .none
-                )
-            )
+        let node = ImageNode.texture(input).transforming(
+            ImageTransformRecipe(targetSize: CGSize(width: 3, height: 2), aspectPolicy: .none)
+        )
 
         let output = try node.makeTexture(profile: .stablePreview)
         let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
@@ -225,9 +216,7 @@ final class ImageNodeTests: XCTestCase {
             filters: [C7Brightness(brightness: 0.1)],
             mask: MaskDescriptor(texture: mask, opacity: 0.8)
         )
-        let node = ImageNode
-            .texture(input)
-            .applying(localEffect: localEffect)
+        let node = ImageNode.texture(input).applying(localEffect: localEffect)
 
         let diagnostics = try node.makeDiagnostics(profile: .stablePreview)
         let renderRecipe = try node.makeRenderRecipe(profile: .stablePreview)
@@ -248,29 +237,16 @@ final class ImageNodeTests: XCTestCase {
             featherPolicy: .normalized(0.25),
             opacity: 0.6
         )
-        let convenienceNode = ImageNode
-            .texture(input)
+        let convenienceNode = ImageNode.texture(input)
             .applying(mask: mask, filters: [C7Brightness(brightness: 0.1)])
-        let explicitNode = ImageNode
-            .texture(input)
-            .editing(
-                EditRecipe(
-                    localEffects: [
-                        LocalEffectRecipe(
-                            filters: [C7Brightness(brightness: 0.1)],
-                            mask: mask
-                        )
-                    ]
-                )
-            )
+        let explicitNode = ImageNode.texture(input).editing(
+            EditRecipe(localEffects: [LocalEffectRecipe(filters: [C7Brightness(brightness: 0.1)], mask: mask)])
+        )
 
         let convenienceRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
         let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
         XCTAssertEqual(convenienceRecipe.localEffects, explicitRecipe.localEffects)
-        XCTAssertEqual(
-            try convenienceNode.makeDiagnostics(profile: .stablePreview).compilationSource,
-            .editRecipe
-        )
+        XCTAssertEqual(try convenienceNode.makeDiagnostics(profile: .stablePreview).compilationSource, .editRecipe)
     }
 
     func testNodeApplyingMaskDescriptorSingleFilterConvenienceMatchesArrayOverload() throws {
@@ -280,11 +256,9 @@ final class ImageNodeTests: XCTestCase {
             component: .red,
             opacity: 1
         )
-        let singleNode = ImageNode
-            .texture(input)
+        let singleNode = ImageNode.texture(input)
             .applying(mask: mask, filter: C7Brightness(brightness: 0.1))
-        let arrayNode = ImageNode
-            .texture(input)
+        let arrayNode = ImageNode.texture(input)
             .applying(mask: mask, filters: [C7Brightness(brightness: 0.1)])
 
         XCTAssertEqual(
@@ -297,13 +271,9 @@ final class ImageNodeTests: XCTestCase {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
         let mask = MaskGradientRecipe(
             size: C7Size(width: 4, height: 3),
-            kind: .linear(
-                startPoint: CGPoint(x: 0, y: 0.5),
-                endPoint: CGPoint(x: 1, y: 0.5)
-            )
+            kind: .linear(startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
         )
-        let convenienceNode = try ImageNode
-            .texture(input)
+        let convenienceNode = try ImageNode.texture(input)
             .applying(
                 mask: mask,
                 filters: [C7Brightness(brightness: 0.1)],
@@ -313,31 +283,25 @@ final class ImageNodeTests: XCTestCase {
                 featherPolicy: .normalized(0.2),
                 opacity: 0.7
             )
-        let explicitNode = ImageNode
-            .texture(input)
+        let explicitNode = ImageNode.texture(input)
             .editing(
-                EditRecipe(
-                    localEffects: [
-                        try LocalEffectRecipe(
-                            filters: [C7Brightness(brightness: 0.1)],
-                            mask: mask,
-                            component: .green,
-                            blendMode: .add,
-                            invert: true,
-                            featherPolicy: .normalized(0.2),
-                            opacity: 0.7
-                        )
-                    ]
-                )
+                EditRecipe(localEffects: [
+                    try LocalEffectRecipe(
+                        filters: [C7Brightness(brightness: 0.1)],
+                        mask: mask,
+                        component: .green,
+                        blendMode: .add,
+                        invert: true,
+                        featherPolicy: .normalized(0.2),
+                        opacity: 0.7
+                    )
+                ])
             )
         let renderRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
         let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
         let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
 
-        XCTAssertEqual(
-            renderRecipe.localEffects,
-            explicitRecipe.localEffects
-        )
+        XCTAssertEqual(renderRecipe.localEffects, explicitRecipe.localEffects)
         XCTAssertEqual(localEffect.mask.kind, "maskGradientRecipe")
         XCTAssertEqual(localEffect.mask.component, .green)
         XCTAssertEqual(localEffect.mask.blendMode, .add)
@@ -350,8 +314,7 @@ final class ImageNodeTests: XCTestCase {
             size: C7Size(width: 4, height: 3),
             kind: .ellipse(rect: CGRect(x: 0.25, y: 0, width: 0.5, height: 1), feather: 0.3)
         )
-        let convenienceNode = try ImageNode
-            .texture(input)
+        let convenienceNode = try ImageNode.texture(input)
             .applying(
                 mask: mask,
                 filters: [C7Contrast(contrast: 1.1)],
@@ -360,30 +323,24 @@ final class ImageNodeTests: XCTestCase {
                 featherPolicy: .normalized(0.4),
                 opacity: 0.65
             )
-        let explicitNode = ImageNode
-            .texture(input)
+        let explicitNode = ImageNode.texture(input)
             .editing(
-                EditRecipe(
-                    localEffects: [
-                        try LocalEffectRecipe(
-                            filters: [C7Contrast(contrast: 1.1)],
-                            mask: mask,
-                            component: .blue,
-                            blendMode: .multiply,
-                            featherPolicy: .normalized(0.4),
-                            opacity: 0.65
-                        )
-                    ]
-                )
+                EditRecipe(localEffects: [
+                    try LocalEffectRecipe(
+                        filters: [C7Contrast(contrast: 1.1)],
+                        mask: mask,
+                        component: .blue,
+                        blendMode: .multiply,
+                        featherPolicy: .normalized(0.4),
+                        opacity: 0.65
+                    )
+                ])
             )
         let renderRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
         let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
         let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
 
-        XCTAssertEqual(
-            renderRecipe.localEffects,
-            explicitRecipe.localEffects
-        )
+        XCTAssertEqual(renderRecipe.localEffects, explicitRecipe.localEffects)
         XCTAssertEqual(localEffect.mask.kind, "maskShapeRecipe")
         XCTAssertEqual(localEffect.mask.component, .blue)
         XCTAssertEqual(localEffect.mask.blendMode, .multiply)
@@ -394,40 +351,26 @@ final class ImageNodeTests: XCTestCase {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
         let base = MaskGradientRecipe(
             size: C7Size(width: 4, height: 3),
-            kind: .linear(
-                startPoint: CGPoint(x: 0, y: 0.5),
-                endPoint: CGPoint(x: 1, y: 0.5)
-            )
+            kind: .linear(startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
         )
         let subtract = MaskShapeRecipe(
             size: C7Size(width: 4, height: 3),
             kind: .rectangle(rect: CGRect(x: 0.25, y: 0, width: 0.25, height: 1))
         )
-        let mask = try MaskCompositeRecipe(baseRecipe: base)
-            .subtracting(subtract, name: "subtract-center")
-        let convenienceNode = ImageNode
-            .texture(input)
+        let mask = try MaskCompositeRecipe(baseRecipe: base).subtracting(subtract, name: "subtract-center")
+        let convenienceNode = ImageNode.texture(input)
             .applying(mask: mask, filters: [C7Saturation(saturation: 1.2)])
-        let explicitNode = ImageNode
-            .texture(input)
+        let explicitNode = ImageNode.texture(input)
             .editing(
-                EditRecipe(
-                    localEffects: [
-                        LocalEffectRecipe(
-                            filters: [C7Saturation(saturation: 1.2)],
-                            maskRecipe: mask
-                        )
-                    ]
-                )
+                EditRecipe(localEffects: [
+                    LocalEffectRecipe(filters: [C7Saturation(saturation: 1.2)], maskRecipe: mask)
+                ])
             )
         let renderRecipe = try convenienceNode.makeRenderRecipe(profile: .stablePreview)
         let localEffect = try XCTUnwrap(renderRecipe.localEffects?.first)
         let explicitRecipe = try explicitNode.makeRenderRecipe(profile: .stablePreview)
 
-        XCTAssertEqual(
-            renderRecipe.localEffects,
-            explicitRecipe.localEffects
-        )
+        XCTAssertEqual(renderRecipe.localEffects, explicitRecipe.localEffects)
         XCTAssertEqual(localEffect.mask.kind, "maskCompositeRecipe")
         XCTAssertEqual(localEffect.mask.steps.first?.name, "subtract-center")
     }
@@ -436,8 +379,7 @@ final class ImageNodeTests: XCTestCase {
         let context = Shared.shared.defaultContext
         context.resetCaches()
         let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
-        let node = ImageNode
-            .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
+        let node = ImageNode.filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
             .withCachePolicy(.persistent)
 
         let first = try node.makeTexture()
@@ -455,8 +397,7 @@ final class ImageNodeTests: XCTestCase {
         let context = Shared.shared.defaultContext
         context.resetCaches()
         let input = try makeTexture(width: 4, height: 4, pixel: [80, 40, 20, 255])
-        let node = ImageNode
-            .filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
+        let node = ImageNode.filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
 
         let first = try node.makeTexture()
         let second = try node.makeTexture()
@@ -527,32 +468,24 @@ final class ImageNodeTests: XCTestCase {
 
         XCTAssertEqual(names, sortedNames)
         XCTAssertEqual(descriptor.arguments.first?.index, 0)
-        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
-            argument.name == "factors"
-                && argument.role == .parameter
-                && argument.dataType == .floatArray
-                && argument.valueFingerprint == "floats:0.4000"
-        }))
-        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
-            argument.name == "otherInputTextures"
-                && argument.role == .inputTexture
-                && argument.dataType == .int
-                && argument.required == false
-        }))
+        XCTAssertTrue(
+            descriptor.arguments.contains(where: { argument in
+                argument.name == "factors" && argument.role == .parameter && argument.dataType == .floatArray
+                    && argument.valueFingerprint == "floats:0.4000"
+            })
+        )
+        XCTAssertTrue(
+            descriptor.arguments.contains(where: { argument in
+                argument.name == "otherInputTextures" && argument.role == .inputTexture && argument.dataType == .int
+                    && argument.required == false
+            })
+        )
     }
 
     func testKernelDescriptorFunctionConstantsAreSpecializationContracts() {
         let constants = [
-            KernelFunctionConstantDescriptor(
-                name: "harbeth::outputsPremultipliedAlpha",
-                index: 3,
-                value: .bool(true)
-            ),
-            KernelFunctionConstantDescriptor(
-                name: "harbeth::blendMode",
-                index: 1,
-                value: .int(8)
-            )
+            KernelFunctionConstantDescriptor(name: "harbeth::outputsPremultipliedAlpha", index: 3, value: .bool(true)),
+            KernelFunctionConstantDescriptor(name: "harbeth::blendMode", index: 1, value: .int(8)),
         ]
         let reversedConstants = Array(constants.reversed())
         let firstIdentity = KernelFunctionIdentity(
@@ -578,18 +511,18 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(descriptor.functionIdentity.functionConstants.count, 2)
         XCTAssertEqual(descriptor.passes[0].functionIdentity.functionConstants.count, 2)
         XCTAssertTrue(descriptor.fingerprint.contains("constants=constant=harbeth::blendMode"))
-        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
-            argument.name == "harbeth::blendMode"
-                && argument.role == .functionConstant
-                && argument.dataType == .int
-                && argument.valueFingerprint == "int:8"
-        }))
-        XCTAssertTrue(descriptor.arguments.contains(where: { argument in
-            argument.name == "harbeth::outputsPremultipliedAlpha"
-                && argument.role == .functionConstant
-                && argument.dataType == .bool
-                && argument.valueFingerprint == "bool:1"
-        }))
+        XCTAssertTrue(
+            descriptor.arguments.contains(where: { argument in
+                argument.name == "harbeth::blendMode" && argument.role == .functionConstant && argument.dataType == .int
+                    && argument.valueFingerprint == "int:8"
+            })
+        )
+        XCTAssertTrue(
+            descriptor.arguments.contains(where: { argument in
+                argument.name == "harbeth::outputsPremultipliedAlpha" && argument.role == .functionConstant
+                    && argument.dataType == .bool && argument.valueFingerprint == "bool:1"
+            })
+        )
     }
 
     func testKernelFunctionIdentityIncludesLibrarySource() {
@@ -608,16 +541,10 @@ final class ImageNodeTests: XCTestCase {
             primaryName: "customKernel",
             librarySource: .metallibURL("file:///tmp/custom.metallib"),
             functionConstants: [
-                KernelFunctionConstantDescriptor(
-                    name: "harbeth::usesLinearSampling",
-                    value: .bool(true)
-                )
+                KernelFunctionConstantDescriptor(name: "harbeth::usesLinearSampling", value: .bool(true))
             ]
         )
-        let descriptor = KernelDescriptor(
-            filterName: "customKernel",
-            functionIdentity: metallibIdentity
-        )
+        let descriptor = KernelDescriptor(filterName: "customKernel", functionIdentity: metallibIdentity)
 
         XCTAssertNotEqual(defaultIdentity.fingerprint, externalIdentity.fingerprint)
         XCTAssertTrue(defaultIdentity.fingerprint.contains("library=default"))
@@ -633,30 +560,16 @@ final class ImageNodeTests: XCTestCase {
             kind: .compute,
             primaryName: "customKernel",
             functionConstants: [
-                KernelFunctionConstantDescriptor(
-                    name: "harbeth::flag",
-                    value: .bool(true)
-                ),
-                KernelFunctionConstantDescriptor(
-                    name: "harbeth::mode",
-                    index: 1,
-                    value: .int(2)
-                ),
-                KernelFunctionConstantDescriptor(
-                    name: "harbeth::amount",
-                    index: 2,
-                    value: .float(0.75)
-                )
+                KernelFunctionConstantDescriptor(name: "harbeth::flag", value: .bool(true)),
+                KernelFunctionConstantDescriptor(name: "harbeth::mode", index: 1, value: .int(2)),
+                KernelFunctionConstantDescriptor(name: "harbeth::amount", index: 2, value: .float(0.75)),
             ]
         )
         let metadataOnlyIdentity = KernelFunctionIdentity(
             kind: .compute,
             primaryName: "customKernel",
             functionConstants: [
-                KernelFunctionConstantDescriptor(
-                    name: "harbeth::debugLabel",
-                    value: .string("metadata-only")
-                )
+                KernelFunctionConstantDescriptor(name: "harbeth::debugLabel", value: .string("metadata-only"))
             ]
         )
 
@@ -694,9 +607,7 @@ final class ImageNodeTests: XCTestCase {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
         let filter = C7Brightness(brightness: 0.2)
 
-        let node = ImageNode
-            .texture(input)
-            .applyingWithContract(filter, inputSize: C7Size(width: 4, height: 3))
+        let node = ImageNode.texture(input).applyingWithContract(filter, inputSize: C7Size(width: 4, height: 3))
 
         let nodeOutput = try node.makeTexture()
         let directOutput: MTLTexture = try HarbethIO(element: input, filter: filter).output()
@@ -712,8 +623,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testPublicApplyingKernelPreservesOutputContractEffects() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [200, 100, 50, 128])
-        let node = ImageNode
-            .texture(input)
+        let node = ImageNode.texture(input)
             .applyingWithContract(C7Brightness(brightness: 0))
             .applyingWithContract(C7PremultiplyAlpha())
 
@@ -739,14 +649,18 @@ final class ImageNodeTests: XCTestCase {
     func testImageNodeResolvedPlanningOutputSizeHintTracksFilterAndKernelResize() throws {
         let input = try makeTexture(width: 4, height: 3, pixel: [120, 20, 10, 255])
 
-        let filterNode = ImageNode
-            .texture(input)
+        let filterNode = ImageNode.texture(input)
             .applying(C7Resize(width: 2, height: 1))
-        let kernelNode = ImageNode
-            .texture(input)
-            .applyingWithContract(C7Resize(width: 2, height: 1), inputSize: C7Size(width: 4, height: 3))
+        let kernelNode = ImageNode.texture(input)
+            .applyingWithContract(
+                C7Resize(width: 2, height: 1),
+                inputSize: C7Size(width: 4, height: 3)
+            )
 
-        XCTAssertEqual(ImageNode.texture(input).resolvedPlanningOutputSizeHint(profile: .stablePreview), C7Size(width: 4, height: 3))
+        XCTAssertEqual(
+            ImageNode.texture(input).resolvedPlanningOutputSizeHint(profile: .stablePreview),
+            C7Size(width: 4, height: 3)
+        )
         XCTAssertEqual(filterNode.resolvedPlanningOutputSizeHint(profile: .stablePreview), C7Size(width: 2, height: 1))
         XCTAssertEqual(kernelNode.resolvedPlanningOutputSizeHint(profile: .stablePreview), C7Size(width: 2, height: 1))
     }
@@ -825,10 +739,7 @@ final class ImageNodeTests: XCTestCase {
             pixelFormat: PixelFormatContract(pixelFormat: .rgba8Unorm, preservesInput: false)
         )
         let plan = GraphCompiler.compile(
-            filters: [
-                C7Brightness(brightness: 0.1),
-                C7Contrast(contrast: 1.1)
-            ],
+            filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.1)],
             inputSize: C7Size(width: 4, height: 4),
             profile: .readbackQuality,
             derivative: ImageDerivativeSpec(
@@ -855,17 +766,17 @@ final class ImageNodeTests: XCTestCase {
 
     func testOptimizerExposesTransientReuseLifecyclePlan() {
         let plan = GraphCompiler.compile(
-            filters: [
-                C7Brightness(brightness: 0.1),
-                C7Contrast(contrast: 1.1),
-                C7Saturation(saturation: 0.8)
-            ],
+            filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.1), C7Saturation(saturation: 0.8)],
             inputSize: C7Size(width: 4, height: 4),
             profile: .stablePreview
         )
 
         XCTAssertEqual(plan.diagnostics.optimizationPlan.lifecycleDecisions.count, plan.diagnostics.stageCount)
-        XCTAssertTrue(plan.diagnostics.optimizationPlan.lifecycleDecisions.contains(where: { $0.action == .allocatePersistentOutput }))
+        XCTAssertTrue(
+            plan.diagnostics.optimizationPlan.lifecycleDecisions.contains(where: {
+                $0.action == .allocatePersistentOutput
+            })
+        )
         XCTAssertTrue(plan.diagnostics.summary.contains("lifecycle="))
     }
 
@@ -899,9 +810,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testImageNodeAttachmentAnalysisBundleReturnsNilForNonRenderPath() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
-        let node = ImageNode
-            .texture(input)
-            .applying(C7Brightness(brightness: 0.1))
+        let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.1))
 
         let bundle = try node.makeAttachmentAnalysisBundle()
 
@@ -910,9 +819,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testImageNodeAttachmentSetReturnsNilForNonRenderPath() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
-        let node = ImageNode
-            .texture(input)
-            .applying(C7Brightness(brightness: 0.1))
+        let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.1))
 
         let attachmentSet = try node.makeAttachmentSet()
 
@@ -920,19 +827,13 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testImageNodeAttachmentSetUsesFinalRenderPrimitiveThroughWrappers() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let node = ImageNode
-            .texture(input)
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let node = ImageNode.texture(input)
             .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
             .withCachePolicy(.persistent)
             .withSamplerDescriptor(.nearest)
 
-        let attachmentSet = try XCTUnwrap(
-            node.makeAttachmentSet()
-        )
+        let attachmentSet = try XCTUnwrap(node.makeAttachmentSet())
 
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
         XCTAssertEqual(attachmentSet.attachments.count, 2)
@@ -942,22 +843,14 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testImageNodeAttachmentAnalysisBundleUsesFinalRenderPrimitiveThroughWrappers() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let node = ImageNode
-            .texture(input)
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let node = ImageNode.texture(input)
             .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
             .withCachePolicy(.persistent)
             .withSamplerDescriptor(.nearest)
 
         let bundle = try XCTUnwrap(
-            node.makeAttachmentAnalysisBundle(
-                bins: 4,
-                histogramHeight: 16,
-                preferredMethod: .gpuMPS
-            )
+            node.makeAttachmentAnalysisBundle(bins: 4, histogramHeight: 16, preferredMethod: .gpuMPS)
         )
 
         XCTAssertEqual(bundle.debugPolicies.map(\.label), ["primaryColor", "luminance"])
@@ -969,13 +862,8 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testImageNodeAttachmentAnalysisBundleCanRestrictHistogramRegion() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let node = ImageNode
-            .texture(input)
-            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let node = ImageNode.texture(input).applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
 
         let bundle = try XCTUnwrap(
             node.makeAttachmentAnalysisBundle(
@@ -995,16 +883,9 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testImageNodeAttachmentAnalysisBundleSupportsUnifiedAnalysisScope() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let mask = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let node = ImageNode
-            .texture(input)
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let node = ImageNode.texture(input)
             .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
 
         let bundle = try XCTUnwrap(
@@ -1025,12 +906,8 @@ final class ImageNodeTests: XCTestCase {
 
     func testNodeDebugSnapshotExposesGraphAndOptimizationDecisions() throws {
         let input = try makeTexture(width: 4, height: 4, pixel: [32, 64, 96, 255])
-        let node = ImageNode
-            .texture(input)
-            .applying(filters: [
-                C7Brightness(brightness: 0.1),
-                C7Contrast(contrast: 1.1)
-            ])
+        let node = ImageNode.texture(input)
+            .applying(filters: [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.1)])
             .withCachePolicy(.persistent)
 
         let snapshot = try node.makeDebugSnapshot()
@@ -1053,7 +930,7 @@ final class ImageNodeTests: XCTestCase {
             kCVPixelBufferWidthKey: 4,
             kCVPixelBufferHeightKey: 4,
             kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
+            kCVPixelBufferIOSurfacePropertiesKey: [:],
         ]
         let creationStatus = CVPixelBufferCreate(
             kCFAllocatorDefault,
@@ -1069,9 +946,7 @@ final class ImageNodeTests: XCTestCase {
         guard let pixelBuffer else {
             throw XCTSkip("Failed to create bi-planar pixel buffer.")
         }
-        let node = ImageNode
-            .pixelBuffer(pixelBuffer)
-            .applying(C7Brightness(brightness: 0.1))
+        let node = ImageNode.pixelBuffer(pixelBuffer).applying(C7Brightness(brightness: 0.1))
 
         let snapshot = try node.makeDebugSnapshot()
 
@@ -1110,8 +985,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testNodeRenderPlanAndRenderRecipeExposeStableContracts() throws {
         let input = try makeTexture(width: 4, height: 3, pixel: [80, 40, 20, 255])
-        let node = ImageNode
-            .texture(input)
+        let node = ImageNode.texture(input)
             .applying(C7Brightness(brightness: 0.1))
             .withCachePolicy(.persistent)
             .withSamplerDescriptor(.nearest)
@@ -1152,9 +1026,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testNodeRenderRequestCarriesDeferredExecutionContract() throws {
         let input = try makeTexture(width: 2, height: 2, pixel: [40, 80, 120, 255])
-        let node = ImageNode
-            .texture(input)
-            .applying(C7Brightness(brightness: 0.1))
+        let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.1))
 
         let request = try node.makeRenderRequest(profile: .stablePreview)
         let texture = try request.renderTexture()
@@ -1170,28 +1042,15 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeRenderRequestBridgesDeferredAttachmentOutputs() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let mask = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let node = ImageNode
-            .texture(input)
-            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let node = ImageNode.texture(input).applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
         let request = try node.makeRenderRequest(profile: .readbackQuality)
         let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
 
         let attachmentSet = try XCTUnwrap(request.renderAttachmentSet())
         let bundle = try XCTUnwrap(
-            request.renderAttachmentAnalysisBundle(
-                bins: 4,
-                histogramHeight: 16,
-                scope: scope,
-                preferredMethod: .gpuMPS
-            )
+            request.renderAttachmentAnalysisBundle(bins: 4, histogramHeight: 16, scope: scope, preferredMethod: .gpuMPS)
         )
 
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
@@ -1200,13 +1059,8 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeAnalysisConveniencesMatchResultObjectLayer() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let node = ImageNode
-            .texture(input)
-            .applying(C7Brightness(brightness: 0.0))
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.0))
         let scope = TextureAnalysisScope.region(MTLRegionMake2D(1, 0, 1, 1))
         let frame = try node.makeFrame(profile: .readbackQuality)
 
@@ -1219,12 +1073,8 @@ final class ImageNodeTests: XCTestCase {
                 preferredMethod: .cpuReadback
             )
         )
-        let statistics = try XCTUnwrap(
-            node.makeStatistics(profile: .readbackQuality, scope: scope)
-        )
-        let probe = try XCTUnwrap(
-            node.makeColorProbe(profile: .readbackQuality, scope: scope)
-        )
+        let statistics = try XCTUnwrap(node.makeStatistics(profile: .readbackQuality, scope: scope))
+        let probe = try XCTUnwrap(node.makeColorProbe(profile: .readbackQuality, scope: scope))
         let histogramAttachment = try XCTUnwrap(
             node.makeHistogramAttachment(
                 profile: .readbackQuality,
@@ -1254,24 +1104,14 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeScopedMaskConveniencesMatchResultObjectLayer() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [255, 0, 0, 255],
-            [0, 0, 255, 255]
-        ])
-        let mask = try makeTexture(width: 2, height: 1, pixels: [
-            [255, 0, 0, 255],
-            [0, 0, 0, 255]
-        ])
+        let input = try makeTexture(width: 2, height: 1, pixels: [[255, 0, 0, 255], [0, 0, 255, 255]])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [[255, 0, 0, 255], [0, 0, 0, 255]])
         let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
         let node = ImageNode.texture(input)
         let frame = try node.makeFrame(profile: .readbackQuality)
 
-        let scopedMaskTexture = try XCTUnwrap(
-            node.makeMaskTexture(profile: .readbackQuality, scope: scope)
-        )
-        let scopedMaskDescriptor = try XCTUnwrap(
-            node.makeMaskDescriptor(profile: .readbackQuality, scope: scope)
-        )
+        let scopedMaskTexture = try XCTUnwrap(node.makeMaskTexture(profile: .readbackQuality, scope: scope))
+        let scopedMaskDescriptor = try XCTUnwrap(node.makeMaskDescriptor(profile: .readbackQuality, scope: scope))
 
         XCTAssertEqual(scopedMaskTexture.width, frame.texture.width)
         XCTAssertEqual(scopedMaskTexture.height, frame.texture.height)
@@ -1284,23 +1124,13 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeAttachmentConveniencesMatchAttachmentResultLayer() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let mask = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
         let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
-        let node = ImageNode
-            .texture(input)
-            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let node = ImageNode.texture(input).applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
         let attachmentSet = try XCTUnwrap(node.makeAttachmentSet(profile: .readbackQuality))
 
-        let attachment = try XCTUnwrap(
-            node.makeAttachment(profile: .readbackQuality, semantic: .luminance)
-        )
+        let attachment = try XCTUnwrap(node.makeAttachment(profile: .readbackQuality, semantic: .luminance))
         let histogram = try XCTUnwrap(
             node.makeAttachmentHistogram(
                 profile: .readbackQuality,
@@ -1311,25 +1141,13 @@ final class ImageNodeTests: XCTestCase {
             )
         )
         let statistics = try XCTUnwrap(
-            node.makeAttachmentStatistics(
-                profile: .readbackQuality,
-                semantic: .luminance,
-                scope: scope
-            )
+            node.makeAttachmentStatistics(profile: .readbackQuality, semantic: .luminance, scope: scope)
         )
         let probe = try XCTUnwrap(
-            node.makeAttachmentColorProbe(
-                profile: .readbackQuality,
-                semantic: .luminance,
-                scope: scope
-            )
+            node.makeAttachmentColorProbe(profile: .readbackQuality, semantic: .luminance, scope: scope)
         )
         let scopedMask = try XCTUnwrap(
-            node.makeAttachmentMaskDescriptor(
-                profile: .readbackQuality,
-                semantic: .luminance,
-                scope: scope
-            )
+            node.makeAttachmentMaskDescriptor(profile: .readbackQuality, semantic: .luminance, scope: scope)
         )
         let analysis = try XCTUnwrap(
             node.makeAttachmentAnalysis(
@@ -1343,7 +1161,10 @@ final class ImageNodeTests: XCTestCase {
         )
 
         XCTAssertEqual(attachment.semantic, attachmentSet.attachment(for: .luminance)?.semantic)
-        XCTAssertEqual(histogram, attachmentSet.makeHistogram(for: .luminance, bins: 4, scope: scope, preferredMethod: .cpuReadback))
+        XCTAssertEqual(
+            histogram,
+            attachmentSet.makeHistogram(for: .luminance, bins: 4, scope: scope, preferredMethod: .cpuReadback)
+        )
         XCTAssertEqual(statistics, attachmentSet.makeStatistics(for: .luminance, scope: scope))
         XCTAssertEqual(probe.meanColor8, attachmentSet.makeColorProbe(for: .luminance, scope: scope)?.meanColor8)
         XCTAssertEqual(scopedMask.texture.width, attachment.texture.width)
@@ -1354,29 +1175,17 @@ final class ImageNodeTests: XCTestCase {
 
     func testNodeRenderRequestKeepsAttachmentOutputsOptionalForNonRenderPath() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
-        let node = ImageNode
-            .texture(input)
-            .applying(C7Brightness(brightness: 0.1))
+        let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.1))
 
         let request = try node.makeRenderRequest(profile: .stablePreview)
 
         XCTAssertNil(try request.renderAttachmentSet())
-        XCTAssertNil(
-            try request.renderAttachmentAnalysisBundle(
-                bins: 4,
-                histogramHeight: 16,
-                preferredMethod: .gpuMPS
-            )
-        )
+        XCTAssertNil(try request.renderAttachmentAnalysisBundle(bins: 4, histogramHeight: 16, preferredMethod: .gpuMPS))
     }
 
     func testNodeRenderRequestBridgesDeferredAnalysisBundleAndColorProbe() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let request = try ImageNode
-            .texture(input)
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let request = try ImageNode.texture(input)
             .applying(C7Brightness(brightness: 0.0))
             .makeRenderRequest(profile: .readbackQuality)
         let scope = TextureAnalysisScope.region(MTLRegionMake2D(1, 0, 1, 1))
@@ -1390,9 +1199,7 @@ final class ImageNodeTests: XCTestCase {
                 preferredMethod: .cpuReadback
             )
         )
-        let probe = try XCTUnwrap(
-            request.renderColorProbe(scope: scope)
-        )
+        let probe = try XCTUnwrap(request.renderColorProbe(scope: scope))
 
         XCTAssertEqual(bundle.statistics?.sampleCount, 1)
         XCTAssertEqual(bundle.colorProbe?.sampleCount, 1)
@@ -1402,13 +1209,12 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeRenderRequestBridgesDeferredColorRangeAnalysisScope() throws {
-        let input = try makeTexture(width: 3, height: 1, pixels: [
-            [255, 0, 0, 255],
-            [0, 255, 0, 255],
-            [255, 255, 255, 255]
-        ])
-        let request = try ImageNode
-            .texture(input)
+        let input = try makeTexture(
+            width: 3,
+            height: 1,
+            pixels: [[255, 0, 0, 255], [0, 255, 0, 255], [255, 255, 255, 255]]
+        )
+        let request = try ImageNode.texture(input)
             .applying(C7Brightness(brightness: 0.0))
             .makeRenderRequest(profile: .readbackQuality)
         let scope = TextureAnalysisScope(
@@ -1440,14 +1246,12 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeRenderRequestBridgesDeferredAttachmentColorRangeAnalysisScope() throws {
-        let input = try makeTexture(width: 3, height: 1, pixels: [
-            [255, 0, 0, 255],
-            [0, 255, 0, 255],
-            [255, 255, 255, 255]
-        ])
-        let node = ImageNode
-            .texture(input)
-            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let input = try makeTexture(
+            width: 3,
+            height: 1,
+            pixels: [[255, 0, 0, 255], [0, 255, 0, 255], [255, 255, 255, 255]]
+        )
+        let node = ImageNode.texture(input).applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
         let request = try node.makeRenderRequest(profile: .readbackQuality)
         let scope = TextureAnalysisScope(
             colorRange: TextureColorRange(
@@ -1475,27 +1279,15 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testNodeRenderRequestConveniencesMatchAttachmentAndAnalysisPaths() throws {
-        let input = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
-        let mask = try makeTexture(width: 2, height: 1, pixels: [
-            [0, 0, 0, 255],
-            [255, 0, 0, 255]
-        ])
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 0, 0, 255]])
         let scope = TextureAnalysisScope(mask: MaskDescriptor(texture: mask, component: .red))
-        let request = try ImageNode
-            .texture(input)
-            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let request = try ImageNode.texture(input)
+            .applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance(),])
             .makeRenderRequest(profile: .readbackQuality)
 
         let histogram = try XCTUnwrap(
-            request.renderHistogram(
-                channel: .red,
-                bins: 4,
-                scope: scope,
-                preferredMethod: .cpuReadback
-            )
+            request.renderHistogram(channel: .red, bins: 4, scope: scope, preferredMethod: .cpuReadback)
         )
         let statistics = try XCTUnwrap(request.renderStatistics(scope: scope))
         let attachment = try XCTUnwrap(request.renderAttachment(semantic: .luminance))
@@ -1507,24 +1299,9 @@ final class ImageNodeTests: XCTestCase {
                 preferredMethod: .cpuReadback
             )
         )
-        let attachmentStatistics = try XCTUnwrap(
-            request.renderAttachmentStatistics(
-                semantic: .luminance,
-                scope: scope
-            )
-        )
-        let attachmentProbe = try XCTUnwrap(
-            request.renderAttachmentColorProbe(
-                semantic: .luminance,
-                scope: scope
-            )
-        )
-        let attachmentMask = try XCTUnwrap(
-            request.renderAttachmentMaskDescriptor(
-                semantic: .luminance,
-                scope: scope
-            )
-        )
+        let attachmentStatistics = try XCTUnwrap(request.renderAttachmentStatistics(semantic: .luminance, scope: scope))
+        let attachmentProbe = try XCTUnwrap(request.renderAttachmentColorProbe(semantic: .luminance, scope: scope))
+        let attachmentMask = try XCTUnwrap(request.renderAttachmentMaskDescriptor(semantic: .luminance, scope: scope))
         let attachmentAnalysis = try XCTUnwrap(
             request.renderAttachmentAnalysis(
                 semantic: .luminance,
@@ -1563,7 +1340,12 @@ final class ImageNodeTests: XCTestCase {
                         steps: [
                             MaskCompositeStep(
                                 name: "subject-subtract",
-                                mask: MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
+                                mask: MaskDescriptor(
+                                    texture: subtractMask,
+                                    component: .red,
+                                    blendMode: .subtract,
+                                    opacity: 1
+                                )
                             )
                         ]
                     ),
@@ -1606,7 +1388,12 @@ final class ImageNodeTests: XCTestCase {
                             steps: [
                                 MaskCompositeStep(
                                     name: "snapshot-mask-step",
-                                    mask: MaskDescriptor(texture: subtractMask, component: .red, blendMode: .subtract, opacity: 1)
+                                    mask: MaskDescriptor(
+                                        texture: subtractMask,
+                                        component: .red,
+                                        blendMode: .subtract,
+                                        opacity: 1
+                                    )
                                 )
                             ]
                         )
@@ -1632,18 +1419,11 @@ final class ImageNodeTests: XCTestCase {
                     content: .texture(layer),
                     mask: MaskGradientRecipe(
                         size: C7Size(width: 3, height: 1),
-                        kind: .linear(
-                            startPoint: CGPoint(x: 0, y: 0.5),
-                            endPoint: CGPoint(x: 1, y: 0.5)
-                        )
+                        kind: .linear(startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
                     ),
                     compositingMask: MaskGradientRecipe(
                         size: C7Size(width: 3, height: 1),
-                        kind: .radial(
-                            center: CGPoint(x: 0.5, y: 0.5),
-                            startRadius: 0,
-                            endRadius: 0.75
-                        )
+                        kind: .radial(center: CGPoint(x: 0.5, y: 0.5), startRadius: 0, endRadius: 0.75)
                     )
                 )
             ]
@@ -1670,10 +1450,7 @@ final class ImageNodeTests: XCTestCase {
                         content: .texture(layer),
                         mask: MaskGradientRecipe(
                             size: C7Size(width: 3, height: 1),
-                            kind: .linear(
-                                startPoint: CGPoint(x: 0, y: 0.5),
-                                endPoint: CGPoint(x: 1, y: 0.5)
-                            )
+                            kind: .linear(startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
                         )
                     )
                 ]
@@ -1698,10 +1475,7 @@ final class ImageNodeTests: XCTestCase {
                     content: .texture(layer),
                     mask: MaskGradientRecipe(
                         size: C7Size(width: 3, height: 1),
-                        kind: .linear(
-                            startPoint: CGPoint(x: 0, y: 0.5),
-                            endPoint: CGPoint(x: 1, y: 0.5)
-                        )
+                        kind: .linear(startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
                     )
                 )
             ]
@@ -1809,10 +1583,7 @@ final class ImageNodeTests: XCTestCase {
         let layer = try makeTexture(width: 3, height: 1, pixel: [0, 0, 0, 255])
         let gradient = MaskGradientRecipe(
             size: C7Size(width: 3, height: 1),
-            kind: .linear(
-                startPoint: CGPoint(x: 0, y: 0.5),
-                endPoint: CGPoint(x: 1, y: 0.5)
-            )
+            kind: .linear(startPoint: CGPoint(x: 0, y: 0.5), endPoint: CGPoint(x: 1, y: 0.5))
         )
         let shape = MaskShapeRecipe(
             size: C7Size(width: 3, height: 1),
@@ -1823,10 +1594,10 @@ final class ImageNodeTests: XCTestCase {
             layers: [
                 ImageLayer(
                     content: .texture(layer),
-                    maskRecipe: try MaskCompositeRecipe(
-                        baseRecipe: gradient
+                    maskRecipe: try MaskCompositeRecipe(baseRecipe: gradient).intersecting(
+                        shape,
+                        name: "subjectIntersect"
                     )
-                    .intersecting(shape, name: "subjectIntersect")
                 )
             ]
         )
@@ -1892,20 +1663,11 @@ final class ImageNodeTests: XCTestCase {
 
     func testLayerCompositeExecutesLayerLocalTransform() throws {
         let background = try makeTexture(width: 2, height: 1, pixel: [255, 0, 0, 255])
-        let layer = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [0, 255, 0, 255],
-                [0, 0, 255, 255]
-            ]
-        )
+        let layer = try makeTexture(width: 2, height: 1, pixels: [[0, 255, 0, 255], [0, 0, 255, 255]])
         let transformedLayer = ImageLayer(
             content: .texture(layer),
             normalizedFrame: CGRect(x: 0, y: 0, width: 1, height: 1),
-            transform: ImageTransformRecipe(
-                mirrorsHorizontally: true
-            )
+            transform: ImageTransformRecipe(mirrorsHorizontally: true)
         )
         let recipe = LayerCompositeRecipe(background: .texture(background), layers: [transformedLayer])
 
@@ -1923,13 +1685,7 @@ final class ImageNodeTests: XCTestCase {
         let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 128])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
-            layers: [
-                ImageLayer(
-                    content: .texture(layer),
-                    opacity: 1,
-                    blendMode: .sourceOver
-                )
-            ]
+            layers: [ImageLayer(content: .texture(layer), opacity: 1, blendMode: .sourceOver)]
         )
 
         let output = try ImageNode.layerComposite(recipe).makeTexture()
@@ -1946,13 +1702,7 @@ final class ImageNodeTests: XCTestCase {
         let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 128])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
-            layers: [
-                ImageLayer(
-                    content: .texture(layer),
-                    opacity: 1,
-                    blendMode: .sourceOver
-                )
-            ]
+            layers: [ImageLayer(content: .texture(layer), opacity: 1, blendMode: .sourceOver)]
         )
 
         let output = try ImageNode.layerComposite(recipe).makeTexture()
@@ -1966,13 +1716,7 @@ final class ImageNodeTests: XCTestCase {
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 255, 128])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
-            layers: [
-                ImageLayer(
-                    content: .texture(layer),
-                    opacity: 1,
-                    blendMode: .sourceOver
-                )
-            ],
+            layers: [ImageLayer(content: .texture(layer), opacity: 1, blendMode: .sourceOver)],
             outputContract: RenderOutputContract(alpha: .opaque)
         )
 
@@ -1990,13 +1734,7 @@ final class ImageNodeTests: XCTestCase {
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 255, 128])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
-            layers: [
-                ImageLayer(
-                    content: .texture(layer),
-                    opacity: 1,
-                    blendMode: .sourceOver
-                )
-            ],
+            layers: [ImageLayer(content: .texture(layer), opacity: 1, blendMode: .sourceOver)],
             outputContract: RenderOutputContract(alpha: .forcePremultiply)
         )
 
@@ -2014,13 +1752,7 @@ final class ImageNodeTests: XCTestCase {
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 128, 128])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
-            layers: [
-                ImageLayer(
-                    content: .texture(layer),
-                    opacity: 1,
-                    blendMode: .sourceOver
-                )
-            ],
+            layers: [ImageLayer(content: .texture(layer), opacity: 1, blendMode: .sourceOver)],
             outputContract: RenderOutputContract(alpha: .forceUnpremultiply)
         )
 
@@ -2038,22 +1770,12 @@ final class ImageNodeTests: XCTestCase {
             width: 5,
             height: 1,
             pixels: [
+                [255, 255, 255, 255], [255, 255, 255, 255], [255, 255, 255, 255], [255, 255, 255, 255],
                 [255, 255, 255, 255],
-                [255, 255, 255, 255],
-                [255, 255, 255, 255],
-                [255, 255, 255, 255],
-                [255, 255, 255, 255]
             ]
         )
         let layer = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 255])
-        let mask = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [255, 0, 0, 255],
-                [0, 0, 0, 255]
-            ]
-        )
+        let mask = try makeTexture(width: 2, height: 1, pixels: [[255, 0, 0, 255], [0, 0, 0, 255]])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
             layers: [
@@ -2092,14 +1814,7 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testLayerCompositeTintUsesTintColorAndTintAlphaAsLayerOpacity() throws {
-        let background = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [0, 0, 0, 255],
-                [0, 0, 0, 255]
-            ]
-        )
+        let background = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [0, 0, 0, 255]])
         let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
@@ -2129,14 +1844,7 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testLayerCompositeTintWithZeroAlphaKeepsOriginalLayerColor() throws {
-        let background = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [0, 0, 0, 255],
-                [0, 0, 0, 255]
-            ]
-        )
+        let background = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [0, 0, 0, 255]])
         let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 255])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
@@ -2334,7 +2042,12 @@ final class ImageNodeTests: XCTestCase {
                         steps: [
                             MaskCompositeStep(
                                 name: "multiply-soft",
-                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .multiply, opacity: 0.5)
+                                mask: MaskDescriptor(
+                                    texture: overlayMask,
+                                    component: .red,
+                                    blendMode: .multiply,
+                                    opacity: 0.5
+                                )
                             )
                         ]
                     )
@@ -2351,7 +2064,12 @@ final class ImageNodeTests: XCTestCase {
                         steps: [
                             MaskCompositeStep(
                                 name: "multiply-hard",
-                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .multiply, opacity: 1)
+                                mask: MaskDescriptor(
+                                    texture: overlayMask,
+                                    component: .red,
+                                    blendMode: .multiply,
+                                    opacity: 1
+                                )
                             )
                         ]
                     )
@@ -2378,7 +2096,12 @@ final class ImageNodeTests: XCTestCase {
                         steps: [
                             MaskCompositeStep(
                                 name: "subtract-soft",
-                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .subtract, opacity: 0.5)
+                                mask: MaskDescriptor(
+                                    texture: overlayMask,
+                                    component: .red,
+                                    blendMode: .subtract,
+                                    opacity: 0.5
+                                )
                             )
                         ]
                     )
@@ -2395,7 +2118,12 @@ final class ImageNodeTests: XCTestCase {
                         steps: [
                             MaskCompositeStep(
                                 name: "subtract-hard",
-                                mask: MaskDescriptor(texture: overlayMask, component: .red, blendMode: .subtract, opacity: 1)
+                                mask: MaskDescriptor(
+                                    texture: overlayMask,
+                                    component: .red,
+                                    blendMode: .subtract,
+                                    opacity: 1
+                                )
                             )
                         ]
                     )
@@ -2458,7 +2186,12 @@ final class ImageNodeTests: XCTestCase {
             layers: [
                 ImageLayer(
                     content: .texture(layer),
-                    compositingMask: MaskDescriptor(texture: mask, component: .red, featherPolicy: .normalized(1), opacity: 1)
+                    compositingMask: MaskDescriptor(
+                        texture: mask,
+                        component: .red,
+                        featherPolicy: .normalized(1),
+                        opacity: 1
+                    )
                 )
             ]
         )
@@ -2484,7 +2217,12 @@ final class ImageNodeTests: XCTestCase {
                 ImageLayer(
                     content: .texture(layer),
                     mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
-                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .replace, opacity: 1)
+                    compositingMask: MaskDescriptor(
+                        texture: compositingMask,
+                        component: .red,
+                        blendMode: .replace,
+                        opacity: 1
+                    )
                 )
             ]
         )
@@ -2508,7 +2246,12 @@ final class ImageNodeTests: XCTestCase {
                 ImageLayer(
                     content: .texture(layer),
                     mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
-                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .add, opacity: 1)
+                    compositingMask: MaskDescriptor(
+                        texture: compositingMask,
+                        component: .red,
+                        blendMode: .add,
+                        opacity: 1
+                    )
                 )
             ]
         )
@@ -2532,7 +2275,12 @@ final class ImageNodeTests: XCTestCase {
                 ImageLayer(
                     content: .texture(layer),
                     mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
-                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .multiply, opacity: 1)
+                    compositingMask: MaskDescriptor(
+                        texture: compositingMask,
+                        component: .red,
+                        blendMode: .multiply,
+                        opacity: 1
+                    )
                 )
             ]
         )
@@ -2556,7 +2304,12 @@ final class ImageNodeTests: XCTestCase {
                 ImageLayer(
                     content: .texture(layer),
                     mask: MaskDescriptor(texture: mask, component: .red, blendMode: .mix, opacity: 1),
-                    compositingMask: MaskDescriptor(texture: compositingMask, component: .red, blendMode: .subtract, opacity: 1)
+                    compositingMask: MaskDescriptor(
+                        texture: compositingMask,
+                        component: .red,
+                        blendMode: .subtract,
+                        opacity: 1
+                    )
                 )
             ]
         )
@@ -2596,30 +2349,9 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testLayerCompositeProgrammableBlendPreservesLayerMaskCoverageAcrossPixels() throws {
-        let background = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [64, 64, 64, 255],
-                [64, 64, 64, 255]
-            ]
-        )
-        let layer = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [64, 0, 0, 255],
-                [64, 0, 0, 255]
-            ]
-        )
-        let mask = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [255, 0, 0, 255],
-                [0, 0, 0, 255]
-            ]
-        )
+        let background = try makeTexture(width: 2, height: 1, pixels: [[64, 64, 64, 255], [64, 64, 64, 255]])
+        let layer = try makeTexture(width: 2, height: 1, pixels: [[64, 0, 0, 255], [64, 0, 0, 255]])
+        let mask = try makeTexture(width: 2, height: 1, pixels: [[255, 0, 0, 255], [0, 0, 0, 255]])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
             layers: [
@@ -2650,14 +2382,7 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testLayerCompositeProgrammableBlendPreservesLayerFrameCoverageAcrossPixels() throws {
-        let background = try makeTexture(
-            width: 2,
-            height: 1,
-            pixels: [
-                [64, 64, 64, 255],
-                [64, 64, 64, 255]
-            ]
-        )
+        let background = try makeTexture(width: 2, height: 1, pixels: [[64, 64, 64, 255], [64, 64, 64, 255]])
         let layer = try makeTexture(width: 1, height: 1, pixel: [64, 0, 0, 255])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
@@ -2737,15 +2462,24 @@ final class ImageNodeTests: XCTestCase {
 
         let plan = try ImageNode.layerComposite(recipe).makeRenderPlan()
         let advancedMetalNode = try XCTUnwrap(
-            plan.diagnostics.nodes.first(where: { $0.kind == .advancedMetal && $0.name.contains("C7ProgrammableBlend") })
+            plan.diagnostics.nodes.first(where: {
+                $0.kind == .advancedMetal && $0.name.contains("C7ProgrammableBlend")
+            })
         )
 
         XCTAssertEqual(plan.diagnostics.compilationSource, .layerComposite)
         XCTAssertTrue(plan.graph.nodes.contains(where: { $0.kind == .advancedMetal }))
         XCTAssertGreaterThanOrEqual(plan.diagnostics.stageCount, 2)
         XCTAssertEqual(advancedMetalNode.parameterSummary["functionName"], "C7BlendColorAdd")
-        XCTAssertEqual(advancedMetalNode.parameterSummary["librarySource"], "library=sourceFallback:layer-programmable-blend")
-        XCTAssertTrue(advancedMetalNode.parameterSummary["functionConstants"]?.contains("constant=useRightSample|index=0|value=bool:1") == true)
+        XCTAssertEqual(
+            advancedMetalNode.parameterSummary["librarySource"],
+            "library=sourceFallback:layer-programmable-blend"
+        )
+        XCTAssertTrue(
+            advancedMetalNode.parameterSummary["functionConstants"]?.contains(
+                "constant=useRightSample|index=0|value=bool:1"
+            ) == true
+        )
     }
 
     func testLayerCompositeFingerprintTracksLayerTransformAndFilterParameters() throws {
@@ -2756,10 +2490,7 @@ final class ImageNodeTests: XCTestCase {
             content: .texture(layer),
             transform: ImageTransformRecipe(rotationDegrees: 90)
         )
-        let filteredLayer = ImageLayer(
-            content: .texture(layer),
-            filters: [C7Brightness(brightness: 0.2)]
-        )
+        let filteredLayer = ImageLayer(content: .texture(layer), filters: [C7Brightness(brightness: 0.2)])
 
         let identityRecipe = LayerCompositeRecipe(background: .texture(background), layers: [identityLayer])
         let transformedRecipe = LayerCompositeRecipe(background: .texture(background), layers: [transformedLayer])
@@ -2774,12 +2505,8 @@ final class ImageNodeTests: XCTestCase {
     func testNodeRecipeAndTransitionDiagnosticsKeepOriginalSources() throws {
         let from = try makeTexture(width: 2, height: 2, pixel: [255, 0, 0, 255])
         let to = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
-        let recipeNode = ImageNode.recipe(
-            source: .texture(from),
-            recipe: EditRecipe(),
-            mode: .preview
-        )
-        .applying(C7Brightness(brightness: 0.1))
+        let recipeNode = ImageNode.recipe(source: .texture(from), recipe: EditRecipe(), mode: .preview)
+            .applying(C7Brightness(brightness: 0.1))
         let transitionNode = ImageNode.transition(
             TransitionRecipe(from: .texture(from), to: .texture(to), kernel: .dissolve, progress: 0.5)
         )
@@ -2799,7 +2526,7 @@ final class ImageNodeTests: XCTestCase {
             kCVPixelBufferWidthKey: 4,
             kCVPixelBufferHeightKey: 4,
             kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
+            kCVPixelBufferIOSurfacePropertiesKey: [:],
         ]
         let creationStatus = CVPixelBufferCreate(
             kCFAllocatorDefault,
@@ -2886,15 +2613,13 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(ImageColorSpaceContract.hdrPQ.dynamicRange, .highDynamicRange)
         XCTAssertEqual(ImageColorSpaceContract.hdrHLG.dynamicRange, .highDynamicRange)
 
-        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
             let pq = ImageColorSpaceContract.hdrPQ.cgColorSpace
             let hlg = ImageColorSpaceContract.hdrHLG.cgColorSpace
 
-            XCTAssertEqual(pq, CGColorSpace(name: CGColorSpace.itur_2020_PQ_EOTF))
+            XCTAssertEqual(pq, CGColorSpace(name: CGColorSpace.itur_2100_PQ))
             XCTAssertEqual(hlg, CGColorSpace(name: CGColorSpace.itur_2100_HLG))
-            if let hlg {
-                XCTAssertTrue(CGColorSpaceIsHLGBased(hlg))
-            }
+            if let hlg { XCTAssertTrue(CGColorSpaceIsHLGBased(hlg)) }
         }
     }
 
@@ -2902,8 +2627,14 @@ final class ImageNodeTests: XCTestCase {
         let hdr = ImageColorSpaceContract.hdrPQ
         let sdr = ImageColorSpaceContract.displayP3
 
-        let sdrFilters = ImageToneMappingPolicy.toneMapToSDR.makeToneMappingFilters(sourceColorSpace: hdr, targetColorSpace: sdr)
-        let hdrFilters = ImageToneMappingPolicy.toneMapToHDR.makeToneMappingFilters(sourceColorSpace: hdr, targetColorSpace: hdr)
+        let sdrFilters = ImageToneMappingPolicy.toneMapToSDR.makeToneMappingFilters(
+            sourceColorSpace: hdr,
+            targetColorSpace: sdr
+        )
+        let hdrFilters = ImageToneMappingPolicy.toneMapToHDR.makeToneMappingFilters(
+            sourceColorSpace: hdr,
+            targetColorSpace: hdr
+        )
 
         XCTAssertEqual(sdrFilters.count, 2)
         XCTAssertTrue(sdrFilters[0] is C7HighlightShadowTone)
@@ -2923,7 +2654,10 @@ final class ImageNodeTests: XCTestCase {
         let inputPixel = try pixel(in: input, x: 0, y: 0)
 
         XCTAssertNotEqual(ObjectIdentifier(output), ObjectIdentifier(input))
-        XCTAssertFalse(outputPixel.red == inputPixel.red && outputPixel.green == inputPixel.green && outputPixel.blue == inputPixel.blue)
+        XCTAssertFalse(
+            outputPixel.red == inputPixel.red && outputPixel.green == inputPixel.green
+                && outputPixel.blue == inputPixel.blue
+        )
     }
 
     func testRenderDiagnosticsExposeOutputQualityContract() {
@@ -2965,20 +2699,19 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testColorTransferConversionRunsOnlyForExplicitCompatibleContracts() throws {
-        let linearITU2020 = ImageColorSpaceContract(name: "linearITU2020", preservesInput: false, gamut: .ituR2020, transferFunction: .linear)
-
-        XCTAssertEqual(
-            ImageColorSpaceContract.extendedLinearSRGB.transferConversionMode(from: .sRGB),
-            .sRGBToLinear
+        let linearITU2020 = ImageColorSpaceContract(
+            name: "linearITU2020",
+            preservesInput: false,
+            gamut: .ituR2020,
+            transferFunction: .linear
         )
+
+        XCTAssertEqual(ImageColorSpaceContract.extendedLinearSRGB.transferConversionMode(from: .sRGB), .sRGBToLinear)
         XCTAssertEqual(
             ImageColorSpaceContract.extendedLinearDisplayP3.transferConversionMode(from: .displayP3),
             .sRGBToLinear
         )
-        XCTAssertEqual(
-            ImageColorSpaceContract.sRGB.transferConversionMode(from: .extendedLinearSRGB),
-            .linearToSRGB
-        )
+        XCTAssertEqual(ImageColorSpaceContract.sRGB.transferConversionMode(from: .extendedLinearSRGB), .linearToSRGB)
         XCTAssertEqual(
             ImageColorSpaceContract.displayP3.transferConversionMode(from: .extendedLinearDisplayP3),
             .linearToSRGB
@@ -2991,10 +2724,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertNil(ImageColorSpaceContract.extendedLinearSRGB.transferConversionMode(from: .preserveInput))
 
         let input = try makeTexture(width: 1, height: 1, pixel: [128, 128, 128, 255])
-        let output = try HarbethIO(
-            element: input,
-            filter: C7RGBTransferConversion(mode: .sRGBToLinear)
-        ).output()
+        let output = try HarbethIO(element: input, filter: C7RGBTransferConversion(mode: .sRGBToLinear)).output()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
 
         XCTAssertLessThan(outputPixel.red, 80)
@@ -3069,7 +2799,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testExtendedLinearDisplayP3ContractResolvesCGColorSpace() throws {
         let colorSpace = try XCTUnwrap(ImageColorSpaceContract.extendedLinearDisplayP3.cgColorSpace)
-        if #available(macOS 10.14.3, iOS 12.1, tvOS 12.1, watchOS 5.1, *) {
+        if #available(macOS 10.14.3, iOS 12.1, tvOS 12.1, *) {
             XCTAssertEqual(colorSpace.name as String?, CGColorSpace.extendedLinearDisplayP3 as String)
         } else {
             XCTAssertEqual(colorSpace.name as String?, CGColorSpace.displayP3 as String)
@@ -3083,7 +2813,7 @@ final class ImageNodeTests: XCTestCase {
             filters: [
                 C7RGBTransferConversion(mode: .sRGBToLinear),
                 C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3),
-                C7RGBTransferConversion(mode: .linearToSRGB)
+                C7RGBTransferConversion(mode: .linearToSRGB),
             ]
         ).output()
         let restored = try HarbethIO(
@@ -3091,7 +2821,7 @@ final class ImageNodeTests: XCTestCase {
             filters: [
                 C7RGBTransferConversion(mode: .sRGBToLinear),
                 C7RGBColorSpaceConversion(mode: .linearDisplayP3ToLinearSRGB),
-                C7RGBTransferConversion(mode: .linearToSRGB)
+                C7RGBTransferConversion(mode: .linearToSRGB),
             ]
         ).output()
         let restoredPixel = try pixel(in: restored, x: 0, y: 0)
@@ -3145,7 +2875,7 @@ final class ImageNodeTests: XCTestCase {
             filters: [
                 C7RGBTransferConversion(mode: .sRGBToLinear),
                 C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3),
-                C7RGBTransferConversion(mode: .linearToSRGB)
+                C7RGBTransferConversion(mode: .linearToSRGB),
             ]
         ).output()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
@@ -3176,7 +2906,7 @@ final class ImageNodeTests: XCTestCase {
             element: input,
             filters: [
                 C7RGBTransferConversion(mode: .sRGBToLinear),
-                C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3)
+                C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3),
             ]
         ).output()
         let outputPixel = try pixel(in: output, x: 0, y: 0)
@@ -3244,12 +2974,16 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testRenderOutputContractDecodesOlderColorAndPixelFormatPayloads() throws {
-        let colorData = Data("""
-        {"name":"sRGB","preservesInput":false}
-        """.utf8)
-        let pixelData = Data("""
-        {"name":"rgba8Unorm","preservesInput":false}
-        """.utf8)
+        let colorData = Data(
+            """
+            {"name":"sRGB","preservesInput":false}
+            """.utf8
+        )
+        let pixelData = Data(
+            """
+            {"name":"rgba8Unorm","preservesInput":false}
+            """.utf8
+        )
 
         let color = try JSONDecoder().decode(ImageColorSpaceContract.self, from: colorData)
         let pixel = try JSONDecoder().decode(PixelFormatContract.self, from: pixelData)
@@ -3354,49 +3088,51 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testRenderOutputContractDecodesAttachmentArrayPayload() throws {
-        let data = Data("""
-        {
-          "inputAlphaExpectation":"preserveInput",
-          "attachments":[
+        let data = Data(
+            """
             {
-              "index":0,
-              "alpha":"preserveInput",
-              "colorSpace":{
-                "name":"extendedLinearSRGB",
-                "preservesInput":false,
-                "gamut":"extendedLinearSRGB",
-                "transferFunction":"linear"
-              },
-              "pixelFormat":{
-                "name":"rgba16Float",
-                "preservesInput":false,
-                "metalPixelFormatRawValue":112,
-                "precision":"float16"
-              }
-            },
-            {
-              "index":1,
-              "alpha":"opaque",
-              "colorSpace":{
-                "name":"DisplayP3",
-                "preservesInput":false,
-                "gamut":"displayP3",
-                "transferFunction":"sRGB"
-              },
-              "pixelFormat":{
-                "name":"rgba8Unorm",
-                "preservesInput":false,
-                "metalPixelFormatRawValue":70,
-                "precision":"unorm8"
-              }
+              "inputAlphaExpectation":"preserveInput",
+              "attachments":[
+                {
+                  "index":0,
+                  "alpha":"preserveInput",
+                  "colorSpace":{
+                    "name":"extendedLinearSRGB",
+                    "preservesInput":false,
+                    "gamut":"extendedLinearSRGB",
+                    "transferFunction":"linear"
+                  },
+                  "pixelFormat":{
+                    "name":"rgba16Float",
+                    "preservesInput":false,
+                    "metalPixelFormatRawValue":112,
+                    "precision":"float16"
+                  }
+                },
+                {
+                  "index":1,
+                  "alpha":"opaque",
+                  "colorSpace":{
+                    "name":"DisplayP3",
+                    "preservesInput":false,
+                    "gamut":"displayP3",
+                    "transferFunction":"sRGB"
+                  },
+                  "pixelFormat":{
+                    "name":"rgba8Unorm",
+                    "preservesInput":false,
+                    "metalPixelFormatRawValue":70,
+                    "precision":"unorm8"
+                  }
+                }
+              ],
+              "colorTransferPolicy":"automatic",
+              "pixelFormatFallbackPolicy":"preserveInput",
+              "allowsLossyConversion":false,
+              "preservesOrientation":true
             }
-          ],
-          "colorTransferPolicy":"automatic",
-          "pixelFormatFallbackPolicy":"preserveInput",
-          "allowsLossyConversion":false,
-          "preservesOrientation":true
-        }
-        """.utf8)
+            """.utf8
+        )
 
         let contract = try JSONDecoder().decode(RenderOutputContract.self, from: data)
 
@@ -3419,7 +3155,7 @@ final class ImageNodeTests: XCTestCase {
             kCVPixelBufferWidthKey: width,
             kCVPixelBufferHeightKey: height,
             kCVPixelBufferMetalCompatibilityKey: true,
-            kCVPixelBufferIOSurfacePropertiesKey: [:]
+            kCVPixelBufferIOSurfacePropertiesKey: [:],
         ]
         XCTAssertEqual(
             CVPixelBufferCreate(
@@ -3486,12 +3222,7 @@ final class ImageNodeTests: XCTestCase {
 
     private func pixel(in texture: MTLTexture, x: Int, y: Int) throws -> (red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
         var bytes = [UInt8](repeating: 0, count: 4)
-        texture.getBytes(
-            &bytes,
-            bytesPerRow: 4,
-            from: MTLRegionMake2D(x, y, 1, 1),
-            mipmapLevel: 0
-        )
+        texture.getBytes(&bytes, bytesPerRow: 4, from: MTLRegionMake2D(x, y, 1, 1), mipmapLevel: 0)
         return (bytes[0], bytes[1], bytes[2], bytes[3])
     }
 }

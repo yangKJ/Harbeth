@@ -2,7 +2,7 @@
 //  RenderCylindricalCanvas.swift
 //  Harbeth
 //
-//  Created by Codex on 2026/7/10.
+//  Created by Condy on 2026/7/10.
 //
 
 import Foundation

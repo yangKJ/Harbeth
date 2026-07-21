@@ -27,30 +27,17 @@ extension HarbethWrapper where MTLSize == Base {
             #elseif os(macOS)
             return (131072, 65536)
             #else
-            if #available(iOS 13.0, *) {
-                if device.supportsFamily(.apple3) {
-                    return (65536, 65536)
-                } else {
-                    return (16384, 16384)
-                }
-            } else if #available(iOS 11.0, *)  {
-                if device.supportsFeatureSet(.iOS_GPUFamily3_v3) {
-                    return (16384, 16384)
-                } else {
-                    return (8192, 8192)
-                }
+            if device.supportsFamily(.apple3) {
+                return (65536, 65536)
             } else {
-                return (8192, 8192)
+                return (16384, 16384)
             }
             #endif
         }
-        
         let (maxWidth, maxHeight) = getMaxTextureDimensions()
-        
         guard base.width > 0, base.height > 0 else {
             return .init(width: 0, height: 0, depth: 0)
         }
-        
         let aspectRatio = Float(base.width) / Float(base.height)
         if aspectRatio > 1 {
             let resultWidth = min(base.width, maxWidth)
