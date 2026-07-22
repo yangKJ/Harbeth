@@ -491,6 +491,8 @@ public final class TexturePool: @unchecked Sendable {
             HarbethLogger.log(
                 .info,
                 category: "texturePool",
+                code: "harbeth.texture_pool.statistics",
+                outcome: .observed,
                 message: """
                     created=\(stats.totalTexturesCreated) reused=\(stats.totalTexturesReused) hitRate=\(String(format: "%.2f%%", stats.hitRate * 100))
                     memorySaved=\(stats.totalMemorySaved / 1024 / 1024)MB current=\(stats.currentMemoryUsage / 1024 / 1024)MB peak=\(stats.peakMemoryUsage / 1024 / 1024)MB average=\(String(format: "%.2f", stats.averageMemoryUsage / 1024 / 1024))MB

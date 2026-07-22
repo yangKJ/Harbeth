@@ -145,7 +145,14 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
         do {
             return try output()
         } catch {
-            HarbethLogger.log(.warning, category: "filtered", message: error.harbethLocalizedDescription)
+            HarbethLogger.log(
+                .warning,
+                category: "filtered",
+                code: error.harbethDiagnosticCode,
+                outcome: .fallback,
+                metadata: error.harbethDiagnosticMetadata,
+                message: error.harbethLocalizedDescription
+            )
             return element
         }
     }

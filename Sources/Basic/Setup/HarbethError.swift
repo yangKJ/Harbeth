@@ -226,13 +226,27 @@ extension HarbethError: CustomNSError {
         #if DEBUG
         fatalError(message(), file: file, line: line)
         #else
-        HarbethLogger.log(.error, category: "assertion", message: "\(file):\(line): \(message())")
+        HarbethLogger.log(
+            .error,
+            category: "assertion",
+            code: "harbeth.assertion.failed",
+            outcome: .failed,
+            metadata: ["file": "\(file)", "line": String(line)],
+            message: message()
+        )
         #endif
     }
     
     public static func check(_ condition: @autoclosure () -> Bool, error: HarbethError, file: StaticString = #file, line: UInt = #line) throws {
         guard condition() else {
-            HarbethLogger.log(.error, category: "contract", message: "\(file):\(line): \(error.localizedDescription)")
+            HarbethLogger.log(
+                .error,
+                category: "contract",
+                code: error.harbethDiagnosticCode,
+                outcome: .failed,
+                metadata: error.harbethDiagnosticMetadata.merging(["file": "\(file)", "line": String(line)]) { current, _ in current },
+                message: error.localizedDescription
+            )
             throw error
         }
     }

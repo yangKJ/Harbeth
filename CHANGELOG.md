@@ -7,7 +7,7 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 ### Added
 
 - Added `HarbethRenderView`, a SwiftUI texture-first host for `MTLTexture` and `RenderedFrame` that reuses Harbeth's `RenderView` preview substrate.
-- Added opt-in structured logging through `HarbethLogger` and a privacy-safe `HarbethSupportSnapshot` for Issue reports.
+- Added opt-in structured logging through `HarbethLogger`, including stable diagnostic codes, outcomes, origins, metadata and correlation identifiers, plus a privacy-safe `HarbethSupportSnapshot` for Issue reports.
 - Added an external-import public API smoke-test target and user-facing Issue templates.
 - Added an `ImageNode` masked-effect composite entry point that reuses the same pixel-exact primitive as local edit recipes.
 - Added angular, diamond, reflected, band, ring, and multi-stop mask gradient primitives with deterministic graph fingerprints.

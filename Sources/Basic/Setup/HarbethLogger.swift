@@ -18,16 +18,46 @@ public enum HarbethLogLevel: Int, Sendable, Comparable {
     }
 }
 
+public enum HarbethLogOutcome: String, Codable, Equatable, Sendable {
+    case observed
+    case succeeded
+    case failed
+    case recovered
+    case fallback
+    case cancelled
+    case degraded
+}
+
 public struct HarbethLogEvent: Sendable {
     public let level: HarbethLogLevel
+    public let origin: String
     public let category: String
+    public let code: String?
+    public let outcome: HarbethLogOutcome
     public let message: String
+    public let metadata: [String: String]
+    public let correlationID: String?
     public let timestamp: Date
 
-    public init(level: HarbethLogLevel, category: String, message: String, timestamp: Date = Date()) {
+    public init(
+        level: HarbethLogLevel,
+        origin: String = "harbeth",
+        category: String,
+        code: String? = nil,
+        outcome: HarbethLogOutcome = .observed,
+        message: String,
+        metadata: [String: String] = [:],
+        correlationID: String? = nil,
+        timestamp: Date = Date()
+    ) {
         self.level = level
+        self.origin = origin
         self.category = category
+        self.code = code
+        self.outcome = outcome
         self.message = message
+        self.metadata = metadata
+        self.correlationID = correlationID
         self.timestamp = timestamp
     }
 }
@@ -71,13 +101,33 @@ public enum HarbethLogger {
         }
     }
 
-    public static func log(_ level: HarbethLogLevel, category: String, message: @autoclosure () -> String) {
+    public static func log(
+        _ level: HarbethLogLevel,
+        origin: String = "harbeth",
+        category: String,
+        code: String? = nil,
+        outcome: HarbethLogOutcome = .observed,
+        metadata: [String: String] = [:],
+        correlationID: String? = nil,
+        message: @autoclosure () -> String
+    ) {
         storage.lock.lock()
         let minimumLevel = storage.minimumLevel
         let handler = storage.handler
         storage.lock.unlock()
         guard level >= minimumLevel, let handler else { return }
-        handler(HarbethLogEvent(level: level, category: category, message: message()))
+        handler(
+            HarbethLogEvent(
+                level: level,
+                origin: origin,
+                category: category,
+                code: code,
+                outcome: outcome,
+                message: message(),
+                metadata: metadata,
+                correlationID: correlationID
+            )
+        )
     }
 }
 

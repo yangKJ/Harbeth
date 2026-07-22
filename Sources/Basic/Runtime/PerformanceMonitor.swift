@@ -375,7 +375,15 @@ public final class PerformanceMonitor {
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.errors.append(error.localizedDescription)
         if configuration.logLevel >= .error {
-            HarbethLogger.log(.error, category: "performance", message: "\(identifier): \(error.localizedDescription)")
+            HarbethLogger.log(
+                .error,
+                category: "performance",
+                code: error.harbethDiagnosticCode,
+                outcome: .failed,
+                metadata: error.harbethDiagnosticMetadata.merging(["operation": identifier]) { current, _ in current },
+                correlationID: identifier,
+                message: error.localizedDescription
+            )
         }
     }
     
@@ -433,6 +441,10 @@ public final class PerformanceMonitor {
                 HarbethLogger.log(
                     .debug,
                     category: "performance",
+                    code: "harbeth.performance.operation_duration",
+                    outcome: .observed,
+                    metadata: ["operation": operation, "durationSeconds": String(duration)],
+                    correlationID: identifier,
                     message: "\(identifier) - \(operation): \(String(format: "%.4f", duration))s"
                 )
             }
@@ -558,6 +570,9 @@ public final class PerformanceMonitor {
         HarbethLogger.log(
             .info,
             category: "performance",
+            code: "harbeth.performance.summary",
+            outcome: .observed,
+            correlationID: identifier,
             message: """
                 \(identifier):
                 Total Time: \(totalTimeStr)ms | CPU Time: \(cpuTimeStr)ms | GPU Time: \(gpuTimeStr)ms
@@ -570,6 +585,13 @@ public final class PerformanceMonitor {
                 HarbethLogger.log(
                     .warning,
                     category: "performance",
+                    code: "harbeth.performance.gpu_budget_exceeded",
+                    outcome: .degraded,
+                    metadata: [
+                        "actualMilliseconds": gpuTimeStr,
+                        "thresholdMilliseconds": String(Int(configuration.gpuTimeWarningThreshold * 1000))
+                    ],
+                    correlationID: identifier,
                     message: "GPU time \(gpuTimeStr)ms exceeded \(Int(configuration.gpuTimeWarningThreshold * 1000))ms"
                 )
             }
@@ -577,6 +599,13 @@ public final class PerformanceMonitor {
                 HarbethLogger.log(
                     .warning,
                     category: "performance",
+                    code: "harbeth.performance.cpu_budget_exceeded",
+                    outcome: .degraded,
+                    metadata: [
+                        "actualMilliseconds": cpuTimeStr,
+                        "thresholdMilliseconds": String(Int(configuration.cpuTimeWarningThreshold * 1000))
+                    ],
+                    correlationID: identifier,
                     message: "CPU time \(cpuTimeStr)ms exceeded \(Int(configuration.cpuTimeWarningThreshold * 1000))ms"
                 )
             }

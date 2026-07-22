@@ -624,7 +624,14 @@ extension Device {
             return function
         }
 
-        HarbethLogger.log(.error, category: "metal-function", message: metalFunctionLookupFailureDescription(identity))
+        HarbethLogger.log(
+            .error,
+            category: "metal-function",
+            code: HarbethError.readFunction(functionName).harbethDiagnosticCode,
+            outcome: .failed,
+            metadata: ["function": functionName],
+            message: metalFunctionLookupFailureDescription(identity)
+        )
         throw HarbethError.readFunction(functionName)
     }
 
