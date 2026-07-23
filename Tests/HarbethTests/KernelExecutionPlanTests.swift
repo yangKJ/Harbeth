@@ -83,6 +83,8 @@ final class KernelExecutionPlanTests: XCTestCase {
             ("C7ColorRGBA", C7ColorRGBA(), 2),
             ("C7Curves", C7Curves(), 8),
             ("C7ColorBalanceEnhanced", C7ColorBalanceEnhanced(), 4),
+            ("C7SelectiveHSL", C7SelectiveHSL(), 1),
+            ("C7ColorGrading", C7ColorGrading(), 6),
             ("C7EdgeGlow", C7EdgeGlow(), 3),
             ("C7StickerOutline", C7StickerOutline(), 3)
         ]
@@ -97,6 +99,36 @@ final class KernelExecutionPlanTests: XCTestCase {
             XCTAssertTrue(filter.filter.factors.isEmpty, "\(filter.name) should not mix factors with kernelParameterBindings.")
             XCTAssertEqual(descriptor.parameters["factors"], .floatArray([]), "\(filter.name) should keep descriptor factors empty when bindings are present.")
         }
+    }
+
+    func testProfessionalColorPrimitivesExposeStablePointSamplingContracts() {
+        let selective = C7SelectiveHSL(adjustments: [SIMD3<Float>(2, -2, 0.4)])
+        let grading = C7ColorGrading(
+            shadows: SIMD3<Float>(240, 0.4, -0.2),
+            balance: 2,
+            blending: -1
+        )
+        let whitesBlacks = C7WhitesBlacks(whites: 2, blacks: -2)
+
+        XCTAssertEqual(selective.memoryAccessPattern, .point)
+        XCTAssertEqual(C7SharpenDetail(sharpen: 0.2).memoryAccessPattern, .neighborhood)
+        XCTAssertEqual(selective.kernelParameterBindings.first?.value, .floatArray([
+            1, -1, 0.4,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0
+        ]))
+        XCTAssertEqual(grading.balance, 1)
+        XCTAssertEqual(grading.blending, 0)
+        XCTAssertEqual(
+            grading.kernelParameterBindings.first?.value,
+            .float3(SIMD3<Float>(240, 0.4, -0.2))
+        )
+        XCTAssertEqual(whitesBlacks.factors, [1, -1])
     }
 }
 

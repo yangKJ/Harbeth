@@ -32,6 +32,10 @@ public struct C7SharpenDetail: C7FilterProtocol {
     public var factors: [Float] {
         return [sharpen, clarity, detail]
     }
+
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .neighborhood
+    }
     
     public init(sharpen: Float = 0,  clarity: Float = 0, detail: Float = 0) {
         self.sharpen = sharpen

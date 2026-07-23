@@ -2,7 +2,7 @@
 
 | Soul | Combination |
 | :---: | :---: |
-| <img width="230" src="Screenshot/Soul.gif" alt="Harbeth Soul filter preview"> | <img width="230" src="Screenshot/Mix2.png" alt="Harbeth Combination filter preview"> |
+| <img width=230px src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Soul.gif" /> | <img width=230px src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/Mix2.png" /> |
 
 [![CI](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/yangKJ/Harbeth/actions/workflows/ci.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/yangKJ/Harbeth)](https://github.com/yangKJ/Harbeth/releases)
@@ -240,8 +240,8 @@ Support is never a paywall or an obligation. Harbeth remains available under the
 For one-time support via Alipay or WeChat:
 
 <p align="left">
-  <img src="Screenshot/WechatIMG1.jpg" width="220" alt="Alipay support QR code">
-  <img src="Screenshot/WechatIMG2.jpg" width="220" hspace="15" alt="WeChat support QR code">
+  <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG1.jpg" width="220" alt="Alipay support QR code">
+  <img src="https://raw.githubusercontent.com/yangKJ/Harbeth/master/Screenshot/WechatIMG2.jpg" width="220" hspace="15" alt="WeChat support QR code">
 </p>
 
 Maintainer: [yangKJ](https://github.com/yangKJ) · [yangkj310@gmail.com](mailto:yangkj310@gmail.com)
