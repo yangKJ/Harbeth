@@ -84,7 +84,87 @@ if report.isSupported {
 
 当设备不支持 Heap，`.heapBacked` 会稳定降级为 `.exact`；单次 Heap 创建因预算、storage 或碎片失败时，会降级为 `device.makeTexture`，不会返回半初始化资源。
 
-## 5. 性能验证
+## 5. Kernel pixel contract 与真实 pass fusion
+
+3.0 不再仅凭“滤镜名字看起来像点操作”推断 tile、HDR、Alpha 或 fusion 安全性。滤镜开发层通过 `KernelPixelContract` 声明工作色彩、Alpha、精度、dynamic range、采样 footprint、坐标/全局依赖、readback 与 fusion policy。
+
+Brightness、Contrast、Saturation、Exposure、Gamma、Opacity 的连续安全链会自动 lower 为一次真实 Metal dispatch。以下边界会强制终止 fusion：
+
+- 邻域或跨坐标采样
+- dual/multi texture
+- 全局统计或不确定依赖
+- CPU readback
+- 不兼容的 color/Alpha/precision contract
+- 显式禁止 fusion
+
+调用方不需要改用新的执行 API；`HarbethIO` 与 `ImageNode` 仍是入口。迁移自定义滤镜时应补齐真实 pixel contract，而不是依赖默认值获得激进优化。
+
+## 6. 专业色彩、LUT 与 GPU scopes
+
+- 输出合同现在可显式保留 working/output color profile、HDR transfer、Alpha 和 quantization/dither 语义。
+- `C7ColorCube` 使用原生 3D texture，严格校验 `.cube` dimension/domain/sample count，并默认使用 tetrahedral interpolation。
+- `TextureImageScopeConfiguration` 可在 GPU 上生成 luminance waveform、RGB waveform 或 vectorscope；只有显式调用 `makeCGImage()` 时才发生读回。
+
+最终导出不要隐式假设“预览看起来一致”。应从各自 node 生成 request 后比较：
+
+```swift
+let report = previewRequest.parityReport(comparedTo: exportRequest)
+guard report.isVisuallyEquivalent else {
+    // inspect report.visualDifferences
+    return
+}
+```
+
+## 7. 请求级资源门禁
+
+需要对大图、复杂 recipe 或受限宿主做确定性 admission 时，在执行前给 `RenderRequest` 设置预算：
+
+```swift
+let request = try node
+    .makeRenderRequest(profile: .exportQuality)
+    .withResourceBudget(
+        RenderResourceBudget(
+            maximumTotalBytes: 256 * 1024 * 1024,
+            maximumTextureCount: 24,
+            maximumStageCount: 20
+        )
+    )
+
+let admission = request.resourceAdmission
+let result = try request.renderFrameWithResourceReport()
+```
+
+预算拒绝发生在纹理分配前，并抛出带稳定诊断码的 `RenderResourceBudgetError`。`resourceEstimate` 是编译期估算；`result.report.observation` 是 allocator 对 allocation、reuse、heap allocation 与 bytes 的执行期观察，两者不能混为一谈。
+
+## 8. Pipeline Binary Archive 与派生资源生命周期
+
+需要预热或跨启动复用 Metal pipeline 时，宿主必须显式决定是否持久化以及文件位置：
+
+```swift
+let context = HarbethContext.shared
+try context.configurePipelineBinaryArchive(.persistent(at: archiveURL))
+
+// 先跑宿主选定的预热请求，再显式落盘。
+try context.serializePipelineBinaryArchive()
+```
+
+`.memoryOnly` 适合仅在当前进程预热；`.disabled` 为干净关闭状态。无效配置不会污染已有 archive 状态，损坏的持久化 archive 会重建为可用的内存 archive 并在 snapshot 中留下诊断。Harbeth 不创建或猜测宿主的业务缓存目录。
+
+output-contract texture、派生 mask 与 3D LUT 现在统一受字节/数量预算、LRU、namespace、domain 定向失效和 memory pressure 回收控制。generation 会拒绝失效前已启动任务的陈旧回写：
+
+```swift
+context.setDerivedResourceNamespace(documentID)
+context.configureDerivedResourceCache(
+    DerivedResourceCacheConfiguration(byteLimit: 128 * 1024 * 1024)
+)
+
+context.invalidateDerivedResources(domain: .mask, namespace: documentID)
+let snapshot = context.derivedResourceCacheSnapshot
+```
+
+这些都是两条公开路线的 runtime 支撑，不要求普通滤镜调用方直接管理。
+
+## 9. 性能验证
 
 升级前后至少固定同一份输入、尺寸、profile 与滤镜链，对比：
 
@@ -95,7 +175,7 @@ xcrun swift test --filter RealtimeRouteBenchmarkTests
 
 重点记录 cold/hot cache、真实首帧、平均值、p95/p99、stable/dropped frames、Heap reserved/used、fallback、readback 和输出 fingerprint。不要用单次 wall time 或排序后的最小值替代真实首帧。
 
-## 6. 发布前检查
+## 10. 发布前检查
 
 ```bash
 xcrun swift test

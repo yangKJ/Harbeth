@@ -37,6 +37,8 @@ let request = try node.makeRenderRequest(profile: .inspectionQuality)
 - `makeFrameAsync()` submits the synchronous frame build to Harbeth's render operation queue and resumes after the frame is ready. It does not guarantee main-actor delivery.
 - `makeRenderRequest()` captures a deferred, inspectable execution contract for later rendering.
 
+From the request, hosts can inspect `resourceEstimate`, apply a ``RenderResourceBudget``, render with an allocator-observed resource report, or compare preview/export parity before delivery. These checks reuse the same compiled node contract; they do not create another processing route.
+
 Profiles select latency, stable preview, inspection, export, or readback behavior. Derivatives describe the intended output size, source tier, render intent, and semantic role without turning those concerns into a separate processing route.
 
 ## Inspect the Graph and Result

@@ -185,6 +185,10 @@ Harbeth 对外只保留两条路线：
 - `TextureAllocator`
 - `TexturePool`
 - `PixelBufferPool`
+- `PipelineBinaryArchiveConfiguration`
+- `DerivedResourceCacheConfiguration`
+- `RenderResourceBudget`
+- `RenderParitySignature`
 
 存在意义：
 
@@ -196,6 +200,9 @@ Harbeth 对外只保留两条路线：
 - 它不是对外第三路线
 - `RenderRequest`、`RenderTask` 是 deferred execution / observation form，不是新的集成模型
 - `HarbethContext` 的 image-resolution cache 现在带 namespace + LRU discipline，属于 runtime 内部缓存治理，不改变外部路线划分
+- compute/render pipeline 可选择 memory-only 或宿主指定 URL 的 Binary Archive；Harbeth 不猜测业务缓存目录
+- output-contract texture、派生 mask 与 3D LUT 共享 generation-safe 派生资源治理，可按 domain/namespace 定向失效并在 memory pressure 下回收
+- `RenderRequest` 的资源 admission、allocator 实测报告与 preview/export parity 都是高级检查合同，不形成第三条执行路线
 
 ### `Core/`
 

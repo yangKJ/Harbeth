@@ -158,14 +158,16 @@ Use `HarbethView` only when a SwiftUI `Image` readback is the intended result; u
 - Color adjustment, blur, blend, edge/detail, geometry, optics, LUT/Cube, utility, generator, and quality filters.
 - Public Combination filters implemented through `C7FilterPipelineProtocol`.
 - Mask, local-effect, layer-composite, transition, and edit-recipe primitives.
-- Texture pooling, heap-backed allocation, prewarming, render-plan caching, and stable fingerprints.
-- Alpha, color-space, YUV, HDR metadata, output-size, orientation, and readback contracts.
-- Post-render histogram, statistics, probes, graph snapshots, and performance metrics.
+- Texture pooling, real `MTLHeap` allocation, request budgets, binary archives, derived-resource governance, prewarming, render-plan caching, and stable fingerprints.
+- Alpha, working/output color profiles, YUV, HDR metadata, output quantization, output-size, orientation, and readback contracts.
+- GPU waveform/vectorscope, histogram, statistics, probes, graph snapshots, preview/export parity, and performance metrics.
 - Custom `.metal`, `.metallib`, and external library-provider integration.
 
 Harbeth is capability-driven: support for a contract or platform does not imply that every device has the same Metal feature set. Query capability reports and use the documented fallback behavior for advanced features.
 
 Heap-backed allocation is opt-in and uses real `MTLHeap` resources in 3.0. It keeps the public workflow on `HarbethIO` / `ImageNode`, while the runtime owns descriptor compatibility, budgets, memory pressure, leases, and direct-allocation fallback. See the [3.0 Migration Guide](docs/MIGRATION_3_CN.md) before enabling it.
+
+Common pointwise adjustments can execute as one Metal dispatch when their pixel contracts prove the chain safe to fuse. Neighbor sampling, multi-texture kernels, global dependencies, CPU readback, and explicit barriers remain separate passes. `RenderRequest` can reject work against an explicit resource budget before allocating textures, compare preview/export parity, and return allocator-observed resource reports. These are supporting contracts under the two canonical routes, not additional processing APIs.
 
 ## Errors, Logs, and Bug Reports
 

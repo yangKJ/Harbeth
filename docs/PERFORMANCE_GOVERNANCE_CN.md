@@ -89,6 +89,37 @@ defer { Shared.shared.defaultTextureAllocationStrategy = .exact }
 
 Heap 的 reserved bytes 是预算成本，不能只看 used bytes；少量纹理场景中，直接分配可能更省。发生 memory pressure 时，Harbeth 会先释放池内闲置纹理，再回收已经没有资源的空 Heap，不会强制回收仍被 in-flight/output texture 使用的 Heap。
 
+## 请求资源门禁与实际观察
+
+`RenderRequest.resourceEstimate` 来自编译后的 optimization plan，适合在分配纹理前做 admission；它不是运行后的真实峰值。需要执行证据时使用：
+
+```swift
+let request = try node.makeRenderRequest(profile: .exportQuality)
+    .withResourceBudget(RenderResourceBudget(maximumTotalBytes: 256 * 1024 * 1024))
+
+let result = try request.renderFrameWithResourceReport()
+let estimate = result.report.admission.estimate
+let observation = result.report.observation
+```
+
+报告会区分 texture request、实际 allocation、pool reuse、heap-backed allocation、allocated bytes 与 reused bytes。预算拒绝在执行前 fail-fast，不应该通过自动降低质量来掩盖。
+
+## Pointwise fusion
+
+连续 Brightness、Contrast、Saturation、Exposure、Gamma 与 Opacity 在合同兼容时会 lower 为一次 dispatch。性能报告必须同时看真实输出正确性和 dispatch/pass 变化；不能把 diagnostics 中的“eligible”当成已经融合。
+
+以下情况保守保留 barrier：邻域采样、多纹理、全局依赖、readback、不确定 dynamic range 或显式禁止 fusion。验证使用 `PointwiseFusionTests`，其中包含融合链与逐 pass 参考结果的像素对比。
+
+## Binary Archive 与派生资源缓存
+
+`PipelineBinaryArchiveConfiguration.memoryOnly` 可用于当前进程预热；持久化模式必须由宿主提供 URL，并在选定预热完成后显式 serialize。统计 `registeredComputePipelineCount` / `registeredRenderPipelineCount` 与 `loadedFromDisk`，不要把 archive 文件存在等同于本次请求没有 pipeline 编译成本。
+
+output-contract texture、派生 mask 与 3D LUT 共享 `DerivedResourceCacheConfiguration` 的 byte/count budget。监控 `DerivedResourceCacheSnapshot` 的 entry/bytes、hit/miss、eviction 与 rejected insertion；namespace 用于隔离文档/会话，domain invalidation 用于局部清理。generation 拒绝陈旧任务回写，因此 rejected insertion 在主动失效期间可能是正确行为。
+
+## GPU waveform 与 vectorscope
+
+`renderImageScope(_:)` 的 accumulation 和 visualization 都在 GPU 上完成，适合预览检查。只有转换成 `CGImage` 时才产生 CPU readback。基准需要分别记录 GPU scope texture 路径与显式 readback 路径，不能混成一个数字。
+
 仓库当前还补了两类执行证据：
 
 - `RenderGraphTests/testExecutionPrewarmReservationsIncreaseTextureReuseForBoundaryChain`

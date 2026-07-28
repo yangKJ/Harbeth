@@ -176,6 +176,28 @@ let texture = try request.renderTexture()
 let frame = try request.renderFrame()
 ```
 
+请求级资源与预览/导出一致性也继续挂在同一个 `RenderRequest` 上：
+
+```swift
+let guarded = request.withResourceBudget(
+    RenderResourceBudget(
+        maximumTotalBytes: 128 * 1024 * 1024,
+        maximumTextureCount: 16,
+        maximumStageCount: 12
+    )
+)
+
+guard guarded.resourceAdmission.isAccepted else {
+    // 在任何纹理分配前处理 violations
+    return
+}
+
+let measured = try guarded.renderFrameWithResourceReport()
+let parity = previewRequest.parityReport(comparedTo: exportRequest)
+```
+
+`resourceEstimate` 来自编译后的 optimization plan；真正执行时由 allocator 记录 allocation/reuse/heap bytes。`parityReport` 把视觉差异与仅交付差异分开，不能用“两个请求都能成功渲染”代替一致性检查。
+
 如果调用方已经明确要走延迟读取面，优先在 `RenderRequest` 上完成 analysis / attachment inspection，而不是先拿 `RenderedFrame` 再绕回去：
 
 ```swift

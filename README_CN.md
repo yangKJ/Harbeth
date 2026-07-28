@@ -156,14 +156,16 @@ HarbethRenderView(
 - 颜色、模糊、混合、边缘与细节、几何、光学、LUT/Cube、Utility、Generator 与质量滤镜。
 - 通过 `C7FilterPipelineProtocol` 实现的公开 Combination 滤镜。
 - 蒙版、局部效果、图层合成、转场和编辑 Recipe primitive。
-- 纹理池、heap allocator、预热、render-plan cache 与稳定 fingerprint。
-- Alpha、色彩空间、YUV、HDR metadata、输出尺寸、方向和读回 contract。
-- 渲染后的直方图、统计、探针、图快照和性能指标。
+- 纹理池、真实 `MTLHeap`、请求级资源预算、Binary Archive、派生资源治理、预热、render-plan cache 与稳定 fingerprint。
+- Alpha、工作/输出色彩配置、YUV、HDR metadata、输出量化、输出尺寸、方向和读回 contract。
+- GPU waveform/vectorscope、直方图、统计、探针、图快照、预览/导出 parity 和性能指标。
 - 自定义 `.metal`、`.metallib` 与外部 library provider 接入。
 
 Harbeth 采用 capability-driven 语义：支持某个 contract 或平台，不代表所有设备都具备相同 Metal 特性。高级能力应结合 capability report 与对应 fallback 行为使用。
 
 3.0 的 heap allocator 是 opt-in 的真实 `MTLHeap` 资源策略。公开使用方式仍然只有 `HarbethIO` / `ImageNode`，descriptor 兼容、预算、内存压力、lease 与直接分配 fallback 都由内部 runtime 承担。启用前请阅读 [3.0 迁移指南](docs/MIGRATION_3_CN.md)。
+
+常用 pointwise 调整只有在 pixel contract 证明安全时才会合成一次 Metal dispatch；邻域采样、多纹理、全局依赖、CPU readback 与显式 barrier 继续保留独立 pass。`RenderRequest` 可在分配纹理前执行资源预算门禁、比较预览/导出 parity，并返回 allocator 实测报告。这些都属于两条主路线下的支撑合同，不形成新的处理入口。
 
 ## 错误、日志与 Issue
 
