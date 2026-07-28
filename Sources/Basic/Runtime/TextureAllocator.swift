@@ -185,7 +185,7 @@ class TexturePoolAllocator: TextureAllocator {
         let texture = allowsTolerance
             ? texturePool.dequeueTexture(width: width, height: height, pixelFormat: pixelFormat)
             : texturePool.dequeueExactTexture(width: width, height: height, pixelFormat: pixelFormat)
-        if texture != nil { recordReuse() }
+        if let texture { recordReuse(texture: texture) }
         return texture
     }
 
@@ -204,7 +204,7 @@ class TexturePoolAllocator: TextureAllocator {
             logicalExtent: logicalExtent
         )
         recordDecision(allowsTolerance ? "leaseToleranceMatch" : "leaseExactMatch")
-        if lease != nil { recordReuse() }
+        if let lease { recordReuse(texture: lease.texture) }
         return lease
     }
 
@@ -213,7 +213,7 @@ class TexturePoolAllocator: TextureAllocator {
         let allowsTolerance = resolvedTolerance(allowsSizeTolerance, pixelFormat: descriptor.pixelFormat)
         recordDecision(allowsTolerance ? "descriptorToleranceMatch" : "descriptorExactMatch")
         let texture = texturePool.dequeueTexture(matching: descriptor, allowsSizeTolerance: allowsTolerance)
-        if texture != nil { recordReuse() }
+        if let texture { recordReuse(texture: texture) }
         return texture
     }
 
@@ -228,13 +228,15 @@ class TexturePoolAllocator: TextureAllocator {
             logicalExtent: logicalExtent
         )
         recordDecision(allowsTolerance ? "descriptorLeaseToleranceMatch" : "descriptorLeaseExactMatch")
-        if lease != nil { recordReuse() }
+        if let lease { recordReuse(texture: lease.texture) }
         return lease
     }
 
     func makeTexture(descriptor: MTLTextureDescriptor, device: MTLDevice) -> MTLTexture? {
         recordDecision("deviceTextureAllocation")
-        return device.makeTexture(descriptor: descriptor)
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        recordObservedAllocation(texture, heapBacked: false)
+        return texture
     }
 
     func makeLease(for texture: MTLTexture, logicalExtent: C7Size? = nil) -> TextureLease {
@@ -275,6 +277,10 @@ class TexturePoolAllocator: TextureAllocator {
         stateLock.unlock()
     }
 
+    func recordObservedAllocation(_ texture: MTLTexture, heapBacked: Bool) {
+        RenderResourceObservationScope.current?.recordAllocation(texture: texture, heapBacked: heapBacked)
+    }
+
     func recordDecision(_ decision: String) {
         stateLock.lock()
         allocatorDecisions.append(decision)
@@ -288,12 +294,16 @@ class TexturePoolAllocator: TextureAllocator {
         stateLock.lock()
         textureRequestCount += 1
         stateLock.unlock()
+        RenderResourceObservationScope.current?.recordRequest()
     }
 
-    private func recordReuse() {
+    private func recordReuse(texture: MTLTexture? = nil) {
         stateLock.lock()
         textureReuseHitCount += 1
         stateLock.unlock()
+        if let texture {
+            RenderResourceObservationScope.current?.recordReuse(texture: texture)
+        }
     }
 
     private func resolvedTolerance(_ requested: Bool, pixelFormat: MTLPixelFormat) -> Bool {
@@ -398,9 +408,12 @@ final class HeapBackedTextureAllocator: TexturePoolAllocator {
     override func makeTexture(descriptor: MTLTextureDescriptor, device: MTLDevice) -> MTLTexture? {
         if let texture = texturePool.makeHeapTexture(descriptor: descriptor, device: device) {
             recordHeapBackedAllocation()
+            recordObservedAllocation(texture, heapBacked: true)
             return texture
         }
         recordDecision("heapAllocationFallbackToDevice")
-        return device.makeTexture(descriptor: descriptor)
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        recordObservedAllocation(texture, heapBacked: false)
+        return texture
     }
 }

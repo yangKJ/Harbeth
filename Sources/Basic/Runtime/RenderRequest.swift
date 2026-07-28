@@ -16,6 +16,7 @@ public struct RenderRequest {
     public let source: ImageSourceDescriptor
     public let outputCachePolicy: ImageCachePolicy
     public let diagnostics: RenderPlanDiagnostics
+    public let resourceBudget: RenderResourceBudget?
     let renderRecipe: RenderRecipe?
 
     private let renderTextureClosure: () throws -> MTLTexture
@@ -32,6 +33,7 @@ public struct RenderRequest {
          source: ImageSourceDescriptor,
          outputCachePolicy: ImageCachePolicy,
          diagnostics: RenderPlanDiagnostics,
+         resourceBudget: RenderResourceBudget? = nil,
          renderRecipe: RenderRecipe?,
          renderTexture: @escaping () throws -> MTLTexture,
          renderFrame: @escaping ([String: String]) throws -> RenderedFrame,
@@ -46,6 +48,7 @@ public struct RenderRequest {
         self.source = source
         self.outputCachePolicy = outputCachePolicy
         self.diagnostics = diagnostics
+        self.resourceBudget = resourceBudget
         self.renderRecipe = renderRecipe
         self.renderTextureClosure = renderTexture
         self.renderFrameClosure = renderFrame
@@ -57,13 +60,39 @@ public struct RenderRequest {
     }
 
     public func renderTexture() throws -> MTLTexture {
-        try renderTextureClosure()
+        try validateResourceAdmission()
+        return try renderTextureClosure()
     }
 
     public func renderFrame(metadata: [String: String] = [:]) throws -> RenderedFrame {
+        try validateResourceAdmission()
         var renderedMetadata = metadata
         renderedMetadata["renderParityFingerprint"] = paritySignature.fingerprint
+        renderedMetadata["renderResourceEstimate"] = resourceEstimate.fingerprint
+        if let resourceBudget {
+            renderedMetadata["renderResourceBudget"] = resourceBudget.fingerprint
+        }
         return try renderFrameClosure(renderedMetadata)
+    }
+
+    public func withResourceBudget(_ budget: RenderResourceBudget?) -> RenderRequest {
+        RenderRequest(
+            compilationSource: compilationSource,
+            profile: profile,
+            derivative: derivative,
+            source: source,
+            outputCachePolicy: outputCachePolicy,
+            diagnostics: diagnostics,
+            resourceBudget: budget,
+            renderRecipe: renderRecipe,
+            renderTexture: renderTextureClosure,
+            renderFrame: renderFrameClosure,
+            renderAnalysisBundle: renderAnalysisBundleClosure,
+            renderAnalysisScopeBundle: renderAnalysisScopeBundleClosure,
+            renderAttachmentSet: renderAttachmentSetClosure,
+            renderAttachmentAnalysisBundle: renderAttachmentAnalysisBundleClosure,
+            renderAttachmentAnalysisScopeBundle: renderAttachmentAnalysisScopeBundleClosure
+        )
     }
 
     public var frameHostSourceDescriptor: FrameHostSourceDescriptor {
@@ -79,7 +108,8 @@ public struct RenderRequest {
                                      histogramHeight: Int = 64,
                                      region: MTLRegion? = nil,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle? {
-        try renderAnalysisBundleClosure?(channel, bins, histogramHeight, region, preferredMethod)
+        try validateResourceAdmission()
+        return try renderAnalysisBundleClosure?(channel, bins, histogramHeight, region, preferredMethod)
     }
 
     public func renderAnalysisBundle(channel: TextureHistogramChannel = .luminance,
@@ -87,7 +117,8 @@ public struct RenderRequest {
                                      histogramHeight: Int = 64,
                                      scope: TextureAnalysisScope,
                                      preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAnalysisBundle? {
-        try renderAnalysisScopeBundleClosure?(channel, bins, histogramHeight, scope, preferredMethod)
+        try validateResourceAdmission()
+        return try renderAnalysisScopeBundleClosure?(channel, bins, histogramHeight, scope, preferredMethod)
     }
 
     public func renderHistogram(channel: TextureHistogramChannel = .luminance,
@@ -152,21 +183,24 @@ public struct RenderRequest {
     }
 
     public func renderAttachmentSet() throws -> RenderedAttachmentSet? {
-        try renderAttachmentSetClosure?()
+        try validateResourceAdmission()
+        return try renderAttachmentSetClosure?()
     }
 
     public func renderAttachmentAnalysisBundle(bins: Int = 256,
                                                histogramHeight: Int = 64,
                                                region: MTLRegion? = nil,
                                                preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
-        try renderAttachmentAnalysisBundleClosure?(bins, histogramHeight, region, preferredMethod)
+        try validateResourceAdmission()
+        return try renderAttachmentAnalysisBundleClosure?(bins, histogramHeight, region, preferredMethod)
     }
 
     public func renderAttachmentAnalysisBundle(bins: Int = 256,
                                                histogramHeight: Int = 64,
                                                scope: TextureAnalysisScope,
                                                preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle? {
-        try renderAttachmentAnalysisScopeBundleClosure?(bins, histogramHeight, scope, preferredMethod)
+        try validateResourceAdmission()
+        return try renderAttachmentAnalysisScopeBundleClosure?(bins, histogramHeight, scope, preferredMethod)
     }
 
     public func renderAttachment(semantic: RenderOutputAttachmentSemantic) throws -> RenderedAttachment? {
