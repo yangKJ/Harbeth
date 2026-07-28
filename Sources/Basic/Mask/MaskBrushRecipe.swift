@@ -42,15 +42,14 @@ public struct MaskBrushPoint: Sendable, Codable, Equatable, Hashable {
 
     public init(point: CGPoint, pressure: Float = 1) {
         self.point = CGPoint(
-            x: Self.clampUnit(point.x),
-            y: Self.clampUnit(point.y)
+            x: Self.finite(point.x),
+            y: Self.finite(point.y)
         )
         self.pressure = Self.clampUnit(pressure)
     }
 
-    private static func clampUnit(_ value: CGFloat) -> CGFloat {
-        guard value.isFinite else { return 0 }
-        return min(max(value, 0), 1)
+    private static func finite(_ value: CGFloat) -> CGFloat {
+        value.isFinite ? value : 0
     }
 
     private static func clampUnit(_ value: Float) -> Float {
@@ -86,11 +85,14 @@ public struct MaskBrushSettings: Sendable, Codable, Equatable, Hashable {
 
 /// Open-centerline brush mask with pressure-aware width and deterministic smoothing.
 public struct MaskBrushRecipe {
+    public static let maximumPreparedPointCount = 512
+
     public var size: C7Size
     public var points: [MaskBrushPoint]
     public var settings: MaskBrushSettings
     public var profile: RenderProfile
     public var storageFormat: MaskStorageFormat
+    private let pointsArePrepared: Bool
 
     public init(size: C7Size,
                 points: [MaskBrushPoint],
@@ -98,14 +100,30 @@ public struct MaskBrushRecipe {
                 profile: RenderProfile = .stablePreview,
                 storageFormat: MaskStorageFormat = .coverage8) {
         self.size = size
-        self.points = Array(points.prefix(512))
+        self.points = points
         self.settings = settings
         self.profile = profile
         self.storageFormat = storageFormat
+        self.pointsArePrepared = false
+    }
+
+    /// 使用已经在完整逻辑画布中平滑、重采样过的中心线。大图 tile 只应重基这些点，
+    /// 不能在每个 tile 内再次改变曲线或采样密度。
+    public init(size: C7Size,
+                preparedPoints: [MaskBrushPoint],
+                settings: MaskBrushSettings = MaskBrushSettings(),
+                profile: RenderProfile = .stablePreview,
+                storageFormat: MaskStorageFormat = .coverage8) {
+        self.size = size
+        self.points = Self.boundedPreparedPoints(preparedPoints)
+        self.settings = settings
+        self.profile = profile
+        self.storageFormat = storageFormat
+        self.pointsArePrepared = true
     }
 
     public var preparedPoints: [MaskBrushPoint] {
-        Self.prepare(points: points, settings: settings)
+        pointsArePrepared ? points : Self.prepare(points: points, settings: settings)
     }
 
     public var fingerprint: String {
@@ -206,7 +224,11 @@ private extension MaskBrushRecipe {
     /// 以笔刷直径的比例均匀采样中心线，避免输入事件频率改变笔触密度和边缘连续性。
     static func resample(_ points: [MaskBrushPoint], distance: CGFloat) -> [MaskBrushPoint] {
         guard points.count > 1 else { return points }
-        let targetDistance = max(distance, 0.0005)
+        let totalLength = zip(points, points.dropFirst()).reduce(CGFloat.zero) { result, pair in
+            result + hypot(pair.1.point.x - pair.0.point.x, pair.1.point.y - pair.0.point.y)
+        }
+        let maximumSegmentCount = CGFloat(max(maximumPreparedPointCount - 2, 1))
+        let targetDistance = max(distance, 0.0005, totalLength / maximumSegmentCount)
         var result = [points[0]]
         var carry: CGFloat = 0
 
@@ -216,7 +238,8 @@ private extension MaskBrushRecipe {
             var segmentLength = hypot(end.point.x - start.point.x, end.point.y - start.point.y)
             guard segmentLength > 0 else { continue }
 
-            while carry + segmentLength >= targetDistance, result.count < 511 {
+            while carry + segmentLength >= targetDistance,
+                  result.count < maximumPreparedPointCount - 1 {
                 let fraction = (targetDistance - carry) / segmentLength
                 let point = MaskBrushPoint(
                     point: CGPoint(
@@ -233,10 +256,18 @@ private extension MaskBrushRecipe {
             carry += segmentLength
         }
 
-        if result.last != points.last, result.count < 512 {
+        if result.last != points.last, result.count < maximumPreparedPointCount {
             result.append(points[points.count - 1])
         }
         return result
+    }
+
+    static func boundedPreparedPoints(_ points: [MaskBrushPoint]) -> [MaskBrushPoint] {
+        guard points.count > maximumPreparedPointCount else { return points }
+        let scale = Double(points.count - 1) / Double(maximumPreparedPointCount - 1)
+        return (0..<maximumPreparedPointCount).map { index in
+            points[Int((Double(index) * scale).rounded())]
+        }
     }
 
     static func stable(_ value: Double) -> String {

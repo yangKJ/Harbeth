@@ -75,6 +75,42 @@ final class MaskRecipeTests: XCTestCase {
         XCTAssertEqual(dense.preparedPoints.last, points.last)
     }
 
+    func testBrushPreparationKeepsTheWholeCenterlineWithinTheGPUPointBudget() {
+        let points = [
+            MaskBrushPoint(point: CGPoint(x: 0.05, y: 0.10)),
+            MaskBrushPoint(point: CGPoint(x: 0.95, y: 0.10)),
+            MaskBrushPoint(point: CGPoint(x: 0.95, y: 0.90)),
+            MaskBrushPoint(point: CGPoint(x: 0.10, y: 0.90))
+        ]
+        let recipe = MaskBrushRecipe(
+            size: C7Size(width: 1_024, height: 1_024),
+            points: points,
+            settings: MaskBrushSettings(width: 0.002, spacing: 0.02, smoothing: 0)
+        )
+        let prepared = recipe.preparedPoints
+
+        XCTAssertLessThanOrEqual(prepared.count, MaskBrushRecipe.maximumPreparedPointCount)
+        XCTAssertEqual(prepared.first, points.first)
+        XCTAssertEqual(prepared.last, points.last)
+        XCTAssertTrue(prepared.contains { $0.point.x > 0.90 && $0.point.y > 0.70 })
+        XCTAssertTrue(prepared.contains { $0.point.x < 0.30 && $0.point.y > 0.85 })
+    }
+
+    func testPreparedBrushPointsPreserveOffCanvasTileContextWithoutReprocessing() {
+        let points = [
+            MaskBrushPoint(point: CGPoint(x: -0.25, y: 0.20), pressure: 0.4),
+            MaskBrushPoint(point: CGPoint(x: 0.50, y: 0.50), pressure: 0.8),
+            MaskBrushPoint(point: CGPoint(x: 1.25, y: 0.80), pressure: 1)
+        ]
+        let recipe = MaskBrushRecipe(
+            size: C7Size(width: 64, height: 64),
+            preparedPoints: points,
+            settings: MaskBrushSettings(width: 0.1, spacing: 0.02, smoothing: 1)
+        )
+
+        XCTAssertEqual(recipe.preparedPoints, points)
+    }
+
     func testCoverageStorageUsesSingleChannelTexture() throws {
         let recipe = MaskBrushRecipe(
             size: C7Size(width: 8, height: 8),
