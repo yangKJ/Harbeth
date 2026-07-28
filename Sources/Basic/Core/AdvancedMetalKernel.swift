@@ -155,16 +155,14 @@ extension C7AdvancedMetalKernelProtocol {
     }
 
     private func advancedMetalPipelineState(identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
-        let device = Shared.shared.defaultDevice
+        let context = Shared.shared.defaultContext
 
-        if let cached = device.pipelineState(for: identity) {
+        if let cached = context.computePipelineState(for: identity) {
             return cached
         }
 
-        let metalFunction = try Device.readMTLFunction(identity)
-        let pipeline = try device.device.makeComputePipelineState(function: metalFunction)
-
-        device.setPipelineState(pipeline, for: identity)
+        let pipeline = try context.makeComputePipelineState(identity: identity)
+        context.setComputePipelineState(pipeline, for: identity)
         return pipeline
     }
 }

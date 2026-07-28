@@ -25,8 +25,8 @@ struct Compute {
             return pipelineState
         }
         /// 同步阻塞编译计算程序来创建管道状态
-        let function = try Device.readMTLFunction(kernel)
-        guard let pipeline = try? Shared.shared.metalDevice.makeComputePipelineState(function: function) else {
+        let identity = KernelFunctionIdentity(kind: .compute, primaryName: kernel)
+        guard let pipeline = try? context.makeComputePipelineState(identity: identity) else {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
             throw HarbethError.computePipelineState(kernel)
         }
@@ -41,8 +41,7 @@ struct Compute {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: true)
             return pipelineState
         }
-        let function = try Device.readMTLFunction(identity)
-        guard let pipeline = try? Shared.shared.metalDevice.makeComputePipelineState(function: function) else {
+        guard let pipeline = try? context.makeComputePipelineState(identity: identity) else {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
             throw HarbethError.computePipelineState(identity.primaryName)
         }
@@ -63,21 +62,19 @@ struct Compute {
             complete(.success(pipelineState))
             return
         }
-        guard let function = try? Device.readMTLFunction(kernel) else {
-            complete(.failure(HarbethError.readFunction(kernel)))
-            return
-        }
-        /// 异步创建管道状态
-        Shared.shared.metalDevice.makeComputePipelineState(function: function) { pipelineState, error in
-            guard let pipeline = pipelineState else {
+        let identity = KernelFunctionIdentity(kind: .compute, primaryName: kernel)
+        let operation = BlockOperation {
+            do {
+                let pipeline = try context.makeComputePipelineState(identity: identity)
+                context.setComputePipelineState(pipeline, for: kernel)
+                Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
+                complete(.success(pipeline))
+            } catch {
                 Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
                 complete(.failure(HarbethError.computePipelineState(kernel)))
-                return
             }
-            complete(.success(pipeline))
-            context.setComputePipelineState(pipeline, for: kernel)
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
         }
+        Shared.shared.renderOperationQueue.addOperation(operation)
     }
 
     static func makeComputePipelineState(
@@ -90,20 +87,18 @@ struct Compute {
             complete(.success(pipelineState))
             return
         }
-        guard let function = try? Device.readMTLFunction(identity) else {
-            complete(.failure(HarbethError.readFunction(identity.primaryName)))
-            return
-        }
-        Shared.shared.metalDevice.makeComputePipelineState(function: function) { pipelineState, error in
-            guard let pipeline = pipelineState else {
+        let operation = BlockOperation {
+            do {
+                let pipeline = try context.makeComputePipelineState(identity: identity)
+                context.setComputePipelineState(pipeline, for: identity)
+                Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+                complete(.success(pipeline))
+            } catch {
                 Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
                 complete(.failure(HarbethError.computePipelineState(identity.primaryName)))
-                return
             }
-            complete(.success(pipeline))
-            context.setComputePipelineState(pipeline, for: identity)
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
         }
+        Shared.shared.renderOperationQueue.addOperation(operation)
     }
     
     static func drawing(

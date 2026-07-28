@@ -19,6 +19,7 @@ public final class HarbethContext: @unchecked Sendable {
     }
 
     private let legacyDevice: Device
+    private let pipelineBinaryArchiveStore: PipelineBinaryArchiveStore
     private let renderPipelineLock = NSLock()
     private let samplerLock = NSLock()
     private let imageResolutionLock = NSLock()
@@ -48,6 +49,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     init(device: Device) {
         self.legacyDevice = device
+        self.pipelineBinaryArchiveStore = PipelineBinaryArchiveStore(device: device.device)
         let physicalMemory = Int(clamping: ProcessInfo.processInfo.physicalMemory)
         self.imageResolutionCacheByteLimit = min(max(physicalMemory / 50, 32 * 1024 * 1024), 256 * 1024 * 1024)
         #if os(iOS) || os(tvOS)
@@ -121,6 +123,17 @@ public final class HarbethContext: @unchecked Sendable {
         legacyDevice.setPipelineState(pipeline, for: identity)
     }
 
+    func makeComputePipelineState(identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
+        let descriptor = MTLComputePipelineDescriptor()
+        descriptor.computeFunction = try Device.readMTLFunction(identity)
+        pipelineBinaryArchiveStore.attach(to: descriptor)
+        do {
+            return try device.makeComputePipelineState(descriptor: descriptor, options: [], reflection: nil)
+        } catch {
+            throw HarbethError.computePipelineState(identity.primaryName)
+        }
+    }
+
     func makeRenderPipelineState(vertex: String,
                                  fragment: String,
                                  pixelFormat: MTLPixelFormat,
@@ -167,6 +180,7 @@ public final class HarbethContext: @unchecked Sendable {
         descriptor.rasterSampleCount = renderPass.sampleCount
         descriptor.vertexFunction = try Device.readMTLFunction(vertexIdentity)
         descriptor.fragmentFunction = try Device.readMTLFunction(fragmentIdentity)
+        pipelineBinaryArchiveStore.attach(to: descriptor)
         guard let pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor) else {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("render", hit: false)
             throw HarbethError.renderPipelineState(vertexIdentity.primaryName, fragmentIdentity.primaryName)
@@ -390,6 +404,22 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionLock.unlock()
         removeAllRenderPlans()
         ImageNode.removeAllOutputContractCachedTextures()
+    }
+
+    public func configurePipelineBinaryArchive(_ configuration: PipelineBinaryArchiveConfiguration) throws {
+        try pipelineBinaryArchiveStore.configure(configuration)
+        legacyDevice.removePipelineStates()
+        renderPipelineLock.lock()
+        renderPipelines.removeAll()
+        renderPipelineLock.unlock()
+    }
+
+    public func serializePipelineBinaryArchive(to url: URL? = nil) throws {
+        try pipelineBinaryArchiveStore.serialize(to: url)
+    }
+
+    public var pipelineBinaryArchiveSnapshot: PipelineBinaryArchiveSnapshot {
+        pipelineBinaryArchiveStore.snapshot()
     }
 
     public func debugCacheSnapshot() -> CacheSnapshot {
