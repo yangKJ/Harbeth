@@ -61,7 +61,9 @@ public struct RenderRequest {
     }
 
     public func renderFrame(metadata: [String: String] = [:]) throws -> RenderedFrame {
-        try renderFrameClosure(metadata)
+        var renderedMetadata = metadata
+        renderedMetadata["renderParityFingerprint"] = paritySignature.fingerprint
+        return try renderFrameClosure(renderedMetadata)
     }
 
     public var frameHostSourceDescriptor: FrameHostSourceDescriptor {

@@ -6,6 +6,7 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 
 ### Added
 
+- Added request-level preview/export parity signatures and structured visual-versus-delivery mismatch reports, with the evaluated parity fingerprint propagated to rendered-frame metadata.
 - Added a unified kernel pixel contract covering color, alpha, precision, dynamic-range behavior, sampling footprint, global dependencies, CPU readback and pass-fusion eligibility, with graph-level coverage diagnostics.
 - Added source color-profile identity propagation and deterministic final-output quantization with ordered or interleaved-gradient dithering before integer pixel-format conversion.
 - Added GPU-only luminance waveform, RGB waveform and vectorscope analysis attachments with deterministic density visualization and no source-pixel CPU readback.

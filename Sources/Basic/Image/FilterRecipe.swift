@@ -80,6 +80,27 @@ struct RenderRecipe: Sendable, Hashable, Codable {
             "layerMasks=\(layerMaskPart)"
         ].joined(separator: " || ")
     }
+
+    /// 只描述会改变画面内容的配方部分。profile、derivative、缓存和交付语义
+    /// 由 render parity 的 delivery 维度单独比较，避免把合法的预览/导出差异
+    /// 误报为编辑内容漂移。
+    var processingFingerprint: String {
+        let localEffectPart = localEffects?.map { descriptor in
+            let blend = descriptor.foregroundBlendMode ?? "none"
+            return "\(descriptor.mask.fingerprint):blend=\(blend):opacity=\(String(format: "%.4f", descriptor.foregroundBlendOpacity))"
+        }.joined(separator: "||") ?? "none"
+        let layerMaskPart = layerMasks?.map { descriptor in
+            "layer=\(descriptor.layerIndex):mask=\(descriptor.mask?.fingerprint ?? "none"):compositing=\(descriptor.compositingMask?.fingerprint ?? "none")"
+        }.joined(separator: "||") ?? "none"
+        return [
+            "sourceKind=\(source.kind)",
+            "alpha=\(alphaType.rawValue)",
+            "orientation=\(orientation.rawValue)",
+            filters.map(\.fingerprint).joined(separator: " -> "),
+            "localEffects=\(localEffectPart)",
+            "layerMasks=\(layerMaskPart)"
+        ].joined(separator: " || ")
+    }
 }
 
 extension C7FilterProtocol {
