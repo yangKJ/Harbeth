@@ -426,3 +426,92 @@ kernel void histogramPreviewKernel(
     float4 value = gid.y >= thresholdRow ? barColor : float4(0.0, 0.0, 0.0, 1.0);
     outputTexture.write(value, gid);
 }
+
+struct ImageScopeParameters {
+    uint kind;
+    uint scopeWidth;
+    uint scopeHeight;
+    uint sourceWidth;
+    uint sourceHeight;
+    float intensity;
+    uint reserved0;
+    uint reserved1;
+};
+
+static inline uint imageScopeDensityIndex(uint x, uint y, uint channel, constant ImageScopeParameters &params) {
+    return ((y * params.scopeWidth + x) * 4u) + channel;
+}
+
+kernel void imageScopeAccumulateKernel(
+    texture2d<half, access::read> inputTexture [[texture(0)]],
+    device atomic_uint *densityBuffer [[buffer(0)]],
+    constant ImageScopeParameters &params [[buffer(1)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= params.sourceWidth || gid.y >= params.sourceHeight) {
+        return;
+    }
+
+    const float3 rgb = clamp(float3(inputTexture.read(gid).rgb), 0.0f, 1.0f);
+    if (params.kind <= 1u) {
+        const uint scopeX = min(uint(float(gid.x) / max(float(params.sourceWidth - 1u), 1.0f) * float(params.scopeWidth - 1u)), params.scopeWidth - 1u);
+        if (params.kind == 0u) {
+            const float luminance = dot(rgb, float3(0.2126f, 0.7152f, 0.0722f));
+            const uint scopeY = params.scopeHeight - 1u - min(uint(luminance * float(params.scopeHeight - 1u)), params.scopeHeight - 1u);
+            atomic_fetch_add_explicit(&densityBuffer[imageScopeDensityIndex(scopeX, scopeY, 0u, params)], 1u, memory_order_relaxed);
+        } else {
+            for (uint channel = 0u; channel < 3u; channel++) {
+                const uint scopeY = params.scopeHeight - 1u - min(uint(rgb[channel] * float(params.scopeHeight - 1u)), params.scopeHeight - 1u);
+                atomic_fetch_add_explicit(&densityBuffer[imageScopeDensityIndex(scopeX, scopeY, channel, params)], 1u, memory_order_relaxed);
+            }
+        }
+        return;
+    }
+
+    const float luminance = dot(rgb, float3(0.2126f, 0.7152f, 0.0722f));
+    const float cb = clamp((rgb.b - luminance) * 0.5389f + 0.5f, 0.0f, 1.0f);
+    const float cr = clamp((rgb.r - luminance) * 0.6350f + 0.5f, 0.0f, 1.0f);
+    const uint scopeX = min(uint(cb * float(params.scopeWidth - 1u)), params.scopeWidth - 1u);
+    const uint scopeY = params.scopeHeight - 1u - min(uint(cr * float(params.scopeHeight - 1u)), params.scopeHeight - 1u);
+    atomic_fetch_add_explicit(&densityBuffer[imageScopeDensityIndex(scopeX, scopeY, 0u, params)], 1u, memory_order_relaxed);
+}
+
+kernel void imageScopeVisualizationKernel(
+    device const uint *densityBuffer [[buffer(0)]],
+    constant ImageScopeParameters &params [[buffer(1)]],
+    texture2d<half, access::write> outputTexture [[texture(0)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    if (gid.x >= params.scopeWidth || gid.y >= params.scopeHeight) {
+        return;
+    }
+
+    const uint baseIndex = imageScopeDensityIndex(gid.x, gid.y, 0u, params);
+    float3 color = float3(0.0f);
+    if (params.kind == 1u) {
+        color.r = 1.0f - exp(-float(densityBuffer[baseIndex]) * params.intensity);
+        color.g = 1.0f - exp(-float(densityBuffer[baseIndex + 1u]) * params.intensity);
+        color.b = 1.0f - exp(-float(densityBuffer[baseIndex + 2u]) * params.intensity);
+    } else {
+        const float density = 1.0f - exp(-float(densityBuffer[baseIndex]) * params.intensity);
+        if (params.kind == 2u) {
+            const float cb = float(gid.x) / max(float(params.scopeWidth - 1u), 1.0f) - 0.5f;
+            const float cr = 0.5f - float(gid.y) / max(float(params.scopeHeight - 1u), 1.0f);
+            float3 chromaColor = float3(
+                0.5f + 1.5748f * cr,
+                0.5f - 0.1873f * cb - 0.4681f * cr,
+                0.5f + 1.8556f * cb
+            );
+            chromaColor = clamp(chromaColor, 0.0f, 1.0f);
+            color = chromaColor * density;
+        } else {
+            color = float3(density);
+        }
+    }
+
+    const bool centerLine = gid.x == params.scopeWidth / 2u || gid.y == params.scopeHeight / 2u;
+    const bool quarterLine = gid.y == params.scopeHeight / 4u || gid.y == (params.scopeHeight * 3u) / 4u;
+    const float grid = centerLine ? 0.08f : (params.kind != 2u && quarterLine ? 0.04f : 0.0f);
+    color = max(color, float3(grid));
+    outputTexture.write(half4(half3(color), half(1.0f)), gid);
+}

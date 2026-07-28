@@ -1076,6 +1076,26 @@ public struct RenderOutputAttachmentContract: Sendable, Codable, Equatable, Hash
             pixelFormat: pixelFormat
         )
     }
+
+    public static func waveform(index: Int, pixelFormat: PixelFormatContract = .rgba16Float) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .waveform,
+            alpha: .opaque,
+            colorSpace: .extendedLinearSRGB,
+            pixelFormat: pixelFormat
+        )
+    }
+
+    public static func vectorscope(index: Int, pixelFormat: PixelFormatContract = .rgba16Float) -> RenderOutputAttachmentContract {
+        RenderOutputAttachmentContract(
+            index: index,
+            semantic: .vectorscope,
+            alpha: .opaque,
+            colorSpace: .extendedLinearSRGB,
+            pixelFormat: pixelFormat
+        )
+    }
 }
 
 public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable, Hashable {
@@ -1085,12 +1105,14 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
     case maskCoverage
     case luminance
     case histogram
+    case waveform
+    case vectorscope
     case analysis
     case debug
 
     fileprivate var debugInterpretation: RenderOutputAttachmentDebugInterpretation {
         switch self {
-        case .primaryColor, .auxiliaryColor, .debug:
+        case .primaryColor, .auxiliaryColor, .waveform, .vectorscope, .debug:
             return .color
         case .coverage, .maskCoverage, .luminance:
             return .monochrome
@@ -1103,7 +1125,7 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
         switch self {
         case .coverage, .maskCoverage, .luminance, .histogram:
             return true
-        case .primaryColor, .auxiliaryColor, .analysis, .debug:
+        case .primaryColor, .auxiliaryColor, .waveform, .vectorscope, .analysis, .debug:
             return false
         }
     }
@@ -1121,6 +1143,8 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
                 return declared
             }
             return declared.preservesInput ? .rgba8Unorm : declared
+        case .waveform, .vectorscope:
+            return declared.preservesInput ? .rgba16Float : declared
         case .primaryColor, .auxiliaryColor, .debug:
             return declared.preservesInput ? .rgba8Unorm : declared
         }
@@ -1130,7 +1154,7 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
         switch self {
         case .histogram:
             return true
-        case .primaryColor, .auxiliaryColor, .analysis, .debug:
+        case .primaryColor, .auxiliaryColor, .waveform, .vectorscope, .analysis, .debug:
             return declared.isHighPrecision
         case .coverage, .maskCoverage, .luminance:
             return false
@@ -1151,6 +1175,10 @@ public enum RenderOutputAttachmentSemantic: String, Sendable, Codable, Equatable
             return "luminance"
         case .histogram:
             return "histogram"
+        case .waveform:
+            return "waveform"
+        case .vectorscope:
+            return "vectorscope"
         case .analysis:
             return "analysis"
         case .debug:
