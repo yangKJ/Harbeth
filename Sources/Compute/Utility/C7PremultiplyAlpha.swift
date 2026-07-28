@@ -18,5 +18,16 @@ public struct C7PremultiplyAlpha: C7FilterProtocol {
         .point
     }
 
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            inputAlphaExpectation: .nonPremultiplied,
+            outputAlpha: .premultiplied,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
+    }
+
     public init() {}
 }

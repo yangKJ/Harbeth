@@ -37,6 +37,16 @@ public struct C7RGBColorSpaceConversion: C7FilterProtocol {
         .point
     }
 
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            workingColorSpace: .preserveInput,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
+    }
+
     public init(mode: Mode) {
         self.mode = mode
     }

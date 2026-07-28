@@ -48,6 +48,7 @@ struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
     let kind: KernelFunctionKind
     let passes: [KernelExecutionPass]
     let outputContract: RenderOutputContract
+    let pixelContract: KernelPixelContract
     let inputTextureCount: Int
     let usesFunctionConstants: Bool
     let expectedPixelFormat: PixelFormatContract
@@ -60,6 +61,7 @@ struct KernelExecutionPlan: Sendable, Codable, Equatable, Hashable {
             "inputs=\(inputTextureCount)",
             "constants=\(usesFunctionConstants ? 1 : 0)",
             "pixel=\(expectedPixelFormat.fingerprint)",
+            "pixelContract={\(pixelContract.fingerprint)}",
             "outputAttachments=\(outputAttachmentCount)",
             "outputAttachmentSemantics=\(outputAttachmentSemantics.joined(separator: ","))",
             "outputAttachmentPixels=\(outputAttachmentPixelFormats.joined(separator: ","))",
@@ -124,6 +126,7 @@ enum KernelEncoder {
             kind: kind,
             passes: passes,
             outputContract: descriptor.outputContract,
+            pixelContract: descriptor.pixelContract,
             inputTextureCount: descriptor.resources.inputTextureCount,
             usesFunctionConstants: descriptor.functionIdentity.functionConstants.isEmpty == false,
             expectedPixelFormat: descriptor.outputContract.pixelFormat,

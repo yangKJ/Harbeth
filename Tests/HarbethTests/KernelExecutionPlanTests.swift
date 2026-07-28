@@ -11,7 +11,37 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertEqual(plan.inputTextureCount, 1)
         XCTAssertEqual(plan.passes.count, 1)
         XCTAssertEqual(plan.passes.first?.kind, .compute)
+        XCTAssertEqual(plan.pixelContract.samplingFootprint, .point)
+        XCTAssertEqual(plan.pixelContract.dynamicRangeBehavior, .unspecified)
+        XCTAssertTrue(plan.pixelContract.canAutoTile)
+        XCTAssertTrue(plan.pixelContract.isPointwiseFusionEligible)
         XCTAssertFalse(plan.fingerprint.isEmpty)
+    }
+
+    func testExplicitPixelContractFlowsThroughDescriptorAndExecutionPlan() {
+        let filter = KernelPixelContractTestFilter()
+        let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 8, height: 6))
+        let plan = filter.makeKernelExecutionPlan(inputSize: C7Size(width: 8, height: 6))
+
+        XCTAssertEqual(descriptor.pixelContract, filter.kernelPixelContract)
+        XCTAssertEqual(plan.pixelContract, filter.kernelPixelContract)
+        XCTAssertTrue(plan.pixelContract.dynamicRangeBehavior.isExtendedRangeSafe)
+        XCTAssertTrue(plan.pixelContract.isPointwiseFusionEligible)
+        XCTAssertTrue(plan.fingerprint.contains("dynamicRange=preservesExtendedRange"))
+    }
+
+    func testPixelContractParticipatesInInvocationCompatibility() {
+        let filter = KernelPixelContractTestFilter()
+        let descriptor = KernelDescriptor(
+            filterName: "KernelPixelContractTestFilter",
+            functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            pixelContract: .conservative(samplingFootprint: .dynamic)
+        )
+
+        XCTAssertEqual(
+            descriptor.compatibilitySummary(with: filter, inputSize: C7Size(width: 4, height: 4)),
+            "pixelContractMismatch"
+        )
     }
 
     func testInvocationCarriesExecutionPlanAndCompatibilitySummary() {
@@ -130,6 +160,23 @@ final class KernelExecutionPlanTests: XCTestCase {
         )
         XCTAssertEqual(whitesBlacks.factors, [1, -1])
     }
+
+    func testCriticalColorAndAlphaFiltersDeclareDynamicRangeBehavior() {
+        XCTAssertEqual(
+            C7RGBColorSpaceConversion(mode: .linearDisplayP3ToLinearSRGB)
+                .kernelPixelContract.dynamicRangeBehavior,
+            .preservesExtendedRange
+        )
+        XCTAssertEqual(
+            C7RGBTransferConversion(mode: .linearToSRGB)
+                .kernelPixelContract.dynamicRangeBehavior,
+            .clampsToUnitRange
+        )
+        XCTAssertEqual(C7ColorCube(cubeResource: nil).kernelPixelContract.dynamicRangeBehavior, .clampsToUnitRange)
+        XCTAssertEqual(C7Deband(radius: 3.2).kernelPixelContract.samplingFootprint, .neighborhood(radius: 4))
+        XCTAssertEqual(C7PremultiplyAlpha().kernelPixelContract.outputAlpha, .premultiplied)
+        XCTAssertEqual(C7UnpremultiplyAlpha().kernelPixelContract.dynamicRangeBehavior, .clampsToUnitRange)
+    }
 }
 
 private struct KernelBindingComputeTestFilter: C7FilterProtocol {
@@ -152,6 +199,26 @@ private struct KernelBindingComputeTestFilter: C7FilterProtocol {
                 value: .float3(SIMD3<Float>(0.1, 0.2, 0.3))
             )
         ]
+    }
+}
+
+private struct KernelPixelContractTestFilter: C7FilterProtocol {
+    var modifier: ModifierEnum {
+        .compute(kernel: "C7Brightness")
+    }
+
+    var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
+
+    var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            workingColorSpace: .extendedLinearDisplayP3,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
     }
 }
 

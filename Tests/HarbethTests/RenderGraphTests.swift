@@ -58,6 +58,25 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertFalse(plan.requiresCompletedGPUWork)
     }
 
+    func testDiagnosticsExposeKernelPixelContractCoverage() {
+        let plan = GraphCompiler.compile(
+            filters: [
+                C7RGBColorSpaceConversion(mode: .linearSRGBToLinearDisplayP3),
+                C7Deband(radius: 2)
+            ],
+            inputSize: C7Size(width: 640, height: 480),
+            profile: .stablePreview
+        )
+
+        XCTAssertEqual(plan.diagnostics.kernelPixelContractCount, 2)
+        XCTAssertEqual(plan.diagnostics.unknownDynamicRangeKernelCount, 0)
+        XCTAssertEqual(plan.diagnostics.extendedRangeSafeKernelCount, 1)
+        XCTAssertEqual(plan.diagnostics.autoTileEligibleKernelCount, 2)
+        XCTAssertEqual(plan.diagnostics.cpuReadbackKernelCount, 0)
+        XCTAssertTrue(plan.diagnostics.summary.contains("kernelDynamicRangeUnknown=0"))
+        XCTAssertTrue(plan.diagnostics.summary.contains("kernelAutoTileEligible=2"))
+    }
+
     func testResizeMarksFusionBoundaryWithoutLeavingMetalGraph() {
         let filters: [C7FilterProtocol] = [
             C7Brightness(brightness: 0.2),
@@ -898,6 +917,7 @@ final class RenderGraphTests: XCTestCase {
                     nodeIndices: [0],
                     kinds: [.compute],
                     filterCount: 1,
+                    pixelContracts: [],
                     breaksFusion: false,
                     inputSize: C7Size(width: 16, height: 12),
                     outputSize: C7Size(width: 16, height: 12),

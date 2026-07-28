@@ -41,6 +41,14 @@ public struct C7ColorCube: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .dualTexture
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            precision: .float32,
+            dynamicRangeBehavior: .clampsToUnitRange,
+            samplingFootprint: .point
+        )
+    }
     
     private var lutTexture: MTLTexture?
     private var dimension: Int

@@ -504,7 +504,8 @@ final class ImageNodeTests: XCTestCase {
             filterName: "LayerComposite",
             functionIdentity: firstIdentity,
             parameters: ["opacity": .float(0.5)],
-            resourceUsage: .multiInput
+            resourceUsage: .multiInput,
+            pixelContract: .conservative(samplingFootprint: .dynamic)
         )
 
         XCTAssertEqual(firstIdentity.fingerprint, secondIdentity.fingerprint)
@@ -544,7 +545,11 @@ final class ImageNodeTests: XCTestCase {
                 KernelFunctionConstantDescriptor(name: "harbeth::usesLinearSampling", value: .bool(true))
             ]
         )
-        let descriptor = KernelDescriptor(filterName: "customKernel", functionIdentity: metallibIdentity)
+        let descriptor = KernelDescriptor(
+            filterName: "customKernel",
+            functionIdentity: metallibIdentity,
+            pixelContract: .conservative(samplingFootprint: .dynamic)
+        )
 
         XCTAssertNotEqual(defaultIdentity.fingerprint, externalIdentity.fingerprint)
         XCTAssertTrue(defaultIdentity.fingerprint.contains("library=default"))
@@ -721,6 +726,7 @@ final class ImageNodeTests: XCTestCase {
         let descriptor = KernelDescriptor(
             filterName: "identityPremultiply",
             functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            pixelContract: filter.kernelPixelContract,
             outputContract: RenderOutputContract(alpha: .forcePremultiply)
         )
         let node = ImageNode.kernel(input: .source(.texture(input)), descriptor: descriptor, filter: filter)
@@ -2683,6 +2689,7 @@ final class ImageNodeTests: XCTestCase {
         let descriptor = KernelDescriptor(
             filterName: "identityHighPrecision",
             functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            pixelContract: C7Brightness(brightness: 0).kernelPixelContract,
             outputContract: .highPrecisionLinearTexture
         )
         let node = ImageNode.kernel(
@@ -2837,6 +2844,7 @@ final class ImageNodeTests: XCTestCase {
         let descriptor = KernelDescriptor(
             filterName: "identityLinearOutput",
             functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            pixelContract: C7Brightness(brightness: 0).kernelPixelContract,
             inputColorSpace: .sRGB,
             outputContract: RenderOutputContract(colorSpace: .extendedLinearSRGB)
         )
@@ -2860,6 +2868,7 @@ final class ImageNodeTests: XCTestCase {
         let descriptor = KernelDescriptor(
             filterName: "identityDisplayP3Output",
             functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            pixelContract: C7Brightness(brightness: 0).kernelPixelContract,
             inputColorSpace: .sRGB,
             outputContract: RenderOutputContract(colorSpace: .displayP3)
         )
@@ -2892,6 +2901,7 @@ final class ImageNodeTests: XCTestCase {
         let descriptor = KernelDescriptor(
             filterName: "identityExtendedLinearDisplayP3Output",
             functionIdentity: KernelFunctionIdentity(kind: .compute, primaryName: "C7Brightness"),
+            pixelContract: C7Brightness(brightness: 0).kernelPixelContract,
             inputColorSpace: .sRGB,
             outputContract: RenderOutputContract(colorSpace: .extendedLinearDisplayP3)
         )

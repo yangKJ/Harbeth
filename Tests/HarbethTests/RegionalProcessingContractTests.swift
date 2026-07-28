@@ -92,6 +92,15 @@ final class RegionalProcessingContractTests: XCTestCase {
         XCTAssertFalse(footprint.canAutoTile)
     }
 
+    func testSamplingFootprintUsesStableCodableShape() throws {
+        let footprint = SamplingFootprint.neighborhood(radius: 12)
+        let data = try JSONEncoder().encode(footprint)
+        let decoded = try JSONDecoder().decode(SamplingFootprint.self, from: data)
+
+        XCTAssertEqual(decoded, footprint)
+        XCTAssertEqual(decoded.fingerprint, "neighborhood:12")
+    }
+
     func testRegionContextRequiresWriteRegionInsideReadRegion() throws {
         let logical = CGRect(x: 0, y: 0, width: 100, height: 80)
         XCTAssertThrowsError(try TextureRegionContext(

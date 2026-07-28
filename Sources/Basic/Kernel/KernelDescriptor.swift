@@ -361,6 +361,7 @@ struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
     let resourceUsage: KernelResourceUsage
     let resources: KernelResourceDescriptor
     let alphaBehavior: KernelAlphaBehavior
+    let pixelContract: KernelPixelContract
     let inputColorSpace: ImageColorSpaceContract
     let outputContract: RenderOutputContract
     let passes: [KernelPassDescriptor]
@@ -374,6 +375,7 @@ struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
          resourceUsage: KernelResourceUsage = .singleInput,
          resources: KernelResourceDescriptor? = nil,
          alphaBehavior: KernelAlphaBehavior = .preserveInput,
+         pixelContract: KernelPixelContract,
          inputColorSpace: ImageColorSpaceContract = .preserveInput,
          outputContract: RenderOutputContract = .preserveInput,
          passes: [KernelPassDescriptor] = []) {
@@ -392,6 +394,7 @@ struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
         self.resourceUsage = resourceUsage
         self.resources = resources ?? KernelResourceDescriptor(usage: resourceUsage, inputTextureCount: 1)
         self.alphaBehavior = alphaBehavior
+        self.pixelContract = pixelContract
         self.inputColorSpace = inputColorSpace
         self.outputContract = outputContract
         if passes.isEmpty {
@@ -437,6 +440,7 @@ struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
             output.fingerprint,
             resources.fingerprint,
             "alpha=\(alphaBehavior.rawValue)",
+            "pixels={\(pixelContract.fingerprint)}",
             "inputColor=\(inputColorSpace.fingerprint)",
             outputContract.fingerprint,
             "passes=\(passes.map(\.fingerprint).joined(separator: "||"))"
@@ -515,6 +519,9 @@ extension KernelDescriptor {
         }
         if parameterBindings != runtimeDescriptor.parameterBindings {
             return "parameterBindingsMismatch"
+        }
+        if pixelContract != runtimeDescriptor.pixelContract {
+            return "pixelContractMismatch"
         }
         return "compatible"
     }
@@ -638,6 +645,7 @@ extension C7FilterProtocol {
             resourceUsage: resourceUsage,
             resources: resourceDescriptor,
             alphaBehavior: alphaBehavior,
+            pixelContract: effectiveFilter.kernelPixelContract,
             outputContract: outputContract,
             passes: [
                 KernelPassDescriptor(

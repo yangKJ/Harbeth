@@ -216,6 +216,7 @@ struct RenderStage: Sendable, Codable, Equatable, Hashable {
     let nodeIndices: [Int]
     let kinds: [RenderNodeKind]
     let filterCount: Int
+    let pixelContracts: [KernelPixelContract]
     let breaksFusion: Bool
     let inputSize: C7Size
     let outputSize: C7Size
@@ -390,6 +391,11 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "sampler=\(samplerDescriptor.fingerprint)", "samplerCoverage=\(samplerExecutionCoverage.mode.rawValue)",
             "samplerCoveredFilters=\(samplerExecutionCoverage.coveredFilterTypes.joined(separator: ","))",
             "samplerMetadataOnlyFilters=\(samplerExecutionCoverage.metadataOnlyFilterTypes.joined(separator: ","))",
+            "kernelPixelContracts=\(kernelPixelContractCount)",
+            "kernelDynamicRangeUnknown=\(unknownDynamicRangeKernelCount)",
+            "kernelExtendedRangeSafe=\(extendedRangeSafeKernelCount)",
+            "kernelAutoTileEligible=\(autoTileEligibleKernelCount)",
+            "kernelCPUReadback=\(cpuReadbackKernelCount)",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
             "mergedStages=\(optimizationPlan.mergedStageCount)",
@@ -453,6 +459,34 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
 
     public var inputPixelPrecision: PixelPrecision {
         inputPixelFormat.precision
+    }
+
+    public var kernelPixelContractCount: Int {
+        stages.reduce(0) { $0 + $1.pixelContracts.count }
+    }
+
+    public var unknownDynamicRangeKernelCount: Int {
+        stages.reduce(0) { count, stage in
+            count + stage.pixelContracts.filter { $0.dynamicRangeBehavior == .unspecified }.count
+        }
+    }
+
+    public var extendedRangeSafeKernelCount: Int {
+        stages.reduce(0) { count, stage in
+            count + stage.pixelContracts.filter { $0.dynamicRangeBehavior.isExtendedRangeSafe }.count
+        }
+    }
+
+    public var autoTileEligibleKernelCount: Int {
+        stages.reduce(0) { count, stage in
+            count + stage.pixelContracts.filter(\.canAutoTile).count
+        }
+    }
+
+    public var cpuReadbackKernelCount: Int {
+        stages.reduce(0) { count, stage in
+            count + stage.pixelContracts.filter(\.requiresCPUReadback).count
+        }
     }
 
     public var frameHostSourceDescriptor: FrameHostSourceDescriptor? {
@@ -1206,12 +1240,9 @@ enum GraphOptimizer {
             }
             switch node.kind {
             case .compute:
-                switch filter.memoryAccessPattern {
-                case .point, .auto:
-                    return filter.otherInputTextures.isEmpty ? .pointCompute : nil
-                case .neighborhood, .dualTexture, .multiTexture:
-                    return nil
-                }
+                return filter.kernelPixelContract.isPointwiseFusionEligible && filter.otherInputTextures.isEmpty
+                    ? .pointCompute
+                    : nil
             case .render:
                 return .renderPipeline
             case .blit:
@@ -1254,6 +1285,7 @@ enum GraphOptimizer {
                     nodeIndices: currentNodeIndices,
                     kinds: kinds,
                     filterCount: stageNodes.filter { $0.filter != nil }.count,
+                    pixelContracts: stageNodes.compactMap { $0.filter?.kernelPixelContract },
                     breaksFusion: stageNodes.contains(where: \.breaksFusion),
                     inputSize: inputSize,
                     outputSize: outputSize,

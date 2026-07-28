@@ -36,6 +36,22 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
         .point
     }
 
+    public var kernelPixelContract: KernelPixelContract {
+        let behavior: KernelDynamicRangeBehavior
+        switch mode {
+        case .sRGBToLinear, .linearToSRGB:
+            behavior = .clampsToUnitRange
+        case .pqToLinear, .linearToPQ, .hlgToLinear, .linearToHLG:
+            behavior = .unspecified
+        }
+        return KernelPixelContract(
+            precision: .float16,
+            dynamicRangeBehavior: behavior,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
+    }
+
     public init(mode: Mode) {
         self.mode = mode
     }

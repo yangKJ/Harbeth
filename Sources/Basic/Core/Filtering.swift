@@ -39,6 +39,9 @@ public protocol C7FilterProtocol: Mirrorable {
     
     /// Memory access pattern for threadgroup optimization
     var memoryAccessPattern: MemoryAccessPattern { get }
+
+    /// Kernel's pixel, dynamic range and area execution contract.
+    var kernelPixelContract: KernelPixelContract { get }
     
     /// The resize of the output texture.
     func resize(input size: C7Size) -> C7Size
