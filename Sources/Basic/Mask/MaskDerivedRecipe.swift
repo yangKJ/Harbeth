@@ -234,6 +234,16 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
         try execute(cancellation: cancellation, cache: .shared)
     }
 
+    /// 按宿主声明的稳定缓存意图执行派生蒙版，同时保持缓存实现私有。
+    public func execute(cancellation: TextureMultiPassCancellationToken? = nil, cachePolicy: ImageCachePolicy) throws -> MaskDerivedResult {
+        switch cachePolicy {
+        case .persistent:
+            return try execute(cancellation: cancellation, cache: .shared)
+        case .transient:
+            return try execute(cancellation: cancellation, cache: nil)
+        }
+    }
+
     func execute(cancellation: TextureMultiPassCancellationToken? = nil,
                  cache: MaskExecutionCache?) throws -> MaskDerivedResult {
         let executionCacheKey = executionCacheKey

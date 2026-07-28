@@ -9,7 +9,7 @@ The public API exposes contracts that a host must create, persist, compose, or i
 - ``MaskPlane`` and ``MaskPlaneDescriptor`` carry coordinate space, source transforms, sampling, coverage semantics, storage, resource identity, revision, generation, and modified bounds.
 - ``IncrementalMaskCanvas`` owns a persistent GPU coverage texture for pressure-aware paint and erase strokes. It returns ``MaskCanvasUpdate`` diagnostics and rejects stale generations.
 - ``MaskExpression`` describes add, intersect, subtract, exclude, invert, and opacity DAGs. ``MaskExpressionPlan`` is a read-only compilation snapshot; execution remains an implementation detail of ``ImageNode``.
-- ``MaskDerivedRecipe`` and ``MaskDerivedOperation`` describe thresholding, morphology, distance fields, confidence-weighted guided feathering, edge shift, asymmetric feathering, edge contraction, and cleanup. Their plan and diagnostics types expose stable observations without exposing the compiler or cache implementation.
+- ``MaskDerivedRecipe`` and ``MaskDerivedOperation`` describe thresholding, morphology, distance fields, confidence-weighted guided feathering, edge shift, asymmetric feathering, edge contraction, and cleanup. Their plan and diagnostics types expose stable observations without exposing the compiler or cache implementation. Hosts can select persistent or transient execution through ``ImageCachePolicy`` while the cache objects remain private.
 - ``MaskTopologyRecipe`` provides explicit post-render topology inspection and cleanup. ``MaskAuxiliaryPlane`` and ``MaskWarpRecipe`` adapt caller-owned scalar or displacement textures into generic single-frame mask primitives.
 
 Apply a stable mask plane or expression through ``ImageNode``:

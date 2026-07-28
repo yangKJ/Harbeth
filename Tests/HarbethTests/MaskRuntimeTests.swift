@@ -263,6 +263,25 @@ final class MaskRuntimeTests: XCTestCase {
         XCTAssertEqual(result.dirtyBounds, MaskCoverageBounds(x: 0, y: 0, width: 12, height: 12))
     }
 
+    func testDerivedPublicCachePolicyKeepsTransientResultsOutOfSharedCache() throws {
+        let texture = try MaskTestHelpers.makeTexture(width: 4, height: 4, red: 255, green: 255, blue: 255)
+        let plane = MaskPlane(
+            texture: texture,
+            resourceIdentity: MaskResourceIdentity(identifier: "public-cache-policy", revision: 1)
+        )
+        let recipe = MaskDerivedRecipe(
+            baseMask: plane.maskDescriptor(),
+            sourceIdentifier: "public-cache-policy",
+            operations: [.threshold(0.5)],
+            storageFormat: .rgba8
+        )
+
+        XCTAssertFalse(try recipe.execute(cachePolicy: .transient).cacheHit)
+        XCTAssertFalse(try recipe.execute(cachePolicy: .transient).cacheHit)
+        XCTAssertFalse(try recipe.execute(cachePolicy: .persistent).cacheHit)
+        XCTAssertTrue(try recipe.execute(cachePolicy: .persistent).cacheHit)
+    }
+
     func testDerivedCacheSeparatesMaskResourceRevisions() throws {
         let texture = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 255, green: 255, blue: 255)
         let cache = MaskExecutionCache(countLimit: 4)

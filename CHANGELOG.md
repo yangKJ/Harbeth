@@ -28,6 +28,7 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 - Added a persistent incremental GPU mask canvas with dirty-rectangle encoding, pressure, flow, density, paint/erase modes, generation safety, cancellation, and unbounded chunked centerlines.
 - Added area-preserving coverage resampling, signed-distance edge shift and asymmetric feathering, MPS guided matte refinement, true foreground-color decontamination, topology inspection/cleanup, auxiliary scalar masks, and single-frame flow warping.
 - Added compiled derived-mask graphs for threshold, grow/shrink, edge bands, distance fields, guided feathering, edge contraction, and cleanup, with cancellation, resource-aware caching, GPU analysis, halo planning, and dirty-region diagnostics.
+- Added a public persistent/transient execution policy for derived masks without exposing cache implementation objects.
 - Added composable mask expression DAGs with common-subexpression reuse, intermediate-memory diagnostics, and allocator/heap strategy reporting.
 - Added compiled composite-mask batches that preserve ordered add, subtract, intersect, XOR, inversion, opacity, and feather semantics while processing up to four mask layers per GPU pass.
 

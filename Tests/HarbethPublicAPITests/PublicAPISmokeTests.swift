@@ -68,6 +68,9 @@ final class PublicAPISmokeTests: XCTestCase {
                 operations: refinement
             )
         }
+        let executeTransient: (MaskDerivedRecipe) throws -> MaskDerivedResult = { recipe in
+            try recipe.execute(cachePolicy: .transient)
+        }
         let inspect: () -> MaskTopologyRecipe = { MaskTopologyRecipe(connectivity: 8) }
         let decontaminate: (ImageNode, MaskDescriptor) throws -> ImageNode = { node, mask in
             try node.decontaminating(mask: mask)
@@ -80,6 +83,7 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = canvas
         _ = refinement
         _ = derived
+        _ = executeTransient
         _ = inspect
         _ = decontaminate
         _ = auxiliary
