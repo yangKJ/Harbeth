@@ -63,17 +63,23 @@ public struct MaskBrushSettings: Sendable, Codable, Equatable, Hashable {
     public let hardness: Float
     public let spacing: Float
     public let smoothing: Float
+    public let flow: Float
+    public let density: Float
     public let mode: MaskBrushMode
 
     public init(width: Float = 0.08,
                 hardness: Float = 0.72,
                 spacing: Float = 0.18,
                 smoothing: Float = 0.45,
+                flow: Float = 1,
+                density: Float = 1,
                 mode: MaskBrushMode = .paint) {
         self.width = Self.clamp(width, lower: 0.002, upper: 1)
         self.hardness = Self.clamp(hardness, lower: 0, upper: 1)
         self.spacing = Self.clamp(spacing, lower: 0.02, upper: 1)
         self.smoothing = Self.clamp(smoothing, lower: 0, upper: 1)
+        self.flow = Self.clamp(flow, lower: 0, upper: 1)
+        self.density = Self.clamp(density, lower: 0, upper: 1)
         self.mode = mode
     }
 
@@ -123,7 +129,11 @@ public struct MaskBrushRecipe {
     }
 
     public var preparedPoints: [MaskBrushPoint] {
-        pointsArePrepared ? points : Self.prepare(points: points, settings: settings)
+        pointsArePrepared ? points : Self.prepare(
+            points: points,
+            settings: settings,
+            maximumPointCount: Self.maximumPreparedPointCount
+        )
     }
 
     public var fingerprint: String {
@@ -137,6 +147,8 @@ public struct MaskBrushRecipe {
             "hardness=\(Self.stable(Double(settings.hardness)))",
             "spacing=\(Self.stable(Double(settings.spacing)))",
             "smoothing=\(Self.stable(Double(settings.smoothing)))",
+            "flow=\(Self.stable(Double(settings.flow)))",
+            "density=\(Self.stable(Double(settings.density)))",
             "mode=\(settings.mode.rawValue)",
             "storage=\(storageFormat.rawValue)",
             "profile=\(profile.rawValue)"
@@ -196,8 +208,14 @@ public struct MaskBrushRecipe {
     }
 }
 
-private extension MaskBrushRecipe {
-    static func prepare(points: [MaskBrushPoint], settings: MaskBrushSettings) -> [MaskBrushPoint] {
+extension MaskBrushRecipe {
+    static func prepareIncremental(points: [MaskBrushPoint], settings: MaskBrushSettings) -> [MaskBrushPoint] {
+        prepare(points: points, settings: settings, maximumPointCount: nil)
+    }
+
+    private static func prepare(points: [MaskBrushPoint],
+                                settings: MaskBrushSettings,
+                                maximumPointCount: Int?) -> [MaskBrushPoint] {
         guard points.count > 1 else { return points }
         let smoothingPasses = Int((settings.smoothing * 3).rounded())
         var result = points
@@ -218,17 +236,23 @@ private extension MaskBrushRecipe {
             next.append(result[result.count - 1])
             result = next
         }
-        return resample(result, distance: CGFloat(settings.width * settings.spacing))
+        return resample(
+            result,
+            distance: CGFloat(settings.width * settings.spacing),
+            maximumPointCount: maximumPointCount
+        )
     }
 
     /// 以笔刷直径的比例均匀采样中心线，避免输入事件频率改变笔触密度和边缘连续性。
-    static func resample(_ points: [MaskBrushPoint], distance: CGFloat) -> [MaskBrushPoint] {
+    private static func resample(_ points: [MaskBrushPoint],
+                                 distance: CGFloat,
+                                 maximumPointCount: Int?) -> [MaskBrushPoint] {
         guard points.count > 1 else { return points }
         let totalLength = zip(points, points.dropFirst()).reduce(CGFloat.zero) { result, pair in
             result + hypot(pair.1.point.x - pair.0.point.x, pair.1.point.y - pair.0.point.y)
         }
-        let maximumSegmentCount = CGFloat(max(maximumPreparedPointCount - 2, 1))
-        let targetDistance = max(distance, 0.0005, totalLength / maximumSegmentCount)
+        let maximumSegmentCount = maximumPointCount.map { CGFloat(max($0 - 2, 1)) }
+        let targetDistance = max(distance, 0.0005, maximumSegmentCount.map { totalLength / $0 } ?? 0)
         var result = [points[0]]
         var carry: CGFloat = 0
 
@@ -239,7 +263,7 @@ private extension MaskBrushRecipe {
             guard segmentLength > 0 else { continue }
 
             while carry + segmentLength >= targetDistance,
-                  result.count < maximumPreparedPointCount - 1 {
+                  maximumPointCount.map({ result.count < $0 - 1 }) ?? true {
                 let fraction = (targetDistance - carry) / segmentLength
                 let point = MaskBrushPoint(
                     point: CGPoint(
@@ -256,7 +280,7 @@ private extension MaskBrushRecipe {
             carry += segmentLength
         }
 
-        if result.last != points.last, result.count < maximumPreparedPointCount {
+        if result.last != points.last, maximumPointCount.map({ result.count < $0 }) ?? true {
             result.append(points[points.count - 1])
         }
         return result

@@ -23,7 +23,7 @@ public enum MaskCoverageThreshold: Sendable, Equatable, Hashable {
     }
 }
 
-public struct MaskCoverageBounds: Sendable, Equatable, Hashable {
+public struct MaskCoverageBounds: Sendable, Codable, Equatable, Hashable {
     public let x: Int
     public let y: Int
     public let width: Int

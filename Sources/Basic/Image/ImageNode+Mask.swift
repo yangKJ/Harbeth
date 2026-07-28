@@ -9,9 +9,44 @@ import Foundation
 import Metal
 
 extension ImageNode {
-    /// Uses the local-effect pipeline's pixel-exact semantics to composite an
-    /// effect texture onto the current node. Advanced hosts such as tiled image
-    /// renderers can use this narrow entry point without layer resampling.
+    /// 清除软蒙版边缘的颜色污染，并保持在 `ImageNode` 主路线内处理。
+    /// 蒙版尺寸必须与节点最终渲染尺寸一致。
+    public func decontaminating(mask: MaskDescriptor,
+                                radius: Int = 8,
+                                strength: Float = 0.8,
+                                opaqueThreshold: Float = 0.9) throws -> ImageNode {
+        let coverage = try MaskProcessingRecipe(mask: mask).makeCoverageTexture()
+        return applying(MaskForegroundColorDecontamination(
+            coverageTexture: coverage,
+            radius: min(max(radius, 1), 32),
+            strength: min(max(strength.isFinite ? strength : 0.8, 0), 1),
+            opaqueThreshold: min(max(opaqueThreshold.isFinite ? opaqueThreshold : 0.9, 0.5), 1)
+        ))
+    }
+
+    public func applying(mask plane: MaskPlane,
+                         filters: [C7FilterProtocol],
+                         component: MaskComponent = .red,
+                         invert: Bool = false,
+                         opacity: Float = 1,
+                         mode: EditRecipeMode = .preview) -> ImageNode {
+        applying(
+            mask: plane.maskDescriptor(component: component, invert: invert, opacity: opacity),
+            filters: filters,
+            mode: mode
+        )
+    }
+
+    public func applying(mask expression: MaskExpression,
+                         filters: [C7FilterProtocol],
+                         profile: RenderProfile = .stablePreview,
+                         mode: EditRecipeMode = .preview) throws -> ImageNode {
+        let plane = try expression.execute(profile: profile).plane
+        return applying(mask: plane, filters: filters, mode: mode)
+    }
+
+    /// 复用局部效果管线的像素精确语义，把效果纹理合成到当前节点。
+    /// 大图 tile 等高级宿主可通过这个窄入口避免图层二次采样。
     public func compositing(effectTexture: MTLTexture, mask: MaskDescriptor) -> ImageNode {
         applying(MaskRegionBlend(effectTexture: effectTexture, mask: mask))
     }

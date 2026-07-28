@@ -698,12 +698,13 @@ kernel void InnerBrushMask(texture2d<half, access::write> outputTexture [[textur
     const float2 metric = size / shortEdge;
     const float2 point = ((float2(gid) + 0.5f) / size) * metric;
     const float baseRadius = max(metadata[1] * 0.5f, 0.0005f);
+    const float pixelRadius = 0.5f / shortEdge;
     const float hardness = clamp(metadata[2], 0.0f, 1.0f);
     float coverage = 0.0f;
     if (pointCount == 1) {
         const float radius = baseRadius * clamp(points[0].z, 0.05f, 1.0f);
         const float distanceValue = distance(point, points[0].xy * metric);
-        coverage = 1.0f - smoothstep(radius * hardness, radius, distanceValue);
+        coverage = 1.0f - smoothstep(max(radius * hardness - pixelRadius, 0.0f), radius + pixelRadius, distanceValue);
     } else {
         for (int index = 0; index < pointCount - 1; ++index) {
             const float2 a = points[index].xy * metric;
@@ -713,10 +714,289 @@ kernel void InnerBrushMask(texture2d<half, access::write> outputTexture [[textur
             const float pressure = mix(points[index].z, points[index + 1].z, t);
             const float radius = baseRadius * clamp(pressure, 0.05f, 1.0f);
             const float distanceValue = distance(point, a + segment * t);
-            coverage = max(coverage, 1.0f - smoothstep(radius * hardness, radius, distanceValue));
+            coverage = max(coverage, 1.0f - smoothstep(max(radius * hardness - pixelRadius, 0.0f), radius + pixelRadius, distanceValue));
         }
     }
+    coverage = min(coverage * clamp(metadata[5], 0.0f, 1.0f), clamp(metadata[6], 0.0f, 1.0f));
     outputTexture.write(half4(half3(clamp(coverage, 0.0f, 1.0f)), 1.0h), gid);
+}
+
+kernel void InnerIncrementalMaskClear(texture2d<half, access::read_write> canvas [[texture(0)]],
+                                      uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
+    canvas.write(half4(0.0h, 0.0h, 0.0h, 1.0h), gid);
+}
+
+kernel void InnerIncrementalBrushMask(texture2d<half, access::read_write> canvas [[texture(0)]],
+                                      constant float *metadata [[buffer(0)]],
+                                      constant float4 *points [[buffer(1)]],
+                                      uint2 localID [[thread_position_in_grid]]) {
+    const uint2 origin = uint2(max(metadata[6], 0.0f), max(metadata[7], 0.0f));
+    const uint2 gid = origin + localID;
+    if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
+    const int pointCount = min(max(int(metadata[0]), 0), 512);
+    if (pointCount == 0) return;
+    const float2 size = float2(canvas.get_width(), canvas.get_height());
+    const float shortEdge = max(min(size.x, size.y), 1.0f);
+    const float2 metric = size / shortEdge;
+    const float2 point = ((float2(gid) + 0.5f) / size) * metric;
+    const float baseRadius = max(metadata[1] * 0.5f, 0.0005f);
+    const float pixelRadius = 0.5f / shortEdge;
+    const float hardness = clamp(metadata[2], 0.0f, 1.0f);
+    float stroke = 0.0f;
+    if (pointCount == 1) {
+        const float radius = baseRadius * clamp(points[0].z, 0.05f, 1.0f);
+        stroke = 1.0f - smoothstep(
+            max(radius * hardness - pixelRadius, 0.0f),
+            radius + pixelRadius,
+            distance(point, points[0].xy * metric)
+        );
+    } else {
+        for (int index = 0; index < pointCount - 1; ++index) {
+            const float2 a = points[index].xy * metric;
+            const float2 b = points[index + 1].xy * metric;
+            const float2 segment = b - a;
+            const float t = clamp(dot(point - a, segment) / max(dot(segment, segment), 0.0000001f), 0.0f, 1.0f);
+            const float pressure = mix(points[index].z, points[index + 1].z, t);
+            const float radius = baseRadius * clamp(pressure, 0.05f, 1.0f);
+            stroke = max(
+                stroke,
+                1.0f - smoothstep(
+                    max(radius * hardness - pixelRadius, 0.0f),
+                    radius + pixelRadius,
+                    distance(point, a + segment * t)
+                )
+            );
+        }
+    }
+    stroke = clamp(stroke * clamp(metadata[3], 0.0f, 1.0f), 0.0f, 1.0f);
+    const float density = clamp(metadata[4], 0.0f, 1.0f);
+    const float current = float(canvas.read(gid).r);
+    float output = current;
+    if (metadata[5] > 0.5f) {
+        output = max(current * (1.0f - stroke), 1.0f - density);
+    } else {
+        output = min(1.0f - (1.0f - current) * (1.0f - stroke), density);
+    }
+    const half value = half(clamp(output, 0.0f, 1.0f));
+    canvas.write(half4(value, value, value, 1.0h), gid);
+}
+
+static inline int innerMaskMirrorCoordinate(int value, int size) {
+    if (size <= 1) return 0;
+    const int period = 2 * size - 2;
+    int mirrored = value % period;
+    if (mirrored < 0) mirrored += period;
+    return mirrored < size ? mirrored : period - mirrored;
+}
+
+static inline float innerMaskReadCoverage(texture2d<half, access::read> texture,
+                                          int2 coordinate,
+                                          int edgeMode) {
+    const int width = int(texture.get_width());
+    const int height = int(texture.get_height());
+    if (edgeMode == 0 && (coordinate.x < 0 || coordinate.y < 0 || coordinate.x >= width || coordinate.y >= height)) {
+        return 0.0f;
+    }
+    if (edgeMode == 2) {
+        coordinate = int2(innerMaskMirrorCoordinate(coordinate.x, width), innerMaskMirrorCoordinate(coordinate.y, height));
+    } else {
+        coordinate = clamp(coordinate, int2(0), int2(max(width - 1, 0), max(height - 1, 0)));
+    }
+    return float(texture.read(uint2(coordinate)).r);
+}
+
+kernel void InnerMaskCoverageResample(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                      texture2d<half, access::read> inputTexture [[texture(1)]],
+                                      constant float *filterPointer [[buffer(0)]],
+                                      constant float *edgeModePointer [[buffer(1)]],
+                                      constant float *thresholdPointer [[buffer(2)]],
+                                      uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const int filterMode = int(*filterPointer);
+    const int edgeMode = int(*edgeModePointer);
+    const float2 sourceSize = float2(inputTexture.get_width(), inputTexture.get_height());
+    const float2 outputSize = float2(outputTexture.get_width(), outputTexture.get_height());
+    float coverage = 0.0f;
+
+    if (filterMode == 0) {
+        const float2 source = (float2(gid) + 0.5f) * sourceSize / outputSize - 0.5f;
+        coverage = innerMaskReadCoverage(inputTexture, int2(round(source)), edgeMode);
+    } else if (filterMode == 2 && (sourceSize.x > outputSize.x || sourceSize.y > outputSize.y)) {
+        const float2 lower = float2(gid) * sourceSize / outputSize;
+        const float2 upper = float2(gid + 1u) * sourceSize / outputSize;
+        const int2 first = int2(floor(lower));
+        const int2 last = int2(ceil(upper));
+        float weightSum = 0.0f;
+        for (int y = first.y; y < last.y; ++y) {
+            const float wy = max(min(upper.y, float(y + 1)) - max(lower.y, float(y)), 0.0f);
+            for (int x = first.x; x < last.x; ++x) {
+                const float wx = max(min(upper.x, float(x + 1)) - max(lower.x, float(x)), 0.0f);
+                const float weight = wx * wy;
+                coverage += innerMaskReadCoverage(inputTexture, int2(x, y), edgeMode) * weight;
+                weightSum += weight;
+            }
+        }
+        coverage /= max(weightSum, 0.000001f);
+    } else {
+        const float2 source = (float2(gid) + 0.5f) * sourceSize / outputSize - 0.5f;
+        const int2 base = int2(floor(source));
+        const float2 fraction = source - float2(base);
+        const float top = mix(
+            innerMaskReadCoverage(inputTexture, base, edgeMode),
+            innerMaskReadCoverage(inputTexture, base + int2(1, 0), edgeMode),
+            fraction.x
+        );
+        const float bottom = mix(
+            innerMaskReadCoverage(inputTexture, base + int2(0, 1), edgeMode),
+            innerMaskReadCoverage(inputTexture, base + int2(1, 1), edgeMode),
+            fraction.x
+        );
+        coverage = mix(top, bottom, fraction.y);
+    }
+
+    if (*thresholdPointer >= 0.0f) coverage = coverage >= *thresholdPointer ? 1.0f : 0.0f;
+    const half value = half(clamp(coverage, 0.0f, 1.0f));
+    outputTexture.write(half4(value, value, value, 1.0h), gid);
+}
+
+kernel void InnerMaskSignedDistanceCombine(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                           texture2d<half, access::read> distanceToInside [[texture(1)]],
+                                           texture2d<half, access::read> distanceToOutside [[texture(2)]],
+                                           constant float *maxDistancePointer [[buffer(0)]],
+                                           uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const float maxDistance = max(*maxDistancePointer, 1.0f);
+    const float signedDistance = clamp(
+        float(distanceToInside.read(gid).r) - float(distanceToOutside.read(gid).r),
+        -maxDistance,
+        maxDistance
+    );
+    const half normalized = half(signedDistance / (2.0f * maxDistance) + 0.5f);
+    outputTexture.write(half4(normalized, normalized, normalized, 1.0h), gid);
+}
+
+kernel void InnerMaskSignedDistanceCoverage(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                            texture2d<half, access::read> inputTexture [[texture(1)]],
+                                            constant float *shiftPointer [[buffer(0)]],
+                                            constant float *innerPointer [[buffer(1)]],
+                                            constant float *outerPointer [[buffer(2)]],
+                                            constant float *maxDistancePointer [[buffer(3)]],
+                                            uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const float maxDistance = max(*maxDistancePointer, 1.0f);
+    const float signedDistance = (float(inputTexture.read(gid).r) - 0.5f) * 2.0f * maxDistance - *shiftPointer;
+    const float inner = max(*innerPointer, 0.0f);
+    const float outer = max(*outerPointer, 0.0f);
+    float coverage;
+    if (inner + outer < 0.000001f) {
+        coverage = signedDistance <= 0.0f ? 1.0f : 0.0f;
+    } else {
+        coverage = 1.0f - smoothstep(-inner, max(outer, -inner + 0.000001f), signedDistance);
+    }
+    const half value = half(clamp(coverage, 0.0f, 1.0f));
+    outputTexture.write(half4(value, value, value, 1.0h), gid);
+}
+
+kernel void InnerMaskForegroundColorDecontamination(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                                     texture2d<half, access::read> sourceTexture [[texture(1)]],
+                                                     texture2d<half, access::read> coverageTexture [[texture(2)]],
+                                                     constant float *radiusPointer [[buffer(0)]],
+                                                     constant float *strengthPointer [[buffer(1)]],
+                                                     constant float *opaqueThresholdPointer [[buffer(2)]],
+                                                     uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const half4 source = sourceTexture.read(gid);
+    const float coverage = float(coverageTexture.read(gid).r);
+    if (coverage <= 0.0f || coverage >= *opaqueThresholdPointer || *strengthPointer <= 0.0f) {
+        outputTexture.write(source, gid);
+        return;
+    }
+    const int radius = min(max(int(*radiusPointer), 1), 32);
+    float nearestDistance = INFINITY;
+    half3 replacement = source.rgb;
+    for (int y = -radius; y <= radius; ++y) {
+        for (int x = -radius; x <= radius; ++x) {
+            const int2 location = int2(gid) + int2(x, y);
+            if (location.x < 0 || location.y < 0 ||
+                location.x >= int(sourceTexture.get_width()) || location.y >= int(sourceTexture.get_height())) continue;
+            if (float(coverageTexture.read(uint2(location)).r) < *opaqueThresholdPointer) continue;
+            const float distanceSquared = float(x * x + y * y);
+            if (distanceSquared < nearestDistance) {
+                nearestDistance = distanceSquared;
+                replacement = sourceTexture.read(uint2(location)).rgb;
+            }
+        }
+    }
+    const half amount = half(clamp((1.0f - coverage) * *strengthPointer, 0.0f, 1.0f));
+    outputTexture.write(half4(mix(source.rgb, replacement, amount), source.a), gid);
+}
+
+static inline float innerMaskAuxiliaryComponent(half4 value, int component) {
+    switch (component) {
+        case 0: return float(value.r);
+        case 1: return float(value.g);
+        case 2: return float(value.b);
+        case 3: return float(value.a);
+        default: return float(value.r);
+    }
+}
+
+kernel void InnerMaskAuxiliaryRange(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                    texture2d<half, access::read> auxiliaryTexture [[texture(1)]],
+                                    texture2d<half, access::read> confidenceTexture [[texture(2)]],
+                                    constant float *componentPointer [[buffer(0)]],
+                                    constant float *lowerPointer [[buffer(1)]],
+                                    constant float *upperPointer [[buffer(2)]],
+                                    constant float *softnessPointer [[buffer(3)]],
+                                    constant float *invertPointer [[buffer(4)]],
+                                    constant float *usesConfidencePointer [[buffer(5)]],
+                                    uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const float value = innerMaskAuxiliaryComponent(auxiliaryTexture.read(gid), int(*componentPointer));
+    const float low = min(*lowerPointer, *upperPointer);
+    const float high = max(*lowerPointer, *upperPointer);
+    const float softness = max(*softnessPointer, 0.000001f);
+    float coverage = isfinite(value)
+        ? smoothstep(low - softness, low + softness, value) * (1.0f - smoothstep(high - softness, high + softness, value))
+        : 0.0f;
+    if (*invertPointer > 0.5f) coverage = 1.0f - coverage;
+    if (*usesConfidencePointer > 0.5f) coverage *= float(confidenceTexture.read(gid).r);
+    const half output = half(clamp(coverage, 0.0f, 1.0f));
+    outputTexture.write(half4(output, output, output, 1.0h), gid);
+}
+
+kernel void InnerMaskFlowWarp(texture2d<half, access::write> outputTexture [[texture(0)]],
+                              texture2d<half, access::read> maskTexture [[texture(1)]],
+                              texture2d<half, access::read> flowTexture [[texture(2)]],
+                              texture2d<half, access::read> confidenceTexture [[texture(3)]],
+                              constant float *scalePointer [[buffer(0)]],
+                              constant float *normalizedPointer [[buffer(1)]],
+                              constant float *usesConfidencePointer [[buffer(2)]],
+                              constant float *edgeModePointer [[buffer(3)]],
+                              uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const float2 size = float2(maskTexture.get_width(), maskTexture.get_height());
+    float2 displacement = float2(flowTexture.read(gid).rg) * *scalePointer;
+    if (*normalizedPointer > 0.5f) displacement *= size;
+    const float2 source = float2(gid) + displacement;
+    const int2 base = int2(floor(source));
+    const float2 fraction = source - float2(base);
+    const int edgeMode = int(*edgeModePointer);
+    const float top = mix(
+        innerMaskReadCoverage(maskTexture, base, edgeMode),
+        innerMaskReadCoverage(maskTexture, base + int2(1, 0), edgeMode),
+        fraction.x
+    );
+    const float bottom = mix(
+        innerMaskReadCoverage(maskTexture, base + int2(0, 1), edgeMode),
+        innerMaskReadCoverage(maskTexture, base + int2(1, 1), edgeMode),
+        fraction.x
+    );
+    float coverage = mix(top, bottom, fraction.y);
+    if (*usesConfidencePointer > 0.5f) coverage *= float(confidenceTexture.read(gid).r);
+    const half output = half(clamp(coverage, 0.0f, 1.0f));
+    outputTexture.write(half4(output, output, output, 1.0h), gid);
 }
 
 static inline float3 innerRGBToHSV(float3 color) {
@@ -783,36 +1063,6 @@ kernel void InnerMaskEdgeCleanup(texture2d<half, access::write> outputTexture [[
     const float low = min(*blackPoint, *whitePoint);
     const float high = max(*whitePoint, low + 0.000001f);
     const half value = half(smoothstep(low, high, float(inputTexture.read(gid).r)));
-    outputTexture.write(half4(value, value, value, 1.0h), gid);
-}
-
-kernel void InnerMaskEdgeAwareFeather(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                      texture2d<half, access::read> inputTexture [[texture(1)]],
-                                      texture2d<half, access::read> guideTexture [[texture(2)]],
-                                      constant float *radiusPointer [[buffer(0)]],
-                                      constant float *sensitivityPointer [[buffer(1)]],
-                                      uint2 gid [[thread_position_in_grid]]) {
-    const uint width = outputTexture.get_width();
-    const uint height = outputTexture.get_height();
-    if (gid.x >= width || gid.y >= height) return;
-    const int radius = min(max(int(*radiusPointer), 1), 12);
-    const float sensitivity = clamp(*sensitivityPointer, 0.0f, 1.0f);
-    const float3 guide = float3(guideTexture.read(gid).rgb);
-    float weightedCoverage = 0.0f;
-    float weightSum = 0.0f;
-    for (int y = -radius; y <= radius; ++y) {
-        for (int x = -radius; x <= radius; ++x) {
-            const int2 location = int2(gid) + int2(x, y);
-            if (location.x < 0 || location.y < 0 || location.x >= int(width) || location.y >= int(height)) continue;
-            const float spatial = exp(-float(x * x + y * y) / max(float(radius * radius), 1.0f));
-            const float colorDistance = distance(guide, float3(guideTexture.read(uint2(location)).rgb));
-            const float edgeWeight = exp(-colorDistance * mix(2.0f, 28.0f, sensitivity));
-            const float weight = spatial * edgeWeight;
-            weightedCoverage += float(inputTexture.read(uint2(location)).r) * weight;
-            weightSum += weight;
-        }
-    }
-    const half value = half(weightedCoverage / max(weightSum, 0.000001f));
     outputTexture.write(half4(value, value, value, 1.0h), gid);
 }
 

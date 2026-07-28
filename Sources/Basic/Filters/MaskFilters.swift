@@ -365,6 +365,118 @@ struct MaskDistanceField: C7FilterProtocol {
     }
 }
 
+struct MaskCoverageResample: C7FilterProtocol {
+    let width: Int
+    let height: Int
+    let filter: MaskSamplingFilter
+    let edgeMode: MaskSamplingEdgeMode
+    let binaryThreshold: Float?
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskCoverageResample") }
+    var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
+    var samplingFootprint: SamplingFootprint { .dynamic }
+
+    var factors: [Float] {
+        let filterValue: Float
+        switch filter {
+        case .nearest: filterValue = 0
+        case .linear: filterValue = 1
+        case .areaPreserving: filterValue = 2
+        }
+        let edgeValue: Float
+        switch edgeMode {
+        case .zero: edgeValue = 0
+        case .clamp: edgeValue = 1
+        case .mirror: edgeValue = 2
+        }
+        return [filterValue, edgeValue, binaryThreshold ?? -1]
+    }
+
+    func resize(input size: C7Size) -> C7Size {
+        C7Size(width: max(width, 1), height: max(height, 1))
+    }
+}
+
+struct MaskSignedDistanceCombine: C7FilterProtocol {
+    let distanceToOutside: MTLTexture
+    let maxDistance: Float
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskSignedDistanceCombine") }
+    var otherInputTextures: C7InputTextures { [distanceToOutside] }
+    var factors: [Float] { [max(maxDistance, 1)] }
+    var memoryAccessPattern: MemoryAccessPattern { .multiTexture }
+}
+
+struct MaskSignedDistanceCoverage: C7FilterProtocol {
+    let shift: Float
+    let innerFeather: Float
+    let outerFeather: Float
+    let maxDistance: Float
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskSignedDistanceCoverage") }
+    var factors: [Float] {
+        [shift, max(innerFeather, 0), max(outerFeather, 0), max(maxDistance, 1)]
+    }
+    var memoryAccessPattern: MemoryAccessPattern { .point }
+}
+
+struct MaskForegroundColorDecontamination: C7FilterProtocol {
+    let coverageTexture: MTLTexture
+    let radius: Int
+    let strength: Float
+    let opaqueThreshold: Float
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskForegroundColorDecontamination") }
+    var otherInputTextures: C7InputTextures { [coverageTexture] }
+    var factors: [Float] {
+        [Float(min(max(radius, 1), 32)), min(max(strength, 0), 1), min(max(opaqueThreshold, 0.5), 1)]
+    }
+    var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
+    var samplingFootprint: SamplingFootprint { .neighborhood(radius: min(max(radius, 1), 32)) }
+}
+
+struct MaskAuxiliaryRangeFilter: C7FilterProtocol {
+    let confidenceTexture: MTLTexture
+    let component: Int
+    let lowerBound: Float
+    let upperBound: Float
+    let softness: Float
+    let invert: Bool
+    let usesConfidence: Bool
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskAuxiliaryRange") }
+    var otherInputTextures: C7InputTextures { [confidenceTexture] }
+    var factors: [Float] {
+        [
+            Float(component), lowerBound, upperBound, max(softness, 0),
+            invert ? 1 : 0, usesConfidence ? 1 : 0
+        ]
+    }
+    var memoryAccessPattern: MemoryAccessPattern { .multiTexture }
+}
+
+struct MaskFlowWarp: C7FilterProtocol {
+    let flowTexture: MTLTexture
+    let confidenceTexture: MTLTexture
+    let scale: Float
+    let flowIsNormalized: Bool
+    let usesConfidence: Bool
+    let edgeMode: MaskSamplingEdgeMode
+
+    var modifier: ModifierEnum { .compute(kernel: "InnerMaskFlowWarp") }
+    var otherInputTextures: C7InputTextures { [flowTexture, confidenceTexture] }
+    var factors: [Float] {
+        let edgeValue: Float
+        switch edgeMode {
+        case .zero: edgeValue = 0
+        case .clamp: edgeValue = 1
+        case .mirror: edgeValue = 2
+        }
+        return [scale, flowIsNormalized ? 1 : 0, usesConfidence ? 1 : 0, edgeValue]
+    }
+    var memoryAccessPattern: MemoryAccessPattern { .multiTexture }
+}
+
 struct BrushMask: C7FilterProtocol {
     let points: [MaskBrushPoint]
     let settings: MaskBrushSettings
@@ -375,7 +487,8 @@ struct BrushMask: C7FilterProtocol {
     var kernelParameterBindings: [KernelParameterBinding] {
         let metadata: [Float] = [
             Float(points.count), settings.width, settings.hardness,
-            settings.spacing, settings.mode == .erase ? 1 : 0
+            settings.spacing, settings.mode == .erase ? 1 : 0,
+            settings.flow, settings.density
         ]
         let values = points.reduce(into: [Float]()) { result, point in
             result.append(contentsOf: [Float(point.point.x), Float(point.point.y), point.pressure, 0])
@@ -410,15 +523,4 @@ struct MaskEdgeCleanup: C7FilterProtocol {
     var modifier: ModifierEnum { .compute(kernel: "InnerMaskEdgeCleanup") }
     var factors: [Float] { [min(max(blackPoint, 0), 1), min(max(whitePoint, 0), 1)] }
     var memoryAccessPattern: MemoryAccessPattern { .point }
-}
-
-struct MaskEdgeAwareFeather: C7FilterProtocol {
-    let guideTexture: MTLTexture
-    let radius: Int
-    let edgeSensitivity: Float
-    var modifier: ModifierEnum { .compute(kernel: "InnerMaskEdgeAwareFeather") }
-    var factors: [Float] { [Float(min(max(radius, 1), 12)), min(max(edgeSensitivity, 0), 1)] }
-    var otherInputTextures: C7InputTextures { [guideTexture] }
-    var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
-    var samplingFootprint: SamplingFootprint { .neighborhood(radius: min(max(radius, 1), 12)) }
 }

@@ -54,7 +54,7 @@ final class MaskProcessingTests: XCTestCase {
         XCTAssertFalse(first.cacheHit)
         XCTAssertTrue(second.cacheHit)
         XCTAssertEqual(first.analysis.bounds, MaskCoverageBounds(x: 1, y: 1, width: 3, height: 3))
-        XCTAssertEqual(first.dirtyBounds, first.analysis.bounds)
+        XCTAssertNil(first.dirtyBounds)
     }
 
     func testDerivedMaskCacheSeparatesDifferentGuideTextures() throws {

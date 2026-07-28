@@ -38,6 +38,54 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = identity
     }
 
+    func testProfessionalMaskRuntimeSurfaceCompiles() {
+        let plane: (MTLTexture) -> MaskPlane = { texture in
+            MaskPlane(
+                texture: texture,
+                coordinateSpace: .sourcePixels,
+                sampling: .softCoverage,
+                resourceIdentity: MaskResourceIdentity(identifier: "public-mask")
+            )
+        }
+        let expression: (MTLTexture) -> MaskExpressionPlan = { texture in
+            let source = MaskExpression.source(plane(texture).maskDescriptor())
+            return MaskExpression.intersect(source, .invert(source)).compiledPlan
+        }
+        let canvas: () throws -> IncrementalMaskCanvas = {
+            try IncrementalMaskCanvas(size: C7Size(width: 64, height: 64))
+        }
+        let refinement: [MaskDerivedOperation] = [
+            .shiftEdge(pixels: -1, maxDistance: 32),
+            .feather(innerRadius: 1, outerRadius: 2, maxDistance: 32),
+            .smartFeather(radius: 8, edgeSensitivity: 0.7)
+        ]
+        let derived: (MTLTexture) -> MaskDerivedRecipe = { texture in
+            MaskDerivedRecipe(
+                baseMask: plane(texture).maskDescriptor(),
+                sourceIdentifier: "public-derived-mask",
+                guideTexture: texture,
+                guideConfidenceTexture: texture,
+                operations: refinement
+            )
+        }
+        let inspect: () -> MaskTopologyRecipe = { MaskTopologyRecipe(connectivity: 8) }
+        let decontaminate: (ImageNode, MaskDescriptor) throws -> ImageNode = { node, mask in
+            try node.decontaminating(mask: mask)
+        }
+        let auxiliary: (MTLTexture) throws -> MaskAuxiliaryPlane = { texture in
+            try MaskAuxiliaryPlane(texture: texture, semantic: .confidence)
+        }
+        let warp: (MTLTexture) -> MaskWarpRecipe = { texture in MaskWarpRecipe(flowTexture: texture) }
+        _ = expression
+        _ = canvas
+        _ = refinement
+        _ = derived
+        _ = inspect
+        _ = decontaminate
+        _ = auxiliary
+        _ = warp
+    }
+
     @MainActor
     func testPreviewHostSurfacesCompile() {
         let renderView = RenderView(frame: .zero, device: nil)

@@ -24,12 +24,17 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 - Added an `ImageNode` masked-effect composite entry point that reuses the same pixel-exact primitive as local edit recipes.
 - Added angular, diamond, reflected, band, ring, and multi-stop mask gradient primitives with deterministic graph fingerprints.
 - Added pressure-aware open brush masks, luminance/color range masks, generic texture-channel mask sources, and single-channel mask storage formats.
-- Added compiled derived-mask graphs for threshold, grow/shrink, edge bands, distance fields, edge-aware feathering, cleanup, and decontamination, with cancellation, caching, GPU analysis, and dirty bounds.
+- Added `MaskPlane` as the explicit coverage contract for coordinate space, source transforms, sampling, storage, resource identity, generations, revisions, and modified bounds.
+- Added a persistent incremental GPU mask canvas with dirty-rectangle encoding, pressure, flow, density, paint/erase modes, generation safety, cancellation, and unbounded chunked centerlines.
+- Added area-preserving coverage resampling, signed-distance edge shift and asymmetric feathering, MPS guided matte refinement, true foreground-color decontamination, topology inspection/cleanup, auxiliary scalar masks, and single-frame flow warping.
+- Added compiled derived-mask graphs for threshold, grow/shrink, edge bands, distance fields, guided feathering, edge contraction, and cleanup, with cancellation, resource-aware caching, GPU analysis, halo planning, and dirty-region diagnostics.
+- Added composable mask expression DAGs with common-subexpression reuse, intermediate-memory diagnostics, and allocator/heap strategy reporting.
 - Added compiled composite-mask batches that preserve ordered add, subtract, intersect, XOR, inversion, opacity, and feather semantics while processing up to four mask layers per GPU pass.
 
 ### Fixed
 
 - Fixed long, narrow brush centerlines dropping their tail after the 512-point GPU budget, and preserved off-canvas context for tile-based rendering.
+- Fixed subpixel brush widths disappearing between pixel centers by applying pixel-footprint-aware edge coverage.
 - Fixed texture-pool aliasing across incompatible usage, storage, sample-count, texture-type, mipmap, array/depth, CPU-cache, and hazard-tracking contracts.
 - Fixed ordinary runtime textures creating mipmap chains by default and consuming avoidable GPU memory.
 - Fixed persistent image-resolution cache eviction being count-only by adding a byte-budgeted LRU and system memory-pressure cleanup.

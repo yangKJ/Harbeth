@@ -17,8 +17,10 @@ public enum MaskDerivedOperation: Sendable, Equatable, Hashable {
     case edge(radius: Int)
     case distanceField(maxDistance: Float, threshold: Float)
     case smartFeather(radius: Int, edgeSensitivity: Float)
+    case shiftEdge(pixels: Float, maxDistance: Float)
+    case feather(innerRadius: Float, outerRadius: Float, maxDistance: Float)
     case edgeCleanup(blackPoint: Float, whitePoint: Float)
-    case decontaminate(radius: Int)
+    case contractEdge(radius: Int)
 
     var fingerprint: String {
         switch self {
@@ -30,8 +32,10 @@ public enum MaskDerivedOperation: Sendable, Equatable, Hashable {
         case .edge(let radius): return "edge(\(max(radius, 1)))"
         case .distanceField(let distance, let threshold): return "distance(\(Self.float(distance)),\(Self.float(threshold)))"
         case .smartFeather(let radius, let sensitivity): return "smartFeather(\(max(radius, 1)),\(Self.float(sensitivity)))"
+        case .shiftEdge(let pixels, let distance): return "shiftEdge(\(Self.float(pixels)),\(Self.float(distance)))"
+        case .feather(let inner, let outer, let distance): return "feather(\(Self.float(inner)),\(Self.float(outer)),\(Self.float(distance)))"
         case .edgeCleanup(let black, let white): return "cleanup(\(Self.float(black)),\(Self.float(white)))"
-        case .decontaminate(let radius): return "decontaminate(\(max(radius, 1)))"
+        case .contractEdge(let radius): return "contractEdge(\(max(radius, 1)))"
         }
     }
 
@@ -44,10 +48,41 @@ public struct MaskExecutionPlan: Sendable, Equatable {
     public let eliminatedOperationCount: Int
 
     public var passCount: Int { operations.count }
+
+    public var maximumHalo: Int {
+        operations.reduce(0) { current, operation in
+            switch operation {
+            case .grow(let radius), .shrink(let radius),
+                 .innerEdge(let radius), .outerEdge(let radius), .edge(let radius),
+                 .contractEdge(let radius):
+                return max(current, max(radius, 0))
+            case .smartFeather(let radius, _):
+                return max(current, max(radius, 0))
+            case .distanceField(let distance, _):
+                return max(current, Int(ceil(max(distance, 0))))
+            case .shiftEdge(let pixels, let distance):
+                return max(current, Int(ceil(max(abs(pixels), max(distance, 0)))))
+            case .feather(let inner, let outer, let distance):
+                return max(current, Int(ceil(max(inner, outer, distance))))
+            case .threshold, .edgeCleanup:
+                return current
+            }
+        }
+    }
 }
 
-public enum MaskGraphCompiler {
-    public static func compile(_ operations: [MaskDerivedOperation]) -> MaskExecutionPlan {
+public struct MaskExecutionDiagnostics: Sendable, Equatable {
+    public let passCount: Int
+    public let eliminatedOperationCount: Int
+    public let maximumHalo: Int
+    public let estimatedIntermediateByteCount: Int
+    public let allocationStrategy: TextureAllocationStrategy
+    public let cacheHit: Bool
+    public let dirtyBounds: MaskCoverageBounds?
+}
+
+enum MaskGraphCompiler {
+    static func compile(_ operations: [MaskDerivedOperation]) -> MaskExecutionPlan {
         var result: [MaskDerivedOperation] = []
         for operation in operations {
             switch operation {
@@ -80,17 +115,18 @@ public enum MaskGraphCompiler {
     }
 }
 
-public struct MaskDerivedResult {
+public struct MaskDerivedResult: @unchecked Sendable {
     public let texture: MTLTexture
     public let analysis: MaskAnalysis
     public let plan: MaskExecutionPlan
     public let cacheHit: Bool
+    public let diagnostics: MaskExecutionDiagnostics
 
-    public var dirtyBounds: MaskCoverageBounds? { analysis.bounds }
+    public var dirtyBounds: MaskCoverageBounds? { diagnostics.dirtyBounds }
 }
 
-public final class MaskExecutionCache: @unchecked Sendable {
-    public static let shared = MaskExecutionCache(usesContextStore: true)
+final class MaskExecutionCache: @unchecked Sendable {
+    static let shared = MaskExecutionCache(usesContextStore: true)
 
     private final class EntryBox {
         let result: MaskDerivedResult
@@ -105,14 +141,14 @@ public final class MaskExecutionCache: @unchecked Sendable {
         self.localStore = nil
     }
 
-    public init(countLimit: Int = 48, byteLimit: Int = 64 * 1024 * 1024) {
+    init(countLimit: Int = 48, byteLimit: Int = 64 * 1024 * 1024) {
         self.usesContextStore = false
         self.localStore = DerivedResourceStore(
             configuration: DerivedResourceCacheConfiguration(byteLimit: byteLimit, countLimit: countLimit)
         )
     }
 
-    public func removeAll() {
+    func removeAll() {
         store.invalidate(domain: .mask)
     }
 
@@ -131,11 +167,13 @@ public final class MaskExecutionCache: @unchecked Sendable {
     }
 }
 
-/// First-class derived mask graph with compilation, cancellation, caching, analysis, and dirty bounds.
-public struct MaskDerivedRecipe {
+/// 一等派生蒙版图，覆盖编译、取消、缓存、分析与脏区诊断。
+public struct MaskDerivedRecipe: @unchecked Sendable {
     public let baseMask: MaskDescriptor
     public let sourceIdentifier: String
     public let guideTexture: MTLTexture?
+    /// `smartFeather` 的可选单通道置信度；内部会统一归一化为 coverage 纹理。
+    public let guideConfidenceTexture: MTLTexture?
     public var operations: [MaskDerivedOperation]
     public var profile: RenderProfile
     public var storageFormat: MaskStorageFormat
@@ -143,12 +181,14 @@ public struct MaskDerivedRecipe {
     public init(baseMask: MaskDescriptor,
                 sourceIdentifier: String,
                 guideTexture: MTLTexture? = nil,
+                guideConfidenceTexture: MTLTexture? = nil,
                 operations: [MaskDerivedOperation],
                 profile: RenderProfile = .stablePreview,
                 storageFormat: MaskStorageFormat = .coverage8) {
         self.baseMask = baseMask
         self.sourceIdentifier = sourceIdentifier
         self.guideTexture = guideTexture
+        self.guideConfidenceTexture = guideConfidenceTexture
         self.operations = operations
         self.profile = profile
         self.storageFormat = storageFormat
@@ -160,6 +200,7 @@ public struct MaskDerivedRecipe {
         [
             "source=\(sourceIdentifier)",
             "base=\(baseMask.graphDescriptor.fingerprint)",
+            "guideConfidence=\(guideConfidenceTexture == nil ? 0 : 1)",
             "operations=\(compiledPlan.operations.map(\.fingerprint).joined(separator: ";"))",
             "storage=\(storageFormat.rawValue)",
             "profile=\(profile.rawValue)"
@@ -189,14 +230,36 @@ public struct MaskDerivedRecipe {
         )
     }
 
-    public func execute(cancellation: TextureMultiPassCancellationToken? = nil, cache: MaskExecutionCache? = .shared) throws -> MaskDerivedResult {
+    public func execute(cancellation: TextureMultiPassCancellationToken? = nil) throws -> MaskDerivedResult {
+        try execute(cancellation: cancellation, cache: .shared)
+    }
+
+    func execute(cancellation: TextureMultiPassCancellationToken? = nil,
+                 cache: MaskExecutionCache?) throws -> MaskDerivedResult {
         let executionCacheKey = executionCacheKey
         let cacheLookup = cache?.lookup(for: executionCacheKey)
         if let cached = cacheLookup?.result {
-            return MaskDerivedResult(texture: cached.texture, analysis: cached.analysis, plan: cached.plan, cacheHit: true)
+            return MaskDerivedResult(
+                texture: cached.texture,
+                analysis: cached.analysis,
+                plan: cached.plan,
+                cacheHit: true,
+                diagnostics: Self.diagnostics(
+                    plan: cached.plan,
+                    texture: cached.texture,
+                    cacheHit: true,
+                    dirtyBounds: cached.diagnostics.dirtyBounds
+                )
+            )
         }
         try checkCancellation(cancellation)
         let plan = compiledPlan
+        let dirtyBounds = Self.expandedDirtyBounds(
+            baseMask.plane.descriptor.lastModifiedBounds,
+            halo: plan.maximumHalo,
+            width: baseMask.texture.width,
+            height: baseMask.texture.height
+        )
         var current = try MaskProcessingRecipe(mask: baseMask).makeCoverageTexture()
         for operation in plan.operations {
             try checkCancellation(cancellation)
@@ -205,7 +268,18 @@ public struct MaskDerivedRecipe {
         }
         current = try convert(current, to: storageFormat.pixelFormat)
         let analysis = try MaskGPUAnalysisBackend.analyze(texture: current, threshold: 0.001)
-        let result = MaskDerivedResult(texture: current, analysis: analysis, plan: plan, cacheHit: false)
+        let result = MaskDerivedResult(
+            texture: current,
+            analysis: analysis,
+            plan: plan,
+            cacheHit: false,
+            diagnostics: Self.diagnostics(
+                plan: plan,
+                texture: current,
+                cacheHit: false,
+                dirtyBounds: dirtyBounds
+            )
+        )
         if let cacheLookup {
             cache?.insert(result, for: cacheLookup.identity)
         }
@@ -231,11 +305,31 @@ public struct MaskDerivedRecipe {
 }
 
 private extension MaskDerivedRecipe {
-    /// The public graph fingerprint remains deterministic, while the in-memory
-    /// execution cache must also distinguish the concrete guide texture.
+    static func diagnostics(plan: MaskExecutionPlan,
+                            texture: MTLTexture,
+                            cacheHit: Bool,
+                            dirtyBounds: MaskCoverageBounds?) -> MaskExecutionDiagnostics {
+        MaskExecutionDiagnostics(
+            passCount: plan.passCount,
+            eliminatedOperationCount: plan.eliminatedOperationCount,
+            maximumHalo: plan.maximumHalo,
+            estimatedIntermediateByteCount: max(texture.allocatedSize, 1) * max(plan.passCount, 1),
+            allocationStrategy: Shared.shared.defaultTextureAllocationStrategy,
+            cacheHit: cacheHit,
+            dirtyBounds: dirtyBounds
+        )
+    }
+
+    /// 公开图指纹保持确定性；内存执行缓存还必须区分实际引导纹理与蒙版资源版本。
     var executionCacheKey: String {
-        guard let guideTexture else { return fingerprint }
-        return "\(fingerprint)|guideTexture=\(ObjectIdentifier(guideTexture as AnyObject))"
+        var key = "\(fingerprint)|baseIdentity=\(baseMask.plane.descriptor.resourceIdentity.fingerprint)"
+        if let guideTexture {
+            key += "|guideTexture=\(ObjectIdentifier(guideTexture as AnyObject))"
+        }
+        if let guideConfidenceTexture {
+            key += "|guideConfidenceTexture=\(ObjectIdentifier(guideConfidenceTexture as AnyObject))"
+        }
+        return key
     }
 
     func apply(_ operation: MaskDerivedOperation, to texture: MTLTexture) throws -> MTLTexture {
@@ -261,16 +355,35 @@ private extension MaskDerivedRecipe {
                   guideTexture.height == texture.height else {
                 throw HarbethError.textureSizeMismatch
             }
-            return try HarbethIO(
-                element: texture,
-                filter: MaskEdgeAwareFeather(guideTexture: guideTexture, radius: radius, edgeSensitivity: sensitivity)
-            ).configured(for: profile).output()
+            return try MaskGuidedRefinementRecipe(
+                radius: radius,
+                epsilon: max(0.000_01, pow(1 - min(max(sensitivity, 0), 1), 2) * 0.02),
+                coefficientScale: profile == .exportQuality ? 1 : 0.5,
+                storageFormat: storageFormat
+            ).makePlane(
+                from: descriptor,
+                guidanceTexture: guideTexture,
+                confidenceTexture: guideConfidenceTexture
+            ).texture
+        case .shiftEdge(let pixels, let maxDistance):
+            return try MaskEdgeRefinementRecipe(
+                shift: pixels,
+                maxDistance: maxDistance,
+                profile: profile
+            ).makePlane(from: descriptor, storageFormat: storageFormat).texture
+        case .feather(let innerRadius, let outerRadius, let maxDistance):
+            return try MaskEdgeRefinementRecipe(
+                innerFeather: innerRadius,
+                outerFeather: outerRadius,
+                maxDistance: maxDistance,
+                profile: profile
+            ).makePlane(from: descriptor, storageFormat: storageFormat).texture
         case .edgeCleanup(let blackPoint, let whitePoint):
             return try HarbethIO(
                 element: texture,
                 filter: MaskEdgeCleanup(blackPoint: blackPoint, whitePoint: whitePoint)
             ).configured(for: profile).output()
-        case .decontaminate(let radius):
+        case .contractEdge(let radius):
             let contracted = try morphology(.erosion, radius: radius, texture: texture)
             return try HarbethIO(
                 element: contracted,
@@ -303,5 +416,19 @@ private extension MaskDerivedRecipe {
 
     func checkCancellation(_ token: TextureMultiPassCancellationToken?) throws {
         if token?.isCancelled == true { throw TextureMultiPassError.cancelled }
+    }
+
+    static func expandedDirtyBounds(_ bounds: MaskCoverageBounds?,
+                                    halo: Int,
+                                    width: Int,
+                                    height: Int) -> MaskCoverageBounds? {
+        guard let bounds else { return nil }
+        let expansion = max(halo, 0)
+        let minX = max(bounds.x - expansion, 0)
+        let minY = max(bounds.y - expansion, 0)
+        let maxX = min(bounds.x + bounds.width + expansion, width)
+        let maxY = min(bounds.y + bounds.height + expansion, height)
+        guard maxX > minX, maxY > minY else { return nil }
+        return MaskCoverageBounds(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 }

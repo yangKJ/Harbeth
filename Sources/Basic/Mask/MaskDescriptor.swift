@@ -111,8 +111,9 @@ public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
     public let path: MaskPathDescriptor?
 }
 
-public struct MaskDescriptor {
-    public let texture: MTLTexture
+public struct MaskDescriptor: @unchecked Sendable {
+    public let plane: MaskPlane
+    public var texture: MTLTexture { plane.texture }
     public var component: MaskComponent
     public var blendMode: MaskBlendMode
     public var invert: Bool
@@ -125,7 +126,21 @@ public struct MaskDescriptor {
                 invert: Bool = false,
                 featherPolicy: MaskFeatherPolicy = .none,
                 opacity: Float = 1.0) {
-        self.texture = texture
+        self.plane = MaskPlane(texture: texture)
+        self.component = component
+        self.blendMode = blendMode
+        self.invert = invert
+        self.featherPolicy = featherPolicy
+        self.opacity = min(max(opacity, 0), 1)
+    }
+
+    public init(plane: MaskPlane,
+                component: MaskComponent = .red,
+                blendMode: MaskBlendMode = .mix,
+                invert: Bool = false,
+                featherPolicy: MaskFeatherPolicy = .none,
+                opacity: Float = 1.0) {
+        self.plane = plane
         self.component = component
         self.blendMode = blendMode
         self.invert = invert
