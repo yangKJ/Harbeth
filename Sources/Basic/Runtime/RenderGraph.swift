@@ -1289,7 +1289,9 @@ enum GraphOptimizer {
                     mergeClass: mergeClasses.count == 1 ? mergeClasses.first : nil,
                     nodeIndices: currentNodeIndices,
                     kinds: kinds,
-                    filterCount: stageNodes.filter { $0.filter != nil }.count,
+                    filterCount: stageNodes.reduce(0) { count, node in
+                        count + ((node.filter as? FusedKernelProtocol)?.fusedOperationCount ?? (node.filter == nil ? 0 : 1))
+                    },
                     pixelContracts: stageNodes.compactMap { $0.filter?.kernelPixelContract },
                     breaksFusion: stageNodes.contains(where: \.breaksFusion),
                     inputSize: inputSize,

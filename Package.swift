@@ -27,8 +27,9 @@ import PackageDescription
 
 let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let sourcesPath = packageRoot.appendingPathComponent("Sources").path
+let metalFileExtension = ".metal"
 let metalResourcePaths = FileManager.default.enumerator(atPath: sourcesPath)?.compactMap { item -> String? in
-    guard let path = item as? String, path.hasSuffix(".metal") else { return nil }
+    guard let path = item as? String, path.hasSuffix(metalFileExtension) else { return nil }
     return path
 }.sorted() ?? []
 let metalResources = metalResourcePaths.map { Resource.process($0) }

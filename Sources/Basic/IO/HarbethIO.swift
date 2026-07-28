@@ -377,6 +377,7 @@ private extension HarbethIO {
     private func processInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
         prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         var outputTexture = input
+        let filters = executionFilters
         // Use self.filters (current state) instead of node.filter (cached snapshot).
         // The plan provides DAG structure; filter state (including otherInputTextures) must
         // come from the live filters array so that texture changes (e.g. moving a mask) are
@@ -396,22 +397,27 @@ private extension HarbethIO {
 }
 
 extension HarbethIO {
+    private var executionFilters: [C7FilterProtocol] {
+        PointwiseFusionPlanner.makeExecutionFilters(filters)
+    }
+
     private func makeRenderPlan(input texture: MTLTexture) -> RenderPlan {
         let inputSize = C7Size(texture: texture)
+        let executionFilters = executionFilters
         // Cache key covers exactly what `GraphCompiler.compile` consumes on this path: the filter
         // chain recipe (type + kernel + parameters, via the same `chainRecipe` fingerprint ImageNode
         // uses), the input dimensions, and the render profile (which also fixes the derivative).
         // `compilationSource` is constant (`.filtersPrimitive`) here, so it is a fixed prefix.
         // Same key ⇒ identical plan, so a stable chain rendered repeatedly (realtime / video) only
         // compiles the render graph once instead of on every frame.
-        let cacheKey = "filtersPrimitive|\(filters.chainRecipe.fingerprint)|input=\(inputSize.width)x\(inputSize.height)|profile=\(renderProfile.rawValue)"
+        let cacheKey = "filtersPrimitive|fusion=v1|\(filters.chainRecipe.fingerprint)|input=\(inputSize.width)x\(inputSize.height)|profile=\(renderProfile.rawValue)"
         if let cached = Shared.shared.defaultContext.cachedRenderPlan(for: cacheKey) {
             Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: true)
             return cached
         }
         Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: false)
         let plan = GraphCompiler.compile(
-            filters: filters,
+            filters: executionFilters,
             inputSize: inputSize,
             profile: renderProfile,
             compilationSource: .filtersPrimitive
@@ -591,6 +597,7 @@ extension HarbethIO {
     private func singleBuffer(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (MTLTexture, [MTLTexture]) {
         var currentTexture = input
         var producedTextures: [MTLTexture] = []
+        let filters = executionFilters
         var filterIndex = 0
         for node in plan.graph.nodes {
             guard node.filter != nil else { continue }
@@ -606,7 +613,7 @@ extension HarbethIO {
     }
 
     private func shouldUseDoubleBuffer(input: MTLTexture, plan: RenderPlan, minimumFilterCount: Int) -> Bool {
-        let filters = self.filters
+        let filters = executionFilters
         guard enableDoubleBuffer, filters.count >= minimumFilterCount else { return false }
         guard plan.containsBoundary == false else { return false }
         var inputSize = C7Size(texture: input)
@@ -622,8 +629,7 @@ extension HarbethIO {
 
     /// Use double buffer technology to handle filter chains.
     private func doubleBuffering(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
-        // Use self.filters rather than extracting from the cached plan nodes; see processInterleavedFilters.
-        let filters = self.filters
+        let filters = executionFilters
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
@@ -1063,6 +1069,7 @@ extension HarbethIO where Dest == MTLTexture {
         prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         var currentTexture = input
         var currentLease: TextureLease?
+        let filters = executionFilters
         var filterIndex = 0
         for node in plan.graph.nodes {
             guard node.filter != nil else { continue }
@@ -1094,6 +1101,7 @@ extension HarbethIO where Dest == MTLTexture {
     private func singleBufferManaged(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (ManagedTextureResult, [TextureLease]) {
         var currentTexture = input
         var producedLeases: [TextureLease] = []
+        let filters = executionFilters
         var filterIndex = 0
         for node in plan.graph.nodes {
             guard node.filter != nil else { continue }
@@ -1114,8 +1122,7 @@ extension HarbethIO where Dest == MTLTexture {
     }
 
     private func doubleBufferingManaged(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (ManagedTextureResult, [TextureLease]) {
-        // Use self.filters rather than extracting from the cached plan nodes; see processInterleavedFilters.
-        let filters = self.filters
+        let filters = executionFilters
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat

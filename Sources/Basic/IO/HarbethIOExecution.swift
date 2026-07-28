@@ -109,8 +109,9 @@ extension HarbethIO {
     /// texture-first task output for callers that need to observe GPU completion.
     func startRenderTextureTask(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderTask<MTLTexture> {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
+        let executionFilters = PointwiseFusionPlanner.makeExecutionFilters(context.effectiveFilters)
         let diagnostics = GraphCompiler.compile(
-            filters: context.effectiveFilters,
+            filters: executionFilters,
             inputSize: C7Size(texture: context.sourceTexture),
             profile: profile,
             derivative: context.effectiveDerivative,
@@ -128,8 +129,9 @@ extension HarbethIO {
     /// 结构化渲染计划诊断，供上层做日志、调度、缓存和大图策略分析。
     func renderDiagnostics(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
+        let executionFilters = PointwiseFusionPlanner.makeExecutionFilters(context.effectiveFilters)
         let plan = GraphCompiler.compile(
-            filters: context.effectiveFilters,
+            filters: executionFilters,
             inputSize: C7Size(texture: context.sourceTexture),
             profile: profile,
             derivative: context.effectiveDerivative,

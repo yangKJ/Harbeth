@@ -593,7 +593,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(unpremultiply.outputContract.alpha, .nonPremultiplied)
         XCTAssertEqual(opacity.alphaBehavior, .modifiesAlpha)
         XCTAssertEqual(opacity.parameters["factors"]?.fingerprint, "floats:0.4000")
-        XCTAssertTrue(opacity.fingerprint.contains("memory=auto"))
+        XCTAssertTrue(opacity.fingerprint.contains("memory=point"))
         XCTAssertNil(opacity.passes.first?.renderPass)
     }
 

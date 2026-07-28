@@ -22,6 +22,10 @@ public struct C7Opacity: C7FilterProtocol {
     public var factors: [Float] {
         return [opacity]
     }
+
+    public var memoryAccessPattern: MemoryAccessPattern {
+        .point
+    }
     
     public init(opacity: Float = range.value) {
         self.opacity = opacity
