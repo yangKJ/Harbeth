@@ -69,6 +69,8 @@ public enum ImageSource {
 
     public var colorSpace: CGColorSpace? {
         switch self {
+        case .image(let image):
+            return image.c7.toCGImage()?.colorSpace
         case .cgImage(let image):
             return image.colorSpace
         case .ciImage(let image):
@@ -80,6 +82,25 @@ public enum ImageSource {
             return nil
         default:
             return nil
+        }
+    }
+
+    /// 输入携带的真实颜色配置文件身份。
+    public var colorProfile: ImageColorProfileDescriptor? {
+        if let colorSpace {
+            return ImageColorProfileDescriptor(colorSpace: colorSpace, origin: .embedded)
+        }
+        let attachmentColorSpace: ImageColorSpaceContract?
+        switch self {
+        case .pixelBuffer(let pixelBuffer):
+            attachmentColorSpace = pixelBuffer.c7.contract.attachmentColorSpace
+        case .sampleBuffer(let sampleBuffer):
+            attachmentColorSpace = sampleBuffer.c7.contract.pixelBufferContract?.attachmentColorSpace
+        case .texture, .image, .cgImage, .ciImage, .data, .asset:
+            attachmentColorSpace = nil
+        }
+        return attachmentColorSpace.map {
+            ImageColorProfileDescriptor(colorSpace: $0, origin: .pixelBufferAttachments)
         }
     }
 
@@ -155,6 +176,7 @@ public enum ImageSource {
                 cachePolicy: cachePolicy,
                 semantic: .sourceOriginal,
                 loadingOptions: loadingOptions,
+                colorProfile: colorProfile,
                 pixelBufferContract: pixelBuffer.c7.contract,
                 pixelBufferBridgePlan: bridgePlan,
                 pixelBufferBridgePolicy: TextureLoader.makeBridgePolicy(for: bridgePlan),
@@ -171,6 +193,7 @@ public enum ImageSource {
                 cachePolicy: cachePolicy,
                 semantic: .sourceOriginal,
                 loadingOptions: loadingOptions,
+                colorProfile: colorProfile,
                 pixelBufferContract: pixelBuffer?.c7.contract,
                 pixelBufferBridgePlan: bridgePlan,
                 pixelBufferBridgePolicy: bridgePlan.map(TextureLoader.makeBridgePolicy(for:)),
@@ -188,7 +211,8 @@ public enum ImageSource {
                 orientation: orientation,
                 cachePolicy: cachePolicy,
                 semantic: .sourceOriginal,
-                loadingOptions: loadingOptions
+                loadingOptions: loadingOptions,
+                colorProfile: colorProfile
             )
         }
     }

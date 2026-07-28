@@ -7,6 +7,7 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 ### Added
 
 - Added a unified kernel pixel contract covering color, alpha, precision, dynamic-range behavior, sampling footprint, global dependencies, CPU readback and pass-fusion eligibility, with graph-level coverage diagnostics.
+- Added source color-profile identity propagation and deterministic final-output quantization with ordered or interleaved-gradient dithering before integer pixel-format conversion.
 - Added real `MTLHeap` texture allocation with capability fallback, bounded heap arenas, descriptor-safe reuse, lease ownership, memory-pressure cleanup, and observable reserved/used/fallback statistics.
 - Added explicit mipmap, CPU-cache, hazard-tracking, and honored storage-mode options for runtime-created textures.
 - Added a Harbeth 3.0 migration guide and post-3.0 public API breakage gate.

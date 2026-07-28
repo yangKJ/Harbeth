@@ -440,6 +440,8 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "inputDynamicRange=\(inputDynamicRange.rawValue)", "outputPixel=\(outputPixelFormat.name)",
             "outputDynamicRange=\(outputDynamicRange.rawValue)",
             "toneMapping=\(outputContract.toneMappingPolicy.rawValue)", "alphaContract=\(outputContract.alpha)",
+            "quantizationBits=\(outputContract.quantization.bitDepth)",
+            "dither=\(outputContract.quantization.ditherPattern.rawValue)",
             "colorGamut=\(outputContract.colorSpace.gamut.rawValue)",
             "transfer=\(outputContract.colorSpace.transferFunction.rawValue)",
             "pixelPrecision=\(outputContract.pixelFormat.precision.rawValue)",
@@ -914,6 +916,9 @@ struct RenderPlan: @unchecked Sendable {
 
 private extension RenderPlan {
     static func resolveInputColorSpace(primary descriptor: ImageSourceDescriptor?, auxiliary auxiliaryDescriptor: ImageSourceDescriptor?) -> ImageColorSpaceContract {
+        if let colorSpace = descriptor?.colorProfile?.colorSpace ?? auxiliaryDescriptor?.colorProfile?.colorSpace {
+            return colorSpace
+        }
         if let colorSpace = resolveAttachmentColorSpace(from: descriptor) ?? resolveAttachmentColorSpace(from: auxiliaryDescriptor) {
             return colorSpace
         }

@@ -1761,6 +1761,13 @@ extension ImageNode {
                 identifier: identifier ?? "ImageNode.OutputContract"
             ).configured(for: profile).output()
         }
+        if contract.quantization.shouldApply(sourcePixelFormat: output.pixelFormat, target: contract.pixelFormat) {
+            output = try HarbethIO(
+                element: output,
+                filter: C7OutputQuantization(contract: contract.quantization),
+                identifier: identifier ?? "ImageNode.OutputContract"
+            ).configured(for: profile).output()
+        }
         if let targetPixelFormat = contract.pixelFormat.metalPixelFormat, output.pixelFormat != targetPixelFormat {
             var io = HarbethIO(
                 element: output,
@@ -1820,7 +1827,11 @@ extension ImageNode {
         } else {
             needsPixelFormat = false
         }
-        let isEffective = needsColor || needsToneMapping || needsAlpha || needsPixelFormat
+        let needsQuantization = contract.quantization.shouldApply(
+            sourcePixelFormat: inputTexture.pixelFormat,
+            target: contract.pixelFormat
+        )
+        let isEffective = needsColor || needsToneMapping || needsAlpha || needsQuantization || needsPixelFormat
         return (key, isEffective)
     }
 }

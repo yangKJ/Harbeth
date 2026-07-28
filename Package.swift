@@ -25,7 +25,8 @@
 import Foundation
 import PackageDescription
 
-let sourcesPath = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Sources").path
+let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let sourcesPath = packageRoot.appendingPathComponent("Sources").path
 let metalResourcePaths = FileManager.default.enumerator(atPath: sourcesPath)?.compactMap { item -> String? in
     guard let path = item as? String, path.hasSuffix(".metal") else { return nil }
     return path

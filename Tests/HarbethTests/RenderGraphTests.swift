@@ -554,6 +554,75 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("inputColor=ituR2020+smpteSt2084PQ"))
     }
 
+    func testNamedColorProfileDescriptorPreservesStableIdentity() throws {
+        let displayP3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let first = ImageColorProfileDescriptor(colorSpace: displayP3)
+        let second = ImageColorProfileDescriptor(colorSpace: displayP3)
+
+        XCTAssertEqual(first.name, CGColorSpace.displayP3 as String)
+        XCTAssertEqual(first.model, .rgb)
+        XCTAssertEqual(first.componentCount, 3)
+        XCTAssertEqual(first.colorSpace, .displayP3)
+        XCTAssertEqual(first.origin, .embedded)
+        XCTAssertGreaterThan(first.iccByteCount, 0)
+        XCTAssertEqual(first.iccFingerprint, second.iccFingerprint)
+        XCTAssertEqual(first.fingerprint, second.fingerprint)
+    }
+
+    func testSourceColorProfileParticipatesInCacheIdentity() {
+        let sRGB = ImageColorProfileDescriptor(colorSpace: .sRGB, origin: .systemNamed)
+        let displayP3 = ImageColorProfileDescriptor(colorSpace: .displayP3, origin: .systemNamed)
+        let base = ImageSourceDescriptor(
+            kind: "cgImage",
+            alphaType: .premultiplied,
+            orientation: .up,
+            cachePolicy: .persistent,
+            colorProfile: sRGB
+        )
+        let wideGamut = ImageSourceDescriptor(
+            kind: "cgImage",
+            alphaType: .premultiplied,
+            orientation: .up,
+            cachePolicy: .persistent,
+            colorProfile: displayP3
+        )
+
+        XCTAssertNotEqual(base.fingerprint, wideGamut.fingerprint)
+        XCTAssertTrue(wideGamut.fingerprint.contains("colorProfile={"))
+    }
+
+    func testRenderPlanUsesSourceProfileBeforePixelBufferAttachments() {
+        let contract = PixelBufferContract(
+            width: 32,
+            height: 24,
+            cvPixelFormatType: kCVPixelFormatType_32BGRA,
+            planeCount: 0,
+            planar: false,
+            colorModel: .rgba,
+            nativeTextureLayout: .directSingleTexture,
+            yCbCrMatrixAttachment: nil,
+            colorPrimariesAttachment: .ituR709_2,
+            transferFunctionAttachment: .ituR709_2,
+            planes: []
+        )
+        let sourceDescriptor = ImageSourceDescriptor(
+            kind: "pixelBuffer",
+            alphaType: .premultiplied,
+            orientation: .up,
+            cachePolicy: .persistent,
+            colorProfile: ImageColorProfileDescriptor(colorSpace: .displayP3, origin: .embedded),
+            pixelBufferContract: contract
+        )
+
+        let plan = GraphCompiler.compile(
+            filters: [C7Brightness(brightness: 0.1)],
+            inputSize: C7Size(width: 32, height: 24),
+            sourceDescriptor: sourceDescriptor
+        )
+
+        XCTAssertEqual(plan.diagnostics.inputColorSpace, ImageColorSpaceContract.displayP3)
+    }
+
     func testRenderPlanCanDeriveHDRInputColorSpaceFromYCbCrMatrixWithoutPrimaries() {
         let contract = PixelBufferContract(
             width: 32,

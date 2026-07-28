@@ -137,6 +137,121 @@ public enum ImageDynamicRangeContract: String, Sendable, Codable, Equatable, Has
     case custom
 }
 
+/// 图像配置文件的颜色模型。
+public enum ImageColorProfileModel: String, Sendable, Codable, Equatable, Hashable {
+    case unknown
+    case monochrome
+    case rgb
+    case cmyk
+    case lab
+    case deviceN
+    case indexed
+    case pattern
+    case xyz
+}
+
+/// 配置文件信息的来源。
+public enum ImageColorProfileOrigin: String, Sendable, Codable, Equatable, Hashable {
+    case embedded
+    case systemNamed
+    case pixelBufferAttachments
+    case unknown
+}
+
+/// 可序列化、可进入缓存身份的颜色配置文件描述。
+///
+/// Harbeth 保留实际 `CGColorSpace` 负责交付；该描述只承载稳定身份和执行规划信息，
+/// 不复制大块 ICC 数据，也不会把 profile 元数据误当成已经执行过的颜色转换。
+public struct ImageColorProfileDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let name: String
+    public let model: ImageColorProfileModel
+    public let componentCount: Int
+    public let iccFingerprint: String?
+    public let iccByteCount: Int
+    public let colorSpace: ImageColorSpaceContract
+    public let origin: ImageColorProfileOrigin
+
+    public init(
+        name: String,
+        model: ImageColorProfileModel,
+        componentCount: Int,
+        iccFingerprint: String? = nil,
+        iccByteCount: Int = 0,
+        colorSpace: ImageColorSpaceContract,
+        origin: ImageColorProfileOrigin
+    ) {
+        self.name = name
+        self.model = model
+        self.componentCount = max(componentCount, 0)
+        self.iccFingerprint = iccFingerprint
+        self.iccByteCount = max(iccByteCount, 0)
+        self.colorSpace = colorSpace
+        self.origin = origin
+    }
+
+    public init(colorSpace: CGColorSpace, origin: ImageColorProfileOrigin = .embedded) {
+        let iccData = colorSpace.copyICCData() as Data?
+        let resolvedContract = ImageColorSpaceContract(colorSpace: colorSpace)
+        self.init(
+            name: colorSpace.name as String? ?? resolvedContract.name,
+            model: ImageColorProfileModel(model: colorSpace.model),
+            componentCount: colorSpace.numberOfComponents,
+            iccFingerprint: iccData.map(Self.stableFingerprint(for:)),
+            iccByteCount: iccData?.count ?? 0,
+            colorSpace: resolvedContract,
+            origin: origin
+        )
+    }
+
+    public init(colorSpace: ImageColorSpaceContract, origin: ImageColorProfileOrigin) {
+        self.init(
+            name: colorSpace.name,
+            model: .rgb,
+            componentCount: 3,
+            colorSpace: colorSpace,
+            origin: origin
+        )
+    }
+
+    public var fingerprint: String {
+        [
+            "profile=\(name)",
+            "model=\(model.rawValue)",
+            "components=\(componentCount)",
+            "icc=\(iccFingerprint ?? "none")",
+            "iccBytes=\(iccByteCount)",
+            colorSpace.fingerprint,
+            "origin=\(origin.rawValue)"
+        ].joined(separator: "|")
+    }
+
+    private static func stableFingerprint(for data: Data) -> String {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return String(hash, radix: 16)
+    }
+}
+
+private extension ImageColorProfileModel {
+    init(model: CGColorSpaceModel) {
+        switch model {
+        case .monochrome: self = .monochrome
+        case .rgb: self = .rgb
+        case .cmyk: self = .cmyk
+        case .lab: self = .lab
+        case .deviceN: self = .deviceN
+        case .indexed: self = .indexed
+        case .pattern: self = .pattern
+        case .XYZ: self = .xyz
+        case .unknown: self = .unknown
+        @unknown default: self = .unknown
+        }
+    }
+}
+
 public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let preservesInput: Bool
@@ -187,6 +302,31 @@ public struct ImageColorSpaceContract: Sendable, Codable, Equatable, Hashable {
         gamut: .ituR2020,
         transferFunction: .hybridLogGamma
     )
+
+    public init(colorSpace: CGColorSpace) {
+        let name = colorSpace.name as String?
+        switch name {
+        case CGColorSpace.sRGB as NSString as String:
+            self = .sRGB
+        case CGColorSpace.displayP3 as NSString as String:
+            self = .displayP3
+        case CGColorSpace.extendedLinearDisplayP3 as NSString as String:
+            self = .extendedLinearDisplayP3
+        case CGColorSpace.extendedLinearSRGB as NSString as String:
+            self = .extendedLinearSRGB
+        case CGColorSpace.itur_2100_PQ as NSString as String:
+            self = .hdrPQ
+        case CGColorSpace.itur_2100_HLG as NSString as String:
+            self = .hdrHLG
+        default:
+            self = ImageColorSpaceContract(
+                name: name ?? "customICC",
+                preservesInput: false,
+                gamut: .custom,
+                transferFunction: .custom
+            )
+        }
+    }
 
     public var isWideGamut: Bool {
         switch gamut {
@@ -387,6 +527,43 @@ public enum PixelPrecision: String, Sendable, Codable, Equatable, Hashable {
     case custom
 }
 
+/// 最终整数输出前使用的抖动图案。
+public enum ImageDitherPattern: String, Sendable, Codable, Equatable, Hashable {
+    case none
+    case ordered4x4
+    case interleavedGradient
+}
+
+/// 最终输出量化合同。
+///
+/// 抖动只发生在颜色转换和 tone mapping 之后、整数像素格式转换之前，
+/// 避免在工作色域中提前破坏精度或对 Alpha 通道注入噪声。
+public struct OutputQuantizationContract: Sendable, Codable, Equatable, Hashable {
+    public let bitDepth: Int
+    public let ditherPattern: ImageDitherPattern
+    public let strength: Float
+    public let seed: UInt32
+
+    public init(bitDepth: Int = 8, ditherPattern: ImageDitherPattern = .ordered4x4, strength: Float = 1, seed: UInt32 = 0) {
+        self.bitDepth = min(max(bitDepth, 1), 16)
+        self.ditherPattern = ditherPattern
+        self.strength = min(max(strength, 0), 1)
+        self.seed = seed
+    }
+
+    public static let automatic = OutputQuantizationContract()
+    public static let disabled = OutputQuantizationContract(ditherPattern: .none, strength: 0)
+
+    public var fingerprint: String {
+        "quantization=\(bitDepth)|dither=\(ditherPattern.rawValue)|strength=\(strength)|seed=\(seed)"
+    }
+
+    func shouldApply(sourcePixelFormat: MTLPixelFormat, target: PixelFormatContract) -> Bool {
+        guard ditherPattern != .none, strength > 0, target.precision == .unorm8 else { return false }
+        return PixelFormatContract(pixelFormat: sourcePixelFormat, preservesInput: false).precision != .unorm8
+    }
+}
+
 public struct PixelFormatContract: Sendable, Codable, Equatable, Hashable {
     public let name: String
     public let preservesInput: Bool
@@ -488,6 +665,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
     public let colorTransferPolicy: ColorTransferPolicy
     public let toneMappingPolicy: ImageToneMappingPolicy
     public let pixelFormatFallbackPolicy: PixelFormatFallbackPolicy
+    public let quantization: OutputQuantizationContract
     public let allowsLossyConversion: Bool
     public let preservesOrientation: Bool
 
@@ -499,6 +677,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
                 colorTransferPolicy: ColorTransferPolicy = .automatic,
                 toneMappingPolicy: ImageToneMappingPolicy = .preserveInput,
                 pixelFormatFallbackPolicy: PixelFormatFallbackPolicy = .preserveInput,
+                quantization: OutputQuantizationContract = .automatic,
                 allowsLossyConversion: Bool = false,
                 preservesOrientation: Bool = true) {
         self.inputAlphaExpectation = inputAlphaExpectation
@@ -515,6 +694,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         self.colorTransferPolicy = colorTransferPolicy
         self.toneMappingPolicy = toneMappingPolicy
         self.pixelFormatFallbackPolicy = pixelFormatFallbackPolicy
+        self.quantization = quantization
         self.allowsLossyConversion = allowsLossyConversion
         self.preservesOrientation = preservesOrientation
     }
@@ -654,6 +834,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
             "transferPolicy=\(colorTransferPolicy.rawValue)",
             "toneMap=\(toneMappingPolicy.rawValue)",
             "pixelFallback=\(pixelFormatFallbackPolicy.rawValue)",
+            quantization.fingerprint,
             "lossy=\(allowsLossyConversion ? 1 : 0)",
             "orientation=\(preservesOrientation ? "preserve" : "reset")"
         ].joined(separator: "|")
@@ -668,6 +849,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         case colorTransferPolicy
         case toneMappingPolicy
         case pixelFormatFallbackPolicy
+        case quantization
         case allowsLossyConversion
         case preservesOrientation
     }
@@ -678,6 +860,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         let colorTransferPolicy = try container.decodeIfPresent(ColorTransferPolicy.self, forKey: .colorTransferPolicy) ?? .automatic
         let toneMappingPolicy = try container.decodeIfPresent(ImageToneMappingPolicy.self, forKey: .toneMappingPolicy) ?? .preserveInput
         let pixelFormatFallbackPolicy = try container.decodeIfPresent(PixelFormatFallbackPolicy.self, forKey: .pixelFormatFallbackPolicy) ?? .preserveInput
+        let quantization = try container.decodeIfPresent(OutputQuantizationContract.self, forKey: .quantization) ?? .automatic
         let allowsLossyConversion = try container.decodeIfPresent(Bool.self, forKey: .allowsLossyConversion) ?? false
         let preservesOrientation = try container.decodeIfPresent(Bool.self, forKey: .preservesOrientation) ?? true
         let storedAttachments = try container.decodeIfPresent([RenderOutputAttachmentContract].self, forKey: .attachments)
@@ -701,6 +884,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
             colorTransferPolicy: colorTransferPolicy,
             toneMappingPolicy: toneMappingPolicy,
             pixelFormatFallbackPolicy: pixelFormatFallbackPolicy,
+            quantization: quantization,
             allowsLossyConversion: allowsLossyConversion,
             preservesOrientation: preservesOrientation
         )
@@ -716,6 +900,7 @@ public struct RenderOutputContract: Sendable, Codable, Equatable, Hashable {
         try container.encode(colorTransferPolicy, forKey: .colorTransferPolicy)
         try container.encode(toneMappingPolicy, forKey: .toneMappingPolicy)
         try container.encode(pixelFormatFallbackPolicy, forKey: .pixelFormatFallbackPolicy)
+        try container.encode(quantization, forKey: .quantization)
         try container.encode(allowsLossyConversion, forKey: .allowsLossyConversion)
         try container.encode(preservesOrientation, forKey: .preservesOrientation)
     }
@@ -1825,6 +2010,7 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
     public let cachePolicy: ImageCachePolicy
     public let semantic: ImageSemanticDescriptor
     public let loadingOptions: ImageLoadingOptions
+    public let colorProfile: ImageColorProfileDescriptor?
     public let pixelBufferContract: PixelBufferContract?
     public let pixelBufferBridgePlan: PixelBufferTextureBridgePlan?
     public let pixelBufferBridgePolicy: PixelBufferBridgePolicy?
@@ -1838,6 +2024,7 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
                 cachePolicy: ImageCachePolicy,
                 semantic: ImageSemanticDescriptor = .sourceOriginal,
                 loadingOptions: ImageLoadingOptions = .default,
+                colorProfile: ImageColorProfileDescriptor? = nil,
                 pixelBufferContract: PixelBufferContract? = nil,
                 pixelBufferBridgePlan: PixelBufferTextureBridgePlan? = nil,
                 pixelBufferBridgePolicy: PixelBufferBridgePolicy? = nil,
@@ -1850,6 +2037,7 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
         self.cachePolicy = cachePolicy
         self.semantic = semantic
         self.loadingOptions = loadingOptions
+        self.colorProfile = colorProfile
         self.pixelBufferContract = pixelBufferContract
         self.pixelBufferBridgePlan = pixelBufferBridgePlan
         self.pixelBufferBridgePolicy = pixelBufferBridgePolicy
@@ -1867,6 +2055,9 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
             semantic.fingerprint,
             loadingOptions.fingerprint
         ]
+        if let colorProfile {
+            parts.append("colorProfile={\(colorProfile.fingerprint)}")
+        }
         if let pixelBufferContract {
             parts.append("pixelBuffer={\(pixelBufferContract.fingerprint)}")
         }

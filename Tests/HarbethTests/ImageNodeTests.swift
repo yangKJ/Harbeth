@@ -2613,6 +2613,33 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(toneMapped.colorSpace.gamut, .displayP3)
         XCTAssertEqual(toneMapped.pixelFormat.precision, .unorm8)
         XCTAssertTrue(toneMapped.fingerprint.contains("toneMap=toneMapToSDR"))
+        XCTAssertEqual(toneMapped.quantization, .automatic)
+        XCTAssertTrue(toneMapped.fingerprint.contains("dither=ordered4x4"))
+    }
+
+    func testOutputContractQuantizesAfterHighPrecisionRendering() throws {
+        let source = try makeTexture(pixel: [120, 80, 40, 255])
+        let highPrecision = try ImageNode.applyOutputContractIfNeeded(
+            .highPrecisionLinearTexture,
+            to: source,
+            profile: .stablePreview
+        )
+        let contract = RenderOutputContract(
+            pixelFormat: .rgba8Unorm,
+            quantization: OutputQuantizationContract(bitDepth: 6, ditherPattern: .ordered4x4)
+        )
+
+        let output = try ImageNode.applyOutputContractIfNeeded(
+            contract,
+            to: highPrecision,
+            profile: .stablePreview
+        )
+        let pixel = try pixel(in: output, x: 0, y: 0)
+
+        XCTAssertEqual(highPrecision.pixelFormat, .rgba16Float)
+        XCTAssertEqual(output.pixelFormat, .rgba8Unorm)
+        XCTAssertNotEqual(pixel.red, 120)
+        XCTAssertEqual(pixel.alpha, 255)
     }
 
     func testHDRColorSpaceContractsExposeCoreGraphicsHDRSpaces() {
