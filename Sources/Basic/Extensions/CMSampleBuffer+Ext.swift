@@ -255,7 +255,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
             return orientation
         }
         if let imageBuffer,
-           let value = CVBufferGetAttachment(imageBuffer, key, nil)?.takeUnretainedValue(),
+           let value = CVBufferCopyAttachment(imageBuffer, key, nil),
            let orientation = Self.frameOrientation(from: value) {
             return orientation
         }
@@ -274,7 +274,7 @@ extension HarbethWrapper where Base: CMSampleBuffer {
             return boolValue
         }
         if let imageBuffer,
-           let value = CVBufferGetAttachment(imageBuffer, key, nil)?.takeUnretainedValue(),
+           let value = CVBufferCopyAttachment(imageBuffer, key, nil),
            let boolValue = Self.boolValue(from: value) {
             return boolValue
         }

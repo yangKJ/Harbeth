@@ -15,7 +15,7 @@ kernel void InnerGradientMask(texture2d<half, access::write> outputTexture [[tex
     const float2 size = float2(outputTexture.get_width(), outputTexture.get_height());
     const float2 uv = (float2(grid) + 0.5f) / size;
     const float kind = parameters[0];
-    
+
     float coverage = 0.0f;
     const float2 point1 = float2(parameters[1], parameters[2]);
     const float2 point2 = float2(parameters[3], parameters[4]);
@@ -85,7 +85,7 @@ kernel void InnerGradientMask(texture2d<half, access::write> outputTexture [[tex
             }
         }
     }
-    
+
     outputTexture.write(half4(half3(coverage), 1.0h), grid);
 }
 
@@ -150,7 +150,7 @@ static inline half combineInnerMaskCoverage(half current, half maskValue, int bl
         }
         return clampedMask;
     }
-    
+
     switch (blendMode) {
         case 2:
             return clamp(current + clampedMask, half(0.0), half(1.0));
@@ -205,16 +205,16 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
     const float outputHeight = float(outputTexture.get_height());
     const float2 outputUV = float2(float(grid.x) / max(outputWidth - 1.0, 1.0),
                                    float(grid.y) / max(outputHeight - 1.0, 1.0));
-    
+
     const float2 origin = float2(*frameX, *frameY);
     const float2 size = max(float2(*frameWidth, *frameHeight), float2(0.0001));
     const float2 regionUV = (outputUV - origin) / size;
-    
+
     if (regionUV.x < 0.0 || regionUV.x > 1.0 || regionUV.y < 0.0 || regionUV.y > 1.0) {
         outputTexture.write(background, grid);
         return;
     }
-    
+
     constexpr sampler quadSampler(coord::normalized, address::clamp_to_edge, filter::linear);
     const float2 contentOrigin = float2(*contentX, *contentY);
     const float2 contentSize = max(float2(*contentWidth, *contentHeight), float2(0.0001));
@@ -227,12 +227,12 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
         layerColor = tintColor;
         layerAlpha *= half(clamp(*tintA, 0.0, 1.0));
     }
-    
+
     half coverage = half(clamp(*opacity, 0.0, 1.0));
     coverage *= layerAlpha;
     half combinedMaskCoverage = half(1.0);
     bool hasCombinedMask = false;
-    
+
     if (*hasMask > 0.5) {
         half maskValue = readInnerMaskComponent(maskTexture.sample(quadSampler, regionUV), *maskComponent);
         if (*maskInvert > 0.5) {
@@ -251,7 +251,7 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
                                                         hasCombinedMask);
         hasCombinedMask = true;
     }
-    
+
     if (*hasCompositingMask > 0.5) {
         half maskValue = readInnerMaskComponent(compositingMaskTexture.sample(quadSampler, outputUV), *compositingMaskComponent);
         if (*compositingMaskInvert > 0.5) {
@@ -270,11 +270,11 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
                                                         hasCombinedMask);
         hasCombinedMask = true;
     }
-    
+
     if (hasCombinedMask) {
         coverage *= combinedMaskCoverage;
     }
-    
+
     const float radius = max(*cornerRadius, 0.0);
     if (radius > 0.0) {
         const float2 pixelInLayer = regionUV * float2(outputWidth * size.x, outputHeight * size.y);
@@ -284,7 +284,7 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
         const float cornerCoverage = smoothstep(0.0, softness, min(distanceToEdge.x, distanceToEdge.y) / radius);
         coverage *= half(cornerCoverage);
     }
-    
+
     const half3 blended = blendInnerLayer(background.rgb, layerColor, *blendMode);
     const half3 rgb = mix(background.rgb, blended, coverage);
     const half alpha = background.a + (1.0h - background.a) * coverage;
@@ -352,7 +352,7 @@ kernel void InnerMaskCoverageBlend(texture2d<half, access::write> outputTexture 
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }
-    
+
     const half4 baseColor = baseTexture.read(gid);
     const half4 maskColor = maskTexture.read(gid);
     const half baseCoverage = normalizedInnerMaskValue(baseColor,
@@ -445,7 +445,7 @@ kernel void InnerMaskCoverageExtract(texture2d<half, access::write> outputTextur
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }
-    
+
     const half4 input = inputTexture.read(gid);
     half coverage = extractInnerMaskComponentValue(input, int(*componentPointer));
     if (*invertPointer > 0.5f) {
@@ -485,11 +485,11 @@ kernel void InnerMaskRegionBlend(texture2d<half, access::write> outputTexture [[
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
     }
-    
+
     const half4 base = inputTexture.read(gid);
     const half4 effect = effectTexture.read(gid);
     const half4 maskColor = maskTexture.read(gid);
-    
+
     half mask = innerMaskComponentValue(maskColor, int(*componentPointer));
     if (*invertPointer > 0.5f) {
         mask = 1.0h - mask;
@@ -501,7 +501,7 @@ kernel void InnerMaskRegionBlend(texture2d<half, access::write> outputTexture [[
         mask = smoothstep(low, high, mask);
     }
     mask *= half(*opacityPointer);
-    
+
     half4 output = mix(base, effect, mask);
     switch (int(*blendModePointer)) {
         case 1:

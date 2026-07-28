@@ -16,9 +16,9 @@ import ObjectiveC
 
 /// Converts various image sources into Metal textures or creates empty ones.
 public struct TextureLoader {
-    
+
     private static let defaultUsage: MTLTextureUsage = [.shaderRead, .shaderWrite]
-    
+
     /// Default options for texture creation via MTKTextureLoader.
     public static var defaultOptions: [MTKTextureLoader.Option: Any] {
         [
@@ -37,7 +37,7 @@ public struct TextureLoader {
             .textureCPUCacheMode: true,
         ]
     }
-    
+
     public let texture: MTLTexture
 
     /// 像素缓冲解析后的纹理源。
@@ -149,7 +149,7 @@ extension TextureLoader {
         }
         try self.init(with: cgImage, options: options)
     }
-    
+
     /// Creates a new MTLTexture from a given bitmap image.
     /// - Parameters:
     ///   - cgImage: Bitmap image
@@ -164,7 +164,7 @@ extension TextureLoader {
         // 降级策略：手动创建纹理并复制像素数据
         self.texture = try TextureLoader.drawCGImageToTexture(cgImage)
     }
-    
+
     /// Creates a new MTLTexture from a CVPixelBuffer.
     /// - Parameters:
     ///   - pixelBuffer: Pixel buffer to load.
@@ -177,7 +177,7 @@ extension TextureLoader {
             self.texture = source.primaryTexture
         }
     }
-    
+
     /// Creates a new MTLTexture from a CMSampleBuffer.
     /// - Parameters:
     ///   - sampleBuffer: Sample buffer whose image buffer should be loaded.
@@ -193,7 +193,7 @@ extension TextureLoader {
             self.texture = source.primaryTexture
         }
     }
-    
+
     /// Creates a new MTLTexture from a UIImage / NSImage.
     /// - Parameters:
     ///   - image: A UIImage / NSImage.
@@ -214,7 +214,7 @@ extension TextureLoader {
         }
         #endif
     }
-    
+
     /// Creates a new MTLTexture from a Data.
     /// - Parameters:
     ///   - data: Data.
@@ -253,7 +253,7 @@ extension TextureLoader {
             try self.init(with: transformed, options: options)
         }
     }
-    
+
     public init(with bundleURL: URL, name: String, options: [MTKTextureLoader.Option: Any]? = nil) throws {
         let loader = Shared.shared.defaultDevice.textureLoader
         guard let assetBundle = Bundle(url: bundleURL),
@@ -263,7 +263,7 @@ extension TextureLoader {
         let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(URL: imageURL, options: options)
     }
-    
+
     #if os(macOS)
     /// Creates a new MTLTexture from a NSBitmapImageRep.
     /// - Parameters:
@@ -565,7 +565,7 @@ extension TextureLoader {
             self.rawValue = rawValue
         }
     }
-    
+
     /// Unified entry point for creating empty textures with pooling.
     /// - Parameters:
     ///   - width: The texture width, must be greater than 0, maximum resolution is 16384.
@@ -573,60 +573,20 @@ extension TextureLoader {
     ///   - options: Configure other parameters about generating metal textures.
     ///   - identifier: Identifier used by pooling and performance diagnostics.
     public static func makeTexture(width: Int, height: Int, options: [Option: Any]? = nil, identifier: String = "Render") throws -> MTLTexture {
-        let opts = options ?? [:]
-        let pixelFormat = opts[.texturePixelFormat] as? MTLPixelFormat ?? .rgba8Unorm
-        let usage = opts[.textureUsage] as? MTLTextureUsage ?? defaultUsage
-        let sampleCount = (opts[.textureSampleCount] as? Int) ?? 1
-        let requestedAllowGPUOptimized = (opts[.textureAllowGPUOptimizedContents] as? Bool) ?? true
-        let allowsSizeTolerance = (opts[.textureAllowsSizeTolerance] as? Bool) ?? false
-        // Platform-specific storage mode
-        let storageMode: MTLStorageMode = {
-            #if os(iOS) || targetEnvironment(simulator)
-            return .shared
-            #else
-            // Harbeth frequently writes and reads back textures on CPU for analysis/debug surfaces.
-            // Using `.shared` keeps that path stable on modern macOS instead of forcing explicit managed synchronization.
-            return usage.contains(.shaderWrite) ? .shared : .private
-            #endif
-        }()
-        let allowGPUOptimized = storageMode == .private ? requestedAllowGPUOptimized : false
-        // Calculate size considering device limits
-        let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
-        // Try texture pool with calculated size
-        let pooledTexture: MTLTexture?
-        if allowsSizeTolerance {
-            pooledTexture = Shared.shared.defaultTexturePool.dequeueTexture(
-                width: maxWidth,
-                height: maxHeight,
-                pixelFormat: pixelFormat
-            )
-        } else {
-            pooledTexture = Shared.shared.defaultTexturePool.dequeueExactTexture(
-                width: maxWidth,
-                height: maxHeight,
-                pixelFormat: pixelFormat
-            )
-        }
-        if let texture = pooledTexture {
+        let configuration = makeTextureConfiguration(width: width, height: height, options: options)
+        let allocator = Shared.shared.defaultTextureAllocator
+        if let texture = allocator.dequeueTexture(
+            matching: configuration.descriptor,
+            allowsSizeTolerance: configuration.allowsSizeTolerance
+        ) {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
             Shared.shared.performanceMonitor?.recordTextureReuse(identifier, source: "TexturePool")
             return texture
         }
-        // Create new descriptor
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: pixelFormat,
-            width: max(maxWidth, 1),
-            height: max(maxHeight, 1),
-            mipmapped: sampleCount == 1
-        )
-        descriptor.usage = usage
-        descriptor.storageMode = storageMode
-        descriptor.sampleCount = sampleCount
-        descriptor.textureType = sampleCount > 1 ? .type2DMultisample : .type2D
-        if #available(iOS 12.0, macOS 10.14, *) {
-            descriptor.allowGPUOptimizedContents = allowGPUOptimized
-        }
-        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: descriptor) else {
+        guard let texture = allocator.makeTexture(
+            descriptor: configuration.descriptor,
+            device: Shared.shared.metalDevice
+        ) else {
             throw HarbethError.makeTexture
         }
         Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
@@ -638,17 +598,12 @@ extension TextureLoader {
     /// returned to the pool. This is the preferred API for texture-first frame
     /// renderers that need deterministic ownership.
     public static func makeTextureLease(width: Int, height: Int, options: [Option: Any]? = nil, identifier: String = "Render") throws -> TextureLease {
-        let opts = options ?? [:]
-        let pixelFormat = opts[.texturePixelFormat] as? MTLPixelFormat ?? .rgba8Unorm
-        let allowsSizeTolerance = (opts[.textureAllowsSizeTolerance] as? Bool) ?? false
-        let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
-        let logicalExtent = C7Size(width: max(maxWidth, 1), height: max(maxHeight, 1))
-
-        if let lease = Shared.shared.defaultTextureAllocator.dequeueTextureLease(
-            width: logicalExtent.width,
-            height: logicalExtent.height,
-            pixelFormat: pixelFormat,
-            allowsSizeTolerance: allowsSizeTolerance,
+        let configuration = makeTextureConfiguration(width: width, height: height, options: options)
+        let logicalExtent = C7Size(width: configuration.descriptor.width, height: configuration.descriptor.height)
+        let allocator = Shared.shared.defaultTextureAllocator
+        if let lease = allocator.dequeueTextureLease(
+            matching: configuration.descriptor,
+            allowsSizeTolerance: configuration.allowsSizeTolerance,
             logicalExtent: logicalExtent
         ) {
             Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
@@ -656,37 +611,71 @@ extension TextureLoader {
             return lease
         }
 
-        let texture = try makeTexture(
-            width: logicalExtent.width,
-            height: logicalExtent.height,
-            options: options,
-            identifier: identifier
-        )
-        return Shared.shared.defaultTextureAllocator.makeLease(for: texture, logicalExtent: logicalExtent)
+        guard let texture = allocator.makeTexture(
+            descriptor: configuration.descriptor,
+            device: Shared.shared.metalDevice
+        ) else {
+            throw HarbethError.makeTexture
+        }
+        Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
+        Shared.shared.performanceMonitor?.recordRenderTargetCreation(identifier)
+        return allocator.makeLease(for: texture, logicalExtent: logicalExtent)
     }
-    
+
     public static func makeTexture(at size: CGSize, options: [Option: Any]? = nil, identifier: String = "Render") throws -> MTLTexture {
         return try makeTexture(width: Int(size.width), height: Int(size.height), options: options, identifier: identifier)
+    }
+
+    private static func makeTextureConfiguration(width: Int,
+                                                 height: Int,
+                                                 options: [Option: Any]?) -> (descriptor: MTLTextureDescriptor, allowsSizeTolerance: Bool) {
+        let opts = options ?? [:]
+        let pixelFormat = opts[.texturePixelFormat] as? MTLPixelFormat ?? .rgba8Unorm
+        let usage = opts[.textureUsage] as? MTLTextureUsage ?? defaultUsage
+        let sampleCount = max((opts[.textureSampleCount] as? Int) ?? 1, 1)
+        let requestedMipmapped = (opts[.textureMipmapped] as? Bool) ?? false
+        let requestedAllowGPUOptimized = (opts[.textureAllowGPUOptimizedContents] as? Bool) ?? true
+        let allowsSizeTolerance = (opts[.textureAllowsSizeTolerance] as? Bool) ?? false
+        let storageMode = (opts[.textureStorageMode] as? MTLStorageMode) ?? defaultStorageMode(for: usage)
+        let cpuCacheMode = (opts[.textureCPUCacheMode] as? MTLCPUCacheMode) ?? .defaultCache
+        let hazardTrackingMode = (opts[.textureHazardTrackingMode] as? MTLHazardTrackingMode) ?? .default
+        let (maxWidth, maxHeight) = Device.makeTexture2DMaxSize(width: width, height: height)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: pixelFormat,
+            width: max(maxWidth, 1),
+            height: max(maxHeight, 1),
+            mipmapped: requestedMipmapped && sampleCount == 1
+        )
+        descriptor.usage = usage
+        descriptor.storageMode = storageMode
+        descriptor.cpuCacheMode = cpuCacheMode
+        descriptor.hazardTrackingMode = hazardTrackingMode
+        descriptor.sampleCount = sampleCount
+        descriptor.textureType = sampleCount > 1 ? .type2DMultisample : .type2D
+        if #available(iOS 12.0, macOS 10.14, tvOS 12.0, *) {
+            descriptor.allowGPUOptimizedContents = storageMode == .private ? requestedAllowGPUOptimized : false
+        }
+        return (descriptor, allowsSizeTolerance)
+    }
+
+    private static func defaultStorageMode(for usage: MTLTextureUsage) -> MTLStorageMode {
+        #if os(iOS) || os(tvOS) || targetEnvironment(simulator)
+        return .shared
+        #else
+        // 默认结果仍允许 CPU 检查；明确的 GPU-only 中间资源可通过 option 选择 private。
+        return usage.contains(.shaderWrite) ? .shared : .private
+        #endif
     }
 }
 
 extension TextureLoader {
-    
+
     public static func shaderReadTexture(with cgImage: CGImage) throws -> MTLTexture {
         try TextureLoader(with: cgImage, options: shaderReadTextureOptions).texture
     }
-    
+
     public static func copyTexture(with texture: MTLTexture, identifier: String = "Render") throws -> MTLTexture {
         let width = texture.width, height = texture.height
-        if let pooledTexture = Shared.shared.defaultTextureAllocator.dequeueTexture(
-            width: width,
-            height: height,
-            pixelFormat: texture.pixelFormat,
-            allowsSizeTolerance: true
-        ) {
-            Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
-            return pooledTexture
-        }
         // 纹理最好不要又作为输入纹理又作为输出纹理，否则会出现重复内容，
         // 所以需要新的纹理来承载输出。返回给调用方的纹理不能同时入池，
         // 否则后续 dequeue 可能覆盖仍在使用或 GPU in-flight 的纹理。
@@ -697,11 +686,16 @@ extension TextureLoader {
                 .texturePixelFormat: texture.pixelFormat,
                 .textureUsage: texture.usage,
                 .textureSampleCount: texture.sampleCount,
+                .textureStorageMode: texture.storageMode,
+                .textureCPUCacheMode: texture.cpuCacheMode,
+                .textureHazardTrackingMode: texture.hazardTrackingMode,
+                .textureMipmapped: texture.mipmapLevelCount > 1,
+                .textureAllowsSizeTolerance: true,
             ],
             identifier: identifier
         )
     }
-    
+
     private static func pixelFormat(from cvFormat: OSType) -> MTLPixelFormat {
         switch cvFormat {
         case kCVPixelFormatType_32BGRA:
@@ -801,7 +795,7 @@ extension TextureLoader {
         }
         return image
     }
-    
+
     /// Downgrade strategy: manually create textures and copy pixel data
     private static func drawCGImageToTexture(_ cgImage: CGImage) throws -> MTLTexture {
         let (width, height) = Device.makeTexture2DMaxSize(width: Int(cgImage.width), height: Int(cgImage.height))
@@ -879,26 +873,26 @@ extension TextureLoader {
 }
 
 extension TextureLoader.Option {
-    
+
     /// Indicates the pixelFormat, The format of the picture should be consistent with the data.
     /// The default is `MTLPixelFormat.rgba8Unorm`.
     public static let texturePixelFormat: TextureLoader.Option = .init(rawValue: 1 << 1)
-    
+
     /// Description of texture usage, default is `shaderRead` and `shaderWrite`.
     /// MTLTextureUsage declares how the texture will be used over its lifetime (bitwise OR for multiple uses).
     /// This information may be used by the driver to make optimization decisions.
     public static let textureUsage: TextureLoader.Option = .init(rawValue: 1 << 2)
-    
+
     /// Describes location and CPU mapping of MTLTexture.
     /// In this mode, CPU and device will nominally both use the same underlying memory when accessing the contents of the texture resource.
     /// However, coherency is only guaranteed at command buffer boundaries to minimize the required flushing of CPU and GPU caches.
     /// This is the default storage mode for iOS Textures.
     public static let textureStorageMode: TextureLoader.Option = .init(rawValue: 1 << 3)
-    
+
     /// The number of samples in the texture to create. The default value is 1.
     /// When creating Buffer textures sampleCount must be 1. Implementations may round sample counts up to the next supported value.
     public static let textureSampleCount: TextureLoader.Option = .init(rawValue: 1 << 4)
-    
+
     /// Allow GPU-optimization for the contents of this texture. The default value is true.
     public static let textureAllowGPUOptimizedContents: TextureLoader.Option = .init(rawValue: 1 << 5)
 
@@ -906,4 +900,13 @@ extension TextureLoader.Option {
     /// The default is false for render-runtime correctness because geometry and mask
     /// coordinates must match the requested logical extent exactly.
     public static let textureAllowsSizeTolerance: TextureLoader.Option = .init(rawValue: 1 << 6)
+
+    /// 是否创建 mipmap 层。默认 false，避免普通中间纹理无条件增加约三分之一的显存占用。
+    public static let textureMipmapped: TextureLoader.Option = .init(rawValue: 1 << 7)
+
+    /// 纹理 CPU cache 模式，默认 `defaultCache`。
+    public static let textureCPUCacheMode: TextureLoader.Option = .init(rawValue: 1 << 8)
+
+    /// 纹理 hazard tracking 模式，默认由 Metal 决定。
+    public static let textureHazardTrackingMode: TextureLoader.Option = .init(rawValue: 1 << 9)
 }

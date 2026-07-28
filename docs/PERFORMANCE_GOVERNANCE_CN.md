@@ -29,6 +29,7 @@ Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜
 - total wall time
 - peak transient texture bytes
 - allocator reuse hit/miss
+- heap count / reserved bytes / used bytes / fallback count
 - readback/copy count
 - diagnostics fingerprint
 
@@ -54,6 +55,7 @@ Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜
 
 ```bash
 xcrun swift test --filter PerformanceBaselineTests
+xcrun swift test --filter RealtimeRouteBenchmarkTests
 ```
 
 这组 baseline 的定位不是给出固定门槛，而是保证后续每次优化都在同一批真实链路上回看趋势：
@@ -63,6 +65,29 @@ xcrun swift test --filter PerformanceBaselineTests
 - geometry + sampler override
 - edit / layer composite / transition advanced routes
 - pixelBuffer / YCbCr bridge
+
+`RealtimeRouteBenchmarkTests` 额外记录五条实时交付路线的真实 cold first frame、avg、p95、p99、stable/dropped frames、fallback 与 resident-memory delta。首帧必须保留执行顺序，不能用排序后的最小值代替；输入缓冲应循环复用，不能让 benchmark 自身一次性常驻数百帧并污染内存结果。
+
+## Texture Pool 与真实 MTLHeap
+
+3.0 的 pool 命中必须满足完整 descriptor contract。尺寸容差只允许放宽 width/height，usage、storage、sample、mipmap、texture type、array/depth、CPU cache 和 hazard tracking 必须一致。
+
+默认 `.exact` 适合短任务和少量纹理。重复尺寸的实时帧或长链路可以对比 `.heapBacked`：
+
+```swift
+Shared.shared.defaultTextureAllocationStrategy = .heapBacked
+defer { Shared.shared.defaultTextureAllocationStrategy = .exact }
+```
+
+比较时至少同时记录：
+
+- `TextureAllocatorSnapshot.heapBackedAllocationCount`
+- `heapCount`、`heapReservedMemory`、`heapUsedMemory`
+- `heapAllocationFallbackCount`
+- `textureReuseHitRatio`
+- cold first frame 与 steady-state p95/p99
+
+Heap 的 reserved bytes 是预算成本，不能只看 used bytes；少量纹理场景中，直接分配可能更省。发生 memory pressure 时，Harbeth 会先释放池内闲置纹理，再回收已经没有资源的空 Heap，不会强制回收仍被 in-flight/output texture 使用的 Heap。
 
 仓库当前还补了两类执行证据：
 

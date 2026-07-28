@@ -12,14 +12,12 @@ extension MTLCommandBuffer {
     
     func commitAndWaitUntilCompleted(identifier: String) {
         if Shared.shared.enablePerformanceMonitor {
-            let startTime = CACurrentMediaTime()
+            Shared.shared.performanceMonitor?.beginGPUOperation(identifier)
             // Commit a command buffer so it can be executed as soon as possible.
             self.commit()
             // Wait to make sure that output texture contains new data.
             self.waitUntilCompleted()
-            let endTime = CACurrentMediaTime()
-            let gpuTimeNanoseconds = UInt64((endTime - startTime) * 1e9)
-            Shared.shared.performanceMonitor?.recordGPUTime(identifier, nanoseconds: gpuTimeNanoseconds)
+            Shared.shared.performanceMonitor?.completeGPUOperation(identifier, commandBuffer: self)
         } else {
             // Commit a command buffer so it can be executed as soon as possible.
             self.commit()
@@ -31,11 +29,9 @@ extension MTLCommandBuffer {
     /// Asynchronous submission of texture drawing with GPU time recording.
     func asyncCommit(identifier: String, complete: @escaping @Sendable (Result<Void, HarbethError>) -> Void) {
         if Shared.shared.enablePerformanceMonitor {
-            let startTime = CACurrentMediaTime()
+            Shared.shared.performanceMonitor?.beginGPUOperation(identifier)
             self.addCompletedHandler { (buffer) in
-                let endTime = CACurrentMediaTime()
-                let gpuTimeNanoseconds = UInt64((endTime - startTime) * 1e9)
-                Shared.shared.performanceMonitor?.recordGPUTime(identifier, nanoseconds: gpuTimeNanoseconds)
+                Shared.shared.performanceMonitor?.completeGPUOperation(identifier, commandBuffer: buffer)
                 switch buffer.status {
                 case .completed: complete(.success(()))
                 case .error where buffer.error != nil: complete(.failure(.error(buffer.error!)))
@@ -59,11 +55,9 @@ extension MTLCommandBuffer {
     func realTimeCommit(identifier: String, complete: @escaping @Sendable () -> Void) {
         // 性能监控不能改变输出交付时机。
         if Shared.shared.enablePerformanceMonitor {
-            let startTime = CACurrentMediaTime()
-            self.addCompletedHandler { _ in
-                let endTime = CACurrentMediaTime()
-                let gpuTimeNanoseconds = UInt64((endTime - startTime) * 1e9)
-                Shared.shared.performanceMonitor?.recordGPUTime(identifier, nanoseconds: gpuTimeNanoseconds)
+            Shared.shared.performanceMonitor?.beginGPUOperation(identifier)
+            self.addCompletedHandler { buffer in
+                Shared.shared.performanceMonitor?.completeGPUOperation(identifier, commandBuffer: buffer)
             }
         }
 

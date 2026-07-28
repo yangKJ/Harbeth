@@ -8,6 +8,10 @@
 import Foundation
 @preconcurrency import Metal
 
+#if os(iOS) || os(tvOS)
+import UIKit
+#endif
+
 public final class HarbethContext: @unchecked Sendable {
 
     public static var shared: HarbethContext {
@@ -23,7 +27,10 @@ public final class HarbethContext: @unchecked Sendable {
     private var samplerStates: [SamplerCacheKey: MTLSamplerState] = [:]
     private var imageResolutionCache: [String: MTLTexture] = [:]
     private var imageResolutionCacheOrder: [String] = []
+    private var imageResolutionCacheByteSizes: [String: Int] = [:]
+    private var imageResolutionCacheByteCount = 0
     private let imageResolutionCacheLimit: Int = 64
+    private let imageResolutionCacheByteLimit: Int
     private var imageResolutionCacheNamespace: String = "default"
     /// LRU cache for compiled RenderPlan.
     /// Key: `nodeFingerprint|profile.rawValue|derivative.name|samplerDescriptor.fingerprint`
@@ -33,8 +40,40 @@ public final class HarbethContext: @unchecked Sendable {
     private var renderPlanCacheOrder: [String] = []
     private let renderPlanCacheLimit: Int = 100
 
+    #if os(iOS) || os(tvOS)
+    private var memoryWarningObserver: NSObjectProtocol?
+    #elseif os(macOS)
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
+    #endif
+
     init(device: Device) {
         self.legacyDevice = device
+        let physicalMemory = Int(clamping: ProcessInfo.processInfo.physicalMemory)
+        self.imageResolutionCacheByteLimit = min(max(physicalMemory / 50, 32 * 1024 * 1024), 256 * 1024 * 1024)
+        #if os(iOS) || os(tvOS)
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.purgeMemorySensitiveCaches()
+        }
+        #elseif os(macOS)
+        let source = DispatchSource.makeMemoryPressureSource(eventMask: [.critical, .warning])
+        source.setEventHandler { [weak self] in self?.purgeMemorySensitiveCaches() }
+        source.resume()
+        memoryPressureSource = source
+        #endif
+    }
+
+    deinit {
+        #if os(iOS) || os(tvOS)
+        if let memoryWarningObserver {
+            NotificationCenter.default.removeObserver(memoryWarningObserver)
+        }
+        #elseif os(macOS)
+        memoryPressureSource?.cancel()
+        #endif
     }
 
     public var device: MTLDevice {
@@ -228,16 +267,33 @@ public final class HarbethContext: @unchecked Sendable {
     func storeResolvedTexture(_ texture: MTLTexture, for fingerprint: String) {
         imageResolutionLock.lock()
         let key = namespacedImageResolutionCacheKey(for: fingerprint)
-        if imageResolutionCache[key] == nil {
+        let textureByteSize = max(texture.allocatedSize, 1)
+        guard textureByteSize <= imageResolutionCacheByteLimit else {
+            if let oldByteSize = imageResolutionCacheByteSizes.removeValue(forKey: key) {
+                imageResolutionCacheByteCount = max(imageResolutionCacheByteCount - oldByteSize, 0)
+            }
+            imageResolutionCache.removeValue(forKey: key)
+            imageResolutionCacheOrder.removeAll { $0 == key }
+            imageResolutionLock.unlock()
+            return
+        }
+        if let oldByteSize = imageResolutionCacheByteSizes[key] {
+            imageResolutionCacheByteCount = max(imageResolutionCacheByteCount - oldByteSize, 0)
+            imageResolutionCacheOrder.removeAll { $0 == key }
             imageResolutionCacheOrder.append(key)
         } else {
-            imageResolutionCacheOrder.removeAll { $0 == key }
             imageResolutionCacheOrder.append(key)
         }
         imageResolutionCache[key] = texture
-        while imageResolutionCacheOrder.count > imageResolutionCacheLimit, let oldest = imageResolutionCacheOrder.first {
+        imageResolutionCacheByteSizes[key] = textureByteSize
+        imageResolutionCacheByteCount += textureByteSize
+        while (imageResolutionCacheOrder.count > imageResolutionCacheLimit || imageResolutionCacheByteCount > imageResolutionCacheByteLimit),
+              let oldest = imageResolutionCacheOrder.first {
             imageResolutionCacheOrder.removeFirst()
             imageResolutionCache.removeValue(forKey: oldest)
+            if let removedByteSize = imageResolutionCacheByteSizes.removeValue(forKey: oldest) {
+                imageResolutionCacheByteCount = max(imageResolutionCacheByteCount - removedByteSize, 0)
+            }
         }
         imageResolutionLock.unlock()
     }
@@ -329,6 +385,8 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionLock.lock()
         imageResolutionCache.removeAll()
         imageResolutionCacheOrder.removeAll()
+        imageResolutionCacheByteSizes.removeAll()
+        imageResolutionCacheByteCount = 0
         imageResolutionLock.unlock()
         removeAllRenderPlans()
         ImageNode.removeAllOutputContractCachedTextures()
@@ -343,6 +401,7 @@ public final class HarbethContext: @unchecked Sendable {
         samplerLock.unlock()
         imageResolutionLock.lock()
         let imageResolutionCount = imageResolutionCache.count
+        let imageResolutionBytes = imageResolutionCacheByteCount
         imageResolutionLock.unlock()
         renderPlanLock.lock()
         let renderPlanCount = renderPlanCache.count
@@ -353,6 +412,8 @@ public final class HarbethContext: @unchecked Sendable {
             renderPipelineCount: renderCount,
             samplerCount: samplerCount,
             imageResolutionCount: imageResolutionCount,
+            imageResolutionByteCount: imageResolutionBytes,
+            imageResolutionByteLimit: imageResolutionCacheByteLimit,
             renderPlanCount: renderPlanCount,
             hasTexturePool: true,
             hasCVMetalTextureCache: cvMetalTextureCache != nil
@@ -361,6 +422,16 @@ public final class HarbethContext: @unchecked Sendable {
 
     private func namespacedImageResolutionCacheKey(for fingerprint: String) -> String {
         "\(imageResolutionCacheNamespace)||\(fingerprint)"
+    }
+
+    private func purgeMemorySensitiveCaches() {
+        imageResolutionLock.lock()
+        imageResolutionCache.removeAll()
+        imageResolutionCacheOrder.removeAll()
+        imageResolutionCacheByteSizes.removeAll()
+        imageResolutionCacheByteCount = 0
+        imageResolutionLock.unlock()
+        ImageNode.removeAllOutputContractCachedTextures()
     }
 }
 
@@ -371,6 +442,8 @@ public extension HarbethContext {
         public let renderPipelineCount: Int
         public let samplerCount: Int
         public let imageResolutionCount: Int
+        public let imageResolutionByteCount: Int
+        public let imageResolutionByteLimit: Int
         public let renderPlanCount: Int
         public let hasTexturePool: Bool
         public let hasCVMetalTextureCache: Bool

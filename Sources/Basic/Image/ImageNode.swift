@@ -49,7 +49,7 @@ public struct ImageNode {
     static func kernel(input: ImageNode, descriptor: KernelDescriptor, filter: C7FilterProtocol) -> ImageNode {
         ImageNode(storage: .kernel(input: input, descriptor: descriptor, filter: filter))
     }
-    
+
     func applying(_ invocation: KernelInvocation) -> ImageNode {
         ImageNode(storage: .kernel(input: self, descriptor: invocation.descriptor, filter: invocation.executableFilter))
     }

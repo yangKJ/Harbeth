@@ -64,7 +64,7 @@ extension Device {
         case .customAdvancedEncoder:
             return "Implementation-defined"
         case .heapTexturePool:
-            return "iOS 13 / macOS 10.15 / Mac Catalyst 13"
+            return "iOS 13 / macOS 10.15 / tvOS 13 / Mac Catalyst 13"
         case .meshShaders:
             return "iOS 16 / macOS 13 / tvOS 16"
         case .metalFX:
@@ -153,13 +153,13 @@ extension Device {
                 reason: "Higher packages must provide their own availability and device checks."
             )
         case .heapTexturePool:
-            if #available(macOS 10.15, iOS 13.0, macCatalyst 13.0, *) {
+            if #available(macOS 10.15, iOS 13.0, tvOS 13.0, macCatalyst 13.0, *) {
                 let isSupported: Bool
                 #if targetEnvironment(macCatalyst)
                     isSupported = device.supportsFamily(.macCatalyst1)
                 #elseif os(macOS)
                     isSupported = device.supportsFamily(.mac1)
-                #elseif os(iOS)
+                #elseif os(iOS) || os(tvOS)
                     isSupported = device.supportsFamily(.apple5)
                 #else
                     isSupported = false

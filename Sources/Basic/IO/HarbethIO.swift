@@ -123,7 +123,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
         }
         return transfer.value
     }
-    
+
     /// Directly convert the current input and filter chain into `RenderedFrame`.
     public func makeFrame(
         profile: RenderProfile = .stablePreview,
@@ -138,7 +138,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
             metadata: metadata
         )
     }
-    
+
     /// 同步添加滤镜，失败时返回原输入。
     /// 正式接入应优先使用会抛错的 `output()`；该便捷入口用于保持视觉连续性。
     public func filtered() -> Dest {
@@ -156,7 +156,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
             return element
         }
     }
-    
+
     /// Synchronously renders the current source and filter chain.
     /// - Returns: The rendered result after GPU work required by this output has completed.
     public func output(outputColorSpace: ImageColorSpaceContract? = nil) throws -> Dest {
@@ -198,7 +198,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
             return element
         }
     }
-    
+
     /// Convenience callback form of `transmitOutput(outputColorSpace:complete:)`.
     public func transmitOutput(success: @escaping @Sendable (Dest) -> Void, failed: (@Sendable (HarbethError) -> Void)? = nil) {
         transmitOutput(outputColorSpace: nil) { result in
@@ -210,7 +210,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
             }
         }
     }
-    
+
     /// Submits the current source and filter chain without blocking the caller for GPU completion.
     ///
     /// Filtered work is encoded on Harbeth's render operation queue. The completion closure is not
@@ -357,7 +357,7 @@ private extension HarbethIO {
             return try processInterleavedFilters(input: texture, plan: plan)
         }
     }
-    
+
     private func processBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
         prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         let commandBuffer = try makeCommandBuffer(for: nil)
@@ -373,7 +373,7 @@ private extension HarbethIO {
         Shared.shared.returnCommandBuffer(commandBuffer)
         return outputTexture
     }
-    
+
     private func processInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
         prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
         var outputTexture = input
@@ -472,14 +472,14 @@ extension HarbethIO {
     private func groupStrategy(for plan: RenderPlan) -> GroupStrategy {
         return plan.graph.nodes.count > 1 ? .batched : .interleaved
     }
-    
+
     private func setupBufferPixelFormat(with sourceTexture: MTLTexture) -> MTLPixelFormat {
         if !setupedBufferPixelFormat {
             return sourceTexture.pixelFormat
         }
         return bufferPixelFormat
     }
-    
+
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         if !createDestTexture || !(filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true) {
             return sourceTexture
@@ -545,14 +545,14 @@ extension HarbethIO {
         }
         return lease
     }
-    
+
     /// Do you need to create a new metal texture command buffer.
     private func makeCommandBuffer(for buffer: MTLCommandBuffer? = nil) throws -> MTLCommandBuffer {
         if let commandBuffer = buffer { return commandBuffer }
         guard let commandBuffer = Shared.shared.getCommandBuffer() else { throw HarbethError.commandBuffer }
         return commandBuffer
     }
-    
+
     /// Create a new texture based on the filter content.
     private func textureIO(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> MTLTexture {
         if let pipelineFilter = filter as? C7FilterPipelineProtocol {
@@ -587,7 +587,7 @@ extension HarbethIO {
         let finalTexture = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
         return ManagedTextureResult(texture: finalTexture, lease: destLease)
     }
-    
+
     private func singleBuffer(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (MTLTexture, [MTLTexture]) {
         var currentTexture = input
         var producedTextures: [MTLTexture] = []
@@ -604,7 +604,7 @@ extension HarbethIO {
         let texturesToEnqueue = producedTextures.filter { $0 !== input && $0 !== finalTexture }
         return (finalTexture, texturesToEnqueue)
     }
-    
+
     private func shouldUseDoubleBuffer(input: MTLTexture, plan: RenderPlan, minimumFilterCount: Int) -> Bool {
         let filters = self.filters
         guard enableDoubleBuffer, filters.count >= minimumFilterCount else { return false }

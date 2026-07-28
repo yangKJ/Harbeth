@@ -108,6 +108,7 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertEqual(report.capability, .heapTexturePool)
         XCTAssertTrue(report.minimumPlatform.contains("iOS 13"))
         XCTAssertTrue(report.minimumPlatform.contains("macOS 10.15"))
+        XCTAssertTrue(report.minimumPlatform.contains("tvOS 13"))
         XCTAssertFalse(report.reason.isEmpty)
     }
 }

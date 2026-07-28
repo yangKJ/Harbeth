@@ -16,7 +16,7 @@ struct CubeView: View {
 
     @State private var outImage: C7Image?
     @State private var selectedCube: CubeType = .violet
-    
+
     var body: some View {
         VStack {
             Picker("CUBE File", selection: $selectedCube) {
@@ -26,7 +26,7 @@ struct CubeView: View {
             .pickerStyle(SegmentedPickerStyle())
             .accentColor(Color(hex: "#5E9EFF"))
             .padding()
-            
+
             if let image = outImage {
                 Image(c7Image: image)
                     .resizable()
@@ -34,13 +34,13 @@ struct CubeView: View {
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     .padding()
-                
+
                 Text(getFilterDescription())
                     .font(.body)
                     .textCase(.none)
                     .padding(.all, 20)
                     .foregroundColor(.white.opacity(0.94))
-                    
+
             } else {
                 Text("loading..").foregroundColor(.white.opacity(0.62))
             }
@@ -48,7 +48,7 @@ struct CubeView: View {
         .onAppear(perform: setupImage)
         .onChange(of: selectedCube) { _ in setupImage() }
     }
-    
+
     func getFilterDescription() -> String {
         switch selectedCube {
         case .violet:
@@ -57,7 +57,7 @@ struct CubeView: View {
             return "Metal Vista200 CUBE filtered image"
         }
     }
-    
+
     func setupImage() {
         let inputImage = R.image("IMG_0020")!
         let cubeName = selectedCube == .violet ? "violet" : "vista200 v1"

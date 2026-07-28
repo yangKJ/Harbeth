@@ -359,11 +359,11 @@ extension RenderView: @preconcurrency PreviewDisplaying {
 }
 
 extension RenderView: MTKViewDelegate {
-    
+
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         invalidateDisplay()
     }
-    
+
     public func draw(in view: MTKView) {
         guard isUsingSampleBufferPreviewHost == false else {
             return

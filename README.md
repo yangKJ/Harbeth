@@ -165,6 +165,8 @@ Use `HarbethView` only when a SwiftUI `Image` readback is the intended result; u
 
 Harbeth is capability-driven: support for a contract or platform does not imply that every device has the same Metal feature set. Query capability reports and use the documented fallback behavior for advanced features.
 
+Heap-backed allocation is opt-in and uses real `MTLHeap` resources in 3.0. It keeps the public workflow on `HarbethIO` / `ImageNode`, while the runtime owns descriptor compatibility, budgets, memory pressure, leases, and direct-allocation fallback. See the [3.0 Migration Guide](docs/MIGRATION_3_CN.md) before enabling it.
+
 ## Errors, Logs, and Bug Reports
 
 Harbeth throws `HarbethError` from its canonical processing APIs and is silent by default. Route structured events into your own logger when needed:

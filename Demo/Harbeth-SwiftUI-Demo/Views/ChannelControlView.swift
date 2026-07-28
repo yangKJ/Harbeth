@@ -16,7 +16,7 @@ struct ChannelControlView: View {
     @State private var alpha: Float = 1.0
     @State private var blend: Float = 0.5
     @State private var inputImage = R.image("Bear")!
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -33,7 +33,7 @@ struct ChannelControlView: View {
                         .cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                 }
-                
+
                 VStack(spacing: 15) {
                     VStack(alignment: .leading) {
                         HStack {
@@ -45,7 +45,7 @@ struct ChannelControlView: View {
                         }
                         Slider(value: $red, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                     }
-                    
+
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Green: \(String(format: "%.2f", green))")
@@ -56,7 +56,7 @@ struct ChannelControlView: View {
                         }
                         Slider(value: $green, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                     }
-                    
+
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Blue: \(String(format: "%.2f", blue))")
@@ -67,7 +67,7 @@ struct ChannelControlView: View {
                         }
                         Slider(value: $blue, in: -1.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                     }
-                    
+
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Alpha: \(String(format: "%.2f", alpha))")
@@ -78,7 +78,7 @@ struct ChannelControlView: View {
                         }
                         Slider(value: $alpha, in: 0.0...1.0).accentColor(Color(hex: "#5E9EFF"))
                     }
-                    
+
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Blend: \(String(format: "%.2f", blend))")

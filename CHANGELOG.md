@@ -6,6 +6,9 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 
 ### Added
 
+- Added real `MTLHeap` texture allocation with capability fallback, bounded heap arenas, descriptor-safe reuse, lease ownership, memory-pressure cleanup, and observable reserved/used/fallback statistics.
+- Added explicit mipmap, CPU-cache, hazard-tracking, and honored storage-mode options for runtime-created textures.
+- Added a Harbeth 3.0 migration guide and post-3.0 public API breakage gate.
 - Added `HarbethRenderView`, a SwiftUI texture-first host for `MTLTexture` and `RenderedFrame` that reuses Harbeth's `RenderView` preview substrate.
 - Added opt-in structured logging through `HarbethLogger`, including stable diagnostic codes, outcomes, origins, metadata and correlation identifiers, plus a privacy-safe `HarbethSupportSnapshot` for Issue reports.
 - Added an external-import public API smoke-test target and user-facing Issue templates.
@@ -17,6 +20,12 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 
 ### Fixed
 
+- Fixed texture-pool aliasing across incompatible usage, storage, sample-count, texture-type, mipmap, array/depth, CPU-cache, and hazard-tracking contracts.
+- Fixed ordinary runtime textures creating mipmap chains by default and consuming avoidable GPU memory.
+- Fixed persistent image-resolution cache eviction being count-only by adding a byte-budgeted LRU and system memory-pressure cleanup.
+- Fixed performance monitoring reporting command submission wall time as GPU time; metrics now use Metal's completed command-buffer GPU timestamps and track in-flight operations.
+- Fixed realtime benchmark first-frame and dropped-frame metrics, and removed hundreds of simultaneously resident benchmark input buffers.
+- Replaced deprecated Core Video attachment access with the retained copy API required by the 3.0 platform baseline.
 - Fixed real-time command-buffer delivery so enabling performance monitoring no longer changes the callback boundary; output is delivered only after Metal schedules the work.
 - Kept scheduled-only real-time delivery texture-first; image and pixel-buffer outputs now wait for GPU completion before CPU readback.
 - Moved `ImageNode.transmitFrame(...)` and `makeFrameAsync(...)` onto the render operation queue so their asynchronous contract no longer performs synchronous rendering on the caller.

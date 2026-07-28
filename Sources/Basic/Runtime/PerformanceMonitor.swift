@@ -19,7 +19,7 @@ public final class PerformanceMonitor {
         public var enablePerformanceCounters: Bool = true
         public var enableDetailedMemoryTracking: Bool = true
     }
-    
+
     public enum LogLevel: Int, Comparable {
         case error = 0
         case warning = 1
@@ -29,13 +29,13 @@ public final class PerformanceMonitor {
             lhs.rawValue < rhs.rawValue
         }
     }
-    
+
     private var metricsCache: [String: Metrics] = [:]
     private let cacheLock = NSLock()
     private let cleanupTimer: DispatchSourceTimer
     private var configuration = Configuration()
     private var pendingGPUOperations: [String: Int] = [:]
-    
+
     public init(enabled: Bool) {
         self.configuration = Configuration(enabled: enabled)
         cleanupTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
@@ -45,15 +45,15 @@ public final class PerformanceMonitor {
         }
         cleanupTimer.resume()
     }
-    
+
     deinit { cleanupTimer.cancel() }
-    
+
     public func configure(_ config: Configuration) {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         self.configuration = config
     }
-    
+
     func setupEnablePerformanceMonitor(_ enable: Bool) {
         cacheLock.lock()
         var config = self.configuration
@@ -61,7 +61,7 @@ public final class PerformanceMonitor {
         self.configuration = config
         cacheLock.unlock()
     }
-    
+
     @discardableResult
     func beginMonitoring(_ identifier: String) -> Metrics {
         guard configuration.enabled else { return Metrics() }
@@ -72,7 +72,7 @@ public final class PerformanceMonitor {
         cacheLock.unlock()
         return metrics
     }
-    
+
     @discardableResult
     func endMonitoring(_ identifier: String) -> Metrics? {
         guard configuration.enabled else { return nil }
@@ -84,7 +84,7 @@ public final class PerformanceMonitor {
         if pendingGPUOperations[identifier] == 0 { logMetrics(metrics, for: identifier, isFinal: true) }
         return metrics
     }
-    
+
     func recordTextureCreation(_ identifier: String, created: Bool = true) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -350,7 +350,7 @@ public final class PerformanceMonitor {
             "previewHostPool:active=\(snapshot.activeLeaseCount):pooled=\(snapshot.pooledLayerCount):reuse=\(snapshot.totalReuseCount)"
         )
     }
-    
+
     func recordFilterProcessing(_ identifier: String, filterName: String, duration: TimeInterval) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -358,7 +358,7 @@ public final class PerformanceMonitor {
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.filterProcessingTimes[filterName] = duration
     }
-    
+
     func recordMemoryAllocation(_ identifier: String, bytes: Int, source: String) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -367,7 +367,7 @@ public final class PerformanceMonitor {
         let alloc = Metrics.MemoryAllocation(timestamp: CACurrentMediaTime(), bytes: bytes, source: source)
         metricsCache[identifier]?.memoryAllocations.append(alloc)
     }
-    
+
     func recordError(_ identifier: String, error: Error) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -386,7 +386,7 @@ public final class PerformanceMonitor {
             )
         }
     }
-    
+
     func recordGPUTime(_ identifier: String, nanoseconds: UInt64) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -394,7 +394,39 @@ public final class PerformanceMonitor {
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.gpuTotalTimeNanoseconds += nanoseconds
     }
-    
+
+    func beginGPUOperation(_ identifier: String) {
+        guard configuration.enabled else { return }
+        cacheLock.lock()
+        initializeMetricsIfNeeded(identifier)
+        pendingGPUOperations[identifier, default: 0] += 1
+        cacheLock.unlock()
+    }
+
+    func completeGPUOperation(_ identifier: String, commandBuffer: MTLCommandBuffer) {
+        guard configuration.enabled else { return }
+        let startTime = commandBuffer.gpuStartTime
+        let endTime = commandBuffer.gpuEndTime
+        let gpuTimeNanoseconds: UInt64
+        if endTime > startTime, startTime > 0 {
+            gpuTimeNanoseconds = UInt64((endTime - startTime) * 1_000_000_000)
+        } else {
+            gpuTimeNanoseconds = 0
+        }
+
+        cacheLock.lock()
+        initializeMetricsIfNeeded(identifier)
+        metricsCache[identifier]?.gpuTotalTimeNanoseconds += gpuTimeNanoseconds
+        let pendingCount = max((pendingGPUOperations[identifier] ?? 1) - 1, 0)
+        pendingGPUOperations[identifier] = pendingCount
+        let metrics = metricsCache[identifier]
+        let shouldLog = pendingCount == 0 && (metrics?.endTime ?? 0) > 0
+        cacheLock.unlock()
+        if shouldLog, let metrics {
+            logMetrics(metrics, for: identifier, isFinal: true)
+        }
+    }
+
     public func recordPerformanceCounter(_ identifier: String, name: String, value: Double) {
         guard configuration.enabled else { return }
         cacheLock.lock()
@@ -402,13 +434,13 @@ public final class PerformanceMonitor {
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.performanceCounters[name] = value
     }
-    
+
     public func getMetrics(_ identifier: String) -> Metrics? {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         return metricsCache[identifier]
     }
-    
+
     func cleanupOldMetrics(maxAge: TimeInterval = 300) {
         guard configuration.enabled else { return }
         let now = CACurrentMediaTime()
@@ -428,7 +460,7 @@ public final class PerformanceMonitor {
             }
         }
     }
-    
+
     @discardableResult
     func measure<T>(_ identifier: String, _ operation: String, _ block: () throws -> T) rethrows -> T {
         guard configuration.enabled else { return try block() }
@@ -456,14 +488,14 @@ public final class PerformanceMonitor {
             throw error
         }
     }
-    
+
     public func clearAllMetrics() {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         metricsCache.removeAll()
         pendingGPUOperations.removeAll()
     }
-    
+
     public func getSummary() -> Summary {
         cacheLock.lock()
         defer { cacheLock.unlock() }
@@ -531,14 +563,14 @@ public final class PerformanceMonitor {
         }
         return summary
     }
-    
+
     private func initializeMetricsIfNeeded(_ identifier: String) {
         if metricsCache[identifier] == nil {
             metricsCache[identifier] = Metrics(startTime: CACurrentMediaTime())
             pendingGPUOperations[identifier] = 0
         }
     }
-    
+
     private func logMetrics(_ metrics: Metrics, for identifier: String, isFinal: Bool = false) {
         guard configuration.logLevel >= .info else { return }
         let totalTimeStr = String(format: "%.3f", metrics.totalProcessingTime * 1000)
@@ -664,7 +696,7 @@ extension PerformanceMonitor {
         public var totalMemoryAllocated: Int = 0
         public var peakMemoryAllocation: Int = 0
         public var totalErrors: Int = 0
-        
+
         public var textureCacheHitRate: Double {
             let total = totalTextureCreations + totalTextureReuses
             return total > 0 ? Double(totalTextureReuses) / Double(total) : 0
@@ -680,7 +712,7 @@ extension PerformanceMonitor {
             return total > 0 ? Double(totalImageResolutionCacheHits) / Double(total) : 0
         }
     }
-    
+
     public struct Metrics {
         public var startTime: TimeInterval = 0
         public var endTime: TimeInterval = 0
@@ -693,10 +725,10 @@ extension PerformanceMonitor {
             TimeInterval(gpuTotalTimeNanoseconds) / 1_000_000_000.0
         }
         public var cpuTime: TimeInterval {
-            totalProcessingTime - gpuTotalTime
+            max(totalProcessingTime - gpuTotalTime, 0)
         }
         public var gpuUtilization: Double {
-            totalProcessingTime > 0 ? gpuTotalTime / totalProcessingTime : 0
+            totalProcessingTime > 0 ? min(max(gpuTotalTime / totalProcessingTime, 0), 1) : 0
         }
         public var textureCreations: Int = 0
         public var textureReuses: Int = 0
@@ -766,11 +798,11 @@ extension PerformanceMonitor {
             public let bytes: Int
             public let source: String
         }
-        
+
         public init(startTime: TimeInterval = CACurrentMediaTime()) {
             self.startTime = startTime
         }
-        
+
         public mutating func reset() {
             startTime = CACurrentMediaTime()
             endTime = 0
@@ -825,36 +857,27 @@ extension PerformanceMonitor {
             errors.removeAll()
             resourceEvents.removeAll()
         }
-        
+
         public var slowestFilter: (name: String, time: TimeInterval)? {
             filterProcessingTimes.max(by: { $0.value < $1.value }).map { (name: $0.key, time: $0.value) }
         }
-        
+
         public var fastestFilter: (name: String, time: TimeInterval)? {
             filterProcessingTimes.min(by: { $0.value < $1.value }).map { (name: $0.key, time: $0.value) }
         }
-        
+
         public var averageFilterTime: TimeInterval {
             guard !filterProcessingTimes.isEmpty else { return 0 }
             let totalTime = filterProcessingTimes.values.reduce(0, +)
             return totalTime / Double(filterProcessingTimes.count)
         }
-        
+
         public var totalMemoryAllocated: Int {
             memoryAllocations.reduce(0) { $0 + $1.bytes }
         }
-        
+
         public var peakMemoryAllocation: Int {
-            guard !memoryAllocations.isEmpty else { return 0 }
-            var currentPeak = 0
-            var currentTotal = 0
-            for allocation in memoryAllocations {
-                currentTotal += allocation.bytes
-                if currentTotal > currentPeak {
-                    currentPeak = currentTotal
-                }
-            }
-            return currentPeak
+            memoryAllocations.map(\.bytes).max() ?? 0
         }
     }
 }

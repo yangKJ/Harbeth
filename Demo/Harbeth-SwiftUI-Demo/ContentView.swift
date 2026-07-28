@@ -565,7 +565,7 @@ private struct ShowcaseStoryPicker: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 248, height: 172)
                                 .clipped()
-                            
+
                             LinearGradient(
                                 colors: [
                                     .clear,

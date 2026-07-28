@@ -12,6 +12,7 @@ Harbeth 对普通调用方只有两条主路线：`HarbethIO` 用于直接处理
 | 理解源码目录、能力边界和两条路线的映射 | [能力地图](CAPABILITY_MAP_CN.md) |
 | 处理黑屏、异步、颜色、HDR、方向、实时性能或内存问题 | [故障排查](TROUBLESHOOTING.md) |
 | 做可复现性能测量与 profile 选择 | [性能治理指南](PERFORMANCE_GOVERNANCE_CN.md) |
+| 从 2.x 升级、启用真实 MTLHeap 或核对 3.0 breaking changes | [3.0 迁移指南](MIGRATION_3_CN.md) |
 
 ## API reference / API 参考
 

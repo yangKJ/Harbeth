@@ -122,6 +122,144 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue(texture === reused)
     }
 
+    func testTextureLoaderDoesNotCreateMipmapsUnlessExplicitlyRequested() throws {
+        let plain = try TextureLoader.makeTexture(width: 32, height: 16, identifier: "plain-texture")
+        let mipmapped = try TextureLoader.makeTexture(
+            width: 32,
+            height: 16,
+            options: [.textureMipmapped: true],
+            identifier: "mipmapped-texture"
+        )
+
+        XCTAssertEqual(plain.mipmapLevelCount, 1)
+        XCTAssertGreaterThan(mipmapped.mipmapLevelCount, 1)
+    }
+
+    func testTextureLoaderHonorsExplicitStorageAndUsageContract() throws {
+        let texture = try TextureLoader.makeTexture(
+            width: 16,
+            height: 16,
+            options: [
+                .textureStorageMode: MTLStorageMode.private,
+                .textureUsage: MTLTextureUsage.shaderRead,
+            ],
+            identifier: "explicit-storage-contract"
+        )
+
+        XCTAssertEqual(texture.storageMode, .private)
+        XCTAssertEqual(texture.usage, .shaderRead)
+    }
+
+    func testTexturePoolDescriptorContractRejectsIncompatibleUsage() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable.")
+        }
+        let pool = TexturePool()
+        let readDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: 16,
+            height: 16,
+            mipmapped: false
+        )
+        readDescriptor.usage = .shaderRead
+        readDescriptor.storageMode = .shared
+        guard let readTexture = device.makeTexture(descriptor: readDescriptor) else {
+            return XCTFail("Expected a shader-read texture.")
+        }
+        pool.enqueueTextureSync(readTexture)
+
+        let renderTargetDescriptor = readDescriptor.copy() as! MTLTextureDescriptor
+        renderTargetDescriptor.usage = [.shaderRead, .renderTarget]
+
+        XCTAssertNil(pool.dequeueTexture(matching: renderTargetDescriptor, allowsSizeTolerance: false))
+        XCTAssertTrue(pool.dequeueTexture(matching: readDescriptor, allowsSizeTolerance: false) === readTexture)
+    }
+
+    func testHeapBackedAllocatorCreatesAndReusesRealHeapTexture() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable.")
+        }
+        let capability = Device.metalCapabilityReport(.heapTexturePool, on: device)
+        try XCTSkipUnless(capability.isSupported, capability.reason)
+        let pool = TexturePool(maxMemoryUsage: 32 * 1024 * 1024)
+        let allocator = HeapBackedTextureAllocator(texturePool: pool)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: 64,
+            height: 64,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        descriptor.storageMode = .private
+
+        guard let texture = allocator.makeTexture(descriptor: descriptor, device: device) else {
+            return XCTFail("Expected a heap-backed texture.")
+        }
+        XCTAssertNotNil(texture.heap)
+        allocator.enqueueTextureSync(texture)
+        let reused = allocator.dequeueTexture(matching: descriptor, allowsSizeTolerance: false)
+        let snapshot = allocator.makeSnapshot()
+
+        XCTAssertTrue(reused === texture)
+        XCTAssertEqual(snapshot.heapBackedAllocationCount, 1)
+        XCTAssertGreaterThanOrEqual(snapshot.heapCount, 1)
+        XCTAssertGreaterThan(snapshot.heapReservedMemory, 0)
+        XCTAssertGreaterThan(snapshot.heapUsedMemory, 0)
+        XCTAssertEqual(snapshot.heapAllocationFallbackCount, 0)
+    }
+
+    func testHeapBackedAllocatorFallsBackWhenBudgetCannotFitHeap() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable.")
+        }
+        let pool = TexturePool(maxMemoryUsage: 1024)
+        let allocator = HeapBackedTextureAllocator(texturePool: pool)
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: 128,
+            height: 128,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        descriptor.storageMode = .private
+
+        guard let texture = allocator.makeTexture(descriptor: descriptor, device: device) else {
+            return XCTFail("Expected direct allocation fallback.")
+        }
+
+        XCTAssertNil(texture.heap)
+        XCTAssertEqual(allocator.makeSnapshot().heapBackedAllocationCount, 0)
+        XCTAssertGreaterThan(allocator.makeSnapshot().heapAllocationFallbackCount, 0)
+    }
+
+    func testTextureLoaderUsesRealHeapThroughPublicSharedStrategy() throws {
+        Shared.shared.deinitDevice()
+        Shared.shared.defaultTextureAllocationStrategy = .heapBacked
+        defer {
+            Shared.shared.defaultTextureAllocationStrategy = .exact
+            Shared.shared.deinitDevice()
+        }
+        let capability = Device.metalCapabilityReport(.heapTexturePool, on: Shared.shared.metalDevice)
+        try XCTSkipUnless(capability.isSupported, capability.reason)
+
+        let texture = try TextureLoader.makeTexture(
+            width: 32,
+            height: 32,
+            options: [.textureStorageMode: MTLStorageMode.private],
+            identifier: "shared-real-heap"
+        )
+        let diagnostics = try HarbethIO(
+            element: texture,
+            filters: [C7Brightness(brightness: 0.01)]
+        ).renderDiagnostics()
+
+        XCTAssertNotNil(texture.heap)
+        XCTAssertEqual(Shared.shared.defaultTextureAllocationStrategy, .heapBacked)
+        XCTAssertEqual(diagnostics.optimizationPlan.allocationStrategy, .heapBacked)
+        XCTAssertGreaterThanOrEqual(diagnostics.optimizationPlan.heapCount, 1)
+        XCTAssertGreaterThan(diagnostics.optimizationPlan.heapReservedMemory, 0)
+    }
+
     func testSharedCreatesFreshCommandBufferAfterCompatibilityReturn() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
@@ -222,6 +360,25 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertEqual(exactAllocatorAgain.strategy, .exact)
         XCTAssertTrue((exactAllocatorAgain as? TexturePoolAllocator)?.texturePool === pool)
         XCTAssertFalse((tolerantAllocator as AnyObject) === (exactAllocatorAgain as AnyObject))
+    }
+
+    func testTolerantStrategyAppliesToDescriptorBasedTextureLoader() throws {
+        Shared.shared.deinitDevice()
+        Shared.shared.defaultTextureAllocationStrategy = .exact
+        defer {
+            Shared.shared.defaultTextureAllocationStrategy = .exact
+            Shared.shared.deinitDevice()
+        }
+
+        let pooled = try TextureLoader.makeTexture(width: 12, height: 12, identifier: "descriptor-tolerance-source")
+        Shared.shared.defaultTexturePool.enqueueTextureSync(pooled)
+        Shared.shared.defaultTextureAllocationStrategy = .tolerant
+
+        let reused = try TextureLoader.makeTexture(width: 10, height: 10, identifier: "descriptor-tolerance-request")
+
+        XCTAssertTrue(reused === pooled)
+        XCTAssertEqual(reused.width, 12)
+        XCTAssertEqual(reused.height, 12)
     }
 
     func testSharedHeapBackedDefaultTextureAllocationStrategyResolvesAgainstCurrentDeviceCapability() {
@@ -533,6 +690,9 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertNil(context.cachedResolvedTexture(for: "fingerprint-0"))
         XCTAssertNil(context.cachedResolvedTexture(for: "fingerprint-5"))
         XCTAssertNotNil(context.cachedResolvedTexture(for: "fingerprint-69"))
+        let snapshot = context.debugCacheSnapshot()
+        XCTAssertGreaterThan(snapshot.imageResolutionByteCount, 0)
+        XCTAssertLessThanOrEqual(snapshot.imageResolutionByteCount, snapshot.imageResolutionByteLimit)
     }
 
     func testImageResolutionCacheNamespaceIsolated() throws {

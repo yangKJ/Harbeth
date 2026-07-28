@@ -105,22 +105,22 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             )
         }
     }
-    
+
     /// Width of the pixel buffer
     public var width: Int {
         CVPixelBufferGetWidth(base)
     }
-    
+
     /// Height of the pixel buffer
     public var height: Int {
         CVPixelBufferGetHeight(base)
     }
-    
+
     /// Calculated size based on the buffer extent
     private var size: C7Size {
         C7Size(pixelBuffer: base)
     }
-    
+
     /// Converts pixel buffer to Metal texture
     /// - Parameters:
     ///   - textureCache: The texture cache object that will manage the texture.
@@ -339,7 +339,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return nil
         }
     }
-    
+
     /// Creates CGImage from pixel buffer
     /// - Returns: CGImage or nil
     public func toCGImage() -> CGImage? {
@@ -347,7 +347,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         VTCreateCGImageFromCVPixelBuffer(base, options: nil, imageOut: &cgImage)
         return cgImage
     }
-    
+
     /// Copies texture data to pixel buffer
     /// - Parameter texture: Source Metal texture
     @discardableResult
@@ -429,7 +429,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
         return nil
     }
-    
+
     public func makeCompatibleOutputPixelBuffer(for texture: MTLTexture, minimumBufferCount: Int = 1) throws -> CVPixelBuffer {
         if let compatibilityError = textureCopyCompatibilityError(for: texture) {
             switch compatibilityError {
@@ -472,7 +472,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return pixelBuffer
         }
     }
-    
+
     public func copyOutputTextureToCompatiblePixelBuffer(with texture: MTLTexture) throws -> CVPixelBuffer {
         if let compatibilityError = textureCopyCompatibilityError(for: texture) {
             switch compatibilityError {
@@ -487,7 +487,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
         return base
     }
-    
+
     /// Creates new pixel buffer from texture
     /// - Parameter texture: Source Metal texture
     /// - Returns: New pixel buffer
@@ -511,7 +511,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
         return outPixelbuffer ?? base
     }
-    
+
     /// Creates CMSampleBuffer from pixel buffer
     /// - Returns: CMSampleBuffer or nil
     public func toCMSampleBuffer(reference sampleBuffer: CMSampleBuffer? = nil) -> CMSampleBuffer? {
@@ -542,7 +542,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         )
         return newSampleBuffer
     }
-    
+
     /// Converts to Metal texture based on environment
     /// - Parameter textureCache: Texture cache (real device only)
     /// - Returns: Metal texture or nil
@@ -573,7 +573,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return nil
         }
     }
-    
+
     /// Creates new Metal texture from pixel buffer
     /// - Parameters:
     ///   - pixelFormat: Metal pixel format
@@ -593,7 +593,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
         return texture
     }
-    
+
     /// Locks pixel buffer memory for access
     /// - Parameter lockFlags: Lock flags
     /// - Returns: Lock status
@@ -601,7 +601,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     public func lockBaseAddress(_ lockFlags: CVPixelBufferLockFlags = .readOnly) -> CVReturn {
         return CVPixelBufferLockBaseAddress(base, lockFlags)
     }
-    
+
     /// Unlocks pixel buffer memory
     /// - Parameter lockFlags: Lock flags
     /// - Returns: Unlock status
@@ -691,7 +691,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return nil
         }
     }
-    
+
     private func copyDataTo(texture: MTLTexture, planeIndex: Int = 0) -> Bool {
         let width = texture.width
         let height = texture.height

@@ -115,6 +115,10 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
     public let textureRequestCount: Int
     public let textureReuseHitCount: Int
     public let heapBackedAllocationCount: Int
+    public let heapCount: Int
+    public let heapReservedMemory: Int
+    public let heapUsedMemory: Int
+    public let heapAllocationFallbackCount: Int
     public let prewarmReservations: [RenderTextureReservation]
     public let lifecycleDecisions: [RenderTextureLifecycleDecision]
     public let decisions: [String]
@@ -138,6 +142,10 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
                 textureRequestCount: Int,
                 textureReuseHitCount: Int,
                 heapBackedAllocationCount: Int,
+                heapCount: Int = 0,
+                heapReservedMemory: Int = 0,
+                heapUsedMemory: Int = 0,
+                heapAllocationFallbackCount: Int = 0,
                 prewarmReservations: [RenderTextureReservation],
                 lifecycleDecisions: [RenderTextureLifecycleDecision],
                 decisions: [String],
@@ -160,6 +168,10 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
         self.textureRequestCount = textureRequestCount
         self.textureReuseHitCount = textureReuseHitCount
         self.heapBackedAllocationCount = heapBackedAllocationCount
+        self.heapCount = heapCount
+        self.heapReservedMemory = heapReservedMemory
+        self.heapUsedMemory = heapUsedMemory
+        self.heapAllocationFallbackCount = heapAllocationFallbackCount
         self.prewarmReservations = prewarmReservations
         self.lifecycleDecisions = lifecycleDecisions
         self.decisions = decisions
@@ -174,6 +186,10 @@ public struct RenderOptimizationPlan: Sendable, Codable, Equatable, Hashable {
             textureRequestCount: textureRequestCount,
             textureReuseHitCount: textureReuseHitCount,
             heapBackedAllocationCount: heapBackedAllocationCount,
+            heapCount: heapCount,
+            heapReservedMemory: heapReservedMemory,
+            heapUsedMemory: heapUsedMemory,
+            heapAllocationFallbackCount: heapAllocationFallbackCount,
             allocatorDecisions: allocatorDecisions
         ).textureReuseHitRatio
     }
@@ -391,6 +407,10 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "textureReuseHits=\(optimizationPlan.textureReuseHitCount)",
             "textureReuseRatio=\(String(format: "%.3f", optimizationPlan.textureReuseHitRatio))",
             "heapBacked=\(optimizationPlan.heapBackedAllocationCount)",
+            "heaps=\(optimizationPlan.heapCount)",
+            "heapReserved=\(optimizationPlan.heapReservedMemory)",
+            "heapUsed=\(optimizationPlan.heapUsedMemory)",
+            "heapFallbacks=\(optimizationPlan.heapAllocationFallbackCount)",
             "inputColorConversions=\(inputColorConversionCount)",
             "inputPixelFormatConversions=\(inputPixelFormatConversionCount)",
             "inputAlphaConversions=\(inputAlphaConversionCount)", "inputDirectPlanes=\(inputDirectPlaneBridgeCount)",
@@ -1016,6 +1036,10 @@ enum GraphOptimizer {
             textureRequestCount: allocatorSnapshot.textureRequestCount,
             textureReuseHitCount: allocatorSnapshot.textureReuseHitCount,
             heapBackedAllocationCount: allocatorSnapshot.heapBackedAllocationCount,
+            heapCount: allocatorSnapshot.heapCount,
+            heapReservedMemory: allocatorSnapshot.heapReservedMemory,
+            heapUsedMemory: allocatorSnapshot.heapUsedMemory,
+            heapAllocationFallbackCount: allocatorSnapshot.heapAllocationFallbackCount,
             prewarmReservations: prewarmReservations,
             lifecycleDecisions: lifecycleDecisions,
             decisions: decisions,

@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   swiftpm:
-    name: Swift 6 Build, Tests and Public API Smoke
+    name: Swift 6 Debug and Release Tests
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -27,6 +27,37 @@ jobs:
           else
             echo '::warning::No Metal device is available on this runner; compiling and enumerating the complete test inventory instead.'
             xcrun swift test list > /dev/null
+          fi
+      - name: Release build and tests
+        shell: bash
+        run: |
+          xcrun swift build -c release
+          if xcrun swift -e 'import Metal; import Darwin; exit(MTLCreateSystemDefaultDevice() == nil ? 1 : 0)'; then
+            xcrun swift test -c release
+          else
+            xcrun swift test -c release list > /dev/null
+          fi
+      - name: Latest commit whitespace gate
+        run: git show --check --format= HEAD
+
+  public-api:
+    name: Public API Compatibility
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout with tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compile external public API smoke tests
+        run: xcrun swift test list > /dev/null
+      - name: Compare against 3.0 baseline when available
+        shell: bash
+        run: |
+          if git rev-parse --verify refs/tags/3.0.0 > /dev/null 2>&1; then
+            xcrun swift package diagnose-api-breaking-changes 3.0.0 --products Harbeth
+          else
+            echo '3.0.0 tag is not published yet; smoke compilation is the pre-release API gate.'
           fi
 
   framework-builds:
@@ -51,7 +82,7 @@ jobs:
           xcodebuild build
           -workspace Harbeth.xcworkspace
           -scheme Harbeth
-          -configuration Debug
+          -configuration Release
           -destination '${{ matrix.destination }}'
           CODE_SIGNING_ALLOWED=NO
 

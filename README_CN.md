@@ -163,6 +163,8 @@ HarbethRenderView(
 
 Harbeth 采用 capability-driven 语义：支持某个 contract 或平台，不代表所有设备都具备相同 Metal 特性。高级能力应结合 capability report 与对应 fallback 行为使用。
 
+3.0 的 heap allocator 是 opt-in 的真实 `MTLHeap` 资源策略。公开使用方式仍然只有 `HarbethIO` / `ImageNode`，descriptor 兼容、预算、内存压力、lease 与直接分配 fallback 都由内部 runtime 承担。启用前请阅读 [3.0 迁移指南](docs/MIGRATION_3_CN.md)。
+
 ## 错误、日志与 Issue
 
 标准处理 API 通过 `HarbethError` 抛出失败，Harbeth 默认静默。需要时可把结构化事件接入宿主日志系统：

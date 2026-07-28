@@ -85,6 +85,7 @@ final class RealtimeRouteBenchmarkTests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(route.fallbackCount, 0)
                 XCTAssertGreaterThanOrEqual(route.memoryDeltaBytes, 0)
                 XCTAssertGreaterThanOrEqual(route.stableFrames, 0)
+                XCTAssertEqual(route.stableFrames + route.droppedFrames, route.frameCount)
             }
             for report in reports {
                 let avg = String(format: "%.3f", report.averageFrameTimeMs)
@@ -122,7 +123,7 @@ private struct RealtimeRouteBenchmarker {
     var benchmarkWarmupCount: Int { warmupCount }
 
     func runAll() throws -> [RouteBenchmarkReport] {
-        let samples = try makeSampleBufferInputs(format: kCVPixelFormatType_32BGRA, count: frameCount + warmupCount)
+        let samples = try makeSampleBufferInputs(format: kCVPixelFormatType_32BGRA, count: 1)
         let pixelBuffers = samples.map { $0.pixelBuffer }
 
         guard let textureRoute = try? textureInput(width: inputWidth, height: inputHeight),
@@ -142,37 +143,51 @@ private struct RealtimeRouteBenchmarker {
     func run(iterations: Int? = nil, action: () throws -> Void) -> RouteTimings {
         let iterationCount = iterations ?? frameCount
         var durations: [Double] = []
-        durations.reserveCapacity(iterationCount + warmupCount)
+        durations.reserveCapacity(iterationCount)
 
         var stableFrames = 0
         let warmupLimit = max(warmupCount, 0)
+        var firstFrameDuration = 0.0
 
         autoreleasepool {
+            if iterationCount > 0 {
+                let start = CFAbsoluteTimeGetCurrent()
+                do {
+                    try action()
+                    firstFrameDuration = (CFAbsoluteTimeGetCurrent() - start) * 1000
+                    durations.append(firstFrameDuration)
+                    stableFrames += 1
+                } catch {
+                    firstFrameDuration = 0
+                }
+            }
+
             for _ in 0..<warmupLimit {
                 _ = try? action()
             }
 
-            for _ in 0..<iterationCount {
-                let start = CFAbsoluteTimeGetCurrent()
-                do {
-                    try action()
-                    let elapsed = (CFAbsoluteTimeGetCurrent() - start) * 1000
-                    durations.append(elapsed)
-                    stableFrames += 1
-                } catch {
-                    stableFrames += 0
+            if iterationCount > 1 {
+                for _ in 1..<iterationCount {
+                    let start = CFAbsoluteTimeGetCurrent()
+                    do {
+                        try action()
+                        let elapsed = (CFAbsoluteTimeGetCurrent() - start) * 1000
+                        durations.append(elapsed)
+                        stableFrames += 1
+                    } catch {
+                        stableFrames += 0
+                    }
                 }
             }
         }
 
         let sorted = durations.sorted()
-        let first = sorted.first ?? 0
         let durationTotal = sorted.reduce(0, +)
         let avg = sorted.isEmpty ? 0 : durationTotal / Double(sorted.count)
         let p95 = percentile(sorted, value: 0.95)
         let p99 = percentile(sorted, value: 0.99)
 
-        return RouteTimings(average: avg, p95: p95, p99: p99, first: first, stableFrames: stableFrames)
+        return RouteTimings(average: avg, p95: p95, p99: p99, first: firstFrameDuration, stableFrames: stableFrames)
     }
 
     private func percentile(_ values: [Double], value: Double) -> Double {
@@ -203,7 +218,7 @@ private struct RealtimeRouteBenchmarker {
             p99FrameTimeMs: timings.p99,
             firstFrameTimeMs: timings.first,
             stableFrames: timings.stableFrames,
-            droppedFrames: 0,
+            droppedFrames: max(frameCount - timings.stableFrames, 0),
             fallbackCount: max(0, PixelBufferPool.realtimeAllocationFallbackCount - baselineFallback),
             memoryDeltaBytes: Int64(currentResidentMemoryDifference(from: startMemory)),
             frameCount: frameCount
@@ -232,7 +247,7 @@ private struct RealtimeRouteBenchmarker {
             p99FrameTimeMs: timings.p99,
             firstFrameTimeMs: timings.first,
             stableFrames: timings.stableFrames,
-            droppedFrames: 0,
+            droppedFrames: max(frameCount - timings.stableFrames, 0),
             fallbackCount: max(0, PixelBufferPool.realtimeAllocationFallbackCount - baselineFallback),
             memoryDeltaBytes: Int64(currentResidentMemoryDifference(from: startMemory)),
             frameCount: frameCount
@@ -258,7 +273,7 @@ private struct RealtimeRouteBenchmarker {
             p99FrameTimeMs: timings.p99,
             firstFrameTimeMs: timings.first,
             stableFrames: timings.stableFrames,
-            droppedFrames: 0,
+            droppedFrames: max(frameCount - timings.stableFrames, 0),
             fallbackCount: 0,
             memoryDeltaBytes: Int64(currentResidentMemoryDifference(from: startMemory)),
             frameCount: frameCount
@@ -297,7 +312,7 @@ private struct RealtimeRouteBenchmarker {
             p99FrameTimeMs: timings.p99,
             firstFrameTimeMs: timings.first,
             stableFrames: timings.stableFrames,
-            droppedFrames: 0,
+            droppedFrames: max(frameCount - timings.stableFrames, 0),
             fallbackCount: 0,
             memoryDeltaBytes: Int64(currentResidentMemoryDifference(from: startMemory)),
             frameCount: frameCount
@@ -318,7 +333,7 @@ private struct RealtimeRouteBenchmarker {
             p99FrameTimeMs: timings.p99,
             firstFrameTimeMs: timings.first,
             stableFrames: timings.stableFrames,
-            droppedFrames: 0,
+            droppedFrames: max(frameCount - timings.stableFrames, 0),
             fallbackCount: 0,
             memoryDeltaBytes: Int64(currentResidentMemoryDifference(from: startMemory)),
             frameCount: frameCount
