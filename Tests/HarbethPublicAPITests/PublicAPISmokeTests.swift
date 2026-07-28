@@ -24,6 +24,20 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = build
     }
 
+    func testDerivedResourceGovernanceSurfaceCompiles() {
+        let configuration = DerivedResourceCacheConfiguration(byteLimit: 64 * 1024 * 1024, countLimit: 128)
+        let configure: (HarbethContext) -> Void = { context in
+            context.configureDerivedResourceCache(configuration)
+            context.setDerivedResourceNamespace("document-session")
+            context.invalidateDerivedResources(domain: .outputContract, namespace: "document-session")
+        }
+        let identity: (HarbethContext) -> DerivedResourceIdentity = { context in
+            context.makeDerivedResourceIdentity(domain: .lookupTable, fingerprint: "lut-resource")
+        }
+        _ = configure
+        _ = identity
+    }
+
     @MainActor
     func testPreviewHostSurfacesCompile() {
         let renderView = RenderView(frame: .zero, device: nil)

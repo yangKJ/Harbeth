@@ -172,8 +172,14 @@ extension C7ColorCube.Resource {
     
     static func createLUTTexture(from resource: C7ColorCube.Resource) -> MTLTexture? {
         guard resource.hasValidStorage else { return nil }
-        if let cached = textureCache.object(forKey: resource.identity as NSString) {
-            return cached.texture
+        let context = Shared.shared.defaultContext
+        let cacheIdentity = context.makeDerivedResourceIdentity(
+            domain: .lookupTable,
+            namespace: "harbeth.lookup-table",
+            fingerprint: resource.identity
+        )
+        if let cached = context.cachedDerivedTexture(for: cacheIdentity) {
+            return cached
         }
         let textureDescriptor = MTLTextureDescriptor()
         textureDescriptor.textureType = .type3D
@@ -202,7 +208,7 @@ extension C7ColorCube.Resource {
                 bytesPerImage: bytesPerImage
             )
         }
-        textureCache.setObject(CachedCubeTexture(texture), forKey: resource.identity as NSString)
+        context.storeDerivedTexture(texture, for: cacheIdentity)
         return texture
     }
     
@@ -270,8 +276,6 @@ extension C7ColorCube.Resource {
 }
 
 private extension C7ColorCube.Resource {
-    nonisolated(unsafe) static let textureCache = NSCache<NSString, CachedCubeTexture>()
-
     var hasValidStorage: Bool {
         dimension >= 2 && dimension <= 65
             && data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.size
@@ -297,9 +301,4 @@ private extension C7ColorCube.Resource {
         }
         return "cube|\(dimension)|\(domainMinimum)|\(domainMaximum)|\(String(hash, radix: 16))"
     }
-}
-
-private final class CachedCubeTexture {
-    let texture: MTLTexture
-    init(_ texture: MTLTexture) { self.texture = texture }
 }

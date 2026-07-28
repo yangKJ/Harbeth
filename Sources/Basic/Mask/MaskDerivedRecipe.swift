@@ -90,27 +90,44 @@ public struct MaskDerivedResult {
 }
 
 public final class MaskExecutionCache: @unchecked Sendable {
-    public static let shared = MaskExecutionCache()
+    public static let shared = MaskExecutionCache(usesContextStore: true)
 
     private final class EntryBox {
         let result: MaskDerivedResult
         init(_ result: MaskDerivedResult) { self.result = result }
     }
 
-    private let cache = NSCache<NSString, EntryBox>()
+    private let usesContextStore: Bool
+    private let localStore: DerivedResourceStore?
 
-    public init(countLimit: Int = 48) {
-        cache.countLimit = max(countLimit, 1)
+    private init(usesContextStore: Bool) {
+        self.usesContextStore = usesContextStore
+        self.localStore = nil
     }
 
-    public func removeAll() { cache.removeAllObjects() }
-
-    fileprivate func result(for key: String) -> MaskDerivedResult? {
-        cache.object(forKey: key as NSString)?.result
+    public init(countLimit: Int = 48, byteLimit: Int = 64 * 1024 * 1024) {
+        self.usesContextStore = false
+        self.localStore = DerivedResourceStore(
+            configuration: DerivedResourceCacheConfiguration(byteLimit: byteLimit, countLimit: countLimit)
+        )
     }
 
-    fileprivate func insert(_ result: MaskDerivedResult, for key: String) {
-        cache.setObject(EntryBox(result), forKey: key as NSString)
+    public func removeAll() {
+        store.invalidate(domain: .mask)
+    }
+
+    fileprivate func lookup(for key: String) -> (result: MaskDerivedResult?, identity: DerivedResourceIdentity) {
+        let identity = store.makeIdentity(domain: .mask, fingerprint: key)
+        let result = (store.value(for: identity) as? EntryBox)?.result
+        return (result, identity)
+    }
+
+    fileprivate func insert(_ result: MaskDerivedResult, for identity: DerivedResourceIdentity) {
+        store.insert(EntryBox(result), byteCost: max(result.texture.allocatedSize, 1), for: identity)
+    }
+
+    private var store: DerivedResourceStore {
+        usesContextStore ? Shared.shared.defaultContext.derivedResourceStore : localStore!
     }
 }
 
@@ -172,10 +189,10 @@ public struct MaskDerivedRecipe {
         )
     }
 
-    public func execute(cancellation: TextureMultiPassCancellationToken? = nil,
-                        cache: MaskExecutionCache? = .shared) throws -> MaskDerivedResult {
+    public func execute(cancellation: TextureMultiPassCancellationToken? = nil, cache: MaskExecutionCache? = .shared) throws -> MaskDerivedResult {
         let executionCacheKey = executionCacheKey
-        if let cached = cache?.result(for: executionCacheKey) {
+        let cacheLookup = cache?.lookup(for: executionCacheKey)
+        if let cached = cacheLookup?.result {
             return MaskDerivedResult(texture: cached.texture, analysis: cached.analysis, plan: cached.plan, cacheHit: true)
         }
         try checkCancellation(cancellation)
@@ -189,7 +206,9 @@ public struct MaskDerivedRecipe {
         current = try convert(current, to: storageFormat.pixelFormat)
         let analysis = try MaskGPUAnalysisBackend.analyze(texture: current, threshold: 0.001)
         let result = MaskDerivedResult(texture: current, analysis: analysis, plan: plan, cacheHit: false)
-        cache?.insert(result, for: executionCacheKey)
+        if let cacheLookup {
+            cache?.insert(result, for: cacheLookup.identity)
+        }
         return result
     }
 

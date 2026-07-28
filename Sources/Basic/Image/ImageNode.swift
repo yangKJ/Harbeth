@@ -18,6 +18,16 @@ protocol ImagePromise {
     func makeDiagnostics(profile: RenderProfile, derivative: ImageDerivativeSpec?) throws -> RenderPlanDiagnostics
 }
 
+private final class OutputContractCacheEntry {
+    weak var sourceTexture: AnyObject?
+    let outputTexture: MTLTexture
+
+    init(sourceTexture: MTLTexture, outputTexture: MTLTexture) {
+        self.sourceTexture = sourceTexture as AnyObject
+        self.outputTexture = outputTexture
+    }
+}
+
 indirect enum ImageNodeStorage {
     case source(ImageSource)
     case filters(input: ImageNode, filters: [C7FilterProtocol])
@@ -28,11 +38,6 @@ indirect enum ImageNodeStorage {
     case layerComposite(LayerCompositeRecipe)
     case cachePolicy(input: ImageNode, policy: ImageCachePolicy)
     case samplerDescriptor(input: ImageNode, descriptor: ImageSamplerDescriptor)
-}
-
-private final class BoxedTexture {
-    let texture: MTLTexture
-    init(texture: MTLTexture) { self.texture = texture }
 }
 
 public struct ImageNode {
@@ -1669,16 +1674,6 @@ extension ImageNode: ImagePromise {
 }
 
 extension ImageNode {
-    nonisolated(unsafe) private static let outputContractResultCache: NSCache<NSString, BoxedTexture> = {
-        let cache = NSCache<NSString, BoxedTexture>()
-        cache.countLimit = 32
-        return cache
-    }()
-
-    static func removeAllOutputContractCachedTextures() {
-        outputContractResultCache.removeAllObjects()
-    }
-
     static func applyOutputContractIfNeeded(
         _ contract: RenderOutputContract,
         to texture: MTLTexture,
@@ -1694,8 +1689,14 @@ extension ImageNode {
             sourceAlphaType: sourceAlphaType,
             profile: profile
         )
-        if cacheKey.isEffective, let cached = outputContractResultCache.object(forKey: cacheKey.key as NSString) {
-            return cached.texture
+        let context = Shared.shared.defaultContext
+        let cacheIdentity = cacheKey.isEffective
+            ? context.makeDerivedResourceIdentity(domain: .outputContract, fingerprint: cacheKey.key)
+            : nil
+        if let cacheIdentity,
+           let cached = context.cachedDerivedObject(for: cacheIdentity) as? OutputContractCacheEntry,
+           cached.sourceTexture === texture as AnyObject {
+            return cached.outputTexture
         }
 
         var output = texture
@@ -1780,8 +1781,12 @@ extension ImageNode {
             output = try io.output()
         }
         let didProduceNewTexture = output !== texture
-        if cacheKey.isEffective, didProduceNewTexture {
-            outputContractResultCache.setObject(BoxedTexture(texture: output), forKey: cacheKey.key as NSString)
+        if let cacheIdentity, didProduceNewTexture {
+            context.storeDerivedObject(
+                OutputContractCacheEntry(sourceTexture: texture, outputTexture: output),
+                byteCost: max(output.allocatedSize, 1),
+                for: cacheIdentity
+            )
         }
         return output
     }

@@ -6,6 +6,7 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 
 ### Added
 
+- Added generation-safe derived GPU resource governance for output-contract textures, derived masks, and 3D LUTs, with shared byte/count budgets, LRU eviction, namespaces, targeted invalidation, stale-write rejection, diagnostics, and memory-pressure cleanup.
 - Added host-configured Metal binary archives for compute and render pipelines, including memory-only warmup, explicit persistence, reload diagnostics, and clean disabled fallback.
 - Added true single-dispatch pointwise fusion for ordered brightness, contrast, saturation, exposure, gamma, and opacity chains, with conservative barriers around unsupported kernels.
 - Added request-level GPU resource budgets with compile-time admission, typed violations, fail-fast execution, allocator-observed allocation/reuse reports, and frame metadata traceability.

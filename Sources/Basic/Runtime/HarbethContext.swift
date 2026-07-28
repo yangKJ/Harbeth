@@ -20,6 +20,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     private let legacyDevice: Device
     private let pipelineBinaryArchiveStore: PipelineBinaryArchiveStore
+    let derivedResourceStore: DerivedResourceStore
     private let renderPipelineLock = NSLock()
     private let samplerLock = NSLock()
     private let imageResolutionLock = NSLock()
@@ -52,6 +53,11 @@ public final class HarbethContext: @unchecked Sendable {
         self.pipelineBinaryArchiveStore = PipelineBinaryArchiveStore(device: device.device)
         let physicalMemory = Int(clamping: ProcessInfo.processInfo.physicalMemory)
         self.imageResolutionCacheByteLimit = min(max(physicalMemory / 50, 32 * 1024 * 1024), 256 * 1024 * 1024)
+        self.derivedResourceStore = DerivedResourceStore(
+            configuration: DerivedResourceCacheConfiguration(
+                byteLimit: min(max(physicalMemory / 32, 64 * 1024 * 1024), 384 * 1024 * 1024)
+            )
+        )
         #if os(iOS) || os(tvOS)
         memoryWarningObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification,
@@ -403,7 +409,7 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionCacheByteCount = 0
         imageResolutionLock.unlock()
         removeAllRenderPlans()
-        ImageNode.removeAllOutputContractCachedTextures()
+        derivedResourceStore.invalidate()
     }
 
     public func configurePipelineBinaryArchive(_ configuration: PipelineBinaryArchiveConfiguration) throws {
@@ -436,6 +442,7 @@ public final class HarbethContext: @unchecked Sendable {
         renderPlanLock.lock()
         let renderPlanCount = renderPlanCache.count
         renderPlanLock.unlock()
+        let derivedSnapshot = derivedResourceStore.snapshot()
         return CacheSnapshot(
             functionCacheCount: legacyDevice.functionCacheCount,
             computePipelineCount: legacyDevice.pipelineCount,
@@ -445,6 +452,9 @@ public final class HarbethContext: @unchecked Sendable {
             imageResolutionByteCount: imageResolutionBytes,
             imageResolutionByteLimit: imageResolutionCacheByteLimit,
             renderPlanCount: renderPlanCount,
+            derivedResourceCount: derivedSnapshot.entryCount,
+            derivedResourceByteCount: derivedSnapshot.byteCount,
+            derivedResourceByteLimit: derivedSnapshot.byteLimit,
             hasTexturePool: true,
             hasCVMetalTextureCache: cvMetalTextureCache != nil
         )
@@ -461,7 +471,7 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionCacheByteSizes.removeAll()
         imageResolutionCacheByteCount = 0
         imageResolutionLock.unlock()
-        ImageNode.removeAllOutputContractCachedTextures()
+        derivedResourceStore.invalidate()
     }
 }
 
@@ -475,6 +485,9 @@ public extension HarbethContext {
         public let imageResolutionByteCount: Int
         public let imageResolutionByteLimit: Int
         public let renderPlanCount: Int
+        public let derivedResourceCount: Int
+        public let derivedResourceByteCount: Int
+        public let derivedResourceByteLimit: Int
         public let hasTexturePool: Bool
         public let hasCVMetalTextureCache: Bool
     }
