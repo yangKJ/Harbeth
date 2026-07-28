@@ -11,13 +11,35 @@ import MetalKit
 /// 3D LUT颜色立方体滤镜
 /// 使用Metal实现的CUBE文件格式LUT滤镜
 public struct C7ColorCube: C7FilterProtocol {
+
+    public enum Interpolation: Float, Sendable, Codable, Equatable, Hashable {
+        case trilinear = 0
+        case tetrahedral = 1
+    }
     
-    public struct Resource {
+    public struct Resource: Sendable {
         public let dimension: Int
         public let data: Data
-        public init(dimension: Int, data: Data) {
+        public let domainMinimum: SIMD3<Float>
+        public let domainMaximum: SIMD3<Float>
+        public let identity: String
+
+        public init(
+            dimension: Int,
+            data: Data,
+            domainMinimum: SIMD3<Float> = .zero,
+            domainMaximum: SIMD3<Float> = SIMD3<Float>(repeating: 1)
+        ) {
             self.dimension = dimension
             self.data = data
+            self.domainMinimum = domainMinimum
+            self.domainMaximum = domainMaximum
+            self.identity = Self.makeIdentity(
+                dimension: dimension,
+                data: data,
+                domainMinimum: domainMinimum,
+                domainMaximum: domainMaximum
+            )
         }
     }
     
@@ -25,13 +47,20 @@ public struct C7ColorCube: C7FilterProtocol {
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     public private(set) var resourceName: String?
     public private(set) var resourceBundleName: String?
+    public private(set) var interpolation: Interpolation
+    public private(set) var resourceIdentity: String?
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorCube")
     }
     
     public var factors: [Float] {
-        return [intensity]
+        [
+            intensity,
+            interpolation.rawValue,
+            domainMinimum.x, domainMinimum.y, domainMinimum.z,
+            domainMaximum.x, domainMaximum.y, domainMaximum.z
+        ]
     }
     
     public var otherInputTextures: C7InputTextures {
@@ -42,54 +71,64 @@ public struct C7ColorCube: C7FilterProtocol {
         .dualTexture
     }
 
+    public var kernelResourceIdentity: String? { resourceIdentity }
+
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
             precision: .float32,
-            dynamicRangeBehavior: .clampsToUnitRange,
+            dynamicRangeBehavior: .unspecified,
             samplingFootprint: .point
         )
     }
     
     private var lutTexture: MTLTexture?
     private var dimension: Int
+    private var domainMinimum: SIMD3<Float>
+    private var domainMaximum: SIMD3<Float>
     
-    public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0) {
+    public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
         let resource = C7ColorCube.Resource.readCubeResource(cubeName, bundle: bundle)
-        self.init(cubeResource: resource, intensity: intensity)
+        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation)
         self.resourceName = cubeName
         self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
     }
 
-    public init(cubeName: String, forResource resource: String, intensity: Float = 1.0) {
+    public init(cubeName: String, forResource resource: String, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
         let bundle = R.readFrameworkBundle(with: resource) ?? .main
-        self.init(cubeName: cubeName, bundle: bundle, intensity: intensity)
+        self.init(cubeName: cubeName, bundle: bundle, intensity: intensity, interpolation: interpolation)
         self.resourceName = cubeName
         self.resourceBundleName = resource
     }
     
-    public init(cubeURL: URL, intensity: Float = 1.0) {
+    public init(cubeURL: URL, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
         let resource = C7ColorCube.Resource.readCubeResource(from: cubeURL)
-        self.init(cubeResource: resource, intensity: intensity)
+        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation)
         self.resourceName = nil
         self.resourceBundleName = nil
     }
     
-    public init(cubeData: Data, dimension: Int, intensity: Float = 1.0) {
+    public init(cubeData: Data, dimension: Int, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
         let resource = C7ColorCube.Resource(dimension: dimension, data: cubeData)
-        self.init(cubeResource: resource, intensity: intensity)
+        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation)
         self.resourceName = nil
         self.resourceBundleName = nil
     }
     
-    public init(cubeResource: C7ColorCube.Resource?, intensity: Float = 1.0) {
+    public init(cubeResource: C7ColorCube.Resource?, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
         self.intensity = intensity
+        self.interpolation = interpolation
+        self.resourceIdentity = cubeResource?.identity
         self.resourceName = nil
         self.resourceBundleName = nil
         if let resource = cubeResource {
             self.dimension = resource.dimension
+            self.domainMinimum = resource.domainMinimum
+            self.domainMaximum = resource.domainMaximum
             self.lutTexture = C7ColorCube.Resource.createLUTTexture(from: resource)
         } else {
             self.dimension = 0
+            self.domainMinimum = .zero
+            self.domainMaximum = SIMD3<Float>(repeating: 1)
             self.lutTexture = nil
         }
     }
@@ -104,62 +143,66 @@ public struct C7ColorCube: C7FilterProtocol {
         var copy = self
         if let resource = cubeResource {
             copy.dimension = resource.dimension
+            copy.resourceIdentity = resource.identity
+            copy.domainMinimum = resource.domainMinimum
+            copy.domainMaximum = resource.domainMaximum
             copy.lutTexture = C7ColorCube.Resource.createLUTTexture(from: resource)
         } else {
             copy.dimension = 0
+            copy.resourceIdentity = nil
+            copy.domainMinimum = .zero
+            copy.domainMaximum = SIMD3<Float>(repeating: 1)
             copy.lutTexture = nil
         }
+        return copy
+    }
+
+    public func updateInterpolation(_ interpolation: Interpolation) -> Self {
+        var copy = self
+        copy.interpolation = interpolation
         return copy
     }
 }
 
 extension C7ColorCube.Resource {
     static func readCubeResource(from url: URL) -> C7ColorCube.Resource? {
-        guard let contents = try? String(contentsOf: url),
-              let dimension = C7ColorCube.Resource.takeDimension(from: contents, pattern: C7ColorCube.Resource.LUT_3D) else {
-            return nil
-        }
-        let data = C7ColorCube.Resource.cubeData(with: contents)
-        return C7ColorCube.Resource(dimension: dimension, data: data)
+        guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        return try? parse(contents: contents)
     }
     
     static func createLUTTexture(from resource: C7ColorCube.Resource) -> MTLTexture? {
-        guard resource.dimension > 0 else {
-            return nil
+        guard resource.hasValidStorage else { return nil }
+        if let cached = textureCache.object(forKey: resource.identity as NSString) {
+            return cached.texture
         }
-        
-        // Calculate the size of 2D texture
-        let textureSize = resource.dimension * resource.dimension
-        let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .rgba32Float,
-            width: textureSize,
-            height: resource.dimension,
-            mipmapped: false
-        )
+        let textureDescriptor = MTLTextureDescriptor()
+        textureDescriptor.textureType = .type3D
+        textureDescriptor.pixelFormat = .rgba32Float
+        textureDescriptor.width = resource.dimension
+        textureDescriptor.height = resource.dimension
+        textureDescriptor.depth = resource.dimension
+        textureDescriptor.mipmapLevelCount = 1
         textureDescriptor.usage = [.shaderRead]
         textureDescriptor.storageMode = .shared
         textureDescriptor.cpuCacheMode = .writeCombined
-        
-        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: textureDescriptor) else {
-            return nil
-        }
-        
-        // Calculate byte per row
+        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: textureDescriptor) else { return nil }
+
         let bytesPerPixel = 4 * MemoryLayout<Float>.size
-        let bytesPerRow = textureSize * bytesPerPixel
-        
-        // Copy data to texture
+        let bytesPerRow = resource.dimension * bytesPerPixel
+        let bytesPerImage = resource.dimension * bytesPerRow
         resource.data.withUnsafeBytes { buffer in
             let floatBuffer = buffer.bindMemory(to: Float.self)
-            guard let baseAddress = floatBuffer.baseAddress else {
-                return
-            }
-            texture.replace(region: MTLRegionMake2D(0, 0, textureSize, resource.dimension),
-                            mipmapLevel: 0,
-                            withBytes: baseAddress,
-                            bytesPerRow: bytesPerRow)
+            guard let baseAddress = floatBuffer.baseAddress else { return }
+            texture.replace(
+                region: MTLRegionMake3D(0, 0, 0, resource.dimension, resource.dimension, resource.dimension),
+                mipmapLevel: 0,
+                slice: 0,
+                withBytes: baseAddress,
+                bytesPerRow: bytesPerRow,
+                bytesPerImage: bytesPerImage
+            )
         }
-        
+        textureCache.setObject(CachedCubeTexture(texture), forKey: resource.identity as NSString)
         return texture
     }
     
@@ -173,69 +216,90 @@ extension C7ColorCube.Resource {
             bundle.path(forResource: name, ofType: $0)
         }
         guard let path = paths.first,
-              let contents = try? String(contentsOfFile: path),
-              let dimension = takeDimension(from: contents, pattern: LUT_3D) else {
-            return nil
-        }
-        let data = cubeData(with: contents)
-        return C7ColorCube.Resource.init(dimension: dimension, data: data)
+              let contents = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        return try? parse(contents: contents)
     }
-    
-    /// Should be a line like `LUT_3D_SIZE 32`, get the `32`.
-    public static let LUT_3D = "LUT_([0-9A-Z]+)_.* ([0-9]+)"
-    
-    /// The number of corresponding color data per line.
-    public enum Line: Int { case rgb = 3, rgba = 4 }
-    
-    /// Read in data content with cube file.
-    /// - Parameters:
-    ///   - contents: Cube text content.
-    ///   - line: Number of color components expected on each data line.
-    /// - Returns: A cube data.
-    public static func cubeData(with contents: String, line: Line = .rgb) -> Data {
-        let fileContents = contents.replacingOccurrences(of: "\r", with: "\n")
-        let rows = fileContents.components(separatedBy: "\n")
-        var data = [Float]()
-        for row in rows {
-            let dataStrings = row.split(separator: " ")
-            guard dataStrings.count == line.rawValue else {
+
+    /// 严格解析 `.cube` 3D LUT；尺寸、domain、样本数量或非有限值不合法时直接失败。
+    public static func parse(contents: String) throws -> C7ColorCube.Resource {
+        var dimension: Int?
+        var domainMinimum = SIMD3<Float>(repeating: 0)
+        var domainMaximum = SIMD3<Float>(repeating: 1)
+        var samples = [Float]()
+
+        for rawLine in contents.replacingOccurrences(of: "\r", with: "\n").components(separatedBy: "\n") {
+            let line = rawLine.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
+            let fields = line.split(whereSeparator: { $0.isWhitespace })
+            guard fields.isEmpty == false else { continue }
+            switch fields[0].uppercased() {
+            case "TITLE":
                 continue
-            }
-            let floats = dataStrings.compactMap { Float($0) }
-            guard floats.count == line.rawValue else {
-                continue
-            }
-            data += floats
-            switch line {
-            case .rgb:
-                data.append(1.0)
-            case .rgba:
-                break
+            case "LUT_1D_SIZE":
+                throw HarbethError.cubeResource
+            case "LUT_3D_SIZE":
+                guard fields.count == 2, let value = Int(fields[1]), (2...65).contains(value) else {
+                    throw HarbethError.cubeResource
+                }
+                dimension = value
+            case "DOMAIN_MIN":
+                domainMinimum = try parseDomain(fields)
+            case "DOMAIN_MAX":
+                domainMaximum = try parseDomain(fields)
+            default:
+                guard fields.count == 3 else { throw HarbethError.cubeResource }
+                let values = fields.compactMap { Float($0) }
+                guard values.count == 3, values.allSatisfy(\.isFinite) else { throw HarbethError.cubeResource }
+                samples.append(contentsOf: [values[0], values[1], values[2], 1])
             }
         }
-        let resultData = data.withUnsafeBufferPointer { Data(buffer: $0) }
-        return resultData
+
+        guard let dimension,
+              samples.count == dimension * dimension * dimension * 4,
+              domainMinimum.x < domainMaximum.x,
+              domainMinimum.y < domainMaximum.y,
+              domainMinimum.z < domainMaximum.z else {
+            throw HarbethError.cubeResource
+        }
+        return C7ColorCube.Resource(
+            dimension: dimension,
+            data: samples.withUnsafeBufferPointer { Data(buffer: $0) },
+            domainMinimum: domainMinimum,
+            domainMaximum: domainMaximum
+        )
     }
-    
-    /// Regular match detect LUT Size.
-    /// - Parameters:
-    ///   - string: Data to be matched.
-    ///   - pattern: Detect the regex of LUT size.
-    /// - Returns: LUT size.
-    public static func takeDimension(from string: String, pattern: String) -> Int? {
-        guard string.isEmpty == false,
-              let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            return nil
-        }
-        let range = NSRange(location: 0, length: string.count)
-        guard let matched = regex.firstMatch(in: string, options: [], range: range) else {
-            return nil
-        }
-        let index = max(0, matched.numberOfRanges - 1)
-        let numberString = (string as NSString).substring(with: matched.range(at: index))
-        guard let dimension = Int(numberString), dimension > 0, dimension <= 65 else {
-            return nil
-        }
-        return dimension
+}
+
+private extension C7ColorCube.Resource {
+    nonisolated(unsafe) static let textureCache = NSCache<NSString, CachedCubeTexture>()
+
+    var hasValidStorage: Bool {
+        dimension >= 2 && dimension <= 65
+            && data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.size
     }
+
+    static func parseDomain(_ fields: [Substring]) throws -> SIMD3<Float> {
+        guard fields.count == 4 else { throw HarbethError.cubeResource }
+        let values = fields.dropFirst().compactMap { Float($0) }
+        guard values.count == 3, values.allSatisfy(\.isFinite) else { throw HarbethError.cubeResource }
+        return SIMD3<Float>(values[0], values[1], values[2])
+    }
+
+    static func makeIdentity(
+        dimension: Int,
+        data: Data,
+        domainMinimum: SIMD3<Float>,
+        domainMaximum: SIMD3<Float>
+    ) -> String {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return "cube|\(dimension)|\(domainMinimum)|\(domainMaximum)|\(String(hash, radix: 16))"
+    }
+}
+
+private final class CachedCubeTexture {
+    let texture: MTLTexture
+    init(_ texture: MTLTexture) { self.texture = texture }
 }

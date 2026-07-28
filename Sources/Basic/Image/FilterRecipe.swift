@@ -10,6 +10,7 @@ struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
     let stableTypeID: String
     let modifier: String
     let parameterValues: [String]
+    let resourceIdentity: String?
     let otherInputTextureCount: Int
     let pipelineFilterFingerprints: [String]
     let finalFilterFingerprint: String?
@@ -19,6 +20,7 @@ struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
             stableTypeID,
             modifier,
             parameterValues.joined(separator: ","),
+            "resource=\(resourceIdentity ?? "none")",
             "inputs=\(otherInputTextureCount)"
         ]
         if pipelineFilterFingerprints.isEmpty == false {
@@ -89,6 +91,7 @@ extension C7FilterProtocol {
                 stableTypeID: stableTypeID,
                 modifier: "pipeline(\(pipelineFilter.pipelineExecutionStyle.rawValue))",
                 parameterValues: pipelineDescriptors.map(\.fingerprint),
+                resourceIdentity: pipelineFilter.kernelResourceIdentity,
                 otherInputTextureCount: pipelineFilter.pipelineOtherInputCount,
                 pipelineFilterFingerprints: pipelineDescriptors.map(\.fingerprint),
                 finalFilterFingerprint: finalDescriptor?.fingerprint
@@ -99,6 +102,7 @@ extension C7FilterProtocol {
             stableTypeID: stableTypeID,
             modifier: modifier.recipeName,
             parameterValues: bindings.isEmpty ? factors.map { Self.stableFloatDescription($0) } : bindings.map(\.fingerprint),
+            resourceIdentity: kernelResourceIdentity,
             otherInputTextureCount: otherInputTextures.count,
             pipelineFilterFingerprints: [],
             finalFilterFingerprint: nil

@@ -42,6 +42,9 @@ public protocol C7FilterProtocol: Mirrorable {
 
     /// Kernel's pixel, dynamic range and area execution contract.
     var kernelPixelContract: KernelPixelContract { get }
+
+    /// Execution identity for immutable lookup textures or other external resources.
+    var kernelResourceIdentity: String? { get }
     
     /// The resize of the output texture.
     func resize(input size: C7Size) -> C7Size
@@ -70,12 +73,18 @@ extension C7FilterProtocol {
             return "\(typeName)-pipeline-\(pipelineFilter.recipeDescriptor.fingerprint)"
         }
         let typeName = String(describing: type(of: self))
-        return "\(typeName)-\(kernelParameterFingerprint)-\(otherInputTextures.count)"
+        return "\(typeName)-\(kernelParameterFingerprint)-\(kernelResourceIdentity ?? "inputs=\(otherInputTextures.count)")"
     }
     /// Lightweight Float-only parameter route.
     public var factors: [Float] { [] }
     /// Multiple input source extensions, an array containing the `MTLTexture`.
     public var otherInputTextures: C7InputTextures { [] }
+    public var kernelResourceIdentity: String? {
+        guard otherInputTextures.isEmpty == false else { return nil }
+        return otherInputTextures.map { texture in
+            "texture=\(ObjectIdentifier(texture).hashValue)|\(texture.width)x\(texture.height)x\(texture.depth)|\(texture.pixelFormat.rawValue)"
+        }.joined(separator: "||")
+    }
     /// Explicit shader parameter bindings for compute/render encoders.
     public var kernelParameterBindings: [KernelParameterBinding] { [] }
     /// Memory access pattern for threadgroup optimization

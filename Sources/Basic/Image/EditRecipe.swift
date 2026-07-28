@@ -145,6 +145,7 @@ public struct EditRecipe {
                     stableTypeID: diagnostic.name,
                     modifier: diagnostic.kind.rawValue,
                     parameterValues: diagnostic.parameterSummary.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" },
+                    resourceIdentity: nil,
                     otherInputTextureCount: 0,
                     pipelineFilterFingerprints: [],
                     finalFilterFingerprint: nil
