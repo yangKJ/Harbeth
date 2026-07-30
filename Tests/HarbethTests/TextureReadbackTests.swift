@@ -6,6 +6,68 @@ import CoreVideo
 
 final class TextureReadbackTests: XCTestCase {
 
+    func testHalfFloatExtendedLinearTextureRoundTripPreservesExtendedValues() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba16Float,
+            width: 1,
+            height: 1,
+            mipmapped: false
+        )
+        descriptor.storageMode = .shared
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        var source: [Float16] = [2, 0.5, -0.25, 1]
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 1, 1),
+            mipmapLevel: 0,
+            withBytes: &source,
+            bytesPerRow: MemoryLayout<Float16>.size * 4
+        )
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.extendedLinearSRGB))
+        let image = try XCTUnwrap(texture.c7.toCGImage(colorSpace: colorSpace))
+
+        XCTAssertEqual(image.bitsPerComponent, 16)
+        XCTAssertEqual(image.bitsPerPixel, 64)
+        XCTAssertTrue(image.bitmapInfo.contains(.floatComponents))
+        XCTAssertEqual(image.colorSpace?.name as String?, CGColorSpace.extendedLinearSRGB as String)
+
+        let roundTripped = try TextureLoader(with: image).texture
+        XCTAssertEqual(roundTripped.pixelFormat, .rgba16Float)
+        var output = [Float16](repeating: 0, count: 4)
+        roundTripped.getBytes(
+            &output,
+            bytesPerRow: MemoryLayout<Float16>.size * 4,
+            from: MTLRegionMake2D(0, 0, 1, 1),
+            mipmapLevel: 0
+        )
+        XCTAssertEqual(Float(output[0]), 2, accuracy: 0.002)
+        XCTAssertEqual(Float(output[1]), 0.5, accuracy: 0.002)
+        XCTAssertEqual(Float(output[2]), -0.25, accuracy: 0.002)
+    }
+
+    func testHighPrecisionCGImageFallbackNeverDowngradesToRGBA8() throws {
+        let image = try makeHalfFloatCGImage(
+            colorSpaceName: CGColorSpace.itur_2100_PQ,
+            pixels: [Float16(0.73), Float16(0.31), Float16(0.12), Float16(1)]
+        )
+
+        XCTAssertEqual(TextureLoader.preferredPixelFormat(for: image), .rgba16Float)
+        let texture = try TextureLoader.drawCGImageToTexture(image, pixelFormat: .rgba16Float)
+        XCTAssertEqual(texture.pixelFormat, .rgba16Float)
+    }
+
+    func testCGImageSourceDescriptorReportsConcretePixelFormat() throws {
+        let sRGB = try makeEightBitCGImage(colorSpaceName: CGColorSpace.sRGB)
+        let hlg = try makeHalfFloatCGImage(
+            colorSpaceName: CGColorSpace.itur_2100_HLG,
+            pixels: [Float16(0.62), Float16(0.4), Float16(0.2), Float16(1)]
+        )
+
+        XCTAssertEqual(ImageSource.cgImage(sRGB).descriptor.texturePixelFormat, .rgba8Unorm)
+        XCTAssertEqual(ImageSource.cgImage(hlg).descriptor.texturePixelFormat, .rgba16Float)
+    }
+
     func testHalfFloatPixelBufferTextureLoaderPrefersRGBA16Float() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
@@ -1020,5 +1082,48 @@ final class TextureReadbackTests: XCTestCase {
             throw XCTSkip()
         }
         return pixelBuffer
+    }
+
+    private func makeHalfFloatCGImage(colorSpaceName: CFString, pixels: [Float16]) throws -> CGImage {
+        let data = pixels.withUnsafeBytes { Data($0) }
+        let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: colorSpaceName))
+        let bitmapInfo = CGBitmapInfo(rawValue:
+            CGBitmapInfo.floatComponents.rawValue
+                | CGBitmapInfo.byteOrder16Little.rawValue
+                | CGImageAlphaInfo.premultipliedLast.rawValue
+        )
+        return try XCTUnwrap(CGImage(
+            width: 1,
+            height: 1,
+            bitsPerComponent: 16,
+            bitsPerPixel: 64,
+            bytesPerRow: 8,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo,
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ))
+    }
+
+    private func makeEightBitCGImage(colorSpaceName: CFString) throws -> CGImage {
+        let data = Data([191, 82, 31, 255])
+        let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: colorSpaceName))
+        return try XCTUnwrap(CGImage(
+            width: 1,
+            height: 1,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: 4,
+            space: colorSpace,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ))
     }
 }

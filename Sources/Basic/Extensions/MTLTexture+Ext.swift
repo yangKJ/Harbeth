@@ -114,7 +114,7 @@ public struct MTLTextureCompatible_ {
     }
     
     /// Create a CGImage with the data and information we provided.
-    /// Each pixel contains of 4 UInt8s or 32 bits, each byte is representing one channel.
+    /// 8-bit textures return RGBA8; floating-point textures retain their 16F/32F component precision.
     /// The layout of the pixels is described with bitmap info.
     /// Process steps: `Data -> CFData -> CGDataProvider -> CGImage`.
     /// - Parameters:
@@ -223,8 +223,46 @@ public struct MTLTextureCompatible_ {
             }
             return cgImage
         case .rgba16Float, .rgba32Float:
-            // HDR has been converted to rgba8Unorm and HDRToSDR for processing
-            return nil
+            let bitsPerComponent = currentFormat == .rgba16Float ? 16 : 32
+            let bytesPerComponent = bitsPerComponent / 8
+            let rowBytes = width * 4 * bytesPerComponent
+            let length = rowBytes * height
+            let rgbaBytes = UnsafeMutableRawPointer.allocate(
+                byteCount: length,
+                alignment: bytesPerComponent
+            )
+            defer { rgbaBytes.deallocate() }
+            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
+            target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+
+            let resolvedColorSpace = colorSpace
+                ?? CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+                ?? Shared.shared.defaultDevice.colorSpace
+            let byteOrder: CGBitmapInfo = currentFormat == .rgba16Float
+                ? .byteOrder16Little
+                : .byteOrder32Little
+            let bitmapInfo = CGBitmapInfo(rawValue:
+                CGBitmapInfo.floatComponents.rawValue
+                    | byteOrder.rawValue
+                    | alphaType.cgImageAlphaInfoForRGBA.rawValue
+            )
+            guard let data = CFDataCreate(nil, rgbaBytes.assumingMemoryBound(to: UInt8.self), length),
+                  let dataProvider = CGDataProvider(data: data) else {
+                return nil
+            }
+            return CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: bitsPerComponent,
+                bitsPerPixel: bitsPerComponent * 4,
+                bytesPerRow: rowBytes,
+                space: resolvedColorSpace,
+                bitmapInfo: bitmapInfo,
+                provider: dataProvider,
+                decode: nil,
+                shouldInterpolate: true,
+                intent: .defaultIntent
+            )
         default:
             return nil
         }

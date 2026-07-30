@@ -157,12 +157,14 @@ extension TextureLoader {
     public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
         let loader = Shared.shared.defaultDevice.textureLoader
         let options = options ?? TextureLoader.defaultOptions
-        if let texture = try? loader.newTexture(cgImage: cgImage, options: options) {
+        let preferredPixelFormat = TextureLoader.preferredPixelFormat(for: cgImage)
+        if let texture = try? loader.newTexture(cgImage: cgImage, options: options),
+           preferredPixelFormat != .rgba16Float || texture.pixelFormat == .rgba16Float {
             self.texture = texture
             return
         }
-        // 降级策略：手动创建纹理并复制像素数据
-        self.texture = try TextureLoader.drawCGImageToTexture(cgImage)
+        // MetalKit 不保证 CGImage 的精确纹理位深；HDR/扩展线性输入必须校验为 16F。
+        self.texture = try TextureLoader.drawCGImageToTexture(cgImage, pixelFormat: preferredPixelFormat)
     }
 
     /// Creates a new MTLTexture from a CVPixelBuffer.
@@ -796,32 +798,56 @@ extension TextureLoader {
         return image
     }
 
-    /// Downgrade strategy: manually create textures and copy pixel data
-    private static func drawCGImageToTexture(_ cgImage: CGImage) throws -> MTLTexture {
+    static func preferredPixelFormat(for cgImage: CGImage) -> MTLPixelFormat {
+        if cgImage.bitsPerComponent > 8 || cgImage.bitmapInfo.contains(.floatComponents) {
+            return .rgba16Float
+        }
+        guard let colorSpace = cgImage.colorSpace else { return .rgba8Unorm }
+        switch ImageColorSpaceContract(colorSpace: colorSpace).dynamicRange {
+        case .extendedDynamicRange, .highDynamicRange:
+            return .rgba16Float
+        case .preserveInput, .standardDynamicRange, .custom:
+            return .rgba8Unorm
+        }
+    }
+
+    /// MetalKit 加载不可用或精度不符合时，按输入合同手动创建纹理。
+    static func drawCGImageToTexture(_ cgImage: CGImage, pixelFormat: MTLPixelFormat) throws -> MTLTexture {
         let (width, height) = Device.makeTexture2DMaxSize(width: Int(cgImage.width), height: Int(cgImage.height))
-        // 降级策略：手动创建纹理并复制像素数据
         let texture = try makeTexture(
             width: width,
             height: height,
             options: [
                 .textureSampleCount: 1,
-                .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
+                .texturePixelFormat: pixelFormat,
                 .textureUsage: defaultUsage,
                 .textureAllowGPUOptimizedContents: true,
             ]
         )
-        let bytesPerRow = alignedBytesPerRow(minimum: width * 4, pixelFormat: .rgba8Unorm)
+        let highPrecision = pixelFormat == .rgba16Float
+        let bytesPerPixel = highPrecision ? 8 : 4
+        let bytesPerRow = alignedBytesPerRow(minimum: width * bytesPerPixel, pixelFormat: pixelFormat)
         let dataSize = bytesPerRow * height
-        let data = UnsafeMutableRawPointer.allocate(byteCount: dataSize, alignment: 4)
+        let data = UnsafeMutableRawPointer.allocate(byteCount: dataSize, alignment: highPrecision ? 8 : 4)
         defer { data.deallocate() }
+        let colorSpace = cgImage.colorSpace
+            ?? (highPrecision
+                ? CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+                : Shared.shared.defaultDevice.colorSpace)
+            ?? CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = highPrecision
+            ? CGBitmapInfo.floatComponents.rawValue
+                | CGBitmapInfo.byteOrder16Little.rawValue
+                | CGImageAlphaInfo.premultipliedLast.rawValue
+            : CGImageAlphaInfo.premultipliedLast.rawValue
         guard let context = CGContext(
             data: data,
             width: width,
             height: height,
-            bitsPerComponent: 8,
+            bitsPerComponent: highPrecision ? 16 : 8,
             bytesPerRow: bytesPerRow,
-            space: Shared.shared.defaultDevice.colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
         ) else {
             throw HarbethError.contextCreationFailed
         }

@@ -227,7 +227,32 @@ public enum ImageSource {
                 cachePolicy: cachePolicy,
                 semantic: .sourceOriginal,
                 loadingOptions: loadingOptions,
-                colorProfile: colorProfile
+                colorProfile: colorProfile,
+                texturePixelFormat: inferredCGImagePixelFormat
+            )
+        }
+    }
+
+    private var inferredCGImagePixelFormat: PixelFormatContract? {
+        let image: CGImage?
+        switch self {
+        case .image(let source):
+            image = source.c7.toCGImage()
+        case .cgImage(let source):
+            image = source
+        case .asset(let asset):
+            if case .cgImage(let source) = asset.storage {
+                image = source
+            } else {
+                image = nil
+            }
+        case .texture, .ciImage, .pixelBuffer, .sampleBuffer, .data:
+            image = nil
+        }
+        return image.map {
+            PixelFormatContract(
+                pixelFormat: TextureLoader.preferredPixelFormat(for: $0),
+                preservesInput: false
             )
         }
     }
