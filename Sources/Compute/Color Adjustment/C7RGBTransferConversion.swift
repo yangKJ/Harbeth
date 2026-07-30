@@ -40,7 +40,7 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
         let behavior: KernelDynamicRangeBehavior
         switch mode {
         case .sRGBToLinear, .linearToSRGB:
-            behavior = .clampsToUnitRange
+            behavior = .preservesExtendedRange
         case .pqToLinear, .linearToPQ, .hlgToLinear, .linearToHLG:
             behavior = .unspecified
         }

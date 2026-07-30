@@ -291,6 +291,51 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))
     }
 
+    func testTextureSourceDescriptorCarriesTypedPixelFormatAndDecodesLegacyPayload() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 4, height: 3, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba16Float
+        ], identifier: "graph-texture-descriptor-rgba16")
+        let descriptor = ImageSource.texture(texture).descriptor
+
+        XCTAssertEqual(descriptor.texturePixelFormat, .rgba16Float)
+        XCTAssertTrue(descriptor.fingerprint.contains("texturePixelFormat={pixelFormat=rgba16Float"))
+
+        let encoded = try JSONEncoder().encode(descriptor)
+        XCTAssertEqual(try JSONDecoder().decode(ImageSourceDescriptor.self, from: encoded), descriptor)
+        guard var legacyObject = try JSONSerialization.jsonObject(with: encoded) as? [String: Any] else {
+            return XCTFail("ImageSourceDescriptor must encode as a keyed JSON object.")
+        }
+        legacyObject.removeValue(forKey: "texturePixelFormat")
+        let legacyData = try JSONSerialization.data(withJSONObject: legacyObject)
+        let legacyDescriptor = try JSONDecoder().decode(ImageSourceDescriptor.self, from: legacyData)
+
+        XCTAssertNil(legacyDescriptor.texturePixelFormat)
+    }
+
+    func testTextureSourceDiagnosticsResolveConcreteRGBA8AndRGBA16PixelFormats() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let rgba8 = try TextureLoader.makeTexture(width: 4, height: 3, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "graph-texture-diagnostics-rgba8")
+        let rgba16 = try TextureLoader.makeTexture(width: 4, height: 3, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba16Float
+        ], identifier: "graph-texture-diagnostics-rgba16")
+        let rgba8Diagnostics = try ImageNode.texture(rgba8).makeDiagnostics()
+        let rgba16Diagnostics = try ImageNode.texture(rgba16).makeDiagnostics()
+
+        XCTAssertEqual(rgba8Diagnostics.inputPixelFormat, .rgba8Unorm)
+        XCTAssertEqual(rgba8Diagnostics.outputPixelFormat, .rgba8Unorm)
+        XCTAssertEqual(rgba16Diagnostics.inputPixelFormat, .rgba16Float)
+        XCTAssertEqual(rgba16Diagnostics.outputPixelFormat, .rgba16Float)
+        XCTAssertTrue(rgba16Diagnostics.summary.contains("inputPixelPrecision=float16"))
+        XCTAssertTrue(rgba16Diagnostics.summary.contains("inputHDRFriendly=1"))
+    }
+
     func testHarbethIOAndImageNodeAlignOptimizationMetricsForEquivalentFilterChain() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -1640,7 +1685,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(snapshot.diagnostics.heapBackedAllocationCount, 0)
         XCTAssertFalse(snapshot.diagnostics.allocatorDecisions.contains(where: \.isEmpty))
         XCTAssertEqual(snapshot.diagnostics.optimizationPlan.allocationStrategy.rawValue, snapshot.diagnostics.allocationStrategy)
-        XCTAssertEqual(snapshot.diagnostics.inputPixelPrecision, "preserveInput")
+        XCTAssertEqual(snapshot.diagnostics.inputPixelPrecision, "unorm8")
         XCTAssertFalse(snapshot.diagnostics.inputHDRFriendly)
         XCTAssertTrue(jsonString.contains("\"optimizationPlan\""))
         XCTAssertTrue(diagnosticsString.contains("\"optimizationPlan\""))

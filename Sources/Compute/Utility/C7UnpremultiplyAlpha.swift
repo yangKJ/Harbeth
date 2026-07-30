@@ -23,7 +23,7 @@ public struct C7UnpremultiplyAlpha: C7FilterProtocol {
             inputAlphaExpectation: .premultiplied,
             outputAlpha: .nonPremultiplied,
             precision: .float16,
-            dynamicRangeBehavior: .clampsToUnitRange,
+            dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
         )

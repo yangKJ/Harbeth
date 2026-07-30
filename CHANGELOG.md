@@ -6,6 +6,7 @@ Harbeth 的公开变更从本文件建立后开始记录，格式遵循 [Keep a 
 
 ### Added
 
+- Added a depth-aware 2.5D scene-relighting primitive with up to three point, spot, directional or rim lights, explicit linear-RGB/HDR/alpha contracts, confidence-aware fallback, and contextual depth-plane binding for region renderers.
 - Added generation-safe derived GPU resource governance for output-contract textures, derived masks, and 3D LUTs, with shared byte/count budgets, LRU eviction, namespaces, targeted invalidation, stale-write rejection, diagnostics, and memory-pressure cleanup.
 - Added host-configured Metal binary archives for compute and render pipelines, including memory-only warmup, explicit persistence, reload diagnostics, and clean disabled fallback.
 - Added true single-dispatch pointwise fusion for ordered brightness, contrast, saturation, exposure, gamma, and opacity chains, with conservative barriers around unsupported kernels.

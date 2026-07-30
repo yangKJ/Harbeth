@@ -121,6 +121,5 @@ kernel void C7RGBTransferConversion(texture2d<half, access::write> outputTexture
         outputRGB = harbethLinearToHLG(rgb);
     }
 
-    const bool clampOutput = *mode < 2.0f;
-    outputTexture.write(half4(half3(clampOutput ? clamp(outputRGB, 0.0, 1.0) : outputRGB), input.a), grid);
+    outputTexture.write(half4(half3(outputRGB), input.a), grid);
 }

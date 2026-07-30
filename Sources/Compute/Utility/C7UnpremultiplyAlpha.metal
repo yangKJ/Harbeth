@@ -14,9 +14,11 @@ kernel void C7UnpremultiplyAlpha(texture2d<half, access::write> outputTexture [[
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
-    half4 color = inputTexture.read(grid);
-    if (color.a > 0.0001h) {
+    float4 color = float4(inputTexture.read(grid));
+    if (color.a > 0.0001f) {
         color.rgb /= color.a;
+    } else {
+        color.rgb = float3(0.0f);
     }
-    outputTexture.write(clamp(color, half4(0.0h), half4(1.0h)), grid);
+    outputTexture.write(half4(color), grid);
 }

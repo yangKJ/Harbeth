@@ -2039,6 +2039,7 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
     public let semantic: ImageSemanticDescriptor
     public let loadingOptions: ImageLoadingOptions
     public let colorProfile: ImageColorProfileDescriptor?
+    public let texturePixelFormat: PixelFormatContract?
     public let pixelBufferContract: PixelBufferContract?
     public let pixelBufferBridgePlan: PixelBufferTextureBridgePlan?
     public let pixelBufferBridgePolicy: PixelBufferBridgePolicy?
@@ -2053,6 +2054,7 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
                 semantic: ImageSemanticDescriptor = .sourceOriginal,
                 loadingOptions: ImageLoadingOptions = .default,
                 colorProfile: ImageColorProfileDescriptor? = nil,
+                texturePixelFormat: PixelFormatContract? = nil,
                 pixelBufferContract: PixelBufferContract? = nil,
                 pixelBufferBridgePlan: PixelBufferTextureBridgePlan? = nil,
                 pixelBufferBridgePolicy: PixelBufferBridgePolicy? = nil,
@@ -2066,6 +2068,7 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
         self.semantic = semantic
         self.loadingOptions = loadingOptions
         self.colorProfile = colorProfile
+        self.texturePixelFormat = texturePixelFormat
         self.pixelBufferContract = pixelBufferContract
         self.pixelBufferBridgePlan = pixelBufferBridgePlan
         self.pixelBufferBridgePolicy = pixelBufferBridgePolicy
@@ -2085,6 +2088,9 @@ public struct ImageSourceDescriptor: Sendable, Hashable, Codable {
         ]
         if let colorProfile {
             parts.append("colorProfile={\(colorProfile.fingerprint)}")
+        }
+        if let texturePixelFormat {
+            parts.append("texturePixelFormat={\(texturePixelFormat.fingerprint)}")
         }
         if let pixelBufferContract {
             parts.append("pixelBuffer={\(pixelBufferContract.fingerprint)}")

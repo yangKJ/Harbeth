@@ -967,6 +967,9 @@ private extension RenderPlan {
     }
 
     static func resolveInputPixelFormat(from descriptor: ImageSourceDescriptor?) -> PixelFormatContract {
+        if let pixelFormat = descriptor?.texturePixelFormat?.metalPixelFormat {
+            return PixelFormatContract(pixelFormat: pixelFormat, preservesInput: false)
+        }
         if let pixelFormat = descriptor?.pixelBufferBridgePlan?.contract.preferredMetalPixelFormat {
             return PixelFormatContract(pixelFormat: pixelFormat, preservesInput: true)
         }

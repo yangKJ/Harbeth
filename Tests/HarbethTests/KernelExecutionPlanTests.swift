@@ -170,12 +170,12 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertEqual(
             C7RGBTransferConversion(mode: .linearToSRGB)
                 .kernelPixelContract.dynamicRangeBehavior,
-            .clampsToUnitRange
+            .preservesExtendedRange
         )
         XCTAssertEqual(C7ColorCube(cubeResource: nil).kernelPixelContract.dynamicRangeBehavior, .unspecified)
         XCTAssertEqual(C7Deband(radius: 3.2).kernelPixelContract.samplingFootprint, .neighborhood(radius: 4))
         XCTAssertEqual(C7PremultiplyAlpha().kernelPixelContract.outputAlpha, .premultiplied)
-        XCTAssertEqual(C7UnpremultiplyAlpha().kernelPixelContract.dynamicRangeBehavior, .clampsToUnitRange)
+        XCTAssertEqual(C7UnpremultiplyAlpha().kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
     }
 }
 

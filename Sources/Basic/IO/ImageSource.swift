@@ -166,6 +166,21 @@ public enum ImageSource {
 
     public var descriptor: ImageSourceDescriptor {
         switch self {
+        case .texture(let texture):
+            return ImageSourceDescriptor(
+                kind: kindName,
+                sourceTier: sourceTier,
+                alphaType: alphaType,
+                orientation: orientation,
+                cachePolicy: cachePolicy,
+                semantic: .sourceOriginal,
+                loadingOptions: loadingOptions,
+                colorProfile: colorProfile,
+                texturePixelFormat: PixelFormatContract(
+                    pixelFormat: texture.pixelFormat,
+                    preservesInput: false
+                )
+            )
         case .pixelBuffer(let pixelBuffer):
             let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
             return ImageSourceDescriptor(
