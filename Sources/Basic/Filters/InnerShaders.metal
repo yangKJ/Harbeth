@@ -727,16 +727,9 @@ kernel void InnerIncrementalMaskClear(texture2d<half, access::read_write> canvas
     canvas.write(half4(0.0h, 0.0h, 0.0h, 1.0h), gid);
 }
 
-kernel void InnerIncrementalBrushMask(texture2d<half, access::read_write> canvas [[texture(0)]],
-                                      constant float *metadata [[buffer(0)]],
-                                      constant float4 *points [[buffer(1)]],
-                                      uint2 localID [[thread_position_in_grid]]) {
-    const uint2 origin = uint2(max(metadata[6], 0.0f), max(metadata[7], 0.0f));
-    const uint2 gid = origin + localID;
-    if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
+static inline float innerIncrementalBrushStroke(constant float *metadata, constant float4 *points, uint2 gid, uint width, uint height) {
     const int pointCount = min(max(int(metadata[0]), 0), 512);
-    if (pointCount == 0) return;
-    const float2 size = float2(canvas.get_width(), canvas.get_height());
+    const float2 size = float2(width, height);
     const float shortEdge = max(min(size.x, size.y), 1.0f);
     const float2 metric = size / shortEdge;
     const float2 point = ((float2(gid) + 0.5f) / size) * metric;
@@ -746,38 +739,82 @@ kernel void InnerIncrementalBrushMask(texture2d<half, access::read_write> canvas
     float stroke = 0.0f;
     if (pointCount == 1) {
         const float radius = baseRadius * clamp(points[0].z, 0.05f, 1.0f);
-        stroke = 1.0f - smoothstep(
+        return 1.0f - smoothstep(
             max(radius * hardness - pixelRadius, 0.0f),
             radius + pixelRadius,
             distance(point, points[0].xy * metric)
         );
-    } else {
-        for (int index = 0; index < pointCount - 1; ++index) {
-            const float2 a = points[index].xy * metric;
-            const float2 b = points[index + 1].xy * metric;
-            const float2 segment = b - a;
-            const float t = clamp(dot(point - a, segment) / max(dot(segment, segment), 0.0000001f), 0.0f, 1.0f);
-            const float pressure = mix(points[index].z, points[index + 1].z, t);
-            const float radius = baseRadius * clamp(pressure, 0.05f, 1.0f);
-            stroke = max(
-                stroke,
-                1.0f - smoothstep(
-                    max(radius * hardness - pixelRadius, 0.0f),
-                    radius + pixelRadius,
-                    distance(point, a + segment * t)
-                )
-            );
-        }
     }
-    stroke = clamp(stroke * clamp(metadata[3], 0.0f, 1.0f), 0.0f, 1.0f);
-    const float density = clamp(metadata[4], 0.0f, 1.0f);
+    for (int index = 0; index < pointCount - 1; ++index) {
+        const float2 a = points[index].xy * metric;
+        const float2 b = points[index + 1].xy * metric;
+        const float2 segment = b - a;
+        const float t = clamp(dot(point - a, segment) / max(dot(segment, segment), 0.0000001f), 0.0f, 1.0f);
+        const float pressure = mix(points[index].z, points[index + 1].z, t);
+        const float radius = baseRadius * clamp(pressure, 0.05f, 1.0f);
+        stroke = max(
+            stroke,
+            1.0f - smoothstep(
+                max(radius * hardness - pixelRadius, 0.0f),
+                radius + pixelRadius,
+                distance(point, a + segment * t)
+            )
+        );
+    }
+    return stroke;
+}
+
+static inline float innerIncrementalBrushOutput(float current, float stroke, float flow, float density, bool erase) {
+    stroke = clamp(stroke * clamp(flow, 0.0f, 1.0f), 0.0f, 1.0f);
+    density = clamp(density, 0.0f, 1.0f);
+    if (erase) {
+        const float eraseTarget = max(current * (1.0f - stroke), 1.0f - density);
+        return min(current, eraseTarget);
+    }
+    const float paintTarget = min(1.0f - (1.0f - current) * (1.0f - stroke), density);
+    return max(current, paintTarget);
+}
+
+kernel void InnerIncrementalBrushMask(texture2d<half, access::read_write> canvas [[texture(0)]],
+                                      constant float *metadata [[buffer(0)]],
+                                      constant float4 *points [[buffer(1)]],
+                                      uint2 localID [[thread_position_in_grid]]) {
+    const uint2 origin = uint2(max(metadata[6], 0.0f), max(metadata[7], 0.0f));
+    const uint2 gid = origin + localID;
+    if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
+    const int pointCount = min(max(int(metadata[0]), 0), 512);
+    if (pointCount == 0) return;
     const float current = float(canvas.read(gid).r);
-    float output = current;
-    if (metadata[5] > 0.5f) {
-        output = max(current * (1.0f - stroke), 1.0f - density);
-    } else {
-        output = min(1.0f - (1.0f - current) * (1.0f - stroke), density);
-    }
+    const float stroke = innerIncrementalBrushStroke(
+        metadata, points, gid, canvas.get_width(), canvas.get_height()
+    );
+    const float output = innerIncrementalBrushOutput(
+        current, stroke, metadata[3], metadata[4], metadata[5] > 0.5f
+    );
+    const half value = half(clamp(output, 0.0f, 1.0f));
+    canvas.write(half4(value, value, value, 1.0h), gid);
+}
+
+kernel void InnerIncrementalBrushMaskFromBaseline(texture2d<half, access::read_write> canvas [[texture(0)]],
+                                                  texture2d<half, access::read> baseline [[texture(1)]],
+                                                  constant float *metadata [[buffer(0)]],
+                                                  constant float4 *points [[buffer(1)]],
+                                                  uint2 localID [[thread_position_in_grid]]) {
+    const uint2 origin = uint2(max(metadata[6], 0.0f), max(metadata[7], 0.0f));
+    const uint2 gid = origin + localID;
+    if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
+    const int pointCount = min(max(int(metadata[0]), 0), 512);
+    if (pointCount == 0) return;
+    const bool erase = metadata[5] > 0.5f;
+    const float baselineValue = float(baseline.read(gid).r);
+    const float stroke = innerIncrementalBrushStroke(
+        metadata, points, gid, canvas.get_width(), canvas.get_height()
+    );
+    const float candidate = innerIncrementalBrushOutput(
+        baselineValue, stroke, metadata[3], metadata[4], erase
+    );
+    const float current = float(canvas.read(gid).r);
+    const float output = erase ? min(current, candidate) : max(current, candidate);
     const half value = half(clamp(output, 0.0f, 1.0f));
     canvas.write(half4(value, value, value, 1.0h), gid);
 }

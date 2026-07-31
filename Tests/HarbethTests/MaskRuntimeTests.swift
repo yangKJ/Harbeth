@@ -30,6 +30,23 @@ final class MaskRuntimeTests: XCTestCase {
         XCTAssertTrue(plane.descriptor.fingerprint.contains("generation=7"))
     }
 
+    func testMaskPlaneDescriptorUsesTextureStorageAndHonorsSameExtentSamplingOverride() throws {
+        let texture = try MaskTestHelpers.makeTexture(width: 4, height: 3)
+        let plane = MaskPlane(
+            texture: texture,
+            sampling: .softCoverage,
+            storageFormat: .coverage16Float,
+            resourceIdentity: MaskResourceIdentity(identifier: "storage-truth", revision: 4)
+        )
+        let sampling = MaskSamplingContract(filter: .nearest, edgeMode: .mirror, pixelCentersAligned: false)
+
+        XCTAssertEqual(plane.descriptor.storageFormat, .rgba8)
+
+        let result = try plane.resampled(width: 4, height: 3, sampling: sampling)
+        XCTAssertEqual(result.descriptor.sampling, sampling)
+        XCTAssertEqual(result.descriptor.resourceIdentity, plane.descriptor.resourceIdentity)
+    }
+
     func testAreaPreservingMaskDownsampleMaintainsCoverage() throws {
         let texture = try makeTexture(width: 2, height: 2, pixels: [
             255, 255, 255, 255, 0, 0, 0, 255,
@@ -86,6 +103,35 @@ final class MaskRuntimeTests: XCTestCase {
         XCTAssertEqual(canvas.snapshot().descriptor.resourceIdentity.generation, 0)
     }
 
+    func testIncrementalCanvasNoOpBrushAdvancesGenerationWithoutInvalidatingContent() throws {
+        let canvas = try IncrementalMaskCanvas(size: C7Size(width: 32, height: 32), identifier: "no-op-stroke")
+        let points = [MaskBrushPoint(point: CGPoint(x: 0.5, y: 0.5))]
+
+        let zeroFlow = try canvas.apply(
+            points: points,
+            settings: MaskBrushSettings(flow: 0),
+            generation: 7
+        )
+        XCTAssertNil(zeroFlow.dirtyBounds)
+        XCTAssertEqual(zeroFlow.encodedPointCount, 0)
+        XCTAssertEqual(zeroFlow.revision, 0)
+        XCTAssertEqual(zeroFlow.generation, 7)
+
+        let zeroDensity = try canvas.apply(
+            points: points,
+            settings: MaskBrushSettings(density: 0),
+            generation: 8
+        )
+        XCTAssertNil(zeroDensity.dirtyBounds)
+        XCTAssertEqual(zeroDensity.encodedPointCount, 0)
+        XCTAssertEqual(zeroDensity.revision, 0)
+        XCTAssertEqual(zeroDensity.generation, 8)
+        XCTAssertEqual(
+            try MaskProcessingRecipe(mask: canvas.snapshot().maskDescriptor()).analysis().activePixelCount,
+            0
+        )
+    }
+
     func testIncrementalCanvasSnapshotsRemainRevisionStable() throws {
         let canvas = try IncrementalMaskCanvas(size: C7Size(width: 64, height: 32), identifier: "snapshot-copy")
         _ = try canvas.apply(
@@ -123,6 +169,98 @@ final class MaskRuntimeTests: XCTestCase {
         let analysis = try MaskProcessingRecipe(mask: canvas.snapshot().maskDescriptor()).analysis()
         XCTAssertEqual(analysis.bounds?.x, 0)
         XCTAssertGreaterThanOrEqual(analysis.bounds?.width ?? 0, 126)
+    }
+
+    func testIncrementalCanvasLongLowFlowStrokeHasNoKernelBatchSeam() throws {
+        let size = C7Size(width: 2_048, height: 64)
+        let points = [
+            MaskBrushPoint(point: CGPoint(x: 0.1, y: 0.5)),
+            MaskBrushPoint(point: CGPoint(x: 0.9, y: 0.5))
+        ]
+        let settings = MaskBrushSettings(width: 0.04, hardness: 1, spacing: 0.02, smoothing: 0, flow: 0.25)
+        let prepared = MaskBrushRecipe.prepareIncremental(points: points, settings: settings)
+        XCTAssertGreaterThan(prepared.count, MaskBrushRecipe.maximumPreparedPointCount)
+
+        let canvas = try IncrementalMaskCanvas(size: size, identifier: "long-low-flow")
+        _ = try canvas.apply(points: points, settings: settings)
+        let texture = canvas.snapshot().texture
+        let batchBoundaryX = Int(prepared[MaskBrushRecipe.maximumPreparedPointCount - 1].point.x * CGFloat(size.width))
+        let referenceX = Int(prepared[MaskBrushRecipe.maximumPreparedPointCount / 2].point.x * CGFloat(size.width))
+        let boundary = try MaskTestHelpers.pixel(in: texture, x: batchBoundaryX, y: size.height / 2).red
+        let reference = try MaskTestHelpers.pixel(in: texture, x: referenceX, y: size.height / 2).red
+
+        XCTAssertEqual(boundary, reference, accuracy: 2)
+
+        let eraseSettings = MaskBrushSettings(
+            width: 0.04, hardness: 1, spacing: 0.02, smoothing: 0, flow: 0.25, mode: .erase
+        )
+        _ = try canvas.apply(points: points, settings: eraseSettings)
+        let erasedTexture = canvas.snapshot().texture
+        let erasedBoundary = try MaskTestHelpers.pixel(in: erasedTexture, x: batchBoundaryX, y: size.height / 2).red
+        let erasedReference = try MaskTestHelpers.pixel(in: erasedTexture, x: referenceX, y: size.height / 2).red
+
+        XCTAssertEqual(erasedBoundary, erasedReference, accuracy: 2)
+    }
+
+    func testIncrementalCanvasPaintAndEraseRemainCoverageMonotonicAtPartialDensity() throws {
+        let canvas = try IncrementalMaskCanvas(size: C7Size(width: 16, height: 16), identifier: "density-monotonicity")
+        let point = [MaskBrushPoint(point: CGPoint(x: 0.5, y: 0.5))]
+        let center = (x: 8, y: 8)
+
+        _ = try canvas.apply(
+            points: point,
+            settings: MaskBrushSettings(width: 0.5, hardness: 1, flow: 1, density: 0.25, mode: .erase)
+        )
+        XCTAssertEqual(try MaskTestHelpers.pixel(in: canvas.snapshot().texture, x: center.x, y: center.y).red, 0)
+
+        _ = try canvas.apply(
+            points: point,
+            settings: MaskBrushSettings(width: 0.5, hardness: 1, flow: 1, density: 1, mode: .paint)
+        )
+        let painted = try MaskTestHelpers.pixel(in: canvas.snapshot().texture, x: center.x, y: center.y).red
+
+        _ = try canvas.apply(
+            points: point,
+            settings: MaskBrushSettings(width: 0.5, hardness: 1, flow: 1, density: 0.25, mode: .paint)
+        )
+        let repainted = try MaskTestHelpers.pixel(in: canvas.snapshot().texture, x: center.x, y: center.y).red
+        XCTAssertEqual(repainted, painted)
+
+        _ = try canvas.apply(
+            points: point,
+            settings: MaskBrushSettings(width: 0.5, hardness: 1, flow: 1, density: 0.25, mode: .erase)
+        )
+        let erased = try MaskTestHelpers.pixel(in: canvas.snapshot().texture, x: center.x, y: center.y).red
+        XCTAssertLessThan(erased, repainted)
+    }
+
+    func testIncrementalCanvasGPUStorageFormatsPreserveSnapshotsAcrossReset() throws {
+        for storageFormat in [MaskStorageFormat.coverage8, .coverage16Float, .rgba8, .rgba16Float] {
+            let canvas = try IncrementalMaskCanvas(
+                size: C7Size(width: 24, height: 16),
+                storageFormat: storageFormat,
+                identifier: "storage-\(storageFormat.rawValue)"
+            )
+            _ = try canvas.apply(
+                points: [MaskBrushPoint(point: CGPoint(x: 0.5, y: 0.5))],
+                settings: MaskBrushSettings(width: 0.25, hardness: 1)
+            )
+            let painted = canvas.snapshot()
+            let paintedCount = try MaskProcessingRecipe(mask: painted.maskDescriptor()).analysis().activePixelCount
+
+            XCTAssertEqual(painted.texture.pixelFormat, storageFormat.pixelFormat)
+            XCTAssertGreaterThan(paintedCount, 0)
+
+            _ = try canvas.reset()
+            XCTAssertEqual(
+                try MaskProcessingRecipe(mask: painted.maskDescriptor()).analysis().activePixelCount,
+                paintedCount
+            )
+            XCTAssertEqual(
+                try MaskProcessingRecipe(mask: canvas.snapshot().maskDescriptor()).analysis().activePixelCount,
+                0
+            )
+        }
     }
 
     func testSignedDistanceRefinementCanExpandAndFeatherMask() throws {

@@ -161,7 +161,14 @@ public struct MaskPlane: @unchecked Sendable {
                 storageFormat: MaskStorageFormat? = nil,
                 resourceIdentity: MaskResourceIdentity? = nil,
                 lastModifiedBounds: MaskCoverageBounds? = nil) {
-        let resolvedStorage = storageFormat ?? MaskStorageFormat(texture.pixelFormat)
+        // descriptor 记录实际 texture storage；调用方 hint 不能覆盖 GPU 资源事实。
+        let textureStorage = MaskStorageFormat(texture.pixelFormat)
+        let resolvedStorage: MaskStorageFormat
+        if let storageFormat, storageFormat.pixelFormat == texture.pixelFormat {
+            resolvedStorage = storageFormat
+        } else {
+            resolvedStorage = textureStorage
+        }
         let identity = resourceIdentity ?? MaskResourceIdentity(
             identifier: "texture:\(ObjectIdentifier(texture as AnyObject))"
         )
@@ -218,8 +225,20 @@ public struct MaskPlane: @unchecked Sendable {
                           profile: RenderProfile = .stablePreview) throws -> MaskPlane {
         let targetWidth = max(width, 1)
         let targetHeight = max(height, 1)
-        guard targetWidth != texture.width || targetHeight != texture.height else { return self }
         let resolvedSampling = override ?? descriptor.sampling
+        guard targetWidth != texture.width || targetHeight != texture.height else {
+            guard resolvedSampling != descriptor.sampling else { return self }
+            return MaskPlane(
+                texture: texture,
+                coordinateSpace: descriptor.coordinateSpace,
+                sourceToMaskTransform: descriptor.sourceToMaskTransform,
+                sampling: resolvedSampling,
+                coverageSemantics: descriptor.coverageSemantics,
+                storageFormat: descriptor.storageFormat,
+                resourceIdentity: descriptor.resourceIdentity,
+                lastModifiedBounds: descriptor.lastModifiedBounds
+            )
+        }
         let normalized = try MaskProcessingRecipe(
             mask: MaskDescriptor(plane: self, component: .red)
         ).makeCoverageTexture()

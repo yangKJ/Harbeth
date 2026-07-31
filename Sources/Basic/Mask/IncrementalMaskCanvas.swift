@@ -68,6 +68,10 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
             }
             let targetGeneration = requestedGeneration ?? generation
             if cancellation?.isCancelled == true { throw TextureMultiPassError.cancelled }
+            guard settings.flow > 0, settings.density > 0 else {
+                generation = targetGeneration
+                return MaskCanvasUpdate(dirtyBounds: nil, encodedPointCount: 0, revision: revision, generation: generation)
+            }
 
             let prepared = MaskBrushRecipe.prepareIncremental(points: points, settings: settings)
             guard !prepared.isEmpty else {
@@ -102,6 +106,8 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
                 texture = try Self.copy(texture: texture, identifier: identifier)
                 textureHasSnapshot = false
             }
+            // 每个 chunk 都相对同一份调用前 coverage 计算，避免公共端点在低 flow 下重复累积。
+            let baselineTexture = chunks.count > 1 ? try Self.copy(texture: texture, identifier: "\(identifier).baseline") : nil
             guard let queue = texture.device.makeCommandQueue(),
                   let commandBuffer = queue.makeCommandBuffer() else {
                 throw HarbethError.commandBuffer
@@ -112,6 +118,7 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
                     settings: settings,
                     dirtyBounds: chunk.bounds,
                     texture: texture,
+                    baselineTexture: baselineTexture,
                     commandBuffer: commandBuffer
                 )
             }
@@ -259,13 +266,18 @@ private extension IncrementalMaskCanvas {
                        settings: MaskBrushSettings,
                        dirtyBounds: MaskCoverageBounds,
                        texture: MTLTexture,
+                       baselineTexture: MTLTexture?,
                        commandBuffer: MTLCommandBuffer) throws {
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.commandBuffer
         }
-        let pipeline = try Compute.makeComputePipelineState(with: "InnerIncrementalBrushMask")
+        let kernel = baselineTexture == nil ? "InnerIncrementalBrushMask" : "InnerIncrementalBrushMaskFromBaseline"
+        let pipeline = try Compute.makeComputePipelineState(with: kernel)
         encoder.setComputePipelineState(pipeline)
         encoder.setTexture(texture, index: 0)
+        if let baselineTexture {
+            encoder.setTexture(baselineTexture, index: 1)
+        }
         var metadata: [Float] = [
             Float(points.count), settings.width, settings.hardness,
             settings.flow, settings.density, settings.mode == .erase ? 1 : 0,
