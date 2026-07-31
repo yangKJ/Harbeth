@@ -54,12 +54,12 @@ public struct C7ColorCube: C7FilterProtocol {
         return .compute(kernel: "C7ColorCube")
     }
     
-    public var factors: [Float] {
+    public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            intensity,
-            interpolation.rawValue,
-            domainMinimum.x, domainMinimum.y, domainMinimum.z,
-            domainMaximum.x, domainMaximum.y, domainMaximum.z
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "interpolation", index: 1, stage: .compute, value: .float(interpolation.rawValue)),
+            KernelParameterBinding(name: "domainMinimum", index: 2, stage: .compute, value: .float3(domainMinimum)),
+            KernelParameterBinding(name: "domainMaximum", index: 3, stage: .compute, value: .float3(domainMaximum))
         ]
     }
     

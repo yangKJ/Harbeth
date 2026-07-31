@@ -18,12 +18,10 @@ static half4 safeRead(texture2d<half, access::read> texture, int2 coordinate) {
 
 kernel void C7SharpnessFalloffCorrection(texture2d<half, access::write> outputTexture [[texture(0)]],
                                          texture2d<half, access::read> inputTexture [[texture(1)]],
-                                         constant float *centerX [[buffer(0)]],
-                                         constant float *centerY [[buffer(1)]],
-                                         constant float *amount [[buffer(2)]],
-                                         constant float *start [[buffer(3)]],
-                                         constant float *end [[buffer(4)]],
-                                         constant float *edgeThreshold [[buffer(5)]],
+                                         constant float2 &center [[buffer(0)]],
+                                         constant float2 &falloff [[buffer(1)]],
+                                         constant float &amount [[buffer(2)]],
+                                         constant float &edgeThreshold [[buffer(3)]],
                                          uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
@@ -35,12 +33,11 @@ kernel void C7SharpnessFalloffCorrection(texture2d<half, access::write> outputTe
         (float(grid.x) + 0.5f) / float(outputTexture.get_width()),
         (float(grid.y) + 0.5f) / float(outputTexture.get_height())
     );
-    float2 center = float2(*centerX, *centerY);
     float2 size = float2(inputTexture.get_width(), inputTexture.get_height());
     float maxDimension = max(size.x, size.y);
     float2 radial = (uv - center) * size / maxDimension;
     float radius = length(radial);
-    float radialWeight = smoothstep(*start, max(*end, *start + 0.0001f), radius) * clamp(*amount, 0.0f, 1.0f);
+    float radialWeight = smoothstep(falloff.x, max(falloff.y, falloff.x + 0.0001f), radius) * clamp(amount, 0.0f, 1.0f);
 
     constexpr int kernelSize = 3;
     const half laplacianKernel[9] = {
@@ -63,8 +60,8 @@ kernel void C7SharpnessFalloffCorrection(texture2d<half, access::write> outputTe
     edgeStrength = saturate(edgeStrength / 4.0h);
 
     half sharpenIntensity = 0.0h;
-    if (edgeStrength > half(*edgeThreshold)) {
-        half normalizedEdge = (edgeStrength - half(*edgeThreshold)) / max(0.0001h, 1.0h - half(*edgeThreshold));
+    if (edgeStrength > half(edgeThreshold)) {
+        half normalizedEdge = (edgeStrength - half(edgeThreshold)) / max(0.0001h, 1.0h - half(edgeThreshold));
         sharpenIntensity = half(radialWeight) * normalizedEdge;
     }
 

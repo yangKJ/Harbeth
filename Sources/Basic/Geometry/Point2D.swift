@@ -52,6 +52,11 @@ public struct C7Point2D: Codable, Sendable, Hashable {
 }
 
 extension C7Point2D {
+
+    public func toSIMD2() -> SIMD2<Float> {
+        SIMD2<Float>(x, y)
+    }
+
     public func toXY() -> [Float] {
         [x, y]
     }
@@ -112,5 +117,9 @@ public struct FreePoint2D: Codable, Equatable, Sendable {
 
     public func toXY() -> [Float] {
         [x, y]
+    }
+
+    public func toSIMD2() -> SIMD2<Float> {
+        SIMD2<Float>(x, y)
     }
 }

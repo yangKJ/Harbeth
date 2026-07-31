@@ -1,4 +1,5 @@
 import XCTest
+import CoreGraphics
 @testable import Harbeth
 
 final class KernelExecutionPlanTests: XCTestCase {
@@ -98,9 +99,10 @@ final class KernelExecutionPlanTests: XCTestCase {
             ("C7HighlightShadowTint", C7HighlightShadowTint(), 4),
             ("C7Transform", C7Transform(transform: .identity), 5),
             ("C7ChromaKey", C7ChromaKey(), 4),
+            ("C7BlendChromaKey", C7BlendChromaKey(), 3),
             ("C7SolidColor", C7SolidColor(), 1),
             ("C7ColorVector4", C7ColorVector4(vector: .zero), 2),
-            ("C7ColorMatrix4x4", C7ColorMatrix4x4(matrix: .Color.identity), 6),
+            ("C7ColorMatrix4x4", C7ColorMatrix4x4(matrix: .Color.identity), 3),
             ("C7ConvolutionMatrix3x3", C7ConvolutionMatrix3x3(matrix: .Kernel.identity), 3),
             ("C7ColorMatrix4x5", C7ColorMatrix4x5(matrix: Matrix4x5(values: [
                 1, 0, 0, 0, 0,
@@ -109,12 +111,16 @@ final class KernelExecutionPlanTests: XCTestCase {
                 0, 0, 0, 1, 0
             ])), 3),
             ("C7Vignette", C7Vignette(), 5),
-            ("C7VignetteBlend", C7VignetteBlend(), 6),
+            ("C7VignetteBlend", C7VignetteBlend(), 4),
             ("C7ColorRGBA", C7ColorRGBA(), 2),
-            ("C7Curves", C7Curves(), 8),
+            ("C7Curves", C7Curves(), 5),
             ("C7ColorBalanceEnhanced", C7ColorBalanceEnhanced(), 4),
             ("C7SelectiveHSL", C7SelectiveHSL(), 1),
             ("C7ColorGrading", C7ColorGrading(), 6),
+            ("C7ChromaticAberrationCorrection", C7ChromaticAberrationCorrection(), 4),
+            ("C7LensDistortionCorrection", C7LensDistortionCorrection(), 5),
+            ("C7SharpnessFalloffCorrection", C7SharpnessFalloffCorrection(), 4),
+            ("C7ColorCube", C7ColorCube(cubeResource: nil), 4),
             ("C7EdgeGlow", C7EdgeGlow(), 3),
             ("C7StickerOutline", C7StickerOutline(), 3)
         ]
@@ -161,6 +167,56 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertEqual(whitesBlacks.factors, [1, -1])
     }
 
+    func testPublicLongParameterFiltersUseReducedSemanticBindings() {
+        assertGroupedParameters(
+            C7BlendChromaKey(),
+            expectedNames: ["keying", "keyColor", "intensity"],
+            legacySlotCount: 6
+        )
+        assertGroupedParameters(
+            C7ChromaticAberrationCorrection(),
+            expectedNames: ["center", "channelShifts", "samplingMode", "edgeMode"],
+            legacySlotCount: 6
+        )
+        assertGroupedParameters(
+            C7LensDistortionCorrection(),
+            expectedNames: ["center", "distortionCoefficients", "scale", "samplingMode", "edgeMode"],
+            legacySlotCount: 7
+        )
+        assertGroupedParameters(
+            C7SharpnessFalloffCorrection(),
+            expectedNames: ["center", "falloff", "amount", "edgeThreshold"],
+            legacySlotCount: 6
+        )
+        assertGroupedParameters(
+            C7ColorCube(cubeResource: nil),
+            expectedNames: ["intensity", "interpolation", "domainMinimum", "domainMaximum"],
+            legacySlotCount: 8
+        )
+        assertGroupedParameters(
+            C7Curves(),
+            expectedNames: ["pointCounts", "rgbPoints", "redPoints", "greenPoints", "bluePoints"],
+            legacySlotCount: 8
+        )
+        assertGroupedParameters(
+            C7ColorMatrix4x4(matrix: .Color.identity),
+            expectedNames: ["intensity", "offset", "matrix"],
+            legacySlotCount: 6
+        )
+        assertGroupedParameters(
+            C7VignetteBlend(),
+            expectedNames: ["center", "range", "blendMode", "color"],
+            legacySlotCount: 6
+        )
+    }
+
+    func testLongParameterFilterKeepsFactorsWhenSemanticGroupingWouldNotHelp() {
+        let filter = C7DefringeCorrection()
+
+        XCTAssertEqual(filter.factors.count, 8)
+        XCTAssertTrue(filter.kernelParameterBindings.isEmpty)
+    }
+
     func testCriticalColorAndAlphaFiltersDeclareDynamicRangeBehavior() {
         XCTAssertEqual(
             C7RGBColorSpaceConversion(mode: .linearDisplayP3ToLinearSRGB)
@@ -176,6 +232,106 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertEqual(C7Deband(radius: 3.2).kernelPixelContract.samplingFootprint, .neighborhood(radius: 4))
         XCTAssertEqual(C7PremultiplyAlpha().kernelPixelContract.outputAlpha, .premultiplied)
         XCTAssertEqual(C7UnpremultiplyAlpha().kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+    }
+
+    func testLongBasicFiltersExposeReducedSemanticBindingGroups() throws {
+        let texture = try MaskTestHelpers.makeTexture(pixel: [255, 255, 255, 255])
+        let mask = MaskDescriptor(texture: texture, component: .red, blendMode: .multiply, opacity: 0.75)
+
+        assertGroupedParameters(
+            ShapeMask(kind: .rectangle(rect: CGRect(x: 0.1, y: 0.2, width: 0.7, height: 0.6), feather: 0.3)),
+            expectedNames: ["kind", "frame", "appearance", "translation", "scale", "rotation", "anchor"],
+            legacySlotCount: 15
+        )
+        assertGroupedParameters(
+            MaskCoverageBlend(mask: mask),
+            expectedNames: ["baseMask", "overlayMask", "overlayFeather"],
+            legacySlotCount: 9
+        )
+        assertGroupedParameters(
+            MaskCoverageBlendBatch(masks: [mask]),
+            expectedNames: ["baseMask", "maskCount", "mask0", "mask1", "mask2", "mask3"],
+            legacySlotCount: 25
+        )
+        assertGroupedParameters(
+            MaskAuxiliaryRangeFilter(
+                confidenceTexture: texture,
+                component: 0,
+                lowerBound: 0.2,
+                upperBound: 0.8,
+                softness: 0.1,
+                invert: false,
+                usesConfidence: true
+            ),
+            expectedNames: ["component", "range", "flags"],
+            legacySlotCount: 6
+        )
+        let layer = LayerComposite(
+            layerTexture: texture,
+            normalizedFrame: CGRect(x: 0.1, y: 0.2, width: 0.7, height: 0.6)
+        )
+        assertGroupedParameters(
+            layer,
+            expectedNames: [
+                "normalizedFrame", "contentRegion", "layerOptions", "maskOptions", "maskCoverage",
+                "compositingMaskOptions", "compositingMaskCoverage", "tintColor", "hasTint"
+            ],
+            legacySlotCount: 29
+        )
+        XCTAssertEqual(layer.kernelParameterBindings.first?.value, .float4(SIMD4<Float>(0.1, 0.2, 0.7, 0.6)))
+    }
+
+    func testGradientMaskKeepsOneSlotAndOnlyUploadsRequiredPayload() {
+        let linear = GradientMask(
+            kind: .linear(startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 1, y: 1))
+        )
+        let multiStop = GradientMask(
+            kind: .multiStopLinear(
+                startPoint: CGPoint(x: 0, y: 0),
+                endPoint: CGPoint(x: 1, y: 1),
+                stops: [
+                    MaskGradientStop(location: 0, coverage: 0),
+                    MaskGradientStop(location: 0.5, coverage: 0.8),
+                    MaskGradientStop(location: 1, coverage: 1)
+                ],
+                curve: .smooth
+            )
+        )
+
+        XCTAssertEqual(linear.kernelParameterBindings.map(\.name), ["gradientParameters"])
+        guard case .floatArray(let linearValues) = linear.kernelParameterBindings.first?.value,
+              case .floatArray(let multiStopValues) = multiStop.kernelParameterBindings.first?.value else {
+            return XCTFail("渐变参数应保持单个 Float 数组绑定。")
+        }
+        XCTAssertEqual(linearValues.count, 8)
+        XCTAssertEqual(multiStopValues.count, 16)
+    }
+
+    func testShortBasicFiltersKeepLightweightFactorsRoute() throws {
+        let texture = try MaskTestHelpers.makeTexture(pixel: [255, 255, 255, 255])
+        let descriptor = MaskDescriptor(texture: texture)
+        let regionBlend = MaskRegionBlend(effectTexture: texture, mask: descriptor)
+        let transition = DirectionalWipeTransition(toTexture: texture, progress: 0.5)
+
+        XCTAssertEqual(regionBlend.factors.count, 5)
+        XCTAssertTrue(regionBlend.kernelParameterBindings.isEmpty)
+        XCTAssertEqual(transition.factors.count, 3)
+        XCTAssertTrue(transition.kernelParameterBindings.isEmpty)
+    }
+
+    private func assertGroupedParameters<Filter: C7FilterProtocol>(
+        _ filter: Filter,
+        expectedNames: [String],
+        legacySlotCount: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(filter.factors.isEmpty, file: file, line: line)
+        let bindings = filter.kernelParameterBindings
+        XCTAssertEqual(bindings.map(\.name), expectedNames, file: file, line: line)
+        XCTAssertEqual(bindings.map(\.index), Array(expectedNames.indices), file: file, line: line)
+        XCTAssertTrue(bindings.allSatisfy { $0.stage == .compute }, file: file, line: line)
+        XCTAssertLessThan(bindings.count, legacySlotCount, file: file, line: line)
     }
 }
 

@@ -19,7 +19,7 @@ extension C7Color: HarbethCompatible {
                            alpha: 1.0)
         }
     }
-    
+
     public convenience init(hex: Int, alpha: CGFloat) {
         let mask = 0xFF
         let r = CGFloat((hex >> 16) & mask) / 255
@@ -27,7 +27,7 @@ extension C7Color: HarbethCompatible {
         let b = CGFloat((hex) & mask) / 255
         self.init(red: r, green: g, blue: b, alpha: alpha)
     }
-    
+
     public convenience init(hex: String) {
         let (r, g, b, a) = hex.c7.hex2RGBA()
         self.init(red: r, green: g, blue: b, alpha: a)
@@ -35,18 +35,30 @@ extension C7Color: HarbethCompatible {
 }
 
 extension HarbethWrapper where Base: C7Color {
-    
+
     public func toRGBA() -> (red: Float, green: Float, blue: Float, alpha: Float) {
         let components = base.c7.components.map { Float($0) }
         return (red: components[0], green: components[1], blue: components[2], alpha: components[3])
     }
-    
+
+    /// Convert the RGB component into a three-dimensional SIMD vector.
+    public func toSIMD3() -> SIMD3<Float> {
+        let rgba = toRGBA()
+        return SIMD3<Float>(rgba.red, rgba.green, rgba.blue)
+    }
+
+    /// Convert the RGBA component into a four-dimensional SIMD vector.
+    public func toSIMD4() -> SIMD4<Float> {
+        let rgba = toRGBA()
+        return SIMD4<Float>(rgba.red, rgba.green, rgba.blue, rgba.alpha)
+    }
+
     /// Convert RGBA value, transparent color does not do processing
     public func toRGBA(red: inout Float, green: inout Float, blue: inout Float, alpha: inout Float) {
         if base == C7Color.zero { return }
         (red, green, blue, alpha) = base.c7.toRGBA()
     }
-    
+
     public func linearInterpolation(directionColor: C7Color, rate: Float) -> C7Color {
         let rate = min(1, max(0, rate))
         let (fR, fG, fB, fA) = base.c7.toRGBA()
@@ -57,7 +69,7 @@ extension HarbethWrapper where Base: C7Color {
         let dA = CGFloat((tA-fA) * rate + fA)
         return C7Color.init(red: dR, green: dG, blue: dB, alpha: dA)
     }
-    
+
     /// Fixed `*** -getRed:green:blue:alpha: not valid for the NSColor Generic Gray Gamma 2.2 Profile colorspace 1 1;
     /// Need to first convert colorspace.
     /// See: https://stackoverflow.com/questions/67314642/color-not-valid-for-the-nscolor-generic-gray-gamma-when-creating-sktexture-fro
@@ -69,7 +81,7 @@ extension HarbethWrapper where Base: C7Color {
         return base
         #endif
     }
-    
+
     /// Solid color image.
     /// - Parameter size: Image size.
     /// - Returns: C7Image.
@@ -84,7 +96,7 @@ extension HarbethWrapper where Base: C7Color {
 }
 
 extension HarbethWrapper where Base: C7Color {
-    
+
     /// Return a array with [red, green, blue, alpha].
     public var components: [CGFloat] {
         if base == C7Color.zero {
@@ -95,7 +107,7 @@ extension HarbethWrapper where Base: C7Color {
         color.getRed(&r, green: &g, blue: &b, alpha: &a)
         return [r, g, b, a]
     }
-    
+
     /// Returns the HSB (hue, saturation, brightness) components.
     /// Notes that hue values are between 0 to 360, saturation values are between 0 to 1 and brightness values are between 0 to 1.
     /// - Returns: return a array with [hue, saturation, brightness].
@@ -126,7 +138,7 @@ extension HarbethWrapper where Base: C7Color {
         }
         return [h, s, maximum]
     }
-    
+
     /// Returns the HSL (hue, saturation, lightness) components.
     /// Notes that hue values are between 0 to 360, saturation values are between 0 to 1 and lightness values are between 0 to 1.
     /// - Returns: return a array with [hue, saturation, lightness].
@@ -162,7 +174,7 @@ extension HarbethWrapper where Base: C7Color {
         //h /= 6.0
         return [h * 60.0, s, l]
     }
-    
+
     /// Returns the XYZ (mix of cone response curves, luminance, quasi-equal to blue stimulation) components.
     /// Notes that X values are between 0 to 95.05, Y values are between 0 to 100.0 and Z values are between 0 to 108.9.
     /// - Returns: return a array with [X, Y, Z].
@@ -185,7 +197,7 @@ extension HarbethWrapper where Base: C7Color {
         let Z = roundDecimal(((r * 0.0193) + (g * 0.1192) + (b * 0.9505)) * 100.0)
         return [X, Y, Z]
     }
-    
+
     /// Returns the Lab (lightness, red-green axis, yellow-blue axis) components.
     /// It is based on the CIE XYZ color space with an observer at 2° and a D65 illuminant.
     /// Notes that L values are between 0 to 100.0, a values are between -128 to 127.0 and b values are between -128 to 127.0.
@@ -206,7 +218,7 @@ extension HarbethWrapper where Base: C7Color {
         let b = roundDecimal(200.0 * (normalizedY - normalizedZ))
         return [L, a, b]
     }
-    
+
     /// A color is described as a Y component (luma) and two chroma components U and V.
     /// - See: https://en.wikipedia.org/wiki/YUV
     /// - Returns: return a array with [Y, U, V].

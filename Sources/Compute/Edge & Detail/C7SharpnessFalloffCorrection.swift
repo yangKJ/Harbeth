@@ -31,8 +31,13 @@ public struct C7SharpnessFalloffCorrection: C7FilterProtocol {
         .compute(kernel: "C7SharpnessFalloffCorrection")
     }
 
-    public var factors: [Float] {
-        [center.x, center.y, amount, start, end, edgeThreshold]
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        [
+            KernelParameterBinding(name: "center", index: 0, stage: .compute, value: .float2(center.toSIMD2())),
+            KernelParameterBinding(name: "falloff", index: 1, stage: .compute, value: .float2(SIMD2<Float>(start, end))),
+            KernelParameterBinding(name: "amount", index: 2, stage: .compute, value: .float(amount)),
+            KernelParameterBinding(name: "edgeThreshold", index: 3, stage: .compute, value: .float(edgeThreshold))
+        ]
     }
 
     public var memoryAccessPattern: MemoryAccessPattern {

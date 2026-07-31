@@ -59,32 +59,26 @@ static inline float3 cubeTetrahedral(texture3d<float, access::read> lutTexture, 
 kernel void C7ColorCube(texture2d<half, access::write> outputTexture [[texture(0)]],
                         texture2d<half, access::read> inputTexture [[texture(1)]],
                         texture3d<float, access::read> lutTexture [[texture(2)]],
-                        constant float *intensityPointer [[buffer(0)]],
-                        constant float *interpolationPointer [[buffer(1)]],
-                        constant float *domainMinimumX [[buffer(2)]],
-                        constant float *domainMinimumY [[buffer(3)]],
-                        constant float *domainMinimumZ [[buffer(4)]],
-                        constant float *domainMaximumX [[buffer(5)]],
-                        constant float *domainMaximumY [[buffer(6)]],
-                        constant float *domainMaximumZ [[buffer(7)]],
+                        constant float &intensity [[buffer(0)]],
+                        constant float &interpolation [[buffer(1)]],
+                        constant float3 &domainMinimum [[buffer(2)]],
+                        constant float3 &domainMaximum [[buffer(3)]],
                         uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
 
     const half4 input = inputTexture.read(grid);
-    const float3 domainMinimum = float3(*domainMinimumX, *domainMinimumY, *domainMinimumZ);
-    const float3 domainMaximum = float3(*domainMaximumX, *domainMaximumY, *domainMaximumZ);
     const float3 domainSize = max(domainMaximum - domainMinimum, float3(1e-6f));
     const float3 normalized = clamp((float3(input.rgb) - domainMinimum) / domainSize, 0.0f, 1.0f);
     const int dimension = int(lutTexture.get_width());
     const float3 scaled = normalized * float(dimension - 1);
     const int3 base = int3(floor(scaled));
     const float3 fraction = scaled - float3(base);
-    const bool useTetrahedral = *interpolationPointer >= 0.5f;
+    const bool useTetrahedral = interpolation >= 0.5f;
     const float3 mapped = useTetrahedral
         ? cubeTetrahedral(lutTexture, base, fraction, dimension)
         : cubeTrilinear(lutTexture, base, fraction, dimension);
-    const half mixFactor = half(clamp(*intensityPointer, 0.0f, 1.0f));
+    const half mixFactor = half(clamp(intensity, 0.0f, 1.0f));
     outputTexture.write(half4(mix(input.rgb, half3(mapped), mixFactor), input.a), grid);
 }

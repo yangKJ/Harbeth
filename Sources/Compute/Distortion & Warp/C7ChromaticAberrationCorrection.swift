@@ -28,14 +28,12 @@ public struct C7ChromaticAberrationCorrection: C7FilterProtocol, SamplerAdaptabl
         .compute(kernel: "C7ChromaticAberrationCorrection")
     }
 
-    public var factors: [Float] {
+    public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            center.x,
-            center.y,
-            redCyanShift,
-            blueYellowShift,
-            Float(samplingMode.rawValue),
-            Float(edgeMode.rawValue)
+            KernelParameterBinding(name: "center", index: 0, stage: .compute, value: .float2(center.toSIMD2())),
+            KernelParameterBinding(name: "channelShifts", index: 1, stage: .compute, value: .float2(SIMD2<Float>(redCyanShift, blueYellowShift))),
+            KernelParameterBinding(name: "samplingMode", index: 2, stage: .compute, value: .int(samplingMode.rawValue)),
+            KernelParameterBinding(name: "edgeMode", index: 3, stage: .compute, value: .int(edgeMode.rawValue))
         ]
     }
 

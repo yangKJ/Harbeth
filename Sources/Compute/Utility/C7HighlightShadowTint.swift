@@ -31,8 +31,8 @@ public struct C7HighlightShadowTint: C7FilterProtocol {
         [
             KernelParameterBinding(name: "shadows", index: 0, stage: .compute, value: .float(shadows)),
             KernelParameterBinding(name: "highlights", index: 1, stage: .compute, value: .float(highlights)),
-            KernelParameterBinding(name: "shadowsColor", index: 2, stage: .compute, value: .float3(Vector3(color: shadowsColor).to_factor())),
-            KernelParameterBinding(name: "highlightsColor", index: 3, stage: .compute, value: .float3(Vector3(color: highlightsColor).to_factor()))
+            KernelParameterBinding(name: "shadowsColor", index: 2, stage: .compute, value: .float3(shadowsColor.c7.toSIMD3())),
+            KernelParameterBinding(name: "highlightsColor", index: 3, stage: .compute, value: .float3(highlightsColor.c7.toSIMD3()))
         ]
     }
     

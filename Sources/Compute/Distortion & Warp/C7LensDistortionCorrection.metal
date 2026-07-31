@@ -10,13 +10,11 @@ using namespace metal;
 
 kernel void C7LensDistortionCorrection(texture2d<half, access::write> outputTexture [[texture(0)]],
                                        texture2d<half, access::sample> inputTexture [[texture(1)]],
-                                       constant float *centerX [[buffer(0)]],
-                                       constant float *centerY [[buffer(1)]],
-                                       constant float *distortion [[buffer(2)]],
-                                       constant float *cubicDistortion [[buffer(3)]],
-                                       constant float *scale [[buffer(4)]],
-                                       constant float *samplingMode [[buffer(5)]],
-                                       constant float *edgeMode [[buffer(6)]],
+                                       constant float2 &center [[buffer(0)]],
+                                       constant float2 &distortionCoefficients [[buffer(1)]],
+                                       constant float &scale [[buffer(2)]],
+                                       constant int &samplingMode [[buffer(3)]],
+                                       constant int &edgeMode [[buffer(4)]],
                                        uint2 grid [[thread_position_in_grid]]) {
 
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
@@ -43,19 +41,18 @@ kernel void C7LensDistortionCorrection(texture2d<half, access::write> outputText
         (float(grid.y) + 0.5f) / float(outputTexture.get_height())
     );
 
-    const float2 center = float2(*centerX, *centerY);
     const float2 textureSize = float2(inputTexture.get_width(), inputTexture.get_height());
     const float maxDimension = max(textureSize.x, textureSize.y);
 
     float2 offset = uv - center;
     float2 radial = offset * textureSize / maxDimension;
     float r2 = dot(radial, radial);
-    float radialFactor = 1.0f + (*distortion) * r2 + (*cubicDistortion) * r2 * r2;
-    radial *= radialFactor * (*scale);
+    float radialFactor = 1.0f + distortionCoefficients.x * r2 + distortionCoefficients.y * r2 * r2;
+    radial *= radialFactor * scale;
     float2 correctedUV = center + radial * maxDimension / textureSize;
 
-    const int sampleMode = int(round(*samplingMode));
-    const int borderMode = int(round(*edgeMode));
+    const int sampleMode = samplingMode;
+    const int borderMode = edgeMode;
     const bool useNearest = sampleMode == 0;
 #if defined(__HAVE_BICUBIC_FILTERING__)
     const bool preferBicubic = sampleMode == 2;

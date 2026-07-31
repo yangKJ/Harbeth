@@ -25,7 +25,7 @@ public struct C7SolidColor: C7FilterProtocol {
 
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "color", index: 0, stage: .compute, value: .float4(Vector4(color: color).to_factor()))
+            KernelParameterBinding(name: "color", index: 0, stage: .compute, value: .float4(color.c7.toSIMD4()))
         ]
     }
     

@@ -24,9 +24,12 @@ public struct C7BlendChromaKey: C7FilterProtocol {
         return .compute(kernel: "C7BlendChromaKey")
     }
     
-    public var factors: [Float] {
-        let (red, green, blue, _) = color.c7.toRGBA()
-        return [threshold, smoothing, red, green, blue, intensity]
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        return [
+            KernelParameterBinding(name: "keying", index: 0, stage: .compute, value: .float2(SIMD2<Float>(threshold, smoothing))),
+            KernelParameterBinding(name: "keyColor", index: 1, stage: .compute, value: .float3(color.c7.toSIMD3())),
+            KernelParameterBinding(name: "intensity", index: 2, stage: .compute, value: .float(intensity))
+        ]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {

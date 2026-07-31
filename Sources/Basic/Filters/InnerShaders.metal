@@ -170,35 +170,15 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
                                 texture2d<half, access::sample> layerTexture [[texture(2)]],
                                 texture2d<half, access::sample> maskTexture [[texture(3)]],
                                 texture2d<half, access::sample> compositingMaskTexture [[texture(4)]],
-                                constant float *frameX [[buffer(0)]],
-                                constant float *frameY [[buffer(1)]],
-                                constant float *frameWidth [[buffer(2)]],
-                                constant float *frameHeight [[buffer(3)]],
-                                constant float *contentX [[buffer(4)]],
-                                constant float *contentY [[buffer(5)]],
-                                constant float *contentWidth [[buffer(6)]],
-                                constant float *contentHeight [[buffer(7)]],
-                                constant float *opacity [[buffer(8)]],
-                                constant float *blendMode [[buffer(9)]],
-                                constant float *hasMask [[buffer(10)]],
-                                constant float *maskComponent [[buffer(11)]],
-                                constant float *maskBlendMode [[buffer(12)]],
-                                constant float *maskInvert [[buffer(13)]],
-                                constant float *maskOpacity [[buffer(14)]],
-                                constant float *maskFeather [[buffer(15)]],
-                                constant float *hasCompositingMask [[buffer(16)]],
-                                constant float *compositingMaskComponent [[buffer(17)]],
-                                constant float *compositingMaskBlendMode [[buffer(18)]],
-                                constant float *compositingMaskInvert [[buffer(19)]],
-                                constant float *compositingMaskOpacity [[buffer(20)]],
-                                constant float *compositingMaskFeather [[buffer(21)]],
-                                constant float *cornerRadius [[buffer(22)]],
-                                constant float *continuousCorner [[buffer(23)]],
-                                constant float *tintR [[buffer(24)]],
-                                constant float *tintG [[buffer(25)]],
-                                constant float *tintB [[buffer(26)]],
-                                constant float *tintA [[buffer(27)]],
-                                constant float *hasTint [[buffer(28)]],
+                                constant float4 &normalizedFrame [[buffer(0)]],
+                                constant float4 &contentRegion [[buffer(1)]],
+                                constant float4 &layerOptions [[buffer(2)]],
+                                constant float4 &maskOptions [[buffer(3)]],
+                                constant float2 &maskCoverage [[buffer(4)]],
+                                constant float4 &compositingMaskOptions [[buffer(5)]],
+                                constant float2 &compositingMaskCoverage [[buffer(6)]],
+                                constant float4 &tint [[buffer(7)]],
+                                constant bool &hasTint [[buffer(8)]],
                                 uint2 grid [[thread_position_in_grid]]) {
     const half4 background = backgroundTexture.read(grid);
     const float outputWidth = float(outputTexture.get_width());
@@ -206,8 +186,8 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
     const float2 outputUV = float2(float(grid.x) / max(outputWidth - 1.0, 1.0),
                                    float(grid.y) / max(outputHeight - 1.0, 1.0));
 
-    const float2 origin = float2(*frameX, *frameY);
-    const float2 size = max(float2(*frameWidth, *frameHeight), float2(0.0001));
+    const float2 origin = normalizedFrame.xy;
+    const float2 size = max(normalizedFrame.zw, float2(0.0001));
     const float2 regionUV = (outputUV - origin) / size;
 
     if (regionUV.x < 0.0 || regionUV.x > 1.0 || regionUV.y < 0.0 || regionUV.y > 1.0) {
@@ -216,57 +196,56 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
     }
 
     constexpr sampler quadSampler(coord::normalized, address::clamp_to_edge, filter::linear);
-    const float2 contentOrigin = float2(*contentX, *contentY);
-    const float2 contentSize = max(float2(*contentWidth, *contentHeight), float2(0.0001));
+    const float2 contentOrigin = contentRegion.xy;
+    const float2 contentSize = max(contentRegion.zw, float2(0.0001));
     const float2 layerUV = contentOrigin + regionUV * contentSize;
     const half4 layer = layerTexture.sample(quadSampler, layerUV);
     half3 layerColor = layer.rgb;
     half layerAlpha = layer.a;
-    if (*hasTint > 0.5 && *tintA > 0.0) {
-        const half3 tintColor = half3(*tintR, *tintG, *tintB);
-        layerColor = tintColor;
-        layerAlpha *= half(clamp(*tintA, 0.0, 1.0));
+    if (hasTint && tint.a > 0.0) {
+        layerColor = half3(tint.rgb);
+        layerAlpha *= half(clamp(tint.a, 0.0, 1.0));
     }
 
-    half coverage = half(clamp(*opacity, 0.0, 1.0));
+    half coverage = half(clamp(layerOptions.x, 0.0, 1.0));
     coverage *= layerAlpha;
     half combinedMaskCoverage = half(1.0);
     bool hasCombinedMask = false;
 
-    if (*hasMask > 0.5) {
-        half maskValue = readInnerMaskComponent(maskTexture.sample(quadSampler, regionUV), *maskComponent);
-        if (*maskInvert > 0.5) {
+    if (maskOptions.x > 0.5) {
+        half maskValue = readInnerMaskComponent(maskTexture.sample(quadSampler, regionUV), maskOptions.y);
+        if (maskOptions.w > 0.5) {
             maskValue = half(1.0) - maskValue;
         }
-        const half feather = half(clamp(*maskFeather, 0.0, 1.0));
+        const half feather = half(clamp(maskCoverage.y, 0.0, 1.0));
         if (feather > 0.0h) {
             const half low = max(0.0h, 0.5h - feather * 0.5h);
             const half high = min(1.0h, 0.5h + feather * 0.5h);
             maskValue = smoothstep(low, high, maskValue);
         }
-        maskValue *= half(clamp(*maskOpacity, 0.0, 1.0));
+        maskValue *= half(clamp(maskCoverage.x, 0.0, 1.0));
         combinedMaskCoverage = combineInnerMaskCoverage(combinedMaskCoverage,
                                                         maskValue,
-                                                        int(*maskBlendMode),
+                                                        int(maskOptions.z),
                                                         hasCombinedMask);
         hasCombinedMask = true;
     }
 
-    if (*hasCompositingMask > 0.5) {
-        half maskValue = readInnerMaskComponent(compositingMaskTexture.sample(quadSampler, outputUV), *compositingMaskComponent);
-        if (*compositingMaskInvert > 0.5) {
+    if (compositingMaskOptions.x > 0.5) {
+        half maskValue = readInnerMaskComponent(compositingMaskTexture.sample(quadSampler, outputUV), compositingMaskOptions.y);
+        if (compositingMaskOptions.w > 0.5) {
             maskValue = half(1.0) - maskValue;
         }
-        const half feather = half(clamp(*compositingMaskFeather, 0.0, 1.0));
+        const half feather = half(clamp(compositingMaskCoverage.y, 0.0, 1.0));
         if (feather > 0.0h) {
             const half low = max(0.0h, 0.5h - feather * 0.5h);
             const half high = min(1.0h, 0.5h + feather * 0.5h);
             maskValue = smoothstep(low, high, maskValue);
         }
-        maskValue *= half(clamp(*compositingMaskOpacity, 0.0, 1.0));
+        maskValue *= half(clamp(compositingMaskCoverage.x, 0.0, 1.0));
         combinedMaskCoverage = combineInnerMaskCoverage(combinedMaskCoverage,
                                                         maskValue,
-                                                        int(*compositingMaskBlendMode),
+                                                        int(compositingMaskOptions.z),
                                                         hasCombinedMask);
         hasCombinedMask = true;
     }
@@ -275,17 +254,17 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
         coverage *= combinedMaskCoverage;
     }
 
-    const float radius = max(*cornerRadius, 0.0);
+    const float radius = max(layerOptions.z, 0.0);
     if (radius > 0.0) {
         const float2 pixelInLayer = regionUV * float2(outputWidth * size.x, outputHeight * size.y);
         const float2 layerPixelSize = float2(outputWidth * size.x, outputHeight * size.y);
         const float2 distanceToEdge = min(pixelInLayer, layerPixelSize - pixelInLayer);
-        const float softness = *continuousCorner > 0.5 ? 1.5 : 1.0;
+        const float softness = layerOptions.w > 0.5 ? 1.5 : 1.0;
         const float cornerCoverage = smoothstep(0.0, softness, min(distanceToEdge.x, distanceToEdge.y) / radius);
         coverage *= half(cornerCoverage);
     }
 
-    const half3 blended = blendInnerLayer(background.rgb, layerColor, *blendMode);
+    const half3 blended = blendInnerLayer(background.rgb, layerColor, layerOptions.y);
     const half3 rgb = mix(background.rgb, blended, coverage);
     const half alpha = background.a + (1.0h - background.a) * coverage;
     outputTexture.write(half4(rgb, alpha), grid);
@@ -339,15 +318,9 @@ static inline half combineInnerCoverage(half baseCoverage, half maskCoverage, in
 kernel void InnerMaskCoverageBlend(texture2d<half, access::write> outputTexture [[texture(0)]],
                                    texture2d<half, access::read> baseTexture [[texture(1)]],
                                    texture2d<half, access::read> maskTexture [[texture(2)]],
-                                   constant float *baseOpacityPointer [[buffer(0)]],
-                                   constant float *baseInvertPointer [[buffer(1)]],
-                                   constant float *baseComponentPointer [[buffer(2)]],
-                                   constant float *baseFeatherPointer [[buffer(3)]],
-                                   constant float *maskOpacityPointer [[buffer(4)]],
-                                   constant float *maskInvertPointer [[buffer(5)]],
-                                   constant float *maskComponentPointer [[buffer(6)]],
-                                   constant float *maskBlendModePointer [[buffer(7)]],
-                                   constant float *maskFeatherPointer [[buffer(8)]],
+                                   constant float4 &baseMask [[buffer(0)]],
+                                   constant float4 &overlayMask [[buffer(1)]],
+                                   constant float &overlayFeather [[buffer(2)]],
                                    uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
         return;
@@ -356,16 +329,16 @@ kernel void InnerMaskCoverageBlend(texture2d<half, access::write> outputTexture 
     const half4 baseColor = baseTexture.read(gid);
     const half4 maskColor = maskTexture.read(gid);
     const half baseCoverage = normalizedInnerMaskValue(baseColor,
-                                                       int(*baseComponentPointer),
-                                                       *baseInvertPointer > 0.5f,
-                                                       half(*baseOpacityPointer),
-                                                       half(*baseFeatherPointer));
+                                                       int(baseMask.z),
+                                                       baseMask.y > 0.5f,
+                                                       half(baseMask.x),
+                                                       half(baseMask.w));
     const half maskCoverage = normalizedInnerMaskValue(maskColor,
-                                                       int(*maskComponentPointer),
-                                                       *maskInvertPointer > 0.5f,
-                                                       half(*maskOpacityPointer),
-                                                       half(*maskFeatherPointer));
-    const half combinedCoverage = combineInnerCoverage(baseCoverage, maskCoverage, int(*maskBlendModePointer));
+                                                       int(overlayMask.z),
+                                                       overlayMask.y > 0.5f,
+                                                       half(overlayMask.x),
+                                                       half(overlayFeather));
+    const half combinedCoverage = combineInnerCoverage(baseCoverage, maskCoverage, int(overlayMask.w));
     const half4 output = half4(combinedCoverage, combinedCoverage, combinedCoverage, 1.0h);
     outputTexture.write(output, gid);
 }
@@ -376,50 +349,31 @@ kernel void InnerMaskCoverageBlendBatch4(texture2d<half, access::write> outputTe
                                          texture2d<half, access::read> mask1 [[texture(3)]],
                                          texture2d<half, access::read> mask2 [[texture(4)]],
                                          texture2d<half, access::read> mask3 [[texture(5)]],
-                                         constant float *baseOpacity [[buffer(0)]],
-                                         constant float *baseInvert [[buffer(1)]],
-                                         constant float *baseComponent [[buffer(2)]],
-                                         constant float *baseFeather [[buffer(3)]],
-                                         constant float *maskCount [[buffer(4)]],
-                                         constant float *mask0Opacity [[buffer(5)]],
-                                         constant float *mask0Invert [[buffer(6)]],
-                                         constant float *mask0Component [[buffer(7)]],
-                                         constant float *mask0Blend [[buffer(8)]],
-                                         constant float *mask0Feather [[buffer(9)]],
-                                         constant float *mask1Opacity [[buffer(10)]],
-                                         constant float *mask1Invert [[buffer(11)]],
-                                         constant float *mask1Component [[buffer(12)]],
-                                         constant float *mask1Blend [[buffer(13)]],
-                                         constant float *mask1Feather [[buffer(14)]],
-                                         constant float *mask2Opacity [[buffer(15)]],
-                                         constant float *mask2Invert [[buffer(16)]],
-                                         constant float *mask2Component [[buffer(17)]],
-                                         constant float *mask2Blend [[buffer(18)]],
-                                         constant float *mask2Feather [[buffer(19)]],
-                                         constant float *mask3Opacity [[buffer(20)]],
-                                         constant float *mask3Invert [[buffer(21)]],
-                                         constant float *mask3Component [[buffer(22)]],
-                                         constant float *mask3Blend [[buffer(23)]],
-                                         constant float *mask3Feather [[buffer(24)]],
+                                         constant float4 &baseMask [[buffer(0)]],
+                                         constant int &maskCount [[buffer(1)]],
+                                         constant float *maskParameters0 [[buffer(2)]],
+                                         constant float *maskParameters1 [[buffer(3)]],
+                                         constant float *maskParameters2 [[buffer(4)]],
+                                         constant float *maskParameters3 [[buffer(5)]],
                                          uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
-    half coverage = normalizedInnerMaskValue(baseTexture.read(gid), int(*baseComponent), *baseInvert > 0.5f, half(*baseOpacity), half(*baseFeather));
-    const int count = clamp(int(*maskCount), 0, 4);
+    half coverage = normalizedInnerMaskValue(baseTexture.read(gid), int(baseMask.z), baseMask.y > 0.5f, half(baseMask.x), half(baseMask.w));
+    const int count = clamp(maskCount, 0, 4);
     if (count > 0) {
-        const half value = normalizedInnerMaskValue(mask0.read(gid), int(*mask0Component), *mask0Invert > 0.5f, half(*mask0Opacity), half(*mask0Feather));
-        coverage = combineInnerCoverage(coverage, value, int(*mask0Blend));
+        const half value = normalizedInnerMaskValue(mask0.read(gid), int(maskParameters0[2]), maskParameters0[1] > 0.5f, half(maskParameters0[0]), half(maskParameters0[4]));
+        coverage = combineInnerCoverage(coverage, value, int(maskParameters0[3]));
     }
     if (count > 1) {
-        const half value = normalizedInnerMaskValue(mask1.read(gid), int(*mask1Component), *mask1Invert > 0.5f, half(*mask1Opacity), half(*mask1Feather));
-        coverage = combineInnerCoverage(coverage, value, int(*mask1Blend));
+        const half value = normalizedInnerMaskValue(mask1.read(gid), int(maskParameters1[2]), maskParameters1[1] > 0.5f, half(maskParameters1[0]), half(maskParameters1[4]));
+        coverage = combineInnerCoverage(coverage, value, int(maskParameters1[3]));
     }
     if (count > 2) {
-        const half value = normalizedInnerMaskValue(mask2.read(gid), int(*mask2Component), *mask2Invert > 0.5f, half(*mask2Opacity), half(*mask2Feather));
-        coverage = combineInnerCoverage(coverage, value, int(*mask2Blend));
+        const half value = normalizedInnerMaskValue(mask2.read(gid), int(maskParameters2[2]), maskParameters2[1] > 0.5f, half(maskParameters2[0]), half(maskParameters2[4]));
+        coverage = combineInnerCoverage(coverage, value, int(maskParameters2[3]));
     }
     if (count > 3) {
-        const half value = normalizedInnerMaskValue(mask3.read(gid), int(*mask3Component), *mask3Invert > 0.5f, half(*mask3Opacity), half(*mask3Feather));
-        coverage = combineInnerCoverage(coverage, value, int(*mask3Blend));
+        const half value = normalizedInnerMaskValue(mask3.read(gid), int(maskParameters3[2]), maskParameters3[1] > 0.5f, half(maskParameters3[0]), half(maskParameters3[4]));
+        coverage = combineInnerCoverage(coverage, value, int(maskParameters3[3]));
     }
     outputTexture.write(half4(coverage, coverage, coverage, 1.0h), gid);
 }
@@ -524,37 +478,26 @@ kernel void InnerMaskRegionBlend(texture2d<half, access::write> outputTexture [[
 
 kernel void InnerShapeMask(texture2d<half, access::write> outputTexture [[texture(0)]],
                            texture2d<half, access::read> inputTexture [[texture(1)]],
-                           constant float *kindPointer [[buffer(0)]],
-                           constant float *xPointer [[buffer(1)]],
-                           constant float *yPointer [[buffer(2)]],
-                           constant float *widthPointer [[buffer(3)]],
-                           constant float *heightPointer [[buffer(4)]],
-                           constant float *featherPointer [[buffer(5)]],
-                           constant float *cornerRadiusPointer [[buffer(6)]],
-                           constant float *translationXPointer [[buffer(7)]],
-                           constant float *translationYPointer [[buffer(8)]],
-                           constant float *scaleXPointer [[buffer(9)]],
-                           constant float *scaleYPointer [[buffer(10)]],
-                           constant float *rotationPointer [[buffer(11)]],
-                           constant float *anchorXPointer [[buffer(12)]],
-                           constant float *anchorYPointer [[buffer(13)]],
-                           constant float *rotationAspectPointer [[buffer(14)]],
+                           constant int &kind [[buffer(0)]],
+                           constant float4 &frame [[buffer(1)]],
+                           constant float2 &appearance [[buffer(2)]],
+                           constant float2 &translation [[buffer(3)]],
+                           constant float2 &scale [[buffer(4)]],
+                           constant float2 &rotation [[buffer(5)]],
+                           constant float2 &anchor [[buffer(6)]],
                            uint2 grid [[thread_position_in_grid]]) {
     const float2 rawUV = (float2(grid) + 0.5f) / float2(outputTexture.get_width(), outputTexture.get_height());
-    const float kind = *kindPointer;
-    const float2 origin = float2(*xPointer, *yPointer);
-    const float2 size = max(float2(*widthPointer, *heightPointer), float2(0.000001f));
-    const float feather = clamp(*featherPointer, 0.0f, 1.0f);
-    const float cornerRadius = clamp(*cornerRadiusPointer, 0.0f, 0.5f);
-    const float2 translation = float2(*translationXPointer, *translationYPointer);
-    const float2 scaleValue = float2(*scaleXPointer, *scaleYPointer);
-    const float rotation = *rotationPointer;
-    const float2 anchor = float2(*anchorXPointer, *anchorYPointer);
+    const float2 origin = frame.xy;
+    const float2 size = max(frame.zw, float2(0.000001f));
+    const float feather = clamp(appearance.x, 0.0f, 1.0f);
+    const float cornerRadius = clamp(appearance.y, 0.0f, 0.5f);
+    const float2 scaleValue = scale;
+    const float rotationRadians = rotation.x;
     const float2 shifted = rawUV - anchor - translation;
-    const float rotationAspect = max(abs(*rotationAspectPointer), 0.000001f);
+    const float rotationAspect = max(abs(rotation.y), 0.000001f);
     const float2 aspectAdjusted = float2(shifted.x * rotationAspect, shifted.y);
-    const float c = cos(-rotation);
-    const float s = sin(-rotation);
+    const float c = cos(-rotationRadians);
+    const float s = sin(-rotationRadians);
     const float2 unrotated = float2(
         aspectAdjusted.x * c - aspectAdjusted.y * s,
         aspectAdjusted.x * s + aspectAdjusted.y * c
@@ -563,14 +506,14 @@ kernel void InnerShapeMask(texture2d<half, access::write> outputTexture [[textur
     const float2 uv = normalizedRotation / max(abs(scaleValue), float2(0.000001f)) + anchor;
 
     float coverage = 0.0f;
-    if (kind < 0.5f) {
+    if (kind == 0) {
         const float2 local = (uv - origin) / size;
         const float2 edgeDistance = min(local, 1.0f - local);
         const float minEdge = min(edgeDistance.x, edgeDistance.y);
         const float featherWidth = max(feather * 0.5f, 0.000001f);
         coverage = smoothstep(0.0f, featherWidth, minEdge);
         coverage *= step(0.0f, local.x) * step(0.0f, local.y) * step(local.x, 1.0f) * step(local.y, 1.0f);
-    } else if (kind < 1.5f) {
+    } else if (kind == 1) {
         const float2 center = origin + size * 0.5f;
         const float2 radius = size * 0.5f;
         const float2 normalized = (uv - center) / max(radius, float2(0.000001f));
@@ -982,23 +925,20 @@ static inline float innerMaskAuxiliaryComponent(half4 value, int component) {
 kernel void InnerMaskAuxiliaryRange(texture2d<half, access::write> outputTexture [[texture(0)]],
                                     texture2d<half, access::read> auxiliaryTexture [[texture(1)]],
                                     texture2d<half, access::read> confidenceTexture [[texture(2)]],
-                                    constant float *componentPointer [[buffer(0)]],
-                                    constant float *lowerPointer [[buffer(1)]],
-                                    constant float *upperPointer [[buffer(2)]],
-                                    constant float *softnessPointer [[buffer(3)]],
-                                    constant float *invertPointer [[buffer(4)]],
-                                    constant float *usesConfidencePointer [[buffer(5)]],
+                                    constant int &component [[buffer(0)]],
+                                    constant float3 &range [[buffer(1)]],
+                                    constant float2 &flags [[buffer(2)]],
                                     uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
-    const float value = innerMaskAuxiliaryComponent(auxiliaryTexture.read(gid), int(*componentPointer));
-    const float low = min(*lowerPointer, *upperPointer);
-    const float high = max(*lowerPointer, *upperPointer);
-    const float softness = max(*softnessPointer, 0.000001f);
+    const float value = innerMaskAuxiliaryComponent(auxiliaryTexture.read(gid), component);
+    const float low = min(range.x, range.y);
+    const float high = max(range.x, range.y);
+    const float softness = max(range.z, 0.000001f);
     float coverage = isfinite(value)
         ? smoothstep(low - softness, low + softness, value) * (1.0f - smoothstep(high - softness, high + softness, value))
         : 0.0f;
-    if (*invertPointer > 0.5f) coverage = 1.0f - coverage;
-    if (*usesConfidencePointer > 0.5f) coverage *= float(confidenceTexture.read(gid).r);
+    if (flags.x > 0.5f) coverage = 1.0f - coverage;
+    if (flags.y > 0.5f) coverage *= float(confidenceTexture.read(gid).r);
     const half output = half(clamp(coverage, 0.0f, 1.0f));
     outputTexture.write(half4(output, output, output, 1.0h), gid);
 }

@@ -25,15 +25,18 @@ public struct C7LensDistortionCorrection: C7FilterProtocol, SamplerAdaptableFilt
         .compute(kernel: "C7LensDistortionCorrection")
     }
 
-    public var factors: [Float] {
+    public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            center.x,
-            center.y,
-            distortion,
-            cubicDistortion,
-            scale,
-            Float(samplingMode.rawValue),
-            Float(edgeMode.rawValue)
+            KernelParameterBinding(name: "center", index: 0, stage: .compute, value: .float2(center.toSIMD2())),
+            KernelParameterBinding(
+                name: "distortionCoefficients",
+                index: 1,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(distortion, cubicDistortion))
+            ),
+            KernelParameterBinding(name: "scale", index: 2, stage: .compute, value: .float(scale)),
+            KernelParameterBinding(name: "samplingMode", index: 3, stage: .compute, value: .int(samplingMode.rawValue)),
+            KernelParameterBinding(name: "edgeMode", index: 4, stage: .compute, value: .int(edgeMode.rawValue))
         ]
     }
 

@@ -21,7 +21,7 @@ public struct C7StickerOutline: C7FilterProtocol {
         [
             KernelParameterBinding(name: "outlineThickness", index: 0, stage: .compute, value: .float(outlineThickness)),
             KernelParameterBinding(name: "outlineBlur", index: 1, stage: .compute, value: .float(outlineBlur)),
-            KernelParameterBinding(name: "outlineColor", index: 2, stage: .compute, value: .float4(Vector4(color: outlineColor).to_factor()))
+            KernelParameterBinding(name: "outlineColor", index: 2, stage: .compute, value: .float4(outlineColor.c7.toSIMD4()))
         ]
     }
     

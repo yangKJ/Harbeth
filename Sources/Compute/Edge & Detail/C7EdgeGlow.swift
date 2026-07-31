@@ -28,7 +28,7 @@ public struct C7EdgeGlow: C7FilterProtocol {
         [
             KernelParameterBinding(name: "time", index: 0, stage: .compute, value: .float(time)),
             KernelParameterBinding(name: "spacing", index: 1, stage: .compute, value: .float(spacing)),
-            KernelParameterBinding(name: "lineColor", index: 2, stage: .compute, value: .float4(Vector4(color: lineColor).to_factor()))
+            KernelParameterBinding(name: "lineColor", index: 2, stage: .compute, value: .float4(lineColor.c7.toSIMD4()))
         ]
     }
     

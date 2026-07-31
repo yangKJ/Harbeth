@@ -27,11 +27,11 @@ struct GradientMask: C7FilterProtocol {
     }
 
     var kernelParameterBindings: [KernelParameterBinding] {
-        [KernelParameterBinding(name: "parameters", index: 0, stage: .compute, value: .floatArray(parameters))]
+        [KernelParameterBinding(name: "gradientParameters", index: 0, stage: .compute, value: .floatArray(parameters))]
     }
 
     private var parameters: [Float] {
-        var values = [Float](repeating: 0, count: 28)
+        var values = [Float](repeating: 0, count: 8)
         switch kind {
         case .linear(let startPoint, let endPoint):
             values[0] = 0
@@ -63,11 +63,12 @@ struct GradientMask: C7FilterProtocol {
             values[1] = Float(center.x); values[2] = Float(center.y)
             values[5] = innerRadius; values[6] = peakRadius; values[7] = outerRadius
         case .multiStopLinear(let startPoint, let endPoint, _, let curve):
+            let stops = kind.normalizedStops
+            values = [Float](repeating: 0, count: 10 + stops.count * 2)
             values[0] = 7
             values[1] = Float(startPoint.x); values[2] = Float(startPoint.y)
             values[3] = Float(endPoint.x); values[4] = Float(endPoint.y)
             values[8] = curve.shaderValue
-            let stops = kind.normalizedStops
             values[9] = Float(stops.count)
             for (index, stop) in stops.enumerated() {
                 values[10 + index * 2] = stop.location
@@ -95,56 +96,58 @@ struct ShapeMask: C7FilterProtocol {
         .point
     }
 
-    var factors: [Float] {
+    var kernelParameterBindings: [KernelParameterBinding] {
+        let shape: (kind: Int, frame: SIMD4<Float>, appearance: SIMD2<Float>)
         switch kind {
         case .rectangle(let rect, let feather):
-            return [
+            shape = (
                 0,
-                Float(rect.origin.x),
-                Float(rect.origin.y),
-                Float(rect.width),
-                Float(rect.height),
-                min(max(feather, 0), 1),
-                0
-            ]
-            + transformFactors
+                SIMD4<Float>(Float(rect.origin.x), Float(rect.origin.y), Float(rect.width), Float(rect.height)),
+                SIMD2<Float>(min(max(feather, 0), 1), 0)
+            )
         case .ellipse(let rect, let feather):
-            return [
+            shape = (
                 1,
-                Float(rect.origin.x),
-                Float(rect.origin.y),
-                Float(rect.width),
-                Float(rect.height),
-                min(max(feather, 0), 1),
-                0
-            ]
-            + transformFactors
+                SIMD4<Float>(Float(rect.origin.x), Float(rect.origin.y), Float(rect.width), Float(rect.height)),
+                SIMD2<Float>(min(max(feather, 0), 1), 0)
+            )
         case .roundedRect(let rect, let cornerRadius, let feather):
-            return [
+            shape = (
                 2,
-                Float(rect.origin.x),
-                Float(rect.origin.y),
-                Float(rect.width),
-                Float(rect.height),
-                min(max(feather, 0), 1),
-                min(max(cornerRadius, 0), 0.5)
-            ]
-            + transformFactors
+                SIMD4<Float>(Float(rect.origin.x), Float(rect.origin.y), Float(rect.width), Float(rect.height)),
+                SIMD2<Float>(min(max(feather, 0), 1), min(max(cornerRadius, 0), 0.5))
+            )
         case .regularPolygon, .star:
             preconditionFailure("regularPolygon/star should be lowered to PathMask before execution.")
         }
-    }
-
-    private var transformFactors: [Float] {
-        [
-            Float(transform.translation.x),
-            Float(transform.translation.y),
-            Float(transform.scale.x),
-            Float(transform.scale.y),
-            Float(transform.rotationRadians),
-            Float(transform.anchor.x),
-            Float(transform.anchor.y),
-            Float(transform.rotationAspectRatio)
+        return [
+            KernelParameterBinding(name: "kind", index: 0, stage: .compute, value: .int(shape.kind)),
+            KernelParameterBinding(name: "frame", index: 1, stage: .compute, value: .float4(shape.frame)),
+            KernelParameterBinding(name: "appearance", index: 2, stage: .compute, value: .float2(shape.appearance)),
+            KernelParameterBinding(
+                name: "translation",
+                index: 3,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(Float(transform.translation.x), Float(transform.translation.y)))
+            ),
+            KernelParameterBinding(
+                name: "scale",
+                index: 4,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(Float(transform.scale.x), Float(transform.scale.y)))
+            ),
+            KernelParameterBinding(
+                name: "rotation",
+                index: 5,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(Float(transform.rotationRadians), Float(transform.rotationAspectRatio)))
+            ),
+            KernelParameterBinding(
+                name: "anchor",
+                index: 6,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(Float(transform.anchor.x), Float(transform.anchor.y)))
+            )
         ]
     }
 }
@@ -262,17 +265,21 @@ struct MaskCoverageBlend: C7FilterProtocol {
         .compute(kernel: "InnerMaskCoverageBlend")
     }
 
-    var factors: [Float] {
+    var kernelParameterBindings: [KernelParameterBinding] {
         [
-            baseOpacity,
-            baseInvert ? 1 : 0,
-            Float(baseComponent.rawValue),
-            baseFeatherPolicy.amount,
-            mask.opacity,
-            mask.invert ? 1 : 0,
-            Float(mask.component.rawValue),
-            Float(mask.blendMode.rawValue),
-            mask.featherPolicy.amount
+            KernelParameterBinding(
+                name: "baseMask",
+                index: 0,
+                stage: .compute,
+                value: .float4(SIMD4<Float>(baseOpacity, baseInvert ? 1 : 0, Float(baseComponent.rawValue), baseFeatherPolicy.amount))
+            ),
+            KernelParameterBinding(
+                name: "overlayMask",
+                index: 1,
+                stage: .compute,
+                value: .float4(SIMD4<Float>(mask.opacity, mask.invert ? 1 : 0, Float(mask.component.rawValue), Float(mask.blendMode.rawValue)))
+            ),
+            KernelParameterBinding(name: "overlayFeather", index: 2, stage: .compute, value: .float(mask.featherPolicy.amount))
         ]
     }
 
@@ -309,29 +316,35 @@ struct MaskCoverageBlendBatch: C7FilterProtocol {
         .compute(kernel: "InnerMaskCoverageBlendBatch4")
     }
 
-    var factors: [Float] {
-        var values: [Float] = [
-            baseOpacity,
-            baseInvert ? 1 : 0,
-            Float(baseComponent.rawValue),
-            baseFeatherPolicy.amount,
-            Float(masks.count)
+    var kernelParameterBindings: [KernelParameterBinding] {
+        var bindings = [
+            KernelParameterBinding(
+                name: "baseMask",
+                index: 0,
+                stage: .compute,
+                value: .float4(SIMD4<Float>(baseOpacity, baseInvert ? 1 : 0, Float(baseComponent.rawValue), baseFeatherPolicy.amount))
+            ),
+            KernelParameterBinding(name: "maskCount", index: 1, stage: .compute, value: .int(masks.count))
         ]
         for index in 0..<4 {
+            let values: [Float]
             if index < masks.count {
                 let mask = masks[index]
-                values.append(contentsOf: [
+                values = [
                     mask.opacity,
                     mask.invert ? 1 : 0,
                     Float(mask.component.rawValue),
                     Float(mask.blendMode.rawValue),
                     mask.featherPolicy.amount
-                ])
+                ]
             } else {
-                values.append(contentsOf: [0, 0, Float(MaskComponent.red.rawValue), Float(MaskBlendMode.add.rawValue), 0])
+                values = [0, 0, Float(MaskComponent.red.rawValue), Float(MaskBlendMode.add.rawValue), 0]
             }
+            bindings.append(
+                KernelParameterBinding(name: "mask\(index)", index: index + 2, stage: .compute, value: .floatArray(values))
+            )
         }
-        return values
+        return bindings
     }
 
     var otherInputTextures: C7InputTextures {
@@ -446,10 +459,21 @@ struct MaskAuxiliaryRangeFilter: C7FilterProtocol {
 
     var modifier: ModifierEnum { .compute(kernel: "InnerMaskAuxiliaryRange") }
     var otherInputTextures: C7InputTextures { [confidenceTexture] }
-    var factors: [Float] {
+    var kernelParameterBindings: [KernelParameterBinding] {
         [
-            Float(component), lowerBound, upperBound, max(softness, 0),
-            invert ? 1 : 0, usesConfidence ? 1 : 0
+            KernelParameterBinding(name: "component", index: 0, stage: .compute, value: .int(component)),
+            KernelParameterBinding(
+                name: "range",
+                index: 1,
+                stage: .compute,
+                value: .float3(SIMD3<Float>(lowerBound, upperBound, max(softness, 0)))
+            ),
+            KernelParameterBinding(
+                name: "flags",
+                index: 2,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(invert ? 1 : 0, usesConfidence ? 1 : 0))
+            )
         ]
     }
     var memoryAccessPattern: MemoryAccessPattern { .multiTexture }

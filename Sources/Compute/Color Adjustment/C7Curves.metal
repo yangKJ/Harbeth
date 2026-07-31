@@ -57,21 +57,18 @@ float curveInterpolation(float value, constant float* points, int pointCount) {
 
 kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]],
                      texture2d<half, access::read> inputTexture [[texture(1)]],
-                     constant float *rgbCount [[buffer(0)]],
-                     constant float *redCount [[buffer(1)]],
-                     constant float *greenCount [[buffer(2)]],
-                     constant float *blueCount [[buffer(3)]],
-                     constant float *rgbPoints [[buffer(4)]],
-                     constant float *redPoints [[buffer(5)]],
-                     constant float *greenPoints [[buffer(6)]],
-                     constant float *bluePoints [[buffer(7)]],
+                     constant float4 &pointCounts [[buffer(0)]],
+                     constant float *rgbPoints [[buffer(1)]],
+                     constant float *redPoints [[buffer(2)]],
+                     constant float *greenPoints [[buffer(3)]],
+                     constant float *bluePoints [[buffer(4)]],
                      uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     
-    int rgbPointCount = int(*rgbCount);
-    int redPointCount = int(*redCount);
-    int greenPointCount = int(*greenCount);
-    int bluePointCount = int(*blueCount);
+    int rgbPointCount = int(pointCounts.x);
+    int redPointCount = int(pointCounts.y);
+    int greenPointCount = int(pointCounts.z);
+    int bluePointCount = int(pointCounts.w);
     
     float red = float(inColor.r);
     float green = float(inColor.g);

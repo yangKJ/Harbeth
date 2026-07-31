@@ -35,8 +35,8 @@ public struct C7ChromaKey: C7FilterProtocol {
         [
             KernelParameterBinding(name: "thresholdSensitivity", index: 0, stage: .compute, value: .float(thresholdSensitivity)),
             KernelParameterBinding(name: "smoothing", index: 1, stage: .compute, value: .float(smoothing)),
-            KernelParameterBinding(name: "chroma", index: 2, stage: .compute, value: .float3(Vector3(color: chroma).to_factor())),
-            KernelParameterBinding(name: "replace", index: 3, stage: .compute, value: .float4(Vector4(color: replace).to_factor()))
+            KernelParameterBinding(name: "chroma", index: 2, stage: .compute, value: .float3(chroma.c7.toSIMD3())),
+            KernelParameterBinding(name: "replace", index: 3, stage: .compute, value: .float4(replace.c7.toSIMD4()))
         ]
     }
     

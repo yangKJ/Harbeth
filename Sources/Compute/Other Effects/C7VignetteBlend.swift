@@ -37,12 +37,10 @@ public struct C7VignetteBlend: C7FilterProtocol {
 
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "centerX", index: 0, stage: .compute, value: .float(center.x)),
-            KernelParameterBinding(name: "centerY", index: 1, stage: .compute, value: .float(center.y)),
-            KernelParameterBinding(name: "start", index: 2, stage: .compute, value: .float(start)),
-            KernelParameterBinding(name: "end", index: 3, stage: .compute, value: .float(end)),
-            KernelParameterBinding(name: "blendMode", index: 4, stage: .compute, value: .float(Float(blendMode.rawValue))),
-            KernelParameterBinding(name: "color", index: 5, stage: .compute, value: .float3(Vector3(color: color).to_factor()))
+            KernelParameterBinding(name: "center", index: 0, stage: .compute, value: .float2(center.toSIMD2())),
+            KernelParameterBinding(name: "range", index: 1, stage: .compute, value: .float2(SIMD2<Float>(start, end))),
+            KernelParameterBinding(name: "blendMode", index: 2, stage: .compute, value: .int(blendMode.rawValue)),
+            KernelParameterBinding(name: "color", index: 3, stage: .compute, value: .float3(color.c7.toSIMD3()))
         ]
     }
     

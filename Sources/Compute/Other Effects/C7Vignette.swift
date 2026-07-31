@@ -32,7 +32,7 @@ public struct C7Vignette: C7FilterProtocol {
             KernelParameterBinding(name: "centerY", index: 1, stage: .compute, value: .float(center.y)),
             KernelParameterBinding(name: "start", index: 2, stage: .compute, value: .float(start)),
             KernelParameterBinding(name: "end", index: 3, stage: .compute, value: .float(end)),
-            KernelParameterBinding(name: "color", index: 4, stage: .compute, value: .float3(Vector3(color: color).to_factor()))
+            KernelParameterBinding(name: "color", index: 4, stage: .compute, value: .float3(color.c7.toSIMD3()))
         ]
     }
     

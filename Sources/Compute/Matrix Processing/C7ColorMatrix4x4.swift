@@ -27,11 +27,8 @@ public struct C7ColorMatrix4x4: C7FilterProtocol {
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
             KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
-            KernelParameterBinding(name: "offsetR", index: 1, stage: .compute, value: .float(offset.values[0])),
-            KernelParameterBinding(name: "offsetG", index: 2, stage: .compute, value: .float(offset.values[1])),
-            KernelParameterBinding(name: "offsetB", index: 3, stage: .compute, value: .float(offset.values[2])),
-            KernelParameterBinding(name: "offsetA", index: 4, stage: .compute, value: .float(offset.values[3])),
-            KernelParameterBinding(name: "matrix", index: 5, stage: .compute, value: .matrix4x4(matrix))
+            KernelParameterBinding(name: "offset", index: 1, stage: .compute, value: .float4(offset.to_factor())),
+            KernelParameterBinding(name: "matrix", index: 2, stage: .compute, value: .matrix4x4(matrix))
         ]
     }
     

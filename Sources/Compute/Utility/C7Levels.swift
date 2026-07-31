@@ -26,11 +26,11 @@ public struct C7Levels: C7FilterProtocol {
 
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "minimum", index: 0, stage: .compute, value: .float3(Vector3(color: minimum).to_factor())),
-            KernelParameterBinding(name: "middle", index: 1, stage: .compute, value: .float3(Vector3(color: middle).to_factor())),
-            KernelParameterBinding(name: "maximum", index: 2, stage: .compute, value: .float3(Vector3(color: maximum).to_factor())),
-            KernelParameterBinding(name: "minOutput", index: 3, stage: .compute, value: .float3(Vector3(color: minOutput).to_factor())),
-            KernelParameterBinding(name: "maxOutput", index: 4, stage: .compute, value: .float3(Vector3(color: maxOutput).to_factor()))
+            KernelParameterBinding(name: "minimum", index: 0, stage: .compute, value: .float3(minimum.c7.toSIMD3())),
+            KernelParameterBinding(name: "middle", index: 1, stage: .compute, value: .float3(middle.c7.toSIMD3())),
+            KernelParameterBinding(name: "maximum", index: 2, stage: .compute, value: .float3(maximum.c7.toSIMD3())),
+            KernelParameterBinding(name: "minOutput", index: 3, stage: .compute, value: .float3(minOutput.c7.toSIMD3())),
+            KernelParameterBinding(name: "maxOutput", index: 4, stage: .compute, value: .float3(maxOutput.c7.toSIMD3()))
         ]
     }
     

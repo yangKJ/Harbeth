@@ -11,29 +11,26 @@ using namespace metal;
 kernel void C7BlendChromaKey(texture2d<half, access::write> outputTexture [[texture(0)]],
                              texture2d<half, access::read> inputTexture [[texture(1)]],
                              texture2d<half, access::sample> inputTexture2 [[texture(2)]],
-                             constant float *threshold [[buffer(0)]],
-                             constant float *smoothing [[buffer(1)]],
-                             constant float *red [[buffer(2)]],
-                             constant float *green [[buffer(3)]],
-                             constant float *blue [[buffer(4)]],
-                             constant float *intensity [[buffer(5)]],
+                             constant float2 &keying [[buffer(0)]],
+                             constant float3 &keyColor [[buffer(1)]],
+                             constant float &intensity [[buffer(2)]],
                              uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
     constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
     float2 textureCoordinate = (float2(grid) + 0.5) / float2(outputTexture.get_width(), outputTexture.get_height());
     const half4 overlay = inputTexture2.sample(quadSampler, textureCoordinate);
     
-    const half maskY  = 0.2989h * half(*red) + 0.5866h * half(*green) + 0.1145h * half(*blue);
-    const half maskCr = 0.7132h * (half(*red) - maskY);
-    const half maskCb = 0.5647h * (half(*blue) - maskY);
+    const half maskY  = 0.2989h * half(keyColor.r) + 0.5866h * half(keyColor.g) + 0.1145h * half(keyColor.b);
+    const half maskCr = 0.7132h * (half(keyColor.r) - maskY);
+    const half maskCb = 0.5647h * (half(keyColor.b) - maskY);
     
     const half Y  = 0.2989h * inColor.r + 0.5866h * inColor.g + 0.1145h * inColor.b;
     const half Cr = 0.7132h * (inColor.r - Y);
     const half Cb = 0.5647h * (inColor.b - Y);
     
-    const float blendValue = 1.0 - smoothstep(float(*threshold), float(*threshold) + float(*smoothing), distance(float2(Cr, Cb), float2(maskCr, maskCb)));
+    const float blendValue = 1.0 - smoothstep(keying.x, keying.x + keying.y, distance(float2(Cr, Cb), float2(maskCr, maskCb)));
     const half4 outColor = half4(mix(inColor, overlay, half(blendValue)));
-    const half4 output = mix(inColor, outColor, half(*intensity));
+    const half4 output = mix(inColor, outColor, half(intensity));
     
     outputTexture.write(output, grid);
 }

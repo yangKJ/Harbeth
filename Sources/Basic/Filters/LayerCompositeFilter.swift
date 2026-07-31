@@ -46,37 +46,57 @@ struct LayerComposite: C7FilterProtocol {
         .compute(kernel: "InnerLayerComposite")
     }
 
-    var factors: [Float] {
-        [
-            Float(normalizedFrame.origin.x),
-            Float(normalizedFrame.origin.y),
-            Float(normalizedFrame.size.width),
-            Float(normalizedFrame.size.height),
-            Float(contentRegion.origin.x),
-            Float(contentRegion.origin.y),
-            Float(contentRegion.size.width),
-            Float(contentRegion.size.height),
-            opacity,
-            Float(blendMode.rawValue),
+    var kernelParameterBindings: [KernelParameterBinding] {
+        let frame = SIMD4<Float>(
+            Float(normalizedFrame.origin.x), Float(normalizedFrame.origin.y),
+            Float(normalizedFrame.size.width), Float(normalizedFrame.size.height)
+        )
+        let region = SIMD4<Float>(
+            Float(contentRegion.origin.x), Float(contentRegion.origin.y),
+            Float(contentRegion.size.width), Float(contentRegion.size.height)
+        )
+        let maskOptions = SIMD4<Float>(
             mask == nil ? 0 : 1,
             Float(mask?.component.rawValue ?? MaskComponent.alpha.rawValue),
             Float(mask?.blendMode.rawValue ?? MaskBlendMode.mix.rawValue),
-            mask?.invert == true ? 1 : 0,
-            mask?.opacity ?? 1,
-            mask?.featherPolicy.amount ?? 0,
+            mask?.invert == true ? 1 : 0
+        )
+        let compositingMaskOptions = SIMD4<Float>(
             compositingMask == nil ? 0 : 1,
             Float(compositingMask?.component.rawValue ?? MaskComponent.alpha.rawValue),
             Float(compositingMask?.blendMode.rawValue ?? MaskBlendMode.mix.rawValue),
-            compositingMask?.invert == true ? 1 : 0,
-            compositingMask?.opacity ?? 1,
-            compositingMask?.featherPolicy.amount ?? 0,
-            cornerRadius,
-            cornerCurve == .continuous ? 1 : 0,
-            tintColor?.x ?? 0,
-            tintColor?.y ?? 0,
-            tintColor?.z ?? 0,
-            tintColor?.w ?? 0,
-            tintColor == nil ? 0 : 1
+            compositingMask?.invert == true ? 1 : 0
+        )
+        return [
+            KernelParameterBinding(name: "normalizedFrame", index: 0, stage: .compute, value: .float4(frame)),
+            KernelParameterBinding(name: "contentRegion", index: 1, stage: .compute, value: .float4(region)),
+            KernelParameterBinding(
+                name: "layerOptions",
+                index: 2,
+                stage: .compute,
+                value: .float4(SIMD4<Float>(opacity, Float(blendMode.rawValue), cornerRadius, cornerCurve == .continuous ? 1 : 0))
+            ),
+            KernelParameterBinding(name: "maskOptions", index: 3, stage: .compute, value: .float4(maskOptions)),
+            KernelParameterBinding(
+                name: "maskCoverage",
+                index: 4,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(mask?.opacity ?? 1, mask?.featherPolicy.amount ?? 0))
+            ),
+            KernelParameterBinding(
+                name: "compositingMaskOptions",
+                index: 5,
+                stage: .compute,
+                value: .float4(compositingMaskOptions)
+            ),
+            KernelParameterBinding(
+                name: "compositingMaskCoverage",
+                index: 6,
+                stage: .compute,
+                value: .float2(SIMD2<Float>(compositingMask?.opacity ?? 1, compositingMask?.featherPolicy.amount ?? 0))
+            ),
+            KernelParameterBinding(name: "tintColor", index: 7, stage: .compute, value: .float4(tintColor ?? .zero)),
+            KernelParameterBinding(name: "hasTint", index: 8, stage: .compute, value: .bool(tintColor != nil))
         ]
     }
 

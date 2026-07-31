@@ -24,6 +24,15 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = build
     }
 
+    func testSIMDValueConversionSurfaceCompiles() {
+        let color = C7Color(red: 0.25, green: 0.5, blue: 0.75, alpha: 1)
+        let rgb: SIMD3<Float> = color.c7.toSIMD3()
+        let rgba: SIMD4<Float> = color.c7.toSIMD4()
+        let point: SIMD2<Float> = C7Point2D.center.toSIMD2()
+        let freePoint: SIMD2<Float> = FreePoint2D(x: -0.5, y: 1.5).toSIMD2()
+        _ = (rgb, rgba, point, freePoint)
+    }
+
     func testEncodeOnlyAttachmentInteropSurfaceCompiles() {
         let encode: (RenderAuxiliaryLuminance, MTLTexture, MTLCommandBuffer) throws -> RenderedAttachmentSet = {
             filter, texture, commandBuffer in

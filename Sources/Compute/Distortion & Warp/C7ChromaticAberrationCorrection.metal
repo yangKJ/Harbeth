@@ -72,12 +72,10 @@ static float4 sampleOpticsColor(texture2d<half, access::sample> inputTexture,
 
 kernel void C7ChromaticAberrationCorrection(texture2d<half, access::write> outputTexture [[texture(0)]],
                                             texture2d<half, access::sample> inputTexture [[texture(1)]],
-                                            constant float *centerX [[buffer(0)]],
-                                            constant float *centerY [[buffer(1)]],
-                                            constant float *redCyanShift [[buffer(2)]],
-                                            constant float *blueYellowShift [[buffer(3)]],
-                                            constant float *samplingMode [[buffer(4)]],
-                                            constant float *edgeMode [[buffer(5)]],
+                                            constant float2 &center [[buffer(0)]],
+                                            constant float2 &channelShifts [[buffer(1)]],
+                                            constant int &samplingMode [[buffer(2)]],
+                                            constant int &edgeMode [[buffer(3)]],
                                             uint2 grid [[thread_position_in_grid]]) {
 
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
@@ -88,7 +86,6 @@ kernel void C7ChromaticAberrationCorrection(texture2d<half, access::write> outpu
         (float(grid.x) + 0.5f) / float(outputTexture.get_width()),
         (float(grid.y) + 0.5f) / float(outputTexture.get_height())
     );
-    const float2 center = float2(*centerX, *centerY);
     const float2 textureSize = float2(inputTexture.get_width(), inputTexture.get_height());
     const float maxDimension = max(textureSize.x, textureSize.y);
 
@@ -98,12 +95,12 @@ kernel void C7ChromaticAberrationCorrection(texture2d<half, access::write> outpu
     float2 direction = radius2 > 0.000001f ? normalize(radial) : float2(0.0f);
     float2 shiftBase = direction * radius2 * maxDimension / textureSize;
 
-    const int sampleMode = int(round(*samplingMode));
-    const int borderMode = int(round(*edgeMode));
+    const int sampleMode = samplingMode;
+    const int borderMode = edgeMode;
 
     float4 base = sampleOpticsColor(inputTexture, uv, sampleMode, borderMode);
-    float4 redShifted = sampleOpticsColor(inputTexture, uv + shiftBase * (*redCyanShift), sampleMode, borderMode);
-    float4 blueShifted = sampleOpticsColor(inputTexture, uv + shiftBase * (*blueYellowShift), sampleMode, borderMode);
+    float4 redShifted = sampleOpticsColor(inputTexture, uv + shiftBase * channelShifts.x, sampleMode, borderMode);
+    float4 blueShifted = sampleOpticsColor(inputTexture, uv + shiftBase * channelShifts.y, sampleMode, borderMode);
 
     float4 outputColor = base;
     outputColor.r = redShifted.r;

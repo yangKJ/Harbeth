@@ -23,7 +23,7 @@ public struct C7Monochrome: C7FilterProtocol {
     
     public var factors: [Float] {
         let rgb = color.c7.toRGBA()
-        return [intensity] + [rgb.red, rgb.green, rgb.blue]
+        return [intensity, rgb.red, rgb.green, rgb.blue]
     }
     
     public init(intensity: Float = 1.0, color: C7Color = .zero) {
