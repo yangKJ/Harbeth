@@ -66,7 +66,34 @@ xcrun swift test --filter RealtimeRouteBenchmarkTests
 - edit / layer composite / transition advanced routes
 - pixelBuffer / YCbCr bridge
 
-`RealtimeRouteBenchmarkTests` 额外记录五条实时交付路线的真实 cold first frame、avg、p95、p99、stable/dropped frames、fallback 与 resident-memory delta。首帧必须保留执行顺序，不能用排序后的最小值代替；输入缓冲应循环复用，不能让 benchmark 自身一次性常驻数百帧并污染内存结果。
+`RealtimeRouteBenchmarkTests` 额外记录五条实时交付路线的 cold first frame、60 Hz steady-state 端到端延迟、GPU duration、deadline、in-flight/backlog、stable/dropped frames、fallback 与 resident-memory delta。输入使用固定数量的环形 slot，不能让 benchmark 自身一次性常驻数百份像素数据并污染内存结果。
+
+### Realtime 五路径证据合同
+
+当前 JSON schema 为 v2，但保留既有根字段、五个 route 字符串、route 顺序、`avgFrameTime` / `p95` / `p99` / `firstFrameTime` / `stableFrames` / `droppedFrames` 等旧键，以及 `NSTemporaryDirectory()/HarbethRealtimeRouteBenchmarks/latest.json` 路径。v2 只追加字段；新 decoder 读取没有 `schemaVersion` 的旧产物时按 v1 处理，并把无法从旧数据证明的 GPU、deadline、in-flight/backlog 指标保留为 `null`，不能用 `0` 冒充“已经测量且没有成本”。旧 decoder 会忽略 v2 追加键。
+
+每条 route 的执行顺序固定为：
+
+1. 单独执行 1 次 cold frame，原序记录 `firstFrameTime` 与 `firstFrameSucceeded`。
+2. 执行 20 次串行 warmup，不进入 steady-state 样本和 frame count。
+3. 以 16.666666 ms 周期产生 300 个逻辑帧；`avgFrameTime`、`p95`、`p99` 只统计这 300 个帧机会中成功回调的端到端延迟，分位数使用 nearest-rank。
+
+端到端延迟从逻辑帧的计划到达时刻开始，到 route 完成回调为止，因此会包含主线程交接、Harbeth render operation queue 等待、CPU 编码、GPU 完成等待，以及该 route 明确包含的输出 copy 或 host handoff。它不是单纯的 CPU encode time，也不能用 GPU duration 相减得到 CPU time。
+
+前四条处理路线的 GPU 字段来自已完成 `MTLCommandBuffer` 的 `gpuStartTime` / `gpuEndTime`，由 `PerformanceMonitor` 按逻辑帧 identifier 聚合。只有 `status` 完成且时间戳为有限正区间的样本才能进入 `gpuAvgFrameTime` / `gpuP95` / `gpuP99`；设备或环境返回零时间戳时必须输出 `null` 并令 `gpuTimingAvailable=false`。BGRA 固定输入下当前每帧通常只有一个处理 command buffer，但统计合同允许未来按帧聚合多个 command buffer。
+
+队列与丢帧字段按以下语义计算：
+
+- `maxInFlightFrames`：已经被 cadence runner 接受、但完成回调尚未返回的逻辑帧峰值；当前环形 slot 同时构成明确的 `inFlightLimit`。
+- `maxBacklogFrames`：提交时观察到的 `renderOperationQueue.operationCount - maxConcurrentOperationCount` 正值峰值；它是 Harbeth frame-operation backlog，不冒充 Metal command queue 的内部深度。
+- `schedulerDroppedFrames`：60 Hz producer 自身醒来时，该帧的 16.67 ms 机会已经过期，因此未提交。
+- `backpressureDroppedFrames`：所有 in-flight slot 均被占用，输入帧被明确拒绝。
+- `deadlineMissedFrames`：route 成功完成，但完成回调晚于该帧 deadline；benchmark 会把这类陈旧结果视为已丢弃，不再交给 host。
+- `failedFrames`：route 错误回调或测量超时。
+- `stableFrames`：在 deadline 内成功完成并可交付的帧。
+- `droppedFrames`：上述 scheduler、backpressure、deadline miss 与 failure 的互斥总和；v2 明确改变了 v1 中“仅等于抛错次数”的旧语义，并保持 `stableFrames + droppedFrames == frameCount`。
+
+证据边界必须随结果一起保留：前三条 `ImageNode -> RenderView.display` 路线测到的是 processing + host handoff，第四条 `HarbethIO -> output` 还包含输出 pixelBuffer copy。测试宿主中的 `RenderView` 没有真实 window/drawable，所以五条路线全部输出 `includesDrawablePresentation=false`；第五条 `RenderView.texture` 只是 host-assignment 对照，没有 command buffer，必须输出 `gpuTimingAvailable=false` 和 `null` GPU 时间。这里的 dropped frame 是由真实 60 Hz 到达、完成回调、deadline 和明确丢弃决策得到的 route-level drop，不代表相机采集丢帧、窗口合成器 present feedback 或物理显示器丢帧。需要后两类结论时必须另做真机/真实 drawable 测试。
 
 ## Texture Pool 与真实 MTLHeap
 
