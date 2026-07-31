@@ -378,6 +378,26 @@ let color = outputs.primary?.texture
 let coverage = outputs.texture(for: .coverage)
 ```
 
+需要把画布投影与后续 GPU pass 放进同一提交批次时，使用 encode-only bridge。这个入口不会提交或等待 command buffer；调用方必须提供与 Harbeth 共用同一 Metal device、`retainedReferences == true`、状态为 `.notEnqueued` 或 `.enqueued` 且当前没有打开 encoder 的 command buffer。输出纹理可以立即供同一 command buffer 的后续 encoder 使用，但 CPU 读回必须等到调用方确认 GPU 完成：
+
+```swift
+let commandBuffer = commandQueue.makeCommandBuffer()!
+let outputs = try filter.encodeAttachmentSet(
+    from: sourceTexture,
+    commandBuffer: commandBuffer
+)
+let color = outputs.primary!.texture
+let coverage = outputs.texture(for: .coverage)!
+
+// 在同一个 commandBuffer 上继续编码依赖 color / coverage 的 GPU pass。
+commandBuffer.commit()
+commandBuffer.waitUntilCompleted()
+guard commandBuffer.status == .completed else {
+    if let error = commandBuffer.error { throw HarbethError.error(error) }
+    throw HarbethError.commandBufferAsyncCommit(commandBuffer.status)
+}
+```
+
 最自然的接法现在是直接挂在已有 node 上，而不是先切回单独执行入口：
 
 ```swift

@@ -484,6 +484,60 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertNil(attachmentSet)
     }
 
+    func testEncodeAttachmentSetLeavesSubmissionToCaller() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try TextureLoader.makeTexture(width: 2, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.encodeAttachmentSet")
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: [
+                0, 0, 0, 255,
+                255, 255, 255, 255
+            ],
+            bytesPerRow: 8
+        )
+        let filter = RenderAuxiliaryLuminance()
+        let commandBuffer = try XCTUnwrap(Shared.shared.commandQueue.makeCommandBuffer())
+
+        let attachmentSet = try filter.encodeAttachmentSet(
+            from: texture,
+            commandBuffer: commandBuffer,
+            identifier: "RenderedFrameTests.encodeAttachmentSet"
+        )
+
+        XCTAssertEqual(commandBuffer.status, .notEnqueued)
+        XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        XCTAssertEqual(commandBuffer.status, .completed)
+        XCTAssertNotNil(attachmentSet.makeCGImage(for: .luminance))
+    }
+
+    func testEncodeAttachmentSetRejectsUnretainedCommandBuffer() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        let texture = try TextureLoader.makeTexture(width: 1, height: 1, options: [
+            .texturePixelFormat: MTLPixelFormat.rgba8Unorm
+        ], identifier: "RenderedFrameTests.unretainedAttachmentSet")
+        let descriptor = MTLCommandBufferDescriptor()
+        descriptor.retainedReferences = false
+        let commandBuffer = try XCTUnwrap(Shared.shared.commandQueue.makeCommandBuffer(descriptor: descriptor))
+
+        XCTAssertThrowsError(try RenderAuxiliaryLuminance().encodeAttachmentSet(
+            from: texture,
+            commandBuffer: commandBuffer
+        )) { error in
+            guard case HarbethError.configurationInvalid = error else {
+                return XCTFail("未保活资源的 command buffer 应返回明确的配置错误")
+            }
+        }
+        XCTAssertEqual(commandBuffer.status, .notEnqueued)
+    }
+
     func testHarbethIORenderAttachmentSetUsesFinalRenderPrimitive() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

@@ -70,12 +70,22 @@ public struct RenderedAttachmentSet: @unchecked Sendable {
 }
 
 public extension RenderProtocol {
-    /// 直接执行一次多 attachment render，并把所有输出 attachment 以稳定结构返回。
+    /// 把多 attachment render 编码进调用方提供的 command buffer，但不负责提交或等待。
     ///
-    /// 这个入口刻意保持为 attachment output bridge：
-    /// 服务单个 render primitive 的附件读取、调试与后续分析装配，
-    /// 不把 Harbeth 扩展成重型 editor runtime。
-    func renderAttachmentSet(from sourceTexture: MTLTexture, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
+    /// command buffer 必须保留 encoded resources；返回纹理只有在它完成后才可做 CPU 读回。
+    /// 调用方负责提交顺序、完成状态与错误处理。该入口允许上层把 attachment render 与后续
+    /// GPU pass 放进同一批次。
+    func encodeAttachmentSet(from sourceTexture: MTLTexture, commandBuffer: MTLCommandBuffer, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
+        guard sourceTexture.device === Shared.shared.metalDevice,
+              commandBuffer.device === Shared.shared.metalDevice else {
+            throw HarbethError.configurationInvalid("Attachment rendering requires source texture, command buffer, and Harbeth context to share one Metal device.")
+        }
+        guard commandBuffer.retainedReferences else {
+            throw HarbethError.configurationInvalid("Attachment rendering requires a command buffer that retains encoded resources.")
+        }
+        guard commandBuffer.status == .notEnqueued || commandBuffer.status == .enqueued else {
+            throw HarbethError.configurationInvalid("Attachment rendering requires a command buffer that still accepts encoding.")
+        }
         let inputSize = C7Size(texture: sourceTexture)
         let descriptor = renderCommandDescriptor(inputSize: inputSize)
         let outputSize = resize(input: inputSize)
@@ -94,12 +104,7 @@ public extension RenderProtocol {
             destinationTexturesByAttachmentIndex: destinationTextures,
             commands: [command]
         )
-        guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
-            throw HarbethError.commandBuffer
-        }
-        commandBuffer.label = "Harbeth.RenderAttachmentSet.\(identifier)"
         try Rendering.encode(batch: batch, commandBuffer: commandBuffer)
-        commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
 
         let attachments: [RenderedAttachment] = descriptor.outputContract.attachments.compactMap { attachment in
             guard let texture = destinationTextures[attachment.index] else { return nil }
@@ -111,6 +116,31 @@ public extension RenderProtocol {
             )
         }
         return RenderedAttachmentSet(outputContract: descriptor.outputContract, attachments: attachments)
+    }
+
+    /// 直接执行一次多 attachment render，并把所有输出 attachment 以稳定结构返回。
+    ///
+    /// 这个入口刻意保持为 attachment output bridge：
+    /// 服务单个 render primitive 的附件读取、调试与后续分析装配，
+    /// 不把 Harbeth 扩展成重型 editor runtime。
+    func renderAttachmentSet(from sourceTexture: MTLTexture, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
+        guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
+            throw HarbethError.commandBuffer
+        }
+        commandBuffer.label = "Harbeth.RenderAttachmentSet.\(identifier)"
+        let attachmentSet = try encodeAttachmentSet(
+            from: sourceTexture,
+            commandBuffer: commandBuffer,
+            identifier: identifier
+        )
+        commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+        guard commandBuffer.status == .completed else {
+            if let error = commandBuffer.error {
+                throw HarbethError.error(error)
+            }
+            throw HarbethError.commandBufferAsyncCommit(commandBuffer.status)
+        }
+        return attachmentSet
     }
 
     private func makeDestinationTextures(outputContract: RenderOutputContract, outputSize: C7Size, identifier: String) throws -> [Int: MTLTexture] {
