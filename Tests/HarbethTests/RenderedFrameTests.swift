@@ -484,7 +484,7 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertNil(attachmentSet)
     }
 
-    func testEncodeAttachmentSetLeavesSubmissionToCaller() throws {
+    func testEncodeAttachmentSetLetsCallerContinueEncodingAndSubmitOnce() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
 
@@ -511,10 +511,58 @@ final class RenderedFrameTests: XCTestCase {
 
         XCTAssertEqual(commandBuffer.status, .notEnqueued)
         XCTAssertEqual(attachmentSet.debugPolicies.map(\.label), ["primaryColor", "luminance"])
+
+        let hostDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: 2,
+            height: 1,
+            mipmapped: false
+        )
+        hostDescriptor.storageMode = .shared
+        hostDescriptor.usage = [.shaderRead, .shaderWrite]
+        let hostTexture = try XCTUnwrap(Shared.shared.metalDevice.makeTexture(descriptor: hostDescriptor))
+        let sentinel = [UInt8](repeating: 123, count: 8)
+        hostTexture.replace(
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0,
+            withBytes: sentinel,
+            bytesPerRow: 8
+        )
+        let luminanceTexture = try XCTUnwrap(attachmentSet.texture(for: .luminance))
+        let hostEncoder = try XCTUnwrap(commandBuffer.makeBlitCommandEncoder())
+        hostEncoder.copy(
+            from: luminanceTexture,
+            sourceSlice: 0,
+            sourceLevel: 0,
+            sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+            sourceSize: MTLSize(width: 2, height: 1, depth: 1),
+            to: hostTexture,
+            destinationSlice: 0,
+            destinationLevel: 0,
+            destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
+        )
+        hostEncoder.endEncoding()
+
+        XCTAssertEqual(commandBuffer.status, .notEnqueued)
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         XCTAssertEqual(commandBuffer.status, .completed)
-        XCTAssertNotNil(attachmentSet.makeCGImage(for: .luminance))
+        var expectedPixels = [UInt8](repeating: 0, count: 8)
+        luminanceTexture.getBytes(
+            &expectedPixels,
+            bytesPerRow: 8,
+            from: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0
+        )
+        var hostPixels = [UInt8](repeating: 0, count: 8)
+        hostTexture.getBytes(
+            &hostPixels,
+            bytesPerRow: 8,
+            from: MTLRegionMake2D(0, 0, 2, 1),
+            mipmapLevel: 0
+        )
+        XCTAssertEqual(hostPixels, expectedPixels)
+        XCTAssertNotEqual(hostPixels, sentinel)
     }
 
     func testEncodeAttachmentSetRejectsUnretainedCommandBuffer() throws {

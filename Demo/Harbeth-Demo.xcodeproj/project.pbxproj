@@ -41,6 +41,8 @@
 		8784451C2994DE81001D856B /* ImageViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 878445182994DE81001D856B /* ImageViewController.swift */; };
 		87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */; };
 		F70CFB012FF27CB90092DA36 /* MaskShowcaseViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70CFB002FF27CB90092DA36 /* MaskShowcaseViewController.swift */; };
+		F7D2C7A02FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */; };
+		F7D2C7A22FFB9A7500A7D3C1 /* HostHUDOverlay.metal in Sources */ = {isa = PBXBuildFile; fileRef = F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */; };
 		F72C46B52F63EA94000396E0 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F72C46B42F63EA94000396E0 /* violet.CUBE */; };
 		F73F89442F6646D600F83584 /* FilterItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F73F89432F6646D600F83584 /* FilterItem.swift */; };
 		F73F89462F665B2700F83584 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F73F89452F665B2700F83584 /* violet.CUBE */; };
@@ -132,6 +134,8 @@
 		878445182994DE81001D856B /* ImageViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageViewController.swift; sourceTree = "<group>"; };
 		87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
 		F70CFB002FF27CB90092DA36 /* MaskShowcaseViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskShowcaseViewController.swift; sourceTree = "<group>"; };
+		F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SameCommandBufferHUDViewController.swift; sourceTree = "<group>"; };
+		F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = HostHUDOverlay.metal; sourceTree = "<group>"; };
 		F72C46B42F63EA94000396E0 /* violet.CUBE */ = {isa = PBXFileReference; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
 		F73F89432F6646D600F83584 /* FilterItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterItem.swift; sourceTree = "<group>"; };
 		F73F89452F665B2700F83584 /* violet.CUBE */ = {isa = PBXFileReference; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
@@ -269,6 +273,8 @@
 				878445152994DE81001D856B /* PlayerViewController.swift */,
 				878445172994DE81001D856B /* UnitTestViewController.swift */,
 				F70CFB002FF27CB90092DA36 /* MaskShowcaseViewController.swift */,
+				F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */,
+				F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */,
 			);
 			path = Modules;
 			sourceTree = "<group>";
@@ -502,6 +508,8 @@
 				878445192994DE81001D856B /* PlayerViewController.swift in Sources */,
 				8784451C2994DE81001D856B /* ImageViewController.swift in Sources */,
 				F70CFB012FF27CB90092DA36 /* MaskShowcaseViewController.swift in Sources */,
+				F7D2C7A02FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift in Sources */,
+				F7D2C7A22FFB9A7500A7D3C1 /* HostHUDOverlay.metal in Sources */,
 				878445122994DE4A001D856B /* HomeViewModel.swift in Sources */,
 				8784451A2994DE81001D856B /* CameraViewController.swift in Sources */,
 				8784451B2994DE81001D856B /* UnitTestViewController.swift in Sources */,

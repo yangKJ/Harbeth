@@ -389,7 +389,15 @@ let outputs = try filter.encodeAttachmentSet(
 let color = outputs.primary!.texture
 let coverage = outputs.texture(for: .coverage)!
 
-// 在同一个 commandBuffer 上继续编码依赖 color / coverage 的 GPU pass。
+// hostHUDEncoder 是宿主自己的 Metal 编码器，不属于 Harbeth。
+let hudTexture = try hostHUDEncoder.encode(
+    color: color,
+    coverage: coverage,
+    commandBuffer: commandBuffer
+)
+
+// Harbeth 和宿主 encoder 都已结束，但 command buffer 仍未提交。
+precondition(commandBuffer.status == .notEnqueued)
 commandBuffer.commit()
 commandBuffer.waitUntilCompleted()
 guard commandBuffer.status == .completed else {
@@ -397,6 +405,8 @@ guard commandBuffer.status == .completed else {
     throw HarbethError.commandBufferAsyncCommit(commandBuffer.status)
 }
 ```
+
+这个 interop surface 只交接 Metal 编码与纹理所有权：Harbeth 会在返回前结束自己的 encoder，宿主可以立即追加 compute、render 或 blit encoder，并负责唯一一次提交、完成检查与错误处理。它不会引入 `UIElement`、HUD 组件、相机、播放器、录制或视频时间线 API。iOS Demo 的 `Command Buffer HUD` 页面给出了完整最小例子：Harbeth 编码 `primaryColor + luminance` 后，宿主用自己的 compute shader 生成 HUD 纹理，再提交同一个 command buffer。
 
 最自然的接法现在是直接挂在已有 node 上，而不是先切回单独执行入口：
 

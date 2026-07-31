@@ -476,10 +476,17 @@ final class UnitTestViewController: UIViewController {
         Shared.shared.enablePerformanceMonitor = false
         title = "ImageNode Lab"
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Mask Lab",
-            style: .plain,
-            target: self,
-            action: #selector(openMaskLab)
+            title: "Examples",
+            image: nil,
+            primaryAction: nil,
+            menu: UIMenu(children: [
+                UIAction(title: "Mask Lab", image: UIImage(systemName: "circle.grid.cross")) { [weak self] _ in
+                    self?.openMaskLab()
+                },
+                UIAction(title: "Command Buffer HUD", image: UIImage(systemName: "rectangle.on.rectangle")) { [weak self] _ in
+                    self?.openCommandBufferHUD()
+                }
+            ])
         )
         view.backgroundColor = .systemBackground
         setupUI()
@@ -1408,6 +1415,10 @@ private extension UnitTestViewController {
 
     @objc func openMaskLab() {
         navigationController?.pushViewController(MaskShowcaseViewController(), animated: true)
+    }
+
+    func openCommandBufferHUD() {
+        navigationController?.pushViewController(SameCommandBufferHUDViewController(), animated: true)
     }
 
     func presentActionSheet(title: String, sourceView: UIView, options: [(String, () -> Void)]) {

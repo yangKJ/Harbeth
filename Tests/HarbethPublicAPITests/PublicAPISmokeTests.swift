@@ -24,6 +24,14 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = build
     }
 
+    func testEncodeOnlyAttachmentInteropSurfaceCompiles() {
+        let encode: (RenderAuxiliaryLuminance, MTLTexture, MTLCommandBuffer) throws -> RenderedAttachmentSet = {
+            filter, texture, commandBuffer in
+            try filter.encodeAttachmentSet(from: texture, commandBuffer: commandBuffer)
+        }
+        _ = encode
+    }
+
     func testDerivedResourceGovernanceSurfaceCompiles() {
         let configuration = DerivedResourceCacheConfiguration(byteLimit: 64 * 1024 * 1024, countLimit: 128)
         let configure: (HarbethContext) -> Void = { context in

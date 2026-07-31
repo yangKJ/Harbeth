@@ -74,7 +74,8 @@ public extension RenderProtocol {
     ///
     /// command buffer 必须保留 encoded resources；返回纹理只有在它完成后才可做 CPU 读回。
     /// 调用方负责提交顺序、完成状态与错误处理。该入口允许上层把 attachment render 与后续
-    /// GPU pass 放进同一批次。
+    /// GPU pass 放进同一批次。Harbeth 返回前会结束自己的 encoder，因此调用方可以立即在
+    /// 同一个 command buffer 上创建后续 compute、render 或 blit encoder，最后只提交一次。
     func encodeAttachmentSet(from sourceTexture: MTLTexture, commandBuffer: MTLCommandBuffer, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
         guard sourceTexture.device === Shared.shared.metalDevice,
               commandBuffer.device === Shared.shared.metalDevice else {
