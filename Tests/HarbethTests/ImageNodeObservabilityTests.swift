@@ -19,12 +19,12 @@ final class ImageNodeObservabilityTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        Shared.shared.enablePerformanceMonitor = true
+        HarbethContext.shared.enablePerformanceMonitor = true
     }
 
     override func tearDown() {
-        Shared.shared.enablePerformanceMonitor = false
-        Shared.shared.performanceMonitor?.clearAllMetrics()
+        HarbethContext.shared.enablePerformanceMonitor = false
+        HarbethContext.shared.performanceMonitor.clearAllMetrics()
         super.tearDown()
     }
 
@@ -44,7 +44,7 @@ final class ImageNodeObservabilityTests: XCTestCase {
                       "FrameRenderToken.identifier should be ImageNode-prefixed, got \(monitoringIdentifier)")
 
         // PerformanceMonitor 必须在该 identifier 下记录 metrics
-        let monitor = try XCTUnwrap(Shared.shared.performanceMonitor, "PerformanceMonitor must be enabled")
+        let monitor = HarbethContext.shared.performanceMonitor
         let metrics = try XCTUnwrap(monitor.getMetrics(monitoringIdentifier),
                                     "Metrics should exist for \(monitoringIdentifier)")
 
@@ -87,7 +87,7 @@ final class ImageNodeObservabilityTests: XCTestCase {
         let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.2))
 
         let frame = try node.makeFrame()
-        let monitor = try XCTUnwrap(Shared.shared.performanceMonitor, "PerformanceMonitor must be enabled")
+        let monitor = HarbethContext.shared.performanceMonitor
         let metrics = try XCTUnwrap(monitor.getMetrics(frame.token.identifier),
                                     "Metrics should exist for \(frame.token.identifier)")
 
@@ -105,19 +105,19 @@ final class ImageNodeObservabilityTests: XCTestCase {
 
     // MARK: - 最小闭环 3/3: monitor 关闭时 record 调用为 no-op，不影响渲染
 
-    /// 当 `enablePerformanceMonitor = false` 时，`Shared.shared.performanceMonitor` 为 nil，
-    /// `ImageNode.makeFrame` 内的 monitor 路径全部走 nil-conditional 短路，
+    /// 当 `enablePerformanceMonitor = false` 时，Context 保留稳定 monitor 实例，
+    /// 但所有记录调用都会快速返回，
     /// 渲染输出必须与 monitor 开启时一致。
     func testMakeFrameHasNoObservableEffectWhenMonitorDisabled() throws {
-        Shared.shared.enablePerformanceMonitor = false
+        HarbethContext.shared.enablePerformanceMonitor = false
 
         let input = try makeSolidTexture(width: 4, height: 4, pixel: [200, 120, 80, 255])
         let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.2))
 
         let frame = try node.makeFrame()
 
-        // 监控关闭时 monitor 为 nil
-        XCTAssertNil(Shared.shared.performanceMonitor)
+        XCTAssertFalse(HarbethContext.shared.enablePerformanceMonitor)
+        XCTAssertEqual(HarbethContext.shared.performanceMonitor.getSummary().totalOperations, 0)
 
         // 渲染输出必须正常（texture 有效、identifier 仍以 ImageNode. 开头）
         XCTAssertEqual(frame.texture.width, 4)

@@ -16,7 +16,7 @@ public struct MPSGaussianBlur: MPSKernelProtocol {
     /// The radius determines how many pixels are used to create the blur.
     @Clamping(range.min...range.max) public var radius: Float = range.value {
         didSet {
-            self.gaussian = MPSImageGaussianBlur(device: Shared.shared.metalDevice, sigma: ceil(radius))
+            self.gaussian = MPSImageGaussianBlur(device: HarbethContext.shared.device, sigma: ceil(radius))
         }
     }
     
@@ -37,6 +37,6 @@ public struct MPSGaussianBlur: MPSKernelProtocol {
     }
     
     public init(radius: Float = range.value) {
-        self.gaussian = MPSImageGaussianBlur(device: Shared.shared.metalDevice, sigma: ceil(radius))
+        self.gaussian = MPSImageGaussianBlur(device: HarbethContext.shared.device, sigma: ceil(radius))
     }
 }

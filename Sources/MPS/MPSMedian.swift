@@ -18,7 +18,7 @@ public struct MPSMedian: MPSKernelProtocol {
     @Clamping(range.min...range.max) public var radius: Float = range.value {
         didSet {
             let kernelWidth = Int(ceil(radius) * 2 + 1)
-            self.median = MPSImageMedian(device: Shared.shared.metalDevice, kernelDiameter: kernelWidth)
+            self.median = MPSImageMedian(device: HarbethContext.shared.device, kernelDiameter: kernelWidth)
         }
     }
     
@@ -40,6 +40,6 @@ public struct MPSMedian: MPSKernelProtocol {
     
     public init(radius: Float = range.value) {
         let kernelWidth = Int(ceil(radius) * 2 + 1)
-        self.median = MPSImageMedian(device: Shared.shared.metalDevice, kernelDiameter: kernelWidth)
+        self.median = MPSImageMedian(device: HarbethContext.shared.device, kernelDiameter: kernelWidth)
     }
 }

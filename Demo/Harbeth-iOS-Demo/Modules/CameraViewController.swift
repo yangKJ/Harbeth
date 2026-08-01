@@ -119,7 +119,7 @@ class CameraViewController: UIViewController {
     deinit {
         print("CameraViewController is deinit.")
         stopSession()
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
     }
 
     override func viewDidLoad() {
@@ -500,16 +500,16 @@ class CameraViewController: UIViewController {
 
     private func recordCameraFallbackEventIfNeeded(error: Error, context: RealtimeFramePipelineFailureContext) {
         guard cameraStateSnapshot().didFallback else { return }
-        let monitor = Shared.shared.performanceMonitor
+        let monitor = HarbethContext.shared.performanceMonitor
         let identifier = "camera.preview"
         let event = "cameraRealtimeFallback:from=\(pixelFormatDescription(context.sourcePixelFormat)):to=32BGRA:reason=\(fallbackReasonToken(error.localizedDescription)):pts=\(String(format: "%.3f", context.sampleBufferPTSSeconds)):size=\(context.sourceWidth)x\(context.sourceHeight):sourceFormat=\(pixelFormatDescription(context.sourcePixelFormat))"
-        monitor?.recordResourceEvent(identifier, event: event)
-        let currentCount = monitor?.getMetrics(identifier)?.performanceCounters["camera.yuvFallback.count"] ?? 0
-        monitor?.recordPerformanceCounter(identifier, name: "camera.yuvFallback.count", value: currentCount + 1)
-        monitor?.recordPerformanceCounter(identifier, name: "camera.yuvFallback.lastPTS", value: context.sampleBufferPTSSeconds)
-        monitor?.recordPerformanceCounter(identifier, name: "camera.yuvFallback.sourcePixelFormat", value: Double(context.sourcePixelFormat))
-        monitor?.recordPerformanceCounter(identifier, name: "camera.yuvFallback.sourceWidth", value: Double(context.sourceWidth))
-        monitor?.recordPerformanceCounter(identifier, name: "camera.yuvFallback.sourceHeight", value: Double(context.sourceHeight))
+        monitor.recordResourceEvent(identifier, event: event)
+        let currentCount = monitor.getMetrics(identifier)?.performanceCounters["camera.yuvFallback.count"] ?? 0
+        monitor.recordPerformanceCounter(identifier, name: "camera.yuvFallback.count", value: currentCount + 1)
+        monitor.recordPerformanceCounter(identifier, name: "camera.yuvFallback.lastPTS", value: context.sampleBufferPTSSeconds)
+        monitor.recordPerformanceCounter(identifier, name: "camera.yuvFallback.sourcePixelFormat", value: Double(context.sourcePixelFormat))
+        monitor.recordPerformanceCounter(identifier, name: "camera.yuvFallback.sourceWidth", value: Double(context.sourceWidth))
+        monitor.recordPerformanceCounter(identifier, name: "camera.yuvFallback.sourceHeight", value: Double(context.sourceHeight))
     }
 
     private func fallbackReasonToken(_ reason: String) -> String {

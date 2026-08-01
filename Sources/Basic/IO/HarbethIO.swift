@@ -177,10 +177,10 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                 return element
             }
         }
-        if Shared.shared.enablePerformanceMonitor {
-            Shared.shared.performanceMonitor?.beginMonitoring(identifier)
+        if HarbethContext.shared.enablePerformanceMonitor {
+            HarbethContext.shared.performanceMonitor.beginMonitoring(identifier)
         }
-        defer { Shared.shared.performanceMonitor?.endMonitoring(identifier) }
+        defer { HarbethContext.shared.performanceMonitor.endMonitoring(identifier) }
         switch element {
         case let ee as MTLTexture:
             return try castOutput(filtering(texture: ee))
@@ -228,43 +228,43 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
             }
             return
         }
-        if Shared.shared.enablePerformanceMonitor {
-            Shared.shared.performanceMonitor?.beginMonitoring(identifier)
+        if HarbethContext.shared.enablePerformanceMonitor {
+            HarbethContext.shared.performanceMonitor.beginMonitoring(identifier)
         }
         switch element {
         case let ee as MTLTexture:
             filtering(texture: ee, complete: {
-                Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
+                HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee as C7Image:
             filtering(image: ee, outputColorSpace: outputColorSpace, complete: {
-                Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
+                HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee as CIImage:
             filtering(ciImage: ee, outputColorSpace: outputColorSpace, complete: {
-                Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
+                HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
             filtering(cgImage: ee as! CGImage, outputColorSpace: outputColorSpace, complete: {
-                Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
+                HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
             filtering(pixelBuffer: ee as! CVPixelBuffer, outputColorSpace: outputColorSpace, complete: {
-                Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
+                HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
             filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace, complete: {
-                Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
+                HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         default:
             complete(.success(element))
-            Shared.shared.performanceMonitor?.endMonitoring(self.identifier)
+            HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
         }
     }
     /// Asynchronous convert to texture and add filters.
@@ -299,7 +299,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                     // Ensure textures are returned after GPU completion
                     if rendering.recycling.isEmpty == false {
                         commandBuffer.addCompletedHandler { _ in
-                            Shared.shared.defaultTexturePool.enqueueTexturesSync(callbackState.value.rendering.recycling)
+                            HarbethContext.shared.texturePool.enqueueTexturesSync(callbackState.value.rendering.recycling)
                         }
                     }
                     // Real-time commit: wait until scheduled, not completed
@@ -309,7 +309,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                     // Return command buffer in background
                     DispatchQueue.global().async {
                         callbackState.value.commandBuffer.waitUntilCompleted()
-                        Shared.shared.returnCommandBuffer(callbackState.value.commandBuffer)
+                        HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
                     }
                 } else {
                     // Normal async mode
@@ -325,11 +325,11 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                     commandBuffer.asyncCommit(identifier: io.identifier) { result in
                         switch result {
                         case .success:
-                            Shared.shared.defaultTexturePool.enqueueTexturesSync(callbackState.value.rendering.recycling)
-                            Shared.shared.returnCommandBuffer(callbackState.value.commandBuffer)
+                            HarbethContext.shared.texturePool.enqueueTexturesSync(callbackState.value.rendering.recycling)
+                            HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
                             complete(.success(callbackState.value.rendering.output))
                         case .failure(let error):
-                            Shared.shared.returnCommandBuffer(callbackState.value.commandBuffer)
+                            HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
                             complete(.failure(HarbethError.toHarbethError(error)))
                         }
                     }
@@ -338,7 +338,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                 complete(.failure(HarbethError.toHarbethError(error)))
             }
         }
-        Shared.shared.renderOperationQueue.addOperation(operation)
+        HarbethContext.shared.renderOperationQueue.addOperation(operation)
     }
 }
 
@@ -369,8 +369,8 @@ private extension HarbethIO {
             (outputTexture, texturesToEnqueue) = try singleBuffer(input: input, plan: plan, commandBuffer: commandBuffer)
         }
         commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-        Shared.shared.defaultTexturePool.enqueueTexturesSync(texturesToEnqueue)
-        Shared.shared.returnCommandBuffer(commandBuffer)
+        HarbethContext.shared.texturePool.enqueueTexturesSync(texturesToEnqueue)
+        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
         return outputTexture
     }
 
@@ -390,7 +390,7 @@ private extension HarbethIO {
             let commandBuffer = try makeCommandBuffer(for: nil)
             outputTexture = try textureIO(input: outputTexture, filter: filter, for: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-            Shared.shared.returnCommandBuffer(commandBuffer)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
         }
         return outputTexture
     }
@@ -411,30 +411,30 @@ extension HarbethIO {
         // Same key ⇒ identical plan, so a stable chain rendered repeatedly (realtime / video) only
         // compiles the render graph once instead of on every frame.
         let cacheKey = "filtersPrimitive|fusion=v1|\(filters.chainRecipe.fingerprint)|input=\(inputSize.width)x\(inputSize.height)|profile=\(renderProfile.rawValue)"
-        if let cached = Shared.shared.defaultContext.cachedRenderPlan(for: cacheKey) {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: true)
+        if let cached = HarbethContext.shared.cachedRenderPlan(for: cacheKey) {
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: true)
             return cached
         }
-        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: false)
+        HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: false)
         let plan = GraphCompiler.compile(
             filters: executionFilters,
             inputSize: inputSize,
             profile: renderProfile,
             compilationSource: .filtersPrimitive
         )
-        Shared.shared.defaultContext.storeRenderPlan(plan, for: cacheKey)
-        if Shared.shared.enablePerformanceMonitor {
-            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
+        HarbethContext.shared.storeRenderPlan(plan, for: cacheKey)
+        if HarbethContext.shared.enablePerformanceMonitor {
+            HarbethContext.shared.performanceMonitor.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
             if plan.requiresCompletedGPUWork {
-                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+                HarbethContext.shared.performanceMonitor.recordReadbackBoundary(identifier)
             }
             let diagnostics = plan.diagnostics
-            Shared.shared.performanceMonitor?.recordRenderOptimizationPlan(identifier, plan: diagnostics.optimizationPlan)
+            HarbethContext.shared.performanceMonitor.recordRenderOptimizationPlan(identifier, plan: diagnostics.optimizationPlan)
             if diagnostics.outputContract.requiresAlphaConversion {
-                Shared.shared.performanceMonitor?.recordAlphaConversion(identifier, contract: diagnostics.outputContract.alpha)
+                HarbethContext.shared.performanceMonitor.recordAlphaConversion(identifier, contract: diagnostics.outputContract.alpha)
             }
             if diagnostics.outputContract.requiresColorSpaceConversion {
-                Shared.shared.performanceMonitor?.recordColorConversion(identifier, contract: diagnostics.outputContract.colorSpace)
+                HarbethContext.shared.performanceMonitor.recordColorConversion(identifier, contract: diagnostics.outputContract.colorSpace)
             }
         }
         return plan
@@ -445,7 +445,7 @@ extension HarbethIO {
         guard reservations.isEmpty == false else { return }
         // Execution starts immediately after planning, so the reservations must be
         // materialized synchronously to have a real chance to improve reuse.
-        Shared.shared.prewarmTexturePoolSync(
+        HarbethContext.shared.prewarmTexturePoolSync(
             reservations: reservations,
             fallbackPixelFormat: inputPixelFormat,
             defaultCount: 1
@@ -468,7 +468,7 @@ extension HarbethIO {
         } else {
             effectiveReservations = reservations
         }
-        Shared.shared.prewarmTexturePoolSync(
+        HarbethContext.shared.prewarmTexturePoolSync(
             reservations: effectiveReservations,
             fallbackPixelFormat: inputPixelFormat,
             defaultCount: 2
@@ -503,9 +503,9 @@ extension HarbethIO {
             options: [.texturePixelFormat: targetPixelFormat],
             identifier: identifier
         )
-        if Shared.shared.enablePerformanceMonitor {
+        if HarbethContext.shared.enablePerformanceMonitor {
             if sourceTexture.pixelFormat != targetPixelFormat {
-                Shared.shared.performanceMonitor?.recordPixelFormatConversion(
+                HarbethContext.shared.performanceMonitor.recordPixelFormatConversion(
                     identifier,
                     from: sourceTexture.pixelFormat,
                     to: targetPixelFormat
@@ -514,7 +514,7 @@ extension HarbethIO {
             // Record memory allocation
             let bytesPerPixel = 4 // RGBA8
             let memoryBytes = resize.width * resize.height * bytesPerPixel
-            Shared.shared.performanceMonitor?.recordMemoryAllocation(identifier, bytes: memoryBytes, source: "Texture")
+            HarbethContext.shared.performanceMonitor.recordMemoryAllocation(identifier, bytes: memoryBytes, source: "Texture")
         }
         return texture
     }
@@ -533,9 +533,9 @@ extension HarbethIO {
             options: [.texturePixelFormat: targetPixelFormat],
             identifier: identifier
         )
-        if Shared.shared.enablePerformanceMonitor {
+        if HarbethContext.shared.enablePerformanceMonitor {
             if sourceTexture.pixelFormat != targetPixelFormat {
-                Shared.shared.performanceMonitor?.recordPixelFormatConversion(
+                HarbethContext.shared.performanceMonitor.recordPixelFormatConversion(
                     identifier,
                     from: sourceTexture.pixelFormat,
                     to: targetPixelFormat
@@ -543,7 +543,7 @@ extension HarbethIO {
             }
             let bytesPerPixel = 4
             let memoryBytes = resize.width * resize.height * bytesPerPixel
-            Shared.shared.performanceMonitor?.recordMemoryAllocation(
+            HarbethContext.shared.performanceMonitor.recordMemoryAllocation(
                 identifier,
                 bytes: memoryBytes,
                 source: "TextureLease"
@@ -555,7 +555,7 @@ extension HarbethIO {
     /// Do you need to create a new metal texture command buffer.
     private func makeCommandBuffer(for buffer: MTLCommandBuffer? = nil) throws -> MTLCommandBuffer {
         if let commandBuffer = buffer { return commandBuffer }
-        guard let commandBuffer = Shared.shared.getCommandBuffer() else { throw HarbethError.commandBuffer }
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else { throw HarbethError.commandBuffer }
         return commandBuffer
     }
 
@@ -689,8 +689,8 @@ extension HarbethIO {
         let shouldEnqueueB = finalTexture !== textureB
         let recycling = HarbethUncheckedTransfer(value: (textureA, textureB))
         commandBuffer.addCompletedHandler { _ in
-            if shouldEnqueueA { Shared.shared.defaultTexturePool.enqueueTextureSync(recycling.value.0) }
-            if shouldEnqueueB { Shared.shared.defaultTexturePool.enqueueTextureSync(recycling.value.1) }
+            if shouldEnqueueA { HarbethContext.shared.texturePool.enqueueTextureSync(recycling.value.0) }
+            if shouldEnqueueB { HarbethContext.shared.texturePool.enqueueTextureSync(recycling.value.1) }
         }
 
         return finalTexture
@@ -964,14 +964,14 @@ extension HarbethIO where Dest == MTLTexture {
                 output: rendering.output,
                 diagnostics: taskDiagnostics,
                 cleanup: {
-                    Shared.shared.defaultTexturePool.enqueueTexturesSync(cleanupState.value.recycling)
-                    Shared.shared.returnCommandBuffer(cleanupState.value.commandBuffer)
+                    HarbethContext.shared.texturePool.enqueueTexturesSync(cleanupState.value.recycling)
+                    HarbethContext.shared.recycleCommandBuffer(cleanupState.value.commandBuffer)
                 }
             )
             commandBuffer.commit()
             return task
         } catch {
-            Shared.shared.returnCommandBuffer(commandBuffer)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
             throw error
         }
     }
@@ -1026,19 +1026,19 @@ extension HarbethIO where Dest == MTLTexture {
                     commandBuffer.realTimeCommit(identifier: io.identifier) { complete(.success(result)) }
                     DispatchQueue.global().async {
                         commandBufferTransfer.value.waitUntilCompleted()
-                        Shared.shared.returnCommandBuffer(commandBufferTransfer.value)
+                        HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
                     }
                 } else {
                     commandBuffer.asyncCommit(identifier: io.identifier) { callbackResult in
                         switch callbackResult {
                         case .success:
                             releaseIntermediates()
-                            Shared.shared.returnCommandBuffer(commandBufferTransfer.value)
+                            HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
                             complete(.success(result))
                         case .failure(let error):
                             releaseIntermediates()
                             result.lease?.release()
-                            Shared.shared.returnCommandBuffer(commandBufferTransfer.value)
+                            HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
                             complete(.failure(HarbethError.toHarbethError(error)))
                         }
                     }
@@ -1047,7 +1047,7 @@ extension HarbethIO where Dest == MTLTexture {
                 complete(.failure(HarbethError.toHarbethError(error)))
             }
         }
-        Shared.shared.renderOperationQueue.addOperation(operation)
+        HarbethContext.shared.renderOperationQueue.addOperation(operation)
     }
 
     private func processManagedBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
@@ -1061,7 +1061,7 @@ extension HarbethIO where Dest == MTLTexture {
         }
         commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
         managed.intermediateLeases.forEach { $0.release() }
-        Shared.shared.returnCommandBuffer(commandBuffer)
+        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
         return managed.result
     }
 
@@ -1078,7 +1078,7 @@ extension HarbethIO where Dest == MTLTexture {
             let commandBuffer = try makeCommandBuffer(for: nil)
             let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
             commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-            Shared.shared.returnCommandBuffer(commandBuffer)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
 
             if let previousLease = currentLease, previousLease.texture !== stage.texture {
                 previousLease.release()

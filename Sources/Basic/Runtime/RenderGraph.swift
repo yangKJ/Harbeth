@@ -1058,7 +1058,7 @@ enum GraphOptimizer {
             decisions.append("capTransientReusePrewarmToDoubleBuffer")
         }
         if decisions.isEmpty { decisions.append("singleStageNoOptimizationNeeded") }
-        let allocatorSnapshot = Shared.shared.defaultTextureAllocator.makeSnapshot()
+        let allocatorSnapshot = HarbethContext.shared.textureAllocator.makeSnapshot()
         return RenderOptimizationPlan(
             intermediateTextureCount: intermediateTextureCount,
             reusableTextureCount: reusableTextureCount,

@@ -178,9 +178,9 @@ Harbeth 对外只保留两条路线：
 - `RenderGraphDebugSnapshot`
 - `RenderRequest`
 - `RenderTask`
-- `Shared`
 - `Device`
 - `HarbethContext`
+- `ExecutionScheduler`
 - `TextureLoader`
 - `TextureAllocator`
 - `TexturePool`
@@ -198,6 +198,7 @@ Harbeth 对外只保留两条路线：
 
 - `Runtime` 已嵌入 `HarbethIO` 和 `ImageNode`
 - 它不是对外第三路线
+- `HarbethContext` 是公开的 supporting resource boundary；`Device`、command/operation queue 与具体 pool/cache owner 保持内部，重复的 `Shared` facade 已删除
 - `RenderRequest`、`RenderTask` 是 deferred execution / observation form，不是新的集成模型
 - `HarbethContext` 的 image-resolution cache 现在带 namespace + LRU discipline，属于 runtime 内部缓存治理，不改变外部路线划分
 - compute/render pipeline 可选择 memory-only 或宿主指定 URL 的 Binary Archive；Harbeth 不猜测业务缓存目录

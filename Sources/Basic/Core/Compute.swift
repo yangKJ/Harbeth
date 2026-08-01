@@ -18,35 +18,35 @@ struct Compute {
     /// - Returns: MTLComputePipelineState
     @inlinable
     static func makeComputePipelineState(with kernel: String) throws -> MTLComputePipelineState {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         /// 先读取缓存管线
         if let pipelineState = context.computePipelineState(for: kernel) {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: true)
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: true)
             return pipelineState
         }
         /// 同步阻塞编译计算程序来创建管道状态
         let identity = KernelFunctionIdentity(kind: .compute, primaryName: kernel)
         guard let pipeline = try? context.makeComputePipelineState(identity: identity) else {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: false)
             throw HarbethError.computePipelineState(kernel)
         }
         context.setComputePipelineState(pipeline, for: kernel)
-        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
+        HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: false)
         return pipeline
     }
 
     static func makeComputePipelineState(with identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         if let pipelineState = context.computePipelineState(for: identity) {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: true)
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: true)
             return pipelineState
         }
         guard let pipeline = try? context.makeComputePipelineState(identity: identity) else {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: false)
             throw HarbethError.computePipelineState(identity.primaryName)
         }
         context.setComputePipelineState(pipeline, for: identity)
-        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+        HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: false)
         return pipeline
     }
     
@@ -55,10 +55,10 @@ struct Compute {
         with kernel: String,
         complete: @escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void
     ) {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         /// 先读取缓存管线
         if let pipelineState = context.computePipelineState(for: kernel) {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: true)
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: true)
             complete(.success(pipelineState))
             return
         }
@@ -67,23 +67,23 @@ struct Compute {
             do {
                 let pipeline = try context.makeComputePipelineState(identity: identity)
                 context.setComputePipelineState(pipeline, for: kernel)
-                Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
+                HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: false)
                 complete(.success(pipeline))
             } catch {
-                Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute", hit: false)
+                HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: false)
                 complete(.failure(HarbethError.computePipelineState(kernel)))
             }
         }
-        Shared.shared.renderOperationQueue.addOperation(operation)
+        HarbethContext.shared.renderOperationQueue.addOperation(operation)
     }
 
     static func makeComputePipelineState(
         with identity: KernelFunctionIdentity,
         complete: @escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void
     ) {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         if let pipelineState = context.computePipelineState(for: identity) {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: true)
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: true)
             complete(.success(pipelineState))
             return
         }
@@ -91,14 +91,14 @@ struct Compute {
             do {
                 let pipeline = try context.makeComputePipelineState(identity: identity)
                 context.setComputePipelineState(pipeline, for: identity)
-                Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+                HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: false)
                 complete(.success(pipeline))
             } catch {
-                Shared.shared.performanceMonitor?.recordPipelineCacheLookup("compute.identity", hit: false)
+                HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: false)
                 complete(.failure(HarbethError.computePipelineState(identity.primaryName)))
             }
         }
-        Shared.shared.renderOperationQueue.addOperation(operation)
+        HarbethContext.shared.renderOperationQueue.addOperation(operation)
     }
     
     static func drawing(

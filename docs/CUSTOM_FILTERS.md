@@ -156,14 +156,14 @@ final class AppMetalLibraryProvider: ExternalMTLLibraryProvider {
     }
 }
 
-Device.registerExternalLibraryProvider(AppMetalLibraryProvider())
+HarbethContext.shared.registerExternalLibraryProvider(AppMetalLibraryProvider())
 ```
 
 `providerIdentifier` 应保持稳定；重复注册同一 identifier 会被拒绝。调试时可读取：
 
 ```swift
-Device.externalLibraryProviderIdentifiers()
-Device.externalLibraryRegistryDebugDescription()
+HarbethContext.shared.externalLibraryProviderIdentifiers
+HarbethContext.shared.externalLibraryRegistryDebugDescription()
 ```
 
 如果使用 `KernelFunctionIdentity`，还可以通过 `KernelLibrarySource.externalProvider(identifier)`、`.metallibURL(path)` 或 `.harbethFramework` 显式约束函数来源。

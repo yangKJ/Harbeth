@@ -107,7 +107,7 @@ enum MaskExpressionCompiler {
             estimatedIntermediateByteCount: estimatedBytes,
             maximumLiveTextureCount: passCount == 0 ? 1 : 3,
             dirtyBounds: dirtyBounds,
-            allocationStrategy: Shared.shared.defaultTextureAllocationStrategy,
+            allocationStrategy: HarbethContext.shared.textureAllocationStrategy,
             operations: operations
         )
     }

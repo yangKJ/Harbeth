@@ -77,8 +77,8 @@ public extension RenderProtocol {
     /// GPU pass 放进同一批次。Harbeth 返回前会结束自己的 encoder，因此调用方可以立即在
     /// 同一个 command buffer 上创建后续 compute、render 或 blit encoder，最后只提交一次。
     func encodeAttachmentSet(from sourceTexture: MTLTexture, commandBuffer: MTLCommandBuffer, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
-        guard sourceTexture.device === Shared.shared.metalDevice,
-              commandBuffer.device === Shared.shared.metalDevice else {
+        guard sourceTexture.device === HarbethContext.shared.device,
+              commandBuffer.device === HarbethContext.shared.device else {
             throw HarbethError.configurationInvalid("Attachment rendering requires source texture, command buffer, and Harbeth context to share one Metal device.")
         }
         guard commandBuffer.retainedReferences else {
@@ -125,7 +125,7 @@ public extension RenderProtocol {
     /// 服务单个 render primitive 的附件读取、调试与后续分析装配，
     /// 不把 Harbeth 扩展成重型 editor runtime。
     func renderAttachmentSet(from sourceTexture: MTLTexture, identifier: String = "RenderAttachmentSet") throws -> RenderedAttachmentSet {
-        guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
             throw HarbethError.commandBuffer
         }
         commandBuffer.label = "Harbeth.RenderAttachmentSet.\(identifier)"

@@ -138,10 +138,10 @@ extension HarbethIO {
             compilationSource: .filtersPrimitive,
             sourceDescriptor: context.sourceObject.descriptor
         )
-        if Shared.shared.enablePerformanceMonitor {
-            Shared.shared.performanceMonitor?.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
+        if HarbethContext.shared.enablePerformanceMonitor {
+            HarbethContext.shared.performanceMonitor.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
             if plan.requiresCompletedGPUWork {
-                Shared.shared.performanceMonitor?.recordReadbackBoundary(identifier)
+                HarbethContext.shared.performanceMonitor.recordReadbackBoundary(identifier)
             }
         }
         return plan.diagnostics

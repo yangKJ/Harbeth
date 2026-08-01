@@ -472,8 +472,8 @@ final class UnitTestViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        previousPerformanceMonitorEnabled = Shared.shared.enablePerformanceMonitor
-        Shared.shared.enablePerformanceMonitor = false
+        previousPerformanceMonitorEnabled = HarbethContext.shared.enablePerformanceMonitor
+        HarbethContext.shared.enablePerformanceMonitor = false
         title = "ImageNode Lab"
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "Examples",
@@ -495,7 +495,7 @@ final class UnitTestViewController: UIViewController {
     }
 
     deinit {
-        Shared.shared.enablePerformanceMonitor = previousPerformanceMonitorEnabled
+        HarbethContext.shared.enablePerformanceMonitor = previousPerformanceMonitorEnabled
     }
 }
 

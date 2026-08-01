@@ -56,16 +56,16 @@ extension Device {
     private static let externalLibraryRegistry = ExternalLibraryProviderRegistry()
 
     @discardableResult
-    public static func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
+    static func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
         externalLibraryRegistry.register(provider)
     }
 
-    public static func externalLibraryProviderIdentifiers() -> [String] {
+    static func externalLibraryProviderIdentifiers() -> [String] {
         externalLibraryRegistry.snapshot().map(\.providerIdentifier)
     }
 
-    public static func externalLibraryRegistryDebugDescription(on device: MTLDevice? = nil) -> String {
-        let activeDevice = device ?? Shared.shared.currentMetalDevice
+    static func externalLibraryRegistryDebugDescription(on device: MTLDevice? = nil) -> String {
+        let activeDevice = device
         let snapshots = externalLibraryRegistrySnapshot(on: activeDevice)
         if snapshots.isEmpty {
             return "External Library Registry: empty"
@@ -74,7 +74,7 @@ extension Device {
         return (["External Library Registry:"] + lines).joined(separator: "\n")
     }
 
-    public static func externalLibraryRegistrySnapshot(on device: MTLDevice? = nil) -> [ExternalLibraryProviderSnapshot] {
+    static func externalLibraryRegistrySnapshot(on device: MTLDevice? = nil) -> [ExternalLibraryProviderSnapshot] {
         let providers = externalLibraryRegistry.snapshot()
         guard let activeDevice = device else {
             return providers.map {

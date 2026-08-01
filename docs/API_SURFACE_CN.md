@@ -741,9 +741,11 @@ let mask = try node.makeMaskDescriptor(
 - 具备命名、类型、矩阵、颜色、布尔值或资源绑定语义的参数，优先使用 `kernelParameterBindings`
 - 同一个滤镜建议只选一种主参数表达方式，不要混用
 
-## 5. Internal Runtime
+## 5. Runtime supporting surface 与内部实现
 
-这些对象服务内部编译、fingerprint、execution plan 和 diagnostics，不应被理解成新的 app integration path：
+`HarbethContext` 是两条公开路线共用的 supporting surface，而不是第三条处理路线。宿主只有在需要资源互操作、策略、诊断或恢复时才直接使用它；公开能力包括 `device`、`makeCommandBuffer()`、execution generation/recovery、Core Video texture cache、并发策略、资源策略、缓存/Archive 诊断和外部 Metal library 注册。
+
+以下对象服务内部编译、fingerprint、execution plan 和 diagnostics，不对 App 暴露具体所有权：
 
 - `KernelDescriptor`
 - `KernelInvocation`
@@ -752,13 +754,12 @@ let mask = try node.makeMaskDescriptor(
 - `RenderCommand*`
 - `TextureAllocator`
 - `TexturePool`
-- `Shared`
 - `Device`
-- `HarbethContext`
+- `ExecutionScheduler`
 - `Homography`
 - `Transform3DLayout`
 
-其中 `HarbethContext` 当前还承载 image-resolution cache；这层缓存已经补齐 namespace + LRU discipline，用来避免跨 source 世代复用旧 resolution 指纹，同时限制长期常驻条目数量。
+`HarbethContext` 只对外提供策略与快照，具体 command queue、operation queue、texture pool/allocator、pipeline/sampler/image-resolution/render-plan cache 和 working color space 均保持内部。原 `Cacheable` 协议只包装 Core Video texture cache，现已删除，由 Context 直接持有具体缓存；无独立所有权的 `Shared` 转发层也已删除。
 
 普通使用者何时不该直接碰它们：
 

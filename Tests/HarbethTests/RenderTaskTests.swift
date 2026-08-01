@@ -167,7 +167,7 @@ final class RenderTaskTests: XCTestCase {
             mipmapped: false
         )
         descriptor.usage = [.shaderRead, .shaderWrite]
-        guard let texture = Shared.shared.defaultDevice.device.makeTexture(descriptor: descriptor) else {
+        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
         var pixels = Array(repeating: UInt8(0), count: width * height * 4)

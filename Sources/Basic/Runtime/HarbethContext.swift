@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreVideo
 @preconcurrency import Metal
 
 #if os(iOS) || os(tvOS)
@@ -14,13 +15,21 @@ import UIKit
 
 public final class HarbethContext: @unchecked Sendable {
 
-    public static var shared: HarbethContext {
-        Shared.shared.defaultContext
-    }
+    public static let shared = HarbethContext(device: Device())
 
-    private let legacyDevice: Device
-    private let pipelineBinaryArchiveStore: PipelineBinaryArchiveStore
+    let runtimeDevice: Device
     let derivedResourceStore: DerivedResourceStore
+
+    public let performanceMonitor = PerformanceMonitor(enabled: false)
+
+    private let executionScheduler: ExecutionScheduler
+    private let texturePoolStorage: TexturePool
+    private let runtimeStateLock = NSLock()
+    private let cvTextureCacheLock = NSLock()
+    private var cvTextureCacheStorage: CVMetalTextureCache?
+    private var textureAllocationStrategyStorage: TextureAllocationStrategy = .exact
+    private var textureAllocatorStorage: TextureAllocator?
+    private let pipelineBinaryArchiveStore: PipelineBinaryArchiveStore
     private let renderPipelineLock = NSLock()
     private let samplerLock = NSLock()
     private let imageResolutionLock = NSLock()
@@ -36,8 +45,7 @@ public final class HarbethContext: @unchecked Sendable {
     private var imageResolutionCacheNamespace: String = "default"
     /// LRU cache for compiled RenderPlan.
     /// Key: `nodeFingerprint|profile.rawValue|derivative.name|samplerDescriptor.fingerprint`
-    /// Value: compiled RenderPlan (a large struct, ~10-50 KB)
-    /// On hit, the key moves to the tail as most-recently-used.
+    /// Value: compiled RenderPlan (a large struct, ~10-50 KB) On hit.
     private var renderPlanCache: [String: RenderPlan] = [:]
     private var renderPlanCacheOrder: [String] = []
     private let renderPlanCacheLimit: Int = 100
@@ -49,7 +57,9 @@ public final class HarbethContext: @unchecked Sendable {
     #endif
 
     init(device: Device) {
-        self.legacyDevice = device
+        self.runtimeDevice = device
+        self.executionScheduler = ExecutionScheduler(device: device.device)
+        self.texturePoolStorage = TexturePool(device: device.device)
         self.pipelineBinaryArchiveStore = PipelineBinaryArchiveStore(device: device.device)
         let physicalMemory = Int(clamping: ProcessInfo.processInfo.physicalMemory)
         self.imageResolutionCacheByteLimit = min(max(physicalMemory / 50, 32 * 1024 * 1024), 256 * 1024 * 1024)
@@ -84,25 +94,94 @@ public final class HarbethContext: @unchecked Sendable {
         #endif
     }
 
+    // MARK: - Public device and execution resources
+
+    /// Process-lifetime Metal device shared by both public processing routes.
     public var device: MTLDevice {
-        legacyDevice.device
+        runtimeDevice.device
     }
 
-    public var commandQueue: MTLCommandQueue {
-        legacyDevice.commandQueue
+    /// Creates a single-use command buffer from the current execution generation.
+    public func makeCommandBuffer() -> MTLCommandBuffer? {
+        executionScheduler.makeCommandBuffer()
     }
 
-    public var texturePool: TexturePool {
-        Shared.shared.defaultTexturePool
+    /// Current execution generation used to reject stale host-side work.
+    public var executionGeneration: UInt64 {
+        executionScheduler.generation
     }
 
-    var textureAllocator: TextureAllocating {
-        Shared.shared.defaultTextureAllocator
+    public func isCurrentExecutionGeneration(_ generation: UInt64) -> Bool {
+        executionScheduler.generation == generation
     }
 
+    /// Cancels queued CPU operations, rotates the command queue and clears
+    /// memory-sensitive runtime caches. Already committed GPU work remains
+    /// owned by Metal and is not synchronously cancelled.
+    @discardableResult
+    public func recoverExecution() -> UInt64 {
+        let generation = executionScheduler.recover()
+        resetCaches()
+        texturePoolStorage.purgeAllTexturesSync()
+        flushCVMetalTextureCache()
+        return generation
+    }
+
+    /// Core Video texture cache for advanced pixel-buffer interop.
     public var cvMetalTextureCache: CVMetalTextureCache? {
-        legacyDevice.textureCache
+        cvTextureCacheLock.lock()
+        defer { cvTextureCacheLock.unlock() }
+        if let cvTextureCacheStorage {
+            return cvTextureCacheStorage
+        }
+        var textureCache: CVMetalTextureCache?
+        #if !targetEnvironment(simulator)
+        CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, device, nil, &textureCache)
+        #endif
+        cvTextureCacheStorage = textureCache
+        return textureCache
     }
+
+    public var maxConcurrentRenderTasks: Int {
+        get { executionScheduler.maxConcurrentOperationCount }
+        set { executionScheduler.maxConcurrentOperationCount = newValue }
+    }
+
+    // MARK: - Public resource policy
+
+    /// Allocation policy for subsequent render-plan compilation and execution.
+    /// Changing the value invalidates cached render plans.
+    public var textureAllocationStrategy: TextureAllocationStrategy {
+        get {
+            runtimeStateLock.lock()
+            defer { runtimeStateLock.unlock() }
+            return textureAllocationStrategyStorage
+        }
+        set {
+            runtimeStateLock.lock()
+            let changed = textureAllocationStrategyStorage != newValue
+            textureAllocationStrategyStorage = newValue
+            textureAllocatorStorage = nil
+            runtimeStateLock.unlock()
+            if changed {
+                removeAllRenderPlans()
+            }
+        }
+    }
+
+    // MARK: - Public diagnostics
+
+    public var enablePerformanceMonitor: Bool {
+        get { performanceMonitor.isEnabled }
+        set {
+            performanceMonitor.setupEnablePerformanceMonitor(newValue)
+            if !newValue {
+                performanceMonitor.clearAllMetrics()
+            }
+        }
+    }
+
+    // MARK: - Public Metal library support
 
     public var externalLibraryProviderIdentifiers: [String] {
         Device.externalLibraryProviderIdentifiers()
@@ -113,20 +192,102 @@ public final class HarbethContext: @unchecked Sendable {
         Device.registerExternalLibraryProvider(provider)
     }
 
+    public func externalLibraryRegistrySnapshot() -> [ExternalLibraryProviderSnapshot] {
+        Device.externalLibraryRegistrySnapshot(on: device)
+    }
+
+    public func externalLibraryRegistryDebugDescription() -> String {
+        Device.externalLibraryRegistryDebugDescription(on: device)
+    }
+
+    public func capabilityReport(_ capability: C7MetalCapability) -> C7MetalCapabilityReport {
+        Device.metalCapabilityReport(capability, on: device)
+    }
+
+    public func makeMetalFunction(named name: String) throws -> MTLFunction {
+        try Device.readMTLFunction(name)
+    }
+
+    // MARK: - Internal runtime resources
+
+    /// Current command queue. Internal code must not retain it across recovery.
+    var commandQueue: MTLCommandQueue {
+        executionScheduler.commandQueue
+    }
+
+    var texturePool: TexturePool {
+        texturePoolStorage
+    }
+
+    var textureAllocator: TextureAllocator {
+        get {
+            runtimeStateLock.lock()
+            if let allocator = textureAllocatorStorage {
+                runtimeStateLock.unlock()
+                return allocator
+            }
+            let allocator = textureAllocationStrategyStorage.makeAllocator(
+                texturePool: texturePoolStorage,
+                on: device
+            )
+            textureAllocatorStorage = allocator
+            runtimeStateLock.unlock()
+            return allocator
+        }
+        set {
+            setTextureAllocatorForTesting(newValue)
+        }
+    }
+
+    var renderOperationQueue: OperationQueue {
+        executionScheduler.operationQueue
+    }
+
+    var colorSpace: CGColorSpace {
+        runtimeDevice.colorSpace
+    }
+
+    var workingColorSpace: CGColorSpace? {
+        runtimeDevice.workingColorSpace
+    }
+
+    func recycleCommandBuffer(_ commandBuffer: MTLCommandBuffer) {
+        // Metal command buffers are single-use. This method keeps cleanup call
+        // sites explicit without pretending buffers can be returned to a pool.
+    }
+
+    private func flushCVMetalTextureCache() {
+        cvTextureCacheLock.lock()
+        defer { cvTextureCacheLock.unlock() }
+        #if !targetEnvironment(simulator)
+        if let cvTextureCacheStorage {
+            CVMetalTextureCacheFlush(cvTextureCacheStorage, 0)
+        }
+        #endif
+    }
+
+    private var hasCVMetalTextureCache: Bool {
+        cvTextureCacheLock.lock()
+        defer { cvTextureCacheLock.unlock() }
+        return cvTextureCacheStorage != nil
+    }
+
+    // MARK: - Internal pipeline and cache implementation
+
     func computePipelineState(for kernel: String) -> MTLComputePipelineState? {
-        legacyDevice.pipelineState(for: kernel)
+        runtimeDevice.pipelineState(for: kernel)
     }
 
     func setComputePipelineState(_ pipeline: MTLComputePipelineState, for kernel: String) {
-        legacyDevice.setPipelineState(pipeline, for: kernel)
+        runtimeDevice.setPipelineState(pipeline, for: kernel)
     }
 
     func computePipelineState(for identity: KernelFunctionIdentity) -> MTLComputePipelineState? {
-        legacyDevice.pipelineState(for: identity)
+        runtimeDevice.pipelineState(for: identity)
     }
 
     func setComputePipelineState(_ pipeline: MTLComputePipelineState, for identity: KernelFunctionIdentity) {
-        legacyDevice.setPipelineState(pipeline, for: identity)
+        runtimeDevice.setPipelineState(pipeline, for: identity)
     }
 
     func makeComputePipelineState(identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
@@ -174,7 +335,7 @@ public final class HarbethContext: @unchecked Sendable {
         renderPipelineLock.lock()
         if let cached = renderPipelines[key] {
             renderPipelineLock.unlock()
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("render", hit: true)
+            performanceMonitor.recordPipelineCacheLookup("render", hit: true)
             return cached
         }
         renderPipelineLock.unlock()
@@ -188,14 +349,14 @@ public final class HarbethContext: @unchecked Sendable {
         descriptor.fragmentFunction = try Device.readMTLFunction(fragmentIdentity)
         pipelineBinaryArchiveStore.attach(to: descriptor)
         guard let pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor) else {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("render", hit: false)
+            performanceMonitor.recordPipelineCacheLookup("render", hit: false)
             throw HarbethError.renderPipelineState(vertexIdentity.primaryName, fragmentIdentity.primaryName)
         }
 
         renderPipelineLock.lock()
         renderPipelines[key] = pipelineState
         renderPipelineLock.unlock()
-        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("render", hit: false)
+        performanceMonitor.recordPipelineCacheLookup("render", hit: false)
         return pipelineState
     }
 
@@ -240,7 +401,7 @@ public final class HarbethContext: @unchecked Sendable {
         samplerLock.lock()
         if let cached = samplerStates[key] {
             samplerLock.unlock()
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("sampler", hit: true)
+            performanceMonitor.recordPipelineCacheLookup("sampler", hit: true)
             return cached
         }
         samplerLock.unlock()
@@ -257,7 +418,7 @@ public final class HarbethContext: @unchecked Sendable {
             samplerStates[key] = state
         }
         samplerLock.unlock()
-        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("sampler", hit: false)
+        performanceMonitor.recordPipelineCacheLookup("sampler", hit: false)
         return state
     }
 
@@ -393,9 +554,11 @@ public final class HarbethContext: @unchecked Sendable {
         return count
     }
 
+    // MARK: - Public cache and archive governance
+
     public func resetCaches() {
-        legacyDevice.removePipelineStates()
-        legacyDevice.removeFunctionCache()
+        runtimeDevice.removePipelineStates()
+        runtimeDevice.removeFunctionCache()
         renderPipelineLock.lock()
         renderPipelines.removeAll()
         renderPipelineLock.unlock()
@@ -414,7 +577,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     public func configurePipelineBinaryArchive(_ configuration: PipelineBinaryArchiveConfiguration) throws {
         try pipelineBinaryArchiveStore.configure(configuration)
-        legacyDevice.removePipelineStates()
+        runtimeDevice.removePipelineStates()
         renderPipelineLock.lock()
         renderPipelines.removeAll()
         renderPipelineLock.unlock()
@@ -443,9 +606,10 @@ public final class HarbethContext: @unchecked Sendable {
         let renderPlanCount = renderPlanCache.count
         renderPlanLock.unlock()
         let derivedSnapshot = derivedResourceStore.snapshot()
+        let texturePoolSnapshot = texturePoolStorage.statistics
         return CacheSnapshot(
-            functionCacheCount: legacyDevice.functionCacheCount,
-            computePipelineCount: legacyDevice.pipelineCount,
+            functionCacheCount: runtimeDevice.functionCacheCount,
+            computePipelineCount: runtimeDevice.pipelineCount,
             renderPipelineCount: renderCount,
             samplerCount: samplerCount,
             imageResolutionCount: imageResolutionCount,
@@ -455,10 +619,17 @@ public final class HarbethContext: @unchecked Sendable {
             derivedResourceCount: derivedSnapshot.entryCount,
             derivedResourceByteCount: derivedSnapshot.byteCount,
             derivedResourceByteLimit: derivedSnapshot.byteLimit,
+            texturePoolCount: texturePoolSnapshot.currentTextureCount,
+            texturePoolByteCount: texturePoolSnapshot.currentMemoryUsage,
+            texturePoolByteLimit: texturePoolSnapshot.maxMemoryUsage,
+            allocationStrategy: textureAllocationStrategy,
+            executionGeneration: executionGeneration,
             hasTexturePool: true,
-            hasCVMetalTextureCache: cvMetalTextureCache != nil
+            hasCVMetalTextureCache: hasCVMetalTextureCache
         )
     }
+
+    // MARK: - Internal cache maintenance
 
     private func namespacedImageResolutionCacheKey(for fingerprint: String) -> String {
         "\(imageResolutionCacheNamespace)||\(fingerprint)"
@@ -472,6 +643,73 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionCacheByteCount = 0
         imageResolutionLock.unlock()
         derivedResourceStore.invalidate()
+    }
+
+    // MARK: - Public texture pool governance
+
+    public func prewarmTexturePool(
+        resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)],
+        count: Int = 2
+    ) {
+        texturePoolStorage.prewarm(resolutions: resolutions, count: count)
+    }
+
+    public func prewarmTexturePool(
+        reservations: [RenderTextureReservation],
+        fallbackPixelFormat: MTLPixelFormat,
+        defaultCount: Int = 1
+    ) {
+        texturePoolStorage.prewarm(
+            requests: makePrewarmRequests(
+                from: reservations,
+                fallbackPixelFormat: fallbackPixelFormat,
+                defaultCount: defaultCount
+            )
+        )
+    }
+
+    func prewarmTexturePoolSync(
+        reservations: [RenderTextureReservation],
+        fallbackPixelFormat: MTLPixelFormat,
+        defaultCount: Int = 1
+    ) {
+        texturePoolStorage.prewarmSync(
+            requests: makePrewarmRequests(
+                from: reservations,
+                fallbackPixelFormat: fallbackPixelFormat,
+                defaultCount: defaultCount
+            )
+        )
+    }
+
+    public var texturePoolStatistics: TexturePoolStatistics {
+        texturePoolStorage.statistics
+    }
+
+    public func resetTexturePoolStatistics() {
+        texturePoolStorage.resetStatisticsSync()
+    }
+
+    private func makePrewarmRequests(
+        from reservations: [RenderTextureReservation],
+        fallbackPixelFormat: MTLPixelFormat,
+        defaultCount: Int
+    ) -> [TexturePool.PrewarmRequest] {
+        reservations.map { reservation in
+            TexturePool.PrewarmRequest(
+                width: reservation.size.width,
+                height: reservation.size.height,
+                pixelFormat: reservation.pixelFormat.metalPixelFormat ?? fallbackPixelFormat,
+                count: max(defaultCount, reservation.count)
+            )
+        }
+    }
+
+    func setTextureAllocatorForTesting(_ allocator: TextureAllocator) {
+        runtimeStateLock.lock()
+        textureAllocatorStorage = allocator
+        runtimeStateLock.unlock()
+        removeAllRenderPlans()
     }
 }
 
@@ -488,6 +726,11 @@ public extension HarbethContext {
         public let derivedResourceCount: Int
         public let derivedResourceByteCount: Int
         public let derivedResourceByteLimit: Int
+        public let texturePoolCount: Int
+        public let texturePoolByteCount: Int
+        public let texturePoolByteLimit: Int
+        public let allocationStrategy: TextureAllocationStrategy
+        public let executionGeneration: UInt64
         public let hasTexturePool: Bool
         public let hasCVMetalTextureCache: Bool
     }

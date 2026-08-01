@@ -14,7 +14,7 @@ final class RenderCommandTests: XCTestCase {
             fragment: "basicFragment",
             pixelFormat: .rgba8Unorm
         )
-        guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
             return XCTFail("Expected the shared command queue to create a command buffer.")
         }
 
@@ -253,7 +253,7 @@ final class RenderCommandTests: XCTestCase {
     func testRenderCommandBatchEncodesAuxiliaryLuminanceAttachment() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        guard let commandQueue = Shared.shared.defaultDevice.device.makeCommandQueue(),
+        guard let commandQueue = HarbethContext.shared.device.makeCommandQueue(),
               let commandBuffer = commandQueue.makeCommandBuffer() else {
             XCTFail("Failed to create command queue.")
             return
@@ -290,7 +290,7 @@ final class RenderCommandTests: XCTestCase {
     func testRenderCommandBatchEncodesAuxiliaryMaskCoverageAttachment() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        guard let commandQueue = Shared.shared.defaultDevice.device.makeCommandQueue(),
+        guard let commandQueue = HarbethContext.shared.device.makeCommandQueue(),
               let commandBuffer = commandQueue.makeCommandBuffer() else {
             XCTFail("Failed to create command queue.")
             return
@@ -331,7 +331,7 @@ final class RenderCommandTests: XCTestCase {
     func testRenderCommandBatchEncodesAuxiliaryHighlightClippingAttachment() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        guard let commandQueue = Shared.shared.defaultDevice.device.makeCommandQueue(),
+        guard let commandQueue = HarbethContext.shared.device.makeCommandQueue(),
               let commandBuffer = commandQueue.makeCommandBuffer() else {
             XCTFail("Failed to create command queue.")
             return
@@ -369,7 +369,7 @@ final class RenderCommandTests: XCTestCase {
     func testRenderCommandBatchEncodesAuxiliaryShadowClippingAttachment() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        guard let commandQueue = Shared.shared.defaultDevice.device.makeCommandQueue(),
+        guard let commandQueue = HarbethContext.shared.device.makeCommandQueue(),
               let commandBuffer = commandQueue.makeCommandBuffer() else {
             XCTFail("Failed to create command queue.")
             return
@@ -407,7 +407,7 @@ final class RenderCommandTests: XCTestCase {
     func testRenderCommandBatchEncodesAuxiliaryFalseColorExposureAttachment() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        guard let commandQueue = Shared.shared.defaultDevice.device.makeCommandQueue(),
+        guard let commandQueue = HarbethContext.shared.device.makeCommandQueue(),
               let commandBuffer = commandQueue.makeCommandBuffer() else {
             XCTFail("Failed to create command queue.")
             return
@@ -545,7 +545,7 @@ final class RenderCommandTests: XCTestCase {
             mipmapped: false
         )
         descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
-        guard let texture = Shared.shared.defaultDevice.device.makeTexture(descriptor: descriptor) else {
+        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
         return texture
@@ -587,7 +587,7 @@ final class RenderCommandTests: XCTestCase {
     func testRenderAuxiliaryMaskCoverageAttachmentRespectsComponentAndInvert() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        guard let commandQueue = Shared.shared.defaultDevice.device.makeCommandQueue() else {
+        guard let commandQueue = HarbethContext.shared.device.makeCommandQueue() else {
             XCTFail("Failed to create Metal command queue.")
             return
         }

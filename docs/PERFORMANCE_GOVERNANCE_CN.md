@@ -102,8 +102,8 @@ xcrun swift test --filter RealtimeRouteBenchmarkTests
 默认 `.exact` 适合短任务和少量纹理。重复尺寸的实时帧或长链路可以对比 `.heapBacked`：
 
 ```swift
-Shared.shared.defaultTextureAllocationStrategy = .heapBacked
-defer { Shared.shared.defaultTextureAllocationStrategy = .exact }
+HarbethContext.shared.textureAllocationStrategy = .heapBacked
+defer { HarbethContext.shared.textureAllocationStrategy = .exact }
 ```
 
 比较时至少同时记录：

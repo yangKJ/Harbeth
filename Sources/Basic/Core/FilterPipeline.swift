@@ -103,7 +103,7 @@ enum FilterPipelineExecutor {
         if texturesToRecycle.isEmpty == false {
             let transfer = HarbethUncheckedTransfer(value: texturesToRecycle)
             commandBuffer.addCompletedHandler { _ in
-                Shared.shared.defaultTexturePool.enqueueTexturesSync(transfer.value)
+                HarbethContext.shared.texturePool.enqueueTexturesSync(transfer.value)
             }
         }
         return destination

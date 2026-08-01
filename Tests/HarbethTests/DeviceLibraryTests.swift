@@ -14,7 +14,7 @@ final class DeviceLibraryTests: XCTestCase {
     }
 
     func testRegisterExternalLibraryProviderIsIdempotent() throws {
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
         let baseline = Device.externalLibraryProviderIdentifiers()
         let provider = MockExternalLibraryProvider(identifier: "tests.mock.provider")
 
@@ -33,15 +33,14 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertNotNil(R.cacheBundles["Harbeth"])
     }
 
-    func testSharedRuntimeSurfacesResolveToOneDefaultOwner() {
-        Shared.shared.deinitDevice()
+    func testContextRuntimeSurfacesResolveToOneDefaultOwner() {
+        let context = HarbethContext.shared
+        let owner = context.runtimeDevice
+        let textureCache = context.cvMetalTextureCache
 
-        let owner = Shared.shared.defaultDevice
-
-        XCTAssertTrue(Shared.shared.metalDevice === owner.device)
-        XCTAssertTrue(Shared.shared.commandQueue === owner.commandQueue)
-        XCTAssertEqual(Shared.shared.defaultDevice.colorSpace, owner.colorSpace)
-        XCTAssertEqual(Shared.shared.sharedTextureCache != nil, owner.textureCache != nil)
+        XCTAssertTrue(context.device === owner.device)
+        XCTAssertEqual(context.colorSpace, owner.colorSpace)
+        XCTAssertEqual(context.debugCacheSnapshot().hasCVMetalTextureCache, textureCache != nil)
     }
 
     func testLookupAndCubeKeepResourceOwnerMetadataWhenResourcesAreMissing() {

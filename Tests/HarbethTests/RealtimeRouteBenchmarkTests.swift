@@ -879,19 +879,19 @@ private struct RealtimeRouteBenchmarker {
             try textureInput(width: inputWidth, height: inputHeight)
         }
 
-        let shared = Shared.shared
-        let enabledMonitorForBenchmark = shared.enablePerformanceMonitor == false
+        let context = HarbethContext.shared
+        let enabledMonitorForBenchmark = context.enablePerformanceMonitor == false
         if enabledMonitorForBenchmark {
-            shared.enablePerformanceMonitor = true
+            context.enablePerformanceMonitor = true
             var configuration = PerformanceMonitor.Configuration()
             configuration.enabled = true
             configuration.logLevel = .error
             configuration.maxStoredMetrics = 256
-            shared.performanceMonitor?.configure(configuration)
+            context.performanceMonitor.configure(configuration)
         }
         defer {
-            shared.performanceMonitor?.clearAllMetrics()
-            if enabledMonitorForBenchmark { shared.enablePerformanceMonitor = false }
+            context.performanceMonitor.clearAllMetrics()
+            if enabledMonitorForBenchmark { context.enablePerformanceMonitor = false }
         }
 
         let sampleRouteState = ImageNodeBenchmarkRouteState(
@@ -987,7 +987,7 @@ private struct RealtimeRouteBenchmarker {
         route: RealtimeRouteDefinition,
         fallbackCount: () -> Int
     ) async -> RouteBenchmarkReport {
-        Shared.shared.performanceMonitor?.clearAllMetrics()
+        HarbethContext.shared.performanceMonitor.clearAllMetrics()
         let startMemory = currentResidentMemory()
         let firstFrame = await submitOnce(route: route, frameIndex: -1)
 
@@ -996,7 +996,7 @@ private struct RealtimeRouteBenchmarker {
                 _ = await submitOnce(route: route, frameIndex: -(warmupIndex + 2))
             }
         }
-        Shared.shared.performanceMonitor?.clearAllMetrics()
+        HarbethContext.shared.performanceMonitor.clearAllMetrics()
 
         let snapshot = await RealtimeRouteCadenceRunner.measure(
             frameCount: frameCount,
@@ -1303,7 +1303,7 @@ private final class RenderViewAssignmentBenchmarkRouteState {
 }
 
 private func benchmarkGPUTimeMs(identifier: String) -> Double? {
-    guard let nanoseconds = Shared.shared.performanceMonitor?.getMetrics(identifier)?.gpuTotalTimeNanoseconds,
+    guard let nanoseconds = HarbethContext.shared.performanceMonitor.getMetrics(identifier)?.gpuTotalTimeNanoseconds,
           nanoseconds > 0 else {
         return nil
     }
@@ -1312,7 +1312,7 @@ private func benchmarkGPUTimeMs(identifier: String) -> Double? {
 }
 
 private func currentRenderOperationBacklog() -> Int {
-    let queue = Shared.shared.renderOperationQueue
+    let queue = HarbethContext.shared.renderOperationQueue
     return max(queue.operationCount - max(queue.maxConcurrentOperationCount, 1), 0)
 }
 

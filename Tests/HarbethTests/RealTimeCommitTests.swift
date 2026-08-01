@@ -4,14 +4,14 @@ import XCTest
 
 final class RealTimeCommitTests: XCTestCase {
     override func tearDown() {
-        Shared.shared.enablePerformanceMonitor = false
+        HarbethContext.shared.enablePerformanceMonitor = false
         super.tearDown()
     }
 
     func testRealTimeCommitDeliversOnlyAfterSchedulingWithMonitorOnAndOff() throws {
         let statuses = try [false, true].map { enabled in
-            Shared.shared.enablePerformanceMonitor = enabled
-            guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
+            HarbethContext.shared.enablePerformanceMonitor = enabled
+            guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
                 throw HarbethError.commandBuffer
             }
             let state = RealTimeCommitState()

@@ -40,7 +40,7 @@ final class FilterPipelineTests: XCTestCase {
     func testPipelineCombinationRendersTexture() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let input = try TextureLoader.makeTexture(
             width: 8,
@@ -59,7 +59,7 @@ final class FilterPipelineTests: XCTestCase {
     func testPipelineProtocolDefaultApplyAtTextureSupportsCustomPipelineFilter() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let input = try TextureLoader.makeTexture(
             width: 6,

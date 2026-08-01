@@ -163,7 +163,7 @@ final class MaskExecutionCache: @unchecked Sendable {
     }
 
     private var store: DerivedResourceStore {
-        usesContextStore ? Shared.shared.defaultContext.derivedResourceStore : localStore!
+        usesContextStore ? HarbethContext.shared.derivedResourceStore : localStore!
     }
 }
 
@@ -324,7 +324,7 @@ private extension MaskDerivedRecipe {
             eliminatedOperationCount: plan.eliminatedOperationCount,
             maximumHalo: plan.maximumHalo,
             estimatedIntermediateByteCount: max(texture.allocatedSize, 1) * max(plan.passCount, 1),
-            allocationStrategy: Shared.shared.defaultTextureAllocationStrategy,
+            allocationStrategy: HarbethContext.shared.textureAllocationStrategy,
             cacheHit: cacheHit,
             dirtyBounds: dirtyBounds
         )

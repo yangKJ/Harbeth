@@ -122,7 +122,7 @@ open class RenderView: MTKView {
     #endif
 
     private lazy var samplerState: MTLSamplerState? = {
-        Shared.shared.defaultContext.makeSamplerState()
+        HarbethContext.shared.makeSamplerState()
     }()
     private let previewHostInstanceIdentifier = UUID().uuidString
     private var lastPreviewHostVisibilityState: Bool?
@@ -132,14 +132,14 @@ open class RenderView: MTKView {
     private var previewHostExecutionReport = PreviewHostExecutionReport.inactive(predictedStrategy: .metalTextureHost)
 
     public override init(frame frameRect: CGRect, device: MTLDevice?) {
-        super.init(frame: frameRect, device: device ?? Shared.shared.metalDevice)
+        super.init(frame: frameRect, device: device ?? HarbethContext.shared.device)
         commonInit()
     }
 
     public required init(coder: NSCoder) {
         super.init(coder: coder)
         if device == nil {
-            device = Shared.shared.metalDevice
+            device = HarbethContext.shared.device
         }
         commonInit()
     }
@@ -272,7 +272,7 @@ open class RenderView: MTKView {
         if let cachedPipelineState, cachedPipelinePixelFormat == colorPixelFormat, cachedPipelineSampleCount == sampleCount {
             return cachedPipelineState
         }
-        let pipelineState = try? Shared.shared.defaultContext.makeRenderPipelineState(
+        let pipelineState = try? HarbethContext.shared.makeRenderPipelineState(
             vertex: "basicVertex",
             fragment: "basicFragment",
             pixelFormat: colorPixelFormat,
@@ -372,7 +372,7 @@ extension RenderView: MTKViewDelegate {
               let renderPassDescriptor = currentRenderPassDescriptor,
               let drawable = currentDrawable,
               let pipelineState = currentRenderPipelineState(),
-              let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer(),
+              let commandBuffer = HarbethContext.shared.makeCommandBuffer(),
               let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
             return
         }
@@ -507,7 +507,7 @@ private extension RenderView {
         #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordFallbackToMetal()
         #endif
-        Shared.shared.performanceMonitor?.recordPreviewHostFallbackToMetal(previewHostTelemetryIdentifier)
+        HarbethContext.shared.performanceMonitor.recordPreviewHostFallbackToMetal(previewHostTelemetryIdentifier)
         recordPreviewHostStrategy(.metalTextureHost)
         updatePreviewHostScheduling()
         invalidateDisplay()
@@ -651,12 +651,12 @@ private extension RenderView {
             incrementPreviewHostRecoveryCount()
             SampleBufferPreviewLayerPool.recordFlush()
             SampleBufferPreviewLayerPool.recordRecovery()
-            Shared.shared.performanceMonitor?.recordPreviewHostRecovery(previewHostTelemetryIdentifier)
+            HarbethContext.shared.performanceMonitor.recordPreviewHostRecovery(previewHostTelemetryIdentifier)
             layer.flush()
         }
         layer.enqueue(sampleBuffer)
         incrementPreviewHostEnqueueCount()
-        Shared.shared.performanceMonitor?.recordPreviewHostEnqueue(previewHostTelemetryIdentifier)
+        HarbethContext.shared.performanceMonitor.recordPreviewHostEnqueue(previewHostTelemetryIdentifier)
         if allowRecovery && layer.status == .failed {
             setPreviewHostExecutionState(
                 .recovering,
@@ -669,11 +669,11 @@ private extension RenderView {
             incrementPreviewHostRecoveryCount()
             SampleBufferPreviewLayerPool.recordFlush()
             SampleBufferPreviewLayerPool.recordRecovery()
-            Shared.shared.performanceMonitor?.recordPreviewHostRecovery(previewHostTelemetryIdentifier)
+            HarbethContext.shared.performanceMonitor.recordPreviewHostRecovery(previewHostTelemetryIdentifier)
             layer.flush()
             layer.enqueue(sampleBuffer)
             incrementPreviewHostEnqueueCount()
-            Shared.shared.performanceMonitor?.recordPreviewHostEnqueue(previewHostTelemetryIdentifier)
+            HarbethContext.shared.performanceMonitor.recordPreviewHostEnqueue(previewHostTelemetryIdentifier)
         }
         if layer.status != .failed {
             setPreviewHostExecutionState(
@@ -755,12 +755,12 @@ private extension RenderView {
     }
 
     func recordPreviewHostStrategy(_ strategy: PreviewHostStrategy) {
-        Shared.shared.performanceMonitor?.recordPreviewHostStrategy(previewHostTelemetryIdentifier, strategy: strategy)
+        HarbethContext.shared.performanceMonitor.recordPreviewHostStrategy(previewHostTelemetryIdentifier, strategy: strategy)
     }
 
     func recordPreviewHostPoolSnapshot() {
         #if canImport(AVFoundation)
-        Shared.shared.performanceMonitor?.recordPreviewHostPoolSnapshot(
+        HarbethContext.shared.performanceMonitor.recordPreviewHostPoolSnapshot(
             previewHostTelemetryIdentifier,
             snapshot: SampleBufferPreviewLayerPool.snapshot()
         )
@@ -774,7 +774,7 @@ private extension RenderView {
         #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordVisibilityPause()
         #endif
-        Shared.shared.performanceMonitor?.recordPreviewHostVisibilityPause(previewHostTelemetryIdentifier)
+        HarbethContext.shared.performanceMonitor.recordPreviewHostVisibilityPause(previewHostTelemetryIdentifier)
     }
 
     func recordPreviewHostVisibilityResumeIfNeeded() {
@@ -784,7 +784,7 @@ private extension RenderView {
         #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordVisibilityResume()
         #endif
-        Shared.shared.performanceMonitor?.recordPreviewHostVisibilityResume(previewHostTelemetryIdentifier)
+        HarbethContext.shared.performanceMonitor.recordPreviewHostVisibilityResume(previewHostTelemetryIdentifier)
     }
 
     func recordPreviewHostLifecycleResumeIfNeeded() {
@@ -817,7 +817,7 @@ private extension RenderView {
         #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordLifecycleResume()
         #endif
-        Shared.shared.performanceMonitor?.recordPreviewHostLifecycleResume(previewHostTelemetryIdentifier)
+        HarbethContext.shared.performanceMonitor.recordPreviewHostLifecycleResume(previewHostTelemetryIdentifier)
     }
 
     func recordPreviewHostSuspensionIfNeeded(_ reason: PreviewHostSuspensionReason) {
@@ -855,7 +855,7 @@ private extension RenderView {
         #if canImport(AVFoundation)
         SampleBufferPreviewLayerPool.recordLifecyclePause()
         #endif
-        Shared.shared.performanceMonitor?.recordPreviewHostLifecyclePause(
+        HarbethContext.shared.performanceMonitor.recordPreviewHostLifecyclePause(
             previewHostTelemetryIdentifier,
             reason: reason
         )
@@ -888,7 +888,7 @@ private extension RenderView {
                 failureCountsByReason: failureCounts
             )
         }
-        Shared.shared.performanceMonitor?.recordPreviewHostFailure(previewHostTelemetryIdentifier, reason: reason)
+        HarbethContext.shared.performanceMonitor.recordPreviewHostFailure(previewHostTelemetryIdentifier, reason: reason)
     }
 
     func updatePreviewHostExecutionReport(_ mutate: (inout PreviewHostExecutionReport) -> Void) {
@@ -1099,14 +1099,14 @@ private extension RenderView {
                 fleet: snapshot
             )
         }
-        Shared.shared.performanceMonitor?.recordPreviewHostExecution(
+        HarbethContext.shared.performanceMonitor.recordPreviewHostExecution(
             previewHostTelemetryIdentifier,
             report: previewHostExecutionReport
         )
         let predictedStrategy = previewHostStrategy(from: previewHostExecutionReport.predictedStrategy)
         let actualStrategy = previewHostStrategy(from: previewHostExecutionReport.actualResolvedHostStrategy)
         if predictedStrategy != actualStrategy {
-            Shared.shared.performanceMonitor?.recordPreviewHostPredictionDrift(
+            HarbethContext.shared.performanceMonitor.recordPreviewHostPredictionDrift(
                 previewHostTelemetryIdentifier,
                 predicted: predictedStrategy,
                 actual: actualStrategy
@@ -1122,7 +1122,7 @@ private extension RenderView {
     }
 
     func publishPreviewHostFleetSnapshot(_ snapshot: PreviewHostFleetSnapshot, deliverCallbacks: Bool = true) {
-        Shared.shared.performanceMonitor?.recordPreviewHostFleetSnapshot(
+        HarbethContext.shared.performanceMonitor.recordPreviewHostFleetSnapshot(
             previewHostTelemetryIdentifier,
             snapshot: snapshot
         )

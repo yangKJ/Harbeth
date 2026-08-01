@@ -6,12 +6,14 @@ final class RenderPlanCacheTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        HarbethContext.shared.textureAllocationStrategy = .exact
         // Ensure each test starts with a clean RenderPlan cache so we can
         // deterministically observe hits and misses.
         HarbethContext.shared.removeAllRenderPlans()
     }
 
     override func tearDown() {
+        HarbethContext.shared.textureAllocationStrategy = .exact
         HarbethContext.shared.removeAllRenderPlans()
         super.tearDown()
     }
@@ -264,6 +266,16 @@ final class RenderPlanCacheTests: XCTestCase {
         HarbethContext.shared.storeRenderPlan(plan, for: "k")
         XCTAssertEqual(HarbethContext.shared.renderPlanCacheCount(), 1)
         HarbethContext.shared.resetCaches()
+        XCTAssertEqual(HarbethContext.shared.renderPlanCacheCount(), 0)
+    }
+
+    func testAllocationStrategyChangeInvalidatesRenderPlanCache() throws {
+        let plan = try makeRealPlanStub()
+        HarbethContext.shared.storeRenderPlan(plan, for: "strategy-sensitive")
+
+        HarbethContext.shared.textureAllocationStrategy = .tolerant
+
+        XCTAssertNil(HarbethContext.shared.cachedRenderPlan(for: "strategy-sensitive"))
         XCTAssertEqual(HarbethContext.shared.renderPlanCacheCount(), 0)
     }
 

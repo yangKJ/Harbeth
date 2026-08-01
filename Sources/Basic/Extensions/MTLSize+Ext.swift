@@ -17,7 +17,7 @@ extension HarbethWrapper where MTLSize == Base {
     /// - Returns: New metal texture size.
     public func maxTextureSize(device: MTLDevice? = nil) -> MTLSize {
         func getMaxTextureDimensions() -> (width: Int, height: Int) {
-            let device = device ?? Shared.shared.metalDevice
+            let device = device ?? HarbethContext.shared.device
             #if targetEnvironment(macCatalyst)
             if device.supportsFamily(.apple3) {
                 return (131072, 65536)

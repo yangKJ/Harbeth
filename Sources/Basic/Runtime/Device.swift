@@ -8,13 +8,11 @@
 import Foundation
 import MetalKit
 
-/// Global public information
-public final class Device: Cacheable {
+/// Process-lifetime Metal resources used by HarbethContext.
+final class Device {
     /// Device information to create other objects
     /// MTLDevice creation is expensive, time-consuming, and can be used forever, so you only need to create it once
     let device: MTLDevice
-    /// Single command queue
-    let commandQueue: MTLCommandQueue
     /// Metal file in your local project
     let defaultLibrary: MTLLibrary?
     /// Metal file in ``Harbeth Framework``
@@ -32,29 +30,14 @@ public final class Device: Cacheable {
     /// Lock for thread safety
     private let pipelineLock = NSLock()
     private let functionLock = NSLock()
-    /// Memory limit for texture processing in MB
-    private var _memoryLimitMB: Int = 512
-    /// Render operation queue for managing concurrent tasks with QoS
-    private let _renderOperationQueue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.name = "com.harbeth.render.operation"
-        queue.qualityOfService = .userInteractive
-        queue.maxConcurrentOperationCount = 4
-        return queue
-    }()
 
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Could not create Metal Device")
         }
         self.device = device
-        guard let commandQueue = device.makeCommandQueue() else {
-            fatalError("Could not create command queue")
-        }
-        self.commandQueue = commandQueue
         self.defaultLibrary = try? device.makeDefaultLibrary(bundle: Bundle.main)
         self.harbethLibrary = Device.makeFrameworkLibrary(device, for: "Harbeth")
-
     }
 }
 
@@ -82,24 +65,6 @@ extension Device {
         }
     }
 
-    var sharedRenderOperationQueue: OperationQueue {
-        _renderOperationQueue
-    }
-
-    var sharedMemoryLimitMB: Int {
-        get { _memoryLimitMB }
-        set { _memoryLimitMB = newValue }
-    }
-
-    func dequeueCommandBuffer() -> MTLCommandBuffer? {
-        commandQueue.makeCommandBuffer()
-    }
-
-    func enqueueCommandBuffer(_ buffer: MTLCommandBuffer) {
-        // Metal command buffers are single-use after encoding/commit. Keep this
-        // compatibility hook as a no-op for callers that still return buffers.
-    }
-
     nonisolated(unsafe) private static var fallbackLibraries: [String: MTLLibrary] = [:]
     /// Function names confirmed absent from on-disk `.metal` sources, cached so a missing kernel
     /// is scanned for at most once instead of re-walking the whole bundle on every lookup.
@@ -114,11 +79,11 @@ extension Device {
     /// stop a future refactor from silently making the fallback eager again.
     nonisolated(unsafe) static var sourceFallbackScanCount: Int = 0
 
-    private static var existingSharedDevice: Device? {
-        Shared.shared.hasDevice ? Shared.shared.defaultDevice : nil
+    private static var contextDevice: Device? {
+        HarbethContext.shared.runtimeDevice
     }
 
-    public static func metalCapabilityReport(_ capability: C7MetalCapability, on device: MTLDevice? = nil) -> C7MetalCapabilityReport {
+    static func metalCapabilityReport(_ capability: C7MetalCapability, on device: MTLDevice? = nil) -> C7MetalCapabilityReport {
         if capability == .customAdvancedEncoder {
             return C7MetalCapabilityReport(
                 capability: capability,
@@ -130,7 +95,7 @@ extension Device {
 
         let resolvedDevice: MTLDevice? = {
             if let device { return device }
-            if let existingDevice = existingSharedDevice {
+            if let existingDevice = contextDevice {
                 return existingDevice.device
             }
             return MTLCreateSystemDefaultDevice()
@@ -297,14 +262,16 @@ extension Device {
             )
         }
     }
+
     /// Get pipeline state for kernel function with thread safety
-    public func pipelineState(for kernel: C7KernelFunction) -> MTLComputePipelineState? {
+    func pipelineState(for kernel: C7KernelFunction) -> MTLComputePipelineState? {
         pipelineLock.lock()
         defer { pipelineLock.unlock() }
         return pipelines[kernel]
     }
+
     /// Set pipeline state for kernel function with thread safety
-    public func setPipelineState(_ pipeline: MTLComputePipelineState, for kernel: C7KernelFunction) {
+    func setPipelineState(_ pipeline: MTLComputePipelineState, for kernel: C7KernelFunction) {
         pipelineLock.lock()
         defer { pipelineLock.unlock() }
         pipelines[kernel] = pipeline
@@ -359,18 +326,7 @@ extension Device {
         return identityFunctions.count
     }
 
-    /// Get maximum concurrent render tasks
-    public var maxConcurrentRenderTasks: Int {
-        return _renderOperationQueue.maxConcurrentOperationCount
-    }
-
-    /// Set maximum concurrent render tasks
-    /// - Parameter value: Maximum number of concurrent tasks
-    public func setMaxConcurrentRenderTasks(_ value: Int) {
-        _renderOperationQueue.maxConcurrentOperationCount = value
-    }
-
-    public static func makeFrameworkLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
+    static func makeFrameworkLibrary(_ device: MTLDevice, for resource: String) -> MTLLibrary? {
         #if SWIFT_PACKAGE
         /// Fixed the Swift PM cannot read the `.metal` file.
         /// https://stackoverflow.com/questions/63237395/generating-resource-bundle-accessor-type-bundle-has-no-member-module
@@ -519,9 +475,9 @@ extension Device {
         return files
     }
 
-    public static func readMTLFunction(_ name: String) throws -> MTLFunction {
+    static func readMTLFunction(_ name: String) throws -> MTLFunction {
         /// Read external libraries
-        if let device = existingSharedDevice {
+        if let device = contextDevice {
             for library in device.externalLibraries() {
                 if let function = library.makeFunction(name: name) {
                     return function
@@ -529,14 +485,14 @@ extension Device {
             }
         }
         // And then read the project
-        if let libray = existingSharedDevice?.defaultLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = contextDevice?.defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         // Last read from ``Harbeth Framework``
-        if let libray = existingSharedDevice?.harbethLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = contextDevice?.harbethLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
-        if let metalDevice = existingSharedDevice?.device ?? MTLCreateSystemDefaultDevice(),
+        if let metalDevice = contextDevice?.device ?? MTLCreateSystemDefaultDevice(),
            let fallbackLibrary = makeSourceFallbackLibrary(metalDevice, functionName: name),
            let function = fallbackLibrary.makeFunction(name: name) {
             return function
@@ -551,7 +507,7 @@ extension Device {
 
         let functionName = identity.primaryName
         let constantValues = identity.makeMetalFunctionConstantValues()
-        let resolvedDevice = existingSharedDevice ?? Shared.shared.defaultDevice
+        let resolvedDevice = contextDevice ?? HarbethContext.shared.runtimeDevice
 
         if let cached = resolvedDevice.cachedFunction(for: identity) {
             return cached
@@ -635,11 +591,11 @@ extension Device {
         throw HarbethError.readFunction(functionName)
     }
 
-    public static func metalFunctionLookupFailureDescription(_ name: String) -> String {
-        let sharedDevice = existingSharedDevice
+    static func metalFunctionLookupFailureDescription(_ name: String) -> String {
+        let runtimeDevice = contextDevice
         var errorMessage = "Could not find Metal function '\(name)' in any library.\nCandidate sources:\n"
-        errorMessage += "- Default Library: \(sharedDevice?.defaultLibrary != nil ? "Available" : "Not available")\n"
-        errorMessage += "- Harbeth Library: \(sharedDevice?.harbethLibrary != nil ? "Available" : "Not available")\n"
+        errorMessage += "- Default Library: \(runtimeDevice?.defaultLibrary != nil ? "Available" : "Not available")\n"
+        errorMessage += "- Harbeth Library: \(runtimeDevice?.harbethLibrary != nil ? "Available" : "Not available")\n"
         errorMessage += "- External Registry:\n\(Device.externalLibraryRegistryDebugDescription())"
         return errorMessage
     }
@@ -653,12 +609,12 @@ extension Device {
 
 extension Device {
 
-    public enum GPUArchitecture {
+    enum GPUArchitecture {
         case appleSilicon, intel, unknown
     }
 
-    public static func detectGPUArchitecture() -> GPUArchitecture {
-        let device = Shared.shared.metalDevice
+    static func detectGPUArchitecture() -> GPUArchitecture {
+        let device = HarbethContext.shared.device
         if device.name.contains("Apple") {
             return .appleSilicon
         } else if device.name.contains("Intel") {
@@ -668,26 +624,26 @@ extension Device {
         }
     }
 
-    public static func device() -> MTLDevice {
-        return Shared.shared.metalDevice
+    static func device() -> MTLDevice {
+        HarbethContext.shared.device
     }
 
-    public static func colorSpace() -> CGColorSpace {
+    static func colorSpace() -> CGColorSpace {
         // Unitive the color space, otherwise it will crash.
-        return Shared.shared.defaultDevice.colorSpace
+        return HarbethContext.shared.colorSpace
     }
 
-    public static func bitmapInfo() -> UInt32 {
+    static func bitmapInfo() -> UInt32 {
         // You can't get `CGImage.bitmapInfo` here, otherwise the heic and heif formats will turn blue.
         // Fixed draw bitmap after applying filter image color rgba => bgra.
         // See：https://github.com/yangKJ/Harbeth/issues/12
         return CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
     }
 
-    public static func makeTexture2DMaxSize(width: Int, height: Int) -> (width: Int, height: Int) {
+    static func makeTexture2DMaxSize(width: Int, height: Int) -> (width: Int, height: Int) {
         func getMaxTextureDimensions() -> (width: Int, height: Int) {
             #if targetEnvironment(macCatalyst)
-            if Shared.shared.metalDevice.supportsFamily(.apple3) {
+            if HarbethContext.shared.device.supportsFamily(.apple3) {
                 return (131072, 65536)
             } else {
                 return (8192, 8192)
@@ -695,7 +651,7 @@ extension Device {
             #elseif os(macOS)
             return (131072, 65536)
             #else
-            if Shared.shared.metalDevice.supportsFamily(.apple3) {
+            if HarbethContext.shared.device.supportsFamily(.apple3) {
                 return (65536, 65536)
             } else {
                 return (16384, 16384)

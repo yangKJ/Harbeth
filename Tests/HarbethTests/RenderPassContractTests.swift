@@ -103,7 +103,7 @@ final class RenderPassContractTests: XCTestCase {
         descriptor.textureType = sampleCount > 1 ? .type2DMultisample : .type2D
         descriptor.storageMode = .private
         descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
-        guard let texture = Shared.shared.defaultDevice.device.makeTexture(descriptor: descriptor) else {
+        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
         return texture

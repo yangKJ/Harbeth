@@ -376,7 +376,7 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testPersistentNodeResolutionReusesCachedTexture() throws {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let input = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
         let node = ImageNode.filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
@@ -394,7 +394,7 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testTransientNodeResolutionDoesNotReuseCachedTexture() throws {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let input = try makeTexture(width: 4, height: 4, pixel: [80, 40, 20, 255])
         let node = ImageNode.filters(input: .source(.texture(input)), filters: [C7Brightness(brightness: 0.1)])
@@ -407,7 +407,7 @@ final class ImageNodeTests: XCTestCase {
     }
 
     func testResetCachesClearsOutputContractTextureCache() throws {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let input = try makeTexture(width: 1, height: 1, pixel: [128, 64, 32, 128])
         let contract = RenderOutputContract(alpha: .premultiplied)

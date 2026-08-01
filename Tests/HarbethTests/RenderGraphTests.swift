@@ -103,7 +103,7 @@ final class RenderGraphTests: XCTestCase {
     func testHarbethIOExecutesResizeBoundaryFromRenderPlan() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let input = try TextureLoader.makeTexture(width: 8, height: 6, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -233,7 +233,7 @@ final class RenderGraphTests: XCTestCase {
     func testConfiguredProfilePropagatesIntoRenderPlan() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let input = try TextureLoader.makeTexture(width: 8, height: 6, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -255,7 +255,7 @@ final class RenderGraphTests: XCTestCase {
     func testHarbethIOReturnsStructuredRenderDiagnostics() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let input = try TextureLoader.makeTexture(width: 12, height: 10, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -339,7 +339,7 @@ final class RenderGraphTests: XCTestCase {
     func testHarbethIOAndImageNodeAlignOptimizationMetricsForEquivalentFilterChain() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let input = try TextureLoader.makeTexture(width: 12, height: 10, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -374,7 +374,7 @@ final class RenderGraphTests: XCTestCase {
     func testHarbethIOAndImageNodeAlignOptimizationMetricsForPointComputeChain() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let input = try TextureLoader.makeTexture(width: 8, height: 6, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -784,7 +784,7 @@ final class RenderGraphTests: XCTestCase {
     }
 
     func testDiagnosticsExposeAllocatorAndGraphMetrics() {
-        Shared.shared.defaultTextureAllocator = ExactTextureAllocator(texturePool: Shared.shared.defaultTexturePool)
+        HarbethContext.shared.textureAllocator = ExactTextureAllocator(texturePool: HarbethContext.shared.texturePool)
         let plan = GraphCompiler.compile(
             filters: [
                 C7Brightness(brightness: 0.1),
@@ -802,10 +802,10 @@ final class RenderGraphTests: XCTestCase {
 
     func testDiagnosticsExposeRequestedAllocatorFallbackWhenHeapBackedFallsBack() {
         let allocator = TextureAllocationStrategy.heapBacked.makeAllocator(
-            texturePool: Shared.shared.defaultTexturePool,
+            texturePool: HarbethContext.shared.texturePool,
             heapTexturePoolSupported: false
         )
-        Shared.shared.defaultTextureAllocator = allocator
+        HarbethContext.shared.textureAllocator = allocator
         let plan = GraphCompiler.compile(
             filters: [
                 C7Brightness(brightness: 0.1),
@@ -1314,9 +1314,9 @@ final class RenderGraphTests: XCTestCase {
     }
 
     func testExecutionPrewarmReservationsIncreaseTextureReuseForBoundaryChain() throws {
-        Shared.shared.deinitDevice()
-        _ = Shared.shared.defaultDevice
-        Shared.shared.resetTexturePoolStatistics()
+        HarbethContext.shared.recoverExecution()
+        _ = HarbethContext.shared.runtimeDevice
+        HarbethContext.shared.resetTexturePoolStatistics()
 
         let input = try TextureLoader.makeTexture(
             width: 8,
@@ -1335,13 +1335,13 @@ final class RenderGraphTests: XCTestCase {
 
         XCTAssertEqual(output.width, 4)
         XCTAssertEqual(output.height, 3)
-        XCTAssertGreaterThan(Shared.shared.texturePoolStatistics?.totalTexturesReused ?? 0, 0)
+        XCTAssertGreaterThan(HarbethContext.shared.texturePoolStatistics.totalTexturesReused, 0)
     }
 
     func testExecutionPrewarmReservationsIncreaseTextureReuseForDoubleBufferChain() throws {
-        Shared.shared.deinitDevice()
-        _ = Shared.shared.defaultDevice
-        Shared.shared.resetTexturePoolStatistics()
+        HarbethContext.shared.recoverExecution()
+        _ = HarbethContext.shared.runtimeDevice
+        HarbethContext.shared.resetTexturePoolStatistics()
 
         let input = try TextureLoader.makeTexture(
             width: 8,
@@ -1360,7 +1360,7 @@ final class RenderGraphTests: XCTestCase {
 
         XCTAssertEqual(output.width, 8)
         XCTAssertEqual(output.height, 6)
-        XCTAssertGreaterThan(Shared.shared.texturePoolStatistics?.totalTexturesReused ?? 0, 0)
+        XCTAssertGreaterThan(HarbethContext.shared.texturePoolStatistics.totalTexturesReused, 0)
     }
 
     func testRenderGraphDebugSnapshotSupportsCodableRoundTrip() throws {
@@ -1677,7 +1677,7 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(snapshot.dotGraph.contains("digraph ImageGraph"))
         XCTAssertFalse(snapshot.nodes.isEmpty)
         XCTAssertFalse(snapshot.optimizationDecisions.isEmpty)
-        XCTAssertEqual(snapshot.diagnostics.allocationStrategy, Shared.shared.defaultTextureAllocator.strategy.rawValue)
+        XCTAssertEqual(snapshot.diagnostics.allocationStrategy, HarbethContext.shared.textureAllocator.strategy.rawValue)
         XCTAssertGreaterThanOrEqual(snapshot.diagnostics.textureRequestCount, 0)
         XCTAssertGreaterThanOrEqual(snapshot.diagnostics.textureReuseHitCount, 0)
         XCTAssertGreaterThanOrEqual(snapshot.diagnostics.textureReuseHitRatio, 0)

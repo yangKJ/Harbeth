@@ -55,6 +55,26 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = identity
     }
 
+    func testRuntimeResourceSurfaceCompiles() {
+        let configure: (HarbethContext) -> Void = { context in
+            context.textureAllocationStrategy = .exact
+            context.enablePerformanceMonitor = false
+            context.performanceMonitor.configure(.init(enabled: false))
+            context.maxConcurrentRenderTasks = context.maxConcurrentRenderTasks
+            _ = context.makeCommandBuffer()
+            _ = context.capabilityReport(.heapTexturePool)
+            _ = context.debugCacheSnapshot()
+            let texturePoolStatistics: TexturePoolStatistics = context.texturePoolStatistics
+            _ = texturePoolStatistics
+            _ = context.executionGeneration
+        }
+        let recover: (HarbethContext) -> UInt64 = { context in
+            context.recoverExecution()
+        }
+        _ = configure
+        _ = recover
+    }
+
     func testProfessionalMaskRuntimeSurfaceCompiles() {
         let plane: (MTLTexture) -> MaskPlane = { texture in
             MaskPlane(

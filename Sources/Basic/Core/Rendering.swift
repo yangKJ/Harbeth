@@ -18,7 +18,7 @@ struct Rendering {
     ]
     
     static func makeRenderPipelineState(with vertex: String, fragment: String, pixelFormat: MTLPixelFormat, sampleCount: Int = 1) throws -> MTLRenderPipelineState {
-        try Shared.shared.defaultContext.makeRenderPipelineState(
+        try HarbethContext.shared.makeRenderPipelineState(
             vertex: vertex,
             fragment: fragment,
             pixelFormat: pixelFormat,
@@ -30,7 +30,7 @@ struct Rendering {
                                         fragmentIdentity: KernelFunctionIdentity,
                                         pixelFormat: MTLPixelFormat,
                                         sampleCount: Int = 1) throws -> MTLRenderPipelineState {
-        try Shared.shared.defaultContext.makeRenderPipelineState(
+        try HarbethContext.shared.makeRenderPipelineState(
             vertexIdentity: vertexIdentity,
             fragmentIdentity: fragmentIdentity,
             pixelFormat: pixelFormat,
@@ -39,7 +39,7 @@ struct Rendering {
     }
 
     static func makeRenderPipelineState(vertexIdentity: KernelFunctionIdentity, fragmentIdentity: KernelFunctionIdentity, renderPass: RenderPassContract) throws -> MTLRenderPipelineState {
-        try Shared.shared.defaultContext.makeRenderPipelineState(
+        try HarbethContext.shared.makeRenderPipelineState(
             vertexIdentity: vertexIdentity,
             fragmentIdentity: fragmentIdentity,
             renderPass: renderPass
@@ -104,7 +104,7 @@ struct Rendering {
     private static func encode(command: RenderCommand, pipelineState: MTLRenderPipelineState, renderEncoder: MTLRenderCommandEncoder) {
         let texture = command.sourceTexture
         let filter = command.filter
-        let device = Shared.shared.metalDevice
+        let device = HarbethContext.shared.device
         let inputSize = C7Size(width: texture.width, height: texture.height)
         let size = MemoryLayout<Float>.size
         renderEncoder.setRenderPipelineState(pipelineState)
@@ -116,7 +116,7 @@ struct Rendering {
         let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * size, options: [])!
         renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
-        if let samplerState = Shared.shared.defaultContext.makeSamplerState(filter.renderSamplerDescriptor) {
+        if let samplerState = HarbethContext.shared.makeSamplerState(filter.renderSamplerDescriptor) {
             renderEncoder.setFragmentSamplerState(samplerState, index: 0)
         }
 

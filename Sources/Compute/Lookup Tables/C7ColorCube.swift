@@ -172,7 +172,7 @@ extension C7ColorCube.Resource {
     
     static func createLUTTexture(from resource: C7ColorCube.Resource) -> MTLTexture? {
         guard resource.hasValidStorage else { return nil }
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         let cacheIdentity = context.makeDerivedResourceIdentity(
             domain: .lookupTable,
             namespace: "harbeth.lookup-table",
@@ -191,7 +191,7 @@ extension C7ColorCube.Resource {
         textureDescriptor.usage = [.shaderRead]
         textureDescriptor.storageMode = .shared
         textureDescriptor.cpuCacheMode = .writeCombined
-        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: textureDescriptor) else { return nil }
+        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: textureDescriptor) else { return nil }
 
         let bytesPerPixel = 4 * MemoryLayout<Float>.size
         let bytesPerRow = resource.dimension * bytesPerPixel

@@ -50,7 +50,7 @@ final class HarbethIOAsyncTests: XCTestCase {
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
         let input = try makeTexture(width: 4, height: 4, pixel: [80, 100, 120, 255])
         let io = HarbethIO(element: input, filters: [C7Brightness(brightness: 0.1)])
-        let queue = Shared.shared.renderOperationQueue
+        let queue = HarbethContext.shared.renderOperationQueue
         let state = HarbethIOCallbackState()
         let completion = HarbethUncheckedTransfer(value: expectation(description: "filtered transmit output"))
 
@@ -90,8 +90,8 @@ final class HarbethIOAsyncTests: XCTestCase {
     func testAsyncTransmitManagedTexturePrewarmsLifecycleReservations() async throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
-        defer { Shared.shared.deinitDevice() }
+        HarbethContext.shared.recoverExecution()
+        defer { HarbethContext.shared.recoverExecution() }
 
         let input = try makeTexture(width: 32, height: 24, pixel: [120, 80, 40, 255])
         let io = HarbethIO(
@@ -109,7 +109,7 @@ final class HarbethIOAsyncTests: XCTestCase {
             }
         }
 
-        let snapshot = Shared.shared.defaultTextureAllocator.makeSnapshot()
+        let snapshot = HarbethContext.shared.textureAllocator.makeSnapshot()
 
         XCTAssertGreaterThan(snapshot.textureReuseHitCount, 0)
         XCTAssertGreaterThan(snapshot.textureRequestCount, 0)
@@ -120,10 +120,10 @@ final class HarbethIOAsyncTests: XCTestCase {
     func testAsyncTransmitManagedTexturePrewarmsDoubleBufferReservations() async throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
-        _ = Shared.shared.defaultDevice
-        Shared.shared.resetTexturePoolStatistics()
-        defer { Shared.shared.deinitDevice() }
+        HarbethContext.shared.recoverExecution()
+        _ = HarbethContext.shared.runtimeDevice
+        HarbethContext.shared.resetTexturePoolStatistics()
+        defer { HarbethContext.shared.recoverExecution() }
 
         let input = try makeTexture(width: 32, height: 24, pixel: [60, 80, 120, 255])
         let io = HarbethIO(
@@ -142,7 +142,7 @@ final class HarbethIOAsyncTests: XCTestCase {
 
         XCTAssertEqual(output.texture.width, 32)
         XCTAssertEqual(output.texture.height, 24)
-        XCTAssertGreaterThan(Shared.shared.texturePoolStatistics?.totalTexturesReused ?? 0, 0)
+        XCTAssertGreaterThan(HarbethContext.shared.texturePoolStatistics.totalTexturesReused, 0)
         XCTAssertNotNil(output.lease)
         output.lease?.release()
     }
@@ -476,7 +476,7 @@ final class HarbethIOAsyncTests: XCTestCase {
             mipmapped: false
         )
         descriptor.usage = [.shaderRead, .shaderWrite]
-        guard let texture = Shared.shared.defaultDevice.device.makeTexture(descriptor: descriptor) else {
+        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
         var pixels = Array(repeating: UInt8(0), count: width * height * 4)
@@ -503,7 +503,7 @@ final class HarbethIOAsyncTests: XCTestCase {
             mipmapped: false
         )
         descriptor.usage = [.shaderRead, .shaderWrite]
-        guard let texture = Shared.shared.defaultDevice.device.makeTexture(descriptor: descriptor) else {
+        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: descriptor) else {
             throw HarbethError.makeTexture
         }
         let bytes = pixels.flatMap { $0 }

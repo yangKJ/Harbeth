@@ -95,7 +95,7 @@ class ImageViewController: UIViewController {
     
     deinit {
         print("ImageViewController is Deinit.")
-        //Shared.shared.deinitDevice()
+        //HarbethContext.shared.recoverExecution()
     }
     
     override func viewDidLoad() {

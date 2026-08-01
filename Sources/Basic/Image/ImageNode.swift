@@ -168,11 +168,11 @@ extension ImageNode {
         metadata: [String: String] = [:]
     ) throws -> RenderedFrame {
         let monitoringIdentifier = self.monitoringIdentifier
-        let monitorEnabled = Shared.shared.enablePerformanceMonitor
-        if monitorEnabled { Shared.shared.performanceMonitor?.beginMonitoring(monitoringIdentifier) }
+        let monitorEnabled = HarbethContext.shared.enablePerformanceMonitor
+        if monitorEnabled { HarbethContext.shared.performanceMonitor.beginMonitoring(monitoringIdentifier) }
         defer {
             if monitorEnabled {
-                Shared.shared.performanceMonitor?.endMonitoring(monitoringIdentifier)
+                HarbethContext.shared.performanceMonitor.endMonitoring(monitoringIdentifier)
             }
         }
 
@@ -193,7 +193,7 @@ extension ImageNode {
             renderRecipe: renderRecipe
         )
         if monitorEnabled {
-            Shared.shared.performanceMonitor?.recordPreviewHostStrategy(
+            HarbethContext.shared.performanceMonitor.recordPreviewHostStrategy(
                 monitoringIdentifier,
                 strategy: previewHostStrategy
             )
@@ -239,7 +239,7 @@ extension ImageNode {
         let state = HarbethUncheckedTransfer(value: (
             node: self, profile: profile, derivative: derivative, outputColorSpace: outputColorSpace, metadata: metadata
         ))
-        Shared.shared.renderOperationQueue.addOperation(
+        HarbethContext.shared.renderOperationQueue.addOperation(
             BlockOperation {
                 do {
                     complete(.success(
@@ -273,12 +273,12 @@ extension ImageNode {
         let effectiveCachePolicy = resolvedCachePolicy
         let fingerprint = resolutionFingerprint(profile: profile, derivative: derivative)
         if effectiveCachePolicy == .persistent,
-           let cached = Shared.shared.defaultContext.cachedResolvedTexture(for: fingerprint) {
-            Shared.shared.performanceMonitor?.recordImageResolutionCacheLookup("imageResolution", hit: true)
+           let cached = HarbethContext.shared.cachedResolvedTexture(for: fingerprint) {
+            HarbethContext.shared.performanceMonitor.recordImageResolutionCacheLookup("imageResolution", hit: true)
             return cached
         }
         if effectiveCachePolicy == .persistent {
-            Shared.shared.performanceMonitor?.recordImageResolutionCacheLookup("imageResolution", hit: false)
+            HarbethContext.shared.performanceMonitor.recordImageResolutionCacheLookup("imageResolution", hit: false)
         }
         let texture = try makeTextureUncached(
             profile: profile,
@@ -287,7 +287,7 @@ extension ImageNode {
             executionIdentifier: executionIdentifier
         )
         if effectiveCachePolicy == .persistent {
-            Shared.shared.defaultContext.storeResolvedTexture(texture, for: fingerprint)
+            HarbethContext.shared.storeResolvedTexture(texture, for: fingerprint)
         }
         return texture
     }
@@ -995,11 +995,11 @@ extension ImageNode: ImagePromise {
             derivative: effectiveDerivative,
             samplerDescriptor: activeSamplerDescriptor
         )
-        if let cached = Shared.shared.defaultContext.cachedRenderPlan(for: cacheKey) {
-            Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: true)
+        if let cached = HarbethContext.shared.cachedRenderPlan(for: cacheKey) {
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: true)
             return cached
         }
-        Shared.shared.performanceMonitor?.recordPipelineCacheLookup("renderPlan", hit: false)
+        HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: false)
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
         var plan: RenderPlan
         switch storage {
@@ -1237,7 +1237,7 @@ extension ImageNode: ImagePromise {
                 graphOptimizationDecisions: optimization.decisions
             )
         case .samplerDescriptor(let input, let descriptor):
-            _ = Shared.shared.defaultContext.makeSamplerState(descriptor)
+            _ = HarbethContext.shared.makeSamplerState(descriptor)
             let innerPlan = try input.makeRenderPlan(
                 profile: profile,
                 derivative: derivative,
@@ -1263,7 +1263,7 @@ extension ImageNode: ImagePromise {
                 graphOptimizationDecisions: optimization.decisions
             )
         }
-        Shared.shared.defaultContext.storeRenderPlan(plan, for: cacheKey)
+        HarbethContext.shared.storeRenderPlan(plan, for: cacheKey)
         return plan
     }
 
@@ -1689,7 +1689,7 @@ extension ImageNode {
             sourceAlphaType: sourceAlphaType,
             profile: profile
         )
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         let cacheIdentity = cacheKey.isEffective
             ? context.makeDerivedResourceIdentity(domain: .outputContract, fingerprint: cacheKey.key)
             : nil

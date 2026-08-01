@@ -259,7 +259,7 @@ private extension MaskGuidedRefinementRecipe {
         )
         descriptor.usage = [.shaderRead, .shaderWrite]
         descriptor.storageMode = .private
-        guard let texture = Shared.shared.defaultTextureAllocator.makeTexture(
+        guard let texture = HarbethContext.shared.textureAllocator.makeTexture(
             descriptor: descriptor,
             device: device
         ) else {

@@ -209,7 +209,7 @@ struct DoubleBufferView: View {
     
     private func processWithDoubleBuffer(filters: [C7FilterProtocol]) {
         // 重置纹理池统计
-        Shared.shared.resetTexturePoolStatistics()
+        HarbethContext.shared.resetTexturePoolStatistics()
         
         // 记录开始时间
         let startTime = CACurrentMediaTime()
@@ -229,10 +229,9 @@ struct DoubleBufferView: View {
             doubleBufferTime = String(format: "%.3fs", timeElapsed)
             
             // 获取内存使用情况
-            if let stats = Shared.shared.texturePoolStatistics {
-                doubleBufferMemory = String(format: "%.2f MB", Double(stats.currentMemoryUsage) / 1024 / 1024)
-                doubleBufferStats = "Created: \(stats.totalTexturesCreated), Reused: \(stats.totalTexturesReused), Hit Rate: \(String(format: "%.1f%%", stats.hitRate * 100)), Saved: \(String(format: "%.2f MB", Double(stats.totalMemorySaved) / 1024 / 1024)), Peak: \(String(format: "%.2f MB", Double(stats.peakMemoryUsage) / 1024 / 1024)), Avg: \(String(format: "%.2f MB", stats.averageMemoryUsage / 1024 / 1024)), Count: \(stats.currentTextureCount)"
-            }
+            let stats = HarbethContext.shared.texturePoolStatistics
+            doubleBufferMemory = String(format: "%.2f MB", Double(stats.currentMemoryUsage) / 1024 / 1024)
+            doubleBufferStats = "Created: \(stats.totalTexturesCreated), Reused: \(stats.totalTexturesReused), Hit Rate: \(String(format: "%.1f%%", stats.hitRate * 100)), Saved: \(String(format: "%.2f MB", Double(stats.totalMemorySaved) / 1024 / 1024)), Peak: \(String(format: "%.2f MB", Double(stats.peakMemoryUsage) / 1024 / 1024)), Avg: \(String(format: "%.2f MB", stats.averageMemoryUsage / 1024 / 1024)), Count: \(stats.currentTextureCount)"
         } catch {
             print("Error processing with double buffer: \(error)")
         }
@@ -240,7 +239,7 @@ struct DoubleBufferView: View {
     
     private func processWithTraditionalMethod(filters: [C7FilterProtocol]) {
         // 重置纹理池统计
-        Shared.shared.resetTexturePoolStatistics()
+        HarbethContext.shared.resetTexturePoolStatistics()
         
         // 记录开始时间
         let startTime = CACurrentMediaTime()
@@ -260,10 +259,9 @@ struct DoubleBufferView: View {
             traditionalTime = String(format: "%.3fs", timeElapsed)
             
             // 获取内存使用情况
-            if let stats = Shared.shared.texturePoolStatistics {
-                traditionalMemory = String(format: "%.2f MB", Double(stats.currentMemoryUsage) / 1024 / 1024)
-                traditionalStats = "Created: \(stats.totalTexturesCreated), Reused: \(stats.totalTexturesReused), Hit Rate: \(String(format: "%.1f%%", stats.hitRate * 100)), Saved: \(String(format: "%.2f MB", Double(stats.totalMemorySaved) / 1024 / 1024)), Peak: \(String(format: "%.2f MB", Double(stats.peakMemoryUsage) / 1024 / 1024)), Avg: \(String(format: "%.2f MB", stats.averageMemoryUsage / 1024 / 1024)), Count: \(stats.currentTextureCount)"
-            }
+            let stats = HarbethContext.shared.texturePoolStatistics
+            traditionalMemory = String(format: "%.2f MB", Double(stats.currentMemoryUsage) / 1024 / 1024)
+            traditionalStats = "Created: \(stats.totalTexturesCreated), Reused: \(stats.totalTexturesReused), Hit Rate: \(String(format: "%.1f%%", stats.hitRate * 100)), Saved: \(String(format: "%.2f MB", Double(stats.totalMemorySaved) / 1024 / 1024)), Peak: \(String(format: "%.2f MB", Double(stats.peakMemoryUsage) / 1024 / 1024)), Avg: \(String(format: "%.2f MB", stats.averageMemoryUsage / 1024 / 1024)), Count: \(stats.currentTextureCount)"
         } catch {
             print("Error processing with traditional method: \(error)")
         }

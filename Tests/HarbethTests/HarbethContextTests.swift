@@ -5,11 +5,24 @@ import CoreVideo
 
 final class HarbethContextTests: XCTestCase {
 
+    func testPerformanceMonitorIdentityRemainsStableAcrossToggle() {
+        let context = HarbethContext.shared
+        context.enablePerformanceMonitor = false
+        let monitor = context.performanceMonitor
+
+        context.enablePerformanceMonitor = true
+        XCTAssertTrue(monitor === context.performanceMonitor)
+
+        context.enablePerformanceMonitor = false
+        XCTAssertTrue(monitor === context.performanceMonitor)
+        XCTAssertFalse(context.enablePerformanceMonitor)
+    }
+
     func testContextCachesComputeRenderAndSamplerState() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
 
         _ = context.makeSamplerState()
@@ -26,7 +39,7 @@ final class HarbethContextTests: XCTestCase {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let identity = KernelFunctionIdentity(
             kind: .compute,
@@ -55,7 +68,7 @@ final class HarbethContextTests: XCTestCase {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let vertex = KernelFunctionIdentity(
             kind: .render,
@@ -97,7 +110,7 @@ final class HarbethContextTests: XCTestCase {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let identity = KernelFunctionIdentity(
             kind: .compute,
@@ -117,7 +130,7 @@ final class HarbethContextTests: XCTestCase {
 
     func testTexturePoolReusesExactTexture() throws {
         let texture = try TextureLoader.makeTexture(width: 4, height: 4, identifier: "context-pool")
-        Shared.shared.defaultTexturePool.enqueueTextureSync(texture)
+        HarbethContext.shared.texturePool.enqueueTextureSync(texture)
         let reused = try TextureLoader.makeTexture(width: 4, height: 4, identifier: "context-pool")
         XCTAssertTrue(texture === reused)
     }
@@ -232,14 +245,14 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertGreaterThan(allocator.makeSnapshot().heapAllocationFallbackCount, 0)
     }
 
-    func testTextureLoaderUsesRealHeapThroughPublicSharedStrategy() throws {
-        Shared.shared.deinitDevice()
-        Shared.shared.defaultTextureAllocationStrategy = .heapBacked
+    func testTextureLoaderUsesRealHeapThroughContextStrategy() throws {
+        HarbethContext.shared.recoverExecution()
+        HarbethContext.shared.textureAllocationStrategy = .heapBacked
         defer {
-            Shared.shared.defaultTextureAllocationStrategy = .exact
-            Shared.shared.deinitDevice()
+            HarbethContext.shared.textureAllocationStrategy = .exact
+            HarbethContext.shared.recoverExecution()
         }
-        let capability = Device.metalCapabilityReport(.heapTexturePool, on: Shared.shared.metalDevice)
+        let capability = Device.metalCapabilityReport(.heapTexturePool, on: HarbethContext.shared.device)
         try XCTSkipUnless(capability.isSupported, capability.reason)
 
         let texture = try TextureLoader.makeTexture(
@@ -254,22 +267,22 @@ final class HarbethContextTests: XCTestCase {
         ).renderDiagnostics()
 
         XCTAssertNotNil(texture.heap)
-        XCTAssertEqual(Shared.shared.defaultTextureAllocationStrategy, .heapBacked)
+        XCTAssertEqual(HarbethContext.shared.textureAllocationStrategy, .heapBacked)
         XCTAssertEqual(diagnostics.optimizationPlan.allocationStrategy, .heapBacked)
         XCTAssertGreaterThanOrEqual(diagnostics.optimizationPlan.heapCount, 1)
         XCTAssertGreaterThan(diagnostics.optimizationPlan.heapReservedMemory, 0)
     }
 
-    func testSharedCreatesFreshCommandBufferAfterCompatibilityReturn() throws {
+    func testContextCreatesFreshCommandBufferAfterRecycleHook() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
-        guard let first = Shared.shared.getCommandBuffer() else {
+        guard let first = HarbethContext.shared.makeCommandBuffer() else {
             return XCTFail("Expected the shared command queue to create a command buffer.")
         }
 
-        Shared.shared.returnCommandBuffer(first)
+        HarbethContext.shared.recycleCommandBuffer(first)
 
-        guard let second = Shared.shared.getCommandBuffer() else {
+        guard let second = HarbethContext.shared.makeCommandBuffer() else {
             return XCTFail("Expected the shared command queue to create another command buffer.")
         }
         XCTAssertFalse(first === second)
@@ -308,54 +321,48 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue(pool.dequeueExactTexture(width: 8, height: 11, pixelFormat: .r8Unorm) === incoming)
     }
 
-    func testSharedOwnsDefaultRuntimeAndContextBridgesToIt() {
-        Shared.shared.deinitDevice()
+    func testContextOwnsDefaultRuntimeResources() {
+        let context = HarbethContext.shared
+        let device = context.runtimeDevice
 
-        let device = Shared.shared.defaultDevice
-        let context = Shared.shared.defaultContext
-
-        XCTAssertTrue(Shared.shared.hasDevice)
-        XCTAssertTrue(Shared.shared.hasContext)
-        XCTAssertTrue(context === HarbethContext.shared)
         XCTAssertTrue(context.device === device.device)
-        XCTAssertTrue(context.commandQueue === device.commandQueue)
-        XCTAssertTrue(context.texturePool === Shared.shared.defaultTexturePool)
-        XCTAssertTrue((context.textureAllocator as AnyObject) === (Shared.shared.defaultTextureAllocator as AnyObject))
+        XCTAssertTrue(context.texturePool === HarbethContext.shared.texturePool)
+        XCTAssertTrue((context.textureAllocator as AnyObject) === (HarbethContext.shared.textureAllocator as AnyObject))
     }
 
-    func testSharedProvidesTextureAllocatorBackedByDefaultTexturePool() {
-        Shared.shared.deinitDevice()
+    func testContextProvidesTextureAllocatorBackedByTexturePool() {
+        HarbethContext.shared.recoverExecution()
 
-        let allocator = Shared.shared.defaultTextureAllocator
-        let allocatorAgain = Shared.shared.defaultTextureAllocator
+        let allocator = HarbethContext.shared.textureAllocator
+        let allocatorAgain = HarbethContext.shared.textureAllocator
 
         XCTAssertTrue((allocator as AnyObject) === (allocatorAgain as AnyObject))
         XCTAssertTrue(allocator is TexturePoolAllocator)
-        XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === Shared.shared.defaultTexturePool)
+        XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === HarbethContext.shared.texturePool)
     }
 
-    func testSharedDefaultTextureAllocationStrategyRebuildsAllocator() {
-        Shared.shared.deinitDevice()
-        Shared.shared.defaultTextureAllocationStrategy = .exact
+    func testContextTextureAllocationStrategyRebuildsAllocator() {
+        HarbethContext.shared.recoverExecution()
+        HarbethContext.shared.textureAllocationStrategy = .exact
         defer {
-            Shared.shared.defaultTextureAllocationStrategy = .exact
-            Shared.shared.deinitDevice()
+            HarbethContext.shared.textureAllocationStrategy = .exact
+            HarbethContext.shared.recoverExecution()
         }
 
-        let exactAllocator = Shared.shared.defaultTextureAllocator
-        let pool = Shared.shared.defaultTexturePool
+        let exactAllocator = HarbethContext.shared.textureAllocator
+        let pool = HarbethContext.shared.texturePool
 
-        Shared.shared.defaultTextureAllocationStrategy = .tolerant
-        let tolerantAllocator = Shared.shared.defaultTextureAllocator
+        HarbethContext.shared.textureAllocationStrategy = .tolerant
+        let tolerantAllocator = HarbethContext.shared.textureAllocator
 
         XCTAssertEqual(exactAllocator.strategy, .exact)
-        XCTAssertEqual(Shared.shared.defaultTextureAllocationStrategy, .tolerant)
+        XCTAssertEqual(HarbethContext.shared.textureAllocationStrategy, .tolerant)
         XCTAssertEqual(tolerantAllocator.strategy, .tolerant)
         XCTAssertTrue((tolerantAllocator as? TexturePoolAllocator)?.texturePool === pool)
         XCTAssertFalse((exactAllocator as AnyObject) === (tolerantAllocator as AnyObject))
 
-        Shared.shared.defaultTextureAllocationStrategy = .exact
-        let exactAllocatorAgain = Shared.shared.defaultTextureAllocator
+        HarbethContext.shared.textureAllocationStrategy = .exact
+        let exactAllocatorAgain = HarbethContext.shared.textureAllocator
 
         XCTAssertEqual(exactAllocatorAgain.strategy, .exact)
         XCTAssertTrue((exactAllocatorAgain as? TexturePoolAllocator)?.texturePool === pool)
@@ -363,16 +370,16 @@ final class HarbethContextTests: XCTestCase {
     }
 
     func testTolerantStrategyAppliesToDescriptorBasedTextureLoader() throws {
-        Shared.shared.deinitDevice()
-        Shared.shared.defaultTextureAllocationStrategy = .exact
+        HarbethContext.shared.recoverExecution()
+        HarbethContext.shared.textureAllocationStrategy = .exact
         defer {
-            Shared.shared.defaultTextureAllocationStrategy = .exact
-            Shared.shared.deinitDevice()
+            HarbethContext.shared.textureAllocationStrategy = .exact
+            HarbethContext.shared.recoverExecution()
         }
 
         let pooled = try TextureLoader.makeTexture(width: 12, height: 12, identifier: "descriptor-tolerance-source")
-        Shared.shared.defaultTexturePool.enqueueTextureSync(pooled)
-        Shared.shared.defaultTextureAllocationStrategy = .tolerant
+        HarbethContext.shared.texturePool.enqueueTextureSync(pooled)
+        HarbethContext.shared.textureAllocationStrategy = .tolerant
 
         let reused = try TextureLoader.makeTexture(width: 10, height: 10, identifier: "descriptor-tolerance-request")
 
@@ -381,16 +388,16 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertEqual(reused.height, 12)
     }
 
-    func testSharedHeapBackedDefaultTextureAllocationStrategyResolvesAgainstCurrentDeviceCapability() {
-        Shared.shared.deinitDevice()
-        Shared.shared.defaultTextureAllocationStrategy = .heapBacked
+    func testContextHeapBackedTextureAllocationStrategyResolvesAgainstCurrentDeviceCapability() {
+        HarbethContext.shared.recoverExecution()
+        HarbethContext.shared.textureAllocationStrategy = .heapBacked
         defer {
-            Shared.shared.defaultTextureAllocationStrategy = .exact
-            Shared.shared.deinitDevice()
+            HarbethContext.shared.textureAllocationStrategy = .exact
+            HarbethContext.shared.recoverExecution()
         }
 
-        let report = Device.metalCapabilityReport(.heapTexturePool, on: Shared.shared.currentMetalDevice)
-        let allocator = Shared.shared.defaultTextureAllocator
+        let report = Device.metalCapabilityReport(.heapTexturePool, on: HarbethContext.shared.device)
+        let allocator = HarbethContext.shared.textureAllocator
 
         XCTAssertEqual(
             allocator.strategy,
@@ -398,7 +405,7 @@ final class HarbethContextTests: XCTestCase {
                 heapTexturePoolSupported: report.isSupported
             )
         )
-        XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === Shared.shared.defaultTexturePool)
+        XCTAssertTrue((allocator as? TexturePoolAllocator)?.texturePool === HarbethContext.shared.texturePool)
         let snapshot = allocator.makeSnapshot()
         XCTAssertEqual(snapshot.requestedAllocationStrategy, .heapBacked)
         XCTAssertEqual(
@@ -436,13 +443,13 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertNil(pool.dequeueExactTexture(width: 19, height: 13, pixelFormat: .rgba8Unorm))
     }
 
-    func testSharedPrewarmTexturePoolSyncPreservesReservationCounts() throws {
+    func testContextPrewarmTexturePoolSyncPreservesReservationCounts() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")
 
         let small = C7Size(width: 23, height: 11)
         let large = C7Size(width: 29, height: 17)
-        Shared.shared.prewarmTexturePoolSync(
+        HarbethContext.shared.prewarmTexturePoolSync(
             reservations: [
                 .init(stageIndices: [0], size: small, pixelFormat: .rgba8Unorm, reason: .transientReuse, count: 1),
                 .init(stageIndices: [1, 2, 3], size: large, pixelFormat: .rgba8Unorm, reason: .persistentOutput, count: 3)
@@ -451,13 +458,13 @@ final class HarbethContextTests: XCTestCase {
             defaultCount: 1
         )
 
-        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: small.width, height: small.height, pixelFormat: .rgba8Unorm))
-        XCTAssertNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: small.width, height: small.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(HarbethContext.shared.texturePool.dequeueExactTexture(width: small.width, height: small.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(HarbethContext.shared.texturePool.dequeueExactTexture(width: small.width, height: small.height, pixelFormat: .rgba8Unorm))
 
-        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
-        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
-        XCTAssertNotNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
-        XCTAssertNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(HarbethContext.shared.texturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(HarbethContext.shared.texturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNotNil(HarbethContext.shared.texturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(HarbethContext.shared.texturePool.dequeueExactTexture(width: large.width, height: large.height, pixelFormat: .rgba8Unorm))
     }
 
     func testTolerantTextureAllocatorStillReusesOversizedUnormTexture() throws {
@@ -561,24 +568,19 @@ final class HarbethContextTests: XCTestCase {
         )
     }
 
-    func testSharedDeinitDeviceResetsDefaultRuntime() {
-        _ = Shared.shared.defaultDevice
-        _ = Shared.shared.defaultContext
-        _ = Shared.shared.defaultTexturePool
+    func testRecoverExecutionKeepsDeviceAndAdvancesGeneration() {
+        let context = HarbethContext.shared
+        let device = context.device
+        let queue = context.commandQueue
+        let generation = context.executionGeneration
 
-        XCTAssertTrue(Shared.shared.hasDevice)
-        XCTAssertTrue(Shared.shared.hasContext)
+        let recoveredGeneration = context.recoverExecution()
 
-        Shared.shared.deinitDevice()
-
-        XCTAssertFalse(Shared.shared.hasDevice)
-        XCTAssertFalse(Shared.shared.hasContext)
-
-        let newDevice = Shared.shared.defaultDevice
-        let newContext = Shared.shared.defaultContext
-        XCTAssertTrue(Shared.shared.hasDevice)
-        XCTAssertTrue(Shared.shared.hasContext)
-        XCTAssertTrue(newContext.device === newDevice.device)
+        XCTAssertTrue(context.device === device)
+        XCTAssertFalse(context.commandQueue === queue)
+        XCTAssertEqual(recoveredGeneration, generation + 1)
+        XCTAssertTrue(context.isCurrentExecutionGeneration(recoveredGeneration))
+        XCTAssertFalse(context.isCurrentExecutionGeneration(generation))
     }
 
     func testDirectPixelBufferBackedTextureDoesNotRetainOwnerReference() throws {
@@ -677,7 +679,7 @@ final class HarbethContextTests: XCTestCase {
     }
 
     func testImageResolutionCacheRespectsLRULimit() throws {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         context.setImageResolutionCacheNamespace("lru-limit")
 
@@ -696,7 +698,7 @@ final class HarbethContextTests: XCTestCase {
     }
 
     func testImageResolutionCacheNamespaceIsolated() throws {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "image-resolution-namespace")
 
@@ -712,7 +714,7 @@ final class HarbethContextTests: XCTestCase {
     }
 
     func testBumpImageResolutionCacheNamespaceInvalidatesCurrentView() throws {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
         context.resetCaches()
         let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "image-resolution-bump")
 

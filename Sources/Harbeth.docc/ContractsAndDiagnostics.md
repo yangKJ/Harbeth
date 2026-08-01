@@ -10,7 +10,7 @@ Make output semantics and failures explicit before optimizing a pipeline.
 - Consume analysis after rendering; analysis is an inspection layer shared by `HarbethIO` and `ImageNode`, not a processing route.
 - Use ``RenderRequest/resourceAdmission`` to reject work against a request budget before texture allocation, and `renderFrameWithResourceReport(metadata:)` when allocator-observed allocation and reuse evidence is required.
 - Compare `RenderRequest.parityReport(comparedTo:)` before treating preview and export requests as visually equivalent.
-- Configure pipeline binary archives and derived texture lifetime through ``HarbethContext``; both remain runtime support under `HarbethIO` and `ImageNode`.
+- Configure pipeline binary archives and derived texture lifetime through ``HarbethContext``; both remain runtime support under `HarbethIO` and `ImageNode`. See <doc:RuntimeResources> for the public and internal resource boundary.
 
 Performance monitoring must not change output timing. Real-time command buffers are delivered after scheduling whether monitoring is enabled or disabled; GPU timing is recorded asynchronously after completion.
 

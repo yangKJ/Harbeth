@@ -17,9 +17,9 @@ do {
 若错误指向 Metal function：
 
 - 确认 SwiftPM/CocoaPods resource bundle 已包含对应 `.metal` / `.metallib`。
-- 自有 library 使用 `Device.registerExternalLibraryProvider(...)` 显式注册。
+- 自有 library 使用 `HarbethContext.shared.registerExternalLibraryProvider(...)` 显式注册。
 - 检查 Swift `modifier` 中的 kernel 名与 Metal function 名完全一致。
-- 使用 `Device.externalLibraryRegistryDebugDescription()` 查看外部 library 是否进入候选源。
+- 使用 `HarbethContext.shared.externalLibraryRegistryDebugDescription()` 查看外部 library 是否进入候选源。
 - Debug 环境下缺失函数会明确抛错，不应依赖静默 fallback。
 
 ## 2. 异步调用仍像是“同步”

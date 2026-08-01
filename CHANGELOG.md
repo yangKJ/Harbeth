@@ -53,6 +53,29 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 | Inspection and support | Histogram/statistics/probes, attachment analysis, preview parity, structured logging and privacy-safe support snapshots | 2026-06-22–24, 2026-07-23, 2026-07-28 |
 | Developer experience | Showcase-oriented Demos, DocC/API/migration/troubleshooting docs, Issue templates and release compatibility checks | 2026-06-21–27, 2026-07-16–21, 2026-07-28 |
 
+### 2026-08-01 — Runtime resource ownership and context migration
+
+#### Added
+
+- Added explicit execution generations and queue recovery through `HarbethContext`, plus resource-policy, texture-pool and cache diagnostics on the same supporting boundary.
+- Added DocC guidance that separates host-facing runtime resources from Harbeth's concrete schedulers, pools, allocators and caches.
+
+#### Changed
+
+- Made `HarbethContext.shared` the single owner and public access point for process-lifetime Metal resources, Core Video texture caching, external Metal libraries and runtime recovery.
+- Kept one stable `PerformanceMonitor` diagnostics service on `HarbethContext`; enable/disable now changes thread-safe state without replacing the monitor or taking the Context resource lock on every lookup.
+- Migrated Harbeth sources, demos, tests and public examples away from retaining `Shared` or calling `Device` directly.
+- Kept `Device` as an internal reference type with stable identity and moved command-queue ownership into a recoverable execution scheduler.
+
+#### Fixed
+
+- Invalidated compiled render plans when the texture allocation strategy changes, preventing plans from retaining allocator assumptions from the previous policy.
+
+#### Removed
+
+- Removed the internal `Cacheable` protocol and its Objective-C associated storage; `HarbethContext` now owns the Core Video texture cache directly.
+- Removed the duplicate `Shared` facade completely, and removed `Device`, the raw command queue and concrete texture-pool ownership from the public API surface.
+
 ### 2026-07-31 — Frame interop, HDR image fidelity, scene relighting and mask correctness (4 commits)
 
 #### Added

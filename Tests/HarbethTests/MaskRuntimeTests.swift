@@ -376,7 +376,7 @@ final class MaskRuntimeTests: XCTestCase {
         XCTAssertEqual(result.plan.commonSubexpressionCount, 1)
         XCTAssertEqual(result.plan.passCount, 1)
         XCTAssertGreaterThan(result.cacheHitCount, 0)
-        XCTAssertEqual(result.plan.allocationStrategy, Shared.shared.defaultTextureAllocationStrategy)
+        XCTAssertEqual(result.plan.allocationStrategy, HarbethContext.shared.textureAllocationStrategy)
         XCTAssertEqual(try MaskProcessingRecipe(mask: result.plane.maskDescriptor()).analysis().activePixelCount, 4)
     }
 

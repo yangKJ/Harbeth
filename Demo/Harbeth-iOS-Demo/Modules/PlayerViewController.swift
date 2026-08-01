@@ -90,7 +90,7 @@ class PlayerViewController: UIViewController {
             player.removeTimeObserver(observer)
         }
         displayLink.invalidate()
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
     }
 
     override func viewDidLoad() {

@@ -24,6 +24,7 @@ Harbeth is a Metal render engine for iOS, iPadOS, macOS, and tvOS. Its public us
 
 ### Runtime Contracts
 
+- <doc:RuntimeResources>
 - <doc:ContractsAndDiagnostics>
 - <doc:AttachmentInterop>
 - <doc:MaskRuntime>

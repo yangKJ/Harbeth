@@ -12,41 +12,42 @@ import Foundation
 import UIKit
 #endif
 
-/// 带完整纹理契约、LRU、统一显存预算与真实 MTLHeap 的纹理资源池。
-public final class TexturePool: @unchecked Sendable {
-    public struct PrewarmRequest: Sendable, Equatable, Hashable {
-        public let width: Int
-        public let height: Int
-        public let pixelFormat: MTLPixelFormat
-        public let count: Int
+/// Read-only snapshot of Harbeth's internal texture-pool activity.
+public struct TexturePoolStatistics: Sendable {
+    public internal(set) var totalTexturesCreated: Int = 0
+    public internal(set) var totalTexturesReused: Int = 0
+    public internal(set) var totalMemorySaved: Int = 0
+    public internal(set) var currentTextureCount: Int = 0
+    public internal(set) var currentMemoryUsage: Int = 0
+    public internal(set) var maxMemoryUsage: Int = 0
+    public internal(set) var peakMemoryUsage: Int = 0
+    public internal(set) var averageMemoryUsage: Double = 0
+    public internal(set) var memoryUsageSamples: [Int] = []
+    public internal(set) var heapCount: Int = 0
+    public internal(set) var heapReservedMemory: Int = 0
+    public internal(set) var heapUsedMemory: Int = 0
+    public internal(set) var heapTextureAllocationCount: Int = 0
+    public internal(set) var heapAllocationFallbackCount: Int = 0
 
-        public init(width: Int, height: Int, pixelFormat: MTLPixelFormat, count: Int) {
+    public var hitRate: Double {
+        let requestCount = totalTexturesCreated + totalTexturesReused
+        return requestCount > 0 ? Double(totalTexturesReused) / Double(requestCount) : 0
+    }
+}
+
+/// 带完整纹理契约、LRU、统一显存预算与真实 MTLHeap 的内部纹理资源池。
+final class TexturePool: @unchecked Sendable {
+    struct PrewarmRequest: Sendable, Equatable, Hashable {
+        let width: Int
+        let height: Int
+        let pixelFormat: MTLPixelFormat
+        let count: Int
+
+        init(width: Int, height: Int, pixelFormat: MTLPixelFormat, count: Int) {
             self.width = width
             self.height = height
             self.pixelFormat = pixelFormat
             self.count = count
-        }
-    }
-
-    public struct Statistics: Sendable {
-        public var totalTexturesCreated: Int = 0
-        public var totalTexturesReused: Int = 0
-        public var totalMemorySaved: Int = 0
-        public var currentTextureCount: Int = 0
-        public var currentMemoryUsage: Int = 0
-        public var maxMemoryUsage: Int = 0
-        public var peakMemoryUsage: Int = 0
-        public var averageMemoryUsage: Double = 0
-        public var memoryUsageSamples: [Int] = []
-        public var heapCount: Int = 0
-        public var heapReservedMemory: Int = 0
-        public var heapUsedMemory: Int = 0
-        public var heapTextureAllocationCount: Int = 0
-        public var heapAllocationFallbackCount: Int = 0
-
-        public var hitRate: Double {
-            let requestCount = totalTexturesCreated + totalTexturesReused
-            return requestCount > 0 ? Double(totalTexturesReused) / Double(requestCount) : 0
         }
     }
 
@@ -63,6 +64,7 @@ public final class TexturePool: @unchecked Sendable {
     }
 
     private let maxMemoryUsage: Int
+    private let device: MTLDevice
     private let sizeTolerance = 8
     private let queue = DispatchQueue(label: "com.harbeth.texturepool.concurrent", attributes: .concurrent)
     private var cache: [TextureDescriptorContract: [MTLTexture]] = [:]
@@ -72,17 +74,21 @@ public final class TexturePool: @unchecked Sendable {
     private var directCachedMemoryUsage = 0
     private var heaps: [HeapKey: [MTLHeap]] = [:]
     private var knownHeapIdentifiers: Set<ObjectIdentifier> = []
-    private var statisticsStorage = Statistics()
+    private var statisticsStorage = TexturePoolStatistics()
 
     #if os(macOS)
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     #endif
 
-    public var statistics: Statistics {
+    var statistics: TexturePoolStatistics {
         queue.sync { statisticsStorage }
     }
 
-    init(maxMemoryUsage: Int? = nil) {
+    init(device: MTLDevice? = nil, maxMemoryUsage: Int? = nil) {
+        guard let resolvedDevice = device ?? MTLCreateSystemDefaultDevice() else {
+            fatalError("Could not create Metal Device")
+        }
+        self.device = resolvedDevice
         let physicalMemoryMB = ProcessInfo.processInfo.physicalMemory / 1024 / 1024
         let memoryPercentage: Double
         if physicalMemoryMB < 2048 {
@@ -126,12 +132,12 @@ public final class TexturePool: @unchecked Sendable {
     }
 
     /// 兼容旧接口：只按尺寸和像素格式查找。Harbeth 运行时内部使用完整 descriptor 接口。
-    public func dequeueTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
+    func dequeueTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
         dequeueLegacyTexture(width: width, height: height, pixelFormat: pixelFormat, allowsSizeTolerance: true)
     }
 
     /// 兼容旧接口：只按精确尺寸和像素格式查找。Harbeth 运行时内部使用完整 descriptor 接口。
-    public func dequeueExactTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
+    func dequeueExactTexture(width: Int, height: Int, pixelFormat: MTLPixelFormat) -> MTLTexture? {
         dequeueLegacyTexture(width: width, height: height, pixelFormat: pixelFormat, allowsSizeTolerance: false)
     }
 
@@ -164,15 +170,15 @@ public final class TexturePool: @unchecked Sendable {
         }
     }
 
-    public func enqueueTexture(_ texture: MTLTexture) {
+    func enqueueTexture(_ texture: MTLTexture) {
         queue.async(flags: .barrier) { self.enqueueTextureLocked(texture) }
     }
 
-    public func enqueueTextureSync(_ texture: MTLTexture) {
+    func enqueueTextureSync(_ texture: MTLTexture) {
         queue.sync(flags: .barrier) { enqueueTextureLocked(texture) }
     }
 
-    public func enqueueTexturesSync(_ textures: [MTLTexture]) {
+    func enqueueTexturesSync(_ textures: [MTLTexture]) {
         guard !textures.isEmpty else { return }
         queue.sync(flags: .barrier) {
             for texture in textures {
@@ -181,13 +187,13 @@ public final class TexturePool: @unchecked Sendable {
         }
     }
 
-    public func makeLease(for texture: MTLTexture, logicalExtent: C7Size? = nil) -> TextureLease {
+    func makeLease(for texture: MTLTexture, logicalExtent: C7Size? = nil) -> TextureLease {
         TextureLease(texture: texture, logicalExtent: logicalExtent) { [weak self] in
             self?.enqueueTextureSync(texture)
         }
     }
 
-    public func dequeueTextureLease(width: Int,
+    func dequeueTextureLease(width: Int,
                                     height: Int,
                                     pixelFormat: MTLPixelFormat,
                                     allowsSizeTolerance: Bool = false,
@@ -290,29 +296,29 @@ public final class TexturePool: @unchecked Sendable {
         }
     }
 
-    public func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
+    func prewarm(resolutions: [(width: Int, height: Int, pixelFormat: MTLPixelFormat)], count: Int = 2) {
         prewarm(requests: resolutions.map {
             PrewarmRequest(width: $0.width, height: $0.height, pixelFormat: $0.pixelFormat, count: count)
         })
     }
 
-    public func prewarm(requests: [PrewarmRequest]) {
+    func prewarm(requests: [PrewarmRequest]) {
         prewarm(requests: requests, synchronously: false)
     }
 
-    public func prewarmSync(requests: [PrewarmRequest]) {
+    func prewarmSync(requests: [PrewarmRequest]) {
         prewarm(requests: requests, synchronously: true)
     }
 
-    public func resetStatistics() {
+    func resetStatistics() {
         queue.async(flags: .barrier) { self.resetStatisticsLocked() }
     }
 
-    public func resetStatisticsSync() {
+    func resetStatisticsSync() {
         queue.sync(flags: .barrier) { resetStatisticsLocked() }
     }
 
-    public func dumpStatistics() {
+    func dumpStatistics() {
         queue.sync {
             let stats = statisticsStorage
             HarbethLogger.log(
@@ -358,7 +364,6 @@ public final class TexturePool: @unchecked Sendable {
     private func prewarm(requests: [PrewarmRequest], synchronously: Bool) {
         let filteredRequests = requests.filter { $0.count > 0 }
         guard !filteredRequests.isEmpty else { return }
-        let device = Shared.shared.metalDevice
         let work: @Sendable () -> Void = {
             for request in filteredRequests {
                 let descriptor = MTLTextureDescriptor.texture2DDescriptor(
@@ -372,7 +377,7 @@ public final class TexturePool: @unchecked Sendable {
                 let key = TextureDescriptorContract(descriptor: descriptor)
                 let neededCount = max(request.count - (self.cache[key]?.count ?? 0), 0)
                 for _ in 0..<neededCount {
-                    guard let texture = device.makeTexture(descriptor: descriptor) else { continue }
+                    guard let texture = self.device.makeTexture(descriptor: descriptor) else { continue }
                     self.enqueueTextureLocked(texture)
                 }
                 self.commonResolutions.insert(key)
@@ -519,7 +524,7 @@ public final class TexturePool: @unchecked Sendable {
     }
 
     private func resetStatisticsLocked() {
-        statisticsStorage = Statistics()
+        statisticsStorage = TexturePoolStatistics()
         statisticsStorage.currentTextureCount = cache.values.reduce(0) { $0 + $1.count }
         updateStatisticsLocked()
     }

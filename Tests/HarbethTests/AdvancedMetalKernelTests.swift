@@ -3,7 +3,7 @@ import MetalKit
 @testable import Harbeth
 
 final class AdvancedMetalKernelTests: XCTestCase {
-    func testCapabilityReportUsesSharedDeviceWhenDeviceIsNotProvided() {
+    func testCapabilityReportUsesContextDeviceWhenDeviceIsNotProvided() {
         let report = Device.metalCapabilityReport(.customAdvancedEncoder, on: nil)
 
         XCTAssertEqual(report.capability, .customAdvancedEncoder)

@@ -61,21 +61,36 @@ let texture = try TextureLoader.makeTexture(
 )
 ```
 
+资源入口统一迁移到 `HarbethContext.shared`。`Device` 与 `Shared` 已退为内部实现，不再承担公开合同：
+
+| 旧入口 | 3.0 入口 |
+| --- | --- |
+| `Shared.shared.metalDevice` | `HarbethContext.shared.device` |
+| `Shared.shared.commandQueue.makeCommandBuffer()` | `HarbethContext.shared.makeCommandBuffer()` |
+| `Shared.shared.deinitDevice()` | `HarbethContext.shared.recoverExecution()` |
+| `Shared.shared.defaultTextureAllocationStrategy` | `HarbethContext.shared.textureAllocationStrategy` |
+| `Shared.shared.texturePoolStatistics` | `HarbethContext.shared.texturePoolStatistics` |
+| `Device.registerExternalLibraryProvider(...)` | `HarbethContext.shared.registerExternalLibraryProvider(...)` |
+| `Device.readMTLFunction(...)` | `HarbethContext.shared.makeMetalFunction(named:)` |
+
+`recoverExecution()` 不销毁进程级 `MTLDevice`；它会轮换 command queue、推进 execution generation 并清理运行时缓存。已经提交给 Metal 的 command buffer 不会被同步取消，需要并发恢复的宿主应使用 generation 拒绝陈旧结果。
+
 ## 4. 真实 MTLHeap
 
 Heap allocator 是 3.0 的高级资源策略，继续位于两条公开路线下面。开启后，Harbeth 在设备 capability 允许时从真实 `MTLHeap` 分配，并维持 descriptor-safe reuse、统一预算、内存压力清理、空 heap 回收和直接分配 fallback：
 
 ```swift
-let report = Device.metalCapabilityReport(.heapTexturePool)
+let context = HarbethContext.shared
+let report = context.capabilityReport(.heapTexturePool)
 
 if report.isSupported {
-    Shared.shared.defaultTextureAllocationStrategy = .heapBacked
+    context.textureAllocationStrategy = .heapBacked
 }
 ```
 
 策略必须在创建本轮纹理任务前设置。默认仍为 `.exact`，避免仅处理少量纹理的应用无条件承担 heap reservation；实时预览、重复尺寸的长滤镜链和稳定帧处理可通过 benchmark 决定是否启用。
 
-可通过 allocator diagnostics 与 `Shared.shared.texturePoolStatistics` 检查：
+可通过 allocator diagnostics 与 `HarbethContext.shared.texturePoolStatistics` 检查：
 
 - heap 数量、reserved/used bytes
 - 真实 heap texture allocation 次数

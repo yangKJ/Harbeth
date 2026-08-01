@@ -74,7 +74,7 @@ public struct TextureLoader {
     ///
     /// This keeps the common "packed RGBA bytes" call site lightweight while avoiding
     /// small-texture upload failures on platforms that require wider row alignment.
-    public static func alignedBytesPerRow(minimum: Int, pixelFormat: MTLPixelFormat, device: MTLDevice = Shared.shared.metalDevice) -> Int {
+    public static func alignedBytesPerRow(minimum: Int, pixelFormat: MTLPixelFormat, device: MTLDevice = HarbethContext.shared.device) -> Int {
         let alignment: Int
         if #available(iOS 13.0, macOS 10.15, tvOS 13.0, *) {
             alignment = max(device.minimumTextureBufferAlignment(for: pixelFormat), 1)
@@ -91,7 +91,7 @@ public struct TextureLoader {
                                            packedBytesPerRow: Int,
                                            height: Int,
                                            pixelFormat: MTLPixelFormat,
-                                           device: MTLDevice = Shared.shared.metalDevice) -> (bytes: [UInt8], bytesPerRow: Int) {
+                                           device: MTLDevice = HarbethContext.shared.device) -> (bytes: [UInt8], bytesPerRow: Int) {
         let alignedRowBytes = alignedBytesPerRow(
             minimum: packedBytesPerRow,
             pixelFormat: pixelFormat,
@@ -143,7 +143,7 @@ extension TextureLoader {
         guard extent.isNull == false, extent.isInfinite == false, extent.width > 0, extent.height > 0 else {
             throw HarbethError.configurationInvalid("CIImage input requires a finite, non-empty extent.")
         }
-        let context = CIContext(mtlDevice: Shared.shared.metalDevice)
+        let context = CIContext(mtlDevice: HarbethContext.shared.device)
         guard let cgImage = context.createCGImage(ciImage, from: extent) else {
             throw HarbethError.source2Texture
         }
@@ -155,7 +155,7 @@ extension TextureLoader {
     ///   - cgImage: Bitmap image
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with cgImage: CGImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let loader = Shared.shared.defaultDevice.textureLoader
+        let loader = HarbethContext.shared.runtimeDevice.textureLoader
         let options = options ?? TextureLoader.defaultOptions
         let preferredPixelFormat = TextureLoader.preferredPixelFormat(for: cgImage)
         if let texture = try? loader.newTexture(cgImage: cgImage, options: options),
@@ -222,7 +222,7 @@ extension TextureLoader {
     ///   - data: Data.
     ///   - options: Dictonary of MTKTextureLoaderOptions.
     public init(with data: Data, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let loader = Shared.shared.defaultDevice.textureLoader
+        let loader = HarbethContext.shared.runtimeDevice.textureLoader
         let options = options ?? TextureLoader.defaultOptions
         self.texture = try loader.newTexture(data: data, options: options)
     }
@@ -257,7 +257,7 @@ extension TextureLoader {
     }
 
     public init(with bundleURL: URL, name: String, options: [MTKTextureLoader.Option: Any]? = nil) throws {
-        let loader = Shared.shared.defaultDevice.textureLoader
+        let loader = HarbethContext.shared.runtimeDevice.textureLoader
         guard let assetBundle = Bundle(url: bundleURL),
               let imageURL = assetBundle.url(forResource: name, withExtension: nil) else {
             throw HarbethError.makeTexture
@@ -388,7 +388,7 @@ extension TextureLoader {
             ?? TextureLoader.pixelFormat(from: CVPixelBufferGetPixelFormatType(pixelBuffer))
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
-        guard let texture = Shared.shared.metalDevice.makeTexture(descriptor: .texture2DDescriptor(
+        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: .texture2DDescriptor(
             pixelFormat: pixelFormat,
             width: width,
             height: height,
@@ -541,7 +541,7 @@ extension TextureLoader {
             conversionOffset: strategy.conversionOffset,
             planeTextures: source.planeTextures
         )
-        guard let commandBuffer = Shared.shared.commandQueue.makeCommandBuffer() else {
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
             throw HarbethError.commandBuffer
         }
         commandBuffer.label = "Harbeth.YCbCrDecode.\(strategy.descriptor)"
@@ -576,23 +576,23 @@ extension TextureLoader {
     ///   - identifier: Identifier used by pooling and performance diagnostics.
     public static func makeTexture(width: Int, height: Int, options: [Option: Any]? = nil, identifier: String = "Render") throws -> MTLTexture {
         let configuration = makeTextureConfiguration(width: width, height: height, options: options)
-        let allocator = Shared.shared.defaultTextureAllocator
+        let allocator = HarbethContext.shared.textureAllocator
         if let texture = allocator.dequeueTexture(
             matching: configuration.descriptor,
             allowsSizeTolerance: configuration.allowsSizeTolerance
         ) {
-            Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
-            Shared.shared.performanceMonitor?.recordTextureReuse(identifier, source: "TexturePool")
+            HarbethContext.shared.performanceMonitor.recordTextureCreation(identifier, created: false)
+            HarbethContext.shared.performanceMonitor.recordTextureReuse(identifier, source: "TexturePool")
             return texture
         }
         guard let texture = allocator.makeTexture(
             descriptor: configuration.descriptor,
-            device: Shared.shared.metalDevice
+            device: HarbethContext.shared.device
         ) else {
             throw HarbethError.makeTexture
         }
-        Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
-        Shared.shared.performanceMonitor?.recordRenderTargetCreation(identifier)
+        HarbethContext.shared.performanceMonitor.recordTextureCreation(identifier, created: true)
+        HarbethContext.shared.performanceMonitor.recordRenderTargetCreation(identifier)
         return texture
     }
 
@@ -602,25 +602,25 @@ extension TextureLoader {
     public static func makeTextureLease(width: Int, height: Int, options: [Option: Any]? = nil, identifier: String = "Render") throws -> TextureLease {
         let configuration = makeTextureConfiguration(width: width, height: height, options: options)
         let logicalExtent = C7Size(width: configuration.descriptor.width, height: configuration.descriptor.height)
-        let allocator = Shared.shared.defaultTextureAllocator
+        let allocator = HarbethContext.shared.textureAllocator
         if let lease = allocator.dequeueTextureLease(
             matching: configuration.descriptor,
             allowsSizeTolerance: configuration.allowsSizeTolerance,
             logicalExtent: logicalExtent
         ) {
-            Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: false)
-            Shared.shared.performanceMonitor?.recordTextureReuse(identifier, source: "TextureLease")
+            HarbethContext.shared.performanceMonitor.recordTextureCreation(identifier, created: false)
+            HarbethContext.shared.performanceMonitor.recordTextureReuse(identifier, source: "TextureLease")
             return lease
         }
 
         guard let texture = allocator.makeTexture(
             descriptor: configuration.descriptor,
-            device: Shared.shared.metalDevice
+            device: HarbethContext.shared.device
         ) else {
             throw HarbethError.makeTexture
         }
-        Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
-        Shared.shared.performanceMonitor?.recordRenderTargetCreation(identifier)
+        HarbethContext.shared.performanceMonitor.recordTextureCreation(identifier, created: true)
+        HarbethContext.shared.performanceMonitor.recordRenderTargetCreation(identifier)
         return allocator.makeLease(for: texture, logicalExtent: logicalExtent)
     }
 
@@ -780,7 +780,7 @@ extension TextureLoader {
             height: outputHeight,
             bitsPerComponent: 8,
             bytesPerRow: 0,
-            space: cgImage.colorSpace ?? Shared.shared.defaultDevice.colorSpace,
+            space: cgImage.colorSpace ?? HarbethContext.shared.colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
             throw HarbethError.contextCreationFailed
@@ -833,7 +833,7 @@ extension TextureLoader {
         let colorSpace = cgImage.colorSpace
             ?? (highPrecision
                 ? CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
-                : Shared.shared.defaultDevice.colorSpace)
+                : HarbethContext.shared.colorSpace)
             ?? CGColorSpaceCreateDeviceRGB()
         let bitmapInfo = highPrecision
             ? CGBitmapInfo.floatComponents.rawValue
@@ -873,10 +873,10 @@ extension TextureLoader {
                                    identifier: String = "Render",
                                    success: @escaping @Sendable (_ texture: MTLTexture) -> Void,
                                    failed: (@Sendable (HarbethError) -> Void)? = nil) {
-        let loader = Shared.shared.defaultDevice.textureLoader
+        let loader = HarbethContext.shared.runtimeDevice.textureLoader
         loader.newTexture(cgImage: cgImage, options: options ?? defaultOptions) { texture, error in
             if let texture = texture {
-                Shared.shared.performanceMonitor?.recordTextureCreation(identifier, created: true)
+                HarbethContext.shared.performanceMonitor.recordTextureCreation(identifier, created: true)
                 success(texture)
             } else if let error = error {
                 failed?(.error(error))

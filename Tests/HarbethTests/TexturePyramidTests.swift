@@ -76,12 +76,12 @@ final class TexturePyramidTests: XCTestCase {
 
     func testTexturePyramidReleaseIsIdempotentAndReturnsLeasedIntermediates() throws {
         let source = try MaskTestHelpers.makeTexture(width: 8, height: 8, red: 255, alpha: 255)
-        Shared.shared.resetTexturePoolStatistics()
-        let before = Shared.shared.texturePoolStatistics?.currentTextureCount ?? 0
+        HarbethContext.shared.resetTexturePoolStatistics()
+        let before = HarbethContext.shared.texturePoolStatistics.currentTextureCount
         let pyramid = try TexturePyramid(source: source, maxLevels: 3)
         pyramid.release()
         pyramid.release()
-        let after = Shared.shared.texturePoolStatistics?.currentTextureCount ?? 0
+        let after = HarbethContext.shared.texturePoolStatistics.currentTextureCount
 
         XCTAssertGreaterThanOrEqual(after, before)
     }

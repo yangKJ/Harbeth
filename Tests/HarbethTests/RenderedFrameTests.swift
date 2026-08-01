@@ -9,7 +9,7 @@ final class RenderedFrameTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
     }
 
     func testRenderFrameFromTextureCarriesMetadata() throws {
@@ -501,7 +501,7 @@ final class RenderedFrameTests: XCTestCase {
             bytesPerRow: 8
         )
         let filter = RenderAuxiliaryLuminance()
-        let commandBuffer = try XCTUnwrap(Shared.shared.commandQueue.makeCommandBuffer())
+        let commandBuffer = try XCTUnwrap(HarbethContext.shared.makeCommandBuffer())
 
         let attachmentSet = try filter.encodeAttachmentSet(
             from: texture,
@@ -520,7 +520,7 @@ final class RenderedFrameTests: XCTestCase {
         )
         hostDescriptor.storageMode = .shared
         hostDescriptor.usage = [.shaderRead, .shaderWrite]
-        let hostTexture = try XCTUnwrap(Shared.shared.metalDevice.makeTexture(descriptor: hostDescriptor))
+        let hostTexture = try XCTUnwrap(HarbethContext.shared.device.makeTexture(descriptor: hostDescriptor))
         let sentinel = [UInt8](repeating: 123, count: 8)
         hostTexture.replace(
             region: MTLRegionMake2D(0, 0, 2, 1),
@@ -573,7 +573,7 @@ final class RenderedFrameTests: XCTestCase {
         ], identifier: "RenderedFrameTests.unretainedAttachmentSet")
         let descriptor = MTLCommandBufferDescriptor()
         descriptor.retainedReferences = false
-        let commandBuffer = try XCTUnwrap(Shared.shared.commandQueue.makeCommandBuffer(descriptor: descriptor))
+        let commandBuffer = try XCTUnwrap(HarbethContext.shared.commandQueue.makeCommandBuffer(descriptor: descriptor))
 
         XCTAssertThrowsError(try RenderAuxiliaryLuminance().encodeAttachmentSet(
             from: texture,
@@ -1259,14 +1259,14 @@ final class RenderedFrameTests: XCTestCase {
     func testCopyTextureDoesNotReturnTextureToPoolBeforeCallerReleasesIt() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let source = try TextureLoader.makeTexture(width: 8, height: 8, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "copy-source")
         let copied = try TextureLoader.copyTexture(with: source, identifier: "copy-dest")
 
-        let dequeued = Shared.shared.defaultTexturePool.dequeueTexture(width: copied.width, height: copied.height, pixelFormat: copied.pixelFormat)
+        let dequeued = HarbethContext.shared.texturePool.dequeueTexture(width: copied.width, height: copied.height, pixelFormat: copied.pixelFormat)
 
         XCTAssertFalse(copied === source)
         XCTAssertNil(dequeued, "A texture returned to the caller must not be immediately available for reuse from the pool.")
@@ -1275,12 +1275,12 @@ final class RenderedFrameTests: XCTestCase {
     func testTextureLoaderUsesExactPoolSizeByDefault() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let pooled = try TextureLoader.makeTexture(width: 12, height: 12, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "pool-exact-source")
-        Shared.shared.defaultTexturePool.enqueueTextureSync(pooled)
+        HarbethContext.shared.texturePool.enqueueTextureSync(pooled)
 
         let exact = try TextureLoader.makeTexture(width: 10, height: 10, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -1293,12 +1293,12 @@ final class RenderedFrameTests: XCTestCase {
     func testTextureLoaderCanOptIntoTolerancePoolReuse() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let pooled = try TextureLoader.makeTexture(width: 12, height: 12, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "pool-tolerance-source")
-        Shared.shared.defaultTexturePool.enqueueTextureSync(pooled)
+        HarbethContext.shared.texturePool.enqueueTextureSync(pooled)
 
         let tolerant = try TextureLoader.makeTexture(width: 10, height: 10, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
@@ -1312,25 +1312,25 @@ final class RenderedFrameTests: XCTestCase {
     func testTextureLeaseReturnsTextureToPoolOnRelease() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let lease = try TextureLoader.makeTextureLease(width: 16, height: 16, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
         ], identifier: "lease-return")
         let texture = lease.texture
 
-        XCTAssertNil(Shared.shared.defaultTexturePool.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm))
+        XCTAssertNil(HarbethContext.shared.texturePool.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm))
 
         lease.release()
 
-        let reused = Shared.shared.defaultTexturePool.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm)
+        let reused = HarbethContext.shared.texturePool.dequeueExactTexture(width: 16, height: 16, pixelFormat: .rgba8Unorm)
         XCTAssertTrue(reused === texture)
     }
 
     func testFilteredFrameCarriesManagedLeaseForFinalTexture() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let texture = try TextureLoader.makeTexture(width: 8, height: 8, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -1347,7 +1347,7 @@ final class RenderedFrameTests: XCTestCase {
     func testFrameRendererCanApplyDerivativeResizePolicy() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let texture = try TextureLoader.makeTexture(width: 8, height: 6, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -1380,7 +1380,7 @@ final class RenderedFrameTests: XCTestCase {
     func testRecipeDrivenFrameCarriesPredictableFilterFingerprint() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let texture = try TextureLoader.makeTexture(width: 4, height: 4, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm
@@ -1554,7 +1554,7 @@ final class RenderedFrameTests: XCTestCase {
     func testTransitionFrameCarriesPredictableFilterFingerprint() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
-        Shared.shared.deinitDevice()
+        HarbethContext.shared.recoverExecution()
 
         let from = try TextureLoader.makeTexture(width: 4, height: 4, options: [
             .texturePixelFormat: MTLPixelFormat.rgba8Unorm

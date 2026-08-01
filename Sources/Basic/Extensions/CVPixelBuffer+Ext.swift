@@ -159,7 +159,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         guard plan.contract.nativeTextureLayout == .planeTextures else {
             return []
         }
-        let cache: CVMetalTextureCache? = textureCache ?? Shared.shared.sharedTextureCache
+        let cache: CVMetalTextureCache? = textureCache ?? HarbethContext.shared.cvMetalTextureCache
         return plan.contract.planes.compactMap { plane in
             guard let pixelFormat = plane.metalPixelFormat else {
                 return nil
@@ -179,7 +179,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
     func createPlaneTextureReferences(textureCache: CVMetalTextureCache? = nil) -> [(texture: MTLTexture, owner: AnyObject)] {
         let plan = makeTextureBridgePlan()
         guard plan.contract.nativeTextureLayout == .planeTextures else { return [] }
-        let cache: CVMetalTextureCache? = textureCache ?? Shared.shared.sharedTextureCache
+        let cache: CVMetalTextureCache? = textureCache ?? HarbethContext.shared.cvMetalTextureCache
         return plan.contract.planes.compactMap { plane in
             guard let pixelFormat = plane.metalPixelFormat else { return nil }
             return convertPlaneTextureReference(textureCache: cache, pixelFormat: pixelFormat, planeIndex: plane.index)
@@ -553,7 +553,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             #if targetEnvironment(simulator)
             return base.c7.toCGImage()?.c7.toTexture(pixelFormat: .rgba8Unorm)
             #else
-            let cache = textureCache ?? Shared.shared.sharedTextureCache
+            let cache = textureCache ?? HarbethContext.shared.cvMetalTextureCache
             let pixelFormat = bridgePlan.contract.preferredMetalPixelFormat ?? .bgra8Unorm
             return convert2MTLTexture(textureCache: cache, pixelFormat: pixelFormat, planeIndex: 0)
             #endif
@@ -561,7 +561,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             #if targetEnvironment(simulator)
             return base.c7.toCGImage()?.c7.toTexture(pixelFormat: .rgba8Unorm)
             #else
-            let cache = textureCache ?? Shared.shared.sharedTextureCache
+            let cache = textureCache ?? HarbethContext.shared.cvMetalTextureCache
             let textures = createPlaneTextures(textureCache: cache)
             guard let primary = textures.first else { return nil }
             TextureOwnerRegistry.attach(base, to: primary)

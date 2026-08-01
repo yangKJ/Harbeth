@@ -87,7 +87,7 @@ extension C7AdvancedMetalKernelProtocol {
     }
 
     public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
-        if canUseAdvancedMetal(on: Shared.shared.metalDevice) {
+        if canUseAdvancedMetal(on: HarbethContext.shared.device) {
             return try encodeAdvanced(commandBuffer: commandBuffer, textures: textures)
         }
         return try encodeFallback(commandBuffer: commandBuffer, textures: textures)
@@ -155,7 +155,7 @@ extension C7AdvancedMetalKernelProtocol {
     }
 
     private func advancedMetalPipelineState(identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
-        let context = Shared.shared.defaultContext
+        let context = HarbethContext.shared
 
         if let cached = context.computePipelineState(for: identity) {
             return cached
