@@ -14,6 +14,10 @@ public struct RenderGrayscale: RenderProtocol {
     public var modifier: ModifierEnum {
         return .render(vertex: "basicVertex", fragment: "grayscaleFragment")
     }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
+    }
     
     public init() { }
     

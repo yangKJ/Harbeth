@@ -24,6 +24,10 @@ public struct RenderQuadRectifyTransform: RenderProtocol, SamplerAdaptableFilter
         .render(vertex: "basicVertex", fragment: "quadTransformFragment")
     }
 
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .shaderDefined
+    }
+
     public init(sourceQuad: RenderQuadTransform.Quad,
                 samplingMode: SpatialSamplingMode = .adaptive,
                 edgeMode: SpatialEdgeMode = .transparent,
@@ -69,7 +73,10 @@ public struct RenderQuadRectifyTransform: RenderProtocol, SamplerAdaptableFilter
         if let edgeMode {
             resolved.edgeMode = edgeMode
         }
-        return .covered(resolved)
+        if samplingMode != nil, edgeMode != nil, descriptor.mipFilter == .notMipmapped {
+            return .covered(resolved)
+        }
+        return .partial(resolved)
     }
 
     public func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer? {

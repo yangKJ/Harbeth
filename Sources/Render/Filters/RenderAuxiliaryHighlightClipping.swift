@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-/// 在一次 render pass 内同时输出主颜色和高光裁切分析图。
+/// Output the main color and highlight crop analysis diagram at the same time in a render pass.
 public struct RenderAuxiliaryHighlightClipping: RenderProtocol {
 
     @ZeroOneRange public var threshold: Float = 0.92
@@ -16,6 +16,10 @@ public struct RenderAuxiliaryHighlightClipping: RenderProtocol {
 
     public var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "dualOutputHighlightClippingFragment")
+    }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
     }
 
     public var factors: [Float] {

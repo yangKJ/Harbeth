@@ -36,6 +36,38 @@ public struct SamplerExecutionCoverage: Sendable, Codable, Equatable, Hashable {
 }
 
 enum SamplerExecutionAdapter {
+    static func makePlan(filters: [C7FilterProtocol], samplerDescriptor: ImageSamplerDescriptor) -> SamplerExecutionPlan {
+        guard filters.isEmpty == false, samplerDescriptor != .default else {
+            return SamplerExecutionPlan(
+                filters: filters,
+                coverage: SamplerExecutionCoverage(mode: .notApplicable)
+            )
+        }
+
+        let resolutions = filters.map { resolve(filter: $0, samplerDescriptor: samplerDescriptor) }
+        var coverage = SamplerExecutionCoverage(mode: .notApplicable)
+        for (filter, resolution) in zip(filters, resolutions) where isSamplerRelevant(filter) {
+            let typeName = String(describing: type(of: filter))
+            let item: SamplerExecutionCoverage
+            switch resolution.coverage {
+            case .covered:
+                item = SamplerExecutionCoverage(mode: .covered, coveredFilterTypes: [typeName])
+            case .partial:
+                item = SamplerExecutionCoverage(
+                    mode: .partial,
+                    coveredFilterTypes: [typeName],
+                    metadataOnlyFilterTypes: [typeName]
+                )
+            case .metadataOnly:
+                item = SamplerExecutionCoverage(mode: .metadataOnly, metadataOnlyFilterTypes: [typeName])
+            case .notApplicable:
+                item = SamplerExecutionCoverage(mode: .notApplicable)
+            }
+            coverage = merge(coverage, item)
+        }
+        return SamplerExecutionPlan(filters: resolutions.map(\.filter), coverage: coverage)
+    }
+
     static func merge(_ lhs: SamplerExecutionCoverage, _ rhs: SamplerExecutionCoverage) -> SamplerExecutionCoverage {
         let covered = Array(Set(lhs.coveredFilterTypes + rhs.coveredFilterTypes)).sorted()
         let metadataOnly = Array(Set(lhs.metadataOnlyFilterTypes + rhs.metadataOnlyFilterTypes)).sorted()
@@ -58,10 +90,7 @@ enum SamplerExecutionAdapter {
     }
 
     static func adapt(filters: [C7FilterProtocol], samplerDescriptor: ImageSamplerDescriptor) -> [C7FilterProtocol] {
-        guard filters.isEmpty == false, samplerDescriptor != .default else {
-            return filters
-        }
-        return filters.map { adapt(filter: $0, samplerDescriptor: samplerDescriptor) }
+        makePlan(filters: filters, samplerDescriptor: samplerDescriptor).filters
     }
 
     static func adapt(filter: C7FilterProtocol, samplerDescriptor: ImageSamplerDescriptor) -> C7FilterProtocol {
@@ -76,60 +105,20 @@ enum SamplerExecutionAdapter {
             switch configurable.samplerAdaptation(for: samplerDescriptor) {
             case .covered(let adaptedFilter):
                 return adaptedFilter as? any RenderProtocol ?? renderFilter
+            case .partial(let adaptedFilter):
+                return adaptedFilter as? any RenderProtocol ?? renderFilter
             case .metadataOnly, .notApplicable:
                 return renderFilter
             }
+        }
+        guard renderFilter.renderSamplerConsumption == .runtimeBound else {
+            return renderFilter
         }
         return RenderSamplerOverride(base: renderFilter, samplerDescriptor: samplerDescriptor)
     }
 
     static func coverage(for filters: [C7FilterProtocol], samplerDescriptor: ImageSamplerDescriptor) -> SamplerExecutionCoverage {
-        guard samplerDescriptor != .default else {
-            return SamplerExecutionCoverage(mode: .notApplicable)
-        }
-
-        let relevantFilters = filters.filter { isSamplerRelevant($0) }
-        guard relevantFilters.isEmpty == false else {
-            return SamplerExecutionCoverage(mode: .notApplicable)
-        }
-
-        var covered: [String] = []
-        var metadataOnly: [String] = []
-
-        for filter in relevantFilters {
-            let typeName = String(describing: type(of: filter))
-            switch resolve(filter: filter, samplerDescriptor: samplerDescriptor).coverage {
-            case .covered:
-                covered.append(typeName)
-            case .partial:
-                covered.append(typeName)
-                metadataOnly.append(typeName)
-            case .metadataOnly:
-                metadataOnly.append(typeName)
-            case .notApplicable:
-                break
-            }
-        }
-
-        let uniqueCovered = Array(Set(covered)).sorted()
-        let uniqueMetadataOnly = Array(Set(metadataOnly)).sorted()
-        let mode: SamplerExecutionCoverageMode
-        switch (uniqueCovered.isEmpty, uniqueMetadataOnly.isEmpty) {
-        case (true, false):
-            mode = .metadataOnly
-        case (false, true):
-            mode = .covered
-        case (false, false):
-            mode = .partial
-        case (true, true):
-            mode = .notApplicable
-        }
-
-        return SamplerExecutionCoverage(
-            mode: mode,
-            coveredFilterTypes: uniqueCovered,
-            metadataOnlyFilterTypes: uniqueMetadataOnly
-        )
+        makePlan(filters: filters, samplerDescriptor: samplerDescriptor).coverage
     }
 
     private static func resolve(filter: C7FilterProtocol, samplerDescriptor: ImageSamplerDescriptor) -> SamplerExecutionResolution {
@@ -140,17 +129,23 @@ enum SamplerExecutionAdapter {
             switch configurable.samplerAdaptation(for: samplerDescriptor) {
             case .covered(let adaptedFilter):
                 return SamplerExecutionResolution(filter: adaptedFilter, coverage: .covered)
+            case .partial(let adaptedFilter):
+                return SamplerExecutionResolution(filter: adaptedFilter, coverage: .partial)
             case .metadataOnly:
                 return SamplerExecutionResolution(filter: filter, coverage: .metadataOnly)
             case .notApplicable:
                 break
             }
         }
-        if let renderFilter = filter as? any RenderProtocol {
+        if let renderFilter = filter as? any RenderProtocol,
+           renderFilter.renderSamplerConsumption == .runtimeBound {
             return SamplerExecutionResolution(
                 filter: RenderSamplerOverride(base: renderFilter, samplerDescriptor: samplerDescriptor),
                 coverage: .covered
             )
+        }
+        if filter is any RenderProtocol {
+            return SamplerExecutionResolution(filter: filter, coverage: .metadataOnly)
         }
         return SamplerExecutionResolution(filter: filter, coverage: .notApplicable)
     }
@@ -158,6 +153,11 @@ enum SamplerExecutionAdapter {
     private static func isSamplerRelevant(_ filter: C7FilterProtocol) -> Bool {
         filter is SamplerAdaptableFilter || filter is RenderProtocol
     }
+}
+
+struct SamplerExecutionPlan {
+    let filters: [C7FilterProtocol]
+    let coverage: SamplerExecutionCoverage
 }
 
 private struct SamplerExecutionResolution {
@@ -181,6 +181,7 @@ private struct RenderSamplerOverride: RenderProtocol {
     var renderVertexStride: Int { base.renderVertexStride }
     var renderOutputContract: RenderOutputContract { base.renderOutputContract }
     var renderSamplerDescriptor: ImageSamplerDescriptor { samplerDescriptor }
+    var renderSamplerConsumption: RenderSamplerConsumption { base.renderSamplerConsumption }
 
     func resize(input size: C7Size) -> C7Size {
         base.resize(input: size)

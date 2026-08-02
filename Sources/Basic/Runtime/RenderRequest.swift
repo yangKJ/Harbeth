@@ -378,35 +378,4 @@ extension RenderRequest {
         )
     }
 
-    static func makeDelegatedRequest(compilationSource: RenderCompilationSource,
-                                     profile: RenderProfile,
-                                     derivative: ImageDerivativeSpec,
-                                     source: ImageSourceDescriptor,
-                                     outputCachePolicy: ImageCachePolicy,
-                                     diagnostics: RenderPlanDiagnostics,
-                                     renderRecipe: RenderRecipe?,
-                                     renderTexture: @escaping () throws -> MTLTexture,
-                                     renderFrame: @escaping ([String: String]) throws -> RenderedFrame,
-                                     renderAnalysisBundle: @escaping (TextureHistogramChannel, Int, Int, MTLRegion?, TextureHistogramComputationMethod) throws -> RenderedAnalysisBundle,
-                                     renderAnalysisScopeBundle: @escaping (TextureHistogramChannel, Int, Int, TextureAnalysisScope, TextureHistogramComputationMethod) throws -> RenderedAnalysisBundle,
-                                     renderAttachmentSet: (() throws -> RenderedAttachmentSet?)? = nil,
-                                     renderAttachmentAnalysisBundle: ((Int, Int, MTLRegion?, TextureHistogramComputationMethod) throws -> RenderedAttachmentAnalysisBundle?)? = nil,
-                                     renderAttachmentAnalysisScopeBundle: ((Int, Int, TextureAnalysisScope, TextureHistogramComputationMethod) throws -> RenderedAttachmentAnalysisBundle?)? = nil) -> RenderRequest {
-        RenderRequest(
-            compilationSource: compilationSource,
-            profile: profile,
-            derivative: derivative,
-            source: source,
-            outputCachePolicy: outputCachePolicy,
-            diagnostics: diagnostics,
-            renderRecipe: renderRecipe,
-            renderTexture: renderTexture,
-            renderFrame: renderFrame,
-            renderAnalysisBundle: renderAnalysisBundle,
-            renderAnalysisScopeBundle: renderAnalysisScopeBundle,
-            renderAttachmentSet: renderAttachmentSet,
-            renderAttachmentAnalysisBundle: renderAttachmentAnalysisBundle,
-            renderAttachmentAnalysisScopeBundle: renderAttachmentAnalysisScopeBundle
-        )
-    }
 }

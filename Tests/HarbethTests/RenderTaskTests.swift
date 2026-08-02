@@ -40,6 +40,29 @@ final class RenderTaskTests: XCTestCase {
         _ = try task.output()
     }
 
+    func testRenderTaskCleanupSurvivesCallerDroppingTaskHandle() throws {
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
+            throw HarbethError.commandBuffer
+        }
+        let cleanup = expectation(description: "render task cleanup")
+        weak var weakTask: RenderTask<Int>?
+
+        autoreleasepool {
+            let task = RenderTask(
+                identifier: "dropped-task",
+                commandBuffer: commandBuffer,
+                output: 1,
+                diagnostics: nil,
+                cleanup: { cleanup.fulfill() }
+            )
+            weakTask = task
+        }
+
+        XCTAssertNotNil(weakTask)
+        commandBuffer.commit()
+        wait(for: [cleanup], timeout: 2)
+    }
+
     func testGenericRenderTextureTaskCarriesDerivativeDiagnostics() throws {
         let input = try makeTexture(width: 4, height: 4, pixel: [200, 20, 20, 255])
         let derivative = ImageDerivativeSpec(

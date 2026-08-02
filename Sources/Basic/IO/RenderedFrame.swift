@@ -145,11 +145,8 @@ public struct RenderedFrame: @unchecked Sendable {
     public let size: CGSize
     public let pixelFormat: MTLPixelFormat
     public let colorSpace: CGColorSpace?
-    /// 渲染结果实际携带的输出色彩空间合同。
     public let outputColorSpaceContract: ImageColorSpaceContract
-    /// 由输出色彩空间合同解析出的动态范围。
     public let outputDynamicRange: ImageDynamicRangeContract
-    /// 此帧采用或要求展示宿主采用的 tone-mapping 策略。
     public let outputToneMappingPolicy: ImageToneMappingPolicy
     public let sourceDescriptor: ImageSourceDescriptor
     public let derivative: ImageDerivativeSpec
@@ -421,6 +418,27 @@ enum RenderTarget: Sendable, Equatable {
     case data
 }
 
+struct PreparedFrameTextureExecution: @unchecked Sendable {
+    let source: ImageSource
+    let diagnosticFilters: [C7FilterProtocol]
+    let resolvedOutputSize: C7Size
+    private let renderTextureClosure: () throws -> MTLTexture
+
+    init(source: ImageSource,
+         diagnosticFilters: [C7FilterProtocol],
+         resolvedOutputSize: C7Size,
+         renderTexture: @escaping () throws -> MTLTexture) {
+        self.source = source
+        self.diagnosticFilters = diagnosticFilters
+        self.resolvedOutputSize = resolvedOutputSize
+        self.renderTextureClosure = renderTexture
+    }
+
+    func renderTexture() throws -> MTLTexture {
+        try renderTextureClosure()
+    }
+}
+
 /// 面向产品级调用方的 texture-first 渲染器，提供稳定帧元数据。
 struct FrameRenderer: @unchecked Sendable {
     let source: ImageSource
@@ -539,6 +557,41 @@ struct FrameRenderer: @unchecked Sendable {
             .output(outputColorSpace: outputColorSpace)
     }
 
+    func prepareTextureExecution() throws -> PreparedFrameTextureExecution {
+        if let transitionRecipe {
+            let execution = try compiledTransitionExecution(transitionRecipe)
+            return PreparedFrameTextureExecution(
+                source: execution.source,
+                diagnosticFilters: execution.diagnosticFilters,
+                resolvedOutputSize: execution.resolvedOutputSize,
+                renderTexture: execution.renderTexture
+            )
+        }
+        if let recipe, let mode = recipeMode {
+            let execution = try compiledRecipeExecution(recipe, mode: mode)
+            return PreparedFrameTextureExecution(
+                source: execution.source,
+                diagnosticFilters: execution.diagnosticFilters,
+                resolvedOutputSize: execution.resolvedOutputSize,
+                renderTexture: execution.renderTexture
+            )
+        }
+        let input = try source.makeTexture()
+        let effectiveFilters = effectiveFilters(for: C7Size(texture: input))
+        let resolvedOutputSize = resolvedOutputSize(for: C7Size(texture: input), filters: effectiveFilters)
+        return PreparedFrameTextureExecution(
+            source: source,
+            diagnosticFilters: effectiveFilters,
+            resolvedOutputSize: resolvedOutputSize,
+            renderTexture: {
+                guard effectiveFilters.isEmpty == false else { return input }
+                return try makeIO(element: input, filters: effectiveFilters)
+                    .configured(for: profile)
+                    .output(outputColorSpace: outputColorSpace)
+            }
+        )
+    }
+
     func makeToken() -> FrameRenderToken {
         FrameRenderToken(identifier: identifier, generation: FrameGeneration.next())
     }
@@ -602,6 +655,21 @@ struct FrameRenderer: @unchecked Sendable {
             source: source,
             renderedTexture: renderedTexture,
             resolvedSize: resolvedSize,
+            filterChain: filters,
+            lease: lease
+        )
+    }
+
+    func materializeFrame(
+        renderedTexture: MTLTexture,
+        lease: TextureLease?,
+        token: FrameRenderToken
+    ) throws -> RenderedFrame {
+        try renderFrame(
+            token: token,
+            source: source,
+            renderedTexture: renderedTexture,
+            resolvedSize: C7Size(texture: renderedTexture),
             filterChain: filters,
             lease: lease
         )
@@ -692,10 +760,18 @@ struct FrameRenderer: @unchecked Sendable {
             filter.resize(input: size)
         }
         let targetOutputSize = outputDerivative.resolvedOutputSize(for: baseOutputSize)
-        guard targetOutputSize != baseOutputSize else {
-            return filters
+        let resolvedFilters: [C7FilterProtocol]
+        if targetOutputSize == baseOutputSize {
+            resolvedFilters = filters
+        } else {
+            resolvedFilters = filters + [
+                C7Resize(width: Float(targetOutputSize.width), height: Float(targetOutputSize.height))
+            ]
         }
-        return filters + [C7Resize(width: Float(targetOutputSize.width), height: Float(targetOutputSize.height))]
+        return SamplerExecutionAdapter.adapt(
+            filters: resolvedFilters,
+            samplerDescriptor: samplerDescriptor
+        )
     }
 
     private func resolvedOutputSize(for inputSize: C7Size, filters: [C7FilterProtocol]) -> C7Size {
@@ -747,10 +823,7 @@ struct FrameRenderer: @unchecked Sendable {
         return nil
     }
 
-    private func resolvedFrameColorSpaceContract(
-        source: ImageSource,
-        filterChain: [C7FilterProtocol]
-    ) -> ImageColorSpaceContract {
+    private func resolvedFrameColorSpaceContract(source: ImageSource, filterChain: [C7FilterProtocol]) -> ImageColorSpaceContract {
         let inputSize: C7Size?
         if let texture = try? source.makeTexture() {
             inputSize = C7Size(texture: texture)

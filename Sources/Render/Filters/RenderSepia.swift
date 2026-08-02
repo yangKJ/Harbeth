@@ -14,6 +14,10 @@ public struct RenderSepia: RenderProtocol {
     public var modifier: ModifierEnum {
         return .render(vertex: "basicVertex", fragment: "sepiaFragment")
     }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
+    }
     
     public init() { }
     

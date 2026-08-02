@@ -8,13 +8,17 @@
 import Foundation
 import MetalKit
 
-/// 在一次 render pass 内输出主颜色和 mask coverage 辅助图。
+/// Output the main color and mask coverage auxiliary diagram in a render pass.
 public struct RenderAuxiliaryMaskCoverage: RenderProtocol {
 
     public let mask: MaskDescriptor
 
     public var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "dualOutputMaskCoverageFragment")
+    }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
     }
 
     public var factors: [Float] {

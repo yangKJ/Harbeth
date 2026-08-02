@@ -282,7 +282,7 @@ public enum ImageSource {
         case .asset(let asset):
             switch asset.storage {
             case .cgImage(let image):
-                return C7Size(cgImage: image)
+                return asset.loadingOptions.sizePolicy.resolvedSize(for: C7Size(cgImage: image))
             case .data, .url:
                 return nil
             }
@@ -347,6 +347,27 @@ public enum ImageSource {
                 asset.storage.resolutionFingerprint
             ].joined(separator: "|")
         }
+    }
+}
+
+private extension ImageSourceSizePolicy {
+    func resolvedSize(for sourceSize: C7Size) -> C7Size {
+        let targetSize: CGSize
+        switch self {
+        case .original:
+            return sourceSize
+        case .maxPixelSize(let value):
+            let bound = CGFloat(max(value, 1))
+            targetSize = CGSize(width: sourceSize.width, height: sourceSize.height)
+                .c7.constrained(CGSize(width: bound, height: bound))
+        case .fit(let width, let height):
+            targetSize = CGSize(width: sourceSize.width, height: sourceSize.height)
+                .c7.constrained(CGSize(width: max(width, 1), height: max(height, 1)))
+        }
+        return C7Size(
+            width: max(Int(targetSize.width.rounded(.up)), 1),
+            height: max(Int(targetSize.height.rounded(.up)), 1)
+        )
     }
 }
 

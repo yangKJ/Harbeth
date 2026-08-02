@@ -159,6 +159,7 @@ let asyncFrame = try await ImageNode
 ### RenderRequest：延迟执行与高级读取
 
 `RenderRequest` 不是第三条公开路线。
+请求创建时会冻结一次内部 execution snapshot；`renderTexture()`、`renderFrame()` 与请求携带的 diagnostics 消费同一份准备结果，不会在真正执行时重新推导另一份普通 filter plan。recipe、transition、layer composite 仍保留各自的结构化编排边界，不会为了统一表面形态而被错误压平成一条 filter chain。
 
 它的定位是：
 
@@ -460,14 +461,14 @@ let recipe = EditRecipe(
 
 当前已覆盖的执行面：
 
-- 普通 `RenderProtocol` filters：通过 runtime sampler state 绑定生效
+- `renderSamplerConsumption == .runtimeBound` 的 render filters：通过 runtime sampler state 绑定生效
 - `RenderQuadTransform` / `RenderQuadRectifyTransform`：通过 geometry adapter 映射到 `SpatialSamplingMode` / `SpatialEdgeMode`
 - `EditRecipe` / `TransitionRecipe` / `LayerCompositeRecipe` 进入 `ImageNode` 后，最终执行会继续沿用同一个 sampler contract
 - `LayerCompositeRecipe` 的 layer-local transform / filters 现在也会进入同一份 route-level `samplerExecutionCoverage` 诊断，而不是只在真实执行里生效、在 diagnostics 里丢失
 
 当前已经进入真实执行覆盖的 family：
 
-- 普通 `RenderProtocol`
+- `RenderBasicFilter`、`RenderTransform3D`、`RenderGrayscale`、`RenderSepia` 和已声明 runtime sampler 消费能力的 auxiliary render filters
 - `C7Crop`
 - `C7Rotate`
 - `C7Transform`
@@ -478,6 +479,9 @@ let recipe = EditRecipe(
 但这里有一个边界要明确：
 
 - render path 可以直接绑定 `MTLSamplerState`
+- 每个 `RenderProtocol` 都必须通过 `renderSamplerConsumption` 显式声明 `.runtimeBound` 或 `.shaderDefined`
+- 这是 Harbeth 3.0 的直接 contract，不提供“所有 `RenderProtocol` 自动 covered”的旧行为回退、额外标记协议或兼容分支
+- 使用固定 inline sampler 的 `RenderProjectiveCanvas` / `RenderCylindricalCanvas` 会准确报告为 `metadataOnly`
 - 上述历史 compute geometry / optics family，以及 `RenderQuadTransform` / `RenderQuadRectifyTransform`，都只能桥接到 `SpatialSamplingMode` / `SpatialEdgeMode`
 - 因此只有当 `ImageSamplerDescriptor` 能被映射成 nearest/linear 和 clamp/repeat 这类空间采样语义时，它们才算真实覆盖
 - 如果调用方传入的是当前 compute family 不能完整表达的 sampler 组合，diagnostics 仍会把它记成 `metadataOnly` 或 `partial`
@@ -495,6 +499,8 @@ diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes
 
 执行层上的低风险优化也已经真闭环：
 
+- `HarbethIO` 与 `ImageNode` 的普通 filter lowering 会生成同一类内部 execution program，把 sampler adaptation、pointwise fusion、render plan、执行 steps 与 diagnostics 固定为同一份事实；recipe、transition、layer composite 仍是显式编排边界
+- optimizer 的 stage lifecycle 会展开为逐 step 的 transient/persistent 动作；中间纹理只会在最后一个 GPU consumer 完成后回池
 - `HarbethIO` 在真正开始编码前，会按 `RenderOptimizationPlan.prewarmReservations` 同步预热 texture pool
 - 双 buffer filter chain 也会同步预热两块目标纹理
 - 因此 `prewarmReservations` 不再只是 diagnostics 建议，texture pool reuse hit 已经能在测试里观测到
@@ -578,7 +584,7 @@ source contract 一致性说明：
 - 外部能力统一通过 `Plugin` 接入；Runtime boundary 只是内部调度和诊断实现
 - 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
 - `RenderRequest`、`RenderTask` 属于 deferred/supporting read surface，不是第三条 app integration route
-- `RenderView` 只是 `PreviewDisplaying` 的默认实现，显示对象统一回到 `RenderedFrame`
+- `PreviewDisplaying` 与 `RenderView` 都是 `@MainActor` 合同；显示对象统一回到 `RenderedFrame`，调用方从后台 render completion 接入时必须显式切回主 actor
 - `RenderView` 现在会消费 `RenderedFrame` 暴露的 frame host metadata / runtime hint，用来区分 low-latency、stable preview 和 readback-style host 行为
 - `RenderView` 同时消费 `RenderedFrame` 的输出色彩/HDR 合同，配置 drawable 精度、`CAMetalLayer` 色彩空间与平台 EDR 偏好；它不承担产品级 tone curve 或媒体生命周期
 - `ReplayBaseContract`

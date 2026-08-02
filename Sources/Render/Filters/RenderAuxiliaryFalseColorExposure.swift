@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-/// 在一次 render pass 内同时输出主颜色和 exposure false-color 分析图。
+/// Output the main color and exposure false-color analysis diagram at the same time in a render pass.
 public struct RenderAuxiliaryFalseColorExposure: RenderProtocol {
 
     @ZeroOneRange public var shadowThreshold: Float = 0.10
@@ -18,6 +18,10 @@ public struct RenderAuxiliaryFalseColorExposure: RenderProtocol {
 
     public var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "dualOutputFalseColorExposureFragment")
+    }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
     }
 
     public var factors: [Float] {

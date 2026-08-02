@@ -1361,6 +1361,7 @@ enum GraphCompiler {
                         outputContract: RenderOutputContract = .preserveInput,
                         imageCachePolicy: ImageCachePolicy = .transient,
                         samplerDescriptor: ImageSamplerDescriptor = .default,
+                        samplerExecutionCoverage: SamplerExecutionCoverage? = nil,
                         sourceDescriptor: ImageSourceDescriptor? = nil,
                         auxiliaryInputDescriptor: ImageSourceDescriptor? = nil,
                         imageGraph: ImageGraph? = nil,
@@ -1440,7 +1441,8 @@ enum GraphCompiler {
             outputContract: resolvedOutputContract,
             imageCachePolicy: imageCachePolicy,
             samplerDescriptor: samplerDescriptor,
-            samplerExecutionCoverage: SamplerExecutionAdapter.coverage(for: filters, samplerDescriptor: samplerDescriptor),
+            samplerExecutionCoverage: samplerExecutionCoverage
+                ?? SamplerExecutionAdapter.coverage(for: filters, samplerDescriptor: samplerDescriptor),
             sourceDescriptor: sourceDescriptor,
             auxiliaryInputDescriptor: auxiliaryInputDescriptor,
             imageGraph: imageGraph,

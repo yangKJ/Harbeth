@@ -31,8 +31,10 @@ public final class RenderTask<Output>: @unchecked Sendable {
         self.diagnostics = diagnostics
         self.cleanup = cleanup
 
-        commandBuffer.addCompletedHandler { [weak self] _ in
-            self?.finish()
+        // Metal releases completion handlers after invocation. Retain the task until then so
+        // dropping the caller's handle cannot skip texture/command-buffer cleanup.
+        commandBuffer.addCompletedHandler { [self] _ in
+            finish()
         }
     }
 

@@ -661,6 +661,21 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertTrue(diagnostics.containsTransitionKernel)
     }
 
+    func testColdTransitionPlanRendersThroughWrappersOnWorkerStack() throws {
+        let workItem = ColdTransitionRenderWorkItem()
+        let completion = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            defer { completion.signal() }
+            workItem.run()
+        }
+        thread.stackSize = 544 * 1024
+
+        thread.start()
+
+        XCTAssertEqual(completion.wait(timeout: .now() + 10), .success)
+        XCTAssertEqual(try workItem.result().get(), 2)
+    }
+
     func testTransitionNodeHonorsOverrideProfileAndDerivativeAcrossPlanAndTexture() throws {
         let from = try makeTexture(width: 6, height: 4, pixel: [255, 0, 0, 255])
         let to = try makeTexture(width: 6, height: 4, pixel: [0, 0, 255, 255])
@@ -818,10 +833,63 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
     }
 }
 
+private final class ColdTransitionRenderWorkItem: @unchecked Sendable {
+    private let lock = NSLock()
+    private var renderResult: Result<Int, Error>?
+
+    func run() {
+        let result = Result {
+            guard let device = MTLCreateSystemDefaultDevice() else {
+                throw XCTSkip("Metal device is unavailable.")
+            }
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .rgba8Unorm,
+                width: 2,
+                height: 2,
+                mipmapped: false
+            )
+            descriptor.storageMode = .shared
+            descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
+            guard let from = device.makeTexture(descriptor: descriptor),
+                  let to = device.makeTexture(descriptor: descriptor) else {
+                throw HarbethError.texture2Image
+            }
+            let fromBytes = [UInt8](repeating: 255, count: 16)
+            let toBytes = [UInt8](repeating: 0, count: 16)
+            let region = MTLRegionMake2D(0, 0, 2, 2)
+            from.replace(region: region, mipmapLevel: 0, withBytes: fromBytes, bytesPerRow: 8)
+            to.replace(region: region, mipmapLevel: 0, withBytes: toBytes, bytesPerRow: 8)
+
+            let recipe = TransitionRecipe(
+                from: .texture(from),
+                to: .texture(to),
+                kernel: .dissolve,
+                progress: 0.5
+            )
+            return try ImageNode.transition(recipe)
+                .withSamplerDescriptor(.nearest)
+                .withCachePolicy(.persistent)
+                .makeFrame(profile: recipe.profile, derivative: recipe.derivative)
+                .texture.width
+        }
+        lock.lock()
+        renderResult = result
+        lock.unlock()
+    }
+
+    func result() -> Result<Int, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        return renderResult ?? .failure(HarbethError.texture2Image)
+    }
+}
+
 private struct RouteSamplerProbeFilter: RenderProtocol {
     var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "basicFragment")
     }
+
+    var renderSamplerConsumption: RenderSamplerConsumption { .runtimeBound }
 
     func resize(input size: C7Size) -> C7Size {
         C7Size(width: 1, height: 1)

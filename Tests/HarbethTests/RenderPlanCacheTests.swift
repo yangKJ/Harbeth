@@ -86,7 +86,7 @@ final class RenderPlanCacheTests: XCTestCase {
         )
         XCTAssertEqual(key1, key2)
         XCTAssertTrue(key1.contains("profile=stablePreview"))
-        XCTAssertTrue(key1.contains("derivative=stablePreview"))
+        XCTAssertTrue(key1.contains("derivative=\(RenderProfile.stablePreview.defaultDerivativeSpec.fingerprint)"))
     }
 
     func testCacheKeyChangesWithNodeFingerprint() {
@@ -142,7 +142,39 @@ final class RenderPlanCacheTests: XCTestCase {
             samplerDescriptor: .default
         )
         XCTAssertNotEqual(defaultKey, customKey)
-        XCTAssertTrue(customKey.contains("derivative=custom-thumb"))
+        XCTAssertTrue(customKey.contains("derivative=\(customDerivative.fingerprint)"))
+    }
+
+    func testCacheKeyChangesWhenSameNamedDerivativeChangesStructure() {
+        let sourceDerivative = ImageDerivativeSpec(
+            name: "same-name",
+            renderIntent: .stable,
+            sourceTier: .stableReusable,
+            semantic: RenderProfile.stablePreview.defaultDerivativeSpec.semantic,
+            outputSizePolicy: .source
+        )
+        let thumbnailDerivative = ImageDerivativeSpec(
+            name: "same-name",
+            renderIntent: .stable,
+            sourceTier: .stableReusable,
+            semantic: RenderProfile.stablePreview.defaultDerivativeSpec.semantic,
+            outputSizePolicy: .maxPixelSize(160)
+        )
+
+        let sourceKey = ImageNode.makeRenderPlanCacheKey(
+            nodeFingerprint: "node|abc",
+            profile: .stablePreview,
+            derivative: sourceDerivative,
+            samplerDescriptor: .default
+        )
+        let thumbnailKey = ImageNode.makeRenderPlanCacheKey(
+            nodeFingerprint: "node|abc",
+            profile: .stablePreview,
+            derivative: thumbnailDerivative,
+            samplerDescriptor: .default
+        )
+
+        XCTAssertNotEqual(sourceKey, thumbnailKey)
     }
 
     func testCacheKeyChangesWithSamplerDescriptor() {

@@ -20,49 +20,54 @@ enum GPUImageScopeBackend {
             ],
             identifier: "GPUImageScope.\(configuration.kind.rawValue)"
         )
-        let densityCount = configuration.width * configuration.height * 4
-        let densityLength = densityCount * MemoryLayout<UInt32>.stride
-        guard let densityBuffer = texture.device.makeBuffer(length: densityLength, options: .storageModeShared),
-              let commandQueue = texture.device.makeCommandQueue(),
-              let commandBuffer = commandQueue.makeCommandBuffer(),
-              let encoder = commandBuffer.makeComputeCommandEncoder() else {
-            throw HarbethError.commandBuffer
+        do {
+            let densityCount = configuration.width * configuration.height * 4
+            let densityLength = densityCount * MemoryLayout<UInt32>.stride
+            guard let densityBuffer = texture.device.makeBuffer(length: densityLength, options: .storageModeShared),
+                  let commandQueue = texture.device.makeCommandQueue(),
+                  let commandBuffer = commandQueue.makeCommandBuffer(),
+                  let encoder = commandBuffer.makeComputeCommandEncoder() else {
+                throw HarbethError.commandBuffer
+            }
+            memset(densityBuffer.contents(), 0, densityLength)
+
+            let accumulationPipeline = try Compute.makeComputePipelineState(with: "imageScopeAccumulateKernel")
+            let visualizationPipeline = try Compute.makeComputePipelineState(with: "imageScopeVisualizationKernel")
+            var parameters = ImageScopeParameters(
+                kind: configuration.kind.rawValueForShader,
+                scopeWidth: UInt32(configuration.width),
+                scopeHeight: UInt32(configuration.height),
+                sourceWidth: UInt32(texture.width),
+                sourceHeight: UInt32(texture.height),
+                intensity: configuration.intensity,
+                reserved0: 0,
+                reserved1: 0
+            )
+
+            encoder.label = "Harbeth.GPUImageScope.\(configuration.kind.rawValue)"
+            encoder.setComputePipelineState(accumulationPipeline)
+            encoder.setTexture(texture, index: 0)
+            encoder.setBuffer(densityBuffer, offset: 0, index: 0)
+            encoder.setBytes(&parameters, length: MemoryLayout<ImageScopeParameters>.stride, index: 1)
+            dispatch(encoder: encoder, pipeline: accumulationPipeline, width: texture.width, height: texture.height)
+            encoder.memoryBarrier(resources: [densityBuffer])
+
+            encoder.setComputePipelineState(visualizationPipeline)
+            encoder.setBuffer(densityBuffer, offset: 0, index: 0)
+            encoder.setBytes(&parameters, length: MemoryLayout<ImageScopeParameters>.stride, index: 1)
+            encoder.setTexture(outputTexture, index: 0)
+            dispatch(
+                encoder: encoder,
+                pipeline: visualizationPipeline,
+                width: configuration.width,
+                height: configuration.height
+            )
+            encoder.endEncoding()
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "GPUImageScope.\(configuration.kind.rawValue)")
+        } catch {
+            HarbethContext.shared.texturePool.enqueueTextureSync(outputTexture)
+            throw error
         }
-        memset(densityBuffer.contents(), 0, densityLength)
-
-        let accumulationPipeline = try Compute.makeComputePipelineState(with: "imageScopeAccumulateKernel")
-        let visualizationPipeline = try Compute.makeComputePipelineState(with: "imageScopeVisualizationKernel")
-        var parameters = ImageScopeParameters(
-            kind: configuration.kind.rawValueForShader,
-            scopeWidth: UInt32(configuration.width),
-            scopeHeight: UInt32(configuration.height),
-            sourceWidth: UInt32(texture.width),
-            sourceHeight: UInt32(texture.height),
-            intensity: configuration.intensity,
-            reserved0: 0,
-            reserved1: 0
-        )
-
-        encoder.label = "Harbeth.GPUImageScope.\(configuration.kind.rawValue)"
-        encoder.setComputePipelineState(accumulationPipeline)
-        encoder.setTexture(texture, index: 0)
-        encoder.setBuffer(densityBuffer, offset: 0, index: 0)
-        encoder.setBytes(&parameters, length: MemoryLayout<ImageScopeParameters>.stride, index: 1)
-        dispatch(encoder: encoder, pipeline: accumulationPipeline, width: texture.width, height: texture.height)
-        encoder.memoryBarrier(resources: [densityBuffer])
-
-        encoder.setComputePipelineState(visualizationPipeline)
-        encoder.setBuffer(densityBuffer, offset: 0, index: 0)
-        encoder.setBytes(&parameters, length: MemoryLayout<ImageScopeParameters>.stride, index: 1)
-        encoder.setTexture(outputTexture, index: 0)
-        dispatch(
-            encoder: encoder,
-            pipeline: visualizationPipeline,
-            width: configuration.width,
-            height: configuration.height
-        )
-        encoder.endEncoding()
-        commandBuffer.commitAndWaitUntilCompleted(identifier: "GPUImageScope.\(configuration.kind.rawValue)")
 
         let contract: RenderOutputAttachmentContract
         switch configuration.kind {

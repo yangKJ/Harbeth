@@ -109,42 +109,45 @@ extension HarbethIO {
     /// texture-first task output for callers that need to observe GPU completion.
     func startRenderTextureTask(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderTask<MTLTexture> {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
-        let executionFilters = PointwiseFusionPlanner.makeExecutionFilters(context.effectiveFilters)
-        let diagnostics = GraphCompiler.compile(
-            filters: executionFilters,
-            inputSize: C7Size(texture: context.sourceTexture),
-            profile: profile,
+        let io = HarbethIO<MTLTexture>(
+            element: context.sourceTexture,
+            filters: context.effectiveFilters,
+            identifier: identifier
+        ).configured(for: profile)
+        let program = io.makeRenderProgram(
+            input: context.sourceTexture,
             derivative: context.effectiveDerivative,
-            compilationSource: .filtersPrimitive,
             sourceDescriptor: context.sourceObject.descriptor
-        ).diagnostics
+        )
         guard context.effectiveFilters.isEmpty == false else {
-            return .completed(identifier: identifier, output: context.sourceTexture, diagnostics: diagnostics)
+            return .completed(identifier: identifier, output: context.sourceTexture, diagnostics: program.diagnostics)
         }
-        return try HarbethIO<MTLTexture>(element: context.sourceTexture, filters: context.effectiveFilters)
-            .configured(for: profile)
-            .startRenderTextureTask(diagnostics: diagnostics)
+        return try io.startCompiledRenderTextureTask(program: program)
     }
 
     /// 结构化渲染计划诊断，供上层做日志、调度、缓存和大图策略分析。
     func renderDiagnostics(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
-        let executionFilters = PointwiseFusionPlanner.makeExecutionFilters(context.effectiveFilters)
-        let plan = GraphCompiler.compile(
-            filters: executionFilters,
-            inputSize: C7Size(texture: context.sourceTexture),
-            profile: profile,
+        let io = HarbethIO<MTLTexture>(
+            element: context.sourceTexture,
+            filters: context.effectiveFilters,
+            identifier: identifier
+        ).configured(for: profile)
+        let program = io.makeRenderProgram(
+            input: context.sourceTexture,
             derivative: context.effectiveDerivative,
-            compilationSource: .filtersPrimitive,
             sourceDescriptor: context.sourceObject.descriptor
         )
         if HarbethContext.shared.enablePerformanceMonitor {
-            HarbethContext.shared.performanceMonitor.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
-            if plan.requiresCompletedGPUWork {
+            HarbethContext.shared.performanceMonitor.recordRenderStageCount(
+                identifier,
+                stageCount: program.plan.optimizedStages.count
+            )
+            if program.plan.requiresCompletedGPUWork {
                 HarbethContext.shared.performanceMonitor.recordReadbackBoundary(identifier)
             }
         }
-        return plan.diagnostics
+        return program.diagnostics
     }
 
     func renderDiagnosticsJSONData(profile: RenderProfile = .stablePreview,
@@ -182,48 +185,109 @@ extension HarbethIO {
     }
 
     func makeRenderRequest(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        let renderRecipe = try renderRecipe(profile: profile, derivative: effectiveDerivative)
-        let diagnostics = try renderDiagnostics(profile: profile, derivative: effectiveDerivative)
-        let source = try makeImageSource()
-        return RenderRequest.makeDelegatedRequest(
+        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
+        let outputCachePolicy: ImageCachePolicy = context.effectiveFilters.isEmpty ? context.sourceObject.cachePolicy : .transient
+        let renderRecipe = RenderRecipe(
+            renderProfile: String(describing: profile),
+            renderIntent: context.effectiveDerivative.renderIntent,
+            source: context.sourceObject.descriptor,
+            outputDerivative: context.effectiveDerivative,
+            outputCachePolicy: outputCachePolicy,
+            outputSemantic: context.effectiveDerivative.semantic,
+            alphaType: context.sourceObject.alphaType,
+            orientation: context.sourceObject.orientation,
+            filters: context.effectiveFilters.map(\.recipeDescriptor),
+            localEffects: nil,
+            layerMasks: nil
+        )
+        let io = HarbethIO<MTLTexture>(
+            element: context.sourceTexture,
+            filters: context.effectiveFilters,
+            identifier: identifier
+        ).configured(for: profile)
+        let program = io.makeRenderProgram(
+            input: context.sourceTexture,
+            derivative: context.effectiveDerivative,
+            sourceDescriptor: context.sourceObject.descriptor
+        )
+        let renderFrame: ([String: String]) throws -> RenderedFrame = { metadata in
+            var preparedMetadata = metadata
+            preparedMetadata["renderExecutionFingerprint"] = program.fingerprint
+            preparedMetadata["renderGraphFingerprint"] = program.diagnostics.graphFingerprint
+            let frameRenderer = FrameRenderer(
+                source: context.sourceObject,
+                filters: context.effectiveFilters,
+                profile: profile,
+                renderIntent: context.effectiveDerivative.renderIntent,
+                identifier: identifier,
+                metadata: preparedMetadata,
+                outputSemantic: context.effectiveDerivative.semantic,
+                outputDerivative: context.effectiveDerivative
+            )
+            let rendered = try io.renderManagedTexture(program: program)
+            return try frameRenderer.materializeFrame(
+                renderedTexture: rendered.texture,
+                lease: rendered.lease,
+                token: frameRenderer.makeToken()
+            )
+        }
+        // Attachment inspection belongs to the final render primitive itself. A derivative
+        // resize is a delivery step after that primitive, so it must not replace this route.
+        let preparedAttachmentFilter = filters.last as? any RenderProtocol
+        let preparedAttachmentInput: (() throws -> MTLTexture)?
+        if preparedAttachmentFilter != nil {
+            let preFilters = Array(filters.dropLast())
+            if preFilters.isEmpty {
+                preparedAttachmentInput = { context.sourceTexture }
+            } else {
+                let preIO = HarbethIO<MTLTexture>(
+                    element: context.sourceTexture,
+                    filters: preFilters,
+                    identifier: "\(identifier).preparedAttachment"
+                ).configured(for: profile)
+                let preProgram = preIO.makeRenderProgram(
+                    input: context.sourceTexture,
+                    derivative: profile.defaultDerivativeSpec,
+                    sourceDescriptor: context.sourceObject.descriptor
+                )
+                preparedAttachmentInput = {
+                    try preIO.executeRenderProgram(input: context.sourceTexture, program: preProgram)
+                }
+            }
+        } else {
+            preparedAttachmentInput = nil
+        }
+        let attachmentDebugPolicies = preparedAttachmentFilter?
+            .renderOutputContract.attachments.map(\.debugPolicy)
+            ?? program.diagnostics.outputAttachmentDebugPolicies
+        return RenderRequest.makeFrameBackedRequest(
             compilationSource: .filtersPrimitive,
             profile: profile,
-            derivative: effectiveDerivative,
-            source: source.descriptor,
-            outputCachePolicy: renderRecipe.outputCachePolicy,
-            diagnostics: diagnostics,
+            derivative: context.effectiveDerivative,
+            source: context.sourceObject.descriptor,
+            outputCachePolicy: outputCachePolicy,
+            diagnostics: program.diagnostics,
             renderRecipe: renderRecipe,
-            renderTexture: { try renderTexture(profile: profile, derivative: effectiveDerivative) },
-            renderFrame: { metadata in
-                try renderFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+            renderTexture: {
+                if context.effectiveFilters.isEmpty {
+                    return context.sourceTexture
+                }
+                return try io.executeRenderProgram(input: context.sourceTexture, program: program)
             },
-            renderAnalysisBundle: { channel, bins, histogramHeight, region, preferredMethod in
-                try renderAnalysisBundle(
-                    profile: profile,
-                    derivative: effectiveDerivative,
-                    channel: channel,
-                    bins: bins,
-                    histogramHeight: histogramHeight,
-                    region: region,
-                    preferredMethod: preferredMethod
+            renderFrame: renderFrame,
+            attachmentDebugPolicies: attachmentDebugPolicies,
+            renderAttachmentSet: {
+                guard let preparedAttachmentFilter, let preparedAttachmentInput else { return nil }
+                return try preparedAttachmentFilter.renderAttachmentSet(
+                    from: preparedAttachmentInput(),
+                    identifier: "\(identifier).attachmentSet"
                 )
             },
-            renderAnalysisScopeBundle: { channel, bins, histogramHeight, scope, preferredMethod in
-                try renderAnalysisBundle(
-                    profile: profile,
-                    derivative: effectiveDerivative,
-                    channel: channel,
-                    bins: bins,
-                    histogramHeight: histogramHeight,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-            },
-            renderAttachmentSet: { try renderAttachmentSet(profile: profile) },
             renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
-                try renderAttachmentAnalysisBundle(
-                    profile: profile,
+                guard let preparedAttachmentFilter, let preparedAttachmentInput else { return nil }
+                return try preparedAttachmentFilter.renderAttachmentAnalysisBundle(
+                    from: preparedAttachmentInput(),
+                    identifier: "\(identifier).attachmentAnalysis",
                     bins: bins,
                     histogramHeight: histogramHeight,
                     region: region,
@@ -231,8 +295,10 @@ extension HarbethIO {
                 )
             },
             renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
-                try renderAttachmentAnalysisBundle(
-                    profile: profile,
+                guard let preparedAttachmentFilter, let preparedAttachmentInput else { return nil }
+                return try preparedAttachmentFilter.renderAttachmentAnalysisBundle(
+                    from: preparedAttachmentInput(),
+                    identifier: "\(identifier).attachmentAnalysis",
                     bins: bins,
                     histogramHeight: histogramHeight,
                     scope: scope,

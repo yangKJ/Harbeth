@@ -57,7 +57,10 @@ public struct C7ChromaticAberrationCorrection: C7FilterProtocol, SamplerAdaptabl
         if let edgeMode {
             resolved.edgeMode = edgeMode
         }
-        return .covered(resolved)
+        if samplingMode != nil, edgeMode != nil, descriptor.mipFilter == .notMipmapped {
+            return .covered(resolved)
+        }
+        return .partial(resolved)
     }
 
     public init(center: C7Point2D = .center,

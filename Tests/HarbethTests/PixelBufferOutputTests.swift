@@ -1397,6 +1397,8 @@ private struct PixelBufferOutputColorSpaceRenderFilter: RenderProtocol {
         .render(vertex: "basicVertex", fragment: "basicFragment")
     }
 
+    var renderSamplerConsumption: RenderSamplerConsumption { .runtimeBound }
+
     var renderOutputContract: RenderOutputContract {
         RenderOutputContract(colorSpace: .displayP3)
     }

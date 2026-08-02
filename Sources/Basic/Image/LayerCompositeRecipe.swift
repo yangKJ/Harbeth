@@ -483,55 +483,9 @@ public struct LayerCompositeRecipe {
                            samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRequest {
         let effectiveProfile = profile ?? self.profile
         let effectiveDerivative = derivative ?? self.derivative
-        let node = makeNode().withSamplerDescriptor(samplerDescriptor)
-        let diagnostics = try node.makeDiagnostics(profile: effectiveProfile, derivative: effectiveDerivative)
-        let recipeDescriptor = try makeRenderRecipe(
-            profile: effectiveProfile,
-            derivative: effectiveDerivative,
-            samplerDescriptor: samplerDescriptor
-        )
-        let attachmentPolicies = try node.makeAttachmentDebugPolicies(profile: effectiveProfile, derivative: effectiveDerivative)
-        return RenderRequest.makeFrameBackedRequest(
-            compilationSource: .layerComposite,
-            profile: effectiveProfile,
-            derivative: effectiveDerivative,
-            source: background.descriptor,
-            outputCachePolicy: .transient,
-            diagnostics: diagnostics,
-            renderRecipe: recipeDescriptor,
-            renderTexture: {
-                try makeTexture(
-                    profile: effectiveProfile,
-                    derivative: effectiveDerivative,
-                    samplerDescriptor: samplerDescriptor
-                )
-            },
-            renderFrame: { metadata in
-                try node.makeFrame(profile: effectiveProfile, derivative: effectiveDerivative, metadata: metadata)
-            },
-            attachmentDebugPolicies: attachmentPolicies,
-            renderAttachmentSet: {
-                try node.makeAttachmentSet(profile: effectiveProfile)
-            },
-            renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
-                try node.makeAttachmentAnalysisBundle(
-                    profile: effectiveProfile,
-                    bins: bins,
-                    histogramHeight: histogramHeight,
-                    region: region,
-                    preferredMethod: preferredMethod
-                )
-            },
-            renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
-                try node.makeAttachmentAnalysisBundle(
-                    profile: effectiveProfile,
-                    bins: bins,
-                    histogramHeight: histogramHeight,
-                    scope: scope,
-                    preferredMethod: preferredMethod
-                )
-            }
-        )
+        return try makeNode()
+            .withSamplerDescriptor(samplerDescriptor)
+            .makeRenderRequest(profile: effectiveProfile, derivative: effectiveDerivative)
     }
 
     var layerMaskDescriptors: [LayerMaskRecipeDescriptor]? {
@@ -611,7 +565,7 @@ extension LayerCompositeRecipe {
                 )
             ]
         }
-        let plan = GraphCompiler.compile(
+        let plan = RenderExecutionCompiler.compile(
             filters: filters,
             inputSize: backgroundSize,
             profile: effectiveProfile,
@@ -620,7 +574,7 @@ extension LayerCompositeRecipe {
             outputContract: outputContract,
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: background.descriptor
-        )
+        ).plan
         let preparationCoverage = SamplerExecutionAdapter.coverage(
             for: layerPreparationFilters,
             samplerDescriptor: samplerDescriptor

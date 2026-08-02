@@ -61,6 +61,23 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 - Added `PreviewDynamicRangePolicy` and observable `PreviewDisplayState` to `RenderView`; frame-driven previews now select SDR/16-bit float drawables, configure `CAMetalLayer` color space, request EDR when supported and report deterministic SDR fallback.
 - Extended `HarbethRenderView` with the same dynamic-range policy and display-state callback while preserving the existing raw-texture SDR default.
 
+#### Changed
+
+- Unified HarbethIO and ImageNode filter lowering around one internal execution program that freezes sampler adaptation, pointwise fusion, render planning, executable steps and diagnostics from the same input chain.
+- Connected optimized stage lifecycle decisions to executable step liveness so intermediate textures are recycled only after their final GPU consumer completes.
+- Added `SamplerAdaptation.partial` and the required `RenderProtocol.renderSamplerConsumption` contract, so every render filter explicitly declares whether its shader consumes runtime-bound or shader-defined sampler state.
+- Harbeth 3.0 no longer preserves the former implicit sampler behavior for arbitrary `RenderProtocol` filters; custom render filters must declare `.runtimeBound` or `.shaderDefined` directly on the primary render protocol.
+
+#### Fixed
+
+- Made synchronous command-buffer submission throw on GPU failure and release uncommitted raw/managed outputs instead of returning undefined textures or leases as successful results.
+- Prepared `RenderRequest` and `ImageNode.makeFrame(...)` from one execution snapshot, so ordinary filter execution and diagnostics share the same compiled program while recipe, transition and layer routes retain explicit orchestration boundaries.
+- Isolated `PreviewDisplaying` and `RenderView` to the main actor so drawable/layer mutation and preview display-state callbacks cannot run on a background render completion queue.
+- Rejected structurally stale cached render plans even when a custom filter exposes an incomplete recipe fingerprint.
+- Stopped reporting arbitrary render filters as sampler-covered when their shaders use fixed inline samplers, and now report mixed min/mag, address-mode or mip mappings as partial coverage instead of silently claiming full execution.
+- Applied ImageNode sampler descriptors consistently across FrameRenderer's synchronous and asynchronous filter paths.
+- Prevented nested ImageNode cache and sampler wrappers from retaining recursive render-plan compiler stack frames on small worker queues during cold transition rendering.
+
 ### 2026-08-01 — Runtime resource ownership and context migration
 
 #### Added

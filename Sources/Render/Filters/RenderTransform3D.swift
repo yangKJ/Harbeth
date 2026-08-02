@@ -23,6 +23,10 @@ public struct RenderTransform3D: RenderProtocol {
         .render(vertex: "projectiveVertex", fragment: "basicFragment")
     }
 
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
+    }
+
     public var factors: [Float] {
         [fieldOfView, Float(viewportMode.rawValue)]
     }

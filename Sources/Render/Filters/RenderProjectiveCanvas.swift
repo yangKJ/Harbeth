@@ -23,6 +23,10 @@ public struct RenderProjectiveCanvas: RenderProtocol {
         .render(vertex: "basicVertex", fragment: "projectiveCanvasFragment")
     }
 
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .shaderDefined
+    }
+
     public var renderOutputContract: RenderOutputContract {
         RenderOutputContract(
             alpha: .premultiplied,

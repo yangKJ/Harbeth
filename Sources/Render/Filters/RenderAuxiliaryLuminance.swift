@@ -8,11 +8,15 @@
 import Foundation
 import MetalKit
 
-/// 在一次 render pass 内同时输出主色结果和辅助亮度图。
+/// Output the main color result and auxiliary brightness map at the same time in a render pass.
 public struct RenderAuxiliaryLuminance: RenderProtocol {
 
     public var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "dualOutputLuminanceFragment")
+    }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
     }
 
     public var renderOutputContract: RenderOutputContract {

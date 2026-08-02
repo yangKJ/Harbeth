@@ -10,7 +10,7 @@ import Foundation
 
 extension MTLCommandBuffer {
     
-    func commitAndWaitUntilCompleted(identifier: String) {
+    func commitAndWaitUntilCompleted(identifier: String) throws {
         if HarbethContext.shared.enablePerformanceMonitor {
             HarbethContext.shared.performanceMonitor.beginGPUOperation(identifier)
             // Commit a command buffer so it can be executed as soon as possible.
@@ -23,6 +23,12 @@ extension MTLCommandBuffer {
             self.commit()
             // Wait to make sure that output texture contains new data.
             self.waitUntilCompleted()
+        }
+        if let completionError = CommandBufferCompletionValidator.error(
+            status: status,
+            underlyingError: error
+        ) {
+            throw completionError
         }
     }
     
@@ -65,5 +71,18 @@ extension MTLCommandBuffer {
         self.commit()
         self.waitUntilScheduled()
         complete()
+    }
+}
+
+enum CommandBufferCompletionValidator {
+    static func error(status: MTLCommandBufferStatus, underlyingError: Error?) -> HarbethError? {
+        switch status {
+        case .completed:
+            return nil
+        case .error where underlyingError != nil:
+            return .error(underlyingError!)
+        default:
+            return .commandBufferAsyncCommit(status)
+        }
     }
 }

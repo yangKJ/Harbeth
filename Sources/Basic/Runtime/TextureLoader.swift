@@ -542,12 +542,20 @@ extension TextureLoader {
             planeTextures: source.planeTextures
         )
         guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
+            HarbethContext.shared.texturePool.enqueueTextureSync(outputTexture)
             throw HarbethError.commandBuffer
         }
-        commandBuffer.label = "Harbeth.YCbCrDecode.\(strategy.descriptor)"
-        _ = try filter.applyAtTexture(form: source.primaryTexture, to: outputTexture, for: commandBuffer)
-        commandBuffer.commitAndWaitUntilCompleted(identifier: "YCbCrDecode")
-        return outputTexture
+        do {
+            commandBuffer.label = "Harbeth.YCbCrDecode.\(strategy.descriptor)"
+            _ = try filter.applyAtTexture(form: source.primaryTexture, to: outputTexture, for: commandBuffer)
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "YCbCrDecode")
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            return outputTexture
+        } catch {
+            HarbethContext.shared.texturePool.enqueueTextureSync(outputTexture)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
+        }
     }
 
     private static func resolveRetainedOwners(primaryTexture: MTLTexture, fallbackOwner: AnyObject) -> [AnyObject] {

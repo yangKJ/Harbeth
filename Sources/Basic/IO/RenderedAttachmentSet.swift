@@ -95,17 +95,22 @@ public extension RenderProtocol {
             outputSize: outputSize,
             identifier: identifier
         )
-        let command = RenderCommand(
-            filter: self,
-            sourceTexture: sourceTexture,
-            renderPass: descriptor.renderPass
-        )
-        let batch = try RenderCommandBatch(
-            renderPass: descriptor.renderPass,
-            destinationTexturesByAttachmentIndex: destinationTextures,
-            commands: [command]
-        )
-        try Rendering.encode(batch: batch, commandBuffer: commandBuffer)
+        do {
+            let command = RenderCommand(
+                filter: self,
+                sourceTexture: sourceTexture,
+                renderPass: descriptor.renderPass
+            )
+            let batch = try RenderCommandBatch(
+                renderPass: descriptor.renderPass,
+                destinationTexturesByAttachmentIndex: destinationTextures,
+                commands: [command]
+            )
+            try Rendering.encode(batch: batch, commandBuffer: commandBuffer)
+        } catch {
+            HarbethContext.shared.texturePool.enqueueTexturesSync(Array(destinationTextures.values))
+            throw error
+        }
 
         let attachments: [RenderedAttachment] = descriptor.outputContract.attachments.compactMap { attachment in
             guard let texture = destinationTextures[attachment.index] else { return nil }
@@ -129,36 +134,45 @@ public extension RenderProtocol {
             throw HarbethError.commandBuffer
         }
         commandBuffer.label = "Harbeth.RenderAttachmentSet.\(identifier)"
-        let attachmentSet = try encodeAttachmentSet(
-            from: sourceTexture,
-            commandBuffer: commandBuffer,
-            identifier: identifier
-        )
-        commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-        guard commandBuffer.status == .completed else {
-            if let error = commandBuffer.error {
-                throw HarbethError.error(error)
+        var attachmentSet: RenderedAttachmentSet?
+        do {
+            attachmentSet = try encodeAttachmentSet(
+                from: sourceTexture,
+                commandBuffer: commandBuffer,
+                identifier: identifier
+            )
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            return attachmentSet!
+        } catch {
+            if let attachmentSet {
+                HarbethContext.shared.texturePool.enqueueTexturesSync(attachmentSet.attachments.map(\.texture))
             }
-            throw HarbethError.commandBufferAsyncCommit(commandBuffer.status)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
         }
-        return attachmentSet
     }
 
     private func makeDestinationTextures(outputContract: RenderOutputContract, outputSize: C7Size, identifier: String) throws -> [Int: MTLTexture] {
         var textures: [Int: MTLTexture] = [:]
-        for attachment in outputContract.attachments {
-            let pixelFormat = attachment.pixelFormat.metalPixelFormat ?? .rgba8Unorm
-            let texture = try TextureLoader.makeTexture(
-                width: outputSize.width,
-                height: outputSize.height,
-                options: [
-                    .texturePixelFormat: pixelFormat,
-                    .textureUsage: MTLTextureUsage([.shaderRead, .renderTarget])
-                ],
-                identifier: "\(identifier).attachment\(attachment.index)"
-            )
-            textures[attachment.index] = texture
+        do {
+            for attachment in outputContract.attachments {
+                let pixelFormat = attachment.pixelFormat.metalPixelFormat ?? .rgba8Unorm
+                let texture = try TextureLoader.makeTexture(
+                    width: outputSize.width,
+                    height: outputSize.height,
+                    options: [
+                        .texturePixelFormat: pixelFormat,
+                        .textureUsage: MTLTextureUsage([.shaderRead, .renderTarget])
+                    ],
+                    identifier: "\(identifier).attachment\(attachment.index)"
+                )
+                textures[attachment.index] = texture
+            }
+            return textures
+        } catch {
+            HarbethContext.shared.texturePool.enqueueTexturesSync(Array(textures.values))
+            throw error
         }
-        return textures
     }
 }

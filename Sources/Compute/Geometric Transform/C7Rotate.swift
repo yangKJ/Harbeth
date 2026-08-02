@@ -46,7 +46,10 @@ public struct C7Rotate: C7FilterProtocol, SamplerAdaptableFilter {
         if let edgeMode {
             resolved.edgeMode = edgeMode
         }
-        return .covered(resolved)
+        if samplingMode != nil, edgeMode != nil, descriptor.mipFilter == .notMipmapped {
+            return .covered(resolved)
+        }
+        return .partial(resolved)
     }
 
     private var mode: Placement = .fit

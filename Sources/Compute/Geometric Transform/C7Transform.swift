@@ -39,7 +39,10 @@ public struct C7Transform: C7FilterProtocol, SamplerAdaptableFilter {
         if let edgeMode {
             resolved.edgeMode = edgeMode
         }
-        return .covered(resolved)
+        if samplingMode != nil, edgeMode != nil, descriptor.mipFilter == .notMipmapped {
+            return .covered(resolved)
+        }
+        return .partial(resolved)
     }
 
     public var kernelParameterBindings: [KernelParameterBinding] {

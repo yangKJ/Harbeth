@@ -104,7 +104,7 @@ public struct EditRecipe {
             extraFilters: extraFilters,
             derivative: derivative
         )
-        return GraphCompiler.compile(
+        return RenderExecutionCompiler.compile(
             filters: compiled.diagnosticFilters,
             inputSize: compiled.inputSize,
             profile: compiled.profile,
@@ -112,7 +112,7 @@ public struct EditRecipe {
             compilationSource: .editRecipe,
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: compiled.source.descriptor
-        )
+        ).plan
     }
 
     func makeRenderRecipe(source: ImageSource,
@@ -129,7 +129,7 @@ public struct EditRecipe {
             extraFilters: extraFilters,
             derivative: derivative
         )
-        let plan = GraphCompiler.compile(
+        let plan = RenderExecutionCompiler.compile(
             filters: compiled.diagnosticFilters,
             inputSize: compiled.inputSize,
             profile: compiled.profile,
@@ -137,7 +137,7 @@ public struct EditRecipe {
             compilationSource: .editRecipe,
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: compiled.source.descriptor
-        )
+        ).plan
         let filters = plan.diagnostics.nodes
             .filter { $0.name != "DerivativeResize" }
             .map { diagnostic in
@@ -163,128 +163,6 @@ public struct EditRecipe {
             filters: filters,
             localEffects: localEffects.isEmpty ? nil : localEffects.map(\.recipeDescriptor),
             layerMasks: nil
-        )
-    }
-
-    func makeRenderRequest(source: ImageSource,
-                           mode: EditRecipeMode = .preview,
-                           extraFilters: [C7FilterProtocol] = [],
-                           derivative: ImageDerivativeSpec? = nil,
-                           identifier: String = UUID().uuidString,
-                           samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderRequest {
-        let compiled = try compileExecution(
-            source: source,
-            mode: mode,
-            extraFilters: extraFilters,
-            derivative: derivative
-        )
-        let plan = try makeRenderPlan(
-            source: source,
-            mode: mode,
-            extraFilters: extraFilters,
-            derivative: derivative,
-            samplerDescriptor: samplerDescriptor
-        )
-        let recipeDescriptor = try makeRenderRecipe(
-            source: source,
-            mode: mode,
-            extraFilters: extraFilters,
-            derivative: derivative,
-            samplerDescriptor: samplerDescriptor
-        )
-        let attachmentPolicies = try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
-            .applying(filters: extraFilters)
-            .withSamplerDescriptor(samplerDescriptor)
-            .makeAttachmentDebugPolicies(profile: compiled.profile, derivative: compiled.derivative)
-        let renderFrame: ([String: String]) throws -> RenderedFrame = { metadata in
-            try FrameRenderer(
-                source: compiled.source,
-                recipe: self,
-                mode: mode,
-                filters: extraFilters,
-                identifier: identifier,
-                metadata: metadata,
-                derivative: compiled.derivative,
-                samplerDescriptor: samplerDescriptor
-            ).renderFrame()
-        }
-        return RenderRequest.makeFrameBackedRequest(
-            compilationSource: .editRecipe,
-            profile: compiled.profile,
-            derivative: compiled.derivative,
-            source: compiled.source.descriptor,
-            outputCachePolicy: compiled.outputCachePolicy,
-            diagnostics: plan.diagnostics,
-            renderRecipe: recipeDescriptor,
-            renderTexture: {
-                let renderTexture: (MTLTexture, [C7FilterProtocol], RenderProfile) throws -> MTLTexture = { input, filters, profile in
-                    guard filters.isEmpty == false else { return input }
-                    return try HarbethIO(
-                        element: input,
-                        filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor)
-                    )
-                    .configured(for: profile)
-                    .output()
-                }
-                var currentTexture = try renderTexture(compiled.inputTexture, compiled.baseFilters, compiled.profile)
-                for localEffect in compiled.localEffects {
-                    let filteredTexture = try renderTexture(currentTexture, localEffect.filters, compiled.profile)
-                    let effectTexture: MTLTexture
-                    if let blendType = localEffect.foregroundBlendType {
-                        effectTexture = try renderTexture(
-                            currentTexture,
-                            [C7Blend(with: blendType, blendTexture: filteredTexture, intensity: localEffect.foregroundBlendOpacity)],
-                            compiled.profile
-                        )
-                    } else {
-                        effectTexture = filteredTexture
-                    }
-                    currentTexture = try renderTexture(
-                        currentTexture,
-                        [MaskRegionBlend(effectTexture: effectTexture, mask: localEffect.mask)],
-                        compiled.profile
-                    )
-                }
-                let targetSize = compiled.derivative.resolvedOutputSize(for: C7Size(texture: currentTexture))
-                guard targetSize.width != currentTexture.width || targetSize.height != currentTexture.height else {
-                    return currentTexture
-                }
-                return try HarbethIO(
-                    element: currentTexture,
-                    filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height))
-                )
-                .configured(for: compiled.profile)
-                .output()
-            },
-            renderFrame: renderFrame,
-            attachmentDebugPolicies: attachmentPolicies,
-            renderAttachmentSet: {
-                try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
-                    .applying(filters: extraFilters)
-                    .makeAttachmentSet(profile: compiled.profile)
-            },
-            renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
-                try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
-                    .applying(filters: extraFilters)
-                    .makeAttachmentAnalysisBundle(
-                        profile: compiled.profile,
-                        bins: bins,
-                        histogramHeight: histogramHeight,
-                        region: region,
-                        preferredMethod: preferredMethod
-                    )
-            },
-            renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
-                try ImageNode.recipe(source: compiled.source, recipe: self, mode: mode)
-                    .applying(filters: extraFilters)
-                    .makeAttachmentAnalysisBundle(
-                        profile: compiled.profile,
-                        bins: bins,
-                        histogramHeight: histogramHeight,
-                        scope: scope,
-                        preferredMethod: preferredMethod
-                    )
-            }
         )
     }
 

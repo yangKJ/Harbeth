@@ -276,30 +276,34 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
             complete(.success(texture))
             return
         }
-        let plan = makeRenderPlan(input: texture)
-        prepareTextureLifecycle(for: plan, inputPixelFormat: texture.pixelFormat)
-        let operationState = HarbethUncheckedTransfer(value: (io: self, texture: texture, plan: plan))
+        let program = makeRenderProgram(input: texture)
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: texture.pixelFormat)
+        let operationState = HarbethUncheckedTransfer(value: (io: self, texture: texture, program: program))
         let operation = BlockOperation {
             let io = operationState.value.io
             let inputTexture = operationState.value.texture
-            let plan = operationState.value.plan
+            let program = operationState.value.program
             do {
                 // Real-time mode: wait until scheduled, not completed
                 let deliversWhenScheduled = io.transmitOutputRealTimeCommit && io.element is MTLTexture
                 if deliversWhenScheduled {
                     let commandBuffer = try io.makeCommandBuffer()
-                    let rendering: (output: MTLTexture, recycling: [MTLTexture])
-                    if io.shouldUseDoubleBuffer(input: inputTexture, plan: plan, minimumFilterCount: 4) {
-                        rendering = (try io.doubleBuffering(input: inputTexture, plan: plan, commandBuffer: commandBuffer), [])
-                    } else {
-                        let result = try io.singleBuffer(input: inputTexture, plan: plan, commandBuffer: commandBuffer)
-                        rendering = (result.0, result.1)
+                    let rendering: RawTextureRendering
+                    do {
+                        if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
+                            rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                        } else {
+                            rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                        }
+                    } catch {
+                        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                        throw error
                     }
                     let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
                     // Ensure textures are returned after GPU completion
-                    if rendering.recycling.isEmpty == false {
+                    if rendering.successRecycling.isEmpty == false {
                         commandBuffer.addCompletedHandler { _ in
-                            HarbethContext.shared.texturePool.enqueueTexturesSync(callbackState.value.rendering.recycling)
+                            io.recycleRawTextures(callbackState.value.rendering.successRecycling)
                         }
                     }
                     // Real-time commit: wait until scheduled, not completed
@@ -314,21 +318,26 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                 } else {
                     // Normal async mode
                     let commandBuffer = try io.makeCommandBuffer()
-                    let rendering: (output: MTLTexture, recycling: [MTLTexture])
-                    if io.shouldUseDoubleBuffer(input: inputTexture, plan: plan, minimumFilterCount: 4) {
-                        rendering = (try io.doubleBuffering(input: inputTexture, plan: plan, commandBuffer: commandBuffer), [])
-                    } else {
-                        let result = try io.singleBuffer(input: inputTexture, plan: plan, commandBuffer: commandBuffer)
-                        rendering = (result.0, result.1)
+                    let rendering: RawTextureRendering
+                    do {
+                        if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
+                            rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                        } else {
+                            rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                        }
+                    } catch {
+                        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                        throw error
                     }
                     let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
                     commandBuffer.asyncCommit(identifier: io.identifier) { result in
                         switch result {
                         case .success:
-                            HarbethContext.shared.texturePool.enqueueTexturesSync(callbackState.value.rendering.recycling)
+                            io.recycleRawTextures(callbackState.value.rendering.successRecycling)
                             HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
                             complete(.success(callbackState.value.rendering.output))
                         case .failure(let error):
+                            io.recycleRawTextures(callbackState.value.rendering.failureRecycling)
                             HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
                             complete(.failure(HarbethError.toHarbethError(error)))
                         }
@@ -347,83 +356,150 @@ struct ManagedTextureResult: @unchecked Sendable {
     let lease: TextureLease?
 }
 
-private extension HarbethIO {
+private struct RawTextureStage {
+    let texture: MTLTexture
+    let allocatedDestination: MTLTexture?
+}
+
+private struct RawTextureRendering {
+    let output: MTLTexture
+    let successRecycling: [MTLTexture]
+    let failureRecycling: [MTLTexture]
+}
+
+extension HarbethIO {
     private func filtering(texture: MTLTexture) throws -> MTLTexture {
-        let plan = makeRenderPlan(input: texture)
-        switch groupStrategy(for: plan) {
+        let program = makeRenderProgram(input: texture)
+        return try executeRenderProgram(input: texture, program: program)
+    }
+
+    func executeRenderProgram(input texture: MTLTexture, program: RenderExecutionProgram) throws -> MTLTexture {
+        guard program.sourceFilterFingerprint == filters.chainRecipe.fingerprint,
+              program.diagnostics.inputSize == C7Size(texture: texture) else {
+            throw HarbethError.configurationInvalid(
+                "RenderExecutionProgram does not match the HarbethIO input or filter chain."
+            )
+        }
+        guard program.steps.isEmpty == false else { return texture }
+        switch groupStrategy(for: program.plan) {
         case .batched:
-            return try processBatchedFilters(input: texture, plan: plan)
+            return try processBatchedFilters(input: texture, program: program)
         case .interleaved:
-            return try processInterleavedFilters(input: texture, plan: plan)
+            return try processInterleavedFilters(input: texture, program: program)
         }
     }
 
-    private func processBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
-        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
+    private func processBatchedFilters(input: MTLTexture, program: RenderExecutionProgram) throws -> MTLTexture {
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: input.pixelFormat)
         let commandBuffer = try makeCommandBuffer(for: nil)
-        let outputTexture: MTLTexture
-        var texturesToEnqueue: [MTLTexture] = []
-        if shouldUseDoubleBuffer(input: input, plan: plan, minimumFilterCount: 1) {
-            outputTexture = try doubleBuffering(input: input, plan: plan, commandBuffer: commandBuffer)
-        } else {
-            (outputTexture, texturesToEnqueue) = try singleBuffer(input: input, plan: plan, commandBuffer: commandBuffer)
+        let rendering: RawTextureRendering
+        do {
+            if shouldUseDoubleBuffer(input: input, program: program, minimumFilterCount: 1) {
+                rendering = try doubleBuffering(input: input, program: program, commandBuffer: commandBuffer)
+            } else {
+                rendering = try singleBuffer(input: input, program: program, commandBuffer: commandBuffer)
+            }
+        } catch {
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
         }
-        commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-        HarbethContext.shared.texturePool.enqueueTexturesSync(texturesToEnqueue)
-        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-        return outputTexture
+        do {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+            recycleRawTextures(rendering.successRecycling)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            return rendering.output
+        } catch {
+            recycleRawTextures(rendering.failureRecycling)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
+        }
     }
 
-    private func processInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> MTLTexture {
-        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
+    private func processInterleavedFilters(input: MTLTexture, program: RenderExecutionProgram) throws -> MTLTexture {
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: input.pixelFormat)
         var outputTexture = input
-        let filters = executionFilters
-        // Use self.filters (current state) instead of node.filter (cached snapshot).
-        // The plan provides DAG structure; filter state (including otherInputTextures) must
-        // come from the live filters array so that texture changes (e.g. moving a mask) are
-        // reflected in every render without invalidating the structural cache.
-        var filterIndex = 0
-        for node in plan.graph.nodes {
-            guard node.filter != nil else { continue }
-            let filter = filters[filterIndex]
-            filterIndex += 1
-            let commandBuffer = try makeCommandBuffer(for: nil)
-            outputTexture = try textureIO(input: outputTexture, filter: filter, for: commandBuffer)
-            commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+        var ownedOutput: MTLTexture?
+        for step in program.steps {
+            let commandBuffer: MTLCommandBuffer
+            do {
+                commandBuffer = try makeCommandBuffer(for: nil)
+            } catch {
+                recycleRawTextures(ownedOutput.map { [$0] } ?? [])
+                throw error
+            }
+            let previousOwnedOutput = ownedOutput
+            let stage: RawTextureStage
+            do {
+                stage = try textureIO(input: outputTexture, filter: step.filter, for: commandBuffer)
+            } catch {
+                recycleRawTextures(previousOwnedOutput.map { [$0] } ?? [])
+                HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                throw error
+            }
+            outputTexture = stage.texture
+            do {
+                try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+                recycleRawTextures(
+                    [previousOwnedOutput, stage.allocatedDestination]
+                        .compactMap { $0 }
+                        .filter { $0 !== outputTexture }
+                )
+                if outputTexture === stage.allocatedDestination {
+                    ownedOutput = stage.allocatedDestination
+                } else if outputTexture === previousOwnedOutput {
+                    ownedOutput = previousOwnedOutput
+                } else {
+                    ownedOutput = nil
+                }
+                HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            } catch {
+                recycleRawTextures([previousOwnedOutput, stage.allocatedDestination].compactMap { $0 })
+                HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                throw error
+            }
         }
         return outputTexture
     }
 }
 
 extension HarbethIO {
-    private var executionFilters: [C7FilterProtocol] {
-        PointwiseFusionPlanner.makeExecutionFilters(filters)
-    }
-
-    private func makeRenderPlan(input texture: MTLTexture) -> RenderPlan {
+    func makeRenderProgram(
+        input texture: MTLTexture,
+        derivative: ImageDerivativeSpec? = nil,
+        sourceDescriptor: ImageSourceDescriptor? = nil
+    ) -> RenderExecutionProgram {
         let inputSize = C7Size(texture: texture)
-        let executionFilters = executionFilters
         // Cache key covers exactly what `GraphCompiler.compile` consumes on this path: the filter
         // chain recipe (type + kernel + parameters, via the same `chainRecipe` fingerprint ImageNode
         // uses), the input dimensions, and the render profile (which also fixes the derivative).
         // `compilationSource` is constant (`.filtersPrimitive`) here, so it is a fixed prefix.
         // Same key ⇒ identical plan, so a stable chain rendered repeatedly (realtime / video) only
         // compiles the render graph once instead of on every frame.
-        let cacheKey = "filtersPrimitive|fusion=v1|\(filters.chainRecipe.fingerprint)|input=\(inputSize.width)x\(inputSize.height)|profile=\(renderProfile.rawValue)"
-        if let cached = HarbethContext.shared.cachedRenderPlan(for: cacheKey) {
-            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: true)
-            return cached
-        }
-        HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: false)
-        let plan = GraphCompiler.compile(
-            filters: executionFilters,
+        let effectiveDerivative = derivative ?? renderProfile.defaultDerivativeSpec
+        let cacheKey = [
+            "filtersPrimitive",
+            "executionProgram=v1",
+            filters.chainRecipe.fingerprint,
+            "input=\(inputSize.width)x\(inputSize.height)",
+            "profile=\(renderProfile.rawValue)",
+            "derivative=\(effectiveDerivative.fingerprint)",
+            "source=\(sourceDescriptor?.fingerprint ?? "none")",
+        ].joined(separator: "|")
+        let program = RenderExecutionCompiler.compile(
+            filters: filters,
             inputSize: inputSize,
             profile: renderProfile,
-            compilationSource: .filtersPrimitive
+            derivative: effectiveDerivative,
+            compilationSource: .filtersPrimitive,
+            sourceDescriptor: sourceDescriptor,
+            planCacheKey: cacheKey
         )
-        HarbethContext.shared.storeRenderPlan(plan, for: cacheKey)
+        HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup(
+            "renderPlan",
+            hit: program.reusedCachedPlan
+        )
         if HarbethContext.shared.enablePerformanceMonitor {
+            let plan = program.plan
             HarbethContext.shared.performanceMonitor.recordRenderStageCount(identifier, stageCount: plan.optimizedStages.count)
             if plan.requiresCompletedGPUWork {
                 HarbethContext.shared.performanceMonitor.recordReadbackBoundary(identifier)
@@ -437,7 +513,7 @@ extension HarbethIO {
                 HarbethContext.shared.performanceMonitor.recordColorConversion(identifier, contract: diagnostics.outputContract.colorSpace)
             }
         }
-        return plan
+        return program
     }
 
     private func prepareTextureLifecycle(for plan: RenderPlan, inputPixelFormat: MTLPixelFormat) {
@@ -560,62 +636,80 @@ extension HarbethIO {
     }
 
     /// Create a new texture based on the filter content.
-    private func textureIO(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> MTLTexture {
-        if let pipelineFilter = filter as? C7FilterPipelineProtocol {
-            let destTexture = try createDestTexture(with: texture, filter: filter)
-            return try FilterPipelineExecutor.apply(
-                filter: pipelineFilter,
-                source: texture,
-                destination: destTexture,
-                commandBuffer: buffer
-            )
-        }
+    private func textureIO(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> RawTextureStage {
         let destTexture = try createDestTexture(with: texture, filter: filter)
-        let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
-        let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
-        return try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
+        let allocatedDestination = destTexture === texture ? nil : destTexture
+        do {
+            if let pipelineFilter = filter as? C7FilterPipelineProtocol {
+                let output = try FilterPipelineExecutor.apply(
+                    filter: pipelineFilter,
+                    source: texture,
+                    destination: destTexture,
+                    commandBuffer: buffer
+                )
+                return RawTextureStage(texture: output, allocatedDestination: allocatedDestination)
+            }
+            let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
+            let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
+            let output = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
+            return RawTextureStage(texture: output, allocatedDestination: allocatedDestination)
+        } catch {
+            recycleRawTextures(allocatedDestination.map { [$0] } ?? [])
+            throw error
+        }
     }
 
     private func textureIOManaged(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> ManagedTextureResult {
         let destLease = try createDestTextureLease(with: texture, filter: filter)
         let destTexture = destLease?.texture ?? texture
-        if let pipelineFilter = filter as? C7FilterPipelineProtocol {
-            let finalTexture = try FilterPipelineExecutor.apply(
-                filter: pipelineFilter,
-                source: texture,
-                destination: destTexture,
-                commandBuffer: buffer
-            )
+        do {
+            if let pipelineFilter = filter as? C7FilterPipelineProtocol {
+                let finalTexture = try FilterPipelineExecutor.apply(
+                    filter: pipelineFilter,
+                    source: texture,
+                    destination: destTexture,
+                    commandBuffer: buffer
+                )
+                return ManagedTextureResult(texture: finalTexture, lease: destLease)
+            }
+            let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
+            let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
+            let finalTexture = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
             return ManagedTextureResult(texture: finalTexture, lease: destLease)
+        } catch {
+            destLease?.release()
+            throw error
         }
-        let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
-        let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
-        let finalTexture = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
-        return ManagedTextureResult(texture: finalTexture, lease: destLease)
     }
 
-    private func singleBuffer(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (MTLTexture, [MTLTexture]) {
+    private func singleBuffer(input: MTLTexture, program: RenderExecutionProgram, commandBuffer: MTLCommandBuffer) throws -> RawTextureRendering {
         var currentTexture = input
-        var producedTextures: [MTLTexture] = []
-        let filters = executionFilters
-        var filterIndex = 0
-        for node in plan.graph.nodes {
-            guard node.filter != nil else { continue }
-            let filter = filters[filterIndex]
-            filterIndex += 1
-            let next = try textureIO(input: currentTexture, filter: filter, for: commandBuffer)
-            producedTextures.append(next)
-            currentTexture = next
+        var allocatedTextures: [MTLTexture] = []
+        do {
+            for step in program.steps {
+                let stage = try textureIO(input: currentTexture, filter: step.filter, for: commandBuffer)
+                if let allocatedDestination = stage.allocatedDestination {
+                    allocatedTextures.append(allocatedDestination)
+                }
+                currentTexture = stage.texture
+            }
+        } catch {
+            recycleRawTextures(allocatedTextures)
+            throw error
         }
         let finalTexture = currentTexture
-        let texturesToEnqueue = producedTextures.filter { $0 !== input && $0 !== finalTexture }
-        return (finalTexture, texturesToEnqueue)
+        return RawTextureRendering(
+            output: finalTexture,
+            successRecycling: allocatedTextures.filter { $0 !== finalTexture },
+            failureRecycling: allocatedTextures
+        )
     }
 
-    private func shouldUseDoubleBuffer(input: MTLTexture, plan: RenderPlan, minimumFilterCount: Int) -> Bool {
-        let filters = executionFilters
+    private func shouldUseDoubleBuffer(input: MTLTexture, program: RenderExecutionProgram, minimumFilterCount: Int) -> Bool {
+        let filters = program.filters
         guard enableDoubleBuffer, filters.count >= minimumFilterCount else { return false }
-        guard plan.containsBoundary == false else { return false }
+        guard program.plan.containsBoundary == false else { return false }
+        guard program.steps.dropLast().allSatisfy({ $0.lifecycleAction.isTransient }) else { return false }
         var inputSize = C7Size(texture: input)
         for filter in filters {
             let outputSize = filter.resize(input: inputSize)
@@ -628,13 +722,13 @@ extension HarbethIO {
     }
 
     /// Use double buffer technology to handle filter chains.
-    private func doubleBuffering(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
-        let filters = executionFilters
+    private func doubleBuffering(input: MTLTexture, program: RenderExecutionProgram, commandBuffer: MTLCommandBuffer) throws -> RawTextureRendering {
+        let filters = program.filters
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
         prewarmDoubleBufferReservations(
-            for: plan,
+            for: program.plan,
             fallbackSize: C7Size(width: width, height: height),
             inputPixelFormat: pixelFormat
         )
@@ -644,56 +738,67 @@ extension HarbethIO {
             options: [.texturePixelFormat: pixelFormat],
             identifier: identifier
         )
-        let textureB = try TextureLoader.makeTexture(
-            width: width,
-            height: height,
-            options: [.texturePixelFormat: pixelFormat],
-            identifier: identifier
-        )
+        let textureB: MTLTexture
+        do {
+            textureB = try TextureLoader.makeTexture(
+                width: width,
+                height: height,
+                options: [.texturePixelFormat: pixelFormat],
+                identifier: identifier
+            )
+        } catch {
+            recycleRawTextures([textureA])
+            throw error
+        }
         var currentInput = input
         var currentOutput = textureA
-        for (index, filter) in filters.enumerated() {
-            if let filter = filter as? C7FilterPipelineProtocol {
-                currentInput = try FilterPipelineExecutor.apply(
-                    filter: filter,
+        do {
+            for (index, filter) in filters.enumerated() {
+                if let filter = filter as? C7FilterPipelineProtocol {
+                    currentInput = try FilterPipelineExecutor.apply(
+                        filter: filter,
+                        source: currentInput,
+                        destination: currentOutput,
+                        commandBuffer: commandBuffer
+                    )
+                    if index < filters.count - 1 {
+                        currentOutput = currentOutput === textureA ? textureB : textureA
+                    }
+                    continue
+                }
+                let preparedInput = try filter.combinationBegin(
+                    for: commandBuffer,
                     source: currentInput,
-                    destination: currentOutput,
-                    commandBuffer: commandBuffer
+                    dest: currentOutput
                 )
+                let outputTexture = try filter.apply(
+                    form: preparedInput,
+                    to: currentOutput,
+                    for: commandBuffer,
+                    complete: nil
+                )
+                currentInput = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: currentInput)
                 if index < filters.count - 1 {
                     currentOutput = currentOutput === textureA ? textureB : textureA
                 }
-                continue
             }
-            let preparedInput = try filter.combinationBegin(
-                for: commandBuffer,
-                source: currentInput,
-                dest: currentOutput
-            )
-            let outputTexture = try filter.apply(
-                form: preparedInput,
-                to: currentOutput,
-                for: commandBuffer,
-                complete: nil
-            )
-            currentInput = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: currentInput)
-            if index < filters.count - 1 {
-                currentOutput = currentOutput === textureA ? textureB : textureA
-            }
+        } catch {
+            recycleRawTextures([textureA, textureB])
+            throw error
         }
-
-        // Double-buffer textures must not be returned to the pool before the GPU finishes using them.
-        // Otherwise, subsequent render passes can dequeue and overwrite textures still in-flight.
         let finalTexture = currentInput
-        let shouldEnqueueA = finalTexture !== textureA
-        let shouldEnqueueB = finalTexture !== textureB
-        let recycling = HarbethUncheckedTransfer(value: (textureA, textureB))
-        commandBuffer.addCompletedHandler { _ in
-            if shouldEnqueueA { HarbethContext.shared.texturePool.enqueueTextureSync(recycling.value.0) }
-            if shouldEnqueueB { HarbethContext.shared.texturePool.enqueueTextureSync(recycling.value.1) }
-        }
+        let allocatedTextures = [textureA, textureB]
+        return RawTextureRendering(
+            output: finalTexture,
+            successRecycling: allocatedTextures.filter { $0 !== finalTexture },
+            failureRecycling: allocatedTextures
+        )
+    }
 
-        return finalTexture
+    private func recycleRawTextures(_ textures: [MTLTexture]) {
+        var seen = Set<ObjectIdentifier>()
+        let uniqueTextures = textures.filter { seen.insert(ObjectIdentifier($0)).inserted }
+        HarbethContext.shared.texturePool.enqueueTexturesSync(uniqueTextures)
     }
 
     private func filtering(pixelBuffer: CVPixelBuffer, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CVPixelBuffer {
@@ -933,38 +1038,50 @@ extension HarbethIO {
     }
 }
 
+private extension RenderTextureLifecycleAction {
+    var isTransient: Bool {
+        self == .reuseTransient || self == .allocateTransient
+    }
+}
+
 extension HarbethIO where Dest == MTLTexture {
     /// Starts a texture render task and returns a GPU task handle for status observation.
     ///
     /// This API is for advanced texture-first callers that need command-buffer status,
     /// completion observation, or explicit waiting without changing the existing
     /// `output()` and `transmitOutput(...)` behavior.
-    func startRenderTextureTask(diagnostics: RenderPlanDiagnostics? = nil) throws -> RenderTask<MTLTexture> {
-        if filters.isEmpty {
-            return .completed(identifier: identifier, output: element, diagnostics: diagnostics)
+    func startCompiledRenderTextureTask(program: RenderExecutionProgram) throws -> RenderTask<MTLTexture> {
+        guard program.sourceFilterFingerprint == filters.chainRecipe.fingerprint,
+              program.diagnostics.inputSize == C7Size(texture: element) else {
+            throw HarbethError.configurationInvalid(
+                "RenderExecutionProgram does not match the HarbethIO input or filter chain."
+            )
         }
-        let plan = makeRenderPlan(input: element)
-        let taskDiagnostics = diagnostics ?? plan.diagnostics
-        prepareTextureLifecycle(for: plan, inputPixelFormat: element.pixelFormat)
+        if program.steps.isEmpty {
+            return .completed(identifier: identifier, output: element, diagnostics: program.diagnostics)
+        }
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: element.pixelFormat)
         let commandBuffer = try makeCommandBuffer(for: nil)
         do {
-            let rendering: (output: MTLTexture, recycling: [MTLTexture])
-            if shouldUseDoubleBuffer(input: element, plan: plan, minimumFilterCount: 1) {
-                rendering = (try doubleBuffering(input: element, plan: plan, commandBuffer: commandBuffer), [])
+            let rendering: RawTextureRendering
+            if shouldUseDoubleBuffer(input: element, program: program, minimumFilterCount: 1) {
+                rendering = try doubleBuffering(input: element, program: program, commandBuffer: commandBuffer)
             } else {
-                let result = try singleBuffer(input: element, plan: plan, commandBuffer: commandBuffer)
-                rendering = (result.0, result.1)
+                rendering = try singleBuffer(input: element, program: program, commandBuffer: commandBuffer)
             }
             let cleanupState = HarbethUncheckedTransfer(
-                value: (commandBuffer: commandBuffer, recycling: rendering.recycling)
+                value: (commandBuffer: commandBuffer, rendering: rendering)
             )
             let task = RenderTask(
                 identifier: identifier,
                 commandBuffer: commandBuffer,
                 output: rendering.output,
-                diagnostics: taskDiagnostics,
+                diagnostics: program.diagnostics,
                 cleanup: {
-                    HarbethContext.shared.texturePool.enqueueTexturesSync(cleanupState.value.recycling)
+                    let recycling = cleanupState.value.commandBuffer.status == .completed
+                        ? cleanupState.value.rendering.successRecycling
+                        : cleanupState.value.rendering.failureRecycling
+                    self.recycleRawTextures(recycling)
                     HarbethContext.shared.recycleCommandBuffer(cleanupState.value.commandBuffer)
                 }
             )
@@ -980,12 +1097,25 @@ extension HarbethIO where Dest == MTLTexture {
         if filters.isEmpty {
             return ManagedTextureResult(texture: element, lease: nil)
         }
-        let plan = makeRenderPlan(input: element)
-        switch groupStrategy(for: plan) {
+        let program = makeRenderProgram(input: element)
+        return try renderManagedTexture(program: program)
+    }
+
+    func renderManagedTexture(program: RenderExecutionProgram) throws -> ManagedTextureResult {
+        guard program.sourceFilterFingerprint == filters.chainRecipe.fingerprint,
+              program.diagnostics.inputSize == C7Size(texture: element) else {
+            throw HarbethError.configurationInvalid(
+                "RenderExecutionProgram does not match the managed HarbethIO input or filter chain."
+            )
+        }
+        guard program.steps.isEmpty == false else {
+            return ManagedTextureResult(texture: element, lease: nil)
+        }
+        switch groupStrategy(for: program.plan) {
         case .batched:
-            return try processManagedBatchedFilters(input: element, plan: plan)
+            return try processManagedBatchedFilters(input: element, program: program)
         case .interleaved:
-            return try processManagedInterleavedFilters(input: element, plan: plan)
+            return try processManagedInterleavedFilters(input: element, program: program)
         }
     }
 
@@ -994,31 +1124,38 @@ extension HarbethIO where Dest == MTLTexture {
             complete(.success(ManagedTextureResult(texture: element, lease: nil)))
             return
         }
-        let plan = makeRenderPlan(input: element)
-        prepareTextureLifecycle(for: plan, inputPixelFormat: element.pixelFormat)
-        let operationState = HarbethUncheckedTransfer(value: (io: self, plan: plan))
+        let program = makeRenderProgram(input: element)
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: element.pixelFormat)
+        let operationState = HarbethUncheckedTransfer(value: (io: self, program: program))
         let operation = BlockOperation {
             let io = operationState.value.io
-            let plan = operationState.value.plan
+            let program = operationState.value.program
             do {
                 let commandBuffer = try io.makeCommandBuffer()
                 let result: ManagedTextureResult
                 let intermediateLeases: [TextureLease]
-                if io.shouldUseDoubleBuffer(input: io.element, plan: plan, minimumFilterCount: 4) {
-                    (result, intermediateLeases) = try io.doubleBufferingManaged(
-                        input: io.element,
-                        plan: plan,
-                        commandBuffer: commandBuffer
-                    )
-                } else {
-                    (result, intermediateLeases) = try io.singleBufferManaged(
-                        input: io.element,
-                        plan: plan,
-                        commandBuffer: commandBuffer
-                    )
+                do {
+                    if io.shouldUseDoubleBuffer(input: io.element, program: program, minimumFilterCount: 4) {
+                        (result, intermediateLeases) = try io.doubleBufferingManaged(
+                            input: io.element,
+                            program: program,
+                            commandBuffer: commandBuffer
+                        )
+                    } else {
+                        (result, intermediateLeases) = try io.singleBufferManaged(
+                            input: io.element,
+                            program: program,
+                            commandBuffer: commandBuffer
+                        )
+                    }
+                } catch {
+                    HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                    throw error
                 }
 
-                let releaseIntermediates: @Sendable () -> Void = { intermediateLeases.forEach { $0.release() } }
+                let releaseIntermediates: @Sendable () -> Void = {
+                    intermediateLeases.forEach { $0.release() }
+                }
                 let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
 
                 if io.transmitOutputRealTimeCommit {
@@ -1050,35 +1187,62 @@ extension HarbethIO where Dest == MTLTexture {
         HarbethContext.shared.renderOperationQueue.addOperation(operation)
     }
 
-    private func processManagedBatchedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
-        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
+    private func processManagedBatchedFilters(input: MTLTexture, program: RenderExecutionProgram) throws -> ManagedTextureResult {
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: input.pixelFormat)
         let commandBuffer = try makeCommandBuffer(for: nil)
         let managed: (result: ManagedTextureResult, intermediateLeases: [TextureLease])
-        if shouldUseDoubleBuffer(input: input, plan: plan, minimumFilterCount: 1) {
-            managed = try doubleBufferingManaged(input: input, plan: plan, commandBuffer: commandBuffer)
-        } else {
-            managed = try singleBufferManaged(input: input, plan: plan, commandBuffer: commandBuffer)
+        do {
+            if shouldUseDoubleBuffer(input: input, program: program, minimumFilterCount: 1) {
+                managed = try doubleBufferingManaged(input: input, program: program, commandBuffer: commandBuffer)
+            } else {
+                managed = try singleBufferManaged(input: input, program: program, commandBuffer: commandBuffer)
+            }
+        } catch {
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
         }
-        commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-        managed.intermediateLeases.forEach { $0.release() }
-        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-        return managed.result
+        do {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+            managed.intermediateLeases.forEach { $0.release() }
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            return managed.result
+        } catch {
+            managed.intermediateLeases.forEach { $0.release() }
+            managed.result.lease?.release()
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
+        }
     }
 
-    private func processManagedInterleavedFilters(input: MTLTexture, plan: RenderPlan) throws -> ManagedTextureResult {
-        prepareTextureLifecycle(for: plan, inputPixelFormat: input.pixelFormat)
+    private func processManagedInterleavedFilters(input: MTLTexture, program: RenderExecutionProgram) throws -> ManagedTextureResult {
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: input.pixelFormat)
         var currentTexture = input
         var currentLease: TextureLease?
-        let filters = executionFilters
-        var filterIndex = 0
-        for node in plan.graph.nodes {
-            guard node.filter != nil else { continue }
-            let filter = filters[filterIndex]
-            filterIndex += 1
-            let commandBuffer = try makeCommandBuffer(for: nil)
-            let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
-            commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
-            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+        for step in program.steps {
+            let commandBuffer: MTLCommandBuffer
+            do {
+                commandBuffer = try makeCommandBuffer(for: nil)
+            } catch {
+                currentLease?.release()
+                throw error
+            }
+            let stage: ManagedTextureResult
+            do {
+                stage = try textureIOManaged(input: currentTexture, filter: step.filter, for: commandBuffer)
+            } catch {
+                currentLease?.release()
+                HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                throw error
+            }
+            do {
+                try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+                HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            } catch {
+                stage.lease?.release()
+                currentLease?.release()
+                HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                throw error
+            }
 
             if let previousLease = currentLease, previousLease.texture !== stage.texture {
                 previousLease.release()
@@ -1098,20 +1262,20 @@ extension HarbethIO where Dest == MTLTexture {
         return ManagedTextureResult(texture: currentTexture, lease: currentLease)
     }
 
-    private func singleBufferManaged(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (ManagedTextureResult, [TextureLease]) {
+    private func singleBufferManaged(input: MTLTexture, program: RenderExecutionProgram, commandBuffer: MTLCommandBuffer) throws -> (ManagedTextureResult, [TextureLease]) {
         var currentTexture = input
         var producedLeases: [TextureLease] = []
-        let filters = executionFilters
-        var filterIndex = 0
-        for node in plan.graph.nodes {
-            guard node.filter != nil else { continue }
-            let filter = filters[filterIndex]
-            filterIndex += 1
-            let stage = try textureIOManaged(input: currentTexture, filter: filter, for: commandBuffer)
-            if let lease = stage.lease {
-                producedLeases.append(lease)
+        do {
+            for step in program.steps {
+                let stage = try textureIOManaged(input: currentTexture, filter: step.filter, for: commandBuffer)
+                if let lease = stage.lease {
+                    producedLeases.append(lease)
+                }
+                currentTexture = stage.texture
             }
-            currentTexture = stage.texture
+        } catch {
+            producedLeases.forEach { $0.release() }
+            throw error
         }
 
         let finalLease = producedLeases.last(where: { $0.texture === currentTexture })
@@ -1121,14 +1285,14 @@ extension HarbethIO where Dest == MTLTexture {
         return (ManagedTextureResult(texture: currentTexture, lease: finalLease), intermediateLeases)
     }
 
-    private func doubleBufferingManaged(input: MTLTexture, plan: RenderPlan, commandBuffer: MTLCommandBuffer) throws -> (ManagedTextureResult, [TextureLease]) {
-        let filters = executionFilters
+    private func doubleBufferingManaged(input: MTLTexture, program: RenderExecutionProgram, commandBuffer: MTLCommandBuffer) throws -> (ManagedTextureResult, [TextureLease]) {
+        let filters = program.filters
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
 
         prewarmDoubleBufferReservations(
-            for: plan,
+            for: program.plan,
             fallbackSize: C7Size(width: width, height: height),
             inputPixelFormat: pixelFormat
         )
@@ -1138,44 +1302,56 @@ extension HarbethIO where Dest == MTLTexture {
             options: [.texturePixelFormat: pixelFormat],
             identifier: identifier
         )
-        let leaseB = try TextureLoader.makeTextureLease(
-            width: width,
-            height: height,
-            options: [.texturePixelFormat: pixelFormat],
-            identifier: identifier
-        )
+        let leaseB: TextureLease
+        do {
+            leaseB = try TextureLoader.makeTextureLease(
+                width: width,
+                height: height,
+                options: [.texturePixelFormat: pixelFormat],
+                identifier: identifier
+            )
+        } catch {
+            leaseA.release()
+            throw error
+        }
 
         var currentInput = input
         var currentOutput = leaseA.texture
 
-        for (index, filter) in filters.enumerated() {
-            if let filter = filter as? C7FilterPipelineProtocol {
-                currentInput = try FilterPipelineExecutor.apply(
-                    filter: filter,
+        do {
+            for (index, filter) in filters.enumerated() {
+                if let filter = filter as? C7FilterPipelineProtocol {
+                    currentInput = try FilterPipelineExecutor.apply(
+                        filter: filter,
+                        source: currentInput,
+                        destination: currentOutput,
+                        commandBuffer: commandBuffer
+                    )
+                    if index < filters.count - 1 {
+                        currentOutput = currentOutput === leaseA.texture ? leaseB.texture : leaseA.texture
+                    }
+                    continue
+                }
+                let preparedInput = try filter.combinationBegin(
+                    for: commandBuffer,
                     source: currentInput,
-                    destination: currentOutput,
-                    commandBuffer: commandBuffer
+                    dest: currentOutput
                 )
+                let outputTexture = try filter.apply(
+                    form: preparedInput,
+                    to: currentOutput,
+                    for: commandBuffer,
+                    complete: nil
+                )
+                currentInput = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: currentInput)
                 if index < filters.count - 1 {
                     currentOutput = currentOutput === leaseA.texture ? leaseB.texture : leaseA.texture
                 }
-                continue
             }
-            let preparedInput = try filter.combinationBegin(
-                for: commandBuffer,
-                source: currentInput,
-                dest: currentOutput
-            )
-            let outputTexture = try filter.apply(
-                form: preparedInput,
-                to: currentOutput,
-                for: commandBuffer,
-                complete: nil
-            )
-            currentInput = try filter.combinationAfter(for: commandBuffer, input: outputTexture, source: currentInput)
-            if index < filters.count - 1 {
-                currentOutput = currentOutput === leaseA.texture ? leaseB.texture : leaseA.texture
-            }
+        } catch {
+            leaseA.release()
+            leaseB.release()
+            throw error
         }
 
         let finalLease: TextureLease?

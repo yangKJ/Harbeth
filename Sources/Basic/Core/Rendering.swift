@@ -116,7 +116,8 @@ struct Rendering {
         let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * size, options: [])!
         renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
-        if let samplerState = HarbethContext.shared.makeSamplerState(filter.renderSamplerDescriptor) {
+        if filter.renderSamplerConsumption == .runtimeBound,
+           let samplerState = HarbethContext.shared.makeSamplerState(filter.renderSamplerDescriptor) {
             renderEncoder.setFragmentSamplerState(samplerState, index: 0)
         }
 

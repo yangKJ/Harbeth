@@ -696,6 +696,8 @@ private struct RenderOverlayTestFilter: RenderProtocol {
         .render(vertex: "basicVertex", fragment: "basicFragment")
     }
 
+    var renderSamplerConsumption: RenderSamplerConsumption { .runtimeBound }
+
     var factors: [Float] {
         [0.25]
     }
@@ -709,6 +711,8 @@ private struct RenderBindingTestFilter: RenderProtocol {
     var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "basicFragment")
     }
+
+    var renderSamplerConsumption: RenderSamplerConsumption { .runtimeBound }
 
     var kernelParameterBindings: [KernelParameterBinding] {
         [
@@ -732,6 +736,8 @@ private struct RenderMultiAttachmentTestFilter: RenderProtocol {
     var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "basicFragment")
     }
+
+    var renderSamplerConsumption: RenderSamplerConsumption { .runtimeBound }
 
     var renderOutputContract: RenderOutputContract {
         RenderOutputContract(

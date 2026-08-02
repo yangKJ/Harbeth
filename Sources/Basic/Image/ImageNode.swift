@@ -28,6 +28,74 @@ private final class OutputContractCacheEntry {
     }
 }
 
+/// 单次 ImageNode 渲染使用的内部执行快照。
+///
+/// 公开入口仍然只有 ImageNode；这个值只把 plan、recipe、source 与实际执行绑定在一起，
+/// 防止 frame/request 在执行后重新编译另一份 diagnostics。
+private struct PreparedImageNodeExecution: @unchecked Sendable {
+    let profile: RenderProfile
+    let derivative: ImageDerivativeSpec
+    let diagnostics: RenderPlanDiagnostics
+    let renderRecipe: RenderRecipe
+    let primarySource: ImageSource
+    let executionFingerprint: String
+    let renderTextureClosure: () throws -> MTLTexture
+
+    func renderTexture() throws -> MTLTexture {
+        try renderTextureClosure()
+    }
+}
+
+private struct PreparedImageNodeAttachmentRoute: @unchecked Sendable {
+    let inputExecution: PreparedImageNodeExecution
+    let filter: any RenderProtocol
+    let validateInput: (MTLTexture) throws -> Void
+
+    func renderAttachmentSet(identifier: String) throws -> RenderedAttachmentSet {
+        let texture = try inputExecution.renderTexture()
+        try validateInput(texture)
+        return try filter.renderAttachmentSet(from: texture, identifier: identifier)
+    }
+
+    func renderAnalysisBundle(
+        identifier: String,
+        bins: Int,
+        histogramHeight: Int,
+        region: MTLRegion?,
+        preferredMethod: TextureHistogramComputationMethod
+    ) throws -> RenderedAttachmentAnalysisBundle {
+        let texture = try inputExecution.renderTexture()
+        try validateInput(texture)
+        return try filter.renderAttachmentAnalysisBundle(
+            from: texture,
+            identifier: identifier,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: region,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderAnalysisBundle(
+        identifier: String,
+        bins: Int,
+        histogramHeight: Int,
+        scope: TextureAnalysisScope,
+        preferredMethod: TextureHistogramComputationMethod
+    ) throws -> RenderedAttachmentAnalysisBundle {
+        let texture = try inputExecution.renderTexture()
+        try validateInput(texture)
+        return try filter.renderAttachmentAnalysisBundle(
+            from: texture,
+            identifier: identifier,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+    }
+}
+
 indirect enum ImageNodeStorage {
     case source(ImageSource)
     case filters(input: ImageNode, filters: [C7FilterProtocol])
@@ -161,6 +229,236 @@ extension ImageNode {
         return try applying(pluginOutput: output, mode: mode)
     }
 
+    private func prepareExecution(
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec?,
+        executionIdentifier: String?,
+        samplerDescriptorOverride: ImageSamplerDescriptor? = nil
+    ) throws -> PreparedImageNodeExecution {
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        let activeSamplerDescriptor = samplerDescriptorOverride ?? resolvedSamplerDescriptor
+        let plan = try makeRenderPlan(
+            profile: profile,
+            derivative: effectiveDerivative,
+            samplerDescriptorOverride: activeSamplerDescriptor
+        )
+        let diagnostics = plan.diagnostics
+        let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
+        let primarySource = try resolvedPrimarySource()
+        let renderTextureClosure: () throws -> MTLTexture
+        let executionFingerprint: String
+
+        switch storage {
+        case .source(let source):
+            renderTextureClosure = {
+                let texture = try source.makeTexture()
+                return try ImageNode.applyDerivativeResize(
+                    texture,
+                    derivative: effectiveDerivative,
+                    profile: profile,
+                    identifier: executionIdentifier
+                )
+            }
+            executionFingerprint = [diagnostics.graphFingerprint, source.descriptor.fingerprint].joined(separator: "|")
+
+        case .filters(let input, let filters):
+            let preparedInput = try input.prepareExecution(
+                profile: profile,
+                derivative: profile.defaultDerivativeSpec,
+                executionIdentifier: executionIdentifier,
+                samplerDescriptorOverride: activeSamplerDescriptor
+            )
+            let program = RenderExecutionCompiler.compile(
+                filters: filters,
+                inputSize: preparedInput.diagnostics.outputSize,
+                profile: profile,
+                derivative: effectiveDerivative,
+                compilationSource: diagnostics.compilationSource,
+                outputContract: diagnostics.outputContract,
+                imageCachePolicy: diagnostics.imageCachePolicy,
+                samplerDescriptor: activeSamplerDescriptor,
+                sourceDescriptor: primarySource.descriptor,
+                imageGraph: plan.imageGraph,
+                graphOptimizationDecisions: diagnostics.graphOptimizationDecisions,
+                preparedPlan: plan
+            )
+            renderTextureClosure = {
+                let inputTexture = try preparedInput.renderTexture()
+                let io = HarbethIO<MTLTexture>(
+                    element: inputTexture,
+                    filters: filters,
+                    identifier: executionIdentifier ?? "ImageNode.PreparedFilters"
+                ).configured(for: profile)
+                return try io.executeRenderProgram(input: inputTexture, program: program)
+            }
+            executionFingerprint = [
+                diagnostics.graphFingerprint,
+                preparedInput.executionFingerprint,
+                program.fingerprint,
+            ].joined(separator: "|")
+
+        case .kernel(let input, let descriptor, let filter):
+            let preparedInput = try input.prepareExecution(
+                profile: profile,
+                derivative: profile.defaultDerivativeSpec,
+                executionIdentifier: executionIdentifier,
+                samplerDescriptorOverride: activeSamplerDescriptor
+            )
+            let adaptedFilter = SamplerExecutionAdapter.adapt(
+                filter: filter,
+                samplerDescriptor: activeSamplerDescriptor
+            )
+            let sourceDerivative = ImageDerivativeSpec(
+                name: "prepared-kernel-source",
+                renderIntent: effectiveDerivative.renderIntent,
+                sourceTier: effectiveDerivative.sourceTier,
+                semantic: effectiveDerivative.semantic,
+                outputSizePolicy: .source
+            )
+            let program = RenderExecutionCompiler.compile(
+                filters: [adaptedFilter],
+                inputSize: preparedInput.diagnostics.outputSize,
+                profile: profile,
+                derivative: sourceDerivative,
+                compilationSource: diagnostics.compilationSource,
+                outputContract: descriptor.outputContract,
+                imageCachePolicy: diagnostics.imageCachePolicy,
+                samplerDescriptor: activeSamplerDescriptor,
+                sourceDescriptor: primarySource.descriptor
+            )
+            renderTextureClosure = {
+                let inputTexture = try preparedInput.renderTexture()
+                try descriptor.validateCompatibility(with: filter, inputSize: C7Size(texture: inputTexture))
+                let io = HarbethIO<MTLTexture>(
+                    element: inputTexture,
+                    filters: [adaptedFilter],
+                    identifier: executionIdentifier ?? "ImageNode.PreparedKernel"
+                ).configured(for: profile)
+                let rendered = try io.executeRenderProgram(input: inputTexture, program: program)
+                let contracted = try ImageNode.applyOutputContractIfNeeded(
+                    descriptor.outputContract,
+                    to: rendered,
+                    sourceColorSpace: descriptor.inputColorSpace,
+                    sourceAlphaType: descriptor.outputContract.inputAlphaExpectation.expectedAlphaType,
+                    profile: profile,
+                    identifier: executionIdentifier
+                )
+                return try ImageNode.applyDerivativeResize(
+                    contracted,
+                    derivative: effectiveDerivative,
+                    profile: profile,
+                    identifier: executionIdentifier
+                )
+            }
+            executionFingerprint = [
+                diagnostics.graphFingerprint,
+                preparedInput.executionFingerprint,
+                program.fingerprint,
+                descriptor.fingerprint,
+            ].joined(separator: "|")
+
+        case .recipe(let source, let recipe, let mode):
+            let renderer = FrameRenderer(
+                source: source,
+                recipe: recipe,
+                mode: mode,
+                identifier: executionIdentifier ?? "ImageNode.PreparedRecipe",
+                derivative: effectiveDerivative,
+                samplerDescriptor: activeSamplerDescriptor
+            )
+            renderTextureClosure = { try renderer.renderTexture() }
+            executionFingerprint = [diagnostics.graphFingerprint, renderRecipe.fingerprint, "mode=\(mode)"].joined(separator: "|")
+
+        case .edit(let input, let recipe, let mode):
+            let preparedInput = try input.prepareExecution(
+                profile: profile,
+                derivative: profile.defaultDerivativeSpec,
+                executionIdentifier: executionIdentifier,
+                samplerDescriptorOverride: activeSamplerDescriptor
+            )
+            renderTextureClosure = {
+                let inputTexture = try preparedInput.renderTexture()
+                return try FrameRenderer(
+                    source: .texture(inputTexture),
+                    recipe: recipe,
+                    mode: mode,
+                    identifier: executionIdentifier ?? "ImageNode.PreparedEdit",
+                    derivative: effectiveDerivative,
+                    samplerDescriptor: activeSamplerDescriptor
+                ).renderTexture()
+            }
+            executionFingerprint = [
+                diagnostics.graphFingerprint,
+                preparedInput.executionFingerprint,
+                renderRecipe.fingerprint,
+                "mode=\(mode)",
+            ].joined(separator: "|")
+
+        case .transition(let recipe):
+            let renderer = FrameRenderer(
+                transitionRecipe: recipe,
+                profile: profile,
+                derivative: effectiveDerivative,
+                identifier: executionIdentifier ?? "ImageNode.PreparedTransition",
+                samplerDescriptor: activeSamplerDescriptor
+            )
+            renderTextureClosure = { try renderer.renderTexture() }
+            executionFingerprint = [diagnostics.graphFingerprint, renderRecipe.fingerprint].joined(separator: "|")
+
+        case .layerComposite(let recipe):
+            renderTextureClosure = {
+                try recipe.makeTexture(
+                    profile: profile,
+                    derivative: effectiveDerivative,
+                    samplerDescriptor: activeSamplerDescriptor,
+                    executionIdentifier: executionIdentifier ?? "ImageNode.PreparedLayerComposite"
+                )
+            }
+            executionFingerprint = [diagnostics.graphFingerprint, recipe.fingerprint].joined(separator: "|")
+
+        case .cachePolicy(let input, let policy):
+            let preparedInput = try input.prepareExecution(
+                profile: profile,
+                derivative: effectiveDerivative,
+                executionIdentifier: executionIdentifier,
+                samplerDescriptorOverride: activeSamplerDescriptor
+            )
+            let cacheKey = resolutionFingerprint(profile: profile, derivative: effectiveDerivative)
+            renderTextureClosure = {
+                if policy == .persistent,
+                   let cached = HarbethContext.shared.cachedResolvedTexture(for: cacheKey) {
+                    return cached
+                }
+                let texture = try preparedInput.renderTexture()
+                if policy == .persistent {
+                    HarbethContext.shared.storeResolvedTexture(texture, for: cacheKey)
+                }
+                return texture
+            }
+            executionFingerprint = [diagnostics.graphFingerprint, preparedInput.executionFingerprint, "cache=\(policy.rawValue)"].joined(separator: "|")
+
+        case .samplerDescriptor(let input, let descriptor):
+            let preparedInput = try input.prepareExecution(
+                profile: profile,
+                derivative: effectiveDerivative,
+                executionIdentifier: executionIdentifier,
+                samplerDescriptorOverride: descriptor
+            )
+            renderTextureClosure = { try preparedInput.renderTexture() }
+            executionFingerprint = [diagnostics.graphFingerprint, preparedInput.executionFingerprint, descriptor.fingerprint].joined(separator: "|")
+        }
+
+        return PreparedImageNodeExecution(
+            profile: profile,
+            derivative: effectiveDerivative,
+            diagnostics: diagnostics,
+            renderRecipe: renderRecipe,
+            primarySource: primarySource,
+            executionFingerprint: executionFingerprint,
+            renderTextureClosure: renderTextureClosure
+        )
+    }
+
     public func makeFrame(
         profile: RenderProfile = .stablePreview,
         derivative: ImageDerivativeSpec? = nil,
@@ -176,15 +474,30 @@ extension ImageNode {
             }
         }
 
-        let texture = try makeTexture(
+        let prepared = try prepareExecution(
             profile: profile,
             derivative: derivative,
             executionIdentifier: monitoringIdentifier
         )
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
-        let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
-        let primarySource = try resolvedPrimarySource()
+        return try makeFrame(
+            prepared: prepared,
+            outputColorSpace: outputColorSpace,
+            metadata: metadata,
+            monitoringIdentifier: monitoringIdentifier
+        )
+    }
+
+    private func makeFrame(
+        prepared: PreparedImageNodeExecution,
+        outputColorSpace: ImageColorSpaceContract?,
+        metadata: [String: String],
+        monitoringIdentifier: String
+    ) throws -> RenderedFrame {
+        let texture = try prepared.renderTexture()
+        let effectiveDerivative = prepared.derivative
+        let renderRecipe = prepared.renderRecipe
+        let diagnostics = prepared.diagnostics
+        let primarySource = prepared.primarySource
         let resolvedOutputColorSpace = outputColorSpace ?? diagnostics.outputColorSpace
         let colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: resolvedOutputColorSpace)
         let frameOutputColorSpace: ImageColorSpaceContract
@@ -200,7 +513,7 @@ extension ImageNode {
             renderedTexture: texture,
             renderRecipe: renderRecipe
         )
-        if monitorEnabled {
+        if HarbethContext.shared.enablePerformanceMonitor {
             HarbethContext.shared.performanceMonitor.recordPreviewHostStrategy(
                 monitoringIdentifier,
                 strategy: previewHostStrategy
@@ -213,6 +526,8 @@ extension ImageNode {
         )
         var renderedMetadata = metadata
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
+        renderedMetadata["renderExecutionFingerprint"] = prepared.executionFingerprint
+        renderedMetadata["renderGraphFingerprint"] = diagnostics.graphFingerprint
         renderedMetadata["outputDynamicRange"] = frameOutputColorSpace.dynamicRange.rawValue
         renderedMetadata["outputColorSpace"] = frameOutputColorSpace.name
         renderedMetadata["outputToneMappingPolicy"] = diagnostics.outputContract.toneMappingPolicy.rawValue
@@ -232,7 +547,7 @@ extension ImageNode {
             cachePolicy: resolvedCachePolicy,
             semantic: effectiveDerivative.semantic,
             orientation: primarySource.orientation,
-            profile: profile,
+            profile: prepared.profile,
             token: token,
             metadata: renderedMetadata,
             previewHostPayload: previewHostPayload
@@ -563,11 +878,8 @@ extension ImageNode {
     }
 
     public func makeAttachmentSet(profile: RenderProfile = .readbackQuality) throws -> RenderedAttachmentSet? {
-        guard let bridge = try resolvedAttachmentAnalysisBridge(profile: profile) else {
-            return nil
-        }
-        return try bridge.filter.renderAttachmentSet(
-            from: bridge.inputTexture,
+        guard let route = try prepareAttachmentRoute(profile: profile) else { return nil }
+        return try route.renderAttachmentSet(
             identifier: "ImageNode.AttachmentSet.\(UUID().uuidString)"
         )
     }
@@ -739,9 +1051,8 @@ extension ImageNode {
         region: MTLRegion? = nil,
         preferredMethod: TextureHistogramComputationMethod = .gpuMPS
     ) throws -> RenderedAttachmentAnalysisBundle? {
-        guard let bridge = try resolvedAttachmentAnalysisBridge(profile: profile) else { return nil }
-        return try bridge.filter.renderAttachmentAnalysisBundle(
-            from: bridge.inputTexture,
+        guard let route = try prepareAttachmentRoute(profile: profile) else { return nil }
+        return try route.renderAnalysisBundle(
             identifier: "ImageNode.AttachmentAnalysis.\(UUID().uuidString)",
             bins: bins,
             histogramHeight: histogramHeight,
@@ -757,9 +1068,8 @@ extension ImageNode {
         scope: TextureAnalysisScope,
         preferredMethod: TextureHistogramComputationMethod = .gpuMPS
     ) throws -> RenderedAttachmentAnalysisBundle? {
-        guard let bridge = try resolvedAttachmentAnalysisBridge(profile: profile) else { return nil }
-        return try bridge.filter.renderAttachmentAnalysisBundle(
-            from: bridge.inputTexture,
+        guard let route = try prepareAttachmentRoute(profile: profile) else { return nil }
+        return try route.renderAnalysisBundle(
             identifier: "ImageNode.AttachmentAnalysis.\(UUID().uuidString)",
             bins: bins,
             histogramHeight: histogramHeight,
@@ -770,27 +1080,47 @@ extension ImageNode {
 
     public func makeRenderRequest(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRequest {
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        let diagnostics = try makeDiagnostics(profile: profile, derivative: effectiveDerivative)
-        let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
-        let source = try resolvedPrimarySource()
-        let attachmentPolicies = diagnostics.outputAttachmentDebugPolicies
-        return RenderRequest.makeFrameBackedRequest(
-            compilationSource: diagnostics.compilationSource,
+        let prepared = try prepareExecution(
             profile: profile,
             derivative: effectiveDerivative,
-            source: source.descriptor,
+            executionIdentifier: monitoringIdentifier
+        )
+        let attachmentPolicies = prepared.diagnostics.outputAttachmentDebugPolicies
+        let preparedAttachmentRoute = try prepareAttachmentRoute(profile: profile)
+        return RenderRequest.makeFrameBackedRequest(
+            compilationSource: prepared.diagnostics.compilationSource,
+            profile: profile,
+            derivative: effectiveDerivative,
+            source: prepared.primarySource.descriptor,
             outputCachePolicy: resolvedCachePolicy,
-            diagnostics: diagnostics,
-            renderRecipe: renderRecipe,
-            renderTexture: { try makeTexture(profile: profile, derivative: effectiveDerivative) },
+            diagnostics: prepared.diagnostics,
+            renderRecipe: prepared.renderRecipe,
+            renderTexture: { try prepared.renderTexture() },
             renderFrame: { metadata in
-                try makeFrame(profile: profile, derivative: effectiveDerivative, metadata: metadata)
+                let identifier = monitoringIdentifier
+                let monitorEnabled = HarbethContext.shared.enablePerformanceMonitor
+                if monitorEnabled { HarbethContext.shared.performanceMonitor.beginMonitoring(identifier) }
+                defer {
+                    if monitorEnabled {
+                        HarbethContext.shared.performanceMonitor.endMonitoring(identifier)
+                    }
+                }
+                return try makeFrame(
+                    prepared: prepared,
+                    outputColorSpace: nil,
+                    metadata: metadata,
+                    monitoringIdentifier: identifier
+                )
             },
             attachmentDebugPolicies: attachmentPolicies,
-            renderAttachmentSet: { try makeAttachmentSet(profile: profile) },
+            renderAttachmentSet: {
+                try preparedAttachmentRoute?.renderAttachmentSet(
+                    identifier: "ImageNode.AttachmentSet.\(UUID().uuidString)"
+                )
+            },
             renderAttachmentAnalysisBundle: { bins, histogramHeight, region, preferredMethod in
-                try makeAttachmentAnalysisBundle(
-                    profile: profile,
+                try preparedAttachmentRoute?.renderAnalysisBundle(
+                    identifier: "ImageNode.AttachmentAnalysis.\(UUID().uuidString)",
                     bins: bins,
                     histogramHeight: histogramHeight,
                     region: region,
@@ -798,8 +1128,8 @@ extension ImageNode {
                 )
             },
             renderAttachmentAnalysisScopeBundle: { bins, histogramHeight, scope, preferredMethod in
-                try makeAttachmentAnalysisBundle(
-                    profile: profile,
+                try preparedAttachmentRoute?.renderAnalysisBundle(
+                    identifier: "ImageNode.AttachmentAnalysis.\(UUID().uuidString)",
                     bins: bins,
                     histogramHeight: histogramHeight,
                     scope: scope,
@@ -878,25 +1208,21 @@ extension ImageNode: ImagePromise {
                 samplerDescriptor: samplerDescriptor,
                 executionIdentifier: executionIdentifier
             )
-            guard filters.isEmpty == false else {
-                return try resizeTextureIfNeeded(
-                    inputTexture,
-                    derivative: derivative ?? profile.defaultDerivativeSpec,
-                    profile: profile,
-                    executionIdentifier: executionIdentifier
-                )
-            }
-            let rendered = try HarbethIO(
-                element: inputTexture,
-                filters: SamplerExecutionAdapter.adapt(filters: filters, samplerDescriptor: samplerDescriptor),
-                identifier: executionIdentifier ?? monitoringIdentifier
-            ).configured(for: profile).output()
-            return try resizeTextureIfNeeded(
-                rendered,
-                derivative: derivative ?? profile.defaultDerivativeSpec,
+            let program = RenderExecutionCompiler.compile(
+                filters: filters,
+                inputSize: C7Size(texture: inputTexture),
                 profile: profile,
-                executionIdentifier: executionIdentifier
+                derivative: derivative ?? profile.defaultDerivativeSpec,
+                compilationSource: input.compilationSource,
+                samplerDescriptor: samplerDescriptor,
+                sourceDescriptor: try input.resolvedPrimarySource().descriptor
             )
+            let io = HarbethIO<MTLTexture>(
+                element: inputTexture,
+                filters: filters,
+                identifier: executionIdentifier ?? monitoringIdentifier
+            ).configured(for: profile)
+            return try io.executeRenderProgram(input: inputTexture, program: program)
         case .kernel(let input, let descriptor, let filter):
             let inputTexture = try input.makeTextureUncached(
                 profile: profile,
@@ -1011,6 +1337,45 @@ extension ImageNode: ImagePromise {
         }
         HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: false)
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
+        let plan: RenderPlan
+        // cache / sampler wrapper 必须留在轻量入口分派；若并回下方的大型 switch，
+        // Debug 构建会在递归包装链中叠加大栈帧，耗尽 dispatch worker 的小栈。
+        switch storage {
+        case .cachePolicy(let input, let policy):
+            plan = try makeCachePolicyRenderPlan(
+                input: input,
+                policy: policy,
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptor: activeSamplerDescriptor,
+                optimization: optimization
+            )
+        case .samplerDescriptor(let input, let descriptor):
+            plan = try makeSamplerDescriptorRenderPlan(
+                input: input,
+                descriptor: descriptor,
+                profile: profile,
+                derivative: derivative,
+                optimization: optimization
+            )
+        default:
+            plan = try makeUnwrappedRenderPlan(
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptor: activeSamplerDescriptor,
+                optimization: optimization
+            )
+        }
+        HarbethContext.shared.storeRenderPlan(plan, for: cacheKey)
+        return plan
+    }
+
+    private func makeUnwrappedRenderPlan(
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec?,
+        samplerDescriptor activeSamplerDescriptor: ImageSamplerDescriptor,
+        optimization: ImageGraphOptimizationResult
+    ) throws -> RenderPlan {
         var plan: RenderPlan
         switch storage {
         case .source(let source):
@@ -1073,7 +1438,7 @@ extension ImageNode: ImagePromise {
                     let texture = try recipe.from.makeTexture()
                     inputSize = C7Size(texture: texture)
                 }
-                plan = GraphCompiler.compile(
+                plan = RenderExecutionCompiler.compile(
                     filters: [try recipe.makeFilter()] + filters,
                     inputSize: inputSize,
                     profile: profile,
@@ -1084,7 +1449,7 @@ extension ImageNode: ImagePromise {
                     auxiliaryInputDescriptor: recipe.to.descriptor,
                     imageGraph: optimization.graph,
                     graphOptimizationDecisions: optimization.decisions
-                )
+                ).plan
             default:
                 let inputSize: C7Size
                 if let size = input.resolvedPlanningOutputSizeHint(profile: profile) {
@@ -1093,7 +1458,7 @@ extension ImageNode: ImagePromise {
                     let texture = try input.makeTexture(profile: profile, derivative: nil)
                     inputSize = C7Size(texture: texture)
                 }
-                plan = GraphCompiler.compile(
+                let localPlan = RenderExecutionCompiler.compile(
                     filters: filters,
                     inputSize: inputSize,
                     profile: profile,
@@ -1103,6 +1468,15 @@ extension ImageNode: ImagePromise {
                     sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
                     imageGraph: optimization.graph,
                     graphOptimizationDecisions: optimization.decisions
+                ).plan
+                plan = localPlan.withSamplerExecutionCoverage(
+                    SamplerExecutionAdapter.merge(
+                        try input.resolvedSamplerExecutionCoverage(
+                            profile: profile,
+                            samplerDescriptor: activeSamplerDescriptor
+                        ),
+                        localPlan.diagnostics.samplerExecutionCoverage
+                    )
                 )
             }
         case .kernel(let input, let descriptor, let filter):
@@ -1152,7 +1526,7 @@ extension ImageNode: ImagePromise {
                     inputSize = C7Size(texture: texture)
                 }
                 try descriptor.validateCompatibility(with: filter, inputSize: inputSize)
-                plan = GraphCompiler.compile(
+                let localPlan = RenderExecutionCompiler.compile(
                     filters: [filter],
                     inputSize: inputSize,
                     profile: profile,
@@ -1163,6 +1537,15 @@ extension ImageNode: ImagePromise {
                     sourceDescriptor: (try input.resolvedPrimarySource()).descriptor,
                     imageGraph: optimization.graph,
                     graphOptimizationDecisions: optimization.decisions
+                ).plan
+                plan = localPlan.withSamplerExecutionCoverage(
+                    SamplerExecutionAdapter.merge(
+                        try input.resolvedSamplerExecutionCoverage(
+                            profile: profile,
+                            samplerDescriptor: activeSamplerDescriptor
+                        ),
+                        localPlan.diagnostics.samplerExecutionCoverage
+                    )
                 )
             }
         case .recipe(let source, let recipe, let mode):
@@ -1203,7 +1586,7 @@ extension ImageNode: ImagePromise {
                 let texture = try recipe.from.makeTexture()
                 inputSize = C7Size(texture: texture)
             }
-            plan = GraphCompiler.compile(
+            plan = RenderExecutionCompiler.compile(
                 filters: [try recipe.makeFilter()],
                 inputSize: inputSize,
                 profile: profile,
@@ -1214,67 +1597,85 @@ extension ImageNode: ImagePromise {
                 auxiliaryInputDescriptor: recipe.to.descriptor,
                 imageGraph: optimization.graph,
                 graphOptimizationDecisions: optimization.decisions
-            )
+            ).plan
         case .layerComposite(let recipe):
             plan = try recipe.makeRenderPlan(
                 profile: profile,
                 derivative: derivative,
                 samplerDescriptor: activeSamplerDescriptor
             )
-        case .cachePolicy(let input, let policy):
-            let innerPlan = try input.makeRenderPlan(
-                profile: profile,
-                derivative: derivative,
-                samplerDescriptorOverride: activeSamplerDescriptor
-            )
-            plan = RenderPlan(
-                graph: innerPlan.graph,
-                profile: innerPlan.profile,
-                derivative: innerPlan.diagnostics.derivative,
-                inputSize: innerPlan.diagnostics.inputSize,
-                outputSize: innerPlan.diagnostics.outputSize,
-                nodeDiagnostics: innerPlan.diagnostics.nodes,
-                compilationSource: innerPlan.diagnostics.compilationSource,
-                outputContract: innerPlan.diagnostics.outputContract,
-                imageCachePolicy: policy,
-                samplerDescriptor: innerPlan.diagnostics.samplerDescriptor,
-                samplerExecutionCoverage: innerPlan.diagnostics.samplerExecutionCoverage,
-                sourceDescriptor: try input.resolvedPrimarySource().descriptor,
-                inputColorConversionCount: innerPlan.diagnostics.inputColorConversionCount,
-                inputPixelFormatConversionCount: innerPlan.diagnostics.inputPixelFormatConversionCount,
-                inputAlphaConversionCount: innerPlan.diagnostics.inputAlphaConversionCount,
-                imageGraph: optimization.graph,
-                graphOptimizationDecisions: optimization.decisions
-            )
-        case .samplerDescriptor(let input, let descriptor):
-            _ = HarbethContext.shared.makeSamplerState(descriptor)
-            let innerPlan = try input.makeRenderPlan(
-                profile: profile,
-                derivative: derivative,
-                samplerDescriptorOverride: descriptor
-            )
-            plan = RenderPlan(
-                graph: innerPlan.graph,
-                profile: innerPlan.profile,
-                derivative: innerPlan.diagnostics.derivative,
-                inputSize: innerPlan.diagnostics.inputSize,
-                outputSize: innerPlan.diagnostics.outputSize,
-                nodeDiagnostics: innerPlan.diagnostics.nodes,
-                compilationSource: innerPlan.diagnostics.compilationSource,
-                outputContract: innerPlan.diagnostics.outputContract,
-                imageCachePolicy: innerPlan.diagnostics.imageCachePolicy,
-                samplerDescriptor: descriptor,
-                samplerExecutionCoverage: innerPlan.diagnostics.samplerExecutionCoverage,
-                sourceDescriptor: try input.resolvedPrimarySource().descriptor,
-                inputColorConversionCount: innerPlan.diagnostics.inputColorConversionCount,
-                inputPixelFormatConversionCount: innerPlan.diagnostics.inputPixelFormatConversionCount,
-                inputAlphaConversionCount: innerPlan.diagnostics.inputAlphaConversionCount,
-                imageGraph: optimization.graph,
-                graphOptimizationDecisions: optimization.decisions
-            )
+        case .cachePolicy, .samplerDescriptor:
+            preconditionFailure("ImageNode wrappers must be lowered before unwrapped plan compilation.")
         }
-        HarbethContext.shared.storeRenderPlan(plan, for: cacheKey)
         return plan
+    }
+
+    private func makeCachePolicyRenderPlan(
+        input: ImageNode,
+        policy: ImageCachePolicy,
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec?,
+        samplerDescriptor: ImageSamplerDescriptor,
+        optimization: ImageGraphOptimizationResult
+    ) throws -> RenderPlan {
+        let innerPlan = try input.makeRenderPlan(
+            profile: profile,
+            derivative: derivative,
+            samplerDescriptorOverride: samplerDescriptor
+        )
+        return RenderPlan(
+            graph: innerPlan.graph,
+            profile: innerPlan.profile,
+            derivative: innerPlan.diagnostics.derivative,
+            inputSize: innerPlan.diagnostics.inputSize,
+            outputSize: innerPlan.diagnostics.outputSize,
+            nodeDiagnostics: innerPlan.diagnostics.nodes,
+            compilationSource: innerPlan.diagnostics.compilationSource,
+            outputContract: innerPlan.diagnostics.outputContract,
+            imageCachePolicy: policy,
+            samplerDescriptor: innerPlan.diagnostics.samplerDescriptor,
+            samplerExecutionCoverage: innerPlan.diagnostics.samplerExecutionCoverage,
+            sourceDescriptor: try input.resolvedPrimarySource().descriptor,
+            inputColorConversionCount: innerPlan.diagnostics.inputColorConversionCount,
+            inputPixelFormatConversionCount: innerPlan.diagnostics.inputPixelFormatConversionCount,
+            inputAlphaConversionCount: innerPlan.diagnostics.inputAlphaConversionCount,
+            imageGraph: optimization.graph,
+            graphOptimizationDecisions: optimization.decisions
+        )
+    }
+
+    private func makeSamplerDescriptorRenderPlan(
+        input: ImageNode,
+        descriptor: ImageSamplerDescriptor,
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec?,
+        optimization: ImageGraphOptimizationResult
+    ) throws -> RenderPlan {
+        _ = HarbethContext.shared.makeSamplerState(descriptor)
+        let innerPlan = try input.makeRenderPlan(
+            profile: profile,
+            derivative: derivative,
+            samplerDescriptorOverride: descriptor
+        )
+        return RenderPlan(
+            graph: innerPlan.graph,
+            profile: innerPlan.profile,
+            derivative: innerPlan.diagnostics.derivative,
+            inputSize: innerPlan.diagnostics.inputSize,
+            outputSize: innerPlan.diagnostics.outputSize,
+            nodeDiagnostics: innerPlan.diagnostics.nodes,
+            compilationSource: innerPlan.diagnostics.compilationSource,
+            outputContract: innerPlan.diagnostics.outputContract,
+            imageCachePolicy: innerPlan.diagnostics.imageCachePolicy,
+            samplerDescriptor: descriptor,
+            samplerExecutionCoverage: innerPlan.diagnostics.samplerExecutionCoverage,
+            sourceDescriptor: try input.resolvedPrimarySource().descriptor,
+            inputColorConversionCount: innerPlan.diagnostics.inputColorConversionCount,
+            inputPixelFormatConversionCount: innerPlan.diagnostics.inputPixelFormatConversionCount,
+            inputAlphaConversionCount: innerPlan.diagnostics.inputAlphaConversionCount,
+            imageGraph: optimization.graph,
+            graphOptimizationDecisions: optimization.decisions
+        )
     }
 
     /// Builds the LRU cache key for a `makeRenderPlan` call.
@@ -1285,11 +1686,17 @@ extension ImageNode: ImagePromise {
         derivative: ImageDerivativeSpec,
         samplerDescriptor: ImageSamplerDescriptor
     ) -> String {
-        "\(nodeFingerprint)|profile=\(profile.rawValue)|derivative=\(derivative.name)|sampler=\(samplerDescriptor.fingerprint)"
+        "\(nodeFingerprint)|profile=\(profile.rawValue)|derivative=\(derivative.fingerprint)|sampler=\(samplerDescriptor.fingerprint)"
     }
 
     func makeRenderRecipe(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderRecipe {
         switch storage {
+        case .filters(let input, let filters):
+            let base = try input.makeRenderRecipe(profile: profile, derivative: derivative)
+            return base.appending(filterDescriptors: filters.map(\.recipeDescriptor))
+        case .kernel(let input, _, let filter):
+            let base = try input.makeRenderRecipe(profile: profile, derivative: derivative)
+            return base.appending(filterDescriptors: [filter.recipeDescriptor])
         case .recipe(let source, let recipe, let mode):
             return try recipe.makeRenderRecipe(
                 source: source,
@@ -1320,6 +1727,11 @@ extension ImageNode: ImagePromise {
                 derivative: derivative,
                 samplerDescriptor: resolvedSamplerDescriptor
             )
+        case .cachePolicy(let input, let policy):
+            let base = try input.makeRenderRecipe(profile: profile, derivative: derivative)
+            return base.with(outputCachePolicy: policy)
+        case .samplerDescriptor(let input, _):
+            return try input.makeRenderRecipe(profile: profile, derivative: derivative)
         default:
             break
         }
@@ -1418,6 +1830,54 @@ extension ImageNode: ImagePromise {
             return input.resolvedSamplerDescriptor
         case .source, .filters, .kernel, .recipe, .edit, .transition, .layerComposite:
             return .default
+        }
+    }
+
+    private func resolvedSamplerExecutionCoverage(
+        profile: RenderProfile,
+        samplerDescriptor: ImageSamplerDescriptor
+    ) throws -> SamplerExecutionCoverage {
+        switch storage {
+        case .source:
+            return SamplerExecutionCoverage(mode: .notApplicable)
+        case .filters(let input, let filters):
+            return SamplerExecutionAdapter.merge(
+                try input.resolvedSamplerExecutionCoverage(
+                    profile: profile,
+                    samplerDescriptor: samplerDescriptor
+                ),
+                SamplerExecutionAdapter.makePlan(
+                    filters: filters,
+                    samplerDescriptor: samplerDescriptor
+                ).coverage
+            )
+        case .kernel(let input, _, let filter):
+            return SamplerExecutionAdapter.merge(
+                try input.resolvedSamplerExecutionCoverage(
+                    profile: profile,
+                    samplerDescriptor: samplerDescriptor
+                ),
+                SamplerExecutionAdapter.makePlan(
+                    filters: [filter],
+                    samplerDescriptor: samplerDescriptor
+                ).coverage
+            )
+        case .cachePolicy(let input, _):
+            return try input.resolvedSamplerExecutionCoverage(
+                profile: profile,
+                samplerDescriptor: samplerDescriptor
+            )
+        case .samplerDescriptor(let input, let descriptor):
+            return try input.resolvedSamplerExecutionCoverage(
+                profile: profile,
+                samplerDescriptor: descriptor
+            )
+        case .recipe, .edit, .transition, .layerComposite:
+            return try makeRenderPlan(
+                profile: profile,
+                derivative: profile.defaultDerivativeSpec,
+                samplerDescriptorOverride: samplerDescriptor
+            ).diagnostics.samplerExecutionCoverage
         }
     }
 
@@ -1606,38 +2066,54 @@ extension ImageNode: ImagePromise {
         }
     }
 
-    private func resolvedAttachmentAnalysisBridge(profile: RenderProfile) throws -> (inputTexture: MTLTexture, filter: any RenderProtocol)? {
+    private func prepareAttachmentRoute(profile: RenderProfile) throws -> PreparedImageNodeAttachmentRoute? {
+        guard let specification = resolvedAttachmentRouteSpecification() else { return nil }
+        let inputExecution = try specification.input.prepareExecution(
+            profile: profile,
+            derivative: profile.defaultDerivativeSpec,
+            executionIdentifier: "ImageNode.PreparedAttachment",
+            samplerDescriptorOverride: specification.samplerDescriptor
+        )
+        return PreparedImageNodeAttachmentRoute(
+            inputExecution: inputExecution,
+            filter: specification.filter,
+            validateInput: specification.validateInput
+        )
+    }
+
+    private func resolvedAttachmentRouteSpecification() -> (
+        input: ImageNode,
+        filter: any RenderProtocol,
+        samplerDescriptor: ImageSamplerDescriptor,
+        validateInput: (MTLTexture) throws -> Void
+    )? {
         switch storage {
         case .filters(let input, let filters):
-            guard let finalFilter = filters.last as? any RenderProtocol else {
-                return nil
-            }
-            let inputTexture: MTLTexture
-            if filters.count > 1 {
-                inputTexture = try ImageNode.filters(input: input, filters: Array(filters.dropLast()))
-                    .makeTexture(profile: profile, derivative: nil)
-            } else {
-                inputTexture = try input.makeTexture(profile: profile, derivative: nil)
-            }
-            return (inputTexture, finalFilter)
+            guard let finalFilter = filters.last as? any RenderProtocol else { return nil }
+            let routeInput = filters.count > 1
+                ? ImageNode.filters(input: input, filters: Array(filters.dropLast()))
+                : input
+            return (routeInput, finalFilter, resolvedSamplerDescriptor, { _ in })
         case .kernel(let input, let descriptor, let filter):
-            guard let renderFilter = filter as? any RenderProtocol else {
-                return nil
-            }
-            let inputTexture = try input.makeTexture(profile: profile, derivative: nil)
-            try descriptor.validateCompatibility(with: filter, inputSize: C7Size(texture: inputTexture))
-            return (inputTexture, renderFilter)
-        case .cachePolicy(let input, _):
-            return try input.resolvedAttachmentAnalysisBridge(profile: profile)
-        case .samplerDescriptor(let input, let descriptor):
-            guard let bridge = try input.resolvedAttachmentAnalysisBridge(profile: profile) else {
-                return nil
-            }
-            let adaptedFilter: any RenderProtocol = SamplerExecutionAdapter.adapt(
-                renderFilter: bridge.filter,
-                samplerDescriptor: descriptor
+            guard let renderFilter = filter as? any RenderProtocol else { return nil }
+            return (
+                input,
+                renderFilter,
+                resolvedSamplerDescriptor,
+                { texture in
+                    try descriptor.validateCompatibility(with: filter, inputSize: C7Size(texture: texture))
+                }
             )
-            return (bridge.inputTexture, adaptedFilter)
+        case .cachePolicy(let input, _):
+            return input.resolvedAttachmentRouteSpecification()
+        case .samplerDescriptor(let input, let descriptor):
+            guard let route = input.resolvedAttachmentRouteSpecification() else { return nil }
+            return (
+                route.input,
+                SamplerExecutionAdapter.adapt(renderFilter: route.filter, samplerDescriptor: descriptor),
+                descriptor,
+                route.validateInput
+            )
         case .source, .recipe, .edit, .transition, .layerComposite:
             return nil
         }
@@ -1679,6 +2155,40 @@ extension ImageNode: ImagePromise {
             inputAlphaConversionCount: plan.diagnostics.inputAlphaConversionCount,
             imageGraph: optimization.graph,
             graphOptimizationDecisions: optimization.decisions
+        )
+    }
+}
+
+private extension RenderRecipe {
+    func appending(filterDescriptors: [FilterRecipeDescriptor]) -> RenderRecipe {
+        RenderRecipe(
+            renderProfile: renderProfile,
+            renderIntent: renderIntent,
+            source: source,
+            outputDerivative: outputDerivative,
+            outputCachePolicy: outputCachePolicy,
+            outputSemantic: outputSemantic,
+            alphaType: alphaType,
+            orientation: orientation,
+            filters: filters + filterDescriptors,
+            localEffects: localEffects,
+            layerMasks: layerMasks
+        )
+    }
+
+    func with(outputCachePolicy: ImageCachePolicy) -> RenderRecipe {
+        RenderRecipe(
+            renderProfile: renderProfile,
+            renderIntent: renderIntent,
+            source: source,
+            outputDerivative: outputDerivative,
+            outputCachePolicy: outputCachePolicy,
+            outputSemantic: outputSemantic,
+            alphaType: alphaType,
+            orientation: orientation,
+            filters: filters,
+            localEffects: localEffects,
+            layerMasks: layerMasks
         )
     }
 }

@@ -15,6 +15,10 @@ public struct RenderBasicFilter: RenderProtocol {
     public var modifier: ModifierEnum {
         return .render(vertex: "basicVertex", fragment: "basicFragment")
     }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
+    }
     
     public init() { }
     

@@ -41,7 +41,11 @@ public final class C7Crop: C7FilterProtocol, SamplerAdaptableFilter {
         guard samplingMode != nil || edgeMode != nil else {
             return .metadataOnly
         }
-        return .covered(resolved(samplingMode: samplingMode, edgeMode: edgeMode))
+        let resolved = resolved(samplingMode: samplingMode, edgeMode: edgeMode)
+        if samplingMode != nil, edgeMode != nil, descriptor.mipFilter == .notMipmapped {
+            return .covered(resolved)
+        }
+        return .partial(resolved)
     }
 
     private var cropType: CropType = CropType.size(width: 0, height: 0)

@@ -1262,6 +1262,54 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.summary.contains("samplerCoverage=covered"))
     }
 
+    func testSamplerExecutionCoverageDoesNotAssumeEveryRenderShaderConsumesRuntimeSampler() {
+        let plan = GraphCompiler.compile(
+            filters: [
+                RenderProjectiveCanvas(
+                    canvasToSource: matrix_identity_float3x3,
+                    outputSize: C7Size(width: 4, height: 4)
+                )
+            ],
+            inputSize: C7Size(width: 4, height: 4),
+            profile: .stablePreview,
+            samplerDescriptor: .nearest
+        )
+
+        XCTAssertEqual(plan.diagnostics.samplerExecutionCoverage.mode, .metadataOnly)
+        XCTAssertEqual(
+            plan.diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes,
+            ["RenderProjectiveCanvas"]
+        )
+    }
+
+    func testBuiltInRuntimeSamplerRenderFiltersExplicitlyReportCovered() throws {
+        let maskTexture = try TextureLoader.makeTexture(
+            width: 2,
+            height: 2,
+            options: [.texturePixelFormat: MTLPixelFormat.rgba8Unorm],
+            identifier: "RenderGraphTests.runtimeSampler.mask"
+        )
+        let filters: [C7FilterProtocol] = [
+            RenderBasicFilter(),
+            RenderTransform3D(),
+            RenderGrayscale(),
+            RenderSepia(),
+            RenderAuxiliaryLuminance(),
+            RenderAuxiliaryMaskCoverage(mask: MaskDescriptor(texture: maskTexture)),
+            RenderAuxiliaryHighlightClipping(),
+            RenderAuxiliaryShadowClipping(),
+            RenderAuxiliaryFalseColorExposure(),
+        ]
+        let coverage = SamplerExecutionAdapter.coverage(
+            for: filters,
+            samplerDescriptor: .nearest
+        )
+
+        XCTAssertEqual(coverage.mode, .covered)
+        XCTAssertEqual(coverage.coveredFilterTypes.count, filters.count)
+        XCTAssertTrue(coverage.metadataOnlyFilterTypes.isEmpty)
+    }
+
     func testSamplerExecutionCoverageReportsCoveredLegacyComputeGeometryWhenDescriptorIsRepresentable() {
         let plan = GraphCompiler.compile(
             filters: [C7Rotate(angle: 15)],

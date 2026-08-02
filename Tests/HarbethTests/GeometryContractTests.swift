@@ -190,6 +190,65 @@ final class GeometryContractTests: XCTestCase {
         XCTAssertEqual(coverage.metadataOnlyFilterTypes, ["C7Rotate"])
     }
 
+    func testSamplerExecutionCoverageReportsPartialWhenOnlyEdgeModeCanBeMapped() {
+        let descriptor = ImageSamplerDescriptor(
+            minFilter: .nearest,
+            magFilter: .linear,
+            sAddressMode: .clampToEdge,
+            tAddressMode: .clampToEdge
+        )
+        let filter = C7Rotate(angle: 15, samplingMode: .adaptive, edgeMode: .transparent)
+        let plan = SamplerExecutionAdapter.makePlan(filters: [filter], samplerDescriptor: descriptor)
+        let adapted = plan.filters.first as? C7Rotate
+
+        XCTAssertEqual(adapted?.samplingMode, .adaptive)
+        XCTAssertEqual(adapted?.edgeMode, .clamp)
+        XCTAssertEqual(plan.coverage.mode, .partial)
+        XCTAssertEqual(plan.coverage.coveredFilterTypes, ["C7Rotate"])
+        XCTAssertEqual(plan.coverage.metadataOnlyFilterTypes, ["C7Rotate"])
+    }
+
+    func testSamplerExecutionCoverageReportsPartialWhenMipPolicyCannotBeMapped() {
+        let descriptor = ImageSamplerDescriptor(
+            minFilter: .nearest,
+            magFilter: .nearest,
+            mipFilter: .linear,
+            sAddressMode: .repeat,
+            tAddressMode: .repeat
+        )
+        let plan = SamplerExecutionAdapter.makePlan(
+            filters: [C7Transform(transform: .identity)],
+            samplerDescriptor: descriptor
+        )
+        let adapted = plan.filters.first as? C7Transform
+
+        XCTAssertEqual(adapted?.samplingMode, .nearest)
+        XCTAssertEqual(adapted?.edgeMode, .repeat)
+        XCTAssertEqual(plan.coverage.mode, .partial)
+    }
+
+    func testCanvasRenderFiltersRemainMetadataOnlyWithoutRuntimeSamplerConsumption() {
+        let coverage = SamplerExecutionAdapter.coverage(
+            for: [
+                RenderProjectiveCanvas(canvasToSource: matrix_identity_float3x3, outputSize: C7Size(width: 4, height: 4)),
+                RenderCylindricalCanvas(
+                    canvasToProjected: matrix_identity_float3x3,
+                    focalLength: 20,
+                    principalPoint: SIMD2<Float>(2, 2),
+                    outputSize: C7Size(width: 4, height: 4)
+                )
+            ],
+            samplerDescriptor: .nearest
+        )
+
+        XCTAssertEqual(coverage.mode, .metadataOnly)
+        XCTAssertEqual(coverage.coveredFilterTypes, [])
+        XCTAssertEqual(
+            coverage.metadataOnlyFilterTypes,
+            ["RenderCylindricalCanvas", "RenderProjectiveCanvas"]
+        )
+    }
+
     func testSamplerExecutionAdapterSupportsCustomSamplerAdaptableFilter() {
         let sampler = ImageSamplerDescriptor.nearest
         let filter = SamplerConfiguredProbeFilter()

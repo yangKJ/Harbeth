@@ -91,6 +91,74 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(nearestDiagnostics.samplerExecutionCoverage.coveredFilterTypes, ["C7Crop"])
     }
 
+    func testDirectAttachmentRoutePropagatesSamplerToUpstreamFilters() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [[255, 0, 0, 255], [0, 0, 255, 255]])
+        let baseNode = ImageNode.texture(input)
+            .applying(
+                C7Crop(
+                    origin: C7Point2D(x: 0.5, y: 0),
+                    width: 1,
+                    height: 1,
+                    samplingMode: .adaptive,
+                    edgeMode: .transparent
+                )
+            )
+            .applying(RenderAuxiliaryLuminance())
+
+        let linearPrimary = try XCTUnwrap(baseNode.makeAttachmentSet()?.primary?.texture)
+        let nearestNode = baseNode.withSamplerDescriptor(.nearest)
+        let nearestPrimary = try XCTUnwrap(nearestNode.makeAttachmentSet()?.primary?.texture)
+        let linearPixel = try pixel(in: linearPrimary, x: 0, y: 0)
+        let nearestPixel = try pixel(in: nearestPrimary, x: 0, y: 0)
+
+        XCTAssertNotEqual(linearPixel.red, nearestPixel.red)
+        XCTAssertNotEqual(linearPixel.blue, nearestPixel.blue)
+        XCTAssertTrue(nearestPixel.red == 255 || nearestPixel.blue == 255)
+        XCTAssertEqual(try nearestNode.makeDiagnostics().samplerExecutionCoverage.coveredFilterTypes, ["C7Crop", "RenderAuxiliaryLuminance"])
+    }
+
+    func testSamplerSensitiveFramePixelsMatchAcrossSyncCallbackAndAsync() async throws {
+        let input = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [[255, 0, 0, 255], [0, 0, 255, 255]]
+        )
+        let node = ImageNode.texture(input)
+            .applying(
+                C7Crop(
+                    origin: C7Point2D(x: 0.5, y: 0),
+                    width: 1,
+                    height: 1,
+                    samplingMode: .adaptive,
+                    edgeMode: .transparent
+                )
+            )
+            .withSamplerDescriptor(.nearest)
+
+        let synchronous = try node.makeFrame()
+        let callback = try await withCheckedThrowingContinuation { continuation in
+            node.transmitFrame { result in
+                continuation.resume(with: result)
+            }
+        }
+        let asynchronous = try await node.makeFrameAsync()
+        let synchronousPixel = try pixel(in: synchronous.texture, x: 0, y: 0)
+        let callbackPixel = try pixel(in: callback.texture, x: 0, y: 0)
+        let asynchronousPixel = try pixel(in: asynchronous.texture, x: 0, y: 0)
+
+        XCTAssertEqual(
+            [callbackPixel.red, callbackPixel.green, callbackPixel.blue, callbackPixel.alpha],
+            [synchronousPixel.red, synchronousPixel.green, synchronousPixel.blue, synchronousPixel.alpha]
+        )
+        XCTAssertEqual(
+            [asynchronousPixel.red, asynchronousPixel.green, asynchronousPixel.blue, asynchronousPixel.alpha],
+            [synchronousPixel.red, synchronousPixel.green, synchronousPixel.blue, synchronousPixel.alpha]
+        )
+        XCTAssertTrue(synchronousPixel.red == 255 || synchronousPixel.blue == 255)
+        XCTAssertEqual(synchronous.metadata["renderGraphFingerprint"], callback.metadata["renderGraphFingerprint"])
+        XCTAssertEqual(synchronous.metadata["renderGraphFingerprint"], asynchronous.metadata["renderGraphFingerprint"])
+    }
+
     #if canImport(UIKit)
     func testUIImageSourceOrientationIsAppliedBeforeTextureCreation() throws {
         let rawTexture = try makeTexture(
@@ -3268,6 +3336,8 @@ private struct SamplerProbeFilter: RenderProtocol {
     var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "basicFragment")
     }
+
+    var renderSamplerConsumption: RenderSamplerConsumption { .runtimeBound }
 
     func resize(input size: C7Size) -> C7Size {
         C7Size(width: 1, height: 1)

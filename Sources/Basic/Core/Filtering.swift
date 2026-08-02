@@ -233,6 +233,14 @@ extension C7FilterProtocol {
 }
 
 // MARK: - render filter protocol
+public enum RenderSamplerConsumption: Sendable, Equatable {
+    /// Fragment shader consumes the runtime sampler bound to `[[sampler(0)]]`.
+    case runtimeBound
+    /// Fragment shader defines its own sampling rules through inline `constexpr sampler`
+    /// or filter-specific parameters.
+    case shaderDefined
+}
+
 public protocol RenderProtocol: C7FilterProtocol {
     /// Setup the vertex shader parameters.
     /// - Parameter device: MTLDevice
@@ -262,6 +270,9 @@ public protocol RenderProtocol: C7FilterProtocol {
     /// Node-level sampler overrides can bridge through this property on the
     /// render paths that actually bind a Metal sampler state.
     var renderSamplerDescriptor: ImageSamplerDescriptor { get }
+
+    /// 声明 fragment shader 消费运行时绑定的 sampler，还是自行持有采样行为。
+    var renderSamplerConsumption: RenderSamplerConsumption { get }
 }
 
 extension RenderProtocol {
@@ -282,6 +293,7 @@ public protocol SamplerAdaptableFilter: C7FilterProtocol {
 /// Result of attempting to apply a sampler descriptor to a filter.
 public enum SamplerAdaptation {
     case covered(any C7FilterProtocol)
+    case partial(any C7FilterProtocol)
     case metadataOnly
     case notApplicable
 }

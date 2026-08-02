@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-/// 在一次 render pass 内同时输出主颜色和阴影裁切分析图。
+/// Output the main color and shadow crop analysis diagram at the same time in a render pass.
 public struct RenderAuxiliaryShadowClipping: RenderProtocol {
 
     @ZeroOneRange public var threshold: Float = 0.08
@@ -16,6 +16,10 @@ public struct RenderAuxiliaryShadowClipping: RenderProtocol {
 
     public var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "dualOutputShadowClippingFragment")
+    }
+
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .runtimeBound
     }
 
     public var factors: [Float] {

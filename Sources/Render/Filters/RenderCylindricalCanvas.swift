@@ -24,6 +24,10 @@ public struct RenderCylindricalCanvas: RenderProtocol {
         .render(vertex: "basicVertex", fragment: "cylindricalCanvasFragment")
     }
 
+    public var renderSamplerConsumption: RenderSamplerConsumption {
+        .shaderDefined
+    }
+
     public var renderOutputContract: RenderOutputContract {
         RenderOutputContract(
             alpha: .premultiplied,
