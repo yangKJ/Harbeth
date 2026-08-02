@@ -131,7 +131,14 @@ final class PublicAPISmokeTests: XCTestCase {
     func testPreviewHostSurfacesCompile() {
         let renderView = RenderView(frame: .zero, device: nil)
         renderView.resizingMode = .aspectFit
-        let swiftUIView = HarbethRenderView(texture: nil)
+        renderView.dynamicRangePolicy = .automatic
+        renderView.onPreviewDisplayStateUpdated = { _ in }
+        _ = renderView.currentPreviewDisplayState
+        let swiftUIView = HarbethRenderView(
+            texture: nil,
+            dynamicRangePolicy: .standard,
+            onPreviewDisplayState: { _ in }
+        )
         _ = renderView
         _ = swiftUIView
     }

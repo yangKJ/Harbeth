@@ -187,6 +187,14 @@ extension ImageNode {
         let primarySource = try resolvedPrimarySource()
         let resolvedOutputColorSpace = outputColorSpace ?? diagnostics.outputColorSpace
         let colorSpace = resolvedFrameColorSpace(for: primarySource, outputColorSpace: resolvedOutputColorSpace)
+        let frameOutputColorSpace: ImageColorSpaceContract
+        if resolvedOutputColorSpace.preservesInput == false {
+            frameOutputColorSpace = resolvedOutputColorSpace
+        } else if let colorSpace {
+            frameOutputColorSpace = ImageColorSpaceContract(colorSpace: colorSpace)
+        } else {
+            frameOutputColorSpace = .preserveInput
+        }
         let previewHostStrategy = resolvedPreviewHostStrategy(
             source: primarySource,
             renderedTexture: texture,
@@ -205,14 +213,16 @@ extension ImageNode {
         )
         var renderedMetadata = metadata
         renderedMetadata["filterChainFingerprint"] = FilterChainRecipe(filters: renderRecipe.filters).fingerprint
-        renderedMetadata["outputDynamicRange"] = resolvedOutputColorSpace.dynamicRange.rawValue
-        renderedMetadata["outputColorSpace"] = resolvedOutputColorSpace.name
+        renderedMetadata["outputDynamicRange"] = frameOutputColorSpace.dynamicRange.rawValue
+        renderedMetadata["outputColorSpace"] = frameOutputColorSpace.name
         renderedMetadata["outputToneMappingPolicy"] = diagnostics.outputContract.toneMappingPolicy.rawValue
         let token = FrameRenderToken(identifier: monitoringIdentifier, generation: FrameGeneration.next())
         let logicalOutputSize = C7Size(texture: texture)
         return RenderedFrame(
             texture: texture,
             colorSpace: colorSpace,
+            outputColorSpaceContract: frameOutputColorSpace,
+            outputToneMappingPolicy: diagnostics.outputContract.toneMappingPolicy,
             sourceDescriptor: primarySource.descriptor,
             derivative: effectiveDerivative,
             resolvedOutputSize: logicalOutputSize,

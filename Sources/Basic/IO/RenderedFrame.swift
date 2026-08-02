@@ -145,6 +145,12 @@ public struct RenderedFrame: @unchecked Sendable {
     public let size: CGSize
     public let pixelFormat: MTLPixelFormat
     public let colorSpace: CGColorSpace?
+    /// 渲染结果实际携带的输出色彩空间合同。
+    public let outputColorSpaceContract: ImageColorSpaceContract
+    /// 由输出色彩空间合同解析出的动态范围。
+    public let outputDynamicRange: ImageDynamicRangeContract
+    /// 此帧采用或要求展示宿主采用的 tone-mapping 策略。
+    public let outputToneMappingPolicy: ImageToneMappingPolicy
     public let sourceDescriptor: ImageSourceDescriptor
     public let derivative: ImageDerivativeSpec
     public let resolvedOutputSize: C7Size
@@ -166,6 +172,8 @@ public struct RenderedFrame: @unchecked Sendable {
 
     public init(texture: MTLTexture,
                 colorSpace: CGColorSpace? = nil,
+                outputColorSpaceContract: ImageColorSpaceContract? = nil,
+                outputToneMappingPolicy: ImageToneMappingPolicy = .preserveInput,
                 sourceDescriptor: ImageSourceDescriptor? = nil,
                 derivative: ImageDerivativeSpec? = nil,
                 resolvedOutputSize: C7Size? = nil,
@@ -184,6 +192,8 @@ public struct RenderedFrame: @unchecked Sendable {
         self.init(
             texture: texture,
             colorSpace: colorSpace,
+            outputColorSpaceContract: outputColorSpaceContract,
+            outputToneMappingPolicy: outputToneMappingPolicy,
             sourceDescriptor: sourceDescriptor,
             derivative: derivative,
             resolvedOutputSize: resolvedOutputSize,
@@ -202,6 +212,8 @@ public struct RenderedFrame: @unchecked Sendable {
 
     public init(texture: MTLTexture,
                 colorSpace: CGColorSpace? = nil,
+                outputColorSpaceContract: ImageColorSpaceContract? = nil,
+                outputToneMappingPolicy: ImageToneMappingPolicy = .preserveInput,
                 sourceDescriptor: ImageSourceDescriptor? = nil,
                 derivative: ImageDerivativeSpec? = nil,
                 resolvedOutputSize: C7Size? = nil,
@@ -218,6 +230,8 @@ public struct RenderedFrame: @unchecked Sendable {
         self.init(
             texture: texture,
             colorSpace: colorSpace,
+            outputColorSpaceContract: outputColorSpaceContract,
+            outputToneMappingPolicy: outputToneMappingPolicy,
             sourceDescriptor: sourceDescriptor,
             derivative: derivative,
             resolvedOutputSize: resolvedOutputSize,
@@ -237,6 +251,8 @@ public struct RenderedFrame: @unchecked Sendable {
 
     init(texture: MTLTexture,
          colorSpace: CGColorSpace? = nil,
+         outputColorSpaceContract: ImageColorSpaceContract? = nil,
+         outputToneMappingPolicy: ImageToneMappingPolicy = .preserveInput,
          sourceDescriptor: ImageSourceDescriptor? = nil,
          derivative: ImageDerivativeSpec? = nil,
          resolvedOutputSize: C7Size? = nil,
@@ -258,6 +274,12 @@ public struct RenderedFrame: @unchecked Sendable {
         )
         self.pixelFormat = texture.pixelFormat
         self.colorSpace = colorSpace
+        let resolvedColorSpaceContract = outputColorSpaceContract
+            ?? colorSpace.map(ImageColorSpaceContract.init(colorSpace:))
+            ?? .preserveInput
+        self.outputColorSpaceContract = resolvedColorSpaceContract
+        self.outputDynamicRange = resolvedColorSpaceContract.dynamicRange
+        self.outputToneMappingPolicy = outputToneMappingPolicy
         self.sourceDescriptor = sourceDescriptor ?? ImageSourceDescriptor(
             kind: "texture",
             sourceTier: sourceTier,
@@ -609,6 +631,8 @@ struct FrameRenderer: @unchecked Sendable {
                         RenderedFrame(
                             texture: input,
                             colorSpace: resolvedFrameColorSpace(source: source, filterChain: filters),
+                            outputColorSpaceContract: resolvedFrameColorSpaceContract(source: source, filterChain: filters),
+                            outputToneMappingPolicy: outputToneMappingPolicy ?? .preserveInput,
                             sourceDescriptor: source.descriptor,
                             derivative: outputDerivative,
                             resolvedOutputSize: resolvedSize,
@@ -636,6 +660,8 @@ struct FrameRenderer: @unchecked Sendable {
                             RenderedFrame(
                                 texture: output.texture,
                                 colorSpace: resolvedFrameColorSpace(source: source, filterChain: filters),
+                                outputColorSpaceContract: resolvedFrameColorSpaceContract(source: source, filterChain: filters),
+                                outputToneMappingPolicy: outputToneMappingPolicy ?? .preserveInput,
                                 sourceDescriptor: source.descriptor,
                                 derivative: outputDerivative,
                                 resolvedOutputSize: resolvedSize,
@@ -721,6 +747,36 @@ struct FrameRenderer: @unchecked Sendable {
         return nil
     }
 
+    private func resolvedFrameColorSpaceContract(
+        source: ImageSource,
+        filterChain: [C7FilterProtocol]
+    ) -> ImageColorSpaceContract {
+        let inputSize: C7Size?
+        if let texture = try? source.makeTexture() {
+            inputSize = C7Size(texture: texture)
+        } else {
+            inputSize = nil
+        }
+        let resolvedOutput = outputColorSpace ?? filterChain.reduce(ImageColorSpaceContract.preserveInput) { current, filter in
+            let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
+            return declared.preservesInput ? current : declared
+        }
+        if resolvedOutput.preservesInput == false {
+            return resolvedOutput
+        }
+        if let colorSpace = source.colorSpace {
+            return ImageColorSpaceContract(colorSpace: colorSpace)
+        }
+        let sourceDescriptor = source.descriptor
+        if let colorSpace = sourceDescriptor.pixelBufferContract?.attachmentColorSpace {
+            return colorSpace
+        }
+        if let colorSpace = sourceDescriptor.sampleBufferContract?.pixelBufferContract?.attachmentColorSpace {
+            return colorSpace
+        }
+        return .preserveInput
+    }
+
     private func renderFrame(token: FrameRenderToken,
                              source: ImageSource,
                              renderedTexture: MTLTexture,
@@ -735,6 +791,8 @@ struct FrameRenderer: @unchecked Sendable {
         return RenderedFrame(
             texture: renderedTexture,
             colorSpace: resolvedFrameColorSpace(source: source, filterChain: filterChain),
+            outputColorSpaceContract: resolvedFrameColorSpaceContract(source: source, filterChain: filterChain),
+            outputToneMappingPolicy: outputToneMappingPolicy ?? .preserveInput,
             sourceDescriptor: source.descriptor,
             derivative: outputDerivative,
             resolvedOutputSize: resolvedSize,

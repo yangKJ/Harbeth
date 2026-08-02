@@ -62,6 +62,9 @@ HDR / EDR 输出建议：
 - `ImageNode.makeFrame(outputColorSpace:)` 允许把同一份输出 contract 继续带到 frame / diagnostics / metadata
 - `RenderOutputContract.hdrPQTexture`、`RenderOutputContract.hdrHLGTexture`、`RenderOutputContract.toneMappedDisplayP3Texture` 是当前推荐的 HDR / EDR / SDR 输出预设
 - `RenderOutputContract.toneMappingPolicy` 用来声明当前输出是保留 HDR / EDR，还是显式 tone map 到 SDR
+- `RenderedFrame.outputColorSpaceContract`、`outputDynamicRange`、`outputToneMappingPolicy` 是预览宿主消费的类型化输出事实源
+- `RenderView.dynamicRangePolicy` 提供 `.automatic`、`.standard`、`.extended` 三种策略；实际展示能力与 SDR fallback 通过 `currentPreviewDisplayState` 或 `onPreviewDisplayStateUpdated` 获取
+- `MTLTexture` 默认按 SDR 处理；不得仅凭 `rgba16Float` 推断内容是 HDR，需要 EDR 时由调用方显式选择 `.extended`
 
 一致性说明：
 
@@ -577,6 +580,7 @@ source contract 一致性说明：
 - `RenderRequest`、`RenderTask` 属于 deferred/supporting read surface，不是第三条 app integration route
 - `RenderView` 只是 `PreviewDisplaying` 的默认实现，显示对象统一回到 `RenderedFrame`
 - `RenderView` 现在会消费 `RenderedFrame` 暴露的 frame host metadata / runtime hint，用来区分 low-latency、stable preview 和 readback-style host 行为
+- `RenderView` 同时消费 `RenderedFrame` 的输出色彩/HDR 合同，配置 drawable 精度、`CAMetalLayer` 色彩空间与平台 EDR 偏好；它不承担产品级 tone curve 或媒体生命周期
 - `ReplayBaseContract`
 - `RenderCacheIdentity`
 

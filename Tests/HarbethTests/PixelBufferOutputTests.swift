@@ -956,8 +956,10 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(snapshot.diagnostics.frameHostDecision, PreviewHostRenderingDecision.directPlaneDecodeToRGBA.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostTimingPolicy, PreviewHostTimingPolicy.displayStable.rawValue)
         XCTAssertEqual(snapshot.diagnostics.frameHostSource, frame.frameHostSourceDescriptor.fingerprint)
-        XCTAssertEqual(frame.metadata["outputDynamicRange"], diagnostics.outputDynamicRange.rawValue)
-        XCTAssertEqual(frame.metadata["outputColorSpace"], diagnostics.outputColorSpace.name)
+        XCTAssertEqual(frame.outputDynamicRange, .highDynamicRange)
+        XCTAssertEqual(frame.outputColorSpaceContract.name, "ituR2020PQ")
+        XCTAssertEqual(frame.metadata["outputDynamicRange"], frame.outputDynamicRange.rawValue)
+        XCTAssertEqual(frame.metadata["outputColorSpace"], frame.outputColorSpaceContract.name)
         XCTAssertEqual(frame.metadata["outputToneMappingPolicy"], diagnostics.outputToneMappingPolicy.rawValue)
         XCTAssertTrue(snapshot.summary.contains("origin=sampleBuffer"))
 

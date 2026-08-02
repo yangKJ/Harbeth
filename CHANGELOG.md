@@ -53,6 +53,14 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 | Inspection and support | Histogram/statistics/probes, attachment analysis, preview parity, structured logging and privacy-safe support snapshots | 2026-06-22–24, 2026-07-23, 2026-07-28 |
 | Developer experience | Showcase-oriented Demos, DocC/API/migration/troubleshooting docs, Issue templates and release compatibility checks | 2026-06-21–27, 2026-07-16–21, 2026-07-28 |
 
+### 2026-08-02 — Frame-driven HDR preview hosting
+
+#### Added
+
+- Added typed output color-space, dynamic-range and tone-mapping metadata to `RenderedFrame`, so preview hosts no longer infer HDR semantics from texture pixel format.
+- Added `PreviewDynamicRangePolicy` and observable `PreviewDisplayState` to `RenderView`; frame-driven previews now select SDR/16-bit float drawables, configure `CAMetalLayer` color space, request EDR when supported and report deterministic SDR fallback.
+- Extended `HarbethRenderView` with the same dynamic-range policy and display-state callback while preserving the existing raw-texture SDR default.
+
 ### 2026-08-01 — Runtime resource ownership and context migration
 
 #### Added

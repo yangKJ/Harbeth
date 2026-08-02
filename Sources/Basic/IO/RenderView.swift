@@ -7,6 +7,7 @@
 
 import Foundation
 import MetalKit
+import QuartzCore
 #if canImport(AVFoundation)
 import AVFoundation
 #endif
@@ -16,9 +17,52 @@ import UIKit
 import AppKit
 #endif
 
+/// Preview the host's display strategy for dynamic range.
+public enum PreviewDynamicRangePolicy: String, Sendable, Codable, Equatable, Hashable {
+    /// Automatically select SDR or EDR according to the typed output contract of `RenderedFrame`.
+    case automatic
+    /// Always display with SDR.
+    case standard
+    /// Edictly request EDR; safely return to SDR when the system or screen does not support it.
+    case extended
+}
+
+/// The reason for the return when the preview host cannot meet the request dynamic range.
+public enum PreviewDynamicRangeFallbackReason: String, Sendable, Codable, Equatable, Hashable {
+    case extendedRangeUnavailable
+}
+
+/// `RenderView` is currently in effect display contract.
+public struct PreviewDisplayState: Sendable, Equatable {
+    public let policy: PreviewDynamicRangePolicy
+    public let requestedDynamicRange: ImageDynamicRangeContract
+    public let effectiveDynamicRange: ImageDynamicRangeContract
+    public let outputColorSpace: ImageColorSpaceContract
+    public let isExtendedRangePresentationEnabled: Bool
+    public let fallbackReason: PreviewDynamicRangeFallbackReason?
+
+    public init(
+        policy: PreviewDynamicRangePolicy,
+        requestedDynamicRange: ImageDynamicRangeContract,
+        effectiveDynamicRange: ImageDynamicRangeContract,
+        outputColorSpace: ImageColorSpaceContract,
+        isExtendedRangePresentationEnabled: Bool,
+        fallbackReason: PreviewDynamicRangeFallbackReason? = nil
+    ) {
+        self.policy = policy
+        self.requestedDynamicRange = requestedDynamicRange
+        self.effectiveDynamicRange = effectiveDynamicRange
+        self.outputColorSpace = outputColorSpace
+        self.isExtendedRangePresentationEnabled = isExtendedRangePresentationEnabled
+        self.fallbackReason = fallbackReason
+    }
+}
+
+@MainActor
 open class RenderView: MTKView {
     public var onPreviewHostExecutionReportUpdated: ((PreviewHostExecutionReport) -> Void)?
     public var onPreviewHostFleetSnapshotUpdated: ((PreviewHostFleetSnapshot) -> Void)?
+    public var onPreviewDisplayStateUpdated: ((PreviewDisplayState) -> Void)?
 
     private enum PreviewHostDisplayMode {
         case lowLatency
@@ -33,6 +77,23 @@ open class RenderView: MTKView {
     }
 
     public private(set) var currentRenderedFrame: RenderedFrame?
+
+    /// The output contract is automatically configured SDR/EDR according to `RenderedFrame`;
+    /// the bare texture path is still SDR by default.
+    public var dynamicRangePolicy: PreviewDynamicRangePolicy = .automatic {
+        didSet {
+            guard oldValue != dynamicRangePolicy else { return }
+            applyPreviewDisplayConfiguration(for: currentRenderedFrame)
+        }
+    }
+
+    public private(set) var currentPreviewDisplayState = PreviewDisplayState(
+        policy: .automatic,
+        requestedDynamicRange: .standardDynamicRange,
+        effectiveDynamicRange: .standardDynamicRange,
+        outputColorSpace: .sRGB,
+        isExtendedRangePresentationEnabled: false
+    )
 
     public var currentFrameHostSourceDescriptor: FrameHostSourceDescriptor? {
         currentRenderedFrame?.frameHostSourceDescriptor
@@ -106,6 +167,9 @@ open class RenderView: MTKView {
                 currentPreviewHostStrategy = PreviewHostStrategy.metalTextureHost.rawValue
                 hostRecoveredCurrentFrameByFlush = false
                 hostFellBackCurrentFrameToMetal = false
+                if previousFrame != nil {
+                    applyPreviewDisplayConfiguration(for: nil)
+                }
             }
             updateDrawableSizeIfNeeded()
             invalidateDisplay()
@@ -170,6 +234,7 @@ open class RenderView: MTKView {
         #endif
         startObservingPreviewHostLifecycle()
         updateDrawableSizeIfNeeded()
+        applyPreviewDisplayConfiguration(for: nil)
     }
 
     #if canImport(UIKit)
@@ -183,6 +248,7 @@ open class RenderView: MTKView {
 
     public override func didMoveToWindow() {
         super.didMoveToWindow()
+        applyPreviewDisplayConfiguration(for: currentRenderedFrame)
         updateDrawableSizeIfNeeded()
         updatePreviewHostScheduling()
         updateSampleBufferPreviewVisibilityIfNeeded()
@@ -196,7 +262,143 @@ open class RenderView: MTKView {
         updateSampleBufferPreviewVisibilityIfNeeded()
         needsDisplay = true
     }
+
+    public override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        applyPreviewDisplayConfiguration(for: currentRenderedFrame)
+        updateDrawableSizeIfNeeded()
+        updatePreviewHostScheduling()
+        updateSampleBufferPreviewVisibilityIfNeeded()
+        needsDisplay = true
+    }
     #endif
+
+    static func resolvePreviewDisplayState(
+        policy: PreviewDynamicRangePolicy,
+        frameDynamicRange: ImageDynamicRangeContract,
+        outputColorSpace: ImageColorSpaceContract,
+        supportsExtendedRange: Bool
+    ) -> PreviewDisplayState {
+        let requestedDynamicRange: ImageDynamicRangeContract
+        switch policy {
+        case .automatic:
+            requestedDynamicRange = requestsExtendedRange(frameDynamicRange) ? frameDynamicRange : .standardDynamicRange
+        case .standard:
+            requestedDynamicRange = .standardDynamicRange
+        case .extended:
+            requestedDynamicRange = frameDynamicRange == .highDynamicRange
+                ? .highDynamicRange
+                : .extendedDynamicRange
+        }
+        let requestsExtendedPresentation = requestsExtendedRange(requestedDynamicRange)
+        let extendedPresentationEnabled = requestsExtendedPresentation && supportsExtendedRange
+        return PreviewDisplayState(
+            policy: policy,
+            requestedDynamicRange: requestedDynamicRange,
+            effectiveDynamicRange: extendedPresentationEnabled ? requestedDynamicRange : .standardDynamicRange,
+            outputColorSpace: outputColorSpace,
+            isExtendedRangePresentationEnabled: extendedPresentationEnabled,
+            fallbackReason: requestsExtendedPresentation && supportsExtendedRange == false
+                ? .extendedRangeUnavailable
+                : nil
+        )
+    }
+
+    private static func requestsExtendedRange(_ dynamicRange: ImageDynamicRangeContract) -> Bool {
+        dynamicRange == .extendedDynamicRange || dynamicRange == .highDynamicRange
+    }
+
+    private func applyPreviewDisplayConfiguration(for frame: RenderedFrame?) {
+        let outputColorSpace = resolvedPreviewOutputColorSpace(for: frame)
+        let frameDynamicRange = frame?.outputDynamicRange ?? .standardDynamicRange
+        let state = Self.resolvePreviewDisplayState(
+            policy: dynamicRangePolicy,
+            frameDynamicRange: frameDynamicRange,
+            outputColorSpace: outputColorSpace,
+            supportsExtendedRange: supportsExtendedDynamicRangePresentation
+        )
+        let frameContainsExtendedRange = Self.requestsExtendedRange(frameDynamicRange)
+        let requiresHighPrecisionDrawable = frameContainsExtendedRange || dynamicRangePolicy == .extended
+        colorPixelFormat = requiresHighPrecisionDrawable ? .rgba16Float : .bgra8Unorm
+
+        guard let metalLayer = layer as? CAMetalLayer else {
+            publishPreviewDisplayState(state)
+            return
+        }
+        metalLayer.colorspace = frame?.colorSpace
+            ?? outputColorSpace.cgColorSpace
+            ?? CGColorSpace(name: CGColorSpace.sRGB)
+        configureExtendedDynamicRange(
+            on: metalLayer,
+            enabled: state.isExtendedRangePresentationEnabled,
+            sourceContainsExtendedRange: frameContainsExtendedRange
+        )
+        publishPreviewDisplayState(state)
+    }
+
+    private func resolvedPreviewOutputColorSpace(for frame: RenderedFrame?) -> ImageColorSpaceContract {
+        guard let frame else {
+            return dynamicRangePolicy == .extended ? .extendedLinearDisplayP3 : .sRGB
+        }
+        if frame.outputColorSpaceContract.preservesInput == false {
+            return frame.outputColorSpaceContract
+        }
+        if let colorSpace = frame.colorSpace {
+            return ImageColorSpaceContract(colorSpace: colorSpace)
+        }
+        return .sRGB
+    }
+
+    private var supportsExtendedDynamicRangePresentation: Bool {
+        #if os(iOS)
+        if #available(iOS 16.0, *) {
+            return (window?.screen ?? UIScreen.main).potentialEDRHeadroom > 1
+        }
+        return false
+        #elseif os(macOS)
+        return ((window?.screen ?? NSScreen.main)?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1) > 1
+        #elseif os(tvOS)
+        if #available(tvOS 26.0, *) {
+            return true
+        }
+        return false
+        #else
+        return false
+        #endif
+    }
+
+    private func configureExtendedDynamicRange(
+        on metalLayer: CAMetalLayer,
+        enabled: Bool,
+        sourceContainsExtendedRange: Bool
+    ) {
+        #if os(iOS)
+        if #available(iOS 26.0, *) {
+            metalLayer.preferredDynamicRange = enabled ? .high : .standard
+        } else if #available(iOS 16.0, *) {
+            metalLayer.wantsExtendedDynamicRangeContent = enabled
+        }
+        #elseif os(macOS)
+        if #available(macOS 26.0, *) {
+            metalLayer.preferredDynamicRange = enabled ? .high : .standard
+        } else {
+            metalLayer.wantsExtendedDynamicRangeContent = enabled
+        }
+        #elseif os(tvOS)
+        if #available(tvOS 26.0, *) {
+            metalLayer.preferredDynamicRange = enabled ? .high : .standard
+        }
+        #endif
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, *) {
+            metalLayer.toneMapMode = sourceContainsExtendedRange ? .ifSupported : .never
+        }
+    }
+
+    private func publishPreviewDisplayState(_ state: PreviewDisplayState) {
+        guard currentPreviewDisplayState != state else { return }
+        currentPreviewDisplayState = state
+        onPreviewDisplayStateUpdated?(state)
+    }
 
     private func updateDrawableSizeIfNeeded() {
         let targetSize = bounds.size
@@ -318,7 +520,7 @@ open class RenderView: MTKView {
     }
 }
 
-extension RenderView: @preconcurrency PreviewDisplaying {
+extension RenderView: PreviewDisplaying {
     public func display(_ frame: RenderedFrame?) {
         let previousFrame = currentRenderedFrame
         if previousFrame?.cacheIdentity.fingerprint != frame?.cacheIdentity.fingerprint {
@@ -326,6 +528,7 @@ extension RenderView: @preconcurrency PreviewDisplaying {
         }
         currentRenderedFrame = frame
         texture = frame?.texture
+        applyPreviewDisplayConfiguration(for: frame)
         let hint = frame?.frameHostRuntimeHint
         isRealtimePreviewFriendly = hint?.isRealtimePreviewEligible ?? false
         supportsVisibilityPauseForCurrentFrame = hint?.supportsVisibilityPause ?? false

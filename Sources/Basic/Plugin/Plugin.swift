@@ -126,6 +126,7 @@ public protocol FilterPlugin: Plugin { }
 /// 适合“返回 local effect / edit recipe”等局部编辑结果的插件。
 public protocol MaskPlugin: Plugin { }
 
+@MainActor
 public protocol PreviewDisplaying: AnyObject {
     var texture: MTLTexture? { get set }
     var currentRenderedFrame: RenderedFrame? { get }

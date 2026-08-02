@@ -87,37 +87,47 @@ public struct HarbethRenderView: View {
     private let frame: RenderedFrame?
     private let resizingMode: RenderView.ResizingMode
     private let preferredDrawableScale: CGFloat?
+    private let dynamicRangePolicy: PreviewDynamicRangePolicy
     private let onExecutionReport: ((PreviewHostExecutionReport) -> Void)?
     private let onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+    private let onPreviewDisplayState: ((PreviewDisplayState) -> Void)?
 
     public init(
         texture: MTLTexture?,
         resizingMode: RenderView.ResizingMode = .aspectFit,
         preferredDrawableScale: CGFloat? = nil,
+        dynamicRangePolicy: PreviewDynamicRangePolicy = .automatic,
         onExecutionReport: ((PreviewHostExecutionReport) -> Void)? = nil,
-        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)? = nil
+        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)? = nil,
+        onPreviewDisplayState: ((PreviewDisplayState) -> Void)? = nil
     ) {
         self.texture = texture
         self.frame = nil
         self.resizingMode = resizingMode
         self.preferredDrawableScale = preferredDrawableScale
+        self.dynamicRangePolicy = dynamicRangePolicy
         self.onExecutionReport = onExecutionReport
         self.onFleetSnapshot = onFleetSnapshot
+        self.onPreviewDisplayState = onPreviewDisplayState
     }
 
     public init(
         frame: RenderedFrame?,
         resizingMode: RenderView.ResizingMode = .aspectFit,
         preferredDrawableScale: CGFloat? = nil,
+        dynamicRangePolicy: PreviewDynamicRangePolicy = .automatic,
         onExecutionReport: ((PreviewHostExecutionReport) -> Void)? = nil,
-        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)? = nil
+        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)? = nil,
+        onPreviewDisplayState: ((PreviewDisplayState) -> Void)? = nil
     ) {
         self.texture = nil
         self.frame = frame
         self.resizingMode = resizingMode
         self.preferredDrawableScale = preferredDrawableScale
+        self.dynamicRangePolicy = dynamicRangePolicy
         self.onExecutionReport = onExecutionReport
         self.onFleetSnapshot = onFleetSnapshot
+        self.onPreviewDisplayState = onPreviewDisplayState
     }
 
     public var body: some View {
@@ -126,8 +136,10 @@ public struct HarbethRenderView: View {
             frame: frame,
             resizingMode: resizingMode,
             preferredDrawableScale: preferredDrawableScale,
+            dynamicRangePolicy: dynamicRangePolicy,
             onExecutionReport: onExecutionReport,
-            onFleetSnapshot: onFleetSnapshot
+            onFleetSnapshot: onFleetSnapshot,
+            onPreviewDisplayState: onPreviewDisplayState
         )
     }
 }
@@ -139,8 +151,10 @@ private struct HarbethRenderViewRepresentable: UIViewRepresentable {
     let frame: RenderedFrame?
     let resizingMode: RenderView.ResizingMode
     let preferredDrawableScale: CGFloat?
+    let dynamicRangePolicy: PreviewDynamicRangePolicy
     let onExecutionReport: ((PreviewHostExecutionReport) -> Void)?
     let onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+    let onPreviewDisplayState: ((PreviewDisplayState) -> Void)?
 
     func makeUIView(context: Context) -> RenderView {
         RenderView(frame: .zero, device: nil)
@@ -153,8 +167,10 @@ private struct HarbethRenderViewRepresentable: UIViewRepresentable {
             frame: frame,
             resizingMode: resizingMode,
             preferredDrawableScale: preferredDrawableScale,
+            dynamicRangePolicy: dynamicRangePolicy,
             onExecutionReport: onExecutionReport,
-            onFleetSnapshot: onFleetSnapshot
+            onFleetSnapshot: onFleetSnapshot,
+            onPreviewDisplayState: onPreviewDisplayState
         )
     }
 
@@ -167,8 +183,10 @@ private struct HarbethRenderViewRepresentable: NSViewRepresentable {
     let frame: RenderedFrame?
     let resizingMode: RenderView.ResizingMode
     let preferredDrawableScale: CGFloat?
+    let dynamicRangePolicy: PreviewDynamicRangePolicy
     let onExecutionReport: ((PreviewHostExecutionReport) -> Void)?
     let onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+    let onPreviewDisplayState: ((PreviewDisplayState) -> Void)?
 
     func makeNSView(context: Context) -> RenderView {
         RenderView(frame: .zero, device: nil)
@@ -181,8 +199,10 @@ private struct HarbethRenderViewRepresentable: NSViewRepresentable {
             frame: frame,
             resizingMode: resizingMode,
             preferredDrawableScale: preferredDrawableScale,
+            dynamicRangePolicy: dynamicRangePolicy,
             onExecutionReport: onExecutionReport,
-            onFleetSnapshot: onFleetSnapshot
+            onFleetSnapshot: onFleetSnapshot,
+            onPreviewDisplayState: onPreviewDisplayState
         )
     }
 
@@ -199,13 +219,17 @@ private extension HarbethRenderViewRepresentable {
         frame: RenderedFrame?,
         resizingMode: RenderView.ResizingMode,
         preferredDrawableScale: CGFloat?,
+        dynamicRangePolicy: PreviewDynamicRangePolicy,
         onExecutionReport: ((PreviewHostExecutionReport) -> Void)?,
-        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?
+        onFleetSnapshot: ((PreviewHostFleetSnapshot) -> Void)?,
+        onPreviewDisplayState: ((PreviewDisplayState) -> Void)?
     ) {
         view.resizingMode = resizingMode
         view.preferredDrawableScale = preferredDrawableScale
+        view.dynamicRangePolicy = dynamicRangePolicy
         view.onPreviewHostExecutionReportUpdated = onExecutionReport
         view.onPreviewHostFleetSnapshotUpdated = onFleetSnapshot
+        view.onPreviewDisplayStateUpdated = onPreviewDisplayState
         if let frame {
             view.display(frame)
         } else {
@@ -217,8 +241,10 @@ private extension HarbethRenderViewRepresentable {
     static func reset(_ view: RenderView) {
         view.display(nil)
         view.texture = nil
+        view.dynamicRangePolicy = .automatic
         view.onPreviewHostExecutionReportUpdated = nil
         view.onPreviewHostFleetSnapshotUpdated = nil
+        view.onPreviewDisplayStateUpdated = nil
     }
 }
 #endif
