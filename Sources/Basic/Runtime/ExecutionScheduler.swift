@@ -9,11 +9,35 @@ import Foundation
 @preconcurrency import Metal
 
 final class ExecutionScheduler: @unchecked Sendable {
+    private final class SubmissionRecord: @unchecked Sendable {
+        let state: RenderSubmissionStateStorage
+        let operation: BlockOperation
+        let executionGeneration: UInt64
+        let scopeIdentifier: String?
+        let onDiscard: @Sendable (RenderSubmissionDiscardReason) -> Void
+
+        init(
+            state: RenderSubmissionStateStorage,
+            operation: BlockOperation,
+            executionGeneration: UInt64,
+            scopeIdentifier: String?,
+            onDiscard: @escaping @Sendable (RenderSubmissionDiscardReason) -> Void
+        ) {
+            self.state = state
+            self.operation = operation
+            self.executionGeneration = executionGeneration
+            self.scopeIdentifier = scopeIdentifier
+            self.onDiscard = onDiscard
+        }
+    }
+
     private let device: MTLDevice
     private let lock = NSLock()
     private var commandQueueStorage: MTLCommandQueue
     private var operationQueueStorage: OperationQueue
     private var generationStorage: UInt64 = 0
+    private var submissions: [String: SubmissionRecord] = [:]
+    private var latestSubmissionByScope: [String: String] = [:]
 
     init(device: MTLDevice) {
         self.device = device
@@ -46,18 +70,133 @@ final class ExecutionScheduler: @unchecked Sendable {
     }
 
     @discardableResult
+    func submit(
+        sourceIdentifier: String,
+        policy: RenderSubmissionPolicy,
+        execute: @escaping @Sendable (RenderSubmissionContext) -> Void,
+        onDiscard: @escaping @Sendable (RenderSubmissionDiscardReason) -> Void
+    ) -> RenderSubmissionHandle {
+        let identifier = UUID().uuidString
+        let generation = self.generation
+        let state = RenderSubmissionStateStorage(
+            identifier: identifier,
+            sourceIdentifier: sourceIdentifier,
+            executionGeneration: generation,
+            policy: policy
+        )
+        let context = RenderSubmissionContext(identifier: identifier, scheduler: self)
+        let operation = BlockOperation { [weak self] in
+            guard self?.beginSubmission(identifier: identifier) == true else { return }
+            execute(context)
+        }
+        let scopeIdentifier = policy.behavior == .latestOnly
+            ? policy.resolvedScopeIdentifier ?? sourceIdentifier
+            : nil
+        let record = SubmissionRecord(
+            state: state,
+            operation: operation,
+            executionGeneration: generation,
+            scopeIdentifier: scopeIdentifier,
+            onDiscard: onDiscard
+        )
+
+        let registration = lock.withLock { () -> (OperationQueue, String?) in
+            let supersededIdentifier = scopeIdentifier.flatMap { latestSubmissionByScope[$0] }
+            submissions[identifier] = record
+            if let scopeIdentifier {
+                latestSubmissionByScope[scopeIdentifier] = identifier
+            }
+            return (operationQueueStorage, supersededIdentifier)
+        }
+
+        if let supersededIdentifier = registration.1 {
+            discardSubmission(identifier: supersededIdentifier, reason: .superseded)
+        }
+        registration.0.addOperation(operation)
+
+        return RenderSubmissionHandle(state: state) { [weak self] in
+            self?.discardSubmission(identifier: identifier, reason: .callerCancelled)
+        }
+    }
+
+    private func beginSubmission(identifier: String) -> Bool {
+        let result = lock.withLock { () -> (Bool, SubmissionRecord?) in
+            guard let record = submissions[identifier] else { return (false, nil) }
+            guard record.executionGeneration == generationStorage else {
+                return (false, record)
+            }
+            record.state.update(state: .executing)
+            return (true, nil)
+        }
+        if let staleRecord = result.1 {
+            discardSubmission(record: staleRecord, identifier: identifier, reason: .executionRecovery)
+        }
+        return result.0
+    }
+
+    @discardableResult
+    func completeSubmission(identifier: String, delivery: @escaping @Sendable () -> Void) -> Bool {
+        let record = lock.withLock { () -> SubmissionRecord? in
+            guard let record = submissions.removeValue(forKey: identifier) else { return nil }
+            if let scopeIdentifier = record.scopeIdentifier,
+               latestSubmissionByScope[scopeIdentifier] == identifier {
+                latestSubmissionByScope.removeValue(forKey: scopeIdentifier)
+            }
+            record.state.update(state: .completed)
+            return record
+        }
+        guard record != nil else { return false }
+        delivery()
+        return true
+    }
+
+    private func discardSubmission(identifier: String, reason: RenderSubmissionDiscardReason) {
+        let record = lock.withLock { submissions[identifier] }
+        guard let record else { return }
+        discardSubmission(record: record, identifier: identifier, reason: reason)
+    }
+
+    private func discardSubmission(
+        record: SubmissionRecord,
+        identifier: String,
+        reason: RenderSubmissionDiscardReason
+    ) {
+        let removed = lock.withLock { () -> Bool in
+            guard submissions.removeValue(forKey: identifier) != nil else { return false }
+            if let scopeIdentifier = record.scopeIdentifier,
+               latestSubmissionByScope[scopeIdentifier] == identifier {
+                latestSubmissionByScope.removeValue(forKey: scopeIdentifier)
+            }
+            let state: RenderSubmissionState = reason == .callerCancelled ? .cancelled : .discarded
+            record.state.update(state: state, discardReason: reason)
+            record.operation.cancel()
+            return true
+        }
+        if removed { record.onDiscard(reason) }
+    }
+
+    @discardableResult
     func recover() -> UInt64 {
         guard let replacementQueue = device.makeCommandQueue() else {
             return generation
         }
         let replacementOperations = Self.makeOperationQueue(maxConcurrentOperationCount)
-        return lock.withLock {
+        let recovery = lock.withLock { () -> (UInt64, [SubmissionRecord]) in
             operationQueueStorage.cancelAllOperations()
+            let activeSubmissions = Array(submissions.values)
+            submissions.removeAll()
+            latestSubmissionByScope.removeAll()
             commandQueueStorage = replacementQueue
             operationQueueStorage = replacementOperations
             generationStorage &+= 1
-            return generationStorage
+            return (generationStorage, activeSubmissions)
         }
+        recovery.1.forEach { record in
+            record.state.update(state: .discarded, discardReason: .executionRecovery)
+            record.operation.cancel()
+            record.onDiscard(.executionRecovery)
+        }
+        return recovery.0
     }
 
     private static func makeOperationQueue(_ maxConcurrentOperationCount: Int = 4) -> OperationQueue {

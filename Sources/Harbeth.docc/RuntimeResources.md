@@ -13,6 +13,7 @@ The host may use these `HarbethContext.shared` surfaces when it needs explicit r
 - `executionGeneration`, `isCurrentExecutionGeneration(_:)`, and `recoverExecution()` for cancellation and stale-result rejection.
 - `cvMetalTextureCache` for advanced pixel-buffer interoperability.
 - `maxConcurrentRenderTasks` for CPU-side render scheduling policy.
+- ``RenderSubmissionPolicy`` and ``RenderSubmissionHandle`` for opt-in latest-only delivery, cancellation, and submission-state inspection without introducing another processing route.
 - `textureAllocationStrategy`, texture-pool prewarming, and the read-only `TexturePoolStatistics` snapshot for measured resource-policy changes.
 - The stable `performanceMonitor` diagnostics service, cache snapshots, pipeline binary archives, and derived-resource cache governance for diagnostics and host-controlled persistence. Enabling or disabling monitoring changes its thread-safe state; it does not replace the instance.
 - External Metal library registration, capability reports, and function lookup for modular shader packages.
@@ -53,6 +54,21 @@ Hosts observe and configure these resources through ``HarbethContext`` snapshots
 The Metal device has process-lifetime identity. `recoverExecution()` does not destroy or recreate it. Recovery cancels queued CPU operations, rotates the command queue, advances the execution generation, clears runtime caches, purges pooled textures, and flushes an already-created Core Video texture cache.
 
 Already committed GPU command buffers remain owned by Metal and are not synchronously cancelled. Hosts that can overlap recovery with in-flight work should capture `executionGeneration` and reject stale completion results.
+
+## Asynchronous submission
+
+`HarbethIO` and `ImageNode` submit their asynchronous public work through the same runtime state machine. The default ``RenderSubmissionPolicy/independent`` policy preserves every submission. Hosts with replaceable preview work may opt into ``RenderSubmissionPolicy/latestOnly(scopeIdentifier:)`` for a stable scope:
+
+```swift
+var io = HarbethIO(element: texture, filters: filters)
+io.submissionPolicy = .latestOnly(scopeIdentifier: "editor.preview")
+
+let handle = io.transmitOutput { result in
+    // A superseded request completes once with renderableTaskCancelled.
+}
+```
+
+Queued work can be cancelled before execution. Work that has already committed a Metal command buffer remains GPU-owned; cancellation or replacement suppresses its stale host delivery and completes the public callback once with ``HarbethError/renderableTaskCancelled``. ``RenderSubmissionHandle/snapshot`` preserves the terminal distinction between caller cancellation, scope replacement, and execution recovery.
 
 Changing `textureAllocationStrategy` invalidates compiled render plans so a plan cannot retain allocator assumptions from the previous strategy. Memory pressure removes derived and image-resolution resources; cache and texture-pool snapshots expose bounded counts and bytes without exposing mutable cache implementations.
 

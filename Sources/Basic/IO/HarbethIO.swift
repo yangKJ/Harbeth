@@ -55,6 +55,10 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     /// Enable double buffer optimization for metal filters
     /// When there are less than 4 filters, the traditional(singleBuffer) mode is better.
     public var enableDoubleBuffer: Bool = true
+    /// The submission policy of asynchronous output maintains
+    /// the independent delivery of each submission by default.
+    public var submissionPolicy: RenderSubmissionPolicy = .independent
+
     /// Stable render intent for planning and diagnostics.
     var renderProfile: RenderProfile = .stablePreview
 
@@ -111,16 +115,22 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
     public func transmitOutput(outputColorSpace: ImageColorSpaceContract? = nil) async throws -> Dest {
-        let transfer: HarbethUncheckedTransfer<Dest> = try await withCheckedThrowingContinuation { continuation in
-            transmitOutput(outputColorSpace: outputColorSpace, complete: { result in
-                switch result {
-                case .success(let output):
-                    continuation.resume(returning: HarbethUncheckedTransfer(value: output))
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            })
-        }
+        let relay = RenderSubmissionCancellationRelay()
+        let transfer: HarbethUncheckedTransfer<Dest> = try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                let handle = transmitOutput(outputColorSpace: outputColorSpace, complete: { result in
+                    switch result {
+                    case .success(let output):
+                        continuation.resume(returning: HarbethUncheckedTransfer(value: output))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                })
+                relay.store(handle)
+            }
+        }, onCancel: {
+            relay.cancel()
+        })
         return transfer.value
     }
 
@@ -200,7 +210,11 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     }
 
     /// Convenience callback form of `transmitOutput(outputColorSpace:complete:)`.
-    public func transmitOutput(success: @escaping @Sendable (Dest) -> Void, failed: (@Sendable (HarbethError) -> Void)? = nil) {
+    @discardableResult
+    public func transmitOutput(
+        success: @escaping @Sendable (Dest) -> Void,
+        failed: (@Sendable (HarbethError) -> Void)? = nil
+    ) -> RenderSubmissionHandle {
         transmitOutput(outputColorSpace: nil) { result in
             switch result {
             case .success(let output):
@@ -219,135 +233,157 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     /// - Parameters:
     ///   - outputColorSpace: Optional output color-space contract applied before delivery.
     ///   - complete: Receives the rendered result or a structured ``HarbethError``.
-    public func transmitOutput(outputColorSpace: ImageColorSpaceContract? = nil, complete: @escaping @Sendable (Result<Dest, HarbethError>) -> Void) {
+    @discardableResult
+    public func transmitOutput(
+        outputColorSpace: ImageColorSpaceContract? = nil,
+        complete: @escaping @Sendable (Result<Dest, HarbethError>) -> Void
+    ) -> RenderSubmissionHandle {
         if self.filters.isEmpty {
             do {
                 complete(.success(try output(outputColorSpace: outputColorSpace)))
             } catch {
                 complete(.failure(HarbethError.toHarbethError(error)))
             }
-            return
+            return completedSubmissionHandle()
         }
         if HarbethContext.shared.enablePerformanceMonitor {
             HarbethContext.shared.performanceMonitor.beginMonitoring(identifier)
         }
         switch element {
         case let ee as MTLTexture:
-            filtering(texture: ee, complete: {
+            return filtering(texture: ee, complete: {
                 HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee as C7Image:
-            filtering(image: ee, outputColorSpace: outputColorSpace, complete: {
+            return filtering(image: ee, outputColorSpace: outputColorSpace, complete: {
                 HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee as CIImage:
-            filtering(ciImage: ee, outputColorSpace: outputColorSpace, complete: {
+            return filtering(ciImage: ee, outputColorSpace: outputColorSpace, complete: {
                 HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CGImage.typeID:
-            filtering(cgImage: ee as! CGImage, outputColorSpace: outputColorSpace, complete: {
+            return filtering(cgImage: ee as! CGImage, outputColorSpace: outputColorSpace, complete: {
                 HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CVPixelBufferGetTypeID():
-            filtering(pixelBuffer: ee as! CVPixelBuffer, outputColorSpace: outputColorSpace, complete: {
+            return filtering(pixelBuffer: ee as! CVPixelBuffer, outputColorSpace: outputColorSpace, complete: {
                 HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
-            filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace, complete: {
+            return filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace, complete: {
                 HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
                 complete(self.castResult($0))
             })
         default:
             complete(.success(element))
             HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
+            return completedSubmissionHandle()
         }
     }
     /// Asynchronous convert to texture and add filters.
     /// - Parameters:
     ///   - texture: Input metal texture.
     ///   - complete: The conversion is complete.
-    public func filtering(texture: MTLTexture, complete: @escaping C7TextureResultBlock) {
+    @discardableResult
+    public func filtering(texture: MTLTexture, complete: @escaping C7TextureResultBlock) -> RenderSubmissionHandle {
         if self.filters.isEmpty {
             complete(.success(texture))
-            return
+            return completedSubmissionHandle()
         }
         let program = makeRenderProgram(input: texture)
         prepareTextureLifecycle(for: program.plan, inputPixelFormat: texture.pixelFormat)
         let operationState = HarbethUncheckedTransfer(value: (io: self, texture: texture, program: program))
-        let operation = BlockOperation {
-            let io = operationState.value.io
-            let inputTexture = operationState.value.texture
-            let program = operationState.value.program
-            do {
-                // Real-time mode: wait until scheduled, not completed
-                let deliversWhenScheduled = io.transmitOutputRealTimeCommit && io.element is MTLTexture
-                if deliversWhenScheduled {
-                    let commandBuffer = try io.makeCommandBuffer()
-                    let rendering: RawTextureRendering
-                    do {
-                        if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
-                            rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
-                        } else {
-                            rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
+        return HarbethContext.shared.submitRenderOperation(
+            sourceIdentifier: identifier,
+            policy: submissionPolicy,
+            execute: { submission in
+                let io = operationState.value.io
+                let inputTexture = operationState.value.texture
+                let program = operationState.value.program
+                do {
+                    // 实时模式只等待命令进入 scheduled，不等待 GPU 完成。
+                    let deliversWhenScheduled = io.transmitOutputRealTimeCommit && io.element is MTLTexture
+                    if deliversWhenScheduled {
+                        let commandBuffer = try io.makeCommandBuffer()
+                        let rendering: RawTextureRendering
+                        do {
+                            if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
+                                rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                            } else {
+                                rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                            }
+                        } catch {
+                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                            throw error
                         }
-                    } catch {
-                        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-                        throw error
-                    }
-                    let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
-                    // Ensure textures are returned after GPU completion
-                    if rendering.successRecycling.isEmpty == false {
-                        commandBuffer.addCompletedHandler { _ in
-                            io.recycleRawTextures(callbackState.value.rendering.successRecycling)
+                        let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
+                        // 纹理必须等 GPU 完成后再回收。
+                        if rendering.successRecycling.isEmpty == false {
+                            commandBuffer.addCompletedHandler { _ in
+                                io.recycleRawTextures(callbackState.value.rendering.successRecycling)
+                            }
                         }
-                    }
-                    // Real-time commit: wait until scheduled, not completed
-                    commandBuffer.realTimeCommit(identifier: io.identifier) {
-                        complete(.success(callbackState.value.rendering.output))
-                    }
-                    // Return command buffer in background
-                    DispatchQueue.global().async {
-                        callbackState.value.commandBuffer.waitUntilCompleted()
-                        HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
-                    }
-                } else {
-                    // Normal async mode
-                    let commandBuffer = try io.makeCommandBuffer()
-                    let rendering: RawTextureRendering
-                    do {
-                        if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
-                            rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
-                        } else {
-                            rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                        // scheduled 后立即交付，保持低延迟语义。
+                        commandBuffer.realTimeCommit(identifier: io.identifier) {
+                            submission.deliver {
+                                complete(.success(callbackState.value.rendering.output))
+                            }
                         }
-                    } catch {
-                        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-                        throw error
-                    }
-                    let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
-                    commandBuffer.asyncCommit(identifier: io.identifier) { result in
-                        switch result {
-                        case .success:
-                            io.recycleRawTextures(callbackState.value.rendering.successRecycling)
+                        // 后台等待 GPU 结束并完成 command buffer 清理。
+                        DispatchQueue.global().async {
+                            callbackState.value.commandBuffer.waitUntilCompleted()
                             HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
-                            complete(.success(callbackState.value.rendering.output))
-                        case .failure(let error):
-                            io.recycleRawTextures(callbackState.value.rendering.failureRecycling)
-                            HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
-                            complete(.failure(HarbethError.toHarbethError(error)))
                         }
+                    } else {
+                        // 普通异步模式在 GPU 完成后交付。
+                        let commandBuffer = try io.makeCommandBuffer()
+                        let rendering: RawTextureRendering
+                        do {
+                            if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
+                                rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                            } else {
+                                rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                            }
+                        } catch {
+                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                            throw error
+                        }
+                        let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
+                        commandBuffer.asyncCommit(identifier: io.identifier) { result in
+                            switch result {
+                            case .success:
+                                io.recycleRawTextures(callbackState.value.rendering.successRecycling)
+                                HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
+                                submission.deliver {
+                                    complete(.success(callbackState.value.rendering.output))
+                                }
+                            case .failure(let error):
+                                io.recycleRawTextures(callbackState.value.rendering.failureRecycling)
+                                HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
+                                submission.deliver {
+                                    complete(.failure(HarbethError.toHarbethError(error)))
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    submission.deliver {
+                        complete(.failure(HarbethError.toHarbethError(error)))
                     }
                 }
-            } catch {
-                complete(.failure(HarbethError.toHarbethError(error)))
-            }
-        }
-        HarbethContext.shared.renderOperationQueue.addOperation(operation)
+            },
+            onDiscard: { _ in complete(.failure(.renderableTaskCancelled)) }
+        )
+    }
+
+    private func completedSubmissionHandle() -> RenderSubmissionHandle {
+        .completed(sourceIdentifier: identifier, policy: submissionPolicy)
     }
 }
 
@@ -885,7 +921,7 @@ extension HarbethIO {
         pixelBuffer: CVPixelBuffer,
         outputColorSpace: ImageColorSpaceContract? = nil,
         complete: @escaping @Sendable (Result<CVPixelBuffer, HarbethError>) -> Void
-    ) {
+    ) -> RenderSubmissionHandle {
         do {
             let texture = try TextureLoader(with: pixelBuffer).texture
             let source = HarbethUncheckedTransfer(value: pixelBuffer)
@@ -893,7 +929,7 @@ extension HarbethIO {
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            filtering(texture: texture, complete: { result in
+            return filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let outputTexture):
                     do {
@@ -909,6 +945,7 @@ extension HarbethIO {
             })
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
+            return completedSubmissionHandle()
         }
     }
 
@@ -916,17 +953,17 @@ extension HarbethIO {
         sampleBuffer: CMSampleBuffer,
         outputColorSpace: ImageColorSpaceContract? = nil,
         complete: @escaping @Sendable (Result<CMSampleBuffer, HarbethError>) -> Void
-    ) {
+    ) -> RenderSubmissionHandle {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             complete(.failure(HarbethError.CMSampleBufferToCVPixelBuffer))
-            return
+            return completedSubmissionHandle()
         }
         let outputColorSpace = resolvedOutputColorSpace(
             inputSize: C7Size(pixelBuffer: pixelBuffer),
             outputColorSpace: outputColorSpace
         )
         let source = HarbethUncheckedTransfer(value: sampleBuffer)
-        filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace, complete: { result in
+        return filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace, complete: { result in
             switch result {
             case .success(let outputPixelBuffer):
                 guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: source.value) else {
@@ -947,14 +984,14 @@ extension HarbethIO {
         cgImage: CGImage,
         outputColorSpace: ImageColorSpaceContract? = nil,
         complete: @escaping @Sendable (Result<CGImage, HarbethError>) -> Void
-    ) {
+    ) -> RenderSubmissionHandle {
         do {
             let texture = try TextureLoader(with: cgImage).texture
             let outputColorSpace = resolvedOutputColorSpace(
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            filtering(texture: texture, complete: { result in
+            return filtering(texture: texture, complete: { result in
                     switch result {
                     case .success(let texture):
                         guard let outputImage = texture.c7.toCGImage(
@@ -970,6 +1007,7 @@ extension HarbethIO {
                 })
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
+            return completedSubmissionHandle()
         }
     }
 
@@ -977,14 +1015,14 @@ extension HarbethIO {
         ciImage: CIImage,
         outputColorSpace: ImageColorSpaceContract? = nil,
         complete: @escaping @Sendable (Result<CIImage, HarbethError>) -> Void
-    ) {
+    ) -> RenderSubmissionHandle {
         do {
             let texture = try TextureLoader(with: ciImage).texture
             let outputColorSpace = resolvedOutputColorSpace(
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            filtering(texture: texture, complete: { result in
+            return filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let texture):
                     do {
@@ -1004,6 +1042,7 @@ extension HarbethIO {
             })
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
+            return completedSubmissionHandle()
         }
     }
 
@@ -1011,14 +1050,14 @@ extension HarbethIO {
         image: C7Image,
         outputColorSpace: ImageColorSpaceContract? = nil,
         complete: @escaping @Sendable (Result<C7Image, HarbethError>) -> Void
-    ) {
+    ) -> RenderSubmissionHandle {
         do {
             let texture = try TextureLoader(with: image).texture
             let outputColorSpace = resolvedOutputColorSpace(
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            filtering(texture: texture, complete: { result in
+            return filtering(texture: texture, complete: { result in
                 switch result {
                 case .success(let texture):
                     guard let outputImage = texture.c7.toImage(
@@ -1034,6 +1073,7 @@ extension HarbethIO {
             })
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
+            return completedSubmissionHandle()
         }
     }
 }

@@ -755,6 +755,8 @@ let mask = try node.makeMaskDescriptor(
 
 `HarbethContext` 是两条公开路线共用的 supporting surface，而不是第三条处理路线。宿主只有在需要资源互操作、策略、诊断或恢复时才直接使用它；公开能力包括 `device`、`makeCommandBuffer()`、execution generation/recovery、Core Video texture cache、并发策略、资源策略、缓存/Archive 诊断和外部 Metal library 注册。
 
+`RenderSubmissionPolicy` / `RenderSubmissionHandle` 同样属于 supporting contract。`HarbethIO` 通过 `submissionPolicy` 配置，`ImageNode.transmitFrame(...)` / `makeFrameAsync(...)` 通过参数配置；默认 `.independent` 不丢任务，只有可替换预览工作才使用同 scope 的 `.latestOnly(...)`。取消、替换或 runtime recovery 都会让公开 callback/continuation 精确终结一次；已提交的 GPU 工作不会被伪装成可同步取消，只抑制其迟到宿主交付。
+
 以下对象服务内部编译、fingerprint、execution plan 和 diagnostics，不对 App 暴露具体所有权：
 
 - `KernelDescriptor`

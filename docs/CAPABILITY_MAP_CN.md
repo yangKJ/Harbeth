@@ -178,6 +178,7 @@ Harbeth 对外只保留两条路线：
 - `RenderGraphDebugSnapshot`
 - `RenderRequest`
 - `RenderTask`
+- `RenderSubmissionPolicy` / `RenderSubmissionHandle`
 - `Device`
 - `HarbethContext`
 - `ExecutionScheduler`
@@ -200,6 +201,7 @@ Harbeth 对外只保留两条路线：
 - 它不是对外第三路线
 - `HarbethContext` 是公开的 supporting resource boundary；`Device`、command/operation queue 与具体 pool/cache owner 保持内部，重复的 `Shared` facade 已删除
 - `RenderRequest`、`RenderTask` 是 deferred execution / observation form，不是新的集成模型
+- `RenderSubmissionPolicy` / `RenderSubmissionHandle` 为两条主路线提供可选 latest-only、取消和 stale delivery 治理；默认 independent，不替代上层产品调度策略
 - `HarbethContext` 的 image-resolution cache 现在带 namespace + LRU discipline，属于 runtime 内部缓存治理，不改变外部路线划分
 - compute/render pipeline 可选择 memory-only 或宿主指定 URL 的 Binary Archive；Harbeth 不猜测业务缓存目录
 - output-contract texture、派生 mask 与 3D LUT 共享 generation-safe 派生资源治理，可按 domain/namespace 定向失效并在 memory pressure 下回收

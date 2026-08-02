@@ -554,31 +554,38 @@ extension ImageNode {
         )
     }
 
+    @discardableResult
     public func transmitFrame(
         profile: RenderProfile = .stablePreview,
         derivative: ImageDerivativeSpec? = nil,
         outputColorSpace: ImageColorSpaceContract? = nil,
         metadata: [String: String] = [:],
+        submissionPolicy: RenderSubmissionPolicy = .independent,
         complete: @escaping @Sendable (Result<RenderedFrame, HarbethError>) -> Void
-    ) {
+    ) -> RenderSubmissionHandle {
         let state = HarbethUncheckedTransfer(value: (
             node: self, profile: profile, derivative: derivative, outputColorSpace: outputColorSpace, metadata: metadata
         ))
-        HarbethContext.shared.renderOperationQueue.addOperation(
-            BlockOperation {
+        return HarbethContext.shared.submitRenderOperation(
+            sourceIdentifier: monitoringIdentifier,
+            policy: submissionPolicy,
+            execute: { submission in
+                let result: Result<RenderedFrame, HarbethError>
                 do {
-                    complete(.success(
+                    result = .success(
                         try state.value.node.makeFrame(
                             profile: state.value.profile,
                             derivative: state.value.derivative,
                             outputColorSpace: state.value.outputColorSpace,
                             metadata: state.value.metadata
                         )
-                    ))
+                    )
                 } catch {
-                    complete(.failure(HarbethError.toHarbethError(error)))
+                    result = .failure(HarbethError.toHarbethError(error))
                 }
-            }
+                submission.deliver { complete(result) }
+            },
+            onDiscard: { _ in complete(.failure(.renderableTaskCancelled)) }
         )
     }
 
@@ -1146,18 +1153,31 @@ extension ImageNode {
         profile: RenderProfile = .stablePreview,
         derivative: ImageDerivativeSpec? = nil,
         outputColorSpace: ImageColorSpaceContract? = nil,
-        metadata: [String: String] = [:]
+        metadata: [String: String] = [:],
+        submissionPolicy: RenderSubmissionPolicy = .independent
     ) async throws -> RenderedFrame {
-        let transfer: HarbethUncheckedTransfer<RenderedFrame> = try await withCheckedThrowingContinuation { continuation in
-            transmitFrame(profile: profile, derivative: derivative, outputColorSpace: outputColorSpace, metadata: metadata) { result in
-                switch result {
-                case .success(let frame):
-                    continuation.resume(returning: HarbethUncheckedTransfer(value: frame))
-                case .failure(let error):
-                    continuation.resume(throwing: error)
+        let relay = RenderSubmissionCancellationRelay()
+        let transfer: HarbethUncheckedTransfer<RenderedFrame> = try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                let handle = transmitFrame(
+                    profile: profile,
+                    derivative: derivative,
+                    outputColorSpace: outputColorSpace,
+                    metadata: metadata,
+                    submissionPolicy: submissionPolicy
+                ) { result in
+                    switch result {
+                    case .success(let frame):
+                        continuation.resume(returning: HarbethUncheckedTransfer(value: frame))
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
                 }
+                relay.store(handle)
             }
-        }
+        }, onCancel: {
+            relay.cancel()
+        })
         return transfer.value
     }
 }

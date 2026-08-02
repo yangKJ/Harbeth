@@ -53,6 +53,21 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 | Inspection and support | Histogram/statistics/probes, attachment analysis, preview parity, structured logging and privacy-safe support snapshots | 2026-06-22–24, 2026-07-23, 2026-07-28 |
 | Developer experience | Showcase-oriented Demos, DocC/API/migration/troubleshooting docs, Issue templates and release compatibility checks | 2026-06-21–27, 2026-07-16–21, 2026-07-28 |
 
+### 2026-08-02 — Asynchronous render submission governance
+
+#### Added
+
+- Added `RenderSubmissionPolicy`, `RenderSubmissionHandle` and terminal snapshots for explicit cancellation and opt-in latest-only delivery across `HarbethIO` and `ImageNode` asynchronous work.
+
+#### Changed
+
+- Routed the two public asynchronous processing routes through one generation-aware submission state machine while preserving independent, non-dropping delivery as the default.
+- Propagated Swift task cancellation into queued render submissions and made superseded or recovery-invalidated work terminate exactly once instead of leaving continuations suspended.
+
+#### Fixed
+
+- Suppressed stale host callbacks from already committed GPU work after cancellation, scope replacement or execution recovery without claiming that Metal command buffers can be synchronously cancelled.
+
 ### 2026-08-02 — White-balance recipe factors
 
 #### Added

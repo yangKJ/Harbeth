@@ -243,6 +243,21 @@ public final class HarbethContext: @unchecked Sendable {
         executionScheduler.operationQueue
     }
 
+    @discardableResult
+    func submitRenderOperation(
+        sourceIdentifier: String,
+        policy: RenderSubmissionPolicy,
+        execute: @escaping @Sendable (RenderSubmissionContext) -> Void,
+        onDiscard: @escaping @Sendable (RenderSubmissionDiscardReason) -> Void
+    ) -> RenderSubmissionHandle {
+        executionScheduler.submit(
+            sourceIdentifier: sourceIdentifier,
+            policy: policy,
+            execute: execute,
+            onDiscard: onDiscard
+        )
+    }
+
     var colorSpace: CGColorSpace {
         runtimeDevice.colorSpace
     }

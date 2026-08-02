@@ -24,6 +24,22 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = build
     }
 
+    func testRenderSubmissionSurfaceCompiles() {
+        let policy = RenderSubmissionPolicy.latestOnly(scopeIdentifier: "editor.preview")
+        let transmit: (MTLTexture) -> RenderSubmissionHandle = { texture in
+            var io = HarbethIO(element: texture, filters: [C7Brightness(brightness: 0.1)])
+            io.submissionPolicy = policy
+            return io.transmitOutput(outputColorSpace: nil, complete: { _ in })
+        }
+        let inspect: (RenderSubmissionHandle) -> RenderSubmissionSnapshot = { handle in
+            handle.snapshot
+        }
+        let cancel: (RenderSubmissionHandle) -> Void = { handle in
+            handle.cancel()
+        }
+        _ = (transmit, inspect, cancel)
+    }
+
     func testSIMDValueConversionSurfaceCompiles() {
         let color = C7Color(red: 0.25, green: 0.5, blue: 0.75, alpha: 1)
         let rgb: SIMD3<Float> = color.c7.toSIMD3()

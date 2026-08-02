@@ -35,6 +35,7 @@ let request = try node.makeRenderRequest(profile: .inspectionQuality)
 - `makeTexture()` returns the GPU result directly.
 - `makeFrame()` keeps texture ownership, source/color/alpha/orientation metadata, ``RenderProfile``, ``ImageDerivativeSpec``, semantic intent, and preview-host payload together.
 - `makeFrameAsync()` submits the synchronous frame build to Harbeth's render operation queue and resumes after the frame is ready. It does not guarantee main-actor delivery.
+- `transmitFrame(...)` and `makeFrameAsync(...)` accept an optional ``RenderSubmissionPolicy``. The default preserves independent delivery; latest-only scopes reject stale host delivery without changing synchronous `makeFrame(...)` semantics.
 - `makeRenderRequest()` captures a deferred, inspectable execution contract for later rendering.
 
 From the request, hosts can inspect `resourceEstimate`, apply a ``RenderResourceBudget``, render with an allocator-observed resource report, or compare preview/export parity before delivery. These checks reuse the same compiled node contract; they do not create another processing route.

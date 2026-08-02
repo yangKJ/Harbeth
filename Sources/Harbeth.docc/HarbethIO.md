@@ -22,6 +22,8 @@ let result = try await HarbethIO(element: inputImage, filters: filters).transmit
 
 `transmitOutput(outputColorSpace:complete:)` is the callback source of truth used by the async overload. Filtered work is encoded on Harbeth's render operation queue. Under the default profile, completion follows GPU completion. Completion has no main-thread guarantee, and the no-filter fast path may complete inline.
 
+Asynchronous output uses ``RenderSubmissionPolicy/independent`` by default, so ordinary callers do not lose work. For replaceable preview requests, set `submissionPolicy` to ``RenderSubmissionPolicy/latestOnly(scopeIdentifier:)`` and retain the returned ``RenderSubmissionHandle`` when explicit cancellation or state inspection is needed. Superseded and cancelled requests terminate exactly once with ``HarbethError/renderableTaskCancelled``.
+
 For texture-first preview, ``HarbethIO/configured(for:)`` with ``RenderProfile/interactiveLatency`` can deliver after the command buffer is scheduled. CPU-readable image and pixel-buffer outputs continue to wait for GPU completion before readback.
 
 For high-frequency texture paths, configure a ``RenderProfile`` and produce a ``RenderedFrame`` rather than reading back an image.
