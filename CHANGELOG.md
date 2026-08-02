@@ -53,6 +53,12 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 | Inspection and support | Histogram/statistics/probes, attachment analysis, preview parity, structured logging and privacy-safe support snapshots | 2026-06-22–24, 2026-07-23, 2026-07-28 |
 | Developer experience | Showcase-oriented Demos, DocC/API/migration/troubleshooting docs, Issue templates and release compatibility checks | 2026-06-21–27, 2026-07-16–21, 2026-07-28 |
 
+### 2026-08-02 — White-balance recipe factors
+
+#### Added
+
+- Added `C7WhiteBalance.recipeFactors(temperature:tint:)` for constructing white-balance filters from recipe-oriented temperature and tint factors.
+
 ### 2026-08-02 — Frame-driven HDR preview hosting
 
 #### Added

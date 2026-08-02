@@ -30,4 +30,9 @@ public struct C7WhiteBalance: C7FilterProtocol {
         self.temperature = temperature
         self.tint = tint
     }
+
+    public static func recipeFactors(temperature: Float, tint: Float = 0) -> C7WhiteBalance {
+        let kelvin = temperature < 0 ? 5000 + temperature / 0.0004 : 5000 + temperature / 0.00006
+        return C7WhiteBalance(temperature: kelvin, tint: tint * 100)
+    }
 }
