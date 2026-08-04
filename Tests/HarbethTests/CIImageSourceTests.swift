@@ -14,6 +14,80 @@ final class CIImageSourceTests: XCTestCase {
         ).output()
 
         XCTAssertEqual(output.extent, CGRect(x: 0, y: 0, width: 4, height: 3))
+        XCTAssertNotNil(output.cgImage)
+    }
+
+    func testTypedTextureBackedFrameMaterializesEmptyFilterChainOnGPU() throws {
+        try requireMetal()
+        let source = makeCIImage(width: 4, height: 3)
+
+        let output = try HarbethIO(element: source, filters: []).outputTextureBackedFrame()
+
+        XCTAssertEqual(output.image.extent, source.extent)
+        if #available(macOS 15.0, iOS 18.0, tvOS 18.0, *) {
+            XCTAssertNotNil(output.image.metalTexture)
+            XCTAssertNil(output.image.cgImage)
+        }
+    }
+
+    func testTextureLoaderKeepsFiniteCIImageInputOnGPU() throws {
+        try requireMetal()
+        let source = makeCIImage(width: 4, height: 3)
+
+        let texture = try TextureLoader(with: source).texture
+
+        XCTAssertEqual(texture.width, 4)
+        XCTAssertEqual(texture.height, 3)
+    }
+
+    func testTypedTextureBackedFrameRetainsOutputContracts() throws {
+        try requireMetal()
+        let source = makeCIImage(width: 4, height: 3)
+            .transformed(by: CGAffineTransform(translationX: 7, y: 11))
+
+        let output = try HarbethIO(
+            element: source,
+            filters: [C7PremultiplyAlpha()]
+        )
+        .configured(for: .responseLatency)
+        .outputTextureBackedFrame(outputColorSpace: .displayP3)
+
+        XCTAssertEqual(output.image.extent, source.extent)
+        XCTAssertEqual(output.sourceDescriptor.kind, "ciImage")
+        XCTAssertEqual(output.outputColorSpaceContract, .displayP3)
+        XCTAssertEqual(output.outputDynamicRange, .standardDynamicRange)
+        XCTAssertEqual(output.outputToneMappingPolicy, .preserveInput)
+        XCTAssertEqual(output.profile, .responseLatency)
+        XCTAssertNil(output.image.cgImage)
+        XCTAssertEqual(output.texture.width, 4)
+        XCTAssertEqual(output.texture.height, 3)
+    }
+
+    func testTypedTextureBackedFrameOwnsManagedTextureLease() throws {
+        try requireMetal()
+        HarbethContext.shared.recoverExecution()
+        var output: TextureBackedCIImageFrame? = try HarbethIO(
+            element: makeCIImage(width: 9, height: 7),
+            filters: [C7Brightness(brightness: 0.1)]
+        ).outputTextureBackedFrame()
+        let texture = try XCTUnwrap(output?.texture)
+
+        XCTAssertNil(
+            HarbethContext.shared.texturePool.dequeueExactTexture(
+                width: texture.width,
+                height: texture.height,
+                pixelFormat: texture.pixelFormat
+            )
+        )
+
+        output = nil
+
+        let reused = HarbethContext.shared.texturePool.dequeueExactTexture(
+            width: texture.width,
+            height: texture.height,
+            pixelFormat: texture.pixelFormat
+        )
+        XCTAssertTrue(reused === texture)
     }
 
     func testHarbethIOTransmitsCIImageAsynchronously() throws {

@@ -387,6 +387,33 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     }
 }
 
+public extension HarbethIO where Dest == CIImage {
+    /// Synchronously render and return Core Image frames with complete texture ownership and color contracts.
+    func outputTextureBackedFrame(outputColorSpace: ImageColorSpaceContract? = nil) throws -> TextureBackedCIImageFrame {
+        if HarbethContext.shared.enablePerformanceMonitor {
+            HarbethContext.shared.performanceMonitor.beginMonitoring(identifier)
+        }
+        defer { HarbethContext.shared.performanceMonitor.endMonitoring(identifier) }
+        let frame = try makeFrame(profile: renderProfile, outputColorSpace: outputColorSpace)
+        let options: [CIImageOption: Any]? = frame.colorSpace.map { [.colorSpace: $0] }
+        guard var image = CIImage(mtlTexture: frame.texture, options: options) else {
+            throw HarbethError.texture2Image
+        }
+        if element.extent.origin != .zero {
+            image = image.transformed(
+                by: CGAffineTransform(
+                    translationX: element.extent.origin.x,
+                    y: element.extent.origin.y
+                )
+            )
+        }
+        if mirrored {
+            image = image.oriented(.downMirrored)
+        }
+        return TextureBackedCIImageFrame(image: image, owner: frame)
+    }
+}
+
 struct ManagedTextureResult: @unchecked Sendable {
     let texture: MTLTexture
     let lease: TextureLease?

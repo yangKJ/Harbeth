@@ -56,6 +56,14 @@ public enum KernelFusionPolicy: String, Sendable, Codable, Equatable, Hashable {
     case pointwise
 }
 
+/// 像素合同的证据来源。
+public enum KernelPixelContractEvidence: String, Sendable, Codable, Equatable, Hashable {
+    /// Kernel 作者明确声明了完整合同。
+    case declared
+    /// 旧 Kernel 尚未声明，只能使用保守回退值。
+    case conservativeFallback
+}
+
 /// 单个 Kernel 的完整像素与区域执行合同。
 ///
 /// 该类型属于滤镜 authoring 和 runtime support，不会形成第三条普通用户入口。
@@ -73,6 +81,7 @@ public struct KernelPixelContract: Sendable, Codable, Equatable, Hashable {
     public let isDeterministic: Bool
     public let requiresCPUReadback: Bool
     public let fusionPolicy: KernelFusionPolicy
+    public let evidence: KernelPixelContractEvidence
 
     public init(
         inputColorSpace: ImageColorSpaceContract = .preserveInput,
@@ -87,7 +96,8 @@ public struct KernelPixelContract: Sendable, Codable, Equatable, Hashable {
         globalDependency: KernelGlobalDependency = .none,
         isDeterministic: Bool = true,
         requiresCPUReadback: Bool = false,
-        fusionPolicy: KernelFusionPolicy = .disabled
+        fusionPolicy: KernelFusionPolicy = .disabled,
+        evidence: KernelPixelContractEvidence = .declared
     ) {
         self.inputColorSpace = inputColorSpace
         self.workingColorSpace = workingColorSpace
@@ -102,6 +112,7 @@ public struct KernelPixelContract: Sendable, Codable, Equatable, Hashable {
         self.isDeterministic = isDeterministic
         self.requiresCPUReadback = requiresCPUReadback
         self.fusionPolicy = fusionPolicy
+        self.evidence = evidence
     }
 
     public var canAutoTile: Bool {
@@ -129,7 +140,8 @@ public struct KernelPixelContract: Sendable, Codable, Equatable, Hashable {
             "global=\(globalDependency.rawValue)",
             "deterministic=\(isDeterministic ? 1 : 0)",
             "cpuReadback=\(requiresCPUReadback ? 1 : 0)",
-            "fusion=\(fusionPolicy.rawValue)"
+            "fusion=\(fusionPolicy.rawValue)",
+            "evidence=\(evidence.rawValue)"
         ].joined(separator: "|")
     }
 
@@ -140,9 +152,11 @@ public struct KernelPixelContract: Sendable, Codable, Equatable, Hashable {
             samplingFootprint: samplingFootprint,
             coordinateDependency: coordinateDependency,
             globalDependency: globalDependency,
-            fusionPolicy: samplingFootprint == .point ? .pointwise : .disabled
+            fusionPolicy: samplingFootprint == .point ? .pointwise : .disabled,
+            evidence: .conservativeFallback
         )
     }
+
 }
 
 public extension C7FilterProtocol {
@@ -186,7 +200,8 @@ private extension KernelPixelContract {
             globalDependency: contracts.first(where: { $0.globalDependency != .none })?.globalDependency ?? .none,
             isDeterministic: contracts.allSatisfy(\.isDeterministic),
             requiresCPUReadback: contracts.contains(where: \.requiresCPUReadback),
-            fusionPolicy: contracts.allSatisfy(\.isPointwiseFusionEligible) ? .pointwise : .disabled
+            fusionPolicy: contracts.allSatisfy(\.isPointwiseFusionEligible) ? .pointwise : .disabled,
+            evidence: contracts.allSatisfy { $0.evidence == .declared } ? .declared : .conservativeFallback
         )
     }
 }

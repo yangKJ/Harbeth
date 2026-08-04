@@ -396,6 +396,10 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
             "kernelExtendedRangeSafe=\(extendedRangeSafeKernelCount)",
             "kernelAutoTileEligible=\(autoTileEligibleKernelCount)",
             "kernelCPUReadback=\(cpuReadbackKernelCount)",
+            "kernelGlobalDependency=\(globalDependencyKernelCount)",
+            "kernelNonDeterministic=\(nonDeterministicKernelCount)",
+            "kernelFallbackContracts=\(fallbackKernelPixelContractCount)",
+            "externalBoundaries=\(externalBoundaryCount)",
             "intermediateTextures=\(optimizationPlan.intermediateTextureCount)",
             "reusableTextures=\(optimizationPlan.reusableTextureCount)",
             "mergedStages=\(optimizationPlan.mergedStageCount)",
@@ -489,6 +493,28 @@ public struct RenderPlanDiagnostics: Sendable, Codable, Equatable, Hashable {
         stages.reduce(0) { count, stage in
             count + stage.pixelContracts.filter(\.requiresCPUReadback).count
         }
+    }
+
+    public var globalDependencyKernelCount: Int {
+        stages.reduce(0) { count, stage in
+            count + stage.pixelContracts.filter { $0.globalDependency != .none }.count
+        }
+    }
+
+    public var nonDeterministicKernelCount: Int {
+        stages.reduce(0) { count, stage in
+            count + stage.pixelContracts.filter { $0.isDeterministic == false }.count
+        }
+    }
+
+    public var fallbackKernelPixelContractCount: Int {
+        stages.reduce(0) { count, stage in
+            count + stage.pixelContracts.filter { $0.evidence == .conservativeFallback }.count
+        }
+    }
+
+    public var externalBoundaryCount: Int {
+        stages.filter { $0.boundaryReason == .externalBoundary }.count
     }
 
     public var frameHostSourceDescriptor: FrameHostSourceDescriptor? {

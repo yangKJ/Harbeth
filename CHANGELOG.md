@@ -53,6 +53,22 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 | Inspection and support | Histogram/statistics/probes, attachment analysis, preview parity, structured logging and privacy-safe support snapshots | 2026-06-22–24, 2026-07-23, 2026-07-28 |
 | Developer experience | Showcase-oriented Demos, DocC/API/migration/troubleshooting docs, Issue templates and release compatibility checks | 2026-06-21–27, 2026-07-16–21, 2026-07-28 |
 
+### 2026-08-04 — Production frame access and self-owned CIImage output
+
+#### Added
+
+- Add fail-closed `FrameProcessingCapability` based on `RenderPlanDiagnostics`, `RenderRequest`, `HarbethIO` and `ImageNode`, covering kernel declaration evidence, CPU readback, global dependence, certainty, sampler execution and extended dynamic range output requirements.
+- Add `TextureBackedCIImageFrame` and `HarbethIO<CIImage>.outputTextureBackedFrame(...) `, let the Core Image frame-by-frame caller hold a rendering texture lease with color, dynamic range, tone mapping and source contract.
+
+#### Changed
+
+- Distinguish between explicitly declared kernel pixel contracts and conservative inferences that have not been declared contracts; production frame access does not allow evidence, sampler or external boundary access control.
+- Reuse the source size prompt when parsing the frame color contract, and no longer duplicate the CIImage source just to check the descriptor.
+
+#### Fixed
+
+- Bind the reuse timing of managed texture to the typed Core Image frame output life cycle to avoid the texture lease returning the pool in advance when the packaging is still in use.
+
 ### 2026-08-02 — Asynchronous render submission governance
 
 #### Added
@@ -62,6 +78,7 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 #### Changed
 
 - Routed the two public asynchronous processing routes through one generation-aware submission state machine while preserving independent, non-dropping delivery as the default.
+- Kept finite `CIImage` inputs on the GPU by reusing pixel-buffer or Metal backing when available and otherwise rendering through the process-lifetime Core Image context directly into a Metal texture.
 - Propagated Swift task cancellation into queued render submissions and made superseded or recovery-invalidated work terminate exactly once instead of leaving continuations suspended.
 
 #### Fixed

@@ -796,12 +796,7 @@ struct FrameRenderer: @unchecked Sendable {
     }
 
     private func resolvedFrameColorSpace(source: ImageSource, filterChain: [C7FilterProtocol]) -> CGColorSpace? {
-        let inputSize: C7Size?
-        if let texture = try? source.makeTexture() {
-            inputSize = C7Size(texture: texture)
-        } else {
-            inputSize = nil
-        }
+        let inputSize = source.resolvedSizeHint
         let explicitOutput = outputColorSpace ?? filterChain.reduce(ImageColorSpaceContract.preserveInput) { current, filter in
             let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
             return declared.preservesInput ? current : declared
@@ -824,12 +819,7 @@ struct FrameRenderer: @unchecked Sendable {
     }
 
     private func resolvedFrameColorSpaceContract(source: ImageSource, filterChain: [C7FilterProtocol]) -> ImageColorSpaceContract {
-        let inputSize: C7Size?
-        if let texture = try? source.makeTexture() {
-            inputSize = C7Size(texture: texture)
-        } else {
-            inputSize = nil
-        }
+        let inputSize = source.resolvedSizeHint
         let resolvedOutput = outputColorSpace ?? filterChain.reduce(ImageColorSpaceContract.preserveInput) { current, filter in
             let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
             return declared.preservesInput ? current : declared

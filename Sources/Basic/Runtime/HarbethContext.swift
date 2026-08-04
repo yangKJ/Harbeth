@@ -6,6 +6,7 @@
 //
 
 import Foundation
+@preconcurrency import CoreImage
 import CoreVideo
 @preconcurrency import Metal
 
@@ -19,6 +20,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     let runtimeDevice: Device
     let derivedResourceStore: DerivedResourceStore
+    let coreImageContext: CIContext
 
     public let performanceMonitor = PerformanceMonitor(enabled: false)
 
@@ -58,6 +60,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     init(device: Device) {
         self.runtimeDevice = device
+        self.coreImageContext = CIContext(mtlDevice: device.device)
         self.executionScheduler = ExecutionScheduler(device: device.device)
         self.texturePoolStorage = TexturePool(device: device.device)
         self.pipelineBinaryArchiveStore = PipelineBinaryArchiveStore(device: device.device)

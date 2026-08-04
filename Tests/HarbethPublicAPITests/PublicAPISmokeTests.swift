@@ -1,4 +1,5 @@
 import XCTest
+import CoreImage
 import Metal
 import SwiftUI
 import Harbeth
@@ -14,14 +15,27 @@ final class PublicAPISmokeTests: XCTestCase {
         let configure: (MTLTexture) -> HarbethIO<MTLTexture> = { texture in
             HarbethIO(element: texture, filters: []).configured(for: .interactiveLatency)
         }
+        let textureBackedFrame: (CIImage) throws -> TextureBackedCIImageFrame = { image in
+            try HarbethIO(element: image, filters: []).outputTextureBackedFrame()
+        }
+        let frameCapability: (CIImage) throws -> FrameProcessingCapability = { image in
+            try HarbethIO(element: image, filters: [])
+                .makeFrameProcessingCapability(for: .dynamicFrame)
+        }
         _ = render
         _ = transmit
         _ = configure
+        _ = textureBackedFrame
+        _ = frameCapability
     }
 
     func testCanonicalImageNodeSurfaceCompiles() {
         let build: (MTLTexture) -> ImageNode = { texture in ImageNode.texture(texture).withCachePolicy(.transient) }
+        let capability: (ImageNode) throws -> FrameProcessingCapability = { node in
+            try node.makeFrameProcessingCapability(for: .dynamicFrame)
+        }
         _ = build
+        _ = capability
     }
 
     func testRenderSubmissionSurfaceCompiles() {

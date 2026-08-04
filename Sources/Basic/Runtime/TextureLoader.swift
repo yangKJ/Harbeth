@@ -137,17 +137,55 @@ public struct TextureLoader {
 
 extension TextureLoader {
 
-    /// Creates a Metal texture by materializing a finite Core Image recipe.
+    /// Creates a Metal texture from a finite Core Image recipe without crossing a CGImage readback boundary.
     public init(with ciImage: CIImage, options: [MTKTextureLoader.Option: Any]? = nil) throws {
         let extent = ciImage.extent.integral
         guard extent.isNull == false, extent.isInfinite == false, extent.width > 0, extent.height > 0 else {
             throw HarbethError.configurationInvalid("CIImage input requires a finite, non-empty extent.")
         }
-        let context = CIContext(mtlDevice: HarbethContext.shared.device)
-        guard let cgImage = context.createCGImage(ciImage, from: extent) else {
-            throw HarbethError.source2Texture
+
+        if let pixelBuffer = ciImage.pixelBuffer {
+            try self.init(with: pixelBuffer, options: options)
+            return
         }
-        try self.init(with: cgImage, options: options)
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, *), let metalTexture = ciImage.metalTexture {
+            self.init(with: metalTexture)
+            return
+        }
+
+        let pixelFormat = TextureLoader.preferredPixelFormat(for: ciImage)
+        let texture = try TextureLoader.makeTexture(
+            width: Int(extent.width),
+            height: Int(extent.height),
+            options: [.texturePixelFormat: pixelFormat],
+            identifier: "CIImageInput"
+        )
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
+            HarbethContext.shared.texturePool.enqueueTextureSync(texture)
+            throw HarbethError.commandBuffer
+        }
+        let normalizedImage = extent.origin == .zero ? ciImage : ciImage.transformed(
+            by: CGAffineTransform(
+                translationX: -extent.origin.x,
+                y: -extent.origin.y
+            )
+        )
+        HarbethContext.shared.coreImageContext.render(
+            normalizedImage,
+            to: texture,
+            commandBuffer: commandBuffer,
+            bounds: CGRect(origin: .zero, size: extent.size),
+            colorSpace: ciImage.colorSpace ?? HarbethContext.shared.colorSpace
+        )
+        do {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "CIImageInput")
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            self.init(with: texture)
+        } catch {
+            HarbethContext.shared.texturePool.enqueueTextureSync(texture)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
+        }
     }
 
     /// Creates a new MTLTexture from a given bitmap image.
@@ -811,6 +849,16 @@ extension TextureLoader {
             return .rgba16Float
         }
         guard let colorSpace = cgImage.colorSpace else { return .rgba8Unorm }
+        switch ImageColorSpaceContract(colorSpace: colorSpace).dynamicRange {
+        case .extendedDynamicRange, .highDynamicRange:
+            return .rgba16Float
+        case .preserveInput, .standardDynamicRange, .custom:
+            return .rgba8Unorm
+        }
+    }
+
+    private static func preferredPixelFormat(for ciImage: CIImage) -> MTLPixelFormat {
+        guard let colorSpace = ciImage.colorSpace else { return .rgba8Unorm }
         switch ImageColorSpaceContract(colorSpace: colorSpace).dynamicRange {
         case .extendedDynamicRange, .highDynamicRange:
             return .rgba16Float
