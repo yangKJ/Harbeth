@@ -407,7 +407,7 @@ public extension HarbethIO where Dest == CIImage {
                 )
             )
         }
-        if mirrored {
+        if mirrored || element.pixelBuffer != nil {
             image = image.oriented(.downMirrored)
         }
         return TextureBackedCIImageFrame(image: image, owner: frame)

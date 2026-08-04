@@ -68,6 +68,8 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 #### Fixed
 
 - Bind the reuse timing of managed texture to the typed Core Image frame output life cycle to avoid the texture lease returning the pool in advance when the packaging is still in use.
+- Normalize the Core Image coordinates of direct PixelBuffer backing sources to avoid vertical flipping of dynamic media after texture filtering.
+- Let escaped and cropped Core Image recipes retain their texture resources, avoiding premature lease reuse during deferred evaluation by AVFoundation and other hosts.
 
 ### 2026-08-02 — Asynchronous render submission governance
 

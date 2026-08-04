@@ -1,5 +1,6 @@
 import XCTest
 import CoreImage
+import CoreVideo
 import Metal
 @testable import Harbeth
 
@@ -81,6 +82,104 @@ final class CIImageSourceTests: XCTestCase {
         )
 
         output = nil
+
+        let reused = HarbethContext.shared.texturePool.dequeueExactTexture(
+            width: texture.width,
+            height: texture.height,
+            pixelFormat: texture.pixelFormat
+        )
+        XCTAssertTrue(reused === texture)
+    }
+
+    func testTypedTextureBackedFramePreservesSourcePixelOrientation() throws {
+        try requireMetal()
+        let source = makeAsymmetricCIImage()
+        let output = try HarbethIO(
+            element: source,
+            filters: [C7Brightness(brightness: 0)]
+        ).outputTextureBackedFrame()
+
+        XCTAssertEqual(try renderedBytes(output.image), try renderedBytes(source))
+    }
+
+    func testTypedTextureBackedFramePreservesPixelBufferSourceOrientation() throws {
+        try requireMetal()
+        let source = CIImage(cvPixelBuffer: try makeAsymmetricPixelBuffer())
+        let output = try HarbethIO(
+            element: source,
+            filters: [C7Brightness(brightness: 0)]
+        ).outputTextureBackedFrame()
+
+        XCTAssertEqual(try renderedBytes(output.image), try renderedBytes(source))
+    }
+
+    func testTypedTextureBackedFramePreservesMetalTextureSourceOrientation() throws {
+        try requireMetal()
+        let source = try makeAsymmetricMetalImage()
+        let output = try HarbethIO(
+            element: source,
+            filters: [C7Brightness(brightness: 0)]
+        ).outputTextureBackedFrame()
+
+        XCTAssertEqual(try renderedBytes(output.image), try renderedBytes(source))
+    }
+
+    func testEscapedTextureBackedImageKeepsManagedLease() throws {
+        try requireMetal()
+        HarbethContext.shared.recoverExecution()
+        var output: TextureBackedCIImageFrame? = try HarbethIO(
+            element: makeCIImage(width: 11, height: 7),
+            filters: [C7Brightness(brightness: 0.1)]
+        ).outputTextureBackedFrame()
+        let texture = try XCTUnwrap(output?.texture)
+        var escapedImage: CIImage? = output?.image
+
+        output = nil
+
+        XCTAssertNotNil(escapedImage)
+        XCTAssertNil(
+            HarbethContext.shared.texturePool.dequeueExactTexture(
+                width: texture.width,
+                height: texture.height,
+                pixelFormat: texture.pixelFormat
+            )
+        )
+
+        escapedImage = nil
+
+        let reused = HarbethContext.shared.texturePool.dequeueExactTexture(
+            width: texture.width,
+            height: texture.height,
+            pixelFormat: texture.pixelFormat
+        )
+        XCTAssertTrue(reused === texture)
+    }
+
+    func testCroppedTextureBackedImageKeepsManagedLease() throws {
+        try requireMetal()
+        HarbethContext.shared.recoverExecution()
+        let texture = try autoreleasepool { () throws -> MTLTexture in
+            var output: TextureBackedCIImageFrame? = try HarbethIO(
+                element: makeCIImage(width: 13, height: 9),
+                filters: [C7Brightness(brightness: 0.1)]
+            ).outputTextureBackedFrame()
+            let texture = try XCTUnwrap(output?.texture)
+            var escapedImage = output?.croppedImage(to: CGRect(x: 1, y: 1, width: 10, height: 6))
+
+            output = nil
+
+            XCTAssertNotNil(escapedImage)
+            XCTAssertNil(
+                HarbethContext.shared.texturePool.dequeueExactTexture(
+                    width: texture.width,
+                    height: texture.height,
+                    pixelFormat: texture.pixelFormat
+                )
+            )
+
+            escapedImage = nil
+            return texture
+        }
 
         let reused = HarbethContext.shared.texturePool.dequeueExactTexture(
             width: texture.width,
@@ -174,6 +273,96 @@ final class CIImageSourceTests: XCTestCase {
     private func makeCIImage(width: Int, height: Int) -> CIImage {
         CIImage(color: CIColor(red: 0.4, green: 0.2, blue: 0.1, alpha: 1))
             .cropped(to: CGRect(x: 0, y: 0, width: width, height: height))
+    }
+
+    private func makeAsymmetricCIImage() -> CIImage {
+        let bytes: [UInt8] = [
+            255, 0, 0, 255, 0, 255, 0, 255,
+            0, 0, 255, 255, 255, 255, 255, 255
+        ]
+        return CIImage(
+            bitmapData: Data(bytes),
+            bytesPerRow: 8,
+            size: CGSize(width: 2, height: 2),
+            format: .RGBA8,
+            colorSpace: CGColorSpace(name: CGColorSpace.sRGB)
+        )
+    }
+
+    private func makeAsymmetricPixelBuffer() throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            2,
+            2,
+            kCVPixelFormatType_32BGRA,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        guard status == kCVReturnSuccess, let pixelBuffer else {
+            throw HarbethError.texture2Image
+        }
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw HarbethError.texture2Image
+        }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let rows: [[UInt8]] = [
+            [0, 0, 255, 255, 0, 255, 0, 255],
+            [255, 0, 0, 255, 255, 255, 255, 255]
+        ]
+        for (rowIndex, row) in rows.enumerated() {
+            row.withUnsafeBytes { bytes in
+                baseAddress.advanced(by: rowIndex * bytesPerRow)
+                    .copyMemory(from: bytes.baseAddress!, byteCount: row.count)
+            }
+        }
+        return pixelBuffer
+    }
+
+    private func makeAsymmetricMetalImage() throws -> CIImage {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: 2,
+            height: 2,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let bytes: [UInt8] = [
+            255, 0, 0, 255, 0, 255, 0, 255,
+            0, 0, 255, 255, 255, 255, 255, 255
+        ]
+        bytes.withUnsafeBytes { buffer in
+            texture.replace(
+                region: MTLRegionMake2D(0, 0, 2, 2),
+                mipmapLevel: 0,
+                withBytes: buffer.baseAddress!,
+                bytesPerRow: 8
+            )
+        }
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        return try XCTUnwrap(CIImage(mtlTexture: texture, options: [.colorSpace: colorSpace]))
+    }
+
+    private func renderedBytes(_ image: CIImage) throws -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: 16)
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        CIContext(options: [.cacheIntermediates: false]).render(
+            image,
+            toBitmap: &bytes,
+            rowBytes: 8,
+            bounds: image.extent,
+            format: .RGBA8,
+            colorSpace: colorSpace
+        )
+        return bytes
     }
 
     private func requireMetal() throws {
