@@ -1006,6 +1006,45 @@ final class TextureReadbackTests: XCTestCase {
         #endif
     }
 
+    func testPrivateTextureWrittenByGPUCanBeReadBackThroughStagingBuffer() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let queue = try XCTUnwrap(device.makeCommandQueue())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: 2,
+            height: 2,
+            mipmapped: false
+        )
+        descriptor.storageMode = .private
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let commandBuffer = try XCTUnwrap(queue.makeCommandBuffer())
+        let blit = try XCTUnwrap(commandBuffer.makeBlitCommandEncoder())
+        let pixels: [UInt8] = [
+            255, 0, 0, 255, 0, 255, 0, 255,
+            0, 0, 255, 255, 255, 255, 0, 255
+        ]
+        let source = try XCTUnwrap(device.makeBuffer(bytes: pixels, length: pixels.count, options: .storageModeShared))
+        blit.copy(
+            from: source,
+            sourceOffset: 0,
+            sourceBytesPerRow: 8,
+            sourceBytesPerImage: pixels.count,
+            sourceSize: .init(width: 2, height: 2, depth: 1),
+            to: texture,
+            destinationSlice: 0,
+            destinationLevel: 0,
+            destinationOrigin: .init(x: 0, y: 0, z: 0)
+        )
+        blit.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        let readback = try XCTUnwrap(texture.c7.bytes())
+
+        XCTAssertEqual(Array(readback), pixels)
+    }
+
     func testReplacePackedBytesKeepsSmallRGBAUploadReadable() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")

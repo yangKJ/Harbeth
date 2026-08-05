@@ -51,6 +51,87 @@ public struct MTLTextureCompatible_ {
         }
         return descriptor
     }
+
+    /// 把零级纹理数据拷贝到 CPU 可见内存。
+    ///
+    /// shared 纹理可以直接读取；managed 和 private 纹理先经过 shared staging buffer，
+    /// 确保 GPU 写入在统一内存与独立显存 Mac 上都对 CPU 可见。
+    @discardableResult
+    func copyBytes(to destination: UnsafeMutableRawPointer, bytesPerRow: Int) -> Bool {
+        guard target.width > 0,
+              target.height > 0,
+              let bytesPerPixel = readbackBytesPerPixel,
+              bytesPerRow >= target.width * bytesPerPixel else {
+            return false
+        }
+        let region = MTLRegionMake2D(0, 0, target.width, target.height)
+        if target.storageMode == .shared {
+            target.getBytes(destination, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+            return true
+        }
+
+        #if os(iOS) || os(tvOS)
+        guard target.storageMode != .memoryless else {
+            return false
+        }
+        #endif
+
+        let usedBytesPerRow = target.width * bytesPerPixel
+        let stagingBytesPerRow = TextureLoader.alignedBytesPerRow(
+            minimum: usedBytesPerRow,
+            pixelFormat: target.pixelFormat,
+            device: target.device
+        )
+        let stagingLength = stagingBytesPerRow * target.height
+        guard let stagingBuffer = target.device.makeBuffer(length: stagingLength, options: .storageModeShared),
+              let commandQueue = target.device.makeCommandQueue(),
+              let commandBuffer = commandQueue.makeCommandBuffer(),
+              let blit = commandBuffer.makeBlitCommandEncoder() else {
+            return false
+        }
+        blit.copy(
+            from: target,
+            sourceSlice: 0,
+            sourceLevel: 0,
+            sourceOrigin: .init(x: 0, y: 0, z: 0),
+            sourceSize: .init(width: target.width, height: target.height, depth: 1),
+            to: stagingBuffer,
+            destinationOffset: 0,
+            destinationBytesPerRow: stagingBytesPerRow,
+            destinationBytesPerImage: stagingLength
+        )
+        blit.endEncoding()
+        do {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "TextureReadback")
+        } catch {
+            return false
+        }
+
+        let stagingBytes = stagingBuffer.contents()
+        for row in 0..<target.height {
+            memcpy(
+                destination.advanced(by: row * bytesPerRow),
+                stagingBytes.advanced(by: row * stagingBytesPerRow),
+                usedBytesPerRow
+            )
+        }
+        return true
+    }
+
+    private var readbackBytesPerPixel: Int? {
+        switch target.pixelFormat {
+        case .a8Unorm, .r8Unorm, .r8Uint:
+            return 1
+        case .rgba8Unorm, .rgba8Unorm_srgb, .bgra8Unorm, .bgra8Unorm_srgb:
+            return 4
+        case .rgba16Float:
+            return 8
+        case .rgba32Float:
+            return 16
+        default:
+            return nil
+        }
+    }
     
     /// Checks if the texture is fully transparent (alpha = 0 for all pixels).
     /// Only supports `.bgra8Unorm`, `.rgba8Unorm`, and grayscale formats.
@@ -64,8 +145,7 @@ public struct MTLTextureCompatible_ {
             let totalBytes = rowBytes * height
             let data = UnsafeMutablePointer<UInt8>.allocate(capacity: totalBytes)
             defer { data.deallocate() }
-            let region = MTLRegionMake2D(0, 0, width, height)
-            target.getBytes(data, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            guard copyBytes(to: data, bytesPerRow: rowBytes) else { return false }
             return data.withMemoryRebound(to: UInt8.self, capacity: totalBytes) {
                 for i in 0..<totalBytes {
                     if $0[i] != 0 { return false }
@@ -86,8 +166,7 @@ public struct MTLTextureCompatible_ {
         let totalBytes = rowBytes * height
         let data = UnsafeMutablePointer<UInt8>.allocate(capacity: totalBytes)
         defer { data.deallocate() }
-        let region = MTLRegionMake2D(0, 0, width, height)
-        target.getBytes(data, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+        guard copyBytes(to: data, bytesPerRow: rowBytes) else { return false }
         // Alpha is always at index 3 for both BGRA and RGBA
         for i in stride(from: 3, to: totalBytes, by: 4) {
             if data[i] != 0 {
@@ -133,8 +212,7 @@ public struct MTLTextureCompatible_ {
             let length = rowBytes * height
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { rgbaBytes.deallocate() }
-            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-            target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            guard copyBytes(to: rgbaBytes, bytesPerRow: rowBytes) else { return nil }
             
             let colorSpace = colorSpace ?? CGColorSpaceCreateDeviceGray()
             let rawV = currentFormat == .a8Unorm ? CGImageAlphaInfo.alphaOnly.rawValue : CGImageAlphaInfo.none.rawValue
@@ -162,8 +240,7 @@ public struct MTLTextureCompatible_ {
             let bgraBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { bgraBytes.deallocate(); rgbaBytes.deallocate() }
-            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-            target.getBytes(bgraBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            guard copyBytes(to: bgraBytes, bytesPerRow: rowBytes) else { return nil }
             
             // use Accelerate framework to convert from BGRA to RGBA
             var bgraBuffer = vImage_Buffer(data: bgraBytes,
@@ -201,8 +278,7 @@ public struct MTLTextureCompatible_ {
             let length = rowBytes * height
             let rgbaBytes = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
             defer { rgbaBytes.deallocate() }
-            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-            target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            guard copyBytes(to: rgbaBytes, bytesPerRow: rowBytes) else { return nil }
             
             let colorSpace = colorSpace ?? HarbethContext.shared.colorSpace
             let bitmapInfo = CGBitmapInfo(rawValue: alphaType.cgImageAlphaInfoForRGBA.rawValue)
@@ -232,8 +308,7 @@ public struct MTLTextureCompatible_ {
                 alignment: bytesPerComponent
             )
             defer { rgbaBytes.deallocate() }
-            let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
-            target.getBytes(rgbaBytes, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+            guard copyBytes(to: rgbaBytes, bytesPerRow: rowBytes) else { return nil }
 
             let resolvedColorSpace = colorSpace
                 ?? CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
@@ -280,8 +355,7 @@ public struct MTLTextureCompatible_ {
         let totalBytes = rowBytes * height
         let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: totalBytes)
         defer { buffer.deallocate() }
-        let region = MTLRegionMake2D(0, 0, width, height)
-        target.getBytes(buffer, bytesPerRow: rowBytes, from: region, mipmapLevel: 0)
+        guard copyBytes(to: buffer, bytesPerRow: rowBytes) else { return nil }
         if target.pixelFormat == .bgra8Unorm {
             // Convert in-place using vImage
             var src = vImage_Buffer(data: buffer, height: vImagePixelCount(height), width: vImagePixelCount(width), rowBytes: rowBytes)

@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-08-05 — macOS texture readback correctness
+
+#### Fixed
+
+- Routed managed and private Metal texture readback through shared staging memory, preventing blank macOS image and pixel-buffer outputs when GPU-written data is not directly CPU-visible.
+
 ### Upgrade at a glance
 
 - Established two public integration routes: `HarbethIO` for direct source-to-output processing and `ImageNode` for structured editing, geometry, optics, masks, transitions, composition, inspection and delivery.

@@ -970,6 +970,50 @@ final class PixelBufferOutputTests: XCTestCase {
         XCTAssertEqual(request.diagnostics.compilationSource, .editRecipe)
     }
 
+    func testFilteringTenBitHDRSampleBufferPreservesColorValuesAndContract() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Direct 10-bit plane-texture bridges are not stable on Simulator.")
+        #else
+        let pixelBuffer = try makeTenBitHDRBiPlanarPixelBuffer()
+        guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
+            XCTFail("Failed to create 10-bit HDR sample buffer.")
+            return
+        }
+        let decodedTexture = try TextureLoader(with: pixelBuffer).texture
+        var decodedPixels = [Float16](repeating: 0, count: decodedTexture.width * decodedTexture.height * 4)
+        let decoded = decodedPixels.withUnsafeMutableBytes {
+            guard let baseAddress = $0.baseAddress else { return false }
+            return decodedTexture.c7.copyBytes(
+                to: baseAddress,
+                bytesPerRow: decodedTexture.width * MemoryLayout<Float16>.size * 4
+            )
+        }
+        XCTAssertTrue(decoded)
+
+        let output: CMSampleBuffer = try HarbethIO(
+            element: sampleBuffer,
+            filter: C7Brightness(brightness: 0.02)
+        ).output()
+        let outputPixelBuffer = try XCTUnwrap(CMSampleBufferGetImageBuffer(output))
+        XCTAssertEqual(CVPixelBufferGetPixelFormatType(outputPixelBuffer), kCVPixelFormatType_64RGBAHalf)
+        XCTAssertEqual(outputPixelBuffer.c7.contract.colorPrimariesAttachment, .ituR2020)
+        XCTAssertEqual(outputPixelBuffer.c7.contract.transferFunctionAttachment, .smpteSt2084PQ)
+        XCTAssertEqual(outputPixelBuffer.c7.contract.dynamicRange, .highDynamicRange)
+
+        XCTAssertEqual(CVPixelBufferLockBaseAddress(outputPixelBuffer, .readOnly), kCVReturnSuccess)
+        defer { CVPixelBufferUnlockBaseAddress(outputPixelBuffer, .readOnly) }
+        let outputBytes = try XCTUnwrap(CVPixelBufferGetBaseAddress(outputPixelBuffer))
+        let outputPixel = outputBytes.assumingMemoryBound(to: Float16.self)
+
+        for channel in 0..<3 {
+            XCTAssertEqual(Float(outputPixel[channel]), Float(decodedPixels[channel]) + 0.02, accuracy: 0.002)
+        }
+        XCTAssertEqual(Float(outputPixel[3]), Float(decodedPixels[3]), accuracy: 0.002)
+        XCTAssertGreaterThan(Float(outputPixel[0]), Float(outputPixel[1]))
+        XCTAssertGreaterThan(Float(outputPixel[1]), Float(outputPixel[2]))
+        #endif
+    }
+
     func testFilteringSampleBufferPreservesTimingAndAttachments() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [
@@ -1308,6 +1352,63 @@ final class PixelBufferOutputTests: XCTestCase {
             )
         } else {
             throw XCTSkip("HDR attachments are unavailable on this platform.")
+        }
+        return pixelBuffer
+    }
+
+    private func makeTenBitHDRBiPlanarPixelBuffer(width: Int = 4, height: Int = 4) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [CFString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:]
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        try XCTSkipIf(status != kCVReturnSuccess, "10-bit HDR pixel buffers are unavailable. CVPixelBufferCreate status=\(status).")
+        guard let pixelBuffer else {
+            XCTFail("Failed to create 10-bit HDR pixel buffer.")
+            throw XCTSkip()
+        }
+
+        XCTAssertEqual(CVPixelBufferLockBaseAddress(pixelBuffer, []), kCVReturnSuccess)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let lumaBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0),
+              let chromaBase = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1) else {
+            XCTFail("Failed to access 10-bit HDR planes.")
+            throw XCTSkip()
+        }
+        let lumaStride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0) / MemoryLayout<UInt16>.size
+        let chromaStride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1) / MemoryLayout<UInt16>.size
+        let luma = lumaBase.assumingMemoryBound(to: UInt16.self)
+        let chroma = chromaBase.assumingMemoryBound(to: UInt16.self)
+        for row in 0..<height {
+            for column in 0..<width {
+                luma[row * lumaStride + column] = UInt16(600 << 6)
+            }
+        }
+        for row in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, 1) {
+            for column in 0..<CVPixelBufferGetWidthOfPlane(pixelBuffer, 1) {
+                let offset = row * chromaStride + column * 2
+                chroma[offset] = UInt16(300 << 6)
+                chroma[offset + 1] = UInt16(700 << 6)
+            }
+        }
+
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, *) {
+            CVBufferSetAttachment(pixelBuffer, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_2020, .shouldPropagate)
+            CVBufferSetAttachment(pixelBuffer, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_2020, .shouldPropagate)
+            CVBufferSetAttachment(pixelBuffer, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ, .shouldPropagate)
+        } else {
+            throw XCTSkip("BT.2020 / PQ attachments are unavailable on this platform.")
         }
         return pixelBuffer
     }

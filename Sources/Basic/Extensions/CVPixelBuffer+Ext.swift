@@ -361,9 +361,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             return false
         }
         let bytesPerRow = CVPixelBufferGetBytesPerRow(base)
-        let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
-        texture.getBytes(pixelBufferBytes, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
-        return true
+        return texture.c7.copyBytes(to: pixelBufferBytes, bytesPerRow: bytesPerRow)
     }
 
     public func canCopyTextureData(from texture: MTLTexture) -> Bool {
