@@ -26,6 +26,26 @@ final class ColorCubeTests: XCTestCase {
         XCTAssertThrowsError(try C7ColorCube.Resource.parse(contents: "LUT_1D_SIZE 2\n0 0 0\n1 1 1"))
     }
 
+    func testCubeParserIgnoresFullLineAndTrailingComments() throws {
+        let contents = """
+        # Project-owned generated LUT
+        LUT_3D_SIZE 2 # eight RGB samples follow
+        0 0 0
+        1 0 0
+        0 1 0
+        1 1 0
+        0 0 1
+        1 0 1
+        0 1 1
+        1 1 1 # white corner
+        """
+
+        let resource = try C7ColorCube.Resource.parse(contents: contents)
+
+        XCTAssertEqual(resource.dimension, 2)
+        XCTAssertEqual(resource.data.count, 2 * 2 * 2 * 4 * MemoryLayout<Float>.size)
+    }
+
     func testCubeResourceUsesCachedThreeDimensionalTexture() throws {
         let resource = try C7ColorCube.Resource.parse(contents: identityCube)
         let first = C7ColorCube(cubeResource: resource)

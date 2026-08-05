@@ -1244,6 +1244,126 @@ kernel void InnerDisplacementTransition(texture2d<half, access::write> outputTex
     outputTexture.write(mix(from, to, progress), gid);
 }
 
+static inline half4 innerPageCurlSample(texture2d<half, access::sample> fromTexture,
+                                        texture2d<half, access::sample> toTexture,
+                                        texture2d<half, access::sample> backsideTexture,
+                                        bool hasBackside,
+                                        float2 uv,
+                                        float progress,
+                                        float2 direction,
+                                        float radius,
+                                        float shadowStrength,
+                                        float shadowRadius) {
+    constexpr sampler transitionSampler(coord::normalized, address::clamp_to_edge, filter::linear);
+
+    if (progress <= 0.0f) {
+        return fromTexture.sample(transitionSampler, uv);
+    }
+    if (progress >= 1.0f) {
+        return toTexture.sample(transitionSampler, uv);
+    }
+
+    const float2 perpendicular = float2(-direction.y, direction.x);
+    const float projection = dot(uv - 0.5f, direction);
+    const float projectionExtent = 0.5f * (abs(direction.x) + abs(direction.y));
+    const float safeRadius = clamp(radius, 0.001f, 0.5f);
+    const float curlStart = mix(projectionExtent, -projectionExtent - 2.0f * safeRadius, progress);
+    const float curlEnd = curlStart + 2.0f * safeRadius;
+
+    if (projection <= curlStart) {
+        return fromTexture.sample(transitionSampler, uv);
+    }
+
+    half4 target = toTexture.sample(transitionSampler, uv);
+    if (projection >= curlEnd) {
+        const float distanceFromCurl = projection - curlEnd;
+        const float shadow = clamp(shadowStrength, 0.0f, 1.0f)
+            * exp(-distanceFromCurl / max(shadowRadius, 0.001f));
+        target.rgb *= half(1.0f - 0.55f * shadow);
+        return target;
+    }
+
+    const float curlProgress = clamp((projection - curlStart) / (2.0f * safeRadius), 0.0f, 1.0f);
+    const float curvature = sin(curlProgress * M_PI_F);
+    const float sourceProjection = curlStart - 2.0f * safeRadius * curlProgress;
+    const float2 backsideUV = uv
+        + direction * (sourceProjection - projection)
+        + perpendicular * (curvature * safeRadius * 0.08f);
+    half4 folded = hasBackside
+        ? backsideTexture.sample(transitionSampler, backsideUV)
+        : fromTexture.sample(transitionSampler, backsideUV);
+
+    const half curveLight = half(0.72f + 0.28f * curvature);
+    folded.rgb *= half3(1.0h, 0.97h, 0.92h) * curveLight;
+
+    const half underFoldShadow = half(1.0f - clamp(shadowStrength, 0.0f, 1.0f)
+        * (0.12f + 0.20f * (1.0f - curvature)));
+    target.rgb *= underFoldShadow;
+    return half4(folded.rgb + target.rgb * (1.0h - folded.a),
+                 folded.a + target.a * (1.0h - folded.a));
+}
+
+kernel void InnerPageCurlTransition(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                    texture2d<half, access::sample> fromTexture [[texture(1)]],
+                                    texture2d<half, access::sample> toTexture [[texture(2)]],
+                                    constant float *progressPointer [[buffer(0)]],
+                                    constant float *directionXPointer [[buffer(1)]],
+                                    constant float *directionYPointer [[buffer(2)]],
+                                    constant float *radiusPointer [[buffer(3)]],
+                                    constant float *shadowStrengthPointer [[buffer(4)]],
+                                    constant float *shadowRadiusPointer [[buffer(5)]],
+                                    uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+    const float2 size = float2(outputTexture.get_width(), outputTexture.get_height());
+    const float2 uv = (float2(gid) + 0.5f) / size;
+    outputTexture.write(
+        innerPageCurlSample(fromTexture,
+                            toTexture,
+                            fromTexture,
+                            false,
+                            uv,
+                            clamp(*progressPointer, 0.0f, 1.0f),
+                            float2(*directionXPointer, *directionYPointer),
+                            *radiusPointer,
+                            *shadowStrengthPointer,
+                            *shadowRadiusPointer),
+        gid
+    );
+}
+
+kernel void InnerPageCurlBacksideTransition(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                            texture2d<half, access::sample> fromTexture [[texture(1)]],
+                                            texture2d<half, access::sample> toTexture [[texture(2)]],
+                                            texture2d<half, access::sample> backsideTexture [[texture(3)]],
+                                            constant float *progressPointer [[buffer(0)]],
+                                            constant float *directionXPointer [[buffer(1)]],
+                                            constant float *directionYPointer [[buffer(2)]],
+                                            constant float *radiusPointer [[buffer(3)]],
+                                            constant float *shadowStrengthPointer [[buffer(4)]],
+                                            constant float *shadowRadiusPointer [[buffer(5)]],
+                                            uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) {
+        return;
+    }
+    const float2 size = float2(outputTexture.get_width(), outputTexture.get_height());
+    const float2 uv = (float2(gid) + 0.5f) / size;
+    outputTexture.write(
+        innerPageCurlSample(fromTexture,
+                            toTexture,
+                            backsideTexture,
+                            true,
+                            uv,
+                            clamp(*progressPointer, 0.0f, 1.0f),
+                            float2(*directionXPointer, *directionYPointer),
+                            *radiusPointer,
+                            *shadowStrengthPointer,
+                            *shadowRadiusPointer),
+        gid
+    );
+}
+
 kernel void MaskDistanceField(texture2d<half, access::write> outputTexture [[texture(0)]],
                               texture2d<half, access::read> inputTexture [[texture(1)]],
                               constant float &maxDistance [[buffer(0)]],

@@ -360,7 +360,17 @@ public final class HarbethContext: @unchecked Sendable {
 
         let descriptor = MTLRenderPipelineDescriptor()
         for attachment in renderPass.colorAttachments where attachment.index < 8 {
-            descriptor.colorAttachments[attachment.index].pixelFormat = Self.pixelFormat(from: attachment.pixelFormat) ?? .invalid
+            guard let colorAttachment = descriptor.colorAttachments[attachment.index] else { continue }
+            colorAttachment.pixelFormat = Self.pixelFormat(from: attachment.pixelFormat) ?? .invalid
+            if attachment.index == 0, renderPass.blendMode == .premultipliedSourceOver {
+                colorAttachment.isBlendingEnabled = true
+                colorAttachment.rgbBlendOperation = .add
+                colorAttachment.alphaBlendOperation = .add
+                colorAttachment.sourceRGBBlendFactor = .one
+                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                colorAttachment.sourceAlphaBlendFactor = .one
+                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            }
         }
         descriptor.rasterSampleCount = renderPass.sampleCount
         descriptor.vertexFunction = try Device.readMTLFunction(vertexIdentity)

@@ -17,12 +17,14 @@ public enum KernelDynamicRangeBehavior: String, Sendable, Codable, Equatable, Ha
     case clampsToUnitRange
     /// 明确完成到 SDR 的 tone mapping。
     case toneMapsToSDR
+    /// 明确完成到线性 EDR 的 tone mapping。
+    case toneMapsToEDR
     /// 明确完成到 HDR 的 tone mapping。
     case toneMapsToHDR
 
     public var isExtendedRangeSafe: Bool {
         switch self {
-        case .preservesExtendedRange, .toneMapsToHDR:
+        case .preservesExtendedRange, .toneMapsToEDR, .toneMapsToHDR:
             return true
         case .unspecified, .clampsToUnitRange, .toneMapsToSDR:
             return false

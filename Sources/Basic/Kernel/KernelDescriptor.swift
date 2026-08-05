@@ -620,9 +620,16 @@ extension C7FilterProtocol {
             )
             renderPassContract = RenderPassContract(
                 colorAttachments: outputContract.attachments.map {
-                    ColorAttachmentContract(index: $0.index, pixelFormat: $0.pixelFormat.metalPixelFormat)
+                    ColorAttachmentContract(
+                        index: $0.index,
+                        pixelFormat: $0.pixelFormat.metalPixelFormat,
+                        loadBehavior: renderFilter?.renderPreloadsSourceTexture == true ? .load : .clear,
+                        storeBehavior: (renderFilter?.renderRasterSampleCount ?? 1) > 1 ? .multisampleResolve : .store
+                    )
                 },
-                usesCustomVertexLayout: usesCustomVertexLayout
+                sampleCount: renderFilter?.renderRasterSampleCount ?? 1,
+                usesCustomVertexLayout: usesCustomVertexLayout,
+                blendMode: renderFilter?.renderBlendMode ?? .disabled
             )
         } else {
             outputContract = RenderOutputContract(alpha: alphaBehavior.renderAlphaContract)

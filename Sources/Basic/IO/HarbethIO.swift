@@ -889,15 +889,27 @@ extension HarbethIO {
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
-        prewarmDoubleBufferReservations(
-            for: program.plan,
-            fallbackSize: C7Size(width: width, height: height),
-            inputPixelFormat: pixelFormat
-        )
+        let requiresRenderTarget = filters.contains { filter in
+            if case .render = filter.modifier { return true }
+            return false
+        }
+        if requiresRenderTarget == false {
+            prewarmDoubleBufferReservations(
+                for: program.plan,
+                fallbackSize: C7Size(width: width, height: height),
+                inputPixelFormat: pixelFormat
+            )
+        }
+        let doubleBufferUsage: MTLTextureUsage = requiresRenderTarget
+            ? [.shaderRead, .shaderWrite, .renderTarget]
+            : [.shaderRead, .shaderWrite]
         let textureA = try TextureLoader.makeTexture(
             width: width,
             height: height,
-            options: [.texturePixelFormat: pixelFormat],
+            options: [
+                .texturePixelFormat: pixelFormat,
+                .textureUsage: doubleBufferUsage
+            ],
             identifier: identifier
         )
         let textureB: MTLTexture
@@ -905,7 +917,10 @@ extension HarbethIO {
             textureB = try TextureLoader.makeTexture(
                 width: width,
                 height: height,
-                options: [.texturePixelFormat: pixelFormat],
+                options: [
+                    .texturePixelFormat: pixelFormat,
+                    .textureUsage: doubleBufferUsage
+                ],
                 identifier: identifier
             )
         } catch {
@@ -1512,16 +1527,27 @@ extension HarbethIO where Dest == MTLTexture {
         let width = input.width
         let height = input.height
         let pixelFormat = input.pixelFormat
-
-        prewarmDoubleBufferReservations(
-            for: program.plan,
-            fallbackSize: C7Size(width: width, height: height),
-            inputPixelFormat: pixelFormat
-        )
+        let requiresRenderTarget = filters.contains { filter in
+            if case .render = filter.modifier { return true }
+            return false
+        }
+        if requiresRenderTarget == false {
+            prewarmDoubleBufferReservations(
+                for: program.plan,
+                fallbackSize: C7Size(width: width, height: height),
+                inputPixelFormat: pixelFormat
+            )
+        }
+        let doubleBufferUsage: MTLTextureUsage = requiresRenderTarget
+            ? [.shaderRead, .shaderWrite, .renderTarget]
+            : [.shaderRead, .shaderWrite]
         let leaseA = try TextureLoader.makeTextureLease(
             width: width,
             height: height,
-            options: [.texturePixelFormat: pixelFormat],
+            options: [
+                .texturePixelFormat: pixelFormat,
+                .textureUsage: doubleBufferUsage
+            ],
             identifier: identifier
         )
         let leaseB: TextureLease
@@ -1529,7 +1555,10 @@ extension HarbethIO where Dest == MTLTexture {
             leaseB = try TextureLoader.makeTextureLease(
                 width: width,
                 height: height,
-                options: [.texturePixelFormat: pixelFormat],
+                options: [
+                    .texturePixelFormat: pixelFormat,
+                    .textureUsage: doubleBufferUsage
+                ],
                 identifier: identifier
             )
         } catch {

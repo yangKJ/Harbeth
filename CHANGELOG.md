@@ -59,6 +59,39 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 | Inspection and support | Histogram/statistics/probes, attachment analysis, preview parity, structured logging and privacy-safe support snapshots | 2026-06-22–24, 2026-07-23, 2026-07-28 |
 | Developer experience | Showcase-oriented Demos, DocC/API/migration/troubleshooting docs, Issue templates and release compatibility checks | 2026-06-21–27, 2026-07-16–21, 2026-07-28 |
 
+### 2026-08-05 — Deterministic tone mapping and GPU filter primitives
+
+#### Added
+
+- Added `C7ToneMapping` for deterministic linear-RGB luminance mapping from explicit source nits into SDR or EDR output headroom, with preserved alpha and declared dynamic-range behavior.
+- Added `C7DisplacementMap` for single-frame deformation from signed or normalized displacement textures, with pixel/normalized units, sampler and edge policies, optional confidence weighting and full-canvas coordinate semantics.
+- Added `KernelDynamicRangeBehavior.toneMapsToEDR` so render planning can distinguish EDR-safe tone mapping from SDR clamping and HDR-preserving execution.
+- Added `C7HighPassSkinSmoothing` as a full-frame high-pass detail-preserving smoothing pipeline, without claiming face or skin-region detection.
+- Added `C7DocumentBinarization` for locally adaptive document black-and-white output under uneven paper illumination.
+- Added `C7CLAHE` with tile luminance histograms, clip redistribution, CDF lookup tables and neighboring-tile interpolation for local SDR contrast enhancement.
+- Added `C7HexagonalBokehBlur` with two-stage three-axis aperture sampling, rotation, highlight control and optional per-pixel circle-of-confusion input.
+- Added `C7Palettize` for premultiplied-alpha-safe nearest-color quantization against a caller-provided palette of up to 32 colors.
+- Added `C7CMYKHalftone` with four independent print-screen angles, full-canvas coordinates and an explicit conservative region-of-interest contract for tiled renderers.
+- Added an `ImageNode` Page Curl transition primitive with normalized curl geometry, optional backside imagery, analytic shading, soft contact shadows and explicit non-tileable full-canvas execution semantics.
+- Added `MPSConvolution`, `MPSLanczosResize` and `MPSMorphology` as validated out-of-place MPS execution atoms.
+- Added `RenderMeshWarp`, `RenderLayerComposite` and `RenderVectorMask`, together with render topology, fixed-function premultiplied source-over blending and multisample resolve contracts.
+
+#### Changed
+
+- Routed `RenderOutputContract` SDR and EDR tone-mapping policies through the deterministic luminance primitive instead of approximating output with independent highlight/shadow and exposure adjustments.
+- Aligned the public filter catalog with the source tree, including the previously omitted color grading, selective HSL, whites/blacks, output quantization and scene relighting primitives.
+- Kept pipeline stage outputs independent from the final destination so combination shaders never bind the same texture for auxiliary reads and output writes.
+- Upgraded `C7HighlightShadowTone` to a complete local pipeline backed by an MPS Gaussian reference texture, while preserving its existing adjustment API and premultiplied alpha.
+- Extended `C7HighPassSkinSmoothing` with configurable tone-curve midpoints and optional final detail sharpening while preserving the previous default visual path.
+
+#### Fixed
+
+- Made `C7SurfaceBlur` return the original pixel for zero radius, zero threshold or zero intensity, and corrected signed edge-coordinate checks.
+- Made `MPSGaussianBlur` preserve its configured public radius and expose the conservative sampling halo required by region-based executors.
+- Made `C7ToneMapping` operate in straight-alpha color space before restoring premultiplied output, preventing translucent HDR pixels from violating the alpha contract.
+- Made `C7HexagonalBokehBlur` sample optional CoC inputs through normalized canvas coordinates so lower-resolution control textures cannot be read out of bounds.
+- Made `C7ColorCube` accept standard full-line and trailing `#` comments in CUBE resources instead of treating comment text as malformed sample data.
+
 ### 2026-08-04 — Production frame access and self-owned CIImage output
 
 #### Added

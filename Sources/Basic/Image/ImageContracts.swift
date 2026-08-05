@@ -1230,6 +1230,15 @@ public enum ImageToneMappingPolicy: String, Sendable, Codable, Equatable, Hashab
 
 extension ImageToneMappingPolicy {
     func makeToneMappingFilters(sourceColorSpace: ImageColorSpaceContract, targetColorSpace: ImageColorSpaceContract) -> [C7FilterProtocol] {
+        let sourceLuminance: (inputNitsPerUnit: Float, peakNits: Float)
+        switch sourceColorSpace.transferFunction {
+        case .perceptualQuantizer:
+            sourceLuminance = (10_000, 1_000)
+        case .hybridLogGamma:
+            sourceLuminance = (1_000, 1_000)
+        case .preserveInput, .sRGB, .linear, .custom:
+            sourceLuminance = (1_000, 1_000)
+        }
         switch self {
         case .preserveInput, .none, .custom:
             return []
@@ -1238,19 +1247,27 @@ extension ImageToneMappingPolicy {
                   targetColorSpace.dynamicRange == .standardDynamicRange else {
                 return []
             }
-            return [
-                C7HighlightShadowTone(shadows: 0.12, highlights: -0.28, midtones: 0.06, contrast: 0.08),
-                C7Exposure(exposure: -0.18)
-            ]
+            return [C7ToneMapping(
+                inputNitsPerUnit: sourceLuminance.inputNitsPerUnit,
+                sourcePeakNits: sourceLuminance.peakNits,
+                targetReferenceWhiteNits: 100,
+                targetPeakNits: 100,
+                shoulderStrength: 4,
+                highlightDesaturation: 0.12
+            )]
         case .toneMapToEDR:
             guard sourceColorSpace.dynamicRange == .highDynamicRange,
                   targetColorSpace.dynamicRange == .extendedDynamicRange else {
                 return []
             }
-            return [
-                C7HighlightShadowTone(shadows: 0.08, highlights: -0.14, midtones: 0.03, contrast: 0.04),
-                C7Exposure(exposure: -0.06)
-            ]
+            return [C7ToneMapping(
+                inputNitsPerUnit: sourceLuminance.inputNitsPerUnit,
+                sourcePeakNits: sourceLuminance.peakNits,
+                targetReferenceWhiteNits: 203,
+                targetPeakNits: 400,
+                shoulderStrength: 4,
+                highlightDesaturation: 0.08
+            )]
         case .toneMapToHDR:
             guard targetColorSpace.dynamicRange == .highDynamicRange,
                   sourceColorSpace.dynamicRange != .highDynamicRange else {

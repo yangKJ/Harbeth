@@ -206,6 +206,28 @@ final class PerformanceBaselineTests: XCTestCase {
         }
     }
 
+    func testImageNodePageCurlTransition1080pClockBaseline() throws {
+        let from = try makeTexture(width: 1920, height: 1080, pixel: [255, 64, 64, 255])
+        let to = try makeTexture(width: 1920, height: 1080, pixel: [64, 64, 255, 255])
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .pageCurl(angleDegrees: 15, radius: 0.22, shadowStrength: 0.7),
+            progress: 0.5
+        )
+        let node = ImageNode.transition(recipe)
+
+        measure(metrics: [XCTClockMetric()]) {
+            autoreleasepool {
+                do {
+                    _ = try node.makeTexture(profile: recipe.profile, derivative: recipe.derivative)
+                } catch {
+                    XCTFail("Expected Page Curl transition baseline render to succeed: \(error)")
+                }
+            }
+        }
+    }
+
     func testPixelBufferYCbCrBridgeClockBaseline() throws {
         let pixelBuffer = try makeBiPlanarPixelBuffer(width: 320, height: 180)
         let io = HarbethIO(

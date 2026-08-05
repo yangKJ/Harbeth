@@ -28,6 +28,16 @@ public struct C7SurfaceBlur: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        .init(
+            inputAlphaExpectation: .premultiplied,
+            outputAlpha: .premultiplied,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .neighborhood(radius: Int(ceil(radius)))
+        )
+    }
     
     public init(radius: Float = 8.0, threshold: Float = 0.1) {
         self.radius = radius

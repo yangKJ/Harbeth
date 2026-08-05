@@ -119,21 +119,22 @@ enum FilterPipelineExecutor {
         var currentTexture = source
         var transientTextures: [MTLTexture] = []
 
-        for (index, stageFilter) in filters.enumerated() {
-            let stageIsFinalOutput = index == filters.count - 1
-            let stageDestination = stageIsFinalOutput ? destination : try makeIntermediateTexture(source: currentTexture, filter: stageFilter)
+        for stageFilter in filters {
+            // Pipeline stage output must not alias the final destination. The final
+            // filter consumes the last stage as an auxiliary texture while writing
+            // `destination`; binding one texture for read and write is undefined.
+            let stageDestination = try makeIntermediateTexture(source: currentTexture, filter: stageFilter)
             let outputTexture = try stageFilter.applyAtTexture(
                 form: currentTexture,
                 to: stageDestination,
                 for: commandBuffer
             )
-            if stageDestination !== destination && stageDestination !== source {
+            if stageDestination !== source {
                 transientTextures.append(stageDestination)
             }
             currentTexture = outputTexture
         }
 
-        if currentTexture === destination { return ([destination], transientTextures.filter { $0 !== destination }) }
         return ([currentTexture], transientTextures)
     }
 
@@ -158,10 +159,20 @@ enum FilterPipelineExecutor {
     private static func makeIntermediateTexture(source: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
         let inputSize = C7Size(width: source.width, height: source.height)
         let outputSize = filter.resize(input: inputSize)
+        let usage: MTLTextureUsage
+        switch filter.modifier {
+        case .render:
+            usage = [.shaderRead, .shaderWrite, .renderTarget]
+        case .compute, .blit, .mps, .advancedMetal:
+            usage = [.shaderRead, .shaderWrite]
+        }
         return try TextureLoader.makeTexture(
             width: outputSize.width,
             height: outputSize.height,
-            options: [.texturePixelFormat: source.pixelFormat],
+            options: [
+                .texturePixelFormat: source.pixelFormat,
+                .textureUsage: usage
+            ],
             identifier: "FilterPipelineExecutor"
         )
     }

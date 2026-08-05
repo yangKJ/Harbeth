@@ -34,11 +34,24 @@ kernel void C7HighlightShadowTone(texture2d<half, access::write> outputTexture [
                                   constant float *midtones [[buffer(2)]],
                                   constant float *contrast [[buffer(3)]],
                                   uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= inputTexture.get_width() || grid.y >= inputTexture.get_height()) {
+        return;
+    }
+
     const half4 inColor = inputTexture.read(grid);
     const half4 blurColor = blurTexture.read(grid);
+
+    if (inColor.a <= half(0.0) ||
+        (abs(*shadows) < 0.000001f && abs(*highlights) < 0.000001f &&
+         abs(*midtones) < 0.000001f && abs(*contrast) < 0.000001f)) {
+        outputTexture.write(inColor, grid);
+        return;
+    }
     
-    float4 source = float4(float3(inColor.rgb), float(inColor.a));
-    float4 blur = float4(float3(blurColor.rgb), float(blurColor.a));
+    const half3 sourceStraight = inColor.rgb / inColor.a;
+    const half3 blurStraight = blurColor.a > half(0.0) ? blurColor.rgb / blurColor.a : half3(0.0);
+    float4 source = float4(float3(sourceStraight), float(inColor.a));
+    float4 blur = float4(float3(blurStraight), float(blurColor.a));
     float4 sourceYIQ = hst_convertFromRGBToYIQ(source);
     float4 blurYIQ = hst_convertFromRGBToYIQ(blur);
     
@@ -132,7 +145,7 @@ kernel void C7HighlightShadowTone(texture2d<half, access::write> outputTexture [
     }
     
     float4 result = hst_convertFromYIQToRGB(sourceYIQ);
-    const half4 outColor = half4(half3(result.rgb), inColor.a);
+    const half4 outColor = half4(half3(result.rgb) * inColor.a, inColor.a);
     
     outputTexture.write(outColor, grid);
 }

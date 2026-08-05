@@ -135,14 +135,8 @@ extension C7FilterProtocol {
             case .compute(let kernel):
                 let textures = [destTexture, texture] + self.otherInputTextures
                 Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self, complete: complete)
-            case .render(let vertex, let fragment):
-                let pipelineState = try Rendering.makeRenderPipelineState(
-                    with: vertex,
-                    fragment: fragment,
-                    pixelFormat: destTexture.pixelFormat
-                )
+            case .render:
                 try Rendering.drawing(
-                    pipelineState,
                     commandBuffer: buffer,
                     texture: texture,
                     destTexture: destTexture,
@@ -187,14 +181,8 @@ extension C7FilterProtocol {
         case .compute(let kernel):
             let textures = [destTexture, texture] + self.otherInputTextures
             return try Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self)
-        case .render(let vertex, let fragment):
-            let pipelineState = try Rendering.makeRenderPipelineState(
-                with: vertex,
-                fragment: fragment,
-                pixelFormat: destTexture.pixelFormat
-            )
+        case .render:
             try Rendering.drawing(
-                pipelineState,
                 commandBuffer: buffer,
                 texture: texture,
                 destTexture: destTexture,
@@ -241,6 +229,26 @@ public enum RenderSamplerConsumption: Sendable, Equatable {
     case shaderDefined
 }
 
+/// Render 原子使用的图元拓扑。
+public enum RenderPrimitiveTopology: String, Sendable, Codable, Equatable, Hashable {
+    case triangleStrip
+    case triangle
+
+    var metalValue: MTLPrimitiveType {
+        switch self {
+        case .triangleStrip: return .triangleStrip
+        case .triangle: return .triangle
+        }
+    }
+}
+
+/// Render target 的固定功能混合合同。
+public enum RenderBlendMode: String, Sendable, Codable, Equatable, Hashable {
+    case disabled
+    /// 输入和目标颜色均使用 premultiplied alpha 的 source-over。
+    case premultipliedSourceOver
+}
+
 public protocol RenderProtocol: C7FilterProtocol {
     /// Setup the vertex shader parameters.
     /// - Parameter device: MTLDevice
@@ -261,6 +269,18 @@ public protocol RenderProtocol: C7FilterProtocol {
     /// Number of floats for each vertex in the custom vertex buffer.
     var renderVertexStride: Int { get }
 
+    /// Geometry topology used by the draw command.
+    var renderPrimitiveTopology: RenderPrimitiveTopology { get }
+
+    /// Fixed-function blend mode for attachment zero.
+    var renderBlendMode: RenderBlendMode { get }
+
+    /// Raster sample count. Values unsupported by the active device fail validation.
+    var renderRasterSampleCount: Int { get }
+
+    /// Copy the source texture into the destination before drawing and load it as the render target.
+    var renderPreloadsSourceTexture: Bool { get }
+
     /// Render-target quality contract for the primary and auxiliary color attachments.
     var renderOutputContract: RenderOutputContract { get }
 
@@ -280,6 +300,10 @@ extension RenderProtocol {
     public func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer? { nil }
     public func setupVertices(inputSize: C7Size) -> [Float]? { nil }
     public var renderVertexStride: Int { 4 }
+    public var renderPrimitiveTopology: RenderPrimitiveTopology { .triangleStrip }
+    public var renderBlendMode: RenderBlendMode { .disabled }
+    public var renderRasterSampleCount: Int { 1 }
+    public var renderPreloadsSourceTexture: Bool { false }
     public var renderOutputContract: RenderOutputContract { .preserveInput }
     public var renderSamplerDescriptor: ImageSamplerDescriptor { .default }
 }

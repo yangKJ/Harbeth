@@ -92,7 +92,8 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertTrue(plan.passes.first?.parameterFingerprint.contains("binding=toneOffset") == true)
     }
 
-    func testExplicitParameterBindingFiltersDoNotMixLegacyFactors() {
+    func testExplicitParameterBindingFiltersDoNotMixLegacyFactors() throws {
+        let texture = try MaskTestHelpers.makeTexture(pixel: [255, 255, 255, 255])
         let filters: [(name: String, filter: C7FilterProtocol, expectedBindingCount: Int)] = [
             ("C7FalseColor", C7FalseColor(fristColor: .black, secondColor: .white), 2),
             ("C7Levels", C7Levels(), 5),
@@ -117,10 +118,17 @@ final class KernelExecutionPlanTests: XCTestCase {
             ("C7ColorBalanceEnhanced", C7ColorBalanceEnhanced(), 4),
             ("C7SelectiveHSL", C7SelectiveHSL(), 1),
             ("C7ColorGrading", C7ColorGrading(), 6),
+            ("C7ToneMapping", C7ToneMapping(
+                inputNitsPerUnit: 1_000,
+                sourcePeakNits: 1_000,
+                targetReferenceWhiteNits: 100,
+                targetPeakNits: 100
+            ), 3),
             ("C7ChromaticAberrationCorrection", C7ChromaticAberrationCorrection(), 4),
             ("C7LensDistortionCorrection", C7LensDistortionCorrection(), 5),
             ("C7SharpnessFalloffCorrection", C7SharpnessFalloffCorrection(), 4),
             ("C7ColorCube", C7ColorCube(cubeResource: nil), 4),
+            ("C7DisplacementMap", C7DisplacementMap(displacementTexture: texture), 6),
             ("C7EdgeGlow", C7EdgeGlow(), 3),
             ("C7StickerOutline", C7StickerOutline(), 3)
         ]
@@ -204,6 +212,16 @@ final class KernelExecutionPlanTests: XCTestCase {
             legacySlotCount: 6
         )
         assertGroupedParameters(
+            C7ToneMapping(
+                inputNitsPerUnit: 1_000,
+                sourcePeakNits: 1_000,
+                targetReferenceWhiteNits: 100,
+                targetPeakNits: 100
+            ),
+            expectedNames: ["sourceLuminance", "targetLuminance", "appearance"],
+            legacySlotCount: 6
+        )
+        assertGroupedParameters(
             C7VignetteBlend(),
             expectedNames: ["center", "range", "blendMode", "color"],
             legacySlotCount: 6
@@ -229,6 +247,24 @@ final class KernelExecutionPlanTests: XCTestCase {
             .preservesExtendedRange
         )
         XCTAssertEqual(C7ColorCube(cubeResource: nil).kernelPixelContract.dynamicRangeBehavior, .unspecified)
+        XCTAssertEqual(
+            C7ToneMapping(
+                inputNitsPerUnit: 1_000,
+                sourcePeakNits: 1_000,
+                targetReferenceWhiteNits: 100,
+                targetPeakNits: 100
+            ).kernelPixelContract.dynamicRangeBehavior,
+            .toneMapsToSDR
+        )
+        XCTAssertEqual(
+            C7ToneMapping(
+                inputNitsPerUnit: 1_000,
+                sourcePeakNits: 1_000,
+                targetReferenceWhiteNits: 203,
+                targetPeakNits: 400
+            ).kernelPixelContract.dynamicRangeBehavior,
+            .toneMapsToEDR
+        )
         XCTAssertEqual(C7Deband(radius: 3.2).kernelPixelContract.samplingFootprint, .neighborhood(radius: 4))
         XCTAssertEqual(C7PremultiplyAlpha().kernelPixelContract.outputAlpha, .premultiplied)
         XCTAssertEqual(C7UnpremultiplyAlpha().kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)

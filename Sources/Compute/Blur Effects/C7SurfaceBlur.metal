@@ -23,10 +23,12 @@ float4 surfaceBlur(texture2d<half, access::read> texture, uint2 coord, uint2 siz
     
     for (int x = -halfKernelSize; x <= halfKernelSize; x++) {
         for (int y = -halfKernelSize; y <= halfKernelSize; y++) {
-            uint2 offset = uint2(coord.x + x, coord.y + y);
-            if (offset.x < 0 || offset.x >= size.x || offset.y < 0 || offset.y >= size.y) {
+            const int sampleX = int(coord.x) + x;
+            const int sampleY = int(coord.y) + y;
+            if (sampleX < 0 || sampleX >= int(size.x) || sampleY < 0 || sampleY >= int(size.y)) {
                 continue;
             }
+            const uint2 offset = uint2(sampleX, sampleY);
             float4 sampleColor = float4(texture.read(offset));
             float spatialDistance = sqrt(float(x * x + y * y));
             float spatialWeight = exp(-spatialDistance * spatialDistance / (2.0 * radius * radius));
@@ -59,11 +61,15 @@ kernel void C7SurfaceBlur(texture2d<half, access::write> outputTexture [[texture
     if (grid.x >= size.x || grid.y >= size.y) {
         return;
     }
-    float radius = *radiusPointer;
-    float threshold = *thresholdPointer;
-    float intensity = *intensityPointer;
+    const float radius = max(*radiusPointer, 0.0);
+    const float threshold = max(*thresholdPointer, 0.0);
+    const float intensity = clamp(*intensityPointer, 0.0, 1.0);
     
-    float4 originalColor = float4(inputTexture.read(grid));
+    const float4 originalColor = float4(inputTexture.read(grid));
+    if (intensity <= 0.0 || radius <= 0.0 || threshold <= 0.0) {
+        outputTexture.write(half4(originalColor), grid);
+        return;
+    }
     float4 blurredColor = surfaceBlur(inputTexture, grid, size, radius, threshold);
     float4 finalColor = mix(originalColor, blurredColor, float(intensity));
     

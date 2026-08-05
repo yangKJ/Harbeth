@@ -234,7 +234,10 @@ extension C7ColorCube.Resource {
         var samples = [Float]()
 
         for rawLine in contents.replacingOccurrences(of: "\r", with: "\n").components(separatedBy: "\n") {
-            let line = rawLine.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
+            let line = rawLine
+                .split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
+                .first
+                .map(String.init) ?? ""
             let fields = line.split(whereSeparator: { $0.isWhitespace })
             guard fields.isEmpty == false else { continue }
             switch fields[0].uppercased() {

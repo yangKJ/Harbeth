@@ -2863,14 +2863,21 @@ final class ImageNodeTests: XCTestCase {
             sourceColorSpace: hdr,
             targetColorSpace: sdr
         )
+        let edrFilters = ImageToneMappingPolicy.toneMapToEDR.makeToneMappingFilters(
+            sourceColorSpace: hdr,
+            targetColorSpace: .extendedLinearDisplayP3
+        )
         let hdrFilters = ImageToneMappingPolicy.toneMapToHDR.makeToneMappingFilters(
             sourceColorSpace: hdr,
             targetColorSpace: hdr
         )
 
-        XCTAssertEqual(sdrFilters.count, 2)
-        XCTAssertTrue(sdrFilters[0] is C7HighlightShadowTone)
-        XCTAssertTrue(sdrFilters[1] is C7Exposure)
+        XCTAssertEqual(sdrFilters.count, 1)
+        XCTAssertTrue(sdrFilters[0] is C7ToneMapping)
+        XCTAssertEqual(sdrFilters[0].kernelPixelContract.dynamicRangeBehavior, .toneMapsToSDR)
+        XCTAssertEqual(edrFilters.count, 1)
+        XCTAssertTrue(edrFilters[0] is C7ToneMapping)
+        XCTAssertEqual(edrFilters[0].kernelPixelContract.dynamicRangeBehavior, .toneMapsToEDR)
         XCTAssertTrue(hdrFilters.isEmpty)
     }
 

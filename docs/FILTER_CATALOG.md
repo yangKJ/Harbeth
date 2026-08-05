@@ -1,8 +1,8 @@
 # Filter Catalog / 滤镜目录
 
-Harbeth currently exposes 164 public filter or encoder execution types across Compute, MPS, Blit, and Render. `C7Blend` additionally provides 30 blend modes through `C7Blend.BlendType`.
+Harbeth currently exposes 183 public filter or encoder execution types across Compute, MPS, Blit, and Render. `C7Blend` additionally provides 30 blend modes through `C7Blend.BlendType`.
 
-Harbeth 当前在 Compute、MPS、Blit 与 Render 四类执行路径中公开了 164 个滤镜或编码执行类型；`C7Blend` 还通过 `C7Blend.BlendType` 提供 30 种混合模式。
+Harbeth 当前在 Compute、MPS、Blit 与 Render 四类执行路径中公开了 183 个滤镜或编码执行类型；`C7Blend` 还通过 `C7Blend.BlendType` 提供 30 种混合模式。
 
 This catalog follows the current source tree and only lists public executable types. Editing primitives such as mask recipes, geometry recipes, transitions, layer composition, analysis, and output contracts belong to the `ImageNode` route and are documented separately in the [public API surface](API_SURFACE_CN.md) and [capability map](CAPABILITY_MAP_CN.md).
 
@@ -32,39 +32,41 @@ let node = ImageNode.image(inputImage)
 
 | Category | Count | Primary use / 主要用途 |
 | --- | ---: | --- |
-| Color Adjustment | 29 | 曝光、颜色、曲线、传递函数与色彩空间 |
-| Blur Effects | 13 | 模糊、降噪、去色带与局部平滑 |
+| Color Adjustment | 34 | 曝光、颜色、曲线、局部直方图、tone mapping、传递函数与色彩空间 |
+| Blur Effects | 14 | 模糊、散景、降噪、去色带与局部平滑 |
 | Edge & Detail | 17 | 锐化、边缘、轮廓与细节增强 |
-| Distortion & Warp | 14 | 像素形变、折射、镜头畸变与形态学 |
-| Stylization | 13 | 故障、卡通、油画、像素与视觉风格化 |
+| Distortion & Warp | 15 | 像素形变、位移场、折射、镜头畸变与形态学 |
+| Stylization | 15 | 故障、卡通、油画、像素与视觉风格化 |
 | Blend Modes | 5 types + 30 modes | 双纹理混合、蒙版合成与自定义 blend kernel |
-| Combination | 11 | 已公开的多阶段组合滤镜 |
-| Utility | 15 | Alpha、亮度、色阶、抠像与高光阴影工具 |
+| Combination | 13 | 已公开的多阶段组合滤镜 |
+| Utility | 16 | Alpha、亮度、量化、色阶、抠像与高光阴影工具 |
 | Matrix Processing | 4 | 颜色矩阵、颜色向量与卷积 |
 | Geometric Transform | 7 | 裁剪、缩放、旋转、镜像与仿射变换 |
 | Lookup Tables | 5 | 1D/2D/3D LUT、Cube 与分区查找 |
-| Other Effects | 8 | 暗角、雾化、淡化与镜头边缘校正 |
+| Other Effects | 9 | 暗角、雾化、淡化、场景布光与镜头边缘校正 |
 | Generators | 2 | 纯色与渐变纹理生成 |
-| MPS | 5 | Metal Performance Shaders 执行路径 |
+| MPS | 8 | Metal Performance Shaders 执行路径 |
 | Blit | 3 | 区域复制、裁剪与 mipmap 生成 |
-| Render | 13 | Render pass、投影几何与辅助 attachment |
+| Render | 16 | Render pass、网格/矢量几何、硬件合成与辅助 attachment |
 
-## Color Adjustment / 颜色调整（29）
+## Color Adjustment / 颜色调整（34）
 
 用于基础曝光、色调、通道、曲线、色彩空间和 HDR/Log 转换。
 
 - `C7AppleLogDecode`, `C7Brightness`, `C7ChannelControl`, `C7Clarity`, `C7ColorBalanceEnhanced`
-- `C7ColorConvert`, `C7ColorCorrection`, `C7ColorRGBA`, `C7ColorSpace`, `C7Contrast`
+- `C7CLAHE`, `C7ColorConvert`, `C7ColorCorrection`, `C7ColorGrading`, `C7ColorRGBA`, `C7ColorSpace`, `C7Contrast`
 - `C7Curves`, `C7Exposure`, `C7FalseColor`, `C7Gamma`, `C7HSL`, `C7Hue`
 - `C7LuminanceAdaptiveContrast`, `C7Monochrome`, `C7Nostalgic`, `C7Opacity`, `C7Posterize`
-- `C7RGBColorSpaceConversion`, `C7RGBTransferConversion`, `C7Saturation`, `C7Sepia`
-- `C7Temperature`, `C7Vibrance`, `C7Warmth`, `C7WhiteBalance`
+- `C7RGBColorSpaceConversion`, `C7RGBTransferConversion`, `C7Saturation`, `C7SelectiveHSL`, `C7Sepia`
+- `C7Temperature`, `C7ToneMapping`, `C7Vibrance`, `C7Warmth`, `C7WhiteBalance`, `C7WhitesBlacks`
 
-## Blur Effects / 模糊效果（13）
+`C7CLAHE` 使用分块亮度直方图、clip/redistribution、CDF LUT 与相邻 tile 双线性插值增强局部对比度；透明和 HDR/EDR 像素保持原值。
+
+## Blur Effects / 模糊效果（14）
 
 覆盖通用模糊、边缘保护平滑、局部模糊、降噪与渐变去色带。
 
-- `C7BilateralBlur`, `C7CircleBlur`, `C7Deband`, `C7DetailPreservingBlur`, `C7GaussianBlur`
+- `C7BilateralBlur`, `C7CircleBlur`, `C7Deband`, `C7DetailPreservingBlur`, `C7GaussianBlur`, `C7HexagonalBokehBlur`
 - `C7LocalBlur`, `C7MeanBlur`, `C7MotionBlur`, `C7NoiseReduction`
 - `C7RedMonochromeBlur`, `C7SurfaceBlur`, `C7TiltShift`, `C7ZoomBlur`
 
@@ -77,22 +79,24 @@ let node = ImageNode.image(inputImage)
 - `C7SharpenEnhanced`, `C7SharpnessFalloffCorrection`, `C7Sketch`, `C7Sobel`
 - `C7StickerOutline`, `C7ThresholdSketch`, `C7UnsharpMask`
 
-## Distortion & Warp / 扭曲与变形（14）
+## Distortion & Warp / 扭曲与变形（15）
 
 用于局部几何形变、折射、像素化、形态学以及镜头畸变和色差校正。
 
-- `C7Bulge`, `C7ChromaticAberrationCorrection`, `C7ColorPacking`, `C7GlassSphere`
+- `C7Bulge`, `C7ChromaticAberrationCorrection`, `C7ColorPacking`, `C7DisplacementMap`, `C7GlassSphere`
 - `C7Halftone`, `C7LensDistortionCorrection`, `C7Morphology`, `C7Pinch`
 - `C7Pixellated`, `C7PolarPixellate`, `C7PolkaDot`, `C7SphereRefraction`
 - `C7Swirl`, `C7WaterRipple`
 
-## Stylization / 风格化（13）
+## Stylization / 风格化（15）
 
 用于程序化视觉风格，不包含私有 look、preset、LUT 资源包或商业化 recipe catalog。
 
-- `C7ColorCGASpace`, `C7Fluctuate`, `C7Glitch`, `C7Kuwahara`, `C7OilPainting`
+- `C7CMYKHalftone`, `C7ColorCGASpace`, `C7Fluctuate`, `C7Glitch`, `C7Kuwahara`, `C7OilPainting`
 - `C7OilPaintingEnhanced`, `C7RGBADilation`, `C7ShiftGlitch`, `C7SoulOut`
-- `C7SplitScreen`, `C7Storyboard`, `C7Toon`, `C7VoronoiOverlay`
+- `C7Palettize`, `C7SplitScreen`, `C7Storyboard`, `C7Toon`, `C7VoronoiOverlay`
+
+`C7Palettize` 提供最多 32 色的逐像素最近调色板量化；`C7CMYKHalftone` 使用四个独立网角生成减色印刷网点。二者都是通用 GPU primitive，不内置命名风格或商业化 preset。
 
 ## Blend Modes / 混合模式（5 + 30）
 
@@ -112,7 +116,7 @@ let node = ImageNode.image(inputImage)
 - `.mask`, `.multiply`, `.normal`, `.overlay`, `.pinLight`, `.saturation`
 - `.screen`, `.softLight`, `.sourceOver`, `.subtract`, `.vividLight`, `.color`
 
-## Combination / 组合滤镜（11）
+## Combination / 组合滤镜（13）
 
 Combination 滤镜是 Harbeth 已公开的多阶段能力，不迁移到私有风格仓库。它们通过 `C7FilterPipelineProtocol` 组织普通滤镜链和可选最终 pass：
 
@@ -127,17 +131,21 @@ Combination 滤镜是 Harbeth 已公开的多阶段能力，不迁移到私有�
 - `C7CombinationModernHDR`：现代 HDR 观感的动态范围组合。
 - `C7CombinationVintage`：暖色、颗粒与复古层次组合。
 - `C7CombinationVintageFilm`：胶片色调、颗粒、暗角与旧化组合。
+- `C7DocumentBinarization`：以局部背景估计处理纸张阴影和不均匀照明的文档黑白二值化。
+- `C7HighPassSkinSmoothing`：全图高反差保留平滑，支持安全 tone curve 中点和可选最终细节锐化；不包含人脸或皮肤区域检测。
 
 这些类型属于公开 API，但 Harbeth 的项目定位仍由稳定 GPU 能力和执行合同定义，而不是以滤镜数量作为唯一卖点。
 
-## Utility / 实用工具（15）
+## Utility / 实用工具（16）
 
 用于 Alpha 合同、亮度提取、色阶、高光阴影、抠像与像素格式处理。
 
 - `C7ChromaKey`, `C7DepthLuminance`, `C7ForceOpaqueAlpha`, `C7HighlightShadow`
 - `C7HighlightShadowTint`, `C7HighlightShadowTone`, `C7Highlights`, `C7Levels`
-- `C7Luminance`, `C7LuminanceRangeReduction`, `C7LuminanceThreshold`, `C7PixelFormatChange`
+- `C7Luminance`, `C7LuminanceRangeReduction`, `C7LuminanceThreshold`, `C7OutputQuantization`, `C7PixelFormatChange`
 - `C7PremultiplyAlpha`, `C7Shadows`, `C7UnpremultiplyAlpha`
+
+`C7HighlightShadowTone` 使用 MPS Gaussian 局部亮度参考执行双向高光/阴影调整，并额外提供中间调与对比度控制。
 
 ## Matrix Processing / 矩阵处理（4）
 
@@ -160,19 +168,20 @@ Combination 滤镜是 Harbeth 已公开的多阶段能力，不迁移到私有�
 - `C7LookupTable1D`：1D lookup curve。
 - `C7MultiZoneLookup`：多区域 lookup 处理。
 
-## Other Effects / 其他效果（8）
+## Other Effects / 其他效果（9）
 
 - `C7DefringeCorrection`, `C7Fade`, `C7Grayed`, `C7Haze`
-- `C7LensVignetteCorrection`, `C7Pow`, `C7Vignette`, `C7VignetteBlend`
+- `C7LensVignetteCorrection`, `C7Pow`, `C7SceneRelight`, `C7Vignette`, `C7VignetteBlend`
 
 ## Generators / 生成器（2）
 
 - `C7SolidColor`
 - `C7ColorGradient`
 
-## Metal Performance Shaders（5）
+## Metal Performance Shaders（8）
 
-- `MPSBoxBlur`, `MPSCanny`, `MPSGaussianBlur`, `MPSHistogram`, `MPSMedian`
+- `MPSBoxBlur`, `MPSCanny`, `MPSConvolution`, `MPSGaussianBlur`, `MPSHistogram`
+- `MPSLanczosResize`, `MPSMedian`, `MPSMorphology`
 
 ## Blit Operations / Blit 操作（3）
 
@@ -180,7 +189,7 @@ Combination 滤镜是 Harbeth 已公开的多阶段能力，不迁移到私有�
 - `C7CropBlit`
 - `C7GenerateMipmapsBlit`
 
-## Render Filters / Render 执行类型（13）
+## Render Filters / Render 执行类型（16）
 
 Render 类型用于 render pass、投影/画布几何以及可附加到输出合同的辅助结果。
 
@@ -188,6 +197,7 @@ Render 类型用于 render pass、投影/画布几何以及可附加到输出合
 - `RenderCylindricalCanvas`, `RenderProjectiveCanvas`, `RenderQuadTransform`, `RenderQuadRectifyTransform`
 - `RenderAuxiliaryFalseColorExposure`, `RenderAuxiliaryHighlightClipping`, `RenderAuxiliaryLuminance`
 - `RenderAuxiliaryMaskCoverage`, `RenderAuxiliaryShadowClipping`
+- `RenderLayerComposite`, `RenderMeshWarp`, `RenderVectorMask`
 
 ## Custom filters / 自定义滤镜
 

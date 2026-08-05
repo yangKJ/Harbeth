@@ -12,18 +12,24 @@ struct RenderGeometryDescriptor: Sendable, Codable, Equatable, Hashable {
     let vertexCount: Int
     let vertexStride: Int
     let usesCustomVertices: Bool
+    let primitiveTopology: RenderPrimitiveTopology
 
-    init(vertexCount: Int, vertexStride: Int = 4, usesCustomVertices: Bool = false) {
+    init(vertexCount: Int,
+         vertexStride: Int = 4,
+         usesCustomVertices: Bool = false,
+         primitiveTopology: RenderPrimitiveTopology = .triangleStrip) {
         self.vertexCount = max(vertexCount, 0)
         self.vertexStride = max(vertexStride, 1)
         self.usesCustomVertices = usesCustomVertices
+        self.primitiveTopology = primitiveTopology
     }
 
     var fingerprint: String {
         [
             "vertexCount=\(vertexCount)",
             "vertexStride=\(vertexStride)",
-            "customVertices=\(usesCustomVertices ? 1 : 0)"
+            "customVertices=\(usesCustomVertices ? 1 : 0)",
+            "topology=\(primitiveTopology.rawValue)"
         ].joined(separator: "|")
     }
 }
@@ -119,13 +125,20 @@ struct RenderCommandBatch {
     let descriptor: RenderCommandBatchDescriptor
     let renderPass: RenderPassContract
     let destinationTexturesByAttachmentIndex: [Int: MTLTexture]
+    let resolveTexturesByAttachmentIndex: [Int: MTLTexture]
     let commands: [RenderCommand]
 
-    init(renderPass: RenderPassContract, destinationTexturesByAttachmentIndex: [Int: MTLTexture], commands: [RenderCommand]) throws {
+    init(renderPass: RenderPassContract,
+         destinationTexturesByAttachmentIndex: [Int: MTLTexture],
+         resolveTexturesByAttachmentIndex: [Int: MTLTexture] = [:],
+         commands: [RenderCommand]) throws {
         guard commands.isEmpty == false else {
             throw HarbethError.configurationInvalid("Render command batch must contain at least one command.")
         }
-        _ = try renderPass.makeDescriptor(destinationTexturesByAttachmentIndex: destinationTexturesByAttachmentIndex)
+        _ = try renderPass.makeDescriptor(
+            destinationTexturesByAttachmentIndex: destinationTexturesByAttachmentIndex,
+            resolveTexturesByAttachmentIndex: resolveTexturesByAttachmentIndex
+        )
         for command in commands where command.descriptor.renderPass != renderPass {
             throw HarbethError.configurationInvalid(
                 "Render command batch contains a command whose render pass contract does not match the batch render pass."
@@ -139,6 +152,7 @@ struct RenderCommandBatch {
         }
         self.renderPass = renderPass
         self.destinationTexturesByAttachmentIndex = destinationTexturesByAttachmentIndex
+        self.resolveTexturesByAttachmentIndex = resolveTexturesByAttachmentIndex
         self.commands = commands
         self.descriptor = RenderCommandBatchDescriptor(
             renderPass: renderPass,
@@ -167,16 +181,23 @@ extension RenderProtocol {
         let geometry = RenderGeometryDescriptor(
             vertexCount: max((customVertices ?? Rendering.defaultVertices).count / max(vertexStride, 1), 0),
             vertexStride: vertexStride,
-            usesCustomVertices: customVertices != nil
+            usesCustomVertices: customVertices != nil,
+            primitiveTopology: renderPrimitiveTopology
         )
         let parameterBindings = kernelParameterBindings
         let outputContract = renderOutputContract
         let resolvedRenderPass = renderPass ?? RenderPassContract(
             colorAttachments: outputContract.attachments.map {
-                ColorAttachmentContract(index: $0.index, pixelFormat: $0.pixelFormat.metalPixelFormat)
+                ColorAttachmentContract(
+                    index: $0.index,
+                    pixelFormat: $0.pixelFormat.metalPixelFormat,
+                    loadBehavior: renderPreloadsSourceTexture ? .load : .clear,
+                    storeBehavior: renderRasterSampleCount > 1 ? .multisampleResolve : .store
+                )
             },
-            sampleCount: 1,
-            usesCustomVertexLayout: geometry.usesCustomVertices || vertexStride != 4
+            sampleCount: renderRasterSampleCount,
+            usesCustomVertexLayout: geometry.usesCustomVertices || vertexStride != 4,
+            blendMode: renderBlendMode
         )
         return RenderCommandDescriptor(
             vertexFunction: vertexIdentity,

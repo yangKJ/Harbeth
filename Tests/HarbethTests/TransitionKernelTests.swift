@@ -88,6 +88,251 @@ final class TransitionKernelTests: XCTestCase {
         XCTAssertEqual(try firstPixel(in: displacementOutput).green, 255)
     }
 
+    func testPageCurlTransitionRespectsExactEndpoints() throws {
+        let from = try makeTexture(width: 5, height: 3, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 5, height: 3, pixel: [0, 0, 255, 255])
+
+        let start: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(toTexture: to, progress: 0)
+        ).output()
+        let end: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(toTexture: to, progress: 1)
+        ).output()
+
+        XCTAssertEqual(start.c7.bytes(), from.c7.bytes())
+        XCTAssertEqual(end.c7.bytes(), to.c7.bytes())
+        XCTAssertEqual(try pixel(in: start, x: 2, y: 1).red, 255)
+        XCTAssertEqual(try pixel(in: end, x: 2, y: 1).blue, 255)
+    }
+
+    func testPageCurlHandlesSinglePixelAndMaximumRadius() throws {
+        let from = try makeTexture(pixel: [255, 0, 0, 255])
+        let to = try makeTexture(pixel: [0, 0, 255, 255])
+
+        let midpoint: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(
+                toTexture: to,
+                progress: 0.5,
+                angleDegrees: 90,
+                radius: 0.5,
+                shadowStrength: 1,
+                shadowRadius: 0.5
+            )
+        ).output()
+
+        let value = try firstPixel(in: midpoint)
+        XCTAssertGreaterThan(value.alpha, 0)
+    }
+
+    func testPageCurlMidpointContainsSourceBacksideAndTargetRegions() throws {
+        let from = try makeTexture(width: 9, height: 3, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 9, height: 3, pixel: [0, 0, 255, 255])
+        let backside = try makeTexture(width: 9, height: 3, pixel: [0, 255, 0, 255])
+
+        let output: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(
+                toTexture: to,
+                backsideTexture: backside,
+                progress: 0.5,
+                angleDegrees: 0,
+                radius: 0.2,
+                shadowStrength: 0
+            )
+        ).output()
+
+        let sourcePixel = try pixel(in: output, x: 0, y: 1)
+        let foldPixel = try pixel(in: output, x: 4, y: 1)
+        let targetPixel = try pixel(in: output, x: 8, y: 1)
+        XCTAssertGreaterThan(sourcePixel.red, sourcePixel.blue)
+        XCTAssertGreaterThan(foldPixel.green, foldPixel.red)
+        XCTAssertGreaterThan(foldPixel.green, foldPixel.blue)
+        XCTAssertGreaterThan(targetPixel.blue, targetPixel.red)
+    }
+
+    func testPageCurlShadowDarkensOnlyRevealedContactRegion() throws {
+        let from = try makeTexture(width: 21, height: 3, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 21, height: 3, pixel: [255, 255, 255, 255])
+        let noShadow: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(
+                toTexture: to,
+                progress: 0.5,
+                radius: 0.1,
+                shadowStrength: 0,
+                shadowRadius: 0.08
+            )
+        ).output()
+        let shadowed: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(
+                toTexture: to,
+                progress: 0.5,
+                radius: 0.1,
+                shadowStrength: 1,
+                shadowRadius: 0.08
+            )
+        ).output()
+
+        let clearPixel = try pixel(in: noShadow, x: 13, y: 1)
+        let shadowPixel = try pixel(in: shadowed, x: 13, y: 1)
+        XCTAssertLessThan(shadowPixel.red, clearPixel.red)
+        XCTAssertEqual(try pixel(in: shadowed, x: 0, y: 1).red, 255)
+    }
+
+    func testPageCurlPreservesPremultipliedAlphaAtFold() throws {
+        let from = try makeTexture(width: 9, height: 3, pixel: [128, 0, 0, 128])
+        let to = try makeTexture(width: 9, height: 3, pixel: [0, 0, 128, 128])
+        let backside = try makeTexture(width: 9, height: 3, pixel: [0, 128, 0, 128])
+
+        let output: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(
+                toTexture: to,
+                backsideTexture: backside,
+                progress: 0.5,
+                radius: 0.2,
+                shadowStrength: 0
+            )
+        ).output()
+
+        guard let bytes = output.c7.bytes() else {
+            XCTFail("Expected readable bytes.")
+            return
+        }
+        for index in stride(from: 0, to: bytes.count, by: 4) {
+            let alpha = bytes[index + 3]
+            XCTAssertLessThanOrEqual(bytes[index], alpha)
+            XCTAssertLessThanOrEqual(bytes[index + 1], alpha)
+            XCTAssertLessThanOrEqual(bytes[index + 2], alpha)
+        }
+    }
+
+    func testPageCurlUsesNormalizedCoordinatesForDifferentTargetSize() throws {
+        let from = try makeTexture(width: 3, height: 2, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(pixel: [0, 0, 255, 255])
+
+        let output: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(toTexture: to, progress: 1)
+        ).output()
+
+        XCTAssertEqual(output.width, 3)
+        XCTAssertEqual(output.height, 2)
+        XCTAssertEqual(try pixel(in: output, x: 2, y: 1).blue, 255)
+    }
+
+    func testPageCurlSanitizesNonFiniteAndOutOfRangeParameters() throws {
+        let to = try makeTexture(pixel: [0, 0, 255, 255])
+        let filter = PageCurlTransition(
+            toTexture: to,
+            progress: .nan,
+            angleDegrees: .infinity,
+            radius: -.infinity,
+            shadowStrength: 2,
+            shadowRadius: 0
+        )
+        let recipe = TransitionRecipe(from: .texture(to), to: .texture(to), kernel: .dissolve, progress: .nan)
+
+        XCTAssertEqual(filter.factors[0], 0)
+        XCTAssertEqual(filter.factors[1], 1)
+        XCTAssertEqual(filter.factors[2], 0)
+        XCTAssertEqual(filter.factors[3], 0.22, accuracy: 0.0001)
+        XCTAssertEqual(filter.factors[4], 1)
+        XCTAssertEqual(filter.factors[5], 0.001, accuracy: 0.0001)
+        XCTAssertEqual(recipe.progress, 0)
+    }
+
+    func testPageCurlDeclaresDynamicFullCanvasContract() throws {
+        let to = try makeTexture(pixel: [0, 0, 255, 255])
+        let contract = PageCurlTransition(toTexture: to, progress: 0.5).kernelPixelContract
+
+        XCTAssertEqual(contract.inputAlphaExpectation, .premultiplied)
+        XCTAssertEqual(contract.outputAlpha, .premultiplied)
+        XCTAssertEqual(contract.dynamicRangeBehavior, .preservesExtendedRange)
+        XCTAssertEqual(contract.samplingFootprint, .dynamic)
+        XCTAssertEqual(contract.coordinateDependency, .transformed)
+        XCTAssertEqual(contract.globalDependency, .imageDimensions)
+        XCTAssertEqual(contract.fusionPolicy, .disabled)
+        XCTAssertFalse(contract.canAutoTile)
+    }
+
+    func testPageCurlPreservesExtendedRangeSamples() throws {
+        let from = try makeFloatTexture(width: 9, height: 3, pixel: [1.5, 0, 0, 1])
+        let to = try makeFloatTexture(width: 9, height: 3, pixel: [0, 0, 2, 1])
+
+        let start: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(toTexture: to, progress: 0)
+        ).output()
+        let midpoint: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(toTexture: to, progress: 0.5, radius: 0.2, shadowStrength: 0)
+        ).output()
+        let end: MTLTexture = try HarbethIO(
+            element: from,
+            filter: PageCurlTransition(toTexture: to, progress: 1)
+        ).output()
+
+        XCTAssertEqual(try floatPixel(in: start, x: 4, y: 1).red, 1.5, accuracy: 0.01)
+        XCTAssertEqual(try floatPixel(in: midpoint, x: 8, y: 1).blue, 2, accuracy: 0.01)
+        XCTAssertEqual(try floatPixel(in: end, x: 4, y: 1).blue, 2, accuracy: 0.01)
+    }
+
+    func testPageCurlDescriptorFingerprintTracksBacksideAndParameters() throws {
+        let backside = try makeTexture(pixel: [0, 255, 0, 255])
+        let fallback = TransitionKernelDescriptor.pageCurl(angleDegrees: 15, radius: 0.2).fingerprint
+        let explicit = TransitionKernelDescriptor.pageCurl(
+            angleDegrees: 15,
+            radius: 0.2,
+            shadowStrength: 0.5,
+            shadowRadius: 0.08,
+            backsideSource: .texture(backside)
+        ).fingerprint
+
+        XCTAssertTrue(fallback.contains("pageCurl"))
+        XCTAssertTrue(fallback.contains("backside=fallback"))
+        XCTAssertTrue(explicit.contains("shadowStrength=0.500000"))
+        XCTAssertTrue(explicit.contains("backside={"))
+        XCTAssertNotEqual(fallback, explicit)
+
+        let sanitized = TransitionKernelDescriptor.pageCurl(
+            angleDegrees: .nan,
+            radius: -.infinity,
+            shadowStrength: 2,
+            shadowRadius: 0
+        ).fingerprint
+        XCTAssertTrue(sanitized.contains("angle=0.000000"))
+        XCTAssertTrue(sanitized.contains("radius=0.220000"))
+        XCTAssertTrue(sanitized.contains("shadowStrength=1.000000"))
+        XCTAssertTrue(sanitized.contains("shadowRadius=0.001000"))
+    }
+
+    func testPageCurlImageNodeRouteKeepsTransitionDiagnosticsBoundary() throws {
+        let from = try makeTexture(width: 8, height: 6, pixel: [255, 0, 0, 255])
+        let to = try makeTexture(width: 8, height: 6, pixel: [0, 0, 255, 255])
+        let backside = try makeTexture(width: 8, height: 6, pixel: [0, 255, 0, 255])
+        let recipe = TransitionRecipe(
+            from: .texture(from),
+            to: .texture(to),
+            kernel: .pageCurl(backsideSource: .texture(backside)),
+            progress: 0.5
+        )
+
+        let diagnostics = try ImageNode.transition(recipe).makeDiagnostics(
+            profile: recipe.profile,
+            derivative: recipe.derivative
+        )
+
+        XCTAssertEqual(diagnostics.compilationSource, .transition)
+        XCTAssertTrue(diagnostics.containsTransitionKernel)
+        XCTAssertEqual(diagnostics.stages.first?.containsTransitionKernel, true)
+        XCTAssertEqual(diagnostics.stages.first?.stageKind, .compute)
+    }
+
     func testTransitionRecipeRendersFrameAndDiagnostics() throws {
         let from = try makeTexture(width: 3, height: 2, pixel: [255, 0, 0, 255])
         let to = try makeTexture(width: 3, height: 2, pixel: [0, 0, 255, 255])
@@ -261,6 +506,32 @@ final class TransitionKernelTests: XCTestCase {
         return texture
     }
 
+    private func makeFloatTexture(width: Int, height: Int, pixel: [Float16]) throws -> MTLTexture {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable.")
+        }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba16Float,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        guard let texture = device.makeTexture(descriptor: descriptor) else {
+            XCTFail("Failed to create float texture.")
+            throw HarbethError.makeTexture
+        }
+        let row = Array(repeating: pixel, count: width).flatMap { $0 }.map(\.bitPattern)
+        let bytes = Array(repeating: row, count: height).flatMap { $0 }
+        texture.replace(
+            region: MTLRegionMake2D(0, 0, width, height),
+            mipmapLevel: 0,
+            withBytes: bytes,
+            bytesPerRow: width * MemoryLayout<UInt16>.size * 4
+        )
+        return texture
+    }
+
     private func firstPixel(in texture: MTLTexture) throws -> (red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
         guard let bytes = texture.c7.bytes(), bytes.count >= 4 else {
             XCTFail("Expected readable bytes.")
@@ -280,5 +551,26 @@ final class TransitionKernelTests: XCTestCase {
             throw HarbethError.texture2Image
         }
         return (bytes[index], bytes[index + 1], bytes[index + 2], bytes[index + 3])
+    }
+
+    private func floatPixel(in texture: MTLTexture, x: Int, y: Int) throws -> (red: Float, green: Float, blue: Float, alpha: Float) {
+        guard texture.pixelFormat == .rgba16Float else {
+            XCTFail("Expected rgba16Float texture.")
+            throw HarbethError.textureFormatNotSupported
+        }
+        var values = [UInt16](repeating: 0, count: texture.width * texture.height * 4)
+        texture.getBytes(
+            &values,
+            bytesPerRow: texture.width * MemoryLayout<UInt16>.size * 4,
+            from: MTLRegionMake2D(0, 0, texture.width, texture.height),
+            mipmapLevel: 0
+        )
+        let index = ((y * texture.width) + x) * 4
+        return (
+            Float(Float16(bitPattern: values[index])),
+            Float(Float16(bitPattern: values[index + 1])),
+            Float(Float16(bitPattern: values[index + 2])),
+            Float(Float16(bitPattern: values[index + 3]))
+        )
     }
 }

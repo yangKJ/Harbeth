@@ -79,31 +79,40 @@ struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
     let hasDepthAttachment: Bool
     let hasStencilAttachment: Bool
     let usesCustomVertexLayout: Bool
+    let blendMode: RenderBlendMode
 
     init(colorAttachments: [ColorAttachmentContract],
          sampleCount: Int = 1,
          hasDepthAttachment: Bool = false,
          hasStencilAttachment: Bool = false,
-         usesCustomVertexLayout: Bool = false) {
+         usesCustomVertexLayout: Bool = false,
+         blendMode: RenderBlendMode = .disabled) {
         self.colorAttachments = colorAttachments.sorted { $0.index < $1.index }
         self.sampleCount = max(sampleCount, 1)
         self.hasDepthAttachment = hasDepthAttachment
         self.hasStencilAttachment = hasStencilAttachment
         self.usesCustomVertexLayout = usesCustomVertexLayout
+        self.blendMode = blendMode
     }
 
-    static func singleColor(pixelFormat: MTLPixelFormat? = nil, sampleCount: Int = 1, usesCustomVertexLayout: Bool = false) -> RenderPassContract {
+    static func singleColor(pixelFormat: MTLPixelFormat? = nil,
+                            sampleCount: Int = 1,
+                            usesCustomVertexLayout: Bool = false,
+                            loadBehavior: RenderAttachmentLoadBehavior = .clear,
+                            storeBehavior: RenderAttachmentStoreBehavior = .store,
+                            blendMode: RenderBlendMode = .disabled) -> RenderPassContract {
         RenderPassContract(
             colorAttachments: [
                 ColorAttachmentContract(
                     index: 0,
                     pixelFormat: pixelFormat,
-                    loadBehavior: .clear,
-                    storeBehavior: .store
+                    loadBehavior: loadBehavior,
+                    storeBehavior: storeBehavior
                 )
             ],
             sampleCount: sampleCount,
-            usesCustomVertexLayout: usesCustomVertexLayout
+            usesCustomVertexLayout: usesCustomVertexLayout,
+            blendMode: blendMode
         )
     }
 
@@ -113,11 +122,13 @@ struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
             "sampleCount=\(sampleCount)",
             "depth=\(hasDepthAttachment ? 1 : 0)",
             "stencil=\(hasStencilAttachment ? 1 : 0)",
-            "customVertex=\(usesCustomVertexLayout ? 1 : 0)"
+            "customVertex=\(usesCustomVertexLayout ? 1 : 0)",
+            "blend=\(blendMode.rawValue)"
         ].joined(separator: "|")
     }
 
-    func makeDescriptor(destinationTexturesByAttachmentIndex textures: [Int: MTLTexture]) throws -> MTLRenderPassDescriptor {
+    func makeDescriptor(destinationTexturesByAttachmentIndex textures: [Int: MTLTexture],
+                        resolveTexturesByAttachmentIndex resolveTextures: [Int: MTLTexture] = [:]) throws -> MTLRenderPassDescriptor {
         let descriptor = MTLRenderPassDescriptor()
         guard let primaryAttachment = colorAttachments.first else {
             throw HarbethError.configurationInvalid("Render pass must declare at least one color attachment.")
@@ -136,6 +147,15 @@ struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
             colorAttachment.texture = texture
             colorAttachment.loadAction = attachment.loadBehavior.metalValue
             colorAttachment.storeAction = attachment.storeBehavior.metalValue
+            if let resolveTexture = resolveTextures[attachment.index] {
+                try validateResolveTexture(resolveTexture, for: attachment, multisampleTexture: texture)
+                colorAttachment.resolveTexture = resolveTexture
+            } else if attachment.storeBehavior == .multisampleResolve
+                        || attachment.storeBehavior == .storeAndMultisampleResolve {
+                throw HarbethError.configurationInvalid(
+                    "Missing resolve texture for color attachment \(attachment.index)."
+                )
+            }
             if attachment.clearsOnLoad {
                 colorAttachment.clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0)
             }
@@ -143,14 +163,29 @@ struct RenderPassContract: Sendable, Codable, Equatable, Hashable {
         return descriptor
     }
 
-    func makeDescriptor(destinationTexture: MTLTexture) -> MTLRenderPassDescriptor {
-        let bindings = Dictionary(
-            uniqueKeysWithValues: colorAttachments.map { ($0.index, destinationTexture) }
-        )
-        return (try? makeDescriptor(destinationTexturesByAttachmentIndex: bindings)) ?? MTLRenderPassDescriptor()
+    private func validateResolveTexture(_ resolveTexture: MTLTexture,
+                                        for attachment: ColorAttachmentContract,
+                                        multisampleTexture: MTLTexture) throws {
+        guard multisampleTexture.sampleCount > 1 else {
+            throw HarbethError.configurationInvalid("Resolve source must be multisampled.")
+        }
+        guard resolveTexture.sampleCount == 1,
+              resolveTexture.width == multisampleTexture.width,
+              resolveTexture.height == multisampleTexture.height,
+              resolveTexture.pixelFormat == multisampleTexture.pixelFormat,
+              resolveTexture.usage.contains(.renderTarget) else {
+            throw HarbethError.configurationInvalid(
+                "Resolve texture for attachment \(attachment.index) must declare renderTarget usage, be single-sample, and match size/pixel format."
+            )
+        }
     }
 
     private func validate(texture: MTLTexture, for attachment: ColorAttachmentContract, referenceTexture: MTLTexture) throws {
+        guard texture.usage.contains(.renderTarget) else {
+            throw HarbethError.configurationInvalid(
+                "Render pass attachment \(attachment.index) must declare MTLTextureUsage.renderTarget."
+            )
+        }
         guard texture.width == referenceTexture.width,
               texture.height == referenceTexture.height else {
             throw HarbethError.configurationInvalid(

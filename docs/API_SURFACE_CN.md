@@ -352,6 +352,29 @@ let snapshot = try ImageNode
     .makeDebugSnapshot(profile: .stablePreview)
 ```
 
+需要更有空间感的翻页效果时，使用内置 Page Curl。`radius` 与 `shadowRadius` 都是相对画布的归一化值；`backsideSource` 可选，省略时会沿卷曲方向反向重采样并解析式着色源图，不要求额外 shading 资源：
+
+```swift
+let frame = try ImageNode
+    .transition(
+        from: .texture(fromTexture),
+        to: .texture(toTexture),
+        kernel: .pageCurl(
+            angleDegrees: 15,
+            radius: 0.22,
+            shadowStrength: 0.7,
+            shadowRadius: 0.06,
+            backsideSource: nil
+        ),
+        progress: 0.5
+    )
+    .makeFrame(profile: .stablePreview)
+```
+
+Page Curl 是双输入、全画布坐标相关的 transition primitive。不同尺寸的 `from`、`to` 与可选背面图会各自按归一化坐标映射到 `from` 的输出画布；它不可进入 pointwise fusion，也不伪装成普通单输入 filter 或自动 tile primitive。
+
+Page Curl 的背面 source-over 与阴影计算要求三路输入使用同一个 working color space，并采用 premultiplied alpha。常规 `ImageSource` 应先按产品输出合同完成统一；若直接传入 raw `MTLTexture`，调用方必须保证这些语义一致。kernel 会保留 RGBA16F 的扩展数值范围，但不会替调用方在不同 transfer function、色域或 HDR metadata 之间做隐式转换。
+
 如果调用方需要显式持有 preview/final contract 或重复复用 transition 配置，再保留 `TransitionRecipe`：
 
 ```swift

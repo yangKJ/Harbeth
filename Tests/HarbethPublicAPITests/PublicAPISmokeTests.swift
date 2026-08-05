@@ -34,8 +34,17 @@ final class PublicAPISmokeTests: XCTestCase {
         let capability: (ImageNode) throws -> FrameProcessingCapability = { node in
             try node.makeFrameProcessingCapability(for: .dynamicFrame)
         }
+        let pageCurl: (MTLTexture, MTLTexture) -> ImageNode = { from, to in
+            ImageNode.transition(
+                from: .texture(from),
+                to: .texture(to),
+                kernel: .pageCurl(angleDegrees: 15, radius: 0.2, shadowStrength: 0.6),
+                progress: 0.5
+            )
+        }
         _ = build
         _ = capability
+        _ = pageCurl
     }
 
     func testRenderSubmissionSurfaceCompiles() {
@@ -155,6 +164,41 @@ final class PublicAPISmokeTests: XCTestCase {
         _ = decontaminate
         _ = auxiliary
         _ = warp
+    }
+
+    func testRecentAtomicFilterSurfaceCompiles() {
+        let toneMapping = C7ToneMapping(
+            inputNitsPerUnit: 10_000,
+            sourcePeakNits: 1_000,
+            targetReferenceWhiteNits: 203,
+            targetPeakNits: 400
+        )
+        let displacement: (MTLTexture) -> C7DisplacementMap = { texture in
+            C7DisplacementMap(
+                displacementTexture: texture,
+                scale: 1,
+                unit: .pixels,
+                encoding: .signed,
+                samplingMode: .adaptive,
+                edgeMode: .clamp
+            )
+        }
+        let recent: [C7FilterProtocol] = [
+            C7ColorGrading(),
+            C7SelectiveHSL(),
+            C7WhitesBlacks(),
+            C7OutputQuantization(),
+            C7Palettize(palette: [
+                .init(red: 0.05, green: 0.08, blue: 0.12),
+                .init(red: 0.95, green: 0.88, blue: 0.72)
+            ]),
+            C7CMYKHalftone(fractionalWidth: 0.03),
+            toneMapping
+        ]
+
+        _ = displacement
+        _ = recent
+        _ = KernelDynamicRangeBehavior.toneMapsToEDR
     }
 
     @MainActor
