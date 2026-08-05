@@ -13,8 +13,10 @@ public final class TextureLease: @unchecked Sendable {
     public let texture: MTLTexture
     public let logicalExtent: C7Size
     private let releaseHandler: (() -> Void)?
-    private var released = false
     private let lock = NSLock()
+    private var releaseRequested = false
+    private var released = false
+    private var inFlightUseCount = 0
 
     public init(texture: MTLTexture, logicalExtent: C7Size? = nil, releaseHandler: (() -> Void)? = nil) {
         self.texture = texture
@@ -25,10 +27,43 @@ public final class TextureLease: @unchecked Sendable {
     deinit { release() }
 
     public func release() {
+        let handler: (() -> Void)?
         lock.lock()
-        defer { lock.unlock() }
-        guard released == false else { return }
+        releaseRequested = true
+        handler = takeReleaseHandlerIfReadyLocked()
+        lock.unlock()
+        handler?()
+    }
+
+    /// 命令缓冲区仍在引用纹理时，即使调用方提前释放，也不把纹理归还池中。
+    func retainUntilCompleted(by commandBuffer: MTLCommandBuffer) {
+        lock.lock()
+        guard released == false, releaseRequested == false else {
+            lock.unlock()
+            return
+        }
+        inFlightUseCount += 1
+        lock.unlock()
+
+        commandBuffer.addCompletedHandler { [self] _ in
+            completeInFlightUse()
+        }
+    }
+
+    private func completeInFlightUse() {
+        let handler: (() -> Void)?
+        lock.lock()
+        inFlightUseCount = max(inFlightUseCount - 1, 0)
+        handler = takeReleaseHandlerIfReadyLocked()
+        lock.unlock()
+        handler?()
+    }
+
+    private func takeReleaseHandlerIfReadyLocked() -> (() -> Void)? {
+        guard releaseRequested, inFlightUseCount == 0, released == false else {
+            return nil
+        }
         released = true
-        releaseHandler?()
+        return releaseHandler
     }
 }

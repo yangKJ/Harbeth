@@ -10,22 +10,32 @@ import Foundation
 
 final class ExecutionScheduler: @unchecked Sendable {
     private final class SubmissionRecord: @unchecked Sendable {
+        enum Phase {
+            case queued
+            case executing
+            case commitClaimed
+        }
+
         let state: RenderSubmissionStateStorage
         let operation: BlockOperation
         let executionGeneration: UInt64
+        let commandQueue: MTLCommandQueue
         let scopeIdentifier: String?
         let onDiscard: @Sendable (RenderSubmissionDiscardReason) -> Void
+        var phase: Phase = .queued
 
         init(
             state: RenderSubmissionStateStorage,
             operation: BlockOperation,
             executionGeneration: UInt64,
+            commandQueue: MTLCommandQueue,
             scopeIdentifier: String?,
             onDiscard: @escaping @Sendable (RenderSubmissionDiscardReason) -> Void
         ) {
             self.state = state
             self.operation = operation
             self.executionGeneration = executionGeneration
+            self.commandQueue = commandQueue
             self.scopeIdentifier = scopeIdentifier
             self.onDiscard = onDiscard
         }
@@ -77,7 +87,14 @@ final class ExecutionScheduler: @unchecked Sendable {
         onDiscard: @escaping @Sendable (RenderSubmissionDiscardReason) -> Void
     ) -> RenderSubmissionHandle {
         let identifier = UUID().uuidString
-        let generation = self.generation
+        let executionSnapshot = lock.withLock {
+            (
+                generation: generationStorage,
+                commandQueue: commandQueueStorage,
+                operationQueue: operationQueueStorage
+            )
+        }
+        let generation = executionSnapshot.generation
         let state = RenderSubmissionStateStorage(
             identifier: identifier,
             sourceIdentifier: sourceIdentifier,
@@ -96,27 +113,41 @@ final class ExecutionScheduler: @unchecked Sendable {
             state: state,
             operation: operation,
             executionGeneration: generation,
+            commandQueue: executionSnapshot.commandQueue,
             scopeIdentifier: scopeIdentifier,
             onDiscard: onDiscard
         )
 
-        let registration = lock.withLock { () -> (OperationQueue, String?) in
+        let registration = lock.withLock { () -> (OperationQueue?, String?, Bool) in
+            guard generation == generationStorage,
+                  executionSnapshot.commandQueue === commandQueueStorage,
+                  executionSnapshot.operationQueue === operationQueueStorage else {
+                return (nil, nil, true)
+            }
             let supersededIdentifier = scopeIdentifier.flatMap { latestSubmissionByScope[$0] }
             submissions[identifier] = record
             if let scopeIdentifier {
                 latestSubmissionByScope[scopeIdentifier] = identifier
             }
-            return (operationQueueStorage, supersededIdentifier)
+            return (executionSnapshot.operationQueue, supersededIdentifier, false)
+        }
+
+        let handle = RenderSubmissionHandle(state: state) { [weak self] in
+            self?.discardSubmission(identifier: identifier, reason: .callerCancelled)
+        }
+
+        if registration.2 {
+            state.update(state: .discarded, discardReason: .executionRecovery)
+            onDiscard(.executionRecovery)
+            return handle
         }
 
         if let supersededIdentifier = registration.1 {
             discardSubmission(identifier: supersededIdentifier, reason: .superseded)
         }
-        registration.0.addOperation(operation)
+        registration.0?.addOperation(operation)
 
-        return RenderSubmissionHandle(state: state) { [weak self] in
-            self?.discardSubmission(identifier: identifier, reason: .callerCancelled)
-        }
+        return handle
     }
 
     private func beginSubmission(identifier: String) -> Bool {
@@ -125,6 +156,7 @@ final class ExecutionScheduler: @unchecked Sendable {
             guard record.executionGeneration == generationStorage else {
                 return (false, record)
             }
+            record.phase = .executing
             record.state.update(state: .executing)
             return (true, nil)
         }
@@ -132,6 +164,33 @@ final class ExecutionScheduler: @unchecked Sendable {
             discardSubmission(record: staleRecord, identifier: identifier, reason: .executionRecovery)
         }
         return result.0
+    }
+
+    func isSubmissionActive(identifier: String) -> Bool {
+        lock.withLock { submissions[identifier] != nil }
+    }
+
+    func makeCommandBuffer(identifier: String) -> MTLCommandBuffer? {
+        lock.withLock {
+            guard let record = submissions[identifier],
+                  record.phase == .executing else {
+                return nil
+            }
+            return record.commandQueue.makeCommandBuffer()
+        }
+    }
+
+    /// 原子地把活跃提交转入已认领提交权的阶段。
+    /// 此后的替换或恢复只能抑制交付，不能伪装成已同步取消 Metal 工作。
+    func claimCommit(identifier: String) -> Bool {
+        lock.withLock {
+            guard let record = submissions[identifier],
+                  record.phase == .executing else {
+                return false
+            }
+            record.phase = .commitClaimed
+            return true
+        }
     }
 
     @discardableResult

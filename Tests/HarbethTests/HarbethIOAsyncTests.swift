@@ -147,6 +147,46 @@ final class HarbethIOAsyncTests: XCTestCase {
         output.lease?.release()
     }
 
+    func testSuppressedRawDeliveryRecyclesFinalOutput() throws {
+        let output = try makeTexture(width: 2, height: 2, pixel: [10, 20, 30, 255])
+        let intermediate = try makeTexture(width: 2, height: 2, pixel: [40, 50, 60, 255])
+        let rendering = RawTextureRendering(output: output, successRecycling: [intermediate], failureRecycling: [intermediate, output])
+
+        let delivered = rendering.recycling(deliverySucceeded: true)
+        let suppressed = rendering.recycling(deliverySucceeded: false)
+
+        XCTAssertEqual(delivered.count, 1)
+        XCTAssertTrue(delivered[0] === intermediate)
+        XCTAssertEqual(suppressed.count, 2)
+        XCTAssertTrue(suppressed.contains(where: { $0 === output }))
+    }
+
+    func testScheduledCleanupWaitsForCompletionAndDeliveryDecision() {
+        let completionFirst = RawTextureScheduledCleanupState()
+        XCTAssertNil(completionFirst.recordCompletion())
+        XCTAssertEqual(completionFirst.recordDelivery(false), false)
+        XCTAssertNil(completionFirst.recordCompletion())
+
+        let deliveryFirst = RawTextureScheduledCleanupState()
+        XCTAssertNil(deliveryFirst.recordDelivery(true))
+        XCTAssertEqual(deliveryFirst.recordCompletion(), true)
+        XCTAssertNil(deliveryFirst.recordDelivery(true))
+    }
+
+    func testSingleFilterManagedEncodingUsesOneOutputLease() throws {
+        let input = try makeTexture(width: 8, height: 8, pixel: [70, 80, 90, 255])
+        let io = HarbethIO(element: input, filters: [C7Brightness(brightness: 0.1)]).configured(for: .stablePreview)
+        let program = io.makeRenderProgram(input: input)
+        let commandBuffer = try XCTUnwrap(HarbethContext.shared.makeCommandBuffer())
+        let encoded = try io.encodeManagedRenderProgram(program, commandBuffer: commandBuffer)
+
+        XCTAssertEqual(encoded.producedLeases.count, 1)
+        XCTAssertTrue(encoded.producedLeases[0] === encoded.result.lease)
+
+        encoded.releaseAll()
+        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+    }
+
     func testFilterRecipeDescriptorUsesStableFingerprint() {
         let filter = C7Brightness(brightness: 0.2)
         let descriptor = filter.recipeDescriptor

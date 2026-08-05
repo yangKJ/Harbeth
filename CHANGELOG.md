@@ -80,12 +80,17 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 #### Changed
 
 - Routed the two public asynchronous processing routes through one generation-aware submission state machine while preserving independent, non-dropping delivery as the default.
+- Made direct `ImageNode` filter-frame submissions encode and commit through that same state machine instead of wrapping synchronous frame rendering on the operation queue, while preserving completed-frame delivery semantics.
+- Encoded contiguous layer-local filtering and compositing passes into one recipe-owned command buffer instead of synchronously committing each GPU stage.
 - Kept finite `CIImage` inputs on the GPU by reusing pixel-buffer or Metal backing when available and otherwise rendering through the process-lifetime Core Image context directly into a Metal texture.
 - Propagated Swift task cancellation into queued render submissions and made superseded or recovery-invalidated work terminate exactly once instead of leaving continuations suspended.
 
 #### Fixed
 
 - Suppressed stale host callbacks from already committed GPU work after cancellation, scope replacement or execution recovery without claiming that Metal command buffers can be synchronously cancelled.
+- Bound each submission to its captured command queue and commit gate so work from an invalidated execution generation cannot migrate onto the replacement queue.
+- Kept managed output and intermediate texture leases fenced until GPU completion, preventing early caller release from returning in-flight textures to the shared pool.
+- Recycled committed outputs that lost delivery rights only after GPU completion, and isolated asynchronous performance metrics per submission without changing stable frame identifiers.
 
 ### 2026-08-02 — White-balance recipe factors
 

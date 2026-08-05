@@ -122,6 +122,68 @@ final class PerformanceBaselineTests: XCTestCase {
         }
     }
 
+    func testImageNodeTwoLayerCompositeRouteClockBaseline() throws {
+        let background = try makeTexture(width: 256, height: 256, pixel: [48, 48, 48, 255])
+        let firstLayer = try makeTexture(width: 128, height: 128, pixel: [220, 128, 64, 255])
+        let secondLayer = try makeTexture(width: 128, height: 128, pixel: [64, 160, 220, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(firstLayer),
+                    normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+                    opacity: 0.9
+                ),
+                ImageLayer(
+                    content: .texture(secondLayer),
+                    normalizedFrame: CGRect(x: 0.25, y: 0.2, width: 0.55, height: 0.55),
+                    opacity: 0.7
+                )
+            ]
+        )
+        let node = ImageNode.layerComposite(recipe)
+
+        measure(metrics: [XCTClockMetric()]) {
+            autoreleasepool {
+                do {
+                    _ = try node.makeTexture(profile: recipe.profile, derivative: recipe.derivative)
+                } catch {
+                    XCTFail("Expected two-layer composite route baseline render to succeed: \(error)")
+                }
+            }
+        }
+    }
+
+    func testImageNodeProgrammableBlendLayerCompositeRouteClockBaseline() throws {
+        let background = try makeTexture(width: 256, height: 256, pixel: [48, 48, 48, 255])
+        let layer = try makeTexture(width: 128, height: 128, pixel: [220, 128, 64, 255])
+        let recipe = LayerCompositeRecipe(
+            background: .texture(background),
+            layers: [
+                ImageLayer(
+                    content: .texture(layer),
+                    normalizedFrame: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+                    programmableBlend: LayerProgrammableBlend(
+                        functionName: "C7BlendColorAdd",
+                        intensity: 0.8,
+                        librarySource: .sourceFallback("layer-programmable-blend")
+                    )
+                )
+            ]
+        )
+        let node = ImageNode.layerComposite(recipe)
+
+        measure(metrics: [XCTClockMetric()]) {
+            autoreleasepool {
+                do {
+                    _ = try node.makeTexture(profile: recipe.profile, derivative: recipe.derivative)
+                } catch {
+                    XCTFail("Expected programmable blend composite route baseline render to succeed: \(error)")
+                }
+            }
+        }
+    }
+
     func testImageNodeTransitionRouteClockBaseline() throws {
         let from = try makeTexture(width: 256, height: 256, pixel: [255, 64, 64, 255])
         let to = try makeTexture(width: 256, height: 256, pixel: [64, 64, 255, 255])

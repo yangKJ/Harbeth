@@ -159,6 +159,137 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(synchronous.metadata["renderGraphFingerprint"], asynchronous.metadata["renderGraphFingerprint"])
     }
 
+    func testConsecutiveApplyingFiltersPreservesGraphAndUsesEquivalentExecution() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [[80, 40, 20, 255], [160, 80, 40, 255]])
+        let first = C7Brightness(brightness: 0.1)
+        let second = C7Contrast(contrast: 1.1)
+        let chained = ImageNode.texture(input)
+            .applying(first)
+            .applying(filters: [second])
+        let combined = ImageNode.texture(input).applying(filters: [first, second])
+
+        guard case .filters(let chainedInput, let outerFilters) = chained.storage else {
+            return XCTFail("连续 applying 应保留外层 filters 节点。")
+        }
+        guard case .filters(let sourceInput, let innerFilters) = chainedInput.storage,
+              case .source = sourceInput.storage else {
+            return XCTFail("连续 applying 应保留可诊断的原始 filters 图。")
+        }
+
+        let chainedFrame = try chained.makeFrame()
+        let combinedFrame = try combined.makeFrame()
+        let chainedGraph = try chained.makeImageGraph()
+        let combinedGraph = try combined.makeImageGraph()
+        let chainedOptimization = try chained.makeOptimizedImageGraph()
+
+        XCTAssertEqual(innerFilters.count, 1)
+        XCTAssertEqual(outerFilters.count, 1)
+        XCTAssertGreaterThan(chainedGraph.nodeCount, combinedGraph.nodeCount)
+        XCTAssertTrue(chainedOptimization.decisions.contains("mergeAdjacentFilterNodes"))
+        let chainedFirstPixel = try pixel(in: chainedFrame.texture, x: 0, y: 0)
+        let combinedFirstPixel = try pixel(in: combinedFrame.texture, x: 0, y: 0)
+        let chainedSecondPixel = try pixel(in: chainedFrame.texture, x: 1, y: 0)
+        let combinedSecondPixel = try pixel(in: combinedFrame.texture, x: 1, y: 0)
+        let chainedPixels = [chainedFirstPixel, chainedSecondPixel]
+        let combinedPixels = [combinedFirstPixel, combinedSecondPixel]
+        for (chainedPixel, combinedPixel) in zip(chainedPixels, combinedPixels) {
+            let chainedChannels = [chainedPixel.red, chainedPixel.green, chainedPixel.blue, chainedPixel.alpha]
+            let combinedChannels = [combinedPixel.red, combinedPixel.green, combinedPixel.blue, combinedPixel.alpha]
+            for (chainedChannel, combinedChannel) in zip(chainedChannels, combinedChannels) {
+                XCTAssertLessThanOrEqual(abs(Int(chainedChannel) - Int(combinedChannel)), 1)
+            }
+        }
+    }
+
+    func testTransmitFrameLatestOnlySupersedesQueuedFrameWithoutSecondDelivery() async throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable in this environment.")
+        let context = HarbethContext.shared
+        context.recoverExecution()
+        let queue = context.renderOperationQueue
+        queue.isSuspended = true
+        defer {
+            queue.isSuspended = false
+            context.recoverExecution()
+        }
+
+        let node = ImageNode.texture(try makeTexture(width: 2, height: 2, pixel: [80, 100, 120, 255]))
+            .applying(C7Brightness(brightness: 0.1))
+        let firstResults = ImageNodeSubmissionResultRecorder()
+        let secondResults = ImageNodeSubmissionResultRecorder()
+        let secondCompletion = HarbethUncheckedTransfer(value: expectation(description: "latest ImageNode frame"))
+
+        let first = node.transmitFrame(
+            submissionPolicy: .latestOnly(scopeIdentifier: "ImageNodeTests.latestOnly")
+        ) { result in
+            firstResults.record(result)
+        }
+        let second = node.transmitFrame(
+            submissionPolicy: .latestOnly(scopeIdentifier: "ImageNodeTests.latestOnly")
+        ) { result in
+            secondResults.record(result)
+            secondCompletion.value.fulfill()
+        }
+
+        XCTAssertEqual(firstResults.successCount, 0)
+        XCTAssertEqual(firstResults.failureCount, 1)
+        XCTAssertEqual(first.snapshot.state, .discarded)
+        XCTAssertEqual(first.snapshot.discardReason, .superseded)
+
+        queue.isSuspended = false
+        await fulfillment(of: [secondCompletion.value], timeout: 3.0)
+
+        XCTAssertEqual(firstResults.successCount, 0)
+        XCTAssertEqual(firstResults.failureCount, 1)
+        XCTAssertEqual(secondResults.successCount, 1)
+        XCTAssertEqual(secondResults.failureCount, 0)
+        XCTAssertEqual(second.snapshot.state, .completed)
+    }
+
+    func testTransmitFrameCancellationDeliversSingleTerminalFailure() throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable in this environment.")
+        let context = HarbethContext.shared
+        context.recoverExecution()
+        let queue = context.renderOperationQueue
+        queue.isSuspended = true
+        defer {
+            queue.isSuspended = false
+            context.recoverExecution()
+        }
+
+        let node = ImageNode.texture(try makeTexture(width: 2, height: 2, pixel: [80, 100, 120, 255]))
+            .applying(C7Brightness(brightness: 0.1))
+        let results = ImageNodeSubmissionResultRecorder()
+        let handle = node.transmitFrame { result in results.record(result) }
+
+        handle.cancel()
+        handle.cancel()
+        queue.isSuspended = false
+        queue.waitUntilAllOperationsAreFinished()
+
+        XCTAssertEqual(results.successCount, 0)
+        XCTAssertEqual(results.failureCount, 1)
+        XCTAssertEqual(handle.snapshot.state, .cancelled)
+        XCTAssertEqual(handle.snapshot.discardReason, .callerCancelled)
+    }
+
+    func testTransmitFrameSuccessfulDirectFilterFrameRetainsReleasableLease() async throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable in this environment.")
+        let node = ImageNode.texture(try makeTexture(width: 2, height: 2, pixel: [80, 100, 120, 255]))
+            .applying(C7Brightness(brightness: 0.1))
+
+        let frame = try await withCheckedThrowingContinuation { continuation in
+            node.transmitFrame { result in
+                continuation.resume(with: result)
+            }
+        }
+        let lease = try XCTUnwrap(frame.lease)
+
+        XCTAssertEqual(frame.texture.width, 2)
+        XCTAssertEqual(frame.texture.height, 2)
+        lease.release()
+        lease.release()
+    }
+
     #if canImport(UIKit)
     func testUIImageSourceOrientationIsAppliedBeforeTextureCreation() throws {
         let rawTexture = try makeTexture(
@@ -3350,5 +3481,30 @@ private struct SamplerProbeFilter: RenderProtocol {
             -1.0,  1.0, 0.375, 0.5,
              1.0,  1.0, 0.375, 0.5
         ]
+    }
+}
+
+private final class ImageNodeSubmissionResultRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var successes = 0
+    private var failures = 0
+
+    var successCount: Int {
+        lock.withLock { successes }
+    }
+
+    var failureCount: Int {
+        lock.withLock { failures }
+    }
+
+    func record(_ result: Result<RenderedFrame, HarbethError>) {
+        lock.withLock {
+            switch result {
+            case .success:
+                successes += 1
+            case .failure:
+                failures += 1
+            }
+        }
     }
 }

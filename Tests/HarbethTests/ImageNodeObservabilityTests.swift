@@ -103,6 +103,22 @@ final class ImageNodeObservabilityTests: XCTestCase {
         )
     }
 
+    func testTransmitFrameKeepsStableFrameIdentifierAndIsolatesSubmissionMetrics() async throws {
+        let input = try makeSolidTexture(width: 4, height: 4, pixel: [200, 120, 80, 255])
+        let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.2))
+
+        let frame = try await withCheckedThrowingContinuation { continuation in
+            node.transmitFrame { result in continuation.resume(with: result) }
+        }
+        let monitor = HarbethContext.shared.performanceMonitor
+        let metricsIdentifier = try XCTUnwrap(frame.metadata["performanceMonitoringIdentifier"])
+
+        XCTAssertTrue(frame.token.identifier.hasPrefix("ImageNode."))
+        XCTAssertNotEqual(metricsIdentifier, frame.token.identifier)
+        XCTAssertNil(monitor.getMetrics(frame.token.identifier), "异步单次指标不应写回稳定 frame identifier。")
+        XCTAssertGreaterThan(try XCTUnwrap(monitor.getMetrics(metricsIdentifier)).gpuTotalTimeNanoseconds, 0)
+    }
+
     // MARK: - 最小闭环 3/3: monitor 关闭时 record 调用为 no-op，不影响渲染
 
     /// 当 `enablePerformanceMonitor = false` 时，Context 保留稳定 monitor 实例，

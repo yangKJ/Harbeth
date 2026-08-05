@@ -40,6 +40,7 @@ private struct PreparedImageNodeExecution: @unchecked Sendable {
     let primarySource: ImageSource
     let executionFingerprint: String
     let renderTextureClosure: () throws -> MTLTexture
+    let transmitManagedTextureClosure: ((RenderSubmissionContext, @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) -> Void)?
 
     func renderTexture() throws -> MTLTexture {
         try renderTextureClosure()
@@ -186,7 +187,8 @@ extension ImageNode {
     }
 
     public func applying(filters: [C7FilterProtocol]) -> ImageNode {
-        ImageNode(storage: .filters(input: self, filters: filters))
+        guard filters.isEmpty == false else { return self }
+        return ImageNode(storage: .filters(input: self, filters: filters))
     }
 
     public func applyingWithContract(_ filter: C7FilterProtocol, inputSize: C7Size? = nil) -> ImageNode {
@@ -246,9 +248,17 @@ extension ImageNode {
         let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
         let primarySource = try resolvedPrimarySource()
         let renderTextureClosure: () throws -> MTLTexture
+        var transmitManagedTextureClosure: ((RenderSubmissionContext, @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) -> Void)? = nil
         let executionFingerprint: String
 
-        switch storage {
+        let executionStorage: ImageNodeStorage
+        if case .filters = storage, let route = directFilterRoute() {
+            executionStorage = .filters(input: .source(route.source), filters: route.filters)
+        } else {
+            executionStorage = storage
+        }
+
+        switch executionStorage {
         case .source(let source):
             renderTextureClosure = {
                 let texture = try source.makeTexture()
@@ -284,12 +294,20 @@ extension ImageNode {
             )
             renderTextureClosure = {
                 let inputTexture = try preparedInput.renderTexture()
-                let io = HarbethIO<MTLTexture>(
-                    element: inputTexture,
-                    filters: filters,
-                    identifier: executionIdentifier ?? "ImageNode.PreparedFilters"
-                ).configured(for: profile)
+                let io = HarbethIO<MTLTexture>(element: inputTexture, filters: filters, identifier: executionIdentifier ?? "ImageNode.PreparedFilters").configured(for: profile)
                 return try io.executeRenderProgram(input: inputTexture, program: program)
+            }
+            if case .source(let source) = input.storage {
+                transmitManagedTextureClosure = { submission, complete in
+                    do {
+                        let inputTexture = try source.makeTexture()
+                        var io = HarbethIO<MTLTexture>(element: inputTexture, filters: filters, identifier: executionIdentifier ?? "ImageNode.PreparedFilters").configured(for: profile)
+                        io.transmitOutputRealTimeCommit = false
+                        io.transmitManagedTexture(program: program, submission: submission, complete: complete)
+                    } catch {
+                        complete(.failure(HarbethError.toHarbethError(error)))
+                    }
+                }
             }
             executionFingerprint = [
                 diagnostics.graphFingerprint,
@@ -455,7 +473,8 @@ extension ImageNode {
             renderRecipe: renderRecipe,
             primarySource: primarySource,
             executionFingerprint: executionFingerprint,
-            renderTextureClosure: renderTextureClosure
+            renderTextureClosure: renderTextureClosure,
+            transmitManagedTextureClosure: transmitManagedTextureClosure
         )
     }
 
@@ -483,7 +502,8 @@ extension ImageNode {
             prepared: prepared,
             outputColorSpace: outputColorSpace,
             metadata: metadata,
-            monitoringIdentifier: monitoringIdentifier
+            frameIdentifier: monitoringIdentifier,
+            metricsIdentifier: monitoringIdentifier
         )
     }
 
@@ -491,9 +511,30 @@ extension ImageNode {
         prepared: PreparedImageNodeExecution,
         outputColorSpace: ImageColorSpaceContract?,
         metadata: [String: String],
-        monitoringIdentifier: String
+        frameIdentifier: String,
+        metricsIdentifier: String
     ) throws -> RenderedFrame {
         let texture = try prepared.renderTexture()
+        return try makeFrame(
+            prepared: prepared,
+            texture: texture,
+            lease: nil,
+            outputColorSpace: outputColorSpace,
+            metadata: metadata,
+            frameIdentifier: frameIdentifier,
+            metricsIdentifier: metricsIdentifier
+        )
+    }
+
+    private func makeFrame(
+        prepared: PreparedImageNodeExecution,
+        texture: MTLTexture,
+        lease: TextureLease?,
+        outputColorSpace: ImageColorSpaceContract?,
+        metadata: [String: String],
+        frameIdentifier: String,
+        metricsIdentifier: String
+    ) throws -> RenderedFrame {
         let effectiveDerivative = prepared.derivative
         let renderRecipe = prepared.renderRecipe
         let diagnostics = prepared.diagnostics
@@ -515,7 +556,7 @@ extension ImageNode {
         )
         if HarbethContext.shared.enablePerformanceMonitor {
             HarbethContext.shared.performanceMonitor.recordPreviewHostStrategy(
-                monitoringIdentifier,
+                metricsIdentifier,
                 strategy: previewHostStrategy
             )
         }
@@ -531,7 +572,8 @@ extension ImageNode {
         renderedMetadata["outputDynamicRange"] = frameOutputColorSpace.dynamicRange.rawValue
         renderedMetadata["outputColorSpace"] = frameOutputColorSpace.name
         renderedMetadata["outputToneMappingPolicy"] = diagnostics.outputContract.toneMappingPolicy.rawValue
-        let token = FrameRenderToken(identifier: monitoringIdentifier, generation: FrameGeneration.next())
+        renderedMetadata["performanceMonitoringIdentifier"] = metricsIdentifier
+        let token = FrameRenderToken(identifier: frameIdentifier, generation: FrameGeneration.next())
         let logicalOutputSize = C7Size(texture: texture)
         return RenderedFrame(
             texture: texture,
@@ -550,6 +592,7 @@ extension ImageNode {
             profile: prepared.profile,
             token: token,
             metadata: renderedMetadata,
+            lease: lease,
             previewHostPayload: previewHostPayload
         )
     }
@@ -563,6 +606,18 @@ extension ImageNode {
         submissionPolicy: RenderSubmissionPolicy = .independent,
         complete: @escaping @Sendable (Result<RenderedFrame, HarbethError>) -> Void
     ) -> RenderSubmissionHandle {
+        let monitoringIdentifier = self.monitoringIdentifier
+        let monitoringToken = "\(monitoringIdentifier).submission.\(UUID().uuidString)"
+        let monitorEnabled = HarbethContext.shared.enablePerformanceMonitor
+        if monitorEnabled {
+            HarbethContext.shared.performanceMonitor.beginMonitoring(monitoringToken)
+        }
+        let finish: @Sendable (Result<RenderedFrame, HarbethError>) -> Void = { result in
+            if monitorEnabled {
+                HarbethContext.shared.performanceMonitor.endMonitoring(monitoringToken)
+            }
+            complete(result)
+        }
         let state = HarbethUncheckedTransfer(value: (
             node: self, profile: profile, derivative: derivative, outputColorSpace: outputColorSpace, metadata: metadata
         ))
@@ -570,22 +625,49 @@ extension ImageNode {
             sourceIdentifier: monitoringIdentifier,
             policy: submissionPolicy,
             execute: { submission in
-                let result: Result<RenderedFrame, HarbethError>
                 do {
-                    result = .success(
-                        try state.value.node.makeFrame(
-                            profile: state.value.profile,
-                            derivative: state.value.derivative,
-                            outputColorSpace: state.value.outputColorSpace,
-                            metadata: state.value.metadata
-                        )
+                    let node = state.value.node
+                    let prepared = try node.prepareExecution(profile: state.value.profile, derivative: state.value.derivative, executionIdentifier: monitoringToken)
+                    if let transmitManagedTexture = prepared.transmitManagedTextureClosure {
+                        transmitManagedTexture(submission) { result in
+                            switch result {
+                            case .success(let output):
+                                do {
+                                    let frame = try state.value.node.makeFrame(
+                                        prepared: prepared,
+                                        texture: output.texture,
+                                        lease: output.lease,
+                                        outputColorSpace: state.value.outputColorSpace,
+                                        metadata: state.value.metadata,
+                                        frameIdentifier: state.value.node.monitoringIdentifier,
+                                        metricsIdentifier: monitoringToken
+                                    )
+                                    if submission.deliver({ finish(.success(frame)) }) == false {
+                                        output.lease?.release()
+                                    }
+                                } catch {
+                                    output.lease?.release()
+                                    submission.deliver { finish(.failure(HarbethError.toHarbethError(error))) }
+                                }
+                            case .failure(let error):
+                                submission.deliver { finish(.failure(error)) }
+                            }
+                        }
+                        return
+                    }
+                    let frame = try node.makeFrame(
+                        prepared: prepared,
+                        outputColorSpace: state.value.outputColorSpace,
+                        metadata: state.value.metadata,
+                        frameIdentifier: node.monitoringIdentifier,
+                        metricsIdentifier: monitoringToken
                     )
+                    submission.deliver { finish(.success(frame)) }
                 } catch {
-                    result = .failure(HarbethError.toHarbethError(error))
+                    submission.deliver { finish(.failure(HarbethError.toHarbethError(error))) }
                 }
-                submission.deliver { complete(result) }
             },
-            onDiscard: { _ in complete(.failure(.renderableTaskCancelled)) }
+            onDiscard: { _ in finish(.failure(.renderableTaskCancelled)) }
         )
     }
 
@@ -1116,7 +1198,8 @@ extension ImageNode {
                     prepared: prepared,
                     outputColorSpace: nil,
                     metadata: metadata,
-                    monitoringIdentifier: identifier
+                    frameIdentifier: identifier,
+                    metricsIdentifier: identifier
                 )
             },
             attachmentDebugPolicies: attachmentPolicies,
@@ -1815,6 +1898,18 @@ extension ImageNode: ImagePromise {
             filter: C7Resize(width: Float(targetSize.width), height: Float(targetSize.height)),
             identifier: identifier ?? "ImageNode.DerivativeResize"
         ).configured(for: profile).output()
+    }
+
+    private func directFilterRoute() -> (source: ImageSource, filters: [C7FilterProtocol])? {
+        switch storage {
+        case .source(let source):
+            return (source, [])
+        case .filters(let input, let filters):
+            guard let route = input.directFilterRoute() else { return nil }
+            return (route.source, route.filters + filters)
+        default:
+            return nil
+        }
     }
 
     private var monitoringIdentifier: String { "ImageNode.\(nodeFingerprint)" }

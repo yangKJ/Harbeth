@@ -143,6 +143,18 @@ final class RenderSubmissionContext: @unchecked Sendable {
         self.scheduler = scheduler
     }
 
+    var isActive: Bool {
+        scheduler?.isSubmissionActive(identifier: identifier) ?? false
+    }
+
+    func makeCommandBuffer() -> MTLCommandBuffer? {
+        scheduler?.makeCommandBuffer(identifier: identifier)
+    }
+
+    func claimCommit() -> Bool {
+        scheduler?.claimCommit(identifier: identifier) ?? false
+    }
+
     @discardableResult
     func deliver(_ body: @escaping @Sendable () -> Void) -> Bool {
         scheduler?.completeSubmission(identifier: identifier, delivery: body) ?? false

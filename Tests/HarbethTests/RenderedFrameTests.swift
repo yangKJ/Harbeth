@@ -1272,6 +1272,33 @@ final class RenderedFrameTests: XCTestCase {
         XCTAssertNil(dequeued, "A texture returned to the caller must not be immediately available for reuse from the pool.")
     }
 
+    func testTextureLeaseReleaseWaitsForCommandBufferCompletion() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
+            throw HarbethError.commandBuffer
+        }
+        let releaseCount = LeaseReleaseRecorder()
+        let texture = try TextureLoader.makeTexture(
+            width: 2,
+            height: 2,
+            options: [.texturePixelFormat: MTLPixelFormat.rgba8Unorm],
+            identifier: "RenderedFrameTests.leaseCompletion"
+        )
+        let lease = TextureLease(texture: texture) { releaseCount.recordRelease() }
+
+        lease.retainUntilCompleted(by: commandBuffer)
+        lease.release()
+        XCTAssertEqual(releaseCount.count, 0, "命令 buffer 完成前，lease 不得把纹理归还给池。")
+
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        XCTAssertEqual(releaseCount.count, 1, "命令 buffer 完成后，lease 应恰好归还一次。")
+        lease.release()
+        XCTAssertEqual(releaseCount.count, 1)
+    }
+
     func testTextureLoaderUsesExactPoolSizeByDefault() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -1640,6 +1667,19 @@ private final class RenderedFrameCallbackState: @unchecked Sendable {
     var frame: RenderedFrame? {
         get { lock.withLock { storedFrame } }
         set { lock.withLock { storedFrame = newValue } }
+    }
+}
+
+private final class LeaseReleaseRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = 0
+
+    var count: Int {
+        lock.withLock { storage }
+    }
+
+    func recordRelease() {
+        lock.withLock { storage += 1 }
     }
 }
 

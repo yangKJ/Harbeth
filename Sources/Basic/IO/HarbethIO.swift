@@ -310,7 +310,12 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                     // 实时模式只等待命令进入 scheduled，不等待 GPU 完成。
                     let deliversWhenScheduled = io.transmitOutputRealTimeCommit && io.element is MTLTexture
                     if deliversWhenScheduled {
-                        let commandBuffer = try io.makeCommandBuffer()
+                        guard let commandBuffer = submission.makeCommandBuffer() else {
+                            if submission.isActive {
+                                submission.deliver { complete(.failure(.commandBuffer)) }
+                            }
+                            return
+                        }
                         let rendering: RawTextureRendering
                         do {
                             if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
@@ -322,27 +327,40 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                             HarbethContext.shared.recycleCommandBuffer(commandBuffer)
                             throw error
                         }
-                        let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
-                        // 纹理必须等 GPU 完成后再回收。
-                        if rendering.successRecycling.isEmpty == false {
-                            commandBuffer.addCompletedHandler { _ in
-                                io.recycleRawTextures(callbackState.value.rendering.successRecycling)
+                        guard submission.claimCommit() else {
+                            io.recycleRawTextures(rendering.failureRecycling)
+                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                            return
+                        }
+                        let cleanupState = RawTextureScheduledCleanupState()
+                        let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
+                        commandBuffer.addCompletedHandler { _ in
+                            if let delivered = cleanupState.recordCompletion() {
+                                io.recycleRawTextures(rendering.recycling(deliverySucceeded: delivered))
                             }
                         }
                         // scheduled 后立即交付，保持低延迟语义。
                         commandBuffer.realTimeCommit(identifier: io.identifier) {
-                            submission.deliver {
-                                complete(.success(callbackState.value.rendering.output))
+                            let delivered = submission.deliver {
+                                complete(.success(rendering.output))
+                            }
+                            if let delivered = cleanupState.recordDelivery(delivered) {
+                                io.recycleRawTextures(rendering.recycling(deliverySucceeded: delivered))
                             }
                         }
                         // 后台等待 GPU 结束并完成 command buffer 清理。
                         DispatchQueue.global().async {
-                            callbackState.value.commandBuffer.waitUntilCompleted()
-                            HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
+                            commandBufferTransfer.value.waitUntilCompleted()
+                            HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
                         }
                     } else {
                         // 普通异步模式在 GPU 完成后交付。
-                        let commandBuffer = try io.makeCommandBuffer()
+                        guard let commandBuffer = submission.makeCommandBuffer() else {
+                            if submission.isActive {
+                                submission.deliver { complete(.failure(.commandBuffer)) }
+                            }
+                            return
+                        }
                         let rendering: RawTextureRendering
                         do {
                             if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
@@ -355,14 +373,19 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                             throw error
                         }
                         let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
+                        guard submission.claimCommit() else {
+                            io.recycleRawTextures(rendering.failureRecycling)
+                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                            return
+                        }
                         commandBuffer.asyncCommit(identifier: io.identifier) { result in
                             switch result {
                             case .success:
-                                io.recycleRawTextures(callbackState.value.rendering.successRecycling)
-                                HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
-                                submission.deliver {
+                                let delivered = submission.deliver {
                                     complete(.success(callbackState.value.rendering.output))
                                 }
+                                io.recycleRawTextures(callbackState.value.rendering.recycling(deliverySucceeded: delivered))
+                                HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
                             case .failure(let error):
                                 io.recycleRawTextures(callbackState.value.rendering.failureRecycling)
                                 HarbethContext.shared.recycleCommandBuffer(callbackState.value.commandBuffer)
@@ -419,15 +442,76 @@ struct ManagedTextureResult: @unchecked Sendable {
     let lease: TextureLease?
 }
 
+struct EncodedTextureProgram: @unchecked Sendable {
+    let output: MTLTexture
+    let allocatedTextures: [MTLTexture]
+}
+
+/// 把线性渲染程序编码进调用方命令缓冲区后的内部结果。
+/// 缓冲区完成前，所有纹理租约都保持独占。
+struct EncodedManagedTextureProgram: @unchecked Sendable {
+    let result: ManagedTextureResult
+    let producedLeases: [TextureLease]
+
+    func retainUntilCompleted(by commandBuffer: MTLCommandBuffer) {
+        producedLeases.forEach { $0.retainUntilCompleted(by: commandBuffer) }
+    }
+
+    func releaseAll() {
+        producedLeases.forEach { $0.release() }
+    }
+
+    func releaseIntermediates() {
+        producedLeases.forEach { lease in
+            if lease !== result.lease {
+                lease.release()
+            }
+        }
+    }
+}
+
 private struct RawTextureStage {
     let texture: MTLTexture
     let allocatedDestination: MTLTexture?
 }
 
-private struct RawTextureRendering {
+struct RawTextureRendering {
     let output: MTLTexture
     let successRecycling: [MTLTexture]
     let failureRecycling: [MTLTexture]
+
+    func recycling(deliverySucceeded: Bool) -> [MTLTexture] {
+        deliverySucceeded ? successRecycling : failureRecycling
+    }
+}
+
+final class RawTextureScheduledCleanupState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var commandCompleted = false
+    private var deliverySucceeded: Bool?
+    private var cleanupClaimed = false
+
+    func recordCompletion() -> Bool? {
+        lock.lock()
+        commandCompleted = true
+        let delivery = takeCleanupDecisionIfReadyLocked()
+        lock.unlock()
+        return delivery
+    }
+
+    func recordDelivery(_ succeeded: Bool) -> Bool? {
+        lock.lock()
+        deliverySucceeded = succeeded
+        let delivery = takeCleanupDecisionIfReadyLocked()
+        lock.unlock()
+        return delivery
+    }
+
+    private func takeCleanupDecisionIfReadyLocked() -> Bool? {
+        guard commandCompleted, let deliverySucceeded, cleanupClaimed == false else { return nil }
+        cleanupClaimed = true
+        return deliverySucceeded
+    }
 }
 
 extension HarbethIO {
@@ -639,7 +723,10 @@ extension HarbethIO {
         let texture = try TextureLoader.makeTexture(
             width: resize.width,
             height: resize.height,
-            options: [.texturePixelFormat: targetPixelFormat],
+            options: [
+                .texturePixelFormat: targetPixelFormat,
+                .textureUsage: outputTextureUsage(for: filter)
+            ],
             identifier: identifier
         )
         if HarbethContext.shared.enablePerformanceMonitor {
@@ -669,7 +756,10 @@ extension HarbethIO {
         let lease = try TextureLoader.makeTextureLease(
             width: resize.width,
             height: resize.height,
-            options: [.texturePixelFormat: targetPixelFormat],
+            options: [
+                .texturePixelFormat: targetPixelFormat,
+                .textureUsage: outputTextureUsage(for: filter)
+            ],
             identifier: identifier
         )
         if HarbethContext.shared.enablePerformanceMonitor {
@@ -689,6 +779,15 @@ extension HarbethIO {
             )
         }
         return lease
+    }
+
+    private func outputTextureUsage(for filter: C7FilterProtocol) -> MTLTextureUsage {
+        switch filter.modifier {
+        case .render:
+            return [.shaderRead, .shaderWrite, .renderTarget]
+        case .compute, .blit, .mps, .advancedMetal:
+            return [.shaderRead, .shaderWrite]
+        }
     }
 
     /// Do you need to create a new metal texture command buffer.
@@ -1112,6 +1211,52 @@ private extension RenderTextureLifecycleAction {
 }
 
 extension HarbethIO where Dest == MTLTexture {
+    func encodeRenderProgram(_ program: RenderExecutionProgram, commandBuffer: MTLCommandBuffer) throws -> EncodedTextureProgram {
+        guard program.sourceFilterFingerprint == filters.chainRecipe.fingerprint,
+              program.diagnostics.inputSize == C7Size(texture: element) else {
+            throw HarbethError.configurationInvalid(
+                "RenderExecutionProgram does not match the HarbethIO input or filter chain."
+            )
+        }
+        guard program.steps.isEmpty == false else {
+            return EncodedTextureProgram(output: element, allocatedTextures: [])
+        }
+
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: element.pixelFormat)
+        let rendering: RawTextureRendering
+        if shouldUseDoubleBuffer(input: element, program: program, minimumFilterCount: 2) {
+            rendering = try doubleBuffering(input: element, program: program, commandBuffer: commandBuffer)
+        } else {
+            rendering = try singleBuffer(input: element, program: program, commandBuffer: commandBuffer)
+        }
+        return EncodedTextureProgram(output: rendering.output, allocatedTextures: rendering.failureRecycling)
+    }
+
+    /// 把已编译的线性程序编码进调用方命令缓冲区但不提交，供上层配方维持单次 GPU 提交。
+    func encodeManagedRenderProgram(_ program: RenderExecutionProgram, commandBuffer: MTLCommandBuffer) throws -> EncodedManagedTextureProgram {
+        guard program.sourceFilterFingerprint == filters.chainRecipe.fingerprint,
+              program.diagnostics.inputSize == C7Size(texture: element) else {
+            throw HarbethError.configurationInvalid(
+                "RenderExecutionProgram does not match the managed HarbethIO input or filter chain."
+            )
+        }
+        guard program.steps.isEmpty == false else {
+            return EncodedManagedTextureProgram(result: ManagedTextureResult(texture: element, lease: nil), producedLeases: [])
+        }
+        prepareTextureLifecycle(for: program.plan, inputPixelFormat: element.pixelFormat)
+        let managed: (result: ManagedTextureResult, intermediateLeases: [TextureLease])
+        if shouldUseDoubleBuffer(input: element, program: program, minimumFilterCount: 2) {
+            managed = try doubleBufferingManaged(input: element, program: program, commandBuffer: commandBuffer)
+        } else {
+            managed = try singleBufferManaged(input: element, program: program, commandBuffer: commandBuffer)
+        }
+        var leases = managed.intermediateLeases
+        if let finalLease = managed.result.lease, leases.contains(where: { $0 === finalLease }) == false {
+            leases.append(finalLease)
+        }
+        return EncodedManagedTextureProgram(result: managed.result, producedLeases: leases)
+    }
+
     /// Starts a texture render task and returns a GPU task handle for status observation.
     ///
     /// This API is for advanced texture-first callers that need command-buffer status,
@@ -1186,72 +1331,82 @@ extension HarbethIO where Dest == MTLTexture {
         }
     }
 
-    func transmitManagedTexture(complete: @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) {
+    @discardableResult
+    func transmitManagedTexture(complete: @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) -> RenderSubmissionHandle {
         if filters.isEmpty {
             complete(.success(ManagedTextureResult(texture: element, lease: nil)))
-            return
+            return completedSubmissionHandle()
         }
         let program = makeRenderProgram(input: element)
-        prepareTextureLifecycle(for: program.plan, inputPixelFormat: element.pixelFormat)
         let operationState = HarbethUncheckedTransfer(value: (io: self, program: program))
-        let operation = BlockOperation {
-            let io = operationState.value.io
-            let program = operationState.value.program
-            do {
-                let commandBuffer = try io.makeCommandBuffer()
-                let result: ManagedTextureResult
-                let intermediateLeases: [TextureLease]
-                do {
-                    if io.shouldUseDoubleBuffer(input: io.element, program: program, minimumFilterCount: 4) {
-                        (result, intermediateLeases) = try io.doubleBufferingManaged(
-                            input: io.element,
-                            program: program,
-                            commandBuffer: commandBuffer
-                        )
-                    } else {
-                        (result, intermediateLeases) = try io.singleBufferManaged(
-                            input: io.element,
-                            program: program,
-                            commandBuffer: commandBuffer
-                        )
-                    }
-                } catch {
-                    HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-                    throw error
-                }
-
-                let releaseIntermediates: @Sendable () -> Void = {
-                    intermediateLeases.forEach { $0.release() }
-                }
-                let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
-
-                if io.transmitOutputRealTimeCommit {
-                    commandBuffer.addCompletedHandler { _ in releaseIntermediates() }
-                    commandBuffer.realTimeCommit(identifier: io.identifier) { complete(.success(result)) }
-                    DispatchQueue.global().async {
-                        commandBufferTransfer.value.waitUntilCompleted()
-                        HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
-                    }
-                } else {
-                    commandBuffer.asyncCommit(identifier: io.identifier) { callbackResult in
-                        switch callbackResult {
-                        case .success:
-                            releaseIntermediates()
-                            HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
-                            complete(.success(result))
-                        case .failure(let error):
-                            releaseIntermediates()
-                            result.lease?.release()
-                            HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
-                            complete(.failure(HarbethError.toHarbethError(error)))
+        return HarbethContext.shared.submitRenderOperation(
+            sourceIdentifier: identifier,
+            policy: submissionPolicy,
+            execute: { submission in
+                let io = operationState.value.io
+                let program = operationState.value.program
+                io.transmitManagedTexture(program: program, submission: submission) { result in
+                    switch result {
+                    case .success(let output):
+                        if submission.deliver({ complete(.success(output)) }) == false {
+                            output.lease?.release()
                         }
+                    case .failure(let error):
+                        submission.deliver { complete(.failure(error)) }
                     }
                 }
-            } catch {
-                complete(.failure(HarbethError.toHarbethError(error)))
+            },
+            onDiscard: { _ in complete(.failure(.renderableTaskCancelled)) }
+        )
+    }
+
+    func transmitManagedTexture(program: RenderExecutionProgram, submission: RenderSubmissionContext, complete: @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) {
+        guard let commandBuffer = submission.makeCommandBuffer() else {
+            if submission.isActive {
+                complete(.failure(.commandBuffer))
+            }
+            return
+        }
+        let encoded: EncodedManagedTextureProgram
+        do {
+            encoded = try encodeManagedRenderProgram(program, commandBuffer: commandBuffer)
+        } catch {
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            complete(.failure(HarbethError.toHarbethError(error)))
+            return
+        }
+
+        guard submission.claimCommit() else {
+            encoded.releaseAll()
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            return
+        }
+        encoded.retainUntilCompleted(by: commandBuffer)
+        let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
+
+        if transmitOutputRealTimeCommit {
+            commandBuffer.addCompletedHandler { _ in encoded.releaseIntermediates() }
+            commandBuffer.realTimeCommit(identifier: identifier) {
+                complete(.success(encoded.result))
+            }
+            DispatchQueue.global().async {
+                commandBufferTransfer.value.waitUntilCompleted()
+                HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
+            }
+        } else {
+            commandBuffer.asyncCommit(identifier: identifier) { callbackResult in
+                switch callbackResult {
+                case .success:
+                    encoded.releaseIntermediates()
+                    HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
+                    complete(.success(encoded.result))
+                case .failure(let error):
+                    encoded.releaseAll()
+                    HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
+                    complete(.failure(HarbethError.toHarbethError(error)))
+                }
             }
         }
-        HarbethContext.shared.renderOperationQueue.addOperation(operation)
     }
 
     private func processManagedBatchedFilters(input: MTLTexture, program: RenderExecutionProgram) throws -> ManagedTextureResult {

@@ -599,37 +599,44 @@ extension LayerCompositeRecipe {
             )
         }
 
-        for layer in layers {
-            var layerTexture = try layer.content.makeTexture()
-            let resolvedMask = try layer.resolvedMaskDescriptor()
-            let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
-            var layerTransform = layer.transform
-            if layer.rotation.truncatingRemainder(dividingBy: 360) != 0 {
-                layerTransform.rotationDegrees += layer.rotation
-            }
-            if layer.flipOptions.horizontal {
-                layerTransform.mirrorsHorizontally.toggle()
-            }
-            if layer.flipOptions.vertical {
-                layerTransform.flipsVertically.toggle()
-            }
-            let layerFilters = layerTransform.makeFilters(
-                inputSize: C7Size(texture: layerTexture)
-            ) + layer.filters
-            if layerFilters.isEmpty == false {
-                layerTexture = try HarbethIO(
-                    element: layerTexture,
-                    filters: SamplerExecutionAdapter.adapt(filters: layerFilters, samplerDescriptor: samplerDescriptor),
-                    identifier: executionIdentifier ?? "ImageNode.LayerComposite"
-                )
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
+            throw HarbethError.commandBuffer
+        }
+        let identifier = executionIdentifier ?? "ImageNode.LayerComposite"
+        var allocatedTextures: [MTLTexture] = []
+
+        func encode(_ input: MTLTexture, filters: [C7FilterProtocol]) throws -> MTLTexture {
+            guard filters.isEmpty == false else { return input }
+            let io = HarbethIO(element: input, filters: filters, identifier: identifier)
                 .configured(for: effectiveProfile)
-                .output()
-            }
-            if let programmableBlend = layer.programmableBlend {
-                let preparedLayer = try makeTransparentCanvas(matching: current)
-                let layerCanvas = try HarbethIO(
-                    element: preparedLayer,
-                    filter: LayerComposite(
+            let program = io.makeRenderProgram(input: input)
+            let encoded = try io.encodeRenderProgram(program, commandBuffer: commandBuffer)
+            allocatedTextures.append(contentsOf: encoded.allocatedTextures)
+            return encoded.output
+        }
+
+        do {
+            for layer in layers {
+                var layerTexture = try layer.content.makeTexture()
+                let resolvedMask = try layer.resolvedMaskDescriptor()
+                let resolvedCompositingMask = try layer.resolvedCompositingMaskDescriptor()
+                var layerTransform = layer.transform
+                if layer.rotation.truncatingRemainder(dividingBy: 360) != 0 {
+                    layerTransform.rotationDegrees += layer.rotation
+                }
+                if layer.flipOptions.horizontal {
+                    layerTransform.mirrorsHorizontally.toggle()
+                }
+                if layer.flipOptions.vertical {
+                    layerTransform.flipsVertically.toggle()
+                }
+                let layerFilters = layerTransform.makeFilters(inputSize: C7Size(texture: layerTexture)) + layer.filters
+                let adaptedLayerFilters = SamplerExecutionAdapter.adapt(filters: layerFilters, samplerDescriptor: samplerDescriptor)
+                layerTexture = try encode(layerTexture, filters: adaptedLayerFilters)
+                if let programmableBlend = layer.programmableBlend {
+                    let preparedLayer = try makeTransparentCanvas(matching: current)
+                    allocatedTextures.append(preparedLayer)
+                    let canvasComposite = LayerComposite(
                         layerTexture: layerTexture,
                         mask: resolvedMask,
                         compositingMask: resolvedCompositingMask,
@@ -640,30 +647,20 @@ extension LayerCompositeRecipe {
                         cornerRadius: layer.cornerRadius,
                         cornerCurve: layer.cornerCurve,
                         tintColor: layer.tintColor
-                    ),
-                    identifier: executionIdentifier ?? "ImageNode.LayerComposite"
-                )
-                .configured(for: effectiveProfile)
-                .output()
-                current = try HarbethIO(
-                    element: current,
-                    filter: C7ProgrammableBlend(
+                    )
+                    let layerCanvas = try encode(preparedLayer, filters: [canvasComposite])
+                    let blend = C7ProgrammableBlend(
                         functionName: programmableBlend.functionName,
                         blendTexture: layerCanvas,
                         intensity: programmableBlend.intensity,
                         capability: programmableBlend.capability,
                         librarySource: programmableBlend.librarySource,
                         functionConstants: programmableBlend.functionConstants
-                    ),
-                    identifier: executionIdentifier ?? "ImageNode.LayerComposite"
-                )
-                .configured(for: effectiveProfile)
-                .output()
-                continue
-            }
-            current = try HarbethIO(
-                element: current,
-                filter: LayerComposite(
+                    )
+                    current = try encode(current, filters: [blend])
+                    continue
+                }
+                let composite = LayerComposite(
                     layerTexture: layerTexture,
                     mask: resolvedMask,
                     compositingMask: resolvedCompositingMask,
@@ -674,25 +671,46 @@ extension LayerCompositeRecipe {
                     cornerRadius: layer.cornerRadius,
                     cornerCurve: layer.cornerCurve,
                     tintColor: layer.tintColor
-                ),
+                )
+                current = try encode(current, filters: [composite])
+            }
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
+        } catch {
+            recycleEncodedTextures(allocatedTextures)
+            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+            throw error
+        }
+        recycleEncodedTextures(allocatedTextures.filter { $0 !== current })
+        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+        var postProcessingTextures = [current]
+        do {
+            let contracted = try ImageNode.applyOutputContractIfNeeded(
+                outputContract,
+                to: current,
+                sourceAlphaType: outputContract.inputAlphaExpectation.expectedAlphaType,
+                profile: effectiveProfile,
                 identifier: executionIdentifier ?? "ImageNode.LayerComposite"
             )
-            .configured(for: effectiveProfile)
-            .output()
+            if contracted !== current { postProcessingTextures.append(contracted) }
+            let resized = try resizeTextureIfNeeded(
+                contracted,
+                derivative: derivative ?? self.derivative,
+                profile: effectiveProfile,
+                executionIdentifier: executionIdentifier
+            )
+            if resized !== contracted { postProcessingTextures.append(resized) }
+            recycleEncodedTextures(postProcessingTextures.filter { $0 !== resized })
+            return resized
+        } catch {
+            recycleEncodedTextures(postProcessingTextures)
+            throw error
         }
-        let contracted = try ImageNode.applyOutputContractIfNeeded(
-            outputContract,
-            to: current,
-            sourceAlphaType: outputContract.inputAlphaExpectation.expectedAlphaType,
-            profile: effectiveProfile,
-            identifier: executionIdentifier ?? "ImageNode.LayerComposite"
-        )
-        return try resizeTextureIfNeeded(
-            contracted,
-            derivative: derivative ?? self.derivative,
-            profile: effectiveProfile,
-            executionIdentifier: executionIdentifier
-        )
+    }
+
+    private func recycleEncodedTextures(_ textures: [MTLTexture]) {
+        var seen = Set<ObjectIdentifier>()
+        let unique = textures.filter { seen.insert(ObjectIdentifier($0)).inserted }
+        HarbethContext.shared.texturePool.enqueueTexturesSync(unique)
     }
 
     func makeDiagnostics(profile: RenderProfile? = nil, derivative: ImageDerivativeSpec? = nil) throws -> RenderPlanDiagnostics {

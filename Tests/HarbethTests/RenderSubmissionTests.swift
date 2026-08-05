@@ -162,6 +162,88 @@ final class RenderSubmissionTests: XCTestCase {
         XCTAssertEqual(handle.snapshot.discardReason, .executionRecovery)
     }
 
+    func testRecoveredExecutingSubmissionCannotCreateBufferFromReplacementQueue() async throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable in this environment.")
+        }
+        let scheduler = ExecutionScheduler(device: device)
+        let started = HarbethUncheckedTransfer(value: expectation(description: "old generation started"))
+        let finished = HarbethUncheckedTransfer(value: expectation(description: "old generation resumed"))
+        let resumeExecution = DispatchSemaphore(value: 0)
+        let bufferCreated = BoolRecorder()
+        let discards = DiscardRecorder()
+
+        let handle = scheduler.submit(
+            sourceIdentifier: "old-generation-buffer",
+            policy: .independent,
+            execute: { submission in
+                started.value.fulfill()
+                _ = resumeExecution.wait(timeout: .now() + 2)
+                bufferCreated.value = submission.makeCommandBuffer() != nil
+                finished.value.fulfill()
+            },
+            onDiscard: { discards.record($0) }
+        )
+
+        await fulfillment(of: [started.value], timeout: 2.0)
+        _ = scheduler.recover()
+        resumeExecution.signal()
+        await fulfillment(of: [finished.value], timeout: 2.0)
+
+        XCTAssertFalse(bufferCreated.value, "恢复后的旧 submission 不得从 replacement queue 创建 command buffer。")
+        XCTAssertEqual(handle.snapshot.state, .discarded)
+        XCTAssertEqual(handle.snapshot.discardReason, .executionRecovery)
+        XCTAssertEqual(discards.reasons, [.executionRecovery])
+    }
+
+    func testSupersedingCommitClaimedSubmissionSuppressesDeliveryExactlyOnce() async throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable in this environment.")
+        }
+        let scheduler = ExecutionScheduler(device: device)
+        let firstClaimed = HarbethUncheckedTransfer(value: expectation(description: "first submission claimed commit"))
+        let firstFinished = HarbethUncheckedTransfer(value: expectation(description: "first submission attempted delivery"))
+        let secondDelivered = HarbethUncheckedTransfer(value: expectation(description: "second submission delivered"))
+        let releaseFirstDelivery = DispatchSemaphore(value: 0)
+        let firstDelivery = BoolRecorder()
+        let firstDiscards = DiscardRecorder()
+
+        let first = scheduler.submit(
+            sourceIdentifier: "commit-claimed-first",
+            policy: .latestOnly(scopeIdentifier: "commit-claimed"),
+            execute: { submission in
+                firstDelivery.value = submission.claimCommit()
+                firstClaimed.value.fulfill()
+                _ = releaseFirstDelivery.wait(timeout: .now() + 2)
+                firstDelivery.deliverySucceeded = submission.deliver {}
+                firstFinished.value.fulfill()
+            },
+            onDiscard: { firstDiscards.record($0) }
+        )
+
+        await fulfillment(of: [firstClaimed.value], timeout: 2.0)
+        let second = scheduler.submit(
+            sourceIdentifier: "commit-claimed-second",
+            policy: .latestOnly(scopeIdentifier: "commit-claimed"),
+            execute: { submission in
+                _ = submission.deliver { secondDelivered.value.fulfill() }
+            },
+            onDiscard: { _ in XCTFail("最新 submission 不应被丢弃。") }
+        )
+
+        await fulfillment(of: [secondDelivered.value], timeout: 2.0)
+        releaseFirstDelivery.signal()
+        await fulfillment(of: [firstFinished.value], timeout: 2.0)
+        first.cancel()
+
+        XCTAssertTrue(firstDelivery.value, "首个 submission 必须在被替换前成功 claim commit。")
+        XCTAssertFalse(firstDelivery.deliverySucceeded, "claim commit 后被 supersede 的 submission 只能抑制 delivery。")
+        XCTAssertEqual(first.snapshot.state, .discarded)
+        XCTAssertEqual(first.snapshot.discardReason, .superseded)
+        XCTAssertEqual(firstDiscards.reasons, [.superseded])
+        XCTAssertEqual(second.snapshot.state, .completed)
+    }
+
     private func makeSuspendedContext() throws -> (HarbethContext, OperationQueue) {
         try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable in this environment.")
 
@@ -204,5 +286,21 @@ private final class ExecutionRecorder: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return storage
+    }
+}
+
+private final class BoolRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValue = false
+    private var storedDeliverySucceeded = false
+
+    var value: Bool {
+        get { lock.withLock { storedValue } }
+        set { lock.withLock { storedValue = newValue } }
+    }
+
+    var deliverySucceeded: Bool {
+        get { lock.withLock { storedDeliverySucceeded } }
+        set { lock.withLock { storedDeliverySucceeded = newValue } }
     }
 }

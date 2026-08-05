@@ -1233,7 +1233,8 @@ private final class ImageNodeBenchmarkRouteState {
         node.applying(filters: filters).transmitFrame(profile: .interactiveLatency) { [self] result in
             switch result {
             case .success(let frame):
-                let gpuDuration = benchmarkGPUTimeMs(identifier: frame.identifier)
+                let metricsIdentifier = frame.metadata["performanceMonitoringIdentifier"] ?? frame.identifier
+                let gpuDuration = benchmarkGPUTimeMs(identifier: metricsIdentifier)
                 Task { @MainActor [self] in
                     if CACurrentMediaTime() <= context.deadlineAt { renderView.display(frame) }
                     completion(.success(gpuDurationMs: gpuDuration))
