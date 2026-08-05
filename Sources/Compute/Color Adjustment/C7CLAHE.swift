@@ -21,6 +21,10 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
     /// 直方图 LUT 的固定 bin 数。256 与 8-bit SDR 亮度域对应。
     public static let histogramBinCount = 256
 
+    /// 一个 CLAHE render 只编码一个 clear pass、histogram、LUT 和 apply 三个 compute pass。
+    /// 这是内部资源回归合同，不是额外的公开执行入口。
+    static let commandEncoderCount = 4
+
     public static let clipLimitRange: ParameterRange<Float, Self> = .init(min: 0.25, max: 16, value: 2)
 
     /// tile 网格。维度会限制在 1...16，避免单帧临时直方图 buffer 无界增长。
@@ -110,17 +114,17 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
         let lookupLength = tileCount * Self.histogramBinCount * MemoryLayout<Float>.stride
         let device = HarbethContext.shared.device
 
-        guard let histogram = device.makeBuffer(length: histogramLength, options: .storageModePrivate),
-              let sampleCounts = device.makeBuffer(length: countLength, options: .storageModePrivate),
-              let lookupTable = device.makeBuffer(length: lookupLength, options: .storageModePrivate) else {
-            throw HarbethError.textureLoader
-        }
-        histogram.label = "C7CLAHE histogram"
-        sampleCounts.label = "C7CLAHE sample counts"
-        lookupTable.label = "C7CLAHE lookup table"
+        let temporaryBuffers = try C7CLAHETemporaryBufferPool.shared.checkout(
+            device: device,
+            histogramLength: histogramLength,
+            countLength: countLength,
+            lookupLength: lookupLength
+        )
+        let histogram = temporaryBuffers.histogram
+        let sampleCounts = temporaryBuffers.sampleCounts
+        let lookupTable = temporaryBuffers.lookupTable
 
-        try clear(histogram, commandBuffer: commandBuffer)
-        try clear(sampleCounts, commandBuffer: commandBuffer)
+        try clear([histogram, sampleCounts], commandBuffer: commandBuffer)
         try encodeHistogram(
             source: source,
             histogram: histogram,
@@ -142,14 +146,20 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
             grid: executionGrid,
             commandBuffer: commandBuffer
         )
+        commandBuffer.addCompletedHandler { _ in
+            C7CLAHETemporaryBufferPool.shared.recycle(temporaryBuffers)
+        }
         return destination
     }
 
-    private func clear(_ buffer: MTLBuffer, commandBuffer: MTLCommandBuffer) throws {
+    private func clear(_ buffers: [MTLBuffer], commandBuffer: MTLCommandBuffer) throws {
         guard let encoder = commandBuffer.makeBlitCommandEncoder() else {
             throw HarbethError.makeBlitCommandEncoder
         }
-        encoder.fill(buffer: buffer, range: 0..<buffer.length, value: 0)
+        encoder.label = "C7CLAHE clear encoder"
+        for buffer in buffers {
+            encoder.fill(buffer: buffer, range: 0..<buffer.length, value: 0)
+        }
         encoder.endEncoding()
     }
 
@@ -233,5 +243,122 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
             depth: 1
         )
         encoder.dispatchThreadgroups(groups, threadsPerThreadgroup: threads)
+    }
+}
+
+/// 仅供 CLAHE 使用的短生命周期 GPU buffer 池。每组 buffer 都会等关联 command buffer 完成后
+/// 才归还，避免被并发 render 提前复用；缓存最多保留两组，限制长期 private-memory 占用。
+final class C7CLAHETemporaryBufferPool: @unchecked Sendable {
+
+    struct Statistics: Equatable {
+        let totalBufferAllocations: Int
+        let totalBufferReuses: Int
+        let peakInFlightSetCount: Int
+        let cachedSetCount: Int
+    }
+
+    static let shared = C7CLAHETemporaryBufferPool()
+
+    struct Key: Hashable, Sendable {
+        let deviceIdentifier: ObjectIdentifier
+        let histogramLength: Int
+        let countLength: Int
+        let lookupLength: Int
+    }
+
+    struct BufferSet: @unchecked Sendable {
+        let key: Key
+        let histogram: MTLBuffer
+        let sampleCounts: MTLBuffer
+        let lookupTable: MTLBuffer
+    }
+
+    private let lock = NSLock()
+    private let maximumCachedSetCount = 2
+    private var cachedSets: [Key: [BufferSet]] = [:]
+    private var totalBufferAllocations = 0
+    private var totalBufferReuses = 0
+    private var inFlightSetCount = 0
+    private var peakInFlightSetCount = 0
+
+    func checkout(device: MTLDevice,
+                  histogramLength: Int,
+                  countLength: Int,
+                  lookupLength: Int) throws -> BufferSet {
+        let key = Key(
+            deviceIdentifier: ObjectIdentifier(device),
+            histogramLength: histogramLength,
+            countLength: countLength,
+            lookupLength: lookupLength
+        )
+
+        lock.lock()
+        if var available = cachedSets[key], let bufferSet = available.popLast() {
+            cachedSets[key] = available.isEmpty ? nil : available
+            totalBufferReuses += 3
+            recordCheckoutLocked()
+            lock.unlock()
+            return bufferSet
+        }
+        lock.unlock()
+
+        guard let histogram = device.makeBuffer(length: histogramLength, options: .storageModePrivate),
+              let sampleCounts = device.makeBuffer(length: countLength, options: .storageModePrivate),
+              let lookupTable = device.makeBuffer(length: lookupLength, options: .storageModePrivate) else {
+            throw HarbethError.textureLoader
+        }
+        histogram.label = "C7CLAHE histogram"
+        sampleCounts.label = "C7CLAHE sample counts"
+        lookupTable.label = "C7CLAHE lookup table"
+
+        let bufferSet = BufferSet(
+            key: key,
+            histogram: histogram,
+            sampleCounts: sampleCounts,
+            lookupTable: lookupTable
+        )
+        lock.lock()
+        totalBufferAllocations += 3
+        recordCheckoutLocked()
+        lock.unlock()
+        return bufferSet
+    }
+
+    func recycle(_ bufferSet: BufferSet) {
+        lock.lock()
+        defer { lock.unlock() }
+        inFlightSetCount = max(inFlightSetCount - 1, 0)
+        guard cachedSetCountLocked < maximumCachedSetCount else { return }
+        cachedSets[bufferSet.key, default: []].append(bufferSet)
+    }
+
+    var statistics: Statistics {
+        lock.lock()
+        defer { lock.unlock() }
+        return Statistics(
+            totalBufferAllocations: totalBufferAllocations,
+            totalBufferReuses: totalBufferReuses,
+            peakInFlightSetCount: peakInFlightSetCount,
+            cachedSetCount: cachedSetCountLocked
+        )
+    }
+
+    func resetForTesting() {
+        lock.lock()
+        defer { lock.unlock() }
+        cachedSets.removeAll()
+        totalBufferAllocations = 0
+        totalBufferReuses = 0
+        inFlightSetCount = 0
+        peakInFlightSetCount = 0
+    }
+
+    private var cachedSetCountLocked: Int {
+        cachedSets.values.reduce(0) { $0 + $1.count }
+    }
+
+    private func recordCheckoutLocked() {
+        inFlightSetCount += 1
+        peakInFlightSetCount = max(peakInFlightSetCount, inFlightSetCount)
     }
 }

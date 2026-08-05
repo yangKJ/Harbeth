@@ -121,6 +121,38 @@ final class CLAHEFilterTests: XCTestCase {
         XCTAssertGreaterThan(readRGBA8(output, x: 0, y: 0)[0], 240)
     }
 
+    func test4KHotPathReusesTemporaryBuffersWithinResourceAndPerformanceGate() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable in this environment.")
+        }
+        HarbethContext.shared.recoverExecution()
+        C7CLAHETemporaryBufferPool.shared.resetForTesting()
+        defer { C7CLAHETemporaryBufferPool.shared.resetForTesting() }
+
+        let source = try makePrivateTexture(device: device, width: 3_840, height: 2_160)
+        let destination = try makePrivateTexture(device: device, width: 3_840, height: 2_160)
+        let filter = C7CLAHE(tileGridSize: .init(columns: 8, rows: 8))
+
+        try render(filter, source: source, destination: destination, identifier: "CLAHE.4K.warmup")
+        var elapsedTimes = [TimeInterval]()
+        for index in 0..<4 {
+            let start = Date()
+            try render(filter, source: source, destination: destination, identifier: "CLAHE.4K.hot.\(index)")
+            elapsedTimes.append(Date().timeIntervalSince(start))
+        }
+
+        let statistics = C7CLAHETemporaryBufferPool.shared.statistics
+        let p95Index = Int(ceil(Double(elapsedTimes.count) * 0.95)) - 1
+        let p95 = elapsedTimes.sorted()[p95Index]
+
+        XCTAssertEqual(C7CLAHE.commandEncoderCount, 4, "CLAHE must keep one clear, histogram, LUT and apply encoder.")
+        XCTAssertEqual(statistics.totalBufferAllocations, 3, "4K hot renders must not allocate another CLAHE buffer set.")
+        XCTAssertEqual(statistics.totalBufferReuses, 12)
+        XCTAssertEqual(statistics.peakInFlightSetCount, 1)
+        XCTAssertEqual(statistics.cachedSetCount, 1)
+        XCTAssertLessThan(p95, 1.0, "4K CLAHE hot-path p95 must stay below the one-second regression gate.")
+    }
+
     private func makeRGBA8Texture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         try makeRGBA8Texture(width: width, height: height, pixels: Array(repeating: pixel, count: width * height).flatMap { $0 })
     }
@@ -139,6 +171,27 @@ final class CLAHEFilterTests: XCTestCase {
             bytesPerRow: width * 4
         )
         return texture
+    }
+
+    private func makePrivateTexture(device: MTLDevice, width: Int, height: Int) throws -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        descriptor.storageMode = .private
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        return try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+    }
+
+    private func render(_ filter: C7CLAHE,
+                        source: MTLTexture,
+                        destination: MTLTexture,
+                        identifier: String) throws {
+        let commandBuffer = try XCTUnwrap(HarbethContext.shared.makeCommandBuffer())
+        _ = try filter.encode(commandBuffer: commandBuffer, textures: [destination, source])
+        try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
     }
 
     private func makeRGBA16FloatTexture(width: Int, pixels: [Float16]) throws -> MTLTexture {

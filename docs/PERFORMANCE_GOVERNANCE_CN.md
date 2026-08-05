@@ -56,6 +56,7 @@ Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜
 ```bash
 xcrun swift test --filter PerformanceBaselineTests
 xcrun swift test --filter RealtimeRouteBenchmarkTests
+xcrun swift test --filter CLAHEFilterTests
 ```
 
 这组 baseline 的定位不是给出固定门槛，而是保证后续每次优化都在同一批真实链路上回看趋势：
@@ -65,6 +66,12 @@ xcrun swift test --filter RealtimeRouteBenchmarkTests
 - geometry + sampler override
 - edit / layer composite / transition advanced routes
 - pixelBuffer / YCbCr bridge
+
+`CLAHEFilterTests/test4KHotPathReusesTemporaryBuffersWithinResourceAndPerformanceGate` 是一条
+与趋势型 baseline 分开的结构化门槛：在 `3840×2160`、`8×8` tile grid 下，warmup 后连续四次
+render 必须复用同一组 histogram / sample-count / LUT private buffer，不得新增临时 buffer；编码维持
+一个 clear、histogram、LUT、apply 共四个 encoder，且 hot-path p95 端到端时间低于 1 秒。它只防止
+明显的资源重复分配或不必要同步回归，不替代按设备记录的真实性能 benchmark。
 
 `RealtimeRouteBenchmarkTests` 额外记录五条实时交付路线的 cold first frame、60 Hz steady-state 端到端延迟、GPU duration、deadline、in-flight/backlog、stable/dropped frames、fallback 与 resident-memory delta。输入使用固定数量的环形 slot，不能让 benchmark 自身一次性常驻数百份像素数据并污染内存结果。
 
