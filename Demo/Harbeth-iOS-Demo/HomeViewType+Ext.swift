@@ -18,6 +18,9 @@ extension ViewControllerType {
         case .TextHEIC:
             let filter = C7Granularity(grain: 0.8)
             return (filter, nil, nil)
+        case .PageCurlShowcase:
+            let filter = C7Fade(intensity: 0)
+            return (filter, nil, nil)
         case .ColorInvert:
             let filter = C7ColorConvert(with: .invert)
             return (filter, nil, nil)
