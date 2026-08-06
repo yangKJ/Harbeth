@@ -1378,6 +1378,41 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(analysis.statistics, statistics)
     }
 
+    func testNodeRegionAnalysisBundlePreservesSelectionInputs() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 255, 255, 255]])
+        let node = ImageNode.texture(input)
+        let bundle = try node.makeAnalysisBundle(
+            profile: .readbackQuality,
+            bins: 4,
+            histogramHeight: 8,
+            region: MTLRegionMake2D(0, 0, 2, 1),
+            luminanceRange: TextureLuminanceRange(minimum: 0.9, maximum: 1.1),
+            preferredMethod: .cpuReadback
+        )
+
+        XCTAssertEqual(bundle.statistics?.sampleCount, 1)
+        XCTAssertEqual(bundle.histogram?.totalSampleCount, 1)
+        XCTAssertTrue(bundle.analysisScopeFingerprint?.contains("luminance=min=0.9000|max=1.1000") == true)
+    }
+
+    func testNodeAttachmentAnalysisHonorsExplicitHistogramChannel() throws {
+        let input = try makeTexture(width: 2, height: 1, pixels: [[0, 0, 0, 255], [255, 255, 255, 255]])
+        let node = ImageNode.texture(input).applying(filters: [C7Brightness(brightness: 0), RenderAuxiliaryLuminance()])
+        let analysis = try XCTUnwrap(
+            node.makeAttachmentAnalysis(
+                profile: .readbackQuality,
+                semantic: .luminance,
+                channel: .alpha,
+                bins: 4,
+                histogramHeight: 8,
+                preferredMethod: .cpuReadback
+            )
+        )
+
+        XCTAssertEqual(analysis.histogram?.channel, .alpha)
+        XCTAssertEqual(analysis.histogram?.bins, [0, 0, 0, 2])
+    }
+
     func testNodeRenderRequestKeepsAttachmentOutputsOptionalForNonRenderPath() throws {
         let input = try makeTexture(width: 1, height: 1, pixel: [32, 64, 96, 255])
         let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.1))

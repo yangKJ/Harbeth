@@ -154,6 +154,13 @@ output-contract texture、派生 mask 与 3D LUT 共享 `DerivedResourceCacheCon
 
 `renderImageScope(_:)` 的 accumulation 和 visualization 都在 GPU 上完成，适合预览检查。只有转换成 `CGImage` 时才产生 CPU readback。基准需要分别记录 GPU scope texture 路径与显式 readback 路径，不能混成一个数字。
 
+从 3.0 收口口径看，当前 scope 链路还包含这两条关键约束：
+
+- `TextureImageScopeConfiguration` 的 `normalizesDensity` 默认开启，`densityScale` 默认按 `source.width * source.height / (1920*1080)` 归一化，避免不同分辨率下 histogram-like 统计指标漂移。
+- `.rgbWaveform` 的 density 采样按 3 通道计数；`.luminanceWaveform` 按单通道计数。
+- `renderImageScope(_:)` 返回后可直接消费 GPU scope 纹理；`encodeImageScope(_:into:)` 则要求 source texture、command buffer 与 `HarbethContext` 使用同一 device，且 command buffer 满足 `retainedReferences == true`、未提交、仍可编码，这样可以与同帧其它 GPU 工序一次提交。
+- `renderImageScope(_:)` 仍会 `commitAndWaitUntilCompleted` 后返回可立即消费的纹理；`encodeImageScope(_:into:)` 只编码、不提交也不等待。profile 里要把两种路径分开计量。
+
 仓库当前还补了两类执行证据：
 
 - `RenderGraphTests/testExecutionPrewarmReservationsIncreaseTextureReuseForBoundaryChain`
@@ -287,6 +294,12 @@ let filters: [C7FilterProtocol] = [
 - `renderHistogram(...)`
 - `renderAttachmentSet(...)`
 - `renderAttachmentAnalysisBundle(...)`
+
+补充规则：
+
+- `renderAnalysisBundle(...)` 会复用一次 CPU readback，覆盖 histogram / statistics / colorProbe。
+- `renderHistogram`、`renderStatistics`、`renderColorProbe` 及 attachment 单项查询是独立路径，不会隐式构建完整 bundle。
+- `GPUHistogramBackend.makeHistogram` 与 `makeRenderedHistogramAttachment` 执行后会等待 `commandBuffer` 完成后再回填 CPU 结果，读回和 GPU 阶段要分开计时。
 
 ## 优化方向
 

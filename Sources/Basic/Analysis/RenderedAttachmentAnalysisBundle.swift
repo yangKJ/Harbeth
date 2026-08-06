@@ -18,6 +18,7 @@ public struct RenderedAttachmentAnalysisSummary: Sendable, Codable, Equatable, H
     public let histogramBinCount: Int
     public let histogramPeakCount: UInt32?
     public let histogramTotalSampleCount: Int?
+    public let histogramBinsFingerprint: String?
     public let statisticsSampleCount: Int?
     public let meanRed: Float?
     public let meanGreen: Float?
@@ -36,6 +37,7 @@ public struct RenderedAttachmentAnalysisSummary: Sendable, Codable, Equatable, H
          histogramBinCount: Int,
          histogramPeakCount: UInt32?,
          histogramTotalSampleCount: Int?,
+         histogramBinsFingerprint: String?,
          statisticsSampleCount: Int?,
          meanRed: Float?,
          meanGreen: Float?,
@@ -53,6 +55,7 @@ public struct RenderedAttachmentAnalysisSummary: Sendable, Codable, Equatable, H
         self.histogramBinCount = histogramBinCount
         self.histogramPeakCount = histogramPeakCount
         self.histogramTotalSampleCount = histogramTotalSampleCount
+        self.histogramBinsFingerprint = histogramBinsFingerprint
         self.statisticsSampleCount = statisticsSampleCount
         self.meanRed = meanRed
         self.meanGreen = meanGreen
@@ -72,8 +75,12 @@ public struct RenderedAttachmentAnalysisSummary: Sendable, Codable, Equatable, H
             "debug=\(debugPolicy.label)",
             "histogramChannel=\(histogramChannel?.rawValue ?? "none")",
             "histogramBins=\(histogramBinCount)",
+            "histogramPeak=\(histogramPeakCount.map(String.init) ?? "none")",
             "histogramSamples=\(histogramTotalSampleCount.map(String.init) ?? "none")",
+            "histogramValues=\(histogramBinsFingerprint ?? "none")",
             "statisticsSamples=\(statisticsSampleCount.map(String.init) ?? "none")",
+            "mean=\(analysisSummaryValue(meanRed)),\(analysisSummaryValue(meanGreen)),\(analysisSummaryValue(meanBlue)),\(analysisSummaryValue(meanAlpha))",
+            "luminance=\(analysisSummaryValue(meanLuminance)),\(analysisSummaryValue(minimumLuminance)),\(analysisSummaryValue(maximumLuminance))",
             "histogramAttachment=\(hasHistogramAttachment ? 1 : 0)"
         ].joined(separator: "|")
     }
@@ -164,6 +171,7 @@ public struct RenderedAttachmentAnalysis: @unchecked Sendable {
             histogramBinCount: histogram?.binCount ?? 0,
             histogramPeakCount: histogram?.peakCount,
             histogramTotalSampleCount: histogram?.totalSampleCount,
+            histogramBinsFingerprint: histogram.map { stableHistogramFingerprint($0.bins) },
             statisticsSampleCount: statistics?.sampleCount,
             meanRed: statistics?.meanRed,
             meanGreen: statistics?.meanGreen,
@@ -175,6 +183,25 @@ public struct RenderedAttachmentAnalysis: @unchecked Sendable {
             hasHistogramAttachment: histogramAttachment != nil
         )
     }
+}
+
+private func stableHistogramFingerprint(_ bins: [UInt32]) -> String {
+    var hash: UInt64 = 1469598103934665603
+    for value in bins {
+        var littleEndian = value.littleEndian
+        withUnsafeBytes(of: &littleEndian) { bytes in
+            for byte in bytes {
+                hash ^= UInt64(byte)
+                hash &*= 1099511628211
+            }
+        }
+    }
+    return String(hash, radix: 16)
+}
+
+private func analysisSummaryValue(_ value: Float?) -> String {
+    guard let value else { return "none" }
+    return String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
 }
 
 /// 一次 MRT render 的轻量分析导出集合。
@@ -249,6 +276,7 @@ extension RenderedAttachmentSet {
             luminanceRange: scope.luminanceRange,
             colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
+            valueRange: scope.valueRange,
             preferredMethod: preferredMethod
         )
     }
@@ -262,44 +290,71 @@ extension RenderedAttachmentSet {
                       luminanceRange: TextureLuminanceRange? = nil,
                       colorRange: TextureColorRange? = nil,
                       coverageThreshold: Float = 0.5,
+                      valueRange: TextureAnalysisValueRange = .normalized,
                       preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysis? {
         guard let attachment = attachment(for: semantic) else { return nil }
         let resolvedChannel = channel ?? attachment.defaultHistogramChannel
-        let statistics = attachment.makeStatistics(
-            region: region,
-            mask: mask,
-            luminanceRange: luminanceRange,
-            colorRange: colorRange,
-            coverageThreshold: coverageThreshold
-        )
-        let colorProbe = attachment.makeColorProbe(
-            region: region,
-            mask: mask,
-            luminanceRange: luminanceRange,
-            colorRange: colorRange,
-            coverageThreshold: coverageThreshold
-        )
-        let histogramAttachment = attachment.texture.c7.renderHistogramAttachment(
-            channel: resolvedChannel,
-            bins: bins,
-            height: histogramHeight,
-            region: region,
-            mask: mask,
-            luminanceRange: luminanceRange,
-            colorRange: colorRange,
-            coverageThreshold: coverageThreshold,
-            preferredMethod: preferredMethod
-        )
-        let histogram = histogramAttachment?.histogram ?? attachment.makeHistogram(
-            channel: resolvedChannel,
-            bins: bins,
-            region: region,
-            mask: mask,
-            luminanceRange: luminanceRange,
-            colorRange: colorRange,
-            coverageThreshold: coverageThreshold,
-            preferredMethod: preferredMethod
-        )
+        let texture = attachment.texture.c7
+        let readback = TextureAnalysisReadback(texture: attachment.texture)
+        let maskSample = texture.makeMaskCoverageSample(for: mask)
+        let statistics = readback.flatMap {
+            texture.makeStatistics(
+                readback: $0,
+                region: region,
+                maskSample: maskSample,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
+                coverageThreshold: coverageThreshold
+            )
+        }
+        let colorProbe = attachment.texture.c7.resolvedHistogramRegion(region).flatMap { resolvedRegion in
+            statistics.map { TextureColorProbe(region: resolvedRegion, statistics: $0) }
+        }
+        let requiresCPUHistogram = preferredMethod == .cpuReadback || mask != nil || luminanceRange != nil || colorRange != nil
+        let histogram: TextureHistogram?
+        let histogramAttachment: RenderedHistogramAttachment?
+        if requiresCPUHistogram, let readback {
+            histogram = texture.makeCPUHistogram(
+                readback: readback,
+                maskSample: maskSample,
+                channel: resolvedChannel,
+                bins: bins,
+                region: region,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
+                coverageThreshold: coverageThreshold,
+                valueRange: valueRange
+            )
+            histogramAttachment = histogram.flatMap { histogram in
+                texture.makePreviewTexture(from: histogram, height: histogramHeight).map { previewTexture in
+                    RenderedHistogramAttachment(
+                        histogram: histogram,
+                        attachment: RenderedAttachment(
+                            index: 1,
+                            semantic: .histogram,
+                            texture: previewTexture,
+                            debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy
+                        )
+                    )
+                }
+            }
+        } else {
+            histogramAttachment = texture.renderHistogramAttachment(
+                channel: resolvedChannel,
+                bins: bins,
+                height: histogramHeight,
+                region: region,
+                valueRange: valueRange,
+                preferredMethod: preferredMethod
+            )
+            histogram = histogramAttachment?.histogram ?? attachment.makeHistogram(
+                channel: resolvedChannel,
+                bins: bins,
+                region: region,
+                valueRange: valueRange,
+                preferredMethod: preferredMethod
+            )
+        }
         return RenderedAttachmentAnalysis(
             attachment: attachment,
             histogram: histogram,
@@ -316,6 +371,7 @@ extension RenderedAttachmentSet {
                             luminanceRange: TextureLuminanceRange? = nil,
                             colorRange: TextureColorRange? = nil,
                             coverageThreshold: Float = 0.5,
+                            valueRange: TextureAnalysisValueRange = .normalized,
                             preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysisBundle {
         let analyses = attachments.compactMap { attachment in
             makeAnalysis(
@@ -328,6 +384,7 @@ extension RenderedAttachmentSet {
                 luminanceRange: luminanceRange,
                 colorRange: colorRange,
                 coverageThreshold: coverageThreshold,
+                valueRange: valueRange,
                 preferredMethod: preferredMethod
             )
         }
@@ -339,7 +396,8 @@ extension RenderedAttachmentSet {
                 mask: mask,
                 luminanceRange: luminanceRange,
                 colorRange: colorRange,
-                coverageThreshold: coverageThreshold
+                coverageThreshold: coverageThreshold,
+                valueRange: valueRange
             ).fingerprint
         )
     }
@@ -376,6 +434,7 @@ public extension RenderProtocol {
                                         luminanceRange: TextureLuminanceRange? = nil,
                                         colorRange: TextureColorRange? = nil,
                                         coverageThreshold: Float = 0.5,
+                                        valueRange: TextureAnalysisValueRange = .normalized,
                                         preferredMethod: TextureHistogramComputationMethod = .gpuMPS) throws -> RenderedAttachmentAnalysisBundle {
         try renderAttachmentSet(
             from: sourceTexture,
@@ -388,6 +447,7 @@ public extension RenderProtocol {
             luminanceRange: luminanceRange,
             colorRange: colorRange,
             coverageThreshold: coverageThreshold,
+            valueRange: valueRange,
             preferredMethod: preferredMethod
         )
     }
@@ -408,6 +468,7 @@ public extension RenderProtocol {
             luminanceRange: scope.luminanceRange,
             colorRange: scope.colorRange,
             coverageThreshold: scope.coverageThreshold,
+            valueRange: scope.valueRange,
             preferredMethod: preferredMethod
         )
     }

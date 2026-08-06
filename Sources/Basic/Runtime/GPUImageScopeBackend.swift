@@ -10,6 +10,35 @@ import Metal
 
 enum GPUImageScopeBackend {
     static func render(texture: MTLTexture, configuration: TextureImageScopeConfiguration) throws -> RenderedTextureImageScope {
+        guard texture.device === HarbethContext.shared.device,
+              let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
+            throw HarbethError.configurationInvalid("Image scope requires the Harbeth context Metal device.")
+        }
+        let result = try encode(texture: texture, configuration: configuration, into: commandBuffer)
+        do {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "GPUImageScope.\(configuration.kind.rawValue)")
+            return result
+        } catch {
+            HarbethContext.shared.texturePool.enqueueTextureSync(result.texture)
+            throw error
+        }
+    }
+
+    static func encode(
+        texture: MTLTexture,
+        configuration: TextureImageScopeConfiguration,
+        into commandBuffer: MTLCommandBuffer
+    ) throws -> RenderedTextureImageScope {
+        guard texture.device === HarbethContext.shared.device,
+              commandBuffer.device === HarbethContext.shared.device else {
+            throw HarbethError.configurationInvalid("Image scope requires source texture, output texture, command buffer, and Harbeth context to share one Metal device.")
+        }
+        guard commandBuffer.retainedReferences else {
+            throw HarbethError.configurationInvalid("Image scope requires a command buffer that retains encoded resources.")
+        }
+        guard commandBuffer.status == .notEnqueued else {
+            throw HarbethError.configurationInvalid("Image scope requires a command buffer that still accepts encoding.")
+        }
         let outputPixelFormat = configuration.pixelFormat.metalPixelFormat ?? .rgba16Float
         let outputTexture = try TextureLoader.makeTexture(
             width: configuration.width,
@@ -21,11 +50,10 @@ enum GPUImageScopeBackend {
             identifier: "GPUImageScope.\(configuration.kind.rawValue)"
         )
         do {
-            let densityCount = configuration.width * configuration.height * 4
+            let densityChannelCount = configuration.kind == .rgbWaveform ? 3 : 1
+            let densityCount = configuration.width * configuration.height * densityChannelCount
             let densityLength = densityCount * MemoryLayout<UInt32>.stride
             guard let densityBuffer = texture.device.makeBuffer(length: densityLength, options: .storageModeShared),
-                  let commandQueue = texture.device.makeCommandQueue(),
-                  let commandBuffer = commandQueue.makeCommandBuffer(),
                   let encoder = commandBuffer.makeComputeCommandEncoder() else {
                 throw HarbethError.commandBuffer
             }
@@ -39,9 +67,13 @@ enum GPUImageScopeBackend {
                 scopeHeight: UInt32(configuration.height),
                 sourceWidth: UInt32(texture.width),
                 sourceHeight: UInt32(texture.height),
+                densityChannelCount: UInt32(densityChannelCount),
                 intensity: configuration.intensity,
-                reserved0: 0,
-                reserved1: 0
+                densityScale: configuration.normalizesDensity
+                    ? max(Float(texture.width * texture.height) / Float(1920 * 1080), 0.000001)
+                    : 1,
+                valueMinimum: configuration.valueRange.minimum,
+                valueMaximum: configuration.valueRange.maximum
             )
 
             encoder.label = "Harbeth.GPUImageScope.\(configuration.kind.rawValue)"
@@ -63,7 +95,6 @@ enum GPUImageScopeBackend {
                 height: configuration.height
             )
             encoder.endEncoding()
-            try commandBuffer.commitAndWaitUntilCompleted(identifier: "GPUImageScope.\(configuration.kind.rawValue)")
         } catch {
             HarbethContext.shared.texturePool.enqueueTextureSync(outputTexture)
             throw error
@@ -109,9 +140,11 @@ private struct ImageScopeParameters {
     let scopeHeight: UInt32
     let sourceWidth: UInt32
     let sourceHeight: UInt32
+    let densityChannelCount: UInt32
     let intensity: Float
-    let reserved0: UInt32
-    let reserved1: UInt32
+    let densityScale: Float
+    let valueMinimum: Float
+    let valueMaximum: Float
 }
 
 private extension TextureImageScopeKind {

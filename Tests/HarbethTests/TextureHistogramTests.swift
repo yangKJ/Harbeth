@@ -482,6 +482,128 @@ final class TextureHistogramTests: XCTestCase {
         XCTAssertEqual(probe.meanColor8.z, 0)
     }
 
+    func testTextureAnalysisValueRangeAffectsHistogramBinning() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeTexture(
+            width: 3,
+            height: 1,
+            bytes: [
+                0, 0, 0, 255,
+                128, 128, 128, 255,
+                64, 64, 64, 255
+            ]
+        )
+        let defaultHistogram = try XCTUnwrap(
+            texture.c7.makeHistogram(
+                channel: .red,
+                bins: 4
+            )
+        )
+        let narrowRangeHistogram = try XCTUnwrap(
+            texture.c7.makeHistogram(
+                channel: .red,
+                bins: 4,
+                valueRange: TextureAnalysisValueRange(minimum: 0.3, maximum: 0.6)
+            )
+        )
+
+        XCTAssertEqual(defaultHistogram.totalSampleCount, 3)
+        XCTAssertEqual(defaultHistogram.bins, [1, 1, 1, 0])
+        XCTAssertEqual(narrowRangeHistogram.totalSampleCount, 3)
+        XCTAssertEqual(narrowRangeHistogram.bins, [2, 0, 1, 0])
+        XCTAssertNotEqual(defaultHistogram.valueRange, narrowRangeHistogram.valueRange)
+    }
+
+    func testTextureAnalysisScopeFingerprintTracksValueRange() {
+        let base = TextureAnalysisScope(valueRange: TextureAnalysisValueRange(minimum: 0.2, maximum: 0.8))
+        let same = TextureAnalysisScope(valueRange: TextureAnalysisValueRange(minimum: 0.2, maximum: 0.8))
+        let changed = TextureAnalysisScope(valueRange: TextureAnalysisValueRange(minimum: 0.4, maximum: 0.6))
+
+        XCTAssertEqual(base, same)
+        XCTAssertEqual(base.fingerprint, same.fingerprint)
+        XCTAssertNotEqual(base.fingerprint, changed.fingerprint)
+        XCTAssertTrue(base.fingerprint.contains("valueRange=min=0.2000|max=0.8000"))
+        XCTAssertEqual(base.valueRange, TextureAnalysisValueRange(minimum: 0.2, maximum: 0.8))
+    }
+
+    func testR16FloatTextureHistogramCanRestrictToValueRange() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let texture = try makeFloatTexture(
+            width: 3,
+            height: 1,
+            values: [
+                Float16(0.0),
+                Float16(0.2),
+                Float16(0.8)
+            ]
+        )
+        let defaultHistogram = try XCTUnwrap(
+            texture.c7.makeHistogram(
+                channel: .red,
+                bins: 4
+            )
+        )
+        let narrowRangeHistogram = try XCTUnwrap(
+            texture.c7.makeHistogram(
+                channel: .red,
+                bins: 4,
+                valueRange: TextureAnalysisValueRange(minimum: 0.3, maximum: 0.6)
+            )
+        )
+
+        XCTAssertEqual(defaultHistogram.totalSampleCount, 3)
+        XCTAssertEqual(defaultHistogram.bins, [1, 1, 1, 0])
+        XCTAssertEqual(narrowRangeHistogram.totalSampleCount, 3)
+        XCTAssertEqual(narrowRangeHistogram.bins, [2, 0, 0, 1])
+        XCTAssertEqual(defaultHistogram.valueRange, .normalized)
+        XCTAssertEqual(narrowRangeHistogram.valueRange, TextureAnalysisValueRange(minimum: 0.3, maximum: 0.6))
+    }
+
+    func testFloatTextureStatisticsPreserveExtendedStorageValues() throws {
+        let device = MTLCreateSystemDefaultDevice()
+        try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
+
+        let scalar = try makeFloatTexture(width: 2, height: 1, values: [Float16(0.5), Float16(2.0)])
+        let scalarStatistics = try XCTUnwrap(scalar.c7.makeStatistics())
+
+        XCTAssertEqual(scalarStatistics.pixelFormat.metalPixelFormat, .r16Float)
+        XCTAssertEqual(scalarStatistics.componentDomain, .textureStorage)
+        XCTAssertEqual(scalarStatistics.meanRed, 1.25, accuracy: 0.001)
+        XCTAssertEqual(scalarStatistics.meanGreen, 1.25, accuracy: 0.001)
+        XCTAssertEqual(scalarStatistics.meanBlue, 1.25, accuracy: 0.001)
+        XCTAssertEqual(scalarStatistics.meanAlpha, 1, accuracy: 0.001)
+        XCTAssertEqual(scalarStatistics.maximumLuminance, 2, accuracy: 0.001)
+
+        let rgba = try makeRGBA16FloatTexture(
+            width: 2,
+            height: 1,
+            values: [
+                SIMD4<Float16>(2, 1, 0.5, 1),
+                SIMD4<Float16>(4, 2, 1, 0.5)
+            ]
+        )
+        let statistics = try XCTUnwrap(rgba.c7.makeStatistics())
+        let histogram = try XCTUnwrap(
+            rgba.c7.makeHistogram(
+                channel: .red,
+                bins: 5,
+                valueRange: TextureAnalysisValueRange(minimum: 0, maximum: 4)
+            )
+        )
+
+        XCTAssertEqual(statistics.pixelFormat.metalPixelFormat, .rgba16Float)
+        XCTAssertEqual(statistics.meanRed, 3, accuracy: 0.001)
+        XCTAssertEqual(statistics.meanGreen, 1.5, accuracy: 0.001)
+        XCTAssertEqual(statistics.meanBlue, 0.75, accuracy: 0.001)
+        XCTAssertEqual(statistics.meanAlpha, 0.75, accuracy: 0.001)
+        XCTAssertEqual(histogram.pixelFormat.metalPixelFormat, .rgba16Float)
+        XCTAssertEqual(histogram.bins, [0, 0, 1, 0, 1])
+    }
+
     func testHarbethIOAnalysisBundleCanRestrictToToneBandScope() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -1037,6 +1159,48 @@ final class TextureHistogramTests: XCTestCase {
             bytes: bytes,
             packedBytesPerRow: width * 4
         )
+        return texture
+    }
+
+    private func makeFloatTexture(width: Int, height: Int, values: [Float16]) throws -> MTLTexture {
+        let texture = try TextureLoader.makeTexture(
+            width: width,
+            height: height,
+            options: [
+                .texturePixelFormat: MTLPixelFormat.r16Float,
+                .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
+            ],
+            identifier: "TextureHistogramTests"
+        )
+        values.withUnsafeBytes { bytes in
+            texture.replace(
+                region: MTLRegionMake2D(0, 0, width, height),
+                mipmapLevel: 0,
+                withBytes: bytes.baseAddress!,
+                bytesPerRow: width * MemoryLayout<Float16>.stride
+            )
+        }
+        return texture
+    }
+
+    private func makeRGBA16FloatTexture(width: Int, height: Int, values: [SIMD4<Float16>]) throws -> MTLTexture {
+        let texture = try TextureLoader.makeTexture(
+            width: width,
+            height: height,
+            options: [
+                .texturePixelFormat: MTLPixelFormat.rgba16Float,
+                .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite, .renderTarget])
+            ],
+            identifier: "TextureHistogramTests.RGBA16Float"
+        )
+        values.withUnsafeBytes { bytes in
+            texture.replace(
+                region: MTLRegionMake2D(0, 0, width, height),
+                mipmapLevel: 0,
+                withBytes: bytes.baseAddress!,
+                bytesPerRow: width * MemoryLayout<SIMD4<Float16>>.stride
+            )
+        }
         return texture
     }
 }

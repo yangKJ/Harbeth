@@ -433,13 +433,15 @@ struct ImageScopeParameters {
     uint scopeHeight;
     uint sourceWidth;
     uint sourceHeight;
+    uint densityChannelCount;
     float intensity;
-    uint reserved0;
-    uint reserved1;
+    float densityScale;
+    float valueMinimum;
+    float valueMaximum;
 };
 
 static inline uint imageScopeDensityIndex(uint x, uint y, uint channel, constant ImageScopeParameters &params) {
-    return ((y * params.scopeWidth + x) * 4u) + channel;
+    return ((y * params.scopeWidth + x) * params.densityChannelCount) + channel;
 }
 
 kernel void imageScopeAccumulateKernel(
@@ -452,7 +454,8 @@ kernel void imageScopeAccumulateKernel(
         return;
     }
 
-    const float3 rgb = clamp(float3(inputTexture.read(gid).rgb), 0.0f, 1.0f);
+    const float valueSpan = max(params.valueMaximum - params.valueMinimum, 0.000001f);
+    const float3 rgb = clamp((float3(inputTexture.read(gid).rgb) - params.valueMinimum) / valueSpan, 0.0f, 1.0f);
     if (params.kind <= 1u) {
         const uint scopeX = min(uint(float(gid.x) / max(float(params.sourceWidth - 1u), 1.0f) * float(params.scopeWidth - 1u)), params.scopeWidth - 1u);
         if (params.kind == 0u) {
@@ -489,11 +492,11 @@ kernel void imageScopeVisualizationKernel(
     const uint baseIndex = imageScopeDensityIndex(gid.x, gid.y, 0u, params);
     float3 color = float3(0.0f);
     if (params.kind == 1u) {
-        color.r = 1.0f - exp(-float(densityBuffer[baseIndex]) * params.intensity);
-        color.g = 1.0f - exp(-float(densityBuffer[baseIndex + 1u]) * params.intensity);
-        color.b = 1.0f - exp(-float(densityBuffer[baseIndex + 2u]) * params.intensity);
+        color.r = 1.0f - exp(-(float(densityBuffer[baseIndex]) / params.densityScale) * params.intensity);
+        color.g = 1.0f - exp(-(float(densityBuffer[baseIndex + 1u]) / params.densityScale) * params.intensity);
+        color.b = 1.0f - exp(-(float(densityBuffer[baseIndex + 2u]) / params.densityScale) * params.intensity);
     } else {
-        const float density = 1.0f - exp(-float(densityBuffer[baseIndex]) * params.intensity);
+        const float density = 1.0f - exp(-(float(densityBuffer[baseIndex]) / params.densityScale) * params.intensity);
         if (params.kind == 2u) {
             const float cb = float(gid.x) / max(float(params.scopeWidth - 1u), 1.0f) - 0.5f;
             const float cr = 0.5f - float(gid.y) / max(float(params.scopeHeight - 1u), 1.0f);

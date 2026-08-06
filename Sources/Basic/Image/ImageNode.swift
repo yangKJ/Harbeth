@@ -849,12 +849,18 @@ extension ImageNode {
         preferredMethod: TextureHistogramComputationMethod = .gpuMPS
     ) throws -> RenderedAnalysisBundle {
         let frame = try makeFrame(profile: profile, derivative: derivative)
-        return RenderedAnalysisBundle.makeRegionBundle(
+        return RenderedAnalysisBundle.makeScopeBundle(
             frame: frame,
             channel: channel,
             bins: bins,
             histogramHeight: histogramHeight,
-            region: region,
+            scope: TextureAnalysisScope(
+                region: region,
+                mask: mask,
+                luminanceRange: luminanceRange,
+                colorRange: colorRange,
+                coverageThreshold: coverageThreshold
+            ),
             preferredMethod: preferredMethod,
             attachmentDebugPolicies: [RenderOutputAttachmentContract(index: 0).debugPolicy]
         )
@@ -1006,13 +1012,14 @@ extension ImageNode {
         region: MTLRegion? = nil,
         preferredMethod: TextureHistogramComputationMethod = .gpuMPS
     ) throws -> RenderedAttachmentAnalysis? {
-        try makeAttachmentAnalysisBundle(
-            profile: profile,
+        try makeAttachmentSet(profile: profile)?.makeAnalysis(
+            for: semantic,
+            channel: channel,
             bins: bins,
             histogramHeight: histogramHeight,
             region: region,
             preferredMethod: preferredMethod
-        )?.analysis(for: semantic)
+        )
     }
 
     public func makeAttachmentAnalysis(
@@ -1024,13 +1031,14 @@ extension ImageNode {
         scope: TextureAnalysisScope,
         preferredMethod: TextureHistogramComputationMethod = .gpuMPS
     ) throws -> RenderedAttachmentAnalysis? {
-        try makeAttachmentAnalysisBundle(
-            profile: profile,
+        try makeAttachmentSet(profile: profile)?.makeAnalysis(
+            for: semantic,
+            channel: channel,
             bins: bins,
             histogramHeight: histogramHeight,
             scope: scope,
             preferredMethod: preferredMethod
-        )?.analysis(for: semantic)
+        )
     }
 
     public func makeAttachmentHistogram(

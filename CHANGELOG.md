@@ -10,6 +10,11 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 ### 2026-08-06
 
+#### Added
+
+- Added `TextureAnalysisValueRange` so histogram and image-scope callers can explicitly map HDR/EDR storage values without implicit tone mapping or transfer-function decoding.
+- Added `encodeImageScope(_:into:)` for composing scope generation into a caller-owned Metal command buffer without submission or waiting.
+
 #### Changed
 
 - Kept `C7` for established platform adapters, geometry primitives and filter-development contracts, while removing it from unrelated public Metal capability and filter-configuration types. Use `MetalCapability`, `MetalCapabilityStatus`, `MetalCapabilityReport`, `DisplacementEncoding`, `DisplacementUnit`, `SceneLightKind`, `SceneLightDescriptor`, `SceneRelightDescriptor` and `SceneRelightDescriptorError`.
@@ -19,8 +24,13 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 - Kept `HarbethIO.mirrored` public as the legacy explicit CIImage orientation correction; it is not an execution policy and has no replacement source-orientation contract yet.
 - Replaced the broad advanced-Metal abstraction with `C7MetalCommandEncodingProtocol`, an opaque command-encoding escape hatch used only when standard filters and `C7FilterPipelineProtocol` cannot express the resource graph. External libraries and function constants now remain on ordinary Compute filters, including `C7ProgrammableBlend` and `LayerProgrammableBlend` without a capability parameter.
 - Added `FilterDestinationTextureContract` and `DestinationTextureAliasingPolicy` to the common filter contract so Compute, Render, MPS, Blit and Metal-command filters can declare destination usage, storage mode and aliasing without changing execution category.
+- Expanded CPU analysis readback to normalized 8-bit and `r` / `rg` / `rgba` 16-bit and 32-bit floating-point textures while preserving texture-storage component semantics.
+- Reused Analysis readback work inside frame and attachment bundles, kept single-metric `RenderRequest` calls selective, reused the shared execution queue where possible, and normalized GPU scope density against a 1080p reference.
 
 #### Fixed
+
+- Fixed `ImageNode.makeAnalysisBundle` dropping mask, luminance, color-range and coverage inputs, and fixed `makeAttachmentAnalysis` ignoring an explicitly selected histogram channel.
+- Fixed attachment-analysis summary fingerprints omitting histogram contents and statistic values.
 
 - Preserved `transmitOutputRealTimeCommit` as the single public real-time submission switch while restoring its original texture-first meaning: enabled asynchronous texture output is delivered after command-buffer scheduling, while the default waits for GPU completion.
 - Kept synchronous output and CPU-materialized image, pixel-buffer and sample-buffer results completion-safe even when real-time texture delivery is enabled.

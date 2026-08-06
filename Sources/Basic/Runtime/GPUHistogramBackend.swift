@@ -14,16 +14,21 @@ import simd
 /// Internal GPU backend for histogram computation and preview generation.
 enum GPUHistogramBackend {
 
-    static func makeHistogram(from texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, region: MTLRegion? = nil) -> TextureHistogram? {
-        makeHistogramArtifacts(from: texture, channel: channel, bins: bins, region: region).histogram
+    static func makeHistogram(from texture: MTLTexture,
+                              channel: TextureHistogramChannel,
+                              bins: Int,
+                              region: MTLRegion? = nil,
+                              valueRange: TextureAnalysisValueRange = .normalized) -> TextureHistogram? {
+        makeHistogramArtifacts(from: texture, channel: channel, bins: bins, region: region, valueRange: valueRange).histogram
     }
 
     static func makeRenderedHistogramAttachment(from texture: MTLTexture,
                                                 channel: TextureHistogramChannel,
                                                 bins: Int,
                                                 height: Int,
-                                                region: MTLRegion? = nil) -> RenderedHistogramAttachment? {
-        let artifacts = makeHistogramArtifacts(from: texture, channel: channel, bins: bins, region: region)
+                                                region: MTLRegion? = nil,
+                                                valueRange: TextureAnalysisValueRange = .normalized) -> RenderedHistogramAttachment? {
+        let artifacts = makeHistogramArtifacts(from: texture, channel: channel, bins: bins, region: region, valueRange: valueRange)
         guard let histogram = artifacts.histogram,
               let histogramBuffer = artifacts.buffer,
               let previewTexture = makePreviewTexture(
@@ -46,7 +51,11 @@ enum GPUHistogramBackend {
         )
     }
 
-    private static func makeHistogramArtifacts(from texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, region: MTLRegion?) -> HistogramArtifacts {
+    private static func makeHistogramArtifacts(from texture: MTLTexture,
+                                               channel: TextureHistogramChannel,
+                                               bins: Int,
+                                               region: MTLRegion?,
+                                               valueRange: TextureAnalysisValueRange) -> HistogramArtifacts {
         let clampedBins = max(1, bins)
         guard let resolvedRegion = resolvedRegion(region, for: texture) else {
             return HistogramArtifacts(texture: texture, histogram: nil, buffer: nil, resolvedChannel: channel, sampleCount: 0)
@@ -66,8 +75,8 @@ enum GPUHistogramBackend {
         var histogramInfo = MPSImageHistogramInfo(
             numberOfHistogramEntries: clampedBins,
             histogramForAlpha: true,
-            minPixelValue: vector_float4(0, 0, 0, 0),
-            maxPixelValue: vector_float4(1, 1, 1, 1)
+            minPixelValue: vector_float4(repeating: valueRange.minimum),
+            maxPixelValue: vector_float4(repeating: valueRange.maximum)
         )
         let histogram = MPSImageHistogram(device: source.texture.device, histogramInfo: &histogramInfo)
         histogram.zeroHistogram = true
@@ -76,8 +85,7 @@ enum GPUHistogramBackend {
         let bufferLength = histogram.histogramSize(forSourceFormat: source.texture.pixelFormat)
         guard bufferLength >= clampedBins * 4 * MemoryLayout<UInt32>.stride,
               let histogramBuffer = source.texture.device.makeBuffer(length: bufferLength, options: .storageModeShared),
-              let commandQueue = source.texture.device.makeCommandQueue(),
-              let commandBuffer = commandQueue.makeCommandBuffer() else {
+              let commandBuffer = makeCommandBuffer(device: source.texture.device) else {
             return HistogramArtifacts(texture: source.texture, histogram: nil, buffer: nil, resolvedChannel: source.resolvedChannel, sampleCount: 0)
         }
 
@@ -87,8 +95,11 @@ enum GPUHistogramBackend {
             histogram: histogramBuffer,
             histogramOffset: 0
         )
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
+        do {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "GPUHistogram")
+        } catch {
+            return HistogramArtifacts(texture: source.texture, histogram: nil, buffer: nil, resolvedChannel: source.resolvedChannel, sampleCount: 0)
+        }
 
         let channelIndex = source.resolvedChannel.channelIndex
         let stride = clampedBins
@@ -101,7 +112,9 @@ enum GPUHistogramBackend {
             histogram: TextureHistogram(
                 channel: channel,
                 bins: counts,
-                totalSampleCount: resolvedRegion.size.width * resolvedRegion.size.height
+                totalSampleCount: resolvedRegion.size.width * resolvedRegion.size.height,
+                valueRange: valueRange,
+                pixelFormat: PixelFormatContract(pixelFormat: texture.pixelFormat, preservesInput: false)
             ),
             buffer: histogramBuffer,
             resolvedChannel: source.resolvedChannel,
@@ -137,8 +150,7 @@ enum GPUHistogramBackend {
             ],
             identifier: "GPUHistogram.preview"
         ),
-        let commandQueue = device.makeCommandQueue(),
-        let commandBuffer = commandQueue.makeCommandBuffer(),
+        let commandBuffer = makeCommandBuffer(device: device),
         let computeEncoder = commandBuffer.makeComputeCommandEncoder(),
         let pipeline = try? Compute.makeComputePipelineState(with: "histogramPreviewKernel") else {
             return nil
@@ -166,8 +178,11 @@ enum GPUHistogramBackend {
         )
         computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
         computeEncoder.endEncoding()
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
+        do {
+            try commandBuffer.commitAndWaitUntilCompleted(identifier: "GPUHistogram.preview")
+        } catch {
+            return nil
+        }
 
         return texture
     }
@@ -182,6 +197,11 @@ enum GPUHistogramBackend {
             return nil
         }
         return MTLRegionMake2D(originX, originY, width, height)
+    }
+
+    private static func makeCommandBuffer(device: MTLDevice) -> MTLCommandBuffer? {
+        guard device === HarbethContext.shared.device else { return nil }
+        return HarbethContext.shared.makeCommandBuffer()
     }
 }
 
@@ -223,7 +243,11 @@ private struct HistogramPreviewParameters {
 }
 #else
 enum GPUHistogramBackend {
-    static func makeHistogram(from texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, region: MTLRegion? = nil) -> TextureHistogram? {
+    static func makeHistogram(from texture: MTLTexture,
+                              channel: TextureHistogramChannel,
+                              bins: Int,
+                              region: MTLRegion? = nil,
+                              valueRange: TextureAnalysisValueRange = .normalized) -> TextureHistogram? {
         nil
     }
 
@@ -231,7 +255,8 @@ enum GPUHistogramBackend {
                                                 channel: TextureHistogramChannel,
                                                 bins: Int,
                                                 height: Int,
-                                                region: MTLRegion? = nil) -> RenderedHistogramAttachment? {
+                                                region: MTLRegion? = nil,
+                                                valueRange: TextureAnalysisValueRange = .normalized) -> RenderedHistogramAttachment? {
         nil
     }
 }

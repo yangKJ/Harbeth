@@ -36,6 +36,117 @@ final class TextureImageScopeTests: XCTestCase {
         XCTAssertTrue(bytes.enumerated().contains { $0.offset % 4 != 3 && $0.element > 0 })
     }
 
+    func testTextureImageScopeConfigurationTracksValueRange() {
+        let base = TextureImageScopeConfiguration(
+            kind: .luminanceWaveform,
+            width: 24,
+            height: 16,
+            intensity: 1,
+            pixelFormat: .rgba8Unorm,
+            valueRange: TextureAnalysisValueRange(minimum: 0.2, maximum: 0.8)
+        )
+        let same = TextureImageScopeConfiguration(
+            kind: .luminanceWaveform,
+            width: 24,
+            height: 16,
+            intensity: 1,
+            pixelFormat: .rgba8Unorm,
+            valueRange: TextureAnalysisValueRange(minimum: 0.2, maximum: 0.8)
+        )
+        let changed = TextureImageScopeConfiguration(
+            kind: .luminanceWaveform,
+            width: 24,
+            height: 16,
+            intensity: 1,
+            pixelFormat: .rgba8Unorm,
+            valueRange: TextureAnalysisValueRange(minimum: 0.4, maximum: 0.6)
+        )
+
+        XCTAssertEqual(base, same)
+        XCTAssertEqual(base.fingerprint, same.fingerprint)
+        XCTAssertNotEqual(base.fingerprint, changed.fingerprint)
+        XCTAssertTrue(base.fingerprint.contains("range=min=0.2000|max=0.8000"))
+    }
+
+    func testTextureImageScopeConfigurationDecodesLegacyPayloadWithStableDefaults() throws {
+        struct LegacyConfiguration: Codable {
+            let kind: TextureImageScopeKind
+            let width: Int
+            let height: Int
+            let intensity: Float
+            let pixelFormat: PixelFormatContract
+        }
+        let legacy = LegacyConfiguration(
+            kind: .vectorscope,
+            width: 32,
+            height: 24,
+            intensity: 0.2,
+            pixelFormat: .rgba8Unorm
+        )
+        let decoded = try JSONDecoder().decode(
+            TextureImageScopeConfiguration.self,
+            from: JSONEncoder().encode(legacy)
+        )
+
+        XCTAssertEqual(decoded.valueRange, .normalized)
+        XCTAssertTrue(decoded.normalizesDensity)
+        XCTAssertEqual(decoded.kind, .vectorscope)
+    }
+
+    func testRenderImageScopeRespondsToValueRange() throws {
+        let input = try makeTexture(
+            width: 2,
+            height: 1,
+            pixels: [
+                64, 64, 64, 255,
+                128, 128, 128, 255
+            ]
+        )
+        let defaultOutput = try input.c7.renderImageScope(
+            TextureImageScopeConfiguration(
+                kind: .luminanceWaveform,
+                width: 24,
+                height: 16,
+                pixelFormat: .rgba8Unorm,
+                valueRange: .normalized
+            )
+        )
+        let narrowRangeOutput = try input.c7.renderImageScope(
+            TextureImageScopeConfiguration(
+                kind: .luminanceWaveform,
+                width: 24,
+                height: 16,
+                pixelFormat: .rgba8Unorm,
+                valueRange: TextureAnalysisValueRange(minimum: 0.2, maximum: 0.3)
+            )
+        )
+
+        XCTAssertEqual(defaultOutput.attachment.semantic, .waveform)
+        XCTAssertNotEqual(
+            readRGBA8(defaultOutput.texture),
+            readRGBA8(narrowRangeOutput.texture)
+        )
+        XCTAssertNotEqual(defaultOutput.configuration.fingerprint, narrowRangeOutput.configuration.fingerprint)
+    }
+
+    func testImageScopeCanEncodeIntoCallerCommandBuffer() throws {
+        let input = try makeTexture(width: 1, height: 1, pixels: [255, 255, 255, 255])
+        guard let commandBuffer = input.device.makeCommandQueue()?.makeCommandBuffer() else {
+            throw XCTSkip("Could not create Metal command buffer.")
+        }
+        let output = try input.c7.encodeImageScope(
+            TextureImageScopeConfiguration(kind: .luminanceWaveform, width: 8, height: 8, pixelFormat: .rgba8Unorm),
+            into: commandBuffer
+        )
+
+        XCTAssertEqual(commandBuffer.status, .notEnqueued)
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        XCTAssertEqual(commandBuffer.status, .completed)
+        XCTAssertEqual(output.attachment.semantic, .waveform)
+        XCTAssertTrue(readRGBA8(output.texture).contains { $0 > 0 })
+    }
+
     func testRGBWaveformAndVectorscopeKeepDistinctSemantics() throws {
         let input = try makeTexture(
             width: 2,

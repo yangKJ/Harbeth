@@ -125,61 +125,46 @@ public struct RenderRequest {
                                 bins: Int = 256,
                                 region: MTLRegion? = nil,
                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
-        try renderAnalysisBundle(
+        try renderFrame().makeHistogram(
             channel: channel,
             bins: bins,
-            histogramHeight: 64,
             region: region,
             preferredMethod: preferredMethod
-        )?.histogram
+        )
     }
 
     public func renderHistogram(channel: TextureHistogramChannel = .luminance,
                                 bins: Int = 256,
                                 scope: TextureAnalysisScope,
                                 preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureHistogram? {
-        try renderAnalysisBundle(
+        try renderFrame().makeHistogram(
             channel: channel,
             bins: bins,
-            histogramHeight: 64,
             scope: scope,
             preferredMethod: preferredMethod
-        )?.histogram
+        )
     }
 
     public func renderStatistics(region: MTLRegion? = nil,
                                  preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureStatistics? {
-        try renderAnalysisBundle(
-            bins: 256,
-            histogramHeight: 64,
-            region: region,
-            preferredMethod: preferredMethod
-        )?.statistics
+        try renderFrame().makeStatistics(region: region)
     }
 
     public func renderStatistics(scope: TextureAnalysisScope,
                                  preferredMethod: TextureHistogramComputationMethod = .cpuReadback) throws -> TextureStatistics? {
-        try renderAnalysisBundle(
-            bins: 256,
-            histogramHeight: 64,
-            scope: scope,
-            preferredMethod: preferredMethod
-        )?.statistics
+        try renderFrame().makeStatistics(scope: scope)
     }
 
     public func renderColorProbe(region: MTLRegion? = nil) throws -> TextureColorProbe? {
-        try renderAnalysisBundle(region: region, preferredMethod: .cpuReadback)?.colorProbe
+        try renderFrame().makeColorProbe(region: region)
     }
 
     public func renderColorProbe(scope: TextureAnalysisScope) throws -> TextureColorProbe? {
-        try renderAnalysisBundle(scope: scope, preferredMethod: .cpuReadback)?.colorProbe
+        try renderFrame().makeColorProbe(scope: scope)
     }
 
     public func renderColorProbe(x: Int, y: Int, radius: Int = 0) throws -> TextureColorProbe? {
-        try renderAnalysisBundle(
-            scope: .point(x: x, y: y, radius: radius),
-            preferredMethod: .cpuReadback
-        )?.colorProbe
+        try renderFrame().makeColorProbe(x: x, y: y, radius: radius)
     }
 
     public func renderAttachmentSet() throws -> RenderedAttachmentSet? {

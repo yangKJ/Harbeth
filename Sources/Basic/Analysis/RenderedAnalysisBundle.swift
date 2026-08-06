@@ -71,28 +71,13 @@ extension RenderedAnalysisBundle {
         preferredMethod: TextureHistogramComputationMethod,
         attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
     ) -> RenderedAnalysisBundle {
-        let histogramAttachment = frame.renderHistogramAttachment(
-            channel: channel,
-            bins: bins,
-            height: histogramHeight,
-            region: region,
-            preferredMethod: preferredMethod
-        )
-        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-            channel: channel,
-            bins: bins,
-            region: region,
-            preferredMethod: preferredMethod
-        )
-        let statistics = frame.makeStatistics(region: region)
-        let colorProbe = frame.makeColorProbe(region: region)
-        return RenderedAnalysisBundle(
+        makeBundle(
             frame: frame,
-            histogram: histogram,
-            statistics: statistics,
-            colorProbe: colorProbe,
-            histogramAttachment: histogramAttachment,
-            analysisScopeFingerprint: TextureAnalysisScope(region: region).fingerprint,
+            channel: channel,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: TextureAnalysisScope(region: region),
+            preferredMethod: preferredMethod,
             attachmentDebugPolicies: attachmentDebugPolicies
         )
     }
@@ -111,21 +96,88 @@ extension RenderedAnalysisBundle {
         preferredMethod: TextureHistogramComputationMethod,
         attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
     ) -> RenderedAnalysisBundle {
-        let histogramAttachment = frame.renderHistogramAttachment(
+        makeBundle(
+            frame: frame,
             channel: channel,
             bins: bins,
-            height: histogramHeight,
+            histogramHeight: histogramHeight,
             scope: scope,
-            preferredMethod: preferredMethod
+            preferredMethod: preferredMethod,
+            attachmentDebugPolicies: attachmentDebugPolicies
         )
-        let histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-            channel: channel,
-            bins: bins,
-            scope: scope,
-            preferredMethod: preferredMethod
-        )
-        let statistics = frame.makeStatistics(scope: scope)
-        let colorProbe = frame.makeColorProbe(scope: scope)
+    }
+
+    private static func makeBundle(
+        frame: RenderedFrame,
+        channel: TextureHistogramChannel,
+        bins: Int,
+        histogramHeight: Int,
+        scope: TextureAnalysisScope,
+        preferredMethod: TextureHistogramComputationMethod,
+        attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
+    ) -> RenderedAnalysisBundle {
+        let texture = frame.texture.c7
+        let requiresCPUHistogram = preferredMethod == .cpuReadback || scope.mask != nil || scope.luminanceRange != nil || scope.colorRange != nil
+        let readback = TextureAnalysisReadback(texture: frame.texture)
+        let maskSample = texture.makeMaskCoverageSample(for: scope.mask)
+
+        let statistics = readback.flatMap {
+            texture.makeStatistics(
+                readback: $0,
+                region: scope.region,
+                maskSample: maskSample,
+                luminanceRange: scope.luminanceRange,
+                colorRange: scope.colorRange,
+                coverageThreshold: scope.coverageThreshold
+            )
+        }
+        let colorProbe = texture.resolvedHistogramRegion(scope.region).flatMap { resolvedRegion in
+            statistics.map { TextureColorProbe(region: resolvedRegion, statistics: $0) }
+        }
+
+        let histogram: TextureHistogram?
+        let histogramAttachment: RenderedHistogramAttachment?
+        if requiresCPUHistogram, let readback {
+            histogram = texture.makeCPUHistogram(
+                readback: readback,
+                maskSample: maskSample,
+                channel: channel,
+                bins: bins,
+                region: scope.region,
+                luminanceRange: scope.luminanceRange,
+                colorRange: scope.colorRange,
+                coverageThreshold: scope.coverageThreshold,
+                valueRange: scope.valueRange
+            )
+            histogramAttachment = histogram.flatMap { histogram in
+                texture.makePreviewTexture(from: histogram, height: histogramHeight).map { previewTexture in
+                    RenderedHistogramAttachment(
+                        histogram: histogram,
+                        attachment: RenderedAttachment(
+                            index: 1,
+                            semantic: .histogram,
+                            texture: previewTexture,
+                            debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy
+                        )
+                    )
+                }
+            }
+        } else {
+            histogramAttachment = frame.renderHistogramAttachment(
+                channel: channel,
+                bins: bins,
+                height: histogramHeight,
+                scope: scope,
+                preferredMethod: preferredMethod
+            )
+            histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
+                channel: channel,
+                bins: bins,
+                scope: scope,
+                preferredMethod: preferredMethod
+            )
+        }
+
         return RenderedAnalysisBundle(
             frame: frame,
             histogram: histogram,

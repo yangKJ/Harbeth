@@ -14,6 +14,42 @@ public enum TextureToneBand: String, Sendable, Codable, Equatable, Hashable {
     case highlights
 }
 
+/// Analysis 返回的是纹理存储分量，不代表已经完成色彩管理或 alpha 解预乘。
+public enum TextureAnalysisComponentDomain: String, Sendable, Codable, Equatable, Hashable {
+    case textureStorage
+}
+
+/// Analysis 把纹理存储值映射到 histogram / scope 的数值窗口。
+///
+/// 默认窗口为 `0...1`。分析高精度或 HDR/EDR 纹理时，调用方应显式提供更大的窗口；
+/// Harbeth 不会在 Analysis 层隐式执行 tone mapping 或 transfer function 解码。
+public struct TextureAnalysisValueRange: Sendable, Codable, Equatable, Hashable {
+    public let minimum: Float
+    public let maximum: Float
+
+    public init(minimum: Float, maximum: Float) {
+        let validMinimum = minimum.isFinite ? minimum : 0
+        let validMaximum = maximum.isFinite ? maximum : 1
+        if validMinimum == validMaximum {
+            self.minimum = validMinimum
+            self.maximum = validMinimum + 1
+        } else {
+            self.minimum = min(validMinimum, validMaximum)
+            self.maximum = max(validMinimum, validMaximum)
+        }
+    }
+
+    public static let normalized = TextureAnalysisValueRange(minimum: 0, maximum: 1)
+
+    public func normalizedValue(_ value: Float) -> Float {
+        min(max((value - minimum) / (maximum - minimum), 0), 1)
+    }
+
+    public var fingerprint: String {
+        "min=\(analysisFormatted(minimum))|max=\(analysisFormatted(maximum))"
+    }
+}
+
 public struct TextureComponentRange: Sendable, Equatable, Hashable {
     public let minimum: Float
     public let maximum: Float
@@ -36,7 +72,7 @@ public struct TextureComponentRange: Sendable, Equatable, Hashable {
     }
 
     public var fingerprint: String {
-        "min=\(String(format: "%.4f", minimum))|max=\(String(format: "%.4f", maximum))|wrap=\(wrapsAroundUnit ? 1 : 0)"
+        "min=\(analysisFormatted(minimum))|max=\(analysisFormatted(maximum))|wrap=\(wrapsAroundUnit ? 1 : 0)"
     }
 }
 
@@ -79,10 +115,10 @@ public struct TextureLuminanceRange: Sendable, Equatable, Hashable {
     public let maximum: Float
 
     public init(minimum: Float, maximum: Float) {
-        let clampedMinimum = min(max(minimum, 0), 1)
-        let clampedMaximum = min(max(maximum, 0), 1)
-        self.minimum = min(clampedMinimum, clampedMaximum)
-        self.maximum = max(clampedMinimum, clampedMaximum)
+        let validMinimum = minimum.isFinite ? minimum : 0
+        let validMaximum = maximum.isFinite ? maximum : 1
+        self.minimum = min(validMinimum, validMaximum)
+        self.maximum = max(validMinimum, validMaximum)
     }
 
     public func contains(_ luminance: Float) -> Bool {
@@ -101,7 +137,7 @@ public struct TextureLuminanceRange: Sendable, Equatable, Hashable {
     }
 
     public var fingerprint: String {
-        "min=\(String(format: "%.4f", minimum))|max=\(String(format: "%.4f", maximum))"
+        "min=\(analysisFormatted(minimum))|max=\(analysisFormatted(maximum))"
     }
 }
 
@@ -111,17 +147,20 @@ public struct TextureAnalysisScope: @unchecked Sendable, Equatable {
     public let luminanceRange: TextureLuminanceRange?
     public let colorRange: TextureColorRange?
     public let coverageThreshold: Float
+    public let valueRange: TextureAnalysisValueRange
 
     public init(region: MTLRegion? = nil,
                 mask: MaskDescriptor? = nil,
                 luminanceRange: TextureLuminanceRange? = nil,
                 colorRange: TextureColorRange? = nil,
-                coverageThreshold: Float = 0.5) {
+                coverageThreshold: Float = 0.5,
+                valueRange: TextureAnalysisValueRange = .normalized) {
         self.region = region
         self.mask = mask
         self.luminanceRange = luminanceRange
         self.colorRange = colorRange
         self.coverageThreshold = min(max(coverageThreshold, 0), 1)
+        self.valueRange = valueRange
     }
 
     public static func region(_ region: MTLRegion) -> TextureAnalysisScope {
@@ -144,13 +183,18 @@ public struct TextureAnalysisScope: @unchecked Sendable, Equatable {
         TextureAnalysisScope(luminanceRange: .toneBand(band))
     }
 
+    public static func valueRange(_ range: TextureAnalysisValueRange) -> TextureAnalysisScope {
+        TextureAnalysisScope(valueRange: range)
+    }
+
     public var fingerprint: String {
         [
             "region=\(regionFingerprint ?? "none")",
             "mask=\(maskFingerprint ?? "none")",
             "luminance=\(luminanceRange?.fingerprint ?? "none")",
             "color=\(colorRange?.fingerprint ?? "none")",
-            "threshold=\(String(format: "%.4f", coverageThreshold))"
+            "threshold=\(analysisFormatted(coverageThreshold))",
+            "valueRange=\(valueRange.fingerprint)"
         ].joined(separator: "|")
     }
 
@@ -173,14 +217,19 @@ public struct TextureAnalysisScope: @unchecked Sendable, Equatable {
     private var maskFingerprint: String? {
         guard let mask else { return nil }
         return [
-            "texture=\(ObjectIdentifier(mask.texture).hashValue)",
+            // 纹理对象身份仅在当前进程内稳定；fingerprint 不应作为跨进程持久化缓存键。
+            "textureObject=\(ObjectIdentifier(mask.texture))",
             "component=\(mask.component.rawValue)",
             "blend=\(mask.blendMode.rawValue)",
             "invert=\(mask.invert ? 1 : 0)",
-            "opacity=\(String(format: "%.4f", mask.opacity))",
+            "opacity=\(analysisFormatted(mask.opacity))",
             "feather=\(mask.featherPolicy.amount)"
         ].joined(separator: ",")
     }
+}
+
+private func analysisFormatted(_ value: Float) -> String {
+    String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), value)
 }
 
 internal struct TextureHSLColor {

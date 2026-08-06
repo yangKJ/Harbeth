@@ -122,9 +122,13 @@ public struct MTLTextureCompatible_ {
         switch target.pixelFormat {
         case .a8Unorm, .r8Unorm, .r8Uint:
             return 1
+        case .rg8Unorm, .rg8Uint, .r16Float:
+            return 2
         case .rgba8Unorm, .rgba8Unorm_srgb, .bgra8Unorm, .bgra8Unorm_srgb:
             return 4
-        case .rgba16Float:
+        case .rg16Float, .r32Float:
+            return 4
+        case .rgba16Float, .rg32Float:
             return 8
         case .rgba32Float:
             return 16

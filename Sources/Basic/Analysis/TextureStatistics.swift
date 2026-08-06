@@ -9,6 +9,8 @@ import Foundation
 import Metal
 
 public struct TextureStatistics: Sendable, Equatable {
+    public let pixelFormat: PixelFormatContract
+    public let componentDomain: TextureAnalysisComponentDomain
     public let sampleCount: Int
     public let meanRed: Float
     public let meanGreen: Float
@@ -18,7 +20,9 @@ public struct TextureStatistics: Sendable, Equatable {
     public let minimumLuminance: Float
     public let maximumLuminance: Float
 
-    init(sampleCount: Int,
+    init(pixelFormat: PixelFormatContract,
+         componentDomain: TextureAnalysisComponentDomain = .textureStorage,
+         sampleCount: Int,
          meanRed: Float,
          meanGreen: Float,
          meanBlue: Float,
@@ -26,6 +30,8 @@ public struct TextureStatistics: Sendable, Equatable {
          meanLuminance: Float,
          minimumLuminance: Float,
          maximumLuminance: Float) {
+        self.pixelFormat = pixelFormat
+        self.componentDomain = componentDomain
         self.sampleCount = max(sampleCount, 0)
         self.meanRed = meanRed
         self.meanGreen = meanGreen
@@ -57,11 +63,28 @@ public extension MTLTextureCompatible_ {
                         luminanceRange: TextureLuminanceRange? = nil,
                         colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureStatistics? {
-        guard let bytes = bytes() else { return nil }
+        guard let readback = TextureAnalysisReadback(texture: target) else { return nil }
+        return makeStatistics(
+            readback: readback,
+            region: region,
+            maskSample: makeMaskCoverageSample(for: mask),
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
+            coverageThreshold: coverageThreshold
+        )
+    }
+
+    internal func makeStatistics(readback: TextureAnalysisReadback,
+                                 region: MTLRegion?,
+                                 maskSample: MaskCoverageSample?,
+                                 luminanceRange: TextureLuminanceRange?,
+                                 colorRange: TextureColorRange?,
+                                 coverageThreshold: Float) -> TextureStatistics? {
         let width = target.width
         let height = target.height
         guard let resolvedRegion = resolvedHistogramRegion(region), width > 0, height > 0 else {
             return TextureStatistics(
+                pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false),
                 sampleCount: 0,
                 meanRed: 0,
                 meanGreen: 0,
@@ -74,54 +97,48 @@ public extension MTLTextureCompatible_ {
         }
 
         let resolvedCoverageThreshold = min(max(coverageThreshold, 0), 1)
-        let maskSample = makeMaskCoverageSample(for: mask)
-        let bytesPerRow = width * 4
-
         var sampleCount = 0
         var redSum: Float = 0
         var greenSum: Float = 0
         var blueSum: Float = 0
         var alphaSum: Float = 0
         var luminanceSum: Float = 0
-        var minimumLuminance: Float = 1
-        var maximumLuminance: Float = 0
+        var minimumLuminance = Float.greatestFiniteMagnitude
+        var maximumLuminance = -Float.greatestFiniteMagnitude
 
-        bytes.withUnsafeBytes { rawBuffer in
-            let rgba = rawBuffer.bindMemory(to: UInt8.self)
-            for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
-                let rowBase = y * bytesPerRow
-                for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
-                    if let maskSample,
-                       maskSample.coverage(atSourceX: x, y: y, sourceWidth: width, sourceHeight: height) < resolvedCoverageThreshold {
-                        continue
-                    }
-                    let offset = rowBase + x * 4
-                    let red = Float(rgba[offset]) / 255.0
-                    let green = Float(rgba[offset + 1]) / 255.0
-                    let blue = Float(rgba[offset + 2]) / 255.0
-                    let alpha = Float(rgba[offset + 3]) / 255.0
-                    let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
-                    if let luminanceRange, luminanceRange.contains(luminance) == false {
-                        continue
-                    }
-                    if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
-                        continue
-                    }
-
-                    redSum += red
-                    greenSum += green
-                    blueSum += blue
-                    alphaSum += alpha
-                    luminanceSum += luminance
-                    minimumLuminance = min(minimumLuminance, luminance)
-                    maximumLuminance = max(maximumLuminance, luminance)
-                    sampleCount += 1
+        for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
+            for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
+                if let maskSample,
+                   maskSample.coverage(atSourceX: x, y: y, sourceWidth: width, sourceHeight: height) < resolvedCoverageThreshold {
+                    continue
                 }
+                guard let color = readback.color(x: x, y: y) else { continue }
+                let red = color.x
+                let green = color.y
+                let blue = color.z
+                let alpha = color.w
+                let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                if let luminanceRange, luminanceRange.contains(luminance) == false {
+                    continue
+                }
+                if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
+                    continue
+                }
+
+                redSum += red
+                greenSum += green
+                blueSum += blue
+                alphaSum += alpha
+                luminanceSum += luminance
+                minimumLuminance = min(minimumLuminance, luminance)
+                maximumLuminance = max(maximumLuminance, luminance)
+                sampleCount += 1
             }
         }
 
         guard sampleCount > 0 else {
             return TextureStatistics(
+                pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false),
                 sampleCount: 0,
                 meanRed: 0,
                 meanGreen: 0,
@@ -135,6 +152,7 @@ public extension MTLTextureCompatible_ {
 
         let divisor = Float(sampleCount)
         return TextureStatistics(
+            pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false),
             sampleCount: sampleCount,
             meanRed: redSum / divisor,
             meanGreen: greenSum / divisor,

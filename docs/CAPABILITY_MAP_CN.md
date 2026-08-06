@@ -85,6 +85,8 @@ Harbeth 对外只保留两条路线：
 - `TextureStatistics`
 - `TextureColorProbe`
 - `TextureAnalysisScope`
+- `TextureImageScopeConfiguration`
+- `TextureImageScope`
 - `ReplayBaseContract`
 - `RenderCacheIdentity`
 
@@ -92,6 +94,7 @@ Harbeth 对外只保留两条路线：
 
 - 把“算出来”和“看结果”分层
 - 避免把分析能力误写成执行入口
+- 内部由 `TextureAnalysisReadback` 支撑 statistics/probe/CPU histogram；GPU scope 则生成 `luminanceWaveform`、`rgbWaveform`、`vectorscope` 纹理，并通过 `TextureAnalysisValueRange` + `TextureImageScopeConfiguration` 控制 value window 与 density。
 
 结论：
 
@@ -99,6 +102,7 @@ Harbeth 对外只保留两条路线：
 - 它是 render 之后的 inspection layer
 - replay/cache identity 也只是结果读取与缓存协商面，不是新入口
 - 普通高级调用优先从 `ImageNode` 的 analysis convenience 进入，再按需下沉到 `RenderRequest`、`RenderedFrame` / attachment output
+- `Analysis` 不再要求单项查询先构建完整 bundle；`renderHistogram`、`renderStatistics`、`renderColorProbe`、`renderImageScope` 与 `encodeImageScope` 按需执行。
 
 ### `Mask/`
 

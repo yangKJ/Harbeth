@@ -9,6 +9,8 @@ import Foundation
 import Metal
 
 public struct TextureColorProbe: Sendable {
+    public let pixelFormat: PixelFormatContract
+    public let componentDomain: TextureAnalysisComponentDomain
     public let region: MTLRegion
     public let sampleCount: Int
     public let meanRed: Float
@@ -19,7 +21,9 @@ public struct TextureColorProbe: Sendable {
     public let minimumLuminance: Float
     public let maximumLuminance: Float
 
-    init(region: MTLRegion,
+    init(pixelFormat: PixelFormatContract,
+         componentDomain: TextureAnalysisComponentDomain = .textureStorage,
+         region: MTLRegion,
          sampleCount: Int,
          meanRed: Float,
          meanGreen: Float,
@@ -28,6 +32,8 @@ public struct TextureColorProbe: Sendable {
          meanLuminance: Float,
          minimumLuminance: Float,
          maximumLuminance: Float) {
+        self.pixelFormat = pixelFormat
+        self.componentDomain = componentDomain
         self.region = region
         self.sampleCount = max(sampleCount, 0)
         self.meanRed = meanRed
@@ -41,6 +47,8 @@ public struct TextureColorProbe: Sendable {
 
     init(region: MTLRegion, statistics: TextureStatistics) {
         self.init(
+            pixelFormat: statistics.pixelFormat,
+            componentDomain: statistics.componentDomain,
             region: region,
             sampleCount: statistics.sampleCount,
             meanRed: statistics.meanRed,
@@ -85,7 +93,8 @@ public extension TextureAnalysisScope {
                       mask: MaskDescriptor? = nil,
                       luminanceRange: TextureLuminanceRange? = nil,
                       colorRange: TextureColorRange? = nil,
-                      coverageThreshold: Float = 0.5) -> TextureAnalysisScope {
+                      coverageThreshold: Float = 0.5,
+                      valueRange: TextureAnalysisValueRange = .normalized) -> TextureAnalysisScope {
         let diameter = max(radius, 0) * 2 + 1
         return TextureAnalysisScope(
             region: MTLRegionMake2D(
@@ -97,7 +106,8 @@ public extension TextureAnalysisScope {
             mask: mask,
             luminanceRange: luminanceRange,
             colorRange: colorRange,
-            coverageThreshold: coverageThreshold
+            coverageThreshold: coverageThreshold,
+            valueRange: valueRange
         )
     }
 }

@@ -747,6 +747,16 @@ let mask = try node.makeMaskDescriptor(
 - 分析工具：`TextureHistogram`、`TextureStatistics`、`TextureColorProbe`、`TextureAnalysisScope`
 - scope mask bridge：`makeMaskTexture(scope:)`、`makeMaskDescriptor(scope:)`
 
+`Analysis` 的实现约束也需要固定：
+
+- `TextureAnalysisReadback` 按纹理存储域读取，不做色彩空间转换、transfer function 解码或 alpha 预乘状态回推。
+- `TextureHistogram` / `TextureStatistics` / `TextureColorProbe` 会公开 `pixelFormat` 与 `componentDomain == .textureStorage`，调用方可据此判断数值解释，不能把结果误当成已完成色彩管理的测量值。
+- 当前 CPU 读回直接支持 `a8Unorm`、`r8Unorm`、`rg8Unorm`、`rgba8Unorm(/srgb)`、`bgra8Unorm(/srgb)`、`r16Float`、`rg16Float`、`rgba16Float`、`r32Float`、`rg32Float`、`rgba32Float`。
+- HDR/EDR 分析不靠像素格式猜测，由 `TextureAnalysisValueRange` 显式声明窗口；默认是 `.normalized`（`0...1`），高动态场景请显式传入更大/更小区间。
+- `RenderRequest.renderAnalysisBundle(...)` 与 `renderAttachmentAnalysisBundle(...)` 会在每个被分析纹理内部复用同一次 CPU readback（用于 histogram、statistics、colorProbe），避免重复 `copyBytes`。
+- `RenderRequest` 的单指标接口（例如 `renderHistogram`、`renderStatistics`、`renderColorProbe` 及 attachment 版本）按需取数，不再先强制构造完整 `RenderedAnalysisBundle`；需要一并拿 bundle 时再显式调用 `renderAnalysisBundle(...)`/`renderAttachmentAnalysisBundle(...)`。
+- GPU histogram 仍保留“GPU-side 计算 + 调用线程等待结果”的语义：`GPUHistogramBackend` 在执行 `MPS` histogram 时会 `commitAndWaitUntilCompleted`，因为公开返回值包含 CPU 可读 bins。
+
 所以 `Analysis` 的正确理解是：
 
 - 不是 pipeline
