@@ -18,7 +18,7 @@ final class RenderTaskTests: XCTestCase {
         XCTAssertTrue(task.isCompleted)
         XCTAssertEqual(output.width, 2)
         XCTAssertEqual(output.height, 2)
-        XCTAssertEqual(task.diagnostics?.compilationSource, .filtersPrimitive)
+        XCTAssertEqual(task.diagnostics?.compilationSource, .nodeGraph)
         XCTAssertEqual(task.diagnostics?.stageCount, 1)
     }
 

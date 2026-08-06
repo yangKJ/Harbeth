@@ -45,7 +45,7 @@ final class PointwiseFusionTests: XCTestCase {
         XCTAssertEqual((execution[2] as? C7FusedPointOperations)?.fusedOperationCount, 2)
     }
 
-    func testFusionUsesOneRealGraphNodeAndOneDispatchStage() throws {
+    func testFusionUsesOneFusedFilterNodeAndOneDispatchStage() throws {
         let texture = try makeTexture()
         let filters: [C7FilterProtocol] = [
             C7Brightness(brightness: 0.1),
@@ -56,7 +56,7 @@ final class PointwiseFusionTests: XCTestCase {
 
         let diagnostics = try HarbethIO(element: texture, filters: filters).renderDiagnostics()
 
-        XCTAssertEqual(diagnostics.optimizedGraphNodeCount, 1)
+        XCTAssertEqual(diagnostics.optimizedGraphNodeCount, 2, "ImageNode diagnostics include the source node and the fused filter node.")
         XCTAssertEqual(diagnostics.stageCount, 1)
         XCTAssertEqual(diagnostics.optimizationPlan.mergedStageCount, 1)
         XCTAssertEqual(diagnostics.optimizationPlan.fusionEligibleNodeCount, 4)

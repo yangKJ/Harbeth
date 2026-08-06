@@ -604,7 +604,7 @@ final class PixelBufferOutputTests: XCTestCase {
 
         XCTAssertEqual(request.source.kind, "pixelBuffer")
         XCTAssertEqual(request.source.cachePolicy, .transient)
-        XCTAssertEqual(request.compilationSource, .filtersPrimitive)
+        XCTAssertEqual(request.compilationSource, .nodeGraph)
         XCTAssertEqual(request.source.pixelBufferContract?.colorModel, .rgba)
         XCTAssertEqual(request.source.pixelBufferBridgePlan?.loadStrategy, .directMetalTexture)
         XCTAssertEqual(request.source.pixelBufferBridgePolicy, .directTexturePassthrough)

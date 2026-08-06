@@ -289,7 +289,7 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertTrue(recipe.fingerprint.contains("output=maxPixel:160"))
     }
 
-    func testHarbethIODiagnosticsAndRenderRecipeUseSameEffectiveDerivativeChain() throws {
+    func testHarbethIODiagnosticsRecipeAndRequestShareDerivativeContract() throws {
         let input = try makeTexture(width: 4, height: 4, pixel: [120, 40, 20, 255])
         let derivative = ImageDerivativeSpec(
             name: "tinyPreview",
@@ -306,13 +306,17 @@ final class HarbethIOAsyncTests: XCTestCase {
         let diagnostics = try io.renderDiagnostics(profile: .stablePreview, derivative: derivative)
         let recipe = try io.renderRecipe(profile: .stablePreview, derivative: derivative)
         let request = try io.makeRenderRequest(profile: .stablePreview, derivative: derivative)
+        let requestRecipe = try XCTUnwrap(request.renderRecipe)
+        let frame = try request.renderFrame()
 
         XCTAssertEqual(diagnostics.outputSize, C7Size(width: 2, height: 2))
+        XCTAssertTrue(diagnostics.containsDerivativeResize)
         XCTAssertEqual(recipe.outputDerivative.name, "tinyPreview")
-        XCTAssertEqual(recipe.filters.count, 1)
-        XCTAssertTrue(recipe.filters[0].stableTypeID.contains("C7Resize"))
-        XCTAssertEqual(request.renderRecipe?.filters.count, 1)
+        XCTAssertTrue(recipe.filters.isEmpty, "Derivative output policy belongs to outputDerivative, not the authored filter chain.")
+        XCTAssertEqual(requestRecipe.outputDerivative, recipe.outputDerivative)
+        XCTAssertEqual(requestRecipe.filters, recipe.filters)
         XCTAssertEqual(request.diagnostics.outputSize, C7Size(width: 2, height: 2))
+        XCTAssertEqual(frame.resolvedOutputSize, C7Size(width: 2, height: 2))
     }
 
     func testRenderRequestCarriesStableContractsAndDeferredExecution() throws {
@@ -325,7 +329,7 @@ final class HarbethIOAsyncTests: XCTestCase {
         let request = try io.makeRenderRequest(profile: .stablePreview)
         let frame = try request.renderFrame(metadata: ["request": "deferred"])
 
-        XCTAssertEqual(request.compilationSource, .filtersPrimitive)
+        XCTAssertEqual(request.compilationSource, .nodeGraph)
         XCTAssertEqual(request.profile, .stablePreview)
         XCTAssertEqual(request.derivative.renderIntent, .stable)
         XCTAssertEqual(request.source.kind, "cgImage")

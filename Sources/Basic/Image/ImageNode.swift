@@ -40,10 +40,18 @@ private struct PreparedImageNodeExecution: @unchecked Sendable {
     let primarySource: ImageSource
     let executionFingerprint: String
     let renderTextureClosure: () throws -> MTLTexture
+    let renderManagedTextureClosure: (() throws -> ManagedTextureResult)?
     let transmitManagedTextureClosure: ((RenderSubmissionContext, @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) -> Void)?
 
     func renderTexture() throws -> MTLTexture {
         try renderTextureClosure()
+    }
+
+    func renderManagedTexture() throws -> ManagedTextureResult {
+        if let renderManagedTextureClosure {
+            return try renderManagedTextureClosure()
+        }
+        return ManagedTextureResult(texture: try renderTexture(), lease: nil)
     }
 }
 
@@ -248,6 +256,7 @@ extension ImageNode {
         let renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative)
         let primarySource = try resolvedPrimarySource()
         let renderTextureClosure: () throws -> MTLTexture
+        var renderManagedTextureClosure: (() throws -> ManagedTextureResult)? = nil
         var transmitManagedTextureClosure: ((RenderSubmissionContext, @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) -> Void)? = nil
         let executionFingerprint: String
 
@@ -298,6 +307,11 @@ extension ImageNode {
                 return try io.executeRenderProgram(input: inputTexture, program: program)
             }
             if case .source(let source) = input.storage {
+                renderManagedTextureClosure = {
+                    let inputTexture = try source.makeTexture()
+                    let io = HarbethIO<MTLTexture>(element: inputTexture, filters: filters, identifier: executionIdentifier ?? "ImageNode.PreparedFilters").configured(for: profile)
+                    return try io.renderManagedTexture(program: program)
+                }
                 transmitManagedTextureClosure = { submission, complete in
                     do {
                         let inputTexture = try source.makeTexture()
@@ -474,6 +488,7 @@ extension ImageNode {
             primarySource: primarySource,
             executionFingerprint: executionFingerprint,
             renderTextureClosure: renderTextureClosure,
+            renderManagedTextureClosure: renderManagedTextureClosure,
             transmitManagedTextureClosure: transmitManagedTextureClosure
         )
     }
@@ -514,16 +529,21 @@ extension ImageNode {
         frameIdentifier: String,
         metricsIdentifier: String
     ) throws -> RenderedFrame {
-        let texture = try prepared.renderTexture()
-        return try makeFrame(
-            prepared: prepared,
-            texture: texture,
-            lease: nil,
-            outputColorSpace: outputColorSpace,
-            metadata: metadata,
-            frameIdentifier: frameIdentifier,
-            metricsIdentifier: metricsIdentifier
-        )
+        let output = try prepared.renderManagedTexture()
+        do {
+            return try makeFrame(
+                prepared: prepared,
+                texture: output.texture,
+                lease: output.lease,
+                outputColorSpace: outputColorSpace,
+                metadata: metadata,
+                frameIdentifier: frameIdentifier,
+                metricsIdentifier: metricsIdentifier
+            )
+        } catch {
+            output.lease?.release()
+            throw error
+        }
     }
 
     private func makeFrame(

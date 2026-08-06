@@ -22,6 +22,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 - Preserved `transmitOutputRealTimeCommit` as the single public real-time submission switch while restoring its original texture-first meaning: enabled asynchronous texture output is delivered after command-buffer scheduling, while the default waits for GPU completion.
 - Kept synchronous output and CPU-materialized image, pixel-buffer and sample-buffer results completion-safe even when real-time texture delivery is enabled.
+- Kept managed output textures leased for the lifetime of synchronous direct-filter `ImageNode` frames, allowing texture-backed CIImage results to return their storage to the pool only after the frame and escaped image views are released.
 
 #### Removed
 
