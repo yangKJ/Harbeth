@@ -120,7 +120,7 @@ public extension RenderRequest {
     }
 }
 
-public extension HarbethIO {
+extension HarbethIO {
     func makeFrameProcessingCapability(
         for requirements: FrameProcessingRequirements = .dynamicFrame,
         profile: RenderProfile = .stablePreview,

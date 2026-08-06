@@ -35,7 +35,6 @@ enum HarbethIOTransmitOutputDelivery: Sendable, Equatable {
 ///         // do somthing..
 ///     })
 ///
-@frozen
 public struct HarbethIO<Dest>: @unchecked Sendable {
     public typealias Element = Dest
     public let element: Dest
@@ -45,13 +44,6 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     /// Keep `nil` to preserve the source texture format; set a value only when the output contract
     /// requires an explicit format.
     public var bufferPixelFormat: MTLPixelFormat?
-    /// When the CIImage is created, it is mirrored and flipped upside down.
-    /// But upon inspecting the texture, it still renders the CIImage as expected.
-    /// Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
-    public var mirrored: Bool = false
-    /// Do you need to create an output texture object?
-    /// If you do not create a separate output texture, texture overlay may occur.
-    public var createDestTexture: Bool = true
     /// Controls when asynchronous texture-first output is delivered.
     ///
     /// When `true`, `transmitOutput(...)` and internal texture-frame delivery can return after the
@@ -62,9 +54,6 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     /// This flag does not change synchronous `output()` behavior. Image, pixel-buffer and
     /// sample-buffer outputs also continue to wait for GPU completion before materialization.
     public var transmitOutputRealTimeCommit: Bool = false
-    /// Enable double buffer optimization for metal filters
-    /// When there are less than 4 filters, the traditional(singleBuffer) mode is better.
-    public var enableDoubleBuffer: Bool = true
     /// The submission policy of asynchronous output maintains
     /// the independent delivery of each submission by default.
     public var submissionPolicy: RenderSubmissionPolicy = .independent
@@ -72,8 +61,21 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     /// Stable render intent for planning and diagnostics.
     var renderProfile: RenderProfile = .stablePreview
 
+    /// Explicit CIImage output-orientation override.
+    ///
+    /// Set this when the caller needs the legacy `.downMirrored` correction after
+    /// producing a CIImage from a texture-backed source.
+    ///
+    /// This remains public until CIImage source-orientation metadata has a complete
+    /// replacement contract. Making it internal now would leave a live behavior
+    /// without any public producer.
+    public var mirrored: Bool = false
+    /// Internal allocation policy selected by the frame runtime.
+    var createDestTexture: Bool = true
+    /// Internal transient-texture reuse policy selected by the frame runtime.
+    var enableDoubleBuffer: Bool = true
     /// The identifier of the HarbethIO instance.
-    public let identifier: String
+    let identifier: String
 
     var requestedTransmitOutputDelivery: HarbethIOTransmitOutputDelivery {
         transmitOutputRealTimeCommit ? .commandBufferScheduled : .gpuCompleted
@@ -151,7 +153,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     }
 
     /// Directly convert the current input and filter chain into `RenderedFrame`.
-    public func makeFrame(
+    func makeFrame(
         profile: RenderProfile = .stablePreview,
         derivative: ImageDerivativeSpec? = nil,
         outputColorSpace: ImageColorSpaceContract? = nil,
@@ -167,7 +169,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
 
     /// 同步添加滤镜，失败时返回原输入。
     /// 正式接入应优先使用会抛错的 `output()`；该便捷入口用于保持视觉连续性。
-    public func filtered() -> Dest {
+    func filtered() -> Dest {
         do {
             return try output()
         } catch {
@@ -304,12 +306,9 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
             return completedSubmissionHandle()
         }
     }
-    /// Asynchronous convert to texture and add filters.
-    /// - Parameters:
-    ///   - texture: Input metal texture.
-    ///   - complete: The conversion is complete.
+    /// Internal asynchronous texture execution primitive used by typed output bridges.
     @discardableResult
-    public func filtering(texture: MTLTexture, complete: @escaping C7TextureResultBlock) -> RenderSubmissionHandle {
+    func filtering(texture: MTLTexture, complete: @escaping C7TextureResultBlock) -> RenderSubmissionHandle {
         filtering(
             texture: texture,
             delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false),
@@ -364,7 +363,6 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                     switch delivery {
                     case .commandBufferScheduled:
                         let cleanupState = RawTextureScheduledCleanupState()
-                        let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
                         commandBuffer.addCompletedHandler { _ in
                             if let delivered = cleanupState.recordCompletion() {
                                 io.recycleRawTextures(rendering.recycling(deliverySucceeded: delivered))
@@ -378,11 +376,6 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                             if let delivered = cleanupState.recordDelivery(delivered) {
                                 io.recycleRawTextures(rendering.recycling(deliverySucceeded: delivered))
                             }
-                        }
-                        // 后台等待 GPU 结束并完成 command buffer 清理。
-                        DispatchQueue.global().async {
-                            commandBufferTransfer.value.waitUntilCompleted()
-                            HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
                         }
                     case .gpuCompleted:
                         let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
@@ -899,7 +892,7 @@ extension HarbethIO {
         let filters = program.filters
         let width = input.width
         let height = input.height
-        let pixelFormat = input.pixelFormat
+        let pixelFormat = resolvedBufferPixelFormat(sourcePixelFormat: input.pixelFormat)
         let requiresRenderTarget = filters.contains { filter in
             if case .render = filter.modifier { return true }
             return false
@@ -1424,28 +1417,22 @@ extension HarbethIO where Dest == MTLTexture {
             return
         }
         encoded.retainUntilCompleted(by: commandBuffer)
-        let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
-
         switch resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false) {
         case .commandBufferScheduled:
             commandBuffer.addCompletedHandler { _ in encoded.releaseIntermediates() }
             commandBuffer.realTimeCommit(identifier: identifier) {
                 complete(.success(encoded.result))
             }
-            DispatchQueue.global().async {
-                commandBufferTransfer.value.waitUntilCompleted()
-                HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
-            }
         case .gpuCompleted:
             commandBuffer.asyncCommit(identifier: identifier) { callbackResult in
                 switch callbackResult {
                 case .success:
                     encoded.releaseIntermediates()
-                    HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
+                    HarbethContext.shared.recycleCommandBuffer(commandBuffer)
                     complete(.success(encoded.result))
                 case .failure(let error):
                     encoded.releaseAll()
-                    HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
+                    HarbethContext.shared.recycleCommandBuffer(commandBuffer)
                     complete(.failure(HarbethError.toHarbethError(error)))
                 }
             }
@@ -1554,7 +1541,7 @@ extension HarbethIO where Dest == MTLTexture {
         let filters = program.filters
         let width = input.width
         let height = input.height
-        let pixelFormat = input.pixelFormat
+        let pixelFormat = resolvedBufferPixelFormat(sourcePixelFormat: input.pixelFormat)
         let requiresRenderTarget = filters.contains { filter in
             if case .render = filter.modifier { return true }
             return false

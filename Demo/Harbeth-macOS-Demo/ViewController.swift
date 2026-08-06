@@ -94,7 +94,7 @@ extension ViewController: SidebarDelegate, MainViewControllerSliderDelegate {
     
     private func applyFilter(_ filter: C7FilterProtocol) {
         let dest = HarbethIO.init(element: inputImage, filter: filter)
-        let image = dest.filtered()
+        let image = (try? dest.output()) ?? inputImage
         self.mainViewController.updateProcessedImage(image)
     }
     

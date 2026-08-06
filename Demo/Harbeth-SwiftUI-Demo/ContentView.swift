@@ -2274,10 +2274,13 @@ private struct StudioRenderer {
         let profile = surface == .preview ? recipe.previewProfile : recipe.exportProfile
         let source = recipe.sourceImage
         let filters = try recipe.filters(source: source, surface: surface)
-        var destination = HarbethIO(element: source, filters: filters)
-        destination.enableDoubleBuffer = profile.enablesDoubleBuffer
-        destination.createDestTexture = profile.createsDestinationTexture
-        let image = try destination.output()
+        let frame = try ImageNode
+            .image(source)
+            .applying(filters: filters)
+            .makeFrame(profile: profile)
+        guard let image = try frame.makeImage() else {
+            throw HarbethError.texture2Image
+        }
         let size = image.pixelSize
         let summary = "\(profile.studioLabel) · \(Int(size.width))x\(Int(size.height)) · \(filters.count) filters"
         return StudioRenderOutput(image: image, profile: profile, summary: summary)

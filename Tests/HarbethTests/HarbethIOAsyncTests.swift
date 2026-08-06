@@ -22,6 +22,23 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(io.resolvedBufferPixelFormat(sourcePixelFormat: .rgba16Float), .bgra8Unorm)
     }
 
+    func testDoubleBufferHonorsExplicitOutputPixelFormat() throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable in this environment.")
+        let input = try makeTexture(width: 4, height: 4, pixel: [80, 100, 120, 255])
+        var io = HarbethIO(
+            element: input,
+            filters: [
+                C7Brightness(brightness: 0.1),
+                C7Contrast(contrast: 1.05)
+            ]
+        )
+        io.bufferPixelFormat = .rgba16Float
+
+        let output = try io.output()
+
+        XCTAssertEqual(output.pixelFormat, .rgba16Float)
+    }
+
     func testRenderProfileConfiguresCurrentFlags() {
         let base = HarbethIO(element: "seed", filters: [])
 

@@ -28,4 +28,6 @@ For texture-first preview, `transmitOutputRealTimeCommit` remains the single pub
 
 `bufferPixelFormat` is the single output-format override. Keep it `nil` to preserve the source texture format, or assign a concrete ``Metal/MTLPixelFormat`` when the output contract requires conversion.
 
-For high-frequency texture paths, configure a ``RenderProfile`` and produce a ``RenderedFrame`` rather than reading back an image.
+`mirrored` remains the legacy explicit correction for a CIImage created from a texture-backed source. It is an output-orientation compatibility flag, not a generic image-transform control.
+
+For structured profiles, frame metadata, diagnostics, or host delivery, use the ``ImageNode`` route.

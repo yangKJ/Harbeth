@@ -22,19 +22,20 @@ final class PublicAPISmokeTests: XCTestCase {
             io.bufferPixelFormat = pixelFormat
             return io
         }
+        let configureLegacyCIImageOrientation: (CIImage) -> HarbethIO<CIImage> = { image in
+            var io = HarbethIO(element: image, filters: [])
+            io.mirrored = true
+            return io
+        }
         let textureBackedFrame: (CIImage) throws -> TextureBackedCIImageFrame = { image in
             try HarbethIO(element: image, filters: []).outputTextureBackedFrame()
-        }
-        let frameCapability: (CIImage) throws -> FrameProcessingCapability = { image in
-            try HarbethIO(element: image, filters: [])
-                .makeFrameProcessingCapability(for: .dynamicFrame)
         }
         _ = render
         _ = transmit
         _ = configureRealTimeCommit
         _ = configurePixelFormat
+        _ = configureLegacyCIImageOrientation
         _ = textureBackedFrame
-        _ = frameCapability
     }
 
     func testCanonicalImageNodeSurfaceCompiles() {

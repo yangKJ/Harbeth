@@ -30,9 +30,9 @@ struct DoubleBufferView: View {
             VStack(spacing: 16) {
                 // 图像对比区域
                 HStack(spacing: 16) {
-                    // 左边：开启双缓冲
+                    // 左边：稳定预览档位
                     VStack(spacing: 10) {
-                        Text("Double Buffer")
+                        Text("Stable Preview")
                             .font(.headline)
                             .foregroundColor(Color(hex: "#5E9EFF"))
                         if let doubleBufferImage = doubleBufferImage {
@@ -55,9 +55,9 @@ struct DoubleBufferView: View {
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     
-                    // 右边：传统方式
+                    // 右边：低延迟交互档位
                     VStack(spacing: 10) {
-                        Text("Traditional")
+                        Text("Interactive Latency")
                             .font(.headline)
                             .foregroundColor(Color(hex: "#A78BFA"))
                         if let traditionalImage = traditionalImage {
@@ -120,11 +120,11 @@ struct DoubleBufferView: View {
                         Text("Memory Usage Comparison:")
                             .font(.headline)
                         HStack {
-                            Text("Double Buffer: \(doubleBufferMemory)")
+                            Text("Stable Preview: \(doubleBufferMemory)")
                                 .font(.system(size: 14))
                                 .foregroundColor(Color(hex: "#5E9EFF"))
                             Spacer()
-                            Text("Traditional: \(traditionalMemory)")
+                            Text("Interactive: \(traditionalMemory)")
                                 .font(.system(size: 14))
                                 .foregroundColor(Color(hex: "#A78BFA"))
                         }
@@ -147,14 +147,14 @@ struct DoubleBufferView: View {
                         Text("Texture Pool Statistics:")
                             .font(.headline)
                         
-                        Text("Double Buffer:")
+                        Text("Stable Preview:")
                             .font(.subheadline)
                             .foregroundColor(Color(hex: "#5E9EFF"))
                         Text(doubleBufferStats)
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.62))
                         
-                        Text("Traditional Method:")
+                        Text("Interactive Latency:")
                             .font(.subheadline)
                             .foregroundColor(Color(hex: "#A78BFA"))
                         Text(traditionalStats)
@@ -171,7 +171,7 @@ struct DoubleBufferView: View {
                 Spacer(minLength: 40)
             }
             .padding()
-            .navigationTitle("Double Buffer Comparison")
+            .navigationTitle("Render Profile Comparison")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -198,10 +198,10 @@ struct DoubleBufferView: View {
             }
         }
         
-        // 处理双缓冲方式
+        // 稳定预览档位由 ImageNode 持有执行策略。
         processWithDoubleBuffer(filters: filters)
         
-        // 处理传统方式
+        // 低延迟交互档位同样通过 ImageNode 表达。
         processWithTraditionalMethod(filters: filters)
         
         isProcessing = false
@@ -214,13 +214,14 @@ struct DoubleBufferView: View {
         // 记录开始时间
         let startTime = CACurrentMediaTime()
         
-        // 创建HarbethIO实例，开启双缓冲
-        var io = HarbethIO(element: inputImage, filters: filters)
-        io.enableDoubleBuffer = true
-        
-        // 处理图像
         do {
-            let result = try io.output()
+            let frame = try ImageNode
+                .image(inputImage)
+                .applying(filters: filters)
+                .makeFrame(profile: .stablePreview)
+            guard let result = try frame.makeImage() else {
+                throw HarbethError.texture2Image
+            }
             doubleBufferImage = result
             
             // 计算处理时间
@@ -244,13 +245,14 @@ struct DoubleBufferView: View {
         // 记录开始时间
         let startTime = CACurrentMediaTime()
         
-        // 创建HarbethIO实例，禁用双缓冲
-        var io = HarbethIO(element: inputImage, filters: filters)
-        io.enableDoubleBuffer = false
-        
-        // 处理图像
         do {
-            let result = try io.output()
+            let frame = try ImageNode
+                .image(inputImage)
+                .applying(filters: filters)
+                .makeFrame(profile: .interactiveLatency)
+            guard let result = try frame.makeImage() else {
+                throw HarbethError.texture2Image
+            }
             traditionalImage = result
             
             // 计算处理时间

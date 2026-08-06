@@ -49,7 +49,7 @@ extension HarbethIO {
         }
     }
 
-    public func configured(for profile: RenderProfile) -> Self {
+    func configured(for profile: RenderProfile) -> Self {
         var copy = self
         copy.renderProfile = profile
         copy.enableDoubleBuffer = profile.enablesDoubleBuffer

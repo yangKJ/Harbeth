@@ -20,6 +20,17 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 - Preserved `transmitOutputRealTimeCommit` as the single public real-time submission switch while restoring its original texture-first meaning: enabled asynchronous texture output is delivered after command-buffer scheduling, while the default waits for GPU completion.
 - Kept synchronous output and CPU-materialized image, pixel-buffer and sample-buffer results completion-safe even when real-time texture delivery is enabled.
 
+### 2026-08-06 — HarbethIO execution-policy convergence
+
+#### Changed
+
+- Moved destination-allocation and double-buffer selection behind `RenderProfile` and the `ImageNode` route. `HarbethIO` remains the direct source-plus-filters-to-output entry point.
+- Kept `HarbethIO.mirrored` public as the legacy explicit CIImage orientation correction; it is not an execution policy and has no replacement source-orientation contract yet.
+
+#### Removed
+
+- Removed direct public access to `HarbethIO.createDestTexture`, `HarbethIO.enableDoubleBuffer`, `HarbethIO.configured(for:)`, frame-capability construction, convenience fallback output, and filter operators. Use `ImageNode` with a `RenderProfile` when structured execution is required.
+
 ### 2026-08-06 — Internal performance diagnostics boundary
 
 #### Removed

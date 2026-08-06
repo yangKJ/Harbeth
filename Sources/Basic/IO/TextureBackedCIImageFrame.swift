@@ -66,3 +66,15 @@ public struct TextureBackedCIImageFrame: @unchecked Sendable {
         return image
     }
 }
+
+public extension RenderedFrame {
+    /// Exposes this advanced texture-first result as a lazily evaluated Core Image frame
+    /// while retaining the underlying texture lease for the image lifetime.
+    func makeTextureBackedCIImage() throws -> TextureBackedCIImageFrame {
+        let options: [CIImageOption: Any]? = colorSpace.map { [.colorSpace: $0] }
+        guard let image = CIImage(mtlTexture: texture, options: options) else {
+            throw HarbethError.texture2Image
+        }
+        return TextureBackedCIImageFrame(image: image, owner: self)
+    }
+}
