@@ -6,14 +6,19 @@
 //  https://github.com/yangKJ/Harbeth
 
 import Foundation
+import ImageIO
 @preconcurrency import MetalKit
 @preconcurrency import CoreImage
-import ImageIO
 @preconcurrency import CoreMedia
 @preconcurrency import CoreVideo
 
 struct HarbethUncheckedTransfer<Value>: @unchecked Sendable {
     let value: Value
+}
+
+enum HarbethIOTransmitOutputDelivery: Sendable, Equatable {
+    case commandBufferScheduled
+    case gpuCompleted
 }
 
 /// Quickly add filters to sources.
@@ -36,11 +41,10 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     public let element: Dest
     public let filters: [C7FilterProtocol]
 
-    /// Host-side frame sources often use `kCVPixelFormatType_32BGRA`.
-    /// Keep the pixel format aligned with the source to avoid color channel issues.
-    public var bufferPixelFormat: MTLPixelFormat = .bgra8Unorm {
-        didSet { setupedBufferPixelFormat = true }
-    }
+    /// Optional output texture pixel-format override.
+    /// Keep `nil` to preserve the source texture format; set a value only when the output contract
+    /// requires an explicit format.
+    public var bufferPixelFormat: MTLPixelFormat?
     /// When the CIImage is created, it is mirrored and flipped upside down.
     /// But upon inspecting the texture, it still renders the CIImage as expected.
     /// Nevertheless, we can fix this by simply transforming the CIImage with the downMirrored orientation.
@@ -48,9 +52,15 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     /// Do you need to create an output texture object?
     /// If you do not create a separate output texture, texture overlay may occur.
     public var createDestTexture: Bool = true
-    /// Whether to schedule the command buffer as soon as GPU execution is arranged,
-    /// instead of waiting for full completion before continuing host-side flow.
-    /// Recommended for low-latency frame processing paths.
+    /// Controls when asynchronous texture-first output is delivered.
+    ///
+    /// When `true`, `transmitOutput(...)` and internal texture-frame delivery can return after the
+    /// command buffer is scheduled, before GPU completion. The consumer must keep the texture on a
+    /// compatible GPU dependency chain and must not perform immediate CPU readback. When `false`,
+    /// delivery follows GPU completion and can report command-buffer failure.
+    ///
+    /// This flag does not change synchronous `output()` behavior. Image, pixel-buffer and
+    /// sample-buffer outputs also continue to wait for GPU completion before materialization.
     public var transmitOutputRealTimeCommit: Bool = false
     /// Enable double buffer optimization for metal filters
     /// When there are less than 4 filters, the traditional(singleBuffer) mode is better.
@@ -65,7 +75,13 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     /// The identifier of the HarbethIO instance.
     public let identifier: String
 
-    private var setupedBufferPixelFormat = false
+    var requestedTransmitOutputDelivery: HarbethIOTransmitOutputDelivery {
+        transmitOutputRealTimeCommit ? .commandBufferScheduled : .gpuCompleted
+    }
+
+    func resolvedTransmitOutputDelivery(requiresCompletedGPUWork: Bool) -> HarbethIOTransmitOutputDelivery {
+        requiresCompletedGPUWork ? .gpuCompleted : requestedTransmitOutputDelivery
+    }
 
     private enum GroupStrategy {
         case batched, interleaved
@@ -229,7 +245,9 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     ///
     /// Filtered work is encoded on Harbeth's render operation queue. The completion closure is not
     /// delivered on a guaranteed queue; UI callers must explicitly hop to the main actor. A no-filter
-    /// fast path may complete inline because no asynchronous render work exists.
+    /// fast path may complete inline because no asynchronous render work exists. For texture-first
+    /// output, `transmitOutputRealTimeCommit` selects scheduled or completed delivery. Outputs that
+    /// require CPU materialization always wait for GPU completion.
     /// - Parameters:
     ///   - outputColorSpace: Optional output color-space contract applied before delivery.
     ///   - complete: Receives the rendered result or a structured ``HarbethError``.
@@ -292,6 +310,19 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
     ///   - complete: The conversion is complete.
     @discardableResult
     public func filtering(texture: MTLTexture, complete: @escaping C7TextureResultBlock) -> RenderSubmissionHandle {
+        filtering(
+            texture: texture,
+            delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false),
+            complete: complete
+        )
+    }
+
+    @discardableResult
+    private func filtering(
+        texture: MTLTexture,
+        delivery: HarbethIOTransmitOutputDelivery,
+        complete: @escaping C7TextureResultBlock
+    ) -> RenderSubmissionHandle {
         if self.filters.isEmpty {
             complete(.success(texture))
             return completedSubmissionHandle()
@@ -307,31 +338,31 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                 let inputTexture = operationState.value.texture
                 let program = operationState.value.program
                 do {
-                    // 实时模式只等待命令进入 scheduled，不等待 GPU 完成。
-                    let deliversWhenScheduled = io.transmitOutputRealTimeCommit && io.element is MTLTexture
-                    if deliversWhenScheduled {
-                        guard let commandBuffer = submission.makeCommandBuffer() else {
-                            if submission.isActive {
-                                submission.deliver { complete(.failure(.commandBuffer)) }
-                            }
-                            return
+                    guard let commandBuffer = submission.makeCommandBuffer() else {
+                        if submission.isActive {
+                            submission.deliver { complete(.failure(.commandBuffer)) }
                         }
-                        let rendering: RawTextureRendering
-                        do {
-                            if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
-                                rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
-                            } else {
-                                rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
-                            }
-                        } catch {
-                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-                            throw error
+                        return
+                    }
+                    let rendering: RawTextureRendering
+                    do {
+                        if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
+                            rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
+                        } else {
+                            rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
                         }
-                        guard submission.claimCommit() else {
-                            io.recycleRawTextures(rendering.failureRecycling)
-                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-                            return
-                        }
+                    } catch {
+                        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                        throw error
+                    }
+                    guard submission.claimCommit() else {
+                        io.recycleRawTextures(rendering.failureRecycling)
+                        HarbethContext.shared.recycleCommandBuffer(commandBuffer)
+                        return
+                    }
+
+                    switch delivery {
+                    case .commandBufferScheduled:
                         let cleanupState = RawTextureScheduledCleanupState()
                         let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
                         commandBuffer.addCompletedHandler { _ in
@@ -353,31 +384,8 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
                             commandBufferTransfer.value.waitUntilCompleted()
                             HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
                         }
-                    } else {
-                        // 普通异步模式在 GPU 完成后交付。
-                        guard let commandBuffer = submission.makeCommandBuffer() else {
-                            if submission.isActive {
-                                submission.deliver { complete(.failure(.commandBuffer)) }
-                            }
-                            return
-                        }
-                        let rendering: RawTextureRendering
-                        do {
-                            if io.shouldUseDoubleBuffer(input: inputTexture, program: program, minimumFilterCount: 4) {
-                                rendering = try io.doubleBuffering(input: inputTexture, program: program, commandBuffer: commandBuffer)
-                            } else {
-                                rendering = try io.singleBuffer(input: inputTexture, program: program, commandBuffer: commandBuffer)
-                            }
-                        } catch {
-                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-                            throw error
-                        }
+                    case .gpuCompleted:
                         let callbackState = HarbethUncheckedTransfer(value: (commandBuffer: commandBuffer, rendering: rendering))
-                        guard submission.claimCommit() else {
-                            io.recycleRawTextures(rendering.failureRecycling)
-                            HarbethContext.shared.recycleCommandBuffer(commandBuffer)
-                            return
-                        }
                         commandBuffer.asyncCommit(identifier: io.identifier) { result in
                             switch result {
                             case .success:
@@ -702,11 +710,12 @@ extension HarbethIO {
         return plan.graph.nodes.count > 1 ? .batched : .interleaved
     }
 
+    func resolvedBufferPixelFormat(sourcePixelFormat: MTLPixelFormat) -> MTLPixelFormat {
+        bufferPixelFormat ?? sourcePixelFormat
+    }
+
     private func setupBufferPixelFormat(with sourceTexture: MTLTexture) -> MTLPixelFormat {
-        if !setupedBufferPixelFormat {
-            return sourceTexture.pixelFormat
-        }
-        return bufferPixelFormat
+        resolvedBufferPixelFormat(sourcePixelFormat: sourceTexture.pixelFormat)
     }
 
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
@@ -869,9 +878,11 @@ extension HarbethIO {
 
     private func shouldUseDoubleBuffer(input: MTLTexture, program: RenderExecutionProgram, minimumFilterCount: Int) -> Bool {
         let filters = program.filters
-        guard enableDoubleBuffer, filters.count >= minimumFilterCount else { return false }
-        guard program.plan.containsBoundary == false else { return false }
-        guard program.steps.dropLast().allSatisfy({ $0.lifecycleAction.isTransient }) else { return false }
+        guard enableDoubleBuffer, filters.count >= minimumFilterCount,
+              program.plan.containsBoundary == false,
+              program.steps.dropLast().allSatisfy({ $0.lifecycleAction.isTransient }) else {
+            return false
+        }
         var inputSize = C7Size(texture: input)
         for filter in filters {
             let outputSize = filter.resize(input: inputSize)
@@ -1070,20 +1081,24 @@ extension HarbethIO {
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            return filtering(texture: texture, complete: { result in
-                switch result {
-                case .success(let outputTexture):
-                    do {
-                        let outputPixelBuffer = try source.value.c7.copyOutputTextureToCompatiblePixelBuffer(with: outputTexture)
-                        outputPixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
-                        complete(.success(outputPixelBuffer))
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
+            return filtering(
+                texture: texture,
+                delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
+                complete: { result in
+                    switch result {
+                    case .success(let outputTexture):
+                        do {
+                            let outputPixelBuffer = try source.value.c7.copyOutputTextureToCompatiblePixelBuffer(with: outputTexture)
+                            outputPixelBuffer.c7.setColorSpaceAttachments(outputColorSpace)
+                            complete(.success(outputPixelBuffer))
+                        } catch {
+                            complete(.failure(HarbethError.toHarbethError(error)))
+                        }
+                    case .failure(let error):
+                        complete(.failure(error))
                     }
-                case .failure(let error):
-                    complete(.failure(error))
                 }
-            })
+            )
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
             return completedSubmissionHandle()
@@ -1132,7 +1147,10 @@ extension HarbethIO {
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            return filtering(texture: texture, complete: { result in
+            return filtering(
+                texture: texture,
+                delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
+                complete: { result in
                     switch result {
                     case .success(let texture):
                         guard let outputImage = texture.c7.toCGImage(
@@ -1145,7 +1163,8 @@ extension HarbethIO {
                     case .failure(let error):
                         complete(.failure(HarbethError.toHarbethError(error)))
                     }
-                })
+                }
+            )
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
             return completedSubmissionHandle()
@@ -1163,24 +1182,28 @@ extension HarbethIO {
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            return filtering(texture: texture, complete: { result in
-                switch result {
-                case .success(let texture):
-                    do {
-                        complete(.success(
-                            try makeCIImage(
-                                texture: texture,
-                                source: ciImage,
-                                outputColorSpace: outputColorSpace
-                            )
-                        ))
-                    } catch {
-                        complete(.failure(HarbethError.toHarbethError(error)))
+            return filtering(
+                texture: texture,
+                delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
+                complete: { result in
+                    switch result {
+                    case .success(let texture):
+                        do {
+                            complete(.success(
+                                try makeCIImage(
+                                    texture: texture,
+                                    source: ciImage,
+                                    outputColorSpace: outputColorSpace
+                                )
+                            ))
+                        } catch {
+                            complete(.failure(HarbethError.toHarbethError(error)))
+                        }
+                    case .failure(let error):
+                        complete(.failure(error))
                     }
-                case .failure(let error):
-                    complete(.failure(error))
                 }
-            })
+            )
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
             return completedSubmissionHandle()
@@ -1198,20 +1221,24 @@ extension HarbethIO {
                 inputSize: C7Size(texture: texture),
                 outputColorSpace: outputColorSpace
             )
-            return filtering(texture: texture, complete: { result in
-                switch result {
-                case .success(let texture):
-                    guard let outputImage = texture.c7.toImage(
-                        colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
-                    ) else {
-                        complete(.failure(HarbethError.texture2Image))
-                        return
+            return filtering(
+                texture: texture,
+                delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
+                complete: { result in
+                    switch result {
+                    case .success(let texture):
+                        guard let outputImage = texture.c7.toImage(
+                            colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
+                        ) else {
+                            complete(.failure(HarbethError.texture2Image))
+                            return
+                        }
+                        complete(.success(outputImage))
+                    case .failure(let error):
+                        complete(.failure(HarbethError.toHarbethError(error)))
                     }
-                    complete(.success(outputImage))
-                case .failure(let error):
-                    complete(.failure(HarbethError.toHarbethError(error)))
                 }
-            })
+            )
         } catch {
             complete(.failure(HarbethError.toHarbethError(error)))
             return completedSubmissionHandle()
@@ -1399,7 +1426,8 @@ extension HarbethIO where Dest == MTLTexture {
         encoded.retainUntilCompleted(by: commandBuffer)
         let commandBufferTransfer = HarbethUncheckedTransfer(value: commandBuffer)
 
-        if transmitOutputRealTimeCommit {
+        switch resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false) {
+        case .commandBufferScheduled:
             commandBuffer.addCompletedHandler { _ in encoded.releaseIntermediates() }
             commandBuffer.realTimeCommit(identifier: identifier) {
                 complete(.success(encoded.result))
@@ -1408,7 +1436,7 @@ extension HarbethIO where Dest == MTLTexture {
                 commandBufferTransfer.value.waitUntilCompleted()
                 HarbethContext.shared.recycleCommandBuffer(commandBufferTransfer.value)
             }
-        } else {
+        case .gpuCompleted:
             commandBuffer.asyncCommit(identifier: identifier) { callbackResult in
                 switch callbackResult {
                 case .success:

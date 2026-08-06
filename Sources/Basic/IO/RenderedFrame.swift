@@ -40,7 +40,7 @@ public enum RenderProfile: String, Sendable, Codable, Equatable, Hashable {
     /// 明确需要 CPU 读回 image/data 的输出路径。
     case readbackQuality
 
-    public var usesRealTimeCommit: Bool {
+    var requestsScheduledTextureDelivery: Bool {
         switch self {
         case .interactiveLatency:
             return true
@@ -719,8 +719,9 @@ struct FrameRenderer: @unchecked Sendable {
                 )
                 return
             }
-            makeIO(element: input, filters: effectiveFilters).configured(for: profile).transmitManagedTexture {
-                result in
+            var io = makeIO(element: input, filters: effectiveFilters).configured(for: profile)
+            io.transmitOutputRealTimeCommit = profile.requestsScheduledTextureDelivery
+            io.transmitManagedTexture { result in
                 switch result {
                 case .success(let output):
                     complete(

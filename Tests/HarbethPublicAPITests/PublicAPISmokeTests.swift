@@ -12,8 +12,15 @@ final class PublicAPISmokeTests: XCTestCase {
         let transmit: (MTLTexture) -> Void = { texture in
             HarbethIO(element: texture, filters: []).transmitOutput(outputColorSpace: nil, complete: { _ in })
         }
-        let configure: (MTLTexture) -> HarbethIO<MTLTexture> = { texture in
-            HarbethIO(element: texture, filters: []).configured(for: .interactiveLatency)
+        let configureRealTimeCommit: (MTLTexture) -> HarbethIO<MTLTexture> = { texture in
+            var io = HarbethIO(element: texture, filters: [])
+            io.transmitOutputRealTimeCommit = true
+            return io
+        }
+        let configurePixelFormat: (MTLTexture, MTLPixelFormat?) -> HarbethIO<MTLTexture> = { texture, pixelFormat in
+            var io = HarbethIO(element: texture, filters: [])
+            io.bufferPixelFormat = pixelFormat
+            return io
         }
         let textureBackedFrame: (CIImage) throws -> TextureBackedCIImageFrame = { image in
             try HarbethIO(element: image, filters: []).outputTextureBackedFrame()
@@ -24,7 +31,8 @@ final class PublicAPISmokeTests: XCTestCase {
         }
         _ = render
         _ = transmit
-        _ = configure
+        _ = configureRealTimeCommit
+        _ = configurePixelFormat
         _ = textureBackedFrame
         _ = frameCapability
     }
@@ -98,7 +106,6 @@ final class PublicAPISmokeTests: XCTestCase {
         let configure: (HarbethContext) -> Void = { context in
             context.textureAllocationStrategy = .exact
             context.enablePerformanceMonitor = false
-            context.performanceMonitor.configure(.init(enabled: false))
             context.maxConcurrentRenderTasks = context.maxConcurrentRenderTasks
             _ = context.makeCommandBuffer()
             _ = context.capabilityReport(.heapTexturePool)

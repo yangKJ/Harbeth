@@ -24,6 +24,8 @@ let result = try await HarbethIO(element: inputImage, filters: filters).transmit
 
 Asynchronous output uses ``RenderSubmissionPolicy/independent`` by default, so ordinary callers do not lose work. For replaceable preview requests, set `submissionPolicy` to ``RenderSubmissionPolicy/latestOnly(scopeIdentifier:)`` and retain the returned ``RenderSubmissionHandle`` when explicit cancellation or state inspection is needed. Superseded and cancelled requests terminate exactly once with ``HarbethError/renderableTaskCancelled``.
 
-For texture-first preview, ``HarbethIO/configured(for:)`` with ``RenderProfile/interactiveLatency`` can deliver after the command buffer is scheduled. CPU-readable image and pixel-buffer outputs continue to wait for GPU completion before readback.
+For texture-first preview, `transmitOutputRealTimeCommit` remains the single public switch for scheduled delivery. When enabled, asynchronous texture output can be delivered after the command buffer is scheduled. The switch does not change synchronous `output()` behavior, and CPU-readable image, pixel-buffer and sample-buffer outputs continue to wait for GPU completion before materialization.
+
+`bufferPixelFormat` is the single output-format override. Keep it `nil` to preserve the source texture format, or assign a concrete ``Metal/MTLPixelFormat`` when the output contract requires conversion.
 
 For high-frequency texture paths, configure a ``RenderProfile`` and produce a ``RenderedFrame`` rather than reading back an image.

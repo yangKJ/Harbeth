@@ -52,7 +52,6 @@ extension HarbethIO {
     public func configured(for profile: RenderProfile) -> Self {
         var copy = self
         copy.renderProfile = profile
-        copy.transmitOutputRealTimeCommit = profile.usesRealTimeCommit
         copy.enableDoubleBuffer = profile.enablesDoubleBuffer
         copy.createDestTexture = profile.createsDestinationTexture
         return copy

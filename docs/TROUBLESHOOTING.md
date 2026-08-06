@@ -43,15 +43,15 @@ HarbethIO(element: image, filters: filters).transmitOutput { result in
 
 ## 3. 实时纹理偶尔看见未完成内容
 
-`.interactiveLatency` 的 texture-first 路线可以在 command buffer 已 scheduled、尚未 completed 时交付纹理，这是低延迟合同的一部分。消费方必须把纹理继续交给同一 GPU 依赖链或预览宿主，不能立即做未同步的 CPU readback。
+异步 texture-first 路线打开 `transmitOutputRealTimeCommit` 后，可以在 command buffer 已 scheduled、尚未 completed 时交付纹理，这是低延迟合同的一部分。消费方必须把纹理继续交给兼容的 GPU 依赖链或预览宿主，不能立即做未同步的 CPU readback。
 
-需要确定 GPU 已完成时使用：
+需要确定 GPU 已完成时，把 `transmitOutputRealTimeCommit` 保持为 `false`，或直接使用同步 `output()`。Render profile 仍负责质量、资源和输出意图，但不会形成第二个公开的实时提交开关。
 
 - `.stablePreview`：稳定复用预览。
 - `.exportQuality`：导出质量与完成语义。
 - `.readbackQuality`：CPU 读取或检查。
 
-图片与 pixel buffer 输出在 CPU 读回前仍会等待 GPU 完成。
+图片、pixel buffer 与 sample buffer 输出在 CPU 物化前仍会等待 GPU 完成；这些路径不会因为打开实时提交开关而提前交付未完成内容。
 
 ## 4. 图片发黑、透明、颜色偏移或 HDR 不正确
 

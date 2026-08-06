@@ -1236,12 +1236,12 @@ final class RenderedFrameTests: XCTestCase {
     }
 
     func testRenderProfileSemanticFlags() {
-        XCTAssertTrue(RenderProfile.interactiveLatency.usesRealTimeCommit)
+        XCTAssertTrue(RenderProfile.interactiveLatency.requestsScheduledTextureDelivery)
         XCTAssertFalse(RenderProfile.interactiveLatency.enablesDoubleBuffer)
         XCTAssertFalse(RenderProfile.interactiveLatency.createsDestinationTexture)
         XCTAssertFalse(RenderProfile.interactiveLatency.requiresCompletedGPUWorkBeforeReadback)
 
-        XCTAssertFalse(RenderProfile.responseLatency.usesRealTimeCommit)
+        XCTAssertFalse(RenderProfile.responseLatency.requestsScheduledTextureDelivery)
         XCTAssertTrue(RenderProfile.responseLatency.enablesDoubleBuffer)
         XCTAssertTrue(RenderProfile.stablePreview.createsDestinationTexture)
         XCTAssertTrue(RenderProfile.exportQuality.requiresCompletedGPUWorkBeforeReadback)

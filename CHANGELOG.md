@@ -8,6 +8,24 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-08-06 — HarbethIO real-time delivery contract
+
+#### Changed
+
+- Removed `RenderProfile.usesRealTimeCommit` from the public surface and stopped `HarbethIO.configured(for:)` from implicitly changing real-time delivery; `transmitOutputRealTimeCommit` is now the only public HarbethIO control for that behavior.
+- Simplified `bufferPixelFormat` into the single source of truth: it is now optional, where `nil` preserves the source texture format and a value explicitly overrides it. The redundant setter-tracking state was removed.
+
+#### Fixed
+
+- Preserved `transmitOutputRealTimeCommit` as the single public real-time submission switch while restoring its original texture-first meaning: enabled asynchronous texture output is delivered after command-buffer scheduling, while the default waits for GPU completion.
+- Kept synchronous output and CPU-materialized image, pixel-buffer and sample-buffer results completion-safe even when real-time texture delivery is enabled.
+
+### 2026-08-06 — Internal performance diagnostics boundary
+
+#### Removed
+
+- Removed `PerformanceMonitor` and its configuration/metrics types from the public API. Hosts now use only `HarbethContext.enablePerformanceMonitor` to opt into internal diagnostics; benchmark and test consumers use the package's internal test surface.
+
 ### 2026-08-05 — macOS texture readback correctness
 
 #### Fixed
@@ -172,7 +190,7 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 #### Changed
 
 - Made `HarbethContext.shared` the single owner and public access point for process-lifetime Metal resources, Core Video texture caching, external Metal libraries and runtime recovery.
-- Kept one stable `PerformanceMonitor` diagnostics service on `HarbethContext`; enable/disable now changes thread-safe state without replacing the monitor or taking the Context resource lock on every lookup.
+- Kept performance diagnostics as an internal listener owned by `HarbethContext`; hosts only use the opt-in `enablePerformanceMonitor` switch and no longer retain a monitor object.
 - Migrated Harbeth sources, demos, tests and public examples away from retaining `Shared` or calling `Device` directly.
 - Kept `Device` as an internal reference type with stable identity and moved command-queue ownership into a recoverable execution scheduler.
 

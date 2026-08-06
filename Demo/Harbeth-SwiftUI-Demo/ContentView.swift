@@ -2275,7 +2275,6 @@ private struct StudioRenderer {
         let source = recipe.sourceImage
         let filters = try recipe.filters(source: source, surface: surface)
         var destination = HarbethIO(element: source, filters: filters)
-        destination.transmitOutputRealTimeCommit = profile.usesRealTimeCommit
         destination.enableDoubleBuffer = profile.enablesDoubleBuffer
         destination.createDestTexture = profile.createsDestinationTexture
         let image = try destination.output()

@@ -11,16 +11,29 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertNil(filter.intensityHint)
     }
 
+    func testBufferPixelFormatPreservesInputUntilExplicitlyOverridden() {
+        var io = HarbethIO(element: "seed", filters: [])
+
+        XCTAssertNil(io.bufferPixelFormat)
+        XCTAssertEqual(io.resolvedBufferPixelFormat(sourcePixelFormat: .rgba16Float), .rgba16Float)
+
+        io.bufferPixelFormat = .bgra8Unorm
+
+        XCTAssertEqual(io.resolvedBufferPixelFormat(sourcePixelFormat: .rgba16Float), .bgra8Unorm)
+    }
+
     func testRenderProfileConfiguresCurrentFlags() {
         let base = HarbethIO(element: "seed", filters: [])
 
         let interactive = base.configured(for: .interactiveLatency)
-        XCTAssertTrue(interactive.transmitOutputRealTimeCommit)
+        XCTAssertFalse(interactive.transmitOutputRealTimeCommit)
+        XCTAssertTrue(RenderProfile.interactiveLatency.requestsScheduledTextureDelivery)
         XCTAssertFalse(interactive.enableDoubleBuffer)
         XCTAssertFalse(interactive.createDestTexture)
 
         let stable = base.configured(for: .stablePreview)
         XCTAssertFalse(stable.transmitOutputRealTimeCommit)
+        XCTAssertFalse(RenderProfile.stablePreview.requestsScheduledTextureDelivery)
         XCTAssertTrue(stable.enableDoubleBuffer)
         XCTAssertTrue(stable.createDestTexture)
 
@@ -28,6 +41,29 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertFalse(export.transmitOutputRealTimeCommit)
         XCTAssertTrue(export.enableDoubleBuffer)
         XCTAssertTrue(export.createDestTexture)
+    }
+
+    func testRealTimeCommitRemainsTheOnlyPublicDeliverySwitch() {
+        var io = HarbethIO(element: "seed", filters: [])
+
+        XCTAssertEqual(io.requestedTransmitOutputDelivery, .gpuCompleted)
+        XCTAssertEqual(
+            io.resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false),
+            .gpuCompleted
+        )
+
+        io.transmitOutputRealTimeCommit = true
+
+        XCTAssertEqual(io.requestedTransmitOutputDelivery, .commandBufferScheduled)
+        XCTAssertEqual(
+            io.resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false),
+            .commandBufferScheduled
+        )
+        XCTAssertEqual(
+            io.resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
+            .gpuCompleted,
+            "需要 CPU 物化的输出必须覆盖实时交付请求并等待 GPU 完成。"
+        )
     }
 
     func testAsyncTransmitOutputMatchesCallbackResult() async throws {

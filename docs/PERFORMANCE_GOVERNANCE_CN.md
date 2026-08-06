@@ -87,7 +87,7 @@ render 必须复用同一组 histogram / sample-count / LUT private buffer，不
 
 端到端延迟从逻辑帧的计划到达时刻开始，到 route 完成回调为止，因此会包含主线程交接、Harbeth render operation queue 等待、CPU 编码、GPU 完成等待，以及该 route 明确包含的输出 copy 或 host handoff。它不是单纯的 CPU encode time，也不能用 GPU duration 相减得到 CPU time。
 
-前四条处理路线的 GPU 字段来自已完成 `MTLCommandBuffer` 的 `gpuStartTime` / `gpuEndTime`，由 `PerformanceMonitor` 按逻辑帧 identifier 聚合。只有 `status` 完成且时间戳为有限正区间的样本才能进入 `gpuAvgFrameTime` / `gpuP95` / `gpuP99`；设备或环境返回零时间戳时必须输出 `null` 并令 `gpuTimingAvailable=false`。BGRA 固定输入下当前每帧通常只有一个处理 command buffer，但统计合同允许未来按帧聚合多个 command buffer。
+前四条处理路线的 GPU 字段来自已完成 `MTLCommandBuffer` 的 `gpuStartTime` / `gpuEndTime`，由 Harbeth 内部性能监听器按逻辑帧 identifier 聚合。只有 `status` 完成且时间戳为有限正区间的样本才能进入 `gpuAvgFrameTime` / `gpuP95` / `gpuP99`；设备或环境返回零时间戳时必须输出 `null` 并令 `gpuTimingAvailable=false`。BGRA 固定输入下当前每帧通常只有一个处理 command buffer，但统计合同允许未来按帧聚合多个 command buffer。监听器不属于公共运行时 API，benchmark 通过测试侧 internal access 读取结果。
 
 队列与丢帧字段按以下语义计算：
 

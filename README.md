@@ -90,18 +90,19 @@ let outputImage = try await HarbethIO(
 
 Callback-based integrations can use `transmitOutput(outputColorSpace:complete:)`. Filtered work is encoded on Harbeth's render operation queue and completes after GPU completion under the default profile. The callback queue is unspecified, so UI updates must return to `MainActor`. The no-filter fast path may complete inline.
 
-For interactive texture pipelines, choose an explicit render profile:
+For low-latency asynchronous texture pipelines, keep the established
+`transmitOutputRealTimeCommit` switch as the single public control:
 
 ```swift
-let frame = try HarbethIO(
+var io = HarbethIO(
     element: inputTexture,
     filters: filters
 )
-.configured(for: .interactiveLatency)
-.makeFrame()
+io.transmitOutputRealTimeCommit = true
+let outputTexture = try await io.transmitOutput()
 ```
 
-`interactiveLatency` may deliver a texture after its command buffer is scheduled rather than completed. This low-latency contract is texture-first only; image and pixel-buffer outputs still wait for GPU completion before CPU readback.
+When the switch is `true`, asynchronous texture-first output may be delivered after its command buffer is scheduled rather than completed. The switch does not change synchronous `output()` behavior. Image, pixel-buffer and sample-buffer outputs still wait for GPU completion before CPU materialization, even when the switch is enabled.
 
 ### 2. Structured processing with `ImageNode`
 

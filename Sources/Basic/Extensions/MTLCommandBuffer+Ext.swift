@@ -24,10 +24,7 @@ extension MTLCommandBuffer {
             // Wait to make sure that output texture contains new data.
             self.waitUntilCompleted()
         }
-        if let completionError = CommandBufferCompletionValidator.error(
-            status: status,
-            underlyingError: error
-        ) {
+        if let completionError = CommandBufferCompletionValidator.error(status: status, underlyingError: error) {
             throw completionError
         }
     }

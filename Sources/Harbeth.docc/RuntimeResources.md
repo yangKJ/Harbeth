@@ -15,7 +15,7 @@ The host may use these `HarbethContext.shared` surfaces when it needs explicit r
 - `maxConcurrentRenderTasks` for CPU-side render scheduling policy.
 - ``RenderSubmissionPolicy`` and ``RenderSubmissionHandle`` for opt-in latest-only delivery, cancellation, and submission-state inspection without introducing another processing route.
 - `textureAllocationStrategy`, texture-pool prewarming, and the read-only `TexturePoolStatistics` snapshot for measured resource-policy changes.
-- The stable `performanceMonitor` diagnostics service, cache snapshots, pipeline binary archives, and derived-resource cache governance for diagnostics and host-controlled persistence. Enabling or disabling monitoring changes its thread-safe state; it does not replace the instance.
+- The `enablePerformanceMonitor` switch for opt-in internal performance diagnostics, plus cache snapshots, pipeline binary archives, and derived-resource cache governance for diagnostics and host-controlled persistence. The monitor itself is not a host-facing runtime resource.
 - External Metal library registration, capability reports, and function lookup for modular shader packages.
 
 ```swift
@@ -47,7 +47,7 @@ The following implementation types and concrete resource instances remain intern
 
 Hosts observe and configure these resources through ``HarbethContext`` snapshots and policies instead of retaining the concrete owners.
 
-`PerformanceMonitor` is not a GPU resource, but its canonical instance remains owned by ``HarbethContext``. HarbethIO, ImageNode, preview hosts, command buffers, caches, and allocators must report into one diagnostics timeline. A separate global singleton or per-module monitors would split those measurements and create another runtime entry point.
+Performance monitoring is an internal listener owned by ``HarbethContext``. HarbethIO, ImageNode, preview hosts, command buffers, caches, and allocators report into one diagnostics timeline, while hosts only control the opt-in switch. A separate public monitor object or per-module monitors would split those measurements and create another runtime entry point.
 
 ## Ownership and recovery
 

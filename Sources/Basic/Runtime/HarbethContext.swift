@@ -22,7 +22,7 @@ public final class HarbethContext: @unchecked Sendable {
     let derivedResourceStore: DerivedResourceStore
     let coreImageContext: CIContext
 
-    public let performanceMonitor = PerformanceMonitor(enabled: false)
+    let performanceMonitor = PerformanceMonitor(enabled: false)
 
     private let executionScheduler: ExecutionScheduler
     private let texturePoolStorage: TexturePool
@@ -174,6 +174,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     // MARK: - Public diagnostics
 
+    /// Enables the internal performance diagnostics listener without exposing its storage or metrics model.
     public var enablePerformanceMonitor: Bool {
         get { performanceMonitor.isEnabled }
         set {

@@ -1268,6 +1268,8 @@ private final class HarbethIOBenchmarkRouteState {
             filters: filters,
             identifier: identifier
         )
+        // Pixel-buffer materialization waits for GPU completion. HarbethIO profiles do not alter
+        // `transmitOutputRealTimeCommit`; that historical field remains the sole public switch.
         .configured(for: .interactiveLatency)
         .transmitOutput { result in
             switch result {

@@ -88,18 +88,18 @@ let outputImage = try await HarbethIO(
 
 回调式接入可使用 `transmitOutput(outputColorSpace:complete:)`。存在滤镜任务时，Harbeth 会在内部 render operation queue 编码，并在默认 profile 下等待 GPU 完成后回调。回调线程不固定，更新 UI 时需显式回到 `MainActor`；空滤镜快速路径因为没有异步渲染工作，可能在当前调用栈内直接完成。
 
-高频纹理链路应显式选择 render profile：
+低延迟异步纹理链路继续只使用历史公开开关 `transmitOutputRealTimeCommit`：
 
 ```swift
-let frame = try HarbethIO(
+var io = HarbethIO(
     element: inputTexture,
     filters: filters
 )
-.configured(for: .interactiveLatency)
-.makeFrame()
+io.transmitOutputRealTimeCommit = true
+let outputTexture = try await io.transmitOutput()
 ```
 
-`interactiveLatency` 可在 command buffer 已 scheduled、尚未 completed 时交付纹理。该低延迟合同只适用于 texture-first 链路；图片与 pixel buffer 输出在 CPU 读回前仍会等待 GPU 完成。
+开关为 `true` 时，异步 texture-first 输出可在 command buffer 已 scheduled、尚未 completed 时交付纹理。它不改变同步 `output()` 的完成语义；图片、pixel buffer 与 sample buffer 输出即使打开该开关，也会在 CPU 物化前等待 GPU 完成。
 
 ### 2. 使用 `ImageNode` 组织结构化处理
 

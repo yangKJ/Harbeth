@@ -8,7 +8,7 @@
 import Foundation
 import Metal
 
-public final class PerformanceMonitor: @unchecked Sendable {
+final class PerformanceMonitor: @unchecked Sendable {
     public struct Configuration: Sendable {
         public var enabled: Bool = false
         public var logLevel: LogLevel = .warning
