@@ -20,4 +20,17 @@ final class CLAHEPublicAPITests: XCTestCase {
         XCTAssertEqual(filter.factors, [3, 6, 4])
         XCTAssertEqual(filter.kernelPixelContract.globalDependency, .imageStatistics)
     }
+
+    func testMetalCommandAndDestinationContractsArePublic() {
+        let filter: any C7MetalCommandEncodingProtocol = C7CLAHE()
+        let destination = FilterDestinationTextureContract(
+            usage: [.shaderRead, .shaderWrite],
+            storageMode: .shared,
+            aliasingPolicy: .requiredDistinct
+        )
+
+        XCTAssertEqual(filter.modifier, .metalCommand(label: "C7CLAHE"))
+        XCTAssertEqual(destination.storageMode, .shared)
+        XCTAssertEqual(destination.aliasingPolicy, .requiredDistinct)
+    }
 }

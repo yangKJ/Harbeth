@@ -2666,22 +2666,22 @@ final class ImageNodeTests: XCTestCase {
         )
 
         let plan = try ImageNode.layerComposite(recipe).makeRenderPlan()
-        let advancedMetalNode = try XCTUnwrap(
+        let computeNode = try XCTUnwrap(
             plan.diagnostics.nodes.first(where: {
-                $0.kind == .advancedMetal && $0.name.contains("C7ProgrammableBlend")
+                $0.kind == .compute && $0.name.contains("C7ProgrammableBlend")
             })
         )
 
         XCTAssertEqual(plan.diagnostics.compilationSource, .layerComposite)
-        XCTAssertTrue(plan.graph.nodes.contains(where: { $0.kind == .advancedMetal }))
+        XCTAssertTrue(plan.graph.nodes.contains(where: { $0.kind == .compute }))
         XCTAssertGreaterThanOrEqual(plan.diagnostics.stageCount, 2)
-        XCTAssertEqual(advancedMetalNode.parameterSummary["functionName"], "C7BlendColorAdd")
+        XCTAssertEqual(computeNode.parameterSummary["functionName"], "C7BlendColorAdd")
         XCTAssertEqual(
-            advancedMetalNode.parameterSummary["librarySource"],
+            computeNode.parameterSummary["librarySource"],
             "library=sourceFallback:layer-programmable-blend"
         )
         XCTAssertTrue(
-            advancedMetalNode.parameterSummary["functionConstants"]?.contains(
+            computeNode.parameterSummary["functionConstants"]?.contains(
                 "constant=useRightSample|index=0|value=bool:1"
             ) == true
         )

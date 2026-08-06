@@ -85,8 +85,8 @@ final class RenderRasterPrimitiveTests: XCTestCase {
         HarbethContext.shared.recoverExecution()
         let background = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
         let layer = try makeTexture(width: 2, height: 2, pixel: [128, 0, 0, 128])
-        var io = HarbethIO(element: background, filter: try RenderLayerComposite(layerTexture: layer))
-        io.createDestTexture = false
+        let io = HarbethIO(element: background, filter: try RenderLayerComposite(layerTexture: layer))
+            .configured(for: .interactiveLatency)
 
         let output: MTLTexture = try io.output()
         let bytes = try XCTUnwrap(output.c7.bytes())
@@ -102,8 +102,7 @@ final class RenderRasterPrimitiveTests: XCTestCase {
         HarbethContext.shared.recoverExecution()
         let background = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
         let layer = try makeTexture(width: 2, height: 2, pixel: [128, 0, 0, 128])
-        var io = HarbethIO(element: background, filter: try RenderLayerComposite(layerTexture: layer))
-        io.enableDoubleBuffer = false
+        let io = HarbethIO(element: background, filter: try RenderLayerComposite(layerTexture: layer))
 
         let output: MTLTexture = try io.output()
 

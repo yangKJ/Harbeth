@@ -38,25 +38,28 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(output.pixelFormat, .rgba16Float)
     }
 
-    func testRenderProfileConfiguresCurrentFlags() {
+    func testRenderProfileDrivesExecutionPolicies() {
         let base = HarbethIO(element: "seed", filters: [])
 
         let interactive = base.configured(for: .interactiveLatency)
         XCTAssertFalse(interactive.transmitOutputRealTimeCommit)
+        XCTAssertEqual(interactive.renderProfile, .interactiveLatency)
         XCTAssertTrue(RenderProfile.interactiveLatency.requestsScheduledTextureDelivery)
-        XCTAssertFalse(interactive.enableDoubleBuffer)
-        XCTAssertFalse(interactive.createDestTexture)
+        XCTAssertFalse(RenderProfile.interactiveLatency.enablesDoubleBuffer)
+        XCTAssertFalse(RenderProfile.interactiveLatency.createsDestinationTexture)
 
         let stable = base.configured(for: .stablePreview)
         XCTAssertFalse(stable.transmitOutputRealTimeCommit)
+        XCTAssertEqual(stable.renderProfile, .stablePreview)
         XCTAssertFalse(RenderProfile.stablePreview.requestsScheduledTextureDelivery)
-        XCTAssertTrue(stable.enableDoubleBuffer)
-        XCTAssertTrue(stable.createDestTexture)
+        XCTAssertTrue(RenderProfile.stablePreview.enablesDoubleBuffer)
+        XCTAssertTrue(RenderProfile.stablePreview.createsDestinationTexture)
 
         let export = base.configured(for: .exportQuality)
         XCTAssertFalse(export.transmitOutputRealTimeCommit)
-        XCTAssertTrue(export.enableDoubleBuffer)
-        XCTAssertTrue(export.createDestTexture)
+        XCTAssertEqual(export.renderProfile, .exportQuality)
+        XCTAssertTrue(RenderProfile.exportQuality.enablesDoubleBuffer)
+        XCTAssertTrue(RenderProfile.exportQuality.createsDestinationTexture)
     }
 
     func testRealTimeCommitRemainsTheOnlyPublicDeliverySwitch() {

@@ -216,7 +216,8 @@ Harbeth 对外只保留两条路线：
 - `RenderProtocol`
 - `MPSKernelProtocol`
 - `BlitProtocol`
-- `C7AdvancedMetalKernelProtocol`
+- `C7MetalCommandEncodingProtocol`
+- `FilterDestinationTextureContract`
 - filter metadata / authoring support
 
 还包括：

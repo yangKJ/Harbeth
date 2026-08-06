@@ -152,7 +152,7 @@ HarbethRenderView(
 ## 引擎能力
 
 - image、texture、pixelBuffer、sampleBuffer 输入输出链路。
-- compute、render、blit、MPS 与 advanced Metal 执行路径；当前 183 个公开执行类型与 30 种 `C7Blend` 模式见[滤镜目录](docs/FILTER_CATALOG.md)。
+- compute、render、blit、MPS、filter pipeline，以及边界明确的 Metal command encoding 逃生口；当前 183 个公开执行类型与 30 种 `C7Blend` 模式见[滤镜目录](docs/FILTER_CATALOG.md)。
 - 颜色、模糊、混合、边缘与细节、几何、光学、LUT/Cube、Utility、Generator 与质量滤镜。
 - 通过 `C7FilterPipelineProtocol` 实现的公开 Combination 滤镜。
 - 蒙版、局部效果、图层合成、转场和编辑 Recipe primitive。

@@ -255,7 +255,9 @@ class PlayerViewController: UIViewController {
                     .applying(filters: filters)
                     .makeFrame(profile: renderProfile, metadata: metadata)
             } else {
-                output = try HarbethIO(element: frame.pixelBuffer, filters: filters)
+                output = try ImageNode
+                    .pixelBuffer(frame.pixelBuffer)
+                    .applying(filters: filters)
                     .makeFrame(profile: renderProfile, metadata: metadata)
             }
             renderedFrames += 1

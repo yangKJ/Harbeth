@@ -15,6 +15,7 @@ enum KernelResourceUsage: String, Sendable, Codable, Equatable, Hashable {
     case multiInput
     case generatesTexture
     case externalEncoder
+    case metalCommand
 }
 
 enum KernelAlphaBehavior: String, Sendable, Codable, Equatable, Hashable {
@@ -30,7 +31,7 @@ public enum KernelFunctionKind: String, Sendable, Codable, Equatable, Hashable {
     case render
     case blit
     case mps
-    case advancedMetal
+    case metalCommand
 }
 
 public enum KernelLibrarySource: Sendable, Codable, Equatable, Hashable {
@@ -552,6 +553,7 @@ extension C7FilterProtocol {
         let outputSize = inputSize.map { resize(input: $0) }
         let pipelineFilter = self as? C7FilterPipelineProtocol
         let effectiveFilter = pipelineFilter?.makeFinalFilter(otherInputTextures: nil) ?? self
+        let metalCommandFilter = effectiveFilter as? C7MetalCommandEncodingProtocol
         let otherInputCount = pipelineFilter?.pipelineOtherInputCount ?? effectiveFilter.otherInputTextures.count
         let functionIdentity: KernelFunctionIdentity
         let resourceUsage: KernelResourceUsage
@@ -559,7 +561,12 @@ extension C7FilterProtocol {
         let requiresDestinationTexture: Bool
         switch effectiveFilter.modifier {
         case .compute(let kernel):
-            functionIdentity = KernelFunctionIdentity(kind: .compute, primaryName: kernel)
+            functionIdentity = KernelFunctionIdentity(
+                kind: .compute,
+                primaryName: kernel,
+                librarySource: effectiveFilter.computeKernelLibrarySource,
+                functionConstants: effectiveFilter.computeKernelFunctionConstants
+            )
             resourceUsage = otherInputCount == 0 ? .singleInput : (otherInputCount == 1 ? .dualInput : .multiInput)
             requiresDestinationTexture = true
         case .render(let vertex, let fragment):
@@ -569,20 +576,17 @@ extension C7FilterProtocol {
         case .blit:
             functionIdentity = KernelFunctionIdentity(kind: .blit, primaryName: "blit")
             resourceUsage = .generatesTexture
-            requiresDestinationTexture = false
+            requiresDestinationTexture = effectiveFilter.destinationTextureContract.aliasingPolicy == .requiredDistinct
         case .mps(let kernel):
             functionIdentity = KernelFunctionIdentity(kind: .mps, primaryName: kernel.label ?? String(describing: Swift.type(of: kernel)))
             resourceUsage = .externalEncoder
             requiresDestinationTexture = true
-        case .advancedMetal(_, let function):
-            let advancedFilter = self as? C7AdvancedMetalKernelProtocol
+        case .metalCommand(let label):
             functionIdentity = KernelFunctionIdentity(
-                kind: .advancedMetal,
-                primaryName: function,
-                librarySource: advancedFilter?.advancedMetalLibrarySource ?? .automatic,
-                functionConstants: advancedFilter?.advancedMetalFunctionConstants ?? []
+                kind: .metalCommand,
+                primaryName: label
             )
-            resourceUsage = .externalEncoder
+            resourceUsage = .metalCommand
             requiresDestinationTexture = true
         }
 
@@ -595,6 +599,17 @@ extension C7FilterProtocol {
         for (key, value) in parameterDescription {
             if let parameter = KernelParameterValue(value: value) {
                 parameters[key] = parameter
+            }
+        }
+        if let metalCommandFilter {
+            parameters["metalCommandRequiredCapabilities"] = .stringArray(metalCommandFilter.requiredMetalCapabilities.map(\.rawValue))
+        }
+        let destinationContract = effectiveFilter.destinationTextureContract
+        if metalCommandFilter != nil || destinationContract != FilterDestinationTextureContract() {
+            parameters["destinationTextureAliasingPolicy"] = .string(destinationContract.aliasingPolicy.rawValue)
+            parameters["destinationTextureUsage"] = .int(Int(destinationContract.usage.rawValue))
+            if let storageMode = destinationContract.storageMode {
+                parameters["destinationTextureStorageMode"] = .int(Int(storageMode.rawValue))
             }
         }
 
@@ -632,9 +647,26 @@ extension C7FilterProtocol {
                 blendMode: renderFilter?.renderBlendMode ?? .disabled
             )
         } else {
-            outputContract = RenderOutputContract(alpha: alphaBehavior.renderAlphaContract)
+            let declaredContract = effectiveFilter.kernelOutputContract
+            outputContract = RenderOutputContract(
+                inputAlphaExpectation: declaredContract.inputAlphaExpectation,
+                alpha: alphaBehavior.renderAlphaContract == .preserveInput ? declaredContract.alpha : alphaBehavior.renderAlphaContract,
+                colorSpace: declaredContract.colorSpace,
+                pixelFormat: declaredContract.pixelFormat,
+                additionalAttachments: declaredContract.secondaryAttachments,
+                colorTransferPolicy: declaredContract.colorTransferPolicy,
+                toneMappingPolicy: declaredContract.toneMappingPolicy,
+                pixelFormatFallbackPolicy: declaredContract.pixelFormatFallbackPolicy,
+                quantization: declaredContract.quantization,
+                allowsLossyConversion: declaredContract.allowsLossyConversion,
+                preservesOrientation: declaredContract.preservesOrientation
+            )
             renderPassContract = nil
         }
+        let outputDescriptor = KernelOutputDescriptor(
+            outputSize: outputSize,
+            pixelFormat: outputContract.primaryAttachment.pixelFormat.metalPixelFormat
+        )
         let resourceDescriptor = KernelResourceDescriptor(
             usage: resourceUsage,
             inputTextureCount: inputTextureCount,
@@ -648,7 +680,7 @@ extension C7FilterProtocol {
             functionIdentity: functionIdentity,
             parameters: parameters,
             parameterBindings: parameterBindings,
-            output: KernelOutputDescriptor(outputSize: outputSize),
+            output: outputDescriptor,
             resourceUsage: resourceUsage,
             resources: resourceDescriptor,
             alphaBehavior: alphaBehavior,
@@ -658,7 +690,7 @@ extension C7FilterProtocol {
                 KernelPassDescriptor(
                     index: 0,
                     functionIdentity: functionIdentity,
-                    output: KernelOutputDescriptor(outputSize: outputSize),
+                    output: outputDescriptor,
                     resources: resourceDescriptor,
                     alphaBehavior: alphaBehavior,
                     renderPass: renderPassContract,
@@ -767,7 +799,7 @@ private extension ModifierEnum {
         switch self {
         case .blit:
             return false
-        case .compute, .render, .mps, .advancedMetal:
+        case .compute, .render, .mps, .metalCommand:
             return true
         }
     }

@@ -27,9 +27,9 @@ public enum ModifierEnum: Equatable, Hashable {
     /// 基于`MetalPerformanceShaders`着色器
     /// Based on the MetalPerformanceShaders shader.
     case mps(performance: MPSKernel)
-    /// 高级 Metal 自定义编码入口，由具体滤镜自行实现能力检查和 fallback。
-    /// Advanced Metal custom encoder. Concrete filters own availability checks and fallback.
-    case advancedMetal(capability: MetalCapability, function: String)
+    /// 标准滤镜协议无法表达时，由具体滤镜接管一次 Metal command buffer 编码。
+    /// Filter-owned Metal command encoding for execution that standard filter contracts cannot express.
+    case metalCommand(label: String)
 
     public static func == (lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
         switch (lhs, rhs) {
@@ -41,8 +41,8 @@ public enum ModifierEnum: Equatable, Hashable {
             return true
         case (.mps(let lhsKernel), .mps(let rhsKernel)):
             return lhsKernel === rhsKernel
-        case (.advancedMetal(let lhsCapability, let lhsFunction), .advancedMetal(let rhsCapability, let rhsFunction)):
-            return lhsCapability == rhsCapability && lhsFunction == rhsFunction
+        case (.metalCommand(let lhsFunction), .metalCommand(let rhsFunction)):
+            return lhsFunction == rhsFunction
         default:
             return false
         }
@@ -58,7 +58,7 @@ public enum ModifierEnum: Equatable, Hashable {
             return "blit_"
         case .mps(let performance):
             return performance.label ?? String(describing: type(of: performance))
-        case .advancedMetal(_, let function):
+        case .metalCommand(let function):
             return function
         }
     }
@@ -73,8 +73,8 @@ public enum ModifierEnum: Equatable, Hashable {
             return "blit"
         case .mps:
             return "mps"
-        case .advancedMetal:
-            return "advancedMetal"
+        case .metalCommand(let function):
+            return "metalCommand:\(function)"
         }
     }
 }

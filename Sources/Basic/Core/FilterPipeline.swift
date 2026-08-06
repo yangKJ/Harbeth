@@ -65,6 +65,14 @@ public extension C7FilterPipelineProtocol {
     }
 
     var otherInputTextures: C7InputTextures { [] }
+
+    var destinationTextureContract: FilterDestinationTextureContract {
+        makeFinalFilter(otherInputTextures: nil)?.destinationTextureContract ?? .init()
+    }
+
+    var kernelOutputContract: RenderOutputContract {
+        makeFinalFilter(otherInputTextures: nil)?.kernelOutputContract ?? .preserveInput
+    }
 }
 
 enum FilterPipelineExecutor {
@@ -162,17 +170,23 @@ enum FilterPipelineExecutor {
         let usage: MTLTextureUsage
         switch filter.modifier {
         case .render:
-            usage = [.shaderRead, .shaderWrite, .renderTarget]
-        case .compute, .blit, .mps, .advancedMetal:
-            usage = [.shaderRead, .shaderWrite]
+            usage = filter.destinationTextureContract.usage.union(.renderTarget)
+        case .compute, .blit, .mps, .metalCommand:
+            usage = filter.destinationTextureContract.usage
+        }
+        let pixelFormat = filter.kernelOutputContract.primaryAttachment.pixelFormat.metalPixelFormat
+            ?? source.pixelFormat
+        var options: [TextureLoader.Option: Any] = [
+            .texturePixelFormat: pixelFormat,
+            .textureUsage: usage
+        ]
+        if let storageMode = filter.destinationTextureContract.storageMode {
+            options[.textureStorageMode] = storageMode
         }
         return try TextureLoader.makeTexture(
             width: outputSize.width,
             height: outputSize.height,
-            options: [
-                .texturePixelFormat: source.pixelFormat,
-                .textureUsage: usage
-            ],
+            options: options,
             identifier: "FilterPipelineExecutor"
         )
     }

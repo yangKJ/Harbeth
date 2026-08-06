@@ -70,6 +70,7 @@ HDR / EDR 输出建议：
 
 - `HarbethIO` 对外只表达 `source + filters -> output/transmitOutput`
 - `RenderProfile`、`RenderRequest`、`RenderedFrame`、diagnostics、analysis、task 等高级概念不作为 `HarbethIO` 普通用户入口表达
+- 目标纹理分配与双缓冲不提供 `HarbethIO` 实例开关：它们由 `RenderProfile`、`bufferPixelFormat` 与滤镜目标纹理合同自动推导
 - 内部可以继续复用 render plan、texture pool、frame runtime，但这些属于 implementation detail
 
 输入类型上的实际判断：
@@ -525,7 +526,7 @@ diagnostics.samplerExecutionCoverage.metadataOnlyFilterTypes
 - `HarbethIO` 与 `ImageNode` 的普通 filter lowering 会生成同一类内部 execution program，把 sampler adaptation、pointwise fusion、render plan、执行 steps 与 diagnostics 固定为同一份事实；recipe、transition、layer composite 仍是显式编排边界
 - optimizer 的 stage lifecycle 会展开为逐 step 的 transient/persistent 动作；中间纹理只会在最后一个 GPU consumer 完成后回池
 - `HarbethIO` 在真正开始编码前，会按 `RenderOptimizationPlan.prewarmReservations` 同步预热 texture pool
-- 双 buffer filter chain 也会同步预热两块目标纹理
+- 当 `RenderProfile` 与执行计划选择双缓冲 filter chain 时，也会同步预热两块目标纹理
 - 因此 `prewarmReservations` 不再只是 diagnostics 建议，texture pool reuse hit 已经能在测试里观测到
 
 普通用户可以把它理解成高级 node contract，而不是全局采样策略总开关。
@@ -763,7 +764,12 @@ let mask = try node.makeMaskDescriptor(
 - `RenderProtocol`
 - `MPSKernelProtocol`
 - `BlitProtocol`
-- `C7AdvancedMetalKernelProtocol`
+- `C7MetalCommandEncodingProtocol`
+- `FilterDestinationTextureContract`
+- `DestinationTextureAliasingPolicy`
+- `MetalCommandEnvironment`
+- `MetalCommandEncodingContext`
+- `MetalCommandExecutionRoute`
 - `FilterMetadataProviding`
 - `FilterParameterDescriptor`
 - `FilterIntensityHint`

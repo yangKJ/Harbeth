@@ -54,18 +54,15 @@ public struct LayerFlipOptions: Sendable, Codable, Equatable, Hashable {
 public struct LayerProgrammableBlend: Sendable, Codable, Equatable, Hashable {
     public let functionName: String
     public let intensity: Float
-    public let capability: MetalCapability
     public let librarySource: KernelLibrarySource
     public let functionConstants: [KernelFunctionConstantDescriptor]
 
     public init(functionName: String,
                 intensity: Float = 1.0,
-                capability: MetalCapability = .customAdvancedEncoder,
                 librarySource: KernelLibrarySource = .automatic,
                 functionConstants: [KernelFunctionConstantDescriptor] = []) {
         self.functionName = functionName
         self.intensity = min(max(intensity, 0), 1)
-        self.capability = capability
         self.librarySource = librarySource
         self.functionConstants = functionConstants
     }
@@ -73,7 +70,7 @@ public struct LayerProgrammableBlend: Sendable, Codable, Equatable, Hashable {
     public var fingerprint: String {
         let constantsFingerprint = functionConstants.map(\.fingerprint).joined(separator: "||")
         let identity = KernelFunctionIdentity(
-            kind: .advancedMetal,
+            kind: .compute,
             primaryName: functionName,
             librarySource: librarySource,
             functionConstants: functionConstants
@@ -81,7 +78,6 @@ public struct LayerProgrammableBlend: Sendable, Codable, Equatable, Hashable {
         return [
             "function=\(functionName)",
             "intensity=\(String(format: "%.4f", intensity))",
-            "capability=\(capability.rawValue)",
             identity.librarySource.fingerprint,
             "constants=\(constantsFingerprint.isEmpty ? "none" : constantsFingerprint)"
         ].joined(separator: "|")
@@ -559,7 +555,6 @@ extension LayerCompositeRecipe {
                     functionName: programmableBlend.functionName,
                     blendTexture: placeholderTexture,
                     intensity: programmableBlend.intensity,
-                    capability: programmableBlend.capability,
                     librarySource: programmableBlend.librarySource,
                     functionConstants: programmableBlend.functionConstants
                 )
@@ -653,7 +648,6 @@ extension LayerCompositeRecipe {
                         functionName: programmableBlend.functionName,
                         blendTexture: layerCanvas,
                         intensity: programmableBlend.intensity,
-                        capability: programmableBlend.capability,
                         librarySource: programmableBlend.librarySource,
                         functionConstants: programmableBlend.functionConstants
                     )

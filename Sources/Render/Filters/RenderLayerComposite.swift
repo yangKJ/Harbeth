@@ -33,13 +33,14 @@ public struct RenderLayerComposite: RenderProtocol {
     public var renderSamplerConsumption: RenderSamplerConsumption { .runtimeBound }
     public var renderBlendMode: RenderBlendMode { .premultipliedSourceOver }
     public var renderPreloadsSourceTexture: Bool { true }
+    public var destinationTextureContract: FilterDestinationTextureContract {
+        FilterDestinationTextureContract(aliasingPolicy: .inPlaceAllowed)
+    }
     public var renderOutputContract: RenderOutputContract {
         RenderOutputContract(inputAlphaExpectation: .premultiplied, alpha: .premultiplied)
     }
 
-    public init(layerTexture: MTLTexture,
-                normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
-                opacity: Float = 1) throws {
+    public init(layerTexture: MTLTexture, normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1), opacity: Float = 1) throws {
         let frame = normalizedFrame.standardized
         guard frame.origin.x.isFinite,
               frame.origin.y.isFinite,

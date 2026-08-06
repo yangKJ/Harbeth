@@ -27,8 +27,6 @@ import ImageIO
 ///     })
 ///
 public struct HarbethIO<Dest>: @unchecked Sendable {
-    // MARK: - Public Identity and Filter Input
-
     public typealias Element = Dest
     public let element: Dest
     public let filters: [C7FilterProtocol]
@@ -68,10 +66,6 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
 
     /// Stable render intent for planning and diagnostics.
     internal var renderProfile: RenderProfile = .stablePreview
-    /// Internal allocation policy selected by the frame runtime.
-    internal var createDestTexture: Bool = true
-    /// Internal transient-texture reuse policy selected by the frame runtime.
-    internal var enableDoubleBuffer: Bool = true
 
     // MARK: - Public Initialization
 
@@ -243,11 +237,7 @@ extension HarbethIO {
     }
 
     @discardableResult
-    private func filtering(
-        texture: MTLTexture,
-        delivery: HarbethIOTransmitOutputDelivery,
-        complete: @escaping C7TextureResultBlock
-    ) -> RenderSubmissionHandle {
+    private func filtering(texture: MTLTexture, delivery: HarbethIOTransmitOutputDelivery, complete: @escaping C7TextureResultBlock) -> RenderSubmissionHandle {
         if self.filters.isEmpty {
             complete(.success(texture))
             return completedSubmissionHandle()
@@ -574,23 +564,28 @@ extension HarbethIO {
     }
 
     private func createDestTexture(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
-        if !createDestTexture || !(filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true) {
+        guard shouldCreateDestinationTexture(for: filter, sourceTexture: sourceTexture) else {
             return sourceTexture
         }
-        let targetPixelFormat = setupBufferPixelFormat(with: sourceTexture)
+        let targetPixelFormat = declaredOutputPixelFormat(for: filter)
+            ?? setupBufferPixelFormat(with: sourceTexture)
         var resize = filter.resize(input: C7Size(texture: sourceTexture))
         // Calculate target size considering device limits
         let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
         resize = C7Size(width: deviceMaxWidth, height: deviceMaxHeight)
         // Host-side frame sources often use `kCVPixelFormatType_32BGRA`.
         // Keep the output pixel format aligned with the source to avoid channel mismatch.
+        var options: [TextureLoader.Option: Any] = [
+            .texturePixelFormat: targetPixelFormat,
+            .textureUsage: outputTextureUsage(for: filter)
+        ]
+        if let storageMode = outputTextureStorageMode(for: filter) {
+            options[.textureStorageMode] = storageMode
+        }
         let texture = try TextureLoader.makeTexture(
             width: resize.width,
             height: resize.height,
-            options: [
-                .texturePixelFormat: targetPixelFormat,
-                .textureUsage: outputTextureUsage(for: filter)
-            ],
+            options: options,
             identifier: identifier
         )
         if HarbethContext.shared.enablePerformanceMonitor {
@@ -610,20 +605,25 @@ extension HarbethIO {
     }
 
     private func createDestTextureLease(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> TextureLease? {
-        guard createDestTexture, (filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true) else {
+        guard shouldCreateDestinationTexture(for: filter, sourceTexture: sourceTexture) else {
             return nil
         }
-        let targetPixelFormat = setupBufferPixelFormat(with: sourceTexture)
+        let targetPixelFormat = declaredOutputPixelFormat(for: filter)
+            ?? setupBufferPixelFormat(with: sourceTexture)
         var resize = filter.resize(input: C7Size(texture: sourceTexture))
         let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
         resize = C7Size(width: deviceMaxWidth, height: deviceMaxHeight)
+        var options: [TextureLoader.Option: Any] = [
+            .texturePixelFormat: targetPixelFormat,
+            .textureUsage: outputTextureUsage(for: filter)
+        ]
+        if let storageMode = outputTextureStorageMode(for: filter) {
+            options[.textureStorageMode] = storageMode
+        }
         let lease = try TextureLoader.makeTextureLease(
             width: resize.width,
             height: resize.height,
-            options: [
-                .texturePixelFormat: targetPixelFormat,
-                .textureUsage: outputTextureUsage(for: filter)
-            ],
+            options: options,
             identifier: identifier
         )
         if HarbethContext.shared.enablePerformanceMonitor {
@@ -648,10 +648,42 @@ extension HarbethIO {
     private func outputTextureUsage(for filter: C7FilterProtocol) -> MTLTextureUsage {
         switch filter.modifier {
         case .render:
-            return [.shaderRead, .shaderWrite, .renderTarget]
-        case .compute, .blit, .mps, .advancedMetal:
-            return [.shaderRead, .shaderWrite]
+            return filter.destinationTextureContract.usage.union(.renderTarget)
+        case .compute, .blit, .mps, .metalCommand:
+            return filter.destinationTextureContract.usage
         }
+    }
+
+    private func shouldCreateDestinationTexture(for filter: C7FilterProtocol, sourceTexture: MTLTexture) -> Bool {
+        if filter.destinationTextureContract.aliasingPolicy == .requiredDistinct {
+            return true
+        }
+        if let pixelFormat = declaredOutputPixelFormat(for: filter), pixelFormat != sourceTexture.pixelFormat {
+            return true
+        }
+        if let bufferPixelFormat, bufferPixelFormat != sourceTexture.pixelFormat {
+            return true
+        }
+        return renderProfile.createsDestinationTexture
+            && (filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true)
+    }
+
+    private func validateDestinationAliasing(for filter: C7FilterProtocol, source: MTLTexture, destination: MTLTexture) throws {
+        guard filter.destinationTextureContract.aliasingPolicy == .requiredDistinct,
+              source === destination else {
+            return
+        }
+        throw HarbethError.configurationInvalid(
+            "Filter destination contract requires distinct source and destination textures."
+        )
+    }
+
+    private func declaredOutputPixelFormat(for filter: C7FilterProtocol) -> MTLPixelFormat? {
+        filter.kernelOutputContract.primaryAttachment.pixelFormat.metalPixelFormat
+    }
+
+    private func outputTextureStorageMode(for filter: C7FilterProtocol) -> MTLStorageMode? {
+        filter.destinationTextureContract.storageMode
     }
 
     /// Do you need to create a new metal texture command buffer.
@@ -666,6 +698,7 @@ extension HarbethIO {
         let destTexture = try createDestTexture(with: texture, filter: filter)
         let allocatedDestination = destTexture === texture ? nil : destTexture
         do {
+            try validateDestinationAliasing(for: filter, source: texture, destination: destTexture)
             if let pipelineFilter = filter as? C7FilterPipelineProtocol {
                 let output = try FilterPipelineExecutor.apply(
                     filter: pipelineFilter,
@@ -676,6 +709,7 @@ extension HarbethIO {
                 return RawTextureStage(texture: output, allocatedDestination: allocatedDestination)
             }
             let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
+            try validateDestinationAliasing(for: filter, source: inputTexture, destination: destTexture)
             let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
             let output = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
             return RawTextureStage(texture: output, allocatedDestination: allocatedDestination)
@@ -689,6 +723,7 @@ extension HarbethIO {
         let destLease = try createDestTextureLease(with: texture, filter: filter)
         let destTexture = destLease?.texture ?? texture
         do {
+            try validateDestinationAliasing(for: filter, source: texture, destination: destTexture)
             if let pipelineFilter = filter as? C7FilterPipelineProtocol {
                 let finalTexture = try FilterPipelineExecutor.apply(
                     filter: pipelineFilter,
@@ -699,6 +734,7 @@ extension HarbethIO {
                 return ManagedTextureResult(texture: finalTexture, lease: destLease)
             }
             let inputTexture = try filter.combinationBegin(for: buffer, source: texture, dest: destTexture)
+            try validateDestinationAliasing(for: filter, source: inputTexture, destination: destTexture)
             let outputTexture = try filter.apply(form: inputTexture, to: destTexture, for: buffer, complete: nil)
             let finalTexture = try filter.combinationAfter(for: buffer, input: outputTexture, source: texture)
             return ManagedTextureResult(texture: finalTexture, lease: destLease)
@@ -733,8 +769,13 @@ extension HarbethIO {
 
     func shouldUseDoubleBuffer(input: MTLTexture, program: RenderExecutionProgram, minimumFilterCount: Int) -> Bool {
         let filters = program.filters
-        guard enableDoubleBuffer, filters.count >= minimumFilterCount,
+        guard renderProfile.enablesDoubleBuffer, filters.count >= minimumFilterCount,
               program.plan.containsBoundary == false,
+              filters.contains(where: { $0 is C7MetalCommandEncodingProtocol }) == false,
+              filters.allSatisfy({
+                  $0.destinationTextureContract == FilterDestinationTextureContract()
+                      && $0.kernelOutputContract == .preserveInput
+              }),
               program.steps.dropLast().allSatisfy({ $0.lifecycleAction.isTransient }) else {
             return false
         }
@@ -757,6 +798,7 @@ extension HarbethIO {
         let pixelFormat = resolvedBufferPixelFormat(sourcePixelFormat: input.pixelFormat)
         let requiresRenderTarget = filters.contains { filter in
             if case .render = filter.modifier { return true }
+            if filter.destinationTextureContract.usage.contains(.renderTarget) { return true }
             return false
         }
         if requiresRenderTarget == false {

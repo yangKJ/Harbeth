@@ -18,6 +18,10 @@ public struct C7ColorGradient: C7FilterProtocol {
     
     /// There is no need to create a new output texture, just use the input texture.
     public var needCreateDestTexture: Bool = false
+
+    public var destinationTextureContract: FilterDestinationTextureContract {
+        .init(aliasingPolicy: .inPlaceAllowed)
+    }
     
     public var modifier: ModifierEnum {
         return .compute(kernel: type.kernel)

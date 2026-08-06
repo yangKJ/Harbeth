@@ -155,7 +155,7 @@ Use `HarbethView` only when a SwiftUI `Image` readback is the intended result; u
 ## Engine Capabilities
 
 - Image, texture, pixel-buffer, and sample-buffer input/output paths.
-- Compute, render, blit, MPS, and advanced Metal filter execution; see the source-aligned [Filter Catalog](docs/FILTER_CATALOG.md) for all 183 public execution types and 30 `C7Blend` modes.
+- Compute, render, blit, MPS, filter pipelines, and an explicit Metal command-encoding escape hatch; see the source-aligned [Filter Catalog](docs/FILTER_CATALOG.md) for all 183 public execution types and 30 `C7Blend` modes.
 - Color adjustment, blur, blend, edge/detail, geometry, optics, LUT/Cube, utility, generator, and quality filters.
 - Public Combination filters implemented through `C7FilterPipelineProtocol`.
 - Mask, local-effect, layer-composite, transition, and edit-recipe primitives.

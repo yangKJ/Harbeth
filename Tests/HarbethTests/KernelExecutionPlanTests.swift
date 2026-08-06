@@ -65,6 +65,28 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertEqual(plan.passes.first?.drawCallCount, 1)
     }
 
+    func testBlitDescriptorTracksDestinationAliasingContract() {
+        let inputSize = C7Size(width: 8, height: 6)
+        XCTAssertTrue(
+            C7CropBlit(rect: CGRect(x: 0, y: 0, width: 4, height: 3))
+                .kernelDescriptor(inputSize: inputSize)
+                .resources
+                .requiresDestinationTexture
+        )
+        XCTAssertFalse(
+            C7CopyRegionBlit(destOrigin: .init(x: 0, y: 0, z: 0))
+                .kernelDescriptor(inputSize: inputSize)
+                .resources
+                .requiresDestinationTexture
+        )
+        XCTAssertFalse(
+            C7GenerateMipmapsBlit()
+                .kernelDescriptor(inputSize: inputSize)
+                .resources
+                .requiresDestinationTexture
+        )
+    }
+
     func testRenderExecutionPlanTracksMultiAttachmentOutputContract() {
         let filter = KernelExecutionMultiAttachmentRenderFilter()
         let plan = filter.makeKernelExecutionPlan(inputSize: C7Size(width: 16, height: 12))

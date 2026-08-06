@@ -16,7 +16,7 @@ import Metal
 ///
 /// 该滤镜面向 SDR 亮度范围。透明像素及直色彩含有负值或大于 1 分量的 HDR/EDR
 /// 像素会保持原样，不参与直方图统计，避免将审美局部对比度处理误用为 tone mapping。
-public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
+public struct C7CLAHE: C7MetalCommandEncodingProtocol {
 
     /// 直方图 LUT 的固定 bin 数。256 与 8-bit SDR 亮度域对应。
     public static let histogramBinCount = 256
@@ -49,7 +49,7 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
     public var tileGridSize: TileGridSize
 
     public var modifier: ModifierEnum {
-        .advancedMetal(capability: .customAdvancedEncoder, function: advancedMetalFunction)
+        .metalCommand(label: "C7CLAHE")
     }
 
     public var factors: [Float] {
@@ -60,12 +60,12 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
         .multiTexture
     }
 
-    public var advancedMetalCapability: MetalCapability {
-        .customAdvancedEncoder
+    public var destinationTextureContract: FilterDestinationTextureContract {
+        FilterDestinationTextureContract(aliasingPolicy: .requiredDistinct)
     }
 
-    public var advancedMetalFunction: String {
-        "C7CLAHEApply"
+    public var kernelOutputContract: RenderOutputContract {
+        RenderOutputContract(alpha: .premultiplied)
     }
 
     public var kernelPixelContract: KernelPixelContract {
@@ -86,20 +86,21 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
         self.tileGridSize = tileGridSize
     }
 
-    /// CLAHE 的编码仅使用基础 compute 功能，不依赖可选的 Metal 专用硬件特性。
-    public func canUseAdvancedMetal(on device: MTLDevice) -> Bool {
-        true
+    public func metalCommandExecutionRoute(
+        in environment: MetalCommandEnvironment
+    ) -> MetalCommandExecutionRoute {
+        .preferred
     }
 
-    public func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
-        guard textures.count >= 2 else {
-            throw HarbethError.filterParameterInvalid("C7CLAHE requires destination and source textures.")
+    public func encodeMetalCommands(
+        context: MetalCommandEncodingContext,
+        route: MetalCommandExecutionRoute
+    ) throws -> MTLTexture {
+        guard route == .preferred else {
+            throw HarbethError.filterParameterInvalid("C7CLAHE only supports its declared preferred route.")
         }
-        let destination = textures[0]
-        let source = textures[1]
-        guard destination !== source else {
-            throw HarbethError.filterParameterInvalid("C7CLAHE requires distinct source and destination textures.")
-        }
+        let destination = context.destinationTexture
+        let source = context.sourceTexture
         guard destination.width == source.width, destination.height == source.height else {
             throw HarbethError.textureSizeMismatch
         }
@@ -112,7 +113,7 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
         let histogramLength = tileCount * Self.histogramBinCount * MemoryLayout<UInt32>.stride
         let countLength = tileCount * MemoryLayout<UInt32>.stride
         let lookupLength = tileCount * Self.histogramBinCount * MemoryLayout<Float>.stride
-        let device = HarbethContext.shared.device
+        let device = context.device
 
         let temporaryBuffers = try CLAHETemporaryBufferPool.shared.checkout(
             device: device,
@@ -120,35 +121,45 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
             countLength: countLength,
             lookupLength: lookupLength
         )
+        var recyclesOnFailure = true
+        defer {
+            if recyclesOnFailure {
+                CLAHETemporaryBufferPool.shared.recycle(temporaryBuffers)
+            }
+        }
         let histogram = temporaryBuffers.histogram
         let sampleCounts = temporaryBuffers.sampleCounts
         let lookupTable = temporaryBuffers.lookupTable
 
-        try clear([histogram, sampleCounts], commandBuffer: commandBuffer)
+        try clear([histogram, sampleCounts], commandBuffer: context.commandBuffer)
         try encodeHistogram(
             source: source,
             histogram: histogram,
             sampleCounts: sampleCounts,
             grid: executionGrid,
-            commandBuffer: commandBuffer
+            commandBuffer: context.commandBuffer,
+            environment: context.environment
         )
         try encodeLookupTable(
             histogram: histogram,
             sampleCounts: sampleCounts,
             lookupTable: lookupTable,
             grid: executionGrid,
-            commandBuffer: commandBuffer
+            commandBuffer: context.commandBuffer,
+            environment: context.environment
         )
         try encodeApply(
             source: source,
             destination: destination,
             lookupTable: lookupTable,
             grid: executionGrid,
-            commandBuffer: commandBuffer
+            commandBuffer: context.commandBuffer,
+            environment: context.environment
         )
-        commandBuffer.addCompletedHandler { _ in
+        context.commandBuffer.addCompletedHandler { _ in
             CLAHETemporaryBufferPool.shared.recycle(temporaryBuffers)
         }
+        recyclesOnFailure = false
         return destination
     }
 
@@ -167,8 +178,11 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
                                  histogram: MTLBuffer,
                                  sampleCounts: MTLBuffer,
                                  grid: TileGridSize,
-                                 commandBuffer: MTLCommandBuffer) throws {
-        let pipeline = try Compute.makeComputePipelineState(with: "C7CLAHEHistogram")
+                                 commandBuffer: MTLCommandBuffer,
+                                 environment: MetalCommandEnvironment) throws {
+        let pipeline = try environment.makeComputePipelineState(
+            KernelFunctionIdentity(kind: .compute, primaryName: "C7CLAHEHistogram")
+        )
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
         }
@@ -186,8 +200,11 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
                                    sampleCounts: MTLBuffer,
                                    lookupTable: MTLBuffer,
                                    grid: TileGridSize,
-                                   commandBuffer: MTLCommandBuffer) throws {
-        let pipeline = try Compute.makeComputePipelineState(with: "C7CLAHEBuildLookupTable")
+                                   commandBuffer: MTLCommandBuffer,
+                                   environment: MetalCommandEnvironment) throws {
+        let pipeline = try environment.makeComputePipelineState(
+            KernelFunctionIdentity(kind: .compute, primaryName: "C7CLAHEBuildLookupTable")
+        )
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
         }
@@ -210,8 +227,11 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
                              destination: MTLTexture,
                              lookupTable: MTLBuffer,
                              grid: TileGridSize,
-                             commandBuffer: MTLCommandBuffer) throws {
-        let pipeline = try Compute.makeComputePipelineState(with: advancedMetalFunction)
+                             commandBuffer: MTLCommandBuffer,
+                             environment: MetalCommandEnvironment) throws {
+        let pipeline = try environment.makeComputePipelineState(
+            KernelFunctionIdentity(kind: .compute, primaryName: "C7CLAHEApply")
+        )
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
         }

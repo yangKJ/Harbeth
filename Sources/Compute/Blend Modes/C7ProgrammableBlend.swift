@@ -8,12 +8,12 @@
 import Foundation
 import MetalKit
 
-public struct C7ProgrammableBlend: C7AdvancedMetalKernelProtocol {
+public struct C7ProgrammableBlend: C7FilterProtocol {
 
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
 
     public var modifier: ModifierEnum {
-        .advancedMetal(capability: capability, function: functionName)
+        .compute(kernel: functionName)
     }
 
     public var kernelParameterBindings: [KernelParameterBinding] {
@@ -34,30 +34,20 @@ public struct C7ProgrammableBlend: C7AdvancedMetalKernelProtocol {
         [
             "functionName": functionName,
             "intensity": intensity,
-            "capability": advancedMetalCapability.rawValue,
-            "librarySource": advancedMetalLibrarySource.fingerprint,
-            "functionConstants": advancedMetalFunctionConstants.map(\.fingerprint),
+            "librarySource": computeKernelLibrarySource.fingerprint,
+            "functionConstants": computeKernelFunctionConstants.map(\.fingerprint),
             "hasBlendTexture": blendTexture == nil ? 0 : 1
         ]
     }
 
-    public var advancedMetalCapability: MetalCapability {
-        capability
-    }
-
-    public var advancedMetalFunction: String {
-        functionName
-    }
-
-    public var advancedMetalLibrarySource: KernelLibrarySource {
+    public var computeKernelLibrarySource: KernelLibrarySource {
         librarySource
     }
 
-    public var advancedMetalFunctionConstants: [KernelFunctionConstantDescriptor] {
+    public var computeKernelFunctionConstants: [KernelFunctionConstantDescriptor] {
         functionConstants
     }
 
-    private let capability: MetalCapability
     private let functionName: String
     private let librarySource: KernelLibrarySource
     private let functionConstants: [KernelFunctionConstantDescriptor]
@@ -66,13 +56,11 @@ public struct C7ProgrammableBlend: C7AdvancedMetalKernelProtocol {
     public init(functionName: String,
                 blendTexture: MTLTexture?,
                 intensity: Float = 1.0,
-                capability: MetalCapability = .customAdvancedEncoder,
                 librarySource: KernelLibrarySource = .automatic,
                 functionConstants: [KernelFunctionConstantDescriptor] = []) {
         self.functionName = functionName
         self.blendTexture = blendTexture
         self.intensity = intensity
-        self.capability = capability
         self.librarySource = librarySource
         self.functionConstants = functionConstants
     }

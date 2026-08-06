@@ -17,6 +17,10 @@ public struct C7GenerateMipmapsBlit: C7FilterProtocol, BlitProtocol {
     }
     
     public var needCreateDestTexture: Bool = false
+
+    public var destinationTextureContract: FilterDestinationTextureContract {
+        .init(aliasingPolicy: .inPlaceAllowed)
+    }
     
     public init() { }
     

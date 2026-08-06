@@ -17,6 +17,10 @@ public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
     }
     
     public var needCreateDestTexture: Bool = false
+
+    public var destinationTextureContract: FilterDestinationTextureContract {
+        .init(aliasingPolicy: .inPlaceAllowed)
+    }
     
     /// The source rectangle to copy from.
     private let sourceRect: CGRect?
@@ -38,7 +42,21 @@ public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
             throw HarbethError.textureCropFailed
         }
 
-        // Validate source region
+        if sourceTexture === destTexture,
+           region.x == destOrigin.x,
+           region.y == destOrigin.y {
+            return destTexture
+        }
+
+        if sharesStorage(sourceTexture, destTexture) {
+            return try encodeAliasedCopy(
+                commandBuffer: commandBuffer,
+                sourceTexture: sourceTexture,
+                destinationTexture: destTexture,
+                region: region
+            )
+        }
+
         guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
             throw HarbethError.makeBlitCommandEncoder
         }
@@ -57,5 +75,85 @@ public struct C7CopyRegionBlit: C7FilterProtocol, BlitProtocol {
         
         blitEncoder.endEncoding()
         return destTexture
+    }
+
+    private func encodeAliasedCopy(
+        commandBuffer: MTLCommandBuffer,
+        sourceTexture: MTLTexture,
+        destinationTexture: MTLTexture,
+        region: TextureRegionRect
+    ) throws -> MTLTexture {
+        let stagingTexture = try TextureLoader.makeTexture(
+            width: region.width,
+            height: region.height,
+            options: [
+                .texturePixelFormat: sourceTexture.pixelFormat,
+                .textureUsage: MTLTextureUsage.shaderRead.union(.shaderWrite)
+            ],
+            identifier: "C7CopyRegionBlit.AliasStaging"
+        )
+        var recyclesOnFailure = true
+        defer {
+            if recyclesOnFailure {
+                HarbethContext.shared.texturePool.enqueueTextureSync(stagingTexture)
+            }
+        }
+
+        guard let stageEncoder = commandBuffer.makeBlitCommandEncoder() else {
+            throw HarbethError.makeBlitCommandEncoder
+        }
+        stageEncoder.copy(
+            from: sourceTexture,
+            sourceSlice: 0,
+            sourceLevel: 0,
+            sourceOrigin: MTLOrigin(x: region.x, y: region.y, z: 0),
+            sourceSize: MTLSize(width: region.width, height: region.height, depth: 1),
+            to: stagingTexture,
+            destinationSlice: 0,
+            destinationLevel: 0,
+            destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
+        )
+        stageEncoder.endEncoding()
+
+        guard let destinationEncoder = commandBuffer.makeBlitCommandEncoder() else {
+            throw HarbethError.makeBlitCommandEncoder
+        }
+        destinationEncoder.copy(
+            from: stagingTexture,
+            sourceSlice: 0,
+            sourceLevel: 0,
+            sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+            sourceSize: MTLSize(width: region.width, height: region.height, depth: 1),
+            to: destinationTexture,
+            destinationSlice: 0,
+            destinationLevel: 0,
+            destinationOrigin: destOrigin
+        )
+        destinationEncoder.endEncoding()
+
+        let transfer = HarbethUncheckedTransfer(value: stagingTexture)
+        commandBuffer.addCompletedHandler { _ in
+            HarbethContext.shared.texturePool.enqueueTextureSync(transfer.value)
+        }
+        recyclesOnFailure = false
+        return destinationTexture
+    }
+
+    private func sharesStorage(_ lhs: MTLTexture, _ rhs: MTLTexture) -> Bool {
+        if lhs === rhs { return true }
+
+        func rootTexture(_ texture: MTLTexture) -> MTLTexture {
+            var root = texture
+            while let parent = root.parent {
+                root = parent
+            }
+            return root
+        }
+
+        if rootTexture(lhs) === rootTexture(rhs) { return true }
+        if let lhsBuffer = lhs.buffer, let rhsBuffer = rhs.buffer, lhsBuffer === rhsBuffer {
+            return true
+        }
+        return false
     }
 }

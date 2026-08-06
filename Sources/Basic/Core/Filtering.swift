@@ -36,6 +36,18 @@ public protocol C7FilterProtocol: Mirrorable {
 
     /// Explicit shader parameter bindings for compute/render encoders.
     var kernelParameterBindings: [KernelParameterBinding] { get }
+
+    /// Metal library used to resolve the primary compute function.
+    var computeKernelLibrarySource: KernelLibrarySource { get }
+
+    /// Function constants used to specialize the primary compute function.
+    var computeKernelFunctionConstants: [KernelFunctionConstantDescriptor] { get }
+
+    /// Destination texture requirements shared by every execution route.
+    var destinationTextureContract: FilterDestinationTextureContract { get }
+
+    /// Output semantics for compute, blit, MPS and Metal command execution routes.
+    var kernelOutputContract: RenderOutputContract { get }
     
     /// Memory access pattern for threadgroup optimization
     var memoryAccessPattern: MemoryAccessPattern { get }
@@ -87,6 +99,10 @@ extension C7FilterProtocol {
     }
     /// Explicit shader parameter bindings for compute/render encoders.
     public var kernelParameterBindings: [KernelParameterBinding] { [] }
+    public var computeKernelLibrarySource: KernelLibrarySource { .automatic }
+    public var computeKernelFunctionConstants: [KernelFunctionConstantDescriptor] { [] }
+    public var destinationTextureContract: FilterDestinationTextureContract { .init() }
+    public var kernelOutputContract: RenderOutputContract { .preserveInput }
     /// Memory access pattern for threadgroup optimization
     public var memoryAccessPattern: MemoryAccessPattern { .auto }
     /// The resize of the output texture.
@@ -163,16 +179,16 @@ extension C7FilterProtocol {
                 }
                 let mpsTexture = try filter.encode(commandBuffer: buffer, textures: textures)
                 complete(.success(mpsTexture))
-            case .advancedMetal:
+            case .metalCommand:
                 let textures = [destTexture, texture] + self.otherInputTextures
-                guard let filter = self as? C7AdvancedMetalKernelProtocol else {
+                guard let filter = self as? C7MetalCommandEncodingProtocol else {
                     throw HarbethError.filterError(
                         name: String(describing: type(of: self)),
-                        reason: "Advanced Metal modifier requires C7AdvancedMetalKernelProtocol."
+                        reason: "Metal command modifier requires C7MetalCommandEncodingProtocol."
                     )
                 }
-                let advancedTexture = try filter.encode(commandBuffer: buffer, textures: textures)
-                complete(.success(advancedTexture))
+                let outputTexture = try filter.encodeMetalCommands(commandBuffer: buffer, textures: textures)
+                complete(.success(outputTexture))
             }
             return destTexture
         }
@@ -206,15 +222,15 @@ extension C7FilterProtocol {
                 )
             }
             return try filter.encode(commandBuffer: buffer, textures: textures)
-        case .advancedMetal:
+        case .metalCommand:
             let textures = [destTexture, texture] + self.otherInputTextures
-            guard let filter = self as? C7AdvancedMetalKernelProtocol else {
+            guard let filter = self as? C7MetalCommandEncodingProtocol else {
                 throw HarbethError.filterError(
                     name: String(describing: type(of: self)),
-                    reason: "Advanced Metal modifier requires C7AdvancedMetalKernelProtocol."
+                    reason: "Metal command modifier requires C7MetalCommandEncodingProtocol."
                 )
             }
-            return try filter.encode(commandBuffer: buffer, textures: textures)
+            return try filter.encodeMetalCommands(commandBuffer: buffer, textures: textures)
         }
         return destTexture
     }

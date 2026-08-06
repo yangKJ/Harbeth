@@ -106,7 +106,7 @@ let node = ImageNode.image(inputImage)
 - `C7BlendChromaKey`：以色度键结果参与双纹理混合。
 - `C7ColorBurnEnhancedBlend`：增强型 Color Burn。
 - `C7MaskedForegroundBlend`：使用独立 mask texture 合成前景。
-- `C7ProgrammableBlend`：通过 advanced Metal kernel contract 承载自定义混合。
+- `C7ProgrammableBlend`：通过普通 Compute 合同承载外部 library 与 function constants 自定义混合。
 
 `C7Blend.BlendType` 支持：
 
@@ -205,7 +205,8 @@ Render 类型用于 render pass、投影/画布几何以及可附加到输出合
 
 - `C7FilterProtocol`：普通 Compute / Render / Blit / MPS 叶子滤镜。
 - `C7FilterPipelineProtocol`：由多个普通滤镜组成的公开组合滤镜。
-- `C7AdvancedMetalKernelProtocol`：需要显式 Metal kernel contract、资源或绑定语义的高级执行类型。
+- `C7MetalCommandEncodingProtocol`：仅用于标准原子滤镜和 `C7FilterPipelineProtocol` 无法表达的共享 buffer、mesh/object shader 或特殊命令资源图。
+- `FilterDestinationTextureContract`：所有滤镜共用的目标纹理 usage、storage mode 与别名策略合同。
 - Custom `.metal` / `.metallib` / external library provider：接入自有 Metal 函数与二进制库。
 
 新增、移除或重命名公开滤镜时，应同步更新本目录；若变化影响公开 API、可观察输出或资源/性能合同，还应写入 `CHANGELOG.md` 的 `Unreleased`。

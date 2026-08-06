@@ -155,8 +155,6 @@ extension HarbethIO {
     func configured(for profile: RenderProfile) -> Self {
         var copy = self
         copy.renderProfile = profile
-        copy.enableDoubleBuffer = profile.enablesDoubleBuffer
-        copy.createDestTexture = profile.createsDestinationTexture
         return copy
     }
 
@@ -267,7 +265,6 @@ private extension HarbethIO {
             .configured(for: profile)
         if let targetPixelFormat {
             io.bufferPixelFormat = targetPixelFormat
-            io.createDestTexture = true
         }
         let outputColorSpace = io.resolvedOutputColorSpace(
             inputSize: C7Size(texture: context.sourceTexture),

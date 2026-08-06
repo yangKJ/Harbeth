@@ -125,7 +125,7 @@ enum RenderExecutionCompiler {
         var currentSize = inputSize
         for (node, filter) in zip(filterNodes, executionFilters) {
             let outputSize = filter.resize(input: currentSize)
-            let expectedBreaksFusion = outputSize != currentSize || node.kind == .combination
+            let expectedBreaksFusion = outputSize != currentSize || node.kind == .combination || node.kind == .metalCommand
             guard node.outputSize == outputSize, node.breaksFusion == expectedBreaksFusion else {
                 return false
             }
@@ -175,13 +175,14 @@ enum RenderExecutionCompiler {
             } else {
                 lifecycleAction = .reuseTransient
             }
+            let outputSize = node.outputSize
+            ?? plan.diagnostics.nodes.first(where: { $0.index == nodeIndex })?.outputSize
+            ?? plan.diagnostics.inputSize
             return RenderExecutionStep(
                 nodeIndex: nodeIndex,
                 stageIndex: stageIndex,
                 filter: filter,
-                outputSize: node.outputSize
-                    ?? plan.diagnostics.nodes.first(where: { $0.index == nodeIndex })?.outputSize
-                    ?? plan.diagnostics.inputSize,
+                outputSize: outputSize,
                 lifecycleAction: lifecycleAction,
                 breaksFusion: node.breaksFusion
             )

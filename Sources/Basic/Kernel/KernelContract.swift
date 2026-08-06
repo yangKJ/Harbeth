@@ -25,8 +25,10 @@ extension C7FilterProtocol {
             usage = otherInputTextures.isEmpty ? .singleInput : .multiInput
         case .blit:
             usage = .generatesTexture
-        case .mps, .advancedMetal:
+        case .mps:
             usage = .externalEncoder
+        case .metalCommand:
+            usage = .metalCommand
         }
         return FilterKernelContractDescriptor(
             functionIdentity: modifier.recipeName,

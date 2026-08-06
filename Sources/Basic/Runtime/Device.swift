@@ -44,12 +44,10 @@ final class Device {
 extension Device {
     private static func capabilityMinimumPlatform(_ capability: MetalCapability) -> String {
         switch capability {
-        case .customAdvancedEncoder:
-            return "Implementation-defined"
         case .heapTexturePool:
             return "iOS 13 / macOS 10.15 / tvOS 13 / Mac Catalyst 13"
         case .meshShaders:
-            return "iOS 16 / macOS 13 / tvOS 16"
+            return "iOS 16 / macOS 13"
         case .metalFX:
             return "iOS 16 / macOS 13"
         case .metalIO:
@@ -84,15 +82,6 @@ extension Device {
     }
 
     static func metalCapabilityReport(_ capability: MetalCapability, on device: MTLDevice? = nil) -> MetalCapabilityReport {
-        if capability == .customAdvancedEncoder {
-            return MetalCapabilityReport(
-                capability: capability,
-                status: .requiresConcreteImplementationCheck,
-                minimumPlatform: "Implementation-defined",
-                reason: "Higher packages must provide their own availability and device checks."
-            )
-        }
-
         let resolvedDevice: MTLDevice? = {
             if let device { return device }
             if let existingDevice = contextDevice {
@@ -110,24 +99,17 @@ extension Device {
             )
         }
         switch capability {
-        case .customAdvancedEncoder:
-            return MetalCapabilityReport(
-                capability: capability,
-                status: .requiresConcreteImplementationCheck,
-                minimumPlatform: capabilityMinimumPlatform(capability),
-                reason: "Higher packages must provide their own availability and device checks."
-            )
         case .heapTexturePool:
             if #available(macOS 10.15, iOS 13.0, tvOS 13.0, macCatalyst 13.0, *) {
                 let isSupported: Bool
                 #if targetEnvironment(macCatalyst)
-                    isSupported = device.supportsFamily(.macCatalyst1)
+                isSupported = device.supportsFamily(.macCatalyst1)
                 #elseif os(macOS)
-                    isSupported = device.supportsFamily(.mac1)
+                isSupported = device.supportsFamily(.mac1)
                 #elseif os(iOS) || os(tvOS)
-                    isSupported = device.supportsFamily(.apple5)
+                isSupported = device.supportsFamily(.apple5)
                 #else
-                    isSupported = false
+                isSupported = false
                 #endif
                 return MetalCapabilityReport(
                     capability: capability,
@@ -145,20 +127,31 @@ extension Device {
                 reason: "Heap texture pool support is newer than the current runtime."
             )
         case .meshShaders:
-            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
+            #if os(macOS) || os(iOS)
+            if #available(macOS 13.0, iOS 16.0, *) {
+                let isSupported: Bool
+                #if targetEnvironment(macCatalyst)
+                isSupported = device.supportsFamily(.mac2)
+                #elseif os(macOS)
+                isSupported = device.supportsFamily(.mac2)
+                #else
+                isSupported = device.supportsFamily(.apple7)
+                #endif
                 return MetalCapabilityReport(
                     capability: capability,
-                    status: .requiresConcreteImplementationCheck,
+                    status: isSupported ? .requiresConcreteImplementationCheck : .unsupported,
                     minimumPlatform: capabilityMinimumPlatform(capability),
-                    reason:
-                        "Object/mesh shader APIs are available; concrete pipeline creation must still be checked by the implementation."
+                    reason: isSupported
+                        ? "Device family supports mesh shaders; concrete pipeline creation must still be checked by the implementation."
+                        : "Device does not meet Harbeth's Apple7 / Mac2 mesh shader family requirement."
                 )
             }
+            #endif
             return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: capabilityMinimumPlatform(capability),
-                reason: "Object/mesh shader APIs are newer than the current runtime."
+                reason: "Mesh shaders are not available for this platform, runtime or GPU family."
             )
         case .metalFX:
             if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
@@ -507,6 +500,11 @@ extension Device {
 
         let functionName = identity.primaryName
         let constantValues = identity.makeMetalFunctionConstantValues()
+        if identity.functionConstants.isEmpty == false, constantValues == nil {
+            throw HarbethError.configurationInvalid(
+                "Metal function constants for \(functionName) contain an unsupported value."
+            )
+        }
         let resolvedDevice = contextDevice ?? HarbethContext.shared.runtimeDevice
 
         if let cached = resolvedDevice.cachedFunction(for: identity) {

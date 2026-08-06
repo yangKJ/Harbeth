@@ -14,6 +14,27 @@ struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
     let otherInputTextureCount: Int
     let pipelineFilterFingerprints: [String]
     let finalFilterFingerprint: String?
+    let executionContractFingerprint: String
+
+    init(
+        stableTypeID: String,
+        modifier: String,
+        parameterValues: [String],
+        resourceIdentity: String?,
+        otherInputTextureCount: Int,
+        pipelineFilterFingerprints: [String],
+        finalFilterFingerprint: String?,
+        executionContractFingerprint: String = "none"
+    ) {
+        self.stableTypeID = stableTypeID
+        self.modifier = modifier
+        self.parameterValues = parameterValues
+        self.resourceIdentity = resourceIdentity
+        self.otherInputTextureCount = otherInputTextureCount
+        self.pipelineFilterFingerprints = pipelineFilterFingerprints
+        self.finalFilterFingerprint = finalFilterFingerprint
+        self.executionContractFingerprint = executionContractFingerprint
+    }
 
     var fingerprint: String {
         var components = [
@@ -21,7 +42,8 @@ struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
             modifier,
             parameterValues.joined(separator: ","),
             "resource=\(resourceIdentity ?? "none")",
-            "inputs=\(otherInputTextureCount)"
+            "inputs=\(otherInputTextureCount)",
+            "execution=\(executionContractFingerprint)"
         ]
         if pipelineFilterFingerprints.isEmpty == false {
             components.append("pipeline=\(pipelineFilterFingerprints.joined(separator: " -> "))")
@@ -115,7 +137,8 @@ extension C7FilterProtocol {
                 resourceIdentity: pipelineFilter.kernelResourceIdentity,
                 otherInputTextureCount: pipelineFilter.pipelineOtherInputCount,
                 pipelineFilterFingerprints: pipelineDescriptors.map(\.fingerprint),
-                finalFilterFingerprint: finalDescriptor?.fingerprint
+                finalFilterFingerprint: finalDescriptor?.fingerprint,
+                executionContractFingerprint: executionContractFingerprint
             )
         }
         let bindings = kernelParameterBindings
@@ -126,8 +149,33 @@ extension C7FilterProtocol {
             resourceIdentity: kernelResourceIdentity,
             otherInputTextureCount: otherInputTextures.count,
             pipelineFilterFingerprints: [],
-            finalFilterFingerprint: nil
+            finalFilterFingerprint: nil,
+            executionContractFingerprint: executionContractFingerprint
         )
+    }
+
+    private var executionContractFingerprint: String {
+        let constants = computeKernelFunctionConstants
+            .sorted { lhs, rhs in
+                if lhs.name == rhs.name {
+                    return (lhs.index ?? -1) < (rhs.index ?? -1)
+                }
+                return lhs.name < rhs.name
+            }
+            .map(\.fingerprint)
+            .joined(separator: "||")
+        let capabilities = (self as? C7MetalCommandEncodingProtocol)?
+            .requiredMetalCapabilities
+            .map(\.rawValue)
+            .sorted()
+            .joined(separator: ",") ?? "none"
+        return [
+            computeKernelLibrarySource.fingerprint,
+            "constants=\(constants.isEmpty ? "none" : constants)",
+            destinationTextureContract.fingerprint,
+            kernelOutputContract.fingerprint,
+            "capabilities=\(capabilities)"
+        ].joined(separator: "|")
     }
 
     static func stableFloatDescription(_ value: Float) -> String {

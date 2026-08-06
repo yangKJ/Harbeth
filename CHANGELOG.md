@@ -15,19 +15,23 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 - Kept `C7` for established platform adapters, geometry primitives and filter-development contracts, while removing it from unrelated public Metal capability and filter-configuration types. Use `MetalCapability`, `MetalCapabilityStatus`, `MetalCapabilityReport`, `DisplacementEncoding`, `DisplacementUnit`, `SceneLightKind`, `SceneLightDescriptor`, `SceneRelightDescriptor` and `SceneRelightDescriptorError`.
 - Removed `RenderProfile.usesRealTimeCommit` from the public surface and stopped `HarbethIO.configured(for:)` from implicitly changing real-time delivery; `transmitOutputRealTimeCommit` is now the only public HarbethIO control for that behavior.
 - Simplified `bufferPixelFormat` into the single source of truth: it is now optional, where `nil` preserves the source texture format and a value explicitly overrides it. The redundant setter-tracking state was removed.
-- Moved destination-allocation and double-buffer selection behind `RenderProfile` and the `ImageNode` route. `HarbethIO` remains the direct source-plus-filters-to-output entry point.
+- Removed mutable destination-allocation and double-buffer switches from `HarbethIO`; allocation now derives from `RenderProfile`, `bufferPixelFormat` and each filter's destination contract. `HarbethIO` remains the direct source-plus-filters-to-output entry point.
 - Kept `HarbethIO.mirrored` public as the legacy explicit CIImage orientation correction; it is not an execution policy and has no replacement source-orientation contract yet.
+- Replaced the broad advanced-Metal abstraction with `C7MetalCommandEncodingProtocol`, an opaque command-encoding escape hatch used only when standard filters and `C7FilterPipelineProtocol` cannot express the resource graph. External libraries and function constants now remain on ordinary Compute filters, including `C7ProgrammableBlend` and `LayerProgrammableBlend` without a capability parameter.
+- Added `FilterDestinationTextureContract` and `DestinationTextureAliasingPolicy` to the common filter contract so Compute, Render, MPS, Blit and Metal-command filters can declare destination usage, storage mode and aliasing without changing execution category.
 
 #### Fixed
 
 - Preserved `transmitOutputRealTimeCommit` as the single public real-time submission switch while restoring its original texture-first meaning: enabled asynchronous texture output is delivered after command-buffer scheduling, while the default waits for GPU completion.
 - Kept synchronous output and CPU-materialized image, pixel-buffer and sample-buffer results completion-safe even when real-time texture delivery is enabled.
 - Kept managed output textures leased for the lifetime of synchronous direct-filter `ImageNode` frames, allowing texture-backed CIImage results to return their storage to the pool only after the frame and escaped image views are released.
+- Enforced destination aliasing and output contracts across low-latency allocation, render-plan cache identity and multi-filter graph compilation, while preserving explicit in-place support for primitives that stage their own source safely.
 
 #### Removed
 
 - Removed direct public access to `HarbethIO.createDestTexture`, `HarbethIO.enableDoubleBuffer`, `HarbethIO.configured(for:)`, frame-capability construction, convenience fallback output, filter operators, and texture-backed CIImage frame delivery. Use `ImageNode` with a `RenderProfile` when structured execution is required; call `RenderedFrame.makeTextureBackedCIImage(for:)` for CIImage source-preserving delivery.
 - Removed `PerformanceMonitor` and its configuration/metrics types from the public API. Hosts now use only `HarbethContext.enablePerformanceMonitor` to opt into internal diagnostics; benchmark and test consumers use the package's internal test surface.
+- Removed `C7AdvancedMetalKernelProtocol`, `MetalCapability.customAdvancedEncoder` and the redundant custom-encoder-kind classification. Ordinary kernels remain on `C7FilterProtocol`, texture-only multi-pass work remains on `C7FilterPipelineProtocol`, and only non-standard command/resource graphs use `C7MetalCommandEncodingProtocol`.
 
 ### 2026-08-05 — macOS texture readback correctness, deterministic tone mapping and GPU filter primitives
 

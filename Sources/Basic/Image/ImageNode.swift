@@ -2432,7 +2432,6 @@ extension ImageNode {
                 identifier: identifier ?? "ImageNode.OutputContract"
             ).configured(for: profile)
             io.bufferPixelFormat = targetPixelFormat
-            io.createDestTexture = true
             output = try io.output()
         }
         let didProduceNewTexture = output !== texture

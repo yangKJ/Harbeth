@@ -100,9 +100,9 @@ final class ModifierEnumTests: XCTestCase {
         XCTAssertEqual(mod.name, "harbeth_vertex_harbeth_fragment")
     }
 
-    func testAdvancedMetalNameIsUnchanged() {
-        let mod = ModifierEnum.advancedMetal(capability: .customAdvancedEncoder, function: "harbeth_advanced")
-        XCTAssertEqual(mod.name, "harbeth_advanced")
+    func testMetalCommandNameUsesItsDiagnosticLabel() {
+        let mod = ModifierEnum.metalCommand(label: "harbeth_command")
+        XCTAssertEqual(mod.name, "harbeth_command")
     }
 
     // MARK: - 核心合同保护：recipeName 在所有 case 下行为不变
@@ -113,7 +113,7 @@ final class ModifierEnumTests: XCTestCase {
         XCTAssertEqual(ModifierEnum.blit.recipeName, "blit")
         XCTAssertEqual(ModifierEnum.compute(kernel: "X").recipeName, "compute:X")
         XCTAssertEqual(ModifierEnum.render(vertex: "v", fragment: "f").recipeName, "render:v|f")
-        XCTAssertEqual(ModifierEnum.advancedMetal(capability: .customAdvancedEncoder, function: "X").recipeName, "advancedMetal")
+        XCTAssertEqual(ModifierEnum.metalCommand(label: "X").recipeName, "metalCommand:X")
     }
 
     // MARK: - 行为分离：name 与 recipeName 是两条 contract，不应重复

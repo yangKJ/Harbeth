@@ -190,7 +190,7 @@ final class CLAHEFilterTests: XCTestCase {
                         destination: MTLTexture,
                         identifier: String) throws {
         let commandBuffer = try XCTUnwrap(HarbethContext.shared.makeCommandBuffer())
-        _ = try filter.encode(commandBuffer: commandBuffer, textures: [destination, source])
+        _ = try filter.applyAtTexture(form: source, to: destination, for: commandBuffer)
         try commandBuffer.commitAndWaitUntilCompleted(identifier: identifier)
     }
 

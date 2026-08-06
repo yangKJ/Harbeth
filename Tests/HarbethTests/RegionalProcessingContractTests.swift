@@ -33,6 +33,31 @@ final class RegionalProcessingContractTests: XCTestCase {
         XCTAssertEqual(try bytes(in: output), before)
     }
 
+    func testCopyRegionStagesOverlappingInPlaceMovesInEveryDirection() throws {
+        let cases: [(name: String, source: CGRect, destination: MTLOrigin)] = [
+            ("right", CGRect(x: 0, y: 1, width: 4, height: 3), MTLOrigin(x: 1, y: 1, z: 0)),
+            ("left", CGRect(x: 1, y: 1, width: 4, height: 3), MTLOrigin(x: 0, y: 1, z: 0)),
+            ("down", CGRect(x: 1, y: 0, width: 3, height: 4), MTLOrigin(x: 1, y: 1, z: 0)),
+            ("up", CGRect(x: 1, y: 1, width: 3, height: 4), MTLOrigin(x: 1, y: 0, z: 0))
+        ]
+
+        for testCase in cases {
+            let texture = try makePatternTexture(width: 5, height: 5)
+            let before = try bytes(in: texture)
+            let output: MTLTexture = try HarbethIO(
+                element: texture,
+                filter: C7CopyRegionBlit(sourceRect: testCase.source, destOrigin: testCase.destination)
+            ).output()
+
+            XCTAssertTrue(output === texture, testCase.name)
+            XCTAssertEqual(
+                try bytes(in: output),
+                expectedBytes(afterCopying: testCase.source, to: testCase.destination, in: before, width: 5),
+                testCase.name
+            )
+        }
+    }
+
     func testTextureRegionRectRejectsNonIntegerAndEmptyRects() throws {
         XCTAssertNil(TextureRegionRect(rect: CGRect(x: 1.5, y: 1, width: 2, height: 2)))
         XCTAssertNil(TextureRegionRect(rect: CGRect(x: 1, y: 1, width: 0, height: 2)))
@@ -210,6 +235,27 @@ final class RegionalProcessingContractTests: XCTestCase {
     private func bytes(in texture: MTLTexture) throws -> [UInt8] {
         guard let bytes = texture.c7.bytes() else { throw HarbethError.texture2Image }
         return Array(bytes)
+    }
+
+    private func expectedBytes(
+        afterCopying source: CGRect,
+        to destination: MTLOrigin,
+        in bytes: [UInt8],
+        width: Int
+    ) -> [UInt8] {
+        var expected = bytes
+        let sourceX = Int(source.origin.x)
+        let sourceY = Int(source.origin.y)
+        let copyWidth = Int(source.width)
+        let copyHeight = Int(source.height)
+        for y in 0..<copyHeight {
+            for x in 0..<copyWidth {
+                let sourceOffset = ((sourceY + y) * width + sourceX + x) * 4
+                let destinationOffset = ((destination.y + y) * width + destination.x + x) * 4
+                expected[destinationOffset..<(destinationOffset + 4)] = bytes[sourceOffset..<(sourceOffset + 4)]
+            }
+        }
+        return expected
     }
 
     private func assertTextureCropFailure(_ error: Error, file: StaticString = #filePath, line: UInt = #line) {

@@ -11,7 +11,7 @@ enum RenderNodeKind: String, Sendable, Codable, Equatable, Hashable {
     case render
     case blit
     case mps
-    case advancedMetal
+    case metalCommand
     case combination
     case boundary
 }
@@ -1281,7 +1281,7 @@ enum GraphOptimizer {
                 return .renderPipeline
             case .blit:
                 return .blitPass
-            case .mps, .advancedMetal, .combination, .boundary:
+            case .mps, .metalCommand, .combination, .boundary:
                 return nil
             }
         }
@@ -1326,9 +1326,11 @@ enum GraphOptimizer {
                     inputSize: inputSize,
                     outputSize: outputSize,
                     boundaryReason: boundaryReason(for: stageNodes, diagnostics: diagnostics),
-                    containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback
-                    && currentNodeIndices.last == graph.nodes.indices.last,
-                    createsDestinationTexture: stageNodes.contains(where: { $0.filter != nil }),
+                    containsReadbackBoundary: profile.requiresCompletedGPUWorkBeforeReadback && currentNodeIndices.last == graph.nodes.indices.last,
+                    createsDestinationTexture: stageNodes.contains { node in
+                        guard let filter = node.filter else { return false }
+                        return filter.kernelDescriptor(inputSize: node.outputSize).resources.requiresDestinationTexture
+                    },
                     containsLocalEffectComposite: stageNodes.contains(where: { $0.filter is MaskRegionBlend }),
                     containsTransitionKernel: stageNodes.contains(where: { $0.filter is TransitionKernel }),
                     containsDerivativeResize: diagnostics.contains(where: { $0.name == "DerivativeResize" })
@@ -1394,12 +1396,16 @@ enum GraphCompiler {
                         graphOptimizationDecisions: [String] = []) -> RenderPlan {
         var currentSize = inputSize
         var nodeDiagnostics: [RenderNodeDiagnostic] = []
+        var inferredOutputContract = RenderOutputContract.preserveInput
         let nodes = filters.enumerated().map { index, filter -> RenderNode in
             let input = currentSize
             let outputSize = filter.resize(input: currentSize)
+            let descriptor = filter.kernelDescriptor(inputSize: input)
+            inferredOutputContract = resolveOutputContract(descriptor.outputContract, preserving: inferredOutputContract)
             let resizes = outputSize.width != currentSize.width || outputSize.height != currentSize.height
             currentSize = outputSize
             let kind = nodeKind(for: filter)
+            let breaksFusion = resizes || kind == .combination || kind == .metalCommand
             nodeDiagnostics.append(
                 RenderNodeDiagnostic(
                     index: index,
@@ -1407,7 +1413,7 @@ enum GraphCompiler {
                     kind: kind,
                     inputSize: input,
                     outputSize: outputSize,
-                    breaksFusion: resizes || kind == .combination,
+                    breaksFusion: breaksFusion,
                     parameterSummary: parameterSummary(for: filter)
                 )
             )
@@ -1416,12 +1422,12 @@ enum GraphCompiler {
                 filter: filter,
                 boundary: nil,
                 outputSize: outputSize,
-                breaksFusion: resizes || kind == .combination
+                breaksFusion: breaksFusion
             )
         }
         let resolvedOutputContract: RenderOutputContract
-        if outputContract == .preserveInput, let lastFilter = filters.last, case .render = lastFilter.modifier {
-            resolvedOutputContract = lastFilter.kernelDescriptor(inputSize: currentSize).outputContract
+        if outputContract == .preserveInput {
+            resolvedOutputContract = inferredOutputContract
         } else {
             resolvedOutputContract = outputContract
         }
@@ -1468,7 +1474,7 @@ enum GraphCompiler {
             imageCachePolicy: imageCachePolicy,
             samplerDescriptor: samplerDescriptor,
             samplerExecutionCoverage: samplerExecutionCoverage
-                ?? SamplerExecutionAdapter.coverage(for: filters, samplerDescriptor: samplerDescriptor),
+            ?? SamplerExecutionAdapter.coverage(for: filters, samplerDescriptor: samplerDescriptor),
             sourceDescriptor: sourceDescriptor,
             auxiliaryInputDescriptor: auxiliaryInputDescriptor,
             imageGraph: imageGraph,
@@ -1489,9 +1495,36 @@ enum GraphCompiler {
             return .blit
         case .mps:
             return .mps
-        case .advancedMetal:
-            return .advancedMetal
+        case .metalCommand:
+            return .metalCommand
         }
+    }
+
+    private static func resolveOutputContract(_ declared: RenderOutputContract, preserving previous: RenderOutputContract) -> RenderOutputContract {
+        guard declared != .preserveInput else { return previous }
+        return RenderOutputContract(
+            inputAlphaExpectation: declared.inputAlphaExpectation == .preserveInput
+                ? previous.inputAlphaExpectation
+                : declared.inputAlphaExpectation,
+            alpha: declared.alpha == .preserveInput ? previous.alpha : declared.alpha,
+            colorSpace: declared.colorSpace.preservesInput ? previous.colorSpace : declared.colorSpace,
+            pixelFormat: declared.pixelFormat.preservesInput ? previous.pixelFormat : declared.pixelFormat,
+            additionalAttachments: declared.secondaryAttachments.isEmpty
+                ? previous.secondaryAttachments
+                : declared.secondaryAttachments,
+            colorTransferPolicy: declared.colorTransferPolicy == .automatic
+                ? previous.colorTransferPolicy
+                : declared.colorTransferPolicy,
+            toneMappingPolicy: declared.toneMappingPolicy == .preserveInput
+                ? previous.toneMappingPolicy
+                : declared.toneMappingPolicy,
+            pixelFormatFallbackPolicy: declared.pixelFormatFallbackPolicy == .preserveInput
+                ? previous.pixelFormatFallbackPolicy
+                : declared.pixelFormatFallbackPolicy,
+            quantization: declared.quantization == .automatic ? previous.quantization : declared.quantization,
+            allowsLossyConversion: previous.allowsLossyConversion || declared.allowsLossyConversion,
+            preservesOrientation: previous.preservesOrientation && declared.preservesOrientation
+        )
     }
 
     private static func nodeName(for filter: C7FilterProtocol) -> String {
@@ -1501,11 +1534,21 @@ enum GraphCompiler {
     }
 
     private static func parameterSummary(for filter: C7FilterProtocol) -> [String: String] {
-        filter.parameterDescription
+        var summary = filter.parameterDescription
             .mapValues { String(describing: $0) }
             .sorted { $0.key < $1.key }
             .reduce(into: [String: String]()) { partialResult, pair in
                 partialResult[pair.key] = pair.value
             }
+        let metalCommandFilter = filter as? C7MetalCommandEncodingProtocol
+        if let metalCommandFilter {
+            summary["metalCommandRequiredCapabilities"] = metalCommandFilter.requiredMetalCapabilities.map(\.rawValue).joined(separator: ",")
+        }
+        let destinationContract = filter.destinationTextureContract
+        if metalCommandFilter != nil || destinationContract != FilterDestinationTextureContract() {
+            summary["destinationTextureAliasingPolicy"] = destinationContract.aliasingPolicy.rawValue
+            summary["destinationTextureUsage"] = String(destinationContract.usage.rawValue)
+        }
+        return summary
     }
 }

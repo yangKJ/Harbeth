@@ -1,6 +1,6 @@
 # Custom Filter Guide / 自定义滤镜指南
 
-Harbeth 的滤镜开发面分成普通叶子滤镜、组合滤镜、Render/MPS/Blit 和 advanced Metal 四类。普通 App 接入仍从 `HarbethIO` 或 `ImageNode` 消费这些滤镜；本页只面向需要编写新滤镜或接入自有 Metal library 的开发者。
+Harbeth 的滤镜开发面优先使用普通叶子滤镜、组合滤镜和 Render/MPS/Blit 标准合同。只有标准合同无法表达资源图或特殊 pipeline 时，才由滤镜接管 Metal command 编码。普通 App 接入仍从 `HarbethIO` 或 `ImageNode` 消费这些滤镜；本页只面向需要编写新滤镜或接入自有 Metal library 的开发者。
 
 ## 1. 先选择最小合同
 
@@ -11,9 +11,10 @@ Harbeth 的滤镜开发面分成普通叶子滤镜、组合滤镜、Render/MPS/B
 | 自定义 vertex/fragment 与 render pass | `RenderProtocol` |
 | 直接封装 Metal Performance Shaders | `MPSKernelProtocol` |
 | Copy、crop、mipmap 等 blit encoder | `BlitProtocol` |
-| 需要显式 capability、function constants、fallback | `C7AdvancedMetalKernelProtocol` |
+| 外部 library 或 function constants 的单个 Compute kernel | `C7FilterProtocol` + `computeKernelLibrarySource` / `computeKernelFunctionConstants` |
+| 需要共享 `MTLBuffer`、mesh/object shader 或特殊命令资源图 | `C7MetalCommandEncodingProtocol` |
 
-能用普通 `C7FilterProtocol` 表达时，不要先引入 advanced contract。
+多 pass 本身不是升级理由：texture-in / texture-out 的多个标准 pass 继续使用 `C7FilterPipelineProtocol`。只有现有原子滤镜和 pipeline 无法完整声明资源与执行行为时，才使用 command encoding escape hatch。
 
 ## 2. 最小 Compute 滤镜
 
@@ -79,6 +80,8 @@ let image = try HarbethIO(
 - 参数需要名字、类型、矩阵、颜色、布尔或明确 buffer index 时，使用 `kernelParameterBindings`。
 - 同一滤镜选择一个主要参数路径，不同时重复表达 `factors` 与 `kernelParameterBindings`。
 - 改变输出尺寸时实现 `resize(input:)`，不要让 shader 写出目标纹理边界。
+- 需要指定目标纹理 usage、storage mode 或输入输出别名策略时，实现 `destinationTextureContract`；这些要求属于所有滤镜，不属于特殊命令编码专有能力。
+- Compute/MPS/Blit 或 command encoding 需要声明输出 pixel format、色彩空间或 alpha 时，实现 `kernelOutputContract`。
 - 双纹理或多纹理 kernel 通过 `otherInputTextures` 声明额外输入，并把 `memoryAccessPattern` 标成 `.dualTexture` 或 `.multiTexture`。
 - 邻域采样滤镜使用 `.neighborhood`，逐像素滤镜使用 `.point`，让 runtime 选择更合适的 threadgroup。
 - Harbeth 会在 `buffer(30)` 提供共享 region context；普通全图 kernel 可以忽略它，区域执行 kernel 应按对应 contract 消费。
@@ -178,6 +181,6 @@ HarbethContext.shared.externalLibraryRegistryDebugDescription()
 4. 输出尺寸、pixel format、Alpha 与色彩空间合同正确。
 5. 多纹理输入数量不足时明确失败。
 6. 同一滤镜在 `HarbethIO.output()` 与 `ImageNode.makeTexture()` 下结果一致。
-7. 若提供 advanced path，unsupported device 会落到可验证的 fallback，而不是 capability label 即成功。
+7. 若使用 `C7MetalCommandEncodingProtocol`，unsupported device 会落到可验证的 fallback，实际路线在执行时记录；静态 capability label 不代表执行成功。
 
 完整公开滤镜清单见[滤镜目录](FILTER_CATALOG.md)，失败排查见[故障排查](TROUBLESHOOTING.md)。
