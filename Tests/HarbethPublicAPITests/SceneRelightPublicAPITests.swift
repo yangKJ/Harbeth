@@ -4,7 +4,7 @@ import XCTest
 
 final class SceneRelightPublicAPITests: XCTestCase {
     func testSceneRelightSurfaceCompilesForDirectAndDeferredExecution() throws {
-        let light = C7SceneLightDescriptor(
+        let light = SceneLightDescriptor(
             kind: .spot,
             position: SIMD3<Float>(0.3, 0.2, 1.4),
             direction: SIMD3<Float>(0.2, 0.3, -1),
@@ -15,7 +15,7 @@ final class SceneRelightPublicAPITests: XCTestCase {
             coneAngleDegrees: 50,
             falloff: 1.1
         )
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             lights: [light],
             ambient: 0.3,
             originalLight: 0.65,

@@ -114,6 +114,11 @@ final class PublicAPISmokeTests: XCTestCase {
     }
 
     func testRuntimeResourceSurfaceCompiles() {
+        let capability: MetalCapability = .heapTexturePool
+        let status: MetalCapabilityStatus = .supported
+        let report: (HarbethContext) -> MetalCapabilityReport = { context in
+            context.capabilityReport(capability)
+        }
         let configure: (HarbethContext) -> Void = { context in
             context.textureAllocationStrategy = .exact
             context.enablePerformanceMonitor = false
@@ -130,6 +135,7 @@ final class PublicAPISmokeTests: XCTestCase {
         }
         _ = configure
         _ = recover
+        _ = (status, report)
     }
 
     func testProfessionalMaskRuntimeSurfaceCompiles() {
@@ -185,6 +191,8 @@ final class PublicAPISmokeTests: XCTestCase {
     }
 
     func testRecentAtomicFilterSurfaceCompiles() {
+        let displacementUnit: DisplacementUnit = .pixels
+        let displacementEncoding: DisplacementEncoding = .signed
         let toneMapping = C7ToneMapping(
             inputNitsPerUnit: 10_000,
             sourcePeakNits: 1_000,
@@ -195,8 +203,8 @@ final class PublicAPISmokeTests: XCTestCase {
             C7DisplacementMap(
                 displacementTexture: texture,
                 scale: 1,
-                unit: .pixels,
-                encoding: .signed,
+                unit: displacementUnit,
+                encoding: displacementEncoding,
                 samplingMode: .adaptive,
                 edgeMode: .clamp
             )
@@ -214,7 +222,7 @@ final class PublicAPISmokeTests: XCTestCase {
             toneMapping
         ]
 
-        _ = displacement
+        _ = (displacement, displacementUnit, displacementEncoding)
         _ = recent
         _ = KernelDynamicRangeBehavior.toneMapsToEDR
     }

@@ -33,6 +33,7 @@ let frame = try ImageNode
 - 删除 typo alias、旧 runtime accessors、`Outputable` 泛型扩展、`C7CombinationBase` 与全局 `R.width` / `R.height`。
 - Harbeth 不再传递式 re-export `AVFoundation`；宿主直接 `import AVFoundation`。
 - UIKit/AppKit/SwiftUI 预览优先消费 `MTLTexture` 或 `RenderedFrame`，避免为了显示而提前 CPU readback。
+- `C7` 只保留给既有的平台适配、几何基础和滤镜开发合同。Metal capability 与滤镜配置不再使用该前缀：`C7MetalCapability` / `C7MetalCapabilityStatus` / `C7MetalCapabilityReport` 分别迁移为 `MetalCapability` / `MetalCapabilityStatus` / `MetalCapabilityReport`；`C7DisplacementEncoding` / `C7DisplacementUnit` 迁移为 `DisplacementEncoding` / `DisplacementUnit`；`C7SceneLightKind`、`C7SceneLightDescriptor`、`C7SceneRelightDescriptor`、`C7SceneRelightDescriptorError` 分别迁移为无前缀版本。
 
 ## 3. 纹理与资源合同
 

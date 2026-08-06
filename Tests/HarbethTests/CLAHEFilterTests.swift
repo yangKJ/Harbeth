@@ -126,8 +126,8 @@ final class CLAHEFilterTests: XCTestCase {
             throw XCTSkip("Metal device is unavailable in this environment.")
         }
         HarbethContext.shared.recoverExecution()
-        C7CLAHETemporaryBufferPool.shared.resetForTesting()
-        defer { C7CLAHETemporaryBufferPool.shared.resetForTesting() }
+        CLAHETemporaryBufferPool.shared.resetForTesting()
+        defer { CLAHETemporaryBufferPool.shared.resetForTesting() }
 
         let source = try makePrivateTexture(device: device, width: 3_840, height: 2_160)
         let destination = try makePrivateTexture(device: device, width: 3_840, height: 2_160)
@@ -141,7 +141,7 @@ final class CLAHEFilterTests: XCTestCase {
             elapsedTimes.append(Date().timeIntervalSince(start))
         }
 
-        let statistics = C7CLAHETemporaryBufferPool.shared.statistics
+        let statistics = CLAHETemporaryBufferPool.shared.statistics
         let p95Index = Int(ceil(Double(elapsedTimes.count) * 0.95)) - 1
         let p95 = elapsedTimes.sorted()[p95Index]
 

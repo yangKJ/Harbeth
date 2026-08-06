@@ -60,7 +60,7 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
         .multiTexture
     }
 
-    public var advancedMetalCapability: C7MetalCapability {
+    public var advancedMetalCapability: MetalCapability {
         .customAdvancedEncoder
     }
 
@@ -114,7 +114,7 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
         let lookupLength = tileCount * Self.histogramBinCount * MemoryLayout<Float>.stride
         let device = HarbethContext.shared.device
 
-        let temporaryBuffers = try C7CLAHETemporaryBufferPool.shared.checkout(
+        let temporaryBuffers = try CLAHETemporaryBufferPool.shared.checkout(
             device: device,
             histogramLength: histogramLength,
             countLength: countLength,
@@ -147,7 +147,7 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
             commandBuffer: commandBuffer
         )
         commandBuffer.addCompletedHandler { _ in
-            C7CLAHETemporaryBufferPool.shared.recycle(temporaryBuffers)
+            CLAHETemporaryBufferPool.shared.recycle(temporaryBuffers)
         }
         return destination
     }
@@ -248,7 +248,7 @@ public struct C7CLAHE: C7AdvancedMetalKernelProtocol {
 
 /// 仅供 CLAHE 使用的短生命周期 GPU buffer 池。每组 buffer 都会等关联 command buffer 完成后
 /// 才归还，避免被并发 render 提前复用；缓存最多保留两组，限制长期 private-memory 占用。
-final class C7CLAHETemporaryBufferPool: @unchecked Sendable {
+final class CLAHETemporaryBufferPool: @unchecked Sendable {
 
     struct Statistics: Equatable {
         let totalBufferAllocations: Int
@@ -257,7 +257,7 @@ final class C7CLAHETemporaryBufferPool: @unchecked Sendable {
         let cachedSetCount: Int
     }
 
-    static let shared = C7CLAHETemporaryBufferPool()
+    static let shared = CLAHETemporaryBufferPool()
 
     struct Key: Hashable, Sendable {
         let deviceIdentifier: ObjectIdentifier

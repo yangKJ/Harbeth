@@ -28,7 +28,7 @@ static int2 c7SceneRelightClampedPixel(int2 pixel, uint width, uint height) {
     return clamp(pixel, int2(0), int2(max(int(width) - 1, 0), max(int(height) - 1, 0)));
 }
 
-struct C7SceneRelightScalarSample {
+struct SceneRelightScalarSample {
     float value;
     float validWeight;
 };
@@ -37,7 +37,7 @@ struct C7SceneRelightScalarSample {
 ///
 /// NaN/Inf 表示该 texel 无效。无效 texel 不参与加权，剩余有效权重会重新归一化；
 /// 只有所有非零权重贡献都无效时，`validWeight` 才为 0。
-static C7SceneRelightScalarSample c7SceneRelightSampleScalarPlane(
+static SceneRelightScalarSample c7SceneRelightSampleScalarPlane(
     texture2d<float, access::read> texture,
     float2 canvasUV
 ) {
@@ -67,10 +67,10 @@ static C7SceneRelightScalarSample c7SceneRelightSampleScalarPlane(
     const float4 validWeights = select(float4(0.0), weights, finiteMask);
     const float validWeight = dot(validWeights, float4(1.0));
     if (validWeight <= 0.0) {
-        return C7SceneRelightScalarSample{0.0, 0.0};
+        return SceneRelightScalarSample{0.0, 0.0};
     }
     const float4 finiteSamples = select(float4(0.0), samples, finiteMask);
-    return C7SceneRelightScalarSample{
+    return SceneRelightScalarSample{
         dot(finiteSamples, validWeights) / validWeight,
         validWeight
     };
@@ -116,7 +116,7 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
     const float2 canvasUV = clamp((globalPixel + 0.5) / logicalSize, float2(0.0), float2(1.0));
     const float2 depthSize = float2(depthTexture.get_width(), depthTexture.get_height());
     const float2 depthTexel = 1.0 / max(depthSize, float2(1.0));
-    const C7SceneRelightScalarSample centerDepth = c7SceneRelightSampleScalarPlane(
+    const SceneRelightScalarSample centerDepth = c7SceneRelightSampleScalarPlane(
         depthTexture,
         canvasUV
     );
@@ -124,19 +124,19 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
         outputTexture.write(half4(source), grid);
         return;
     }
-    const C7SceneRelightScalarSample leftDepth = c7SceneRelightSampleScalarPlane(
+    const SceneRelightScalarSample leftDepth = c7SceneRelightSampleScalarPlane(
         depthTexture,
         canvasUV - float2(depthTexel.x, 0.0)
     );
-    const C7SceneRelightScalarSample rightDepth = c7SceneRelightSampleScalarPlane(
+    const SceneRelightScalarSample rightDepth = c7SceneRelightSampleScalarPlane(
         depthTexture,
         canvasUV + float2(depthTexel.x, 0.0)
     );
-    const C7SceneRelightScalarSample topDepth = c7SceneRelightSampleScalarPlane(
+    const SceneRelightScalarSample topDepth = c7SceneRelightSampleScalarPlane(
         depthTexture,
         canvasUV - float2(0.0, depthTexel.y)
     );
-    const C7SceneRelightScalarSample bottomDepth = c7SceneRelightSampleScalarPlane(
+    const SceneRelightScalarSample bottomDepth = c7SceneRelightSampleScalarPlane(
         depthTexture,
         canvasUV + float2(0.0, depthTexel.y)
     );
@@ -253,7 +253,7 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
     const float originalLight = clamp(parameters[3], 0.0, 1.0);
     float3 gain = mix(float3(ambient) + lightContribution, float3(1.0), originalLight);
     if (parameters[8] > 0.5) {
-        const C7SceneRelightScalarSample confidenceSample = c7SceneRelightSampleScalarPlane(
+        const SceneRelightScalarSample confidenceSample = c7SceneRelightSampleScalarPlane(
             confidenceTexture,
             canvasUV
         );

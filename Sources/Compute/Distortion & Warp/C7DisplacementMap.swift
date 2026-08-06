@@ -9,7 +9,7 @@ import Foundation
 import Metal
 
 /// Displacement texture 的 RG 编码方式。
-public enum C7DisplacementEncoding: Int, Sendable, Codable, CaseIterable {
+public enum DisplacementEncoding: Int, Sendable, Codable, CaseIterable {
     /// RG 直接表达有符号位移，零值表示不移动。
     case signed = 0
     /// RG 的 0.5 表示不移动，0...1 映射为 -1...1。
@@ -17,7 +17,7 @@ public enum C7DisplacementEncoding: Int, Sendable, Codable, CaseIterable {
 }
 
 /// Displacement 数值的空间单位。
-public enum C7DisplacementUnit: Int, Sendable, Codable, CaseIterable {
+public enum DisplacementUnit: Int, Sendable, Codable, CaseIterable {
     case pixels = 0
     case normalized = 1
 }
@@ -30,8 +30,8 @@ public struct C7DisplacementMap: C7FilterProtocol, SamplerAdaptableFilter {
     public let displacementTexture: MTLTexture
     public let confidenceTexture: MTLTexture?
     public var scale: Float
-    public var unit: C7DisplacementUnit
-    public var encoding: C7DisplacementEncoding
+    public var unit: DisplacementUnit
+    public var encoding: DisplacementEncoding
     public var samplingMode: SpatialSamplingMode
     public var edgeMode: SpatialEdgeMode
 
@@ -102,8 +102,8 @@ public struct C7DisplacementMap: C7FilterProtocol, SamplerAdaptableFilter {
         displacementTexture: MTLTexture,
         confidenceTexture: MTLTexture? = nil,
         scale: Float = 1,
-        unit: C7DisplacementUnit = .pixels,
-        encoding: C7DisplacementEncoding = .signed,
+        unit: DisplacementUnit = .pixels,
+        encoding: DisplacementEncoding = .signed,
         samplingMode: SpatialSamplingMode = .linear,
         edgeMode: SpatialEdgeMode = .transparent
     ) {

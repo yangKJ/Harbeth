@@ -9,7 +9,7 @@ import Foundation
 import Metal
 
 /// 场景布光使用的通用灯光类型。
-public enum C7SceneLightKind: Int, Sendable, Codable, Equatable, Hashable {
+public enum SceneLightKind: Int, Sendable, Codable, Equatable, Hashable {
     /// 从画布中的三维位置向场景发光。
     case point = 0
     /// 带方向和锥角约束的位置光。
@@ -21,7 +21,7 @@ public enum C7SceneLightKind: Int, Sendable, Codable, Equatable, Hashable {
 }
 
 /// 场景布光描述构造错误。
-public enum C7SceneRelightDescriptorError: Error, Sendable, Equatable {
+public enum SceneRelightDescriptorError: Error, Sendable, Equatable {
     /// 单次 primitive 最多执行三盏灯，调用方必须显式拆分或调整配置。
     case tooManyLights(maximum: Int, actual: Int)
 }
@@ -33,8 +33,8 @@ public enum C7SceneRelightDescriptorError: Error, Sendable, Equatable {
 /// - `position.z` 与归一化深度共用场景尺度，正方向朝向观察者；
 /// - `direction` 表示光线传播方向；
 /// - `color` 必须是线性 RGB，不在该 primitive 内执行 transfer-function 转换。
-public struct C7SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
-    public let kind: C7SceneLightKind
+public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
+    public let kind: SceneLightKind
     public let position: SIMD3<Float>
     public let direction: SIMD3<Float>
     public let color: SIMD3<Float>
@@ -46,7 +46,7 @@ public struct C7SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
     public let isEnabled: Bool
 
     public init(
-        kind: C7SceneLightKind = .point,
+        kind: SceneLightKind = .point,
         position: SIMD3<Float> = SIMD3<Float>(0.5, 0.5, 1.5),
         direction: SIMD3<Float> = SIMD3<Float>(0, 0, -1),
         color: SIMD3<Float> = SIMD3<Float>(repeating: 1),
@@ -80,7 +80,7 @@ public struct C7SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
-            kind: try container.decode(C7SceneLightKind.self, forKey: .kind),
+            kind: try container.decode(SceneLightKind.self, forKey: .kind),
             position: try container.decode(SIMD3<Float>.self, forKey: .position),
             direction: try container.decode(SIMD3<Float>.self, forKey: .direction),
             color: try container.decode(SIMD3<Float>.self, forKey: .color),
@@ -107,7 +107,7 @@ public struct C7SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
         try container.encode(isEnabled, forKey: .isEnabled)
     }
 
-    static let disabled = C7SceneLightDescriptor(intensity: 0, isEnabled: false)
+    static let disabled = SceneLightDescriptor(intensity: 0, isEnabled: false)
 
     var packedValues: [Float] {
         [
@@ -153,10 +153,10 @@ public struct C7SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
 ///
 /// 该描述只接受最多三盏灯。`ambient` 与每盏灯先构成新的照明增益，
 /// 再通过 `originalLight` 与原始照明增益 1 混合，避免底层隐式加入产品预设。
-public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
+public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
     public static let maximumLightCount = 3
 
-    public let lights: [C7SceneLightDescriptor]
+    public let lights: [SceneLightDescriptor]
     public let ambient: Float
     public let originalLight: Float
     public let normalStrength: Float
@@ -165,7 +165,7 @@ public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
     public let confidenceFloor: Float
 
     public init(
-        lights: [C7SceneLightDescriptor] = [],
+        lights: [SceneLightDescriptor] = [],
         ambient: Float = 1,
         originalLight: Float = 0,
         normalStrength: Float = 1,
@@ -174,7 +174,7 @@ public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         confidenceFloor: Float = 0
     ) throws {
         guard lights.count <= Self.maximumLightCount else {
-            throw C7SceneRelightDescriptorError.tooManyLights(
+            throw SceneRelightDescriptorError.tooManyLights(
                 maximum: Self.maximumLightCount,
                 actual: lights.count
             )
@@ -192,7 +192,7 @@ public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let lights = try container.decode([C7SceneLightDescriptor].self, forKey: .lights)
+        let lights = try container.decode([SceneLightDescriptor].self, forKey: .lights)
         do {
             try self.init(
                 lights: lights,
@@ -203,7 +203,7 @@ public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
                 highlightRolloff: try container.decode(Float.self, forKey: .highlightRolloff),
                 confidenceFloor: try container.decode(Float.self, forKey: .confidenceFloor)
             )
-        } catch let error as C7SceneRelightDescriptorError {
+        } catch let error as SceneRelightDescriptorError {
             throw DecodingError.dataCorruptedError(
                 forKey: .lights,
                 in: container,
@@ -223,7 +223,7 @@ public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         try container.encode(confidenceFloor, forKey: .confidenceFloor)
     }
 
-    public static let identity = C7SceneRelightDescriptor(
+    public static let identity = SceneRelightDescriptor(
         validatedLights: [],
         ambient: 1,
         originalLight: 0,
@@ -234,7 +234,7 @@ public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
     )
 
     private init(
-        validatedLights: [C7SceneLightDescriptor],
+        validatedLights: [SceneLightDescriptor],
         ambient: Float,
         originalLight: Float,
         normalStrength: Float,
@@ -259,7 +259,7 @@ public struct C7SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
             0, 0, 0, 0, 0, 0, 0
         ]
         let paddedLights = lights + Array(
-            repeating: C7SceneLightDescriptor.disabled,
+            repeating: SceneLightDescriptor.disabled,
             count: Self.maximumLightCount - lights.count
         )
         values.append(contentsOf: paddedLights.flatMap(\.packedValues))
@@ -299,7 +299,7 @@ public struct C7SceneRelight: C7FilterProtocol {
     public static let parameterCount = 64
     public static let requiredDeferredAuxiliaryTextureCount = 2
 
-    public let descriptor: C7SceneRelightDescriptor
+    public let descriptor: SceneRelightDescriptor
     public let requiresDeferredDepthBinding: Bool
     public let expectsConfidencePlane: Bool
 
@@ -377,7 +377,7 @@ public struct C7SceneRelight: C7FilterProtocol {
         ]
     }
 
-    public init(descriptor: C7SceneRelightDescriptor, depthTexture: MTLTexture, confidenceTexture: MTLTexture? = nil) {
+    public init(descriptor: SceneRelightDescriptor, depthTexture: MTLTexture, confidenceTexture: MTLTexture? = nil) {
         self.descriptor = descriptor
         self.depthTexture = depthTexture
         self.confidenceTexture = confidenceTexture
@@ -389,7 +389,7 @@ public struct C7SceneRelight: C7FilterProtocol {
     ///
     /// 即使 `hasConfidencePlane` 为 false，执行器仍必须在 auxiliary index 1
     /// 绑定合法占位纹理，以维持固定 texture ABI；shader 不会读取该占位平面。
-    public static func deferred(_ descriptor: C7SceneRelightDescriptor, hasConfidencePlane: Bool = true) -> Self {
+    public static func deferred(_ descriptor: SceneRelightDescriptor, hasConfidencePlane: Bool = true) -> Self {
         C7SceneRelight(
             descriptor: descriptor,
             depthTexture: nil,
@@ -400,7 +400,7 @@ public struct C7SceneRelight: C7FilterProtocol {
     }
 
     private init(
-        descriptor: C7SceneRelightDescriptor,
+        descriptor: SceneRelightDescriptor,
         depthTexture: MTLTexture?,
         confidenceTexture: MTLTexture?,
         requiresDeferredDepthBinding: Bool,

@@ -42,7 +42,7 @@ final class Device {
 }
 
 extension Device {
-    private static func capabilityMinimumPlatform(_ capability: C7MetalCapability) -> String {
+    private static func capabilityMinimumPlatform(_ capability: MetalCapability) -> String {
         switch capability {
         case .customAdvancedEncoder:
             return "Implementation-defined"
@@ -83,9 +83,9 @@ extension Device {
         HarbethContext.shared.runtimeDevice
     }
 
-    static func metalCapabilityReport(_ capability: C7MetalCapability, on device: MTLDevice? = nil) -> C7MetalCapabilityReport {
+    static func metalCapabilityReport(_ capability: MetalCapability, on device: MTLDevice? = nil) -> MetalCapabilityReport {
         if capability == .customAdvancedEncoder {
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .requiresConcreteImplementationCheck,
                 minimumPlatform: "Implementation-defined",
@@ -102,7 +102,7 @@ extension Device {
         }()
 
         guard let device = resolvedDevice else {
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: capabilityMinimumPlatform(capability),
@@ -111,7 +111,7 @@ extension Device {
         }
         switch capability {
         case .customAdvancedEncoder:
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .requiresConcreteImplementationCheck,
                 minimumPlatform: capabilityMinimumPlatform(capability),
@@ -129,7 +129,7 @@ extension Device {
                 #else
                     isSupported = false
                 #endif
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: isSupported ? .supported : .unsupported,
                     minimumPlatform: capabilityMinimumPlatform(capability),
@@ -138,7 +138,7 @@ extension Device {
                         : "Device does not meet the heap texture pool family requirement (Apple5 / Mac1 / MacCatalyst1)."
                 )
             }
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: capabilityMinimumPlatform(capability),
@@ -146,7 +146,7 @@ extension Device {
             )
         case .meshShaders:
             if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: .requiresConcreteImplementationCheck,
                     minimumPlatform: capabilityMinimumPlatform(capability),
@@ -154,7 +154,7 @@ extension Device {
                         "Object/mesh shader APIs are available; concrete pipeline creation must still be checked by the implementation."
                 )
             }
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: capabilityMinimumPlatform(capability),
@@ -162,7 +162,7 @@ extension Device {
             )
         case .metalFX:
             if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: .requiresConcreteImplementationCheck,
                     minimumPlatform: capabilityMinimumPlatform(capability),
@@ -170,7 +170,7 @@ extension Device {
                         "MetalFX belongs to the MetalFX framework; higher packages must call framework-specific support checks."
                 )
             }
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: capabilityMinimumPlatform(capability),
@@ -179,7 +179,7 @@ extension Device {
         case .metalIO:
             #if os(iOS) || os(macOS)
             if #available(macOS 13.0, iOS 16.0, *) {
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: .requiresConcreteImplementationCheck,
                     minimumPlatform: capabilityMinimumPlatform(capability),
@@ -187,7 +187,7 @@ extension Device {
                 )
             }
             #endif
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: capabilityMinimumPlatform(capability),
@@ -195,7 +195,7 @@ extension Device {
             )
         case .renderDynamicLibraries:
             if #available(macOS 12.0, iOS 15.0, tvOS 16.0, *) {
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: device.supportsRenderDynamicLibraries ? .supported : .unsupported,
                     minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
@@ -204,7 +204,7 @@ extension Device {
                         : "Device does not support render dynamic libraries."
                 )
             }
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
@@ -212,7 +212,7 @@ extension Device {
             )
         case .renderFunctionPointers:
             if #available(macOS 12.0, iOS 15.0, tvOS 16.0, *) {
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: device.supportsFunctionPointersFromRender ? .supported : .unsupported,
                     minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
@@ -221,7 +221,7 @@ extension Device {
                         : "Device does not support render function pointers."
                 )
             }
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
@@ -229,7 +229,7 @@ extension Device {
             )
         case .rayTracing:
             if #available(macOS 11.0, iOS 14.0, tvOS 16.0, *) {
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: device.supportsRaytracing ? .supported : .unsupported,
                     minimumPlatform: "iOS 14 / macOS 11 / tvOS 16",
@@ -237,7 +237,7 @@ extension Device {
                         ? "Device reports ray tracing support." : "Device does not support ray tracing."
                 )
             }
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: "iOS 14 / macOS 11 / tvOS 16",
@@ -246,7 +246,7 @@ extension Device {
         case .sparseTextures:
             if #available(macOS 11.0, iOS 13.0, tvOS 16.0, *) {
                 let isSupported = device.sparseTileSizeInBytes > 0
-                return C7MetalCapabilityReport(
+                return MetalCapabilityReport(
                     capability: capability,
                     status: isSupported ? .supported : .unsupported,
                     minimumPlatform: "iOS 13 / macOS 11 / tvOS 16",
@@ -254,7 +254,7 @@ extension Device {
                         ? "Device reports sparse texture tile size." : "Device does not report sparse texture support."
                 )
             }
-            return C7MetalCapabilityReport(
+            return MetalCapabilityReport(
                 capability: capability,
                 status: .unsupported,
                 minimumPlatform: "iOS 13 / macOS 11 / tvOS 16",

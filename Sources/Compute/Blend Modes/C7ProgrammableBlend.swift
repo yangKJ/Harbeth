@@ -41,7 +41,7 @@ public struct C7ProgrammableBlend: C7AdvancedMetalKernelProtocol {
         ]
     }
 
-    public var advancedMetalCapability: C7MetalCapability {
+    public var advancedMetalCapability: MetalCapability {
         capability
     }
 
@@ -57,7 +57,7 @@ public struct C7ProgrammableBlend: C7AdvancedMetalKernelProtocol {
         functionConstants
     }
 
-    private let capability: C7MetalCapability
+    private let capability: MetalCapability
     private let functionName: String
     private let librarySource: KernelLibrarySource
     private let functionConstants: [KernelFunctionConstantDescriptor]
@@ -66,7 +66,7 @@ public struct C7ProgrammableBlend: C7AdvancedMetalKernelProtocol {
     public init(functionName: String,
                 blendTexture: MTLTexture?,
                 intensity: Float = 1.0,
-                capability: C7MetalCapability = .customAdvancedEncoder,
+                capability: MetalCapability = .customAdvancedEncoder,
                 librarySource: KernelLibrarySource = .automatic,
                 functionConstants: [KernelFunctionConstantDescriptor] = []) {
         self.functionName = functionName

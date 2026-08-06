@@ -5,7 +5,7 @@ import XCTest
 final class SceneRelightTests: XCTestCase {
 
     func testDescriptorRejectsMoreThanThreeLightsAndSanitizesNonFiniteParameters() throws {
-        let invalidLight = C7SceneLightDescriptor(
+        let invalidLight = SceneLightDescriptor(
             position: SIMD3<Float>(.nan, .infinity, -.infinity),
             direction: .zero,
             color: SIMD3<Float>(-.infinity, .nan, 20),
@@ -15,15 +15,15 @@ final class SceneRelightTests: XCTestCase {
             coneAngleDegrees: .nan,
             falloff: -.infinity
         )
-        XCTAssertThrowsError(try C7SceneRelightDescriptor(
+        XCTAssertThrowsError(try SceneRelightDescriptor(
             lights: Array(repeating: invalidLight, count: 4)
         )) { error in
             XCTAssertEqual(
-                error as? C7SceneRelightDescriptorError,
+                error as? SceneRelightDescriptorError,
                 .tooManyLights(maximum: 3, actual: 4)
             )
         }
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             lights: Array(repeating: invalidLight, count: 3),
             ambient: .nan,
             originalLight: .infinity,
@@ -33,7 +33,7 @@ final class SceneRelightTests: XCTestCase {
             confidenceFloor: -.infinity
         )
 
-        XCTAssertEqual(descriptor.lights.count, C7SceneRelightDescriptor.maximumLightCount)
+        XCTAssertEqual(descriptor.lights.count, SceneRelightDescriptor.maximumLightCount)
         XCTAssertEqual(descriptor.ambient, 1)
         XCTAssertEqual(descriptor.originalLight, 1)
         XCTAssertEqual(descriptor.lights[0].position, SIMD3<Float>(0.5, 0.5, 1.5))
@@ -43,10 +43,10 @@ final class SceneRelightTests: XCTestCase {
     }
 
     func testDescriptorCodableRoundTripKeepsValidationGate() throws {
-        let light = C7SceneLightDescriptor(kind: .spot, intensity: 1.2)
-        let descriptor = try C7SceneRelightDescriptor(lights: [light], ambient: 0.4)
+        let light = SceneLightDescriptor(kind: .spot, intensity: 1.2)
+        let descriptor = try SceneRelightDescriptor(lights: [light], ambient: 0.4)
         let encoded = try JSONEncoder().encode(descriptor)
-        let decoded = try JSONDecoder().decode(C7SceneRelightDescriptor.self, from: encoded)
+        let decoded = try JSONDecoder().decode(SceneRelightDescriptor.self, from: encoded)
         XCTAssertEqual(decoded, descriptor)
 
         guard var object = try JSONSerialization.jsonObject(with: encoded) as? [String: Any],
@@ -57,7 +57,7 @@ final class SceneRelightTests: XCTestCase {
         }
         object["lights"] = Array(repeating: firstLight, count: 4)
         let invalid = try JSONSerialization.data(withJSONObject: object)
-        XCTAssertThrowsError(try JSONDecoder().decode(C7SceneRelightDescriptor.self, from: invalid))
+        XCTAssertThrowsError(try JSONDecoder().decode(SceneRelightDescriptor.self, from: invalid))
     }
 
     func testDirectBindingKeepsStableDepthAndConfidenceTextureSlots() throws {
@@ -133,9 +133,9 @@ final class SceneRelightTests: XCTestCase {
     func testDirectionalLightAppliesLinearColorWithoutChangingAlpha() throws {
         let source = try makeRGBA8Texture(pixels: [64, 64, 64, 128])
         let depth = try makeScalarTexture(values: [0.5])
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             lights: [
-                C7SceneLightDescriptor(
+                SceneLightDescriptor(
                     kind: .directional,
                     direction: SIMD3<Float>(0, 0, -1),
                     color: SIMD3<Float>(2, 1, 0.5),
@@ -162,7 +162,7 @@ final class SceneRelightTests: XCTestCase {
         let source = try makeRGBA8Texture(pixels: [50, 100, 150, 200])
         let depth = try makeScalarTexture(values: [0.5])
         let zeroConfidence = try makeScalarTexture(values: [0])
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             ambient: 0,
             originalLight: 0,
             highlightRolloff: 0,
@@ -188,7 +188,7 @@ final class SceneRelightTests: XCTestCase {
     func testNonFiniteDepthFallsBackToOriginalPixel() throws {
         let source = try makeRGBA8Texture(pixels: [30, 60, 90, 120])
         let depth = try makeScalarTexture(values: [.nan])
-        let descriptor = try C7SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
+        let descriptor = try SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
         let output: MTLTexture = try HarbethIO(
             element: source,
             filter: C7SceneRelight(descriptor: descriptor, depthTexture: depth)
@@ -200,7 +200,7 @@ final class SceneRelightTests: XCTestCase {
     func testLowResolutionDepthPlaneUsesFullCanvasUVForEachTile() throws {
         let source = try makeRGBA8Texture(pixels: [30, 60, 90, 120])
         let depth = try makeScalarTexture(width: 3, height: 1, values: [.nan, 0.5, 0.5])
-        let descriptor = try C7SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
+        let descriptor = try SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
         let base = C7SceneRelight(descriptor: descriptor, depthTexture: depth)
         let leftTile: MTLTexture = try HarbethIO(
             element: source,
@@ -219,9 +219,9 @@ final class SceneRelightTests: XCTestCase {
         let source = try makeRGBA8Texture(pixels: [64, 64, 64, 255])
         let rampDepth = try makeScalarTexture(width: 2, height: 1, values: [0, 1])
         let referenceDepth = try makeScalarTexture(width: 2, height: 1, values: [0.25, 0.25])
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             lights: [
-                C7SceneLightDescriptor(
+                SceneLightDescriptor(
                     kind: .point,
                     position: SIMD3<Float>(0.375, 0.5, 1.5),
                     intensity: 1,
@@ -264,7 +264,7 @@ final class SceneRelightTests: XCTestCase {
     func testPartiallyInvalidDepthNeighborhoodDoesNotHardFallbackToOriginal() throws {
         let source = try makeRGBA8Texture(pixels: [30, 60, 90, 120])
         let depth = try makeScalarTexture(width: 3, height: 1, values: [.nan, 0.5, 0.5])
-        let descriptor = try C7SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
+        let descriptor = try SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
         let base = C7SceneRelight(descriptor: descriptor, depthTexture: depth)
         let fullyInvalid: MTLTexture = try HarbethIO(
             element: source,
@@ -300,9 +300,9 @@ final class SceneRelightTests: XCTestCase {
                 return 0.5 + sceneSlope * tallAspect * (canvasU - 0.5)
             }
         )
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             lights: [
-                C7SceneLightDescriptor(
+                SceneLightDescriptor(
                     kind: .directional,
                     direction: SIMD3<Float>(1, 0, -0.2),
                     intensity: 1
@@ -347,7 +347,7 @@ final class SceneRelightTests: XCTestCase {
         let source = try makeRGBA8Texture(pixels: [30, 60, 90, 120])
         let depth = try makeScalarTexture(width: 3, height: 1, values: [0.5, 0.5, 0.5])
         let confidence = try makeScalarTexture(width: 3, height: 1, values: [0, 0, 1])
-        let descriptor = try C7SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
+        let descriptor = try SceneRelightDescriptor(ambient: 0, originalLight: 0, highlightRolloff: 0)
         let base = C7SceneRelight(
             descriptor: descriptor,
             depthTexture: depth,
@@ -371,7 +371,7 @@ final class SceneRelightTests: XCTestCase {
         let depth = try makeScalarTexture(values: [0.5])
         let rampConfidence = try makeScalarTexture(width: 2, height: 1, values: [0, 1])
         let referenceConfidence = try makeScalarTexture(width: 2, height: 1, values: [0.25, 0.25])
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             ambient: 0,
             originalLight: 0,
             highlightRolloff: 0,
@@ -415,7 +415,7 @@ final class SceneRelightTests: XCTestCase {
         let depth = try makeScalarTexture(values: [0.5])
         let partiallyValidConfidence = try makeScalarTexture(width: 2, height: 1, values: [.nan, 1])
         let fullyInvalidConfidence = try makeScalarTexture(width: 2, height: 1, values: [.nan, .infinity])
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             ambient: 0,
             originalLight: 0,
             highlightRolloff: 0,
@@ -454,7 +454,7 @@ final class SceneRelightTests: XCTestCase {
         let source = try makeRGBA8Texture(pixels: [40, 80, 120, 200])
         let depth = try makeScalarTexture(values: [0.5])
         let confidence = try makeScalarTexture(width: 2, height: 1, values: [.nan, 1])
-        let descriptor = try C7SceneRelightDescriptor(
+        let descriptor = try SceneRelightDescriptor(
             ambient: 0,
             originalLight: 0,
             highlightRolloff: 0,
@@ -479,7 +479,7 @@ final class SceneRelightTests: XCTestCase {
     func testHDRValuesRemainExtendedAndAlphaIsPreserved() throws {
         let source = try makeRGBA16FloatTexture(pixel: [2, 0.5, -0.25, 0.4])
         let depth = try makeScalarTexture(values: [0.5])
-        let descriptor = try C7SceneRelightDescriptor(ambient: 2, originalLight: 0, highlightRolloff: 0)
+        let descriptor = try SceneRelightDescriptor(ambient: 2, originalLight: 0, highlightRolloff: 0)
         let output: MTLTexture = try HarbethIO(
             element: source,
             filter: C7SceneRelight(descriptor: descriptor, depthTexture: depth)

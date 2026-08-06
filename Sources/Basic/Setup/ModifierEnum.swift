@@ -29,7 +29,7 @@ public enum ModifierEnum: Equatable, Hashable {
     case mps(performance: MPSKernel)
     /// 高级 Metal 自定义编码入口，由具体滤镜自行实现能力检查和 fallback。
     /// Advanced Metal custom encoder. Concrete filters own availability checks and fallback.
-    case advancedMetal(capability: C7MetalCapability, function: String)
+    case advancedMetal(capability: MetalCapability, function: String)
 
     public static func == (lhs: ModifierEnum, rhs: ModifierEnum) -> Bool {
         switch (lhs, rhs) {

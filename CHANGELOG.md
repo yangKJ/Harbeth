@@ -8,40 +8,59 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
-### 2026-08-06 — HarbethIO real-time delivery contract
+### 2026-08-06
 
 #### Changed
 
+- Kept `C7` for established platform adapters, geometry primitives and filter-development contracts, while removing it from unrelated public Metal capability and filter-configuration types. Use `MetalCapability`, `MetalCapabilityStatus`, `MetalCapabilityReport`, `DisplacementEncoding`, `DisplacementUnit`, `SceneLightKind`, `SceneLightDescriptor`, `SceneRelightDescriptor` and `SceneRelightDescriptorError`.
 - Removed `RenderProfile.usesRealTimeCommit` from the public surface and stopped `HarbethIO.configured(for:)` from implicitly changing real-time delivery; `transmitOutputRealTimeCommit` is now the only public HarbethIO control for that behavior.
 - Simplified `bufferPixelFormat` into the single source of truth: it is now optional, where `nil` preserves the source texture format and a value explicitly overrides it. The redundant setter-tracking state was removed.
+- Moved destination-allocation and double-buffer selection behind `RenderProfile` and the `ImageNode` route. `HarbethIO` remains the direct source-plus-filters-to-output entry point.
+- Kept `HarbethIO.mirrored` public as the legacy explicit CIImage orientation correction; it is not an execution policy and has no replacement source-orientation contract yet.
 
 #### Fixed
 
 - Preserved `transmitOutputRealTimeCommit` as the single public real-time submission switch while restoring its original texture-first meaning: enabled asynchronous texture output is delivered after command-buffer scheduling, while the default waits for GPU completion.
 - Kept synchronous output and CPU-materialized image, pixel-buffer and sample-buffer results completion-safe even when real-time texture delivery is enabled.
 
-### 2026-08-06 — HarbethIO execution-policy convergence
-
-#### Changed
-
-- Moved destination-allocation and double-buffer selection behind `RenderProfile` and the `ImageNode` route. `HarbethIO` remains the direct source-plus-filters-to-output entry point.
-- Kept `HarbethIO.mirrored` public as the legacy explicit CIImage orientation correction; it is not an execution policy and has no replacement source-orientation contract yet.
-
 #### Removed
 
 - Removed direct public access to `HarbethIO.createDestTexture`, `HarbethIO.enableDoubleBuffer`, `HarbethIO.configured(for:)`, frame-capability construction, convenience fallback output, filter operators, and texture-backed CIImage frame delivery. Use `ImageNode` with a `RenderProfile` when structured execution is required; call `RenderedFrame.makeTextureBackedCIImage(for:)` for CIImage source-preserving delivery.
-
-### 2026-08-06 — Internal performance diagnostics boundary
-
-#### Removed
-
 - Removed `PerformanceMonitor` and its configuration/metrics types from the public API. Hosts now use only `HarbethContext.enablePerformanceMonitor` to opt into internal diagnostics; benchmark and test consumers use the package's internal test surface.
 
-### 2026-08-05 — macOS texture readback correctness
+### 2026-08-05 — macOS texture readback correctness, deterministic tone mapping and GPU filter primitives
+
+#### Added
+
+- Added `C7ToneMapping` for deterministic linear-RGB luminance mapping from explicit source nits into SDR or EDR output headroom, with preserved alpha and declared dynamic-range behavior.
+- Added `C7DisplacementMap` for single-frame deformation from signed or normalized displacement textures, with pixel/normalized units, sampler and edge policies, optional confidence weighting and full-canvas coordinate semantics.
+- Added `KernelDynamicRangeBehavior.toneMapsToEDR` so render planning can distinguish EDR-safe tone mapping from SDR clamping and HDR-preserving execution.
+- Added `C7HighPassSkinSmoothing` as a full-frame high-pass detail-preserving smoothing pipeline, without claiming face or skin-region detection.
+- Added `C7DocumentBinarization` for locally adaptive document black-and-white output under uneven paper illumination.
+- Added `C7CLAHE` with tile luminance histograms, clip redistribution, CDF lookup tables and neighboring-tile interpolation for local SDR contrast enhancement.
+- Added `C7HexagonalBokehBlur` with two-stage three-axis aperture sampling, rotation, highlight control and optional per-pixel circle-of-confusion input.
+- Added `C7Palettize` for premultiplied-alpha-safe nearest-color quantization against a caller-provided palette of up to 32 colors.
+- Added `C7CMYKHalftone` with four independent print-screen angles, full-canvas coordinates and an explicit conservative region-of-interest contract for tiled renderers.
+- Added an `ImageNode` Page Curl transition primitive with normalized curl geometry, optional backside imagery, analytic shading, soft contact shadows and explicit non-tileable full-canvas execution semantics.
+- Added `MPSConvolution`, `MPSLanczosResize` and `MPSMorphology` as validated out-of-place MPS execution atoms.
+- Added `RenderMeshWarp`, `RenderLayerComposite` and `RenderVectorMask`, together with render topology, fixed-function premultiplied source-over blending and multisample resolve contracts.
+
+#### Changed
+
+- Routed `RenderOutputContract` SDR and EDR tone-mapping policies through the deterministic luminance primitive instead of approximating output with independent highlight/shadow and exposure adjustments.
+- Aligned the public filter catalog with the source tree, including the previously omitted color grading, selective HSL, whites/blacks, output quantization and scene relighting primitives.
+- Kept pipeline stage outputs independent from the final destination so combination shaders never bind the same texture for auxiliary reads and output writes.
+- Upgraded `C7HighlightShadowTone` to a complete local pipeline backed by an MPS Gaussian reference texture, while preserving its existing adjustment API and premultiplied alpha.
+- Extended `C7HighPassSkinSmoothing` with configurable tone-curve midpoints and optional final detail sharpening while preserving the previous default visual path.
 
 #### Fixed
 
 - Routed managed and private Metal texture readback through shared staging memory, preventing blank macOS image and pixel-buffer outputs when GPU-written data is not directly CPU-visible.
+- Made `C7SurfaceBlur` return the original pixel for zero radius, zero threshold or zero intensity, and corrected signed edge-coordinate checks.
+- Made `MPSGaussianBlur` preserve its configured public radius and expose the conservative sampling halo required by region-based executors.
+- Made `C7ToneMapping` operate in straight-alpha color space before restoring premultiplied output, preventing translucent HDR pixels from violating the alpha contract.
+- Made `C7HexagonalBokehBlur` sample optional CoC inputs through normalized canvas coordinates so lower-resolution control textures cannot be read out of bounds.
+- Made `C7ColorCube` accept standard full-line and trailing `#` comments in CUBE resources instead of treating comment text as malformed sample data.
 
 ### Upgrade at a glance
 
@@ -88,39 +107,6 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 | Inspection and support | Histogram/statistics/probes, attachment analysis, preview parity, structured logging and privacy-safe support snapshots | 2026-06-22–24, 2026-07-23, 2026-07-28 |
 | Developer experience | Showcase-oriented Demos, DocC/API/migration/troubleshooting docs, Issue templates and release compatibility checks | 2026-06-21–27, 2026-07-16–21, 2026-07-28 |
 
-### 2026-08-05 — Deterministic tone mapping and GPU filter primitives
-
-#### Added
-
-- Added `C7ToneMapping` for deterministic linear-RGB luminance mapping from explicit source nits into SDR or EDR output headroom, with preserved alpha and declared dynamic-range behavior.
-- Added `C7DisplacementMap` for single-frame deformation from signed or normalized displacement textures, with pixel/normalized units, sampler and edge policies, optional confidence weighting and full-canvas coordinate semantics.
-- Added `KernelDynamicRangeBehavior.toneMapsToEDR` so render planning can distinguish EDR-safe tone mapping from SDR clamping and HDR-preserving execution.
-- Added `C7HighPassSkinSmoothing` as a full-frame high-pass detail-preserving smoothing pipeline, without claiming face or skin-region detection.
-- Added `C7DocumentBinarization` for locally adaptive document black-and-white output under uneven paper illumination.
-- Added `C7CLAHE` with tile luminance histograms, clip redistribution, CDF lookup tables and neighboring-tile interpolation for local SDR contrast enhancement.
-- Added `C7HexagonalBokehBlur` with two-stage three-axis aperture sampling, rotation, highlight control and optional per-pixel circle-of-confusion input.
-- Added `C7Palettize` for premultiplied-alpha-safe nearest-color quantization against a caller-provided palette of up to 32 colors.
-- Added `C7CMYKHalftone` with four independent print-screen angles, full-canvas coordinates and an explicit conservative region-of-interest contract for tiled renderers.
-- Added an `ImageNode` Page Curl transition primitive with normalized curl geometry, optional backside imagery, analytic shading, soft contact shadows and explicit non-tileable full-canvas execution semantics.
-- Added `MPSConvolution`, `MPSLanczosResize` and `MPSMorphology` as validated out-of-place MPS execution atoms.
-- Added `RenderMeshWarp`, `RenderLayerComposite` and `RenderVectorMask`, together with render topology, fixed-function premultiplied source-over blending and multisample resolve contracts.
-
-#### Changed
-
-- Routed `RenderOutputContract` SDR and EDR tone-mapping policies through the deterministic luminance primitive instead of approximating output with independent highlight/shadow and exposure adjustments.
-- Aligned the public filter catalog with the source tree, including the previously omitted color grading, selective HSL, whites/blacks, output quantization and scene relighting primitives.
-- Kept pipeline stage outputs independent from the final destination so combination shaders never bind the same texture for auxiliary reads and output writes.
-- Upgraded `C7HighlightShadowTone` to a complete local pipeline backed by an MPS Gaussian reference texture, while preserving its existing adjustment API and premultiplied alpha.
-- Extended `C7HighPassSkinSmoothing` with configurable tone-curve midpoints and optional final detail sharpening while preserving the previous default visual path.
-
-#### Fixed
-
-- Made `C7SurfaceBlur` return the original pixel for zero radius, zero threshold or zero intensity, and corrected signed edge-coordinate checks.
-- Made `MPSGaussianBlur` preserve its configured public radius and expose the conservative sampling halo required by region-based executors.
-- Made `C7ToneMapping` operate in straight-alpha color space before restoring premultiplied output, preventing translucent HDR pixels from violating the alpha contract.
-- Made `C7HexagonalBokehBlur` sample optional CoC inputs through normalized canvas coordinates so lower-resolution control textures cannot be read out of bounds.
-- Made `C7ColorCube` accept standard full-line and trailing `#` comments in CUBE resources instead of treating comment text as malformed sample data.
-
 ### 2026-08-04 — Production frame access and self-owned CIImage output
 
 #### Added
@@ -139,11 +125,15 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 - Normalize the Core Image coordinates of direct PixelBuffer backing sources to avoid vertical flipping of dynamic media after texture filtering.
 - Let escaped and cropped Core Image recipes retain their texture resources, avoiding premature lease reuse during deferred evaluation by AVFoundation and other hosts.
 
-### 2026-08-02 — Asynchronous render submission governance
+### 2026-08-02 — Asynchronous render submission, white balance and HDR preview hosting
 
 #### Added
 
 - Added `RenderSubmissionPolicy`, `RenderSubmissionHandle` and terminal snapshots for explicit cancellation and opt-in latest-only delivery across `HarbethIO` and `ImageNode` asynchronous work.
+- Added `C7WhiteBalance.recipeFactors(temperature:tint:)` for constructing white-balance filters from recipe-oriented temperature and tint factors.
+- Added typed output color-space, dynamic-range and tone-mapping metadata to `RenderedFrame`, so preview hosts no longer infer HDR semantics from texture pixel format.
+- Added `PreviewDynamicRangePolicy` and observable `PreviewDisplayState` to `RenderView`; frame-driven previews now select SDR/16-bit float drawables, configure `CAMetalLayer` color space, request EDR when supported and report deterministic SDR fallback.
+- Extended `HarbethRenderView` with the same dynamic-range policy and display-state callback while preserving the existing raw-texture SDR default.
 
 #### Changed
 
@@ -152,30 +142,6 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 - Encoded contiguous layer-local filtering and compositing passes into one recipe-owned command buffer instead of synchronously committing each GPU stage.
 - Kept finite `CIImage` inputs on the GPU by reusing pixel-buffer or Metal backing when available and otherwise rendering through the process-lifetime Core Image context directly into a Metal texture.
 - Propagated Swift task cancellation into queued render submissions and made superseded or recovery-invalidated work terminate exactly once instead of leaving continuations suspended.
-
-#### Fixed
-
-- Suppressed stale host callbacks from already committed GPU work after cancellation, scope replacement or execution recovery without claiming that Metal command buffers can be synchronously cancelled.
-- Bound each submission to its captured command queue and commit gate so work from an invalidated execution generation cannot migrate onto the replacement queue.
-- Kept managed output and intermediate texture leases fenced until GPU completion, preventing early caller release from returning in-flight textures to the shared pool.
-- Recycled committed outputs that lost delivery rights only after GPU completion, and isolated asynchronous performance metrics per submission without changing stable frame identifiers.
-
-### 2026-08-02 — White-balance recipe factors
-
-#### Added
-
-- Added `C7WhiteBalance.recipeFactors(temperature:tint:)` for constructing white-balance filters from recipe-oriented temperature and tint factors.
-
-### 2026-08-02 — Frame-driven HDR preview hosting
-
-#### Added
-
-- Added typed output color-space, dynamic-range and tone-mapping metadata to `RenderedFrame`, so preview hosts no longer infer HDR semantics from texture pixel format.
-- Added `PreviewDynamicRangePolicy` and observable `PreviewDisplayState` to `RenderView`; frame-driven previews now select SDR/16-bit float drawables, configure `CAMetalLayer` color space, request EDR when supported and report deterministic SDR fallback.
-- Extended `HarbethRenderView` with the same dynamic-range policy and display-state callback while preserving the existing raw-texture SDR default.
-
-#### Changed
-
 - Unified HarbethIO and ImageNode filter lowering around one internal execution program that freezes sampler adaptation, pointwise fusion, render planning, executable steps and diagnostics from the same input chain.
 - Connected optimized stage lifecycle decisions to executable step liveness so intermediate textures are recycled only after their final GPU consumer completes.
 - Added `SamplerAdaptation.partial` and the required `RenderProtocol.renderSamplerConsumption` contract, so every render filter explicitly declares whether its shader consumes runtime-bound or shader-defined sampler state.
@@ -183,6 +149,10 @@ Commit coverage is 126/126: 118 implementation or developer-experience commits a
 
 #### Fixed
 
+- Suppressed stale host callbacks from already committed GPU work after cancellation, scope replacement or execution recovery without claiming that Metal command buffers can be synchronously cancelled.
+- Bound each submission to its captured command queue and commit gate so work from an invalidated execution generation cannot migrate onto the replacement queue.
+- Kept managed output and intermediate texture leases fenced until GPU completion, preventing early caller release from returning in-flight textures to the shared pool.
+- Recycled committed outputs that lost delivery rights only after GPU completion, and isolated asynchronous performance metrics per submission without changing stable frame identifiers.
 - Made synchronous command-buffer submission throw on GPU failure and release uncommitted raw/managed outputs instead of returning undefined textures or leases as successful results.
 - Prepared `RenderRequest` and `ImageNode.makeFrame(...)` from one execution snapshot, so ordinary filter execution and diagnostics share the same compiled program while recipe, transition and layer routes retain explicit orchestration boundaries.
 - Isolated `PreviewDisplaying` and `RenderView` to the main actor so drawable/layer mutation and preview display-state callbacks cannot run on a background render completion queue.

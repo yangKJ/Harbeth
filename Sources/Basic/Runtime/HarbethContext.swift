@@ -204,7 +204,7 @@ public final class HarbethContext: @unchecked Sendable {
         Device.externalLibraryRegistryDebugDescription(on: device)
     }
 
-    public func capabilityReport(_ capability: C7MetalCapability) -> C7MetalCapabilityReport {
+    public func capabilityReport(_ capability: MetalCapability) -> MetalCapabilityReport {
         Device.metalCapabilityReport(capability, on: device)
     }
 

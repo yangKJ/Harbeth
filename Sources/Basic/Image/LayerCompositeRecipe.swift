@@ -54,13 +54,13 @@ public struct LayerFlipOptions: Sendable, Codable, Equatable, Hashable {
 public struct LayerProgrammableBlend: Sendable, Codable, Equatable, Hashable {
     public let functionName: String
     public let intensity: Float
-    public let capability: C7MetalCapability
+    public let capability: MetalCapability
     public let librarySource: KernelLibrarySource
     public let functionConstants: [KernelFunctionConstantDescriptor]
 
     public init(functionName: String,
                 intensity: Float = 1.0,
-                capability: C7MetalCapability = .customAdvancedEncoder,
+                capability: MetalCapability = .customAdvancedEncoder,
                 librarySource: KernelLibrarySource = .automatic,
                 functionConstants: [KernelFunctionConstantDescriptor] = []) {
         self.functionName = functionName

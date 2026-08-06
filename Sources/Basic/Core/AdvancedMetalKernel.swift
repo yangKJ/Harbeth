@@ -8,7 +8,7 @@
 import Foundation
 import MetalKit
 
-public enum C7MetalCapability: String, CaseIterable, Sendable, Codable {
+public enum MetalCapability: String, CaseIterable, Sendable, Codable {
     case customAdvancedEncoder
     case heapTexturePool
     case meshShaders
@@ -20,15 +20,15 @@ public enum C7MetalCapability: String, CaseIterable, Sendable, Codable {
     case sparseTextures
 }
 
-public enum C7MetalCapabilityStatus: Equatable {
+public enum MetalCapabilityStatus: Equatable {
     case unsupported
     case supported
     case requiresConcreteImplementationCheck
 }
 
-public struct C7MetalCapabilityReport: Equatable {
-    public let capability: C7MetalCapability
-    public let status: C7MetalCapabilityStatus
+public struct MetalCapabilityReport: Equatable {
+    public let capability: MetalCapability
+    public let status: MetalCapabilityStatus
     public let minimumPlatform: String
     public let reason: String
 
@@ -42,7 +42,7 @@ public struct C7MetalCapabilityReport: Equatable {
 }
 
 public protocol C7AdvancedMetalKernelProtocol: C7FilterProtocol {
-    var advancedMetalCapability: C7MetalCapability { get }
+    var advancedMetalCapability: MetalCapability { get }
 
     var advancedMetalFunction: String { get }
 
@@ -60,7 +60,7 @@ public protocol C7AdvancedMetalKernelProtocol: C7FilterProtocol {
 }
 
 extension C7AdvancedMetalKernelProtocol {
-    public var advancedMetalCapability: C7MetalCapability {
+    public var advancedMetalCapability: MetalCapability {
         if case .advancedMetal(let capability, _) = modifier {
             return capability
         }
