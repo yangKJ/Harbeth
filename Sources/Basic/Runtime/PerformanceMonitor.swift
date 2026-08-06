@@ -9,43 +9,21 @@ import Foundation
 import Metal
 
 final class PerformanceMonitor: @unchecked Sendable {
-    public struct Configuration: Sendable {
-        public var enabled: Bool = false
-        public var logLevel: LogLevel = .warning
-        public var maxStoredMetrics: Int = 100
-        public var autoCleanupInterval: TimeInterval = 300
-        public var gpuTimeWarningThreshold: TimeInterval = 0.016
-        public var cpuTimeWarningThreshold: TimeInterval = 0.033
-        public var enablePerformanceCounters: Bool = true
-        public var enableDetailedMemoryTracking: Bool = true
-
-        public init(
-            enabled: Bool = false,
-            logLevel: LogLevel = .warning,
-            maxStoredMetrics: Int = 100,
-            autoCleanupInterval: TimeInterval = 300,
-            gpuTimeWarningThreshold: TimeInterval = 0.016,
-            cpuTimeWarningThreshold: TimeInterval = 0.033,
-            enablePerformanceCounters: Bool = true,
-            enableDetailedMemoryTracking: Bool = true
-        ) {
-            self.enabled = enabled
-            self.logLevel = logLevel
-            self.maxStoredMetrics = maxStoredMetrics
-            self.autoCleanupInterval = autoCleanupInterval
-            self.gpuTimeWarningThreshold = gpuTimeWarningThreshold
-            self.cpuTimeWarningThreshold = cpuTimeWarningThreshold
-            self.enablePerformanceCounters = enablePerformanceCounters
-            self.enableDetailedMemoryTracking = enableDetailedMemoryTracking
-        }
+    struct Configuration: Sendable {
+        var enabled: Bool = false
+        var logLevel: LogLevel = .warning
+        var maxStoredMetrics: Int = 100
+        var autoCleanupInterval: TimeInterval = 300
+        var gpuTimeWarningThreshold: TimeInterval = 0.016
+        var cpuTimeWarningThreshold: TimeInterval = 0.033
     }
 
-    public enum LogLevel: Int, Comparable, Sendable {
+    enum LogLevel: Int, Comparable, Sendable {
         case error = 0
         case warning = 1
         case info = 2
         case debug = 3
-        public static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
+        static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
             lhs.rawValue < rhs.rawValue
         }
     }
@@ -56,7 +34,7 @@ final class PerformanceMonitor: @unchecked Sendable {
     private var configuration = Configuration()
     private var pendingGPUOperations: [String: Int] = [:]
 
-    public init(enabled: Bool) {
+    init(enabled: Bool) {
         self.configuration = Configuration(enabled: enabled)
         cleanupTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
         cleanupTimer.schedule(deadline: .now(), repeating: configuration.autoCleanupInterval)
@@ -69,7 +47,7 @@ final class PerformanceMonitor: @unchecked Sendable {
 
     deinit { cleanupTimer.cancel() }
 
-    public func configure(_ config: Configuration) {
+    func configure(_ config: Configuration) {
         cacheLock.lock()
         self.configuration = config
         cacheLock.unlock()
@@ -115,7 +93,9 @@ final class PerformanceMonitor: @unchecked Sendable {
         guard var metrics = metricsCache[identifier] else { return nil }
         metrics.endTime = CACurrentMediaTime()
         metricsCache[identifier] = metrics
-        if pendingGPUOperations[identifier] == 0 { logMetrics(metrics, for: identifier, isFinal: true) }
+        if pendingGPUOperations[identifier] == 0 {
+            logMetrics(metrics, for: identifier, isFinal: true)
+        }
         return metrics
     }
 
@@ -137,14 +117,6 @@ final class PerformanceMonitor: @unchecked Sendable {
         defer { cacheLock.unlock() }
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.resourceEvents.append("reuse:\(source)")
-    }
-
-    public func recordResourceEvent(_ identifier: String, event: String) {
-        guard isEnabled else { return }
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-        initializeMetricsIfNeeded(identifier)
-        metricsCache[identifier]?.resourceEvents.append(event)
     }
 
     func recordPipelineCacheLookup(_ identifier: String, hit: Bool) {
@@ -307,7 +279,6 @@ final class PerformanceMonitor: @unchecked Sendable {
         defer { cacheLock.unlock() }
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.previewHostLifecyclePauseCount += 1
-        metricsCache[identifier]?.previewHostSuspensionReasons[reason.rawValue, default: 0] += 1
         metricsCache[identifier]?.resourceEvents.append("previewHostLifecycle:pause:\(reason.rawValue)")
     }
 
@@ -326,7 +297,6 @@ final class PerformanceMonitor: @unchecked Sendable {
         defer { cacheLock.unlock() }
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.previewHostFailureCount += 1
-        metricsCache[identifier]?.previewHostFailureReasons[reason.rawValue, default: 0] += 1
         metricsCache[identifier]?.resourceEvents.append("previewHostFailure:\(reason.rawValue)")
     }
 
@@ -346,8 +316,6 @@ final class PerformanceMonitor: @unchecked Sendable {
         metricsCache[identifier]?.previewHostVisibilityResumeCount = report.visibilityResumeCount
         metricsCache[identifier]?.previewHostEnqueueCount = report.enqueueCount
         metricsCache[identifier]?.previewHostFailureCount = report.failureCountsByReason.values.reduce(0, +)
-        metricsCache[identifier]?.previewHostFailureReasons = report.failureCountsByReason
-        metricsCache[identifier]?.previewHostExecutionState = report.state
         metricsCache[identifier]?.resourceEvents.append(
             "previewHostExecution:state=\(report.state):actual=\(report.actualResolvedHostStrategy):backing=\(report.actualBackingKind):payload=\(report.payloadMode)"
         )
@@ -358,15 +326,8 @@ final class PerformanceMonitor: @unchecked Sendable {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         initializeMetricsIfNeeded(identifier)
-        metricsCache[identifier]?.previewHostConcurrentSampleBufferHostCount = snapshot.activeSampleBufferHostCount
         metricsCache[identifier]?.previewHostSuspendedHostCount = snapshot.suspendedHostCount
         metricsCache[identifier]?.previewHostMaxConcurrentSampleBufferHostCount = snapshot.maxConcurrentSampleBufferHosts
-        metricsCache[identifier]?.previewHostFleetStrategySwitchCount = snapshot.totalStrategySwitchCount
-        metricsCache[identifier]?.previewHostFleetActivationCount = snapshot.totalActivationCount
-        metricsCache[identifier]?.previewHostFleetDeactivationCount = snapshot.totalDeactivationCount
-        metricsCache[identifier]?.previewHostFleetRecoveryCount = snapshot.totalRecoveryCount
-        metricsCache[identifier]?.previewHostFleetFallbackCount = snapshot.totalFallbackCount
-        metricsCache[identifier]?.previewHostFleetFailureReasons = snapshot.failureCountsByReason
         metricsCache[identifier]?.resourceEvents.append(
             "previewHostFleet:active=\(snapshot.activeHostCount):sampleBuffer=\(snapshot.activeSampleBufferHostCount):suspended=\(snapshot.suspendedHostCount):fallback=\(snapshot.fallbackHostCount)"
         )
@@ -393,13 +354,15 @@ final class PerformanceMonitor: @unchecked Sendable {
         metricsCache[identifier]?.filterProcessingTimes[filterName] = duration
     }
 
-    func recordMemoryAllocation(_ identifier: String, bytes: Int, source: String) {
+    func recordMemoryAllocation(_ identifier: String, bytes: Int, source _: String) {
         guard isEnabled else { return }
         cacheLock.lock()
         defer { cacheLock.unlock() }
         initializeMetricsIfNeeded(identifier)
-        let alloc = Metrics.MemoryAllocation(timestamp: CACurrentMediaTime(), bytes: bytes, source: source)
-        metricsCache[identifier]?.memoryAllocations.append(alloc)
+        guard var metrics = metricsCache[identifier] else { return }
+        metrics.totalMemoryAllocated += bytes
+        metrics.peakMemoryAllocation = max(metrics.peakMemoryAllocation, bytes)
+        metricsCache[identifier] = metrics
     }
 
     func recordError(_ identifier: String, error: Error) {
@@ -419,14 +382,6 @@ final class PerformanceMonitor: @unchecked Sendable {
                 message: error.localizedDescription
             )
         }
-    }
-
-    func recordGPUTime(_ identifier: String, nanoseconds: UInt64) {
-        guard isEnabled else { return }
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-        initializeMetricsIfNeeded(identifier)
-        metricsCache[identifier]?.gpuTotalTimeNanoseconds += nanoseconds
     }
 
     func beginGPUOperation(_ identifier: String) {
@@ -461,15 +416,7 @@ final class PerformanceMonitor: @unchecked Sendable {
         }
     }
 
-    public func recordPerformanceCounter(_ identifier: String, name: String, value: Double) {
-        guard isEnabled else { return }
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-        initializeMetricsIfNeeded(identifier)
-        metricsCache[identifier]?.performanceCounters[name] = value
-    }
-
-    public func getMetrics(_ identifier: String) -> Metrics? {
+    func getMetrics(_ identifier: String) -> Metrics? {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         return metricsCache[identifier]
@@ -495,42 +442,14 @@ final class PerformanceMonitor: @unchecked Sendable {
         }
     }
 
-    @discardableResult
-    func measure<T>(_ identifier: String, _ operation: String, _ block: () throws -> T) rethrows -> T {
-        guard isEnabled else { return try block() }
-        let startTime = CACurrentMediaTime()
-        do {
-            let result = try block()
-            let duration = CACurrentMediaTime() - startTime
-            recordFilterProcessing(identifier, filterName: operation, duration: duration)
-            if configuration.logLevel >= .debug {
-                HarbethLogger.log(
-                    .debug,
-                    category: "performance",
-                    code: "harbeth.performance.operation_duration",
-                    outcome: .observed,
-                    metadata: ["operation": operation, "durationSeconds": String(duration)],
-                    correlationID: identifier,
-                    message: "\(identifier) - \(operation): \(String(format: "%.4f", duration))s"
-                )
-            }
-            return result
-        } catch {
-            let duration = CACurrentMediaTime() - startTime
-            recordFilterProcessing(identifier, filterName: operation, duration: duration)
-            recordError(identifier, error: error)
-            throw error
-        }
-    }
-
-    public func clearAllMetrics() {
+    func clearAllMetrics() {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         metricsCache.removeAll()
         pendingGPUOperations.removeAll()
     }
 
-    public func getSummary() -> Summary {
+    func getSummary() -> Summary {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         var summary = Summary()
@@ -616,11 +535,6 @@ final class PerformanceMonitor: @unchecked Sendable {
         let pipelineHit = String(format: "%.1f", metrics.pipelineCacheHitRate * 100)
         let memAlloc = String(format: "%.1f", Double(metrics.totalMemoryAllocated) / 1_000_000)
         let peakMem = String(format: "%.1f", Double(metrics.peakMemoryAllocation) / 1_000_000)
-        var counterStr = ""
-        if !metrics.performanceCounters.isEmpty {
-            let counters = metrics.performanceCounters.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
-            counterStr = "\nPerformance Counters: \(counters)"
-        }
         var filterStr = ""
         if !metrics.filterProcessingTimes.isEmpty {
             if let slowest = metrics.slowestFilter {
@@ -643,7 +557,7 @@ final class PerformanceMonitor: @unchecked Sendable {
                 \(identifier):
                 Total Time: \(totalTimeStr)ms | CPU Time: \(cpuTimeStr)ms | GPU Time: \(gpuTimeStr)ms
                 GPU Utilization: \(gpuUtilizationStr)% | Texture Hit Rate: \(texHit)% | Pipeline Hit Rate: \(pipelineHit)%
-                Memory Allocated: \(memAlloc) MB | Peak Memory: \(peakMem) MB | Errors: \(metrics.errors.count)\(filterStr)\(counterStr)
+                Memory Allocated: \(memAlloc) MB | Peak Memory: \(peakMem) MB | Errors: \(metrics.errors.count)\(filterStr)
                 """
         )
         if isFinal && configuration.logLevel >= .warning {
@@ -680,164 +594,149 @@ final class PerformanceMonitor: @unchecked Sendable {
 }
 
 extension PerformanceMonitor {
-    public struct Summary {
-        public var totalOperations: Int = 0
-        public var totalProcessingTime: TimeInterval = 0
-        public var averageProcessingTime: TimeInterval = 0
-        public var longestOperationTime: TimeInterval = 0
-        public var shortestOperationTime: TimeInterval = 0
-        public var totalCPUTime: TimeInterval = 0
-        public var averageCPUTime: TimeInterval = 0
-        public var totalGPUTime: TimeInterval = 0
-        public var averageGPUTime: TimeInterval = 0
-        public var averageGPUUtilization: Double = 0
-        public var gpuCpuRatio: Double = 0
-        public var totalTextureCreations: Int = 0
-        public var totalTextureReuses: Int = 0
-        public var totalPipelineCacheHits: Int = 0
-        public var totalPipelineCacheMisses: Int = 0
-        public var totalImageResolutionCacheHits: Int = 0
-        public var totalImageResolutionCacheMisses: Int = 0
-        public var totalStages: Int = 0
-        public var totalReadbackBoundaries: Int = 0
-        public var totalPixelFormatConversions: Int = 0
-        public var totalAlphaConversions: Int = 0
-        public var totalColorConversions: Int = 0
-        public var totalRenderTargetCreations: Int = 0
-        public var totalOptimizerDecisions: Int = 0
-        public var totalTextureLifecycleDecisions: Int = 0
-        public var totalPreviewHostMetalStrategyDecisions: Int = 0
-        public var totalPreviewHostPassthroughStrategyDecisions: Int = 0
-        public var totalPreviewHostRematerializedStrategyDecisions: Int = 0
-        public var totalPreviewHostEnqueues: Int = 0
-        public var totalPreviewHostRecoveries: Int = 0
-        public var totalPreviewHostFallbacks: Int = 0
-        public var totalPreviewHostPredictionDrifts: Int = 0
-        public var totalPreviewHostVisibilityPauses: Int = 0
-        public var totalPreviewHostVisibilityResumes: Int = 0
-        public var totalPreviewHostLifecyclePauses: Int = 0
-        public var totalPreviewHostLifecycleResumes: Int = 0
-        public var totalPreviewHostFailures: Int = 0
-        public var totalPreviewHostStrategySwitches: Int = 0
-        public var totalPreviewHostActivations: Int = 0
-        public var totalPreviewHostDeactivations: Int = 0
-        public var maxPreviewHostConcurrentSampleBufferHosts: Int = 0
-        public var maxPreviewHostSuspendedHostCount: Int = 0
-        public var maxPreviewHostActiveLeaseCount: Int = 0
-        public var maxPreviewHostPooledLayerCount: Int = 0
-        public var totalPreviewHostPoolReuses: Int = 0
-        public var totalFilters: Int = 0
-        public var totalMemoryAllocated: Int = 0
-        public var peakMemoryAllocation: Int = 0
-        public var totalErrors: Int = 0
+    struct Summary {
+        var totalOperations: Int = 0
+        var totalProcessingTime: TimeInterval = 0
+        var averageProcessingTime: TimeInterval = 0
+        var longestOperationTime: TimeInterval = 0
+        var shortestOperationTime: TimeInterval = 0
+        var totalCPUTime: TimeInterval = 0
+        var averageCPUTime: TimeInterval = 0
+        var totalGPUTime: TimeInterval = 0
+        var averageGPUTime: TimeInterval = 0
+        var averageGPUUtilization: Double = 0
+        var gpuCpuRatio: Double = 0
+        var totalTextureCreations: Int = 0
+        var totalTextureReuses: Int = 0
+        var totalPipelineCacheHits: Int = 0
+        var totalPipelineCacheMisses: Int = 0
+        var totalImageResolutionCacheHits: Int = 0
+        var totalImageResolutionCacheMisses: Int = 0
+        var totalStages: Int = 0
+        var totalReadbackBoundaries: Int = 0
+        var totalPixelFormatConversions: Int = 0
+        var totalAlphaConversions: Int = 0
+        var totalColorConversions: Int = 0
+        var totalRenderTargetCreations: Int = 0
+        var totalOptimizerDecisions: Int = 0
+        var totalTextureLifecycleDecisions: Int = 0
+        var totalPreviewHostMetalStrategyDecisions: Int = 0
+        var totalPreviewHostPassthroughStrategyDecisions: Int = 0
+        var totalPreviewHostRematerializedStrategyDecisions: Int = 0
+        var totalPreviewHostEnqueues: Int = 0
+        var totalPreviewHostRecoveries: Int = 0
+        var totalPreviewHostFallbacks: Int = 0
+        var totalPreviewHostPredictionDrifts: Int = 0
+        var totalPreviewHostVisibilityPauses: Int = 0
+        var totalPreviewHostVisibilityResumes: Int = 0
+        var totalPreviewHostLifecyclePauses: Int = 0
+        var totalPreviewHostLifecycleResumes: Int = 0
+        var totalPreviewHostFailures: Int = 0
+        var totalPreviewHostStrategySwitches: Int = 0
+        var totalPreviewHostActivations: Int = 0
+        var totalPreviewHostDeactivations: Int = 0
+        var maxPreviewHostConcurrentSampleBufferHosts: Int = 0
+        var maxPreviewHostSuspendedHostCount: Int = 0
+        var maxPreviewHostActiveLeaseCount: Int = 0
+        var maxPreviewHostPooledLayerCount: Int = 0
+        var totalPreviewHostPoolReuses: Int = 0
+        var totalFilters: Int = 0
+        var totalMemoryAllocated: Int = 0
+        var peakMemoryAllocation: Int = 0
+        var totalErrors: Int = 0
 
-        public var textureCacheHitRate: Double {
+        var textureCacheHitRate: Double {
             let total = totalTextureCreations + totalTextureReuses
             return total > 0 ? Double(totalTextureReuses) / Double(total) : 0
         }
 
-        public var pipelineCacheHitRate: Double {
+        var pipelineCacheHitRate: Double {
             let total = totalPipelineCacheHits + totalPipelineCacheMisses
             return total > 0 ? Double(totalPipelineCacheHits) / Double(total) : 0
         }
 
-        public var imageResolutionCacheHitRate: Double {
+        var imageResolutionCacheHitRate: Double {
             let total = totalImageResolutionCacheHits + totalImageResolutionCacheMisses
             return total > 0 ? Double(totalImageResolutionCacheHits) / Double(total) : 0
         }
     }
 
-    public struct Metrics {
-        public var startTime: TimeInterval = 0
-        public var endTime: TimeInterval = 0
-        public var gpuTotalTimeNanoseconds: UInt64 = 0
-        public var totalProcessingTime: TimeInterval {
+    struct Metrics {
+        var startTime: TimeInterval = 0
+        var endTime: TimeInterval = 0
+        var gpuTotalTimeNanoseconds: UInt64 = 0
+        var totalProcessingTime: TimeInterval {
             guard endTime > 0 else { return 0 }
             return endTime - startTime
         }
-        public var gpuTotalTime: TimeInterval {
+        var gpuTotalTime: TimeInterval {
             TimeInterval(gpuTotalTimeNanoseconds) / 1_000_000_000.0
         }
-        public var cpuTime: TimeInterval {
+        var cpuTime: TimeInterval {
             max(totalProcessingTime - gpuTotalTime, 0)
         }
-        public var gpuUtilization: Double {
+        var gpuUtilization: Double {
             totalProcessingTime > 0 ? min(max(gpuTotalTime / totalProcessingTime, 0), 1) : 0
         }
-        public var textureCreations: Int = 0
-        public var textureReuses: Int = 0
-        public var pipelineCacheHits: Int = 0
-        public var pipelineCacheMisses: Int = 0
-        public var imageResolutionCacheHits: Int = 0
-        public var imageResolutionCacheMisses: Int = 0
-        public var stageCount: Int = 0
-        public var readbackBoundaryCount: Int = 0
-        public var pixelFormatConversions: Int = 0
-        public var alphaConversions: Int = 0
-        public var colorConversions: Int = 0
-        public var renderTargetCreations: Int = 0
-        public var optimizerDecisionCount: Int = 0
-        public var textureLifecycleDecisionCount: Int = 0
-        public var previewHostMetalStrategyCount: Int = 0
-        public var previewHostPassthroughStrategyCount: Int = 0
-        public var previewHostRematerializedStrategyCount: Int = 0
-        public var previewHostEnqueueCount: Int = 0
-        public var previewHostRecoveryCount: Int = 0
-        public var previewHostFallbackCount: Int = 0
-        public var previewHostPredictionDriftCount: Int = 0
-        public var previewHostVisibilityPauseCount: Int = 0
-        public var previewHostVisibilityResumeCount: Int = 0
-        public var previewHostLifecyclePauseCount: Int = 0
-        public var previewHostLifecycleResumeCount: Int = 0
-        public var previewHostFailureCount: Int = 0
-        public var previewHostStrategySwitchCount: Int = 0
-        public var previewHostActivationCount: Int = 0
-        public var previewHostDeactivationCount: Int = 0
-        public var previewHostActiveLeaseCount: Int = 0
-        public var previewHostPooledLayerCount: Int = 0
-        public var previewHostPoolReuseCount: Int = 0
-        public var previewHostConcurrentSampleBufferHostCount: Int = 0
-        public var previewHostMaxConcurrentSampleBufferHostCount: Int = 0
-        public var previewHostSuspendedHostCount: Int = 0
-        public var previewHostSuspensionReasons: [String: Int] = [:]
-        public var previewHostFailureReasons: [String: Int] = [:]
-        public var previewHostFleetFailureReasons: [String: Int] = [:]
-        public var previewHostFleetStrategySwitchCount: Int = 0
-        public var previewHostFleetActivationCount: Int = 0
-        public var previewHostFleetDeactivationCount: Int = 0
-        public var previewHostFleetRecoveryCount: Int = 0
-        public var previewHostFleetFallbackCount: Int = 0
-        public var previewHostExecutionState: String?
-        public var textureCacheHitRate: Double {
+        var textureCreations: Int = 0
+        var textureReuses: Int = 0
+        var pipelineCacheHits: Int = 0
+        var pipelineCacheMisses: Int = 0
+        var imageResolutionCacheHits: Int = 0
+        var imageResolutionCacheMisses: Int = 0
+        var stageCount: Int = 0
+        var readbackBoundaryCount: Int = 0
+        var pixelFormatConversions: Int = 0
+        var alphaConversions: Int = 0
+        var colorConversions: Int = 0
+        var renderTargetCreations: Int = 0
+        var optimizerDecisionCount: Int = 0
+        var textureLifecycleDecisionCount: Int = 0
+        var previewHostMetalStrategyCount: Int = 0
+        var previewHostPassthroughStrategyCount: Int = 0
+        var previewHostRematerializedStrategyCount: Int = 0
+        var previewHostEnqueueCount: Int = 0
+        var previewHostRecoveryCount: Int = 0
+        var previewHostFallbackCount: Int = 0
+        var previewHostPredictionDriftCount: Int = 0
+        var previewHostVisibilityPauseCount: Int = 0
+        var previewHostVisibilityResumeCount: Int = 0
+        var previewHostLifecyclePauseCount: Int = 0
+        var previewHostLifecycleResumeCount: Int = 0
+        var previewHostFailureCount: Int = 0
+        var previewHostStrategySwitchCount: Int = 0
+        var previewHostActivationCount: Int = 0
+        var previewHostDeactivationCount: Int = 0
+        var previewHostActiveLeaseCount: Int = 0
+        var previewHostPooledLayerCount: Int = 0
+        var previewHostPoolReuseCount: Int = 0
+        var previewHostMaxConcurrentSampleBufferHostCount: Int = 0
+        var previewHostSuspendedHostCount: Int = 0
+        var textureCacheHitRate: Double {
             let total = textureCreations + textureReuses
             return total > 0 ? Double(textureReuses) / Double(total) : 0
         }
 
-        public var pipelineCacheHitRate: Double {
+        var pipelineCacheHitRate: Double {
             let total = pipelineCacheHits + pipelineCacheMisses
             return total > 0 ? Double(pipelineCacheHits) / Double(total) : 0
         }
 
-        public var imageResolutionCacheHitRate: Double {
+        var imageResolutionCacheHitRate: Double {
             let total = imageResolutionCacheHits + imageResolutionCacheMisses
             return total > 0 ? Double(imageResolutionCacheHits) / Double(total) : 0
         }
-        public var filterProcessingTimes: [String: TimeInterval] = [:]
-        public var performanceCounters: [String: Double] = [:]
-        public var memoryAllocations: [MemoryAllocation] = []
-        public var errors: [String] = []
-        public var resourceEvents: [String] = []
-        public struct MemoryAllocation {
-            public let timestamp: TimeInterval
-            public let bytes: Int
-            public let source: String
-        }
+        var filterProcessingTimes: [String: TimeInterval] = [:]
+        var totalMemoryAllocated: Int = 0
+        var peakMemoryAllocation: Int = 0
+        var errors: [String] = []
+        var resourceEvents: [String] = []
 
-        public init(startTime: TimeInterval = CACurrentMediaTime()) {
+        init(startTime: TimeInterval = CACurrentMediaTime()) {
             self.startTime = startTime
         }
 
-        public mutating func reset() {
+        mutating func reset() {
             startTime = CACurrentMediaTime()
             endTime = 0
             gpuTotalTimeNanoseconds = 0
@@ -873,45 +772,28 @@ extension PerformanceMonitor {
             previewHostActiveLeaseCount = 0
             previewHostPooledLayerCount = 0
             previewHostPoolReuseCount = 0
-            previewHostConcurrentSampleBufferHostCount = 0
             previewHostMaxConcurrentSampleBufferHostCount = 0
             previewHostSuspendedHostCount = 0
-            previewHostSuspensionReasons.removeAll()
-            previewHostFailureReasons.removeAll()
-            previewHostFleetFailureReasons.removeAll()
-            previewHostFleetStrategySwitchCount = 0
-            previewHostFleetActivationCount = 0
-            previewHostFleetDeactivationCount = 0
-            previewHostFleetRecoveryCount = 0
-            previewHostFleetFallbackCount = 0
-            previewHostExecutionState = nil
             filterProcessingTimes.removeAll()
-            performanceCounters.removeAll()
-            memoryAllocations.removeAll()
+            totalMemoryAllocated = 0
+            peakMemoryAllocation = 0
             errors.removeAll()
             resourceEvents.removeAll()
         }
 
-        public var slowestFilter: (name: String, time: TimeInterval)? {
+        var slowestFilter: (name: String, time: TimeInterval)? {
             filterProcessingTimes.max(by: { $0.value < $1.value }).map { (name: $0.key, time: $0.value) }
         }
 
-        public var fastestFilter: (name: String, time: TimeInterval)? {
+        var fastestFilter: (name: String, time: TimeInterval)? {
             filterProcessingTimes.min(by: { $0.value < $1.value }).map { (name: $0.key, time: $0.value) }
         }
 
-        public var averageFilterTime: TimeInterval {
+        var averageFilterTime: TimeInterval {
             guard !filterProcessingTimes.isEmpty else { return 0 }
             let totalTime = filterProcessingTimes.values.reduce(0, +)
             return totalTime / Double(filterProcessingTimes.count)
         }
 
-        public var totalMemoryAllocated: Int {
-            memoryAllocations.reduce(0) { $0 + $1.bytes }
-        }
-
-        public var peakMemoryAllocation: Int {
-            memoryAllocations.map(\.bytes).max() ?? 0
-        }
     }
 }
