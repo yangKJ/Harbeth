@@ -152,3 +152,264 @@ enum MaskTestHelpers {
         HarbethIO(element: background, filter: MaskRegionBlend(effectTexture: foreground, mask: mask))
     }
 }
+
+/// 将历史 `HarbethIO` 高级测试迁到 `ImageNode` 的临时测试路由。
+///
+/// 这个适配只编译进测试 target：生产库没有恢复任何 `HarbethIO` 的 frame、request、
+/// diagnostics 或 analysis API。它让原有断言继续覆盖同一份高级渲染合同，同时将实际
+/// 执行明确落到 `ImageNode`。
+extension HarbethIO {
+    func advancedTestNode() throws -> ImageNode {
+        ImageNode.source(try makeImageSource()).applying(filters: filters)
+    }
+
+    func renderDiagnostics(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil
+    ) throws -> RenderPlanDiagnostics {
+        try advancedTestNode().makeDiagnostics(profile: profile, derivative: derivative)
+    }
+
+    func renderDiagnosticsJSONData(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil,
+        prettyPrinted: Bool = false,
+        sortedKeys: Bool = true
+    ) throws -> Data {
+        try renderDiagnostics(profile: profile, derivative: derivative)
+            .jsonData(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    func renderDiagnosticsJSONString(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil,
+        prettyPrinted: Bool = false,
+        sortedKeys: Bool = true
+    ) throws -> String {
+        try renderDiagnostics(profile: profile, derivative: derivative)
+            .jsonString(prettyPrinted: prettyPrinted, sortedKeys: sortedKeys)
+    }
+
+    func renderRecipe(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil
+    ) throws -> RenderRecipe {
+        try advancedTestNode().makeRenderRecipe(profile: profile, derivative: derivative)
+    }
+
+    func makeRenderRequest(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil
+    ) throws -> RenderRequest {
+        try advancedTestNode().makeRenderRequest(profile: profile, derivative: derivative)
+    }
+
+    func startRenderTextureTask(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil
+    ) throws -> RenderTask<MTLTexture> {
+        let node = try advancedTestNode()
+        let output = try node.makeTexture(profile: profile, derivative: derivative)
+        let diagnostics = try node.makeDiagnostics(profile: profile, derivative: derivative)
+        return .completed(identifier: identifier, output: output, diagnostics: diagnostics)
+    }
+
+    func renderHistogram(
+        profile: RenderProfile = .readbackQuality,
+        derivative: ImageDerivativeSpec? = nil,
+        channel: TextureHistogramChannel = .luminance,
+        bins: Int = 256,
+        region: MTLRegion? = nil,
+        mask: MaskDescriptor? = nil,
+        luminanceRange: TextureLuminanceRange? = nil,
+        colorRange: TextureColorRange? = nil,
+        coverageThreshold: Float = 0.5,
+        preferredMethod: TextureHistogramComputationMethod = .cpuReadback
+    ) throws -> TextureHistogram? {
+        try advancedTestNode().makeHistogram(
+            profile: profile,
+            derivative: derivative,
+            channel: channel,
+            bins: bins,
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderHistogramAttachment(
+        profile: RenderProfile = .readbackQuality,
+        derivative: ImageDerivativeSpec? = nil,
+        channel: TextureHistogramChannel = .luminance,
+        bins: Int = 256,
+        height: Int = 64,
+        region: MTLRegion? = nil,
+        mask: MaskDescriptor? = nil,
+        luminanceRange: TextureLuminanceRange? = nil,
+        colorRange: TextureColorRange? = nil,
+        coverageThreshold: Float = 0.5,
+        preferredMethod: TextureHistogramComputationMethod = .gpuMPS
+    ) throws -> RenderedHistogramAttachment? {
+        try advancedTestNode().makeHistogramAttachment(
+            profile: profile,
+            derivative: derivative,
+            channel: channel,
+            bins: bins,
+            height: height,
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            colorRange: colorRange,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderAnalysisBundle(
+        profile: RenderProfile = .readbackQuality,
+        derivative: ImageDerivativeSpec? = nil,
+        channel: TextureHistogramChannel = .luminance,
+        bins: Int = 256,
+        histogramHeight: Int = 64,
+        region: MTLRegion? = nil,
+        mask: MaskDescriptor? = nil,
+        luminanceRange: TextureLuminanceRange? = nil,
+        coverageThreshold: Float = 0.5,
+        preferredMethod: TextureHistogramComputationMethod = .gpuMPS
+    ) throws -> RenderedAnalysisBundle {
+        try advancedTestNode().makeAnalysisBundle(
+            profile: profile,
+            derivative: derivative,
+            channel: channel,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            region: region,
+            mask: mask,
+            luminanceRange: luminanceRange,
+            coverageThreshold: coverageThreshold,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderAnalysisBundle(
+        profile: RenderProfile = .readbackQuality,
+        derivative: ImageDerivativeSpec? = nil,
+        channel: TextureHistogramChannel = .luminance,
+        bins: Int = 256,
+        histogramHeight: Int = 64,
+        scope: TextureAnalysisScope,
+        preferredMethod: TextureHistogramComputationMethod = .gpuMPS
+    ) throws -> RenderedAnalysisBundle {
+        try advancedTestNode().makeAnalysisBundle(
+            profile: profile,
+            derivative: derivative,
+            channel: channel,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderFrame(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil,
+        outputColorSpace: ImageColorSpaceContract? = nil,
+        metadata: [String: String] = [:]
+    ) throws -> RenderedFrame {
+        try advancedTestNode().makeFrame(
+            profile: profile,
+            derivative: derivative,
+            outputColorSpace: outputColorSpace,
+            metadata: metadata
+        )
+    }
+
+    func makeFrame(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil,
+        outputColorSpace: ImageColorSpaceContract? = nil,
+        metadata: [String: String] = [:]
+    ) throws -> RenderedFrame {
+        try renderFrame(
+            profile: profile,
+            derivative: derivative,
+            outputColorSpace: outputColorSpace,
+            metadata: metadata
+        )
+    }
+
+    func makeFrameRenderToken() -> FrameRenderToken {
+        FrameRenderToken(identifier: identifier, generation: FrameGeneration.next())
+    }
+
+    func renderAttachmentSet(
+        profile: RenderProfile = .readbackQuality
+    ) throws -> RenderedAttachmentSet? {
+        try advancedTestNode().makeAttachmentSet(profile: profile)
+    }
+
+    func renderAttachmentAnalysisBundle(
+        profile: RenderProfile = .readbackQuality,
+        bins: Int = 256,
+        histogramHeight: Int = 64,
+        region: MTLRegion? = nil,
+        mask: MaskDescriptor? = nil,
+        coverageThreshold: Float = 0.5,
+        preferredMethod: TextureHistogramComputationMethod = .gpuMPS
+    ) throws -> RenderedAttachmentAnalysisBundle? {
+        let scope = TextureAnalysisScope(
+            region: region,
+            mask: mask,
+            coverageThreshold: coverageThreshold
+        )
+        return try advancedTestNode().makeAttachmentAnalysisBundle(
+            profile: profile,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderAttachmentAnalysisBundle(
+        profile: RenderProfile = .readbackQuality,
+        bins: Int = 256,
+        histogramHeight: Int = 64,
+        scope: TextureAnalysisScope,
+        preferredMethod: TextureHistogramComputationMethod = .gpuMPS
+    ) throws -> RenderedAttachmentAnalysisBundle? {
+        try advancedTestNode().makeAttachmentAnalysisBundle(
+            profile: profile,
+            bins: bins,
+            histogramHeight: histogramHeight,
+            scope: scope,
+            preferredMethod: preferredMethod
+        )
+    }
+
+    func renderFrame(
+        profile: RenderProfile = .stablePreview,
+        derivative: ImageDerivativeSpec? = nil,
+        token: FrameRenderToken,
+        outputColorSpace: ImageColorSpaceContract? = nil,
+        metadata: [String: String] = [:]
+    ) throws -> RenderedFrame {
+        let source = try makeImageSource()
+        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        return try FrameRenderer(
+            source: source,
+            filters: filters,
+            profile: profile,
+            renderIntent: effectiveDerivative.renderIntent,
+            identifier: identifier,
+            metadata: metadata,
+            outputColorSpace: outputColorSpace,
+            outputSemantic: effectiveDerivative.semantic,
+            outputDerivative: effectiveDerivative
+        ).renderFrame(token: token)
+    }
+}

@@ -27,21 +27,31 @@ final class PublicAPISmokeTests: XCTestCase {
             io.mirrored = true
             return io
         }
-        let textureBackedFrame: (CIImage) throws -> TextureBackedCIImageFrame = { image in
-            try HarbethIO(element: image, filters: []).outputTextureBackedFrame()
+        let readIdentity: (MTLTexture) -> String = { texture in
+            HarbethIO(element: texture, filters: []).identifier
+        }
+        let appendSingleFilter: (CIImage, C7FilterProtocol) -> CIImage = { image, filter in
+            image ->> filter
+        }
+        let appendFilterChain: (CIImage, [C7FilterProtocol]) -> CIImage = { image, filters in
+            image -->>> filters
         }
         _ = render
         _ = transmit
         _ = configureRealTimeCommit
         _ = configurePixelFormat
         _ = configureLegacyCIImageOrientation
-        _ = textureBackedFrame
+        _ = readIdentity
+        _ = (appendSingleFilter, appendFilterChain)
     }
 
     func testCanonicalImageNodeSurfaceCompiles() {
         let build: (MTLTexture) -> ImageNode = { texture in ImageNode.texture(texture).withCachePolicy(.transient) }
         let capability: (ImageNode) throws -> FrameProcessingCapability = { node in
             try node.makeFrameProcessingCapability(for: .dynamicFrame)
+        }
+        let textureBackedFrame: (CIImage) throws -> TextureBackedCIImageFrame = { image in
+            try ImageNode.ciImage(image).makeFrame().makeTextureBackedCIImage(for: image)
         }
         let pageCurl: (MTLTexture, MTLTexture) -> ImageNode = { from, to in
             ImageNode.transition(
@@ -52,7 +62,7 @@ final class PublicAPISmokeTests: XCTestCase {
             )
         }
         _ = build
-        _ = capability
+        _ = (capability, textureBackedFrame)
         _ = pageCurl
     }
 

@@ -120,17 +120,6 @@ public extension RenderRequest {
     }
 }
 
-extension HarbethIO {
-    func makeFrameProcessingCapability(
-        for requirements: FrameProcessingRequirements = .dynamicFrame,
-        profile: RenderProfile = .stablePreview,
-        derivative: ImageDerivativeSpec? = nil
-    ) throws -> FrameProcessingCapability {
-        try renderDiagnostics(profile: profile, derivative: derivative)
-            .frameProcessingCapability(for: requirements)
-    }
-}
-
 public extension ImageNode {
     func makeFrameProcessingCapability(
         for requirements: FrameProcessingRequirements = .dynamicFrame,

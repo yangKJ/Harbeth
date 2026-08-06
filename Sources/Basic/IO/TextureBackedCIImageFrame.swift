@@ -77,4 +77,25 @@ public extension RenderedFrame {
         }
         return TextureBackedCIImageFrame(image: image, owner: self)
     }
+
+    /// Exposes this result as a Core Image frame while preserving the source CIImage presentation contract.
+    ///
+    /// Use this overload when the frame was rendered from `source`. It preserves a non-zero source extent
+    /// and applies the required pixel-buffer-backed Core Image orientation correction.
+    func makeTextureBackedCIImage(for source: CIImage) throws -> TextureBackedCIImageFrame {
+        let base = try makeTextureBackedCIImage()
+        var image = base.image
+        if source.extent.origin != .zero {
+            image = image.transformed(
+                by: CGAffineTransform(
+                    translationX: source.extent.origin.x,
+                    y: source.extent.origin.y
+                )
+            )
+        }
+        if source.pixelBuffer != nil {
+            image = image.oriented(.downMirrored)
+        }
+        return TextureBackedCIImageFrame(image: image, owner: self)
+    }
 }

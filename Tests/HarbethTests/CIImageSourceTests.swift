@@ -22,7 +22,7 @@ final class CIImageSourceTests: XCTestCase {
         try requireMetal()
         let source = makeCIImage(width: 4, height: 3)
 
-        let output = try HarbethIO(element: source, filters: []).outputTextureBackedFrame()
+        let output = try makeTextureBackedFrame(source: source)
 
         XCTAssertEqual(output.image.extent, source.extent)
         if #available(macOS 15.0, iOS 18.0, tvOS 18.0, *) {
@@ -46,12 +46,12 @@ final class CIImageSourceTests: XCTestCase {
         let source = makeCIImage(width: 4, height: 3)
             .transformed(by: CGAffineTransform(translationX: 7, y: 11))
 
-        let output = try HarbethIO(
-            element: source,
-            filters: [C7PremultiplyAlpha()]
+        let output = try makeTextureBackedFrame(
+            source: source,
+            filters: [C7PremultiplyAlpha()],
+            profile: .responseLatency,
+            outputColorSpace: .displayP3
         )
-        .configured(for: .responseLatency)
-        .outputTextureBackedFrame(outputColorSpace: .displayP3)
 
         XCTAssertEqual(output.image.extent, source.extent)
         XCTAssertEqual(output.sourceDescriptor.kind, "ciImage")
@@ -67,10 +67,10 @@ final class CIImageSourceTests: XCTestCase {
     func testTypedTextureBackedFrameOwnsManagedTextureLease() throws {
         try requireMetal()
         HarbethContext.shared.recoverExecution()
-        var output: TextureBackedCIImageFrame? = try HarbethIO(
-            element: makeCIImage(width: 9, height: 7),
+        var output: TextureBackedCIImageFrame? = try makeTextureBackedFrame(
+            source: makeCIImage(width: 9, height: 7),
             filters: [C7Brightness(brightness: 0.1)]
-        ).outputTextureBackedFrame()
+        )
         let texture = try XCTUnwrap(output?.texture)
 
         XCTAssertNil(
@@ -94,10 +94,7 @@ final class CIImageSourceTests: XCTestCase {
     func testTypedTextureBackedFramePreservesSourcePixelOrientation() throws {
         try requireMetal()
         let source = makeAsymmetricCIImage()
-        let output = try HarbethIO(
-            element: source,
-            filters: [C7Brightness(brightness: 0)]
-        ).outputTextureBackedFrame()
+        let output = try makeTextureBackedFrame(source: source, filters: [C7Brightness(brightness: 0)])
 
         XCTAssertEqual(try renderedBytes(output.image), try renderedBytes(source))
     }
@@ -105,10 +102,7 @@ final class CIImageSourceTests: XCTestCase {
     func testTypedTextureBackedFramePreservesPixelBufferSourceOrientation() throws {
         try requireMetal()
         let source = CIImage(cvPixelBuffer: try makeAsymmetricPixelBuffer())
-        let output = try HarbethIO(
-            element: source,
-            filters: [C7Brightness(brightness: 0)]
-        ).outputTextureBackedFrame()
+        let output = try makeTextureBackedFrame(source: source, filters: [C7Brightness(brightness: 0)])
 
         XCTAssertEqual(try renderedBytes(output.image), try renderedBytes(source))
     }
@@ -116,10 +110,7 @@ final class CIImageSourceTests: XCTestCase {
     func testTypedTextureBackedFramePreservesMetalTextureSourceOrientation() throws {
         try requireMetal()
         let source = try makeAsymmetricMetalImage()
-        let output = try HarbethIO(
-            element: source,
-            filters: [C7Brightness(brightness: 0)]
-        ).outputTextureBackedFrame()
+        let output = try makeTextureBackedFrame(source: source, filters: [C7Brightness(brightness: 0)])
 
         XCTAssertEqual(try renderedBytes(output.image), try renderedBytes(source))
     }
@@ -127,10 +118,10 @@ final class CIImageSourceTests: XCTestCase {
     func testEscapedTextureBackedImageKeepsManagedLease() throws {
         try requireMetal()
         HarbethContext.shared.recoverExecution()
-        var output: TextureBackedCIImageFrame? = try HarbethIO(
-            element: makeCIImage(width: 11, height: 7),
+        var output: TextureBackedCIImageFrame? = try makeTextureBackedFrame(
+            source: makeCIImage(width: 11, height: 7),
             filters: [C7Brightness(brightness: 0.1)]
-        ).outputTextureBackedFrame()
+        )
         let texture = try XCTUnwrap(output?.texture)
         var escapedImage: CIImage? = output?.image
 
@@ -159,10 +150,10 @@ final class CIImageSourceTests: XCTestCase {
         try requireMetal()
         HarbethContext.shared.recoverExecution()
         let texture = try autoreleasepool { () throws -> MTLTexture in
-            var output: TextureBackedCIImageFrame? = try HarbethIO(
-                element: makeCIImage(width: 13, height: 9),
+            var output: TextureBackedCIImageFrame? = try makeTextureBackedFrame(
+                source: makeCIImage(width: 13, height: 9),
                 filters: [C7Brightness(brightness: 0.1)]
-            ).outputTextureBackedFrame()
+            )
             let texture = try XCTUnwrap(output?.texture)
             var escapedImage = output?.croppedImage(to: CGRect(x: 1, y: 1, width: 10, height: 6))
 
@@ -208,12 +199,12 @@ final class CIImageSourceTests: XCTestCase {
         wait(for: [expectation], timeout: 2)
     }
 
-    func testCIImageOperatorsRemainCompatible() throws {
+    func testHarbethIOCIImageOutputRemainsDirect() throws {
         try requireMetal()
         let source = makeCIImage(width: 4, height: 3)
 
-        let single = source ->> C7Brightness(brightness: 0)
-        let grouped = source -->>> [C7Brightness(brightness: 0)]
+        let single: CIImage = try HarbethIO(element: source, filter: C7Brightness(brightness: 0)).output()
+        let grouped: CIImage = try HarbethIO(element: source, filters: [C7Brightness(brightness: 0)]).output()
 
         XCTAssertEqual(single.extent, CGRect(x: 0, y: 0, width: 4, height: 3))
         XCTAssertEqual(grouped.extent, CGRect(x: 0, y: 0, width: 4, height: 3))
@@ -222,8 +213,9 @@ final class CIImageSourceTests: XCTestCase {
     func testHarbethIORenderFrameAcceptsCIImage() throws {
         try requireMetal()
 
-        let frame = try HarbethIO(element: makeCIImage(width: 5, height: 2), filters: [])
-            .renderFrame(profile: .stablePreview)
+        let frame = try ImageNode
+            .ciImage(makeCIImage(width: 5, height: 2))
+            .makeFrame(profile: .stablePreview)
 
         XCTAssertEqual(frame.sourceDescriptor.kind, "ciImage")
         XCTAssertEqual(frame.texture.width, 5)
@@ -240,6 +232,19 @@ final class CIImageSourceTests: XCTestCase {
 
         XCTAssertEqual(texture.width, 6)
         XCTAssertEqual(texture.height, 4)
+    }
+
+    private func makeTextureBackedFrame(
+        source: CIImage,
+        filters: [C7FilterProtocol] = [],
+        profile: RenderProfile = .stablePreview,
+        outputColorSpace: ImageColorSpaceContract? = nil
+    ) throws -> TextureBackedCIImageFrame {
+        try ImageNode
+            .ciImage(source)
+            .applying(filters: filters)
+            .makeFrame(profile: profile, outputColorSpace: outputColorSpace)
+            .makeTextureBackedCIImage(for: source)
     }
 
     func testPluginOutputTreatsCIImageAsSource() throws {

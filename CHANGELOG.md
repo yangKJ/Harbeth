@@ -29,7 +29,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Removed
 
-- Removed direct public access to `HarbethIO.createDestTexture`, `HarbethIO.enableDoubleBuffer`, `HarbethIO.configured(for:)`, frame-capability construction, convenience fallback output, and filter operators. Use `ImageNode` with a `RenderProfile` when structured execution is required.
+- Removed direct public access to `HarbethIO.createDestTexture`, `HarbethIO.enableDoubleBuffer`, `HarbethIO.configured(for:)`, frame-capability construction, convenience fallback output, filter operators, and texture-backed CIImage frame delivery. Use `ImageNode` with a `RenderProfile` when structured execution is required; call `RenderedFrame.makeTextureBackedCIImage(for:)` for CIImage source-preserving delivery.
 
 ### 2026-08-06 — Internal performance diagnostics boundary
 

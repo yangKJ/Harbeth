@@ -29,6 +29,12 @@ public typealias C7ImageView = NSImageView
 public typealias C7ImageOrientation = CGImagePropertyOrientation
 #endif
 
+// Core Video does not expose these concrete types to simulator builds.
+#if targetEnvironment(simulator)
+public typealias CVMetalTexture = AnyClass
+public typealias CVMetalTextureCache = AnyClass
+#endif
+
 public typealias C7InputTextures = [MTLTexture]
 public typealias C7FilterImageCallback = @Sendable (_ image: C7Image) -> Void
 public typealias C7TextureResultBlock = @Sendable (Result<MTLTexture, HarbethError>) -> Void

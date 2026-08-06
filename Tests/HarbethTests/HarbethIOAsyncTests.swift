@@ -11,15 +11,14 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertNil(filter.intensityHint)
     }
 
-    func testBufferPixelFormatPreservesInputUntilExplicitlyOverridden() {
+    func testBufferPixelFormatRemainsTheSinglePublicOverride() {
         var io = HarbethIO(element: "seed", filters: [])
 
         XCTAssertNil(io.bufferPixelFormat)
-        XCTAssertEqual(io.resolvedBufferPixelFormat(sourcePixelFormat: .rgba16Float), .rgba16Float)
 
         io.bufferPixelFormat = .bgra8Unorm
 
-        XCTAssertEqual(io.resolvedBufferPixelFormat(sourcePixelFormat: .rgba16Float), .bgra8Unorm)
+        XCTAssertEqual(io.bufferPixelFormat, .bgra8Unorm)
     }
 
     func testDoubleBufferHonorsExplicitOutputPixelFormat() throws {
@@ -63,24 +62,11 @@ final class HarbethIOAsyncTests: XCTestCase {
     func testRealTimeCommitRemainsTheOnlyPublicDeliverySwitch() {
         var io = HarbethIO(element: "seed", filters: [])
 
-        XCTAssertEqual(io.requestedTransmitOutputDelivery, .gpuCompleted)
-        XCTAssertEqual(
-            io.resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false),
-            .gpuCompleted
-        )
+        XCTAssertFalse(io.transmitOutputRealTimeCommit)
 
         io.transmitOutputRealTimeCommit = true
 
-        XCTAssertEqual(io.requestedTransmitOutputDelivery, .commandBufferScheduled)
-        XCTAssertEqual(
-            io.resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false),
-            .commandBufferScheduled
-        )
-        XCTAssertEqual(
-            io.resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
-            .gpuCompleted,
-            "需要 CPU 物化的输出必须覆盖实时交付请求并等待 GPU 完成。"
-        )
+        XCTAssertTrue(io.transmitOutputRealTimeCommit)
     }
 
     func testAsyncTransmitOutputMatchesCallbackResult() async throws {
