@@ -32,9 +32,9 @@ CI 证明的是编译、测试与基础资源链路，不替代真机相机/视�
 ## 版本演进原则
 
 - Harbeth 3.0 以当前底座定位作为新的公开基线，不为历史 typo alias、旧 runtime facade 或已退出的平台继续叠加兼容层。
-- `Sources/Compute/Combination/` 的既有组合滤镜继续作为公开能力维护；新的私有 look、preset 和商业资源不回灌到 Harbeth。
-- `RenderView`、`SampleBufferPreviewHost` 与 PreviewHost contract 属于 Harbeth 的核心 texture/frame preview substrate；camera、player、recorder、timeline 和 export 编排属于上层媒体引擎或宿主。
-- 通用 mask、geometry、optics、transition 和 post-render analysis 属于 Harbeth primitive；模型、审美策略、产品任务编排与私有资产不属于 Harbeth。
+- `Sources/Compute/Combination/` 的既有组合滤镜继续作为公开能力维护；新增能力应保持为可组合、可验证的 GPU primitive，而不是命名风格、preset 或资源目录。
+- `RenderView`、`SampleBufferPreviewHost` 与 PreviewHost contract 属于 Harbeth 的核心 texture/frame preview substrate；采集、播放、录制、时间线和导出编排由宿主实现。
+- 通用 mask、geometry、optics、transition 和 post-render analysis 属于 Harbeth primitive；模型推理、审美选择与产品任务编排不属于 Harbeth。
 - `HarbethIO.output()` 是文档、Demo 和新接入的标准错误可观察入口。
 - `HarbethIO.transmitOutput(...)` 是对应的核心异步入口；有滤镜时进入 render operation queue，回调线程不保证，空滤镜路径允许同步完成。
 - 重大定位调整在 major release 直接形成清晰的新表面，不为不再成立的历史形态背包袱。

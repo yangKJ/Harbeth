@@ -1,6 +1,6 @@
 # Harbeth 能力地图
 
-这份文档不再重复讲第二套“如何使用”。
+这份文档不再重复讲第二套“如何使用”，也不把源码目录包装成产品功能目录。
 
 它只回答三件事：
 
@@ -286,11 +286,4 @@ Harbeth 对外只保留两条路线：
 1. 它该归 `HarbethIO` 还是 `ImageNode`
 2. 如果都不是，它是不是 supporting / authoring / runtime support
 3. 如果还不是，就不该变成新的公开路线
-关于 mask 相关源码分布，当前要区分两层：
-
-- `Sources/Compute/Blend Modes/`：旧滤镜目录里的 blend catalog，例如 `C7MaskedForegroundBlend`、`C7Blend(mask)`，表达的是“几张 texture 直接做一次混合”
-- `Sources/Basic/Filters/`：新 editing / `ImageNode` / local-effect / layer-composite 的内部执行 primitive，例如 `GradientMask`、`ShapeMask`、`MaskCoverageExtract`、`MaskCoverageBlend`、`MaskRegionBlend`、`LayerComposite`
-- `Sources/Basic/Mask/TextureScopedMask.swift`：scope 派生 mask 能力，供 `RenderedFrame`、`RenderedAttachmentSet`、`RenderRequest` 和 `ImageNode` 高级工作流消费
-- `ImageNode` editing / recipe 路线：承接高级 mask compositing 语义，`HarbethIO` 不再提供独立 mask facade
-
-不要只因为名字里都带 `Mask` 就机械搬到同一个目录；它们的输入 contract 和宿主语义并不相同。
+Mask 的接入、组合与结果语义统一由 `ImageNode` 表达；目录差异仅是内部实现分层。需要具体的 mask API 与使用示例时，请看[公开 API 分层](API_SURFACE_CN.md)。

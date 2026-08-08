@@ -1,6 +1,6 @@
 # ImageNode
 
-Use Harbeth's advanced unified entry when rendering must preserve a structured description, stable output contracts, diagnostics, or more than one delivery form.
+Use Harbeth's advanced unified entry when rendering must preserve a structured description, stable output contracts, diagnostics, or more than one delivery form. It is still a single-frame rendering route, not a host workflow model.
 
 ## Build a Node
 

@@ -1,5 +1,7 @@
 # Harbeth 3.0 迁移指南
 
+本指南只处理 Harbeth 的 API、渲染合同和资源策略迁移；宿主的交互、持久化和产品工作流不在迁移范围内。
+
 Harbeth 3.0 是新的公开基线，不继续叠加已经退出的 typo alias、旧 runtime facade、watchOS target 或不再成立的隐式行为。升级时先把调用面归入 `HarbethIO` 或 `ImageNode`，再处理资源与输出合同。
 
 ## 1. 选择公开路线

@@ -145,7 +145,7 @@ public final class BrandLookFilter: C7FilterPipelineProtocol {
 
 ## 5. 自有 Metal library
 
-Harbeth 会优先从已注册的外部 library、宿主 default library 和 Harbeth framework library 中解析函数。模块化 App 或私有能力包应显式注册 provider，让函数归属可诊断：
+Harbeth 会优先从已注册的 Metal library provider、宿主 default library 和 Harbeth framework library 中解析函数。多模块宿主应显式注册 provider，让函数归属可诊断：
 
 ```swift
 import Metal

@@ -42,4 +42,4 @@ These types can change as scheduling, fusion, heap allocation, MPS behavior, or 
 
 ## Ownership Boundary
 
-Harbeth owns deterministic single-frame GPU mask primitives. The host owns user interaction, undo/history, document persistence, and product policy. Media capture, playback, timelines, recording, and temporal scheduling remain outside the render core. Model inference, semantic subject selection, saliency policy, and large-image orchestration should provide textures or descriptors to this runtime rather than becoming public Harbeth mask APIs.
+Harbeth owns deterministic single-frame GPU mask primitives. The host owns user interaction, undo/history, document persistence, and product policy. Model inference, semantic selection, and large-image orchestration should provide textures or descriptors to this runtime rather than becoming public Harbeth mask APIs.

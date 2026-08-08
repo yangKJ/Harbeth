@@ -23,10 +23,10 @@ let hudTexture = try hostHUDEncoder.encode(
     commandBuffer: commandBuffer
 )
 
-precondition(commandBuffer.status == .notEnqueued)
+precondition(commandBuffer.status == .notEnqueued || commandBuffer.status == .enqueued)
 commandBuffer.commit()
 ```
 
-`hostHUDEncoder` above represents application-owned Metal code. Harbeth does not provide a HUD or `UIElement` product API, and this bridge does not own camera, player, recording, export, or video-timeline lifecycles.
+`hostHUDEncoder` above represents application-owned Metal code. Harbeth only bridges one GPU submission: it does not provide UI components or take ownership of the host's interaction and persistence workflow.
 
-Do not read attachment or HUD pixels on the CPU until the caller has observed command-buffer completion. The iOS Demo's **Command Buffer HUD** page shows the full minimal flow with a caller-owned compute shader and one host commit.
+Do not read attachment or HUD pixels on the CPU until the caller has observed command-buffer completion. The command buffer may be `.notEnqueued` or `.enqueued` when handed to Harbeth, but must still accept encoding and have no open encoder. The iOS Demo's **Command Buffer HUD** page shows the full minimal flow with a caller-owned compute shader and one host commit.

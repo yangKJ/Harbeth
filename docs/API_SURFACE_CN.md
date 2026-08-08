@@ -295,7 +295,7 @@ let recipe = EditRecipe(
 
 如果调用方手里已经有 `background texture + foreground texture + MaskDescriptor`，并且需要保留完整的 component / invert / feather / opacity 语义，推荐继续走 `ImageNode.layerComposite(...)` 或 `ImageNode.applying(mask: ...)`。`HarbethIO` 不再提供独立的 texture mask compositing facade。
 
-私有插件包如果要接进 `ImageNode`，也仍然走这条路线，不新增独立 `PluginNode`：
+自定义插件能力接进 `ImageNode` 时，也仍然走这条路线，不新增独立 `PluginNode`：
 
 ```swift
 let pluginNode = try ImageNode
@@ -604,7 +604,7 @@ source contract 一致性说明：
 
 定位：
 
-- 它们是私有插件包、GPU preview host 和 `ImageNode` 之间的桥接支撑层
+- 它们是插件能力、GPU preview host 和 `ImageNode` 之间的桥接支撑层
 - 外部能力统一通过 `Plugin` 接入；Runtime boundary 只是内部调度和诊断实现
 - 最终执行入口仍然是 `HarbethIO` 或 `ImageNode`
 - `RenderRequest`、`RenderTask` 属于 deferred/supporting read surface，不是第三条 app integration route

@@ -11,7 +11,9 @@
 
 面向 Apple 平台、以 texture-first 为核心的 Metal 图像与帧处理引擎。
 
-Harbeth 支持 `UIImage` / `NSImage`、`CGImage`、`CIImage`、`MTLTexture`、`CVPixelBuffer` 与 `CMSampleBuffer`，提供滤镜、渲染图、蒙版、转场、几何与光学 primitive、输出 contract、诊断和预览宿主。相机、播放器、时间线、录制与导出等媒体产品流程仍由宿主负责。
+Harbeth 支持 `UIImage` / `NSImage`、`CGImage`、`CIImage`、`MTLTexture`、`CVPixelBuffer` 与 `CMSampleBuffer`，提供滤镜、渲染图、蒙版、转场、几何与光学 primitive、输出 contract、诊断和预览宿主。
+
+它是产品内部的渲染底座，而不是产品工作流：交互、媒体生命周期、持久化与产品策略由宿主决定；Harbeth 负责把单张图像或单帧描述转成具有明确输出语义的 GPU 渲染结果。
 
 [English](README.md) | 简体中文
 
@@ -159,7 +161,7 @@ HarbethRenderView(
 - 纹理池、真实 `MTLHeap`、请求级资源预算、Binary Archive、派生资源治理、预热、render-plan cache 与稳定 fingerprint。
 - Alpha、工作/输出色彩配置、YUV、HDR metadata、输出量化、输出尺寸、方向和读回 contract。
 - GPU waveform/vectorscope、直方图、统计、探针、图快照、预览/导出 parity 和性能指标。
-- 自定义 `.metal`、`.metallib` 与外部 library provider 接入。
+- 自定义 `.metal`、`.metallib` 与可选 Metal library provider 接入。
 
 Harbeth 采用 capability-driven 语义：支持某个 contract 或平台，不代表所有设备都具备相同 Metal 特性。高级能力应结合 capability report 与对应 fallback 行为使用。
 

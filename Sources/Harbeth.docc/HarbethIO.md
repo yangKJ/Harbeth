@@ -1,6 +1,6 @@
 # HarbethIO
 
-Use the direct route when the caller already has a source and a filter chain.
+Use the direct route when the caller already has a source and a filter chain. It keeps Harbeth focused on a single rendering operation rather than host workflow or product state.
 
 ```swift
 let result = try HarbethIO(
@@ -26,7 +26,7 @@ Asynchronous output uses ``RenderSubmissionPolicy/independent`` by default, so o
 
 For texture-first preview, `transmitOutputRealTimeCommit` remains the single public switch for scheduled delivery. When enabled, asynchronous texture output can be delivered after the command buffer is scheduled. The switch does not change synchronous `output()` behavior, and CPU-readable image, pixel-buffer and sample-buffer outputs continue to wait for GPU completion before materialization.
 
-`bufferPixelFormat` is the single output-format override. Keep it `nil` to preserve the source texture format, or assign a concrete ``Metal/MTLPixelFormat`` when the output contract requires conversion.
+`bufferPixelFormat` is the single output-format override. Keep it `nil` to preserve the source texture format, or assign a concrete `MTLPixelFormat` when the output contract requires conversion.
 
 `mirrored` remains the legacy explicit correction for a CIImage created from a texture-backed source. It is an output-orientation compatibility flag, not a generic image-transform control.
 

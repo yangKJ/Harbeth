@@ -5,7 +5,7 @@ Make output semantics and failures explicit before optimizing a pipeline.
 - Use ``RenderProfile`` to select latency, preview, inspection, export, or readback behavior.
 - Use ``RenderedFrame`` to keep texture ownership and frame metadata together.
 - Set ``HarbethLogger/handler`` to route structured events into the host application's logger. Harbeth is silent by default. Events expose their library origin, stable diagnostic code, outcome, correlation identifier, and metadata without introducing a host logging dependency.
-- Use ``HarbethDiagnosticError`` and `Error.harbethDiagnosticCode` when a host needs a stable aggregation key instead of localized error text.
+- Use ``HarbethDiagnosticError`` and `Error.harbethDiagnosticCode` when a host needs a stable aggregation key instead of localized error text. For example, ``HarbethError/renderableTaskCancelled`` reports the diagnostic code `harbeth.renderable.cancelled`.
 - Attach `try HarbethSupportSnapshot.capture().json()` to bug reports for a privacy-safe environment summary.
 - Consume analysis after rendering; analysis is an inspection layer shared by `HarbethIO` and `ImageNode`, not a processing route.
 - Use ``RenderRequest/resourceAdmission`` to reject work against a request budget before texture allocation, and `renderFrameWithResourceReport(metadata:)` when allocator-observed allocation and reuse evidence is required.

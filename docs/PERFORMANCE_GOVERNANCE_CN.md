@@ -1,6 +1,6 @@
 # 性能基准与优化指南
 
-Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜、组合滤镜、recipe、mask、analysis 还是 attachment 输出，都建议先记录稳定基线，再判断优化收益。
+Harbeth 的性能优化应以可重复的数据为基础。无论是单个滤镜、组合滤镜、recipe、mask、analysis 还是 attachment 输出，都建议先记录稳定基线，再判断优化收益。性能文档只度量 Harbeth 的渲染与交付合同，不把宿主交互或产品流程混入结论。
 
 ## 基准目标
 

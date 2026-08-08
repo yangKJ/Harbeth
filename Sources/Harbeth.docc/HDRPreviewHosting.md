@@ -48,4 +48,4 @@ HarbethRenderView(
 
 ## Responsibility boundary
 
-The preview host configures drawable precision, layer color space, platform EDR preference, and supported system tone mapping. It does not author creative tone curves, convert arbitrary HDR content to a product-specific SDR look, or manage camera/video lifecycle. Perform explicit output conversion in the render contract before display when deterministic SDR appearance is required.
+The preview host configures drawable precision, layer color space, platform EDR preference, and supported system tone mapping. It does not author creative tone curves or convert arbitrary HDR content to a product-specific SDR look. Perform explicit output conversion in the render contract before display when deterministic SDR appearance is required.

@@ -13,7 +13,9 @@
 
 A texture-first Metal render engine for image and frame pipelines on Apple platforms.
 
-Harbeth processes `UIImage` / `NSImage`, `CGImage`, `CIImage`, `MTLTexture`, `CVPixelBuffer`, and `CMSampleBuffer`. It provides filters, render graphs, masks, transitions, geometry and optics primitives, output contracts, diagnostics, and preview hosting without taking ownership of your product's camera, player, timeline, recording, or export workflow.
+Harbeth processes `UIImage` / `NSImage`, `CGImage`, `CIImage`, `MTLTexture`, `CVPixelBuffer`, and `CMSampleBuffer`. It provides filters, render graphs, masks, transitions, geometry and optics primitives, output contracts, diagnostics, and preview hosting.
+
+It is the rendering core inside a product, not the product workflow itself: the host decides interaction, media lifecycle, persistence, and product policy; Harbeth turns one image or frame description into a GPU-rendered result with explicit output semantics.
 
 English | [简体中文](README_CN.md)
 
@@ -162,7 +164,7 @@ Use `HarbethView` only when a SwiftUI `Image` readback is the intended result; u
 - Texture pooling, real `MTLHeap` allocation, request budgets, binary archives, derived-resource governance, prewarming, render-plan caching, and stable fingerprints.
 - Alpha, working/output color profiles, YUV, HDR metadata, output quantization, output-size, orientation, and readback contracts.
 - GPU waveform/vectorscope, histogram, statistics, probes, graph snapshots, preview/export parity, and performance metrics.
-- Custom `.metal`, `.metallib`, and external library-provider integration.
+- Custom `.metal`, `.metallib`, and optional Metal library-provider integration.
 
 Harbeth is capability-driven: support for a contract or platform does not imply that every device has the same Metal feature set. Query capability reports and use the documented fallback behavior for advanced features.
 

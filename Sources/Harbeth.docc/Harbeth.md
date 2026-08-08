@@ -4,7 +4,7 @@ Build texture-first GPU image and frame pipelines on Apple platforms.
 
 ## Overview
 
-Harbeth is a Metal render engine for iOS, iPadOS, macOS, and tvOS. Its public usage model has two routes:
+Harbeth is a Metal render engine for iOS, iPadOS, macOS, and tvOS. It owns deterministic GPU image and frame rendering; the host retains interaction, persistence, and product policy. Its public usage model has two routes:
 
 - ``HarbethIO`` for direct source-to-output processing.
 - ``ImageNode`` for structured editing, geometry, optics, recipes, and render contracts.
@@ -18,9 +18,19 @@ Harbeth is a Metal render engine for iOS, iPadOS, macOS, and tvOS. Its public us
 - <doc:HarbethIO>
 - <doc:ImageNode>
 
+### Sources and Results
+
+- <doc:InputOutputInterop>
+- <doc:OutputContracts>
+
 ### Preview
 
 - <doc:PreviewHost>
+- <doc:RealTimeDelivery>
+
+### Filter Development
+
+- <doc:FilterAuthoring>
 
 ### Runtime Contracts
 

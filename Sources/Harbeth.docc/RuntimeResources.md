@@ -16,7 +16,7 @@ The host may use these `HarbethContext.shared` surfaces when it needs explicit r
 - ``RenderSubmissionPolicy`` and ``RenderSubmissionHandle`` for opt-in latest-only delivery, cancellation, and submission-state inspection without introducing another processing route.
 - `textureAllocationStrategy`, texture-pool prewarming, and the read-only `TexturePoolStatistics` snapshot for measured resource-policy changes.
 - The `enablePerformanceMonitor` switch for opt-in internal performance diagnostics, plus cache snapshots, pipeline binary archives, and derived-resource cache governance for diagnostics and host-controlled persistence. The monitor itself is not a host-facing runtime resource.
-- External Metal library registration, capability reports, and function lookup for modular shader packages.
+- Host-supplied Metal library registration, capability reports, and function lookup.
 
 ```swift
 let context = HarbethContext.shared

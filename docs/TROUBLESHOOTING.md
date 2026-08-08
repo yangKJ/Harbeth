@@ -99,7 +99,7 @@ Harbeth 只负责逐帧 GPU 处理；采集、播放器、帧丢弃、时间线�
 - 高频场景复用 node、filter 资源、LUT 和稳定 cache identity。
 - 把 analysis/readback 限制在确实需要的帧，而不是每帧执行。
 - 区分 texture pool 的可复用驻留与真实泄漏；结合 Instruments 和 Harbeth performance metrics 判断。
-- 大图 tile runtime、修复编排和重策略任务不属于开源 Harbeth Core 的普通整图链路。
+- 大图分块、修复流程和高层策略不属于 Harbeth 的普通整图渲染链路。
 
 ## 9. 提交 Issue 前收集什么
 

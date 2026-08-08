@@ -1,8 +1,8 @@
 # Filter Catalog / 滤镜目录
 
-Harbeth currently exposes 183 public filter or encoder execution types across Compute, MPS, Blit, and Render. `C7Blend` additionally provides 30 blend modes through `C7Blend.BlendType`.
+Harbeth currently exposes 183 public filter or encoder execution types across Compute, MPS, Blit, and Render. `C7Blend` additionally provides 30 blend modes through `C7Blend.BlendType`. This inventory must be updated with source changes; it is a navigation aid, not Harbeth's product definition.
 
-Harbeth 当前在 Compute、MPS、Blit 与 Render 四类执行路径中公开了 183 个滤镜或编码执行类型；`C7Blend` 还通过 `C7Blend.BlendType` 提供 30 种混合模式。
+Harbeth 当前在 Compute、MPS、Blit 与 Render 四类执行路径中公开了 183 个滤镜或编码执行类型；`C7Blend` 还通过 `C7Blend.BlendType` 提供 30 种混合模式。该清单必须随源码变动更新；它是导航，不是 Harbeth 的产品定义。
 
 This catalog follows the current source tree and only lists public executable types. Editing primitives such as mask recipes, geometry recipes, transitions, layer composition, analysis, and output contracts belong to the `ImageNode` route and are documented separately in the [public API surface](API_SURFACE_CN.md) and [capability map](CAPABILITY_MAP_CN.md).
 
@@ -90,13 +90,13 @@ let node = ImageNode.image(inputImage)
 
 ## Stylization / 风格化（15）
 
-用于程序化视觉风格，不包含私有 look、preset、LUT 资源包或商业化 recipe catalog。
+用于程序化视觉风格；它们是可组合的 GPU primitive，不承担命名 look、preset 或资源包目录。
 
 - `C7CMYKHalftone`, `C7ColorCGASpace`, `C7Fluctuate`, `C7Glitch`, `C7Kuwahara`, `C7OilPainting`
 - `C7OilPaintingEnhanced`, `C7RGBADilation`, `C7ShiftGlitch`, `C7SoulOut`
 - `C7Palettize`, `C7SplitScreen`, `C7Storyboard`, `C7Toon`, `C7VoronoiOverlay`
 
-`C7Palettize` 提供最多 32 色的逐像素最近调色板量化；`C7CMYKHalftone` 使用四个独立网角生成减色印刷网点。二者都是通用 GPU primitive，不内置命名风格或商业化 preset。
+`C7Palettize` 提供最多 32 色的逐像素最近调色板量化；`C7CMYKHalftone` 使用四个独立网角生成减色印刷网点。二者都是通用 GPU primitive，不内置命名风格或 preset。
 
 ## Blend Modes / 混合模式（5 + 30）
 
@@ -118,7 +118,7 @@ let node = ImageNode.image(inputImage)
 
 ## Combination / 组合滤镜（13）
 
-Combination 滤镜是 Harbeth 已公开的多阶段能力，不迁移到私有风格仓库。它们通过 `C7FilterPipelineProtocol` 组织普通滤镜链和可选最终 pass：
+Combination 滤镜是 Harbeth 已公开的多阶段能力。它们通过 `C7FilterPipelineProtocol` 组织普通滤镜链和可选最终 pass：
 
 - `C7CombinationBeautiful`：肤色、亮度与柔化方向的组合处理。
 - `C7CombinationCinematic`：电影感对比度与色彩关系组合。
