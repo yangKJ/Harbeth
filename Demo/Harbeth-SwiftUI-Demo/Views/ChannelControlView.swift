@@ -20,7 +20,7 @@ struct ChannelControlView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                HarbethView(image: inputImage, filters: [C7ChannelControl(
+                DemoFilteredImage(image: inputImage, filters: [C7ChannelControl(
                     red: red,
                     green: green,
                     blue: blue,

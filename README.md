@@ -152,7 +152,7 @@ HarbethRenderView(
 
 `RenderView` and `HarbethRenderView` are render-output hosts. Harbeth retains frame metadata, chooses an available backing strategy, handles visibility pause/resume, and exposes execution reports. The host application still owns media capture, playback, recording, timeline, export, and persistence.
 
-Use `HarbethView` only when a SwiftUI `Image` readback is the intended result; use `HarbethRenderView` for texture-first preview.
+Keep image readback explicit and local to the host UI. Use `HarbethRenderView` whenever SwiftUI previews a texture or `RenderedFrame`.
 
 ## Engine Capabilities
 

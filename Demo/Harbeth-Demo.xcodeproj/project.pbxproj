@@ -60,6 +60,7 @@
 		F7CBC1E02F6FD4AF00F75991 /* DoubleBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */; };
 		F7E3231D2F651C7D002ACD7B /* ChromaKeyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */; };
 		F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */; };
+		F7E323202F6549F4002ACD7B /* DemoFilteredImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E323212F6549F4002ACD7B /* DemoFilteredImageView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -155,6 +156,7 @@
 		F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleBufferView.swift; sourceTree = "<group>"; };
 		F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaKeyView.swift; sourceTree = "<group>"; };
 		F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelControlView.swift; sourceTree = "<group>"; };
+		F7E323212F6549F4002ACD7B /* DemoFilteredImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFilteredImageView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -306,6 +308,7 @@
 				F7621A882A7E7DA200614542 /* CubeView.swift */,
 				F78A11232F6010C300FFC2B6 /* CurvesView.swift */,
 				8769918B2A7CEBDC00551BD3 /* CustomViews.swift */,
+				F7E323212F6549F4002ACD7B /* DemoFilteredImageView.swift */,
 				F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */,
 				F78A11242F6010C300FFC2B6 /* HSLView.swift */,
 				870B80AD2A80E51B00614660 /* MetalKernelViews.swift */,
@@ -485,6 +488,7 @@
 				F7CBC1E02F6FD4AF00F75991 /* DoubleBufferView.swift in Sources */,
 				87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */,
 				F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */,
+				F7E323202F6549F4002ACD7B /* DemoFilteredImageView.swift in Sources */,
 				870B80AE2A80E51B00614660 /* MetalKernelViews.swift in Sources */,
 				8767F21229C95CE600FB5301 /* ContentView.swift in Sources */,
 				F7621A892A7E7DA200614542 /* CubeView.swift in Sources */,

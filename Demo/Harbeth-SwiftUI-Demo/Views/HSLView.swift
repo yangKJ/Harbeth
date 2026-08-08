@@ -26,7 +26,7 @@ struct HSLView: View {
         NavigationView {
             VStack {
                 // 图像预览
-                HarbethView(image: inputImage, filters: [createFilter()]) {
+                DemoFilteredImage(image: inputImage, filters: [createFilter()]) {
                     $0.resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: .infinity, minHeight: 200, maxHeight: 400)

@@ -149,7 +149,7 @@ HarbethRenderView(
 
 `RenderView` 与 `HarbethRenderView` 是渲染输出宿主。Harbeth 负责保留帧元数据、选择可用宿主策略、处理 visibility pause/resume，并暴露执行报告；宿主应用继续负责采集、播放、录制、时间线、导出和持久化。
 
-只有明确需要读回为 SwiftUI `Image` 时使用 `HarbethView`；texture-first 预览使用 `HarbethRenderView`。
+图片读回应由宿主 UI 显式且局部地完成；SwiftUI 预览 texture 或 `RenderedFrame` 时统一使用 `HarbethRenderView`。
 
 ## 引擎能力
 

@@ -17,7 +17,7 @@ struct ChromaKeyView: View {
     
     var body: some View {
         VStack {
-            HarbethView(image: inputImage, filters: [
+            DemoFilteredImage(image: inputImage, filters: [
                 C7ChromaKey(
                     thresholdSensitivity: thresholdSensitivity,
                     smoothing: smoothing,
@@ -31,7 +31,7 @@ struct ChromaKeyView: View {
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.06)))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     .padding(.horizontal, 16)
-            }, async: true)
+            })
             
             VStack(alignment: .leading, spacing: 20) {
                 // Threshold Sensitivity

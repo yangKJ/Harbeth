@@ -156,7 +156,7 @@ struct HighlightShadowToneView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            HarbethView(image: inputImage, filters: [
+            DemoFilteredImage(image: inputImage, filters: [
                 C7HighlightShadowTone(
                     shadows: shadows,
                     highlights: highlights,
@@ -251,7 +251,7 @@ struct SharpenDetailView: View {
                 .font(.title)
                 .foregroundColor(.white.opacity(0.94))
             
-            HarbethView(image: inputImage, filters: [C7SharpenDetail(
+            DemoFilteredImage(image: inputImage, filters: [C7SharpenDetail(
                 sharpen: sharpen,
                 clarity: clarity,
                 detail: detail
@@ -324,7 +324,7 @@ struct ColorCorrectionView: View {
                 .font(.title)
                 .foregroundColor(.white.opacity(0.94))
             
-            HarbethView(image: inputImage, filters: [C7ColorCorrection(
+            DemoFilteredImage(image: inputImage, filters: [C7ColorCorrection(
                 levels: levels,
                 curves: curves,
                 colorBalance: colorBalance

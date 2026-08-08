@@ -27,11 +27,11 @@ struct CustomViews<F: C7FilterProtocol>: View {
     
     var body: some View {
         VStack {
-            HarbethView(image: inputImage, filters: [filtering(value)], content: { image in
+            DemoFilteredImage(image: inputImage, filters: [filtering(value)], content: { image in
                 image.resizable()
                     .aspectRatio(contentMode: .fit)
                     .padding()
-            }, async: true)
+            })
             
             VStack(alignment: .leading) {
                 Text("Parameter Value: \(value, specifier: "%.2f")")

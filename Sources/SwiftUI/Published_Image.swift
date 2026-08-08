@@ -16,13 +16,3 @@ public final class Published_Image: ObservableObject {
         self.image = image
     }
 }
-
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
-public final class Published_Source<T>: ObservableObject {
-    
-    @Published public var source: T
-    
-    public init(_ source: T) {
-        self.source = source
-    }
-}

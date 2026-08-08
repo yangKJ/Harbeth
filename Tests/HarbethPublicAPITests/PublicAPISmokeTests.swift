@@ -239,7 +239,18 @@ final class PublicAPISmokeTests: XCTestCase {
             dynamicRangePolicy: .standard,
             onPreviewDisplayState: { _ in }
         )
+        let frameHost: (RenderedFrame?) -> HarbethRenderView = { frame in
+            HarbethRenderView(
+                frame: frame,
+                resizingMode: .aspectFill,
+                preferredDrawableScale: 2,
+                dynamicRangePolicy: .automatic,
+                onExecutionReport: { _ in },
+                onFleetSnapshot: { _ in },
+                onPreviewDisplayState: { _ in }
+            )
+        }
         _ = renderView
-        _ = swiftUIView
+        _ = (swiftUIView, frameHost)
     }
 }

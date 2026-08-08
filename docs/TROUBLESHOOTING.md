@@ -90,7 +90,7 @@ Harbeth 只负责逐帧 GPU 处理；采集、播放器、帧丢弃、时间线�
 - `RenderView` / `HarbethRenderView` 应接收仍然有效的 `RenderedFrame` 或 texture。
 - 确认 view 当前可见，visibility pause/resume 没有被宿主生命周期长期压住。
 - SampleBuffer preview 可能根据 metadata 和可用性选择不同 host strategy；检查 `currentPreviewHostStrategy` 与 execution report。
-- SwiftUI 如果需要 texture-first 展示，使用 `HarbethRenderView`；`HarbethView` 会把结果读回为 SwiftUI `Image`。
+- SwiftUI 预览 texture 或 `RenderedFrame` 时使用 `HarbethRenderView`；确实需要图片读回时，在宿主 UI 中显式完成，避免把读回放入预览 View 的构造过程。
 - UI 状态更新必须发生在 `MainActor`。
 
 ## 8. 内存上涨

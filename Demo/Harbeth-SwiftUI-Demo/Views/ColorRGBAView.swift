@@ -19,7 +19,7 @@ struct ColorRGBAView: View {
     
     var body: some View {
         VStack {
-            HarbethView(image: inputImage, filters: [createFilter()]) {
+            DemoFilteredImage(image: inputImage, filters: [createFilter()]) {
                 $0.resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: 400)

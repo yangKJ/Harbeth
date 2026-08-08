@@ -39,6 +39,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Removed
 
+- Removed the legacy `HarbethView` and `HarbethViewInput` SwiftUI image-readback bridge. Render work now belongs to `HarbethIO` or `ImageNode`, while `HarbethRenderView` remains the texture- and `RenderedFrame`-first output host. Keep any intentional static image readback local to the host UI.
 - Removed direct public access to `HarbethIO.createDestTexture`, `HarbethIO.enableDoubleBuffer`, `HarbethIO.configured(for:)`, frame-capability construction, convenience fallback output, filter operators, and texture-backed CIImage frame delivery. Use `ImageNode` with a `RenderProfile` when structured execution is required; call `RenderedFrame.makeTextureBackedCIImage(for:)` for CIImage source-preserving delivery.
 - Removed `PerformanceMonitor` and its configuration/metrics types from the public API. Hosts now use only `HarbethContext.enablePerformanceMonitor` to opt into internal diagnostics; benchmark and test consumers use the package's internal test surface.
 - Removed `C7AdvancedMetalKernelProtocol`, `MetalCapability.customAdvancedEncoder` and the redundant custom-encoder-kind classification. Ordinary kernels remain on `C7FilterProtocol`, texture-only multi-pass work remains on `C7FilterPipelineProtocol`, and only non-standard command/resource graphs use `C7MetalCommandEncodingProtocol`.
