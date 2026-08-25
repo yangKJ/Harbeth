@@ -121,6 +121,15 @@ public final class HarbethContext: @unchecked Sendable {
         executionScheduler.makeCommandBuffer()
     }
 
+    /// Uses the shared execution queue only for textures owned by this context's device.
+    /// External devices keep their command submission isolated from Harbeth's recovery lifecycle.
+    func makeCommandBuffer(for device: MTLDevice) -> MTLCommandBuffer? {
+        if device === self.device {
+            return makeCommandBuffer()
+        }
+        return device.makeCommandQueue()?.makeCommandBuffer()
+    }
+
     /// Current execution generation used to reject stale host-side work.
     public var executionGeneration: UInt64 {
         executionScheduler.generation

@@ -100,6 +100,14 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertNotNil(context.commandQueue)
     }
 
+    func testContextOwnedDeviceUsesSharedCommandBufferFactory() throws {
+        let context = HarbethContext.shared
+        let commandBuffer = try XCTUnwrap(context.makeCommandBuffer(for: context.device))
+
+        XCTAssertTrue(commandBuffer.device === context.device)
+        XCTAssertEqual(context.executionGeneration, HarbethContext.shared.executionGeneration)
+    }
+
     func testContextCachesComputePipelineByKernelIdentity() throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable.")

@@ -11,8 +11,5 @@ import Metal
 /// 外部 device 保留隔离 queue，避免把外部资源提交到错误的 device。
 @inline(__always)
 func makeMaskCommandBuffer(for device: MTLDevice) -> MTLCommandBuffer? {
-    if device === HarbethContext.shared.device {
-        return HarbethContext.shared.makeCommandBuffer()
-    }
-    return device.makeCommandQueue()?.makeCommandBuffer()
+    HarbethContext.shared.makeCommandBuffer(for: device)
 }

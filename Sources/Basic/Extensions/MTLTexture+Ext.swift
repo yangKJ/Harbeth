@@ -84,8 +84,7 @@ public struct MTLTextureCompatible_ {
         )
         let stagingLength = stagingBytesPerRow * target.height
         guard let stagingBuffer = target.device.makeBuffer(length: stagingLength, options: .storageModeShared),
-              let commandQueue = target.device.makeCommandQueue(),
-              let commandBuffer = commandQueue.makeCommandBuffer(),
+              let commandBuffer = HarbethContext.shared.makeCommandBuffer(for: target.device),
               let blit = commandBuffer.makeBlitCommandEncoder() else {
             return false
         }
