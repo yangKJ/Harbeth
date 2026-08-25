@@ -147,13 +147,12 @@ extension RenderPixelBufferDescriptor {
 public final class PixelBufferPool {
     public let descriptor: RenderPixelBufferDescriptor
     private let pool: CVPixelBufferPool
-    private static let realtimePoolQueue = DispatchQueue(label: "harbeth.realtime.pixelbufferpool")
-    nonisolated(unsafe) private static var realtimePoolStore: [String: CVPixelBufferPool] = [:]
-    nonisolated(unsafe) private static var realtimePoolLRUTimestamp: [String: Date] = [:]
-    private static let realtimePoolMaxEntryCount = 4
-    nonisolated(unsafe) public static private(set) var realtimePoolHitCount: Int = 0
-    nonisolated(unsafe) public static private(set) var realtimePoolMissCount: Int = 0
-    nonisolated(unsafe) public static private(set) var realtimeAllocationFallbackCount: Int = 0
+    private static var realtimeRegistry: RealtimePixelBufferPoolRegistry {
+        HarbethContext.shared.realtimePixelBufferPoolRegistry
+    }
+    nonisolated(unsafe) public static var realtimePoolHitCount: Int { realtimeRegistry.metrics().hitCount }
+    nonisolated(unsafe) public static var realtimePoolMissCount: Int { realtimeRegistry.metrics().missCount }
+    nonisolated(unsafe) public static var realtimeAllocationFallbackCount: Int { realtimeRegistry.metrics().allocationFallbackCount }
 
     public init(descriptor: RenderPixelBufferDescriptor) throws {
         self.descriptor = descriptor
@@ -215,8 +214,7 @@ public final class PixelBufferPool {
 
     public static func acquire(for descriptor: RenderPixelBufferDescriptor, realtime: Bool) throws -> (buffer: CVPixelBuffer, poolUsed: Bool, fallbackReason: RealtimePixelBufferPoolFallbackReason?) {
         if descriptor.width <= 0 || descriptor.height <= 0 {
-            return try realtimePoolQueue.sync {
-                let result = try fallbackAcquisition(
+            let result = try fallbackAcquisition(
                     for: RenderPixelBufferDescriptor(
                         width: max(descriptor.width, 1),
                         height: max(descriptor.height, 1),
@@ -230,13 +228,11 @@ public final class PixelBufferPool {
                     reason: .sizeMismatch,
                     pool: nil
                 )
-                realtimeAllocationFallbackCount += 1
-                return result
-            }
+            realtimeRegistry.recordAllocationFallback()
+            return result
         }
         if isSupportedRealtimeFormat(descriptor.pixelFormatType) == false {
-            return try realtimePoolQueue.sync {
-                let fallbackDescriptor = RenderPixelBufferDescriptor(
+            let fallbackDescriptor = RenderPixelBufferDescriptor(
                     width: descriptor.width,
                     height: descriptor.height,
                     pixelFormatType: kCVPixelFormatType_32BGRA,
@@ -246,10 +242,9 @@ public final class PixelBufferPool {
                     cgImageCompatible: descriptor.cgImageCompatible,
                     bitmapContextCompatible: descriptor.bitmapContextCompatible
                 )
-                let result = try fallbackAcquisition(for: fallbackDescriptor, reason: .unsupportedPixelFormat, pool: nil)
-                realtimeAllocationFallbackCount += 1
-                return result
-            }
+            let result = try fallbackAcquisition(for: fallbackDescriptor, reason: .unsupportedPixelFormat, pool: nil)
+            realtimeRegistry.recordAllocationFallback()
+            return result
         }
 
         guard realtime else {
@@ -257,36 +252,12 @@ public final class PixelBufferPool {
             return (buffer: try pool.makePixelBuffer(), poolUsed: false, fallbackReason: nil)
         }
         let key = descriptor.realtimePoolKey.realtimeIdentity
-        return try realtimePoolQueue.sync {
-            if let cvPool = realtimePoolStore[key] {
-                realtimePoolHitCount += 1
-                realtimePoolLRUTimestamp[key] = Date()
-                do {
-                    let buffer = try PixelBufferPool(descriptor: descriptor, pool: cvPool).makePixelBuffer()
-                    return (buffer: buffer, poolUsed: true, fallbackReason: nil)
-                } catch {
-                    realtimeAllocationFallbackCount += 1
-                    return try fallbackAcquisition(for: descriptor, reason: .allocatorBusy, pool: cvPool)
-                }
-            }
-            realtimePoolMissCount += 1
-            let fallbackPool = try PixelBufferPool(descriptor: descriptor)
-            let buffer = try fallbackPool.makePixelBuffer()
-            var fallbackReason: RealtimePixelBufferPoolFallbackReason?
-            if realtimePoolStore.count >= realtimePoolMaxEntryCount {
-                fallbackReason = .lruEvicted
-                realtimePoolLRUTimestamp
-                    .sorted { $0.value < $1.value }
-                    .first
-                    .map { evicted in
-                        realtimePoolStore.removeValue(forKey: evicted.key)
-                        realtimePoolLRUTimestamp.removeValue(forKey: evicted.key)
-                    }
-            }
-            realtimePoolStore[key] = fallbackPool.pool
-            realtimePoolLRUTimestamp[key] = Date()
-            return (buffer: buffer, poolUsed: true, fallbackReason: fallbackReason)
-        }
+        let acquisition = try realtimeRegistry.acquire(
+            key: key,
+            makePool: { try PixelBufferPool(descriptor: descriptor).pool },
+            makeBuffer: { try PixelBufferPool(descriptor: descriptor, pool: $0).makePixelBuffer() }
+        )
+        return (acquisition.buffer, acquisition.poolUsed, acquisition.fallbackReason)
     }
 
     public func acquire(realtime: Bool) throws -> (buffer: CVPixelBuffer, poolUsed: Bool, fallbackReason: RealtimePixelBufferPoolFallbackReason?) {
@@ -298,11 +269,11 @@ public final class PixelBufferPool {
     }
 
     public static func resetRealtimePoolMetrics() {
-        realtimePoolQueue.sync {
-            realtimePoolHitCount = 0
-            realtimePoolMissCount = 0
-            realtimeAllocationFallbackCount = 0
-        }
+        realtimeRegistry.resetMetrics()
+    }
+
+    static func purgeRealtimePool() {
+        realtimeRegistry.purge()
     }
 
     private static func isSupportedRealtimeFormat(_ format: OSType) -> Bool {

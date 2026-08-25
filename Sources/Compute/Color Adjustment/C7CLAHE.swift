@@ -115,7 +115,7 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
         let lookupLength = tileCount * Self.histogramBinCount * MemoryLayout<Float>.stride
         let device = context.device
 
-        let temporaryBuffers = try CLAHETemporaryBufferPool.shared.checkout(
+        let temporaryBuffers = try HarbethContext.shared.claheTemporaryBufferPool.checkout(
             device: device,
             histogramLength: histogramLength,
             countLength: countLength,
@@ -124,7 +124,7 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
         var recyclesOnFailure = true
         defer {
             if recyclesOnFailure {
-                CLAHETemporaryBufferPool.shared.recycle(temporaryBuffers)
+                HarbethContext.shared.claheTemporaryBufferPool.recycle(temporaryBuffers)
             }
         }
         let histogram = temporaryBuffers.histogram
@@ -157,7 +157,7 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
             environment: context.environment
         )
         context.commandBuffer.addCompletedHandler { _ in
-            CLAHETemporaryBufferPool.shared.recycle(temporaryBuffers)
+            HarbethContext.shared.claheTemporaryBufferPool.recycle(temporaryBuffers)
         }
         recyclesOnFailure = false
         return destination
@@ -277,8 +277,6 @@ final class CLAHETemporaryBufferPool: @unchecked Sendable {
         let cachedSetCount: Int
     }
 
-    static let shared = CLAHETemporaryBufferPool()
-
     struct Key: Hashable, Sendable {
         let deviceIdentifier: ObjectIdentifier
         let histogramLength: Int
@@ -369,8 +367,15 @@ final class CLAHETemporaryBufferPool: @unchecked Sendable {
         cachedSets.removeAll()
         totalBufferAllocations = 0
         totalBufferReuses = 0
-        inFlightSetCount = 0
-        peakInFlightSetCount = 0
+        // 不触碰 in-flight 计数；完成回调仍会安全归还正在使用的 buffer。
+        peakInFlightSetCount = inFlightSetCount
+    }
+
+    /// 清理已完成且暂存的 buffer；不会影响仍被 command buffer 持有的集合。
+    func purge() {
+        lock.lock()
+        cachedSets.removeAll()
+        lock.unlock()
     }
 
     private var cachedSetCountLocked: Int {

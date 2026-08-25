@@ -172,7 +172,7 @@ public struct HarbethSupportSnapshot: Codable, Sendable, Equatable {
         return HarbethSupportSnapshot(
             platform: platform,
             operatingSystem: ProcessInfo.processInfo.operatingSystemVersionString,
-            metalDeviceName: MTLCreateSystemDefaultDevice()?.name,
+            metalDeviceName: HarbethContext.shared.device.name,
             performanceMonitoringEnabled: HarbethContext.shared.enablePerformanceMonitor
         )
     }

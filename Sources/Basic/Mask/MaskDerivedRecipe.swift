@@ -126,44 +126,31 @@ public struct MaskDerivedResult: @unchecked Sendable {
 }
 
 final class MaskExecutionCache: @unchecked Sendable {
-    static let shared = MaskExecutionCache(usesContextStore: true)
-
     private final class EntryBox {
         let result: MaskDerivedResult
         init(_ result: MaskDerivedResult) { self.result = result }
     }
 
-    private let usesContextStore: Bool
-    private let localStore: DerivedResourceStore?
-
-    private init(usesContextStore: Bool) {
-        self.usesContextStore = usesContextStore
-        self.localStore = nil
-    }
+    private let localStore: DerivedResourceStore
 
     init(countLimit: Int = 48, byteLimit: Int = 64 * 1024 * 1024) {
-        self.usesContextStore = false
         self.localStore = DerivedResourceStore(
             configuration: DerivedResourceCacheConfiguration(byteLimit: byteLimit, countLimit: countLimit)
         )
     }
 
     func removeAll() {
-        store.invalidate(domain: .mask)
+        localStore.invalidate(domain: .mask)
     }
 
     fileprivate func lookup(for key: String) -> (result: MaskDerivedResult?, identity: DerivedResourceIdentity) {
-        let identity = store.makeIdentity(domain: .mask, fingerprint: key)
-        let result = (store.value(for: identity) as? EntryBox)?.result
+        let identity = localStore.makeIdentity(domain: .mask, fingerprint: key)
+        let result = (localStore.value(for: identity) as? EntryBox)?.result
         return (result, identity)
     }
 
     fileprivate func insert(_ result: MaskDerivedResult, for identity: DerivedResourceIdentity) {
-        store.insert(EntryBox(result), byteCost: max(result.texture.allocatedSize, 1), for: identity)
-    }
-
-    private var store: DerivedResourceStore {
-        usesContextStore ? HarbethContext.shared.derivedResourceStore : localStore!
+        localStore.insert(EntryBox(result), byteCost: max(result.texture.allocatedSize, 1), for: identity)
     }
 }
 
@@ -231,24 +218,27 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
     }
 
     public func execute(cancellation: TextureMultiPassCancellationToken? = nil) throws -> MaskDerivedResult {
-        try execute(cancellation: cancellation, cache: .shared)
+        try execute(cancellation: cancellation, cache: nil, useContextCache: true)
     }
 
     /// 按宿主声明的稳定缓存意图执行派生蒙版，同时保持缓存实现私有。
     public func execute(cancellation: TextureMultiPassCancellationToken? = nil, cachePolicy: ImageCachePolicy) throws -> MaskDerivedResult {
         switch cachePolicy {
         case .persistent:
-            return try execute(cancellation: cancellation, cache: .shared)
+            return try execute(cancellation: cancellation, cache: nil, useContextCache: true)
         case .transient:
-            return try execute(cancellation: cancellation, cache: nil)
+            return try execute(cancellation: cancellation, cache: nil, useContextCache: false)
         }
     }
 
     func execute(cancellation: TextureMultiPassCancellationToken? = nil,
-                 cache: MaskExecutionCache?) throws -> MaskDerivedResult {
+                 cache: MaskExecutionCache?,
+                 useContextCache: Bool = false) throws -> MaskDerivedResult {
         let executionCacheKey = executionCacheKey
         let cacheLookup = cache?.lookup(for: executionCacheKey)
-        if let cached = cacheLookup?.result {
+        let contextIdentity = useContextCache ? HarbethContext.shared.derivedResourceStore.makeIdentity(domain: .mask, fingerprint: executionCacheKey) : nil
+        let contextResult = contextIdentity.flatMap { HarbethContext.shared.derivedResourceStore.value(for: $0) as? MaskDerivedCacheEntry }?.result
+        if let cached = cacheLookup?.result ?? contextResult {
             return MaskDerivedResult(
                 texture: cached.texture,
                 analysis: cached.analysis,
@@ -292,6 +282,8 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
         )
         if let cacheLookup {
             cache?.insert(result, for: cacheLookup.identity)
+        } else if let contextIdentity {
+            HarbethContext.shared.derivedResourceStore.insert(MaskDerivedCacheEntry(result), byteCost: max(result.texture.allocatedSize, 1), for: contextIdentity)
         }
         return result
     }
@@ -312,6 +304,11 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
             opacity: opacity
         )
     }
+}
+
+private final class MaskDerivedCacheEntry: @unchecked Sendable {
+    let result: MaskDerivedResult
+    init(_ result: MaskDerivedResult) { self.result = result }
 }
 
 private extension MaskDerivedRecipe {

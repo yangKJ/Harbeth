@@ -27,6 +27,16 @@ final class DeviceLibraryTests: XCTestCase {
         XCTAssertTrue(Device.externalLibraryRegistryDebugDescription().contains(provider.providerIdentifier))
     }
 
+    func testContextResetKeepsExternalLibraryProviders() {
+        let context = HarbethContext.shared
+        let provider = MockExternalLibraryProvider(identifier: "tests.reset.provider.\(UUID().uuidString)")
+
+        XCTAssertTrue(context.registerExternalLibraryProvider(provider))
+        context.resetCaches()
+
+        XCTAssertTrue(context.externalLibraryProviderIdentifiers.contains(provider.providerIdentifier))
+    }
+
     func testReadFrameworkBundleFallsBackToHarbethHostBundle() {
         let bundle = R.readFrameworkBundle(with: "Harbeth")
         XCTAssertNotNil(bundle)

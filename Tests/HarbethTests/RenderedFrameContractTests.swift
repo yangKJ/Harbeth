@@ -151,6 +151,7 @@ final class RenderedFrameContractTests: XCTestCase {
 
     func testRealtimePixelBufferPoolFallbackStats() throws {
         let descriptor = RenderPixelBufferDescriptor(width: 8, height: 8, pixelFormatType: kCVPixelFormatType_32BGRA, minimumBufferCount: 1)
+        PixelBufferPool.purgeRealtimePool()
         PixelBufferPool.resetRealtimePoolMetrics()
 
         let first = try PixelBufferPool.acquire(for: descriptor, realtime: true)
@@ -162,6 +163,41 @@ final class RenderedFrameContractTests: XCTestCase {
         XCTAssertEqual(PixelBufferPool.realtimePoolHitCount, 1)
         XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 1)
         XCTAssertEqual(PixelBufferPool.realtimeAllocationFallbackCount, 0)
+    }
+
+    func testRealtimeRegistryMetricsResetDoesNotPurgeAndPurgeForcesMiss() throws {
+        PixelBufferPool.purgeRealtimePool()
+        PixelBufferPool.resetRealtimePoolMetrics()
+        let descriptor = RenderPixelBufferDescriptor(width: 8, height: 8, minimumBufferCount: 1)
+
+        _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+        _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+        XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 1)
+        XCTAssertEqual(PixelBufferPool.realtimePoolHitCount, 1)
+
+        PixelBufferPool.resetRealtimePoolMetrics()
+        _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+        XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 0)
+        XCTAssertEqual(PixelBufferPool.realtimePoolHitCount, 1)
+
+        PixelBufferPool.purgeRealtimePool()
+        _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+        XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 1)
+    }
+
+    func testRealtimeRegistryEvictsLeastRecentlyUsedEntry() throws {
+        PixelBufferPool.purgeRealtimePool()
+        PixelBufferPool.resetRealtimePoolMetrics()
+        let descriptors = (0..<5).map { RenderPixelBufferDescriptor(width: 8 + $0, height: 8) }
+        for descriptor in descriptors {
+            _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+        }
+        XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 5)
+        XCTAssertEqual(PixelBufferPool.realtimePoolHitCount, 0)
+
+        _ = try PixelBufferPool.acquire(for: descriptors[0], realtime: true)
+        XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 6)
+        XCTAssertEqual(PixelBufferPool.realtimePoolHitCount, 0)
     }
 
     private func makeSampleBuffer(from pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation) throws -> CMSampleBuffer {

@@ -583,6 +583,34 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertFalse(context.isCurrentExecutionGeneration(generation))
     }
 
+    func testCoreImageContextRemainsStableAcrossExecutionRecovery() {
+        let context = HarbethContext.shared
+        let coreImageContext = context.coreImageContext
+
+        _ = context.recoverExecution()
+
+        XCTAssertTrue(coreImageContext === context.coreImageContext)
+    }
+
+    func testContextCacheResetPurgesRealtimePixelBufferRegistry() throws {
+        let context = HarbethContext.shared
+        let descriptor = RenderPixelBufferDescriptor(width: 8, height: 8, minimumBufferCount: 1)
+        PixelBufferPool.purgeRealtimePool()
+        PixelBufferPool.resetRealtimePoolMetrics()
+
+        _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+        _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+        XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 1)
+        XCTAssertEqual(PixelBufferPool.realtimePoolHitCount, 1)
+
+        context.resetCaches()
+        PixelBufferPool.resetRealtimePoolMetrics()
+        _ = try PixelBufferPool.acquire(for: descriptor, realtime: true)
+
+        XCTAssertEqual(PixelBufferPool.realtimePoolMissCount, 1)
+        XCTAssertEqual(PixelBufferPool.realtimePoolHitCount, 0)
+    }
+
     func testDirectPixelBufferBackedTextureDoesNotRetainOwnerReference() throws {
         var pixelBuffer: CVPixelBuffer?
         let status = CVPixelBufferCreate(

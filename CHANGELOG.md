@@ -8,6 +8,17 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-08-25
+
+#### Changed
+
+- Consolidated realtime pixel-buffer reuse, temporary CLAHE buffers, Metal fallback libraries and external-library provider state under the process-lifetime `HarbethContext` / internal `Device` owner boundary. Runtime cache reset, recovery and memory pressure now purge the applicable reusable resources without removing registered providers.
+- `HarbethContext.coreImageContext` now initializes on first access and retains stable identity across execution recovery, avoiding Core Image setup for Metal-only runtime use.
+
+#### Fixed
+
+- Routed Harbeth-owned Mask GPU work through the recoverable context command-buffer path while keeping an explicit local queue fallback for textures owned by another Metal device.
+
 ### 2026-08-06
 
 #### Added

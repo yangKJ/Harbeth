@@ -42,8 +42,7 @@ enum MaskGPUAnalysisBackend {
         guard let buffer = texture.device.makeBuffer(
             length: valueCount * MemoryLayout<UInt32>.stride,
             options: .storageModeShared
-        ), let queue = texture.device.makeCommandQueue(),
-           let commandBuffer = queue.makeCommandBuffer(),
+        ), let commandBuffer = makeMaskCommandBuffer(for: texture.device),
            let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.commandBuffer
         }

@@ -169,8 +169,7 @@ struct MaskGuidedRefinementRecipe {
             pixelFormat: .r16Float,
             identifier: "MaskGuidedRefinement.output"
         )
-        guard let queue = coverage.device.makeCommandQueue(),
-              let commandBuffer = queue.makeCommandBuffer() else {
+        guard let commandBuffer = makeMaskCommandBuffer(for: coverage.device) else {
             throw HarbethError.commandBuffer
         }
         let filter = MPSImageGuidedFilter(device: coverage.device, kernelDiameter: radius * 2 + 1)
@@ -227,8 +226,7 @@ private extension MaskSignedDistanceFieldRecipe {
             pixelFormat: .r16Float,
             identifier: "MaskSignedDistanceField.distance"
         )
-        guard let queue = input.device.makeCommandQueue(),
-              let commandBuffer = queue.makeCommandBuffer() else {
+        guard let commandBuffer = makeMaskCommandBuffer(for: input.device) else {
             throw HarbethError.commandBuffer
         }
         let transform = MPSImageEuclideanDistanceTransform(device: input.device)

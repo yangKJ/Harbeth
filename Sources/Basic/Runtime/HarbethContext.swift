@@ -16,17 +16,19 @@ import UIKit
 
 public final class HarbethContext: @unchecked Sendable {
 
-    public static let shared = HarbethContext(device: Device())
+    public static let shared = HarbethContext()
 
     let runtimeDevice: Device
     let derivedResourceStore: DerivedResourceStore
-    let coreImageContext: CIContext
-
     let performanceMonitor = PerformanceMonitor(enabled: false)
+    let realtimePixelBufferPoolRegistry = RealtimePixelBufferPoolRegistry()
+    let claheTemporaryBufferPool = CLAHETemporaryBufferPool()
 
     private let executionScheduler: ExecutionScheduler
     private let texturePoolStorage: TexturePool
     private let runtimeStateLock = NSLock()
+    private let coreImageContextLock = NSLock()
+    private var coreImageContextStorage: CIContext?
     private let cvTextureCacheLock = NSLock()
     private var cvTextureCacheStorage: CVMetalTextureCache?
     private var textureAllocationStrategyStorage: TextureAllocationStrategy = .exact
@@ -58,12 +60,11 @@ public final class HarbethContext: @unchecked Sendable {
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     #endif
 
-    init(device: Device) {
-        self.runtimeDevice = device
-        self.coreImageContext = CIContext(mtlDevice: device.device)
-        self.executionScheduler = ExecutionScheduler(device: device.device)
-        self.texturePoolStorage = TexturePool(device: device.device)
-        self.pipelineBinaryArchiveStore = PipelineBinaryArchiveStore(device: device.device)
+    private init() {
+        self.runtimeDevice = Device()
+        self.executionScheduler = ExecutionScheduler(device: runtimeDevice.device)
+        self.texturePoolStorage = TexturePool(device: runtimeDevice.device)
+        self.pipelineBinaryArchiveStore = PipelineBinaryArchiveStore(device: runtimeDevice.device)
         let physicalMemory = Int(clamping: ProcessInfo.processInfo.physicalMemory)
         self.imageResolutionCacheByteLimit = min(max(physicalMemory / 50, 32 * 1024 * 1024), 256 * 1024 * 1024)
         self.derivedResourceStore = DerivedResourceStore(
@@ -102,6 +103,18 @@ public final class HarbethContext: @unchecked Sendable {
     /// Process-lifetime Metal device shared by both public processing routes.
     public var device: MTLDevice {
         runtimeDevice.device
+    }
+
+    /// Lazily creates the process-lifetime Core Image context backed by the shared Metal device.
+    public var coreImageContext: CIContext {
+        coreImageContextLock.lock()
+        defer { coreImageContextLock.unlock() }
+        if let coreImageContextStorage {
+            return coreImageContextStorage
+        }
+        let context = CIContext(mtlDevice: runtimeDevice.device)
+        coreImageContextStorage = context
+        return context
     }
 
     /// Creates a single-use command buffer from the current execution generation.
@@ -188,20 +201,20 @@ public final class HarbethContext: @unchecked Sendable {
     // MARK: - Public Metal library support
 
     public var externalLibraryProviderIdentifiers: [String] {
-        Device.externalLibraryProviderIdentifiers()
+        runtimeDevice.externalLibraryProviderIdentifiers()
     }
 
     @discardableResult
     public func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
-        Device.registerExternalLibraryProvider(provider)
+        runtimeDevice.registerExternalLibraryProvider(provider)
     }
 
     public func externalLibraryRegistrySnapshot() -> [ExternalLibraryProviderSnapshot] {
-        Device.externalLibraryRegistrySnapshot(on: device)
+        runtimeDevice.externalLibraryRegistrySnapshot()
     }
 
     public func externalLibraryRegistryDebugDescription() -> String {
-        Device.externalLibraryRegistryDebugDescription(on: device)
+        runtimeDevice.externalLibraryRegistryDebugDescription()
     }
 
     public func capabilityReport(_ capability: MetalCapability) -> MetalCapabilityReport {
@@ -209,7 +222,7 @@ public final class HarbethContext: @unchecked Sendable {
     }
 
     public func makeMetalFunction(named name: String) throws -> MTLFunction {
-        try Device.readMTLFunction(name)
+        try runtimeDevice.readMTLFunction(name)
     }
 
     // MARK: - Internal runtime resources
@@ -311,7 +324,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     func makeComputePipelineState(identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
         let descriptor = MTLComputePipelineDescriptor()
-        descriptor.computeFunction = try Device.readMTLFunction(identity)
+        descriptor.computeFunction = try runtimeDevice.readMTLFunction(identity)
         pipelineBinaryArchiveStore.attach(to: descriptor)
         do {
             return try device.makeComputePipelineState(descriptor: descriptor, options: [], reflection: nil)
@@ -586,8 +599,7 @@ public final class HarbethContext: @unchecked Sendable {
     // MARK: - Public cache and archive governance
 
     public func resetCaches() {
-        runtimeDevice.removePipelineStates()
-        runtimeDevice.removeFunctionCache()
+        runtimeDevice.resetLibraryCaches()
         renderPipelineLock.lock()
         renderPipelines.removeAll()
         renderPipelineLock.unlock()
@@ -602,6 +614,8 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionLock.unlock()
         removeAllRenderPlans()
         derivedResourceStore.invalidate()
+        realtimePixelBufferPoolRegistry.purge()
+        claheTemporaryBufferPool.purge()
     }
 
     public func configurePipelineBinaryArchive(_ configuration: PipelineBinaryArchiveConfiguration) throws {
@@ -672,6 +686,8 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionCacheByteCount = 0
         imageResolutionLock.unlock()
         derivedResourceStore.invalidate()
+        realtimePixelBufferPoolRegistry.purge()
+        claheTemporaryBufferPool.purge()
     }
 
     // MARK: - Public texture pool governance

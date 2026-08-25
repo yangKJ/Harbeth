@@ -108,8 +108,7 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
             }
             // 每个 chunk 都相对同一份调用前 coverage 计算，避免公共端点在低 flow 下重复累积。
             let baselineTexture = chunks.count > 1 ? try Self.copy(texture: texture, identifier: "\(identifier).baseline") : nil
-            guard let queue = texture.device.makeCommandQueue(),
-                  let commandBuffer = queue.makeCommandBuffer() else {
+            guard let commandBuffer = makeMaskCommandBuffer(for: texture.device) else {
                 throw HarbethError.commandBuffer
             }
             for chunk in chunks {
@@ -212,8 +211,7 @@ private extension IncrementalMaskCanvas {
             storageFormat: MaskStorageFormat(source.pixelFormat),
             identifier: "\(identifier).copy"
         )
-        guard let queue = source.device.makeCommandQueue(),
-              let commandBuffer = queue.makeCommandBuffer(),
+        guard let commandBuffer = makeMaskCommandBuffer(for: source.device),
               let encoder = commandBuffer.makeBlitCommandEncoder() else {
             throw HarbethError.commandBuffer
         }
@@ -301,8 +299,7 @@ private extension IncrementalMaskCanvas {
                              texture: MTLTexture,
                              bounds: MaskCoverageBounds,
                              configure: (MTLComputeCommandEncoder) -> Void) throws {
-        guard let queue = texture.device.makeCommandQueue(),
-              let commandBuffer = queue.makeCommandBuffer(),
+        guard let commandBuffer = makeMaskCommandBuffer(for: texture.device),
               let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.commandBuffer
         }

@@ -30,7 +30,7 @@ public struct ExternalLibraryProviderSnapshot: Sendable, Equatable {
     }
 }
 
-private final class ExternalLibraryProviderRegistry: @unchecked Sendable {
+final class ExternalLibraryProviderRegistry: @unchecked Sendable {
     private let lock = NSLock()
     private var providers: [ExternalMTLLibraryProvider] = []
 
@@ -53,20 +53,44 @@ private final class ExternalLibraryProviderRegistry: @unchecked Sendable {
 }
 
 extension Device {
-    private static let externalLibraryRegistry = ExternalLibraryProviderRegistry()
-
     @discardableResult
-    static func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
+    func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
         externalLibraryRegistry.register(provider)
     }
 
-    static func externalLibraryProviderIdentifiers() -> [String] {
+    func externalLibraryProviderIdentifiers() -> [String] {
         externalLibraryRegistry.snapshot().map(\.providerIdentifier)
     }
 
+    func externalLibraryRegistryDebugDescription() -> String {
+        let snapshots = externalLibraryRegistrySnapshot()
+        if snapshots.isEmpty {
+            return "External Library Registry: empty"
+        }
+        let lines = snapshots.map { "- \($0.identifier): \($0.libraryCount) libraries" }
+        return (["External Library Registry:"] + lines).joined(separator: "\n")
+    }
+
+    func externalLibraryRegistrySnapshot() -> [ExternalLibraryProviderSnapshot] {
+        let providers = externalLibraryRegistry.snapshot()
+        return providers.map {
+            let libraries = $0.provideLibrary(for: device).map { _ in 1 } ?? 0
+            return ExternalLibraryProviderSnapshot(identifier: $0.providerIdentifier, libraryCount: libraries)
+        }
+    }
+
+    @discardableResult
+    static func registerExternalLibraryProvider(_ provider: ExternalMTLLibraryProvider) -> Bool {
+        HarbethContext.shared.runtimeDevice.registerExternalLibraryProvider(provider)
+    }
+
+    static func externalLibraryProviderIdentifiers() -> [String] {
+        HarbethContext.shared.runtimeDevice.externalLibraryProviderIdentifiers()
+    }
+
     static func externalLibraryRegistryDebugDescription(on device: MTLDevice? = nil) -> String {
-        let activeDevice = device
-        let snapshots = externalLibraryRegistrySnapshot(on: activeDevice)
+        let runtimeDevice = HarbethContext.shared.runtimeDevice
+        let snapshots = externalLibraryRegistrySnapshot(on: device ?? runtimeDevice.device)
         if snapshots.isEmpty {
             return "External Library Registry: empty"
         }
@@ -75,20 +99,16 @@ extension Device {
     }
 
     static func externalLibraryRegistrySnapshot(on device: MTLDevice? = nil) -> [ExternalLibraryProviderSnapshot] {
-        let providers = externalLibraryRegistry.snapshot()
-        guard let activeDevice = device else {
-            return providers.map {
-                ExternalLibraryProviderSnapshot(identifier: $0.providerIdentifier, libraryCount: 0)
-            }
-        }
-        return providers.map {
+        let runtimeDevice = HarbethContext.shared.runtimeDevice
+        let activeDevice = device ?? runtimeDevice.device
+        return runtimeDevice.externalLibraryRegistry.snapshot().map {
             let libraries = $0.provideLibrary(for: activeDevice).map { _ in 1 } ?? 0
             return ExternalLibraryProviderSnapshot(identifier: $0.providerIdentifier, libraryCount: libraries)
         }
     }
 
     func externalLibraries(matching identifier: String? = nil) -> [MTLLibrary] {
-        Device.externalLibraryRegistry.snapshot().compactMap { provider in
+        externalLibraryRegistry.snapshot().compactMap { provider in
             if let identifier, provider.providerIdentifier != identifier {
                 return nil
             }

@@ -30,6 +30,12 @@ final class Device {
     /// Lock for thread safety
     private let pipelineLock = NSLock()
     private let functionLock = NSLock()
+    let externalLibraryRegistry = ExternalLibraryProviderRegistry()
+    private var fallbackLibraries: [String: MTLLibrary] = [:]
+    private var fallbackMisses: Set<String> = []
+    private var cachedMetalFiles: [URL]?
+    private let fallbackLibraryLock = NSLock()
+    private(set) var sourceFallbackScanCount = 0
 
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -63,51 +69,30 @@ extension Device {
         }
     }
 
-    nonisolated(unsafe) private static var fallbackLibraries: [String: MTLLibrary] = [:]
     /// Function names confirmed absent from on-disk `.metal` sources, cached so a missing kernel
     /// is scanned for at most once instead of re-walking the whole bundle on every lookup.
-    nonisolated(unsafe) private static var fallbackMisses: Set<String> = []
     /// Cached list of `.metal` source files in the bundle. The set is process-stable, so the
     /// expensive recursive enumeration runs at most once even when several kernels miss.
-    nonisolated(unsafe) private static var cachedMetalFiles: [URL]?
-    private static let fallbackLibraryLock = NSLock()
     /// Regression gate: number of times the source-fallback bundle scan actually ran. The
     /// contract is "precompiled libraries are tried first, the scan is only a last resort", so a
     /// kernel present in any library must add 0 here. `SourceFallbackGateTests` asserts this to
     /// stop a future refactor from silently making the fallback eager again.
-    nonisolated(unsafe) static var sourceFallbackScanCount: Int = 0
-
-    private static var contextDevice: Device? {
-        HarbethContext.shared.runtimeDevice
+    static var sourceFallbackScanCount: Int {
+        HarbethContext.shared.runtimeDevice.sourceFallbackScanCount
     }
 
     static func metalCapabilityReport(_ capability: MetalCapability, on device: MTLDevice? = nil) -> MetalCapabilityReport {
-        let resolvedDevice: MTLDevice? = {
-            if let device { return device }
-            if let existingDevice = contextDevice {
-                return existingDevice.device
-            }
-            return MTLCreateSystemDefaultDevice()
-        }()
-
-        guard let device = resolvedDevice else {
-            return MetalCapabilityReport(
-                capability: capability,
-                status: .unsupported,
-                minimumPlatform: capabilityMinimumPlatform(capability),
-                reason: "No available MTLDevice to evaluate this capability."
-            )
-        }
+        let resolvedDevice = device ?? HarbethContext.shared.runtimeDevice.device
         switch capability {
         case .heapTexturePool:
             if #available(macOS 10.15, iOS 13.0, tvOS 13.0, macCatalyst 13.0, *) {
                 let isSupported: Bool
                 #if targetEnvironment(macCatalyst)
-                isSupported = device.supportsFamily(.macCatalyst1)
+                isSupported = resolvedDevice.supportsFamily(.macCatalyst1)
                 #elseif os(macOS)
-                isSupported = device.supportsFamily(.mac1)
+                isSupported = resolvedDevice.supportsFamily(.mac1)
                 #elseif os(iOS) || os(tvOS)
-                isSupported = device.supportsFamily(.apple5)
+                isSupported = resolvedDevice.supportsFamily(.apple5)
                 #else
                 isSupported = false
                 #endif
@@ -131,11 +116,11 @@ extension Device {
             if #available(macOS 13.0, iOS 16.0, *) {
                 let isSupported: Bool
                 #if targetEnvironment(macCatalyst)
-                isSupported = device.supportsFamily(.mac2)
+                isSupported = resolvedDevice.supportsFamily(.mac2)
                 #elseif os(macOS)
-                isSupported = device.supportsFamily(.mac2)
+                isSupported = resolvedDevice.supportsFamily(.mac2)
                 #else
-                isSupported = device.supportsFamily(.apple7)
+                isSupported = resolvedDevice.supportsFamily(.apple7)
                 #endif
                 return MetalCapabilityReport(
                     capability: capability,
@@ -190,9 +175,9 @@ extension Device {
             if #available(macOS 12.0, iOS 15.0, tvOS 16.0, *) {
                 return MetalCapabilityReport(
                     capability: capability,
-                    status: device.supportsRenderDynamicLibraries ? .supported : .unsupported,
+                    status: resolvedDevice.supportsRenderDynamicLibraries ? .supported : .unsupported,
                     minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
-                    reason: device.supportsRenderDynamicLibraries
+                    reason: resolvedDevice.supportsRenderDynamicLibraries
                         ? "Device reports render dynamic library support."
                         : "Device does not support render dynamic libraries."
                 )
@@ -207,9 +192,9 @@ extension Device {
             if #available(macOS 12.0, iOS 15.0, tvOS 16.0, *) {
                 return MetalCapabilityReport(
                     capability: capability,
-                    status: device.supportsFunctionPointersFromRender ? .supported : .unsupported,
+                    status: resolvedDevice.supportsFunctionPointersFromRender ? .supported : .unsupported,
                     minimumPlatform: "iOS 15 / macOS 12 / tvOS 16",
-                    reason: device.supportsFunctionPointersFromRender
+                    reason: resolvedDevice.supportsFunctionPointersFromRender
                         ? "Device reports render function pointer support."
                         : "Device does not support render function pointers."
                 )
@@ -224,9 +209,9 @@ extension Device {
             if #available(macOS 11.0, iOS 14.0, tvOS 16.0, *) {
                 return MetalCapabilityReport(
                     capability: capability,
-                    status: device.supportsRaytracing ? .supported : .unsupported,
+                    status: resolvedDevice.supportsRaytracing ? .supported : .unsupported,
                     minimumPlatform: "iOS 14 / macOS 11 / tvOS 16",
-                    reason: device.supportsRaytracing
+                    reason: resolvedDevice.supportsRaytracing
                         ? "Device reports ray tracing support." : "Device does not support ray tracing."
                 )
             }
@@ -238,7 +223,7 @@ extension Device {
             )
         case .sparseTextures:
             if #available(macOS 11.0, iOS 13.0, tvOS 16.0, *) {
-                let isSupported = device.sparseTileSizeInBytes > 0
+                let isSupported = resolvedDevice.sparseTileSizeInBytes > 0
                 return MetalCapabilityReport(
                     capability: capability,
                     status: isSupported ? .supported : .unsupported,
@@ -365,14 +350,14 @@ extension Device {
         return nil
     }
 
-    private static func makeSourceLibrary(_ device: MTLDevice, fileURL: URL) -> MTLLibrary? {
+    private func makeSourceLibrary(_ device: MTLDevice, fileURL: URL) -> MTLLibrary? {
         guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
             return nil
         }
         return try? device.makeLibrary(source: content, options: nil)
     }
 
-    private static func makeSourceFallbackLibrary(_ device: MTLDevice, functionName: String) -> MTLLibrary? {
+    private func makeSourceFallbackLibrary(_ device: MTLDevice, functionName: String) -> MTLLibrary? {
         fallbackLibraryLock.lock()
         if let cached = fallbackLibraries[functionName] {
             fallbackLibraryLock.unlock()
@@ -398,10 +383,10 @@ extension Device {
         return nil
     }
 
-    private static func makeSourceLibraryForFunction(_ device: MTLDevice, functionName: String) -> MTLLibrary? {
+    private func makeSourceLibraryForFunction(_ device: MTLDevice, functionName: String) -> MTLLibrary? {
         for fileURL in candidateMetalFiles() {
             guard let content = try? String(contentsOf: fileURL, encoding: .utf8),
-                  sourceFile(content, containsFunctionNamed: functionName) else {
+                  Self.sourceFile(content, containsFunctionNamed: functionName) else {
                 continue
             }
             if let library = makeSourceLibrary(device, fileURL: fileURL),
@@ -422,7 +407,7 @@ extension Device {
         return content.contains("\(functionName)(") && patterns.contains { content.contains($0) }
     }
 
-    private static func candidateMetalFiles() -> [URL] {
+    private func candidateMetalFiles() -> [URL] {
         fallbackLibraryLock.lock()
         if let cachedMetalFiles {
             fallbackLibraryLock.unlock()
@@ -468,32 +453,29 @@ extension Device {
         return files
     }
 
-    static func readMTLFunction(_ name: String) throws -> MTLFunction {
+    func readMTLFunction(_ name: String) throws -> MTLFunction {
         /// Read external libraries
-        if let device = contextDevice {
-            for library in device.externalLibraries() {
-                if let function = library.makeFunction(name: name) {
-                    return function
-                }
+        for library in externalLibraries() {
+            if let function = library.makeFunction(name: name) {
+                return function
             }
         }
         // And then read the project
-        if let libray = contextDevice?.defaultLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = defaultLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
         // Last read from ``Harbeth Framework``
-        if let libray = contextDevice?.harbethLibrary, let function = libray.makeFunction(name: name) {
+        if let libray = harbethLibrary, let function = libray.makeFunction(name: name) {
             return function
         }
-        if let metalDevice = contextDevice?.device ?? MTLCreateSystemDefaultDevice(),
-           let fallbackLibrary = makeSourceFallbackLibrary(metalDevice, functionName: name),
+        if let fallbackLibrary = makeSourceFallbackLibrary(device, functionName: name),
            let function = fallbackLibrary.makeFunction(name: name) {
             return function
         }
         throw HarbethError.readFunction(name)
     }
 
-    static func readMTLFunction(_ identity: KernelFunctionIdentity) throws -> MTLFunction {
+    func readMTLFunction(_ identity: KernelFunctionIdentity) throws -> MTLFunction {
         guard identity.kind != .blit else {
             throw HarbethError.readFunction(identity.primaryName)
         }
@@ -505,7 +487,7 @@ extension Device {
                 "Metal function constants for \(functionName) contain an unsupported value."
             )
         }
-        let resolvedDevice = contextDevice ?? HarbethContext.shared.runtimeDevice
+        let resolvedDevice = self
 
         if let cached = resolvedDevice.cachedFunction(for: identity) {
             return cached
@@ -589,16 +571,16 @@ extension Device {
         throw HarbethError.readFunction(functionName)
     }
 
-    static func metalFunctionLookupFailureDescription(_ name: String) -> String {
-        let runtimeDevice = contextDevice
+    func metalFunctionLookupFailureDescription(_ name: String) -> String {
+        let runtimeDevice: Device? = self
         var errorMessage = "Could not find Metal function '\(name)' in any library.\nCandidate sources:\n"
         errorMessage += "- Default Library: \(runtimeDevice?.defaultLibrary != nil ? "Available" : "Not available")\n"
         errorMessage += "- Harbeth Library: \(runtimeDevice?.harbethLibrary != nil ? "Available" : "Not available")\n"
-        errorMessage += "- External Registry:\n\(Device.externalLibraryRegistryDebugDescription())"
+        errorMessage += "- External Registry:\n\(externalLibraryRegistryDebugDescription())"
         return errorMessage
     }
 
-    static func metalFunctionLookupFailureDescription(_ identity: KernelFunctionIdentity) -> String {
+    func metalFunctionLookupFailureDescription(_ identity: KernelFunctionIdentity) -> String {
         var errorMessage = metalFunctionLookupFailureDescription(identity.primaryName)
         errorMessage += "\nRequested identity: \(identity.fingerprint)"
         return errorMessage
@@ -606,6 +588,33 @@ extension Device {
 }
 
 extension Device {
+    private static var compatibilityOwner: Device { HarbethContext.shared.runtimeDevice }
+
+    static func readMTLFunction(_ name: String) throws -> MTLFunction {
+        try compatibilityOwner.readMTLFunction(name)
+    }
+
+    static func readMTLFunction(_ identity: KernelFunctionIdentity) throws -> MTLFunction {
+        try compatibilityOwner.readMTLFunction(identity)
+    }
+
+    static func metalFunctionLookupFailureDescription(_ name: String) -> String {
+        compatibilityOwner.metalFunctionLookupFailureDescription(name)
+    }
+
+    static func metalFunctionLookupFailureDescription(_ identity: KernelFunctionIdentity) -> String {
+        compatibilityOwner.metalFunctionLookupFailureDescription(identity)
+    }
+
+    func resetLibraryCaches() {
+        fallbackLibraryLock.lock()
+        fallbackLibraries.removeAll()
+        fallbackMisses.removeAll()
+        cachedMetalFiles = nil
+        sourceFallbackScanCount = 0
+        fallbackLibraryLock.unlock()
+        removeFunctionCache()
+    }
 
     enum GPUArchitecture {
         case appleSilicon, intel, unknown
