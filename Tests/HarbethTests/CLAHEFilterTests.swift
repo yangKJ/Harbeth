@@ -153,6 +153,66 @@ final class CLAHEFilterTests: XCTestCase {
         XCTAssertLessThan(p95, 1.0, "4K CLAHE hot-path p95 must stay below the one-second regression gate.")
     }
 
+    func testTemporaryBuffersCanRecycleAfterRecovery() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable in this environment.")
+        }
+        let context = HarbethContext.shared
+        context.recoverExecution()
+        let pool = context.claheTemporaryBufferPool
+        pool.resetForTesting()
+        defer {
+            pool.resetForTesting()
+            context.recoverExecution()
+        }
+
+        let buffers = try pool.checkout(device: device, histogramLength: 256, countLength: 4, lookupLength: 1_024)
+        XCTAssertEqual(pool.statistics.totalBufferAllocations, 3)
+        XCTAssertEqual(pool.statistics.cachedSetCount, 0, "仍在执行的 buffer 不得作为可复用缓存暴露。")
+        XCTAssertEqual(pool.statistics.peakInFlightSetCount, 1)
+
+        // Recovery 会清理 Context 的 transient registry，但已提交 command buffer 的完成回调仍可能稍后执行。
+        context.recoverExecution()
+        XCTAssertEqual(pool.statistics.cachedSetCount, 0, "Recovery 不得让仍在执行的 buffer 提前可复用。")
+
+        // 模拟完成回调仍持有原始 pool。
+        pool.recycle(buffers)
+        XCTAssertEqual(pool.statistics.cachedSetCount, 1)
+
+        let reused = try pool.checkout(device: device, histogramLength: 256, countLength: 4, lookupLength: 1_024)
+        let statistics = pool.statistics
+        XCTAssertEqual(statistics.totalBufferAllocations, 3)
+        XCTAssertEqual(statistics.totalBufferReuses, 3)
+        pool.recycle(reused)
+    }
+
+    func testConcurrentCheckoutsKeepDistinctInFlightSetsAndBoundIdleCapacity() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal device is unavailable in this environment.")
+        }
+        let pool = CLAHETemporaryBufferPool()
+
+        let collector = BufferSetCollector()
+        DispatchQueue.concurrentPerform(iterations: 4) { _ in
+            do {
+                collector.append(
+                    try pool.checkout(device: device, histogramLength: 256, countLength: 4, lookupLength: 1_024)
+                )
+            } catch {
+                collector.record(error)
+            }
+        }
+
+        XCTAssertNil(collector.error)
+        XCTAssertEqual(collector.bufferSets.count, 4)
+        XCTAssertEqual(pool.statistics.totalBufferAllocations, 12)
+        XCTAssertEqual(pool.statistics.peakInFlightSetCount, 4)
+        XCTAssertEqual(pool.statistics.cachedSetCount, 0)
+
+        collector.bufferSets.forEach(pool.recycle)
+        XCTAssertEqual(pool.statistics.cachedSetCount, 2, "空闲容量必须遵守全局两组上限。")
+    }
+
     private func makeRGBA8Texture(width: Int, height: Int, pixel: [UInt8]) throws -> MTLTexture {
         try makeRGBA8Texture(width: width, height: height, pixels: Array(repeating: pixel, count: width * height).flatMap { $0 })
     }
@@ -234,5 +294,35 @@ final class CLAHEFilterTests: XCTestCase {
             )
         }
         return pixels.map(Float.init)
+    }
+}
+
+private final class BufferSetCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var sets: [CLAHETemporaryBufferPool.BufferSet] = []
+    private var storedError: Error?
+
+    func append(_ bufferSet: CLAHETemporaryBufferPool.BufferSet) {
+        lock.lock()
+        sets.append(bufferSet)
+        lock.unlock()
+    }
+
+    func record(_ error: Error) {
+        lock.lock()
+        storedError = error
+        lock.unlock()
+    }
+
+    var bufferSets: [CLAHETemporaryBufferPool.BufferSet] {
+        lock.lock()
+        defer { lock.unlock() }
+        return sets
+    }
+
+    var error: Error? {
+        lock.lock()
+        defer { lock.unlock() }
+        return storedError
     }
 }

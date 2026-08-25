@@ -113,6 +113,27 @@ final class DerivedResourceCacheTests: XCTestCase {
         XCTAssertNil(context.cachedDerivedTexture(for: identity))
     }
 
+    func testConcurrentAccessKeepsCacheBoundedAndRejectsStaleInsertion() {
+        let store = store!
+        DispatchQueue.concurrentPerform(iterations: 128) { index in
+            let identity = store.makeIdentity(
+                domain: .mask,
+                fingerprint: "concurrent-\(index % 8)"
+            )
+            _ = store.value(for: identity)
+            _ = store.insert(NSObject(), byteCost: 1, for: identity)
+            _ = store.value(for: identity)
+        }
+
+        let snapshot = store.snapshot()
+        XCTAssertLessThanOrEqual(snapshot.entryCount, snapshot.countLimit)
+        XCTAssertLessThanOrEqual(snapshot.byteCount, snapshot.byteLimit)
+
+        let staleIdentity = identity(.mask, "stale-concurrent")
+        store.invalidate(domain: .mask, namespace: namespace)
+        XCTAssertFalse(store.insert(NSObject(), byteCost: 1, for: staleIdentity))
+    }
+
     private func identity(_ domain: DerivedResourceDomain, _ fingerprint: String) -> DerivedResourceIdentity {
         store.makeIdentity(domain: domain, namespace: namespace, fingerprint: fingerprint)
     }

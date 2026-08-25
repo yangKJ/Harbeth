@@ -393,7 +393,7 @@ final class MaskRuntimeTests: XCTestCase {
             operations: [.grow(radius: 3), .feather(innerRadius: 2, outerRadius: 4, maxDistance: 8)],
             storageFormat: .rgba8
         )
-        let result = try recipe.execute(cache: nil)
+        let result = try recipe.execute(cachePolicy: .transient)
         XCTAssertEqual(result.diagnostics.passCount, 2)
         XCTAssertEqual(result.diagnostics.maximumHalo, 8)
         XCTAssertGreaterThan(result.diagnostics.estimatedIntermediateByteCount, 0)
@@ -402,6 +402,8 @@ final class MaskRuntimeTests: XCTestCase {
     }
 
     func testDerivedPublicCachePolicyKeepsTransientResultsOutOfSharedCache() throws {
+        resetSharedMaskCache()
+        defer { resetSharedMaskCache() }
         let texture = try MaskTestHelpers.makeTexture(width: 4, height: 4, red: 255, green: 255, blue: 255)
         let plane = MaskPlane(
             texture: texture,
@@ -421,9 +423,9 @@ final class MaskRuntimeTests: XCTestCase {
     }
 
     func testDerivedCacheSeparatesMaskResourceRevisions() throws {
+        resetSharedMaskCache()
+        defer { resetSharedMaskCache() }
         let texture = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 255, green: 255, blue: 255)
-        let cache = MaskExecutionCache(countLimit: 4)
-
         func recipe(revision: UInt64) -> MaskDerivedRecipe {
             let plane = MaskPlane(
                 texture: texture,
@@ -437,9 +439,13 @@ final class MaskRuntimeTests: XCTestCase {
             )
         }
 
-        XCTAssertFalse(try recipe(revision: 1).execute(cache: cache).cacheHit)
-        XCTAssertFalse(try recipe(revision: 2).execute(cache: cache).cacheHit)
-        XCTAssertTrue(try recipe(revision: 2).execute(cache: cache).cacheHit)
+        XCTAssertFalse(try recipe(revision: 1).execute(cachePolicy: .persistent).cacheHit)
+        XCTAssertFalse(try recipe(revision: 2).execute(cachePolicy: .persistent).cacheHit)
+        XCTAssertTrue(try recipe(revision: 2).execute(cachePolicy: .persistent).cacheHit)
+    }
+
+    private func resetSharedMaskCache() {
+        HarbethContext.shared.invalidateDerivedResources(domain: .mask)
     }
 }
 

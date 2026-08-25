@@ -125,35 +125,6 @@ public struct MaskDerivedResult: @unchecked Sendable {
     public var dirtyBounds: MaskCoverageBounds? { diagnostics.dirtyBounds }
 }
 
-final class MaskExecutionCache: @unchecked Sendable {
-    private final class EntryBox {
-        let result: MaskDerivedResult
-        init(_ result: MaskDerivedResult) { self.result = result }
-    }
-
-    private let localStore: DerivedResourceStore
-
-    init(countLimit: Int = 48, byteLimit: Int = 64 * 1024 * 1024) {
-        self.localStore = DerivedResourceStore(
-            configuration: DerivedResourceCacheConfiguration(byteLimit: byteLimit, countLimit: countLimit)
-        )
-    }
-
-    func removeAll() {
-        localStore.invalidate(domain: .mask)
-    }
-
-    fileprivate func lookup(for key: String) -> (result: MaskDerivedResult?, identity: DerivedResourceIdentity) {
-        let identity = localStore.makeIdentity(domain: .mask, fingerprint: key)
-        let result = (localStore.value(for: identity) as? EntryBox)?.result
-        return (result, identity)
-    }
-
-    fileprivate func insert(_ result: MaskDerivedResult, for identity: DerivedResourceIdentity) {
-        localStore.insert(EntryBox(result), byteCost: max(result.texture.allocatedSize, 1), for: identity)
-    }
-}
-
 /// 一等派生蒙版图，覆盖编译、取消、缓存、分析与脏区诊断。
 public struct MaskDerivedRecipe: @unchecked Sendable {
     public let baseMask: MaskDescriptor
@@ -218,27 +189,25 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
     }
 
     public func execute(cancellation: TextureMultiPassCancellationToken? = nil) throws -> MaskDerivedResult {
-        try execute(cancellation: cancellation, cache: nil, useContextCache: true)
+        try execute(cancellation: cancellation, useContextCache: true)
     }
 
-    /// 按宿主声明的稳定缓存意图执行派生蒙版，同时保持缓存实现私有。
+    /// 按宿主声明的稳定缓存意图执行派生蒙版；persistent 仅复用 Context 管理的派生结果，
+    /// transient 不创建隐式会话缓存。
     public func execute(cancellation: TextureMultiPassCancellationToken? = nil, cachePolicy: ImageCachePolicy) throws -> MaskDerivedResult {
         switch cachePolicy {
         case .persistent:
-            return try execute(cancellation: cancellation, cache: nil, useContextCache: true)
+            return try execute(cancellation: cancellation, useContextCache: true)
         case .transient:
-            return try execute(cancellation: cancellation, cache: nil, useContextCache: false)
+            return try execute(cancellation: cancellation, useContextCache: false)
         }
     }
 
-    func execute(cancellation: TextureMultiPassCancellationToken? = nil,
-                 cache: MaskExecutionCache?,
-                 useContextCache: Bool = false) throws -> MaskDerivedResult {
+    private func execute(cancellation: TextureMultiPassCancellationToken? = nil, useContextCache: Bool) throws -> MaskDerivedResult {
         let executionCacheKey = executionCacheKey
-        let cacheLookup = cache?.lookup(for: executionCacheKey)
         let contextIdentity = useContextCache ? HarbethContext.shared.derivedResourceStore.makeIdentity(domain: .mask, fingerprint: executionCacheKey) : nil
         let contextResult = contextIdentity.flatMap { HarbethContext.shared.derivedResourceStore.value(for: $0) as? MaskDerivedCacheEntry }?.result
-        if let cached = cacheLookup?.result ?? contextResult {
+        if let cached = contextResult {
             return MaskDerivedResult(
                 texture: cached.texture,
                 analysis: cached.analysis,
@@ -280,9 +249,7 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
                 dirtyBounds: dirtyBounds
             )
         )
-        if let cacheLookup {
-            cache?.insert(result, for: cacheLookup.identity)
-        } else if let contextIdentity {
+        if let contextIdentity {
             HarbethContext.shared.derivedResourceStore.insert(MaskDerivedCacheEntry(result), byteCost: max(result.texture.allocatedSize, 1), for: contextIdentity)
         }
         return result

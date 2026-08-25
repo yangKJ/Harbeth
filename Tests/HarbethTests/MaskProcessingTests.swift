@@ -29,6 +29,8 @@ final class MaskProcessingTests: XCTestCase {
     }
 
     func testDerivedMaskCompilerFusesOperationsAndCacheReturnsSameResult() throws {
+        resetSharedMaskCache()
+        defer { resetSharedMaskCache() }
         let plan = MaskGraphCompiler.compile([
             .grow(radius: 2), .grow(radius: 3), .threshold(0.2), .threshold(0.6), .shrink(radius: 0)
         ])
@@ -42,15 +44,14 @@ final class MaskProcessingTests: XCTestCase {
                 x == 2 && y == 2 ? [255, 255, 255, 255] : [0, 0, 0, 255]
             }
         )
-        let cache = MaskExecutionCache(countLimit: 2)
         let recipe = MaskDerivedRecipe(
             baseMask: MaskDescriptor(texture: texture, component: .red),
             sourceIdentifier: "single-dot",
             operations: [.grow(radius: 1), .edgeCleanup(blackPoint: 0.1, whitePoint: 0.9)],
             storageFormat: .rgba8
         )
-        let first = try recipe.execute(cache: cache)
-        let second = try recipe.execute(cache: cache)
+        let first = try recipe.execute(cachePolicy: .persistent)
+        let second = try recipe.execute(cachePolicy: .persistent)
         XCTAssertFalse(first.cacheHit)
         XCTAssertTrue(second.cacheHit)
         XCTAssertEqual(first.analysis.bounds, MaskCoverageBounds(x: 1, y: 1, width: 3, height: 3))
@@ -58,10 +59,11 @@ final class MaskProcessingTests: XCTestCase {
     }
 
     func testDerivedMaskCacheSeparatesDifferentGuideTextures() throws {
+        resetSharedMaskCache()
+        defer { resetSharedMaskCache() }
         let base = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 255, green: 255, blue: 255)
         let firstGuide = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 0, green: 0, blue: 0)
         let secondGuide = try MaskTestHelpers.makeTexture(width: 3, height: 3, red: 255, green: 255, blue: 255)
-        let cache = MaskExecutionCache(countLimit: 4)
 
         func recipe(guide: MTLTexture) -> MaskDerivedRecipe {
             MaskDerivedRecipe(
@@ -73,9 +75,9 @@ final class MaskProcessingTests: XCTestCase {
             )
         }
 
-        let first = try recipe(guide: firstGuide).execute(cache: cache)
-        let second = try recipe(guide: secondGuide).execute(cache: cache)
-        let repeatedSecond = try recipe(guide: secondGuide).execute(cache: cache)
+        let first = try recipe(guide: firstGuide).execute(cachePolicy: .persistent)
+        let second = try recipe(guide: secondGuide).execute(cachePolicy: .persistent)
+        let repeatedSecond = try recipe(guide: secondGuide).execute(cachePolicy: .persistent)
 
         XCTAssertFalse(first.cacheHit)
         XCTAssertFalse(second.cacheHit, "A different guide texture must not reuse the previous image's derived mask.")
@@ -91,9 +93,13 @@ final class MaskProcessingTests: XCTestCase {
             sourceIdentifier: "cancelled",
             operations: [.threshold(0.5)]
         )
-        XCTAssertThrowsError(try recipe.execute(cancellation: token, cache: nil)) { error in
+        XCTAssertThrowsError(try recipe.execute(cancellation: token)) { error in
             XCTAssertEqual(error as? TextureMultiPassError, .cancelled)
         }
+    }
+
+    private func resetSharedMaskCache() {
+        HarbethContext.shared.invalidateDerivedResources(domain: .mask)
     }
 
     func testCompositeCompilerBatchesBooleanStepsAndEliminatesNeutralCoverage() throws {

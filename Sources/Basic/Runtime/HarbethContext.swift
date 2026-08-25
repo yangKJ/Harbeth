@@ -250,6 +250,8 @@ public final class HarbethContext: @unchecked Sendable {
         }
     }
 
+    /// Context 级 CLAHE 可复用容量；单组 buffer 直到关联 command buffer 完成才归还。
+    /// cache reset 只清理空闲组，不会让仍在执行的 GPU 工作失效。
     var claheTemporaryBufferPool: CLAHETemporaryBufferPool {
         transientResourceStore.resource(CLAHETemporaryBufferPool.self) {
             CLAHETemporaryBufferPool()
