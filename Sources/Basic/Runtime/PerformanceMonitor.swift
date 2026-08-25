@@ -30,28 +30,25 @@ final class PerformanceMonitor: @unchecked Sendable {
 
     private var metricsCache: [String: Metrics] = [:]
     private let cacheLock = NSLock()
-    private let cleanupTimer: DispatchSourceTimer
+    private var cleanupTimer: DispatchSourceTimer?
     private var configuration = Configuration()
     private var pendingGPUOperations: [String: Int] = [:]
 
     init(enabled: Bool) {
         self.configuration = Configuration(enabled: enabled)
-        cleanupTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
-        cleanupTimer.schedule(deadline: .now(), repeating: configuration.autoCleanupInterval)
-        cleanupTimer.setEventHandler { [weak self] in
-            guard let self else { return }
-            self.cleanupOldMetrics(maxAge: self.cleanupInterval)
+        if enabled {
+            startCleanupTimer()
         }
-        cleanupTimer.resume()
     }
 
-    deinit { cleanupTimer.cancel() }
+    deinit { cleanupTimer?.cancel() }
 
     func configure(_ config: Configuration) {
         cacheLock.lock()
         self.configuration = config
+        let timerToCancel = updateCleanupTimerLocked()
         cacheLock.unlock()
-        cleanupTimer.schedule(deadline: .now(), repeating: max(config.autoCleanupInterval, 1))
+        timerToCancel?.cancel()
     }
 
     var isEnabled: Bool {
@@ -71,7 +68,42 @@ final class PerformanceMonitor: @unchecked Sendable {
         var config = self.configuration
         config.enabled = enable
         self.configuration = config
+        let timerToCancel = updateCleanupTimerLocked()
         cacheLock.unlock()
+        timerToCancel?.cancel()
+    }
+
+    var hasActiveCleanupTimer: Bool {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return cleanupTimer != nil
+    }
+
+    private func startCleanupTimer() {
+        cacheLock.lock()
+        _ = updateCleanupTimerLocked()
+        cacheLock.unlock()
+    }
+
+    private func updateCleanupTimerLocked() -> DispatchSourceTimer? {
+        guard configuration.enabled else {
+            let timer = cleanupTimer
+            cleanupTimer = nil
+            return timer
+        }
+        if let cleanupTimer {
+            cleanupTimer.schedule(deadline: .now(), repeating: max(configuration.autoCleanupInterval, 1))
+            return nil
+        }
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+        timer.schedule(deadline: .now(), repeating: max(configuration.autoCleanupInterval, 1))
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.cleanupOldMetrics(maxAge: self.cleanupInterval)
+        }
+        timer.resume()
+        cleanupTimer = timer
+        return nil
     }
 
     @discardableResult

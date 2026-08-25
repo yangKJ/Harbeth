@@ -268,7 +268,7 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
 
 /// 仅供 CLAHE 使用的短生命周期 GPU buffer 池。每组 buffer 都会等关联 command buffer 完成后
 /// 才归还，避免被并发 render 提前复用；缓存最多保留两组，限制长期 private-memory 占用。
-final class CLAHETemporaryBufferPool: @unchecked Sendable {
+final class CLAHETemporaryBufferPool: ContextTransientResource, @unchecked Sendable {
 
     struct Statistics: Equatable {
         let totalBufferAllocations: Int

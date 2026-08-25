@@ -5,17 +5,82 @@ import CoreVideo
 
 final class HarbethContextTests: XCTestCase {
 
+    private final class TestTransientResource: ContextTransientResource, @unchecked Sendable {
+        private(set) var purgeCount = 0
+
+        func purge() {
+            purgeCount += 1
+        }
+    }
+
+    private final class TransientResourceResults: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storage = [TestTransientResource]()
+
+        func append(_ resource: TestTransientResource) {
+            lock.lock()
+            storage.append(resource)
+            lock.unlock()
+        }
+
+        var resources: [TestTransientResource] {
+            lock.lock()
+            defer { lock.unlock() }
+            return storage
+        }
+    }
+
     func testPerformanceMonitorIdentityRemainsStableAcrossToggle() {
         let context = HarbethContext.shared
         context.enablePerformanceMonitor = false
         let monitor = context.performanceMonitor
+        XCTAssertFalse(monitor.hasActiveCleanupTimer)
 
         context.enablePerformanceMonitor = true
         XCTAssertTrue(monitor === context.performanceMonitor)
+        XCTAssertTrue(monitor.hasActiveCleanupTimer)
 
         context.enablePerformanceMonitor = false
         XCTAssertTrue(monitor === context.performanceMonitor)
         XCTAssertFalse(context.enablePerformanceMonitor)
+        XCTAssertFalse(monitor.hasActiveCleanupTimer)
+    }
+
+    func testTransientResourceStoreCreatesTypedOwnerOnceAndPurgesCreatedOwners() {
+        let store = ContextTransientResourceStore()
+        var factoryCallCount = 0
+
+        let first = store.resource(TestTransientResource.self) {
+            factoryCallCount += 1
+            return TestTransientResource()
+        }
+        let second = store.resource(TestTransientResource.self) {
+            factoryCallCount += 1
+            return TestTransientResource()
+        }
+
+        XCTAssertTrue(first === second)
+        XCTAssertEqual(factoryCallCount, 1)
+
+        store.purgeAll()
+
+        XCTAssertEqual(first.purgeCount, 1)
+    }
+
+    func testTransientResourceStoreReturnsOneOwnerAcrossConcurrentFirstAccess() {
+        let store = ContextTransientResourceStore()
+        let results = TransientResourceResults()
+
+        DispatchQueue.concurrentPerform(iterations: 16) { _ in
+            let resource = store.resource(TestTransientResource.self) {
+                TestTransientResource()
+            }
+            results.append(resource)
+        }
+
+        let resources = results.resources
+        XCTAssertEqual(resources.count, 16)
+        XCTAssertTrue(resources.dropFirst().allSatisfy { $0 === resources[0] })
     }
 
     func testContextCachesComputeRenderAndSamplerState() throws {

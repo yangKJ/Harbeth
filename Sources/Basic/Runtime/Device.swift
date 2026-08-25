@@ -613,6 +613,7 @@ extension Device {
         cachedMetalFiles = nil
         sourceFallbackScanCount = 0
         fallbackLibraryLock.unlock()
+        removePipelineStates()
         removeFunctionCache()
     }
 

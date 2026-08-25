@@ -21,11 +21,10 @@ public final class HarbethContext: @unchecked Sendable {
     let runtimeDevice: Device
     let derivedResourceStore: DerivedResourceStore
     let performanceMonitor = PerformanceMonitor(enabled: false)
-    let realtimePixelBufferPoolRegistry = RealtimePixelBufferPoolRegistry()
-    let claheTemporaryBufferPool = CLAHETemporaryBufferPool()
 
     private let executionScheduler: ExecutionScheduler
     private let texturePoolStorage: TexturePool
+    private let transientResourceStore = ContextTransientResourceStore()
     private let runtimeStateLock = NSLock()
     private let coreImageContextLock = NSLock()
     private var coreImageContextStorage: CIContext?
@@ -234,6 +233,18 @@ public final class HarbethContext: @unchecked Sendable {
 
     var texturePool: TexturePool {
         texturePoolStorage
+    }
+
+    var realtimePixelBufferPoolRegistry: RealtimePixelBufferPoolRegistry {
+        transientResourceStore.resource(RealtimePixelBufferPoolRegistry.self) {
+            RealtimePixelBufferPoolRegistry()
+        }
+    }
+
+    var claheTemporaryBufferPool: CLAHETemporaryBufferPool {
+        transientResourceStore.resource(CLAHETemporaryBufferPool.self) {
+            CLAHETemporaryBufferPool()
+        }
     }
 
     var textureAllocator: TextureAllocator {
@@ -614,8 +625,7 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionLock.unlock()
         removeAllRenderPlans()
         derivedResourceStore.invalidate()
-        realtimePixelBufferPoolRegistry.purge()
-        claheTemporaryBufferPool.purge()
+        transientResourceStore.purgeAll()
     }
 
     public func configurePipelineBinaryArchive(_ configuration: PipelineBinaryArchiveConfiguration) throws {
@@ -686,8 +696,7 @@ public final class HarbethContext: @unchecked Sendable {
         imageResolutionCacheByteCount = 0
         imageResolutionLock.unlock()
         derivedResourceStore.invalidate()
-        realtimePixelBufferPoolRegistry.purge()
-        claheTemporaryBufferPool.purge()
+        transientResourceStore.purgeAll()
     }
 
     // MARK: - Public texture pool governance

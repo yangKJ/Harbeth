@@ -12,8 +12,9 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Changed
 
-- Consolidated realtime pixel-buffer reuse, temporary CLAHE buffers, Metal fallback libraries and external-library provider state under the process-lifetime `HarbethContext` / internal `Device` owner boundary. Runtime cache reset, recovery and memory pressure now purge the applicable reusable resources without removing registered providers.
+- Consolidated realtime pixel-buffer reuse, temporary CLAHE buffers, Metal fallback libraries and external-library provider state under the process-lifetime `HarbethContext` / internal `Device` owner boundary. Feature-specific transient resources are now created only on first use, while runtime cache reset, recovery and memory pressure purge only resources that were created without removing registered providers.
 - `HarbethContext.coreImageContext` now initializes on first access and retains stable identity across execution recovery, avoiding Core Image setup for Metal-only runtime use.
+- Performance diagnostics now create their cleanup timer only while monitoring is enabled, while preserving the context-owned monitor identity across enable and disable cycles.
 
 #### Fixed
 

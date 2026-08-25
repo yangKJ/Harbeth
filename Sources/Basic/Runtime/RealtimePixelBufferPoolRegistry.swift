@@ -8,7 +8,7 @@
 import CoreVideo
 import Foundation
 
-final class RealtimePixelBufferPoolRegistry: @unchecked Sendable {
+final class RealtimePixelBufferPoolRegistry: ContextTransientResource, @unchecked Sendable {
     struct Acquisition {
         let buffer: CVPixelBuffer
         let poolUsed: Bool
