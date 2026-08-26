@@ -269,6 +269,12 @@ private extension IncrementalMaskCanvas {
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.commandBuffer
         }
+        var hasEndedEncoding = false
+        defer {
+            if !hasEndedEncoding {
+                encoder.endEncoding()
+            }
+        }
         let kernel = baselineTexture == nil ? "InnerIncrementalBrushMask" : "InnerIncrementalBrushMaskFromBaseline"
         let pipeline = try Compute.makeComputePipelineState(with: kernel)
         encoder.setComputePipelineState(pipeline)
@@ -293,6 +299,7 @@ private extension IncrementalMaskCanvas {
             threadsPerThreadgroup: MTLSize(width: groupWidth, height: groupHeight, depth: 1)
         )
         encoder.endEncoding()
+        hasEndedEncoding = true
     }
 
     static func encodeKernel(named name: String,
@@ -302,6 +309,12 @@ private extension IncrementalMaskCanvas {
         guard let commandBuffer = makeMaskCommandBuffer(for: texture.device),
               let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.commandBuffer
+        }
+        var hasEndedEncoding = false
+        defer {
+            if !hasEndedEncoding {
+                encoder.endEncoding()
+            }
         }
         let pipeline = try Compute.makeComputePipelineState(with: name)
         encoder.setComputePipelineState(pipeline)
@@ -314,6 +327,7 @@ private extension IncrementalMaskCanvas {
             threadsPerThreadgroup: MTLSize(width: groupWidth, height: groupHeight, depth: 1)
         )
         encoder.endEncoding()
+        hasEndedEncoding = true
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         if commandBuffer.status == .error {
