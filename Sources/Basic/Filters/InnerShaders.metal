@@ -762,29 +762,48 @@ kernel void InnerIncrementalBrushMaskFromBaseline(texture2d<half, access::read_w
     canvas.write(half4(value, value, value, 1.0h), gid);
 }
 
-kernel void InnerStrokeSurface(texture2d<half, access::read_write> canvas [[texture(0)]],
-                               constant float *metadata [[buffer(0)]],
-                               constant float4 *points [[buffer(1)]],
-                               uint2 gid [[thread_position_in_grid]]) {
+kernel void InnerStrokeSurfaceAccumulate(texture2d<float, access::read> baseline [[texture(0)]],
+                                         texture2d<float, access::write> canvas [[texture(1)]],
+                                         constant float *metadata [[buffer(0)]],
+                                         constant float4 *points [[buffer(1)]],
+                                         uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
     const int pointCount = min(max(int(metadata[0]), 0), 512);
-    if (pointCount == 0) return;
+    const float4 current = baseline.read(gid);
+    if (pointCount == 0) {
+        canvas.write(current, gid);
+        return;
+    }
     const float stroke = innerIncrementalBrushStroke(metadata, points, gid, canvas.get_width(), canvas.get_height());
     const float coverage = clamp(stroke * clamp(metadata[3], 0.0f, 1.0f) * clamp(metadata[7], 0.0f, 1.0f), 0.0f, 1.0f);
-    const float4 current = float4(canvas.read(gid));
     if (metadata[8] > 0.5f) {
-        canvas.write(half4(half3(current.rgb), half(current.a * (1.0f - coverage))), gid);
+        canvas.write(float4(current.rgb, current.a * (1.0f - coverage)), gid);
         return;
     }
     const float4 source = float4(metadata[4], metadata[5], metadata[6], 1.0f) * coverage;
     const float4 output = source + current * (1.0f - source.a);
-    canvas.write(half4(clamp(output, 0.0f, 1.0f)), gid);
+    canvas.write(clamp(output, 0.0f, 1.0f), gid);
 }
 
-kernel void InnerStrokeSurfaceClear(texture2d<half, access::write> canvas [[texture(0)]],
+kernel void InnerStrokeSurfaceTransient(texture2d<float, access::write> canvas [[texture(0)]],
+                                        constant float *metadata [[buffer(0)]],
+                                        constant float4 *points [[buffer(1)]],
+                                        uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
+    const int pointCount = min(max(int(metadata[0]), 0), 512);
+    if (pointCount == 0 || metadata[8] > 0.5f) {
+        canvas.write(float4(0.0f), gid);
+        return;
+    }
+    const float stroke = innerIncrementalBrushStroke(metadata, points, gid, canvas.get_width(), canvas.get_height());
+    const float coverage = clamp(stroke * clamp(metadata[3], 0.0f, 1.0f) * clamp(metadata[7], 0.0f, 1.0f), 0.0f, 1.0f);
+    canvas.write(float4(metadata[4], metadata[5], metadata[6], coverage), gid);
+}
+
+kernel void InnerStrokeSurfaceClear(texture2d<float, access::write> canvas [[texture(0)]],
                                     uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= canvas.get_width() || gid.y >= canvas.get_height()) return;
-    canvas.write(half4(0.0h), gid);
+    canvas.write(float4(0.0f), gid);
 }
 
 static inline int innerMaskMirrorCoordinate(int value, int size) {

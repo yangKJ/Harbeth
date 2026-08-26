@@ -56,4 +56,21 @@ final class StrokeSurfaceTests: XCTestCase {
             )
         }
     }
+
+    func testRealtimeSurfaceBoundsLongCanvasWithoutChangingAspectRatio() async throws {
+        let surface = try StrokeSurface(size: C7Size(width: 8_881, height: 2_960), identifier: "stroke-surface-bounds")
+        let frame = try await surface.appendActual(
+            points: [MaskBrushPoint(point: CGPoint(x: 0.5, y: 0.5))],
+            style: StrokeSurfaceStyle(width: 0.1, color: StrokeSurfaceColor(red: 0, green: 0, blue: 0)),
+            generation: 1
+        )
+
+        XCTAssertLessThanOrEqual(frame.texture.width, 8_192)
+        XCTAssertLessThanOrEqual(frame.texture.height, 8_192)
+        XCTAssertEqual(
+            Double(frame.texture.width) / Double(frame.texture.height),
+            8_881.0 / 2_960.0,
+            accuracy: 0.002
+        )
+    }
 }

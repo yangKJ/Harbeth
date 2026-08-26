@@ -60,19 +60,20 @@ public enum StrokeSurfaceError: Error, Sendable, Equatable {
 /// 并在 GPU 完成时以 generation 丢弃过期预测。消费者仍独占 `InkStroke`、
 /// 历史、保存与交互完成语义；这里不持有 UIKit 手势或产品状态。
 public actor StrokeSurface {
-    private let actualLease: TextureLease
+    private var actualLease: TextureLease
+    private var actualScratchLease: TextureLease
     private let predictedLease: TextureLease
     private let identifier: String
     private var actualRevision: UInt64 = 0
     private var actualGeneration: UInt64 = 0
     private var predictedGeneration: UInt64 = 0
+    private var requiresActualClear = true
 
     public init(size: C7Size, identifier: String = UUID().uuidString) throws {
         self.identifier = identifier
         actualLease = try Self.makeLease(size: size, identifier: "\(identifier).actual")
+        actualScratchLease = try Self.makeLease(size: size, identifier: "\(identifier).actualScratch")
         predictedLease = try Self.makeLease(size: size, identifier: "\(identifier).predicted")
-        try Self.clearSynchronously(actualLease.texture)
-        try Self.clearSynchronously(predictedLease.texture)
     }
 
     /// 增量提交真实输入。该方法只 encode/commit，不等待 GPU 完成；同一 runtime queue
@@ -87,8 +88,13 @@ public actor StrokeSurface {
         guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
             throw HarbethError.commandBuffer
         }
-        try encode(strokes: [StrokeSurfaceStroke(points: points, style: style)], into: actualLease.texture, commandBuffer: commandBuffer)
+        if requiresActualClear {
+            try Self.encodeClear(texture: actualLease.texture, commandBuffer: commandBuffer)
+            requiresActualClear = false
+        }
+        try encode(strokes: [StrokeSurfaceStroke(points: points, style: style)], commandBuffer: commandBuffer)
         actualLease.retainUntilCompleted(by: commandBuffer)
+        actualScratchLease.retainUntilCompleted(by: commandBuffer)
         commandBuffer.commit()
         actualRevision &+= 1
         return actualFrame(generation: generation)
@@ -106,8 +112,10 @@ public actor StrokeSurface {
             throw HarbethError.commandBuffer
         }
         try Self.encodeClear(texture: actualLease.texture, commandBuffer: commandBuffer)
-        try encode(strokes: strokes, into: actualLease.texture, commandBuffer: commandBuffer)
+        requiresActualClear = false
+        try encode(strokes: strokes, commandBuffer: commandBuffer)
         actualLease.retainUntilCompleted(by: commandBuffer)
+        actualScratchLease.retainUntilCompleted(by: commandBuffer)
         commandBuffer.commit()
         actualRevision &+= 1
         return actualFrame(generation: generation)
@@ -123,9 +131,10 @@ public actor StrokeSurface {
         guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
             throw HarbethError.commandBuffer
         }
-        try Self.encodeClear(texture: predictedLease.texture, commandBuffer: commandBuffer)
         if !points.isEmpty {
-            try encode(strokes: [StrokeSurfaceStroke(points: points, style: style)], into: predictedLease.texture, commandBuffer: commandBuffer)
+            try encodePredicted(points: points, style: style, texture: predictedLease.texture, commandBuffer: commandBuffer)
+        } else {
+            try Self.encodeClear(texture: predictedLease.texture, commandBuffer: commandBuffer)
         }
         predictedLease.retainUntilCompleted(by: commandBuffer)
         await withCheckedContinuation { continuation in
@@ -168,9 +177,10 @@ public actor StrokeSurface {
 
 private extension StrokeSurface {
     static func makeLease(size: C7Size, identifier: String) throws -> TextureLease {
-        try TextureLoader.makeTextureLease(
-            width: max(size.width, 1),
-            height: max(size.height, 1),
+        let extent = boundedExtent(for: size)
+        return try TextureLoader.makeTextureLease(
+            width: extent.width,
+            height: extent.height,
             options: [
                 .texturePixelFormat: MTLPixelFormat.rgba8Unorm,
                 .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite])
@@ -179,36 +189,77 @@ private extension StrokeSurface {
         )
     }
 
-    static func clearSynchronously(_ texture: MTLTexture) throws {
-        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
-            throw HarbethError.commandBuffer
-        }
-        try encodeClear(texture: texture, commandBuffer: commandBuffer)
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-        guard commandBuffer.status != .error else {
-            throw commandBuffer.error ?? HarbethError.commandBuffer
-        }
+    /// 实时笔迹是显示用派生表面，不应因为无限延展的纸面超过基础 Metal 纹理尺寸。
+    /// 坐标仍保持 normalized，因此降采样不会改变笔迹、命中或重放的几何真相。
+    static func boundedExtent(for size: C7Size) -> C7Size {
+        let width = max(size.width, 1)
+        let height = max(size.height, 1)
+        let maximumDimension = 8_192
+        let scale = min(1, Double(maximumDimension) / Double(max(width, height)))
+        return C7Size(
+            width: max(Int((Double(width) * scale).rounded()), 1),
+            height: max(Int((Double(height) * scale).rounded()), 1)
+        )
     }
 
-    func encode(strokes: [StrokeSurfaceStroke], into texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws {
+    func encode(strokes: [StrokeSurfaceStroke], commandBuffer: MTLCommandBuffer) throws {
         for stroke in strokes where !stroke.points.isEmpty {
             var start = 0
             while start < stroke.points.count {
                 let end = min(start + MaskBrushRecipe.maximumPreparedPointCount, stroke.points.count)
-                try encodeStroke(points: Array(stroke.points[start..<end]), style: stroke.style, texture: texture, commandBuffer: commandBuffer)
+                try encodeStroke(
+                    points: Array(stroke.points[start..<end]),
+                    style: stroke.style,
+                    source: actualLease.texture,
+                    destination: actualScratchLease.texture,
+                    commandBuffer: commandBuffer
+                )
+                swap(&actualLease, &actualScratchLease)
                 guard end < stroke.points.count else { break }
                 start = end - 1
             }
         }
     }
 
-    func encodeStroke(points: [MaskBrushPoint], style: StrokeSurfaceStyle, texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws {
+    func encodeStroke(
+        points: [MaskBrushPoint],
+        style: StrokeSurfaceStyle,
+        source: MTLTexture,
+        destination: MTLTexture,
+        commandBuffer: MTLCommandBuffer
+    ) throws {
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.commandBuffer
         }
         defer { encoder.endEncoding() }
-        let pipeline = try Compute.makeComputePipelineState(with: "InnerStrokeSurface")
+        let pipeline = try Compute.makeComputePipelineState(with: "InnerStrokeSurfaceAccumulate")
+        var metadata: [Float] = [
+            Float(points.count), style.width, style.hardness, style.opacity,
+            style.color.red, style.color.green, style.color.blue, style.color.alpha,
+            style.erases ? 1 : 0
+        ]
+        var values = points.reduce(into: [Float]()) { result, point in
+            result.append(contentsOf: [Float(point.point.x), Float(point.point.y), point.pressure, 0])
+        }
+        encoder.setComputePipelineState(pipeline)
+        encoder.setTexture(source, index: 0)
+        encoder.setTexture(destination, index: 1)
+        encoder.setBytes(&metadata, length: metadata.count * MemoryLayout<Float>.stride, index: 0)
+        encoder.setBytes(&values, length: values.count * MemoryLayout<Float>.stride, index: 1)
+        Self.dispatch(pipeline: pipeline, texture: destination, encoder: encoder)
+    }
+
+    func encodePredicted(
+        points: [MaskBrushPoint],
+        style: StrokeSurfaceStyle,
+        texture: MTLTexture,
+        commandBuffer: MTLCommandBuffer
+    ) throws {
+        guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
+            throw HarbethError.commandBuffer
+        }
+        defer { encoder.endEncoding() }
+        let pipeline = try Compute.makeComputePipelineState(with: "InnerStrokeSurfaceTransient")
         var metadata: [Float] = [
             Float(points.count), style.width, style.hardness, style.opacity,
             style.color.red, style.color.green, style.color.blue, style.color.alpha,
@@ -221,12 +272,7 @@ private extension StrokeSurface {
         encoder.setTexture(texture, index: 0)
         encoder.setBytes(&metadata, length: metadata.count * MemoryLayout<Float>.stride, index: 0)
         encoder.setBytes(&values, length: values.count * MemoryLayout<Float>.stride, index: 1)
-        let width = max(min(pipeline.threadExecutionWidth, texture.width), 1)
-        let height = max(min(pipeline.maxTotalThreadsPerThreadgroup / width, texture.height), 1)
-        encoder.dispatchThreads(
-            MTLSize(width: texture.width, height: texture.height, depth: 1),
-            threadsPerThreadgroup: MTLSize(width: width, height: height, depth: 1)
-        )
+        Self.dispatch(pipeline: pipeline, texture: texture, encoder: encoder)
     }
 
     static func encodeClear(texture: MTLTexture, commandBuffer: MTLCommandBuffer) throws {
@@ -237,11 +283,20 @@ private extension StrokeSurface {
         let pipeline = try Compute.makeComputePipelineState(with: "InnerStrokeSurfaceClear")
         encoder.setComputePipelineState(pipeline)
         encoder.setTexture(texture, index: 0)
+        dispatch(pipeline: pipeline, texture: texture, encoder: encoder)
+    }
+
+    static func dispatch(pipeline: MTLComputePipelineState, texture: MTLTexture, encoder: MTLComputeCommandEncoder) {
         let width = max(min(pipeline.threadExecutionWidth, texture.width), 1)
         let height = max(min(pipeline.maxTotalThreadsPerThreadgroup / width, texture.height), 1)
-        encoder.dispatchThreads(
-            MTLSize(width: texture.width, height: texture.height, depth: 1),
-            threadsPerThreadgroup: MTLSize(width: width, height: height, depth: 1)
+        let threadsPerThreadgroup = MTLSize(width: width, height: height, depth: 1)
+        encoder.dispatchThreadgroups(
+            MTLSize(
+                width: (texture.width + width - 1) / width,
+                height: (texture.height + height - 1) / height,
+                depth: 1
+            ),
+            threadsPerThreadgroup: threadsPerThreadgroup
         )
     }
 }
