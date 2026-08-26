@@ -165,6 +165,31 @@ final class PluginTests: XCTestCase {
         XCTAssertEqual(frame.renderIntent, .stable)
     }
 
+    @MainActor
+    func testRenderViewDrawableSizeCapsOversizedLayoutWithoutChangingAspectRatio() {
+        let requestedSize = CGSize(width: 20_723, height: 987)
+        let drawableSize = RenderView.constrainedDrawableSize(
+            for: requestedSize,
+            scale: 1,
+            maximumDimension: 8_192
+        )
+
+        XCTAssertEqual(drawableSize.width, 8_192)
+        XCTAssertLessThanOrEqual(drawableSize.height, 8_192)
+        XCTAssertEqual(drawableSize.width / drawableSize.height, requestedSize.width / requestedSize.height, accuracy: 0.1)
+    }
+
+    @MainActor
+    func testRenderViewDrawableSizeKeepsSupportedResolution() {
+        let drawableSize = RenderView.constrainedDrawableSize(
+            for: CGSize(width: 48, height: 24),
+            scale: 2,
+            maximumDimension: 8_192
+        )
+
+        XCTAssertEqual(drawableSize, CGSize(width: 96, height: 48))
+    }
+
     #if canImport(UIKit)
     func testRenderViewDisplayUpdatesRenderedFrameWithoutLosingTextureCompatibility() throws {
         let pixelBuffer = try makePixelBuffer(width: 256, height: 128)

@@ -188,12 +188,22 @@ open class RenderView: MTKView {
     private lazy var samplerState: MTLSamplerState? = {
         HarbethContext.shared.makeSamplerState()
     }()
+    private var quadVertexBuffer: MTLBuffer?
     private let previewHostInstanceIdentifier = UUID().uuidString
     private var lastPreviewHostVisibilityState: Bool?
     private var lastPreviewHostSuspensionReason: PreviewHostSuspensionReason?
     private var isApplicationPreviewHostActive: Bool = true
     private var previewHostNotificationObservers: [NSObjectProtocol] = []
     private var previewHostExecutionReport = PreviewHostExecutionReport.inactive(predictedStrategy: .metalTextureHost)
+
+    // MetalKit 没有提供可查询的 drawable 边长上限；移动端预览以跨设备可接受的 8K 边长为界。
+    private static let maximumMobileDrawableDimension: Int? = {
+        #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
+        8_192
+        #else
+        nil
+        #endif
+    }()
 
     public override init(frame frameRect: CGRect, device: MTLDevice?) {
         super.init(frame: frameRect, device: device ?? HarbethContext.shared.device)
@@ -286,9 +296,7 @@ open class RenderView: MTKView {
         case .standard:
             requestedDynamicRange = .standardDynamicRange
         case .extended:
-            requestedDynamicRange = frameDynamicRange == .highDynamicRange
-                ? .highDynamicRange
-                : .extendedDynamicRange
+            requestedDynamicRange = frameDynamicRange == .highDynamicRange ? .highDynamicRange : .extendedDynamicRange
         }
         let requestsExtendedPresentation = requestsExtendedRange(requestedDynamicRange)
         let extendedPresentationEnabled = requestsExtendedPresentation && supportsExtendedRange
@@ -298,9 +306,7 @@ open class RenderView: MTKView {
             effectiveDynamicRange: extendedPresentationEnabled ? requestedDynamicRange : .standardDynamicRange,
             outputColorSpace: outputColorSpace,
             isExtendedRangePresentationEnabled: extendedPresentationEnabled,
-            fallbackReason: requestsExtendedPresentation && supportsExtendedRange == false
-                ? .extendedRangeUnavailable
-                : nil
+            fallbackReason: requestsExtendedPresentation && supportsExtendedRange == false ? .extendedRangeUnavailable : nil
         )
     }
 
@@ -320,7 +326,6 @@ open class RenderView: MTKView {
         let frameContainsExtendedRange = Self.requestsExtendedRange(frameDynamicRange)
         let requiresHighPrecisionDrawable = frameContainsExtendedRange || dynamicRangePolicy == .extended
         colorPixelFormat = requiresHighPrecisionDrawable ? .rgba16Float : .bgra8Unorm
-
         guard let metalLayer = layer as? CAMetalLayer else {
             publishPreviewDisplayState(state)
             return
@@ -367,11 +372,7 @@ open class RenderView: MTKView {
         #endif
     }
 
-    private func configureExtendedDynamicRange(
-        on metalLayer: CAMetalLayer,
-        enabled: Bool,
-        sourceContainsExtendedRange: Bool
-    ) {
+    private func configureExtendedDynamicRange(on metalLayer: CAMetalLayer, enabled: Bool, sourceContainsExtendedRange: Bool) {
         #if os(iOS)
         if #available(iOS 26.0, *) {
             metalLayer.preferredDynamicRange = enabled ? .high : .standard
@@ -407,12 +408,27 @@ open class RenderView: MTKView {
         #if canImport(UIKit)
         if contentScaleFactor != scale { contentScaleFactor = scale }
         #endif
-        let drawableSize = CGSize(
-            width: max(ceil(targetSize.width * scale), 1),
-            height: max(ceil(targetSize.height * scale), 1)
+        let drawableSize = Self.constrainedDrawableSize(
+            for: targetSize,
+            scale: scale,
+            maximumDimension: Self.maximumMobileDrawableDimension
         )
         guard self.drawableSize != drawableSize else { return }
         self.drawableSize = drawableSize
+    }
+
+    static func constrainedDrawableSize(for targetSize: CGSize, scale: CGFloat, maximumDimension: Int?) -> CGSize {
+        let requestedSize = CGSize(
+            width: max(ceil(targetSize.width * scale), 1),
+            height: max(ceil(targetSize.height * scale), 1)
+        )
+        guard let maximumDimension else { return requestedSize }
+        let limit = CGFloat(max(maximumDimension, 1))
+        let downsamplingFactor = min(limit / max(requestedSize.width, requestedSize.height), 1)
+        return CGSize(
+            width: min(max(ceil(requestedSize.width * downsamplingFactor), 1), limit),
+            height: min(max(ceil(requestedSize.height * downsamplingFactor), 1), limit)
+        )
     }
 
     private func quadVertices(for texture: MTLTexture, drawableSize: CGSize) -> [Float] {
@@ -449,6 +465,22 @@ open class RenderView: MTKView {
             -scaleX,  scaleY, 0.0, 0.0,
              scaleX,  scaleY, 1.0, 0.0,
         ]
+    }
+
+    private func vertexBuffer(for texture: MTLTexture, drawableSize: CGSize) -> MTLBuffer? {
+        let vertices = quadVertices(for: texture, drawableSize: drawableSize)
+        let length = vertices.count * MemoryLayout<Float>.size
+        if let quadVertexBuffer, quadVertexBuffer.length >= length {
+            vertices.withUnsafeBytes { bytes in
+                guard let baseAddress = bytes.baseAddress else { return }
+                quadVertexBuffer.contents().copyMemory(from: baseAddress, byteCount: length)
+            }
+            return quadVertexBuffer
+        }
+        guard let device else { return nil }
+        let buffer = device.makeBuffer(bytes: vertices, length: length, options: [])
+        quadVertexBuffer = buffer
+        return buffer
     }
 
     private func invalidateDisplay() {
@@ -580,12 +612,7 @@ extension RenderView: MTKViewDelegate {
             return
         }
 
-        let vertices = quadVertices(for: texture, drawableSize: drawableSize)
-        guard let vertexBuffer = device?.makeBuffer(
-            bytes: vertices,
-            length: vertices.count * MemoryLayout<Float>.size,
-            options: []
-        ) else {
+        guard let vertexBuffer = vertexBuffer(for: texture, drawableSize: drawableSize) else {
             renderEncoder.endEncoding()
             return
         }
@@ -599,6 +626,7 @@ extension RenderView: MTKViewDelegate {
         renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         renderEncoder.endEncoding()
 
+        currentRenderedFrame?.lease?.retainUntilCompleted(by: commandBuffer)
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
@@ -750,8 +778,7 @@ private extension RenderView {
     }
 
     #if canImport(AVFoundation)
-    func displayWithSampleBufferPreviewHost(frame: RenderedFrame, resolution: PreviewHostStrategyResolution) -> Bool
-    {
+    func displayWithSampleBufferPreviewHost(frame: RenderedFrame, resolution: PreviewHostStrategyResolution) -> Bool {
         guard let sampleBuffer = try? frame.makePreviewHostSampleBuffer() else {
             recordPreviewHostFailure(.missingSampleBufferPayload)
             return false
@@ -762,8 +789,7 @@ private extension RenderView {
         layoutSampleBufferPreviewLayerIfNeeded()
         lastSampleBufferPreviewFrame = sampleBuffer
         isUsingSampleBufferPreviewHost = true
-        let payloadMode: PreviewHostPayloadMode =
-            resolution.strategy == .sampleBufferPassthroughHost ? .passthrough : .rematerialized
+        let payloadMode: PreviewHostPayloadMode = resolution.strategy == .sampleBufferPassthroughHost ? .passthrough : .rematerialized
         setPreviewHostExecutionState(
             .sampleBufferActive,
             strategy: resolution.strategy,
