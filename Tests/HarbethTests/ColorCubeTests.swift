@@ -7,6 +7,7 @@
 
 import XCTest
 import Compression
+import CryptoKit
 import Metal
 @testable import Harbeth
 
@@ -93,6 +94,75 @@ final class ColorCubeTests: XCTestCase {
         XCTAssertEqual(cube.otherInputTextures.first?.textureType, .type3D)
     }
 
+    func testCompactLookupRejectsChecksumMismatchExplicitly() throws {
+        let source = try C7ColorCube.Resource.parse(contents: identityCube)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = directory.appendingPathComponent("identity.hlut")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var encoded = try compactLookupData(from: source)
+        encoded[40] ^= 0xFF
+        try encoded.write(to: url)
+
+        XCTAssertThrowsError(try C7ColorCube.Resource.readCompactResourceStrict(from: url)) { error in
+            XCTAssertEqual(error as? C7ColorCube.Resource.CompactResourceError, .checksumMismatch)
+        }
+        XCTAssertNil(C7ColorCube.Resource.readCompactResource(from: url))
+    }
+
+    func testCompactLookupRejectsInvalidDomainBeforeRendering() throws {
+        let source = try C7ColorCube.Resource.parse(contents: identityCube)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = directory.appendingPathComponent("identity.hlut")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var encoded = try compactLookupData(from: source)
+        var invalidMinimum = source.domainMaximum.x.bitPattern.littleEndian
+        withUnsafeBytes(of: &invalidMinimum) {
+            encoded.replaceSubrange(8..<12, with: $0)
+        }
+        try encoded.write(to: url)
+
+        XCTAssertThrowsError(try C7ColorCube.Resource.readCompactResourceStrict(from: url)) { error in
+            XCTAssertEqual(error as? C7ColorCube.Resource.CompactResourceError, .invalidHeader)
+        }
+    }
+
+    func testInvalidCompactResourceDoesNotFallbackToLegacyCube() throws {
+        let bundleURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("bundle")
+        defer { try? FileManager.default.removeItem(at: bundleURL) }
+        try FileManager.default.createDirectory(at: bundleURL, withIntermediateDirectories: true)
+        try "<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>tests.compact.lookup</string></dict></plist>"
+            .write(to: bundleURL.appendingPathComponent("Info.plist"), atomically: true, encoding: .utf8)
+        try Data([0x48, 0x4C, 0x55, 0x54]).write(to: bundleURL.appendingPathComponent("identity.hlut"))
+        try identityCube.write(to: bundleURL.appendingPathComponent("identity.cube"), atomically: true, encoding: .utf8)
+        let bundle = try XCTUnwrap(Bundle(path: bundleURL.path))
+
+        let cube = C7ColorCube(cubeName: "identity", bundle: bundle)
+
+        XCTAssertNil(cube.resourceIdentity)
+        XCTAssertTrue(cube.otherInputTextures.isEmpty)
+        XCTAssertEqual(cube.resourceLoadError, .invalidCompactResource(name: "identity", reason: .invalidHeader))
+    }
+
+    func testLegacyCubeResourceRemainsReadable() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("cube")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try identityCube.write(to: url, atomically: true, encoding: .utf8)
+
+        let decoded = try XCTUnwrap(C7ColorCube.Resource.readCubeResource(from: url))
+        let source = try C7ColorCube.Resource.parse(contents: identityCube)
+
+        XCTAssertEqual(decoded.dimension, source.dimension)
+        XCTAssertEqual(decoded.domainMinimum, source.domainMinimum)
+        XCTAssertEqual(decoded.domainMaximum, source.domainMaximum)
+        XCTAssertEqual(decoded.data, source.data)
+    }
+
     func testTetrahedralIdentityCubePreservesPrimaryColors() throws {
         let input = try makeTexture(pixel: [255, 0, 0, 255])
         let resource = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
@@ -176,7 +246,7 @@ final class ColorCubeTests: XCTestCase {
         guard written > 0 else { throw CocoaError(.coderInvalidValue) }
         compressed.removeSubrange(written..<compressed.count)
 
-        var encoded = Data([0x48, 0x4C, 0x55, 0x54, 1, 1])
+        var encoded = Data([0x48, 0x4C, 0x55, 0x54, 2, 1])
         append(UInt16(resource.dimension), to: &encoded)
         append(resource.domainMinimum.x, to: &encoded)
         append(resource.domainMinimum.y, to: &encoded)
@@ -186,6 +256,7 @@ final class ColorCubeTests: XCTestCase {
         append(resource.domainMaximum.z, to: &encoded)
         append(UInt32(resource.data.count), to: &encoded)
         append(UInt32(compressed.count), to: &encoded)
+        encoded.append(contentsOf: SHA256.hash(data: resource.data))
         encoded.append(compressed)
         return encoded
     }

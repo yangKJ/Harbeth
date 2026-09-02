@@ -8,10 +8,17 @@
 import Foundation
 import MetalKit
 import Compression
+import CryptoKit
 
 /// 3D LUT颜色立方体滤镜
 /// 使用Metal实现的CUBE文件格式LUT滤镜
 public struct C7ColorCube: C7FilterProtocol {
+
+    /// 具名 LUT 的紧凑资源存在但未能通过完整性校验时的明确失败状态。
+    /// 调用方可以据此中止当前效果，而不是把错误资源当成旧 CUBE 继续渲染。
+    public enum ResourceLoadError: Error, Sendable, Equatable {
+        case invalidCompactResource(name: String, reason: Resource.CompactResourceError)
+    }
 
     public enum Interpolation: Float, Sendable, Codable, Equatable, Hashable {
         case trilinear = 0
@@ -50,6 +57,7 @@ public struct C7ColorCube: C7FilterProtocol {
     public private(set) var resourceBundleName: String?
     public private(set) var interpolation: Interpolation
     public private(set) var resourceIdentity: String?
+    public private(set) var resourceLoadError: ResourceLoadError?
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorCube")
@@ -88,10 +96,13 @@ public struct C7ColorCube: C7FilterProtocol {
     private var domainMaximum: SIMD3<Float>
     
     public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
-        let resource = C7ColorCube.Resource.readCubeResource(cubeName, bundle: bundle)
-        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation)
+        let resolution = C7ColorCube.Resource.resolveNamedResource(cubeName, bundle: bundle)
+        self.init(cubeResource: resolution.resource, intensity: intensity, interpolation: interpolation)
         self.resourceName = cubeName
         self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
+        self.resourceLoadError = resolution.error.map {
+            .invalidCompactResource(name: cubeName, reason: $0)
+        }
     }
 
     public init(cubeName: String, forResource resource: String, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
@@ -121,6 +132,7 @@ public struct C7ColorCube: C7FilterProtocol {
         self.resourceIdentity = cubeResource?.identity
         self.resourceName = nil
         self.resourceBundleName = nil
+        self.resourceLoadError = nil
         if let resource = cubeResource {
             self.dimension = resource.dimension
             self.domainMinimum = resource.domainMinimum
@@ -142,6 +154,7 @@ public struct C7ColorCube: C7FilterProtocol {
     
     public func updateCubeResource(_ cubeResource: C7ColorCube.Resource?) -> Self {
         var copy = self
+        copy.resourceLoadError = nil
         if let resource = cubeResource {
             copy.dimension = resource.dimension
             copy.resourceIdentity = resource.identity
@@ -166,6 +179,18 @@ public struct C7ColorCube: C7FilterProtocol {
 }
 
 extension C7ColorCube.Resource {
+    public enum CompactResourceError: Error, Sendable, Equatable {
+        case unreadable
+        case invalidHeader
+        case invalidPayload
+        case checksumMismatch
+    }
+
+    struct NamedResourceResolution {
+        let resource: C7ColorCube.Resource?
+        let error: C7ColorCube.Resource.CompactResourceError?
+    }
+
     static func readCubeResource(from url: URL) -> C7ColorCube.Resource? {
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return nil }
         return try? parse(contents: contents)
@@ -219,26 +244,52 @@ extension C7ColorCube.Resource {
     ///   - bundle: Bundle that contains the cube resource.
     /// - Returns: Cube resource
     public static func readCubeResource(_ name: String, bundle: Bundle = .main) -> C7ColorCube.Resource? {
-        let compactPaths = ["hlut", "HLUT"].compactMap {
-            bundle.url(forResource: name, withExtension: $0)
-        }
-        for url in compactPaths {
-            if let resource = readCompactResource(from: url) {
-                return resource
+        resolveNamedResource(name, bundle: bundle).resource
+    }
+
+    static func resolveNamedResource(_ name: String, bundle: Bundle) -> NamedResourceResolution {
+        let compactPaths = ["hlut", "HLUT"].compactMap { bundle.url(forResource: name, withExtension: $0) }
+        if let compactURL = compactPaths.first {
+            switch loadCompactResource(from: compactURL) {
+            case .success(let resource):
+                return NamedResourceResolution(resource: resource, error: nil)
+            case .failure(let error):
+                return NamedResourceResolution(resource: nil, error: error)
             }
         }
         let paths = ["cube", "CUBE"].compactMap {
             bundle.path(forResource: name, ofType: $0)
         }
-        guard let path = paths.first,
-              let contents = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
-        return try? parse(contents: contents)
+        guard let path = paths.first, let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
+            return NamedResourceResolution(resource: nil, error: nil)
+        }
+        return NamedResourceResolution(resource: try? parse(contents: contents), error: nil)
     }
 
-    /// 读取 Harbeth 紧凑 3D LUT 资源。格式包含维度、domain 与 LZFSE 压缩的 RGBA Float32 样本。
+    /// 读取 Harbeth 紧凑 3D LUT 资源。格式包含版本、维度、domain、LZFSE 压缩的 RGBA Float32 样本与 SHA-256 校验值。
     public static func readCompactResource(from url: URL) -> C7ColorCube.Resource? {
-        guard let encoded = try? Data(contentsOf: url) else { return nil }
-        return decodeCompactResource(encoded)
+        try? readCompactResourceStrict(from: url)
+    }
+
+    /// 严格读取紧凑 LUT。损坏、篡改或不符合格式时返回明确错误，调用方不得回退到另一份滤镜资源。
+    public static func readCompactResourceStrict(from url: URL) throws -> C7ColorCube.Resource {
+        switch loadCompactResource(from: url) {
+        case .success(let resource):
+            return resource
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    static func loadCompactResource(from url: URL) -> Result<C7ColorCube.Resource, CompactResourceError> {
+        guard let encoded = try? Data(contentsOf: url) else { return .failure(.unreadable) }
+        do {
+            return .success(try decodeCompactResource(encoded))
+        } catch let error as CompactResourceError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidPayload)
+        }
     }
 
     /// 严格解析 `.cube` 3D LUT；尺寸、domain、样本数量或非有限值不合法时直接失败。
@@ -295,12 +346,15 @@ extension C7ColorCube.Resource {
 
 private extension C7ColorCube.Resource {
     static let compactMagic = [UInt8]([0x48, 0x4C, 0x55, 0x54]) // HLUT
-    static let compactVersion: UInt8 = 1
-    static let compactHeaderLength = 40
+    static let compactVersion: UInt8 = 2
+    static let compactHeaderLength = 72
+    static let compactChecksumOffset = 40
+    static let compactChecksumLength = 32
 
     var hasValidStorage: Bool {
-        dimension >= 2 && dimension <= 65
-            && data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.size
+        dimension >= 2
+        && dimension <= 65
+        && data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.size
     }
 
     static func parseDomain(_ fields: [Substring]) throws -> SIMD3<Float> {
@@ -310,12 +364,7 @@ private extension C7ColorCube.Resource {
         return SIMD3<Float>(values[0], values[1], values[2])
     }
 
-    static func makeIdentity(
-        dimension: Int,
-        data: Data,
-        domainMinimum: SIMD3<Float>,
-        domainMaximum: SIMD3<Float>
-    ) -> String {
+    static func makeIdentity(dimension: Int, data: Data, domainMinimum: SIMD3<Float>, domainMaximum: SIMD3<Float>) -> String {
         var hash: UInt64 = 14_695_981_039_346_656_037
         for byte in data {
             hash ^= UInt64(byte)
@@ -324,16 +373,17 @@ private extension C7ColorCube.Resource {
         return "cube|\(dimension)|\(domainMinimum)|\(domainMaximum)|\(String(hash, radix: 16))"
     }
 
-    static func decodeCompactResource(_ encoded: Data) -> C7ColorCube.Resource? {
-        guard encoded.count >= compactHeaderLength else { return nil }
+    static func decodeCompactResource(_ encoded: Data) throws -> C7ColorCube.Resource {
+        guard encoded.count >= compactHeaderLength else {
+            throw C7ColorCube.Resource.CompactResourceError.invalidHeader
+        }
         let bytes = [UInt8](encoded)
         guard Array(bytes[0..<4]) == compactMagic,
-              bytes[4] == compactVersion,
-              bytes[5] == 1,
+              bytes[4] == compactVersion, bytes[5] == 1,
               let encodedDimension = integer(UInt16.self, bytes: bytes, at: 6),
               let encodedPayloadLength = integer(UInt32.self, bytes: bytes, at: 32),
               let encodedCompressedLength = integer(UInt32.self, bytes: bytes, at: 36) else {
-            return nil
+            throw C7ColorCube.Resource.CompactResourceError.invalidHeader
         }
         let dimension = Int(encodedDimension)
         let payloadLength = Int(encodedPayloadLength)
@@ -348,7 +398,7 @@ private extension C7ColorCube.Resource {
               domainMinimum.x < domainMaximum.x,
               domainMinimum.y < domainMaximum.y,
               domainMinimum.z < domainMaximum.z else {
-            return nil
+            throw C7ColorCube.Resource.CompactResourceError.invalidHeader
         }
         var decoded = Data(count: payloadLength)
         let decodedLength = decoded.withUnsafeMutableBytes { destination in
@@ -367,7 +417,19 @@ private extension C7ColorCube.Resource {
                 )
             }
         }
-        guard decodedLength == payloadLength else { return nil }
+        guard decodedLength == payloadLength else {
+            throw C7ColorCube.Resource.CompactResourceError.invalidPayload
+        }
+        let expectedChecksum = Data(bytes[compactChecksumOffset..<(compactChecksumOffset + compactChecksumLength)])
+        guard Data(SHA256.hash(data: decoded)) == expectedChecksum else {
+            throw C7ColorCube.Resource.CompactResourceError.checksumMismatch
+        }
+        let values = decoded.withUnsafeBytes { buffer in
+            Array(buffer.bindMemory(to: Float.self))
+        }
+        guard values.allSatisfy(\.isFinite) else {
+            throw C7ColorCube.Resource.CompactResourceError.invalidPayload
+        }
         return C7ColorCube.Resource(
             dimension: dimension,
             data: decoded,

@@ -312,12 +312,12 @@ public final class HarbethContext: @unchecked Sendable {
 
     private func flushCVMetalTextureCache() {
         cvTextureCacheLock.lock()
-        defer { cvTextureCacheLock.unlock() }
         #if !targetEnvironment(simulator)
         if let cvTextureCacheStorage {
             CVMetalTextureCacheFlush(cvTextureCacheStorage, 0)
         }
         #endif
+        cvTextureCacheLock.unlock()
     }
 
     private var hasCVMetalTextureCache: Bool {

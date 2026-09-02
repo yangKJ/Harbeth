@@ -8,6 +8,16 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-09-02
+
+#### Add
+
+- Add verified compact LUT loading
+
+#### Fixed
+
+- Fixed Swift 6 asynchronous texture-delivery compilation by declaring the internal raw texture rendering result as sendable across completion closures, and removed the simulator-only end-of-scope `defer` warning from context texture-cache flushing.
+
 ### 2026-08-25
 
 #### Changed

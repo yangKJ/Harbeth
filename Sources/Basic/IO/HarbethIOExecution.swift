@@ -62,7 +62,7 @@ struct RawTextureStage {
     let allocatedDestination: MTLTexture?
 }
 
-struct RawTextureRendering {
+struct RawTextureRendering: @unchecked Sendable {
     let output: MTLTexture
     let successRecycling: [MTLTexture]
     let failureRecycling: [MTLTexture]
