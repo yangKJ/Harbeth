@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import Compression
 import Metal
 @testable import Harbeth
 
@@ -72,6 +73,26 @@ final class ColorCubeTests: XCTestCase {
         )
     }
 
+    func testCompactLookupResourcePreservesCubeDataAndBuildsTexture() throws {
+        let source = try C7ColorCube.Resource.parse(contents: identityCube)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = directory.appendingPathComponent("identity.hlut")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try compactLookupData(from: source).write(to: url)
+
+        let decoded = try XCTUnwrap(C7ColorCube.Resource.readCompactResource(from: url))
+        let cube = C7ColorCube(cubeResource: decoded)
+
+        XCTAssertEqual(decoded.dimension, source.dimension)
+        XCTAssertEqual(decoded.domainMinimum, source.domainMinimum)
+        XCTAssertEqual(decoded.domainMaximum, source.domainMaximum)
+        XCTAssertEqual(decoded.data, source.data)
+        XCTAssertEqual(decoded.identity, source.identity)
+        XCTAssertEqual(cube.otherInputTextures.first?.textureType, .type3D)
+    }
+
     func testTetrahedralIdentityCubePreservesPrimaryColors() throws {
         let input = try makeTexture(pixel: [255, 0, 0, 255])
         let resource = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
@@ -135,5 +156,46 @@ final class ColorCubeTests: XCTestCase {
         }
         texture.replace(region: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0, withBytes: pixel, bytesPerRow: 4)
         return texture
+    }
+
+    private func compactLookupData(from resource: C7ColorCube.Resource) throws -> Data {
+        var compressed = Data(count: resource.data.count + 65_536)
+        let capacity = compressed.count
+        let written = compressed.withUnsafeMutableBytes { destination in
+            resource.data.withUnsafeBytes { source in
+                compression_encode_buffer(
+                    destination.bindMemory(to: UInt8.self).baseAddress!,
+                    capacity,
+                    source.bindMemory(to: UInt8.self).baseAddress!,
+                    resource.data.count,
+                    nil,
+                    COMPRESSION_LZFSE
+                )
+            }
+        }
+        guard written > 0 else { throw CocoaError(.coderInvalidValue) }
+        compressed.removeSubrange(written..<compressed.count)
+
+        var encoded = Data([0x48, 0x4C, 0x55, 0x54, 1, 1])
+        append(UInt16(resource.dimension), to: &encoded)
+        append(resource.domainMinimum.x, to: &encoded)
+        append(resource.domainMinimum.y, to: &encoded)
+        append(resource.domainMinimum.z, to: &encoded)
+        append(resource.domainMaximum.x, to: &encoded)
+        append(resource.domainMaximum.y, to: &encoded)
+        append(resource.domainMaximum.z, to: &encoded)
+        append(UInt32(resource.data.count), to: &encoded)
+        append(UInt32(compressed.count), to: &encoded)
+        encoded.append(compressed)
+        return encoded
+    }
+
+    private func append<T: FixedWidthInteger>(_ value: T, to data: inout Data) {
+        var littleEndian = value.littleEndian
+        withUnsafeBytes(of: &littleEndian) { data.append(contentsOf: $0) }
+    }
+
+    private func append(_ value: Float, to data: inout Data) {
+        append(value.bitPattern, to: &data)
     }
 }

@@ -7,6 +7,7 @@
 
 import Foundation
 import MetalKit
+import Compression
 
 /// 3D LUT颜色立方体滤镜
 /// 使用Metal实现的CUBE文件格式LUT滤镜
@@ -218,12 +219,26 @@ extension C7ColorCube.Resource {
     ///   - bundle: Bundle that contains the cube resource.
     /// - Returns: Cube resource
     public static func readCubeResource(_ name: String, bundle: Bundle = .main) -> C7ColorCube.Resource? {
+        let compactPaths = ["hlut", "HLUT"].compactMap {
+            bundle.url(forResource: name, withExtension: $0)
+        }
+        for url in compactPaths {
+            if let resource = readCompactResource(from: url) {
+                return resource
+            }
+        }
         let paths = ["cube", "CUBE"].compactMap {
             bundle.path(forResource: name, ofType: $0)
         }
         guard let path = paths.first,
               let contents = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
         return try? parse(contents: contents)
+    }
+
+    /// 读取 Harbeth 紧凑 3D LUT 资源。格式包含维度、domain 与 LZFSE 压缩的 RGBA Float32 样本。
+    public static func readCompactResource(from url: URL) -> C7ColorCube.Resource? {
+        guard let encoded = try? Data(contentsOf: url) else { return nil }
+        return decodeCompactResource(encoded)
     }
 
     /// 严格解析 `.cube` 3D LUT；尺寸、domain、样本数量或非有限值不合法时直接失败。
@@ -279,6 +294,10 @@ extension C7ColorCube.Resource {
 }
 
 private extension C7ColorCube.Resource {
+    static let compactMagic = [UInt8]([0x48, 0x4C, 0x55, 0x54]) // HLUT
+    static let compactVersion: UInt8 = 1
+    static let compactHeaderLength = 40
+
     var hasValidStorage: Bool {
         dimension >= 2 && dimension <= 65
             && data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.size
@@ -303,5 +322,79 @@ private extension C7ColorCube.Resource {
             hash &*= 1_099_511_628_211
         }
         return "cube|\(dimension)|\(domainMinimum)|\(domainMaximum)|\(String(hash, radix: 16))"
+    }
+
+    static func decodeCompactResource(_ encoded: Data) -> C7ColorCube.Resource? {
+        guard encoded.count >= compactHeaderLength else { return nil }
+        let bytes = [UInt8](encoded)
+        guard Array(bytes[0..<4]) == compactMagic,
+              bytes[4] == compactVersion,
+              bytes[5] == 1,
+              let encodedDimension = integer(UInt16.self, bytes: bytes, at: 6),
+              let encodedPayloadLength = integer(UInt32.self, bytes: bytes, at: 32),
+              let encodedCompressedLength = integer(UInt32.self, bytes: bytes, at: 36) else {
+            return nil
+        }
+        let dimension = Int(encodedDimension)
+        let payloadLength = Int(encodedPayloadLength)
+        let compressedLength = Int(encodedCompressedLength)
+        let expectedPayloadLength = dimension * dimension * dimension * 4 * MemoryLayout<Float>.size
+        guard (2...65).contains(dimension),
+              payloadLength == expectedPayloadLength,
+              compressedLength > 0,
+              encoded.count == compactHeaderLength + compressedLength,
+              let domainMinimum = vector(bytes: bytes, at: 8),
+              let domainMaximum = vector(bytes: bytes, at: 20),
+              domainMinimum.x < domainMaximum.x,
+              domainMinimum.y < domainMaximum.y,
+              domainMinimum.z < domainMaximum.z else {
+            return nil
+        }
+        var decoded = Data(count: payloadLength)
+        let decodedLength = decoded.withUnsafeMutableBytes { destination in
+            encoded.withUnsafeBytes { source in
+                guard let destinationAddress = destination.bindMemory(to: UInt8.self).baseAddress,
+                      let sourceAddress = source.bindMemory(to: UInt8.self).baseAddress else {
+                    return 0
+                }
+                return compression_decode_buffer(
+                    destinationAddress,
+                    payloadLength,
+                    sourceAddress.advanced(by: compactHeaderLength),
+                    compressedLength,
+                    nil,
+                    COMPRESSION_LZFSE
+                )
+            }
+        }
+        guard decodedLength == payloadLength else { return nil }
+        return C7ColorCube.Resource(
+            dimension: dimension,
+            data: decoded,
+            domainMinimum: domainMinimum,
+            domainMaximum: domainMaximum
+        )
+    }
+
+    static func vector(bytes: [UInt8], at offset: Int) -> SIMD3<Float>? {
+        guard let x = floating(bytes: bytes, at: offset),
+              let y = floating(bytes: bytes, at: offset + 4),
+              let z = floating(bytes: bytes, at: offset + 8),
+              x.isFinite, y.isFinite, z.isFinite else {
+            return nil
+        }
+        return SIMD3<Float>(x, y, z)
+    }
+
+    static func floating(bytes: [UInt8], at offset: Int) -> Float? {
+        integer(UInt32.self, bytes: bytes, at: offset).map { Float(bitPattern: $0) }
+    }
+
+    static func integer<T: FixedWidthInteger>(_ type: T.Type, bytes: [UInt8], at offset: Int) -> T? {
+        let length = MemoryLayout<T>.size
+        guard offset >= 0, offset + length <= bytes.count else { return nil }
+        return bytes[offset..<(offset + length)].enumerated().reduce(T.zero) { value, element in
+            value | (T(element.element) << (element.offset * 8))
+        }
     }
 }
