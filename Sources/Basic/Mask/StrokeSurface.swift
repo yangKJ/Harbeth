@@ -60,6 +60,14 @@ public enum StrokeSurfaceError: Error, Sendable, Equatable {
 /// 并在 GPU 完成时以 generation 丢弃过期预测。消费者仍独占 `InkStroke`、
 /// 历史、保存与交互完成语义；这里不持有 UIKit 手势或产品状态。
 public actor StrokeSurface {
+    private struct PredictedRequest {
+        let identifier: UInt64
+        let points: [MaskBrushPoint]
+        let style: StrokeSurfaceStyle
+        let generation: UInt64
+        let complete: @Sendable (Result<RenderedFrame?, HarbethError>) -> Void
+    }
+
     private var actualLease: TextureLease
     private var actualScratchLease: TextureLease
     private let predictedLease: TextureLease
@@ -67,6 +75,9 @@ public actor StrokeSurface {
     private var actualRevision: UInt64 = 0
     private var actualGeneration: UInt64 = 0
     private var predictedGeneration: UInt64 = 0
+    private var predictedRequestIdentifier: UInt64 = 0
+    private var predictedSubmissionInFlight = false
+    private var pendingPredictedRequest: PredictedRequest?
     private var requiresActualClear = true
 
     public init(size: C7Size, identifier: String = UUID().uuidString) throws {
@@ -121,42 +132,34 @@ public actor StrokeSurface {
         return actualFrame(generation: generation)
     }
 
-    /// 用最新预测替换 predicted 层。旧 command buffer 可以继续执行，但只有仍是最新
-    /// generation 的完成结果才会交给调用方显示。
-    public func replacePredicted(points: [MaskBrushPoint], style: StrokeSurfaceStyle, generation: UInt64) async throws -> RenderedFrame? {
+    /// 用最新预测替换 predicted 层。预测提交从不等待 GPU：执行中的预测完成后只会交付
+    /// 仍为最新 generation 的帧，而期间到达的输入只保留最后一笔待提交预测。
+    public func replacePredicted(
+        points: [MaskBrushPoint],
+        style: StrokeSurfaceStyle,
+        generation: UInt64,
+        complete: @escaping @Sendable (Result<RenderedFrame?, HarbethError>) -> Void
+    ) throws {
         guard generation >= predictedGeneration else {
             throw StrokeSurfaceError.stalePredictedGeneration(requested: generation, current: predictedGeneration)
         }
         predictedGeneration = generation
-        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
-            throw HarbethError.commandBuffer
-        }
-        if !points.isEmpty {
-            try encodePredicted(points: points, style: style, texture: predictedLease.texture, commandBuffer: commandBuffer)
-        } else {
-            try Self.encodeClear(texture: predictedLease.texture, commandBuffer: commandBuffer)
-        }
-        predictedLease.retainUntilCompleted(by: commandBuffer)
-        await withCheckedContinuation { continuation in
-            commandBuffer.addCompletedHandler { _ in continuation.resume() }
-            commandBuffer.commit()
-        }
-        guard commandBuffer.status != .error else {
-            throw commandBuffer.error ?? HarbethError.commandBuffer
-        }
-        guard generation == predictedGeneration, !points.isEmpty else { return nil }
-        return RenderedFrame(
-            texture: predictedLease.texture,
-            colorSpace: CGColorSpace(name: CGColorSpace.sRGB),
-            alphaType: .premultiplied,
-            cachePolicy: .transient,
-            orientation: .up,
-            profile: .interactiveLatency,
+        predictedRequestIdentifier &+= 1
+        let request = PredictedRequest(
+            identifier: predictedRequestIdentifier,
+            points: points,
+            style: style,
             generation: generation,
-            identifier: "\(identifier).predicted",
-            metadata: ["strokeLayer": "predicted"],
-            lease: predictedLease
+            complete: complete
         )
+
+        guard predictedSubmissionInFlight else {
+            try startPredictedSubmission(request)
+            return
+        }
+
+        pendingPredictedRequest?.complete(.success(nil))
+        pendingPredictedRequest = request
     }
 
     public func actualFrame(generation: UInt64) -> RenderedFrame {
@@ -171,6 +174,68 @@ public actor StrokeSurface {
             identifier: "\(identifier).actual",
             metadata: ["strokeLayer": "actual", "strokeRevision": String(actualRevision)],
             lease: actualLease
+        )
+    }
+
+    private func startPredictedSubmission(_ request: PredictedRequest) throws {
+        guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
+            throw HarbethError.commandBuffer
+        }
+        if !request.points.isEmpty {
+            try encodePredicted(
+                points: request.points,
+                style: request.style,
+                texture: predictedLease.texture,
+                commandBuffer: commandBuffer
+            )
+        } else {
+            try Self.encodeClear(texture: predictedLease.texture, commandBuffer: commandBuffer)
+        }
+        predictedSubmissionInFlight = true
+        predictedLease.retainUntilCompleted(by: commandBuffer)
+        let transferredRequest = HarbethUncheckedTransfer(value: request)
+        commandBuffer.addCompletedHandler { [weak self] commandBuffer in
+            Task { await self?.completePredictedSubmission(transferredRequest.value, commandBuffer: commandBuffer) }
+        }
+        commandBuffer.commit()
+    }
+
+    private func completePredictedSubmission(_ request: PredictedRequest, commandBuffer: MTLCommandBuffer) {
+        predictedSubmissionInFlight = false
+        let latestRequest = request.identifier == predictedRequestIdentifier
+        let result: Result<RenderedFrame?, HarbethError>
+        if commandBuffer.status == .error {
+            result = .failure(commandBuffer.error.map(HarbethError.error) ?? .commandBuffer)
+        } else if latestRequest, !request.points.isEmpty {
+            result = .success(predictedFrame(generation: request.generation))
+        } else {
+            result = .success(nil)
+        }
+
+        let pendingRequest = pendingPredictedRequest
+        pendingPredictedRequest = nil
+        if let pendingRequest {
+            do {
+                try startPredictedSubmission(pendingRequest)
+            } catch {
+                pendingRequest.complete(.failure(HarbethError.toHarbethError(error)))
+            }
+        }
+        request.complete(result)
+    }
+
+    private func predictedFrame(generation: UInt64) -> RenderedFrame {
+        RenderedFrame(
+            texture: predictedLease.texture,
+            colorSpace: CGColorSpace(name: CGColorSpace.sRGB),
+            alphaType: .premultiplied,
+            cachePolicy: .transient,
+            orientation: .up,
+            profile: .interactiveLatency,
+            generation: generation,
+            identifier: "\(identifier).predicted",
+            metadata: ["strokeLayer": "predicted"],
+            lease: predictedLease
         )
     }
 }

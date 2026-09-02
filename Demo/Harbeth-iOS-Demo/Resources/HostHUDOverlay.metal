@@ -8,12 +8,10 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void harbethDemoHostHUDOverlay(
-    texture2d<float, access::read> colorTexture [[texture(0)]],
-    texture2d<float, access::read> luminanceTexture [[texture(1)]],
-    texture2d<float, access::write> outputTexture [[texture(2)]],
-    uint2 position [[thread_position_in_grid]])
-{
+kernel void harbethDemoHostHUDOverlay(texture2d<float, access::read> colorTexture [[texture(0)]],
+                                      texture2d<float, access::read> luminanceTexture [[texture(1)]],
+                                      texture2d<float, access::write> outputTexture [[texture(2)]],
+                                      uint2 position [[thread_position_in_grid]]) {
     const uint width = outputTexture.get_width();
     const uint height = outputTexture.get_height();
     if (position.x >= width || position.y >= height) {

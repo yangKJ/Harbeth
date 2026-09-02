@@ -42,8 +42,6 @@
 		87FD88DB2A78FED500EAC2DD /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */; };
 		F70CFB012FF27CB90092DA36 /* MaskShowcaseViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70CFB002FF27CB90092DA36 /* MaskShowcaseViewController.swift */; };
 		F70CFB032FF27CB90092DA36 /* PageCurlShowcaseViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70CFB022FF27CB90092DA36 /* PageCurlShowcaseViewController.swift */; };
-		F7D2C7A02FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */; };
-		F7D2C7A22FFB9A7500A7D3C1 /* HostHUDOverlay.metal in Sources */ = {isa = PBXBuildFile; fileRef = F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */; };
 		F72C46B52F63EA94000396E0 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F72C46B42F63EA94000396E0 /* violet.CUBE */; };
 		F73F89442F6646D600F83584 /* FilterItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F73F89432F6646D600F83584 /* FilterItem.swift */; };
 		F73F89462F665B2700F83584 /* violet.CUBE in Resources */ = {isa = PBXBuildFile; fileRef = F73F89452F665B2700F83584 /* violet.CUBE */; };
@@ -58,6 +56,8 @@
 		F78A11262F6010C300FFC2B6 /* HSLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78A11242F6010C300FFC2B6 /* HSLView.swift */; };
 		F7A068852F3C3C9900D7AA52 /* TestManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A068842F3C3C9900D7AA52 /* TestManager.swift */; };
 		F7CBC1E02F6FD4AF00F75991 /* DoubleBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */; };
+		F7D2C7A02FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */; };
+		F7D2C7A22FFB9A7500A7D3C1 /* HostHUDOverlay.metal in Sources */ = {isa = PBXBuildFile; fileRef = F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */; };
 		F7E3231D2F651C7D002ACD7B /* ChromaKeyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */; };
 		F7E3231F2F6549F4002ACD7B /* ChannelControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */; };
 		F7E323202F6549F4002ACD7B /* DemoFilteredImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E323212F6549F4002ACD7B /* DemoFilteredImageView.swift */; };
@@ -137,8 +137,6 @@
 		87FD88DA2A78FED500EAC2DD /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
 		F70CFB002FF27CB90092DA36 /* MaskShowcaseViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaskShowcaseViewController.swift; sourceTree = "<group>"; };
 		F70CFB022FF27CB90092DA36 /* PageCurlShowcaseViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageCurlShowcaseViewController.swift; sourceTree = "<group>"; };
-		F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SameCommandBufferHUDViewController.swift; sourceTree = "<group>"; };
-		F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = HostHUDOverlay.metal; sourceTree = "<group>"; };
 		F72C46B42F63EA94000396E0 /* violet.CUBE */ = {isa = PBXFileReference; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
 		F73F89432F6646D600F83584 /* FilterItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterItem.swift; sourceTree = "<group>"; };
 		F73F89452F665B2700F83584 /* violet.CUBE */ = {isa = PBXFileReference; lastKnownFileType = text; path = violet.CUBE; sourceTree = "<group>"; };
@@ -154,6 +152,8 @@
 		F78A11242F6010C300FFC2B6 /* HSLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSLView.swift; sourceTree = "<group>"; };
 		F7A068842F3C3C9900D7AA52 /* TestManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestManager.swift; sourceTree = "<group>"; };
 		F7CBC1DF2F6FD4AF00F75991 /* DoubleBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleBufferView.swift; sourceTree = "<group>"; };
+		F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SameCommandBufferHUDViewController.swift; sourceTree = "<group>"; };
+		F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = HostHUDOverlay.metal; sourceTree = "<group>"; };
 		F7E3231C2F651C7D002ACD7B /* ChromaKeyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromaKeyView.swift; sourceTree = "<group>"; };
 		F7E3231E2F6549F4002ACD7B /* ChannelControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelControlView.swift; sourceTree = "<group>"; };
 		F7E323212F6549F4002ACD7B /* DemoFilteredImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFilteredImageView.swift; sourceTree = "<group>"; };
@@ -279,7 +279,6 @@
 				F70CFB002FF27CB90092DA36 /* MaskShowcaseViewController.swift */,
 				F70CFB022FF27CB90092DA36 /* PageCurlShowcaseViewController.swift */,
 				F7D2C79F2FFB9A7500A7D3C1 /* SameCommandBufferHUDViewController.swift */,
-				F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */,
 			);
 			path = Modules;
 			sourceTree = "<group>";
@@ -294,6 +293,7 @@
 				878444FA2994DDA0001D856B /* Main.storyboard */,
 				878444F62994DDA0001D856B /* SceneDelegate.swift */,
 				F72C46B42F63EA94000396E0 /* violet.CUBE */,
+				F7D2C7A12FFB9A7500A7D3C1 /* HostHUDOverlay.metal */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -766,8 +766,8 @@
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
-				TVOS_DEPLOYMENT_TARGET = 15.0;
 				TARGETED_DEVICE_FAMILY = "1,2,3";
+				TVOS_DEPLOYMENT_TARGET = 15.0;
 			};
 			name = Debug;
 		};
@@ -801,8 +801,8 @@
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
-				TVOS_DEPLOYMENT_TARGET = 15.0;
 				TARGETED_DEVICE_FAMILY = "1,2,3";
+				TVOS_DEPLOYMENT_TARGET = 15.0;
 			};
 			name = Release;
 		};

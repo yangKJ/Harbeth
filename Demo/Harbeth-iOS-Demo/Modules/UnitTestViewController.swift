@@ -480,6 +480,9 @@ final class UnitTestViewController: UIViewController {
             image: nil,
             primaryAction: nil,
             menu: UIMenu(children: [
+                UIAction(title: "Page Curl Showcase", image: UIImage(systemName: "rectangle.3.group")) { [weak self] _ in
+                    self?.openPageCurlShowcase()
+                },
                 UIAction(title: "Mask Lab", image: UIImage(systemName: "circle.grid.cross")) { [weak self] _ in
                     self?.openMaskLab()
                 },
@@ -1415,6 +1418,10 @@ private extension UnitTestViewController {
 
     @objc func openMaskLab() {
         navigationController?.pushViewController(MaskShowcaseViewController(), animated: true)
+    }
+
+    func openPageCurlShowcase() {
+        navigationController?.pushViewController(PageCurlShowcaseViewController(), animated: true)
     }
 
     func openCommandBufferHUD() {

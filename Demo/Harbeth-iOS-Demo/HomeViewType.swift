@@ -195,7 +195,6 @@ enum ViewControllerType: String {
     case SolidColor = "纯色"
     
     // 组合效果
-    case PageCurlShowcase = "Page Curl 转场 Showcase"
     case CombinationBeautiful = "美颜组合"
     case CombinationCinematic = "电影级色调"
     case CombinationColorGrading = "专业色彩分级"
@@ -217,7 +216,6 @@ enum ViewControllerType: String {
     case MPSBoxBlurCase = "MPS盒式模糊"
     case MPSMedianBlurCase = "MPS中值模糊"
     case MPSGaussianBlurCase = "MPS高斯模糊"
-    
 }
 
 extension ViewControllerType {

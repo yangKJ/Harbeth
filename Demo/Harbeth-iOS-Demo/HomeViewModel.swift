@@ -21,9 +21,6 @@ struct HomeViewModel {
     var viewType: ViewType
     
     func setupViewController(_ type: ViewControllerType) -> UIViewController {
-        if type == .PageCurlShowcase {
-            return PageCurlShowcaseViewController()
-        }
         switch viewType {
         case .image:
             let vc = ImageViewController()
@@ -54,9 +51,8 @@ struct HomeViewModel {
     lazy var sections: [HomeSection] = {
         switch viewType {
         case .image, .player:
-            let showcaseItems = viewType == .image ? showcase : showcase.filter { $0 != .PageCurlShowcase }
             var filters: [HomeSection] = [
-                HomeSection(title: "🚀 能力展示", items: showcaseItems),
+                HomeSection(title: "🚀 能力展示", items: showcase),
                 HomeSection(title: "🎞️ 帧处理与输出", items: frameProcessing),
                 HomeSection(title: "🌈 色彩与色调", items: color),
                 HomeSection(title: "🌫️ 模糊与降噪", items: blur),
@@ -99,7 +95,6 @@ struct HomeViewModel {
     ]
 
     let showcase: [ViewControllerType] = [
-        .PageCurlShowcase,
         .CombinationCinematic, .CombinationColorGrading, .CombinationHDRBoost,
         .ColorCube, .NoiseReduction, .UnsharpMask,
         .LensDistortionCorrection, .ChromaticAberrationCorrection,
