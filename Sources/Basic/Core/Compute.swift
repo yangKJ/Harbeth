@@ -115,6 +115,7 @@ struct Compute {
         ? try makeComputePipelineState(with: identity)
         : try makeComputePipelineState(with: kernel)
         return encoding(
+            commandBuffer: commandBuffer,
             computeEncoder: computeEncoder,
             pipelineState: pipelineState,
             textures: textures,
@@ -142,15 +143,16 @@ struct Compute {
                 makeComputePipelineState(with: kernel, complete: callback)
             }
         }
-        let execution = HarbethUncheckedTransfer(value: (computeEncoder, textures, filter))
+        let execution = HarbethUncheckedTransfer(value: (commandBuffer, computeEncoder, textures, filter))
         makePipeline { res in
             switch res {
             case .success(let pipelineState):
                 let destTexture = encoding(
-                    computeEncoder: execution.value.0,
+                    commandBuffer: execution.value.0,
+                    computeEncoder: execution.value.1,
                     pipelineState: pipelineState,
-                    textures: execution.value.1,
-                    filter: execution.value.2
+                    textures: execution.value.2,
+                    filter: execution.value.3
                 )
                 complete(.success(destTexture))
             case .failure(let error): complete(.failure(error))
@@ -208,6 +210,7 @@ struct Compute {
     }
     
     private static func encoding(
+        commandBuffer: MTLCommandBuffer,
         computeEncoder: MTLComputeCommandEncoder,
         pipelineState: MTLComputePipelineState,
         textures: [MTLTexture],
@@ -256,7 +259,7 @@ struct Compute {
         computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
         computeEncoder.endEncoding()
         #if targetEnvironment(macCatalyst)
-        let blitEncoder = computeEncoder.commandBuffer?.makeBlitCommandEncoder()
+        let blitEncoder = commandBuffer.makeBlitCommandEncoder()
         blitEncoder?.synchronize(resource: destTexture)
         blitEncoder?.endEncoding()
         #endif
