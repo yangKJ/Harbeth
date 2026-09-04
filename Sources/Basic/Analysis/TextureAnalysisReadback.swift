@@ -116,7 +116,32 @@ struct TextureAnalysisReadback {
 
     private static func float16(_ buffer: UnsafeRawBufferPointer, offset: Int) -> Float {
         let bits = UInt16(littleEndian: buffer.loadUnaligned(fromByteOffset: offset, as: UInt16.self))
-        return Float(Float16(bitPattern: bits))
+        return float16(bits: bits)
+    }
+
+    static func float16(bits: UInt16) -> Float {
+        let sign = UInt32(bits & 0x8000) << 16
+        let exponent = UInt32(bits & 0x7C00) >> 10
+        let fraction = UInt32(bits & 0x03FF)
+
+        let floatBits: UInt32
+        switch exponent {
+        case 0 where fraction == 0:
+            floatBits = sign
+        case 0:
+            var normalizedFraction = fraction
+            var normalizedExponent: UInt32 = 113
+            while normalizedFraction & 0x0400 == 0 {
+                normalizedFraction <<= 1
+                normalizedExponent -= 1
+            }
+            floatBits = sign | (normalizedExponent << 23) | ((normalizedFraction & 0x03FF) << 13)
+        case 0x1F:
+            floatBits = sign | 0x7F80_0000 | (fraction << 13)
+        default:
+            floatBits = sign | ((exponent + 112) << 23) | (fraction << 13)
+        }
+        return Float(bitPattern: floatBits)
     }
 
     private static func float32(_ buffer: UnsafeRawBufferPointer, offset: Int) -> Float {
