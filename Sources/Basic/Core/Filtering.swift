@@ -17,6 +17,9 @@ public enum MemoryAccessPattern {
     case auto          // Auto detection
 }
 
+/// 自定义滤镜可以持有引用，但协议不承诺自动复制或并发隔离。
+/// 提交后不得修改执行中共享的参数或资源；并发渲染应使用独立实例或不可变状态。
+/// 输入纹理的写入还必须等待使用它的 GPU 工作完成，取消通知不能替代完成屏障。
 public protocol C7FilterProtocol: Mirrorable {
     
     var identifier: String { get }

@@ -59,6 +59,12 @@ xcrun swift test --filter RealtimeRouteBenchmarkTests
 xcrun swift test --filter CLAHEFilterTests
 ```
 
+实时路线 JSON 的 `cacheBefore` / `cacheAfter` 记录每条路线测量前后的纹理池、image-resolution 和派生缓存状态。`texturePoolReservedBytes` 包含池持有的直接缓存与 heap reserved，不能再与 `heapReservedBytes` 相加；`heapUsedBytes` 是其中已使用的空间。各缓存计数是逻辑统计，不等于进程 resident，也不包含所有外部或在途资源。
+
+Compute Pipeline 的缓存 miss 是请求级统计；同 identity 的在途创建合并后，多个 miss 可以共享一次创建结果，不能直接将 miss 数当作 Metal Pipeline 创建次数。
+
+每条实时路线在首帧前清空 Harbeth 的可清理缓存，然后预热并测量稳定帧。`cacheState` 明确保留驱动缓存和预先准备的输入资源，因此 `firstFrameTime` 只代表这次 Harbeth 缓存重置后的首帧，不代表驱动冷启动。结果仍不包含 drawable 实际呈现。比较数据时应一并保存提交与工作区差异、Xcode、系统版本和 Debug/Release 配置。
+
 这组 baseline 的定位不是给出固定门槛，而是保证后续每次优化都在同一批真实链路上回看趋势：
 
 - `HarbethIO` 轻量滤镜链

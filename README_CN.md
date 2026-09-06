@@ -28,6 +28,8 @@ Harbeth 支持 `UIImage` / `NSImage`、`CGImage`、`CIImage`、`MTLTexture`、`C
 
 ## 安装
 
+构建需要 Xcode 26 或更新版本（Swift 6.2 与 Apple 平台 SDK 26 或更新版本）。部署下限仍为 iOS/iPadOS 15、macOS 12、tvOS 15。CI 固定使用 Xcode 26.3，Swift 语言模式仍为 6。
+
 ### Swift Package Manager
 
 ```swift

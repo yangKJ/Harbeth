@@ -13,6 +13,23 @@ import Darwin
 private let realtimeBenchmarkSchemaVersion = 2
 private let realtimeFrameDeadlineMs = 1_000.0 / 60.0
 
+private struct RouteCacheSnapshot: Codable {
+    let texturePoolReservedBytes: Int
+    let texturePoolByteLimit: Int
+    let heapReservedBytes: Int
+    let heapUsedBytes: Int
+    let derivedResourceBytes: Int
+    let derivedResourceByteLimit: Int
+    let derivedResourceHits: Int
+    let derivedResourceMisses: Int
+    let derivedResourceEvictions: Int
+    let derivedResourceRejectedInsertions: Int
+    let imageResolutionBytes: Int
+    let imageResolutionByteLimit: Int
+    let texturePoolCreated: Int
+    let texturePoolReused: Int
+}
+
 private struct RouteBenchmarkReport: Codable {
     let route: String
     let averageFrameTimeMs: Double
@@ -45,6 +62,9 @@ private struct RouteBenchmarkReport: Codable {
     let gpuP95FrameTimeMs: Double?
     let gpuP99FrameTimeMs: Double?
     let gpuTimingSource: String?
+    let cacheState: String?
+    let cacheBefore: RouteCacheSnapshot?
+    let cacheAfter: RouteCacheSnapshot?
 
     private enum CodingKeys: String, CodingKey {
         case route
@@ -76,6 +96,9 @@ private struct RouteBenchmarkReport: Codable {
         case gpuP95FrameTimeMs = "gpuP95"
         case gpuP99FrameTimeMs = "gpuP99"
         case gpuTimingSource
+        case cacheState
+        case cacheBefore
+        case cacheAfter
     }
 
     init(
@@ -107,7 +130,10 @@ private struct RouteBenchmarkReport: Codable {
         gpuAverageFrameTimeMs: Double? = nil,
         gpuP95FrameTimeMs: Double? = nil,
         gpuP99FrameTimeMs: Double? = nil,
-        gpuTimingSource: String? = nil
+        gpuTimingSource: String? = nil,
+        cacheState: String? = nil,
+        cacheBefore: RouteCacheSnapshot? = nil,
+        cacheAfter: RouteCacheSnapshot? = nil
     ) {
         self.route = route
         self.averageFrameTimeMs = averageFrameTimeMs
@@ -138,6 +164,9 @@ private struct RouteBenchmarkReport: Codable {
         self.gpuP95FrameTimeMs = gpuP95FrameTimeMs
         self.gpuP99FrameTimeMs = gpuP99FrameTimeMs
         self.gpuTimingSource = gpuTimingSource
+        self.cacheState = cacheState
+        self.cacheBefore = cacheBefore
+        self.cacheAfter = cacheAfter
     }
 
     init(from decoder: Decoder) throws {
@@ -171,6 +200,9 @@ private struct RouteBenchmarkReport: Codable {
         gpuP95FrameTimeMs = try container.decodeIfPresent(Double.self, forKey: .gpuP95FrameTimeMs)
         gpuP99FrameTimeMs = try container.decodeIfPresent(Double.self, forKey: .gpuP99FrameTimeMs)
         gpuTimingSource = try container.decodeIfPresent(String.self, forKey: .gpuTimingSource)
+        cacheState = try container.decodeIfPresent(String.self, forKey: .cacheState)
+        cacheBefore = try container.decodeIfPresent(RouteCacheSnapshot.self, forKey: .cacheBefore)
+        cacheAfter = try container.decodeIfPresent(RouteCacheSnapshot.self, forKey: .cacheAfter)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -204,6 +236,9 @@ private struct RouteBenchmarkReport: Codable {
         try encodeNullable(gpuP95FrameTimeMs, forKey: .gpuP95FrameTimeMs, into: &container)
         try encodeNullable(gpuP99FrameTimeMs, forKey: .gpuP99FrameTimeMs, into: &container)
         try encodeNullable(gpuTimingSource, forKey: .gpuTimingSource, into: &container)
+        try encodeNullable(cacheState, forKey: .cacheState, into: &container)
+        try encodeNullable(cacheBefore, forKey: .cacheBefore, into: &container)
+        try encodeNullable(cacheAfter, forKey: .cacheAfter, into: &container)
     }
 
     private func encodeNullable<Value: Encodable>(
@@ -623,6 +658,8 @@ final class RealtimeRouteBenchmarkTests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(route.firstFrameTimeMs, 0)
                 XCTAssertGreaterThanOrEqual(route.droppedFrames, 0)
                 XCTAssertGreaterThanOrEqual(route.fallbackCount, 0)
+                XCTAssertNotNil(route.cacheBefore)
+                XCTAssertNotNil(route.cacheAfter)
                 XCTAssertGreaterThanOrEqual(route.memoryDeltaBytes, 0)
                 XCTAssertGreaterThanOrEqual(route.stableFrames, 0)
                 XCTAssertEqual(route.stableFrames + route.droppedFrames, route.frameCount)
@@ -988,6 +1025,9 @@ private struct RealtimeRouteBenchmarker {
         fallbackCount: () -> Int
     ) async -> RouteBenchmarkReport {
         HarbethContext.shared.performanceMonitor.clearAllMetrics()
+        HarbethContext.shared.resetCaches()
+        HarbethContext.shared.texturePool.purgeAllTexturesSync()
+        let cacheBefore = makeCacheSnapshot()
         let startMemory = currentResidentMemory()
         let firstFrame = await submitOnce(route: route, frameIndex: -1)
 
@@ -1006,6 +1046,7 @@ private struct RealtimeRouteBenchmarker {
         )
         let statistics = RealtimeRouteStatistics(snapshot: snapshot, deadlineMs: realtimeFrameDeadlineMs)
         let gpuTimingAvailable = statistics.gpuDistribution != nil
+        let cacheAfter = makeCacheSnapshot()
 
         return RouteBenchmarkReport(
             route: route.tag,
@@ -1038,7 +1079,33 @@ private struct RealtimeRouteBenchmarker {
             gpuP99FrameTimeMs: statistics.gpuDistribution?.p99,
             gpuTimingSource: gpuTimingAvailable && route.expectsGPUTimestamps
                 ? "MTLCommandBuffer.gpuStartTime/gpuEndTime via PerformanceMonitor"
-                : nil
+                : nil,
+            cacheState: "harbeth-caches-reset; driver caches and prepared sources retained",
+            cacheBefore: cacheBefore,
+            cacheAfter: cacheAfter
+        )
+    }
+
+    private func makeCacheSnapshot() -> RouteCacheSnapshot {
+        let context = HarbethContext.shared
+        let cache = context.debugCacheSnapshot()
+        let pool = context.texturePool.statistics
+        let derived = context.derivedResourceCacheSnapshot
+        return RouteCacheSnapshot(
+            texturePoolReservedBytes: cache.texturePoolByteCount,
+            texturePoolByteLimit: cache.texturePoolByteLimit,
+            heapReservedBytes: pool.heapReservedMemory,
+            heapUsedBytes: pool.heapUsedMemory,
+            derivedResourceBytes: cache.derivedResourceByteCount,
+            derivedResourceByteLimit: cache.derivedResourceByteLimit,
+            derivedResourceHits: derived.hitCount,
+            derivedResourceMisses: derived.missCount,
+            derivedResourceEvictions: derived.evictionCount,
+            derivedResourceRejectedInsertions: derived.rejectedInsertionCount,
+            imageResolutionBytes: cache.imageResolutionByteCount,
+            imageResolutionByteLimit: cache.imageResolutionByteLimit,
+            texturePoolCreated: pool.totalTexturesCreated,
+            texturePoolReused: pool.totalTexturesReused
         )
     }
 

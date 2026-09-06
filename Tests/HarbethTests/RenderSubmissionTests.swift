@@ -244,6 +244,78 @@ final class RenderSubmissionTests: XCTestCase {
         XCTAssertEqual(second.snapshot.state, .completed)
     }
 
+    func testDeliveryCallbackCanSubmitAgainWithoutDeadlock() async throws {
+        let (context, queue) = try makeSuspendedContext()
+        defer {
+            queue.isSuspended = false
+            context.recoverExecution()
+        }
+
+        let firstDelivery = expectation(description: "first delivery")
+        let nestedDelivery = expectation(description: "nested delivery")
+
+        _ = context.submitRenderOperation(
+            sourceIdentifier: "delivery-reentrant-first",
+            policy: .independent,
+            execute: { submission in
+                _ = submission.deliver {
+                    firstDelivery.fulfill()
+                    _ = context.submitRenderOperation(
+                        sourceIdentifier: "delivery-reentrant-nested",
+                        policy: .independent,
+                        execute: { nestedSubmission in
+                            _ = nestedSubmission.deliver { nestedDelivery.fulfill() }
+                        },
+                        onDiscard: { _ in XCTFail("重入提交不应被丢弃。") }
+                    )
+                }
+            },
+            onDiscard: { _ in XCTFail("首个 submission 不应被丢弃。") }
+        )
+
+        queue.isSuspended = false
+        await fulfillment(of: [firstDelivery, nestedDelivery], timeout: 2.0)
+    }
+
+    func testOnDiscardCallbackCanSubmitAgainWithoutDeadlock() async throws {
+        let (context, queue) = try makeSuspendedContext()
+        defer {
+            queue.isSuspended = false
+            context.recoverExecution()
+        }
+
+        let nestedDelivery = expectation(description: "discard callback nested delivery")
+        let firstDiscards = DiscardRecorder()
+        let first = context.submitRenderOperation(
+            sourceIdentifier: "discard-reentrant-first",
+            policy: .latestOnly(scopeIdentifier: "discard-reentrant"),
+            execute: { _ in XCTFail("被 supersede 的 submission 不应执行。") },
+            onDiscard: { reason in
+                firstDiscards.record(reason)
+                _ = context.submitRenderOperation(
+                    sourceIdentifier: "discard-reentrant-nested",
+                    policy: .latestOnly(scopeIdentifier: "discard-reentrant"),
+                    execute: { nestedSubmission in
+                        _ = nestedSubmission.deliver { nestedDelivery.fulfill() }
+                    },
+                    onDiscard: { _ in XCTFail("重入提交不应被丢弃。") }
+                )
+            }
+        )
+
+        _ = context.submitRenderOperation(
+            sourceIdentifier: "discard-reentrant-trigger",
+            policy: .latestOnly(scopeIdentifier: "discard-reentrant"),
+            execute: { _ in XCTFail("触发 supersede 的 submission 不应执行。") },
+            onDiscard: { _ in }
+        )
+
+        XCTAssertEqual(first.snapshot.state, .discarded)
+        XCTAssertEqual(firstDiscards.reasons, [.superseded])
+        queue.isSuspended = false
+        await fulfillment(of: [nestedDelivery], timeout: 2.0)
+    }
+
     private func makeSuspendedContext() throws -> (HarbethContext, OperationQueue) {
         try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable in this environment.")
 

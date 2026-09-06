@@ -617,6 +617,8 @@ extension ImageNode {
         )
     }
 
+    /// 执行队列开始处理时解析渲染计划；提交不会深拷贝 source 或自定义引用类型滤镜。
+    /// 调用方应保持共享参数不变，并独立保证输入资源的 GPU 生命周期与读写依赖。
     @discardableResult
     public func transmitFrame(
         profile: RenderProfile = .stablePreview,

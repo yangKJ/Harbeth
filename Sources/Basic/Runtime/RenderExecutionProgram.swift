@@ -11,6 +11,7 @@ import Foundation
 ///
 /// 它不是第三条公开使用路线，只负责把 sampler adaptation、pointwise fusion、
 /// render plan 与 diagnostics 固化为同一份执行事实，避免执行与诊断各自重新推导。
+/// 滤镜仍遵守调用方保持共享参数不变的合同；这里不会深拷贝协议对象或外部纹理。
 struct RenderExecutionProgram: @unchecked Sendable {
     let sourceFilterFingerprint: String
     let filters: [C7FilterProtocol]

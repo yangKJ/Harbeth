@@ -4,6 +4,8 @@ Harbeth 的维护目标是保持 Apple 多平台 GPU 图像与帧处理核心稳
 
 ## 本地最小验证
 
+构建工具要求 Xcode 26+（Swift 6.2、Apple SDK 26+），CI 固定使用 Xcode 26.3。Swift 语言模式与最低部署系统版本是独立合同：`SWIFT_VERSION=6.0` 不代表支持 Swift 6.0 编译器，使用新 SDK 构建也不要求用户升级到系统 26。
+
 ```bash
 env CLANG_MODULE_CACHE_PATH=.build/ModuleCache xcrun swift build
 env CLANG_MODULE_CACHE_PATH=.build/ModuleCache xcrun swift test

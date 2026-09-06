@@ -17,15 +17,25 @@ final class Device {
     let defaultLibrary: MTLLibrary?
     /// Metal file in ``Harbeth Framework``
     let harbethLibrary: MTLLibrary?
-    /// Load the texture tool
-    lazy var textureLoader: MTKTextureLoader = MTKTextureLoader(device: device)
+    private let textureLoaderLock = NSLock()
+    private var textureLoaderStorage: MTKTextureLoader?
+    /// 首次并发加载同样只创建一个 loader，避免 lazy 存储的初始化竞争。
+    var textureLoader: MTKTextureLoader {
+        textureLoaderLock.lock()
+        defer { textureLoaderLock.unlock() }
+        if let textureLoaderStorage { return textureLoaderStorage }
+        let loader = MTKTextureLoader(device: device)
+        textureLoaderStorage = loader
+        return loader
+    }
     /// Transform using color space
-    lazy var colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
+    let colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
     /// We are likely to encounter images with wider colour than sRGB
-    lazy var workingColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+    let workingColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
     /// Cache pipe state
-    private var pipelines = [C7KernelFunction: MTLComputePipelineState]()
     private var identityPipelines = [String: MTLComputePipelineState]()
+    private var pipelineCreations: [String: ComputePipelineCreation] = [:]
+    private var pipelineGeneration: UInt64 = 0
     private var identityFunctions = [String: MTLFunction]()
     /// Lock for thread safety
     private let pipelineLock = NSLock()
@@ -243,16 +253,7 @@ extension Device {
 
     /// Get pipeline state for kernel function with thread safety
     func pipelineState(for kernel: C7KernelFunction) -> MTLComputePipelineState? {
-        pipelineLock.lock()
-        defer { pipelineLock.unlock() }
-        return pipelines[kernel]
-    }
-
-    /// Set pipeline state for kernel function with thread safety
-    func setPipelineState(_ pipeline: MTLComputePipelineState, for kernel: C7KernelFunction) {
-        pipelineLock.lock()
-        defer { pipelineLock.unlock() }
-        pipelines[kernel] = pipeline
+        pipelineState(for: KernelFunctionIdentity(kind: .compute, primaryName: kernel))
     }
 
     func pipelineState(for identity: KernelFunctionIdentity) -> MTLComputePipelineState? {
@@ -265,6 +266,35 @@ extension Device {
         pipelineLock.lock()
         defer { pipelineLock.unlock() }
         identityPipelines[identity.fingerprint] = pipeline
+    }
+
+    /// 同一 identity 只创建一次；不同 identity 的 Metal 编译不占用共同缓存锁。
+    func makePipelineState(for identity: KernelFunctionIdentity, create: () throws -> MTLComputePipelineState) throws -> MTLComputePipelineState {
+        let key = identity.fingerprint
+        pipelineLock.lock()
+        if let cached = identityPipelines[key] {
+            pipelineLock.unlock()
+            return cached
+        }
+        if let pending = pipelineCreations[key] {
+            pipelineLock.unlock()
+            return try pending.waitForResult()
+        }
+        let pending = ComputePipelineCreation()
+        let generation = pipelineGeneration
+        pipelineCreations[key] = pending
+        pipelineLock.unlock()
+
+        let result = Result { try create() }
+        pipelineLock.lock()
+        if generation == pipelineGeneration {
+            if case .success(let pipeline) = result { identityPipelines[key] = pipeline }
+            pipelineCreations.removeValue(forKey: key)
+        }
+        pipelineLock.unlock()
+        // 即使期间发生 reset，原调用者仍需结束等待，但旧结果不能污染新缓存。
+        pending.complete(result)
+        return try result.get()
     }
 
     func cachedFunction(for identity: KernelFunctionIdentity) -> MTLFunction? {
@@ -281,8 +311,9 @@ extension Device {
 
     func removePipelineStates() {
         pipelineLock.lock()
-        pipelines.removeAll()
         identityPipelines.removeAll()
+        pipelineCreations.removeAll()
+        pipelineGeneration &+= 1
         pipelineLock.unlock()
     }
 
@@ -295,7 +326,7 @@ extension Device {
     var pipelineCount: Int {
         pipelineLock.lock()
         defer { pipelineLock.unlock() }
-        return pipelines.count + identityPipelines.count
+        return identityPipelines.count
     }
 
     var functionCacheCount: Int {

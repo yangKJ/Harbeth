@@ -9,6 +9,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # 与本地验收使用相同的编译器和 SDK，避免 runner 默认 Xcode 漂移。
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+
 jobs:
   swiftpm:
     name: Swift 6 Debug and Release Tests

@@ -26,6 +26,9 @@ import ImageIO
 ///         // do somthing..
 ///     })
 ///
+/// 异步提交保留输入与滤镜引用，不会深拷贝自定义引用类型滤镜。
+/// 调用方必须在执行期间保持共享参数不变，并保证输入纹理的 GPU 读写依赖正确。
+/// 取消通知或 scheduled 交付不代表 GPU 已完成，不能据此改写仍在使用的资源。
 public struct HarbethIO<Dest>: @unchecked Sendable {
     public typealias Element = Dest
     public let element: Dest
@@ -118,6 +121,7 @@ public extension HarbethIO {
 
     /// Synchronously renders the current source and filter chain.
     /// - Returns: The rendered result after GPU work required by this output has completed.
+    /// - Throws: 有滤镜或需物化色彩空间时，不支持原类型输出的输入返回 `renderableUnsupportedInputType`。
     func output(outputColorSpace: ImageColorSpaceContract? = nil) throws -> Dest {
         if self.filters.isEmpty {
             // 空滤镜仅在需要为非 texture 输入物化色彩空间合同时进入下方统一分发。
@@ -143,7 +147,7 @@ public extension HarbethIO {
         case let ee where CFGetTypeID(ee as CFTypeRef) == CMSampleBufferGetTypeID():
             return try castOutput(filtering(sampleBuffer: ee as! CMSampleBuffer, outputColorSpace: outputColorSpace))
         default:
-            return element
+            throw HarbethError.renderableUnsupportedInputType
         }
     }
 
@@ -215,8 +219,8 @@ public extension HarbethIO {
                 complete(self.castResult($0))
             })
         default:
-            complete(.success(element))
             HarbethContext.shared.performanceMonitor.endMonitoring(self.identifier)
+            complete(.failure(.renderableUnsupportedInputType))
             return completedSubmissionHandle()
         }
     }

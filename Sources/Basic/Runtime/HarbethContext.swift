@@ -332,10 +332,6 @@ public final class HarbethContext: @unchecked Sendable {
         runtimeDevice.pipelineState(for: kernel)
     }
 
-    func setComputePipelineState(_ pipeline: MTLComputePipelineState, for kernel: String) {
-        runtimeDevice.setPipelineState(pipeline, for: kernel)
-    }
-
     func computePipelineState(for identity: KernelFunctionIdentity) -> MTLComputePipelineState? {
         runtimeDevice.pipelineState(for: identity)
     }
@@ -345,13 +341,15 @@ public final class HarbethContext: @unchecked Sendable {
     }
 
     func makeComputePipelineState(identity: KernelFunctionIdentity) throws -> MTLComputePipelineState {
-        let descriptor = MTLComputePipelineDescriptor()
-        descriptor.computeFunction = try runtimeDevice.readMTLFunction(identity)
-        pipelineBinaryArchiveStore.attach(to: descriptor)
-        do {
-            return try device.makeComputePipelineState(descriptor: descriptor, options: [], reflection: nil)
-        } catch {
-            throw HarbethError.computePipelineState(identity.primaryName)
+        try runtimeDevice.makePipelineState(for: identity) {
+            let descriptor = MTLComputePipelineDescriptor()
+            descriptor.computeFunction = try runtimeDevice.readMTLFunction(identity)
+            pipelineBinaryArchiveStore.attach(to: descriptor)
+            do {
+                return try device.makeComputePipelineState(descriptor: descriptor, options: [], reflection: nil)
+            } catch {
+                throw HarbethError.computePipelineState(identity.primaryName)
+            }
         }
     }
 

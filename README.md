@@ -30,6 +30,8 @@ English | [简体中文](README_CN.md)
 
 ## Installation
 
+Build with Xcode 26 or later (Swift 6.2 and Apple platform SDKs 26 or later). Deployment targets remain iOS/iPadOS 15, macOS 12 and tvOS 15. CI is pinned to Xcode 26.3; Swift language mode remains 6.
+
 ### Swift Package Manager
 
 ```swift

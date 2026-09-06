@@ -27,6 +27,7 @@ preview hosting on iOS, iPadOS, macOS and tvOS.
   s.author           = { 'Condy' => 'yangkj310@gmail.com' }
   s.source           = { :git => 'https://github.com/yangKJ/Harbeth.git', :tag => s.version }
   
+  # Swift 语言模式为 6；编译器与 SDK 要求 Xcode 26+，与 SwiftPM 保持一致。
   s.swift_version    = '6.0'
   s.ios.deployment_target = '15.0'
   s.macos.deployment_target = '12.0'

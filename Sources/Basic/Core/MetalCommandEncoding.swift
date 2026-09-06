@@ -70,9 +70,7 @@ public struct MetalCommandEnvironment {
         if let cached = context.computePipelineState(for: identity) {
             return cached
         }
-        let pipeline = try context.makeComputePipelineState(identity: identity)
-        context.setComputePipelineState(pipeline, for: identity)
-        return pipeline
+        return try context.makeComputePipelineState(identity: identity)
     }
 
     private func validateRuntimeDevice() throws {

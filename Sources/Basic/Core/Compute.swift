@@ -30,7 +30,6 @@ struct Compute {
             HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: false)
             throw HarbethError.computePipelineState(kernel)
         }
-        context.setComputePipelineState(pipeline, for: kernel)
         HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: false)
         return pipeline
     }
@@ -45,7 +44,6 @@ struct Compute {
             HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: false)
             throw HarbethError.computePipelineState(identity.primaryName)
         }
-        context.setComputePipelineState(pipeline, for: identity)
         HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: false)
         return pipeline
     }
@@ -66,7 +64,6 @@ struct Compute {
         let operation = BlockOperation {
             do {
                 let pipeline = try context.makeComputePipelineState(identity: identity)
-                context.setComputePipelineState(pipeline, for: kernel)
                 HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute", hit: false)
                 complete(.success(pipeline))
             } catch {
@@ -90,7 +87,6 @@ struct Compute {
         let operation = BlockOperation {
             do {
                 let pipeline = try context.makeComputePipelineState(identity: identity)
-                context.setComputePipelineState(pipeline, for: identity)
                 HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("compute.identity", hit: false)
                 complete(.success(pipeline))
             } catch {

@@ -87,6 +87,84 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(asyncValue, callbackValue)
     }
 
+    func testUnsupportedInputWithFilterFailsAcrossSyncCallbackAndAsyncOutput() async throws {
+        let syncIO = HarbethIO(element: "seed", filters: [C7Brightness(brightness: 0.1)])
+        XCTAssertThrowsError(try syncIO.output()) { error in
+            guard case .renderableUnsupportedInputType = error as? HarbethError else {
+                return XCTFail("应为 renderableUnsupportedInputType，实际为 \(error)")
+            }
+        }
+
+        let callbackIO = HarbethIO(element: UnsupportedHarbethIOInput(), filters: [C7Brightness(brightness: 0.1)])
+        let callbackExpectation = expectation(description: "unsupported callback")
+        let callbackState = HarbethIOCallbackState()
+        callbackIO.transmitOutput { result in
+            callbackState.record(result)
+            callbackExpectation.fulfill()
+        }
+        await fulfillment(of: [callbackExpectation], timeout: 1)
+        XCTAssertEqual(callbackState.completionCount, 1)
+        guard case .renderableUnsupportedInputType? = callbackState.error else {
+            return XCTFail("应为 renderableUnsupportedInputType")
+        }
+
+        let asyncIO = HarbethIO(element: UnsupportedHarbethIOInput(), filters: [C7Brightness(brightness: 0.1)])
+        do {
+            _ = try await asyncIO.transmitOutput()
+            XCTFail("不支持的输入应失败")
+        } catch let error as HarbethError {
+            guard case .renderableUnsupportedInputType = error else {
+                return XCTFail("应为 renderableUnsupportedInputType，实际为 \(error)")
+            }
+        }
+    }
+
+    func testUnsupportedInputWithoutFilterRemainsOriginalFastPath() async throws {
+        let value = UnsupportedHarbethIOInput()
+        let io = HarbethIO(element: value, filters: [])
+        XCTAssertTrue(try io.output() == value)
+        let output = try await io.transmitOutput()
+        XCTAssertTrue(output == value)
+    }
+
+    func testUnsupportedInputEmptyFilterWithOutputColorSpaceFails() throws {
+        let io = HarbethIO(element: UnsupportedHarbethIOInput(), filters: [])
+        XCTAssertThrowsError(try io.output(outputColorSpace: .displayP3)) { error in
+            guard case .renderableUnsupportedInputType = error as? HarbethError else {
+                return XCTFail("应为 renderableUnsupportedInputType，实际为 \(error)")
+            }
+        }
+    }
+
+    func testDataURLAndImageAssetRemainValidTextureFrameAndRequestSources() throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "当前环境没有 Metal 设备。")
+        let image = C7Image(cgImage: try makeFixtureCGImage())
+        let data = try XCTUnwrap(image.c7.encodedPNGData())
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("harbeth-io-\(UUID().uuidString).png")
+        try data.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let asset = ImageAsset(storage: .data(data))
+        let dataIO = HarbethIO(element: data, filter: C7Resize(width: 2, height: 3))
+        let dataTexture = try dataIO.renderTexture()
+        let urlTexture = try HarbethIO(element: url, filter: C7Resize(width: 2, height: 3)).renderTexture()
+        let assetTexture = try HarbethIO(element: asset, filter: C7Resize(width: 2, height: 3)).renderTexture()
+        for texture in [dataTexture, urlTexture, assetTexture] {
+            XCTAssertEqual(texture.width, 2)
+            XCTAssertEqual(texture.height, 3)
+        }
+        XCTAssertThrowsError(try dataIO.output()) { error in
+            guard case .renderableUnsupportedInputType = error as? HarbethError else {
+                return XCTFail("Data 的原类型输出应失败，实际为 \(error)")
+            }
+        }
+
+        let request = try ImageNode.asset(asset).applying(C7Resize(width: 2, height: 3)).makeRenderRequest()
+        let frame = try request.renderFrame()
+        XCTAssertEqual(frame.texture.width, 2)
+        XCTAssertEqual(frame.texture.height, 3)
+    }
+
     func testFilteredTransmitOutputUsesRenderOperationQueue() async throws {
         let device = MTLCreateSystemDefaultDevice()
         try XCTSkipIf(device == nil, "Metal device is unavailable in this environment.")
@@ -608,6 +686,7 @@ private final class HarbethIOCallbackState: @unchecked Sendable {
     private let lock = NSLock()
     private var storedDidComplete = false
     private var storedError: HarbethError?
+    private var storedCompletionCount = 0
 
     var didComplete: Bool {
         get { lock.withLock { storedDidComplete } }
@@ -618,7 +697,21 @@ private final class HarbethIOCallbackState: @unchecked Sendable {
         get { lock.withLock { storedError } }
         set { lock.withLock { storedError = newValue } }
     }
+
+    var completionCount: Int {
+        lock.withLock { storedCompletionCount }
+    }
+
+    func record<Value>(_ result: Result<Value, HarbethError>) {
+        lock.withLock {
+            storedCompletionCount += 1
+            storedDidComplete = true
+            if case .failure(let error) = result { storedError = error }
+        }
+    }
 }
+
+private struct UnsupportedHarbethIOInput: Equatable, Sendable {}
 
 private struct HarbethIOC7ImageDisplayP3RenderFilter: RenderProtocol {
     var modifier: ModifierEnum {

@@ -8,6 +8,18 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-09-06
+
+#### Changed
+
+- 构建工具基线明确为 Xcode 26+、Swift 6.2 与 Apple SDK 26+；Swift 语言模式仍为 6，iOS/iPadOS 15、macOS 12、tvOS 15 部署下限保持不变。
+
+#### Fixed
+
+- 修复 `HarbethIO.output()` 与 `transmitOutput()` 对非空滤镜链的不支持输入静默返回原值成功的问题，现在一致返回 `renderableUnsupportedInputType`。需要色彩空间物化的空链同样报告不支持输入；无需物化的空链快速返回及已有 Data/URL/ImageAsset 加载路线保持不变。
+- 修复共享纹理加载器首次并发访问时可能重复初始化的问题，色彩空间改为初始化后不可变的资源。
+- 合并相同函数 identity 的并发 Compute Pipeline 创建，标准名称与结构化 identity 共用缓存。创建失败会结束等待并允许后续重试；缓存重置后，旧创建结果不会重新写入新缓存，不同 identity 的创建仍可并行。
+
 ### 2026-09-02
 
 #### Add
