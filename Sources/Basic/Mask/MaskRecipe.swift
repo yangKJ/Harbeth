@@ -62,7 +62,6 @@ public extension MaskRecipe {
             masked.append(ch)
             i = fingerprint.index(after: i)
         }
-
         var result: [(String, String)] = []
         var current = ""
         for ch in masked {

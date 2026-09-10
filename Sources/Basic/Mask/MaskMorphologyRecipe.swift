@@ -39,7 +39,6 @@ public struct MaskMorphologyRecipe: Sendable {
         let coverage = try normalizedCoverage(from: mask)
         let eroded = try morphology(.erosion, coverage)
         let dilated = try morphology(.dilation, coverage)
-
         switch kind {
         case .inner:
             return try subtract(coverage, by: eroded)

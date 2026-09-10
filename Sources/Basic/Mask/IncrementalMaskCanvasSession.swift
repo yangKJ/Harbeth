@@ -15,12 +15,10 @@ import Foundation
 public actor IncrementalMaskCanvasSession {
     private let canvas: IncrementalMaskCanvas
 
-    public init(
-        size: C7Size,
-        storageFormat: MaskStorageFormat = .coverage8,
-        coordinateSpace: MaskCoordinateSpace = .sourceNormalized,
-        identifier: String = UUID().uuidString
-    ) throws {
+    public init(size: C7Size,
+                storageFormat: MaskStorageFormat = .coverage8,
+                coordinateSpace: MaskCoordinateSpace = .sourceNormalized,
+                identifier: String = UUID().uuidString) throws {
         canvas = try IncrementalMaskCanvas(
             size: size,
             storageFormat: storageFormat,
@@ -30,12 +28,10 @@ public actor IncrementalMaskCanvasSession {
     }
 
     @discardableResult
-    public func apply(
-        points: [MaskBrushPoint],
-        settings: MaskBrushSettings = MaskBrushSettings(),
-        generation: UInt64? = nil,
-        cancellation: TextureMultiPassCancellationToken? = nil
-    ) throws -> MaskCanvasUpdate {
+    public func apply(points: [MaskBrushPoint],
+                      settings: MaskBrushSettings = MaskBrushSettings(),
+                      generation: UInt64? = nil,
+                      cancellation: TextureMultiPassCancellationToken? = nil) throws -> MaskCanvasUpdate {
         try canvas.apply(
             points: points,
             settings: settings,

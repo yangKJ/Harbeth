@@ -82,10 +82,12 @@ final class MaskRuntimeTests: XCTestCase {
         )
 
         XCTAssertThrowsError(try canvas.apply(points: [], generation: 2)) { error in
-            XCTAssertEqual(
-                error as? IncrementalMaskCanvasError,
-                .staleGeneration(requested: 2, current: 3)
-            )
+            guard let harbethError = error as? HarbethError,
+                  case .incrementalMaskCanvasStaleGeneration(let requested, let current) = harbethError else {
+                return XCTFail("Expected HarbethError.incrementalMaskCanvasStaleGeneration, got \(error)")
+            }
+            XCTAssertEqual(requested, 2)
+            XCTAssertEqual(current, 3)
         }
     }
 

@@ -17,7 +17,6 @@ public extension MTLTextureCompatible_ {
         guard width > 0, height > 0, let resolvedRegion = resolvedHistogramRegion(scope.region) else {
             return nil
         }
-
         let outputTexture = try TextureLoader.makeTexture(
             width: width,
             height: height,
@@ -27,12 +26,10 @@ public extension MTLTextureCompatible_ {
             ],
             identifier: "TextureScopedMask"
         )
-
         let resolvedCoverageThreshold = min(max(scope.coverageThreshold, 0), 1)
         let maskSample = makeMaskCoverageSample(for: scope.mask)
         let bytesPerRow = width * 4
         var outputBytes = [UInt8](repeating: 0, count: width * height * 4)
-
         bytes.withUnsafeBytes { rawBuffer in
             let rgba = rawBuffer.bindMemory(to: UInt8.self)
             for y in 0..<height {
@@ -40,7 +37,6 @@ public extension MTLTextureCompatible_ {
                 for x in 0..<width {
                     let outputOffset = rowBase + x * 4
                     outputBytes[outputOffset + 3] = 255
-
                     let isInRegion =
                         x >= resolvedRegion.origin.x &&
                         y >= resolvedRegion.origin.y &&

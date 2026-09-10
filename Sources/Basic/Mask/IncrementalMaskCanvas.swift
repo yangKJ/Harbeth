@@ -8,10 +8,6 @@
 import Foundation
 import Metal
 
-public enum IncrementalMaskCanvasError: Error, Sendable, Equatable {
-    case staleGeneration(requested: UInt64, current: UInt64)
-}
-
 public struct MaskCanvasUpdate: Sendable, Equatable {
     public let dirtyBounds: MaskCoverageBounds?
     public let encodedPointCount: Int
@@ -64,15 +60,14 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
                       cancellation: TextureMultiPassCancellationToken? = nil) throws -> MaskCanvasUpdate {
         try stateLock.withLock {
             if let requestedGeneration, requestedGeneration < generation {
-                throw IncrementalMaskCanvasError.staleGeneration(requested: requestedGeneration, current: generation)
+                throw HarbethError.incrementalMaskCanvasStaleGeneration(requested: requestedGeneration, current: generation)
             }
             let targetGeneration = requestedGeneration ?? generation
-            if cancellation?.isCancelled == true { throw TextureMultiPassError.cancelled }
+            if cancellation?.isCancelled == true { throw HarbethError.textureMultiPassCancelled }
             guard settings.flow > 0, settings.density > 0 else {
                 generation = targetGeneration
                 return MaskCanvasUpdate(dirtyBounds: nil, encodedPointCount: 0, revision: revision, generation: generation)
             }
-
             let prepared = MaskBrushRecipe.prepareIncremental(points: points, settings: settings)
             guard !prepared.isEmpty else {
                 generation = targetGeneration
@@ -82,7 +77,7 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
             var modifiedBounds: MaskCoverageBounds?
             var chunks: [(points: [MaskBrushPoint], bounds: MaskCoverageBounds)] = []
             while chunkStart < prepared.count {
-                if cancellation?.isCancelled == true { throw TextureMultiPassError.cancelled }
+                if cancellation?.isCancelled == true { throw HarbethError.textureMultiPassCancelled }
                 let chunkEnd = min(chunkStart + MaskBrushRecipe.maximumPreparedPointCount, prepared.count)
                 let chunk = Array(prepared[chunkStart..<chunkEnd])
                 if let chunkBounds = Self.dirtyBounds(
@@ -101,7 +96,7 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
                 generation = targetGeneration
                 return MaskCanvasUpdate(dirtyBounds: nil, encodedPointCount: 0, revision: revision, generation: generation)
             }
-            if cancellation?.isCancelled == true { throw TextureMultiPassError.cancelled }
+            if cancellation?.isCancelled == true { throw HarbethError.textureMultiPassCancelled }
             if textureHasSnapshot {
                 texture = try Self.copy(texture: texture, identifier: identifier)
                 textureHasSnapshot = false
@@ -121,7 +116,7 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
                     commandBuffer: commandBuffer
                 )
             }
-            if cancellation?.isCancelled == true { throw TextureMultiPassError.cancelled }
+            if cancellation?.isCancelled == true { throw HarbethError.textureMultiPassCancelled }
             commandBuffer.commit()
             commandBuffer.waitUntilCompleted()
             if commandBuffer.status == .error {
@@ -143,7 +138,7 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
     public func reset(generation requestedGeneration: UInt64? = nil) throws -> MaskCanvasUpdate {
         try stateLock.withLock {
             if let requestedGeneration, requestedGeneration < generation {
-                throw IncrementalMaskCanvasError.staleGeneration(requested: requestedGeneration, current: generation)
+                throw HarbethError.incrementalMaskCanvasStaleGeneration(requested: requestedGeneration, current: generation)
             }
             let targetGeneration = requestedGeneration ?? generation
             if textureHasSnapshot {
@@ -189,10 +184,7 @@ public final class IncrementalMaskCanvas: @unchecked Sendable {
 }
 
 private extension IncrementalMaskCanvas {
-    static func makeTexture(width: Int,
-                            height: Int,
-                            storageFormat: MaskStorageFormat,
-                            identifier: String) throws -> MTLTexture {
+    static func makeTexture(width: Int, height: Int, storageFormat: MaskStorageFormat, identifier: String) throws -> MTLTexture {
         try TextureLoader.makeTexture(
             width: width,
             height: height,
@@ -235,10 +227,7 @@ private extension IncrementalMaskCanvas {
         return output
     }
 
-    static func dirtyBounds(points: [MaskBrushPoint],
-                            settings: MaskBrushSettings,
-                            width: Int,
-                            height: Int) -> MaskCoverageBounds? {
+    static func dirtyBounds(points: [MaskBrushPoint], settings: MaskBrushSettings, width: Int, height: Int) -> MaskCoverageBounds? {
         guard !points.isEmpty else { return nil }
         let shortEdge = Float(max(min(width, height), 1))
         let radius = CGFloat(settings.width * 0.5 * shortEdge + 2)
@@ -270,11 +259,7 @@ private extension IncrementalMaskCanvas {
             throw HarbethError.commandBuffer
         }
         var hasEndedEncoding = false
-        defer {
-            if !hasEndedEncoding {
-                encoder.endEncoding()
-            }
-        }
+        defer { if !hasEndedEncoding { encoder.endEncoding() } }
         let kernel = baselineTexture == nil ? "InnerIncrementalBrushMask" : "InnerIncrementalBrushMaskFromBaseline"
         let pipeline = try Compute.makeComputePipelineState(with: kernel)
         encoder.setComputePipelineState(pipeline)
@@ -311,11 +296,7 @@ private extension IncrementalMaskCanvas {
             throw HarbethError.commandBuffer
         }
         var hasEndedEncoding = false
-        defer {
-            if !hasEndedEncoding {
-                encoder.endEncoding()
-            }
-        }
+        defer { if !hasEndedEncoding { encoder.endEncoding() } }
         let pipeline = try Compute.makeComputePipelineState(with: name)
         encoder.setComputePipelineState(pipeline)
         encoder.setTexture(texture, index: 0)

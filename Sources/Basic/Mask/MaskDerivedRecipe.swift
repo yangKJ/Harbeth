@@ -206,7 +206,9 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
     private func execute(cancellation: TextureMultiPassCancellationToken? = nil, useContextCache: Bool) throws -> MaskDerivedResult {
         let executionCacheKey = executionCacheKey
         let contextIdentity = useContextCache ? HarbethContext.shared.derivedResourceStore.makeIdentity(domain: .mask, fingerprint: executionCacheKey) : nil
-        let contextResult = contextIdentity.flatMap { HarbethContext.shared.derivedResourceStore.value(for: $0) as? MaskDerivedCacheEntry }?.result
+        let contextResult = contextIdentity.flatMap {
+            HarbethContext.shared.derivedResourceStore.value(for: $0) as? MaskDerivedCacheEntry
+        }?.result
         if let cached = contextResult {
             return MaskDerivedResult(
                 texture: cached.texture,
@@ -250,7 +252,11 @@ public struct MaskDerivedRecipe: @unchecked Sendable {
             )
         )
         if let contextIdentity {
-            HarbethContext.shared.derivedResourceStore.insert(MaskDerivedCacheEntry(result), byteCost: max(result.texture.allocatedSize, 1), for: contextIdentity)
+            HarbethContext.shared.derivedResourceStore.insert(
+                MaskDerivedCacheEntry(result),
+                byteCost: max(result.texture.allocatedSize, 1),
+                for: contextIdentity
+            )
         }
         return result
     }
@@ -279,10 +285,7 @@ private final class MaskDerivedCacheEntry: @unchecked Sendable {
 }
 
 private extension MaskDerivedRecipe {
-    static func diagnostics(plan: MaskExecutionPlan,
-                            texture: MTLTexture,
-                            cacheHit: Bool,
-                            dirtyBounds: MaskCoverageBounds?) -> MaskExecutionDiagnostics {
+    static func diagnostics(plan: MaskExecutionPlan, texture: MTLTexture, cacheHit: Bool, dirtyBounds: MaskCoverageBounds?) -> MaskExecutionDiagnostics {
         MaskExecutionDiagnostics(
             passCount: plan.passCount,
             eliminatedOperationCount: plan.eliminatedOperationCount,
@@ -324,9 +327,7 @@ private extension MaskDerivedRecipe {
         case .distanceField(let maxDistance, let threshold):
             return try MaskDistanceFieldRecipe(maxDistance: maxDistance, threshold: threshold).makeTexture(from: descriptor)
         case .smartFeather(let radius, let sensitivity):
-            guard let guideTexture,
-                  guideTexture.width == texture.width,
-                  guideTexture.height == texture.height else {
+            guard let guideTexture, guideTexture.width == texture.width, guideTexture.height == texture.height else {
                 throw HarbethError.textureSizeMismatch
             }
             return try MaskGuidedRefinementRecipe(
@@ -389,13 +390,10 @@ private extension MaskDerivedRecipe {
     }
 
     func checkCancellation(_ token: TextureMultiPassCancellationToken?) throws {
-        if token?.isCancelled == true { throw TextureMultiPassError.cancelled }
+        if token?.isCancelled == true { throw HarbethError.textureMultiPassCancelled }
     }
 
-    static func expandedDirtyBounds(_ bounds: MaskCoverageBounds?,
-                                    halo: Int,
-                                    width: Int,
-                                    height: Int) -> MaskCoverageBounds? {
+    static func expandedDirtyBounds(_ bounds: MaskCoverageBounds?, halo: Int, width: Int, height: Int) -> MaskCoverageBounds? {
         guard let bounds else { return nil }
         let expansion = max(halo, 0)
         let minX = max(bounds.x - expansion, 0)

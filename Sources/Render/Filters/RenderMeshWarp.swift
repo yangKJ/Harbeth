@@ -15,14 +15,6 @@ import Foundation
 /// 因此修改一个控制点只会把该源网格位置移动到指定目标位置。
 public struct RenderMeshWarp: RenderProtocol {
 
-    public enum ValidationError: Error, Equatable, Sendable {
-        case insufficientGridDimensions(rows: Int, columns: Int)
-        case gridDimensionsOverflow(rows: Int, columns: Int)
-        case tooManyControlPoints(maximum: Int, actual: Int)
-        case incorrectControlPointCount(expected: Int, actual: Int)
-        case nonFiniteControlPoint(index: Int)
-    }
-
     public static let maximumControlPointCount = 4096
 
     public let rows: Int
@@ -47,23 +39,25 @@ public struct RenderMeshWarp: RenderProtocol {
     ///   - controlPoints: 行优先目标点，数量必须等于 `rows * columns`，且所有坐标必须有限。
     public init(rows: Int, columns: Int, controlPoints: [FreePoint2D]) throws {
         guard rows >= 2, columns >= 2 else {
-            throw ValidationError.insufficientGridDimensions(rows: rows, columns: columns)
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderMeshWarp", reason: "rows and columns must both be at least 2; got \(rows)x\(columns)"
+            )
         }
         guard rows <= Int.max / columns else {
-            throw ValidationError.gridDimensionsOverflow(rows: rows, columns: columns)
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderMeshWarp", reason: "grid dimensions overflow; got \(rows)x\(columns)"
+            )
         }
 
         let expectedCount = rows * columns
         guard expectedCount <= Self.maximumControlPointCount else {
-            throw ValidationError.tooManyControlPoints(
-                maximum: Self.maximumControlPointCount,
-                actual: expectedCount
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderMeshWarp", reason: "control point count \(expectedCount) exceeds \(Self.maximumControlPointCount)"
             )
         }
         guard controlPoints.count == expectedCount else {
-            throw ValidationError.incorrectControlPointCount(
-                expected: expectedCount,
-                actual: controlPoints.count
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderMeshWarp", reason: "expected \(expectedCount) control points, got \(controlPoints.count)"
             )
         }
 
@@ -73,22 +67,27 @@ public struct RenderMeshWarp: RenderProtocol {
             self.controlPoints = controlPoints
             return
         }
-        throw ValidationError.nonFiniteControlPoint(index: invalidIndex)
+        throw HarbethError.renderPrimitiveValidationFailed(
+            primitive: "RenderMeshWarp", reason: "control point \(invalidIndex) is non-finite"
+        )
     }
 
     /// 按指定控制点数量创建未形变的规则网格。
     public static func identity(rows: Int, columns: Int) throws -> RenderMeshWarp {
         guard rows >= 2, columns >= 2 else {
-            throw ValidationError.insufficientGridDimensions(rows: rows, columns: columns)
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderMeshWarp", reason: "rows and columns must both be at least 2; got \(rows)x\(columns)"
+            )
         }
         guard rows <= Int.max / columns else {
-            throw ValidationError.gridDimensionsOverflow(rows: rows, columns: columns)
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderMeshWarp", reason: "grid dimensions overflow; got \(rows)x\(columns)"
+            )
         }
         let expectedCount = rows * columns
         guard expectedCount <= Self.maximumControlPointCount else {
-            throw ValidationError.tooManyControlPoints(
-                maximum: Self.maximumControlPointCount,
-                actual: expectedCount
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderMeshWarp", reason: "control point count \(expectedCount) exceeds \(Self.maximumControlPointCount)"
             )
         }
         let points = (0..<rows).flatMap { row in

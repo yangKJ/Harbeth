@@ -14,15 +14,6 @@ import Foundation
 /// 自相交路径、多 subpath、even-odd 镂空和 feather 继续使用 `MaskPathRecipe`。
 public struct RenderVectorMask: RenderProtocol {
 
-    public enum ValidationError: Error, Equatable, Sendable {
-        case insufficientPoints
-        case tooManyPoints
-        case nonFinitePoint(index: Int)
-        case degeneratePolygon
-        case nonSimplePolygon
-        case unsupportedSampleCount(Int)
-    }
-
     public static let maximumPointCount = 4096
 
     public let points: [FreePoint2D]
@@ -46,16 +37,16 @@ public struct RenderVectorMask: RenderProtocol {
             normalizedPoints.removeLast()
         }
         guard normalizedPoints.count >= 3 else {
-            throw ValidationError.insufficientPoints
+            throw HarbethError.renderPrimitiveValidationFailed(primitive: "RenderVectorMask", reason: "at least 3 points are required")
         }
         guard normalizedPoints.count <= Self.maximumPointCount else {
-            throw ValidationError.tooManyPoints
+            throw HarbethError.renderPrimitiveValidationFailed(primitive: "RenderVectorMask", reason: "point count exceeds \(Self.maximumPointCount)")
         }
         if let index = normalizedPoints.firstIndex(where: { !$0.x.isFinite || !$0.y.isFinite }) {
-            throw ValidationError.nonFinitePoint(index: index)
+            throw HarbethError.renderPrimitiveValidationFailed(primitive: "RenderVectorMask", reason: "point \(index) is non-finite")
         }
         guard [1, 2, 4, 8].contains(rasterSampleCount) else {
-            throw ValidationError.unsupportedSampleCount(rasterSampleCount)
+            throw HarbethError.renderPrimitiveValidationFailed(primitive: "RenderVectorMask", reason: "sample count \(rasterSampleCount) is unsupported")
         }
         let triangles = try Self.triangulate(normalizedPoints)
         self.points = normalizedPoints
@@ -85,7 +76,7 @@ public struct RenderVectorMask: RenderProtocol {
         }
         let signedArea = twiceSignedArea * 0.5
         guard abs(signedArea) > 1e-7 else {
-            throw ValidationError.degeneratePolygon
+            throw HarbethError.renderPrimitiveValidationFailed(primitive: "RenderVectorMask", reason: "polygon is degenerate")
         }
 
         let isCounterClockwise = signedArea > 0
@@ -108,7 +99,6 @@ public struct RenderVectorMask: RenderProtocol {
                 guard candidate != previous, candidate != current, candidate != next else { return false }
                 return point(points[candidate], liesInTriangle: a, b, c)
             }
-
             if isConvex && !containsPoint {
                 if isCounterClockwise {
                     triangles += [a, b, c]
@@ -120,7 +110,7 @@ public struct RenderVectorMask: RenderProtocol {
             } else {
                 attemptsWithoutEar += 1
                 if attemptsWithoutEar >= remaining.count {
-                    throw ValidationError.nonSimplePolygon
+                    throw HarbethError.renderPrimitiveValidationFailed(primitive: "RenderVectorMask", reason: "polygon is not simple")
                 }
             }
         }

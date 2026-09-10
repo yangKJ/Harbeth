@@ -236,11 +236,7 @@ extension HarbethContext {
         derivedResourceStore.configure(configuration)
     }
 
-    public func makeDerivedResourceIdentity(
-        domain: DerivedResourceDomain,
-        namespace: String? = nil,
-        fingerprint: String
-    ) -> DerivedResourceIdentity {
+    public func makeDerivedResourceIdentity(domain: DerivedResourceDomain, namespace: String? = nil, fingerprint: String) -> DerivedResourceIdentity {
         derivedResourceStore.makeIdentity(domain: domain, namespace: namespace, fingerprint: fingerprint)
     }
 

@@ -14,12 +14,6 @@ import CryptoKit
 /// 使用Metal实现的CUBE文件格式LUT滤镜
 public struct C7ColorCube: C7FilterProtocol {
 
-    /// 具名 LUT 的紧凑资源存在但未能通过完整性校验时的明确失败状态。
-    /// 调用方可以据此中止当前效果，而不是把错误资源当成旧 CUBE 继续渲染。
-    public enum ResourceLoadError: Error, Sendable, Equatable {
-        case invalidCompactResource(name: String, reason: Resource.CompactResourceError)
-    }
-
     public enum Interpolation: Float, Sendable, Codable, Equatable, Hashable {
         case trilinear = 0
         case tetrahedral = 1
@@ -32,22 +26,12 @@ public struct C7ColorCube: C7FilterProtocol {
         public let domainMaximum: SIMD3<Float>
         public let identity: String
 
-        public init(
-            dimension: Int,
-            data: Data,
-            domainMinimum: SIMD3<Float> = .zero,
-            domainMaximum: SIMD3<Float> = SIMD3<Float>(repeating: 1)
-        ) {
+        public init(dimension: Int, data: Data, domainMinimum: SIMD3<Float> = .zero, domainMaximum: SIMD3<Float> = SIMD3<Float>(repeating: 1)) {
             self.dimension = dimension
             self.data = data
             self.domainMinimum = domainMinimum
             self.domainMaximum = domainMaximum
-            self.identity = Self.makeIdentity(
-                dimension: dimension,
-                data: data,
-                domainMinimum: domainMinimum,
-                domainMaximum: domainMaximum
-            )
+            self.identity = Self.makeIdentity(dimension: dimension, data: data, domainMinimum: domainMinimum, domainMaximum: domainMaximum)
         }
     }
     
@@ -57,7 +41,7 @@ public struct C7ColorCube: C7FilterProtocol {
     public private(set) var resourceBundleName: String?
     public private(set) var interpolation: Interpolation
     public private(set) var resourceIdentity: String?
-    public private(set) var resourceLoadError: ResourceLoadError?
+    public private(set) var resourceLoadError: HarbethError?
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorCube")
@@ -83,11 +67,7 @@ public struct C7ColorCube: C7FilterProtocol {
     public var kernelResourceIdentity: String? { resourceIdentity }
 
     public var kernelPixelContract: KernelPixelContract {
-        KernelPixelContract(
-            precision: .float32,
-            dynamicRangeBehavior: .unspecified,
-            samplingFootprint: .point
-        )
+        KernelPixelContract(precision: .float32, dynamicRangeBehavior: .unspecified, samplingFootprint: .point)
     }
     
     private var lutTexture: MTLTexture?
@@ -100,9 +80,7 @@ public struct C7ColorCube: C7FilterProtocol {
         self.init(cubeResource: resolution.resource, intensity: intensity, interpolation: interpolation)
         self.resourceName = cubeName
         self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
-        self.resourceLoadError = resolution.error.map {
-            .invalidCompactResource(name: cubeName, reason: $0)
-        }
+        self.resourceLoadError = resolution.error
     }
 
     public init(cubeName: String, forResource resource: String, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
@@ -179,16 +157,9 @@ public struct C7ColorCube: C7FilterProtocol {
 }
 
 extension C7ColorCube.Resource {
-    public enum CompactResourceError: Error, Sendable, Equatable {
-        case unreadable
-        case invalidHeader
-        case invalidPayload
-        case checksumMismatch
-    }
-
     struct NamedResourceResolution {
         let resource: C7ColorCube.Resource?
-        let error: C7ColorCube.Resource.CompactResourceError?
+        let error: HarbethError?
     }
 
     static func readCubeResource(from url: URL) -> C7ColorCube.Resource? {
@@ -281,14 +252,16 @@ extension C7ColorCube.Resource {
         }
     }
 
-    static func loadCompactResource(from url: URL) -> Result<C7ColorCube.Resource, CompactResourceError> {
-        guard let encoded = try? Data(contentsOf: url) else { return .failure(.unreadable) }
+    static func loadCompactResource(from url: URL) -> Result<C7ColorCube.Resource, HarbethError> {
+        guard let encoded = try? Data(contentsOf: url) else {
+            return .failure(.cubeCompactResourceFailed(reason: "unreadable"))
+        }
         do {
             return .success(try decodeCompactResource(encoded))
-        } catch let error as CompactResourceError {
+        } catch let error as HarbethError {
             return .failure(error)
         } catch {
-            return .failure(.invalidPayload)
+            return .failure(.cubeCompactResourceFailed(reason: "invalidPayload"))
         }
     }
 
@@ -375,7 +348,7 @@ private extension C7ColorCube.Resource {
 
     static func decodeCompactResource(_ encoded: Data) throws -> C7ColorCube.Resource {
         guard encoded.count >= compactHeaderLength else {
-            throw C7ColorCube.Resource.CompactResourceError.invalidHeader
+            throw HarbethError.cubeCompactResourceFailed(reason: "invalidHeader")
         }
         let bytes = [UInt8](encoded)
         guard Array(bytes[0..<4]) == compactMagic,
@@ -383,7 +356,7 @@ private extension C7ColorCube.Resource {
               let encodedDimension = integer(UInt16.self, bytes: bytes, at: 6),
               let encodedPayloadLength = integer(UInt32.self, bytes: bytes, at: 32),
               let encodedCompressedLength = integer(UInt32.self, bytes: bytes, at: 36) else {
-            throw C7ColorCube.Resource.CompactResourceError.invalidHeader
+            throw HarbethError.cubeCompactResourceFailed(reason: "invalidHeader")
         }
         let dimension = Int(encodedDimension)
         let payloadLength = Int(encodedPayloadLength)
@@ -398,7 +371,7 @@ private extension C7ColorCube.Resource {
               domainMinimum.x < domainMaximum.x,
               domainMinimum.y < domainMaximum.y,
               domainMinimum.z < domainMaximum.z else {
-            throw C7ColorCube.Resource.CompactResourceError.invalidHeader
+            throw HarbethError.cubeCompactResourceFailed(reason: "invalidHeader")
         }
         var decoded = Data(count: payloadLength)
         let decodedLength = decoded.withUnsafeMutableBytes { destination in
@@ -418,24 +391,19 @@ private extension C7ColorCube.Resource {
             }
         }
         guard decodedLength == payloadLength else {
-            throw C7ColorCube.Resource.CompactResourceError.invalidPayload
+            throw HarbethError.cubeCompactResourceFailed(reason: "invalidPayload")
         }
         let expectedChecksum = Data(bytes[compactChecksumOffset..<(compactChecksumOffset + compactChecksumLength)])
         guard Data(SHA256.hash(data: decoded)) == expectedChecksum else {
-            throw C7ColorCube.Resource.CompactResourceError.checksumMismatch
+            throw HarbethError.cubeCompactResourceFailed(reason: "checksumMismatch")
         }
         let values = decoded.withUnsafeBytes { buffer in
             Array(buffer.bindMemory(to: Float.self))
         }
         guard values.allSatisfy(\.isFinite) else {
-            throw C7ColorCube.Resource.CompactResourceError.invalidPayload
+            throw HarbethError.cubeCompactResourceFailed(reason: "invalidPayload")
         }
-        return C7ColorCube.Resource(
-            dimension: dimension,
-            data: decoded,
-            domainMinimum: domainMinimum,
-            domainMaximum: domainMaximum
-        )
+        return C7ColorCube.Resource(dimension: dimension, data: decoded, domainMinimum: domainMinimum, domainMaximum: domainMaximum)
     }
 
     static func vector(bytes: [UInt8], at offset: Int) -> SIMD3<Float>? {

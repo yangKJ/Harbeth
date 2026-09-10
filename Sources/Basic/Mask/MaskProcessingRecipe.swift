@@ -99,16 +99,12 @@ private extension MaskProcessingRecipe {
             .output()
     }
 
-    static func coverageBounds(in bytes: Data,
-                               width: Int,
-                               height: Int,
-                               threshold: Float?) -> MaskCoverageBounds? {
+    static func coverageBounds(in bytes: Data, width: Int, height: Int, threshold: Float?) -> MaskCoverageBounds? {
         let resolvedThreshold = threshold ?? 0
         var minX = width
         var minY = height
         var maxX = -1
         var maxY = -1
-
         bytes.withUnsafeBytes { rawBuffer in
             let rgba = rawBuffer.bindMemory(to: UInt8.self)
             for y in 0..<height {
@@ -125,7 +121,6 @@ private extension MaskProcessingRecipe {
                 }
             }
         }
-
         guard maxX >= minX, maxY >= minY else {
             return nil
         }

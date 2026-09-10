@@ -65,10 +65,12 @@ final class StrokeSurfaceTests: XCTestCase {
             _ = try await replacePredicted(surface: surface, points: [], style: style, generation: 3)
             XCTFail("Expected stale predicted generation to be rejected")
         } catch {
-            XCTAssertEqual(
-                error as? StrokeSurfaceError,
-                .stalePredictedGeneration(requested: 3, current: 4)
-            )
+            guard let harbethError = error as? HarbethError,
+                  case .strokeSurfaceStalePredictedGeneration(let requested, let current) = harbethError else {
+                return XCTFail("Expected HarbethError.strokeSurfaceStalePredictedGeneration, got \(error)")
+            }
+            XCTAssertEqual(requested, 3)
+            XCTAssertEqual(current, 4)
         }
     }
 

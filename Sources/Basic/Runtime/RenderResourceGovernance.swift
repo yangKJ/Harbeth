@@ -92,29 +92,6 @@ public struct RenderResourceAdmission: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-public struct RenderResourceBudgetError: Error, Sendable, Equatable, LocalizedError, HarbethDiagnosticError {
-    public let admission: RenderResourceAdmission
-
-    public var errorDescription: String? {
-        let summary = admission.violations.map { violation in
-            "\(violation.limit.rawValue)=\(violation.estimated)>\(violation.maximum)"
-        }.joined(separator: ", ")
-        return "Render request exceeds its resource budget: \(summary)."
-    }
-
-    public var harbethDiagnosticCode: String {
-        "harbeth.render.resource_budget_exceeded"
-    }
-
-    public var harbethDiagnosticMetadata: [String: String] {
-        [
-            "estimate": admission.estimate.fingerprint,
-            "budget": admission.budget?.fingerprint ?? "none",
-            "violations": admission.violations.map(\.limit.rawValue).joined(separator: ",")
-        ]
-    }
-}
-
 /// 实际执行时由 Harbeth allocator 观察到的纹理请求与分配量。
 public struct RenderResourceObservation: Sendable, Codable, Equatable, Hashable {
     public let textureRequestCount: Int
@@ -192,7 +169,7 @@ public extension RenderRequest {
     internal func validateResourceAdmission() throws {
         let admission = resourceAdmission
         guard admission.isAccepted else {
-            throw RenderResourceBudgetError(admission: admission)
+            throw HarbethError.renderResourceBudgetExceeded(admission)
         }
     }
 

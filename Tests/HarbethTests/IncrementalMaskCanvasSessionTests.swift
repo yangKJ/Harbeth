@@ -31,10 +31,12 @@ final class IncrementalMaskCanvasSessionTests: XCTestCase {
             _ = try await session.apply(points: [], generation: 2)
             XCTFail("Expected stale generation to fail")
         } catch {
-            XCTAssertEqual(
-                error as? IncrementalMaskCanvasError,
-                .staleGeneration(requested: 2, current: 4)
-            )
+            guard let harbethError = error as? HarbethError,
+                  case .incrementalMaskCanvasStaleGeneration(let requested, let current) = harbethError else {
+                return XCTFail("Expected HarbethError.incrementalMaskCanvasStaleGeneration, got \(error)")
+            }
+            XCTAssertEqual(requested, 2)
+            XCTAssertEqual(current, 4)
         }
     }
 }

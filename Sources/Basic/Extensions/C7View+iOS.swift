@@ -31,18 +31,15 @@ extension HarbethWrapper where Base: C7View {
     
     @MainActor
     public func toImage(bezierPath: UIBezierPath) -> C7Image {
-        let maskLayer = CAShapeLayer.init()
-        maskLayer.path = bezierPath.cgPath
-        maskLayer.fillColor = UIColor.black.cgColor
-        maskLayer.strokeColor = UIColor.darkGray.cgColor
-        maskLayer.frame = base.bounds
-        maskLayer.contentsCenter = .init(x: 0.5, y: 0.5, width: 0.1, height: 0.1)
-        maskLayer.contentsScale = base.traitCollection.displayScale
-        let contentLayer = CALayer.init()
-        contentLayer.mask = maskLayer
-        contentLayer.frame = base.bounds
-        base.layer.mask = maskLayer
-        return base.c7.toImage()
+        let format = UIGraphicsImageRendererFormat.preferred()
+        format.scale = base.traitCollection.displayScale
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: base.bounds.size, format: format).image { context in
+            context.cgContext.saveGState()
+            bezierPath.addClip()
+            base.drawHierarchy(in: base.bounds, afterScreenUpdates: true)
+            context.cgContext.restoreGState()
+        }
     }
 }
 

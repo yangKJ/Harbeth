@@ -133,7 +133,9 @@ final class RegionalProcessingContractTests: XCTestCase {
             readRegion: CGRect(x: 10, y: 10, width: 20, height: 20),
             writeRegion: CGRect(x: 20, y: 20, width: 20, height: 20)
         )) { error in
-            XCTAssertEqual(error as? TextureRegionContextError, .invalidWriteRegion)
+            guard case .some(.textureRegionInvalidWriteRegion) = error as? HarbethError else {
+                return XCTFail("Expected HarbethError.textureRegionInvalidWriteRegion, got \(error)")
+            }
         }
     }
 
@@ -188,10 +190,14 @@ final class RegionalProcessingContractTests: XCTestCase {
         let context = try TextureRegionContext(logicalSize: C7Size(width: 32, height: 24))
 
         XCTAssertThrowsError(try context.expandingReadRegion(for: .dynamic)) { error in
-            XCTAssertEqual(error as? TextureRegionContextError, .unsupportedFootprint)
+            guard case .some(.textureRegionUnsupportedFootprint) = error as? HarbethError else {
+                return XCTFail("Expected HarbethError.textureRegionUnsupportedFootprint, got \(error)")
+            }
         }
         XCTAssertThrowsError(try context.expandingReadRegion(for: .global)) { error in
-            XCTAssertEqual(error as? TextureRegionContextError, .unsupportedFootprint)
+            guard case .some(.textureRegionUnsupportedFootprint) = error as? HarbethError else {
+                return XCTFail("Expected HarbethError.textureRegionUnsupportedFootprint, got \(error)")
+            }
         }
     }
 

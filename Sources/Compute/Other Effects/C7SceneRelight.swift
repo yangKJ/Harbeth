@@ -20,12 +20,6 @@ public enum SceneLightKind: Int, Sendable, Codable, Equatable, Hashable {
     case rim = 3
 }
 
-/// 场景布光描述构造错误。
-public enum SceneRelightDescriptorError: Error, Sendable, Equatable {
-    /// 单次 primitive 最多执行三盏灯，调用方必须显式拆分或调整配置。
-    case tooManyLights(maximum: Int, actual: Int)
-}
-
 /// 单盏 2.5D 场景灯的底层描述。
 ///
 /// 坐标约定：
@@ -63,12 +57,12 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
             Self.finiteClamped(position.y, to: -8...9, fallback: 0.5),
             Self.finiteClamped(position.z, to: -8...9, fallback: 1.5)
         )
-        self.direction = Self.normalizedDirection(direction)
         self.color = SIMD3<Float>(
             Self.finiteClamped(color.x, to: 0...8, fallback: 1),
             Self.finiteClamped(color.y, to: 0...8, fallback: 1),
             Self.finiteClamped(color.z, to: 0...8, fallback: 1)
         )
+        self.direction = Self.normalizedDirection(direction)
         self.intensity = Self.finiteClamped(intensity, to: 0...8, fallback: 0)
         self.radius = Self.finiteClamped(radius, to: 0.001...4, fallback: 1)
         self.softness = Self.finiteClamped(softness, to: 0...1, fallback: 0.5)
@@ -174,10 +168,7 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         confidenceFloor: Float = 0
     ) throws {
         guard lights.count <= Self.maximumLightCount else {
-            throw SceneRelightDescriptorError.tooManyLights(
-                maximum: Self.maximumLightCount,
-                actual: lights.count
-            )
+            throw HarbethError.sceneRelightTooManyLights(maximum: Self.maximumLightCount, actual: lights.count)
         }
         self.init(
             validatedLights: lights,
@@ -203,7 +194,8 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
                 highlightRolloff: try container.decode(Float.self, forKey: .highlightRolloff),
                 confidenceFloor: try container.decode(Float.self, forKey: .confidenceFloor)
             )
-        } catch let error as SceneRelightDescriptorError {
+        } catch let error as HarbethError {
+            guard case .sceneRelightTooManyLights = error else { throw error }
             throw DecodingError.dataCorruptedError(
                 forKey: .lights,
                 in: container,
@@ -371,9 +363,7 @@ public struct C7SceneRelight: C7FilterProtocol {
             "bindingMode": requiresDeferredDepthBinding ? "deferred" : "direct",
             "expectsConfidencePlane": expectsConfidencePlane,
             "lightCount": descriptor.lights.count,
-            "requiredDeferredAuxiliaryTextureCount": requiresDeferredDepthBinding
-                ? Self.requiredDeferredAuxiliaryTextureCount
-                : 0
+            "requiredDeferredAuxiliaryTextureCount": requiresDeferredDepthBinding ? Self.requiredDeferredAuxiliaryTextureCount : 0
         ]
     }
 

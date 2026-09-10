@@ -465,11 +465,7 @@ extension HarbethIO {
 // MARK: - Internal Render Program Planning
 
 extension HarbethIO {
-    func makeRenderProgram(
-        input texture: MTLTexture,
-        derivative: ImageDerivativeSpec? = nil,
-        sourceDescriptor: ImageSourceDescriptor? = nil
-    ) -> RenderExecutionProgram {
+    func makeRenderProgram(input texture: MTLTexture, derivative: ImageDerivativeSpec? = nil, sourceDescriptor: ImageSourceDescriptor? = nil) -> RenderExecutionProgram {
         let inputSize = C7Size(texture: texture)
         // Cache key covers exactly what `GraphCompiler.compile` consumes on this path: the filter
         // chain recipe (type + kernel + parameters, via the same `chainRecipe` fingerprint ImageNode
@@ -523,11 +519,7 @@ extension HarbethIO {
         guard reservations.isEmpty == false else { return }
         // Execution starts immediately after planning, so the reservations must be
         // materialized synchronously to have a real chance to improve reuse.
-        HarbethContext.shared.prewarmTexturePoolSync(
-            reservations: reservations,
-            fallbackPixelFormat: inputPixelFormat,
-            defaultCount: 1
-        )
+        HarbethContext.shared.prewarmTexturePoolSync(reservations: reservations, fallbackPixelFormat: inputPixelFormat, defaultCount: 1)
     }
 
     func prewarmDoubleBufferReservations(for plan: RenderPlan, fallbackSize: C7Size, inputPixelFormat: MTLPixelFormat) {
@@ -571,8 +563,7 @@ extension HarbethIO {
         guard shouldCreateDestinationTexture(for: filter, sourceTexture: sourceTexture) else {
             return sourceTexture
         }
-        let targetPixelFormat = declaredOutputPixelFormat(for: filter)
-            ?? setupBufferPixelFormat(with: sourceTexture)
+        let targetPixelFormat = declaredOutputPixelFormat(for: filter) ?? setupBufferPixelFormat(with: sourceTexture)
         var resize = filter.resize(input: C7Size(texture: sourceTexture))
         // Calculate target size considering device limits
         let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
@@ -612,8 +603,7 @@ extension HarbethIO {
         guard shouldCreateDestinationTexture(for: filter, sourceTexture: sourceTexture) else {
             return nil
         }
-        let targetPixelFormat = declaredOutputPixelFormat(for: filter)
-            ?? setupBufferPixelFormat(with: sourceTexture)
+        let targetPixelFormat = declaredOutputPixelFormat(for: filter) ?? setupBufferPixelFormat(with: sourceTexture)
         var resize = filter.resize(input: C7Size(texture: sourceTexture))
         let (deviceMaxWidth, deviceMaxHeight) = Device.makeTexture2DMaxSize(width: resize.width, height: resize.height)
         resize = C7Size(width: deviceMaxWidth, height: deviceMaxHeight)
@@ -668,8 +658,7 @@ extension HarbethIO {
         if let bufferPixelFormat, bufferPixelFormat != sourceTexture.pixelFormat {
             return true
         }
-        return renderProfile.createsDestinationTexture
-            && (filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true)
+        return renderProfile.createsDestinationTexture && (filter.parameterDescription["needCreateDestTexture"] as? Bool ?? true)
     }
 
     private func validateDestinationAliasing(for filter: C7FilterProtocol, source: MTLTexture, destination: MTLTexture) throws {
@@ -812,9 +801,7 @@ extension HarbethIO {
                 inputPixelFormat: pixelFormat
             )
         }
-        let doubleBufferUsage: MTLTextureUsage = requiresRenderTarget
-            ? [.shaderRead, .shaderWrite, .renderTarget]
-            : [.shaderRead, .shaderWrite]
+        let doubleBufferUsage: MTLTextureUsage = requiresRenderTarget ? [.shaderRead, .shaderWrite, .renderTarget] : [.shaderRead, .shaderWrite]
         let textureA = try TextureLoader.makeTexture(
             width: width,
             height: height,
@@ -939,10 +926,7 @@ extension HarbethIO {
 
     private func filtering(ciImage: CIImage, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CIImage {
         let inTexture = try TextureLoader(with: ciImage).texture
-        let outputColorSpace = resolvedOutputColorSpace(
-            inputSize: C7Size(texture: inTexture),
-            outputColorSpace: outputColorSpace
-        )
+        let outputColorSpace = resolvedOutputColorSpace(inputSize: C7Size(texture: inTexture), outputColorSpace: outputColorSpace)
         let texture = try filtering(texture: inTexture)
         return try makeCIImage(texture: texture, source: ciImage, outputColorSpace: outputColorSpace)
     }
@@ -980,10 +964,7 @@ extension HarbethIO {
         do {
             let texture = try TextureLoader(with: pixelBuffer).texture
             let source = HarbethUncheckedTransfer(value: pixelBuffer)
-            let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(texture: texture),
-                outputColorSpace: outputColorSpace
-            )
+            let outputColorSpace = resolvedOutputColorSpace(inputSize: C7Size(texture: texture), outputColorSpace: outputColorSpace)
             return filtering(
                 texture: texture,
                 delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
@@ -1046,10 +1027,7 @@ extension HarbethIO {
     ) -> RenderSubmissionHandle {
         do {
             let texture = try TextureLoader(with: cgImage).texture
-            let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(texture: texture),
-                outputColorSpace: outputColorSpace
-            )
+            let outputColorSpace = resolvedOutputColorSpace(inputSize: C7Size(texture: texture), outputColorSpace: outputColorSpace)
             return filtering(
                 texture: texture,
                 delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
@@ -1081,10 +1059,7 @@ extension HarbethIO {
     ) -> RenderSubmissionHandle {
         do {
             let texture = try TextureLoader(with: ciImage).texture
-            let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(texture: texture),
-                outputColorSpace: outputColorSpace
-            )
+            let outputColorSpace = resolvedOutputColorSpace(inputSize: C7Size(texture: texture), outputColorSpace: outputColorSpace)
             return filtering(
                 texture: texture,
                 delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),
@@ -1093,11 +1068,7 @@ extension HarbethIO {
                     case .success(let texture):
                         do {
                             complete(.success(
-                                try makeCIImage(
-                                    texture: texture,
-                                    source: ciImage,
-                                    outputColorSpace: outputColorSpace
-                                )
+                                try makeCIImage(texture: texture, source: ciImage, outputColorSpace: outputColorSpace)
                             ))
                         } catch {
                             complete(.failure(HarbethError.toHarbethError(error)))
@@ -1120,10 +1091,7 @@ extension HarbethIO {
     ) -> RenderSubmissionHandle {
         do {
             let texture = try TextureLoader(with: image).texture
-            let outputColorSpace = resolvedOutputColorSpace(
-                inputSize: C7Size(texture: texture),
-                outputColorSpace: outputColorSpace
-            )
+            let outputColorSpace = resolvedOutputColorSpace(inputSize: C7Size(texture: texture), outputColorSpace: outputColorSpace)
             return filtering(
                 texture: texture,
                 delivery: resolvedTransmitOutputDelivery(requiresCompletedGPUWork: true),

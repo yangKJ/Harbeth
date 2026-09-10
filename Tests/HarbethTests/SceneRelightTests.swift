@@ -18,10 +18,12 @@ final class SceneRelightTests: XCTestCase {
         XCTAssertThrowsError(try SceneRelightDescriptor(
             lights: Array(repeating: invalidLight, count: 4)
         )) { error in
-            XCTAssertEqual(
-                error as? SceneRelightDescriptorError,
-                .tooManyLights(maximum: 3, actual: 4)
-            )
+            guard let harbethError = error as? HarbethError,
+                  case .sceneRelightTooManyLights(let maximum, let actual) = harbethError else {
+                return XCTFail("Expected HarbethError.sceneRelightTooManyLights, got \(error)")
+            }
+            XCTAssertEqual(maximum, 3)
+            XCTAssertEqual(actual, 4)
         }
         let descriptor = try SceneRelightDescriptor(
             lights: Array(repeating: invalidLight, count: 3),

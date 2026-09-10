@@ -88,11 +88,7 @@ final class ExecutionScheduler: @unchecked Sendable {
     ) -> RenderSubmissionHandle {
         let identifier = UUID().uuidString
         let executionSnapshot = lock.withLock {
-            (
-                generation: generationStorage,
-                commandQueue: commandQueueStorage,
-                operationQueue: operationQueueStorage
-            )
+            (generation: generationStorage, commandQueue: commandQueueStorage, operationQueue: operationQueueStorage)
         }
         let generation = executionSnapshot.generation
         let state = RenderSubmissionStateStorage(
@@ -106,9 +102,7 @@ final class ExecutionScheduler: @unchecked Sendable {
             guard self?.beginSubmission(identifier: identifier) == true else { return }
             execute(context)
         }
-        let scopeIdentifier = policy.behavior == .latestOnly
-            ? policy.resolvedScopeIdentifier ?? sourceIdentifier
-            : nil
+        let scopeIdentifier = policy.behavior == .latestOnly ? policy.resolvedScopeIdentifier ?? sourceIdentifier : nil
         let record = SubmissionRecord(
             state: state,
             operation: operation,

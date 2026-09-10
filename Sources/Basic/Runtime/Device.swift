@@ -17,7 +17,23 @@ final class Device {
     let defaultLibrary: MTLLibrary?
     /// Metal file in ``Harbeth Framework``
     let harbethLibrary: MTLLibrary?
+    /// Transform using color space
+    let colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
+    /// We are likely to encounter images with wider colour than sRGB
+    let workingColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
+    let externalLibraryRegistry = ExternalLibraryProviderRegistry()
+    private(set) var sourceFallbackScanCount = 0
     private let textureLoaderLock = NSLock()
+    private let pipelineLock = NSLock()
+    private let functionLock = NSLock()
+    private let fallbackLibraryLock = NSLock()
+    private var identityPipelines = [String: MTLComputePipelineState]()
+    private var pipelineCreations: [String: ComputePipelineCreation] = [:]
+    private var pipelineGeneration: UInt64 = 0
+    private var identityFunctions = [String: MTLFunction]()
+    private var fallbackLibraries: [String: MTLLibrary] = [:]
+    private var fallbackMisses: Set<String> = []
+    private var cachedMetalFiles: [URL]?
     private var textureLoaderStorage: MTKTextureLoader?
     /// 首次并发加载同样只创建一个 loader，避免 lazy 存储的初始化竞争。
     var textureLoader: MTKTextureLoader {
@@ -28,24 +44,6 @@ final class Device {
         textureLoaderStorage = loader
         return loader
     }
-    /// Transform using color space
-    let colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
-    /// We are likely to encounter images with wider colour than sRGB
-    let workingColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
-    /// Cache pipe state
-    private var identityPipelines = [String: MTLComputePipelineState]()
-    private var pipelineCreations: [String: ComputePipelineCreation] = [:]
-    private var pipelineGeneration: UInt64 = 0
-    private var identityFunctions = [String: MTLFunction]()
-    /// Lock for thread safety
-    private let pipelineLock = NSLock()
-    private let functionLock = NSLock()
-    let externalLibraryRegistry = ExternalLibraryProviderRegistry()
-    private var fallbackLibraries: [String: MTLLibrary] = [:]
-    private var fallbackMisses: Set<String> = []
-    private var cachedMetalFiles: [URL]?
-    private let fallbackLibraryLock = NSLock()
-    private(set) var sourceFallbackScanCount = 0
 
     init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -284,7 +282,6 @@ extension Device {
         let generation = pipelineGeneration
         pipelineCreations[key] = pending
         pipelineLock.unlock()
-
         let result = Result { try create() }
         pipelineLock.lock()
         if generation == pipelineGeneration {
@@ -342,7 +339,11 @@ extension Device {
         if let library = try? device.makeDefaultLibrary(bundle: Bundle.module) { return library }
         if let pathURL = Bundle.module.url(forResource: "default", withExtension: "metallib") {
             var path: String
-            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) { path = pathURL.path() } else { path = pathURL.path }
+            if #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
+                path = pathURL.path()
+            } else {
+                path = pathURL.path
+            }
             if let library = try? device.makeLibrary(filepath: path) { return library }
         }
         #endif
@@ -430,9 +431,7 @@ extension Device {
 
     private static func sourceFile(_ content: String, containsFunctionNamed functionName: String) -> Bool {
         let patterns = ["kernel void \(functionName)", "vertex ", "fragment ", "kernel ", "visible "]
-        if content.contains("kernel void \(functionName)")
-            || content.contains("vertex \(functionName)")
-            || content.contains("fragment \(functionName)") {
+        if content.contains("kernel void \(functionName)") || content.contains("vertex \(functionName)") || content.contains("fragment \(functionName)") {
             return true
         }
         return content.contains("\(functionName)(") && patterns.contains { content.contains($0) }

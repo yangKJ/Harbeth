@@ -46,14 +46,6 @@ public struct PipelineBinaryArchiveSnapshot: Sendable, Codable, Equatable, Hasha
     }
 }
 
-public struct PipelineBinaryArchiveError: Error, Sendable, Equatable, LocalizedError, HarbethDiagnosticError {
-    public let reason: String
-
-    public var errorDescription: String? { reason }
-    public var harbethDiagnosticCode: String { "harbeth.pipeline.binary_archive_failed" }
-    public var harbethDiagnosticMetadata: [String: String] { ["reason": reason] }
-}
-
 final class PipelineBinaryArchiveStore: @unchecked Sendable {
     private let device: MTLDevice
     private let lock = NSLock()
@@ -81,7 +73,7 @@ final class PipelineBinaryArchiveStore: @unchecked Sendable {
                 newArchive = try makeArchive(loading: nil)
             case .persistent:
                 guard let url = configuration.persistentURL, url.isFileURL else {
-                    throw PipelineBinaryArchiveError(reason: "Persistent binary archive requires a file URL.")
+                    throw HarbethError.pipelineBinaryArchiveFailed("Persistent binary archive requires a file URL")
                 }
                 if FileManager.default.fileExists(atPath: url.path) {
                     do {
@@ -135,11 +127,11 @@ final class PipelineBinaryArchiveStore: @unchecked Sendable {
     func serialize(to explicitURL: URL? = nil) throws {
         try lock.withLock {
             guard let archive else {
-                throw PipelineBinaryArchiveError(reason: "Binary archive is disabled or has not been configured.")
+                throw HarbethError.pipelineBinaryArchiveFailed("Binary archive is disabled or has not been configured")
             }
             let targetURL = explicitURL ?? configuration.persistentURL
             guard let targetURL, targetURL.isFileURL else {
-                throw PipelineBinaryArchiveError(reason: "Binary archive serialization requires a file URL.")
+                throw HarbethError.pipelineBinaryArchiveFailed("Binary archive serialization requires a file URL")
             }
             do {
                 try FileManager.default.createDirectory(
@@ -151,7 +143,7 @@ final class PipelineBinaryArchiveStore: @unchecked Sendable {
                 lastError = nil
             } catch {
                 lastError = error.localizedDescription
-                throw PipelineBinaryArchiveError(reason: "Binary archive serialization failed: \(error.localizedDescription)")
+                throw HarbethError.pipelineBinaryArchiveFailed("Binary archive serialization failed: \(error.localizedDescription)")
             }
         }
     }
@@ -176,7 +168,7 @@ final class PipelineBinaryArchiveStore: @unchecked Sendable {
         do {
             return try device.makeBinaryArchive(descriptor: descriptor)
         } catch {
-            throw PipelineBinaryArchiveError(reason: "Binary archive creation failed: \(error.localizedDescription)")
+            throw HarbethError.pipelineBinaryArchiveFailed("Binary archive creation failed: \(error.localizedDescription)")
         }
     }
 }

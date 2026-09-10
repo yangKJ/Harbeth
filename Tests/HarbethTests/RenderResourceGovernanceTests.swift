@@ -39,11 +39,12 @@ final class RenderResourceGovernanceTests: XCTestCase {
         XCTAssertEqual(request.resourceAdmission.violations.map(\.limit), [.stageCount])
 
         XCTAssertThrowsError(try request.renderTexture()) { error in
-            guard let budgetError = error as? RenderResourceBudgetError else {
-                return XCTFail("Expected RenderResourceBudgetError, got \(error).")
+            guard let harbethError = error as? HarbethError,
+                  case .renderResourceBudgetExceeded(let admission) = harbethError else {
+                return XCTFail("Expected HarbethError.renderResourceBudgetExceeded, got \(error).")
             }
-            XCTAssertEqual(budgetError.harbethDiagnosticCode, "harbeth.render.resource_budget_exceeded")
-            XCTAssertEqual(budgetError.admission.violations.first?.maximum, 0)
+            XCTAssertEqual(harbethError.harbethDiagnosticCode, "harbeth.render.resource_budget_exceeded")
+            XCTAssertEqual(admission.violations.first?.maximum, 0)
         }
         XCTAssertThrowsError(try request.renderFrame())
     }

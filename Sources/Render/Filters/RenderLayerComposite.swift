@@ -15,11 +15,6 @@ import Metal
 /// 继续通过 `LayerCompositeRecipe` 使用完整编辑合同。
 public struct RenderLayerComposite: RenderProtocol {
 
-    public enum ValidationError: Error, Equatable, Sendable {
-        case nonFiniteFrame
-        case emptyFrame
-    }
-
     public let layerTexture: MTLTexture
     public let normalizedFrame: CGRect
     public let opacity: Float
@@ -42,14 +37,15 @@ public struct RenderLayerComposite: RenderProtocol {
 
     public init(layerTexture: MTLTexture, normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1), opacity: Float = 1) throws {
         let frame = normalizedFrame.standardized
-        guard frame.origin.x.isFinite,
-              frame.origin.y.isFinite,
-              frame.width.isFinite,
-              frame.height.isFinite else {
-            throw ValidationError.nonFiniteFrame
+        guard frame.origin.x.isFinite, frame.origin.y.isFinite, frame.width.isFinite, frame.height.isFinite else {
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderLayerComposite", reason: "normalized frame is non-finite"
+            )
         }
         guard frame.width > 0, frame.height > 0 else {
-            throw ValidationError.emptyFrame
+            throw HarbethError.renderPrimitiveValidationFailed(
+                primitive: "RenderLayerComposite", reason: "normalized frame is empty"
+            )
         }
         self.layerTexture = layerTexture
         self.normalizedFrame = frame

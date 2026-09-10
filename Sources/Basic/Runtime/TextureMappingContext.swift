@@ -30,7 +30,7 @@ public struct TextureMappingContext: Sendable, Equatable {
               Self.isValid(outputRegion),
               inputLogicalExtent.contains(inputRegion),
               outputLogicalExtent.contains(outputRegion) else {
-            throw TextureRegionContextError.invalidReadRegion
+            throw HarbethError.textureRegionInvalidReadRegion
         }
         self.inputLogicalExtent = inputLogicalExtent
         self.inputRegion = inputRegion

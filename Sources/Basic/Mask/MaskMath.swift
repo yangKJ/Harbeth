@@ -226,10 +226,7 @@ public enum MaskMath {
     ///   - fillRule: `.evenOdd` 或 `.nonZero`,与 shader `metadata[2]` 对应。
     ///   - feather: normalized [0, 1] 的软边宽度(基于到最近边的距离)。
     /// - Returns: 内部为 1,外部为 0,边缘按 smoothstep 平滑。
-    public static func polygonCoverage(point: SIMD2<Float>,
-                                       vertices: [SIMD2<Float>],
-                                       fillRule: MaskPathFillRule = .nonZero,
-                                       feather: Float = 0) -> Float {
+    public static func polygonCoverage(point: SIMD2<Float>, vertices: [SIMD2<Float>], fillRule: MaskPathFillRule = .nonZero, feather: Float = 0) -> Float {
         guard vertices.count >= 3 else { return 0 }
         let inside = pathInsideTest(point: point, vertices: vertices, fillRule: fillRule)
         if feather > 0 {
@@ -246,10 +243,7 @@ public enum MaskMath {
     ///
     /// 对应 shader `InnerPathMask` line 495-519:遍历每个 subpath 的边,
     /// 按 fillRule 累计 ray crossing / winding number。
-    public static func polygonCoverage(point: SIMD2<Float>,
-                                       subpaths: [[SIMD2<Float>]],
-                                       fillRule: MaskPathFillRule = .nonZero,
-                                       feather: Float = 0) -> Float {
+    public static func polygonCoverage(point: SIMD2<Float>, subpaths: [[SIMD2<Float>]], fillRule: MaskPathFillRule = .nonZero, feather: Float = 0) -> Float {
         let validSubpaths = subpaths.filter { $0.count >= 3 }
         guard !validSubpaths.isEmpty else { return 0 }
         var evenOddInside = false
@@ -271,7 +265,6 @@ public enum MaskMath {
             }
         }
         let inside = fillRule == .evenOdd ? evenOddInside : (windingNumber != 0)
-
         if feather > 0 {
             var minDistance = Float.infinity
             for subpath in validSubpaths {
@@ -365,11 +358,7 @@ public enum MaskMath {
     /// }
     /// coverage = clamp(coverage * half(*opacityPointer), 0.0h, 1.0h);
     /// ```
-    public static func extractCoverage(rgba: SIMD4<Float>,
-                                       component: MaskComponent,
-                                       invert: Bool,
-                                       feather: Float,
-                                       opacity: Float) -> Float {
+    public static func extractCoverage(rgba: SIMD4<Float>, component: MaskComponent, invert: Bool, feather: Float, opacity: Float) -> Float {
         var coverage = coverageFromRGBA(rgba: rgba, component: component)
         if invert {
             coverage = 1 - coverage

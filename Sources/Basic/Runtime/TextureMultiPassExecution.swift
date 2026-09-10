@@ -8,10 +8,6 @@
 import Foundation
 import Metal
 
-public enum TextureMultiPassError: Error, Equatable {
-    case cancelled
-}
-
 /// 多阶段纹理任务的轻量取消令牌。
 ///
 /// 取消只保证在阶段开始前和阶段完成后被观察；正在提交的单个 Metal pass
@@ -116,7 +112,7 @@ public struct TextureMultiPassExecutor {
 private extension TextureMultiPassExecutor {
     func checkCancellation(_ token: TextureMultiPassCancellationToken?) throws {
         guard token?.isCancelled != true else {
-            throw TextureMultiPassError.cancelled
+            throw HarbethError.textureMultiPassCancelled
         }
     }
 

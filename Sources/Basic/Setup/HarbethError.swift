@@ -39,13 +39,21 @@ public enum HarbethError: Swift.Error {
     case textureFormatNotSupported
     case textureSizeMismatch
     case textureNotMipmapped
+    case textureMultiPassCancelled
+    case textureRegionInvalidLogicalExtent
+    case textureRegionInvalidReadRegion
+    case textureRegionInvalidWriteRegion
+    case textureRegionInvalidFootprint
+    case textureRegionUnsupportedFootprint
     
     case readFunction(String)
     case computePipelineState(String)
     case renderPipelineState(String, String)
     case pipelineStateCreationFailed(String)
+    case pipelineBinaryArchiveFailed(String)
     
     case cubeResource
+    case cubeCompactResourceFailed(reason: String)
     case contextCreationFailed
     
     case CVPixelBufferToCMSampleBuffer
@@ -64,12 +72,19 @@ public enum HarbethError: Swift.Error {
     case renderableTextureLocked
     case renderableViewSetupFailed
     case renderableDelegateNotSet
+    case viewSnapshotCaptureFailed(String)
+    case renderResourceBudgetExceeded(RenderResourceAdmission)
     
     case filterInitializationFailed(String)
     case filterParameterInvalid(String)
     case filterChainEmpty
     case kernelInvocationIncompatible(String)
     case filterProcessingFailed(String)
+    case renderPrimitiveValidationFailed(primitive: String, reason: String)
+    case sceneRelightTooManyLights(maximum: Int, actual: Int)
+    case incrementalMaskCanvasStaleGeneration(requested: UInt64, current: UInt64)
+    case strokeSurfaceStaleActualGeneration(requested: UInt64, current: UInt64)
+    case strokeSurfaceStalePredictedGeneration(requested: UInt64, current: UInt64)
     
     case memoryAllocationFailed
     case deviceNotAvailable
@@ -97,80 +112,165 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
     /// A textual representation of `self`, suitable for debugging.
     public var localizedDescription: String {
         switch self {
-        case .unknown: return "Unknown error occurred."
-        case .error(let error): return error.localizedDescription
-        case .commandBuffer: return "Make command buffer failed."
-        case .makeBlitCommandEncoder: return "Create a blit command encoder to encode into this command buffer failed."
-        case .makeComputeCommandEncoder: return "Create a compute command encoder to encode into this command buffer failed."
-        case .makeTexture: return "Create a new metal texture is failed."
-        case .textureLoader: return "Using metal texture loader is nil."
-        case .bitmapDataNotFound: return "Bitmap Data Not Found."
-        case .commandBufferAsyncCommit(let status): return "Command Buffer Async Commit Other Status \(status)."
-        case .image2Texture: return "Input image transform texture failed."
-        case .image2CGImage: return "Input image transform CGImage failed."
-        case .imageCropFailed: return "Image crop failed."
-        case .imageRotationFailed: return "Image rotation failed."
-        case .imageFlipFailed: return "Image flip failed."
-        case .imageResizeFailed: return "Image resize failed."
-        case .imageOrientationFailed: return "Image orientation correction failed."
-        case .source2Texture: return "Transform to texture failed."
-        case .texture2Image: return "MTLTexture transform to image failed."
-        case .texture2CGImage: return "MTLTexture transform to CGImage failed."
-        case .textureCropFailed: return "Texture crop failed."
-        case .textureCreateFailed: return "Texture create failed."
-        case .textureCopyPixelBufferFailed: return "Failed to copy pixel buffer."
-        case .textureFormatNotSupported: return "Texture format not supported."
-        case .textureSizeMismatch: return "Texture size mismatch."
-        case .textureNotMipmapped: return "Texture does not support mipmaps."
-        case .readFunction(let name): return "Read MTL Function failed with \(name)."
-        case .computePipelineState(let name): return "Make compute pipeline state failed with \(name)."
-        case .renderPipelineState(let vertex, let fragment): return "Make rendering pipeline state failed with \(vertex) and \(fragment)."
-        case .pipelineStateCreationFailed(let description): return "Pipeline state creation failed: \(description)"
-        case .cubeResource: return "Read the contents of the cube file failed."
-        case .contextCreationFailed: return "Graphics context creation failed."
-        case .CVPixelBufferToCMSampleBuffer: return "CVPixelBuffer transform to CMSampleBuffer failed."
-        case .CMSampleBufferToCVPixelBuffer: return "CMSampleBuffer transform to CVPixelBuffer failed."
-        case .pixelBufferLockFailed: return "Failed to lock pixel buffer."
-        case .pixelBufferUnlockFailed: return "Failed to unlock pixel buffer."
-        case .pixelBufferCreationFailed: return "Failed to create pixel buffer."
-        case .pixelBufferCopyFailed: return "Failed to copy pixel buffer data."
-        case .sampleBufferCreationFailed: return "Failed to create sample buffer."
-        case .renderableNoInputSource: return "No input source available for rendering."
-        case .renderableUnsupportedInputType: return "Unsupported input type for rendering."
-        case .renderableInvalidOutputType: return "Invalid output type from rendering."
-        case .renderableAlreadyProcessing: return "Already processing, please wait for completion."
-        case .renderableTaskCancelled: return "Rendering task was cancelled."
-        case .renderableTextureLocked: return "Texture is currently locked for processing."
-        case .renderableViewSetupFailed: return "Failed to setup render view."
-        case .renderableDelegateNotSet: return "Renderable delegate is not set."
-        case .filterInitializationFailed(let name): return "Failed to initialize filter: \(name)."
-        case .filterParameterInvalid(let parameter): return "Invalid filter parameter: \(parameter)."
-        case .filterChainEmpty: return "Filter chain is empty."
-        case .kernelInvocationIncompatible(let summary): return "Kernel invocation is incompatible: \(summary)."
-        case .filterProcessingFailed(let description): return "Filter processing failed: \(description)."
-        case .memoryAllocationFailed: return "Memory allocation failed."
-        case .deviceNotAvailable: return "Metal device is not available."
-        case .commandQueueCreationFailed: return "Failed to create command queue."
-        case .textureCacheCreationFailed: return "Failed to create texture cache."
-        case .libraryCreationFailed: return "Failed to create Metal library."
-        case .bufferCreationFailed: return "Failed to create Metal buffer."
-        case .fileNotFound(let path): return "File not found at path: \(path)."
-        case .fileReadFailed(let path): return "Failed to read file at path: \(path)."
-        case .fileWriteFailed(let path): return "Failed to write file at path: \(path)."
-        case .resourceNotFound(let name): return "Resource not found: \(name)."
-        case .configurationInvalid(let description): return "Invalid configuration: \(description)."
-        case .parameterMissing(let parameter): return "Required parameter missing: \(parameter)."
+        case .unknown:
+            return "Unknown error occurred."
+        case .error(let error):
+            return error.localizedDescription
+        case .commandBuffer:
+            return "Make command buffer failed."
+        case .makeBlitCommandEncoder:
+            return "Create a blit command encoder to encode into this command buffer failed."
+        case .makeComputeCommandEncoder:
+            return "Create a compute command encoder to encode into this command buffer failed."
+        case .makeTexture:
+            return "Create a new metal texture is failed."
+        case .textureLoader:
+            return "Using metal texture loader is nil."
+        case .bitmapDataNotFound:
+            return "Bitmap Data Not Found."
+        case .commandBufferAsyncCommit(let status):
+            return "Command Buffer Async Commit Other Status \(status)."
+        case .image2Texture:
+            return "Input image transform texture failed."
+        case .image2CGImage:
+            return "Input image transform CGImage failed."
+        case .imageCropFailed:
+            return "Image crop failed."
+        case .imageRotationFailed:
+            return "Image rotation failed."
+        case .imageFlipFailed:
+            return "Image flip failed."
+        case .imageResizeFailed:
+            return "Image resize failed."
+        case .imageOrientationFailed:
+            return "Image orientation correction failed."
+        case .source2Texture:
+            return "Transform to texture failed."
+        case .texture2Image:
+            return "MTLTexture transform to image failed."
+        case .texture2CGImage:
+            return "MTLTexture transform to CGImage failed."
+        case .textureCropFailed:
+            return "Texture crop failed."
+        case .textureCreateFailed:
+            return "Texture create failed."
+        case .textureCopyPixelBufferFailed:
+            return "Failed to copy pixel buffer."
+        case .textureFormatNotSupported:
+            return "Texture format not supported."
+        case .textureSizeMismatch:
+            return "Texture size mismatch."
+        case .textureNotMipmapped:
+            return "Texture does not support mipmaps."
+        case .textureMultiPassCancelled:
+            return "Texture multi-pass execution was cancelled."
+        case .textureRegionInvalidLogicalExtent:
+            return "Texture region logical extent is invalid."
+        case .textureRegionInvalidReadRegion:
+            return "Texture region read bounds are invalid."
+        case .textureRegionInvalidWriteRegion:
+            return "Texture region write bounds are invalid."
+        case .textureRegionInvalidFootprint:
+            return "Texture region sampling footprint is invalid."
+        case .textureRegionUnsupportedFootprint:
+            return "Texture region sampling footprint is unsupported."
+        case .readFunction(let name):
+            return "Read MTL Function failed with \(name)."
+        case .computePipelineState(let name):
+            return "Make compute pipeline state failed with \(name)."
+        case .renderPipelineState(let vertex, let fragment):
+            return "Make rendering pipeline state failed with \(vertex) and \(fragment)."
+        case .pipelineStateCreationFailed(let description):
+            return "Pipeline state creation failed: \(description)"
+        case .pipelineBinaryArchiveFailed(let reason):
+            return "Pipeline binary archive failed: \(reason)."
+        case .cubeResource:
+            return "Read the contents of the cube file failed."
+        case .cubeCompactResourceFailed(let reason):
+            return "Compact cube resource failed: \(reason)."
+        case .contextCreationFailed:
+            return "Graphics context creation failed."
+        case .CVPixelBufferToCMSampleBuffer:
+            return "CVPixelBuffer transform to CMSampleBuffer failed."
+        case .CMSampleBufferToCVPixelBuffer:
+            return "CMSampleBuffer transform to CVPixelBuffer failed."
+        case .pixelBufferLockFailed:
+            return "Failed to lock pixel buffer."
+        case .pixelBufferUnlockFailed:
+            return "Failed to unlock pixel buffer."
+        case .pixelBufferCreationFailed:
+            return "Failed to create pixel buffer."
+        case .pixelBufferCopyFailed:
+            return "Failed to copy pixel buffer data."
+        case .sampleBufferCreationFailed:
+            return "Failed to create sample buffer."
+        case .renderableNoInputSource:
+            return "No input source available for rendering."
+        case .renderableUnsupportedInputType:
+            return "Unsupported input type for rendering."
+        case .renderableInvalidOutputType:
+            return "Invalid output type from rendering."
+        case .renderableAlreadyProcessing:
+            return "Already processing, please wait for completion."
+        case .renderableTaskCancelled:
+            return "Rendering task was cancelled."
+        case .renderableTextureLocked:
+            return "Texture is currently locked for processing."
+        case .renderableViewSetupFailed:
+            return "Failed to setup render view."
+        case .renderableDelegateNotSet:
+            return "Renderable delegate is not set."
+        case .viewSnapshotCaptureFailed(let description):
+            return "View snapshot capture failed: \(description)."
+        case .renderResourceBudgetExceeded(let admission):
+            let summary = admission.violations.map { "\($0.limit.rawValue)=\($0.estimated)>\($0.maximum)" }.joined(separator: ", ")
+            return "Render request exceeds its resource budget: \(summary)."
+        case .filterInitializationFailed(let name):
+            return "Failed to initialize filter: \(name)."
+        case .filterParameterInvalid(let parameter):
+            return "Invalid filter parameter: \(parameter)."
+        case .filterChainEmpty:
+            return "Filter chain is empty."
+        case .kernelInvocationIncompatible(let summary):
+            return "Kernel invocation is incompatible: \(summary)."
+        case .filterProcessingFailed(let description):
+            return "Filter processing failed: \(description)."
+        case .renderPrimitiveValidationFailed(let primitive, let reason):
+            return "Render primitive \(primitive) is invalid: \(reason)."
+        case .sceneRelightTooManyLights(let maximum, let actual):
+            return "Scene relight supports at most \(maximum) lights, got \(actual)."
+        case .incrementalMaskCanvasStaleGeneration(let requested, let current):
+            return "Incremental mask canvas generation \(requested) is older than \(current)."
+        case .strokeSurfaceStaleActualGeneration(let requested, let current):
+            return "Stroke surface actual generation \(requested) is older than \(current)."
+        case .strokeSurfaceStalePredictedGeneration(let requested, let current):
+            return "Stroke surface predicted generation \(requested) is older than \(current)."
+        case .memoryAllocationFailed:
+            return "Memory allocation failed."
+        case .deviceNotAvailable:
+            return "Metal device is not available."
+        case .commandQueueCreationFailed:
+            return "Failed to create command queue."
+        case .textureCacheCreationFailed:
+            return "Failed to create texture cache."
+        case .libraryCreationFailed:
+            return "Failed to create Metal library."
+        case .bufferCreationFailed:
+            return "Failed to create Metal buffer."
+        case .fileNotFound(let path):
+            return "File not found at path: \(path)."
+        case .fileReadFailed(let path):
+            return "Failed to read file at path: \(path)."
+        case .fileWriteFailed(let path):
+            return "Failed to write file at path: \(path)."
+        case .resourceNotFound(let name):
+            return "Resource not found: \(name)."
+        case .configurationInvalid(let description):
+            return "Invalid configuration: \(description)."
+        case .parameterMissing(let parameter):
+            return "Required parameter missing: \(parameter)."
         case .parameterOutOfRange(let parameter, let range):
             return "Parameter \(parameter) out of range. Valid range is \(range.lowerBound) to \(range.upperBound)."
-        }
-    }
-    
-    internal var underlyingError: Swift.Error? {
-        switch self {
-        case .error(let error):
-            return error
-        default:
-            return nil
         }
     }
     
@@ -186,10 +286,107 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
             return "Ensure the descriptor was generated for the same filter type, resource usage, and input contract."
         case .renderableNoInputSource:
             return "Set an input source before applying filters."
+        case .viewSnapshotCaptureFailed:
+            return "Ensure the view or layer has non-empty bounds and is ready to render on the main thread."
+        case .renderResourceBudgetExceeded:
+            return "Increase the applicable resource budget or simplify the render request."
         case .parameterOutOfRange(_, let range):
             return "Please provide a value between \(range.lowerBound) and \(range.upperBound)."
         case .fileNotFound(let path):
             return "Check if the file exists at the specified path: \(path)"
+        default:
+            return nil
+        }
+    }
+    
+    public var code: Int {
+        switch self {
+        case .unknown: return 1000
+        case .error: return 1001
+        case .commandBuffer: return 1002
+        case .makeBlitCommandEncoder: return 1003
+        case .makeComputeCommandEncoder: return 1004
+        case .makeTexture: return 1005
+        case .textureLoader: return 1006
+        case .bitmapDataNotFound: return 1007
+        case .commandBufferAsyncCommit: return 1008
+        case .image2Texture: return 1100
+        case .image2CGImage: return 1101
+        case .imageCropFailed: return 1102
+        case .imageRotationFailed: return 1103
+        case .imageFlipFailed: return 1104
+        case .imageResizeFailed: return 1105
+        case .imageOrientationFailed: return 1106
+        case .source2Texture: return 1200
+        case .texture2Image: return 1201
+        case .texture2CGImage: return 1202
+        case .textureCropFailed: return 1203
+        case .textureCreateFailed: return 1204
+        case .textureCopyPixelBufferFailed: return 1205
+        case .textureFormatNotSupported: return 1206
+        case .textureSizeMismatch: return 1207
+        case .textureNotMipmapped: return 1208
+        case .textureMultiPassCancelled: return 1209
+        case .textureRegionInvalidLogicalExtent: return 1210
+        case .textureRegionInvalidReadRegion: return 1211
+        case .textureRegionInvalidWriteRegion: return 1212
+        case .textureRegionInvalidFootprint: return 1213
+        case .textureRegionUnsupportedFootprint: return 1214
+        case .readFunction: return 1300
+        case .computePipelineState: return 1301
+        case .renderPipelineState: return 1302
+        case .pipelineStateCreationFailed: return 1303
+        case .pipelineBinaryArchiveFailed: return 1304
+        case .cubeResource: return 1400
+        case .cubeCompactResourceFailed: return 1402
+        case .contextCreationFailed: return 1401
+        case .CVPixelBufferToCMSampleBuffer: return 1500
+        case .CMSampleBufferToCVPixelBuffer: return 1501
+        case .pixelBufferLockFailed: return 1502
+        case .pixelBufferUnlockFailed: return 1503
+        case .pixelBufferCreationFailed: return 1504
+        case .pixelBufferCopyFailed: return 1505
+        case .sampleBufferCreationFailed: return 1506
+        case .renderableNoInputSource: return 1600
+        case .renderableUnsupportedInputType: return 1601
+        case .renderableInvalidOutputType: return 1602
+        case .renderableAlreadyProcessing: return 1603
+        case .renderableTaskCancelled: return 1604
+        case .renderableTextureLocked: return 1605
+        case .renderableViewSetupFailed: return 1606
+        case .renderableDelegateNotSet: return 1607
+        case .viewSnapshotCaptureFailed: return 1608
+        case .renderResourceBudgetExceeded: return 1609
+        case .filterInitializationFailed: return 1700
+        case .filterParameterInvalid: return 1701
+        case .filterChainEmpty: return 1702
+        case .kernelInvocationIncompatible: return 1703
+        case .filterProcessingFailed: return 1704
+        case .renderPrimitiveValidationFailed: return 1709
+        case .sceneRelightTooManyLights: return 1705
+        case .incrementalMaskCanvasStaleGeneration: return 1706
+        case .strokeSurfaceStaleActualGeneration: return 1707
+        case .strokeSurfaceStalePredictedGeneration: return 1708
+        case .memoryAllocationFailed: return 1800
+        case .deviceNotAvailable: return 1801
+        case .commandQueueCreationFailed: return 1802
+        case .textureCacheCreationFailed: return 1803
+        case .libraryCreationFailed: return 1804
+        case .bufferCreationFailed: return 1805
+        case .fileNotFound: return 1900
+        case .fileReadFailed: return 1901
+        case .fileWriteFailed: return 1902
+        case .resourceNotFound: return 1903
+        case .configurationInvalid: return 2000
+        case .parameterMissing: return 2001
+        case .parameterOutOfRange: return 2002
+        }
+    }
+    
+    var underlyingError: Swift.Error? {
+        switch self {
+        case .error(let error):
+            return error
         default:
             return nil
         }
@@ -268,77 +465,6 @@ extension Error {
             return harbethError.localizedDescription
         } else {
             return self.localizedDescription
-        }
-    }
-}
-
-extension HarbethError {
-    public var code: Int {
-        switch self {
-        case .unknown: return 1000
-        case .error: return 1001
-        case .commandBuffer: return 1002
-        case .makeBlitCommandEncoder: return 1003
-        case .makeComputeCommandEncoder: return 1004
-        case .makeTexture: return 1005
-        case .textureLoader: return 1006
-        case .bitmapDataNotFound: return 1007
-        case .commandBufferAsyncCommit: return 1008
-        case .image2Texture: return 1100
-        case .image2CGImage: return 1101
-        case .imageCropFailed: return 1102
-        case .imageRotationFailed: return 1103
-        case .imageFlipFailed: return 1104
-        case .imageResizeFailed: return 1105
-        case .imageOrientationFailed: return 1106
-        case .source2Texture: return 1200
-        case .texture2Image: return 1201
-        case .texture2CGImage: return 1202
-        case .textureCropFailed: return 1203
-        case .textureCreateFailed: return 1204
-        case .textureCopyPixelBufferFailed: return 1205
-        case .textureFormatNotSupported: return 1206
-        case .textureSizeMismatch: return 1207
-        case .textureNotMipmapped: return 1208
-        case .readFunction: return 1300
-        case .computePipelineState: return 1301
-        case .renderPipelineState: return 1302
-        case .pipelineStateCreationFailed: return 1303
-        case .cubeResource: return 1400
-        case .contextCreationFailed: return 1401
-        case .CVPixelBufferToCMSampleBuffer: return 1500
-        case .CMSampleBufferToCVPixelBuffer: return 1501
-        case .pixelBufferLockFailed: return 1502
-        case .pixelBufferUnlockFailed: return 1503
-        case .pixelBufferCreationFailed: return 1504
-        case .pixelBufferCopyFailed: return 1505
-        case .sampleBufferCreationFailed: return 1506
-        case .renderableNoInputSource: return 1600
-        case .renderableUnsupportedInputType: return 1601
-        case .renderableInvalidOutputType: return 1602
-        case .renderableAlreadyProcessing: return 1603
-        case .renderableTaskCancelled: return 1604
-        case .renderableTextureLocked: return 1605
-        case .renderableViewSetupFailed: return 1606
-        case .renderableDelegateNotSet: return 1607
-        case .filterInitializationFailed: return 1700
-        case .filterParameterInvalid: return 1701
-        case .filterChainEmpty: return 1702
-        case .kernelInvocationIncompatible: return 1703
-        case .filterProcessingFailed: return 1704
-        case .memoryAllocationFailed: return 1800
-        case .deviceNotAvailable: return 1801
-        case .commandQueueCreationFailed: return 1802
-        case .textureCacheCreationFailed: return 1803
-        case .libraryCreationFailed: return 1804
-        case .bufferCreationFailed: return 1805
-        case .fileNotFound: return 1900
-        case .fileReadFailed: return 1901
-        case .fileWriteFailed: return 1902
-        case .resourceNotFound: return 1903
-        case .configurationInvalid: return 2000
-        case .parameterMissing: return 2001
-        case .parameterOutOfRange: return 2002
         }
     }
 }

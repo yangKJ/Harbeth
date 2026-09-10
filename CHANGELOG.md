@@ -8,6 +8,17 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-09-07
+
+#### Added
+
+- Added `ViewSnapshotSource` and versioned `ViewSnapshot` for explicit `C7View` / `CALayer` raster capture. A snapshot uploads its immutable UI pixels once and can then feed `RenderLayerComposite` or `ImageLayer` without repeatedly capturing or uploading the same UI content. Capture failures use `HarbethError`.
+
+#### Fixed
+
+- Fixed `C7View.toImage(bezierPath:)` mutating the source view's `layer.mask`; clipped snapshots now render offscreen without changing host UI state.
+- Consolidated public runtime failure types into `HarbethError` while preserving their stable `harbethDiagnosticCode` and metadata bridge through `HarbethDiagnosticCoding`.
+
 ### 2026-09-06
 
 #### Changed

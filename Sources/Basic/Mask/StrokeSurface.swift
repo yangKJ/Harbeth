@@ -49,11 +49,6 @@ public struct StrokeSurfaceStroke: Sendable, Equatable {
     }
 }
 
-public enum StrokeSurfaceError: Error, Sendable, Equatable {
-    case staleActualGeneration(requested: UInt64, current: UInt64)
-    case stalePredictedGeneration(requested: UInt64, current: UInt64)
-}
-
 /// 供实时笔迹使用的双层 GPU 派生表面。
 ///
 /// `actual` 只累积已确认的 coalesced touch；`predicted` 每次都清空后重绘，
@@ -92,7 +87,7 @@ public actor StrokeSurface {
     @discardableResult
     public func appendActual(points: [MaskBrushPoint], style: StrokeSurfaceStyle, generation: UInt64) throws -> RenderedFrame {
         guard generation >= actualGeneration else {
-            throw StrokeSurfaceError.staleActualGeneration(requested: generation, current: actualGeneration)
+            throw HarbethError.strokeSurfaceStaleActualGeneration(requested: generation, current: actualGeneration)
         }
         actualGeneration = generation
         guard !points.isEmpty else { return actualFrame(generation: generation) }
@@ -116,7 +111,7 @@ public actor StrokeSurface {
     @discardableResult
     public func replayActual(strokes: [StrokeSurfaceStroke], generation: UInt64) throws -> RenderedFrame {
         guard generation >= actualGeneration else {
-            throw StrokeSurfaceError.staleActualGeneration(requested: generation, current: actualGeneration)
+            throw HarbethError.strokeSurfaceStaleActualGeneration(requested: generation, current: actualGeneration)
         }
         actualGeneration = generation
         guard let commandBuffer = HarbethContext.shared.makeCommandBuffer() else {
@@ -141,7 +136,7 @@ public actor StrokeSurface {
         complete: @escaping @Sendable (Result<RenderedFrame?, HarbethError>) -> Void
     ) throws {
         guard generation >= predictedGeneration else {
-            throw StrokeSurfaceError.stalePredictedGeneration(requested: generation, current: predictedGeneration)
+            throw HarbethError.strokeSurfaceStalePredictedGeneration(requested: generation, current: predictedGeneration)
         }
         predictedGeneration = generation
         predictedRequestIdentifier &+= 1

@@ -213,9 +213,7 @@ extension MaskBrushRecipe {
         prepare(points: points, settings: settings, maximumPointCount: nil)
     }
 
-    private static func prepare(points: [MaskBrushPoint],
-                                settings: MaskBrushSettings,
-                                maximumPointCount: Int?) -> [MaskBrushPoint] {
+    private static func prepare(points: [MaskBrushPoint], settings: MaskBrushSettings, maximumPointCount: Int?) -> [MaskBrushPoint] {
         guard points.count > 1 else { return points }
         let smoothingPasses = Int((settings.smoothing * 3).rounded())
         var result = points
@@ -244,9 +242,7 @@ extension MaskBrushRecipe {
     }
 
     /// 以笔刷直径的比例均匀采样中心线，避免输入事件频率改变笔触密度和边缘连续性。
-    private static func resample(_ points: [MaskBrushPoint],
-                                 distance: CGFloat,
-                                 maximumPointCount: Int?) -> [MaskBrushPoint] {
+    private static func resample(_ points: [MaskBrushPoint], distance: CGFloat, maximumPointCount: Int?) -> [MaskBrushPoint] {
         guard points.count > 1 else { return points }
         let totalLength = zip(points, points.dropFirst()).reduce(CGFloat.zero) { result, pair in
             result + hypot(pair.1.point.x - pair.0.point.x, pair.1.point.y - pair.0.point.y)
@@ -261,7 +257,6 @@ extension MaskBrushRecipe {
             let end = points[index]
             var segmentLength = hypot(end.point.x - start.point.x, end.point.y - start.point.y)
             guard segmentLength > 0 else { continue }
-
             while carry + segmentLength >= targetDistance,
                   maximumPointCount.map({ result.count < $0 - 1 }) ?? true {
                 let fraction = (targetDistance - carry) / segmentLength

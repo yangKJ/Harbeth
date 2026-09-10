@@ -83,9 +83,7 @@ public struct MaskSamplingContract: Sendable, Codable, Equatable, Hashable {
     public let edgeMode: MaskSamplingEdgeMode
     public let pixelCentersAligned: Bool
 
-    public init(filter: MaskSamplingFilter = .linear,
-                edgeMode: MaskSamplingEdgeMode = .zero,
-                pixelCentersAligned: Bool = true) {
+    public init(filter: MaskSamplingFilter = .linear, edgeMode: MaskSamplingEdgeMode = .zero, pixelCentersAligned: Bool = true) {
         self.filter = filter
         self.edgeMode = edgeMode
         self.pixelCentersAligned = pixelCentersAligned

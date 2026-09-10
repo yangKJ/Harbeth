@@ -276,9 +276,7 @@ public struct MaskCompositeRecipe {
         }
 
         var current = baseMask.texture
-        for (batchIndex, batch) in executable
-            .chunked(maximumCount: MaskCompositeGraphCompiler.maximumMasksPerPass)
-            .enumerated() {
+        for (batchIndex, batch) in executable.chunked(maximumCount: MaskCompositeGraphCompiler.maximumMasksPerPass).enumerated() {
             let isFirstBatch = batchIndex == 0
             current = try HarbethIO(
                 element: current,
@@ -323,14 +321,8 @@ public struct MaskCompositeRecipe {
     }
 
     public func rebased(sourceRect: CGRect, logicalSize: C7Size, tileInputSize: C7Size) throws -> MaskCompositeRecipe? {
-        guard let rebasedBaseSource = try baseSource?.rebased(
-            sourceRect: sourceRect,
-            logicalSize: logicalSize,
-            tileInputSize: tileInputSize
-        ) else {
-            return nil
-        }
-        guard case .recipe(let baseRecipe) = rebasedBaseSource else {
+        guard let rebasedBaseSource = try baseSource?.rebased(sourceRect: sourceRect, logicalSize: logicalSize, tileInputSize: tileInputSize),
+              case .recipe(let baseRecipe) = rebasedBaseSource else {
             return nil
         }
         var rebasedRecipe = try MaskCompositeRecipe(

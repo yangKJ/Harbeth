@@ -6,10 +6,7 @@ final class RenderMeshWarpTests: XCTestCase {
 
     func testRejectsGridSmallerThanTwoByTwo() {
         XCTAssertThrowsError(try RenderMeshWarp(rows: 1, columns: 2, controlPoints: [])) { error in
-            XCTAssertEqual(
-                error as? RenderMeshWarp.ValidationError,
-                .insufficientGridDimensions(rows: 1, columns: 2)
-            )
+            assertMeshValidation(error, reason: "rows and columns must both be at least 2; got 1x2")
         }
     }
 
@@ -17,10 +14,7 @@ final class RenderMeshWarpTests: XCTestCase {
         XCTAssertThrowsError(
             try RenderMeshWarp(rows: 2, columns: 2, controlPoints: [.zero, .zero, .zero])
         ) { error in
-            XCTAssertEqual(
-                error as? RenderMeshWarp.ValidationError,
-                .incorrectControlPointCount(expected: 4, actual: 3)
-            )
+            assertMeshValidation(error, reason: "expected 4 control points, got 3")
         }
     }
 
@@ -32,16 +26,13 @@ final class RenderMeshWarpTests: XCTestCase {
                 controlPoints: [.zero, .zero, .init(x: .infinity, y: 0), .zero]
             )
         ) { error in
-            XCTAssertEqual(error as? RenderMeshWarp.ValidationError, .nonFiniteControlPoint(index: 2))
+            assertMeshValidation(error, reason: "control point 2 is non-finite")
         }
     }
 
     func testRejectsGridAboveSafeControlPointLimitBeforeAllocation() {
         XCTAssertThrowsError(try RenderMeshWarp.identity(rows: 65, columns: 65)) { error in
-            XCTAssertEqual(
-                error as? RenderMeshWarp.ValidationError,
-                .tooManyControlPoints(maximum: 4096, actual: 4225)
-            )
+            assertMeshValidation(error, reason: "control point count 4225 exceeds 4096")
         }
     }
 
@@ -59,6 +50,15 @@ final class RenderMeshWarpTests: XCTestCase {
             filter.setupVertices(inputSize: C7Size(width: 9, height: 7)),
             [-1, 1, 0, 0, -1, -1, 0, 1, 1, 1, 1, 0, 1, -1, 1, 1]
         )
+    }
+
+    private func assertMeshValidation(_ error: Error, reason: String, file: StaticString = #filePath, line: UInt = #line) {
+        guard let harbethError = error as? HarbethError,
+              case .renderPrimitiveValidationFailed(let primitive, let actualReason) = harbethError else {
+            return XCTFail("Expected HarbethError.renderPrimitiveValidationFailed, got \(error)", file: file, line: line)
+        }
+        XCTAssertEqual(primitive, "RenderMeshWarp", file: file, line: line)
+        XCTAssertEqual(actualReason, reason, file: file, line: line)
     }
 
     func testMeshRowsAreConnectedWithDegenerateTriangles() throws {

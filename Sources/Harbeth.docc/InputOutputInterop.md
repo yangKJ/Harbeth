@@ -13,6 +13,8 @@ Harbeth accepts images, textures, pixel buffers, sample buffers, encoded data, a
 
 ``ImageSource`` is the unified source model behind ``ImageNode``. It accepts `C7Image`, `CGImage`, `CIImage`, `MTLTexture`, `CVPixelBuffer`, `CMSampleBuffer`, `Data`, and `ImageAsset`.
 
+For host UI overlays, use ``ViewSnapshotSource`` to explicitly freeze a `C7View` or `CALayer`. Each ``ViewSnapshot`` owns one immutable content revision and uploads it at first texture use. Reuse that snapshot for repeated `HarbethIO` compositing or ``ImageLayer`` construction; call `capture()` only when the UI pixels need to change.
+
 ```swift
 let frame = try ImageNode
     .pixelBuffer(pixelBuffer)

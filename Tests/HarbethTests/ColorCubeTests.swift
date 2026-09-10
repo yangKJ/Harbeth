@@ -106,7 +106,10 @@ final class ColorCubeTests: XCTestCase {
         try encoded.write(to: url)
 
         XCTAssertThrowsError(try C7ColorCube.Resource.readCompactResourceStrict(from: url)) { error in
-            XCTAssertEqual(error as? C7ColorCube.Resource.CompactResourceError, .checksumMismatch)
+            guard case .some(.cubeCompactResourceFailed(let reason)) = error as? HarbethError else {
+                return XCTFail("Expected HarbethError.cubeCompactResourceFailed, got \(error)")
+            }
+            XCTAssertEqual(reason, "checksumMismatch")
         }
         XCTAssertNil(C7ColorCube.Resource.readCompactResource(from: url))
     }
@@ -126,7 +129,10 @@ final class ColorCubeTests: XCTestCase {
         try encoded.write(to: url)
 
         XCTAssertThrowsError(try C7ColorCube.Resource.readCompactResourceStrict(from: url)) { error in
-            XCTAssertEqual(error as? C7ColorCube.Resource.CompactResourceError, .invalidHeader)
+            guard case .some(.cubeCompactResourceFailed(let reason)) = error as? HarbethError else {
+                return XCTFail("Expected HarbethError.cubeCompactResourceFailed, got \(error)")
+            }
+            XCTAssertEqual(reason, "invalidHeader")
         }
     }
 
@@ -146,7 +152,10 @@ final class ColorCubeTests: XCTestCase {
 
         XCTAssertNil(cube.resourceIdentity)
         XCTAssertTrue(cube.otherInputTextures.isEmpty)
-        XCTAssertEqual(cube.resourceLoadError, .invalidCompactResource(name: "identity", reason: .invalidHeader))
+        guard case .some(.cubeCompactResourceFailed(let reason)) = cube.resourceLoadError else {
+            return XCTFail("Expected HarbethError.cubeCompactResourceFailed, got \(String(describing: cube.resourceLoadError))")
+        }
+        XCTAssertEqual(reason, "invalidHeader")
     }
 
     func testLegacyCubeResourceRemainsReadable() throws {

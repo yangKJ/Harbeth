@@ -94,7 +94,9 @@ final class MaskProcessingTests: XCTestCase {
             operations: [.threshold(0.5)]
         )
         XCTAssertThrowsError(try recipe.execute(cancellation: token)) { error in
-            XCTAssertEqual(error as? TextureMultiPassError, .cancelled)
+            guard case .some(.textureMultiPassCancelled) = error as? HarbethError else {
+                return XCTFail("Expected HarbethError.textureMultiPassCancelled, got \(error)")
+            }
         }
     }
 

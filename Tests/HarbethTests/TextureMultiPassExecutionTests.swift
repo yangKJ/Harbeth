@@ -72,7 +72,9 @@ final class TextureMultiPassExecutionTests: XCTestCase {
             passes: [[C7Brightness(brightness: 0.2)]],
             cancellation: token
         )) { error in
-            XCTAssertEqual(error as? TextureMultiPassError, .cancelled)
+            guard case .some(.textureMultiPassCancelled) = error as? HarbethError else {
+                return XCTFail("Expected HarbethError.textureMultiPassCancelled, got \(error)")
+            }
         }
     }
 

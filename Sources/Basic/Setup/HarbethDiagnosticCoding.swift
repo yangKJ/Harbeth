@@ -1,15 +1,19 @@
 import Foundation
 
-public protocol HarbethDiagnosticError: Error {
+/// Harbeth 错误的结构化诊断协议。
+///
+/// `HarbethError` 是统一错误面；本协议保留稳定机器码与 metadata，供宿主进行多语言映射、
+/// 日志聚合和跨进程错误传递。
+public protocol HarbethDiagnosticCoding: Error {
     var harbethDiagnosticCode: String { get }
     var harbethDiagnosticMetadata: [String: String] { get }
 }
 
-public extension HarbethDiagnosticError {
+public extension HarbethDiagnosticCoding {
     var harbethDiagnosticMetadata: [String: String] { [:] }
 }
 
-extension HarbethError: HarbethDiagnosticError {
+extension HarbethError: HarbethDiagnosticCoding {
     public var harbethDiagnosticCode: String {
         switch self {
         case .unknown: return "harbeth.unknown"
@@ -37,11 +41,19 @@ extension HarbethError: HarbethDiagnosticError {
         case .textureFormatNotSupported: return "harbeth.texture.format_unsupported"
         case .textureSizeMismatch: return "harbeth.texture.size_mismatch"
         case .textureNotMipmapped: return "harbeth.texture.mipmaps_missing"
+        case .textureMultiPassCancelled: return "harbeth.texture_multi_pass.cancelled"
+        case .textureRegionInvalidLogicalExtent: return "harbeth.texture_region.logical_extent_invalid"
+        case .textureRegionInvalidReadRegion: return "harbeth.texture_region.read_region_invalid"
+        case .textureRegionInvalidWriteRegion: return "harbeth.texture_region.write_region_invalid"
+        case .textureRegionInvalidFootprint: return "harbeth.texture_region.footprint_invalid"
+        case .textureRegionUnsupportedFootprint: return "harbeth.texture_region.footprint_unsupported"
         case .readFunction: return "harbeth.metal.function_not_found"
         case .computePipelineState: return "harbeth.metal.compute_pipeline_create_failed"
         case .renderPipelineState: return "harbeth.metal.render_pipeline_create_failed"
         case .pipelineStateCreationFailed: return "harbeth.metal.pipeline_create_failed"
+        case .pipelineBinaryArchiveFailed: return "harbeth.pipeline.binary_archive_failed"
         case .cubeResource: return "harbeth.resource.cube_read_failed"
+        case .cubeCompactResourceFailed: return "harbeth.resource.cube_compact_invalid"
         case .contextCreationFailed: return "harbeth.context.create_failed"
         case .CVPixelBufferToCMSampleBuffer: return "harbeth.pixel_buffer.to_sample_buffer_failed"
         case .CMSampleBufferToCVPixelBuffer: return "harbeth.sample_buffer.to_pixel_buffer_failed"
@@ -58,11 +70,18 @@ extension HarbethError: HarbethDiagnosticError {
         case .renderableTextureLocked: return "harbeth.renderable.texture_locked"
         case .renderableViewSetupFailed: return "harbeth.renderable.view_setup_failed"
         case .renderableDelegateNotSet: return "harbeth.renderable.delegate_missing"
+        case .viewSnapshotCaptureFailed: return "harbeth.view_snapshot.capture_failed"
+        case .renderResourceBudgetExceeded: return "harbeth.render.resource_budget_exceeded"
         case .filterInitializationFailed: return "harbeth.filter.initialization_failed"
         case .filterParameterInvalid: return "harbeth.filter.parameter_invalid"
         case .filterChainEmpty: return "harbeth.filter.chain_empty"
         case .kernelInvocationIncompatible: return "harbeth.kernel.invocation_incompatible"
         case .filterProcessingFailed: return "harbeth.filter.processing_failed"
+        case .renderPrimitiveValidationFailed: return "harbeth.render_primitive.validation_failed"
+        case .sceneRelightTooManyLights: return "harbeth.scene_relight.too_many_lights"
+        case .incrementalMaskCanvasStaleGeneration: return "harbeth.incremental_mask_canvas.stale_generation"
+        case .strokeSurfaceStaleActualGeneration: return "harbeth.stroke_surface.actual_generation_stale"
+        case .strokeSurfaceStalePredictedGeneration: return "harbeth.stroke_surface.predicted_generation_stale"
         case .memoryAllocationFailed: return "harbeth.memory.allocation_failed"
         case .deviceNotAvailable: return "harbeth.metal.device_unavailable"
         case .commandQueueCreationFailed: return "harbeth.metal.command_queue_create_failed"
@@ -82,14 +101,34 @@ extension HarbethError: HarbethDiagnosticError {
     public var harbethDiagnosticMetadata: [String: String] {
         var metadata = ["numericCode": String(code)]
         switch self {
-        case .commandBufferAsyncCommit(let status): metadata["commandBufferStatus"] = String(status.rawValue)
-        case .readFunction(let name): metadata["function"] = name
-        case .computePipelineState(let name): metadata["function"] = name
+        case .commandBufferAsyncCommit(let status):
+            metadata["commandBufferStatus"] = String(status.rawValue)
+        case .readFunction(let name), .computePipelineState(let name):
+            metadata["function"] = name
         case .renderPipelineState(let vertex, let fragment):
             metadata["vertexFunction"] = vertex
             metadata["fragmentFunction"] = fragment
-        case .filterInitializationFailed(let name): metadata["filter"] = name
-        case .filterParameterInvalid(let parameter), .parameterMissing(let parameter): metadata["parameter"] = parameter
+        case .pipelineBinaryArchiveFailed(let reason), .viewSnapshotCaptureFailed(let reason), .cubeCompactResourceFailed(let reason):
+            metadata["reason"] = reason
+        case .renderResourceBudgetExceeded(let admission):
+            metadata["estimate"] = admission.estimate.fingerprint
+            metadata["budget"] = admission.budget?.fingerprint ?? "none"
+            metadata["violations"] = admission.violations.map(\.limit.rawValue).joined(separator: ",")
+        case .filterInitializationFailed(let name):
+            metadata["filter"] = name
+        case .renderPrimitiveValidationFailed(let primitive, let reason):
+            metadata["primitive"] = primitive
+            metadata["reason"] = reason
+        case .filterParameterInvalid(let parameter), .parameterMissing(let parameter):
+            metadata["parameter"] = parameter
+        case .sceneRelightTooManyLights(let maximum, let actual):
+            metadata["maximum"] = String(maximum)
+            metadata["actual"] = String(actual)
+        case .incrementalMaskCanvasStaleGeneration(let requested, let current),
+             .strokeSurfaceStaleActualGeneration(let requested, let current),
+             .strokeSurfaceStalePredictedGeneration(let requested, let current):
+            metadata["requestedGeneration"] = String(requested)
+            metadata["currentGeneration"] = String(current)
         case .parameterOutOfRange(let parameter, let range):
             metadata["parameter"] = parameter
             metadata["range"] = "\(range.lowerBound)...\(range.upperBound)"
@@ -99,29 +138,13 @@ extension HarbethError: HarbethDiagnosticError {
     }
 }
 
-extension TextureMultiPassError: HarbethDiagnosticError {
-    public var harbethDiagnosticCode: String { "harbeth.texture_multi_pass.cancelled" }
-}
-
-extension TextureRegionContextError: HarbethDiagnosticError {
-    public var harbethDiagnosticCode: String {
-        switch self {
-        case .invalidLogicalExtent: return "harbeth.texture_region.logical_extent_invalid"
-        case .invalidReadRegion: return "harbeth.texture_region.read_region_invalid"
-        case .invalidWriteRegion: return "harbeth.texture_region.write_region_invalid"
-        case .invalidFootprint: return "harbeth.texture_region.footprint_invalid"
-        case .unsupportedFootprint: return "harbeth.texture_region.footprint_unsupported"
-        }
-    }
-}
-
 public extension Error {
     var harbethDiagnosticCode: String {
-        (self as? HarbethDiagnosticError)?.harbethDiagnosticCode ?? "harbeth.underlying_error"
+        (self as? HarbethError)?.harbethDiagnosticCode ?? "harbeth.underlying_error"
     }
 
     var harbethDiagnosticMetadata: [String: String] {
-        (self as? HarbethDiagnosticError)?.harbethDiagnosticMetadata ?? [
+        (self as? HarbethError)?.harbethDiagnosticMetadata ?? [
             "errorDomain": (self as NSError).domain,
             "errorCode": String((self as NSError).code)
         ]

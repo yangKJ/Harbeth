@@ -319,11 +319,7 @@ extension MaskShapeRecipe: MaskRebasableRecipe {
         }
     }
 
-    private func rebasedAnalyticRecipe(
-        sourceRect: CGRect,
-        logicalSize: C7Size,
-        tileInputSize: C7Size
-    ) -> MaskShapeRecipe {
+    private func rebasedAnalyticRecipe(sourceRect: CGRect, logicalSize: C7Size, tileInputSize: C7Size) -> MaskShapeRecipe {
         let logicalWidth = max(CGFloat(logicalSize.width), 1)
         let logicalHeight = max(CGFloat(logicalSize.height), 1)
         let tileWidth = max(CGFloat(tileInputSize.width), 1)

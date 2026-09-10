@@ -66,12 +66,7 @@ struct MaskEdgeRefinementRecipe {
     let threshold: Float
     let profile: RenderProfile
 
-    init(shift: Float = 0,
-                innerFeather: Float = 0,
-                outerFeather: Float = 0,
-                maxDistance: Float = 64,
-                threshold: Float = 0.5,
-                profile: RenderProfile = .inspectionQuality) {
+    init(shift: Float = 0, innerFeather: Float = 0, outerFeather: Float = 0, maxDistance: Float = 64, threshold: Float = 0.5, profile: RenderProfile = .inspectionQuality) {
         self.shift = shift.isFinite ? shift : 0
         self.innerFeather = max(innerFeather.isFinite ? innerFeather : 0, 0)
         self.outerFeather = max(outerFeather.isFinite ? outerFeather : 0, 0)
@@ -116,19 +111,14 @@ struct MaskGuidedRefinementRecipe {
     let coefficientScale: Float
     let storageFormat: MaskStorageFormat
 
-    init(radius: Int = 8,
-                epsilon: Float = 0.001,
-                coefficientScale: Float = 0.5,
-                storageFormat: MaskStorageFormat = .coverage16Float) {
+    init(radius: Int = 8, epsilon: Float = 0.001, coefficientScale: Float = 0.5, storageFormat: MaskStorageFormat = .coverage16Float) {
         self.radius = min(max(radius, 1), 64)
         self.epsilon = max(epsilon.isFinite ? epsilon : 0.001, 0.000_001)
         self.coefficientScale = min(max(coefficientScale.isFinite ? coefficientScale : 0.5, 0.125), 1)
         self.storageFormat = storageFormat
     }
 
-    func makePlane(from mask: MaskDescriptor,
-                   guidanceTexture: MTLTexture,
-                   confidenceTexture: MTLTexture? = nil) throws -> MaskPlane {
+    func makePlane(from mask: MaskDescriptor, guidanceTexture: MTLTexture, confidenceTexture: MTLTexture? = nil) throws -> MaskPlane {
         let normalizedCoverage = try MaskProcessingRecipe(mask: mask).makeCoverageTexture()
         var coverageIO = HarbethIO(
             element: normalizedCoverage,
@@ -244,11 +234,7 @@ private extension MaskSignedDistanceFieldRecipe {
 }
 
 private extension MaskGuidedRefinementRecipe {
-    static func makeTexture(device: MTLDevice,
-                            width: Int,
-                            height: Int,
-                            pixelFormat: MTLPixelFormat,
-                            identifier: String) throws -> MTLTexture {
+    static func makeTexture(device: MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, identifier: String) throws -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: pixelFormat,
             width: max(width, 1),
