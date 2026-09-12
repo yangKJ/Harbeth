@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-09-12
+
+#### Fixed
+
+- Clamped `C7Sketch` Sobel taps to the source extent, preventing synthetic lines along image boundaries.
+
 ### 2026-09-07
 
 #### Added
