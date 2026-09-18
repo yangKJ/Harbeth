@@ -28,6 +28,75 @@ final class MetalCommandEncodingTests: XCTestCase {
         XCTAssertEqual(output.storageMode, .shared)
     }
 
+    func testComputeWritesSharedDestination() throws {
+        try assertComputeOutput(storageMode: .shared)
+    }
+
+    func testComputeWritesPrivateDestination() throws {
+        try assertComputeOutput(storageMode: .private)
+    }
+
+    #if os(macOS) || targetEnvironment(macCatalyst)
+    func testComputeWritesManagedDestination() throws {
+        try assertComputeOutput(storageMode: .managed)
+    }
+    #endif
+
+    func testTransmitFrameDoubleBufferingPreservesComputedPixels() async throws {
+        let input = try makeSolidTexture(red: 40, green: 80, blue: 120, alpha: 255)
+        // 插入几何操作，避免亮度被融合为单个 kernel，从而覆盖双缓冲执行链。
+        let filters: [C7FilterProtocol] = [
+            C7Brightness(brightness: 0.2),
+            C7Flip(horizontal: true),
+            C7Brightness(brightness: -0.2)
+        ]
+        let io = HarbethIO(element: input, filters: filters)
+        let program = io.makeRenderProgram(input: input)
+        XCTAssertTrue(io.shouldUseDoubleBuffer(input: input, program: program, minimumFilterCount: 2))
+
+        let node = ImageNode.texture(input).applying(filters: filters)
+        let frame = try await withCheckedThrowingContinuation { continuation in
+            node.transmitFrame { result in
+                continuation.resume(with: result)
+            }
+        }
+        let lease = try XCTUnwrap(frame.lease)
+        defer { lease.release() }
+
+        XCTAssertEqual(frame.texture.storageMode, .shared)
+        let output = try firstPixel(in: frame.texture)
+        for (actual, expected) in zip(output, [40, 80, 120, 255]) {
+            XCTAssertEqual(Int(actual), expected, accuracy: 1)
+        }
+    }
+
+    private func assertComputeOutput(storageMode: MTLStorageMode) throws {
+        let input = try makeSolidTexture(red: 40, green: 80, blue: 120, alpha: 255)
+        let descriptor = input.c7.descriptor
+        descriptor.storageMode = storageMode
+        let output = try XCTUnwrap(input.device.makeTexture(descriptor: descriptor))
+        let queue = try XCTUnwrap(input.device.makeCommandQueue())
+        let commandBuffer = try XCTUnwrap(queue.makeCommandBuffer())
+        let result = try C7Brightness(brightness: 0.2).apply(
+            form: input,
+            to: output,
+            for: commandBuffer,
+            complete: nil
+        )
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        XCTAssertTrue(result === output)
+        XCTAssertEqual(commandBuffer.status, .completed)
+        XCTAssertNil(commandBuffer.error)
+        let pixels = try XCTUnwrap(output.c7.bytes())
+        let expected = Array(repeating: [91, 131, 171, 255], count: 4).flatMap { $0 }
+        XCTAssertEqual(pixels.count, expected.count)
+        for (actual, expected) in zip(pixels, expected) {
+            XCTAssertEqual(Int(actual), expected, accuracy: 1)
+        }
+    }
+
     func testCLAHEUsesMetalCommandRouteForItsBufferResourceGraph() {
         let filter = C7CLAHE()
         let descriptor = filter.kernelDescriptor(inputSize: C7Size(width: 4, height: 4))

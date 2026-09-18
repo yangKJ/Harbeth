@@ -255,9 +255,12 @@ struct Compute {
         computeEncoder.dispatchThreadgroups(threadgroupCount, threadsPerThreadgroup: threadgroupSize)
         computeEncoder.endEncoding()
         #if targetEnvironment(macCatalyst)
-        let blitEncoder = commandBuffer.makeBlitCommandEncoder()
-        blitEncoder?.synchronize(resource: destTexture)
-        blitEncoder?.endEncoding()
+        // 只有 managed 资源需要同步 CPU 副本；shared/private 不能调用此 API。
+        if destTexture.storageMode == .managed {
+            let blitEncoder = commandBuffer.makeBlitCommandEncoder()
+            blitEncoder?.synchronize(resource: destTexture)
+            blitEncoder?.endEncoding()
+        }
         #endif
         return destTexture
     }

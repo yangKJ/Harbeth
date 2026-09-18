@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-09-19
+
+#### Fixed
+
+- 修复 Mac Catalyst 计算滤镜对 shared/private 输出纹理调用 managed 资源同步 API 导致的 Metal 校验崩溃；仅对 managed 纹理保留同步。
+
 ### 2026-09-12
 
 #### Fixed
