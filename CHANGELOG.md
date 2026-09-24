@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-09-24
+
+#### Fixed
+
+- 修复不透明 XRGB/RGBX 图片加载时占位通道被当成颜色或透明度的问题，避免原图往返和滤镜输出出现严重偏色、变亮与错误透明度。
+
 ### 2026-09-19
 
 #### Fixed

@@ -6,6 +6,22 @@ import CoreVideo
 
 final class TextureReadbackTests: XCTestCase {
 
+    func testOpaquePaddingChannelsDoNotBecomeColorOrAlphaOnUpload() throws {
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        for alpha in [CGImageAlphaInfo.noneSkipFirst, .noneSkipLast] {
+            let pixel: [UInt8] = alpha == .noneSkipFirst ? [17, 63, 127, 191] : [63, 127, 191, 17]
+            let bytes = Array(repeating: pixel, count: 16).flatMap { $0 }
+            let provider = try XCTUnwrap(CGDataProvider(data: Data(bytes) as CFData))
+            let image = try XCTUnwrap(CGImage(
+                width: 4, height: 4, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 16,
+                space: colorSpace, bitmapInfo: CGBitmapInfo(rawValue: alpha.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent))
+            let texture = try TextureLoader(with: image).texture
+            let output = try XCTUnwrap(texture.c7.bytes())
+            XCTAssertEqual(Array(output.prefix(4)), [63, 127, 191, 255])
+        }
+    }
+
     func testHalfFloatExtendedLinearTextureRoundTripPreservesExtendedValues() throws {
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(

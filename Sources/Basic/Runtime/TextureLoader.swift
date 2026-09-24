@@ -196,6 +196,14 @@ extension TextureLoader {
         let loader = HarbethContext.shared.runtimeDevice.textureLoader
         let options = options ?? TextureLoader.defaultOptions
         let preferredPixelFormat = TextureLoader.preferredPixelFormat(for: cgImage)
+        // 部分 ImageIO 的 XRGB/RGBX 图被 MetalKit 按 BGRA 解释，占位字节会变成颜色/alpha。
+        // 先用 Core Graphics 兑现不透明输入的通道合同，不能把没有 alpha 的图片当预乘图。
+        if cgImage.alphaInfo == .noneSkipFirst || cgImage.alphaInfo == .noneSkipLast {
+            let format: MTLPixelFormat = preferredPixelFormat == .rgba8Unorm && (options[.SRGB] as? Bool) == true
+                ? .rgba8Unorm_srgb : preferredPixelFormat
+            self.texture = try TextureLoader.drawCGImageToTexture(cgImage, pixelFormat: format)
+            return
+        }
         if let texture = try? loader.newTexture(cgImage: cgImage, options: options),
            preferredPixelFormat != .rgba16Float || texture.pixelFormat == .rgba16Float {
             self.texture = texture
