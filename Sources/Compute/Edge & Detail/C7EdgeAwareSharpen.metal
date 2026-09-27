@@ -29,12 +29,12 @@ kernel void C7EdgeAwareSharpen(texture2d<half, access::write> outputTexture [[te
     
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
-            uint2 samplePos = uint2(grid.x + x, grid.y + y);
-            if (samplePos.x < inputTexture.get_width() && samplePos.y < inputTexture.get_height()) {
-                half4 sampleColor = inputTexture.read(samplePos);
-                int kernelIndex = (y + 1) * kernelSize + (x + 1);
-                laplacianSum += sampleColor * laplacianKernel[kernelIndex];
-            }
+            const int2 coordinate = int2(grid) + int2(x, y);
+            const int2 maximum = int2(inputTexture.get_width() - 1, inputTexture.get_height() - 1);
+            const uint2 samplePos = uint2(clamp(coordinate, int2(0), maximum));
+            half4 sampleColor = inputTexture.read(samplePos);
+            int kernelIndex = (y + 1) * kernelSize + (x + 1);
+            laplacianSum += sampleColor * laplacianKernel[kernelIndex];
         }
     }
     

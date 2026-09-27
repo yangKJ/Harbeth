@@ -193,6 +193,181 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testCurvesMultiPointSegmentsMapActualPixelsContinuously() throws {
+        let sourceValues: [UInt8] = [63, 64, 65, 127, 128, 191, 192, 193]
+        let sourcePixels = sourceValues.flatMap { [$0, $0, $0, UInt8.max] }
+        let source = try makeRGBA8Texture(width: sourceValues.count, pixels: sourcePixels)
+        let points = [
+            C7Point2D(x: 0, y: 0),
+            C7Point2D(x: 0.25, y: 0.75),
+            C7Point2D(x: 0.75, y: 0.25),
+            C7Point2D(x: 1, y: 1)
+        ]
+        let output: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7Curves(rgbPoints: points, interpolation: .linear)
+        ).output()
+        let outputPixels = try rgba8Pixels(in: output)
+        let outputValues = stride(from: 0, to: outputPixels.count, by: 4).map { outputPixels[$0] }
+
+        XCTAssertEqual(outputValues[1], 191, accuracy: 2)
+        XCTAssertEqual(outputValues[4], 127, accuracy: 2)
+        XCTAssertEqual(outputValues[6], 64, accuracy: 2)
+        XCTAssertLessThanOrEqual(abs(Int(outputValues[0]) - Int(outputValues[1])), 4)
+        XCTAssertLessThanOrEqual(abs(Int(outputValues[1]) - Int(outputValues[2])), 4)
+        XCTAssertLessThanOrEqual(abs(Int(outputValues[5]) - Int(outputValues[6])), 4)
+        XCTAssertLessThanOrEqual(abs(Int(outputValues[6]) - Int(outputValues[7])), 4)
+        for index in stride(from: 3, to: outputPixels.count, by: 4) {
+            XCTAssertEqual(outputPixels[index], UInt8.max)
+        }
+    }
+
+    func testLegacyCurvesKeepPreviouslyPersistedMultiPointRendering() throws {
+        let source = try makeRGBA8Texture(width: 1, pixels: [77, 77, 77, 255])
+        let points = [
+            C7Point2D(x: 0, y: 0),
+            C7Point2D(x: 0.3, y: 0.2),
+            C7Point2D(x: 0.7, y: 0.8),
+            C7Point2D(x: 1, y: 1)
+        ]
+        let legacy: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7Curves(rgbPoints: points, interpolation: .legacy)
+        ).output()
+        let corrected: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7Curves(rgbPoints: points, interpolation: .linear)
+        ).output()
+        let legacyValue = try rgba8Pixels(in: legacy)[0]
+        let correctedValue = try rgba8Pixels(in: corrected)[0]
+
+        XCTAssertEqual(legacyValue, 137, accuracy: 3)
+        XCTAssertEqual(correctedValue, 52, accuracy: 3)
+    }
+
+    func testNeighborhoodDetailFiltersDeclareOnePixelHalo() {
+        XCTAssertEqual(C7EdgeAwareSharpen(amount: 1).samplingFootprint, .neighborhood(radius: 1))
+        XCTAssertEqual(C7SharpenDetail(clarity: 1).samplingFootprint, .neighborhood(radius: 1))
+    }
+
+    func testEdgeAwareSharpenKeepsUniformImageIdenticalAtCorners() throws {
+        let sourcePixels: [UInt8] = Array(repeating: [128, 128, 128, 255], count: 25).flatMap { $0 }
+        let source = try makeRGBA8Texture(width: 5, height: 5, pixels: sourcePixels)
+        let output: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7EdgeAwareSharpen(amount: 1, edgeThreshold: 0)
+        ).output()
+
+        let outputPixels = try rgba8Pixels(in: output)
+        for index in stride(from: 0, to: outputPixels.count, by: 4) {
+            XCTAssertEqual(outputPixels[index], 128, accuracy: 1)
+            XCTAssertEqual(outputPixels[index + 1], 128, accuracy: 1)
+            XCTAssertEqual(outputPixels[index + 2], 128, accuracy: 1)
+            XCTAssertEqual(outputPixels[index + 3], 255)
+        }
+    }
+
+    func testSharpenDetailDoesNotInventStructureOnUniformImage() throws {
+        let sourcePixels: [UInt8] = Array(repeating: [128, 128, 128, 255], count: 25).flatMap { $0 }
+        let source = try makeRGBA8Texture(width: 5, height: 5, pixels: sourcePixels)
+        let output: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7SharpenDetail(sharpen: 0, clarity: 1, detail: 1)
+        ).output()
+
+        let outputPixels = try rgba8Pixels(in: output)
+        for index in stride(from: 0, to: outputPixels.count, by: 4) {
+            XCTAssertEqual(outputPixels[index], 128, accuracy: 1)
+            XCTAssertEqual(outputPixels[index + 1], 128, accuracy: 1)
+            XCTAssertEqual(outputPixels[index + 2], 128, accuracy: 1)
+            XCTAssertEqual(outputPixels[index + 3], 255)
+        }
+    }
+
+    func testChannelControlBlendControlsRenderedStrength() throws {
+        let sourcePixels: [UInt8] = [100, 150, 200, 128]
+        let source = try makeRGBA8Texture(width: 1, pixels: sourcePixels)
+        let disabled: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7ChannelControl(red: 0.5, green: -0.5, blue: 0, alpha: 0.5, blend: 0)
+        ).output()
+        let applied: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7ChannelControl(red: 0.5, green: -0.5, blue: 0, alpha: 0.5, blend: 1)
+        ).output()
+
+        XCTAssertEqual(try rgba8Pixels(in: disabled), sourcePixels)
+        let appliedPixels = try rgba8Pixels(in: applied)
+        XCTAssertEqual(appliedPixels[0], 150, accuracy: 1)
+        XCTAssertEqual(appliedPixels[1], 75, accuracy: 1)
+        XCTAssertEqual(appliedPixels[2], 200, accuracy: 1)
+        XCTAssertEqual(appliedPixels[3], 64, accuracy: 1)
+    }
+
+    func testExposureProducesOneStopGainAndPreservesAlpha() throws {
+        let source = try makeRGBA8Texture(width: 1, pixels: [64, 64, 64, 123])
+        let output: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7Exposure(exposure: 1)
+        ).output()
+        let pixels = try rgba8Pixels(in: output)
+
+        XCTAssertEqual(pixels[0], 128, accuracy: 1)
+        XCTAssertEqual(pixels[1], 128, accuracy: 1)
+        XCTAssertEqual(pixels[2], 128, accuracy: 1)
+        XCTAssertEqual(pixels[3], 123)
+    }
+
+    func testWhiteBalanceWarmDirectionRaisesRedRelativeToBlue() throws {
+        let source = try makeRGBA8Texture(width: 1, pixels: [128, 128, 128, 211])
+        let output: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7WhiteBalance(temperature: 6_500, tint: 0)
+        ).output()
+        let pixels = try rgba8Pixels(in: output)
+
+        XCTAssertGreaterThan(pixels[0], pixels[2])
+        XCTAssertEqual(pixels[3], 211)
+    }
+
+    func testSelectiveHSLRedChannelDesaturatesRedWithoutShiftingBlue() throws {
+        let sourcePixels: [UInt8] = [255, 0, 0, 255, 0, 0, 255, 255]
+        let source = try makeRGBA8Texture(width: 2, pixels: sourcePixels)
+        var adjustments = Array(repeating: SIMD3<Float>.zero, count: C7SelectiveHSL.channelCount)
+        adjustments[0] = SIMD3<Float>(0, -1, 0)
+        let output: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7SelectiveHSL(adjustments: adjustments)
+        ).output()
+        let pixels = try rgba8Pixels(in: output)
+
+        let redOutputChroma = Int(pixels[0...2].max()!) - Int(pixels[0...2].min()!)
+        XCTAssertLessThanOrEqual(redOutputChroma, 8)
+        XCTAssertEqual(Array(pixels[4...7]), Array(sourcePixels[4...7]))
+        XCTAssertEqual(pixels[3], 255)
+    }
+
+    func testColorGradingShadowTintWeightsDarkPixelsMoreThanHighlights() throws {
+        let source = try makeRGBA8Texture(
+            width: 2,
+            pixels: [64, 64, 64, 151, 192, 192, 192, 187]
+        )
+        let output: MTLTexture = try HarbethIO(
+            element: source,
+            filter: C7ColorGrading(
+                shadows: SIMD3<Float>(240, 1, 0),
+                blending: 0.5
+            )
+        ).output()
+        let pixels = try rgba8Pixels(in: output)
+        let darkBlueBias = Int(pixels[2]) - Int(pixels[0])
+        let brightBlueBias = Int(pixels[6]) - Int(pixels[4])
+
+        XCTAssertGreaterThan(darkBlueBias, brightBlueBias)
+        XCTAssertEqual(pixels[3], 151)
+        XCTAssertEqual(pixels[7], 187)
+    }
+
     func testOutputQuantizationIsDeterministicWithoutDitherAndPreservesAlpha() throws {
         let source = try makeRGBA8Texture(width: 1, pixels: [100, 100, 100, 123])
         let output: MTLTexture = try HarbethIO(
@@ -203,13 +378,13 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(try rgba8Pixels(in: output), [102, 102, 102, 123])
     }
 
-    private func makeRGBA8Texture(width: Int, pixels: [UInt8]) throws -> MTLTexture {
-        guard pixels.count == width * 4 else {
+    private func makeRGBA8Texture(width: Int, height: Int = 1, pixels: [UInt8]) throws -> MTLTexture {
+        guard pixels.count == width * height * 4 else {
             throw HarbethError.filterParameterInvalid("RGBA8 dimensions do not match the pixel count.")
         }
-        let texture = try makeTexture(pixelFormat: .rgba8Unorm, width: width)
+        let texture = try makeTexture(pixelFormat: .rgba8Unorm, width: width, height: height)
         texture.replace(
-            region: MTLRegionMake2D(0, 0, width, 1),
+            region: MTLRegionMake2D(0, 0, width, height),
             mipmapLevel: 0,
             withBytes: pixels,
             bytesPerRow: width * 4
@@ -233,14 +408,14 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         return texture
     }
 
-    private func makeTexture(pixelFormat: MTLPixelFormat, width: Int) throws -> MTLTexture {
+    private func makeTexture(pixelFormat: MTLPixelFormat, width: Int, height: Int = 1) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
         }
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: pixelFormat,
             width: width,
-            height: 1,
+            height: height,
             mipmapped: false
         )
         descriptor.usage = [.shaderRead, .shaderWrite]
@@ -255,11 +430,11 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         guard texture.pixelFormat == .rgba8Unorm else {
             throw HarbethError.filterParameterInvalid("Expected an RGBA8 output.")
         }
-        var values = Array(repeating: UInt8.zero, count: texture.width * 4)
+        var values = Array(repeating: UInt8.zero, count: texture.width * texture.height * 4)
         texture.getBytes(
             &values,
             bytesPerRow: texture.width * 4,
-            from: MTLRegionMake2D(0, 0, texture.width, 1),
+            from: MTLRegionMake2D(0, 0, texture.width, texture.height),
             mipmapLevel: 0
         )
         return values

@@ -26,6 +26,14 @@ public struct C7EdgeAwareSharpen: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(samplingFootprint: .neighborhood(radius: 1))
+    }
+
+    public var samplingFootprint: SamplingFootprint {
+        .neighborhood(radius: 1)
+    }
     
     public init(amount: Float, edgeThreshold: Float = 0.3) {
         self.amount = amount

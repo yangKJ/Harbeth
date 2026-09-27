@@ -20,6 +20,11 @@ import Foundation
 /// - 默认的对角线([(0,0), (1,1)])代表无调整
 public struct C7Curves: C7FilterProtocol {
 
+    public enum Interpolation: String, Codable, Equatable, Sendable {
+        case legacy
+        case linear
+    }
+
     /// RGB曲线控制点，使用C7Point2D（归一化坐标）
     /// RGB curve control points, using C7Point2D (normalized coordinates)
     public var rgbPoints: [C7Point2D] = []
@@ -36,8 +41,11 @@ public struct C7Curves: C7FilterProtocol {
     /// Blue channel curve control points
     public var bluePoints: [C7Point2D] = []
 
+    /// 公共默认保留旧插值，避免未版本化的持久化配方静默改变；新编辑应显式使用 `.linear`。
+    public var interpolation: Interpolation
+
     public var modifier: ModifierEnum {
-        return .compute(kernel: "C7Curves")
+        .compute(kernel: interpolation == .legacy ? "C7CurvesLegacy" : "C7Curves")
     }
 
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -62,7 +70,14 @@ public struct C7Curves: C7FilterProtocol {
         points.flatMap { [$0.x, $0.y] }
     }
 
-    public init(rgbPoints: [C7Point2D]? = nil, redPoints: [C7Point2D]? = nil, greenPoints: [C7Point2D]? = nil, bluePoints: [C7Point2D]? = nil) {
+    public init(
+        rgbPoints: [C7Point2D]? = nil,
+        redPoints: [C7Point2D]? = nil,
+        greenPoints: [C7Point2D]? = nil,
+        bluePoints: [C7Point2D]? = nil,
+        interpolation: Interpolation = .legacy
+    ) {
+        self.interpolation = interpolation
         if let points = rgbPoints {
             self.rgbPoints = points
         } else {

@@ -36,6 +36,14 @@ public struct C7SharpenDetail: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(samplingFootprint: .neighborhood(radius: 1))
+    }
+
+    public var samplingFootprint: SamplingFootprint {
+        .neighborhood(radius: 1)
+    }
     
     public init(sharpen: Float = 0,  clarity: Float = 0, detail: Float = 0) {
         self.sharpen = sharpen
