@@ -13,7 +13,7 @@ final class KernelExecutionPlanTests: XCTestCase {
         XCTAssertEqual(plan.passes.count, 1)
         XCTAssertEqual(plan.passes.first?.kind, .compute)
         XCTAssertEqual(plan.pixelContract.samplingFootprint, .point)
-        XCTAssertEqual(plan.pixelContract.dynamicRangeBehavior, .unspecified)
+        XCTAssertEqual(plan.pixelContract.dynamicRangeBehavior, .preservesExtendedRange)
         XCTAssertTrue(plan.pixelContract.canAutoTile)
         XCTAssertTrue(plan.pixelContract.isPointwiseFusionEligible)
         XCTAssertFalse(plan.fingerprint.isEmpty)
@@ -149,7 +149,7 @@ final class KernelExecutionPlanTests: XCTestCase {
             ("C7ChromaticAberrationCorrection", C7ChromaticAberrationCorrection(), 4),
             ("C7LensDistortionCorrection", C7LensDistortionCorrection(), 5),
             ("C7SharpnessFalloffCorrection", C7SharpnessFalloffCorrection(), 4),
-            ("C7ColorCube", C7ColorCube(cubeResource: nil), 4),
+            ("C7ColorCube", C7ColorCube(cubeResource: nil), 5),
             ("C7DisplacementMap", C7DisplacementMap(displacementTexture: texture), 6),
             ("C7EdgeGlow", C7EdgeGlow(), 3),
             ("C7StickerOutline", C7StickerOutline(), 3)
@@ -220,8 +220,8 @@ final class KernelExecutionPlanTests: XCTestCase {
         )
         assertGroupedParameters(
             C7ColorCube(cubeResource: nil),
-            expectedNames: ["intensity", "interpolation", "domainMinimum", "domainMaximum"],
-            legacySlotCount: 8
+            expectedNames: ["intensity", "interpolation", "domainMinimum", "domainMaximum", "domainPolicy"],
+            legacySlotCount: 9
         )
         assertGroupedParameters(
             C7Curves(),

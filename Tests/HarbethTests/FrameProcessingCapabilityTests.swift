@@ -4,7 +4,7 @@ import XCTest
 final class FrameProcessingCapabilityTests: XCTestCase {
     func testStrictDynamicFrameRejectsLegacyFallbackContract() {
         let diagnostics = GraphCompiler.compile(
-            filters: [C7Brightness(brightness: 0.1)],
+            filters: [C7Gamma(gamma: 1.1)],
             inputSize: C7Size(width: 16, height: 12),
             profile: .stablePreview
         ).diagnostics

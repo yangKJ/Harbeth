@@ -27,6 +27,16 @@ public struct C7Exposure: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            workingColorSpace: .extendedLinearDisplayP3,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
+    }
     
     public init(exposure: Float = range.value) {
         self.exposure = exposure

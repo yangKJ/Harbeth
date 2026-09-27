@@ -89,6 +89,58 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(try rgba16FloatPixels(in: output), [0, 0, 0, 0])
     }
 
+    func testPQAndHLGTransferRoundTripPreservesSignedValuesAndAlpha() throws {
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [-0.02, 0.18, 0.75, 0.35])
+        for pair in [(C7RGBTransferConversion.Mode.pqToLinear, C7RGBTransferConversion.Mode.linearToPQ),
+                     (C7RGBTransferConversion.Mode.hlgToLinear, C7RGBTransferConversion.Mode.linearToHLG)] {
+            let decoded: MTLTexture = try HarbethIO(element: source,
+                filter: C7RGBTransferConversion(mode: pair.0)).output()
+            let encoded: MTLTexture = try HarbethIO(element: decoded,
+                filter: C7RGBTransferConversion(mode: pair.1)).output()
+            let pixel = try rgba16FloatPixels(in: encoded)
+            XCTAssertEqual(pixel[0], -0.02, accuracy: 0.01)
+            XCTAssertEqual(pixel[1], 0.18, accuracy: 0.01)
+            XCTAssertEqual(pixel[2], 0.75, accuracy: 0.02)
+            XCTAssertEqual(pixel[3], 0.35, accuracy: 0.01)
+            XCTAssertEqual(C7RGBTransferConversion(mode: pair.0).kernelPixelContract.dynamicRangeBehavior,
+                           .preservesExtendedRange)
+        }
+    }
+
+    func testBrightnessPreservesExtendedPixelsAndAlphaInRealMetalExecution() throws {
+        let filter = C7Brightness(brightness: 0.25)
+        XCTAssertEqual(filter.kernelPixelContract.workingColorSpace, .extendedLinearDisplayP3)
+        XCTAssertEqual(filter.kernelPixelContract.precision, .float16)
+        XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+        XCTAssertEqual(filter.kernelPixelContract.outputAlpha, .preserveInput)
+
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [-0.5, 1.5, 0.25, 0.375])
+        let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+        let pixel = try rgba16FloatPixels(in: output)
+
+        XCTAssertEqual(pixel[0], -0.25, accuracy: 0.01)
+        XCTAssertEqual(pixel[1], 1.75, accuracy: 0.01)
+        XCTAssertEqual(pixel[2], 0.5, accuracy: 0.01)
+        XCTAssertEqual(pixel[3], 0.375, accuracy: 0.01)
+    }
+
+    func testExposurePreservesExtendedPixelsAndAlphaInRealMetalExecution() throws {
+        let filter = C7Exposure(exposure: 1)
+        XCTAssertEqual(filter.kernelPixelContract.workingColorSpace, .extendedLinearDisplayP3)
+        XCTAssertEqual(filter.kernelPixelContract.precision, .float16)
+        XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+        XCTAssertEqual(filter.kernelPixelContract.outputAlpha, .preserveInput)
+
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [-0.5, 1.5, 0.25, 0.625])
+        let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+        let pixel = try rgba16FloatPixels(in: output)
+
+        XCTAssertEqual(pixel[0], -1, accuracy: 0.01)
+        XCTAssertEqual(pixel[1], 3, accuracy: 0.01)
+        XCTAssertEqual(pixel[2], 0.5, accuracy: 0.01)
+        XCTAssertEqual(pixel[3], 0.625, accuracy: 0.01)
+    }
+
     func testDisplacementMapMovesPixelsWithSignedPixelFlow() throws {
         let source = try makeRGBA8Texture(
             width: 3,
@@ -245,6 +297,74 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(correctedValue, 52, accuracy: 3)
     }
 
+    func testCurvesKeepSDREndpointsAndVersionHDRExtrapolation() throws {
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [-0.5, 2, 0.5, 0.4])
+        let points = [C7Point2D(x: 0, y: 0), C7Point2D(x: 1, y: 1)]
+        let sdr: MTLTexture = try HarbethIO(element: source,
+            filter: C7Curves(rgbPoints: points, redPoints: points, greenPoints: points,
+                             bluePoints: points, interpolation: .linear)).output()
+        let hdrFilter = C7Curves(rgbPoints: points, redPoints: points, greenPoints: points,
+                                 bluePoints: points, interpolation: .linear, extrapolation: .linear)
+        let hdr: MTLTexture = try HarbethIO(element: source, filter: hdrFilter).output()
+        let sdrPixel = try rgba16FloatPixels(in: sdr)
+        let hdrPixel = try rgba16FloatPixels(in: hdr)
+
+        XCTAssertEqual(sdrPixel[0], 0, accuracy: 0.01)
+        XCTAssertEqual(sdrPixel[1], 1, accuracy: 0.01)
+        XCTAssertEqual(hdrPixel[0], -0.5, accuracy: 0.01)
+        XCTAssertEqual(hdrPixel[1], 2, accuracy: 0.01)
+        XCTAssertEqual(hdrPixel[3], 0.4, accuracy: 0.01)
+        XCTAssertEqual(hdrFilter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+    }
+
+    func testLookupPoliciesPreserveExtendedPixelsWithoutChangingLegacyDefaults() throws {
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [1.5, -0.5, 0.25, 0.4])
+        let oneDimensionalTexture = try makeRGBA16FloatTexture(width: 2, pixels: [
+            0, 0, 0, 1, 1, 1, 1, 1
+        ])
+        let oneDimensional = C7LookupTable1D(lookupTexture: oneDimensionalTexture, intensity: 1,
+                                              domainPolicy: .preserveOutsideDomain)
+        let oneDimensionalOutput: MTLTexture = try HarbethIO(element: source, filter: oneDimensional).output()
+        let oneDimensionalPixel = try rgba16FloatPixels(in: oneDimensionalOutput)
+        XCTAssertEqual(oneDimensionalPixel[0], 1.5, accuracy: 0.01)
+        XCTAssertEqual(oneDimensionalPixel[1], -0.5, accuracy: 0.01)
+        XCTAssertEqual(oneDimensionalPixel[3], 0.4, accuracy: 0.01)
+        XCTAssertEqual(C7LookupTable1D(lookupTexture: oneDimensionalTexture).domainPolicy, .clampToEdge)
+        XCTAssertEqual(oneDimensional.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+
+        let lookupPixels = Array(repeating: [Float16](arrayLiteral: 0, 0, 0, 1), count: 512 * 512).flatMap { $0 }
+        let twoDimensionalTexture = try makeRGBA16FloatTexture(width: 512, height: 512, pixels: lookupPixels)
+        let twoDimensional = C7LookupTable(lookupTexture: twoDimensionalTexture, intensity: 1,
+                                            domainPolicy: .preserveOutsideDomain)
+        let twoDimensionalOutput: MTLTexture = try HarbethIO(element: source, filter: twoDimensional).output()
+        let twoDimensionalPixel = try rgba16FloatPixels(in: twoDimensionalOutput)
+        let expected: [Float] = [1.5, -0.5, 0.25, 0.4]
+        for index in 0..<4 { XCTAssertEqual(twoDimensionalPixel[index], expected[index], accuracy: 0.01) }
+        XCTAssertEqual(C7LookupTable(lookupTexture: twoDimensionalTexture).domainPolicy, .legacy)
+    }
+
+    func testColorCubeVersionsDomainClampAndHDRPreservation() throws {
+        var values: [Float] = []
+        for blue in 0...1 { for green in 0...1 { for red in 0...1 {
+            values.append(contentsOf: [Float(red), Float(green), Float(blue), 1])
+        } } }
+        let resource = C7ColorCube.Resource(dimension: 2,
+            data: values.withUnsafeBufferPointer { Data(buffer: $0) })
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [1.5, -0.5, 0.25, 0.6])
+        let legacy: MTLTexture = try HarbethIO(element: source,
+            filter: C7ColorCube(cubeResource: resource)).output()
+        let hdrFilter = C7ColorCube(cubeResource: resource, domainPolicy: .preserveOutsideDomain)
+        let hdr: MTLTexture = try HarbethIO(element: source, filter: hdrFilter).output()
+        let legacyPixel = try rgba16FloatPixels(in: legacy)
+        let hdrPixel = try rgba16FloatPixels(in: hdr)
+        XCTAssertEqual(legacyPixel[0], 1, accuracy: 0.01)
+        XCTAssertEqual(legacyPixel[1], 0, accuracy: 0.01)
+        XCTAssertEqual(hdrPixel[0], 1.5, accuracy: 0.01)
+        XCTAssertEqual(hdrPixel[1], -0.5, accuracy: 0.01)
+        XCTAssertEqual(hdrPixel[3], 0.6, accuracy: 0.01)
+        XCTAssertEqual(hdrFilter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+    }
+
     func testNeighborhoodDetailFiltersDeclareOnePixelHalo() {
         XCTAssertEqual(C7EdgeAwareSharpen(amount: 1).samplingFootprint, .neighborhood(radius: 1))
         XCTAssertEqual(C7SharpenDetail(clarity: 1).samplingFootprint, .neighborhood(radius: 1))
@@ -264,6 +384,24 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
             XCTAssertEqual(outputPixels[index + 1], 128, accuracy: 1)
             XCTAssertEqual(outputPixels[index + 2], 128, accuracy: 1)
             XCTAssertEqual(outputPixels[index + 3], 255)
+        }
+    }
+
+    func testDetailSharpeningKeepsUniformExtendedRangeAndAlpha() throws {
+        let pixel: [Float16] = [2, -0.25, 0.5, 0.45]
+        let source = try makeRGBA16FloatTexture(width: 3, height: 3,
+            pixels: Array(repeating: pixel, count: 9).flatMap { $0 })
+        for filter: C7FilterProtocol in [
+            C7SharpenDetail(sharpen: 1, clarity: 1, detail: 1),
+            C7EdgeAwareSharpen(amount: 1, edgeThreshold: 0)
+        ] {
+            let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+            let values = try rgba16FloatPixels(in: output)
+            XCTAssertEqual(values[0], 2, accuracy: 0.02)
+            XCTAssertEqual(values[1], -0.25, accuracy: 0.02)
+            XCTAssertEqual(values[2], 0.5, accuracy: 0.02)
+            XCTAssertEqual(values[3], 0.45, accuracy: 0.02)
+            XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
         }
     }
 
@@ -392,14 +530,14 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         return texture
     }
 
-    private func makeRGBA16FloatTexture(width: Int, pixels: [Float16]) throws -> MTLTexture {
-        guard pixels.count == width * 4 else {
+    private func makeRGBA16FloatTexture(width: Int, height: Int = 1, pixels: [Float16]) throws -> MTLTexture {
+        guard pixels.count == width * height * 4 else {
             throw HarbethError.filterParameterInvalid("RGBA16Float dimensions do not match the pixel count.")
         }
-        let texture = try makeTexture(pixelFormat: .rgba16Float, width: width)
+        let texture = try makeTexture(pixelFormat: .rgba16Float, width: width, height: height)
         pixels.withUnsafeBytes { bytes in
             texture.replace(
-                region: MTLRegionMake2D(0, 0, width, 1),
+                region: MTLRegionMake2D(0, 0, width, height),
                 mipmapLevel: 0,
                 withBytes: bytes.baseAddress!,
                 bytesPerRow: width * 8

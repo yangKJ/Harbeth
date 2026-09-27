@@ -33,39 +33,43 @@ static inline float3 harbethLinearToSRGB(float3 color) {
 }
 
 static inline float harbethPQToLinearComponent(float value) {
+    const float signValue = value < 0.0f ? -1.0f : 1.0f;
     const float c1 = 0.8359375f;
     const float c2 = 18.8515625f;
     const float c3 = 18.6875f;
     const float m1 = 0.1593017578125f;
     const float m2 = 78.84375f;
-    const float e = pow(max(value, 0.0f), 1.0f / m2);
-    return pow(max((e - c1) / (c2 - c3 * e), 0.0f), 1.0f / m1);
+    const float e = pow(abs(value), 1.0f / m2);
+    return signValue * pow(max((e - c1) / (c2 - c3 * e), 0.0f), 1.0f / m1);
 }
 
 static inline float harbethLinearToPQComponent(float value) {
+    const float signValue = value < 0.0f ? -1.0f : 1.0f;
     const float c1 = 0.8359375f;
     const float c2 = 18.8515625f;
     const float c3 = 18.6875f;
     const float m1 = 0.1593017578125f;
     const float m2 = 78.84375f;
-    const float l = max(value, 0.0f);
-    return pow((c1 + c2 * pow(l, m1)) / (1.0f + c3 * pow(l, m1)), m2);
+    const float l = abs(value);
+    return signValue * pow((c1 + c2 * pow(l, m1)) / (1.0f + c3 * pow(l, m1)), m2);
 }
 
 static inline float harbethHLGToLinearComponent(float value) {
+    const float signValue = value < 0.0f ? -1.0f : 1.0f;
     const float a = 0.17883277f;
     const float b = 0.28466892f;
     const float c = 0.55991073f;
-    const float v = max(value, 0.0f);
-    return v <= 0.5f ? (v * v) / 3.0f : (exp((v - c) / a) + b) / 12.0f;
+    const float v = abs(value);
+    return signValue * (v <= 0.5f ? (v * v) / 3.0f : (exp((v - c) / a) + b) / 12.0f);
 }
 
 static inline float harbethLinearToHLGComponent(float value) {
+    const float signValue = value < 0.0f ? -1.0f : 1.0f;
     const float a = 0.17883277f;
     const float b = 0.28466892f;
     const float c = 0.55991073f;
-    const float l = max(value, 0.0f);
-    return l <= (1.0f / 12.0f) ? sqrt(3.0f * l) : a * log(12.0f * l - b) + c;
+    const float l = abs(value);
+    return signValue * (l <= (1.0f / 12.0f) ? sqrt(3.0f * l) : a * log(12.0f * l - b) + c);
 }
 
 static inline float3 harbethPQToLinear(float3 color) {

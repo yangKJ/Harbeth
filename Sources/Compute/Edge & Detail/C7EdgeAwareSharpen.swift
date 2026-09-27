@@ -28,7 +28,12 @@ public struct C7EdgeAwareSharpen: C7FilterProtocol {
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        KernelPixelContract(samplingFootprint: .neighborhood(radius: 1))
+        KernelPixelContract(
+            workingColorSpace: .extendedLinearDisplayP3,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .neighborhood(radius: 1)
+        )
     }
 
     public var samplingFootprint: SamplingFootprint {
