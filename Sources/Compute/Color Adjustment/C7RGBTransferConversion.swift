@@ -37,16 +37,25 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        let behavior: KernelDynamicRangeBehavior
+        let input: ImageColorSpaceContract
+        let output: ImageColorSpaceContract
+        let linear2020 = ImageColorSpaceContract(
+            name: "linearITU2020", preservesInput: false, gamut: .ituR2020, transferFunction: .linear
+        )
         switch mode {
-        case .sRGBToLinear, .linearToSRGB:
-            behavior = .preservesExtendedRange
-        case .pqToLinear, .linearToPQ, .hlgToLinear, .linearToHLG:
-            behavior = .unspecified
+        case .sRGBToLinear: input = .sRGB; output = .extendedLinearSRGB
+        case .linearToSRGB: input = .extendedLinearSRGB; output = .sRGB
+        case .pqToLinear: input = .hdrPQ; output = linear2020
+        case .linearToPQ: input = linear2020; output = .hdrPQ
+        case .hlgToLinear: input = .hdrHLG; output = linear2020
+        case .linearToHLG: input = linear2020; output = .hdrHLG
         }
         return KernelPixelContract(
+            inputColorSpace: input,
+            workingColorSpace: input,
+            outputColorSpace: output,
             precision: .float16,
-            dynamicRangeBehavior: behavior,
+            dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
         )

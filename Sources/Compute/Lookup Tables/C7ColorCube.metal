@@ -62,7 +62,8 @@ kernel void C7ColorCube(texture2d<half, access::write> outputTexture [[texture(0
                         constant float &intensity [[buffer(0)]],
                         constant float &interpolation [[buffer(1)]],
                         constant float3 &domainMinimum [[buffer(2)]],
-                        constant float3 &domainMaximum [[buffer(3)]],
+                         constant float3 &domainMaximum [[buffer(3)]],
+                         constant float &domainPolicy [[buffer(4)]],
                         uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
@@ -70,7 +71,12 @@ kernel void C7ColorCube(texture2d<half, access::write> outputTexture [[texture(0
 
     const half4 input = inputTexture.read(grid);
     const float3 domainSize = max(domainMaximum - domainMinimum, float3(1e-6f));
-    const float3 normalized = clamp((float3(input.rgb) - domainMinimum) / domainSize, 0.0f, 1.0f);
+    const float3 inputRGB = float3(input.rgb);
+    if (domainPolicy >= 0.5f && (any(inputRGB < domainMinimum) || any(inputRGB > domainMaximum))) {
+        outputTexture.write(input, grid);
+        return;
+    }
+    const float3 normalized = clamp((inputRGB - domainMinimum) / domainSize, 0.0f, 1.0f);
     const int dimension = int(lutTexture.get_width());
     const float3 scaled = normalized * float(dimension - 1);
     const int3 base = int3(floor(scaled));

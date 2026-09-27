@@ -13,6 +13,10 @@ import CryptoKit
 /// 3D LUT颜色立方体滤镜
 /// 使用Metal实现的CUBE文件格式LUT滤镜
 public struct C7ColorCube: C7FilterProtocol {
+    public enum DomainPolicy: Float, Sendable, Codable, Equatable {
+        case clampToDomain = 0
+        case preserveOutsideDomain = 1
+    }
 
     public enum Interpolation: Float, Sendable, Codable, Equatable, Hashable {
         case trilinear = 0
@@ -42,6 +46,7 @@ public struct C7ColorCube: C7FilterProtocol {
     public private(set) var interpolation: Interpolation
     public private(set) var resourceIdentity: String?
     public private(set) var resourceLoadError: HarbethError?
+    public private(set) var domainPolicy: DomainPolicy
     
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7ColorCube")
@@ -52,7 +57,8 @@ public struct C7ColorCube: C7FilterProtocol {
             KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
             KernelParameterBinding(name: "interpolation", index: 1, stage: .compute, value: .float(interpolation.rawValue)),
             KernelParameterBinding(name: "domainMinimum", index: 2, stage: .compute, value: .float3(domainMinimum)),
-            KernelParameterBinding(name: "domainMaximum", index: 3, stage: .compute, value: .float3(domainMaximum))
+            KernelParameterBinding(name: "domainMaximum", index: 3, stage: .compute, value: .float3(domainMaximum)),
+            KernelParameterBinding(name: "domainPolicy", index: 4, stage: .compute, value: .float(domainPolicy.rawValue))
         ]
     }
     
@@ -67,7 +73,9 @@ public struct C7ColorCube: C7FilterProtocol {
     public var kernelResourceIdentity: String? { resourceIdentity }
 
     public var kernelPixelContract: KernelPixelContract {
-        KernelPixelContract(precision: .float32, dynamicRangeBehavior: .unspecified, samplingFootprint: .point)
+        KernelPixelContract(precision: .float16,
+            dynamicRangeBehavior: domainPolicy == .preserveOutsideDomain ? .preservesExtendedRange : .unspecified,
+            samplingFootprint: .point)
     }
     
     private var lutTexture: MTLTexture?
@@ -75,9 +83,9 @@ public struct C7ColorCube: C7FilterProtocol {
     private var domainMinimum: SIMD3<Float>
     private var domainMaximum: SIMD3<Float>
     
-    public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
+    public init(cubeName: String, bundle: Bundle = .main, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
         let resolution = C7ColorCube.Resource.resolveNamedResource(cubeName, bundle: bundle)
-        self.init(cubeResource: resolution.resource, intensity: intensity, interpolation: interpolation)
+        self.init(cubeResource: resolution.resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
         self.resourceName = cubeName
         self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
         self.resourceLoadError = resolution.error
@@ -90,23 +98,24 @@ public struct C7ColorCube: C7FilterProtocol {
         self.resourceBundleName = resource
     }
     
-    public init(cubeURL: URL, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
+    public init(cubeURL: URL, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
         let resource = C7ColorCube.Resource.readCubeResource(from: cubeURL)
-        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation)
+        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
         self.resourceName = nil
         self.resourceBundleName = nil
     }
     
-    public init(cubeData: Data, dimension: Int, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
+    public init(cubeData: Data, dimension: Int, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
         let resource = C7ColorCube.Resource(dimension: dimension, data: cubeData)
-        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation)
+        self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
         self.resourceName = nil
         self.resourceBundleName = nil
     }
     
-    public init(cubeResource: C7ColorCube.Resource?, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
+    public init(cubeResource: C7ColorCube.Resource?, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
         self.intensity = intensity
         self.interpolation = interpolation
+        self.domainPolicy = domainPolicy
         self.resourceIdentity = cubeResource?.identity
         self.resourceName = nil
         self.resourceBundleName = nil
@@ -152,6 +161,12 @@ public struct C7ColorCube: C7FilterProtocol {
     public func updateInterpolation(_ interpolation: Interpolation) -> Self {
         var copy = self
         copy.interpolation = interpolation
+        return copy
+    }
+
+    public func updateDomainPolicy(_ policy: DomainPolicy) -> Self {
+        var copy = self
+        copy.domainPolicy = policy
         return copy
     }
 }

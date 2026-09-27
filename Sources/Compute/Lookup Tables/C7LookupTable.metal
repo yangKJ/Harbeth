@@ -12,8 +12,13 @@ kernel void C7LookupTable(texture2d<half, access::write> outputTexture [[texture
                           texture2d<half, access::read> inputTexture [[texture(1)]],
                           texture2d<half, access::sample> lookupTexture [[texture(2)]],
                           constant float *intensity [[buffer(0)]],
+                          constant float *domainPolicy [[buffer(1)]],
                           uint2 grid [[thread_position_in_grid]]) {
     const half4 inColor = inputTexture.read(grid);
+    if (domainPolicy[0] >= 0.5f && (any(float3(inColor.rgb) < 0.0f) || any(float3(inColor.rgb) > 1.0f))) {
+        outputTexture.write(inColor, grid);
+        return;
+    }
     const half blueColor = inColor.b * 63.0h; // 蓝色部分[0, 63] 共64种
     
     half2 quad1;
@@ -36,7 +41,7 @@ kernel void C7LookupTable(texture2d<half, access::write> outputTexture [[texture
     texPos2.x = A * quad2.x + B + C * inColor.r;
     texPos2.y = A * quad2.y + B + C * inColor.g;
     
-    constexpr sampler quadSampler(mag_filter::linear, min_filter::linear);
+    constexpr sampler quadSampler(address::clamp_to_edge, mag_filter::linear, min_filter::linear);
     const half4 newColor1 = lookupTexture.sample(quadSampler, texPos1);
     const half4 newColor2 = lookupTexture.sample(quadSampler, texPos2);
     

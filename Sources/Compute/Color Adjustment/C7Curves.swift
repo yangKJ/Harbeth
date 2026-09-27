@@ -25,6 +25,11 @@ public struct C7Curves: C7FilterProtocol {
         case linear
     }
 
+    public enum Extrapolation: Float, Codable, Equatable, Sendable {
+        case clampToEndpoints = 0
+        case linear = 1
+    }
+
     /// RGB曲线控制点，使用C7Point2D（归一化坐标）
     /// RGB curve control points, using C7Point2D (normalized coordinates)
     public var rgbPoints: [C7Point2D] = []
@@ -43,6 +48,7 @@ public struct C7Curves: C7FilterProtocol {
 
     /// 公共默认保留旧插值，避免未版本化的持久化配方静默改变；新编辑应显式使用 `.linear`。
     public var interpolation: Interpolation
+    public var extrapolation: Extrapolation
 
     public var modifier: ModifierEnum {
         .compute(kernel: interpolation == .legacy ? "C7CurvesLegacy" : "C7Curves")
@@ -53,13 +59,28 @@ public struct C7Curves: C7FilterProtocol {
     }
 
     public var kernelParameterBindings: [KernelParameterBinding] {
-        [
+        var bindings = [
             KernelParameterBinding(name: "pointCounts", index: 0, stage: .compute, value: .float4(pointCounts)),
             KernelParameterBinding(name: "rgbPoints", index: 1, stage: .compute, value: .floatArray(flattenedPoints(rgbPoints))),
             KernelParameterBinding(name: "redPoints", index: 2, stage: .compute, value: .floatArray(flattenedPoints(redPoints))),
             KernelParameterBinding(name: "greenPoints", index: 3, stage: .compute, value: .floatArray(flattenedPoints(greenPoints))),
             KernelParameterBinding(name: "bluePoints", index: 4, stage: .compute, value: .floatArray(flattenedPoints(bluePoints)))
         ]
+        if interpolation == .linear {
+            bindings.append(KernelParameterBinding(name: "extrapolation", index: 5, stage: .compute,
+                                                   value: .float(extrapolation.rawValue)))
+        }
+        return bindings
+    }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            precision: .float16,
+            dynamicRangeBehavior: interpolation == .linear && extrapolation == .linear
+                ? .preservesExtendedRange : .unspecified,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
     }
 
     private var pointCounts: SIMD4<Float> {
@@ -75,9 +96,11 @@ public struct C7Curves: C7FilterProtocol {
         redPoints: [C7Point2D]? = nil,
         greenPoints: [C7Point2D]? = nil,
         bluePoints: [C7Point2D]? = nil,
-        interpolation: Interpolation = .legacy
+        interpolation: Interpolation = .legacy,
+        extrapolation: Extrapolation = .clampToEndpoints
     ) {
         self.interpolation = interpolation
+        self.extrapolation = extrapolation
         if let points = rgbPoints {
             self.rgbPoints = points
         } else {
@@ -110,5 +133,11 @@ public struct C7Curves: C7FilterProtocol {
                 C7Point2D(x: 1.0, y: 1.0)
             ]
         }
+    }
+
+    public func updateExtrapolation(_ extrapolation: Extrapolation) -> Self {
+        var copy = self
+        copy.extrapolation = extrapolation
+        return copy
     }
 }

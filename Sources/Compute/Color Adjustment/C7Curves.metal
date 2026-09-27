@@ -8,7 +8,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-float curveInterpolation(float value, constant float* points, int pointCount) {
+float curveInterpolation(float value, constant float* points, int pointCount, bool extrapolates) {
     if (pointCount == 0) return value;
     if (pointCount == 1) return points[1];
 
@@ -25,7 +25,7 @@ float curveInterpolation(float value, constant float* points, int pointCount) {
     float y1 = points[upperIndex * 2 + 1];
     if (x1 == x0) return y0;
     float t = (value - x0) / (x1 - x0);
-    t = clamp(t, 0.0, 1.0);
+    if (!extrapolates) t = clamp(t, 0.0, 1.0);
     return mix(y0, y1, t);
 }
 
@@ -78,7 +78,8 @@ static half4 c7ApplyCurves(
     constant float *redPoints,
     constant float *greenPoints,
     constant float *bluePoints,
-    bool usesLegacyInterpolation
+    bool usesLegacyInterpolation,
+    bool extrapolates
 ) {
     const int rgbPointCount = int(pointCounts.x);
     const int redPointCount = int(pointCounts.y);
@@ -91,28 +92,28 @@ static half4 c7ApplyCurves(
     if (rgbPointCount >= 2) {
         red = usesLegacyInterpolation
             ? curveInterpolationLegacy(red, rgbPoints, rgbPointCount)
-            : curveInterpolation(red, rgbPoints, rgbPointCount);
+            : curveInterpolation(red, rgbPoints, rgbPointCount, extrapolates);
         green = usesLegacyInterpolation
             ? curveInterpolationLegacy(green, rgbPoints, rgbPointCount)
-            : curveInterpolation(green, rgbPoints, rgbPointCount);
+            : curveInterpolation(green, rgbPoints, rgbPointCount, extrapolates);
         blue = usesLegacyInterpolation
             ? curveInterpolationLegacy(blue, rgbPoints, rgbPointCount)
-            : curveInterpolation(blue, rgbPoints, rgbPointCount);
+            : curveInterpolation(blue, rgbPoints, rgbPointCount, extrapolates);
     }
     if (redPointCount >= 2) {
         red = usesLegacyInterpolation
             ? curveInterpolationLegacy(red, redPoints, redPointCount)
-            : curveInterpolation(red, redPoints, redPointCount);
+            : curveInterpolation(red, redPoints, redPointCount, extrapolates);
     }
     if (greenPointCount >= 2) {
         green = usesLegacyInterpolation
             ? curveInterpolationLegacy(green, greenPoints, greenPointCount)
-            : curveInterpolation(green, greenPoints, greenPointCount);
+            : curveInterpolation(green, greenPoints, greenPointCount, extrapolates);
     }
     if (bluePointCount >= 2) {
         blue = usesLegacyInterpolation
             ? curveInterpolationLegacy(blue, bluePoints, bluePointCount)
-            : curveInterpolation(blue, bluePoints, bluePointCount);
+            : curveInterpolation(blue, bluePoints, bluePointCount, extrapolates);
     }
     return half4(half3(red, green, blue), input.a);
 }
@@ -124,9 +125,11 @@ kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]]
                      constant float *redPoints [[buffer(2)]],
                      constant float *greenPoints [[buffer(3)]],
                      constant float *bluePoints [[buffer(4)]],
+                     constant float *extrapolation [[buffer(5)]],
                      uint2 grid [[thread_position_in_grid]]) {
     outputTexture.write(c7ApplyCurves(
-        inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints, false
+        inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints, false,
+        extrapolation[0] >= 0.5f
     ), grid);
 }
 
@@ -139,6 +142,6 @@ kernel void C7CurvesLegacy(texture2d<half, access::write> outputTexture [[textur
                            constant float *bluePoints [[buffer(4)]],
                            uint2 grid [[thread_position_in_grid]]) {
     outputTexture.write(c7ApplyCurves(
-        inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints, true
+        inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints, true, false
     ), grid);
 }
