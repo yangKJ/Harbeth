@@ -23,6 +23,8 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
     }
 
     public let mode: Mode
+    private let inputColorSpace: ImageColorSpaceContract
+    private let outputColorSpace: ImageColorSpaceContract
 
     public var modifier: ModifierEnum {
         .compute(kernel: "C7RGBTransferConversion")
@@ -37,23 +39,10 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        let input: ImageColorSpaceContract
-        let output: ImageColorSpaceContract
-        let linear2020 = ImageColorSpaceContract(
-            name: "linearITU2020", preservesInput: false, gamut: .ituR2020, transferFunction: .linear
-        )
-        switch mode {
-        case .sRGBToLinear: input = .sRGB; output = .extendedLinearSRGB
-        case .linearToSRGB: input = .extendedLinearSRGB; output = .sRGB
-        case .pqToLinear: input = .hdrPQ; output = linear2020
-        case .linearToPQ: input = linear2020; output = .hdrPQ
-        case .hlgToLinear: input = .hdrHLG; output = linear2020
-        case .linearToHLG: input = linear2020; output = .hdrHLG
-        }
         return KernelPixelContract(
-            inputColorSpace: input,
-            workingColorSpace: input,
-            outputColorSpace: output,
+            inputColorSpace: inputColorSpace,
+            workingColorSpace: inputColorSpace,
+            outputColorSpace: outputColorSpace,
             precision: .float16,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .point,
@@ -63,13 +52,32 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
 
     public init(mode: Mode) {
         self.mode = mode
+        (inputColorSpace, outputColorSpace) = Self.defaultColorSpaces(for: mode)
     }
 
     public init?(from source: ImageColorSpaceContract, to target: ImageColorSpaceContract) {
         guard let mode = target.transferConversionMode(from: source) else {
             return nil
         }
-        self.init(mode: mode)
+        self.mode = mode
+        self.inputColorSpace = source
+        self.outputColorSpace = target
+    }
+
+    private static func defaultColorSpaces(
+        for mode: Mode
+    ) -> (ImageColorSpaceContract, ImageColorSpaceContract) {
+        let linear2020 = ImageColorSpaceContract(
+            name: "linearITU2020", preservesInput: false, gamut: .ituR2020, transferFunction: .linear
+        )
+        switch mode {
+        case .sRGBToLinear: return (.sRGB, .extendedLinearSRGB)
+        case .linearToSRGB: return (.extendedLinearSRGB, .sRGB)
+        case .pqToLinear: return (.hdrPQ, linear2020)
+        case .linearToPQ: return (linear2020, .hdrPQ)
+        case .hlgToLinear: return (.hdrHLG, linear2020)
+        case .linearToHLG: return (linear2020, .hdrHLG)
+        }
     }
 }
 
