@@ -6,6 +6,24 @@ import CoreVideo
 
 final class TextureReadbackTests: XCTestCase {
 
+    func testTransparentHalfFloatFallbackDoesNotBlendWithUninitializedMemory() throws {
+        for space in [CGColorSpace.sRGB, CGColorSpace.displayP3, CGColorSpace.extendedLinearDisplayP3] {
+            for alpha: Float16 in [0, 0.5, 1] {
+                let expected: [Float16] = [0.125 * alpha, 0.5 * alpha, 0.75 * alpha, alpha]
+                let image = try makeHalfFloatCGImage(colorSpaceName: space, pixels: expected)
+                for _ in 0..<16 {
+                    let texture = try TextureLoader.drawCGImageToTexture(image, pixelFormat: .rgba16Float)
+                    var output = [Float16](repeating: 0, count: 4)
+                    texture.getBytes(&output, bytesPerRow: 8, from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0)
+                    for channel in 0..<4 {
+                        XCTAssertTrue(output[channel].isFinite)
+                        XCTAssertEqual(Float(output[channel]), Float(expected[channel]), accuracy: 0.003)
+                    }
+                }
+            }
+        }
+    }
+
     func testOpaquePaddingChannelsDoNotBecomeColorOrAlphaOnUpload() throws {
         let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
         for alpha in [CGImageAlphaInfo.noneSkipFirst, .noneSkipLast] {
