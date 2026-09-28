@@ -3009,6 +3009,18 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(outputPixel.alpha, 255)
     }
 
+    func testExplicitDisplayP3TransferConversionPreservesGamutContract() throws {
+        let filter = try XCTUnwrap(C7RGBTransferConversion(
+            from: .extendedLinearDisplayP3,
+            to: .displayP3
+        ))
+
+        XCTAssertEqual(filter.mode, .linearToSRGB)
+        XCTAssertEqual(filter.kernelPixelContract.inputColorSpace, .extendedLinearDisplayP3)
+        XCTAssertEqual(filter.kernelPixelContract.workingColorSpace, .extendedLinearDisplayP3)
+        XCTAssertEqual(filter.kernelPixelContract.outputColorSpace, .displayP3)
+    }
+
     func testHDRColorSpaceConversionFiltersBridgeThroughLinearLight() {
         let filters = ImageColorSpaceContract.displayP3.makeColorConversionFilters(from: .hdrPQ)
 
