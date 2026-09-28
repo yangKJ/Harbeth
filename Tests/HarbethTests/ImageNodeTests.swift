@@ -3019,6 +3019,8 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(filter.kernelPixelContract.inputColorSpace, .extendedLinearDisplayP3)
         XCTAssertEqual(filter.kernelPixelContract.workingColorSpace, .extendedLinearDisplayP3)
         XCTAssertEqual(filter.kernelPixelContract.outputColorSpace, .displayP3)
+        XCTAssertEqual(filter.kernelOutputContract.colorSpace, .displayP3)
+        XCTAssertEqual(filter.kernelOutputContract.pixelFormat, .preserveInput)
     }
 
     func testHDRColorSpaceConversionFiltersBridgeThroughLinearLight() {
