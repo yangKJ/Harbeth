@@ -38,6 +38,13 @@ public struct C7RGBTransferConversion: C7FilterProtocol {
         .point
     }
 
+    public var kernelOutputContract: RenderOutputContract {
+        RenderOutputContract(
+            colorSpace: outputColorSpace,
+            pixelFormat: .preserveInput
+        )
+    }
+
     public var kernelPixelContract: KernelPixelContract {
         return KernelPixelContract(
             inputColorSpace: inputColorSpace,
