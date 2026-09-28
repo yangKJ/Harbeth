@@ -916,6 +916,8 @@ extension TextureLoader {
             throw HarbethError.contextCreationFailed
         }
         let rect = CGRect(x: 0, y: 0, width: width, height: height)
+        // 目标是尚未初始化的上传缓冲；复制源像素，不能把半透明颜色叠到随机内存上。
+        context.setBlendMode(.copy)
         context.draw(cgImage, in: rect)
         // Copy data to texture
         let region = MTLRegionMake2D(0, 0, width, height)

@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-09-28
+
+#### Fixed
+
+- 高精度图片的手动纹理上传采用复制混合模式，避免半透明像素与未初始化缓冲混合，产生随机颜色、错误 alpha 或非有限值。
+
 ### 2026-09-24
 
 #### Fixed
