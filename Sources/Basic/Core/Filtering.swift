@@ -120,7 +120,11 @@ extension C7FilterProtocol {
     }
     /// Add the filter into the output texture with compute, render and mps filter.
     public func applyAtTexture(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer) throws -> MTLTexture {
-        try apply(form: texture, to: destTexture, for: buffer, complete: nil)
+        // 嵌套阶段以 C7FilterProtocol 擦除类型，仍必须执行整条组合管线。
+        if let pipeline = self as? any C7FilterPipelineProtocol {
+            return try FilterPipelineExecutor.apply(filter: pipeline, source: texture, destination: destTexture, commandBuffer: buffer)
+        }
+        return try apply(form: texture, to: destTexture, for: buffer, complete: nil)
     }
 }
 

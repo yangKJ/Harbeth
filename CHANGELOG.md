@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-05
+
+#### Fixed
+
+- 修复组合滤镜作为通用协议进入嵌套顺序或并行管线时跳过内部步骤的问题；子管线现在完整执行并向最终节点绑定辅助纹理。
+
 ### 2026-09-28
 
 #### Fixed
