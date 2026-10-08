@@ -475,7 +475,8 @@ private final class RealtimeRouteCadenceRunner: @unchecked Sendable {
         self.completion = completion
         startTime = CACurrentMediaTime()
         startUptimeNanoseconds = DispatchTime.now().uptimeNanoseconds
-        let timer = DispatchSource.makeTimerSource(queue: schedulerQueue)
+        // 基准时钟严格遵守所声明的容差，避免进程可见性改变系统默认的节能合并延迟。
+        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: schedulerQueue)
         self.timer = timer
         lock.unlock()
 
@@ -618,6 +619,26 @@ private final class RealtimeRouteCadenceRunner: @unchecked Sendable {
 }
 
 final class RealtimeRouteBenchmarkTests: XCTestCase {
+    @MainActor
+    func testIndependentProcessColdFrameBenchmark() async throws {
+        guard let path = ProcessInfo.processInfo.environment["HARBETH_REALTIME_COLD_REPORT"] else {
+            throw XCTSkip("独立进程冷启动采样由性能验收单独运行。")
+        }
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        // 初始化、输入和首帧路径与正式基准相同，只省略首帧之后的预热及稳态采样。
+        let benchmark = RealtimeRouteBenchmarker(device: device, frameCount: 0, warmupCount: 0)
+        let reports = try await benchmark.runAll()
+        XCTAssertEqual(reports.count, 5)
+        for report in reports { XCTAssertEqual(report.firstFrameSucceeded, true) }
+        let report = BenchmarkRunReport(
+            createdAt: Date(), deviceName: device.name, frameCount: 0, warmupCount: 0, routes: reports
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(report).write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+
     @MainActor
     func testRealtimeFrameRouteBenchmark5Paths() async {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -892,8 +913,8 @@ final class RealtimeRouteBenchmarkContractTests: XCTestCase {
 @MainActor
 private struct RealtimeRouteBenchmarker {
     private let device: MTLDevice
-    private let frameCount = 300
-    private let warmupCount = 20
+    private let frameCount: Int
+    private let warmupCount: Int
     private let inputWidth = 720
     private let inputHeight = 1280
     private let inFlightLimit = 6
@@ -902,8 +923,10 @@ private struct RealtimeRouteBenchmarker {
         C7GaussianBlur(radius: 1.2),
     ]
 
-    init(device: MTLDevice) {
+    init(device: MTLDevice, frameCount: Int = 300, warmupCount: Int = 20) {
         self.device = device
+        self.frameCount = frameCount
+        self.warmupCount = warmupCount
     }
 
     var benchmarkFrameCount: Int { frameCount }

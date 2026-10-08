@@ -177,8 +177,18 @@ private struct RenderSamplerOverride: RenderProtocol {
     var factors: [Float] { base.factors }
     var otherInputTextures: C7InputTextures { base.otherInputTextures }
     var kernelParameterBindings: [KernelParameterBinding] { base.kernelParameterBindings }
+    var computeKernelLibrarySource: KernelLibrarySource { base.computeKernelLibrarySource }
+    var computeKernelFunctionConstants: [KernelFunctionConstantDescriptor] { base.computeKernelFunctionConstants }
+    var destinationTextureContract: FilterDestinationTextureContract { base.destinationTextureContract }
+    var kernelOutputContract: RenderOutputContract { base.kernelOutputContract }
     var memoryAccessPattern: MemoryAccessPattern { base.memoryAccessPattern }
+    var kernelPixelContract: KernelPixelContract { base.kernelPixelContract }
+    var kernelResourceIdentity: String? { base.kernelResourceIdentity }
     var renderVertexStride: Int { base.renderVertexStride }
+    var renderPrimitiveTopology: RenderPrimitiveTopology { base.renderPrimitiveTopology }
+    var renderBlendMode: RenderBlendMode { base.renderBlendMode }
+    var renderRasterSampleCount: Int { base.renderRasterSampleCount }
+    var renderPreloadsSourceTexture: Bool { base.renderPreloadsSourceTexture }
     var renderOutputContract: RenderOutputContract { base.renderOutputContract }
     var renderSamplerDescriptor: ImageSamplerDescriptor { samplerDescriptor }
     var renderSamplerConsumption: RenderSamplerConsumption { base.renderSamplerConsumption }

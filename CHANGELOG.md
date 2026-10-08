@@ -8,6 +8,18 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-07
+
+#### Fixed
+
+- 修复 ImageNode 采样器包装丢失混合、光栅化、目标纹理及像素合同的问题；图层合成在 texture、frame 和 attachment 输出中保留预乘透明度混合与背景预载，附件 pipeline 按实际输出格式创建。
+- 编辑节点的计划、配方描述和延迟请求不再提前执行上游滤镜；单次准备共享源物化，局部效果的参数化 mask 在执行时解析。
+- 合并同一 Render pipeline 的并发冷启动；失败会唤醒等待者并允许重试，缓存重置或 binary archive 重配后旧创建结果不会写回新缓存。
+
+#### Changed
+
+- ImageNode 的连续普通滤镜采用统一批处理，链式和数组写法共享执行组织，并保留编辑、缓存、采样器及 kernel 合同边界。
+
 ### 2026-10-05
 
 #### Fixed

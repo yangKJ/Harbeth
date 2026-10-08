@@ -38,6 +38,8 @@ public final class HarbethContext: @unchecked Sendable {
     private let imageResolutionLock = NSLock()
     private let renderPlanLock = NSLock()
     private var renderPipelines: [RenderPipelineCacheKey: MTLRenderPipelineState] = [:]
+    private var renderPipelineCreations: [RenderPipelineCacheKey: RenderPipelineCreation] = [:]
+    private var renderPipelineGeneration: UInt64 = 0
     private var samplerStates: [SamplerCacheKey: MTLSamplerState] = [:]
     private var imageResolutionCache: [String: MTLTexture] = [:]
     private var imageResolutionCacheOrder: [String] = []
@@ -384,42 +386,57 @@ public final class HarbethContext: @unchecked Sendable {
             fragment: fragmentIdentity.fingerprint,
             renderPass: renderPass.fingerprint
         )
+        return try makeRenderPipelineState(for: key) {
+            let descriptor = MTLRenderPipelineDescriptor()
+            for attachment in renderPass.colorAttachments where attachment.index < 8 {
+                guard let colorAttachment = descriptor.colorAttachments[attachment.index] else { continue }
+                colorAttachment.pixelFormat = Self.pixelFormat(from: attachment.pixelFormat) ?? .invalid
+                if attachment.index == 0, renderPass.blendMode == .premultipliedSourceOver {
+                    colorAttachment.isBlendingEnabled = true
+                    colorAttachment.rgbBlendOperation = .add
+                    colorAttachment.alphaBlendOperation = .add
+                    colorAttachment.sourceRGBBlendFactor = .one
+                    colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+                    colorAttachment.sourceAlphaBlendFactor = .one
+                    colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                }
+            }
+            descriptor.rasterSampleCount = renderPass.sampleCount
+            descriptor.vertexFunction = try Device.readMTLFunction(vertexIdentity)
+            descriptor.fragmentFunction = try Device.readMTLFunction(fragmentIdentity)
+            pipelineBinaryArchiveStore.attach(to: descriptor)
+            guard let pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor) else {
+                throw HarbethError.renderPipelineState(vertexIdentity.primaryName, fragmentIdentity.primaryName)
+            }
+            return pipelineState
+        }
+    }
+
+    func makeRenderPipelineState(for key: RenderPipelineCacheKey, create: () throws -> MTLRenderPipelineState) throws -> MTLRenderPipelineState {
         renderPipelineLock.lock()
         if let cached = renderPipelines[key] {
             renderPipelineLock.unlock()
             performanceMonitor.recordPipelineCacheLookup("render", hit: true)
             return cached
         }
+        if let pending = renderPipelineCreations[key] {
+            renderPipelineLock.unlock()
+            return try pending.waitForResult()
+        }
+        let pending = RenderPipelineCreation()
+        let generation = renderPipelineGeneration
+        renderPipelineCreations[key] = pending
         renderPipelineLock.unlock()
-
-        let descriptor = MTLRenderPipelineDescriptor()
-        for attachment in renderPass.colorAttachments where attachment.index < 8 {
-            guard let colorAttachment = descriptor.colorAttachments[attachment.index] else { continue }
-            colorAttachment.pixelFormat = Self.pixelFormat(from: attachment.pixelFormat) ?? .invalid
-            if attachment.index == 0, renderPass.blendMode == .premultipliedSourceOver {
-                colorAttachment.isBlendingEnabled = true
-                colorAttachment.rgbBlendOperation = .add
-                colorAttachment.alphaBlendOperation = .add
-                colorAttachment.sourceRGBBlendFactor = .one
-                colorAttachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
-                colorAttachment.sourceAlphaBlendFactor = .one
-                colorAttachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
-            }
-        }
-        descriptor.rasterSampleCount = renderPass.sampleCount
-        descriptor.vertexFunction = try Device.readMTLFunction(vertexIdentity)
-        descriptor.fragmentFunction = try Device.readMTLFunction(fragmentIdentity)
-        pipelineBinaryArchiveStore.attach(to: descriptor)
-        guard let pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor) else {
-            performanceMonitor.recordPipelineCacheLookup("render", hit: false)
-            throw HarbethError.renderPipelineState(vertexIdentity.primaryName, fragmentIdentity.primaryName)
-        }
-
+        let result = Result { try create() }
         renderPipelineLock.lock()
-        renderPipelines[key] = pipelineState
+        if generation == renderPipelineGeneration {
+            if case .success(let pipeline) = result { renderPipelines[key] = pipeline }
+            renderPipelineCreations.removeValue(forKey: key)
+        }
         renderPipelineLock.unlock()
+        pending.complete(result)
         performanceMonitor.recordPipelineCacheLookup("render", hit: false)
-        return pipelineState
+        return try result.get()
     }
 
     private static func pixelFormat(from value: String?) -> MTLPixelFormat? {
@@ -622,6 +639,8 @@ public final class HarbethContext: @unchecked Sendable {
         runtimeDevice.resetLibraryCaches()
         renderPipelineLock.lock()
         renderPipelines.removeAll()
+        renderPipelineCreations.removeAll()
+        renderPipelineGeneration &+= 1
         renderPipelineLock.unlock()
         samplerLock.lock()
         samplerStates.removeAll()
@@ -642,6 +661,8 @@ public final class HarbethContext: @unchecked Sendable {
         runtimeDevice.removePipelineStates()
         renderPipelineLock.lock()
         renderPipelines.removeAll()
+        renderPipelineCreations.removeAll()
+        renderPipelineGeneration &+= 1
         renderPipelineLock.unlock()
     }
 
@@ -799,7 +820,7 @@ public extension HarbethContext {
     }
 }
 
-private struct RenderPipelineCacheKey: Hashable {
+struct RenderPipelineCacheKey: Hashable {
     let vertex: String
     let fragment: String
     let renderPass: String

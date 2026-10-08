@@ -191,7 +191,7 @@ extension RenderProtocol {
                 ColorAttachmentContract(
                     index: $0.index,
                     pixelFormat: $0.pixelFormat.metalPixelFormat,
-                    loadBehavior: renderPreloadsSourceTexture ? .load : .clear,
+                    loadBehavior: renderPreloadsSourceTexture && $0.index == 0 ? .load : .clear,
                     storeBehavior: renderRasterSampleCount > 1 ? .multisampleResolve : .store
                 )
             },

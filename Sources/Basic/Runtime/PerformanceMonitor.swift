@@ -33,6 +33,8 @@ final class PerformanceMonitor: @unchecked Sendable {
     private var cleanupTimer: DispatchSourceTimer?
     private var configuration = Configuration()
     private var pendingGPUOperations: [String: Int] = [:]
+    private var completedCommandBufferCount = 0
+    private var completedGPUTimeNanoseconds: UInt64 = 0
 
     init(enabled: Bool) {
         self.configuration = Configuration(enabled: enabled)
@@ -438,6 +440,8 @@ final class PerformanceMonitor: @unchecked Sendable {
         cacheLock.lock()
         initializeMetricsIfNeeded(identifier)
         metricsCache[identifier]?.gpuTotalTimeNanoseconds += gpuTimeNanoseconds
+        completedCommandBufferCount += 1
+        completedGPUTimeNanoseconds += gpuTimeNanoseconds
         let pendingCount = max((pendingGPUOperations[identifier] ?? 1) - 1, 0)
         pendingGPUOperations[identifier] = pendingCount
         let metrics = metricsCache[identifier]
@@ -452,6 +456,11 @@ final class PerformanceMonitor: @unchecked Sendable {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         return metricsCache[identifier]
+    }
+
+    /// 累计真实完成的 command buffer，避免同一标识重新开始监控时丢失上游阶段计数。
+    func gpuWorkSnapshot() -> (commandBufferCount: Int, nanoseconds: UInt64) {
+        cacheLock.withLock { (completedCommandBufferCount, completedGPUTimeNanoseconds) }
     }
 
     func cleanupOldMetrics(maxAge: TimeInterval = 300) {

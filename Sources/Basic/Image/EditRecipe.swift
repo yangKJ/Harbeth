@@ -97,21 +97,33 @@ public struct EditRecipe {
                         mode: EditRecipeMode = .preview,
                         extraFilters: [C7FilterProtocol] = [],
                         derivative: ImageDerivativeSpec? = nil,
-                        samplerDescriptor: ImageSamplerDescriptor = .default) throws -> RenderPlan {
-        let compiled = try compileExecution(
-            source: source,
-            mode: mode,
-            extraFilters: extraFilters,
-            derivative: derivative
+                        samplerDescriptor: ImageSamplerDescriptor = .default,
+                        inputSize: C7Size? = nil) throws -> RenderPlan {
+        let source = resolvedSource(source)
+        let size = try inputSize ?? source.resolvedSizeHint ?? C7Size(texture: source.makeTexture())
+        let contract = contract(for: mode)
+        let derivative = derivative ?? contract.derivative
+        // 规划仅使用已声明的 mask。参数化 mask 在实际执行时才解析，避免诊断触发 GPU 工作。
+        let planningEffects = localEffects.map {
+            ResolvedLocalEffect(
+                filters: $0.filters,
+                mask: $0.mask,
+                foregroundBlendType: $0.foregroundBlendType,
+                foregroundBlendOpacity: $0.foregroundBlendOpacity
+            )
+        }
+        let filters = makeExecutionPreviewChain(
+            inputSize: size, mode: mode, derivative: derivative,
+            resolvedLocalEffects: planningEffects, appending: extraFilters
         )
         return RenderExecutionCompiler.compile(
-            filters: compiled.diagnosticFilters,
-            inputSize: compiled.inputSize,
-            profile: compiled.profile,
-            derivative: compiled.derivative,
+            filters: filters,
+            inputSize: size,
+            profile: contract.profile,
+            derivative: derivative,
             compilationSource: .editRecipe,
             samplerDescriptor: samplerDescriptor,
-            sourceDescriptor: compiled.source.descriptor
+            sourceDescriptor: source.descriptor
         ).plan
     }
 
@@ -122,22 +134,18 @@ public struct EditRecipe {
                           samplerDescriptor: ImageSamplerDescriptor = .default,
                           sourceDescriptorOverride: ImageSourceDescriptor? = nil,
                           alphaTypeOverride: AlphaType? = nil,
-                          orientationOverride: FrameOrientation? = nil) throws -> RenderRecipe {
-        let compiled = try compileExecution(
-            source: source,
-            mode: mode,
-            extraFilters: extraFilters,
-            derivative: derivative
+                          orientationOverride: FrameOrientation? = nil,
+                          inputSize: C7Size? = nil,
+                          preparedPlan: RenderPlan? = nil) throws -> RenderRecipe {
+        let source = resolvedSource(source)
+        let plan = try preparedPlan ?? makeRenderPlan(
+            source: source, mode: mode, extraFilters: extraFilters,
+            derivative: derivative, samplerDescriptor: samplerDescriptor, inputSize: inputSize
         )
-        let plan = RenderExecutionCompiler.compile(
-            filters: compiled.diagnosticFilters,
-            inputSize: compiled.inputSize,
-            profile: compiled.profile,
-            derivative: compiled.derivative,
-            compilationSource: .editRecipe,
-            samplerDescriptor: samplerDescriptor,
-            sourceDescriptor: compiled.source.descriptor
-        ).plan
+        let derivative = plan.diagnostics.derivative
+        let outputCachePolicy: ImageCachePolicy =
+            (geometry.isIdentity && (optics?.isIdentity ?? true) && localEffects.isEmpty && extraFilters.isEmpty)
+            ? source.cachePolicy : .transient
         let filters = plan.diagnostics.nodes
             .filter { $0.name != "DerivativeResize" }
             .map { diagnostic in
@@ -152,14 +160,14 @@ public struct EditRecipe {
                 )
             }
         return RenderRecipe(
-            renderProfile: String(describing: compiled.profile),
-            renderIntent: compiled.derivative.renderIntent,
-            source: sourceDescriptorOverride ?? compiled.source.descriptor,
-            outputDerivative: compiled.derivative,
-            outputCachePolicy: compiled.outputCachePolicy,
-            outputSemantic: compiled.derivative.semantic,
-            alphaType: alphaTypeOverride ?? compiled.source.alphaType,
-            orientation: orientationOverride ?? compiled.source.orientation,
+            renderProfile: String(describing: plan.profile),
+            renderIntent: derivative.renderIntent,
+            source: sourceDescriptorOverride ?? source.descriptor,
+            outputDerivative: derivative,
+            outputCachePolicy: outputCachePolicy,
+            outputSemantic: derivative.semantic,
+            alphaType: alphaTypeOverride ?? source.alphaType,
+            orientation: orientationOverride ?? source.orientation,
             filters: filters,
             localEffects: localEffects.isEmpty ? nil : localEffects.map(\.recipeDescriptor),
             layerMasks: nil

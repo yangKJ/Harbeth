@@ -266,7 +266,7 @@ struct Rendering {
         )
     }
 
-    private static func copy(_ source: MTLTexture, to destination: MTLTexture, commandBuffer: MTLCommandBuffer) throws {
+    static func copy(_ source: MTLTexture, to destination: MTLTexture, commandBuffer: MTLCommandBuffer) throws {
         guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
             throw HarbethError.makeBlitCommandEncoder
         }

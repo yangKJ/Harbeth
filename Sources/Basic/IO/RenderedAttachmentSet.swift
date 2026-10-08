@@ -93,22 +93,53 @@ public extension RenderProtocol {
         let destinationTextures = try makeDestinationTextures(
             outputContract: descriptor.outputContract,
             outputSize: outputSize,
+            inputPixelFormat: sourceTexture.pixelFormat,
             identifier: identifier
         )
         do {
+            // preserveInput 必须在创建 pipeline 前解析为真实附件格式，否则 fragment 输出会被丢弃。
+            let renderPass = RenderPassContract(
+                colorAttachments: descriptor.renderPass.colorAttachments.map {
+                    ColorAttachmentContract(
+                        index: $0.index,
+                        pixelFormat: destinationTextures[$0.index]?.pixelFormat,
+                        loadBehavior: $0.loadBehavior,
+                        storeBehavior: $0.storeBehavior
+                    )
+                },
+                sampleCount: descriptor.renderPass.sampleCount,
+                hasDepthAttachment: descriptor.renderPass.hasDepthAttachment,
+                hasStencilAttachment: descriptor.renderPass.hasStencilAttachment,
+                usesCustomVertexLayout: descriptor.renderPass.usesCustomVertexLayout,
+                blendMode: descriptor.renderPass.blendMode
+            )
             let command = RenderCommand(
                 filter: self,
                 sourceTexture: sourceTexture,
-                renderPass: descriptor.renderPass
+                renderPass: renderPass
             )
             let batch = try RenderCommandBatch(
-                renderPass: descriptor.renderPass,
+                renderPass: renderPass,
                 destinationTexturesByAttachmentIndex: destinationTextures,
                 commands: [command]
             )
+            if renderPreloadsSourceTexture {
+                guard renderRasterSampleCount == 1,
+                      let primary = destinationTextures[0],
+                      primary.width == sourceTexture.width,
+                      primary.height == sourceTexture.height,
+                      primary.pixelFormat == sourceTexture.pixelFormat else {
+                    throw HarbethError.configurationInvalid("附件背景预载要求单采样、相同尺寸和像素格式。")
+                }
+                try Rendering.copy(sourceTexture, to: primary, commandBuffer: commandBuffer)
+            }
             try Rendering.encode(batch: batch, commandBuffer: commandBuffer)
         } catch {
-            HarbethContext.shared.texturePool.enqueueTexturesSync(Array(destinationTextures.values))
+            // 编码可能已部分完成，调用方仍可提交该 command buffer；完成前不能复用附件纹理。
+            let retainedTextures = HarbethUncheckedTransfer(value: Array(destinationTextures.values))
+            commandBuffer.addCompletedHandler { _ in
+                HarbethContext.shared.texturePool.enqueueTexturesSync(retainedTextures.value)
+            }
             throw error
         }
 
@@ -153,11 +184,11 @@ public extension RenderProtocol {
         }
     }
 
-    private func makeDestinationTextures(outputContract: RenderOutputContract, outputSize: C7Size, identifier: String) throws -> [Int: MTLTexture] {
+    private func makeDestinationTextures(outputContract: RenderOutputContract, outputSize: C7Size, inputPixelFormat: MTLPixelFormat, identifier: String) throws -> [Int: MTLTexture] {
         var textures: [Int: MTLTexture] = [:]
         do {
             for attachment in outputContract.attachments {
-                let pixelFormat = attachment.pixelFormat.metalPixelFormat ?? .rgba8Unorm
+                let pixelFormat = attachment.pixelFormat.metalPixelFormat ?? inputPixelFormat
                 let texture = try TextureLoader.makeTexture(
                     width: outputSize.width,
                     height: outputSize.height,

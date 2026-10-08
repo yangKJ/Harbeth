@@ -81,24 +81,6 @@ final class ImageGraphBuilder {
             )
             edges.append(ImageGraphEdge(from: inputID, to: nodeID))
             return nodeID
-        case .recipe(let source, let recipe, let mode):
-            let sourceID = try append(ImageNode.source(source))
-            let nodeID = allocateID()
-            let planning = recipe.planningDescriptor(for: mode)
-            nodes.append(
-                ImageGraphNode(
-                    id: nodeID,
-                    kind: .recipe,
-                    name: "EditRecipe.\(mode.rawValue)",
-                    cachePolicy: node.resolvedCachePolicy,
-                    samplerDescriptor: node.resolvedSamplerDescriptor,
-                    sourceKind: source.kindName,
-                    filterCount: planning.filterCount,
-                    fingerprint: planning.fingerprint
-                )
-            )
-            edges.append(ImageGraphEdge(from: sourceID, to: nodeID))
-            return nodeID
         case .edit(let input, let recipe, let mode):
             let inputID = try append(input)
             let nodeID = allocateID()
