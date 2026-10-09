@@ -128,10 +128,11 @@ static inline half3 blendInnerLayer(half3 background, half3 layer, float mode) {
     } else if (mode < 11.5) {
         return half3(1.0) - ((half3(1.0) - background) / max(layer, half3(0.001)));
     } else if (mode < 12.5) {
-        const half3 softDark = sqrt(max(background, half3(0.0))) * (half3(2.0) * layer - half3(1.0))
-        + (half3(2.0) * background) * (half3(1.0) - layer);
-        const half3 softLight = background - (half3(1.0) - half3(2.0) * layer) * background * (half3(1.0) - background);
-        return select(softDark, softLight, layer > half3(0.5));
+        const half3 polynomial = ((half3(16.0) * background - half3(12.0)) * background + half3(4.0)) * background;
+        const half3 lifted = select(sqrt(max(background, half3(0.0))), polynomial, background <= half3(0.25));
+        const half3 darkened = background - (half3(1.0) - half3(2.0) * layer) * background * (half3(1.0) - background);
+        const half3 lightened = background + (half3(2.0) * layer - half3(1.0)) * (lifted - background);
+        return select(darkened, lightened, layer > half3(0.5));
     } else if (mode < 13.5) {
         return select(half3(1.0) - half3(2.0) * (half3(1.0) - background) * (half3(1.0) - layer),
                       half3(2.0) * background * layer,
@@ -200,8 +201,11 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
     const float2 contentSize = max(contentRegion.zw, float2(0.0001));
     const float2 layerUV = contentOrigin + regionUV * contentSize;
     const half4 layer = layerTexture.sample(quadSampler, layerUV);
-    half3 layerColor = layer.rgb;
-    half layerAlpha = layer.a;
+    // 图层纹理为预乘 alpha；混合公式在直通颜色上计算，最终再按覆盖率合成预乘结果。
+    const half backgroundAlpha = clamp(background.a, half(0.0), half(1.0));
+    const half3 backgroundColor = backgroundAlpha > half(0.0001) ? background.rgb / backgroundAlpha : half3(0.0);
+    half layerAlpha = clamp(layer.a, half(0.0), half(1.0));
+    half3 layerColor = layerAlpha > half(0.0001) ? layer.rgb / layerAlpha : half3(0.0);
     if (hasTint && tint.a > 0.0) {
         layerColor = half3(tint.rgb);
         layerAlpha *= half(clamp(tint.a, 0.0, 1.0));
@@ -264,9 +268,10 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
         coverage *= half(cornerCoverage);
     }
 
-    const half3 blended = blendInnerLayer(background.rgb, layerColor, layerOptions.y);
-    const half3 rgb = mix(background.rgb, blended, coverage);
-    const half alpha = background.a + (1.0h - background.a) * coverage;
+    const half3 blended = blendInnerLayer(backgroundColor, layerColor, layerOptions.y);
+    const half3 rgb = background.rgb * (1.0h - coverage)
+        + coverage * ((1.0h - backgroundAlpha) * layerColor + backgroundAlpha * blended);
+    const half alpha = backgroundAlpha + (1.0h - backgroundAlpha) * coverage;
     outputTexture.write(half4(rgb, alpha), grid);
 }
 
