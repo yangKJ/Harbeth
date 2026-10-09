@@ -8,6 +8,16 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-10
+
+#### Added
+
+- RenderView 增加类型化显示视口与 linear/nearest 采样选择，缩放和平移直接作用于 GPU quad，drawable 继续受宿主尺寸约束；显式显示配置使用 Metal 宿主。
+
+#### Fixed
+
+- 显示 quad 顶点使用 command encoder 捕获，避免下一次重绘覆写 GPU 在途的单个可复用顶点缓冲。
+
 ### 2026-10-07
 
 #### Fixed

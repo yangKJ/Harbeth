@@ -141,6 +141,30 @@ open class RenderView: MTKView {
         }
     }
 
+    /// 显式目标矩形直接进入 GPU quad；nil 保留普通适合/填充显示。
+    public var viewport: PreviewViewport? {
+        didSet {
+            guard oldValue != viewport else { return }
+            if (oldValue == nil) != (viewport == nil) {
+                resolvePreviewHost(for: currentRenderedFrame)
+                updatePreviewHostScheduling()
+            }
+            invalidateDisplay()
+        }
+    }
+
+    public var sampling: PreviewSampling = .linear {
+        didSet {
+            guard oldValue != sampling else { return }
+            cachedSamplerState = nil
+            if viewport == nil {
+                resolvePreviewHost(for: currentRenderedFrame)
+                updatePreviewHostScheduling()
+            }
+            invalidateDisplay()
+        }
+    }
+
     public var resizingMode: ResizingMode = .aspectFit {
         didSet {
             guard oldValue != resizingMode else { return }
@@ -185,10 +209,14 @@ open class RenderView: MTKView {
     private var lastSampleBufferPreviewFrame: CMSampleBuffer?
     #endif
 
-    private lazy var samplerState: MTLSamplerState? = {
-        HarbethContext.shared.makeSamplerState()
-    }()
-    private var quadVertexBuffer: MTLBuffer?
+    private var cachedSamplerState: MTLSamplerState?
+    private var samplerState: MTLSamplerState? {
+        if let cachedSamplerState { return cachedSamplerState }
+        let filter: MTLSamplerMinMagFilter = sampling == .nearest ? .nearest : .linear
+        let state = HarbethContext.shared.makeSamplerState(minFilter: filter, magFilter: filter)
+        cachedSamplerState = state
+        return state
+    }
     private let previewHostInstanceIdentifier = UUID().uuidString
     private var lastPreviewHostVisibilityState: Bool?
     private var lastPreviewHostSuspensionReason: PreviewHostSuspensionReason?
@@ -431,58 +459,6 @@ open class RenderView: MTKView {
         )
     }
 
-    private func quadVertices(for texture: MTLTexture, drawableSize: CGSize) -> [Float] {
-        guard drawableSize.width > 0, drawableSize.height > 0 else { return Rendering.defaultVertices }
-        if resizingMode == .scaleToFill { return Rendering.defaultVertices }
-        let textureAspect = Float(texture.width) / Float(max(texture.height, 1))
-        let viewAspect = Float(drawableSize.width / drawableSize.height)
-        let scaleX: Float
-        let scaleY: Float
-        switch resizingMode {
-        case .aspectFit:
-            if textureAspect > viewAspect {
-                scaleX = 1
-                scaleY = viewAspect / textureAspect
-            } else {
-                scaleX = textureAspect / viewAspect
-                scaleY = 1
-            }
-        case .aspectFill:
-            if textureAspect > viewAspect {
-                scaleX = textureAspect / viewAspect
-                scaleY = 1
-            } else {
-                scaleX = 1
-                scaleY = viewAspect / textureAspect
-            }
-        case .scaleToFill:
-            scaleX = 1
-            scaleY = 1
-        }
-        return [
-            -scaleX, -scaleY, 0.0, 1.0,
-             scaleX, -scaleY, 1.0, 1.0,
-            -scaleX,  scaleY, 0.0, 0.0,
-             scaleX,  scaleY, 1.0, 0.0,
-        ]
-    }
-
-    private func vertexBuffer(for texture: MTLTexture, drawableSize: CGSize) -> MTLBuffer? {
-        let vertices = quadVertices(for: texture, drawableSize: drawableSize)
-        let length = vertices.count * MemoryLayout<Float>.size
-        if let quadVertexBuffer, quadVertexBuffer.length >= length {
-            vertices.withUnsafeBytes { bytes in
-                guard let baseAddress = bytes.baseAddress else { return }
-                quadVertexBuffer.contents().copyMemory(from: baseAddress, byteCount: length)
-            }
-            return quadVertexBuffer
-        }
-        guard let device else { return nil }
-        let buffer = device.makeBuffer(bytes: vertices, length: length, options: [])
-        quadVertexBuffer = buffer
-        return buffer
-    }
-
     private func invalidateDisplay() {
         #if canImport(UIKit)
         setNeedsDisplay()
@@ -607,23 +583,18 @@ extension RenderView: MTKViewDelegate {
               let renderPassDescriptor = currentRenderPassDescriptor,
               let drawable = currentDrawable,
               let pipelineState = currentRenderPipelineState(),
+              let samplerState,
+              let vertices = PreviewQuadGeometry.vertices(
+                  textureSize: CGSize(width: texture.width, height: texture.height),
+                  drawableSize: drawableSize, resizingMode: resizingMode, viewport: viewport
+              ),
               let commandBuffer = HarbethContext.shared.makeCommandBuffer(),
               let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
             return
         }
 
-        guard let vertexBuffer = vertexBuffer(for: texture, drawableSize: drawableSize) else {
-            renderEncoder.endEncoding()
-            return
-        }
-
-        renderEncoder.setRenderPipelineState(pipelineState)
-        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
-        if let samplerState {
-            renderEncoder.setFragmentSamplerState(samplerState, index: 0)
-        }
-        renderEncoder.setFragmentTexture(texture, index: 0)
-        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+        PreviewDrawEncoder.encode(texture: texture, vertices: vertices, pipelineState: pipelineState,
+                                  samplerState: samplerState, into: renderEncoder)
         renderEncoder.endEncoding()
 
         currentRenderedFrame?.lease?.retainUntilCompleted(by: commandBuffer)
@@ -696,6 +667,13 @@ private extension RenderView {
         }
         let resolution = frame.previewHostStrategyResolution
         switch resolution.strategy {
+        case _ where viewport != nil || sampling != .linear:
+            // 显式显示几何/采样由 Metal 宿主执行，不能被整帧 SampleBuffer 图层绕过。
+            deactivateSampleBufferPreviewHost()
+            setPreviewHostExecutionState(
+                .metalActive, strategy: .metalTextureHost, backingKind: .metalTextureHost,
+                payloadMode: .none, recoveredByFlush: false, fellBackToMetal: false, clearLastFailure: true
+            )
         case .metalTextureHost, .sampleBufferRematerializedHost:
             setPreviewHostExecutionState(
                 .metalActive,

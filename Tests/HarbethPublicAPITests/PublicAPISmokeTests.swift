@@ -232,11 +232,16 @@ final class PublicAPISmokeTests: XCTestCase {
         let renderView = RenderView(frame: .zero, device: nil)
         renderView.resizingMode = .aspectFit
         renderView.dynamicRangePolicy = .automatic
+        let viewport = PreviewViewport(normalizedContentRect: CGRect(x: -0.5, y: 0, width: 2, height: 1))
+        renderView.viewport = viewport
+        renderView.sampling = .nearest
         renderView.onPreviewDisplayStateUpdated = { _ in }
         _ = renderView.currentPreviewDisplayState
         let swiftUIView = HarbethRenderView(
             texture: nil,
             dynamicRangePolicy: .standard,
+            viewport: viewport,
+            sampling: .nearest,
             onPreviewDisplayState: { _ in }
         )
         let frameHost: (RenderedFrame?) -> HarbethRenderView = { frame in
@@ -245,6 +250,8 @@ final class PublicAPISmokeTests: XCTestCase {
                 resizingMode: .aspectFill,
                 preferredDrawableScale: 2,
                 dynamicRangePolicy: .automatic,
+                viewport: viewport,
+                sampling: .linear,
                 onExecutionReport: { _ in },
                 onFleetSnapshot: { _ in },
                 onPreviewDisplayState: { _ in }
