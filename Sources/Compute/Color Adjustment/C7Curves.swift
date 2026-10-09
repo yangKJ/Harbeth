@@ -23,11 +23,18 @@ public struct C7Curves: C7FilterProtocol {
     public enum Interpolation: String, Codable, Equatable, Sendable {
         case legacy
         case linear
+        /// 保持相邻点范围的Hermite插值；在预乘纹理上还原直色值后求值。
+        case shapePreserving
     }
 
     public enum Extrapolation: Float, Codable, Equatable, Sendable {
         case clampToEndpoints = 0
         case linear = 1
+    }
+
+    public enum CompositionOrder: Float, Codable, Equatable, Sendable {
+        case rgbThenChannels = 0
+        case channelsThenRGB = 1
     }
 
     /// RGB曲线控制点，使用C7Point2D（归一化坐标）
@@ -46,12 +53,20 @@ public struct C7Curves: C7FilterProtocol {
     /// Blue channel curve control points
     public var bluePoints: [C7Point2D] = []
 
-    /// 公共默认保留旧插值，避免未版本化的持久化配方静默改变；新编辑应显式使用 `.linear`。
+    /// 公共默认保留旧插值，避免未版本化的持久化配方静默改变；新编辑应显式选择插值与通道顺序。
     public var interpolation: Interpolation
     public var extrapolation: Extrapolation
+    public var compositionOrder: CompositionOrder
 
     public var modifier: ModifierEnum {
-        .compute(kernel: interpolation == .legacy ? "C7CurvesLegacy" : "C7Curves")
+        switch interpolation {
+        case .legacy:
+            return .compute(kernel: compositionOrder == .rgbThenChannels ? "C7CurvesLegacy" : "C7CurvesLegacyOrdered")
+        case .linear:
+            return .compute(kernel: "C7Curves")
+        case .shapePreserving:
+            return .compute(kernel: "C7CurvesCubic")
+        }
     }
 
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -66,9 +81,13 @@ public struct C7Curves: C7FilterProtocol {
             KernelParameterBinding(name: "greenPoints", index: 3, stage: .compute, value: .floatArray(flattenedPoints(greenPoints))),
             KernelParameterBinding(name: "bluePoints", index: 4, stage: .compute, value: .floatArray(flattenedPoints(bluePoints)))
         ]
-        if interpolation == .linear {
+        if interpolation != .legacy {
             bindings.append(KernelParameterBinding(name: "extrapolation", index: 5, stage: .compute,
                                                    value: .float(extrapolation.rawValue)))
+        }
+        if interpolation != .legacy || compositionOrder != .rgbThenChannels {
+            bindings.append(KernelParameterBinding(name: "compositionOrder", index: interpolation == .legacy ? 5 : 6,
+                                                   stage: .compute, value: .float(compositionOrder.rawValue)))
         }
         return bindings
     }
@@ -76,7 +95,7 @@ public struct C7Curves: C7FilterProtocol {
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
             precision: .float16,
-            dynamicRangeBehavior: interpolation == .linear && extrapolation == .linear
+            dynamicRangeBehavior: interpolation != .legacy && extrapolation == .linear
                 ? .preservesExtendedRange : .unspecified,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
@@ -97,10 +116,12 @@ public struct C7Curves: C7FilterProtocol {
         greenPoints: [C7Point2D]? = nil,
         bluePoints: [C7Point2D]? = nil,
         interpolation: Interpolation = .legacy,
-        extrapolation: Extrapolation = .clampToEndpoints
+        extrapolation: Extrapolation = .clampToEndpoints,
+        compositionOrder: CompositionOrder = .rgbThenChannels
     ) {
         self.interpolation = interpolation
         self.extrapolation = extrapolation
+        self.compositionOrder = compositionOrder
         if let points = rgbPoints {
             self.rgbPoints = points
         } else {
@@ -133,6 +154,40 @@ public struct C7Curves: C7FilterProtocol {
                 C7Point2D(x: 1.0, y: 1.0)
             ]
         }
+    }
+
+    /// 与平滑GPU算子相同的保持形状Hermite求值，供控制图与数值验证复用。
+    /// 平滑模式在每个区间内不越过相邻控制点，域外可选择端点保持或线性外推。
+    public static func shapePreservingValue(_ value: Float, points: [C7Point2D],
+                                         extrapolation: Extrapolation = .clampToEndpoints) -> Float {
+        guard value.isFinite, points.count >= 2,
+              points.allSatisfy({ $0.x.isFinite && $0.y.isFinite }),
+              zip(points, points.dropFirst()).allSatisfy({ $0.x < $1.x }) else { return value }
+        let index = min(points.count - 2, max(0, points.lastIndex(where: { $0.x <= value }) ?? 0))
+        let a = points[index]
+        let b = points[index + 1]
+        let h = b.x - a.x
+        let delta = (b.y - a.y) / h
+        if value < points[0].x {
+            return extrapolation == .linear ? a.y + (value - a.x) * delta : a.y
+        }
+        if value > points[points.count - 1].x {
+            return extrapolation == .linear ? b.y + (value - b.x) * delta : b.y
+        }
+        let t = min(1, max(0, (value - a.x) / h))
+        func slope(_ i: Int) -> Float {
+            let left = max(0, i - 1)
+            let right = min(points.count - 2, i)
+            let before = (points[left + 1].y - points[left].y) / (points[left + 1].x - points[left].x)
+            let after = (points[right + 1].y - points[right].y) / (points[right + 1].x - points[right].x)
+            guard before * after > 0 else { return 0 }
+            return 2 / (1 / before + 1 / after)
+        }
+        let t2 = t * t
+        let t3 = t2 * t
+        let result = (2 * t3 - 3 * t2 + 1) * a.y + (t3 - 2 * t2 + t) * h * slope(index)
+            + (-2 * t3 + 3 * t2) * b.y + (t3 - t2) * h * slope(index + 1)
+        return min(max(a.y, b.y), max(min(a.y, b.y), result))
     }
 
     public func updateExtrapolation(_ extrapolation: Extrapolation) -> Self {

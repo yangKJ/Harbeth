@@ -245,6 +245,75 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testShapePreservingCurvesMatchKnownHermiteValuesAndBounds() {
+        let points = [C7Point2D(x: 0, y: 0), C7Point2D(x: 0.5, y: 0.25), C7Point2D(x: 1, y: 1)]
+        XCTAssertEqual(C7Curves.shapePreservingValue(0.25, points: points), 0.109375, accuracy: 0.000001)
+        XCTAssertEqual(C7Curves.shapePreservingValue(0.75, points: points), 0.578125, accuracy: 0.000001)
+        let turning = [C7Point2D(x: 0, y: 0.2), C7Point2D(x: 0.1, y: 0.9),
+                       C7Point2D(x: 0.8, y: 0.1), C7Point2D(x: 1, y: 0.7)]
+        for pair in zip(turning, turning.dropFirst()) {
+            for step in 0...100 {
+                let x = pair.0.x + (pair.1.x - pair.0.x) * Float(step) / 100
+                let y = C7Curves.shapePreservingValue(x, points: turning)
+                XCTAssertGreaterThanOrEqual(y, min(pair.0.y, pair.1.y) - 0.000001)
+                XCTAssertLessThanOrEqual(y, max(pair.0.y, pair.1.y) + 0.000001)
+            }
+        }
+    }
+
+    func testShapePreservingCurveGPUTracksControlPlotAcrossAllSamples() throws {
+        let points = [C7Point2D(x: 0, y: 0), C7Point2D(x: 0.1, y: 0.8),
+                      C7Point2D(x: 0.7, y: 0.2), C7Point2D(x: 1, y: 1)]
+        let values = (0...256).map { Float16(Float($0) / 256) }
+        let texture = try makeRGBA16FloatTexture(width: values.count, pixels: values.flatMap { [$0, $0, $0, Float16(1)] })
+        let output: MTLTexture = try HarbethIO(element: texture,
+            filter: C7Curves(rgbPoints: points, interpolation: .shapePreserving)).output()
+        let pixels = try rgba16FloatPixels(in: output)
+        for (index, value) in values.enumerated() {
+            let expected = C7Curves.shapePreservingValue(Float(value), points: points)
+            XCTAssertEqual(pixels[index * 4], expected, accuracy: 0.002)
+            XCTAssertEqual(pixels[index * 4 + 3], 1)
+        }
+    }
+
+    func testCurvesCompositionOrderIsExplicitAndShaderBound() throws {
+        let rgb = [C7Point2D(x: 0, y: 0), C7Point2D(x: 0.5, y: 0.25), C7Point2D(x: 1, y: 1)]
+        let red = [C7Point2D(x: 0, y: 0.3), C7Point2D(x: 1, y: 0.9)]
+        let texture = try makeRGBA16FloatTexture(width: 1, pixels: [0.25, 0.5, 0.75, 1])
+        for mode: C7Curves.Interpolation in [.linear, .shapePreserving] {
+            let filter = C7Curves(rgbPoints: rgb, redPoints: red, interpolation: mode, compositionOrder: .channelsThenRGB)
+            let output: MTLTexture = try HarbethIO(element: texture, filter: filter).output()
+            let expected = mode == .linear ? Float(0.225) : C7Curves.shapePreservingValue(0.45, points: rgb)
+            XCTAssertEqual(try rgba16FloatPixels(in: output)[0], expected, accuracy: 0.002)
+        }
+        let ordered = C7Curves(rgbPoints: [C7Point2D(x: 0, y: 0), C7Point2D(x: 1, y: 0.5)], redPoints: red,
+                               compositionOrder: .channelsThenRGB)
+        let output: MTLTexture = try HarbethIO(element: texture, filter: ordered).output()
+        XCTAssertEqual(try rgba16FloatPixels(in: output)[0], 0.225, accuracy: 0.002)
+    }
+
+    func testShapePreservingCurvesUseStraightColorsAndKeepTransparentPixelsEmpty() throws {
+        let points = [C7Point2D(x: 0, y: 0.2), C7Point2D(x: 0.5, y: 0.3), C7Point2D(x: 1, y: 0.9)]
+        let texture = try makeRGBA16FloatTexture(width: 2, pixels: [0.125, 0.25, 0.375, 0.5, 0, 0, 0, 0])
+        let output: MTLTexture = try HarbethIO(element: texture,
+            filter: C7Curves(rgbPoints: points, interpolation: .shapePreserving, compositionOrder: .channelsThenRGB)).output()
+        let pixels = try rgba16FloatPixels(in: output)
+        for (index, value): (Int, Float) in [Float(0.25), 0.5, 0.75].enumerated() {
+            XCTAssertEqual(pixels[index], C7Curves.shapePreservingValue(value, points: points) * 0.5, accuracy: 0.002)
+        }
+        XCTAssertEqual(pixels[3], 0.5)
+        XCTAssertEqual(Array(pixels[4...7]), [0, 0, 0, 0])
+    }
+
+    func testShapePreservingCurvesLinearExtrapolationKeepsExtendedPixels() throws {
+        let texture = try makeRGBA16FloatTexture(width: 1, pixels: [-0.5, 2, 0.5, 0.4])
+        let filter = C7Curves(interpolation: .shapePreserving, extrapolation: .linear, compositionOrder: .channelsThenRGB)
+        let output: MTLTexture = try HarbethIO(element: texture, filter: filter).output()
+        let pixels = try rgba16FloatPixels(in: output)
+        for (actual, expected) in zip(pixels, [Float(-0.5), 2, 0.5, 0.4]) { XCTAssertEqual(actual, expected, accuracy: 0.002) }
+        XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+    }
+
     func testCurvesMultiPointSegmentsMapActualPixelsContinuously() throws {
         let sourceValues: [UInt8] = [63, 64, 65, 127, 128, 191, 192, 193]
         let sourcePixels = sourceValues.flatMap { [$0, $0, $0, UInt8.max] }

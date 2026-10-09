@@ -71,51 +71,66 @@ float curveInterpolationLegacy(float value, constant float* points, int pointCou
     return mix(y0, y1, (value - x0) / (x1 - x0));
 }
 
-static half4 c7ApplyCurves(
-    half4 input,
-    float4 pointCounts,
-    constant float *rgbPoints,
-    constant float *redPoints,
-    constant float *greenPoints,
-    constant float *bluePoints,
-    bool usesLegacyInterpolation,
-    bool extrapolates
-) {
-    const int rgbPointCount = int(pointCounts.x);
-    const int redPointCount = int(pointCounts.y);
-    const int greenPointCount = int(pointCounts.z);
-    const int bluePointCount = int(pointCounts.w);
-    float red = float(input.r);
-    float green = float(input.g);
-    float blue = float(input.b);
+// 保持形状的Hermite切线；转折点斜率为0，不产生控制点之间的亮暗过冲。
+static float curveSlope(constant float *points, int count, int index) {
+    const int left = max(0, index - 1);
+    const int right = min(count - 2, index);
+    const float h0 = points[(left + 1) * 2] - points[left * 2];
+    const float h1 = points[(right + 1) * 2] - points[right * 2];
+    if (h0 <= 0 || h1 <= 0) return 0;
+    const float a = (points[(left + 1) * 2 + 1] - points[left * 2 + 1]) / h0;
+    const float b = (points[(right + 1) * 2 + 1] - points[right * 2 + 1]) / h1;
+    return a * b > 0 ? 2.0f / (1.0f / a + 1.0f / b) : 0.0f;
+}
 
-    if (rgbPointCount >= 2) {
-        red = usesLegacyInterpolation
-            ? curveInterpolationLegacy(red, rgbPoints, rgbPointCount)
-            : curveInterpolation(red, rgbPoints, rgbPointCount, extrapolates);
-        green = usesLegacyInterpolation
-            ? curveInterpolationLegacy(green, rgbPoints, rgbPointCount)
-            : curveInterpolation(green, rgbPoints, rgbPointCount, extrapolates);
-        blue = usesLegacyInterpolation
-            ? curveInterpolationLegacy(blue, rgbPoints, rgbPointCount)
-            : curveInterpolation(blue, rgbPoints, rgbPointCount, extrapolates);
+static float curveCubic(float value, constant float *points, int count, bool extrapolates) {
+    if (count < 2) return value;
+    if (value < points[0]) return extrapolates ? points[1] + (value - points[0]) * curveSlope(points, count, 0) : points[1];
+    if (value > points[(count - 1) * 2]) {
+        return extrapolates ? points[(count - 1) * 2 + 1] + (value - points[(count - 1) * 2]) * curveSlope(points, count, count - 1)
+                            : points[(count - 1) * 2 + 1];
     }
-    if (redPointCount >= 2) {
-        red = usesLegacyInterpolation
-            ? curveInterpolationLegacy(red, redPoints, redPointCount)
-            : curveInterpolation(red, redPoints, redPointCount, extrapolates);
+    int index = 0;
+    while (index < count - 2 && points[(index + 1) * 2] < value) ++index;
+    const float x0 = points[index * 2], y0 = points[index * 2 + 1];
+    const float x1 = points[(index + 1) * 2], y1 = points[(index + 1) * 2 + 1];
+    const float h = x1 - x0;
+    if (h <= 0) return y0;
+    const float t = clamp((value - x0) / h, 0.0f, 1.0f), t2 = t * t, t3 = t2 * t;
+    const float y = (2 * t3 - 3 * t2 + 1) * y0 + (t3 - 2 * t2 + t) * h * curveSlope(points, count, index)
+        + (-2 * t3 + 3 * t2) * y1 + (t3 - t2) * h * curveSlope(points, count, index + 1);
+    return clamp(y, min(y0, y1), max(y0, y1));
+}
+
+static float curveValue(float value, constant float *points, int count, bool legacy, bool cubic, bool extrapolates) {
+    if (count < 2) return value;
+    if (legacy) return curveInterpolationLegacy(value, points, count);
+    return cubic ? curveCubic(value, points, count, extrapolates) : curveInterpolation(value, points, count, extrapolates);
+}
+
+static half4 c7ApplyCurves(half4 input, float4 counts, constant float *rgbPoints,
+                         constant float *redPoints, constant float *greenPoints, constant float *bluePoints,
+                         bool legacy, bool cubic, bool extrapolates, bool channelsFirst) {
+    // 新模式按直色值调节后恢复预乘；旧模式保留已持久化像素语义。
+    const float alpha = float(input.a);
+    if (cubic && alpha <= 0) return half4(0);
+    float3 color = float3(input.rgb);
+    if (cubic) color /= alpha;
+    if (!channelsFirst) {
+        color.r = curveValue(color.r, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
+        color.g = curveValue(color.g, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
+        color.b = curveValue(color.b, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
     }
-    if (greenPointCount >= 2) {
-        green = usesLegacyInterpolation
-            ? curveInterpolationLegacy(green, greenPoints, greenPointCount)
-            : curveInterpolation(green, greenPoints, greenPointCount, extrapolates);
+    color.r = curveValue(color.r, redPoints, int(counts.y), legacy, cubic, extrapolates);
+    color.g = curveValue(color.g, greenPoints, int(counts.z), legacy, cubic, extrapolates);
+    color.b = curveValue(color.b, bluePoints, int(counts.w), legacy, cubic, extrapolates);
+    if (channelsFirst) {
+        color.r = curveValue(color.r, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
+        color.g = curveValue(color.g, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
+        color.b = curveValue(color.b, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
     }
-    if (bluePointCount >= 2) {
-        blue = usesLegacyInterpolation
-            ? curveInterpolationLegacy(blue, bluePoints, bluePointCount)
-            : curveInterpolation(blue, bluePoints, bluePointCount, extrapolates);
-    }
-    return half4(half3(red, green, blue), input.a);
+    if (cubic) color *= alpha;
+    return half4(half3(color), input.a);
 }
 
 kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]],
@@ -126,22 +141,47 @@ kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]]
                      constant float *greenPoints [[buffer(3)]],
                      constant float *bluePoints [[buffer(4)]],
                      constant float *extrapolation [[buffer(5)]],
+                     constant float *compositionOrder [[buffer(6)]],
                      uint2 grid [[thread_position_in_grid]]) {
-    outputTexture.write(c7ApplyCurves(
-        inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints, false,
-        extrapolation[0] >= 0.5f
-    ), grid);
+    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      false, false, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f), grid);
+}
+
+kernel void C7CurvesCubic(texture2d<half, access::write> outputTexture [[texture(0)]],
+                     texture2d<half, access::read> inputTexture [[texture(1)]],
+                     constant float4 &pointCounts [[buffer(0)]],
+                     constant float *rgbPoints [[buffer(1)]],
+                     constant float *redPoints [[buffer(2)]],
+                     constant float *greenPoints [[buffer(3)]],
+                     constant float *bluePoints [[buffer(4)]],
+                     constant float *extrapolation [[buffer(5)]],
+                     constant float *compositionOrder [[buffer(6)]],
+                     uint2 grid [[thread_position_in_grid]]) {
+    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      false, true, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f), grid);
 }
 
 kernel void C7CurvesLegacy(texture2d<half, access::write> outputTexture [[texture(0)]],
-                           texture2d<half, access::read> inputTexture [[texture(1)]],
-                           constant float4 &pointCounts [[buffer(0)]],
-                           constant float *rgbPoints [[buffer(1)]],
-                           constant float *redPoints [[buffer(2)]],
-                           constant float *greenPoints [[buffer(3)]],
-                           constant float *bluePoints [[buffer(4)]],
-                           uint2 grid [[thread_position_in_grid]]) {
-    outputTexture.write(c7ApplyCurves(
-        inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints, true, false
-    ), grid);
+                     texture2d<half, access::read> inputTexture [[texture(1)]],
+                     constant float4 &pointCounts [[buffer(0)]],
+                     constant float *rgbPoints [[buffer(1)]],
+                     constant float *redPoints [[buffer(2)]],
+                     constant float *greenPoints [[buffer(3)]],
+                     constant float *bluePoints [[buffer(4)]],
+                     uint2 grid [[thread_position_in_grid]]) {
+    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      true, false, false, false), grid);
+}
+
+kernel void C7CurvesLegacyOrdered(texture2d<half, access::write> outputTexture [[texture(0)]],
+                     texture2d<half, access::read> inputTexture [[texture(1)]],
+                     constant float4 &pointCounts [[buffer(0)]],
+                     constant float *rgbPoints [[buffer(1)]],
+                     constant float *redPoints [[buffer(2)]],
+                     constant float *greenPoints [[buffer(3)]],
+                     constant float *bluePoints [[buffer(4)]],
+                     constant float *compositionOrder [[buffer(5)]],
+                     uint2 grid [[thread_position_in_grid]]) {
+    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      true, false, false, compositionOrder[0] >= 0.5f), grid);
 }
