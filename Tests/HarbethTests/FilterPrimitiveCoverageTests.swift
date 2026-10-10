@@ -245,6 +245,35 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testNumericLevelsGammaWorksOnStraightColorAndPreservesAlpha() throws {
+        let source = try makeRGBA16FloatTexture(width: 2, pixels: [0.125, 0.25, 0.375, 0.5, 0, 0, 0, 0])
+        let filter = C7LevelsAdjustment(gamma: SIMD3(repeating: 2))
+        let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+        let values = try rgba16FloatPixels(in: output)
+        XCTAssertEqual(values[0], 0.25, accuracy: 0.002)
+        XCTAssertEqual(values[1], sqrt(0.5) * 0.5, accuracy: 0.002)
+        XCTAssertEqual(values[2], sqrt(0.75) * 0.5, accuracy: 0.002)
+        XCTAssertEqual(values[3], 0.5)
+        XCTAssertEqual(Array(values[4...7]), [0, 0, 0, 0])
+        XCTAssertEqual(filter.kernelParameterBindings.count, 5)
+        XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .clampsToUnitRange)
+    }
+
+    func testNumericLevelsInputOutputRangesCanInvertAndStayFinite() throws {
+        let source = try makeRGBA16FloatTexture(width: 3, pixels: [0, 0, 0, 1, 0.5, 0.5, 0.5, 1, 1, 1, 1, 1])
+        let filter = C7LevelsAdjustment(inputBlack: SIMD3(repeating: 0.25), inputWhite: SIMD3(repeating: 0.75),
+                                       outputBlack: SIMD3(repeating: 1), outputWhite: .zero)
+        let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+        let values = try rgba16FloatPixels(in: output)
+        XCTAssertEqual(values[0], 1, accuracy: 0.002)
+        XCTAssertEqual(values[4], 0.5, accuracy: 0.002)
+        XCTAssertEqual(values[8], 0, accuracy: 0.002)
+        let invalid = C7LevelsAdjustment(inputBlack: SIMD3(repeating: .nan), gamma: SIMD3(repeating: .infinity),
+                                        inputWhite: .zero)
+        let corrected: MTLTexture = try HarbethIO(element: source, filter: invalid).output()
+        XCTAssertTrue(try rgba16FloatPixels(in: corrected).allSatisfy { $0.isFinite })
+    }
+
     func testShapePreservingCurvesMatchKnownHermiteValuesAndBounds() {
         let points = [C7Point2D(x: 0, y: 0), C7Point2D(x: 0.5, y: 0.25), C7Point2D(x: 1, y: 1)]
         XCTAssertEqual(C7Curves.shapePreservingValue(0.25, points: points), 0.109375, accuracy: 0.000001)
