@@ -8,7 +8,7 @@
 import CoreGraphics
 import Metal
 
-struct LayerComposite: C7FilterProtocol {
+public struct LayerComposite: C7FilterProtocol {
     let layerTexture: MTLTexture
     let mask: MaskDescriptor?
     let compositingMask: MaskDescriptor?
@@ -20,7 +20,7 @@ struct LayerComposite: C7FilterProtocol {
     let cornerCurve: LayerCornerCurve
     let tintColor: SIMD4<Float>?
 
-    init(layerTexture: MTLTexture,
+    public init(layerTexture: MTLTexture,
          mask: MaskDescriptor? = nil,
          compositingMask: MaskDescriptor? = nil,
          normalizedFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1),
@@ -42,11 +42,11 @@ struct LayerComposite: C7FilterProtocol {
         self.tintColor = tintColor
     }
 
-    var modifier: ModifierEnum {
+    public var modifier: ModifierEnum {
         .compute(kernel: "InnerLayerComposite")
     }
 
-    var kernelParameterBindings: [KernelParameterBinding] {
+    public var kernelParameterBindings: [KernelParameterBinding] {
         let frame = SIMD4<Float>(
             Float(normalizedFrame.origin.x), Float(normalizedFrame.origin.y),
             Float(normalizedFrame.size.width), Float(normalizedFrame.size.height)
@@ -100,7 +100,7 @@ struct LayerComposite: C7FilterProtocol {
         ]
     }
 
-    var otherInputTextures: C7InputTextures {
+    public var otherInputTextures: C7InputTextures {
         [
             layerTexture,
             mask?.texture ?? layerTexture,
@@ -108,7 +108,7 @@ struct LayerComposite: C7FilterProtocol {
         ]
     }
 
-    var memoryAccessPattern: MemoryAccessPattern {
+    public var memoryAccessPattern: MemoryAccessPattern {
         .multiTexture
     }
 }

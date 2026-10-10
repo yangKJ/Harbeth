@@ -12,9 +12,13 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
+- 公开现有 LayerComposite 滤镜原语；LayerBlendMode 补齐线性加深、除法、亮光、线性光、点光、实色混合及色相/饱和度/颜色/亮度，支持纹理链直接使用同一预乘合成公式。
+
 - RenderView 增加类型化显示视口与 linear/nearest 采样选择，缩放和平移直接作用于 GPU quad，drawable 继续受宿主尺寸约束；显式显示配置使用 Metal 宿主。
 
 #### Fixed
+
+- 图层采样使用像素中心，同尺寸图层保持逐像素对应，避免区域大小改变导致重采样；颜色加深/减淡规范化到有限端点结果。
 
 - 显示 quad 顶点使用 command encoder 捕获，避免下一次重绘覆写 GPU 在途的单个可复用顶点缓冲。
 

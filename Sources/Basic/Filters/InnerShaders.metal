@@ -102,6 +102,35 @@ static inline half readInnerMaskComponent(half4 value, float component) {
     return half(dot(float3(value.rgb), float3(0.2126, 0.7152, 0.0722)));
 }
 
+// 分量模式在直通颜色上保留亮度与饱和度，不能用逐通道混合代替。
+static inline float layerLuminosity(float3 c) { return dot(c, float3(0.3, 0.59, 0.11)); }
+static inline float layerSaturation(float3 c) { return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b)); }
+static inline float3 layerClipColor(float3 c) {
+    const float l = layerLuminosity(c);
+    const float n = min(c.r, min(c.g, c.b));
+    const float x = max(c.r, max(c.g, c.b));
+    if (n < 0.0) c = l + (c - l) * l / max(l - n, 0.000001);
+    if (x > 1.0) c = l + (c - l) * (1.0 - l) / max(x - l, 0.000001);
+    return c;
+}
+static inline float3 layerSetLuminosity(float3 c, float l) { return layerClipColor(c + l - layerLuminosity(c)); }
+static inline float3 layerSetSaturation(float3 c, float s) {
+    const float n = min(c.r, min(c.g, c.b));
+    const float x = max(c.r, max(c.g, c.b));
+    return x > n ? (c - n) * s / (x - n) : float3(0.0);
+}
+static inline half3 layerColorBurn(half3 b, half3 s) {
+    const half3 divided = half3(1.0) - min(half3(1.0), (half3(1.0) - b) / max(s, half3(0.0001)));
+    return select(select(divided, half3(0.0), s <= half3(0.0)), half3(1.0), b >= half3(1.0));
+}
+static inline half3 layerColorDodge(half3 b, half3 s) {
+    const half3 divided = min(half3(1.0), b / max(half3(1.0) - s, half3(0.0001)));
+    return select(select(divided, half3(1.0), s >= half3(1.0)), half3(0.0), b <= half3(0.0));
+}
+static inline half3 layerVividLight(half3 b, half3 s) {
+    return select(layerColorDodge(b, half3(2.0) * s - half3(1.0)), layerColorBurn(b, half3(2.0) * s), s < half3(0.5));
+}
+
 static inline half3 blendInnerLayer(half3 background, half3 layer, float mode) {
     if (mode < 1.5) {
         return layer;
@@ -124,9 +153,9 @@ static inline half3 blendInnerLayer(half3 background, half3 layer, float mode) {
     } else if (mode < 9.5) {
         return max(background - layer, half3(0.0));
     } else if (mode < 10.5) {
-        return background / max(half3(1.0) - layer, half3(0.001));
+        return layerColorDodge(background, layer);
     } else if (mode < 11.5) {
-        return half3(1.0) - ((half3(1.0) - background) / max(layer, half3(0.001)));
+        return layerColorBurn(background, layer);
     } else if (mode < 12.5) {
         const half3 polynomial = ((half3(16.0) * background - half3(12.0)) * background + half3(4.0)) * background;
         const half3 lifted = select(sqrt(max(background, half3(0.0))), polynomial, background <= half3(0.25));
@@ -140,6 +169,16 @@ static inline half3 blendInnerLayer(half3 background, half3 layer, float mode) {
     } else if (mode < 14.5) {
         return background + layer - half3(2.0) * background * layer;
     }
+    if (mode < 15.5) return max(background + layer - half3(1.0), half3(0.0));
+    if (mode < 16.5) return select(min(half3(1.0), background / max(layer, half3(0.0001))), half3(1.0), layer <= half3(0.0));
+    if (mode < 17.5) return layerVividLight(background, layer);
+    if (mode < 18.5) return clamp(background + half3(2.0) * layer - half3(1.0), half3(0.0), half3(1.0));
+    if (mode < 19.5) return select(max(background, half3(2.0) * layer - half3(1.0)), min(background, half3(2.0) * layer), layer < half3(0.5));
+    if (mode < 20.5) return step(half3(0.5), layerVividLight(background, layer));
+    if (mode < 21.5) return half3(layerSetLuminosity(layerSetSaturation(float3(layer), layerSaturation(float3(background))), layerLuminosity(float3(background))));
+    if (mode < 22.5) return half3(layerSetLuminosity(layerSetSaturation(float3(background), layerSaturation(float3(layer))), layerLuminosity(float3(background))));
+    if (mode < 23.5) return half3(layerSetLuminosity(float3(layer), layerLuminosity(float3(background))));
+    if (mode < 24.5) return half3(layerSetLuminosity(float3(background), layerLuminosity(float3(layer))));
     return layer;
 }
 
@@ -184,8 +223,8 @@ kernel void InnerLayerComposite(texture2d<half, access::write> outputTexture [[t
     const half4 background = backgroundTexture.read(grid);
     const float outputWidth = float(outputTexture.get_width());
     const float outputHeight = float(outputTexture.get_height());
-    const float2 outputUV = float2(float(grid.x) / max(outputWidth - 1.0, 1.0),
-                                   float(grid.y) / max(outputHeight - 1.0, 1.0));
+    // 使用像素中心，完整同尺寸图层不发生随 tile 尺寸变化的重采样。
+    const float2 outputUV = (float2(grid) + 0.5) / float2(outputWidth, outputHeight);
 
     const float2 origin = normalizedFrame.xy;
     const float2 size = max(normalizedFrame.zw, float2(0.0001));

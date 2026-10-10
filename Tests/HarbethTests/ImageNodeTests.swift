@@ -1922,7 +1922,7 @@ final class ImageNodeTests: XCTestCase {
 
     func testLayerCompositeSourceOverAccumulatesAlphaOverTranslucentBackground() throws {
         let background = try makeTexture(width: 1, height: 1, pixel: [0, 0, 0, 128])
-        let layer = try makeTexture(width: 1, height: 1, pixel: [255, 255, 255, 128])
+        let layer = try makeTexture(width: 1, height: 1, pixel: [128, 128, 128, 128])
         let recipe = LayerCompositeRecipe(
             background: .texture(background),
             layers: [ImageLayer(content: .texture(layer), opacity: 1, blendMode: .sourceOver)]
@@ -2001,7 +2001,8 @@ final class ImageNodeTests: XCTestCase {
 
         XCTAssertEqual(outputPixel.red, 0)
         XCTAssertEqual(outputPixel.green, 0)
-        XCTAssertEqual(outputPixel.blue, 170, accuracy: 3)
+        // 两张直色蓝为 1 的预乘输入，合成后的直色仍为 1。
+        XCTAssertEqual(outputPixel.blue, 255, accuracy: 3)
         XCTAssertEqual(outputPixel.alpha, 192, accuracy: 2)
     }
 

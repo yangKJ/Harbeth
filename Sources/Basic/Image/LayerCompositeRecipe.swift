@@ -25,6 +25,16 @@ public enum LayerBlendMode: Int, Sendable, Codable, Equatable, Hashable {
     case softLight = 12
     case hardLight = 13
     case exclusion = 14
+    case linearBurn = 15
+    case divide = 16
+    case vividLight = 17
+    case linearLight = 18
+    case pinLight = 19
+    case hardMix = 20
+    case hue = 21
+    case saturation = 22
+    case color = 23
+    case luminosity = 24
 }
 
 public enum LayerLayoutUnit: String, Sendable, Codable, Equatable, Hashable {
