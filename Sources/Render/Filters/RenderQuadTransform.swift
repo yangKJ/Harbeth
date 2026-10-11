@@ -40,6 +40,8 @@ public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
     public var viewportMode: Transform3DViewportMode
     public var samplingMode: SpatialSamplingMode
     public var edgeMode: SpatialEdgeMode
+    /// 最小包围视口按源图左上像素边界向外取整，完整保留透视边缘。
+    public var alignsViewportToPixels: Bool
 
     public var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "quadTransformFragment")
@@ -52,18 +54,21 @@ public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
     public init(quad: Quad = .identity,
                 viewportMode: Transform3DViewportMode = .minimumEnclosing,
                 samplingMode: SpatialSamplingMode = .adaptive,
-                edgeMode: SpatialEdgeMode = .transparent) {
+                edgeMode: SpatialEdgeMode = .transparent,
+                alignsViewportToPixels: Bool = false) {
         self.quad = quad
         self.viewportMode = viewportMode
         self.samplingMode = samplingMode
         self.edgeMode = edgeMode
+        self.alignsViewportToPixels = alignsViewportToPixels
     }
 
     public func resize(input size: C7Size) -> C7Size {
         let viewport = RenderQuadTransformLayout.resolvedViewport(
             for: CGSize(width: size.width, height: size.height),
             quad: quad,
-            viewportMode: viewportMode
+            viewportMode: viewportMode,
+            alignsToPixels: alignsViewportToPixels
         ).standardized
 
         return C7Size(
@@ -108,7 +113,8 @@ public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
         let viewport = RenderQuadTransformLayout.resolvedViewport(
             for: size,
             quad: quad,
-            viewportMode: viewportMode
+            viewportMode: viewportMode,
+            alignsToPixels: alignsViewportToPixels
         ).standardized
 
         var uniforms = RenderQuadTransformFragmentUniforms(
@@ -143,7 +149,8 @@ private struct RenderQuadTransformLayout {
         CGRect(x: -0.5 * inputSize.width, y: -0.5 * inputSize.height, width: inputSize.width, height: inputSize.height)
     }
 
-    static func resolvedViewport(for inputSize: CGSize, quad: RenderQuadTransform.Quad, viewportMode: Transform3DViewportMode) -> CGRect {
+    static func resolvedViewport(for inputSize: CGSize, quad: RenderQuadTransform.Quad,
+                                 viewportMode: Transform3DViewportMode, alignsToPixels: Bool) -> CGRect {
         switch viewportMode {
         case .original:
             return defaultViewport(for: inputSize)
@@ -154,7 +161,11 @@ private struct RenderQuadTransformLayout {
             guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max() else {
                 return defaultViewport(for: inputSize)
             }
-            return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+            let bounds = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+            guard alignsToPixels else { return bounds }
+            // 中心坐标系可能有半像素原点，必须回到左上像素坐标后取整。
+            return bounds.offsetBy(dx: inputSize.width / 2, dy: inputSize.height / 2).integral
+                .offsetBy(dx: -inputSize.width / 2, dy: -inputSize.height / 2)
         }
     }
 

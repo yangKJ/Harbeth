@@ -118,6 +118,26 @@ final class Transform3DTests: XCTestCase {
         XCTAssertEqual(outputSize.height, 10)
     }
 
+    func testQuadPixelAlignedViewportKeepsOddIdentityDimensions() {
+        let filter = RenderQuadTransform(quad: .identity, alignsViewportToPixels: true)
+
+        XCTAssertEqual(filter.resize(input: C7Size(width: 5, height: 3)), C7Size(width: 5, height: 3))
+    }
+
+    func testQuadPixelAlignedViewportKeepsFractionalOuterEdges() {
+        let filter = RenderQuadTransform(
+            quad: .init(
+                topLeft: .init(x: -0.025, y: -0.02),
+                topRight: .init(x: 1, y: 0),
+                bottomLeft: .init(x: 0, y: 1),
+                bottomRight: .init(x: 1, y: 1)
+            ),
+            alignsViewportToPixels: true
+        )
+
+        XCTAssertEqual(filter.resize(input: C7Size(width: 20, height: 10)), C7Size(width: 21, height: 11))
+    }
+
     func testQuadTransformIdentityKeepsSinglePixelVisible() throws {
         let input = try makeSolidTexture(red: 80, green: 140, blue: 220, alpha: 255)
         let output: MTLTexture = try HarbethIO(

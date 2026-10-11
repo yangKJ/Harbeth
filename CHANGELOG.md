@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-11
+
+#### Added
+
+- RenderQuadTransform 增加可选 alignsViewportToPixels；最小包围输出按原始像素坐标向外对齐，保留分数角点外沿，并避免奇数尺寸 identity 被扩大。默认输出行为保持不变。
+
 ### 2026-10-10
 
 #### Added
