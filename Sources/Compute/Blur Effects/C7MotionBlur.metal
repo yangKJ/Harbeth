@@ -12,81 +12,33 @@ kernel void C7MotionBlur(texture2d<half, access::write> outputTexture [[texture(
                          texture2d<half, access::read> inputTexture [[texture(1)]],
                          constant float *radius [[buffer(0)]],
                          constant float *blurAngle [[buffer(1)]],
+                         constant float *mappingContext [[buffer(30)]],
                          uint2 grid [[thread_position_in_grid]]) {
-    const float pi = 3.14159265358979323846264338327950288;
-    const float width = float(inputTexture.get_width());
-    const float height = float(inputTexture.get_height());
-    
-    const float aspectRatio = height / width;
-    float2 directionalTexelStep;
-    directionalTexelStep.x = float(*radius) * cos(float(*blurAngle) * pi / 180.0) * aspectRatio / width;
-    directionalTexelStep.y = float(*radius) * sin(float(*blurAngle) * pi / 180.0) / width;
-    
-    const float2 textureCoordinate = float2(float(grid.x) / outputTexture.get_width(), float(grid.y) / outputTexture.get_height());
-    const float2 oneStepBackTextureCoordinate = textureCoordinate.xy - directionalTexelStep;
-    const float2 twoStepsBackTextureCoordinate = textureCoordinate.xy - 2.0 * directionalTexelStep;
-    const float2 threeStepsBackTextureCoordinate = textureCoordinate.xy - 3.0 * directionalTexelStep;
-    const float2 fourStepsBackTextureCoordinate = textureCoordinate.xy - 4.0 * directionalTexelStep;
-    const float2 oneStepForwardTextureCoordinate = textureCoordinate.xy + directionalTexelStep;
-    const float2 twoStepsForwardTextureCoordinate = textureCoordinate.xy + 2.0 * directionalTexelStep;
-    const float2 threeStepsForwardTextureCoordinate = textureCoordinate.xy + 3.0 * directionalTexelStep;
-    const float2 fourStepsForwardTextureCoordinate = textureCoordinate.xy + 4.0 * directionalTexelStep;
-    
-    // Direct texture reading with bounds checking
-    float2 coord = textureCoordinate * float2(width, height);
-    uint2 pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    half4 outColor = inputTexture.read(pixel) * 0.18;
-    
-    coord = oneStepBackTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.15;
-    
-    coord = twoStepsBackTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.12;
-    
-    coord = threeStepsBackTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.09;
-    
-    coord = fourStepsBackTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.05;
-    
-    coord = oneStepForwardTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.15;
-    
-    coord = twoStepsForwardTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.12;
-    
-    coord = threeStepsForwardTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.09;
-    
-    coord = fourStepsForwardTextureCoordinate * float2(width, height);
-    pixel = uint2(coord.x, coord.y);
-    pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-    pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-    outColor += inputTexture.read(pixel) * 0.05;
-    
-    outputTexture.write(outColor, grid);
-}
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) { return; }
 
+    const float2 inputOrigin = float2(mappingContext[0], mappingContext[1]);
+    const float2 outputOrigin = float2(mappingContext[4], mappingContext[5]);
+    const float2 logicalSize = max(float2(mappingContext[6], mappingContext[7]), float2(1.0f));
+    const float2 globalPixel = outputOrigin + float2(grid);
+    const int2 maximum = int2(inputTexture.get_width() - 1, inputTexture.get_height() - 1);
+    const int2 inputPixel = clamp(int2(round(globalPixel - inputOrigin)), int2(0), maximum);
+    const half4 original = inputTexture.read(uint2(inputPixel));
+    if (*radius == 0.0f) {
+        outputTexture.write(original, grid);
+        return;
+    }
+
+    const float angle = *blurAngle * M_PI_F / 180.0f;
+    // 保留原有radius随画布宽高比变化的像素尺度，不能按tile尺寸重新计算。
+    const float2 step = float2(cos(angle), sin(angle)) * *radius * (logicalSize.y / logicalSize.x);
+    const float weights[4] = {0.15f, 0.12f, 0.09f, 0.05f};
+    float4 color = float4(original) * 0.18f;
+    for (int tap = 1; tap <= 4; tap++) {
+        // 相对偏移独立取整，正负采样成对；有符号裁边避免负坐标转换成无符号数。
+        const int2 offset = int2(round(clamp(step * float(tap), -logicalSize, logicalSize)));
+        const uint2 forward = uint2(clamp(inputPixel + offset, int2(0), maximum));
+        const uint2 backward = uint2(clamp(inputPixel - offset, int2(0), maximum));
+        color += (float4(inputTexture.read(forward)) + float4(inputTexture.read(backward))) * weights[tap - 1];
+    }
+    outputTexture.write(half4(color), grid);
+}

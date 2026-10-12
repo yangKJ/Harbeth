@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-13
+
+#### Fixed
+
+- MotionBlur 与 ZoomBlur 使用完整画布坐标、像素中心及对称的有符号边界采样，避免镜像偏移和分块尺寸改变效果；零半径保持原始RGBA，并声明动态ROI与预乘扩展范围像素合同。
+
 ### 2026-10-12
 
 #### Added

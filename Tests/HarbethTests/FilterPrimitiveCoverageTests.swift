@@ -4,6 +4,50 @@ import XCTest
 
 final class FilterPrimitiveCoverageTests: XCTestCase {
 
+    func testSpatialBlurDeclaresFullImageSamplingAndSanitizesInvalidFactors() {
+        let motion = C7MotionBlur(radius: .nan, blurAngle: .infinity)
+        var zoom = C7ZoomBlur(radius: -.infinity)
+        zoom.blurCenter = C7Point2D(x: .nan, y: 2)
+        XCTAssertEqual(motion.factors, [0, 0])
+        XCTAssertEqual(zoom.factors, [0, 1, 0])
+        for filter in [motion as C7FilterProtocol, zoom] {
+            XCTAssertEqual(filter.samplingFootprint, .dynamic)
+            XCTAssertEqual(filter.kernelPixelContract.coordinateDependency, .fullImage)
+            XCTAssertEqual(filter.kernelPixelContract.globalDependency, .imageDimensions)
+            XCTAssertEqual(filter.kernelPixelContract.inputAlphaExpectation, .premultiplied)
+            XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
+            XCTAssertFalse(filter.kernelPixelContract.canAutoTile)
+        }
+    }
+
+    func testSpatialBlurZeroRadiusPreservesRGBA16ThroughBothPublicEntries() throws {
+        let source = try makeRGBA16FloatTexture(width: 3, pixels: [
+            -0.1, 1.4, 0.2, 0.5, 0, 0, 0, 0, 0.4, 0.3, 0.2, 1
+        ])
+        let expected = try rgba16FloatPixels(in: source)
+        for filter in [C7MotionBlur(radius: 0, blurAngle: 37) as C7FilterProtocol, C7ZoomBlur(radius: 0)] {
+            let io = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+            let node = try ImageNode.texture(source).applying(filter).makeFrame(profile: .exportQuality)
+            XCTAssertEqual(try rgba16FloatPixels(in: io), expected)
+            XCTAssertEqual(try rgba16FloatPixels(in: node.texture), expected)
+        }
+    }
+
+    func testSpatialBlurPreservesConstantExtendedPremultipliedPixels() throws {
+        let source = try makeRGBA16FloatTexture(width: 3, pixels: Array(repeating: [-0.1, 1.4, 0.2, 0.5], count: 3).flatMap { $0 })
+        let expected = try rgba16FloatPixels(in: source)
+        for filter in [C7MotionBlur(radius: 6, blurAngle: 37) as C7FilterProtocol, C7ZoomBlur(radius: 7)] {
+            let io = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+            let node = try ImageNode.texture(source).applying(filter).makeFrame(profile: .exportQuality)
+            for output in [io, node.texture] {
+                let actual = try rgba16FloatPixels(in: output)
+                for (value, baseline) in zip(actual, expected) {
+                    XCTAssertEqual(value, baseline, accuracy: 0.002)
+                }
+            }
+        }
+    }
+
     func testToneMappingSanitizesParametersAndDeclaresSDROrEDRContract() {
         let sanitized = C7ToneMapping(
             inputNitsPerUnit: .nan,
