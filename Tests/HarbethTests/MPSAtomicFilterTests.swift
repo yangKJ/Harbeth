@@ -1,8 +1,38 @@
 import XCTest
 import Metal
+import MetalPerformanceShaders
 @testable import Harbeth
 
 final class MPSAtomicFilterTests: XCTestCase {
+
+    func testExactGaussianSigmaAndInvalidValues() throws {
+        for value: Float in [0, -1, .nan, .infinity, 101] {
+            XCTAssertThrowsError(try GaussianBlur(sigma: value)) {
+                XCTAssertEqual($0 as? GaussianBlurError, .invalidSigma)
+            }
+        }
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "当前环境没有Metal设备")
+        let filter = try GaussianBlur(sigma: 2.1, edgeMode: .zero)
+        XCTAssertEqual(filter.sigma, 2.1)
+        XCTAssertEqual(filter.factors, [2.1, Float(MPSImageEdgeMode.zero.rawValue)])
+        XCTAssertEqual(filter.edgeMode, .zero)
+        XCTAssertEqual(filter.samplingFootprint, .neighborhood(radius: 9))
+        XCTAssertTrue(filter.kernelPixelContract.canAutoTile)
+    }
+
+    func testExactGaussianFractionalSigmaHasDifferentImpulseFromRoundedPrimitive() throws {
+        var pixels = [UInt8](repeating: 0, count: 41 * 41 * 4)
+        for index in stride(from: 3, to: pixels.count, by: 4) { pixels[index] = 255 }
+        let center = (20 * 41 + 20) * 4
+        pixels[center] = 255
+        let source = try makeTexture(width: 41, height: 41, pixels: pixels)
+        let exact: MTLTexture = try HarbethIO(element: source, filter: GaussianBlur(sigma: 2.1)).output()
+        let rounded: MTLTexture = try HarbethIO(element: source, filter: MPSGaussianBlur(radius: 2.1)).output()
+        let a = try XCTUnwrap(exact.c7.bytes()), b = try XCTUnwrap(rounded.c7.bytes())
+        XCTAssertGreaterThan(a[center], b[center])
+        XCTAssertEqual(a[center + 3], 255)
+        XCTAssertEqual(source.c7.bytes(), Data(pixels))
+    }
 
     func testGaussianBlurExposesConservativeTileHalo() throws {
         try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable in this environment.")

@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-12
+
+#### Added
+
+- GaussianBlur 精确使用浮点 sigma（0 < sigma ≤ 100），支持显式边缘模式并声明 ceil(4×sigma) 的采样 halo，可通过 HarbethIO 与现有滤镜链执行。
+
 ### 2026-10-11
 
 #### Added
