@@ -210,6 +210,48 @@ final class RegionalProcessingContractTests: XCTestCase {
         XCTAssertTrue(context.writeRegion.isEmpty)
     }
 
+
+    func testSwirlUsesPixelCentersForBothReflectionAxesAndZeroAngle() throws {
+        for (width, height) in [(13, 9), (9, 13)] {
+            let source = try makePatternTexture(width: width, height: height)
+            var original = try bytes(in: source)
+            for offset in stride(from: 0, to: original.count, by: 4) {
+                let alpha = UInt8((offset / 4) % 4 * 64 + 63)
+                for channel in 0..<3 {
+                    original[offset + channel] = min(original[offset + channel], alpha)
+                }
+                original[offset + 3] = alpha
+            }
+            source.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0,
+                withBytes: original, bytesPerRow: width * 4)
+            let unchanged: MTLTexture = try HarbethIO(element: source,
+                filter: C7Swirl(radius: 0.48, angle: 0)).output()
+            XCTAssertEqual(try bytes(in: unchanged), original)
+            let baseline: MTLTexture = try HarbethIO(element: source,
+                filter: C7Swirl(radius: 0.48, angle: 0.3)).output()
+            let baselineBytes = try bytes(in: baseline)
+            for horizontal in [true, false] {
+                var reflectedInput = original
+                var expected = baselineBytes
+                for y in 0..<height {
+                    for x in 0..<width {
+                        let fromX = horizontal ? width - 1 - x : x
+                        let fromY = horizontal ? y : height - 1 - y
+                        for channel in 0..<4 {
+                            reflectedInput[(y * width + x) * 4 + channel] = original[(fromY * width + fromX) * 4 + channel]
+                            expected[(y * width + x) * 4 + channel] = baselineBytes[(fromY * width + fromX) * 4 + channel]
+                        }
+                    }
+                }
+                source.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0,
+                    withBytes: reflectedInput, bytesPerRow: width * 4)
+                let result: MTLTexture = try HarbethIO(element: source,
+                    filter: C7Swirl(radius: 0.48, angle: -0.3)).output()
+                XCTAssertEqual(try bytes(in: result), expected)
+            }
+        }
+    }
+
     private func makePatternTexture(width: Int, height: Int) throws -> MTLTexture {
         let device = try MaskTestHelpers.requireDevice()
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(

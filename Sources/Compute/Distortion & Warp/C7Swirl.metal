@@ -24,7 +24,8 @@ kernel void C7Swirl(texture2d<half, access::write> outputTexture [[texture(0)]],
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) { return; }
     const float4 inputRegion = regionContext[0];
     const float4 outputRegion = regionContext[1];
-    float2 textureCoordinate = (float2(grid) + outputRegion.xy) / outputRegion.zw;
+    // 使用完整画布的像素中心，保证反射后两侧采样位置对称。
+    float2 textureCoordinate = (float2(grid) + outputRegion.xy + 0.5f) / outputRegion.zw;
     const float dist = distance(center, textureCoordinate);
     
     if (dist < radius) {
