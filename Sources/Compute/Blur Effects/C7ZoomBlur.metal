@@ -9,12 +9,12 @@
 using namespace metal;
 
 kernel void C7ZoomBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
-                         texture2d<half, access::read> inputTexture [[texture(1)]],
+                       texture2d<half, access::read> inputTexture [[texture(1)]],
                        constant float *blurCenterX [[buffer(0)]],
                        constant float *blurCenterY [[buffer(1)]],
                        constant float *radius [[buffer(2)]],
-                         constant float *mappingContext [[buffer(30)]],
-                         uint2 grid [[thread_position_in_grid]]) {
+                       constant float *mappingContext [[buffer(30)]],
+                       uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) { return; }
 
     const float2 inputOrigin = float2(mappingContext[0], mappingContext[1]);

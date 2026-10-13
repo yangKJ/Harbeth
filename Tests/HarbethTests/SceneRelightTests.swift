@@ -156,6 +156,97 @@ final class SceneRelightTests: XCTestCase {
         }
     }
 
+    func testLightDepthRangeRestrictsForegroundAndBackgroundIndependently() throws {
+        let source = try makeRGBA8Texture(pixels: [64, 64, 64, 255])
+        let light = SceneLightDescriptor(
+            kind: .directional,
+            direction: SIMD3<Float>(0, 0, -1),
+            color: SIMD3<Float>(repeating: 2),
+            intensity: 1,
+            depthRange: SIMD2<Float>(0.5, 1)
+        )
+        let foreground = try SceneRelightDescriptor(lights: [light], ambient: 1, originalLight: 0, highlightRolloff: 0)
+        let foregroundFar = try HarbethIO(
+            element: source,
+            filter: C7SceneRelight(descriptor: foreground, depthTexture: try makeScalarTexture(values: [0]))
+        ).output()
+        let foregroundNear = try HarbethIO(
+            element: source,
+            filter: C7SceneRelight(descriptor: foreground, depthTexture: try makeScalarTexture(values: [1]))
+        ).output()
+        XCTAssertEqual(try rgba8Pixel(in: foregroundFar)[0], 64, accuracy: 1)
+        XCTAssertGreaterThan(try rgba8Pixel(in: foregroundNear)[0], 64)
+
+        let backgroundLight = SceneLightDescriptor(
+            kind: .directional,
+            direction: SIMD3<Float>(0, 0, -1),
+            color: SIMD3<Float>(repeating: 2),
+            intensity: 1,
+            depthRange: SIMD2<Float>(0, 0.5)
+        )
+        let background = try SceneRelightDescriptor(lights: [backgroundLight], ambient: 1, originalLight: 0, highlightRolloff: 0)
+        let backgroundFar = try HarbethIO(
+            element: source,
+            filter: C7SceneRelight(descriptor: background, depthTexture: try makeScalarTexture(values: [0]))
+        ).output()
+        let backgroundNear = try HarbethIO(
+            element: source,
+            filter: C7SceneRelight(descriptor: background, depthTexture: try makeScalarTexture(values: [1]))
+        ).output()
+        XCTAssertGreaterThan(try rgba8Pixel(in: backgroundFar)[0], 64)
+        XCTAssertEqual(try rgba8Pixel(in: backgroundNear)[0], 64, accuracy: 1)
+    }
+
+    func testLightDepthRangeFeathersAtBoundary() throws {
+        let source = try makeRGBA8Texture(pixels: [64, 64, 64, 255])
+        let light = SceneLightDescriptor(
+            kind: .directional,
+            direction: SIMD3<Float>(0, 0, -1),
+            color: SIMD3<Float>(repeating: 2),
+            intensity: 1,
+            depthRange: SIMD2<Float>(0.5, 1),
+            depthFeather: 0.4
+        )
+        let descriptor = try SceneRelightDescriptor(lights: [light], ambient: 1, originalLight: 0, highlightRolloff: 0)
+        let outputs = try [0.3, 0.5, 0.7].map { value in
+            try HarbethIO(
+                element: source,
+                filter: C7SceneRelight(descriptor: descriptor, depthTexture: try makeScalarTexture(values: [Float(value)]))
+            ).output()
+        }.map { try rgba8Pixel(in: $0)[0] }
+        XCTAssertEqual(outputs[0], 64, accuracy: 1)
+        XCTAssertEqual(outputs[1], 128, accuracy: 1)
+        XCTAssertEqual(outputs[2], 192, accuracy: 1)
+    }
+
+    func testEdgeProtectionPreservesDepthStepButKeepsFlatRegionLit() throws {
+        let sourcePixels: [UInt8] = Array(repeating: [64, 64, 64, 255], count: 3).flatMap { $0 }
+        let source = try makeTexture(pixelFormat: .rgba8Unorm, width: 3)
+        source.replace(region: MTLRegionMake2D(0, 0, 3, 1), mipmapLevel: 0, withBytes: sourcePixels, bytesPerRow: 12)
+        let light = SceneLightDescriptor(
+            kind: .directional,
+            direction: SIMD3<Float>(0, 0, -1),
+            color: SIMD3<Float>(repeating: 2),
+            intensity: 1
+        )
+        let edgeDescriptor = try SceneRelightDescriptor(
+            lights: [light], ambient: 1, originalLight: 0, highlightRolloff: 0, edgeProtection: 1
+        )
+        let edgeDepth = try makeScalarTexture(width: 3, values: [0, 1, 1])
+        let edgeOutput = try HarbethIO(
+            element: source,
+            filter: C7SceneRelight(descriptor: edgeDescriptor, depthTexture: edgeDepth)
+        ).output()
+        let flatDepth = try makeScalarTexture(width: 3, values: [1, 1, 1])
+        let flatOutput = try HarbethIO(
+            element: source,
+            filter: C7SceneRelight(descriptor: edgeDescriptor, depthTexture: flatDepth)
+        ).output()
+        XCTAssertEqual(try rgba8Pixel(in: edgeOutput)[0], 64, accuracy: 1)
+        XCTAssertGreaterThan(try rgba8Pixel(in: flatOutput)[0], 64)
+        XCTAssertEqual(try rgba8Pixel(in: edgeOutput)[3], 255)
+    }
+
     func testDirectBindingKeepsStableDepthAndConfidenceTextureSlots() throws {
         let depth = try makeScalarTexture(values: [0.5])
         let confidence = try makeScalarTexture(values: [0.75])

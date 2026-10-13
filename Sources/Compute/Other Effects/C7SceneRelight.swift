@@ -38,6 +38,9 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
     public let coneAngleDegrees: Float
     public let falloff: Float
     public let isEnabled: Bool
+    /// 有效深度区间，near=1；默认覆盖全景深。
+    public let depthRange: SIMD2<Float>
+    public let depthFeather: Float
 
     public init(
         kind: SceneLightKind = .point,
@@ -49,7 +52,9 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
         softness: Float = 0.5,
         coneAngleDegrees: Float = 45,
         falloff: Float = 1,
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        depthRange: SIMD2<Float> = SIMD2<Float>(0, 1),
+        depthFeather: Float = 0.1
     ) {
         self.kind = kind
         self.position = SIMD3<Float>(
@@ -69,6 +74,10 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
         self.coneAngleDegrees = Self.finiteClamped(coneAngleDegrees, to: 1...179, fallback: 45)
         self.falloff = Self.finiteClamped(falloff, to: 0...16, fallback: 1)
         self.isEnabled = isEnabled
+        let lower = Self.finiteClamped(depthRange.x, to: 0...1, fallback: 0)
+        let upper = Self.finiteClamped(depthRange.y, to: 0...1, fallback: 1)
+        self.depthRange = SIMD2<Float>(min(lower, upper), max(lower, upper))
+        self.depthFeather = Self.finiteClamped(depthFeather, to: 0.01...1, fallback: 0.1)
     }
 
     public init(from decoder: Decoder) throws {
@@ -83,7 +92,9 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
             softness: try container.decode(Float.self, forKey: .softness),
             coneAngleDegrees: try container.decode(Float.self, forKey: .coneAngleDegrees),
             falloff: try container.decode(Float.self, forKey: .falloff),
-            isEnabled: try container.decode(Bool.self, forKey: .isEnabled)
+            isEnabled: try container.decode(Bool.self, forKey: .isEnabled),
+            depthRange: try container.decodeIfPresent(SIMD2<Float>.self, forKey: .depthRange) ?? SIMD2<Float>(0, 1),
+            depthFeather: try container.decodeIfPresent(Float.self, forKey: .depthFeather) ?? 0.1
         )
     }
 
@@ -99,6 +110,8 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
         try container.encode(coneAngleDegrees, forKey: .coneAngleDegrees)
         try container.encode(falloff, forKey: .falloff)
         try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(depthRange, forKey: .depthRange)
+        try container.encode(depthFeather, forKey: .depthFeather)
     }
 
     static let disabled = SceneLightDescriptor(intensity: 0, isEnabled: false)
@@ -111,7 +124,8 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
             color.x, color.y, color.z,
             intensity, radius, softness,
             coneAngleDegrees * .pi / 180,
-            falloff
+            falloff,
+            depthRange.x, depthRange.y, depthFeather, 0
         ]
     }
 
@@ -140,6 +154,8 @@ public struct SceneLightDescriptor: Sendable, Codable, Equatable, Hashable {
         case coneAngleDegrees
         case falloff
         case isEnabled
+        case depthRange
+        case depthFeather
     }
 }
 
@@ -162,6 +178,7 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
     public let farExposureEV: Float
     public let depthSplit: Float
     public let depthFeather: Float
+    public let edgeProtection: Float
 
     public init(
         lights: [SceneLightDescriptor] = [],
@@ -174,7 +191,8 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         nearExposureEV: Float = 0,
         farExposureEV: Float = 0,
         depthSplit: Float = 0.5,
-        depthFeather: Float = 0.25
+        depthFeather: Float = 0.25,
+        edgeProtection: Float = 0
     ) throws {
         guard lights.count <= Self.maximumLightCount else {
             throw HarbethError.sceneRelightTooManyLights(maximum: Self.maximumLightCount, actual: lights.count)
@@ -190,7 +208,8 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
             nearExposureEV: nearExposureEV,
             farExposureEV: farExposureEV,
             depthSplit: depthSplit,
-            depthFeather: depthFeather
+            depthFeather: depthFeather,
+            edgeProtection: edgeProtection
         )
     }
 
@@ -209,7 +228,8 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
                 nearExposureEV: try container.decodeIfPresent(Float.self, forKey: .nearExposureEV) ?? 0,
                 farExposureEV: try container.decodeIfPresent(Float.self, forKey: .farExposureEV) ?? 0,
                 depthSplit: try container.decodeIfPresent(Float.self, forKey: .depthSplit) ?? 0.5,
-                depthFeather: try container.decodeIfPresent(Float.self, forKey: .depthFeather) ?? 0.25
+                depthFeather: try container.decodeIfPresent(Float.self, forKey: .depthFeather) ?? 0.25,
+                edgeProtection: try container.decodeIfPresent(Float.self, forKey: .edgeProtection) ?? 0
             )
         } catch let error as HarbethError {
             guard case .sceneRelightTooManyLights = error else { throw error }
@@ -234,6 +254,7 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         try container.encode(farExposureEV, forKey: .farExposureEV)
         try container.encode(depthSplit, forKey: .depthSplit)
         try container.encode(depthFeather, forKey: .depthFeather)
+        try container.encode(edgeProtection, forKey: .edgeProtection)
     }
 
     public static let identity = SceneRelightDescriptor(
@@ -247,7 +268,8 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         nearExposureEV: 0,
         farExposureEV: 0,
         depthSplit: 0.5,
-        depthFeather: 0.25
+        depthFeather: 0.25,
+        edgeProtection: 0
     )
 
     private init(
@@ -261,7 +283,8 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         nearExposureEV: Float,
         farExposureEV: Float,
         depthSplit: Float,
-        depthFeather: Float
+        depthFeather: Float,
+        edgeProtection: Float
     ) {
         self.lights = validatedLights
         self.ambient = Self.finiteClamped(ambient, to: 0...4, fallback: 1)
@@ -274,15 +297,16 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         self.farExposureEV = Self.finiteClamped(farExposureEV, to: -2...2, fallback: 0)
         self.depthSplit = Self.finiteClamped(depthSplit, to: 0...1, fallback: 0.5)
         self.depthFeather = Self.finiteClamped(depthFeather, to: 0.01...1, fallback: 0.25)
+        self.edgeProtection = Self.finiteClamped(edgeProtection, to: 0...1, fallback: 0)
     }
 
     func packedValues(hasConfidencePlane: Bool) -> [Float] {
         var values: [Float] = [
-            1, Float(lights.count), ambient, originalLight,
+            2, Float(lights.count), ambient, originalLight,
             normalStrength, depthScale, highlightRolloff, confidenceFloor,
             hasConfidencePlane ? 1 : 0,
             nearExposureEV, farExposureEV, depthSplit, depthFeather,
-            0, 0, 0
+            edgeProtection, 0, 0
         ]
         let paddedLights = lights + Array(
             repeating: SceneLightDescriptor.disabled,
@@ -309,6 +333,7 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         case farExposureEV
         case depthSplit
         case depthFeather
+        case edgeProtection
     }
 }
 
@@ -326,7 +351,7 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
 /// 分别注入 auxiliary index 0/1。调用方可通过 `requiresDeferredDepthBinding`
 /// 明确诊断该状态，不能把无深度输入静默降级成普通颜色滤镜。
 public struct C7SceneRelight: C7FilterProtocol {
-    public static let parameterCount = 64
+    public static let parameterCount = 76
     public static let requiredDeferredAuxiliaryTextureCount = 2
 
     public let descriptor: SceneRelightDescriptor

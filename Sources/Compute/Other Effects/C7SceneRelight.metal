@@ -9,7 +9,7 @@
 using namespace metal;
 
 constant int c7SceneRelightHeaderCount = 16;
-constant int c7SceneRelightLightStride = 16;
+constant int c7SceneRelightLightStride = 20;
 constant int c7SceneRelightMaximumLightCount = 3;
 
 static bool c7SceneRelightFinite(float3 value) {
@@ -104,11 +104,12 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
     }
 
     const int lightCount = int(parameters[1]);
-    const bool headerIsValid = isfinite(parameters[0]) && abs(parameters[0] - 1.0) < 0.001
+    const bool headerIsValid = isfinite(parameters[0]) && abs(parameters[0] - 2.0) < 0.001
         && lightCount >= 0 && lightCount <= c7SceneRelightMaximumLightCount
         && all(isfinite(float4(parameters[2], parameters[3], parameters[4], parameters[5])))
         && all(isfinite(float3(parameters[6], parameters[7], parameters[8])))
-        && all(isfinite(float4(parameters[9], parameters[10], parameters[11], parameters[12])));
+        && all(isfinite(float4(parameters[9], parameters[10], parameters[11], parameters[12])))
+        && isfinite(parameters[13]);
     if (!headerIsValid) {
         outputTexture.write(half4(source), grid);
         return;
@@ -247,7 +248,19 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
             );
             incidence = rim * (0.35 + 0.65 * incidence);
         }
-        lightContribution += color * max(intensity, 0.0) * max(attenuation, 0.0) * incidence;
+        const float minimumDepth = parameters[base + 16];
+        const float maximumDepth = parameters[base + 17];
+        const float depthHalfWidth = clamp(parameters[base + 18], 0.01, 1.0) * 0.5;
+        if (!all(isfinite(float3(minimumDepth, maximumDepth, depthHalfWidth)))) { continue; }
+        // 默认 0…1 严格不裁减灯光；仅对用户限定的边界做软过渡。
+        float regionWeight = 1.0;
+        if (minimumDepth > 0.0) {
+            regionWeight *= smoothstep(minimumDepth - depthHalfWidth, minimumDepth + depthHalfWidth, depth);
+        }
+        if (maximumDepth < 1.0) {
+            regionWeight *= 1.0 - smoothstep(maximumDepth - depthHalfWidth, maximumDepth + depthHalfWidth, depth);
+        }
+        lightContribution += color * max(intensity, 0.0) * max(attenuation, 0.0) * incidence * regionWeight;
     }
 
     const float ambient = clamp(parameters[2], 0.0, 4.0);
@@ -261,6 +274,13 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
         const float nearWeight = smoothstep(split - halfWidth, split + halfWidth, clamp(depth, 0.0, 1.0));
         const float exposure = mix(clamp(parameters[10], -2.0, 2.0), clamp(parameters[9], -2.0, 2.0), nearWeight);
         gain *= exp2(exposure);
+    }
+    if (parameters[13] > 0.0) {
+        // 深度断层处减少新增受光，避免把不可靠法线放大成亮边。
+        const float discontinuity = max(max(abs(depthLeft - depth), abs(depthRight - depth)),
+                                        max(abs(depthTop - depth), abs(depthBottom - depth)));
+        const float protection = clamp(parameters[13], 0.0, 1.0) * smoothstep(0.03, 0.15, discontinuity);
+        gain = mix(gain, float3(1.0), protection);
     }
     if (parameters[8] > 0.5) {
         const SceneRelightScalarSample confidenceSample = c7SceneRelightSampleScalarPlane(

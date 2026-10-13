@@ -13,6 +13,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 #### Added
 
 - SceneRelightDescriptor 新增近景/远景曝光、深度分界与柔和过渡；C7SceneRelight 在同一线性光照通道消费深度，保留置信度、高光与 alpha 保护。新参数默认中性，旧 Codable 数据保持原有输出。
+- SceneLightDescriptor 支持逐灯深度区间及羽化；SceneRelightDescriptor 增加深度断层边缘保护。默认参数兼容既有输出，Swift/Metal 参数布局同步升级为 76 Float。
 
 #### Changed
 
