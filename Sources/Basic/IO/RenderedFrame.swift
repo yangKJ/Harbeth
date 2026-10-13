@@ -405,7 +405,7 @@ public struct RenderedFrame: @unchecked Sendable {
     public var outputImageSize: CGSize { size }
 
     public func makeImage(colorSpace: CGColorSpace? = nil) throws -> C7Image? {
-        texture.c7.toImage(colorSpace: colorSpace ?? self.colorSpace)
+        texture.c7.toImage(colorSpace: colorSpace ?? self.colorSpace, alphaType: alphaType)
     }
 }
 
@@ -736,7 +736,7 @@ struct FrameRenderer: @unchecked Sendable {
                                 resolvedOutputSize: resolvedSize,
                                 renderIntent: renderIntent,
                                 sourceTier: source.sourceTier,
-                                alphaType: source.alphaType,
+                                alphaType: resolvedFrameAlphaType(source: source, filterChain: filters),
                                 cachePolicy: outputCachePolicy,
                                 semantic: outputSemantic,
                                 orientation: source.orientation,
@@ -794,6 +794,13 @@ struct FrameRenderer: @unchecked Sendable {
             value["outputToneMappingPolicy"] = outputToneMappingPolicy.rawValue
         }
         return value
+    }
+
+    private func resolvedFrameAlphaType(source: ImageSource, filterChain: [C7FilterProtocol]) -> AlphaType {
+        filterChain.reduce(source.alphaType) { current, filter in
+            let declared = filter.kernelDescriptor(inputSize: source.resolvedSizeHint).outputContract.alpha
+            return declared.expectedAlphaType ?? current
+        }
     }
 
     private func resolvedFrameColorSpace(source: ImageSource, filterChain: [C7FilterProtocol]) -> CGColorSpace? {
@@ -862,7 +869,7 @@ struct FrameRenderer: @unchecked Sendable {
             resolvedOutputSize: resolvedSize,
             renderIntent: renderIntent,
             sourceTier: source.sourceTier,
-            alphaType: source.alphaType,
+            alphaType: resolvedFrameAlphaType(source: source, filterChain: filterChain),
             cachePolicy: outputCachePolicy,
             semantic: outputSemantic,
             orientation: source.orientation,

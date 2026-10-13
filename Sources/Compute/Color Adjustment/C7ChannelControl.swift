@@ -45,6 +45,21 @@ public struct C7ChannelControl: C7FilterProtocol {
         .point
     }
     
+    public var kernelOutputContract: RenderOutputContract {
+        RenderOutputContract(inputAlphaExpectation: .premultiplied, alpha: .premultiplied)
+    }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            inputAlphaExpectation: .premultiplied,
+            outputAlpha: .premultiplied,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
+    }
+
     public init(red: Float = 0, green: Float = 0, blue: Float = 0, alpha: Float = 1.0, blend: Float = 0) {
         self.red = red
         self.green = green

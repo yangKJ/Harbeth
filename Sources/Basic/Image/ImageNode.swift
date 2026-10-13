@@ -635,7 +635,7 @@ extension ImageNode {
             resolvedOutputSize: logicalOutputSize,
             renderIntent: effectiveDerivative.renderIntent,
             sourceTier: primarySource.sourceTier,
-            alphaType: primarySource.alphaType,
+            alphaType: diagnostics.outputAlphaType ?? primarySource.alphaType,
             cachePolicy: resolvedCachePolicy,
             semantic: effectiveDerivative.semantic,
             orientation: primarySource.orientation,

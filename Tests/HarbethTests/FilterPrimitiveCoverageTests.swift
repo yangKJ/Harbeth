@@ -1,4 +1,5 @@
 import Metal
+import CoreGraphics
 import XCTest
 @testable import Harbeth
 
@@ -565,7 +566,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
     }
 
     func testChannelControlBlendControlsRenderedStrength() throws {
-        let sourcePixels: [UInt8] = [100, 150, 200, 128]
+        let sourcePixels: [UInt8] = [50, 75, 100, 128]
         let source = try makeRGBA8Texture(width: 1, pixels: sourcePixels)
         let disabled: MTLTexture = try HarbethIO(
             element: source,
@@ -578,10 +579,72 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
 
         XCTAssertEqual(try rgba8Pixels(in: disabled), sourcePixels)
         let appliedPixels = try rgba8Pixels(in: applied)
-        XCTAssertEqual(appliedPixels[0], 150, accuracy: 1)
-        XCTAssertEqual(appliedPixels[1], 75, accuracy: 1)
-        XCTAssertEqual(appliedPixels[2], 200, accuracy: 1)
+        XCTAssertEqual(appliedPixels[0], 38, accuracy: 1)
+        XCTAssertEqual(appliedPixels[1], 19, accuracy: 1)
+        XCTAssertEqual(appliedPixels[2], 50, accuracy: 1)
         XCTAssertEqual(appliedPixels[3], 64, accuracy: 1)
+    }
+
+    func testChannelControlOpacityScalesPremultipliedPixelsThroughBothEntries() throws {
+        let source = try makeRGBA8Texture(width: 1, pixels: [100, 150, 200, 255])
+        for alpha: Float in [0, 0.18, 0.5, 1] {
+            let filter = C7ChannelControl(alpha: alpha, blend: 1)
+            let io = try HarbethIO(element: source, filter: filter).renderTexture(profile: .readbackQuality)
+            let frame = try ImageNode.texture(source).applying(filter).makeFrame(profile: .readbackQuality)
+            for output in [io, frame.texture] {
+                let pixels = try rgba8Pixels(in: output)
+                for (index, value) in [100, 150, 200, 255].enumerated() {
+                    XCTAssertEqual(Int(pixels[index]), Int((Float(value) * alpha).rounded()), accuracy: 1)
+                }
+            }
+            XCTAssertEqual(frame.alphaType, .premultiplied)
+        }
+    }
+
+    func testChannelControlPartialBlendScalesExistingTransparentPixelsOnce() throws {
+        let source = try makeRGBA8Texture(width: 1, pixels: [50, 75, 100, 128])
+        let filter = C7ChannelControl(alpha: 0.5, blend: 0.5)
+        let frame = try ImageNode.texture(source).applying(filter).makeFrame(profile: .readbackQuality)
+        let output = try rgba8Pixels(in: frame.texture)
+        for (index, expected) in [38, 56, 75, 96].enumerated() {
+            XCTAssertEqual(Int(output[index]), expected, accuracy: 1)
+        }
+    }
+
+    func testChannelControlOpacityPreservesExtendedRangeAndNegativeColor() throws {
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [-0.1, 1.4, 0.2, 0.5])
+        let filter = C7ChannelControl(alpha: 0.5, blend: 1)
+        let frame = try ImageNode.texture(source).applying(filter).makeFrame(profile: .readbackQuality)
+        let output = try rgba16FloatPixels(in: frame.texture)
+        for (index, expected): (Int, Float) in [-0.05, 0.7, 0.1, 0.25].enumerated() {
+            XCTAssertEqual(output[index], expected, accuracy: 0.002)
+        }
+    }
+
+    func testChannelControlFramesCarryTransparentOutputFromOpaqueSource() throws {
+        let data = Data([100, 150, 200, 255])
+        let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
+        let image = try XCTUnwrap(CGImage(
+            width: 1,
+            height: 1,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ))
+        XCTAssertEqual(ImageSource.cgImage(image).alphaType, .alphaIsOne)
+        let filters: [C7FilterProtocol] = [C7ChannelControl(alpha: 0.18, blend: 1), C7Brightness(brightness: 0)]
+        let node = try ImageNode.cgImage(image).applying(filters: filters).makeFrame(profile: .readbackQuality)
+        let io = try FrameRenderer(source: .cgImage(image), filters: filters, profile: .readbackQuality).renderFrame()
+        for frame in [node, io] {
+            XCTAssertEqual(frame.alphaType, .premultiplied)
+            XCTAssertEqual(try XCTUnwrap(frame.texture.c7.toCGImage(alphaType: frame.alphaType)).alphaInfo, .premultipliedLast)
+        }
     }
 
     func testExposureProducesOneStopGainAndPreservesAlpha() throws {

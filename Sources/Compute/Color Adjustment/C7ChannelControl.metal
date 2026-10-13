@@ -25,9 +25,10 @@ kernel void C7ChannelControl(texture2d<half, access::write> outputTexture [[text
     const float blendValue = *blend;
     
     float4 adjustedColor;
-    adjustedColor.r = float(inColor.r) * (redValue + 1.0);
-    adjustedColor.g = float(inColor.g) * (greenValue + 1.0);
-    adjustedColor.b = float(inColor.b) * (blueValue + 1.0);
+    // 预乘颜色与 alpha 同步衰减，保证黑色背景上的透明效果和后续合成一致。
+    adjustedColor.r = float(inColor.r) * (redValue + 1.0) * alphaValue;
+    adjustedColor.g = float(inColor.g) * (greenValue + 1.0) * alphaValue;
+    adjustedColor.b = float(inColor.b) * (blueValue + 1.0) * alphaValue;
     adjustedColor.a = float(inColor.a) * alphaValue;
     
     float4 originalColor = float4(inColor);

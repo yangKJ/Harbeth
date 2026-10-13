@@ -12,6 +12,8 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Fixed
 
+- ChannelControl 的透明度同步衰减预乘 RGB 与 alpha；ImageNode 和帧输出保留滤镜的实际透明类型，避免预览继续按不透明来源显示。
+
 - MotionBlur 与 ZoomBlur 使用完整画布坐标、像素中心及对称的有符号边界采样，避免镜像偏移和分块尺寸改变效果；零半径保持原始RGBA，并声明动态ROI与预乘扩展范围像素合同。
 
 ### 2026-10-12
