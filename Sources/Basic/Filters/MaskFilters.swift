@@ -512,7 +512,7 @@ struct BrushMask: C7FilterProtocol {
         let metadata: [Float] = [
             Float(points.count), settings.width, settings.hardness,
             settings.spacing, settings.mode == .erase ? 1 : 0,
-            settings.flow, settings.density
+            settings.flow, settings.density, settings.accumulatesFlow ? 1 : 0
         ]
         let values = points.reduce(into: [Float]()) { result, point in
             result.append(contentsOf: [Float(point.point.x), Float(point.point.y), point.pressure, 0])

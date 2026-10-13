@@ -66,6 +66,8 @@ public struct MaskBrushSettings: Sendable, Codable, Equatable, Hashable {
     public let flow: Float
     public let density: Float
     public let mode: MaskBrushMode
+    private let flowAccumulation: Bool?
+    public var accumulatesFlow: Bool { flowAccumulation == true }
 
     public init(width: Float = 0.08,
                 hardness: Float = 0.72,
@@ -73,6 +75,7 @@ public struct MaskBrushSettings: Sendable, Codable, Equatable, Hashable {
                 smoothing: Float = 0.45,
                 flow: Float = 1,
                 density: Float = 1,
+                accumulatesFlow: Bool = false,
                 mode: MaskBrushMode = .paint) {
         self.width = Self.clamp(width, lower: 0.002, upper: 1)
         self.hardness = Self.clamp(hardness, lower: 0, upper: 1)
@@ -81,6 +84,7 @@ public struct MaskBrushSettings: Sendable, Codable, Equatable, Hashable {
         self.flow = Self.clamp(flow, lower: 0, upper: 1)
         self.density = Self.clamp(density, lower: 0, upper: 1)
         self.mode = mode
+        self.flowAccumulation = accumulatesFlow ? true : nil
     }
 
     private static func clamp(_ value: Float, lower: Float, upper: Float) -> Float {
@@ -148,6 +152,7 @@ public struct MaskBrushRecipe {
             "spacing=\(Self.stable(Double(settings.spacing)))",
             "smoothing=\(Self.stable(Double(settings.smoothing)))",
             "flow=\(Self.stable(Double(settings.flow)))",
+            "accumulatesFlow=\(settings.accumulatesFlow)",
             "density=\(Self.stable(Double(settings.density)))",
             "mode=\(settings.mode.rawValue)",
             "storage=\(storageFormat.rawValue)",

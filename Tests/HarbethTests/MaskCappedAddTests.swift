@@ -9,6 +9,49 @@ import XCTest
 @testable import Harbeth
 
 final class MaskCappedAddTests: XCTestCase {
+    func testGPUFlowAccumulatesWithinOneBacktrackingStrokeAndLegacyDoesNot() throws {
+        _ = try MaskTestHelpers.requireDevice()
+        let first = MaskBrushPoint(point: CGPoint(x: 0.2, y: 0.5), pressure: 1)
+        let last = MaskBrushPoint(point: CGPoint(x: 0.8, y: 0.5), pressure: 1)
+        func center(_ points: [MaskBrushPoint], accumulated: Bool) throws -> Float {
+            let recipe = MaskBrushRecipe(size: C7Size(width: 64, height: 64), points: points,
+                settings: .init(width: 0.2, hardness: 1, spacing: 0.5, smoothing: 0, flow: 0.12, accumulatesFlow: accumulated), storageFormat: .rgba8)
+            let texture = try recipe.makeTexture()
+            let bytes = try XCTUnwrap(texture.c7.bytes())
+            return Float(bytes[(32 * 64 + 32) * 4]) / 255
+        }
+        let single = try center([first, last], accumulated: true)
+        let repeated = try center([first, last, first, last], accumulated: true)
+        XCTAssertGreaterThan(repeated, single + 0.15)
+        XCTAssertLessThan(repeated, 0.9)
+        XCTAssertEqual(try center([first, last], accumulated: false),
+            try center([first, last, first, last], accumulated: false), accuracy: 0.008)
+        let legacyJSON = "{\"width\":0.2,\"hardness\":1,\"spacing\":0.5,\"smoothing\":0,\"flow\":0.12,\"density\":1,\"mode\":\"paint\"}"
+        XCTAssertFalse(try JSONDecoder().decode(MaskBrushSettings.self, from: Data(legacyJSON.utf8)).accumulatesFlow)
+    }
+
+    func testGPUAccumulatedFlowKeepsPhaseAcrossRegionRebasing() throws {
+        _ = try MaskTestHelpers.requireDevice()
+        let settings = MaskBrushSettings(width: 0.2, hardness: 0.6, spacing: 0.3, smoothing: 0, flow: 0.15, accumulatesFlow: true)
+        let recipe = MaskBrushRecipe(size: C7Size(width: 256, height: 128), points: [
+            .init(point: CGPoint(x: 0.05, y: 0.5)), .init(point: CGPoint(x: 0.95, y: 0.5))
+        ], settings: settings, storageFormat: .rgba8)
+        let full = try MaskTestHelpers.bytes(in: recipe.makeTexture())
+        for tileIndex in 0..<2 {
+            let points = recipe.preparedPoints.map {
+                MaskBrushPoint(point: CGPoint(x: $0.point.x * 2 - CGFloat(tileIndex), y: $0.point.y), pressure: $0.pressure)
+            }
+            let tile = MaskBrushRecipe(size: C7Size(width: 128, height: 128), preparedPoints: points,
+                settings: settings, storageFormat: .rgba8)
+            let bytes = try MaskTestHelpers.bytes(in: tile.makeTexture())
+            for y in 0..<128 {
+                for x in 0..<128 {
+                    XCTAssertEqual(Int(bytes[(y * 128 + x) * 4]), Int(full[(y * 256 + x + tileIndex * 128) * 4]), accuracy: 1)
+                }
+            }
+        }
+    }
+
     func testRepeatedPaintDoesNotExceedDensityCap() {
         let first = MaskMath.cappedAddCoverage(existing: 0, brushCoverage: 1, cap: 0.4)
         let second = MaskMath.cappedAddCoverage(existing: first, brushCoverage: 1, cap: 0.4)

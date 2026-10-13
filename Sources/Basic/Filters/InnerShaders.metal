@@ -674,6 +674,47 @@ kernel void InnerPathMask(texture2d<half, access::write> outputTexture [[texture
     outputTexture.write(half4(half3(clamp(coverage, 0.0f, 1.0f)), 1.0h), gid);
 }
 
+// 新配方按作品空间距离沉积；虚拟笔尖跨输入分段保持相位，旧配方仍走最大覆盖。
+static inline float innerFlowStamp(float2 point, float2 center, float radius, float hardness, float pixelRadius) {
+    return 1.0f - smoothstep(max(radius * hardness - pixelRadius, 0.0f), radius + pixelRadius, distance(point, center));
+}
+
+static inline float innerAccumulatedBrushFlow(constant float *metadata, constant float4 *points,
+                                              int pointCount, float2 point, float2 metric,
+                                              float baseRadius, float hardness, float pixelRadius) {
+    const float flow = clamp(metadata[5], 0.0f, 1.0f);
+    const float spacing = max(metadata[1] * metadata[3], 0.00001f);
+    float coverage = innerFlowStamp(point, points[0].xy * metric,
+        baseRadius * clamp(points[0].z, 0.05f, 1.0f), hardness, pixelRadius) * flow;
+    float pathDistance = 0.0f;
+    for (int index = 0; index < pointCount - 1 && coverage < 0.99999f; ++index) {
+        const float2 start = points[index].xy * metric;
+        const float2 delta = (points[index + 1].xy - points[index].xy) * metric;
+        const float length = metal::length(delta);
+        if (length <= 0.000001f) continue;
+        const float projection = dot(point - start, delta) / length;
+        const float radius = baseRadius * max(points[index].z, points[index + 1].z) + pixelRadius;
+        const float lower = max(0.0f, projection - radius);
+        const float upper = min(length, projection + radius);
+        const float first = max(1.0f, ceil((pathDistance + lower) / spacing));
+        // 段尾只由下一段拥有，避免输入事件拆分改变叠涂次数。
+        const float last = min(floor((pathDistance + upper) / spacing),
+            index == pointCount - 2 ? floor((pathDistance + length) / spacing) : ceil((pathDistance + length) / spacing) - 1.0f);
+        if (isfinite(first) && isfinite(last) && lower <= upper && distance(point, start + delta * clamp(projection / length, 0.0f, 1.0f)) <= radius) {
+            const int stampCount = int(clamp(last - first + 1.0f, 0.0f, 1024.0f));
+            for (int stampIndex = 0; stampIndex < stampCount; ++stampIndex) {
+                const float stamp = first + float(stampIndex);
+                const float t = clamp((stamp * spacing - pathDistance) / length, 0.0f, 1.0f);
+                const float pressure = clamp(mix(points[index].z, points[index + 1].z, t), 0.05f, 1.0f);
+                const float amount = innerFlowStamp(point, start + delta * t, baseRadius * pressure, hardness, pixelRadius) * flow;
+                coverage += (1.0f - coverage) * amount;
+            }
+        }
+        pathDistance += length;
+    }
+    return min(coverage, clamp(metadata[6], 0.0f, 1.0f));
+}
+
 kernel void InnerBrushMask(texture2d<half, access::write> outputTexture [[texture(0)]],
                            texture2d<half, access::read> inputTexture [[texture(1)]],
                            constant float *metadata [[buffer(0)]],
@@ -692,6 +733,11 @@ kernel void InnerBrushMask(texture2d<half, access::write> outputTexture [[textur
     const float baseRadius = max(metadata[1] * 0.5f, 0.0005f);
     const float pixelRadius = 0.5f / shortEdge;
     const float hardness = clamp(metadata[2], 0.0f, 1.0f);
+    if (metadata[7] > 0.5f) {
+        const float coverage = innerAccumulatedBrushFlow(metadata, points, pointCount, point, metric, baseRadius, hardness, pixelRadius);
+        outputTexture.write(half4(half3(clamp(coverage, 0.0f, 1.0f)), 1.0h), gid);
+        return;
+    }
     float coverage = 0.0f;
     if (pointCount == 1) {
         const float radius = baseRadius * clamp(points[0].z, 0.05f, 1.0f);
