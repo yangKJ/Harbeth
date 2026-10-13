@@ -906,6 +906,40 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testGrayedModesPreservePartialAndZeroAlphaThroughBothEntries() throws {
+        let pixels: [Float16] = [0.0625, 0.125, 0.1875, 0.25, 0.125, 0.25, 0.375, 0.5, 0.25, 0.5, 0.75, 1, 0, 0, 0, 0]
+        let source = try makeRGBA16FloatTexture(width: 4, height: 1, pixels: pixels)
+        let modes: [C7Grayed.GrayedMode] = [.luminosity, .desaturation, .average, .maximum, .minimum, .singleChannel(.red), .singleChannel(.green), .singleChannel(.blue)]
+        for mode in modes {
+            for intensity: Float in [0, 0.37, 1] {
+                var filter = C7Grayed(with: mode)
+                filter.intensity = intensity
+                let io = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
+                let frame = try ImageNode.texture(source).applying(filter).makeFrame(profile: .exportQuality)
+                let node = try rgba16FloatPixels(in: frame.texture)
+                for index in stride(from: 3, to: pixels.count, by: 4) {
+                    XCTAssertEqual(io[index], Float(pixels[index]), "去色不能把原Alpha向不透明混合")
+                    XCTAssertEqual(node[index], Float(pixels[index]))
+                }
+                if intensity == 0 { XCTAssertEqual(io, pixels.map(Float.init)) }
+            }
+        }
+    }
+
+    func testGrayedOpaqueRGBRemainsTheExistingAlgorithm() throws {
+        let source = try makeRGBA16FloatTexture(width: 1, height: 1, pixels: [0.25, 0.5, 0.75, 1])
+        let cases: [(C7Grayed.GrayedMode, Float)] = [
+            (.luminosity, 0.45375), (.desaturation, 0.5), (.average, 0.5),
+            (.maximum, 0.75), (.minimum, 0.25),
+            (.singleChannel(.red), 0.25), (.singleChannel(.green), 0.5), (.singleChannel(.blue), 0.75)
+        ]
+        for (mode, expected) in cases {
+            let pixels = try rgba16FloatPixels(in: HarbethIO(element: source, filter: C7Grayed(with: mode)).renderTexture(profile: .exportQuality))
+            for channel in 0..<3 { XCTAssertEqual(pixels[channel], expected, accuracy: 0.0005) }
+            XCTAssertEqual(pixels[3], 1)
+        }
+    }
+
     private func orderedDitherFixture(width: Int, height: Int) -> [Float16] {
         (0..<(width * height)).flatMap { index -> [Float16] in
             let x = index % width, y = index / width

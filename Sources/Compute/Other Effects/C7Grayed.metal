@@ -16,7 +16,7 @@ kernel void C7GrayedLuminosity(texture2d<half, access::write> outputTexture [[te
     const half4 inColor = inputTexture.read(grid);
     
     const half gray = (0.299 * inColor.r) + (0.587 * inColor.g) + (0.114 * inColor.b);
-    const half4 outColor = half4(half3(gray), 1.0h);
+    const half4 outColor = half4(half3(gray), inColor.a);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
     outputTexture.write(output, grid);
@@ -32,7 +32,7 @@ kernel void C7GrayedDesaturation(texture2d<half, access::write> outputTexture [[
     const half max_ = max(inColor.r, max(inColor.g, inColor.b));
     const half min_ = min(inColor.r, min(inColor.g, inColor.b));
     const half gray = (max_ + min_) * 0.5;
-    const half4 outColor = half4(half3(gray), 1.0h);
+    const half4 outColor = half4(half3(gray), inColor.a);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
     outputTexture.write(output, grid);
@@ -46,7 +46,7 @@ kernel void C7GrayedAverage(texture2d<half, access::write> outputTexture [[textu
     const half4 inColor = inputTexture.read(grid);
     
     const half gray = (inColor.r + inColor.g + inColor.b) / 3.0;
-    const half4 outColor = half4(half3(gray), 1.0h);
+    const half4 outColor = half4(half3(gray), inColor.a);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
     outputTexture.write(output, grid);
@@ -60,7 +60,7 @@ kernel void C7GrayedMaximum(texture2d<half, access::write> outputTexture [[textu
     const half4 inColor = inputTexture.read(grid);
     
     const half gray = max(inColor.r, max(inColor.g, inColor.b));
-    const half4 outColor = half4(half3(gray), 1.0h);
+    const half4 outColor = half4(half3(gray), inColor.a);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
     outputTexture.write(output, grid);
@@ -74,7 +74,7 @@ kernel void C7GrayedMinimum(texture2d<half, access::write> outputTexture [[textu
     const half4 inColor = inputTexture.read(grid);
     
     const half gray = min(inColor.r, min(inColor.g, inColor.b));
-    const half4 outColor = half4(half3(gray), 1.0h);
+    const half4 outColor = half4(half3(gray), inColor.a);
     const half4 output = mix(inColor, outColor, half(*intensity));
     
     outputTexture.write(output, grid);
@@ -90,11 +90,11 @@ kernel void C7GrayedSingleChannel(texture2d<half, access::write> outputTexture [
     
     half4 outColor;
     if (*channel == 0.0) {
-        outColor = half4(half3(inColor.r), 1.0h);
+        outColor = half4(half3(inColor.r), inColor.a);
     } else if (*channel == 1) {
-        outColor = half4(half3(inColor.g), 1.0h);
+        outColor = half4(half3(inColor.g), inColor.a);
     } else if (*channel == 2) {
-        outColor = half4(half3(inColor.b), 1.0h);
+        outColor = half4(half3(inColor.b), inColor.a);
     } else {
         outColor = inColor;
     }
