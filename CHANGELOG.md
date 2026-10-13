@@ -10,6 +10,10 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 ### 2026-10-13
 
+#### Added
+
+- SceneRelightDescriptor 新增近景/远景曝光、深度分界与柔和过渡；C7SceneRelight 在同一线性光照通道消费深度，保留置信度、高光与 alpha 保护。新参数默认中性，旧 Codable 数据保持原有输出。
+
 #### Changed
 
 - 高斯模糊统一为 MPSGaussianBlur；精确 sigma 与显式边缘模式直接由同一滤镜提供，保留既有 radius 入口的取整效果，移除未发布的 GaussianBlur 类型及专用错误类型。

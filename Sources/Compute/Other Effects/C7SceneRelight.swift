@@ -157,6 +157,11 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
     public let depthScale: Float
     public let highlightRolloff: Float
     public let confidenceFloor: Float
+    /// 归一化深度 near=1；曝光单位为 EV，0 严格保持既有受光结果。
+    public let nearExposureEV: Float
+    public let farExposureEV: Float
+    public let depthSplit: Float
+    public let depthFeather: Float
 
     public init(
         lights: [SceneLightDescriptor] = [],
@@ -165,7 +170,11 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         normalStrength: Float = 1,
         depthScale: Float = 0.5,
         highlightRolloff: Float = 1,
-        confidenceFloor: Float = 0
+        confidenceFloor: Float = 0,
+        nearExposureEV: Float = 0,
+        farExposureEV: Float = 0,
+        depthSplit: Float = 0.5,
+        depthFeather: Float = 0.25
     ) throws {
         guard lights.count <= Self.maximumLightCount else {
             throw HarbethError.sceneRelightTooManyLights(maximum: Self.maximumLightCount, actual: lights.count)
@@ -177,7 +186,11 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
             normalStrength: normalStrength,
             depthScale: depthScale,
             highlightRolloff: highlightRolloff,
-            confidenceFloor: confidenceFloor
+            confidenceFloor: confidenceFloor,
+            nearExposureEV: nearExposureEV,
+            farExposureEV: farExposureEV,
+            depthSplit: depthSplit,
+            depthFeather: depthFeather
         )
     }
 
@@ -192,7 +205,11 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
                 normalStrength: try container.decode(Float.self, forKey: .normalStrength),
                 depthScale: try container.decode(Float.self, forKey: .depthScale),
                 highlightRolloff: try container.decode(Float.self, forKey: .highlightRolloff),
-                confidenceFloor: try container.decode(Float.self, forKey: .confidenceFloor)
+                confidenceFloor: try container.decode(Float.self, forKey: .confidenceFloor),
+                nearExposureEV: try container.decodeIfPresent(Float.self, forKey: .nearExposureEV) ?? 0,
+                farExposureEV: try container.decodeIfPresent(Float.self, forKey: .farExposureEV) ?? 0,
+                depthSplit: try container.decodeIfPresent(Float.self, forKey: .depthSplit) ?? 0.5,
+                depthFeather: try container.decodeIfPresent(Float.self, forKey: .depthFeather) ?? 0.25
             )
         } catch let error as HarbethError {
             guard case .sceneRelightTooManyLights = error else { throw error }
@@ -213,6 +230,10 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         try container.encode(depthScale, forKey: .depthScale)
         try container.encode(highlightRolloff, forKey: .highlightRolloff)
         try container.encode(confidenceFloor, forKey: .confidenceFloor)
+        try container.encode(nearExposureEV, forKey: .nearExposureEV)
+        try container.encode(farExposureEV, forKey: .farExposureEV)
+        try container.encode(depthSplit, forKey: .depthSplit)
+        try container.encode(depthFeather, forKey: .depthFeather)
     }
 
     public static let identity = SceneRelightDescriptor(
@@ -222,7 +243,11 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         normalStrength: 1,
         depthScale: 0.5,
         highlightRolloff: 1,
-        confidenceFloor: 0
+        confidenceFloor: 0,
+        nearExposureEV: 0,
+        farExposureEV: 0,
+        depthSplit: 0.5,
+        depthFeather: 0.25
     )
 
     private init(
@@ -232,7 +257,11 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         normalStrength: Float,
         depthScale: Float,
         highlightRolloff: Float,
-        confidenceFloor: Float
+        confidenceFloor: Float,
+        nearExposureEV: Float,
+        farExposureEV: Float,
+        depthSplit: Float,
+        depthFeather: Float
     ) {
         self.lights = validatedLights
         self.ambient = Self.finiteClamped(ambient, to: 0...4, fallback: 1)
@@ -241,6 +270,10 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         self.depthScale = Self.finiteClamped(depthScale, to: 0...4, fallback: 0.5)
         self.highlightRolloff = Self.finiteClamped(highlightRolloff, to: 0...8, fallback: 1)
         self.confidenceFloor = Self.finiteClamped(confidenceFloor, to: 0...1, fallback: 0)
+        self.nearExposureEV = Self.finiteClamped(nearExposureEV, to: -2...2, fallback: 0)
+        self.farExposureEV = Self.finiteClamped(farExposureEV, to: -2...2, fallback: 0)
+        self.depthSplit = Self.finiteClamped(depthSplit, to: 0...1, fallback: 0.5)
+        self.depthFeather = Self.finiteClamped(depthFeather, to: 0.01...1, fallback: 0.25)
     }
 
     func packedValues(hasConfidencePlane: Bool) -> [Float] {
@@ -248,7 +281,8 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
             1, Float(lights.count), ambient, originalLight,
             normalStrength, depthScale, highlightRolloff, confidenceFloor,
             hasConfidencePlane ? 1 : 0,
-            0, 0, 0, 0, 0, 0, 0
+            nearExposureEV, farExposureEV, depthSplit, depthFeather,
+            0, 0, 0
         ]
         let paddedLights = lights + Array(
             repeating: SceneLightDescriptor.disabled,
@@ -271,6 +305,10 @@ public struct SceneRelightDescriptor: Sendable, Codable, Equatable, Hashable {
         case depthScale
         case highlightRolloff
         case confidenceFloor
+        case nearExposureEV
+        case farExposureEV
+        case depthSplit
+        case depthFeather
     }
 }
 

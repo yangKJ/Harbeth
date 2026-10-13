@@ -107,7 +107,8 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
     const bool headerIsValid = isfinite(parameters[0]) && abs(parameters[0] - 1.0) < 0.001
         && lightCount >= 0 && lightCount <= c7SceneRelightMaximumLightCount
         && all(isfinite(float4(parameters[2], parameters[3], parameters[4], parameters[5])))
-        && all(isfinite(float3(parameters[6], parameters[7], parameters[8])));
+        && all(isfinite(float3(parameters[6], parameters[7], parameters[8])))
+        && all(isfinite(float4(parameters[9], parameters[10], parameters[11], parameters[12])));
     if (!headerIsValid) {
         outputTexture.write(half4(source), grid);
         return;
@@ -252,6 +253,15 @@ kernel void C7SceneRelight(texture2d<half, access::write> outputTexture [[textur
     const float ambient = clamp(parameters[2], 0.0, 4.0);
     const float originalLight = clamp(parameters[3], 0.0, 1.0);
     float3 gain = mix(float3(ambient) + lightContribution, float3(1.0), originalLight);
+    // 两端曝光在 EV 空间平滑插值；复用完整画布深度，不新增纹理或分块统计。
+    // 中性参数跳过此分支，保留旧作品的像素运算路径。
+    if (parameters[9] != 0.0 || parameters[10] != 0.0) {
+        const float split = clamp(parameters[11], 0.0, 1.0);
+        const float halfWidth = clamp(parameters[12], 0.01, 1.0) * 0.5;
+        const float nearWeight = smoothstep(split - halfWidth, split + halfWidth, clamp(depth, 0.0, 1.0));
+        const float exposure = mix(clamp(parameters[10], -2.0, 2.0), clamp(parameters[9], -2.0, 2.0), nearWeight);
+        gain *= exp2(exposure);
+    }
     if (parameters[8] > 0.5) {
         const SceneRelightScalarSample confidenceSample = c7SceneRelightSampleScalarPlane(
             confidenceTexture,

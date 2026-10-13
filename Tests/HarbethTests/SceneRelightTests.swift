@@ -62,6 +62,100 @@ final class SceneRelightTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(SceneRelightDescriptor.self, from: invalid))
     }
 
+    func testDepthExposureCodableDefaultsAndSanitization() throws {
+        var payload = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(SceneRelightDescriptor.identity)) as? [String: Any])
+        for key in ["nearExposureEV", "farExposureEV", "depthSplit", "depthFeather"] {
+            payload.removeValue(forKey: key)
+        }
+        let legacy = try JSONDecoder().decode(SceneRelightDescriptor.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertEqual(legacy, .identity)
+        let sanitized = try SceneRelightDescriptor(
+            nearExposureEV: .nan,
+            farExposureEV: 8,
+            depthSplit: -.infinity,
+            depthFeather: 0
+        )
+        XCTAssertEqual(sanitized.nearExposureEV, 0)
+        XCTAssertEqual(sanitized.farExposureEV, 2)
+        XCTAssertEqual(sanitized.depthSplit, 0.5)
+        XCTAssertEqual(sanitized.depthFeather, 0.01)
+        let decoded = try JSONDecoder().decode(SceneRelightDescriptor.self, from: JSONEncoder().encode(sanitized))
+        XCTAssertEqual(decoded, sanitized)
+        XCTAssertEqual(Array(sanitized.packedValues(hasConfidencePlane: true)[9...12]), [0, 2, 0.5, 0.01])
+        XCTAssertEqual(sanitized.packedValues(hasConfidencePlane: true).count, C7SceneRelight.parameterCount)
+    }
+
+    func testIndependentDepthExposureUsesNearOneAndKeepsAlpha() throws {
+        let source = try makeRGBA8Texture(pixels: [64, 64, 64, 128])
+        let descriptor = try SceneRelightDescriptor(highlightRolloff: 0, nearExposureEV: 1, farExposureEV: -1)
+        for (depthValue, expected) in [(Float(0), UInt8(32)), (0.5, 64), (1, 128)] {
+            let depth = try makeScalarTexture(values: [depthValue])
+            let output: MTLTexture = try HarbethIO(
+                element: source,
+                filter: C7SceneRelight(descriptor: descriptor, depthTexture: depth)
+            ).output()
+            let pixel = try rgba8Pixel(in: output)
+            XCTAssertEqual(pixel[0], expected, accuracy: 1)
+            XCTAssertEqual(pixel[1], expected, accuracy: 1)
+            XCTAssertEqual(pixel[2], expected, accuracy: 1)
+            XCTAssertEqual(pixel[3], 128)
+        }
+    }
+
+    func testDepthBoundaryAndFeatherChangeExposureSmoothly() throws {
+        let source = try makeRGBA8Texture(pixels: [64, 64, 64, 255])
+        let depth = try makeScalarTexture(values: [0.4])
+        let cases: [(Float, Float, UInt8)] = [(0.5, 0.1, 32), (0.5, 0.4, 40), (0.4, 0.4, 64)]
+        for (split, feather, expected) in cases {
+            let descriptor = try SceneRelightDescriptor(
+                highlightRolloff: 0,
+                nearExposureEV: 1,
+                farExposureEV: -1,
+                depthSplit: split,
+                depthFeather: feather
+            )
+            let output: MTLTexture = try HarbethIO(
+                element: source,
+                filter: C7SceneRelight(descriptor: descriptor, depthTexture: depth)
+            ).output()
+            XCTAssertEqual(try rgba8Pixel(in: output)[0], expected, accuracy: 1)
+        }
+    }
+
+    func testDepthExposureStillProtectsZeroConfidenceAndInvalidDepth() throws {
+        let source = try makeRGBA8Texture(pixels: [50, 75, 100, 120])
+        let descriptor = try SceneRelightDescriptor(nearExposureEV: 2, farExposureEV: -2)
+        for depthValue in [Float(1), .nan] {
+            let depth = try makeScalarTexture(values: [depthValue])
+            let confidence = try makeScalarTexture(values: [0])
+            let output: MTLTexture = try HarbethIO(
+                element: source,
+                filter: C7SceneRelight(descriptor: descriptor, depthTexture: depth, confidenceTexture: confidence)
+            ).output()
+            XCTAssertEqual(try rgba8Pixel(in: output), [50, 75, 100, 120])
+        }
+    }
+
+    func testDepthExposureMatchesWholeImageAcrossTileCoordinates() throws {
+        let pixel: [UInt8] = [64, 80, 96, 128]
+        let wholeSource = try makeTexture(pixelFormat: .rgba8Unorm, width: 6)
+        let pixels = Array(repeating: pixel, count: 6).flatMap { $0 }
+        wholeSource.replace(region: MTLRegionMake2D(0, 0, 6, 1), mipmapLevel: 0, withBytes: pixels, bytesPerRow: 24)
+        let tileSource = try makeRGBA8Texture(pixels: pixel)
+        let depth = try makeScalarTexture(width: 3, values: [0, 0.5, 1])
+        let descriptor = try SceneRelightDescriptor(nearExposureEV: 0.8, farExposureEV: -0.6, depthSplit: 0.4, depthFeather: 0.5)
+        let base = C7SceneRelight(descriptor: descriptor, depthTexture: depth)
+        let whole: MTLTexture = try HarbethIO(element: wholeSource, filter: base).output()
+        let expected = try XCTUnwrap(whole.c7.bytes())
+        for x in 0..<6 {
+            let tile: MTLTexture = try HarbethIO(
+                element: tileSource,
+                filter: SceneRelightMappingFilter(base: base, originX: Float(x), logicalWidth: 6)
+            ).output()
+            XCTAssertEqual(try rgba8Pixel(in: tile), Array(expected[(x * 4)..<(x * 4 + 4)]))
+        }
+    }
+
     func testDirectBindingKeepsStableDepthAndConfidenceTextureSlots() throws {
         let depth = try makeScalarTexture(values: [0.5])
         let confidence = try makeScalarTexture(values: [0.75])

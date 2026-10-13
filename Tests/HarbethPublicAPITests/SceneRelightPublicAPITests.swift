@@ -22,7 +22,11 @@ final class SceneRelightPublicAPITests: XCTestCase {
             normalStrength: 1.2,
             depthScale: 0.5,
             highlightRolloff: 1.5,
-            confidenceFloor: 0.1
+            confidenceFloor: 0.1,
+            nearExposureEV: 0.7,
+            farExposureEV: -0.4,
+            depthSplit: 0.6,
+            depthFeather: 0.3
         )
         let direct: (MTLTexture, MTLTexture?) -> C7SceneRelight = { depth, confidence in
             C7SceneRelight(
@@ -33,6 +37,8 @@ final class SceneRelightPublicAPITests: XCTestCase {
         }
         let deferred = C7SceneRelight.deferred(descriptor)
 
+        XCTAssertEqual(deferred.descriptor.nearExposureEV, 0.7)
+        XCTAssertEqual(deferred.descriptor.farExposureEV, -0.4)
         XCTAssertTrue(deferred.requiresDeferredDepthBinding)
         XCTAssertEqual(C7SceneRelight.requiredDeferredAuxiliaryTextureCount, 2)
         _ = direct
