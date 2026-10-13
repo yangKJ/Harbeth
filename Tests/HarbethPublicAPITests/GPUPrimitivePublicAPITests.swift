@@ -31,6 +31,7 @@ final class GPUPrimitivePublicAPITests: XCTestCase {
             kernelHeight: 3,
             weights: [0, 0, 0, 0, 1, 0, 0, 0, 0]
         )
+        let gaussian: any C7FilterProtocol = try MPSGaussianBlur(sigma: 2.1)
         let lanczos: any C7FilterProtocol = try MPSLanczosResize(width: 4, height: 3)
         let morphology: any C7FilterProtocol = MPSMorphology(operation: .dilate)
         let mesh: any C7FilterProtocol = try RenderMeshWarp.identity(rows: 2, columns: 2)
@@ -39,6 +40,6 @@ final class GPUPrimitivePublicAPITests: XCTestCase {
             .init(x: 0, y: 0), .init(x: 1, y: 0), .init(x: 0, y: 1)
         ])
 
-        XCTAssertFalse([convolution, lanczos, morphology, mesh, layer, mask].contains { $0.identifier.isEmpty })
+        XCTAssertFalse([convolution, gaussian, lanczos, morphology, mesh, layer, mask].contains { $0.identifier.isEmpty })
     }
 }

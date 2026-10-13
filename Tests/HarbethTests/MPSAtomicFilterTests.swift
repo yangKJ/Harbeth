@@ -7,12 +7,14 @@ final class MPSAtomicFilterTests: XCTestCase {
 
     func testExactGaussianSigmaAndInvalidValues() throws {
         for value: Float in [0, -1, .nan, .infinity, 101] {
-            XCTAssertThrowsError(try GaussianBlur(sigma: value)) {
-                XCTAssertEqual($0 as? GaussianBlurError, .invalidSigma)
+            XCTAssertThrowsError(try MPSGaussianBlur(sigma: value)) {
+                guard case HarbethError.filterParameterInvalid = $0 else {
+                    return XCTFail("非法sigma必须返回参数错误。")
+                }
             }
         }
         try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "当前环境没有Metal设备")
-        let filter = try GaussianBlur(sigma: 2.1, edgeMode: .zero)
+        let filter = try MPSGaussianBlur(sigma: 2.1, edgeMode: .zero)
         XCTAssertEqual(filter.sigma, 2.1)
         XCTAssertEqual(filter.factors, [2.1, Float(MPSImageEdgeMode.zero.rawValue)])
         XCTAssertEqual(filter.edgeMode, .zero)
@@ -26,12 +28,35 @@ final class MPSAtomicFilterTests: XCTestCase {
         let center = (20 * 41 + 20) * 4
         pixels[center] = 255
         let source = try makeTexture(width: 41, height: 41, pixels: pixels)
-        let exact: MTLTexture = try HarbethIO(element: source, filter: GaussianBlur(sigma: 2.1)).output()
+        let exact: MTLTexture = try HarbethIO(element: source, filter: MPSGaussianBlur(sigma: 2.1)).output()
         let rounded: MTLTexture = try HarbethIO(element: source, filter: MPSGaussianBlur(radius: 2.1)).output()
         let a = try XCTUnwrap(exact.c7.bytes()), b = try XCTUnwrap(rounded.c7.bytes())
         XCTAssertGreaterThan(a[center], b[center])
         XCTAssertEqual(a[center + 3], 255)
         XCTAssertEqual(source.c7.bytes(), Data(pixels))
+    }
+
+    func testGaussianConfigurationSurvivesRadiusChangesAndCopies() throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "当前环境没有Metal设备")
+
+        var exact = try MPSGaussianBlur(sigma: 2.1, edgeMode: .zero)
+        let original = exact
+        exact.radius = 2.25
+        XCTAssertEqual(exact.sigma, 2.25)
+        XCTAssertEqual(exact.samplingFootprint, .neighborhood(radius: 9))
+        XCTAssertEqual(exact.factors, [2.25, Float(MPSImageEdgeMode.zero.rawValue)])
+        XCTAssertEqual(original.sigma, 2.1)
+        guard case .mps(let kernel) = exact.modifier else { return XCTFail("高斯必须经MPS执行。") }
+        XCTAssertEqual(try XCTUnwrap(kernel as? MPSImageGaussianBlur).edgeMode, .zero)
+
+        var rounded = MPSGaussianBlur(radius: 2.1, edgeMode: .zero)
+        XCTAssertEqual(rounded.radius, 2.1)
+        XCTAssertEqual(rounded.sigma, 3)
+        rounded.radius = 3.25
+        XCTAssertEqual(rounded.sigma, 4)
+        XCTAssertEqual(rounded.samplingFootprint, .neighborhood(radius: 16))
+        guard case .mps(let roundedKernel) = rounded.modifier else { return XCTFail("高斯必须经MPS执行。") }
+        XCTAssertEqual(try XCTUnwrap(roundedKernel as? MPSImageGaussianBlur).edgeMode, .zero)
     }
 
     func testGaussianBlurExposesConservativeTileHalo() throws {

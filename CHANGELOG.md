@@ -10,6 +10,10 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 ### 2026-10-13
 
+#### Changed
+
+- 高斯模糊统一为 MPSGaussianBlur；精确 sigma 与显式边缘模式直接由同一滤镜提供，保留既有 radius 入口的取整效果，移除未发布的 GaussianBlur 类型及专用错误类型。
+
 #### Fixed
 
 - ChannelControl 的透明度同步衰减预乘 RGB 与 alpha；ImageNode 和帧输出保留滤镜的实际透明类型，避免预览继续按不透明来源显示。
@@ -20,7 +24,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
-- GaussianBlur 精确使用浮点 sigma（0 < sigma ≤ 100），支持显式边缘模式并声明 ceil(4×sigma) 的采样 halo，可通过 HarbethIO 与现有滤镜链执行。
+- MPSGaussianBlur 的 sigma 入口精确使用浮点标准差（0 < sigma ≤ 100），支持显式边缘模式并声明 ceil(4×sigma) 的采样 halo，可通过 HarbethIO 与现有滤镜链执行。
 
 ### 2026-10-11
 
