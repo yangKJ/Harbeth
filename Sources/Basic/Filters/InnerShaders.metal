@@ -352,6 +352,9 @@ static inline half combineInnerCoverage(half baseCoverage, half maskCoverage, in
             return clamp(baseCoverage * (1.0h - maskCoverage), 0.0h, 1.0h);
         case 5:
             return clamp(baseCoverage * (1.0h - maskCoverage) + maskCoverage * (1.0h - baseCoverage), 0.0h, 1.0h);
+        case 6:
+            // cappedAdd 需要同时读取 cap 与原始 brush coverage，只能走下方专用分支。
+            return baseCoverage;
         case 1:
         case 0:
         default:
@@ -380,9 +383,11 @@ kernel void InnerMaskCoverageBlend(texture2d<half, access::write> outputTexture 
     const half maskCoverage = normalizedInnerMaskValue(maskColor,
                                                        int(overlayMask.z),
                                                        overlayMask.y > 0.5f,
-                                                       half(overlayMask.x),
+                                                       overlayMask.w == 6.0f ? half(1.0h) : half(overlayMask.x),
                                                        half(overlayFeather));
-    const half combinedCoverage = combineInnerCoverage(baseCoverage, maskCoverage, int(overlayMask.w));
+    const half combinedCoverage = overlayMask.w == 6.0f
+        ? clamp(baseCoverage + max(half(overlayMask.x) - baseCoverage, half(0.0)) * maskCoverage, half(0.0), half(1.0))
+        : combineInnerCoverage(baseCoverage, maskCoverage, int(overlayMask.w));
     const half4 output = half4(combinedCoverage, combinedCoverage, combinedCoverage, 1.0h);
     outputTexture.write(output, gid);
 }
@@ -404,20 +409,20 @@ kernel void InnerMaskCoverageBlendBatch4(texture2d<half, access::write> outputTe
     half coverage = normalizedInnerMaskValue(baseTexture.read(gid), int(baseMask.z), baseMask.y > 0.5f, half(baseMask.x), half(baseMask.w));
     const int count = clamp(maskCount, 0, 4);
     if (count > 0) {
-        const half value = normalizedInnerMaskValue(mask0.read(gid), int(maskParameters0[2]), maskParameters0[1] > 0.5f, half(maskParameters0[0]), half(maskParameters0[4]));
-        coverage = combineInnerCoverage(coverage, value, int(maskParameters0[3]));
+        const half value = normalizedInnerMaskValue(mask0.read(gid), int(maskParameters0[2]), maskParameters0[1] > 0.5f, maskParameters0[3] == 6.0f ? half(1.0h) : half(maskParameters0[0]), half(maskParameters0[4]));
+        coverage = maskParameters0[3] == 6.0f ? clamp(coverage + max(half(maskParameters0[0]) - coverage, half(0.0)) * value, half(0.0), half(1.0)) : combineInnerCoverage(coverage, value, int(maskParameters0[3]));
     }
     if (count > 1) {
-        const half value = normalizedInnerMaskValue(mask1.read(gid), int(maskParameters1[2]), maskParameters1[1] > 0.5f, half(maskParameters1[0]), half(maskParameters1[4]));
-        coverage = combineInnerCoverage(coverage, value, int(maskParameters1[3]));
+        const half value = normalizedInnerMaskValue(mask1.read(gid), int(maskParameters1[2]), maskParameters1[1] > 0.5f, maskParameters1[3] == 6.0f ? half(1.0h) : half(maskParameters1[0]), half(maskParameters1[4]));
+        coverage = maskParameters1[3] == 6.0f ? clamp(coverage + max(half(maskParameters1[0]) - coverage, half(0.0)) * value, half(0.0), half(1.0)) : combineInnerCoverage(coverage, value, int(maskParameters1[3]));
     }
     if (count > 2) {
-        const half value = normalizedInnerMaskValue(mask2.read(gid), int(maskParameters2[2]), maskParameters2[1] > 0.5f, half(maskParameters2[0]), half(maskParameters2[4]));
-        coverage = combineInnerCoverage(coverage, value, int(maskParameters2[3]));
+        const half value = normalizedInnerMaskValue(mask2.read(gid), int(maskParameters2[2]), maskParameters2[1] > 0.5f, maskParameters2[3] == 6.0f ? half(1.0h) : half(maskParameters2[0]), half(maskParameters2[4]));
+        coverage = maskParameters2[3] == 6.0f ? clamp(coverage + max(half(maskParameters2[0]) - coverage, half(0.0)) * value, half(0.0), half(1.0)) : combineInnerCoverage(coverage, value, int(maskParameters2[3]));
     }
     if (count > 3) {
-        const half value = normalizedInnerMaskValue(mask3.read(gid), int(maskParameters3[2]), maskParameters3[1] > 0.5f, half(maskParameters3[0]), half(maskParameters3[4]));
-        coverage = combineInnerCoverage(coverage, value, int(maskParameters3[3]));
+        const half value = normalizedInnerMaskValue(mask3.read(gid), int(maskParameters3[2]), maskParameters3[1] > 0.5f, maskParameters3[3] == 6.0f ? half(1.0h) : half(maskParameters3[0]), half(maskParameters3[4]));
+        coverage = maskParameters3[3] == 6.0f ? clamp(coverage + max(half(maskParameters3[0]) - coverage, half(0.0)) * value, half(0.0), half(1.0)) : combineInnerCoverage(coverage, value, int(maskParameters3[3]));
     }
     outputTexture.write(half4(coverage, coverage, coverage, 1.0h), gid);
 }

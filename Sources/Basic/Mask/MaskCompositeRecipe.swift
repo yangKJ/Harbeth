@@ -24,7 +24,7 @@ public enum MaskCompositeGraphCompiler {
         let executable = steps.filter { step in
             guard step.mask.opacity <= 0.000_001 else { return true }
             switch step.mask.blendMode {
-            case .add, .subtract, .exclude: return false
+            case .add, .subtract, .exclude, .cappedAdd: return false
             case .mix, .replace, .multiply: return true
             }
         }
@@ -109,6 +109,19 @@ public struct MaskCompositeRecipe {
     public func adding(_ mask: MaskDescriptor, name: String = "add") -> MaskCompositeRecipe {
         var copy = self
         copy.steps.append(.add(mask, name: name))
+        return copy
+    }
+
+    public func addingBrush<R: MaskRecipe>(_ recipe: R,
+                                           density: Float,
+                                           component: MaskComponent = .red,
+                                           invert: Bool = false,
+                                           featherPolicy: MaskFeatherPolicy = .none,
+                                           name: String = "cappedAdd") throws -> MaskCompositeRecipe {
+        var copy = self
+        copy.steps.append(try .cappedAdd(recipe, component: component, invert: invert,
+                                         featherPolicy: featherPolicy,
+                                         opacity: min(max(density, 0), 1), name: name))
         return copy
     }
 
@@ -262,7 +275,7 @@ public struct MaskCompositeRecipe {
         let executable = steps.filter { step in
             guard step.mask.opacity <= 0.000_001 else { return true }
             switch step.mask.blendMode {
-            case .add, .subtract, .exclude: return false
+            case .add, .subtract, .exclude, .cappedAdd: return false
             case .mix, .replace, .multiply: return true
             }
         }

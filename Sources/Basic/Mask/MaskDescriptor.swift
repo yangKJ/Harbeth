@@ -27,6 +27,7 @@ public enum MaskBlendMode: Int, Sendable, Codable, Equatable, Hashable {
     case multiply = 3
     case subtract = 4
     case exclude = 5
+    case cappedAdd = 6
 }
 
 public enum MaskFeatherPolicy: Sendable, Codable, Equatable, Hashable {

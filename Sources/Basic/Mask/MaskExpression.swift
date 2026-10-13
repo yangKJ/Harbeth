@@ -14,6 +14,7 @@ public indirect enum MaskExpression: @unchecked Sendable {
     case intersect(MaskExpression, MaskExpression)
     case subtract(MaskExpression, MaskExpression)
     case exclude(MaskExpression, MaskExpression)
+    case cappedAdd(MaskExpression, MaskExpression)
     case invert(MaskExpression)
     case opacity(MaskExpression, Float)
 
@@ -35,6 +36,8 @@ public indirect enum MaskExpression: @unchecked Sendable {
             return "subtract{\(lhs.fingerprint)}{\(rhs.fingerprint)}"
         case .exclude(let lhs, let rhs):
             return "exclude{\(lhs.fingerprint)}{\(rhs.fingerprint)}"
+        case .cappedAdd(let lhs, let rhs):
+            return "cappedAdd{\(lhs.fingerprint)}{\(rhs.fingerprint)}"
         case .invert(let value):
             return "invert{\(value.fingerprint)}"
         case .opacity(let value, let opacity):
@@ -90,7 +93,8 @@ enum MaskExpressionCompiler {
             case .add(let lhs, let rhs),
                  .intersect(let lhs, let rhs),
                  .subtract(let lhs, let rhs),
-                 .exclude(let lhs, let rhs):
+                 .exclude(let lhs, let rhs),
+                 .cappedAdd(let lhs, let rhs):
                 let lhsExtent = visit(lhs)
                 _ = visit(rhs)
                 passCount += 1
@@ -149,6 +153,8 @@ extension MaskExpression {
                 output = try combine(lhs, rhs, mode: .subtract)
             case .exclude(let lhs, let rhs):
                 output = try combine(lhs, rhs, mode: .exclude)
+            case .cappedAdd(let lhs, let rhs):
+                output = try combine(lhs, rhs, mode: .cappedAdd)
             }
             memo[key] = output
             return output
@@ -218,7 +224,7 @@ extension MaskExpression {
 private func extent(of expression: MaskExpression) -> (width: Int, height: Int) {
     switch expression {
     case .source(let mask): return (mask.texture.width, mask.texture.height)
-    case .add(let lhs, _), .intersect(let lhs, _), .subtract(let lhs, _), .exclude(let lhs, _): return extent(of: lhs)
+    case .add(let lhs, _), .intersect(let lhs, _), .subtract(let lhs, _), .exclude(let lhs, _), .cappedAdd(let lhs, _): return extent(of: lhs)
     case .invert(let value), .opacity(let value, _): return extent(of: value)
     }
 }
@@ -229,6 +235,7 @@ private func operationName(_ expression: MaskExpression) -> String {
     case .intersect: return "intersect"
     case .subtract: return "subtract"
     case .exclude: return "exclude"
+    case .cappedAdd: return "cappedAdd"
     case .invert: return "invertMetadata"
     case .opacity: return "opacityMetadata"
     case .source: return "source"

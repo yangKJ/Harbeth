@@ -10,6 +10,14 @@ import simd
 
 public enum MaskMath {
 
+    /// cappedAdd 的逐像素合同：只允许新 coverage 把已有值推向 cap，不会降低已超过 cap 的值。
+    @inlinable public static func cappedAddCoverage(existing: Float, brushCoverage: Float, cap: Float) -> Float {
+        let current = min(max(existing, 0), 1)
+        let coverage = min(max(brushCoverage, 0), 1)
+        let limit = min(max(cap, 0), 1)
+        return min(max(current + max(limit - current, 0) * coverage, 0), 1)
+    }
+
     // MARK: - 1. InnerGradientMask (shader line 11-41)
 
     /// 线性渐变在 `uv` 点的 coverage。

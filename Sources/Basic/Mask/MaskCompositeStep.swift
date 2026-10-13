@@ -12,6 +12,7 @@ private enum MaskCompositeOperation {
     case intersect
     case subtract
     case exclude
+    case cappedAdd
 
     var name: String {
         switch self {
@@ -19,6 +20,7 @@ private enum MaskCompositeOperation {
         case .intersect: return "intersect"
         case .subtract: return "subtract"
         case .exclude: return "exclude"
+        case .cappedAdd: return "cappedAdd"
         }
     }
 
@@ -28,6 +30,7 @@ private enum MaskCompositeOperation {
         case .intersect: return .multiply
         case .subtract: return .subtract
         case .exclude: return .exclude
+        case .cappedAdd: return .cappedAdd
         }
     }
 
@@ -37,6 +40,7 @@ private enum MaskCompositeOperation {
         case .multiply: return .intersect
         case .subtract: return .subtract
         case .exclude: return .exclude
+        case .cappedAdd: return .cappedAdd
         case .mix, .replace: return nil
         }
     }
@@ -100,6 +104,10 @@ public struct MaskCompositeStep {
         step(for: .exclude, mask: mask, name: name)
     }
 
+    public static func cappedAdd(_ mask: MaskDescriptor, name: String = "cappedAdd") -> MaskCompositeStep {
+        step(for: .cappedAdd, mask: mask, name: name)
+    }
+
     public static func add<R: MaskRecipe>(_ recipe: R,
                                           component: MaskComponent = .red,
                                           invert: Bool = false,
@@ -115,6 +123,16 @@ public struct MaskCompositeStep {
             opacity: opacity,
             name: name
         )
+    }
+
+    public static func cappedAdd<R: MaskRecipe>(_ recipe: R,
+                                                component: MaskComponent = .red,
+                                                invert: Bool = false,
+                                                featherPolicy: MaskFeatherPolicy = .none,
+                                                opacity: Float = 1.0,
+                                                name: String = "cappedAdd") throws -> MaskCompositeStep {
+        try step(for: .cappedAdd, recipe: recipe, component: component, invert: invert,
+                 featherPolicy: featherPolicy, opacity: opacity, name: name)
     }
 
     public static func intersect<R: MaskRecipe>(_ recipe: R,
