@@ -10,6 +10,10 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 ### 2026-10-14
 
+#### Added
+
+- OutputQuantization 增加 2×2、8×8 有序抖动图案；完整坐标、Alpha 与确定性回放合同共用现有入口，原 4×4 默认值与因子布局保持不变。
+
 #### Fixed
 
 - OutputQuantization 按完整输入坐标生成有序与交错梯度抖动，区域输出不再从局部原点重置图案；整帧原点、量化因子与 Alpha 保持原有语义。

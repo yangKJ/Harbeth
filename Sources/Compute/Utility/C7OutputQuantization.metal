@@ -19,6 +19,18 @@ static inline float c7OrderedDither4x4(uint2 position) {
     return (values[index] + 0.5f) / 16.0f - 0.5f;
 }
 
+// 低位坐标先取得较高权重，保持各尺寸矩阵的同一朝向和全局相位。
+static inline float c7OrderedDitherRecursive(uint2 position, uint bitCount) {
+    constexpr uint digits[4] = {0u, 2u, 3u, 1u};
+    uint rank = 0u;
+    for (uint bit = 0u; bit < bitCount; ++bit) {
+        const uint2 coordinate = (position >> bit) & 1u;
+        rank = rank * 4u + digits[coordinate.y * 2u + coordinate.x];
+    }
+    const uint entries = 1u << (bitCount * 2u);
+    return (float(rank) + 0.5f) / float(entries) - 0.5f;
+}
+
 static inline float c7InterleavedGradientNoise(float2 position, float seed) {
     const float2 value = position + float2(seed, seed * 0.754877666f);
     return fract(52.9829189f * fract(dot(value, float2(0.06711056f, 0.00583715f)))) - 0.5f;
@@ -47,6 +59,10 @@ kernel void C7OutputQuantization(texture2d<half, access::write> outputTexture [[
         noise = c7OrderedDither4x4(uint2(globalPixel));
     } else if (pattern == 2u) {
         noise = c7InterleavedGradientNoise(float2(globalPixel), *seedPointer);
+    } else if (pattern == 3u) {
+        noise = c7OrderedDitherRecursive(uint2(globalPixel), 1u);
+    } else if (pattern == 4u) {
+        noise = c7OrderedDitherRecursive(uint2(globalPixel), 3u);
     }
 
     float4 output = input;

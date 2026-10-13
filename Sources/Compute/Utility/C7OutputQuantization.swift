@@ -62,6 +62,8 @@ private extension ImageDitherPattern {
         case .none: return 0
         case .ordered4x4: return 1
         case .interleavedGradient: return 2
+        case .ordered2x2: return 3
+        case .ordered8x8: return 4
         }
     }
 }

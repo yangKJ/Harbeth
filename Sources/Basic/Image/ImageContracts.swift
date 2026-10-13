@@ -532,6 +532,8 @@ public enum ImageDitherPattern: String, Sendable, Codable, Equatable, Hashable {
     case none
     case ordered4x4
     case interleavedGradient
+    case ordered2x2
+    case ordered8x8
 }
 
 /// 最终输出量化合同。

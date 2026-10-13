@@ -725,7 +725,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         let width = 37, height = 29
         let values = quantizationFixture(width: width, height: height)
         let source = try makeRGBA16FloatTexture(width: width, height: height, pixels: values)
-        for pattern in [ImageDitherPattern.none, .ordered4x4, .interleavedGradient] {
+        for pattern in [ImageDitherPattern.none, .ordered2x2, .ordered4x4, .ordered8x8, .interleavedGradient] {
             let base = C7OutputQuantization(bitDepth: 3, pattern: pattern, seed: 71)
             let full = try rgba16FloatPixels(in: HarbethIO(element: source, filter: base).renderTexture(profile: .exportQuality))
             for region in [(5, 7, 17, 11), (2, 3, 15, 13), (16, 12, 21, 17)] {
@@ -746,7 +746,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         let width = 7, height = 5
         let values = quantizationFixture(width: width, height: height)
         let source = try makeRGBA16FloatTexture(width: width, height: height, pixels: values)
-        for pattern in [ImageDitherPattern.none, .ordered4x4, .interleavedGradient] {
+        for pattern in [ImageDitherPattern.none, .ordered2x2, .ordered4x4, .ordered8x8, .interleavedGradient] {
             let filter = C7OutputQuantization(bitDepth: 2, pattern: pattern, seed: 41)
             let output = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
             for index in stride(from: 3, to: values.count, by: 4) {
@@ -759,7 +759,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         let values = quantizationFixture(width: 7, height: 5)
         let source = try makeRGBA16FloatTexture(width: 7, height: 5, pixels: values)
         let expected = try rgba16FloatPixels(in: HarbethIO(element: source, filter: C7OutputQuantization(bitDepth: 4, pattern: .none)).renderTexture(profile: .exportQuality))
-        for pattern in [ImageDitherPattern.ordered4x4, .interleavedGradient] {
+        for pattern in [ImageDitherPattern.ordered2x2, .ordered4x4, .ordered8x8, .interleavedGradient] {
             for seed: UInt32 in [0, 71] {
                 let filter = QuantizationRegionFilter(base: C7OutputQuantization(bitDepth: 4, pattern: pattern, strength: 0, seed: seed), origin: SIMD2<Float>(13, 9), logicalSize: SIMD2<Float>(37, 29))
                 XCTAssertEqual(try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)), expected)
@@ -769,11 +769,59 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
 
     func testOutputQuantizationRegionSeedReplayIsDeterministic() throws {
         let source = try makeRGBA16FloatTexture(width: 7, height: 5, pixels: quantizationFixture(width: 7, height: 5))
-        for pattern in [ImageDitherPattern.ordered4x4, .interleavedGradient] {
+        for pattern in [ImageDitherPattern.ordered2x2, .ordered4x4, .ordered8x8, .interleavedGradient] {
             let filter = QuantizationRegionFilter(base: C7OutputQuantization(bitDepth: 3, pattern: pattern, seed: 71), origin: SIMD2<Float>(5, 7), logicalSize: SIMD2<Float>(37, 29))
             let first = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
             let second = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
             XCTAssertEqual(first, second)
+        }
+    }
+
+    func testOutputQuantizationOrderedMatricesMatchIndependentThresholdOracle() throws {
+        let matrices: [(ImageDitherPattern, Int, [Int])] = [
+            (.ordered2x2, 2, [0, 2, 3, 1]),
+            (.ordered4x4, 4, [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]),
+            (.ordered8x8, 8, [
+                0, 32, 8, 40, 2, 34, 10, 42,
+                48, 16, 56, 24, 50, 18, 58, 26,
+                12, 44, 4, 36, 14, 46, 6, 38,
+                60, 28, 52, 20, 62, 30, 54, 22,
+                3, 35, 11, 43, 1, 33, 9, 41,
+                51, 19, 59, 27, 49, 17, 57, 25,
+                15, 47, 7, 39, 13, 45, 5, 37,
+                63, 31, 55, 23, 61, 29, 53, 21
+            ])
+        ]
+        for (pattern, edge, ranks) in matrices {
+            for step in 0..<ranks.count {
+                let value = Float16(Float(step) + 0.5) / Float16(ranks.count)
+                let pixels = (0..<ranks.count).flatMap { _ in [value, value, value, Float16(0.25)] }
+                let source = try makeRGBA16FloatTexture(width: edge, height: edge, pixels: pixels)
+                let output = try rgba16FloatPixels(in: HarbethIO(
+                    element: source,
+                    filter: C7OutputQuantization(bitDepth: 1, pattern: pattern)
+                ).renderTexture(profile: .exportQuality))
+                for (index, rank) in ranks.enumerated() {
+                    let expected: Float = step + rank + 1 >= ranks.count ? 1 : 0
+                    for channel in 0..<3 {
+                        XCTAssertEqual(output[index * 4 + channel], expected, "矩阵阈值或朝向不一致")
+                    }
+                    XCTAssertEqual(output[index * 4 + 3], 0.25)
+                }
+            }
+        }
+    }
+
+    func testOutputQuantizationPatternContractsRoundTripWithStableFactors() throws {
+        let cases: [(ImageDitherPattern, Float)] = [
+            (.none, 0), (.ordered4x4, 1), (.interleavedGradient, 2),
+            (.ordered2x2, 3), (.ordered8x8, 4)
+        ]
+        for (pattern, factor) in cases {
+            let contract = OutputQuantizationContract(bitDepth: 3, ditherPattern: pattern, strength: 0.75, seed: 71)
+            let restored = try JSONDecoder().decode(OutputQuantizationContract.self, from: JSONEncoder().encode(contract))
+            XCTAssertEqual(restored, contract)
+            XCTAssertEqual(C7OutputQuantization(contract: restored).factors, [3, factor, 0.75, 71])
         }
     }
 
