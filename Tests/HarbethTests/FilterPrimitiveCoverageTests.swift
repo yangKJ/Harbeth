@@ -825,6 +825,95 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testOrderedDitherSinglePixelMatchesExistingPremultipliedChain() throws {
+        let source = try makeRGBA16FloatTexture(width: 19, height: 17, pixels: orderedDitherFixture(width: 19, height: 17))
+        for pattern: ImageDitherPattern in [.none, .ordered2x2, .ordered4x4, .ordered8x8, .interleavedGradient] {
+            let reference = try HarbethIO(element: source, filters: [
+                C7UnpremultiplyAlpha(), C7OutputQuantization(bitDepth: 3, pattern: pattern, seed: 71), C7PremultiplyAlpha()
+            ]).renderTexture(profile: .exportQuality)
+            let actual = try HarbethIO(element: source, filter: C7OrderedDither(pattern: pattern, seed: 71))
+                .renderTexture(profile: .exportQuality)
+            XCTAssertEqual(try rgba16FloatPixels(in: actual), try rgba16FloatPixels(in: reference))
+        }
+    }
+
+    func testOrderedDitherCellAverageMatchesIndependentScalarOracleAndPreservesAlpha() throws {
+        let width = 19, height = 17
+        let input = orderedDitherFixture(width: width, height: height)
+        let source = try makeRGBA16FloatTexture(width: width, height: height, pixels: input)
+        for size in [1, 3, 7, 32] {
+            let output = try rgba16FloatPixels(in: HarbethIO(element: source,
+                filter: C7OrderedDither(levels: 5, pixelSize: size, pattern: .none)).renderTexture(profile: .exportQuality))
+            for y in 0..<height {
+                for x in 0..<width {
+                    let index = (y * width + x) * 4
+                    var sum = [Double](repeating: 0, count: 3)
+                    var weight = 0.0
+                    for sy in (y / size * size)..<min(height, (y / size + 1) * size) {
+                        for sx in (x / size * size)..<min(width, (x / size + 1) * size) {
+                            let sample = (sy * width + sx) * 4
+                            let alpha = Double(input[sample + 3])
+                            if alpha > 0 {
+                                weight += alpha
+                                for channel in 0..<3 { sum[channel] += Double(input[sample + channel]) }
+                            }
+                        }
+                    }
+                    for channel in 0..<3 {
+                        let mean = Float16(weight > 0.0001 ? sum[channel] / weight : 0)
+                        let level = Float16(floor(Double(mean) * 4 + 0.5) / 4)
+                        let expected = Float(level * input[index + 3])
+                        XCTAssertEqual(output[index + channel], expected, accuracy: 0.0005)
+                    }
+                    XCTAssertEqual(output[index + 3], Float(input[index + 3]))
+                }
+            }
+        }
+    }
+
+    func testOrderedDitherNonAlignedRegionsUseCompleteCellHaloThroughBothEntries() throws {
+        let width = 45, height = 35
+        let values = orderedDitherFixture(width: width, height: height)
+        let source = try makeRGBA16FloatTexture(width: width, height: height, pixels: values)
+        for size in [3, 7, 32] {
+            for pattern: ImageDitherPattern in [.ordered2x2, .ordered4x4, .ordered8x8] {
+                let base = C7OrderedDither(levels: 5, pixelSize: size, pattern: pattern, seed: 71)
+                let full = try rgba16FloatPixels(in: HarbethIO(element: source, filter: base).renderTexture(profile: .exportQuality))
+                for (x, y, w, h) in [(1, 2, 11, 9), (17, 13, 13, 11), (38, 27, 7, 8)] {
+                    let radius = size - 1
+                    let ix = max(0, x - radius), iy = max(0, y - radius)
+                    let iw = min(width, x + w + radius) - ix, ih = min(height, y + h + radius) - iy
+                    let data = quantizationCrop(values, width: width, x: ix, y: iy, w: iw, h: ih)
+                    let tile = try makeRGBA16FloatTexture(width: iw, height: ih, pixels: data)
+                    let filter = QuantizationRegionFilter(base: base, origin: SIMD2<Float>(Float(ix), Float(iy)), logicalSize: SIMD2<Float>(Float(width), Float(height)))
+                    let io = try rgba16FloatPixels(in: HarbethIO(element: tile, filter: filter).renderTexture(profile: .exportQuality))
+                    let node = try ImageNode.texture(tile).applying(filter).makeFrame(profile: .exportQuality)
+                    let expected = quantizationCrop(full.map(Float16.init), width: width, x: x, y: y, w: w, h: h)
+                    XCTAssertEqual(quantizationCrop(io.map(Float16.init), width: iw, x: x - ix, y: y - iy, w: w, h: h), expected)
+                    XCTAssertEqual(quantizationCrop(try rgba16FloatPixels(in: node.texture).map(Float16.init), width: iw, x: x - ix, y: y - iy, w: w, h: h), expected)
+                }
+            }
+        }
+    }
+
+    func testOrderedDitherTransparentCellsRejectHiddenRGB() throws {
+        let pixels = (0..<(9 * 7)).flatMap { _ in [Float16(0.75), Float16(0.25), Float16(0.5), Float16.zero] }
+        let source = try makeRGBA16FloatTexture(width: 9, height: 7, pixels: pixels)
+        for size in [3, 32] {
+            let filter = C7OrderedDither(levels: 3, pixelSize: size, pattern: .ordered8x8)
+            let output = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
+            XCTAssertEqual(output, [Float](repeating: 0, count: pixels.count))
+        }
+    }
+
+    private func orderedDitherFixture(width: Int, height: Int) -> [Float16] {
+        (0..<(width * height)).flatMap { index -> [Float16] in
+            let x = index % width, y = index / width
+            let alpha: Float = (x + y) % 7 == 0 ? 0 : Float((x + y) % 3 + 1) / 4
+            return [Float16(Float(x % 8) / 8 * alpha), Float16(Float(y % 8) / 8 * alpha), Float16(0.5 * alpha), Float16(alpha)]
+        }
+    }
+
     private func quantizationFixture(width: Int, height: Int) -> [Float16] {
         (0..<(width * height)).flatMap { index -> [Float16] in
             let x = index % width, y = index / width
@@ -917,7 +1006,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
 
 /// 区域绑定同时提供原始因子，避免显式绑定覆盖默认 factors。
 private struct QuantizationRegionFilter: C7FilterProtocol {
-    let base: C7OutputQuantization
+    let base: any C7FilterProtocol
     let origin: SIMD2<Float>
     let logicalSize: SIMD2<Float>
 

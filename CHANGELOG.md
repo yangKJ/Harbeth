@@ -12,6 +12,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
+- OrderedDither 支持每通道2…256色阶、1…32像素单元与确定性图案；单元颜色按Alpha加权平均，保持逐像素透明度，并声明有界邻域和唯一写入归属。
 - OutputQuantization 增加 2×2、8×8 有序抖动图案；完整坐标、Alpha 与确定性回放合同共用现有入口，原 4×4 默认值与因子布局保持不变。
 
 #### Fixed

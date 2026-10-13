@@ -536,6 +536,18 @@ public enum ImageDitherPattern: String, Sendable, Codable, Equatable, Hashable {
     case ordered8x8
 }
 
+extension ImageDitherPattern {
+    var factorValue: Float {
+        switch self {
+        case .none: return 0
+        case .ordered4x4: return 1
+        case .interleavedGradient: return 2
+        case .ordered2x2: return 3
+        case .ordered8x8: return 4
+        }
+    }
+}
+
 /// 最终输出量化合同。
 ///
 /// 抖动只发生在颜色转换和 tone mapping 之后、整数像素格式转换之前，
