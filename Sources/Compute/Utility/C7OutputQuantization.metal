@@ -19,8 +19,8 @@ static inline float c7OrderedDither4x4(uint2 position) {
     return (values[index] + 0.5f) / 16.0f - 0.5f;
 }
 
-static inline float c7InterleavedGradientNoise(uint2 position, float seed) {
-    const float2 value = float2(position) + float2(seed, seed * 0.754877666f);
+static inline float c7InterleavedGradientNoise(float2 position, float seed) {
+    const float2 value = position + float2(seed, seed * 0.754877666f);
     return fract(52.9829189f * fract(dot(value, float2(0.06711056f, 0.00583715f)))) - 0.5f;
 }
 
@@ -30,6 +30,7 @@ kernel void C7OutputQuantization(texture2d<half, access::write> outputTexture [[
                                  constant float *patternPointer [[buffer(1)]],
                                  constant float *strengthPointer [[buffer(2)]],
                                  constant float *seedPointer [[buffer(3)]],
+                                 constant float4 *harbethRegionContext [[buffer(30)]],
                                  uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
@@ -40,11 +41,12 @@ kernel void C7OutputQuantization(texture2d<half, access::write> outputTexture [[
     const float levels = exp2(bitDepth) - 1.0f;
     const uint pattern = uint(round(*patternPointer));
     const float strength = clamp(*strengthPointer, 0.0f, 1.0f);
+    const int2 globalPixel = int2(floor(float2(grid) + harbethRegionContext->xy));
     float noise = 0.0f;
     if (pattern == 1u) {
-        noise = c7OrderedDither4x4(grid);
+        noise = c7OrderedDither4x4(uint2(globalPixel));
     } else if (pattern == 2u) {
-        noise = c7InterleavedGradientNoise(grid, *seedPointer);
+        noise = c7InterleavedGradientNoise(float2(globalPixel), *seedPointer);
     }
 
     float4 output = input;

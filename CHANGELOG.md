@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-14
+
+#### Fixed
+
+- OutputQuantization 按完整输入坐标生成有序与交错梯度抖动，区域输出不再从局部原点重置图案；整帧原点、量化因子与 Alpha 保持原有语义。
+
 ### 2026-10-13
 
 #### Added

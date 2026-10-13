@@ -721,6 +721,73 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(try rgba8Pixels(in: output), [102, 102, 102, 123])
     }
 
+    func testOutputQuantizationRegionsMatchFullFrameThroughBothEntries() throws {
+        let width = 37, height = 29
+        let values = quantizationFixture(width: width, height: height)
+        let source = try makeRGBA16FloatTexture(width: width, height: height, pixels: values)
+        for pattern in [ImageDitherPattern.none, .ordered4x4, .interleavedGradient] {
+            let base = C7OutputQuantization(bitDepth: 3, pattern: pattern, seed: 71)
+            let full = try rgba16FloatPixels(in: HarbethIO(element: source, filter: base).renderTexture(profile: .exportQuality))
+            for region in [(5, 7, 17, 11), (2, 3, 15, 13), (16, 12, 21, 17)] {
+                let (x, y, w, h) = region
+                let input = quantizationCrop(values, width: width, x: x, y: y, w: w, h: h)
+                let tile = try makeRGBA16FloatTexture(width: w, height: h, pixels: input)
+                let filter = QuantizationRegionFilter(base: base, origin: SIMD2<Float>(Float(x), Float(y)), logicalSize: SIMD2<Float>(Float(width), Float(height)))
+                let expected = quantizationCrop(full.map(Float16.init), width: width, x: x, y: y, w: w, h: h).map(Float.init)
+                let io = try HarbethIO(element: tile, filter: filter).renderTexture(profile: .exportQuality)
+                let node = try ImageNode.texture(tile).applying(filter).makeFrame(profile: .exportQuality)
+                XCTAssertEqual(try rgba16FloatPixels(in: io), expected, "区域输出必须使用全图坐标")
+                XCTAssertEqual(try rgba16FloatPixels(in: node.texture), expected)
+            }
+        }
+    }
+
+    func testOutputQuantizationPatternsPreserveEveryAlphaPixel() throws {
+        let width = 7, height = 5
+        let values = quantizationFixture(width: width, height: height)
+        let source = try makeRGBA16FloatTexture(width: width, height: height, pixels: values)
+        for pattern in [ImageDitherPattern.none, .ordered4x4, .interleavedGradient] {
+            let filter = C7OutputQuantization(bitDepth: 2, pattern: pattern, seed: 41)
+            let output = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
+            for index in stride(from: 3, to: values.count, by: 4) {
+                XCTAssertEqual(output[index], Float(values[index]))
+            }
+        }
+    }
+
+    func testOutputQuantizationZeroStrengthIgnoresPatternSeedAndRegionOrigin() throws {
+        let values = quantizationFixture(width: 7, height: 5)
+        let source = try makeRGBA16FloatTexture(width: 7, height: 5, pixels: values)
+        let expected = try rgba16FloatPixels(in: HarbethIO(element: source, filter: C7OutputQuantization(bitDepth: 4, pattern: .none)).renderTexture(profile: .exportQuality))
+        for pattern in [ImageDitherPattern.ordered4x4, .interleavedGradient] {
+            for seed: UInt32 in [0, 71] {
+                let filter = QuantizationRegionFilter(base: C7OutputQuantization(bitDepth: 4, pattern: pattern, strength: 0, seed: seed), origin: SIMD2<Float>(13, 9), logicalSize: SIMD2<Float>(37, 29))
+                XCTAssertEqual(try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)), expected)
+            }
+        }
+    }
+
+    func testOutputQuantizationRegionSeedReplayIsDeterministic() throws {
+        let source = try makeRGBA16FloatTexture(width: 7, height: 5, pixels: quantizationFixture(width: 7, height: 5))
+        for pattern in [ImageDitherPattern.ordered4x4, .interleavedGradient] {
+            let filter = QuantizationRegionFilter(base: C7OutputQuantization(bitDepth: 3, pattern: pattern, seed: 71), origin: SIMD2<Float>(5, 7), logicalSize: SIMD2<Float>(37, 29))
+            let first = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
+            let second = try rgba16FloatPixels(in: HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality))
+            XCTAssertEqual(first, second)
+        }
+    }
+
+    private func quantizationFixture(width: Int, height: Int) -> [Float16] {
+        (0..<(width * height)).flatMap { index -> [Float16] in
+            let x = index % width, y = index / width
+            return [Float16(Float(x % 13) / 12), Float16(Float(y % 9) / 8), Float16(0.5), Float16(Float((x + y) % 5) / 4)]
+        }
+    }
+
+    private func quantizationCrop(_ pixels: [Float16], width: Int, x: Int, y: Int, w: Int, h: Int) -> [Float16] {
+        (y..<(y + h)).flatMap { row in Array(pixels[(row * width + x) * 4..<(row * width + x + w) * 4]) }
+    }
+
     private func makeRGBA8Texture(width: Int, height: Int = 1, pixels: [UInt8]) throws -> MTLTexture {
         guard pixels.count == width * height * 4 else {
             throw HarbethError.filterParameterInvalid("RGBA8 dimensions do not match the pixel count.")
@@ -787,15 +854,34 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         guard texture.pixelFormat == .rgba16Float else {
             throw HarbethError.filterParameterInvalid("Expected an RGBA16Float output.")
         }
-        var values = Array(repeating: Float16.zero, count: texture.width * 4)
+        var values = Array(repeating: Float16.zero, count: texture.width * texture.height * 4)
         values.withUnsafeMutableBytes { bytes in
             texture.getBytes(
                 bytes.baseAddress!,
                 bytesPerRow: texture.width * 8,
-                from: MTLRegionMake2D(0, 0, texture.width, 1),
+                from: MTLRegionMake2D(0, 0, texture.width, texture.height),
                 mipmapLevel: 0
             )
         }
         return values.map(Float.init)
+    }
+}
+
+/// 区域绑定同时提供原始因子，避免显式绑定覆盖默认 factors。
+private struct QuantizationRegionFilter: C7FilterProtocol {
+    let base: C7OutputQuantization
+    let origin: SIMD2<Float>
+    let logicalSize: SIMD2<Float>
+
+    var modifier: ModifierEnum { base.modifier }
+    var memoryAccessPattern: MemoryAccessPattern { base.memoryAccessPattern }
+    var kernelPixelContract: KernelPixelContract { base.kernelPixelContract }
+    var kernelParameterBindings: [KernelParameterBinding] {
+        base.factors.enumerated().map { index, value in
+            KernelParameterBinding(name: "quantization.\(index)", index: index, stage: .compute, value: .float(value))
+        } + [
+            KernelParameterBinding(name: "regionContext", index: 30, stage: .compute,
+                value: .floatArray([origin.x, origin.y, logicalSize.x, logicalSize.y, origin.x, origin.y, logicalSize.x, logicalSize.y]))
+        ]
     }
 }
