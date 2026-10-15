@@ -1020,6 +1020,12 @@ private struct CompiledRecipeExecution {
                         [C7Blend(with: blendType, blendTexture: filteredTexture, intensity: localEffect.foregroundBlendOpacity)],
                         compiled.profile
                     )
+                } else if localEffect.foregroundBlendOpacity < 1 {
+                    effectTexture = try renderTexture(
+                        currentTexture,
+                        [C7Blend(with: .dissolve, blendTexture: filteredTexture, intensity: localEffect.foregroundBlendOpacity)],
+                        compiled.profile
+                    )
                 } else {
                     effectTexture = filteredTexture
                 }

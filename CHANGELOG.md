@@ -10,6 +10,10 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 ### 2026-10-15
 
+#### Fixed
+
+- 默认局部混合模式正确消费效果强度；预览与正式渲染中的零强度和部分强度不再被当作满强度。
+
 #### Added
 
 - MTLTexture 的 rawBytes(maximumBytes:) 提供有界、保留存储格式的读取；半浮点与 BGRA 通道顺序不再需要转为 RGBA8，复用既有 shared/private/managed 同步路径。

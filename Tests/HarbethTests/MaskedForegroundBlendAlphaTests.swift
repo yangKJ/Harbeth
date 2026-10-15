@@ -106,4 +106,25 @@ final class MaskedForegroundBlendAlphaTests: XCTestCase {
         XCTAssertEqual(fullPixel.blue, 255, accuracy: 2)
     }
 
+    func testDefaultLocalBlendConsumesZeroHalfAndFullOpacityInPreviewAndFinal() throws {
+        for alpha: UInt8 in [255, 128] {
+            let input = try MaskTestHelpers.makeSolidTexture(red: 120, green: 80, blue: 40, alpha: alpha)
+            let mask = try MaskTestHelpers.makeMaskTexture(value: 255)
+            for mode in [EditRecipeMode.preview, .final] {
+                for amount: Float in [0, 0.5, 1] {
+                    let recipe = EditRecipe(localEffects: [LocalEffectRecipe(
+                        filters: [C7ColorRGBA(color: C7Color(hex: 0x000000, alpha: 1), intensity: 1)],
+                        mask: MaskDescriptor(texture: mask), foregroundBlendOpacity: amount
+                    )])
+                    let output = try recipe.makeNode(source: .texture(input), mode: mode).makeTexture()
+                    let pixel = try MaskTestHelpers.firstPixel(in: output)
+                    XCTAssertEqual(pixel.red, UInt8((120 * (1 - amount)).rounded()), accuracy: 1)
+                    XCTAssertEqual(pixel.green, UInt8((80 * (1 - amount)).rounded()), accuracy: 1)
+                    XCTAssertEqual(pixel.blue, UInt8((40 * (1 - amount)).rounded()), accuracy: 1)
+                    XCTAssertEqual(pixel.alpha, alpha)
+                }
+            }
+        }
+    }
+
 }
