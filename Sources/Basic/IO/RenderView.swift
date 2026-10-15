@@ -246,18 +246,21 @@ open class RenderView: MTKView {
         commonInit()
     }
 
-    isolated deinit {
-        stopObservingPreviewHostLifecycle()
-        previewHostExecutionReport = PreviewHostExecutionReport.inactive(
-            predictedStrategy: resolvedPredictedPreviewHostStrategy()
-        )
-        publishPreviewHostExecutionReport(deliverCallbacks: false)
-        publishPreviewHostFleetSnapshot(
-            PreviewHostFleetRegistry.unregister(instanceID: previewHostInstanceIdentifier),
-            deliverCallbacks: false
-        )
-        clearPreviewHostRuntimeSummary(for: currentRenderedFrame)
-        deactivateSampleBufferPreviewHost()
+    nonisolated deinit {
+        // 原生 UI 生命周期在主线程清理，避免隔离析构的 executor 跳转破坏 TaskLocal 释放。
+        MainActor.assumeIsolated {
+            stopObservingPreviewHostLifecycle()
+            previewHostExecutionReport = PreviewHostExecutionReport.inactive(
+                predictedStrategy: resolvedPredictedPreviewHostStrategy()
+            )
+            publishPreviewHostExecutionReport(deliverCallbacks: false)
+            publishPreviewHostFleetSnapshot(
+                PreviewHostFleetRegistry.unregister(instanceID: previewHostInstanceIdentifier),
+                deliverCallbacks: false
+            )
+            clearPreviewHostRuntimeSummary(for: currentRenderedFrame)
+            deactivateSampleBufferPreviewHost()
+        }
     }
 
     private func commonInit() {

@@ -12,6 +12,22 @@ import XCTest
 
 final class PreviewDynamicRangeTests: XCTestCase {
     @MainActor
+    func testRenderViewCanDeallocateInsideTaskLocalScope() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        RenderViewDeinitTaskLocal.$marker.withValue(1) {
+            for _ in 0..<4 {
+                weak var releasedView: RenderView?
+                autoreleasepool {
+                    let view = RenderView(frame: .zero, device: device)
+                    releasedView = view
+                    XCTAssertEqual(RenderViewDeinitTaskLocal.marker, 1)
+                }
+                XCTAssertNil(releasedView)
+            }
+        }
+    }
+
+    @MainActor
     func testAutomaticPolicyEnablesExtendedPresentationForExtendedFrame() {
         let state = RenderView.resolvePreviewDisplayState(
             policy: .automatic,
@@ -138,4 +154,8 @@ final class PreviewDynamicRangeTests: XCTestCase {
             ImageColorSpaceContract.extendedLinearDisplayP3.cgColorSpace?.name
         )
     }
+}
+
+private enum RenderViewDeinitTaskLocal {
+    @TaskLocal static var marker = 0
 }
