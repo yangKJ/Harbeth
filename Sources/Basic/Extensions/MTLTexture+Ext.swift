@@ -346,6 +346,25 @@ public struct MTLTextureCompatible_ {
         }
     }
     
+    /// 按纹理存储格式读取紧密排列的原始字节，保留半浮点精度与通道顺序。
+    /// maximumBytes 约束返回的 Data；private/managed 读取还会使用同量级 staging，由调用方计入总预算。
+    /// 仅接受单层二维非多重采样纹理，调用方需先完成已有的 GPU 写入。
+    public func rawBytes(maximumBytes: Int) -> Data? {
+        guard maximumBytes > 0, target.textureType == .type2D, target.storageMode != .memoryless,
+              target.arrayLength == 1, target.sampleCount == 1,
+              target.width > 0, target.height > 0,
+              let stride = readbackBytesPerPixel else { return nil }
+        let (rowBytes, rowOverflow) = target.width.multipliedReportingOverflow(by: stride)
+        let (byteCount, countOverflow) = rowBytes.multipliedReportingOverflow(by: target.height)
+        guard !rowOverflow, !countOverflow, byteCount > 0, byteCount <= maximumBytes else { return nil }
+        var data = Data(count: byteCount)
+        let copied = data.withUnsafeMutableBytes { buffer in
+            guard let pointer = buffer.baseAddress else { return false }
+            return copyBytes(to: pointer, bytesPerRow: rowBytes)
+        }
+        return copied ? data : nil
+    }
+
     /// Returns raw pixel data as `Data`. Always returns 4-channel RGBA8 for color formats.
     /// ⚠️ This triggers a GPU → CPU transfer. Use sparingly!
     public func bytes() -> Data? {

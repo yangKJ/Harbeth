@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-15
+
+#### Added
+
+- MTLTexture 的 rawBytes(maximumBytes:) 提供有界、保留存储格式的读取；半浮点与 BGRA 通道顺序不再需要转为 RGBA8，复用既有 shared/private/managed 同步路径。
+
 ### 2026-10-14
 
 #### Added

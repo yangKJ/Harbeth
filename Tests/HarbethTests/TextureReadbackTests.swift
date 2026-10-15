@@ -6,6 +6,51 @@ import CoreVideo
 
 final class TextureReadbackTests: XCTestCase {
 
+    func testBoundedRawReadbackPreservesHalfFloatStorageAndRejectsInsufficientBudget() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: 2, height: 1, mipmapped: false)
+        descriptor.storageMode = .shared
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let values: [Float16] = [2, 0.5, -0.25, .leastNonzeroMagnitude, 0, 0, 0, 0]
+        let expected = values.withUnsafeBytes { Data($0) }
+        expected.withUnsafeBytes { bytes in
+            texture.replace(region: MTLRegionMake2D(0, 0, 2, 1), mipmapLevel: 0, withBytes: bytes.baseAddress!, bytesPerRow: 16)
+        }
+        XCTAssertEqual(texture.c7.rawBytes(maximumBytes: 16), expected)
+        XCTAssertNil(texture.c7.rawBytes(maximumBytes: 15))
+        XCTAssertNil(texture.c7.rawBytes(maximumBytes: 0))
+        XCTAssertNil(texture.c7.rawBytes(maximumBytes: -1))
+        descriptor.storageMode = .private
+        let privateTexture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let queue = try XCTUnwrap(device.makeCommandQueue())
+        let command = try XCTUnwrap(queue.makeCommandBuffer())
+        let blit = try XCTUnwrap(command.makeBlitCommandEncoder())
+        blit.copy(from: texture, sourceSlice: 0, sourceLevel: 0, sourceOrigin: .init(x: 0, y: 0, z: 0),
+            sourceSize: .init(width: 2, height: 1, depth: 1), to: privateTexture,
+            destinationSlice: 0, destinationLevel: 0, destinationOrigin: .init(x: 0, y: 0, z: 0))
+        blit.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+        if let error = command.error { throw error }
+        XCTAssertEqual(privateTexture.c7.rawBytes(maximumBytes: 16), expected)
+    }
+
+    func testRawReadbackKeepsBGRAOrderAndRejectsUnsupportedFormats() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: 1, height: 1, mipmapped: false)
+        descriptor.storageMode = .shared
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let bytes: [UInt8] = [11, 22, 33, 44]
+        bytes.withUnsafeBytes { data in
+            texture.replace(region: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0, withBytes: data.baseAddress!, bytesPerRow: 4)
+        }
+        XCTAssertEqual(texture.c7.rawBytes(maximumBytes: 4), Data(bytes))
+        XCTAssertEqual(texture.c7.bytes(), Data([33, 22, 11, 44]))
+        descriptor.pixelFormat = .r32Uint
+        let unsupported = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        XCTAssertNil(unsupported.c7.rawBytes(maximumBytes: 4))
+    }
+
     func testTransparentHalfFloatFallbackDoesNotBlendWithUninitializedMemory() throws {
         for space in [CGColorSpace.sRGB, CGColorSpace.displayP3, CGColorSpace.extendedLinearDisplayP3] {
             for alpha: Float16 in [0, 0.5, 1] {
