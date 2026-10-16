@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-16
+
+#### Fixed
+
+- RenderView 补齐 Mac Catalyst/macOS 原生应用激活与主窗口通知的保留帧失效请求；延后至主队列重新核对纹理，保留帧身份、色彩与宿主暂停策略。
+
 ### 2026-10-15
 
 #### Fixed

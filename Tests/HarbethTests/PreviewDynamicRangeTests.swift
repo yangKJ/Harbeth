@@ -8,9 +8,87 @@
 import Metal
 import QuartzCore
 import XCTest
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 @testable import Harbeth
 
 final class PreviewDynamicRangeTests: XCTestCase {
+    #if targetEnvironment(macCatalyst) || canImport(AppKit)
+    @MainActor
+    func testDesktopActivationRequestsRedrawWithoutReplacingRetainedFrame() async throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba16Float,
+            width: 2,
+            height: 2,
+            mipmapped: false
+        )
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let frame = RenderedFrame(
+            texture: texture,
+            outputColorSpaceContract: .extendedLinearDisplayP3,
+            profile: .stablePreview,
+            generation: 1,
+            identifier: "desktop-retained-frame"
+        )
+        let view = RedrawTrackingRenderView(frame: .zero, device: device)
+        view.display(frame)
+        let displayState = view.currentPreviewDisplayState
+        let baseline = view.invalidationCount
+        for (index, notification) in desktopActivationNotifications.enumerated() {
+            NotificationCenter.default.post(name: notification.name, object: notification.sender)
+            XCTAssertEqual(view.invalidationCount, baseline + index)
+            await waitForMainQueue()
+
+            XCTAssertEqual(view.invalidationCount, baseline + index + 1)
+            XCTAssertEqual(view.currentRenderedFrame?.token, frame.token)
+            XCTAssertTrue(view.currentRenderedFrame?.texture === texture)
+            XCTAssertEqual(view.currentPreviewDisplayState, displayState)
+            XCTAssertTrue(view.isPaused)
+            XCTAssertTrue(view.enableSetNeedsDisplay)
+        }
+    }
+
+    @MainActor
+    func testDesktopActivationDoesNotInvalidateEmptyPreview() async throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let view = RedrawTrackingRenderView(frame: .zero, device: device)
+        let baseline = view.invalidationCount
+
+        for notification in desktopActivationNotifications {
+            NotificationCenter.default.post(name: notification.name, object: notification.sender)
+        }
+
+        await waitForMainQueue()
+        XCTAssertEqual(view.invalidationCount, baseline)
+        XCTAssertNil(view.currentRenderedFrame)
+    }
+
+    @MainActor
+    private func waitForMainQueue() async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+    }
+
+    @MainActor
+    private var desktopActivationNotifications: [(name: Notification.Name, sender: AnyObject)] {
+        #if canImport(UIKit)
+        // Catalyst 不能构造 NSWindow；主窗口通知由 AppKit 回归与消费者真实窗口验收覆盖。
+        return [(Notification.Name("NSApplicationDidBecomeActiveNotification"), UIApplication.shared)]
+        #else
+        let window = NSWindow(contentRect: .zero, styleMask: [], backing: .buffered, defer: true)
+        return [
+            (NSApplication.didBecomeActiveNotification, NSApplication.shared),
+            (NSWindow.didBecomeKeyNotification, window),
+        ]
+        #endif
+    }
+    #endif
+
     @MainActor
     func testRenderViewCanDeallocateInsideTaskLocalScope() throws {
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
@@ -159,3 +237,22 @@ final class PreviewDynamicRangeTests: XCTestCase {
 private enum RenderViewDeinitTaskLocal {
     @TaskLocal static var marker = 0
 }
+
+#if targetEnvironment(macCatalyst) || canImport(AppKit)
+@MainActor
+private final class RedrawTrackingRenderView: RenderView {
+    private(set) var invalidationCount = 0
+
+    #if canImport(UIKit)
+    override func setNeedsDisplay() {
+        invalidationCount += 1
+        super.setNeedsDisplay()
+    }
+    #else
+    override func setNeedsDisplay(_ rect: CGRect) {
+        invalidationCount += 1
+        super.setNeedsDisplay(rect)
+    }
+    #endif
+}
+#endif

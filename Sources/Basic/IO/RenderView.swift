@@ -942,6 +942,24 @@ private extension RenderView {
             },
         ]
         #endif
+
+        #if targetEnvironment(macCatalyst) || canImport(AppKit)
+        // Catalyst 置前窗口时可能只发送 AppKit 通知，暂停的 Metal 宿主仍需重绘已保留的帧。
+        let desktopActivationNames = [
+            Notification.Name("NSApplicationDidBecomeActiveNotification"),
+            Notification.Name("NSWindowDidBecomeKeyNotification"),
+        ]
+        for name in desktopActivationNames {
+            let observer = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                // 避开原生激活通知的同步回调，延后消费窗口调整后的保留帧。
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.texture != nil else { return }
+                    self.invalidateDisplay()
+                }
+            }
+            previewHostNotificationObservers.append(observer)
+        }
+        #endif
     }
 
     func stopObservingPreviewHostLifecycle() {
