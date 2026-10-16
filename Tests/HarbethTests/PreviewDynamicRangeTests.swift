@@ -38,7 +38,7 @@ final class PreviewDynamicRangeTests: XCTestCase {
         view.display(frame)
         let displayState = view.currentPreviewDisplayState
         let baseline = view.invalidationCount
-        for (index, notification) in desktopActivationNotifications.enumerated() {
+        for (index, notification) in desktopPresentationNotifications.enumerated() {
             NotificationCenter.default.post(name: notification.name, object: notification.sender)
             XCTAssertEqual(view.invalidationCount, baseline + index)
             await waitForMainQueue()
@@ -58,7 +58,7 @@ final class PreviewDynamicRangeTests: XCTestCase {
         let view = RedrawTrackingRenderView(frame: .zero, device: device)
         let baseline = view.invalidationCount
 
-        for notification in desktopActivationNotifications {
+        for notification in desktopPresentationNotifications {
             NotificationCenter.default.post(name: notification.name, object: notification.sender)
         }
 
@@ -75,15 +75,16 @@ final class PreviewDynamicRangeTests: XCTestCase {
     }
 
     @MainActor
-    private var desktopActivationNotifications: [(name: Notification.Name, sender: AnyObject)] {
+    private var desktopPresentationNotifications: [(name: Notification.Name, sender: AnyObject)] {
         #if canImport(UIKit)
-        // Catalyst 不能构造 NSWindow；主窗口通知由 AppKit 回归与消费者真实窗口验收覆盖。
+        // Catalyst 不能构造 NSWindow；主窗口和遮挡通知由 AppKit 回归与消费者真实窗口验收覆盖。
         return [(Notification.Name("NSApplicationDidBecomeActiveNotification"), UIApplication.shared)]
         #else
         let window = NSWindow(contentRect: .zero, styleMask: [], backing: .buffered, defer: true)
         return [
             (NSApplication.didBecomeActiveNotification, NSApplication.shared),
             (NSWindow.didBecomeKeyNotification, window),
+            (NSWindow.didChangeOcclusionStateNotification, window),
         ]
         #endif
     }
