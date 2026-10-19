@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-20
+
+#### Fixed
+
+- SwiftPM 的 Metal 资源发现使用只读目录遍历，避免清单求值依赖 CoreServices 目录属性查询；保留相对路径、排序与不跟随目录符号链接的行为。
+
 ### 2026-10-16
 
 #### Fixed
