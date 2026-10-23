@@ -48,7 +48,8 @@ public struct C7HighlightShadowTone: C7FilterPipelineProtocol {
             precision: .float16,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .neighborhood(
-                radius: MPSGaussianBlur.conservativeHaloRadius(for: radius)
+                // 非线性影调会放大模糊参考的截断误差，使用 6σ 保护分块量化结果。
+                radius: Int(ceil(radius)) * 6
             )
         )
     }
