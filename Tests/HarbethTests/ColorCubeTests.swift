@@ -279,3 +279,117 @@ final class ColorCubeTests: XCTestCase {
         append(value.bitPattern, to: &data)
     }
 }
+
+private struct CubeReplacementTestProvider: ColorCubeReplacementProvider {
+    var providerIdentifier: String { "tests.cube-replacement.v1" }
+    func replacement(resourceName: String, resourceOwner: String) -> ColorCubeReplacement? {
+        guard resourceOwner == "tests.cube-replacement", resourceName == "invert-v1" else { return nil }
+        return ColorCubeReplacement(identifier: "invert", version: 1, filters: [
+            C7ColorMatrix4x5(matrix: Matrix4x5(values: [
+                -1, 0, 0, 0, 1,
+                0, -1, 0, 0, 1,
+                0, 0, -1, 0, 1,
+                0, 0, 0, 1, 0
+            ]))
+        ])
+    }
+}
+
+extension ColorCubeTests {
+    func testNamedReplacementPreservesIdentityIntensityAndAlphaWithoutLUT() throws {
+        HarbethContext.shared.registerColorCubeReplacementProvider(CubeReplacementTestProvider())
+        let input = try makeTexture(pixel: [32, 64, 96, 128])
+        let cube = C7ColorCube(cubeName: "invert-v1", forResource: "tests.cube-replacement", intensity: 0.5)
+        XCTAssertTrue(cube.usesAtomReplacement)
+        XCTAssertEqual(cube.resourceName, "invert-v1")
+        XCTAssertEqual(cube.resourceBundleName, "tests.cube-replacement")
+        XCTAssertTrue(cube.otherInputTextures.isEmpty)
+        XCTAssertNil(cube.resourceLoadError)
+        let output = try HarbethIO(element: input, filter: cube).output()
+        let bytes = try XCTUnwrap(output.c7.bytes())
+        for channel in 0..<3 { XCTAssertLessThanOrEqual(abs(Int(bytes[channel]) - 128), 1) }
+        XCTAssertEqual(bytes[3], 128)
+        let zero = try HarbethIO(element: input, filter: cube.updateIntensity(0)).output()
+        XCTAssertEqual(try zero.c7.bytes(), try input.c7.bytes())
+        XCTAssertNotEqual(cube.recipeDescriptor.fingerprint, cube.updateIntensity(1).recipeDescriptor.fingerprint)
+    }
+
+    func testReplacementPreservesExtendedDomainPolicyAcrossBothSamplers() throws {
+        HarbethContext.shared.registerColorCubeReplacementProvider(CubeReplacementTestProvider())
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: 1, height: 1, mipmapped: false)
+        descriptor.storageMode = .shared
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        let input = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let original: [Float16] = [-0.25, 1.25, 0.5, 0.5]
+        original.withUnsafeBytes { input.replace(region: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0,
+            withBytes: $0.baseAddress!, bytesPerRow: 8) }
+        for sampler in [C7ColorCube.Interpolation.trilinear, .tetrahedral] {
+            let cube = C7ColorCube(cubeName: "invert-v1", forResource: "tests.cube-replacement", interpolation: sampler)
+            let output = try HarbethIO(element: input, filter: cube.updateDomainPolicy(.preserveOutsideDomain)).output()
+            var actual = [Float16](repeating: 0, count: 4)
+            actual.withUnsafeMutableBytes { output.getBytes($0.baseAddress!, bytesPerRow: 8,
+                from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0) }
+            XCTAssertEqual(actual, original)
+            let clamped = try HarbethIO(element: input, filter: cube).output()
+            actual.withUnsafeMutableBytes { clamped.getBytes($0.baseAddress!, bytesPerRow: 8,
+                from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0) }
+            XCTAssertEqual(actual, [1, 0, 0.5, 0.5])
+        }
+    }
+
+    func testOriginalLookupAndReplacementAgreeAcrossImageNodeAndIO() throws {
+        HarbethContext.shared.registerColorCubeReplacementProvider(CubeReplacementTestProvider())
+        let resource = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
+        let original = C7ColorCube(cubeResource: resource)
+        XCTAssertEqual(original.kernelDescriptor().resources.inputTextureCount, 2)
+        let input = try makeTexture(pixel: [32, 64, 96, 128])
+        let atom = C7ColorCube(cubeName: "invert-v1", forResource: "tests.cube-replacement", intensity: 0.5)
+        for cube in [original, atom] {
+            let direct = try HarbethIO(element: input, filter: cube).output()
+            let node = try ImageNode.texture(input).applying(cube).makeTexture()
+            XCTAssertEqual(try direct.c7.bytes(), try node.c7.bytes())
+        }
+    }
+
+    func testFusedCurveMatrixCurveMatchesHalfFloatPipeline() throws {
+        let first = C7Curves(redPoints: [.init(x: 0, y: 0.02), .init(x: 0.5, y: 0.48), .init(x: 1, y: 0.98)],
+            interpolation: .linear, compositionOrder: .channelsThenRGB)
+        let matrix = C7ColorMatrix4x5(matrix: Matrix4x5(values: [
+            0.95, 0.04, 0.01, 0, 0.01,
+            0.02, 0.97, 0.01, 0, 0,
+            0.01, 0.04, 0.95, 0, -0.005,
+            0, 0, 0, 1, 0
+        ]))
+        let last = C7Curves(interpolation: .linear, compositionOrder: .channelsThenRGB)
+        let filters: [C7FilterProtocol] = [first, matrix, last]
+        let input = try makeTexture(pixel: [32, 64, 96, 128])
+        for amount: Float in [0, 0.3, 1] {
+            var fused = try XCTUnwrap(ColorCubeFusedAtoms(filters: filters))
+            fused.intensity = amount
+            let normal = CubeUnfusedTestPipeline(filters: filters, amount: amount)
+            let expected = try XCTUnwrap(try HarbethIO(element: input, filter: normal).output().c7.bytes())
+            let actual = try XCTUnwrap(try HarbethIO(element: input, filter: fused).output().c7.bytes())
+            XCTAssertEqual(actual[3], expected[3])
+            for i in 0..<3 { XCTAssertLessThanOrEqual(abs(Int(actual[i]) - Int(expected[i])), 1) }
+        }
+    }
+
+    func testReplacementRegistrationAndUnknownNameKeepOriginalResourcePath() {
+        let context = HarbethContext.shared
+        context.registerColorCubeReplacementProvider(CubeReplacementTestProvider())
+        XCTAssertFalse(context.registerColorCubeReplacementProvider(CubeReplacementTestProvider()))
+        XCTAssertFalse(C7ColorCube(cubeName: "unknown", forResource: "tests.cube-replacement").usesAtomReplacement)
+        XCTAssertFalse(C7ColorCube(cubeResource: nil).usesAtomReplacement)
+        XCTAssertNil(ColorCubeReplacement(identifier: "invalid", version: 1, filters: [C7GaussianBlur()]))
+    }
+}
+
+private struct CubeUnfusedTestPipeline: C7FilterPipelineProtocol {
+    let filters: [C7FilterProtocol]
+    let amount: Float
+    var pipelineFilters: [C7FilterProtocol] { [ColorCubeReplacementPrepare()] + filters }
+    func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
+        ColorCubeReplacementMix(intensity: amount, domainPolicy: .clampToDomain, inputs: otherInputTextures ?? [])
+    }
+}

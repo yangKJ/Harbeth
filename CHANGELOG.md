@@ -8,6 +8,13 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-23
+
+#### Added
+
+- 命名 CUBE 支持通过 ColorCubeReplacementProvider 注册版本化逐像素原子替代链；保留 C7ColorCube 类型、资源名称、强度及原生 LUT 回退，具体风格与准入由资源 owner 持有。
+- 可融合的线性曲线—矩阵—曲线使用单次 GPU 执行，其余替代链使用半浮点中间纹理；两条路径均在末尾混合一次，保留原始 alpha、零强度及超域策略；HarbethIO 与 ImageNode 共用现有管线执行。
+
 ### 2026-10-20
 
 #### Fixed

@@ -18,6 +18,7 @@ public final class HarbethContext: @unchecked Sendable {
 
     public static let shared = HarbethContext()
 
+    let colorCubeReplacements = ColorCubeReplacementRegistry()
     let runtimeDevice: Device
     let derivedResourceStore: DerivedResourceStore
     let performanceMonitor = PerformanceMonitor(enabled: false)
@@ -212,6 +213,12 @@ public final class HarbethContext: @unchecked Sendable {
 
     public var externalLibraryProviderIdentifiers: [String] {
         runtimeDevice.externalLibraryProviderIdentifiers()
+    }
+
+    /// 注册命名 CUBE 的已准入颜色链；同一 provider 只接收一次，已有实例保持冻结。
+    @discardableResult
+    public func registerColorCubeReplacementProvider(_ provider: any ColorCubeReplacementProvider) -> Bool {
+        colorCubeReplacements.register(provider)
     }
 
     @discardableResult
