@@ -17,13 +17,27 @@ public struct C7Vignette: C7FilterProtocol {
     public var center: C7Point2D = C7Point2D.center
     /// Keep the color scheme
     public var color: C7Color = .zero
+    /// 按短边归一化像素距离，保持不同宽高比画布中的圆形轮廓；默认保留旧归一化坐标。
+    public var usesPixelAspect: Bool = false
     
     public var modifier: ModifierEnum {
-        return .compute(kernel: "C7Vignette")
+        return .compute(kernel: usesPixelAspect ? "C7VignettePixelAspect" : "C7Vignette")
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
+    }
+
+    public var kernelPixelContract: KernelPixelContract {
+        if !usesPixelAspect {
+            return .conservative(samplingFootprint: .point)
+        }
+        return KernelPixelContract(
+            samplingFootprint: .point,
+            coordinateDependency: .absoluteInput,
+            globalDependency: .imageDimensions,
+            fusionPolicy: .disabled
+        )
     }
 
     public var kernelParameterBindings: [KernelParameterBinding] {

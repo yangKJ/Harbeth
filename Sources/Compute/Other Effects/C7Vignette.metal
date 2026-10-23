@@ -29,3 +29,26 @@ kernel void C7Vignette(texture2d<half, access::write> outputTexture [[texture(0)
     
     outputTexture.write(outColor, grid);
 }
+
+kernel void C7VignettePixelAspect(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                  texture2d<half, access::read> inputTexture [[texture(1)]],
+                                  constant float *centerX [[buffer(0)]],
+                                  constant float *centerY [[buffer(1)]],
+                                  constant float *start [[buffer(2)]],
+                                  constant float *end [[buffer(3)]],
+                                  constant float3 *colorVector [[buffer(4)]],
+                                  constant float4 *harbethRegionContext [[buffer(30)]],
+                                  uint2 grid [[thread_position_in_grid]]) {
+    const half4 inColor = inputTexture.read(grid);
+    const float2 globalPixel = float2(grid) + harbethRegionContext->xy;
+    const float2 logicalSize = max(harbethRegionContext->zw, float2(1.0));
+    const float2 textureCoordinate = globalPixel / logicalSize;
+
+    const half2 center = half2(*centerX, *centerY);
+    const float shortEdge = min(logicalSize.x, logicalSize.y);
+    const float dd = length((textureCoordinate - float2(center)) * logicalSize / shortEdge);
+    const half percent = smoothstep(*start, *end, dd);
+    const half4 outColor = half4(mix(inColor.rgb, half3(*colorVector), percent), inColor.a);
+
+    outputTexture.write(outColor, grid);
+}

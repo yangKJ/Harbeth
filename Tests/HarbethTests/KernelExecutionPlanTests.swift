@@ -4,6 +4,25 @@ import CoreGraphics
 
 final class KernelExecutionPlanTests: XCTestCase {
 
+    func testVignettePixelAspectIsOptInAndChangesTheParameterPlan() {
+        let legacy = C7Vignette()
+        var physical = legacy
+        physical.usesPixelAspect = true
+        let size = C7Size(width: 120, height: 200)
+
+        XCTAssertFalse(legacy.usesPixelAspect)
+        XCTAssertTrue(physical.usesPixelAspect)
+        XCTAssertEqual(physical.resize(input: size), size)
+        XCTAssertEqual(physical.memoryAccessPattern, .point)
+        XCTAssertEqual(physical.kernelPixelContract.coordinateDependency, .absoluteInput)
+        XCTAssertEqual(physical.kernelPixelContract.globalDependency, .imageDimensions)
+        XCTAssertFalse(physical.kernelPixelContract.isPointwiseFusionEligible)
+        XCTAssertNotEqual(
+            legacy.makeKernelExecutionPlan(inputSize: size).fingerprint,
+            physical.makeKernelExecutionPlan(inputSize: size).fingerprint
+        )
+    }
+
     func testComputeFilterExportsStableExecutionPlan() {
         let filter = C7Brightness(brightness: 0.2)
         let plan = filter.makeKernelExecutionPlan(inputSize: C7Size(width: 8, height: 6))

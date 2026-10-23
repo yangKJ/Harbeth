@@ -12,6 +12,8 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
+- C7Vignette 增加默认关闭的 usesPixelAspect 选项，按完整画布短边归一化像素距离，保持不同宽高比及区域渲染的圆形渐晕轮廓；默认仍使用既有归一化坐标。
+
 - 命名 CUBE 支持通过 ColorCubeReplacementProvider 注册版本化逐像素原子替代链；保留 C7ColorCube 类型、资源名称、强度及原生 LUT 回退，具体风格与准入由资源 owner 持有。
 - 可融合的线性曲线—矩阵—曲线使用单次 GPU 执行，其余替代链使用半浮点中间纹理；两条路径均在末尾混合一次，保留原始 alpha、零强度及超域策略；HarbethIO 与 ImageNode 共用现有管线执行。
 
