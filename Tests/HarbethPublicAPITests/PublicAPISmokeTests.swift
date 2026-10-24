@@ -212,6 +212,7 @@ final class PublicAPISmokeTests: XCTestCase {
         let recent: [C7FilterProtocol] = [
             C7ColorGrading(),
             C7SelectiveHSL(),
+            C7SelectiveHSL(response: .photographic),
             C7WhitesBlacks(),
             C7OutputQuantization(),
             C7Palettize(palette: [

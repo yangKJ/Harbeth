@@ -68,12 +68,7 @@ static float c7SelectiveWidth(uint index) {
     }
 }
 
-kernel void C7SelectiveHSL(texture2d<half, access::write> outputTexture [[texture(0)]],
-                           texture2d<half, access::read> inputTexture [[texture(1)]],
-                           constant float *adjustments [[buffer(0)]],
-                           uint2 grid [[thread_position_in_grid]]) {
-    const half4 input = inputTexture.read(grid);
-    const float3 source = float3(input.rgb);
+static float3 selectiveHSLColor(float3 source, constant float *adjustments, bool photographic) {
     const float3 boundedSource = clamp(source, 0.0, 1.0);
     float3 hsl = c7SelectiveRGBToHSL(boundedSource);
     float3 adjustment = float3(0.0);
@@ -94,9 +89,36 @@ kernel void C7SelectiveHSL(texture2d<half, access::write> outputTexture [[textur
     }
 
     adjustment /= max(1.0, totalWeight);
-    hsl.x = fmod(hsl.x + adjustment.x * 60.0 + 360.0, 360.0);
-    hsl.y = clamp(hsl.y + adjustment.y, 0.0, 1.0);
-    hsl.z = clamp(hsl.z + adjustment.z, 0.0, 1.0);
-    const float3 output = c7SelectiveHSLToRGB(hsl) + source - boundedSource;
+    if (photographic) {
+        // 色相在近黑区不稳定，渐隐选择避免把底噪重新染色。
+        const float selection = smoothstep(0.02, 0.10, hsl.z);
+        hsl.x = fmod(hsl.x + adjustment.x * selection * 60.0 + 360.0, 360.0);
+        hsl.y = clamp(hsl.y + adjustment.y * selection, 0.0, 1.0);
+        // 端点导数为零的明度偏移；对-1...1调整仍保持明度单调。
+        const float response = 4.0 * hsl.z * hsl.z * (1.0 - hsl.z) * (1.0 - hsl.z);
+        hsl.z = clamp(hsl.z + adjustment.z * response, 0.0, 1.0);
+    } else {
+        hsl.x = fmod(hsl.x + adjustment.x * 60.0 + 360.0, 360.0);
+        hsl.y = clamp(hsl.y + adjustment.y, 0.0, 1.0);
+        hsl.z = clamp(hsl.z + adjustment.z, 0.0, 1.0);
+    }
+    return c7SelectiveHSLToRGB(hsl) + source - boundedSource;
+}
+
+kernel void C7SelectiveHSL(texture2d<half, access::write> outputTexture [[texture(0)]],
+                           texture2d<half, access::read> inputTexture [[texture(1)]],
+                           constant float *adjustments [[buffer(0)]],
+                           uint2 grid [[thread_position_in_grid]]) {
+    const half4 input = inputTexture.read(grid);
+    const float3 output = selectiveHSLColor(float3(input.rgb), adjustments, false);
+    outputTexture.write(half4(half3(output), input.a), grid);
+}
+
+kernel void C7SelectiveHSLPhotographic(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                      texture2d<half, access::read> inputTexture [[texture(1)]],
+                                      constant float *adjustments [[buffer(0)]],
+                                      uint2 grid [[thread_position_in_grid]]) {
+    const half4 input = inputTexture.read(grid);
+    const float3 output = selectiveHSLColor(float3(input.rgb), adjustments, true);
     outputTexture.write(half4(half3(output), input.a), grid);
 }

@@ -690,6 +690,48 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         XCTAssertEqual(pixels[3], 255)
     }
 
+    func testSelectiveHSLPhotographicPreservesGrayAndExtendedRange() throws {
+        let source = try makeRGBA16FloatTexture(width: 6, pixels: [
+            0, 0, 0, 0.25,
+            1, 1, 1, 0.5,
+            0.001, 0.0005, 0.0003, 0.41,
+            0.18, 0.18, 0.18, 0.7,
+            -0.1, -0.1, -0.1, 0.63,
+            2, 2, 2, 0.82
+        ])
+        let baseline = try rgba16FloatPixels(in: source)
+        let filter = C7SelectiveHSL(
+            adjustments: Array(repeating: SIMD3<Float>(1, 1, 1), count: C7SelectiveHSL.channelCount),
+            response: .photographic
+        )
+        let output = try HarbethIO(element: source, filter: filter).renderTexture(profile: .exportQuality)
+        let actual = try rgba16FloatPixels(in: output)
+
+        XCTAssertTrue(actual.allSatisfy(\.isFinite))
+        for pixel in [0, 1, 3, 4, 5] {
+            for channel in 0..<4 {
+                XCTAssertEqual(actual[pixel * 4 + channel], baseline[pixel * 4 + channel])
+            }
+        }
+        XCTAssertLessThan(actual[8] / baseline[8], 1.01)
+        for index in stride(from: 3, to: actual.count, by: 4) {
+            XCTAssertEqual(actual[index], baseline[index])
+        }
+    }
+
+    func testSelectiveHSLResponseIsExplicitAndKeepsParameterLayout() {
+        let legacy = C7SelectiveHSL()
+        let photographic = C7SelectiveHSL(response: .photographic)
+        let size = C7Size(width: 4, height: 4)
+
+        XCTAssertEqual(legacy.response, .additive)
+        XCTAssertEqual(legacy.makeKernelExecutionPlan(inputSize: size).passes.first?.functionIdentity.primaryName, "C7SelectiveHSL")
+        XCTAssertEqual(photographic.makeKernelExecutionPlan(inputSize: size).passes.first?.functionIdentity.primaryName, "C7SelectiveHSLPhotographic")
+        XCTAssertEqual(legacy.kernelParameterBindings, photographic.kernelParameterBindings)
+        XCTAssertEqual(photographic.memoryAccessPattern, .point)
+        XCTAssertTrue(photographic.kernelPixelContract.canAutoTile)
+    }
+
     func testColorGradingShadowTintWeightsDarkPixelsMoreThanHighlights() throws {
         let source = try makeRGBA8Texture(
             width: 2,

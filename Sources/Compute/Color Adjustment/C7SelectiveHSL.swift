@@ -12,11 +12,18 @@ import Foundation
 /// 每个通道依次对应红、橙、黄、绿、青、蓝、紫、洋红；三个分量均使用 -1...1。
 public struct C7SelectiveHSL: C7FilterProtocol {
 
+    /// 加法响应用于直接调整；摄影响应降低近黑色选择并保持明度端点。
+    public enum Response: String, Sendable {
+        case additive
+        case photographic
+    }
+
     public static let channelCount = 8
     public var adjustments: [SIMD3<Float>]
+    public var response: Response
 
     public var modifier: ModifierEnum {
-        .compute(kernel: "C7SelectiveHSL")
+        .compute(kernel: response == .additive ? "C7SelectiveHSL" : "C7SelectiveHSLPhotographic")
     }
 
     public var kernelParameterBindings: [KernelParameterBinding] {
@@ -34,7 +41,8 @@ public struct C7SelectiveHSL: C7FilterProtocol {
         .point
     }
 
-    public init(adjustments: [SIMD3<Float>] = []) {
+    public init(adjustments: [SIMD3<Float>] = [], response: Response = .additive) {
+        self.response = response
         let values = Array(adjustments.prefix(Self.channelCount))
         self.adjustments = values + Array(repeating: .zero, count: Self.channelCount - values.count)
     }
