@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-25
+
+#### Fixed
+
+- 缺失 Metal 函数或管线创建失败时，同步与异步计算路径不再留下未结束的编码器；渲染批次及分析路径同步补齐错误退出的编码器生命周期，避免将可报告错误升级为 Metal 断言崩溃。
+
 ### 2026-10-23
 
 #### Added

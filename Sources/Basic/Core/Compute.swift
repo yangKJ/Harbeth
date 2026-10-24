@@ -103,13 +103,14 @@ struct Compute {
         textures: [MTLTexture],
         filter: C7FilterProtocol
     ) throws -> MTLTexture {
-        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
-            throw HarbethError.makeComputeCommandEncoder
-        }
         let identity = filter.kernelDescriptor().functionIdentity
         let pipelineState = identity.primaryName == kernel
         ? try makeComputePipelineState(with: identity)
         : try makeComputePipelineState(with: kernel)
+        // 管线可能因缺失函数抛错，成功后才创建需要显式结束的编码器。
+        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
+            throw HarbethError.makeComputeCommandEncoder
+        }
         return encoding(
             commandBuffer: commandBuffer,
             computeEncoder: computeEncoder,
@@ -126,10 +127,6 @@ struct Compute {
         filter: C7FilterProtocol,
         complete: @escaping @Sendable (Result<MTLTexture, HarbethError>) -> Void
     ) {
-        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
-            complete(.failure(HarbethError.makeComputeCommandEncoder))
-            return
-        }
         let identity = filter.kernelDescriptor().functionIdentity
         let makePipeline: (@escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = {
             callback in
@@ -139,16 +136,20 @@ struct Compute {
                 makeComputePipelineState(with: kernel, complete: callback)
             }
         }
-        let execution = HarbethUncheckedTransfer(value: (commandBuffer, computeEncoder, textures, filter))
+        let execution = HarbethUncheckedTransfer(value: (commandBuffer, textures, filter))
         makePipeline { res in
             switch res {
             case .success(let pipelineState):
+                guard let computeEncoder = execution.value.0.makeComputeCommandEncoder() else {
+                    complete(.failure(HarbethError.makeComputeCommandEncoder))
+                    return
+                }
                 let destTexture = encoding(
                     commandBuffer: execution.value.0,
-                    computeEncoder: execution.value.1,
+                    computeEncoder: computeEncoder,
                     pipelineState: pipelineState,
-                    textures: execution.value.2,
-                    filter: execution.value.3
+                    textures: execution.value.1,
+                    filter: execution.value.2
                 )
                 complete(.success(destTexture))
             case .failure(let error): complete(.failure(error))

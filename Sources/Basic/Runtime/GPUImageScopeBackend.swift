@@ -53,14 +53,14 @@ enum GPUImageScopeBackend {
             let densityChannelCount = configuration.kind == .rgbWaveform ? 3 : 1
             let densityCount = configuration.width * configuration.height * densityChannelCount
             let densityLength = densityCount * MemoryLayout<UInt32>.stride
+            let accumulationPipeline = try Compute.makeComputePipelineState(with: "imageScopeAccumulateKernel")
+            let visualizationPipeline = try Compute.makeComputePipelineState(with: "imageScopeVisualizationKernel")
             guard let densityBuffer = texture.device.makeBuffer(length: densityLength, options: .storageModeShared),
                   let encoder = commandBuffer.makeComputeCommandEncoder() else {
                 throw HarbethError.commandBuffer
             }
             memset(densityBuffer.contents(), 0, densityLength)
 
-            let accumulationPipeline = try Compute.makeComputePipelineState(with: "imageScopeAccumulateKernel")
-            let visualizationPipeline = try Compute.makeComputePipelineState(with: "imageScopeVisualizationKernel")
             var parameters = ImageScopeParameters(
                 kind: configuration.kind.rawValueForShader,
                 scopeWidth: UInt32(configuration.width),

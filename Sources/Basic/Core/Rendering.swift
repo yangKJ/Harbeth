@@ -185,6 +185,7 @@ struct Rendering {
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
             throw HarbethError.commandBuffer
         }
+        defer { renderEncoder.endEncoding() }
         renderEncoder.setFrontFacing(MTLWinding.counterClockwise)
         for command in batch.commands {
             let pipelineState = try makeRenderPipelineState(
@@ -194,7 +195,6 @@ struct Rendering {
             )
             encode(command: command, pipelineState: pipelineState, renderEncoder: renderEncoder)
         }
-        renderEncoder.endEncoding()
     }
 
     static func encode(batch: RenderCommandBatch, with pipelineState: MTLRenderPipelineState, commandBuffer: MTLCommandBuffer) throws {
@@ -205,11 +205,11 @@ struct Rendering {
         guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
             throw HarbethError.commandBuffer
         }
+        defer { renderEncoder.endEncoding() }
         renderEncoder.setFrontFacing(MTLWinding.counterClockwise)
         for command in batch.commands {
             encode(command: command, pipelineState: pipelineState, renderEncoder: renderEncoder)
         }
-        renderEncoder.endEncoding()
     }
 
     private static func encode(command: RenderCommand, pipelineState: MTLRenderPipelineState, renderEncoder: MTLRenderCommandEncoder) {

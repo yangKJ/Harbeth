@@ -111,6 +111,57 @@ final class DeviceLibraryTests: XCTestCase {
         }
     }
 
+    func testMissingComputeKernelReturnsErrorWithoutLeavingAnOpenEncoder() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal 不可用") }
+        let queue = try XCTUnwrap(device.makeCommandQueue())
+        let commandBuffer = try XCTUnwrap(queue.makeCommandBuffer())
+        let filter = MissingComputeFunctionFilter()
+
+        try autoreleasepool {
+            XCTAssertThrowsError(try Compute.drawing(
+                with: filter.kernel, commandBuffer: commandBuffer, textures: [], filter: filter
+            )) { error in
+                guard case HarbethError.computePipelineState(let name) = error else {
+                    return XCTFail("应返回管线错误：\(error)")
+                }
+                XCTAssertEqual(name, filter.kernel)
+            }
+        }
+        let nextEncoder = try XCTUnwrap(commandBuffer.makeBlitCommandEncoder())
+        nextEncoder.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        XCTAssertNotEqual(commandBuffer.status, .error)
+    }
+
+    func testMissingComputeKernelAsynchronouslyLeavesCommandBufferUsable() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal 不可用") }
+        let queue = try XCTUnwrap(device.makeCommandQueue())
+        let commandBuffer = try XCTUnwrap(queue.makeCommandBuffer())
+        let completion = HarbethUncheckedTransfer(value: expectation(description: "缺失函数返回错误"))
+        let filter = MissingComputeFunctionFilter()
+
+        Compute.drawing(with: filter.kernel, commandBuffer: commandBuffer, textures: [], filter: filter) { result in
+            switch result {
+            case .failure(let error):
+                guard case .computePipelineState(let name) = error else {
+                    XCTFail("应返回管线错误：\(error)")
+                    completion.value.fulfill()
+                    return
+                }
+                XCTAssertEqual(name, filter.kernel)
+            case .success: XCTFail("缺失函数不能成功编码")
+            }
+            completion.value.fulfill()
+        }
+        wait(for: [completion.value], timeout: 5)
+        let nextEncoder = try XCTUnwrap(commandBuffer.makeBlitCommandEncoder())
+        nextEncoder.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        XCTAssertNotEqual(commandBuffer.status, .error)
+    }
+
     func testHeapTexturePoolCapabilityReportUsesStablePlatformContract() {
         let report = Device.metalCapabilityReport(.heapTexturePool)
 
@@ -128,4 +179,10 @@ private final class MockExternalLibraryProvider: ExternalMTLLibraryProvider {
     init(identifier: String) { self.providerIdentifier = identifier }
 
     func provideLibrary(for device: MTLDevice) -> MTLLibrary? { nil }
+}
+
+private struct MissingComputeFunctionFilter: C7FilterProtocol {
+    let kernel = "__harbeth_missing_compute_encoder_regression__"
+    var modifier: ModifierEnum { .compute(kernel: kernel) }
+    var factors: [Float] { [] }
 }

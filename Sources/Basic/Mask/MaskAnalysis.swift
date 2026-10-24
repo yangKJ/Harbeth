@@ -39,6 +39,7 @@ enum MaskGPUAnalysisBackend {
         let blockCountY = max((texture.height + blockSize - 1) / blockSize, 1)
         let blockCount = blockCountX * blockCountY
         let valueCount = blockCount * valuesPerBlock
+        let pipeline = try Compute.makeComputePipelineState(with: "MaskAnalyzeCoverageBlocks")
         guard let buffer = texture.device.makeBuffer(
             length: valueCount * MemoryLayout<UInt32>.stride,
             options: .storageModeShared
@@ -48,7 +49,6 @@ enum MaskGPUAnalysisBackend {
         }
         memset(buffer.contents(), 0, buffer.length)
 
-        let pipeline = try Compute.makeComputePipelineState(with: "MaskAnalyzeCoverageBlocks")
         var parameters: [UInt32] = [
             UInt32(blockSize), UInt32(blockCountX), UInt32(texture.width), UInt32(texture.height),
             threshold.bitPattern

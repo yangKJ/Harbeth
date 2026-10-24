@@ -150,9 +150,9 @@ enum GPUHistogramBackend {
             ],
             identifier: "GPUHistogram.preview"
         ),
+        let pipeline = try? Compute.makeComputePipelineState(with: "histogramPreviewKernel"),
         let commandBuffer = makeCommandBuffer(device: device),
-        let computeEncoder = commandBuffer.makeComputeCommandEncoder(),
-        let pipeline = try? Compute.makeComputePipelineState(with: "histogramPreviewKernel") else {
+        let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             return nil
         }
 
