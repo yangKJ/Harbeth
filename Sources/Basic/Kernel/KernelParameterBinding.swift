@@ -178,9 +178,14 @@ enum KernelBindingEncoder {
             var value = rawValue
             withUnsafeBytes(of: &value) { applier($0.baseAddress!, $0.count, index) }
         case .floatArray(let rawValue):
-            rawValue.withUnsafeBytes { buffer in
-                guard let baseAddress = buffer.baseAddress else { return }
-                applier(baseAddress, buffer.count, index)
+            if rawValue.isEmpty {
+                // 空数组仍需占用 shader 声明的 buffer 槽位，实际元素数由独立参数提供。
+                var placeholder: Float = 0
+                withUnsafeBytes(of: &placeholder) { applier($0.baseAddress!, $0.count, index) }
+            } else {
+                rawValue.withUnsafeBytes { buffer in
+                    applier(buffer.baseAddress!, buffer.count, index)
+                }
             }
         case .matrix3x3(let rawValue):
             var value = rawValue.to_factor()

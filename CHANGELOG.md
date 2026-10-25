@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-26
+
+#### Fixed
+
+- 空曲线控制点在 GPU 执行时仍绑定占位 buffer，避免使用部分通道曲线的配方触发 Metal 参数断言；空通道继续按原语义跳过。
+
 ### 2026-10-25
 
 #### Added

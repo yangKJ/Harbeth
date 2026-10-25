@@ -350,6 +350,29 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         }
     }
 
+    func testCurvesWithEmptyChannelsKeepValidMetalBindings() throws {
+        let source = try makeRGBA16FloatTexture(width: 1, pixels: [0.25, 0.5, 0.75, 1])
+        for interpolation: C7Curves.Interpolation in [.legacy, .linear, .shapePreserving] {
+            let filter = C7Curves(
+                rgbPoints: [], redPoints: [], greenPoints: [], bluePoints: [],
+                interpolation: interpolation
+            )
+            let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+            let pixels = try rgba16FloatPixels(in: output)
+            for (actual, expected) in zip(pixels, [Float(0.25), 0.5, 0.75, 1]) {
+                XCTAssertEqual(actual, expected, accuracy: 0.002)
+            }
+        }
+
+        let red = [C7Point2D(x: 0, y: 0), C7Point2D(x: 1, y: 0.5)]
+        let filter = C7Curves(rgbPoints: [], redPoints: red, greenPoints: [], bluePoints: [], interpolation: .shapePreserving)
+        let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
+        let pixels = try rgba16FloatPixels(in: output)
+        for (actual, expected) in zip(pixels, [Float(0.125), 0.5, 0.75, 1]) {
+            XCTAssertEqual(actual, expected, accuracy: 0.002)
+        }
+    }
+
     func testCurvesCompositionOrderIsExplicitAndShaderBound() throws {
         let rgb = [C7Point2D(x: 0, y: 0), C7Point2D(x: 0.5, y: 0.25), C7Point2D(x: 1, y: 1)]
         let red = [C7Point2D(x: 0, y: 0.3), C7Point2D(x: 1, y: 0.9)]
