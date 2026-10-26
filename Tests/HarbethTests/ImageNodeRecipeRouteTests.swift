@@ -676,6 +676,38 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertEqual(try workItem.result().get(), 2)
     }
 
+    func testColdMaskedEditChainRendersOnWorkerStack() throws {
+        let input = try makeTexture(width: 4, height: 4, pixel: [64, 96, 128, 255])
+        var node = ImageNode.texture(input)
+        for index in 1...4 {
+            let mask = MaskShapeRecipe.rectangle(
+                size: C7Size(width: 4, height: 4),
+                rect: CGRect(x: 0, y: 0, width: 1, height: 1),
+                profile: .responseLatency
+            )
+            node = try node.applying(mask: mask, filters: [C7Brightness(brightness: Float(index) * 0.01)])
+        }
+        let workItem = ColdMaskedEditRenderWorkItem(node: node)
+        let completion = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            defer { completion.signal() }
+            workItem.run()
+        }
+        // 四层局部效果必须能在普通 worker 的小栈中完成冷规划和真实离屏渲染。
+        thread.stackSize = 512 * 1024
+
+        thread.start()
+
+        XCTAssertEqual(completion.wait(timeout: .now() + 10), .success)
+        let frame = try workItem.result().get()
+        XCTAssertEqual(frame.texture.width, 4)
+        XCTAssertEqual(frame.texture.height, 4)
+        XCTAssertEqual(frame.profile, .responseLatency)
+        let pixel = try firstPixel(in: frame.texture)
+        XCTAssertEqual(Double(pixel.red), 90, accuracy: 2)
+        XCTAssertEqual(pixel.alpha, 255)
+    }
+
     func testTransitionNodeHonorsOverrideProfileAndDerivativeAcrossPlanAndTexture() throws {
         let from = try makeTexture(width: 6, height: 4, pixel: [255, 0, 0, 255])
         let to = try makeTexture(width: 6, height: 4, pixel: [0, 0, 255, 255])
@@ -878,6 +910,29 @@ private final class ColdTransitionRenderWorkItem: @unchecked Sendable {
     }
 
     func result() -> Result<Int, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        return renderResult ?? .failure(HarbethError.texture2Image)
+    }
+}
+
+private final class ColdMaskedEditRenderWorkItem: @unchecked Sendable {
+    private let node: ImageNode
+    private let lock = NSLock()
+    private var renderResult: Result<RenderedFrame, Error>?
+
+    init(node: ImageNode) {
+        self.node = node
+    }
+
+    func run() {
+        let result = Result { try node.makeFrame(profile: .responseLatency) }
+        lock.lock()
+        renderResult = result
+        lock.unlock()
+    }
+
+    func result() -> Result<RenderedFrame, Error> {
         lock.lock()
         defer { lock.unlock() }
         return renderResult ?? .failure(HarbethError.texture2Image)

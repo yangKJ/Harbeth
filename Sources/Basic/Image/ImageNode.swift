@@ -1495,8 +1495,8 @@ extension ImageNode: ImagePromise {
         HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: false)
         let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
         let plan: RenderPlan
-        // cache / sampler wrapper 必须留在轻量入口分派；若并回下方的大型 switch，
-        // Debug 构建会在递归包装链中叠加大栈帧，耗尽 dispatch worker 的小栈。
+        // 编辑节点与 cache / sampler wrapper 都在轻量入口分派，避免多层蒙版递归时
+        // 反复保留下方大型 switch 的 Debug 栈帧，耗尽 dispatch worker 的小栈。
         switch storage {
         case .cachePolicy(let input, let policy):
             plan = try makeCachePolicyRenderPlan(
@@ -1514,6 +1514,17 @@ extension ImageNode: ImagePromise {
                 descriptor: descriptor,
                 profile: profile,
                 derivative: derivative,
+                optimization: optimization,
+                sources: sources
+            )
+        case .edit(let input, let recipe, let mode):
+            plan = try makeEditRenderPlan(
+                input: input,
+                recipe: recipe,
+                mode: mode,
+                profile: profile,
+                derivative: derivative,
+                samplerDescriptor: activeSamplerDescriptor,
                 optimization: optimization,
                 sources: sources
             )
@@ -1681,22 +1692,6 @@ extension ImageNode: ImagePromise {
                     )
                 )
             }
-        case .edit(let input, let recipe, let mode):
-            let inputSize = try input.makeRenderPlan(
-                profile: profile, derivative: nil, samplerDescriptorOverride: activeSamplerDescriptor, sources: sources
-            ).diagnostics.outputSize
-            plan = try makeWrappedEditRenderPlan(
-                source: try input.resolvedPrimarySource(),
-                inputSize: inputSize,
-                recipe: recipe,
-                mode: mode,
-                extraFilters: [],
-                profile: profile,
-                derivative: derivative,
-                samplerDescriptor: activeSamplerDescriptor,
-                sourceDescriptor: try input.resolvedPrimarySource().descriptor,
-                optimization: optimization
-            )
         case .transition(let recipe):
             let inputSize: C7Size
             if let size = recipe.from.resolvedSizeHint {
@@ -1723,10 +1718,40 @@ extension ImageNode: ImagePromise {
                 derivative: derivative,
                 samplerDescriptor: activeSamplerDescriptor
             )
-        case .cachePolicy, .samplerDescriptor:
-            preconditionFailure("ImageNode wrappers must be lowered before unwrapped plan compilation.")
+        case .edit, .cachePolicy, .samplerDescriptor:
+            preconditionFailure("递归编辑节点与包装节点必须先经过轻量规划分派。")
         }
         return plan
+    }
+
+    private func makeEditRenderPlan(
+        input: ImageNode,
+        recipe: EditRecipe,
+        mode: EditRecipeMode,
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec?,
+        samplerDescriptor: ImageSamplerDescriptor,
+        optimization: ImageGraphOptimizationResult,
+        sources: ImageNodeSourcePreparation
+    ) throws -> RenderPlan {
+        let inputSize = try input.makeRenderPlan(
+            profile: profile,
+            derivative: nil,
+            samplerDescriptorOverride: samplerDescriptor,
+            sources: sources
+        ).diagnostics.outputSize
+        return try makeWrappedEditRenderPlan(
+            source: try input.resolvedPrimarySource(),
+            inputSize: inputSize,
+            recipe: recipe,
+            mode: mode,
+            extraFilters: [],
+            profile: profile,
+            derivative: derivative,
+            samplerDescriptor: samplerDescriptor,
+            sourceDescriptor: try input.resolvedPrimarySource().descriptor,
+            optimization: optimization
+        )
     }
 
     private func makeCachePolicyRenderPlan(
