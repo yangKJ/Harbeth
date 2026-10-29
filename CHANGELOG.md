@@ -8,6 +8,13 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-30
+
+#### Added
+
+- Added `C7LocalTone` for signed local histogram-based enhancement and compression, with fixed-grid region accumulation and premultiplied-alpha/extended-range boundaries.
+- Added `C7LocalLaplacian` with sampled Gaussian/Laplacian residual interpolation, bounded scratch reuse, and a shared region-encoding contract for fixed-phase multiscale processing.
+
 ### 2026-10-29
 
 #### Fixed
