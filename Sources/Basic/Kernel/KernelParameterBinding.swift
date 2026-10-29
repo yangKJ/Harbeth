@@ -131,13 +131,36 @@ public struct KernelParameterBinding: Sendable, Codable, Equatable, Hashable {
 }
 
 enum KernelBindingEncoder {
-    static func encode(_ bindings: [KernelParameterBinding], stage: KernelBindingStage, on encoder: MTLCommandEncoder) {
+    static func encode(_ bindings: [KernelParameterBinding], stage: KernelBindingStage, on encoder: MTLCommandEncoder) throws {
         for binding in bindings where binding.stage == stage {
-            encode(binding, on: encoder)
+            try encode(binding, on: encoder)
         }
     }
 
-    private static func encode(_ binding: KernelParameterBinding, on encoder: MTLCommandEncoder) {
+    private static func encode(_ binding: KernelParameterBinding, on encoder: MTLCommandEncoder) throws {
+        // Metal 的 inline bytes 上限为 4 KB；长笔触等大参数必须使用独立 buffer。
+        var requiresBuffer = false
+        var parameterBuffer: MTLBuffer?
+        encode(binding.value, index: binding.index) { bytes, length, _ in
+            if length > 4_096 {
+                requiresBuffer = true
+                parameterBuffer = encoder.device.makeBuffer(bytes: bytes, length: length, options: .storageModeShared)
+            }
+        }
+        if requiresBuffer {
+            guard let parameterBuffer else {
+                throw HarbethError.configurationInvalid("无法分配滤镜参数 buffer")
+            }
+            switch binding.stage {
+            case .compute:
+                (encoder as? MTLComputeCommandEncoder)?.setBuffer(parameterBuffer, offset: 0, index: binding.index)
+            case .renderVertex:
+                (encoder as? MTLRenderCommandEncoder)?.setVertexBuffer(parameterBuffer, offset: 0, index: binding.index)
+            case .renderFragment:
+                (encoder as? MTLRenderCommandEncoder)?.setFragmentBuffer(parameterBuffer, offset: 0, index: binding.index)
+            }
+            return
+        }
         switch binding.stage {
         case .compute:
             guard let computeEncoder = encoder as? MTLComputeCommandEncoder else { return }

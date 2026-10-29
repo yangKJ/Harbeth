@@ -111,7 +111,7 @@ struct Compute {
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
         }
-        return encoding(
+        return try encoding(
             commandBuffer: commandBuffer,
             computeEncoder: computeEncoder,
             pipelineState: pipelineState,
@@ -144,14 +144,18 @@ struct Compute {
                     complete(.failure(HarbethError.makeComputeCommandEncoder))
                     return
                 }
-                let destTexture = encoding(
-                    commandBuffer: execution.value.0,
-                    computeEncoder: computeEncoder,
-                    pipelineState: pipelineState,
-                    textures: execution.value.1,
-                    filter: execution.value.2
-                )
-                complete(.success(destTexture))
+                do {
+                    let destTexture = try encoding(
+                        commandBuffer: execution.value.0,
+                        computeEncoder: computeEncoder,
+                        pipelineState: pipelineState,
+                        textures: execution.value.1,
+                        filter: execution.value.2
+                    )
+                    complete(.success(destTexture))
+                } catch {
+                    complete(.failure(error as? HarbethError ?? .configurationInvalid(error.localizedDescription)))
+                }
             case .failure(let error): complete(.failure(error))
             }
         }
@@ -212,7 +216,7 @@ struct Compute {
         pipelineState: MTLComputePipelineState,
         textures: [MTLTexture],
         filter: C7FilterProtocol
-    ) -> MTLTexture {
+    ) throws -> MTLTexture {
         if case .compute(let kernel) = filter.modifier {
             computeEncoder.label = kernel + " encoder"
         }
@@ -243,7 +247,12 @@ struct Compute {
                 computeEncoder.setBytes(&factor, length: size, index: i)
             }
         } else {
-            KernelBindingEncoder.encode(parameterBindings, stage: .compute, on: computeEncoder)
+            do {
+                try KernelBindingEncoder.encode(parameterBindings, stage: .compute, on: computeEncoder)
+            } catch {
+                computeEncoder.endEncoding()
+                throw error
+            }
         }
         // Calculate optimal threadgroup size based on memory access pattern and GPU architecture
         let threadgroupSize = calculateOptimalThreadgroupSize(for: pipelineState, texture: destTexture, filter: filter)

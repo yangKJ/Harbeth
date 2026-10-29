@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-10-29
+
+#### Fixed
+
+- 超过 4 KB 的滤镜参数改用 Metal buffer 绑定，避免长笔触或大型数组触发 inline bytes 长度断言；小参数继续使用原有绑定路径。
+
 ### 2026-10-26
 
 #### Fixed

@@ -193,7 +193,7 @@ struct Rendering {
                 fragmentIdentity: command.descriptor.fragmentFunction,
                 renderPass: batch.renderPass
             )
-            encode(command: command, pipelineState: pipelineState, renderEncoder: renderEncoder)
+            try encode(command: command, pipelineState: pipelineState, renderEncoder: renderEncoder)
         }
     }
 
@@ -208,11 +208,11 @@ struct Rendering {
         defer { renderEncoder.endEncoding() }
         renderEncoder.setFrontFacing(MTLWinding.counterClockwise)
         for command in batch.commands {
-            encode(command: command, pipelineState: pipelineState, renderEncoder: renderEncoder)
+            try encode(command: command, pipelineState: pipelineState, renderEncoder: renderEncoder)
         }
     }
 
-    private static func encode(command: RenderCommand, pipelineState: MTLRenderPipelineState, renderEncoder: MTLRenderCommandEncoder) {
+    private static func encode(command: RenderCommand, pipelineState: MTLRenderPipelineState, renderEncoder: MTLRenderCommandEncoder) throws {
         let texture = command.sourceTexture
         let filter = command.filter
         let device = HarbethContext.shared.device
@@ -255,8 +255,8 @@ struct Rendering {
             renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: fragmentBufferIndex)
         }
 
-        KernelBindingEncoder.encode(command.descriptor.parameterBindings, stage: .renderVertex, on: renderEncoder)
-        KernelBindingEncoder.encode(command.descriptor.parameterBindings, stage: .renderFragment, on: renderEncoder)
+        try KernelBindingEncoder.encode(command.descriptor.parameterBindings, stage: .renderVertex, on: renderEncoder)
+        try KernelBindingEncoder.encode(command.descriptor.parameterBindings, stage: .renderFragment, on: renderEncoder)
 
         renderEncoder.drawPrimitives(
             type: filter.renderPrimitiveTopology.metalValue,

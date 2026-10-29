@@ -1,8 +1,46 @@
 import XCTest
+import Metal
 import CoreGraphics
 @testable import Harbeth
 
 final class KernelExecutionPlanTests: XCTestCase {
+
+    func testLargeKernelParameterArrayUsesBufferBinding() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal 不可用") }
+        let library = try device.makeLibrary(source: """
+        #include <metal_stdlib>
+        using namespace metal;
+        kernel void largeParameters(texture2d<float, access::write> output [[texture(0)]],
+                                    constant float *values [[buffer(0)]], uint2 point [[thread_position_in_grid]]) {
+            output.write(float4(values[0], values[2047], 0, 1), point);
+        }
+        """, options: nil)
+        let pipeline = try device.makeComputePipelineState(function: XCTUnwrap(library.makeFunction(name: "largeParameters")))
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba32Float, width: 1, height: 1, mipmapped: false)
+        descriptor.storageMode = .shared
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let queue = try XCTUnwrap(device.makeCommandQueue())
+        let command = try XCTUnwrap(queue.makeCommandBuffer())
+        let encoder = try XCTUnwrap(command.makeComputeCommandEncoder())
+        encoder.setComputePipelineState(pipeline)
+        encoder.setTexture(texture, index: 0)
+        var values = Array(repeating: Float.zero, count: 2048)
+        values[0] = 0.25
+        values[2047] = 0.75
+        try KernelBindingEncoder.encode([.init(name: "large", index: 0, stage: .compute, value: .floatArray(values))], stage: .compute, on: encoder)
+        encoder.dispatchThreads(MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1))
+        encoder.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+        if let error = command.error { throw error }
+        var pixel = Array(repeating: Float.zero, count: 4)
+        pixel.withUnsafeMutableBytes { texture.getBytes($0.baseAddress!, bytesPerRow: 16, from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0) }
+        XCTAssertEqual(pixel, [0.25, 0.75, 0, 1])
+    }
+
+
+
 
     func testVignettePixelAspectIsOptInAndChangesTheParameterPlan() {
         let legacy = C7Vignette()
