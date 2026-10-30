@@ -51,16 +51,14 @@ public struct C7LocalLaplacian: C7MetalCommandEncodingProtocol {
 
     public func validate() throws {
         guard detail.isFinite, (-1...2).contains(detail), rangeSigma.isFinite, (0.01...1).contains(rangeSigma),
-            intensity.isFinite, (0...1).contains(intensity)
-        else {
+              intensity.isFinite, (0...1).contains(intensity) else {
             throw HarbethError.filterParameterInvalid("局部拉普拉斯参数越界或非有限")
         }
     }
 
     public func metalCommandExecutionRoute(in environment: MetalCommandEnvironment) -> MetalCommandExecutionRoute { .preferred }
 
-    public func encodeMetalCommands(context: MetalCommandEncodingContext, route: MetalCommandExecutionRoute) throws -> MTLTexture
-    {
+    public func encodeMetalCommands(context: MetalCommandEncodingContext, route: MetalCommandExecutionRoute) throws -> MTLTexture {
         try validate()
         guard route == .preferred else { throw HarbethError.filterParameterInvalid("局部拉普拉斯不支持替代路线") }
         let source = context.sourceTexture
@@ -97,13 +95,7 @@ public struct C7LocalLaplacian: C7MetalCommandEncodingProtocol {
         var sums = try pyramid()
         var scratch = try pyramid()
         let command = context.commandBuffer
-        func encode(
-            _ operation: LocalLaplacianOperation,
-            _ inputs: [MTLTexture],
-            _ destination: MTLTexture,
-            _ level: Int,
-            reference: Float = 0
-        ) throws {
+        func encode(_ operation: LocalLaplacianOperation, _ inputs: [MTLTexture], _ destination: MTLTexture, _ level: Int, reference: Float = 0) throws {
             let coarse = operation == .apply ? sizes[level] : sizes[min(level + 1, sizes.count - 1)]
             try LocalLaplacianEncoding.encode(
                 operation: operation,
@@ -219,10 +211,10 @@ public enum LocalLaplacianEncoding {
         commandBuffer: MTLCommandBuffer
     ) throws {
         guard let first = inputs.first, !inputs.contains(where: { $0 === destination }),
-            inputs.allSatisfy({ $0.device === commandBuffer.device }), destination.device === commandBuffer.device,
-            region.inputExtent.x > 0, region.inputExtent.y > 0,
-            region.inputExtent.x <= UInt32(Int32.max), region.inputExtent.y <= UInt32(Int32.max)
-        else {
+              inputs.allSatisfy({ $0.device === commandBuffer.device }), destination.device === commandBuffer.device,
+              region.inputExtent.x > 0, region.inputExtent.y > 0,
+              region.inputExtent.x <= UInt32(Int32.max),
+              region.inputExtent.y <= UInt32(Int32.max) else {
             throw HarbethError.filterParameterInvalid("局部拉普拉斯阶段输入或目标无效")
         }
         let requiredInputCount: Int
@@ -231,23 +223,20 @@ public enum LocalLaplacianEncoding {
         case .reconstruct, .apply: requiredInputCount = 2
         default: requiredInputCount = 1
         }
-        let outputExtent =
-            operation == .reduce
+        let outputExtent = operation == .reduce
             ? SIMD2<UInt32>((region.inputExtent.x + 1) / 2, (region.inputExtent.y + 1) / 2) : region.inputExtent
         guard inputs.count == requiredInputCount, [detail, rangeSigma, reference, step, intensity].allSatisfy(\.isFinite),
-            rangeSigma > 0, step > 0, (0...1).contains(intensity),
-            Int(region.inputOrigin.x) + first.width <= Int(region.inputExtent.x),
-            Int(region.inputOrigin.y) + first.height <= Int(region.inputExtent.y),
-            Int(region.outputOrigin.x) + destination.width <= Int(outputExtent.x),
-            Int(region.outputOrigin.y) + destination.height <= Int(outputExtent.y)
-        else {
+              rangeSigma > 0, step > 0, (0...1).contains(intensity),
+              Int(region.inputOrigin.x) + first.width <= Int(region.inputExtent.x),
+              Int(region.inputOrigin.y) + first.height <= Int(region.inputExtent.y),
+              Int(region.outputOrigin.x) + destination.width <= Int(outputExtent.x),
+              Int(region.outputOrigin.y) + destination.height <= Int(outputExtent.y) else {
             throw HarbethError.filterParameterInvalid("局部拉普拉斯阶段参数或ROI越界")
         }
         if inputs.count > 1 {
             guard region.coarseExtent.x > 0, region.coarseExtent.y > 0,
-                Int(region.coarseOrigin.x) + inputs[1].width <= Int(region.coarseExtent.x),
-                Int(region.coarseOrigin.y) + inputs[1].height <= Int(region.coarseExtent.y)
-            else {
+                  Int(region.coarseOrigin.x) + inputs[1].width <= Int(region.coarseExtent.x),
+                  Int(region.coarseOrigin.y) + inputs[1].height <= Int(region.coarseExtent.y) else {
                 throw HarbethError.filterParameterInvalid("局部拉普拉斯相邻层ROI越界")
             }
         }

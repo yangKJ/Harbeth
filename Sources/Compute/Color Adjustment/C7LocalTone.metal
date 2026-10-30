@@ -75,8 +75,7 @@ kernel void localToneApply(texture2d<half, access::write> destination [[texture(
     }
     uint2 global = gid + uint2(values[2], values[3]);
     uint columns = values[4], rows = values[5];
-    float2 grid = clamp((float2(global) + 0.5f) * float2(columns, rows) / float2(values[0], values[1]) - 0.5f,
-        float2(0.0f), float2(columns - 1u, rows - 1u));
+    float2 grid = clamp((float2(global) + 0.5f) * float2(columns, rows) / float2(values[0], values[1]) - 0.5f, float2(0.0f), float2(columns - 1u, rows - 1u));
     uint2 a = uint2(floor(grid)), b = min(a + 1u, uint2(columns - 1u, rows - 1u));
     float2 fraction = fract(grid);
     float luminance = dot(color, float3(0.299f, 0.587f, 0.114f));

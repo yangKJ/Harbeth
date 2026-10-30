@@ -46,13 +46,13 @@ public struct C7LocalTone: C7MetalCommandEncodingProtocol {
 
     public func metalCommandExecutionRoute(in environment: MetalCommandEnvironment) -> MetalCommandExecutionRoute { .preferred }
 
-    public func encodeMetalCommands(context: MetalCommandEncodingContext, route: MetalCommandExecutionRoute) throws -> MTLTexture
-    {
+    public func encodeMetalCommands(context: MetalCommandEncodingContext, route: MetalCommandExecutionRoute) throws -> MTLTexture {
         try validate()
         guard route == .preferred else { throw HarbethError.filterParameterInvalid("局部影调不支持替代路线") }
         guard context.sourceTexture.width == context.destinationTexture.width,
-            context.sourceTexture.height == context.destinationTexture.height
-        else { throw HarbethError.textureSizeMismatch }
+              context.sourceTexture.height == context.destinationTexture.height else {
+            throw HarbethError.textureSizeMismatch
+        }
         if amount == 0 {
             guard let encoder = context.commandBuffer.makeBlitCommandEncoder() else { throw HarbethError.makeBlitCommandEncoder }
             encoder.copy(from: context.sourceTexture, to: context.destinationTexture)
@@ -94,9 +94,8 @@ public final class LocalToneStatistics {
 
     public init(device: MTLDevice, width: Int, height: Int, clipLimit: Float, grid: C7CLAHE.TileGridSize) throws {
         guard width > 0, height > 0, width <= Int(Int32.max) / 16, height <= Int(Int32.max) / 16,
-            Int64(width) * Int64(height) <= Int64(UInt32.max),
-            clipLimit.isFinite, (0.25...16).contains(clipLimit)
-        else {
+              Int64(width) * Int64(height) <= Int64(UInt32.max),
+              clipLimit.isFinite, (0.25...16).contains(clipLimit) else {
             throw HarbethError.filterParameterInvalid("局部统计尺寸或参数无效")
         }
         self.device = device
@@ -106,10 +105,9 @@ public final class LocalToneStatistics {
         self.grid = .init(columns: min(grid.columns, width), rows: min(grid.rows, height))
         let tileCount = self.grid.columns * self.grid.rows
         guard let histogram = device.makeBuffer(length: tileCount * 256 * 4, options: .storageModePrivate),
-            let counts = device.makeBuffer(length: tileCount * 4, options: .storageModePrivate),
-            let lookup = device.makeBuffer(length: tileCount * 256 * 4, options: .storageModePrivate),
-            let percentiles = device.makeBuffer(length: tileCount * 3 * 4, options: .storageModePrivate)
-        else {
+              let counts = device.makeBuffer(length: tileCount * 4, options: .storageModePrivate),
+              let lookup = device.makeBuffer(length: tileCount * 256 * 4, options: .storageModePrivate),
+              let percentiles = device.makeBuffer(length: tileCount * 3 * 4, options: .storageModePrivate) else {
             throw HarbethError.makeTexture
         }
         self.histogram = histogram
@@ -174,8 +172,9 @@ public final class LocalToneStatistics {
     ) throws {
         try validate(commandBuffer, source: source, origin: origin)
         guard amount.isFinite, (-1...1).contains(amount), source !== destination,
-            destination.device === device, source.width == destination.width, source.height == destination.height
-        else {
+              destination.device === device,
+              source.width == destination.width,
+              source.height == destination.height else {
             throw HarbethError.filterParameterInvalid("局部影调目标或强度无效")
         }
         let encoder = try makeEncoder("localToneApply", commandBuffer)
@@ -197,8 +196,9 @@ public final class LocalToneStatistics {
         guard command.device === device else { throw HarbethError.configurationInvalid("局部统计设备不匹配") }
         if let source {
             guard source.device === device, Int(origin.x) + source.width <= width,
-                Int(origin.y) + source.height <= height
-            else { throw HarbethError.textureSizeMismatch }
+                  Int(origin.y) + source.height <= height else {
+                throw HarbethError.textureSizeMismatch
+            }
         }
     }
 

@@ -42,7 +42,7 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
         case .float4(let value):
             return "float4:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y)),\(String(format: "%.4f", value.z)),\(String(format: "%.4f", value.w))"
         case .floatArray(let values):
-            return "floatArray:\(values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
+            return Self.floatArrayFingerprint(values)
         case .matrix3x3(let value):
             return "matrix3x3:\(value.values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
         case .matrix4x4(let value):
@@ -50,6 +50,12 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
         case .bytes(let bytes, let dataType):
             return "bytes:\(dataType.rawValue):\(bytes.count)"
         }
+    }
+
+    /// 使用规范的小端Float32位模式，避免格式化开销以及舍入导致的参数身份碰撞。
+    static func floatArrayFingerprint(_ values: [Float]) -> String {
+        let words = values.map { $0.bitPattern.littleEndian }
+        return words.withUnsafeBytes { "floatArrayBitsLE:" + Data($0).base64EncodedString() }
     }
 
     public var argumentDataType: KernelArgumentDataType {

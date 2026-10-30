@@ -177,7 +177,7 @@ enum KernelParameterValue: Sendable, Codable, Equatable, Hashable {
         case .string(let value):
             return "string:\(value)"
         case .floatArray(let values):
-            return "floats:\(values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
+            return KernelParameterBindingValue.floatArrayFingerprint(values)
         case .intArray(let values):
             return "ints:\(values.map(String.init).joined(separator: ","))"
         case .stringArray(let values):

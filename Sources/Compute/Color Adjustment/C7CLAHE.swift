@@ -86,16 +86,11 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
         self.tileGridSize = tileGridSize
     }
 
-    public func metalCommandExecutionRoute(
-        in environment: MetalCommandEnvironment
-    ) -> MetalCommandExecutionRoute {
+    public func metalCommandExecutionRoute(in environment: MetalCommandEnvironment) -> MetalCommandExecutionRoute {
         .preferred
     }
 
-    public func encodeMetalCommands(
-        context: MetalCommandEncodingContext,
-        route: MetalCommandExecutionRoute
-    ) throws -> MTLTexture {
+    public func encodeMetalCommands(context: MetalCommandEncodingContext, route: MetalCommandExecutionRoute) throws -> MTLTexture {
         guard route == .preferred else {
             throw HarbethError.filterParameterInvalid("C7CLAHE only supports its declared preferred route.")
         }
@@ -104,7 +99,6 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
         guard destination.width == source.width, destination.height == source.height else {
             throw HarbethError.textureSizeMismatch
         }
-
         let executionGrid = TileGridSize(
             columns: min(tileGridSize.columns, source.width),
             rows: min(tileGridSize.rows, source.height)
@@ -114,7 +108,6 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
         let countLength = tileCount * MemoryLayout<UInt32>.stride
         let lookupLength = tileCount * Self.histogramBinCount * MemoryLayout<Float>.stride
         let device = context.device
-
         let temporaryBuffers = try HarbethContext.shared.claheTemporaryBufferPool.checkout(
             device: device,
             histogramLength: histogramLength,

@@ -4,7 +4,6 @@ import CoreGraphics
 @testable import Harbeth
 
 final class KernelExecutionPlanTests: XCTestCase {
-
     func testLargeKernelParameterArrayUsesBufferBinding() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw XCTSkip("Metal 不可用") }
         let library = try device.makeLibrary(source: """
@@ -40,7 +39,40 @@ final class KernelExecutionPlanTests: XCTestCase {
     }
 
 
+    func testFloatArrayFingerprintKeepsEveryBitAndRemainsDerived() throws {
+        let first = Float(0.1), next = first.nextUp
+        XCTAssertEqual(String(format: "%.4f", first), String(format: "%.4f", next))
+        XCTAssertNotEqual(KernelParameterBindingValue.floatArray([first]).fingerprint,
+            KernelParameterBindingValue.floatArray([next]).fingerprint)
+        XCTAssertNotEqual(KernelParameterBindingValue.floatArray([0]).fingerprint,
+            KernelParameterBindingValue.floatArray([Float(bitPattern: 0x80000000)]).fingerprint)
+        XCTAssertNotEqual(KernelParameterBindingValue.floatArray([1, 2]).fingerprint,
+            KernelParameterBindingValue.floatArray([2, 1]).fingerprint)
+        XCTAssertEqual(KernelParameterBindingValue.floatArray([1]).fingerprint, "floatArrayBitsLE:AACAPw==")
+        let values: [Float] = [first, next, .leastNonzeroMagnitude, .greatestFiniteMagnitude]
+        XCTAssertEqual(KernelParameterValue.floatArray(values).fingerprint,
+            KernelParameterBindingValue.floatArray(values).fingerprint)
+        let binding = KernelParameterBindingValue.floatArray(values)
+        let encoded = try JSONEncoder().encode(binding)
+        XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("floatArrayBitsLE"))
+        XCTAssertEqual(try JSONDecoder().decode(KernelParameterBindingValue.self, from: encoded), binding)
+    }
 
+    func testKernelDescriptorSeparatesSubDecimalFloatArrayChanges() {
+        struct ArrayIdentityFilter: C7FilterProtocol {
+            let values: [Float]
+            var modifier: ModifierEnum { .compute(kernel: "C7Brightness") }
+            var parameterDescription: [String: Any] { [:] }
+            var kernelParameterBindings: [KernelParameterBinding] {
+                [.init(name: "values", index: 0, stage: .compute, value: .floatArray(values))]
+            }
+        }
+        let first = ArrayIdentityFilter(values: [0.1])
+        let changed = ArrayIdentityFilter(values: [Float(0.1).nextUp])
+        let size = C7Size(width: 1, height: 1)
+        XCTAssertNotEqual(first.kernelDescriptor(inputSize: size).fingerprint,
+            changed.kernelDescriptor(inputSize: size).fingerprint)
+    }
 
     func testVignettePixelAspectIsOptInAndChangesTheParameterPlan() {
         let legacy = C7Vignette()
