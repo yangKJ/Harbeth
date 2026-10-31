@@ -191,6 +191,7 @@ final class PluginTests: XCTestCase {
     }
 
     #if canImport(UIKit)
+    @MainActor
     func testRenderViewDisplayUpdatesRenderedFrameWithoutLosingTextureCompatibility() throws {
         let pixelBuffer = try makePixelBuffer(width: 256, height: 128)
         guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
@@ -247,6 +248,7 @@ final class PluginTests: XCTestCase {
         XCTAssertEqual(view.currentPreviewHostStrategy, PreviewHostStrategy.metalTextureHost.rawValue)
     }
 
+    @MainActor
     func testRenderViewFallsBackToMetalStateWhenDisplayingNonSampleBufferFrame() throws {
         let pixelBuffer = try makePixelBuffer(width: 64, height: 64)
         guard let sampleBuffer = pixelBuffer.c7.toCMSampleBuffer() else {
@@ -274,6 +276,7 @@ final class PluginTests: XCTestCase {
         XCTAssertFalse(view.hostFellBackCurrentFrameToMetal)
     }
 
+    @MainActor
     func testRenderViewExecutionReportDoesNotRewriteStaticRequestDiagnostics() throws {
         PreviewHostFleetRegistry.resetForTesting()
         PreviewHostRuntimeSummaryCache.resetForTesting()
@@ -309,6 +312,7 @@ final class PluginTests: XCTestCase {
         XCTAssertTrue(view.hostFellBackCurrentFrameToMetal)
     }
 
+    @MainActor
     func testRenderViewSampleBufferHostPoolCoordinatesMultipleViews() throws {
         SampleBufferPreviewLayerPool.resetForTesting()
         PreviewHostFleetRegistry.resetForTesting()
@@ -370,6 +374,7 @@ final class PluginTests: XCTestCase {
         PreviewHostFleetRegistry.resetForTesting()
     }
 
+    @MainActor
     func testRenderViewSampleBufferHostSuspendsAndResumesForApplicationLifecycle() throws {
         SampleBufferPreviewLayerPool.resetForTesting()
         PreviewHostFleetRegistry.resetForTesting()
@@ -423,6 +428,7 @@ final class PluginTests: XCTestCase {
         PreviewHostFleetRegistry.resetForTesting()
     }
 
+    @MainActor
     func testRenderViewRuntimePreviewHostSummaryBridgesExecutionAndFleetState() throws {
         PreviewHostFleetRegistry.resetForTesting()
         PreviewHostRuntimeSummaryCache.resetForTesting()
@@ -454,6 +460,7 @@ final class PluginTests: XCTestCase {
         PreviewHostFleetRegistry.resetForTesting()
     }
 
+    @MainActor
     func testRenderViewPreferredDrawableScaleControlsDrawableSize() {
         let view = RenderView(
             frame: CGRect(x: 0, y: 0, width: 48, height: 24),

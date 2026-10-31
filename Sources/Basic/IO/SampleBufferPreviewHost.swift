@@ -428,6 +428,7 @@ private final class SampleBufferPreviewLayerImpl: AVSampleBufferDisplayLayer {
     }
 }
 
+@MainActor
 final class SampleBufferPreviewLayerLease {
     let layer: AVSampleBufferDisplayLayer
 
@@ -451,9 +452,10 @@ final class SampleBufferPreviewLayerLease {
     }
 }
 
+@MainActor
 enum SampleBufferPreviewLayerPool {
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var layers: [AVSampleBufferDisplayLayer] = []
+    private static var layers: [AVSampleBufferDisplayLayer] = []
 
     static func take() -> SampleBufferPreviewLayerLease {
         lock.lock()
