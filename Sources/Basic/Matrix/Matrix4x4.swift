@@ -95,6 +95,14 @@ extension Matrix4x4.Color {
     
     // MARK: - 灰度与黑白效果
     
+    /// Luminance-weighted grayscale conversion with unchanged alpha.
+    public static let luminance = Matrix4x4(values: [
+        0.2126, 0.7152, 0.0722, 0.0,  // Red output
+        0.2126, 0.7152, 0.0722, 0.0,  // Green output
+        0.2126, 0.7152, 0.0722, 0.0,  // Blue output
+        0.0000, 0.0000, 0.0000, 1.0   // Preserve alpha
+    ])
+
     /// 灰度图矩阵，平均值法
     public static let gray = Matrix4x4(values: [
         0.33, 0.33, 0.33, 0.0,

@@ -29,6 +29,8 @@ public enum HarbethError: Swift.Error {
     case imageFlipFailed
     case imageResizeFailed
     case imageOrientationFailed
+    case imageDestinationCreationFailed(String)
+    case imageEncodingFailed(String)
     
     case source2Texture
     case texture2Image
@@ -144,6 +146,10 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
             return "Image resize failed."
         case .imageOrientationFailed:
             return "Image orientation correction failed."
+        case .imageDestinationCreationFailed(let format):
+            return "Failed to create image destination for \(format)."
+        case .imageEncodingFailed(let format):
+            return "Failed to encode image as \(format)."
         case .source2Texture:
             return "Transform to texture failed."
         case .texture2Image:
@@ -317,6 +323,8 @@ extension HarbethError: CustomStringConvertible, LocalizedError {
         case .imageFlipFailed: return 1104
         case .imageResizeFailed: return 1105
         case .imageOrientationFailed: return 1106
+        case .imageDestinationCreationFailed: return 1107
+        case .imageEncodingFailed: return 1108
         case .source2Texture: return 1200
         case .texture2Image: return 1201
         case .texture2CGImage: return 1202

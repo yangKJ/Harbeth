@@ -386,8 +386,8 @@ private extension ImageAsset.Storage {
 
 private extension Data {
     var resolutionChecksum: UInt64 {
-        reduce(UInt64(14_695_981_039_346_656_037)) { partial, byte in
-            (partial ^ UInt64(byte)) &* UInt64(1_099_511_628_211)
-        }
+        var hasher = ImageContentHasher()
+        for byte in self { hasher.combine(byte) }
+        return hasher.value
     }
 }

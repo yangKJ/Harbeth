@@ -226,12 +226,9 @@ public struct ImageColorProfileDescriptor: Sendable, Codable, Equatable, Hashabl
     }
 
     private static func stableFingerprint(for data: Data) -> String {
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for byte in data {
-            hash ^= UInt64(byte)
-            hash &*= 1_099_511_628_211
-        }
-        return String(hash, radix: 16)
+        var hasher = ImageContentHasher()
+        for byte in data { hasher.combine(byte) }
+        return String(hasher.value, radix: 16)
     }
 }
 

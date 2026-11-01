@@ -8,6 +8,14 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-01
+
+#### Added
+
+- Added reusable RGBA8 buffers, validated print resolution, integer TIFF16 encoding, stable image-content hashing, affine/region geometry, half-float conversion, and dynamic-range statistics. Existing payload layouts, identifiers, and numerical behavior are preserved.
+- Moved image-sizing helpers and the luminance matrix into the existing image and matrix API families.
+- Integrated primitive validation and TIFF16 encoding failures with `HarbethError`, including stable diagnostic codes for image destination creation and encoding.
+
 ### 2026-10-30
 
 #### Added

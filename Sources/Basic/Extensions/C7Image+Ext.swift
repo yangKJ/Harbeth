@@ -218,6 +218,90 @@ extension HarbethWrapper where Base: C7Image {
 
 // MARK: - edit image
 extension HarbethWrapper where Base: C7Image {
+
+    public func resized(to maxSize: CGSize) -> C7Image? {
+        if maxSize == base.size {
+            return base
+        }
+        let widthRatio = maxSize.width / base.size.width
+        let heightRatio = maxSize.height / base.size.height
+        // Keep images that already fit within the requested bounds.
+        if widthRatio > 1 && heightRatio > 1 {
+            return base
+        }
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        return base.preparingThumbnail(of: maxSize)
+        #elseif os(macOS)
+        // macOS上的NSImage没有preparingThumbnail方法，使用draw(in:)方法作为替代
+        let newImage = NSImage(size: maxSize)
+        newImage.lockFocus()
+        base.draw(in: CGRect(origin: .zero, size: maxSize))
+        newImage.unlockFocus()
+        return newImage
+        #endif
+    }
+
+    public func resized(maxWidth: CGFloat) -> C7Image? {
+        guard base.size.width > maxWidth else {
+            return base
+        }
+        let ratio = maxWidth / base.size.width
+        return resized(to: CGSize(width: maxWidth, height: base.size.height * ratio))
+    }
+
+    /// Downsamples the image for bounded processing work.
+    /// - Parameter maxDimension: Maximum logical dimension.
+    /// - Returns: The downsampled image, or the original on unsupported fallback paths.
+    public func downsampled(to maxDimension: Int) -> C7Image {
+        let size = base.size
+        // Return the original when both dimensions already fit.
+        if size.width <= CGFloat(maxDimension) && size.height <= CGFloat(maxDimension) {
+            return base
+        }
+        let aspectRatio = size.width / size.height
+        var newSize: CGSize
+        if size.width > size.height {
+            newSize = CGSize(width: CGFloat(maxDimension), height: CGFloat(maxDimension) / aspectRatio)
+        } else {
+            newSize = CGSize(width: CGFloat(maxDimension) * aspectRatio, height: CGFloat(maxDimension))
+        }
+        // Prefer the system thumbnail preparation path.
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        if let thumbnail = base.preparingThumbnail(of: newSize) {
+            return thumbnail
+        }
+        #endif
+        // Fall back to high-quality bitmap rendering.
+        #if canImport(UIKit)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let downsampledImage = renderer.image { context in
+            let rect = CGRect(origin: .zero, size: newSize)
+            context.cgContext.interpolationQuality = .high
+            base.draw(in: rect)
+        }
+        return downsampledImage
+        #else
+        return base
+        #endif
+    }
+
+    /// Upsamples a processed image to the requested original size.
+    /// - Parameter originalSize: Requested original image size.
+    /// - Returns: The upsampled image, or the original on unsupported platforms.
+    public func upsampled(to originalSize: CGSize) -> C7Image {
+        #if canImport(UIKit)
+        let renderer = UIGraphicsImageRenderer(size: originalSize)
+        let restoredImage = renderer.image { context in
+            let rect = CGRect(origin: .zero, size: originalSize)
+            context.cgContext.interpolationQuality = .high
+            base.draw(in: rect)
+        }
+        return restoredImage
+        #else
+        return base
+        #endif
+    }
+
     /// Resize an image to the specified size. Depending on what fitMode is supplied.
     /// Note: The display control contentMode must be `.scaleAspectFit`.
     /// - Parameters:

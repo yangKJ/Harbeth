@@ -19,6 +19,16 @@ It is the rendering core inside a product, not the product workflow itself: the 
 
 English | [简体中文](README_CN.md)
 
+## Architecture boundaries
+
+Harbeth owns reusable image/frame rendering, texture and pixel contracts, color/alpha semantics, geometry, and stable image I/O primitives. It has no dependency on downstream feature packages, AppKits, or Kakapos. Higher-level libraries may consume Harbeth directly when they need these primitives; they do not have to route core APIs through an effect catalog.
+
+The public rendering routes remain `HarbethIO` and `ImageNode`. Supporting primitives include `RGBA8ImageBuffer`, `ImagePrintResolution`, `ImageTIFF16Encoder`, `ImageContentHasher`, `AffineLinearTransform`, `HalfFloatConversion`, source-region geometry, and dynamic-range statistics. These are building blocks, not another product workflow or rendering pipeline. Framework-defined failures use the unified `HarbethError` and its structured diagnostics.
+
+Feature libraries own document editing, image presentation, artistic plans, and orchestration. Applications own permissions, editor history, product policies, and delivery. Kakapos remains a separate processor-neutral media engine; applications can connect both engines through an adapter.
+
+Package declarations are the source of truth for products and platform minimums. Focused native tests verify numerical and encoding contracts; builds and such tests do not establish device UI, HDR appearance, or production performance acceptance. New and migrated code comments and API documentation should normally be written in English.
+
 ## Requirements
 
 | Platform | Minimum |

@@ -32,6 +32,8 @@ extension HarbethError: HarbethDiagnosticCoding {
         case .imageFlipFailed: return "harbeth.image.flip_failed"
         case .imageResizeFailed: return "harbeth.image.resize_failed"
         case .imageOrientationFailed: return "harbeth.image.orientation_failed"
+        case .imageDestinationCreationFailed: return "harbeth.image.destination_create_failed"
+        case .imageEncodingFailed: return "harbeth.image.encoding_failed"
         case .source2Texture: return "harbeth.source.to_texture_failed"
         case .texture2Image: return "harbeth.texture.to_image_failed"
         case .texture2CGImage: return "harbeth.texture.to_cgimage_failed"
@@ -101,6 +103,8 @@ extension HarbethError: HarbethDiagnosticCoding {
     public var harbethDiagnosticMetadata: [String: String] {
         var metadata = ["numericCode": String(code)]
         switch self {
+        case .imageDestinationCreationFailed(let format), .imageEncodingFailed(let format):
+            metadata["format"] = format
         case .commandBufferAsyncCommit(let status):
             metadata["commandBufferStatus"] = String(status.rawValue)
         case .readFunction(let name), .computePipelineState(let name):
