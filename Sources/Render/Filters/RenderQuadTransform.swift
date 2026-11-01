@@ -43,6 +43,17 @@ public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
     /// 最小包围视口按源图左上像素边界向外取整，完整保留透视边缘。
     public var alignsViewportToPixels: Bool
 
+    private var regionMapping: (source: CGRect, output: CGRect, inverse: simd_float3x3, size: CGSize)?
+
+    /// Samples an existing resident region without materializing the complete logical image.
+    /// Regions and inverseHomography use the caller's global pixel coordinate system.
+    public init(sourceRegion: CGRect, outputRegion: CGRect, inverseHomography: simd_float3x3,
+                outputSize: CGSize, samplingMode: SpatialSamplingMode = .linear,
+                edgeMode: SpatialEdgeMode = .transparent) {
+        self.init(quad: .identity, samplingMode: samplingMode, edgeMode: edgeMode)
+        self.regionMapping = (sourceRegion, outputRegion, inverseHomography, outputSize)
+    }
+
     public var modifier: ModifierEnum {
         .render(vertex: "basicVertex", fragment: "quadTransformFragment")
     }
@@ -64,6 +75,7 @@ public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
     }
 
     public func resize(input size: C7Size) -> C7Size {
+        if let regionMapping { return C7Size(width: Int(regionMapping.size.width), height: Int(regionMapping.size.height)) }
         let viewport = RenderQuadTransformLayout.resolvedViewport(
             for: CGSize(width: size.width, height: size.height),
             quad: quad,
@@ -109,6 +121,19 @@ public struct RenderQuadTransform: RenderProtocol, SamplerAdaptableFilter {
     }
 
     public func setupFragmentUniformBuffer(for device: MTLDevice, inputSize: C7Size) -> MTLBuffer? {
+        if let regionMapping {
+            let source = regionMapping.source
+            let sx = Float(inputSize.width) / Float(source.width)
+            let sy = Float(inputSize.height) / Float(source.height)
+            let conversion = simd_float3x3(columns: (SIMD3(sx, 0, 0), SIMD3(0, -sy, 0),
+                SIMD3(-Float(source.minX) * sx - Float(inputSize.width) / 2,
+                    Float(source.maxY) * sy - Float(inputSize.height) / 2, 1)))
+            var uniforms = RenderQuadTransformFragmentUniforms(inverseHomography: conversion * regionMapping.inverse,
+                viewportOrigin: SIMD2(Float(regionMapping.output.minX), Float(regionMapping.output.maxY)),
+                viewportSize: SIMD2(Float(regionMapping.output.width), -Float(regionMapping.output.height)),
+                samplingMode: UInt32(samplingMode.rawValue), edgeMode: UInt32(edgeMode.rawValue), padding: .zero)
+            return device.makeBuffer(bytes: &uniforms, length: MemoryLayout<RenderQuadTransformFragmentUniforms>.stride, options: [])
+        }
         let size = CGSize(width: inputSize.width, height: inputSize.height)
         let viewport = RenderQuadTransformLayout.resolvedViewport(
             for: size,

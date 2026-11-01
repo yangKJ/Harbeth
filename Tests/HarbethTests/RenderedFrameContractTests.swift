@@ -1,4 +1,5 @@
 import XCTest
+import CoreImage
 import AVFoundation
 import CoreMedia
 import CoreVideo
@@ -8,6 +9,59 @@ import Metal
 @testable import Harbeth
 
 final class RenderedFrameContractTests: XCTestCase {
+    func testExplicitTextureOutputContractsRetainFrameIdentity() throws {
+        let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let image = try RGBA8ImageBuffer(width: 2, height: 1, bytes: [255, 0, 0, 255, 0, 128, 0, 128], colorSpace: space).makeCGImage()
+        let source = try ImageNode.cgImage(image).makeFrame(profile: .exportQuality)
+        let converted = try source.converted(to: RenderOutputContract.displayP3Texture)
+        XCTAssertEqual(converted.pixelFormat, .rgba8Unorm)
+        XCTAssertEqual(converted.colorSpace?.name, CGColorSpace.displayP3)
+        XCTAssertEqual(converted.token, source.token)
+        XCTAssertEqual(converted.alphaType, source.alphaType)
+        XCTAssertEqual(converted.texture.width, 2)
+        XCTAssertFalse(converted.texture === source.texture)
+        XCTAssertTrue(try source.converted(to: RenderOutputContract.preserveInput).texture === source.texture)
+    }
+
+    func testICCConversionUsesIndependentTextureAndPreservesAlpha() throws {
+        let srgb = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let p3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let image = try RGBA8ImageBuffer(width: 1, height: 1, bytes: [255, 0, 0, 255], colorSpace: srgb).makeCGImage()
+        let source = try ImageNode.cgImage(image).makeFrame(profile: .exportQuality)
+        let result = try source.converted(to: p3)
+        XCTAssertFalse(result.texture === source.texture)
+        XCTAssertEqual(result.pixelFormat, .rgba16Float)
+        XCTAssertEqual(result.colorSpace?.name, p3.name)
+        let ci = try result.makeTextureBackedCIImage().image
+        var values = [Float](repeating: 0, count: 4)
+        CIContext(options: [.workingColorSpace: NSNull()]).render(ci, toBitmap: &values, rowBytes: 16,
+            bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBAf, colorSpace: p3)
+        XCTAssertEqual(values[0], 0.9175, accuracy: 0.005)
+        XCTAssertEqual(values[1], 0.2003, accuracy: 0.005)
+        XCTAssertEqual(values[2], 0.1386, accuracy: 0.005)
+        XCTAssertEqual(values[3], 1, accuracy: 0.001)
+        XCTAssertEqual(source.colorSpace?.name, srgb.name)
+    }
+
+    func testICCConversionRoundTripRetainsStraightAlpha() throws {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: 1, height: 1, mipmapped: false)
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        let texture = try XCTUnwrap(HarbethContext.shared.device.makeTexture(descriptor: descriptor))
+        let input: [Float16] = [0.4, 0.2, 0.1, 0.5]
+        input.withUnsafeBytes { texture.replace(region: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: 8) }
+        let srgb = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let p3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let source = RenderedFrame(texture: texture, colorSpace: srgb, alphaType: .nonPremultiplied,
+            profile: .exportQuality, generation: 1, identifier: "straight-icc")
+        let result = try source.converted(to: p3).converted(to: srgb)
+        XCTAssertEqual(result.alphaType, .nonPremultiplied)
+        let image = try XCTUnwrap(CIImage(mtlTexture: result.texture, options: [.colorSpace: NSNull()]))
+        var actual = [Float](repeating: 0, count: 4)
+        HarbethContext.shared.numericImageContext.render(image, toBitmap: &actual, rowBytes: 16,
+            bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBAf, colorSpace: nil)
+        for (value, expected) in zip(actual, input) { XCTAssertEqual(value, Float(expected), accuracy: 0.005) }
+    }
+
     private func assertSizeContract(_ frame: RenderedFrame, sourceWidth: Int, sourceHeight: Int) {
         XCTAssertEqual(Int(frame.sourcePixelSize.width), sourceWidth)
         XCTAssertEqual(Int(frame.sourcePixelSize.height), sourceHeight)

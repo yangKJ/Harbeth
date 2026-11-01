@@ -16,6 +16,9 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 - Moved image-sizing helpers and the luminance matrix into the existing image and matrix API families.
 - Integrated primitive validation and TIFF16 encoding failures with `HarbethError`, including stable diagnostic codes for image destination creation and encoding.
 
+- Added caller-owned filter encoding, resident-region perspective sampling, inverse-grid sampling, and numeric pixel replacement primitives.
+- Added texture-backed output-contract and arbitrary ICC frame conversions, plus a shared numeric Core Image context.
+
 ### 2026-10-30
 
 #### Added

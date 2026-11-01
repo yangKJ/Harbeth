@@ -29,6 +29,7 @@ public final class HarbethContext: @unchecked Sendable {
     private let runtimeStateLock = NSLock()
     private let coreImageContextLock = NSLock()
     private var coreImageContextStorage: CIContext?
+    private var numericImageContextStorage: CIContext?
     private let cvTextureCacheLock = NSLock()
     private var cvTextureCacheStorage: CVMetalTextureCache?
     private var textureAllocationStrategyStorage: TextureAllocationStrategy = .exact
@@ -116,6 +117,17 @@ public final class HarbethContext: @unchecked Sendable {
         }
         let context = CIContext(mtlDevice: runtimeDevice.device)
         coreImageContextStorage = context
+        return context
+    }
+
+    /// Shares the Metal device while treating mask and coordinate planes as numeric data.
+    public var numericImageContext: CIContext {
+        coreImageContextLock.lock()
+        defer { coreImageContextLock.unlock() }
+        if let numericImageContextStorage { return numericImageContextStorage }
+        let context = CIContext(mtlDevice: runtimeDevice.device,
+            options: [.workingColorSpace: NSNull(), .outputColorSpace: NSNull()])
+        numericImageContextStorage = context
         return context
     }
 

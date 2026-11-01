@@ -1122,3 +1122,44 @@ private extension FrameOrientation {
     }
 
 }
+
+public extension RenderedFrame {
+    /// Applies an explicit output contract through the existing image execution machinery.
+    func converted(to contract: RenderOutputContract) throws -> RenderedFrame {
+        guard contract != .preserveInput else { return self }
+        let output = try ImageNode.applyOutputContractIfNeeded(contract, to: texture,
+            sourceColorSpace: outputColorSpaceContract, sourceAlphaType: alphaType,
+            profile: profile, identifier: identifier)
+        return RenderedFrame(texture: output, colorSpace: contract.colorSpace.cgColorSpace ?? colorSpace,
+            outputColorSpaceContract: contract.colorSpace == .preserveInput ? outputColorSpaceContract : contract.colorSpace,
+            outputToneMappingPolicy: contract.toneMappingPolicy,
+            sourceDescriptor: sourceDescriptor, alphaType: contract.alpha.expectedAlphaType ?? alphaType,
+            profile: profile, token: token, metadata: metadata)
+    }
+
+    /// Converts an arbitrary ICC-tagged frame directly into a caller-selected color space.
+    func converted(to colorSpace: CGColorSpace) throws -> RenderedFrame {
+        guard colorSpace.model == .rgb, colorSpace.numberOfComponents == 3 else {
+            throw HarbethError.configurationInvalid("Texture ICC conversion requires an RGB destination color space.")
+        }
+        if let current = self.colorSpace, CFEqual(current, colorSpace) { return self }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float,
+            width: texture.width, height: texture.height, mipmapped: false)
+        descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
+        guard let output = HarbethContext.shared.device.makeTexture(descriptor: descriptor),
+              let command = HarbethContext.shared.makeCommandBuffer() else { throw HarbethError.makeTexture }
+        let source = alphaType == .nonPremultiplied
+            ? try converted(to: RenderOutputContract(alpha: .premultiplied)) : self
+        let image = try source.makeTextureBackedCIImage().image
+        HarbethContext.shared.coreImageContext.render(image, to: output, commandBuffer: command,
+            bounds: CGRect(x: 0, y: 0, width: texture.width, height: texture.height), colorSpace: colorSpace)
+        command.commit()
+        command.waitUntilCompleted()
+        if let error = command.error { throw HarbethError.error(error) }
+        try Task.checkCancellation()
+        let result = RenderedFrame(texture: output, colorSpace: colorSpace, sourceDescriptor: sourceDescriptor,
+            alphaType: source.alphaType, profile: profile, token: token, metadata: metadata)
+        return alphaType == .nonPremultiplied
+            ? try result.converted(to: RenderOutputContract(alpha: .nonPremultiplied)) : result
+    }
+}

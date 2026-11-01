@@ -364,3 +364,13 @@ public protocol BlitProtocol: C7FilterProtocol {
     /// - Returns: Return output metal texture.
     func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture
 }
+
+public extension C7FilterProtocol {
+    /// Encodes into caller-owned textures without submitting or waiting for GPU work.
+    /// The caller retains inputs and destinations until the command buffer completes.
+    func encode(input: MTLTexture, destination: MTLTexture, commandBuffer: MTLCommandBuffer) throws -> MTLTexture {
+        let prepared = try combinationBegin(for: commandBuffer, source: input, dest: destination)
+        let output = try apply(form: prepared, to: destination, for: commandBuffer, complete: nil)
+        return try combinationAfter(for: commandBuffer, input: output, source: input)
+    }
+}
