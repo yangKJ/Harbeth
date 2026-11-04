@@ -12,7 +12,7 @@ final class HighlightShadowToneTests: XCTestCase {
         XCTAssertTrue(filter.pipelineFilters[0] is MPSGaussianBlur)
         XCTAssertEqual(filter.pipelineOtherInputCount, 1)
         XCTAssertEqual(filter.factors, [0.4, -0.3, 0, 0])
-        XCTAssertEqual(filter.kernelPixelContract.samplingFootprint, .neighborhood(radius: 144))
+        XCTAssertEqual(filter.kernelPixelContract.samplingFootprint, .neighborhood(radius: 192))
         XCTAssertTrue(filter.kernelPixelContract.canAutoTile)
     }
 

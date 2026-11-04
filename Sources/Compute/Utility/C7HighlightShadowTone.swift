@@ -48,8 +48,8 @@ public struct C7HighlightShadowTone: C7FilterPipelineProtocol {
             precision: .float16,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .neighborhood(
-                // 非线性影调会放大模糊参考的截断误差，使用 6σ 保护分块量化结果。
-                radius: Int(ceil(radius)) * 6
+                // 非线性影调会放大模糊参考的截断误差，8σ覆盖窄画布与嵌套混合的量化边界。
+                radius: Int(ceil(radius)) * 8
             )
         )
     }

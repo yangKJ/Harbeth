@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-04
+
+#### Fixed
+
+- 局部高光阴影影调的采样声明扩至8σ，覆盖窄画布与完整配方混合中的邻域截断误差；像素算法、参数和零半径行为保持。
+
 ### 2026-11-01
 
 #### Added
