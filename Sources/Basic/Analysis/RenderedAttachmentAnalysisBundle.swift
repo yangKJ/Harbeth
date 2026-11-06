@@ -326,17 +326,7 @@ extension RenderedAttachmentSet {
                 valueRange: valueRange
             )
             histogramAttachment = histogram.flatMap { histogram in
-                texture.makePreviewTexture(from: histogram, height: histogramHeight).map { previewTexture in
-                    RenderedHistogramAttachment(
-                        histogram: histogram,
-                        attachment: RenderedAttachment(
-                            index: 1,
-                            semantic: .histogram,
-                            texture: previewTexture,
-                            debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy
-                        )
-                    )
-                }
+                texture.makeHistogramAttachment(from: histogram, height: histogramHeight)
             }
         } else {
             histogramAttachment = texture.renderHistogramAttachment(

@@ -96,72 +96,74 @@ public extension MTLTextureCompatible_ {
             )
         }
 
-        let resolvedCoverageThreshold = min(max(coverageThreshold, 0), 1)
-        var sampleCount = 0
-        var redSum: Float = 0
-        var greenSum: Float = 0
-        var blueSum: Float = 0
-        var alphaSum: Float = 0
-        var luminanceSum: Float = 0
-        var minimumLuminance = Float.greatestFiniteMagnitude
-        var maximumLuminance = -Float.greatestFiniteMagnitude
+        return readback.data.withUnsafeBytes { bytes in
+            let resolvedCoverageThreshold = min(max(coverageThreshold, 0), 1)
+            var sampleCount = 0
+            var redSum: Float = 0
+            var greenSum: Float = 0
+            var blueSum: Float = 0
+            var alphaSum: Float = 0
+            var luminanceSum: Float = 0
+            var minimumLuminance = Float.greatestFiniteMagnitude
+            var maximumLuminance = -Float.greatestFiniteMagnitude
 
-        for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
-            for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
-                if let maskSample,
-                   maskSample.coverage(atSourceX: x, y: y, sourceWidth: width, sourceHeight: height) < resolvedCoverageThreshold {
-                    continue
-                }
-                guard let color = readback.color(x: x, y: y) else { continue }
-                let red = color.x
-                let green = color.y
-                let blue = color.z
-                let alpha = color.w
-                let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
-                if let luminanceRange, luminanceRange.contains(luminance) == false {
-                    continue
-                }
-                if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
-                    continue
-                }
+            for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
+                for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
+                    if let maskSample,
+                       maskSample.coverage(atSourceX: x, y: y, sourceWidth: width, sourceHeight: height) < resolvedCoverageThreshold {
+                        continue
+                    }
+                    guard let color = readback.color(x: x, y: y, bytes: bytes) else { continue }
+                    let red = color.x
+                    let green = color.y
+                    let blue = color.z
+                    let alpha = color.w
+                    let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                    if let luminanceRange, luminanceRange.contains(luminance) == false {
+                        continue
+                    }
+                    if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
+                        continue
+                    }
 
-                redSum += red
-                greenSum += green
-                blueSum += blue
-                alphaSum += alpha
-                luminanceSum += luminance
-                minimumLuminance = min(minimumLuminance, luminance)
-                maximumLuminance = max(maximumLuminance, luminance)
-                sampleCount += 1
+                    redSum += red
+                    greenSum += green
+                    blueSum += blue
+                    alphaSum += alpha
+                    luminanceSum += luminance
+                    minimumLuminance = min(minimumLuminance, luminance)
+                    maximumLuminance = max(maximumLuminance, luminance)
+                    sampleCount += 1
+                }
             }
-        }
 
-        guard sampleCount > 0 else {
+            guard sampleCount > 0 else {
+                return TextureStatistics(
+                    pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false),
+                    sampleCount: 0,
+                    meanRed: 0,
+                    meanGreen: 0,
+                    meanBlue: 0,
+                    meanAlpha: 0,
+                    meanLuminance: 0,
+                    minimumLuminance: 0,
+                    maximumLuminance: 0
+                )
+            }
+
+            let divisor = Float(sampleCount)
             return TextureStatistics(
                 pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false),
-                sampleCount: 0,
-                meanRed: 0,
-                meanGreen: 0,
-                meanBlue: 0,
-                meanAlpha: 0,
-                meanLuminance: 0,
-                minimumLuminance: 0,
-                maximumLuminance: 0
+                sampleCount: sampleCount,
+                meanRed: redSum / divisor,
+                meanGreen: greenSum / divisor,
+                meanBlue: blueSum / divisor,
+                meanAlpha: alphaSum / divisor,
+                meanLuminance: luminanceSum / divisor,
+                minimumLuminance: minimumLuminance,
+                maximumLuminance: maximumLuminance
             )
         }
-
-        let divisor = Float(sampleCount)
-        return TextureStatistics(
-            pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false),
-            sampleCount: sampleCount,
-            meanRed: redSum / divisor,
-            meanGreen: greenSum / divisor,
-            meanBlue: blueSum / divisor,
-            meanAlpha: alphaSum / divisor,
-            meanLuminance: luminanceSum / divisor,
-            minimumLuminance: minimumLuminance,
-            maximumLuminance: maximumLuminance
-        )
     }
 }
 

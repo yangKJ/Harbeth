@@ -169,6 +169,103 @@ final class RenderedAnalysisBundleHelperTests: XCTestCase {
 
     // MARK: - 测试 helper
 
+    func testCPUHistogramPreviewMatchesDirectFrameAndAttachmentPaths() throws {
+        let texture = try makeSolidTexture(width: 3, height: 2, pixel: [64, 128, 192, 255])
+        let frame = RenderedFrame(texture: texture, profile: .readbackQuality, generation: 7, identifier: "preview-parity")
+        let primary = RenderedAttachment(
+            index: 0, semantic: .primaryColor, texture: texture,
+            debugPolicy: RenderOutputAttachmentContract(index: 0, pixelFormat: .rgba8Unorm).debugPolicy
+        )
+        let attachments = RenderedAttachmentSet(outputContract: .preserveInput, attachments: [primary])
+        let mask = try MaskDescriptor(texture: makeSolidTexture(width: 1, height: 1, pixel: [128, 0, 0, 255]), component: .red)
+        let scopes: [(TextureAnalysisScope, Int)] = [
+            (.init(), 6),
+            (.init(region: MTLRegionMake2D(1, 0, 2, 1)), 2),
+            (.init(mask: mask, luminanceRange: .init(minimum: 0, maximum: 1),
+                   colorRange: .init(saturation: .init(minimum: 0, maximum: 1)), coverageThreshold: 0.5), 6),
+            (.init(mask: mask, coverageThreshold: 0.75), 0),
+            (.init(region: MTLRegionMake2D(99, 0, 1, 1)), 0)
+        ]
+        for (scope, count) in scopes {
+            let direct = try XCTUnwrap(texture.c7.renderHistogramAttachment(channel: .red, bins: 8, height: 0,
+                                                                           scope: scope, preferredMethod: .cpuReadback))
+            let bundle = RenderedAnalysisBundle.makeScopeBundle(
+                frame: frame, channel: .red, bins: 8, histogramHeight: 0, scope: scope,
+                preferredMethod: .cpuReadback, attachmentDebugPolicies: [primary.debugPolicy]
+            )
+            let analysis = try XCTUnwrap(attachments.makeAnalysis(for: .primaryColor, channel: .red, bins: 8,
+                                                                  histogramHeight: 0, scope: scope, preferredMethod: .cpuReadback))
+            XCTAssertEqual(bundle.histogram, direct.histogram)
+            XCTAssertEqual(analysis.histogram, direct.histogram)
+            XCTAssertEqual(direct.histogram.totalSampleCount, count)
+            XCTAssertEqual(bundle.statistics?.sampleCount, count)
+            XCTAssertEqual(analysis.statistics, bundle.statistics)
+            XCTAssertEqual(bundle.frame.token.identifier, frame.token.identifier)
+            XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+            for preview in [direct, try XCTUnwrap(bundle.histogramAttachment), try XCTUnwrap(analysis.histogramAttachment)] {
+                XCTAssertEqual(preview.attachment.index, 1)
+                XCTAssertEqual(preview.attachment.semantic, .histogram)
+                XCTAssertEqual(preview.attachment.debugPolicy, RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy)
+                XCTAssertEqual(preview.attachment.texture.height, 1)
+                XCTAssertEqual(preview.attachment.texture.c7.bytes(), direct.attachment.texture.c7.bytes())
+            }
+        }
+    }
+
+    func testAttachmentAnalysisKeepsIndependentPixelsAndDefaultChannels() throws {
+        let primary = RenderedAttachment(
+            index: 0, semantic: .primaryColor,
+            texture: try makeSolidTexture(width: 2, height: 2, pixel: [255, 0, 0, 255]),
+            debugPolicy: RenderOutputAttachmentContract(index: 0, pixelFormat: .rgba8Unorm).debugPolicy
+        )
+        let auxiliary = RenderedAttachment(
+            index: 3, semantic: .analysis,
+            texture: try makeSolidTexture(width: 2, height: 2, pixel: [0, 255, 0, 255]),
+            debugPolicy: .init(label: "scalar", interpretation: .scalarField, preferredReadbackPixelFormat: .rgba8Unorm,
+                               preservesDynamicRange: false, prefersMonochromePreview: false)
+        )
+        let set = RenderedAttachmentSet(outputContract: .preserveInput, attachments: [auxiliary, primary])
+        let bundle = set.makeAnalysisBundle(bins: 4, histogramHeight: 4, preferredMethod: .cpuReadback)
+        XCTAssertEqual(bundle.analyses.map { $0.attachment.index }, [0, 3])
+        XCTAssertEqual(bundle.analyses[0].histogram?.channel, .luminance)
+        XCTAssertEqual(bundle.analyses[0].histogram?.bins, [0, 4, 0, 0])
+        XCTAssertEqual(bundle.analyses[1].histogram?.channel, .red)
+        XCTAssertEqual(bundle.analyses[1].histogram?.bins, [4, 0, 0, 0])
+        XCTAssertEqual(bundle.analyses[0].statistics?.meanRed, 1)
+        XCTAssertEqual(bundle.analyses[1].statistics?.meanRed, 0)
+    }
+
+    func testUnsupportedCPUReadbackKeepsFrameAndAttachmentWrappersWithoutMeasurements() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .r32Uint, width: 2, height: 2, mipmapped: false)
+        descriptor.storageMode = .shared
+        descriptor.usage = .shaderRead
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        let frame = RenderedFrame(texture: texture, profile: .readbackQuality, generation: 8, identifier: "unsupported-readback")
+        let primary = RenderedAttachment(
+            index: 0, semantic: .primaryColor, texture: texture,
+            debugPolicy: RenderOutputAttachmentContract(index: 0).debugPolicy
+        )
+        let scope = TextureAnalysisScope()
+        let bundle = RenderedAnalysisBundle.makeScopeBundle(
+            frame: frame, channel: .red, bins: 8, histogramHeight: 4, scope: scope,
+            preferredMethod: .cpuReadback, attachmentDebugPolicies: [primary.debugPolicy]
+        )
+        let set = RenderedAttachmentSet(outputContract: .preserveInput, attachments: [primary])
+        let analysis = try XCTUnwrap(set.makeAnalysis(for: .primaryColor, scope: scope, preferredMethod: .cpuReadback))
+        XCTAssertNil(texture.c7.renderHistogramAttachment(preferredMethod: .cpuReadback))
+        XCTAssertNil(bundle.histogram)
+        XCTAssertNil(bundle.statistics)
+        XCTAssertNil(bundle.colorProbe)
+        XCTAssertNil(bundle.histogramAttachment)
+        XCTAssertEqual(bundle.frame.token.identifier, frame.token.identifier)
+        XCTAssertEqual(bundle.analysisScopeFingerprint, scope.fingerprint)
+        XCTAssertNil(analysis.histogram)
+        XCTAssertNil(analysis.statistics)
+        XCTAssertNil(analysis.histogramAttachment)
+        XCTAssertTrue(analysis.attachment.texture === texture)
+    }
+
     private func makeSimpleFrame() throws -> RenderedFrame {
         let input = try makeSolidTexture(width: 4, height: 4, pixel: [200, 120, 80, 255])
         let node = ImageNode.texture(input).applying(C7Brightness(brightness: 0.0))

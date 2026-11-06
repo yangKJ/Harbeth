@@ -234,10 +234,14 @@ public extension MTLTextureCompatible_ {
                 colorRange: colorRange,
                 coverageThreshold: coverageThreshold,
                 valueRange: valueRange
-              ),
-              let previewTexture = makePreviewTexture(from: histogram, height: height) else {
+              ) else {
             return nil
         }
+        return makeHistogramAttachment(from: histogram, height: height)
+    }
+
+    internal func makeHistogramAttachment(from histogram: TextureHistogram, height: Int) -> RenderedHistogramAttachment? {
+        guard let previewTexture = makePreviewTexture(from: histogram, height: height) else { return nil }
         return RenderedHistogramAttachment(
             histogram: histogram,
             attachment: RenderedAttachment(
@@ -312,51 +316,53 @@ public extension MTLTextureCompatible_ {
             )
         }
 
-        var counts = [UInt32](repeating: 0, count: clampedBins)
-        let scale = Float(clampedBins - 1)
-        let resolvedCoverageThreshold = min(max(coverageThreshold, 0), 1)
-        var totalSampleCount = 0
+        return readback.data.withUnsafeBytes { bytes in
+            var counts = [UInt32](repeating: 0, count: clampedBins)
+            let scale = Float(clampedBins - 1)
+            let resolvedCoverageThreshold = min(max(coverageThreshold, 0), 1)
+            var totalSampleCount = 0
 
-        for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
-            for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
-                if let maskSample,
-                   maskSample.coverage(atSourceX: x, y: y, sourceWidth: width, sourceHeight: height) < resolvedCoverageThreshold {
-                    continue
-                }
-                guard let color = readback.color(x: x, y: y) else { continue }
-                let red = color.x
-                let green = color.y
-                let blue = color.z
-                let alpha = color.w
-                let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
-                if let luminanceRange, luminanceRange.contains(luminance) == false {
-                    continue
-                }
-                if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
-                    continue
-                }
+            for y in resolvedRegion.origin.y..<(resolvedRegion.origin.y + resolvedRegion.size.height) {
+                for x in resolvedRegion.origin.x..<(resolvedRegion.origin.x + resolvedRegion.size.width) {
+                    if let maskSample,
+                       maskSample.coverage(atSourceX: x, y: y, sourceWidth: width, sourceHeight: height) < resolvedCoverageThreshold {
+                        continue
+                    }
+                    guard let color = readback.color(x: x, y: y, bytes: bytes) else { continue }
+                    let red = color.x
+                    let green = color.y
+                    let blue = color.z
+                    let alpha = color.w
+                    let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                    if let luminanceRange, luminanceRange.contains(luminance) == false {
+                        continue
+                    }
+                    if let colorRange, colorRange.contains(red: red, green: green, blue: blue) == false {
+                        continue
+                    }
 
-                let value: Float
-                switch channel {
-                case .luminance: value = luminance
-                case .red: value = red
-                case .green: value = green
-                case .blue: value = blue
-                case .alpha: value = alpha
+                    let value: Float
+                    switch channel {
+                    case .luminance: value = luminance
+                    case .red: value = red
+                    case .green: value = green
+                    case .blue: value = blue
+                    case .alpha: value = alpha
+                    }
+                    let index = min(max(Int((valueRange.normalizedValue(value) * scale).rounded()), 0), clampedBins - 1)
+                    counts[index] += 1
+                    totalSampleCount += 1
                 }
-                let index = min(max(Int((valueRange.normalizedValue(value) * scale).rounded()), 0), clampedBins - 1)
-                counts[index] += 1
-                totalSampleCount += 1
             }
-        }
 
-        return TextureHistogram(
-            channel: channel,
-            bins: counts,
-            totalSampleCount: totalSampleCount,
-            valueRange: valueRange,
-            pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false)
-        )
+            return TextureHistogram(
+                channel: channel,
+                bins: counts,
+                totalSampleCount: totalSampleCount,
+                valueRange: valueRange,
+                pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false)
+            )
+        }
     }
 
     internal func makePreviewTexture(from histogram: TextureHistogram, height: Int) -> MTLTexture? {
