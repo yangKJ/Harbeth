@@ -152,57 +152,21 @@ extension C7FilterProtocol {
 extension C7FilterProtocol {
     @discardableResult
     func apply(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer, complete: C7TextureResultBlock?) throws -> MTLTexture {
-        /// Asynchronous apply at texture.
-        if let complete = complete {
-            switch self.modifier {
-            case .compute(let kernel):
-                let textures = [destTexture, texture] + self.otherInputTextures
-                Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self, complete: complete)
-            case .render:
-                try Rendering.drawing(
-                    commandBuffer: buffer,
-                    texture: texture,
-                    destTexture: destTexture,
-                    filter: self
-                )
-                complete(.success(destTexture))
-            case .blit:
-                let textures = [destTexture, texture] + self.otherInputTextures
-                guard let filter = self as? BlitProtocol else {
-                    throw HarbethError.filterError(
-                        name: String(describing: type(of: self)),
-                        reason: "Blit modifier requires BlitProtocol."
-                    )
-                }
-                let blitTexture = try filter.encode(commandBuffer: buffer, textures: textures)
-                complete(.success(blitTexture))
-            case .mps:
-                let textures = [destTexture, texture] + self.otherInputTextures
-                guard let filter = self as? MPSKernelProtocol else {
-                    throw HarbethError.filterError(
-                        name: String(describing: type(of: self)),
-                        reason: "MPS modifier requires MPSKernelProtocol."
-                    )
-                }
-                let mpsTexture = try filter.encode(commandBuffer: buffer, textures: textures)
-                complete(.success(mpsTexture))
-            case .metalCommand:
-                let textures = [destTexture, texture] + self.otherInputTextures
-                guard let filter = self as? C7MetalCommandEncodingProtocol else {
-                    throw HarbethError.filterError(
-                        name: String(describing: type(of: self)),
-                        reason: "Metal command modifier requires C7MetalCommandEncodingProtocol."
-                    )
-                }
-                let outputTexture = try filter.encodeMetalCommands(commandBuffer: buffer, textures: textures)
-                complete(.success(outputTexture))
-            }
-            return destTexture
-        }
-        /// Sync apply at texture.
+        let outputTexture: MTLTexture
         switch self.modifier {
         case .compute(let kernel):
             let textures = [destTexture, texture] + self.otherInputTextures
+            // 计算管线的回调路径保留异步编译与错误交付，其他编码路径共用分派。
+            if let complete {
+                Compute.drawing(
+                    with: kernel,
+                    commandBuffer: buffer,
+                    textures: textures,
+                    filter: self,
+                    complete: complete
+                )
+                return destTexture
+            }
             return try Compute.drawing(with: kernel, commandBuffer: buffer, textures: textures, filter: self)
         case .render:
             try Rendering.drawing(
@@ -211,6 +175,7 @@ extension C7FilterProtocol {
                 destTexture: destTexture,
                 filter: self
             )
+            outputTexture = destTexture
         case .blit:
             let textures = [destTexture, texture] + self.otherInputTextures
             guard let filter = self as? BlitProtocol else {
@@ -219,7 +184,7 @@ extension C7FilterProtocol {
                     reason: "Blit modifier requires BlitProtocol."
                 )
             }
-            return try filter.encode(commandBuffer: buffer, textures: textures)
+            outputTexture = try filter.encode(commandBuffer: buffer, textures: textures)
         case .mps:
             let textures = [destTexture, texture] + self.otherInputTextures
             guard let filter = self as? MPSKernelProtocol else {
@@ -228,7 +193,7 @@ extension C7FilterProtocol {
                     reason: "MPS modifier requires MPSKernelProtocol."
                 )
             }
-            return try filter.encode(commandBuffer: buffer, textures: textures)
+            outputTexture = try filter.encode(commandBuffer: buffer, textures: textures)
         case .metalCommand:
             let textures = [destTexture, texture] + self.otherInputTextures
             guard let filter = self as? C7MetalCommandEncodingProtocol else {
@@ -237,9 +202,13 @@ extension C7FilterProtocol {
                     reason: "Metal command modifier requires C7MetalCommandEncodingProtocol."
                 )
             }
-            return try filter.encodeMetalCommands(commandBuffer: buffer, textures: textures)
+            outputTexture = try filter.encodeMetalCommands(commandBuffer: buffer, textures: textures)
         }
-        return destTexture
+        if let complete {
+            complete(.success(outputTexture))
+            return destTexture
+        }
+        return outputTexture
     }
 }
 

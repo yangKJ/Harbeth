@@ -1240,6 +1240,38 @@ final class PixelBufferOutputTests: XCTestCase {
         }
     }
 
+    func testSampleBufferMaterializationPreservesTimingMetadataAndColorAcrossDeliveryModes() async throws {
+        let pixels = try makeBGRAPixelBuffer(width: 2, height: 2)
+        fill(pixelBuffer: pixels, withBGRA: [20, 40, 60, 255])
+        let original = try XCTUnwrap(pixels.c7.toCMSampleBuffer())
+        var timing = CMSampleTimingInfo(duration: CMTime(value: 1, timescale: 30),
+                                       presentationTimeStamp: CMTime(value: 42, timescale: 30),
+                                       decodeTimeStamp: .invalid)
+        var timed: CMSampleBuffer?
+        XCTAssertEqual(CMSampleBufferCreateCopyWithNewTiming(allocator: kCFAllocatorDefault,
+            sampleBuffer: original, sampleTimingEntryCount: 1, sampleTimingArray: &timing,
+            sampleBufferOut: &timed), noErr)
+        let source = try XCTUnwrap(timed)
+        CMSetAttachment(source, key: kCGImagePropertyOrientation,
+                        value: NSNumber(value: CGImagePropertyOrientation.right.rawValue),
+                        attachmentMode: kCMAttachmentMode_ShouldPropagate)
+        var io = HarbethIO(element: source, filter: PixelBufferOutputColorSpaceRenderFilter())
+        io.transmitOutputRealTimeCommit = true
+        let synchronous = try io.output()
+        let asynchronous = try await io.transmitOutput()
+        for result in [synchronous, asynchronous] {
+            XCTAssertEqual(CMSampleBufferGetPresentationTimeStamp(result), timing.presentationTimeStamp)
+            XCTAssertEqual(CMSampleBufferGetDuration(result), timing.duration)
+            XCTAssertEqual(result.c7.contract.frameContract.orientation, .right)
+            XCTAssertEqual(result.c7.contract.pixelBufferContract?.colorPrimariesAttachment, .p3D65)
+            XCTAssertEqual(result.c7.contract.pixelBufferContract?.transferFunctionAttachment, .sRGB)
+        }
+        let first = try XCTUnwrap(CMSampleBufferGetImageBuffer(synchronous))
+        let second = try XCTUnwrap(CMSampleBufferGetImageBuffer(asynchronous))
+        XCTAssertEqual(try TextureLoader(with: first).texture.c7.bytes(),
+                       try TextureLoader(with: second).texture.c7.bytes())
+    }
+
     func testFilteringPixelBufferResizeAsyncReturnsTextureSizeMismatch() throws {
         var pixelBuffer: CVPixelBuffer?
         let attributes: [CFString: Any] = [

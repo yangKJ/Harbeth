@@ -902,7 +902,11 @@ extension HarbethIO {
             outputColorSpace: outputColorSpace
         )
         let outputPixelBuffer = try filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace)
-        guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: sampleBuffer) else {
+        return try makeSampleBuffer(pixelBuffer: outputPixelBuffer, source: sampleBuffer, outputColorSpace: outputColorSpace)
+    }
+
+    private func makeSampleBuffer(pixelBuffer: CVPixelBuffer, source: CMSampleBuffer, outputColorSpace: ImageColorSpaceContract) throws -> CMSampleBuffer {
+        guard let buffer = pixelBuffer.c7.toCMSampleBuffer(reference: source) else {
             throw HarbethError.CVPixelBufferToCMSampleBuffer
         }
         if outputColorSpace.preservesInput == false, let imageBuffer = CMSampleBufferGetImageBuffer(buffer) {
@@ -918,7 +922,11 @@ extension HarbethIO {
             outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
-        guard let cgImg = texture.c7.toCGImage(colorSpace: outputColorSpace.cgColorSpace ?? cgImage.colorSpace) else {
+        return try makeCGImage(texture: texture, source: cgImage, outputColorSpace: outputColorSpace)
+    }
+
+    private func makeCGImage(texture: MTLTexture, source: CGImage, outputColorSpace: ImageColorSpaceContract) throws -> CGImage {
+        guard let cgImg = texture.c7.toCGImage(colorSpace: outputColorSpace.cgColorSpace ?? source.colorSpace) else {
             throw HarbethError.texture2Image
         }
         return cgImg
@@ -948,8 +956,12 @@ extension HarbethIO {
             outputColorSpace: outputColorSpace
         )
         let texture = try filtering(texture: inTexture)
+        return try makeImage(texture: texture, source: image, outputColorSpace: outputColorSpace)
+    }
+
+    private func makeImage(texture: MTLTexture, source: C7Image, outputColorSpace: ImageColorSpaceContract) throws -> C7Image {
         guard let outputImage = texture.c7.toImage(
-            colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
+            colorSpace: outputColorSpace.cgColorSpace ?? source.c7.toCGImage()?.colorSpace
         ) else {
             throw HarbethError.texture2Image
         }
@@ -1006,14 +1018,11 @@ extension HarbethIO {
         return filtering(pixelBuffer: pixelBuffer, outputColorSpace: outputColorSpace, complete: { result in
             switch result {
             case .success(let outputPixelBuffer):
-                guard let buffer = outputPixelBuffer.c7.toCMSampleBuffer(reference: source.value) else {
-                    complete(.failure(HarbethError.CVPixelBufferToCMSampleBuffer))
-                    return
+                do {
+                    complete(.success(try makeSampleBuffer(pixelBuffer: outputPixelBuffer, source: source.value, outputColorSpace: outputColorSpace)))
+                } catch {
+                    complete(.failure(HarbethError.toHarbethError(error)))
                 }
-                if outputColorSpace.preservesInput == false, let imageBuffer = CMSampleBufferGetImageBuffer(buffer) {
-                    imageBuffer.c7.setColorSpaceAttachments(outputColorSpace)
-                }
-                complete(.success(buffer))
             case .failure(let error):
                 complete(.failure(HarbethError.toHarbethError(error)))
             }
@@ -1034,13 +1043,11 @@ extension HarbethIO {
                 complete: { result in
                     switch result {
                     case .success(let texture):
-                        guard let outputImage = texture.c7.toCGImage(
-                            colorSpace: outputColorSpace.cgColorSpace ?? cgImage.colorSpace
-                        ) else {
-                            complete(.failure(HarbethError.texture2Image))
-                            return
+                        do {
+                            complete(.success(try makeCGImage(texture: texture, source: cgImage, outputColorSpace: outputColorSpace)))
+                        } catch {
+                            complete(.failure(HarbethError.toHarbethError(error)))
                         }
-                        complete(.success(outputImage))
                     case .failure(let error):
                         complete(.failure(HarbethError.toHarbethError(error)))
                     }
@@ -1098,13 +1105,11 @@ extension HarbethIO {
                 complete: { result in
                     switch result {
                     case .success(let texture):
-                        guard let outputImage = texture.c7.toImage(
-                            colorSpace: outputColorSpace.cgColorSpace ?? image.c7.toCGImage()?.colorSpace
-                        ) else {
-                            complete(.failure(HarbethError.texture2Image))
-                            return
+                        do {
+                            complete(.success(try makeImage(texture: texture, source: image, outputColorSpace: outputColorSpace)))
+                        } catch {
+                            complete(.failure(HarbethError.toHarbethError(error)))
                         }
-                        complete(.success(outputImage))
                     case .failure(let error):
                         complete(.failure(HarbethError.toHarbethError(error)))
                     }

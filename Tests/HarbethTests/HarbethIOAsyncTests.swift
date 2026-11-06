@@ -605,6 +605,33 @@ final class HarbethIOAsyncTests: XCTestCase {
         XCTAssertEqual(decodedImageColorSpaceName(from: data), CGColorSpace.displayP3 as String)
     }
 
+    func testCGImageAndPlatformImageMaterializationMatchSyncAndAsync() async throws {
+        let p3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let source = try makeFixtureCGImage(colorSpace: p3)
+        for colorSpace: ImageColorSpaceContract? in [nil, .sRGB, .displayP3] {
+            var cgIO = HarbethIO(element: source, filter: C7Brightness(brightness: 0.1))
+            cgIO.transmitOutputRealTimeCommit = true
+            let cgSync = try cgIO.output(outputColorSpace: colorSpace)
+            let cgAsync = try await cgIO.transmitOutput(outputColorSpace: colorSpace)
+            try assertSameImage(cgSync, cgAsync)
+
+            var imageIO = HarbethIO(element: C7Image(cgImage: source), filter: C7Brightness(brightness: 0.1))
+            imageIO.transmitOutputRealTimeCommit = true
+            let imageSync = try imageIO.output(outputColorSpace: colorSpace)
+            let imageAsync = try await imageIO.transmitOutput(outputColorSpace: colorSpace)
+            try assertSameImage(XCTUnwrap(imageSync.c7.toCGImage()), XCTUnwrap(imageAsync.c7.toCGImage()))
+        }
+    }
+
+    private func assertSameImage(_ first: CGImage, _ second: CGImage) throws {
+        XCTAssertEqual(first.width, second.width)
+        XCTAssertEqual(first.height, second.height)
+        XCTAssertEqual(first.alphaInfo, second.alphaInfo)
+        XCTAssertEqual(first.colorSpace?.name, second.colorSpace?.name)
+        XCTAssertEqual(try TextureLoader(with: first).texture.c7.bytes(),
+                       try TextureLoader(with: second).texture.c7.bytes())
+    }
+
     private func makeFixtureCGImage(colorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()) throws -> CGImage {
         let bytes: [UInt8] = [255, 0, 0, 255]
         guard let provider = CGDataProvider(data: Data(bytes) as CFData),
