@@ -400,9 +400,11 @@ final class TexturePool: @unchecked Sendable {
         let key = TextureDescriptorContract(texture: texture)
         let additionalBytes = texture.heap == nil ? allocatedByteSize(of: texture) : 0
         guard reserveBudgetLocked(additionalBytes: additionalBytes) else { return }
+        // 预算回收可能移除同一个键，因此在回收后判断是否需要追加访问记录。
+        let isNewKey = cache[key] == nil
         cache[key, default: []].append(texture)
         textureToKey[oid] = key
-        if !accessQueue.contains(key) {
+        if isNewKey {
             accessQueue.append(key)
         }
         directCachedMemoryUsage += additionalBytes
@@ -411,7 +413,9 @@ final class TexturePool: @unchecked Sendable {
     }
 
     private func popFromCacheLocked(for key: TextureDescriptorContract) -> MTLTexture? {
-        guard var textures = cache[key], let texture = textures.popLast() else {
+        // 字典与访问队列同步增删；不存在的键无需扫描访问队列。
+        guard var textures = cache[key] else { return nil }
+        guard let texture = textures.popLast() else {
             cache[key] = nil
             accessQueue.removeAll { $0 == key }
             return nil
@@ -422,8 +426,10 @@ final class TexturePool: @unchecked Sendable {
             commonResolutions.remove(key)
         } else {
             cache[key] = textures
-            accessQueue.removeAll { $0 == key }
-            accessQueue.append(key)
+            if accessQueue.last != key {
+                accessQueue.removeAll { $0 == key }
+                accessQueue.append(key)
+            }
         }
         textureToKey.removeValue(forKey: ObjectIdentifier(texture))
         if texture.heap == nil {
@@ -481,7 +487,9 @@ final class TexturePool: @unchecked Sendable {
     }
 
     private var totalReservedMemoryLocked: Int {
-        directCachedMemoryUsage + heaps.values.flatMap { $0 }.reduce(0) { $0 + $1.size }
+        directCachedMemoryUsage + heaps.values.reduce(0) { total, group in
+            group.reduce(total) { $0 + $1.size }
+        }
     }
 
     private func removeEmptyHeapsLocked() {
@@ -530,14 +538,23 @@ final class TexturePool: @unchecked Sendable {
     }
 
     private func updateStatisticsLocked() {
-        let allHeaps = heaps.values.flatMap { $0 }
-        let currentMemoryUsage = totalReservedMemoryLocked
+        var heapCount = 0
+        var heapReservedMemory = 0
+        var heapUsedMemory = 0
+        for group in heaps.values {
+            heapCount += group.count
+            for heap in group {
+                heapReservedMemory += heap.size
+                heapUsedMemory += heap.currentAllocatedSize
+            }
+        }
+        let currentMemoryUsage = directCachedMemoryUsage + heapReservedMemory
         statisticsStorage.currentMemoryUsage = currentMemoryUsage
         statisticsStorage.maxMemoryUsage = maxMemoryUsage
         statisticsStorage.peakMemoryUsage = max(statisticsStorage.peakMemoryUsage, currentMemoryUsage)
-        statisticsStorage.heapCount = allHeaps.count
-        statisticsStorage.heapReservedMemory = allHeaps.reduce(0) { $0 + $1.size }
-        statisticsStorage.heapUsedMemory = allHeaps.reduce(0) { $0 + $1.currentAllocatedSize }
+        statisticsStorage.heapCount = heapCount
+        statisticsStorage.heapReservedMemory = heapReservedMemory
+        statisticsStorage.heapUsedMemory = heapUsedMemory
         statisticsStorage.memoryUsageSamples.append(currentMemoryUsage)
         if statisticsStorage.memoryUsageSamples.count > 100 {
             statisticsStorage.memoryUsageSamples.removeFirst()

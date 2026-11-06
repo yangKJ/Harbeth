@@ -106,16 +106,19 @@ final class DerivedResourceStore: @unchecked Sendable {
     }
 
     func value(for identity: DerivedResourceIdentity) -> AnyObject? {
+        let key = identity.cacheKey
         lock.lock()
         let scope = Scope(domain: identity.domain, namespace: identity.namespace)
         guard generation(for: scope) == identity.generation,
-              let entry = entries[identity.cacheKey] else {
+              let entry = entries[key] else {
             missCount += 1
             lock.unlock()
             return nil
         }
-        lru.removeAll { $0 == identity.cacheKey }
-        lru.append(identity.cacheKey)
+        if lru.last != key {
+            lru.removeAll { $0 == key }
+            lru.append(key)
+        }
         hitCount += 1
         lock.unlock()
         return entry.value
@@ -123,6 +126,7 @@ final class DerivedResourceStore: @unchecked Sendable {
 
     @discardableResult
     func insert(_ value: AnyObject, byteCost: Int, for identity: DerivedResourceIdentity) -> Bool {
+        let key = identity.cacheKey
         lock.lock()
         let scope = Scope(domain: identity.domain, namespace: identity.namespace)
         guard generation(for: scope) == identity.generation else {
@@ -136,12 +140,14 @@ final class DerivedResourceStore: @unchecked Sendable {
             lock.unlock()
             return false
         }
-        removeEntry(for: identity.cacheKey, eviction: false)
-        entries[identity.cacheKey] = Entry(identity: identity, value: value, byteCost: byteCost)
-        lru.append(identity.cacheKey)
+        if entries[key] != nil {
+            removeEntry(for: key)
+        }
+        entries[key] = Entry(identity: identity, value: value, byteCost: byteCost)
+        lru.append(key)
         byteCount += byteCost
         evictIfNeeded()
-        let retained = entries[identity.cacheKey] != nil
+        let retained = entries[key] != nil
         lock.unlock()
         return retained
     }
@@ -159,8 +165,14 @@ final class DerivedResourceStore: @unchecked Sendable {
             let matchesNamespace = namespace == nil || entry.identity.namespace == namespace
             return matchesDomain && matchesNamespace ? key : nil
         }
-        for key in keys {
-            removeEntry(for: key, eviction: false)
+        if keys.isEmpty == false {
+            // 一次移除匹配的访问记录，保留其他条目的 LRU 相对顺序。
+            let removedKeys = Set(keys)
+            lru.removeAll { removedKeys.contains($0) }
+            for key in keys {
+                guard let entry = entries.removeValue(forKey: key) else { continue }
+                byteCount = max(byteCount - entry.byteCost, 0)
+            }
         }
         lock.unlock()
     }
@@ -217,17 +229,25 @@ final class DerivedResourceStore: @unchecked Sendable {
     }
 
     private func evictIfNeeded() {
-        while (entries.count > configuration.countLimit || byteCount > configuration.byteLimit),
-              let oldest = lru.first {
-            removeEntry(for: oldest, eviction: true)
+        var removedCount = 0
+        for key in lru {
+            guard entries.count > configuration.countLimit || byteCount > configuration.byteLimit else { break }
+            if let entry = entries.removeValue(forKey: key) {
+                byteCount = max(byteCount - entry.byteCost, 0)
+                evictionCount += 1
+            }
+            removedCount += 1
+        }
+        // 淘汰仍按旧到新进行，最后一次性删除已淘汰的 LRU 前缀。
+        if removedCount > 0 {
+            lru.removeFirst(removedCount)
         }
     }
 
-    private func removeEntry(for key: String, eviction: Bool) {
+    private func removeEntry(for key: String) {
         lru.removeAll { $0 == key }
         guard let entry = entries.removeValue(forKey: key) else { return }
         byteCount = max(byteCount - entry.byteCost, 0)
-        if eviction { evictionCount += 1 }
     }
 }
 

@@ -261,6 +261,59 @@ final class HarbethContextTests: XCTestCase {
         XCTAssertTrue(pool.dequeueTexture(matching: readDescriptor, allowsSizeTolerance: false) === readTexture)
     }
 
+    func testTexturePoolMissesAndRepeatedBucketsPreserveEvictionAndStatistics() throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let pool = TexturePool(device: device, maxMemoryUsage: 20)
+        func makeTexture(_ width: Int) throws -> MTLTexture {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .r8Unorm,
+                width: width,
+                height: 1,
+                mipmapped: false
+            )
+            descriptor.storageMode = .shared
+            return try XCTUnwrap(device.makeTexture(descriptor: descriptor))
+        }
+        let first = try makeTexture(4), second = try makeTexture(4), olderBucket = try makeTexture(6)
+        pool.enqueueTexturesSync([first, second, olderBucket])
+        pool.enqueueTextureSync(first)
+        let beforeMiss = pool.statistics
+        XCTAssertEqual(beforeMiss.currentTextureCount, 3)
+        XCTAssertNil(pool.dequeueTexture(matching: try makeTexture(16).c7.descriptor, allowsSizeTolerance: false))
+        XCTAssertEqual(pool.statistics.memoryUsageSamples, beforeMiss.memoryUsageSamples)
+        XCTAssertTrue(pool.dequeueTexture(matching: second.c7.descriptor, allowsSizeTolerance: false) === second)
+        pool.enqueueTextureSync(second)
+        let incoming = try makeTexture(7)
+        pool.enqueueTextureSync(incoming)
+        XCTAssertNil(pool.dequeueTexture(matching: olderBucket.c7.descriptor, allowsSizeTolerance: false))
+        XCTAssertTrue(pool.dequeueTexture(matching: first.c7.descriptor, allowsSizeTolerance: false) === second)
+        XCTAssertTrue(pool.dequeueTexture(matching: first.c7.descriptor, allowsSizeTolerance: false) === first)
+        XCTAssertNil(pool.dequeueTexture(matching: first.c7.descriptor, allowsSizeTolerance: false))
+        XCTAssertTrue(pool.dequeueTexture(matching: incoming.c7.descriptor, allowsSizeTolerance: false) === incoming)
+        let statistics = pool.statistics
+        XCTAssertEqual(statistics.currentTextureCount, 0)
+        XCTAssertEqual(statistics.currentMemoryUsage, 0)
+        XCTAssertEqual(statistics.totalTexturesCreated, 3)
+        XCTAssertEqual(statistics.totalTexturesReused, 4)
+        XCTAssertEqual(statistics.averageMemoryUsage,
+                       Double(statistics.memoryUsageSamples.reduce(0, +)) / Double(statistics.memoryUsageSamples.count))
+        pool.enqueueTextureSync(first)
+        pool.purgeAllTexturesSync()
+        XCTAssertNil(pool.dequeueTexture(matching: first.c7.descriptor, allowsSizeTolerance: false))
+        pool.enqueueTextureSync(second)
+        XCTAssertTrue(pool.dequeueTexture(matching: second.c7.descriptor, allowsSizeTolerance: false) === second)
+
+        // 入池前的预算回收可能清空当前键，随后必须重新建立访问队列记录。
+        let tinyPool = TexturePool(device: device, maxMemoryUsage: 4)
+        tinyPool.enqueueTextureSync(first)
+        tinyPool.enqueueTextureSync(second)
+        let smaller = try makeTexture(3)
+        tinyPool.enqueueTextureSync(smaller)
+        XCTAssertNil(tinyPool.dequeueTexture(matching: second.c7.descriptor, allowsSizeTolerance: false))
+        XCTAssertTrue(tinyPool.dequeueTexture(matching: smaller.c7.descriptor, allowsSizeTolerance: false) === smaller)
+        XCTAssertEqual(tinyPool.statistics.currentTextureCount, 0)
+    }
+
     func testHeapBackedAllocatorCreatesAndReusesRealHeapTexture() throws {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
@@ -812,6 +865,29 @@ final class HarbethContextTests: XCTestCase {
 
         context.setImageResolutionCacheNamespace("namespace-A")
         XCTAssertNotNil(context.cachedResolvedTexture(for: "shared-fingerprint"))
+    }
+
+    func testRepeatedResolvedTextureHitsKeepPromotionAndReplacementAccounting() throws {
+        let context = HarbethContext.shared
+        let previousNamespace = context.currentImageResolutionCacheNamespace()
+        context.resetCaches()
+        context.setImageResolutionCacheNamespace("repeated-resolution-hits")
+        defer {
+            context.resetCaches()
+            context.setImageResolutionCacheNamespace(previousNamespace)
+        }
+        let texture = try TextureLoader.makeTexture(width: 2, height: 2, identifier: "resolution-original")
+        let replacement = try TextureLoader.makeTexture(width: 8, height: 8, identifier: "resolution-replacement")
+        for index in 0..<64 { context.storeResolvedTexture(texture, for: "key-\(index)") }
+        for _ in 0..<20 { XCTAssertTrue(context.cachedResolvedTexture(for: "key-0") === texture) }
+        context.storeResolvedTexture(replacement, for: "key-0")
+        context.storeResolvedTexture(texture, for: "key-64")
+        XCTAssertNil(context.cachedResolvedTexture(for: "key-1"))
+        XCTAssertTrue(context.cachedResolvedTexture(for: "key-0") === replacement)
+        XCTAssertTrue(context.cachedResolvedTexture(for: "key-64") === texture)
+        XCTAssertEqual(context.imageResolutionCacheCount(), 64)
+        XCTAssertEqual(context.debugCacheSnapshot().imageResolutionByteCount,
+                       63 * max(texture.allocatedSize, 1) + max(replacement.allocatedSize, 1))
     }
 
     func testBumpImageResolutionCacheNamespaceInvalidatesCurrentView() throws {

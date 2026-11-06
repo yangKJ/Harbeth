@@ -537,8 +537,10 @@ public final class HarbethContext: @unchecked Sendable {
             imageResolutionLock.unlock()
             return nil
         }
-        imageResolutionCacheOrder.removeAll { $0 == key }
-        imageResolutionCacheOrder.append(key)
+        if imageResolutionCacheOrder.last != key {
+            imageResolutionCacheOrder.removeAll { $0 == key }
+            imageResolutionCacheOrder.append(key)
+        }
         imageResolutionLock.unlock()
         return texture
     }
@@ -611,9 +613,11 @@ public final class HarbethContext: @unchecked Sendable {
             renderPlanLock.unlock()
             return nil
         }
-        // Move to most-recently-used position.
-        renderPlanCacheOrder.removeAll { $0 == fingerprint }
-        renderPlanCacheOrder.append(fingerprint)
+        // 重复命中最新条目不需要移动，其余命中仍按原有顺序提升。
+        if renderPlanCacheOrder.last != fingerprint {
+            renderPlanCacheOrder.removeAll { $0 == fingerprint }
+            renderPlanCacheOrder.append(fingerprint)
+        }
         renderPlanLock.unlock()
         return plan
     }

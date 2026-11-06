@@ -59,6 +59,28 @@ final class DerivedResourceCacheTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(store.snapshot().rejectedInsertionCount, 1)
     }
 
+    func testRepeatedNewestHitsAndReplacementKeepEvictionOrderAndCounts() {
+        let first = identity(.mask, String(repeating: "first", count: 100))
+        let second = identity(.mask, "second")
+        let third = identity(.mask, "third")
+        let value = NSObject()
+        XCTAssertTrue(store.insert(NSObject(), byteCost: 10, for: first))
+        XCTAssertTrue(store.insert(value, byteCost: 20, for: second))
+        for _ in 0..<20 { XCTAssertTrue(store.value(for: second) === value) }
+        XCTAssertEqual(store.snapshot().hitCount, 20)
+        // 替换较旧条目必须同时更新字节成本并将其移到最新位置。
+        XCTAssertTrue(store.insert(value, byteCost: 30, for: first))
+        XCTAssertTrue(store.insert(NSObject(), byteCost: 40, for: third))
+        XCTAssertNil(store.value(for: second))
+        XCTAssertTrue(store.value(for: first) === value)
+        let snapshot = store.snapshot()
+        XCTAssertEqual(snapshot.entryCount, 2)
+        XCTAssertEqual(snapshot.byteCount, 70)
+        XCTAssertEqual(snapshot.evictionCount, 1)
+        XCTAssertEqual(snapshot.hitCount, 21)
+        XCTAssertEqual(snapshot.missCount, 1)
+    }
+
     func testOversizedResourceIsRejectedWithoutDisplacingCachedValue() {
         let identity = identity(.mask, "oversized")
         let cached = NSObject()
@@ -83,6 +105,99 @@ final class DerivedResourceCacheTests: XCTestCase {
         XCTAssertNil(store.value(for: outputIdentity))
         XCTAssertTrue(store.value(for: lookupIdentity) === lookup as AnyObject)
         XCTAssertEqual(store.snapshot().entriesByDomain[DerivedResourceDomain.lookupTable.rawValue], 1)
+    }
+
+    func testCombinedInvalidationKeepsSurvivorOrderAccountingAndGeneration() {
+        store.configure(.init(byteLimit: 1000, countLimit: 4))
+        let removed = store.makeIdentity(domain: .mask, namespace: "target", fingerprint: "removed")
+        let newest = store.makeIdentity(domain: .lookupTable, namespace: "target", fingerprint: "newest")
+        let oldest = store.makeIdentity(domain: .mask, namespace: "other", fingerprint: "oldest")
+        let retained = store.makeIdentity(domain: .lookupTable, namespace: "other", fingerprint: "retained")
+        let value = NSObject()
+        for (identity, cost) in [(removed, 10), (newest, 20), (oldest, 30), (retained, 40)] {
+            XCTAssertTrue(store.insert(value, byteCost: cost, for: identity))
+        }
+        XCTAssertTrue(store.value(for: newest) === value)
+        let before = store.snapshot()
+        store.invalidate(domain: .mask, namespace: "target")
+        let after = store.snapshot()
+        XCTAssertEqual(after.entryCount, 3)
+        XCTAssertEqual(after.byteCount, 90)
+        XCTAssertEqual(after.hitCount, before.hitCount)
+        XCTAssertEqual(after.missCount, before.missCount)
+        XCTAssertEqual(after.evictionCount, before.evictionCount)
+        XCTAssertFalse(store.insert(value, byteCost: 10, for: removed))
+
+        XCTAssertTrue(store.insert(value, byteCost: 50, for: identity(.mask, "new-a")))
+        XCTAssertTrue(store.insert(value, byteCost: 60, for: identity(.mask, "new-b")))
+        XCTAssertNil(store.value(for: oldest))
+        XCTAssertTrue(store.value(for: retained) === value)
+        XCTAssertTrue(store.value(for: newest) === value)
+        XCTAssertEqual(store.snapshot().byteCount, 170)
+        XCTAssertEqual(store.snapshot().evictionCount, 1)
+        XCTAssertEqual(store.snapshot().rejectedInsertionCount, 1)
+        let fresh = store.makeIdentity(domain: .mask, namespace: "target", fingerprint: "removed")
+        XCTAssertNotEqual(fresh.generation, removed.generation)
+    }
+
+    func testInvalidationAdvancesEmptyScopesAndLeavesUnmatchedStateUntouched() {
+        let stale = store.makeIdentity(domain: .mask, namespace: "empty", fingerprint: "pending")
+        let unrelated = store.makeIdentity(domain: .mask, namespace: "other", fingerprint: "pending")
+        store.invalidate(domain: .mask, namespace: "empty")
+        let fresh = store.makeIdentity(domain: .mask, namespace: "empty", fingerprint: "pending")
+        XCTAssertNotEqual(fresh.generation, stale.generation)
+        XCTAssertFalse(store.insert(NSObject(), byteCost: 1, for: stale))
+        XCTAssertTrue(store.insert(NSObject(), byteCost: 1, for: unrelated))
+        XCTAssertTrue(store.insert(NSObject(), byteCost: 1, for: fresh))
+        let before = store.snapshot()
+        store.invalidate(domain: .lookupTable, namespace: "missing")
+        XCTAssertEqual(store.snapshot(), before)
+        store.invalidate()
+        XCTAssertEqual(store.snapshot().entryCount, 0)
+        XCTAssertEqual(store.snapshot().byteCount, 0)
+        XCTAssertEqual(store.snapshot().evictionCount, before.evictionCount)
+        XCTAssertFalse(store.insert(NSObject(), byteCost: 1, for: unrelated))
+    }
+
+    func testCapacityShrinkHonorsBothLimitsWithoutInvalidatingSurvivorIdentities() {
+        store.configure(.init(byteLimit: 1000, countLimit: 6))
+        let identities = (0..<6).map { identity(.mask, "shrink-\($0)") }
+        for (index, identity) in identities.enumerated() {
+            XCTAssertTrue(store.insert(NSObject(), byteCost: (index + 1) * 10, for: identity))
+        }
+        XCTAssertNotNil(store.value(for: identities[1]))
+        store.configure(.init(byteLimit: 70, countLimit: 2))
+        XCTAssertEqual(store.snapshot().entryCount, 1)
+        XCTAssertEqual(store.snapshot().byteCount, 20)
+        XCTAssertEqual(store.snapshot().evictionCount, 5)
+        for index in [0, 2, 3, 4, 5] { XCTAssertNil(store.value(for: identities[index])) }
+        XCTAssertNotNil(store.value(for: identities[1]))
+        XCTAssertEqual(identity(.mask, "shrink-0"), identities[0])
+        XCTAssertTrue(store.insert(NSObject(), byteCost: 10, for: identities[0]))
+        store.configure(.init(byteLimit: 0, countLimit: 0))
+        XCTAssertEqual(store.snapshot().entryCount, 0)
+        XCTAssertEqual(store.snapshot().byteCount, 0)
+        XCTAssertEqual(store.snapshot().byteLimit, 1)
+        XCTAssertEqual(store.snapshot().countLimit, 1)
+        XCTAssertEqual(store.snapshot().evictionCount, 7)
+        XCTAssertTrue(store.insert(NSObject(), byteCost: 1, for: identities[0]))
+    }
+
+    func testMoreExpensiveReplacementEvictsOnlyOlderPrefixAndRejectsOversizedReplacement() {
+        store.configure(.init(byteLimit: 100, countLimit: 5))
+        let identities = (0..<5).map { identity(.lookupTable, "replacement-\($0)") }
+        for identity in identities { XCTAssertTrue(store.insert(NSObject(), byteCost: 10, for: identity)) }
+        let replacement = NSObject()
+        XCTAssertTrue(store.insert(replacement, byteCost: 90, for: identities[0]))
+        XCTAssertEqual(store.snapshot().entryCount, 2)
+        XCTAssertEqual(store.snapshot().byteCount, 100)
+        XCTAssertEqual(store.snapshot().evictionCount, 3)
+        for index in 1...3 { XCTAssertNil(store.value(for: identities[index])) }
+        XCTAssertNotNil(store.value(for: identities[4]))
+        XCTAssertFalse(store.insert(NSObject(), byteCost: 101, for: identities[0]))
+        XCTAssertTrue(store.value(for: identities[0]) === replacement)
+        XCTAssertEqual(store.snapshot().evictionCount, 3)
+        XCTAssertEqual(store.snapshot().rejectedInsertionCount, 1)
     }
 
     func testNamespaceSeparatesEquivalentFingerprints() throws {
