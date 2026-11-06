@@ -95,6 +95,46 @@ final class RenderExecutionProgramTests: XCTestCase {
         XCTAssertEqual(output.height, 3)
     }
 
+    func testMixedStagesPreserveStepOrderSizesAndLifecycle() {
+        let filters: [C7FilterProtocol] = [
+            C7Flip(horizontal: true),
+            RenderGrayscale(),
+            RenderSepia(),
+            C7Resize(width: 6, height: 4),
+            C7Brightness(brightness: 0.1)
+        ]
+        let derivative = ImageDerivativeSpec(
+            name: "mixed-stage-thumbnail",
+            renderIntent: .delivery,
+            sourceTier: .thumbnail,
+            semantic: RenderProfile.stablePreview.defaultDerivativeSpec.semantic,
+            outputSizePolicy: .maxPixelSize(3)
+        )
+        for _ in 0..<2 {
+            let program = RenderExecutionCompiler.compile(
+                filters: filters,
+                inputSize: C7Size(width: 8, height: 6),
+                derivative: derivative,
+                planCacheKey: "mixed-stage-lifecycle"
+            )
+            XCTAssertEqual(program.steps.map(\.nodeIndex), [0, 1, 2, 3, 4, 5])
+            XCTAssertEqual(program.steps.map(\.stageIndex), [0, 1, 1, 2, 3, 4])
+            XCTAssertEqual(program.steps.map(\.outputSize), [
+                C7Size(width: 8, height: 6), C7Size(width: 8, height: 6),
+                C7Size(width: 8, height: 6), C7Size(width: 6, height: 4),
+                C7Size(width: 6, height: 4), C7Size(width: 3, height: 2)
+            ])
+            XCTAssertEqual(program.steps.map(\.filter.modifier),
+                           (filters + [C7Resize(width: 3, height: 2)]).map(\.modifier))
+            XCTAssertEqual(program.steps[1].lifecycleAction, .reuseTransient)
+            XCTAssertEqual(program.steps.last?.lifecycleAction, .allocatePersistentOutput)
+            for step in program.steps where step.nodeIndex != 1 {
+                XCTAssertEqual(step.lifecycleAction, program.diagnostics.optimizationPlan.lifecycleDecisions
+                    .first(where: { $0.stageIndex == step.stageIndex })?.action)
+            }
+        }
+    }
+
     func testExecutorRejectsProgramFromDifferentFilterChain() throws {
         let texture = try makeTexture()
         let sourceIO = HarbethIO<MTLTexture>(

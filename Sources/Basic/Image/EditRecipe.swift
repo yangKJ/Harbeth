@@ -88,6 +88,7 @@ public struct EditRecipe {
             sourceLoadingOptions: sourceLoadingOptions,
             contract: contract(for: mode),
             baseFilterChain: FilterChainRecipe(filters: baseFilters.map(\.recipeDescriptor)),
+            geometryFingerprint: geometry.isIdentity ? nil : geometry.fingerprint,
             localEffects: localEffectDescriptors,
             filterCount: baseFilters.count + localEffectCount
         )
@@ -104,17 +105,9 @@ public struct EditRecipe {
         let contract = contract(for: mode)
         let derivative = derivative ?? contract.derivative
         // 规划仅使用已声明的 mask。参数化 mask 在实际执行时才解析，避免诊断触发 GPU 工作。
-        let planningEffects = localEffects.map {
-            ResolvedLocalEffect(
-                filters: $0.filters,
-                mask: $0.mask,
-                foregroundBlendType: $0.foregroundBlendType,
-                foregroundBlendOpacity: $0.foregroundBlendOpacity
-            )
-        }
         let filters = makeExecutionPreviewChain(
             inputSize: size, mode: mode, derivative: derivative,
-            resolvedLocalEffects: planningEffects, appending: extraFilters
+            resolvedLocalEffects: declaredLocalEffects, appending: extraFilters
         )
         return RenderExecutionCompiler.compile(
             filters: filters,
@@ -146,19 +139,34 @@ public struct EditRecipe {
         let outputCachePolicy: ImageCachePolicy =
             (geometry.isIdentity && (optics?.isIdentity ?? true) && localEffects.isEmpty && extraFilters.isEmpty)
             ? source.cachePolicy : .transient
-        let filters = plan.diagnostics.nodes
-            .filter { $0.name != "DerivativeResize" }
-            .map { diagnostic in
-                FilterRecipeDescriptor(
-                    stableTypeID: diagnostic.name,
-                    modifier: diagnostic.kind.rawValue,
-                    parameterValues: diagnostic.parameterSummary.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" },
-                    resourceIdentity: nil,
-                    otherInputTextureCount: 0,
-                    pipelineFilterFingerprints: [],
-                    finalFilterFingerprint: nil
-                )
+        var processingNodes = plan.diagnostics.nodes.filter { $0.name != "DerivativeResize" }
+        if derivative.outputSizePolicy != .source, processingNodes.isEmpty == false,
+           plan.graph.nodes.last?.filter is C7Resize {
+            let processingFilters = makeExecutionPreviewChain(
+                inputSize: plan.diagnostics.inputSize,
+                mode: mode,
+                derivative: derivative,
+                resolvedLocalEffects: declaredLocalEffects,
+                appending: extraFilters,
+                includeDerivativeResize: false
+            )
+            let processingSize = processingFilters.reduce(plan.diagnostics.inputSize) { $1.resize(input: $0) }
+            // 只移除配方在末尾追加的交付 resize，用户 geometry/extraFilters 中的 resize 仍保留。
+            if derivative.resolvedOutputSize(for: processingSize) != processingSize {
+                processingNodes.removeLast()
             }
+        }
+        let filters = processingNodes.map { diagnostic in
+            FilterRecipeDescriptor(
+                stableTypeID: diagnostic.name,
+                modifier: diagnostic.kind.rawValue,
+                parameterValues: diagnostic.parameterSummary.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" },
+                resourceIdentity: nil,
+                otherInputTextureCount: 0,
+                pipelineFilterFingerprints: [],
+                finalFilterFingerprint: nil
+            ).withSamplerContract(plan.diagnostics.samplerDescriptor)
+        }
         return RenderRecipe(
             renderProfile: String(describing: plan.profile),
             renderIntent: derivative.renderIntent,
@@ -172,6 +180,17 @@ public struct EditRecipe {
             localEffects: localEffects.isEmpty ? nil : localEffects.map(\.recipeDescriptor),
             layerMasks: nil
         )
+    }
+
+    private var declaredLocalEffects: [ResolvedLocalEffect] {
+        localEffects.map {
+            ResolvedLocalEffect(
+                filters: $0.filters,
+                mask: $0.mask,
+                foregroundBlendType: $0.foregroundBlendType,
+                foregroundBlendOpacity: $0.foregroundBlendOpacity
+            )
+        }
     }
 
     func resolvedSource(_ source: ImageSource) -> ImageSource {
@@ -286,19 +305,23 @@ struct EditRecipePlanningDescriptor {
     let sourceLoadingOptions: ImageLoadingOptions
     let contract: EditRecipeContract
     let baseFilterChain: FilterChainRecipe
+    let geometryFingerprint: String?
     let localEffects: [LocalEffectRecipeDescriptor]
     let filterCount: Int
 
     var fingerprint: String {
         let baseFingerprint = baseFilterChain.filters.isEmpty ? "none" : baseFilterChain.fingerprint
         let localEffectsFingerprint = localEffects.isEmpty ? "none" : localEffects.map(\.fingerprint).joined(separator: "||")
-        return [
+        var components = [
             "loading=\(sourceLoadingOptions.fingerprint)",
             "profile=\(contract.profile)",
             contract.derivative.fingerprint,
             "base=\(baseFingerprint)",
             "localEffects=\(localEffectsFingerprint)"
-        ].joined(separator: "|")
+        ]
+        // 1×1 占位输入可能消除实际几何差异，计划身份还需保留声明的几何参数。
+        if let geometryFingerprint { components.append("geometry={\(geometryFingerprint)}") }
+        return components.joined(separator: "|")
     }
 }
 

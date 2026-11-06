@@ -1012,26 +1012,39 @@ enum GraphOptimizer {
         inputPixelFormat: PixelFormatContract = .preserveInput
     ) -> RenderOptimizationPlan {
         let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
-        let readbackBoundaryCount = stages.filter(\.containsReadbackBoundary).count
-        let destinationTextureCreationCount = stages.filter(\.createsDestinationTexture).count
         let formatConversionCount = outputContract.requiresPixelFormatConversion ? 1 : 0
-        let mergedStageCount = stages.filter { $0.filterCount > 1 && $0.mergeClass != nil }.count
-        let fusionEligibleNodeCount = stages.filter { $0.mergeClass != nil }.reduce(0) { $0 + $1.filterCount }
-        let transientStageCount = stages.filter { stage in
-            stage.createsDestinationTexture && stage.index < stages.count - 1
-        }.count
-        let renderStageCount = stages.filter { $0.stageKind == .render }.count
+        var readbackBoundaryCount = 0
+        var destinationTextureCreationCount = 0
+        var mergedStageCount = 0
+        var fusionEligibleNodeCount = 0
+        var transientStageCount = 0
+        var renderStageCount = 0
+        var containsDerivativeResize = false
+        for stage in stages {
+            if stage.containsReadbackBoundary { readbackBoundaryCount += 1 }
+            if stage.createsDestinationTexture {
+                destinationTextureCreationCount += 1
+                if stage.index < stages.count - 1 { transientStageCount += 1 }
+            }
+            if stage.mergeClass != nil {
+                fusionEligibleNodeCount += stage.filterCount
+                if stage.filterCount > 1 { mergedStageCount += 1 }
+            }
+            if stage.stageKind == .render { renderStageCount += 1 }
+            containsDerivativeResize = containsDerivativeResize || stage.containsDerivativeResize
+        }
         let lifecycleDecisions = makeLifecycleDecisions(stages: stages)
         let prewarmReservations = makePrewarmReservations(
             lifecycleDecisions: lifecycleDecisions,
             outputContract: outputContract,
             inputPixelFormat: inputPixelFormat
         )
-        let reusableTextureCount = lifecycleDecisions.filter { $0.action == .reuseTransient }.count
-        let estimatedTransientByteCount = lifecycleDecisions.filter {
-            $0.action == .reuseTransient || $0.action == .allocateTransient
-        }.reduce(0) { partial, decision in
-            partial + estimatedByteCount(
+        var reusableTextureCount = 0
+        var estimatedTransientByteCount = 0
+        var estimatedPersistentByteCount = 0
+        for decision in lifecycleDecisions {
+            if decision.action == .reuseTransient { reusableTextureCount += 1 }
+            let bytes = estimatedByteCount(
                 for: decision.size,
                 pixelFormat: pixelFormat(
                     for: decision,
@@ -1039,18 +1052,12 @@ enum GraphOptimizer {
                     inputPixelFormat: inputPixelFormat
                 )
             )
-        }
-        let estimatedPersistentByteCount = lifecycleDecisions.filter {
-            $0.action == .allocatePersistentOutput || $0.action == .preserveForReadback
-        }.reduce(0) { partial, decision in
-            partial + estimatedByteCount(
-                for: decision.size,
-                pixelFormat: pixelFormat(
-                    for: decision,
-                    outputContract: outputContract,
-                    inputPixelFormat: inputPixelFormat
-                )
-            )
+            switch decision.action {
+            case .reuseTransient, .allocateTransient:
+                estimatedTransientByteCount += bytes
+            case .allocatePersistentOutput, .preserveForReadback:
+                estimatedPersistentByteCount += bytes
+            }
         }
         var decisions: [String] = []
         if intermediateTextureCount > 0 {
@@ -1062,7 +1069,7 @@ enum GraphOptimizer {
         if mergedStageCount > 0 {
             decisions.append("mergeCompatibleStages")
         }
-        if stages.contains(where: \.containsDerivativeResize) {
+        if containsDerivativeResize {
             decisions.append("keepDerivativeResizeAtTerminalStage")
         }
         if readbackBoundaryCount > 0 {
@@ -1157,7 +1164,12 @@ enum GraphOptimizer {
     }
 
     private static func makePrewarmReservations(lifecycleDecisions: [RenderTextureLifecycleDecision], outputContract: RenderOutputContract, inputPixelFormat: PixelFormatContract) -> [RenderTextureReservation] {
-        var grouped: [String: RenderTextureReservation] = [:]
+        var grouped: [String: (
+            stageIndices: [Int],
+            size: C7Size,
+            pixelFormat: PixelFormatContract,
+            reason: RenderTextureReservationReason
+        )] = [:]
         for decision in lifecycleDecisions {
             let reason: RenderTextureReservationReason?
             let pixelFormat: PixelFormatContract
@@ -1184,30 +1196,18 @@ enum GraphOptimizer {
             guard let reason else { continue }
             let key = [reason.rawValue, "\(decision.size.width)x\(decision.size.height)", pixelFormat.fingerprint]
                 .joined(separator: "|")
-            if let existing = grouped[key] {
-                let nextCount: Int
-                if existing.reason == .transientReuse {
-                    nextCount = min(existing.count + 1, 2)
-                } else {
-                    nextCount = existing.count + 1
-                }
-                grouped[key] = RenderTextureReservation(
-                    stageIndices: existing.stageIndices + [decision.stageIndex],
-                    size: existing.size,
-                    pixelFormat: existing.pixelFormat,
-                    reason: existing.reason,
-                    count: nextCount
-                )
-            } else {
-                grouped[key] = RenderTextureReservation(
-                    stageIndices: [decision.stageIndex],
-                    size: decision.size,
-                    pixelFormat: pixelFormat,
-                    reason: reason
-                )
-            }
+            // 通过字典的可变访问原地追加，避免每次重建已有的阶段数组。
+            grouped[key, default: ([], decision.size, pixelFormat, reason)].stageIndices.append(decision.stageIndex)
         }
-        return grouped.values.sorted { lhs, rhs in
+        return grouped.values.map { group in
+            RenderTextureReservation(
+                stageIndices: group.stageIndices,
+                size: group.size,
+                pixelFormat: group.pixelFormat,
+                reason: group.reason,
+                count: group.reason == .transientReuse ? min(group.stageIndices.count, 2) : group.stageIndices.count
+            )
+        }.sorted { lhs, rhs in
             if lhs.reason != rhs.reason {
                 return lhs.reason.rawValue < rhs.reason.rawValue
             }

@@ -113,21 +113,24 @@ public struct ImageGraph: Sendable, Equatable, Hashable {
     }
 
     public var persistentBoundaryCount: Int {
-        nodes.filter { $0.cachePolicy == .persistent || $0.formsBoundary }.count
+        nodes.reduce(0) { $0 + ($1.cachePolicy == .persistent || $1.formsBoundary ? 1 : 0) }
     }
 
     public var transientReuseCandidateCount: Int {
-        nodes.filter {
-            $0.cachePolicy == .transient && ($0.kind == .filters || $0.kind == .kernel)
-        }.count
+        nodes.reduce(0) { count, node in
+            count + (node.cachePolicy == .transient && (node.kind == .filters || node.kind == .kernel) ? 1 : 0)
+        }
     }
 
     public var sharedDependencyNodeCount: Int {
-        nodes.filter { outgoingEdgeCount(for: $0.id) > 1 }.count
+        let outgoingCounts = edges.reduce(into: [ImageGraphNodeID: Int]()) { counts, edge in
+            counts[edge.from, default: 0] += 1
+        }
+        return nodes.reduce(0) { $0 + (outgoingCounts[$1.id, default: 0] > 1 ? 1 : 0) }
     }
 
     public func outgoingEdgeCount(for nodeID: ImageGraphNodeID) -> Int {
-        edges.filter { $0.from == nodeID }.count
+        edges.reduce(0) { $0 + ($1.from == nodeID ? 1 : 0) }
     }
 
     public var fingerprint: String {
@@ -167,13 +170,25 @@ enum ImageGraphOptimizer {
         var edges = graph.edges
         var rootNodeID = graph.rootNodeID
         var decisions: [String] = []
+        var nodesByID = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var firstInputByNode: [ImageGraphNodeID: ImageGraphNodeID] = [:]
+        var outgoingCounts: [ImageGraphNodeID: Int] = [:]
 
-        func directInputID(for nodeID: ImageGraphNodeID) -> ImageGraphNodeID? {
-            edges.first(where: { $0.to == nodeID })?.from
+        func indexEdge(_ edge: ImageGraphEdge) {
+            if firstInputByNode[edge.to] == nil { firstInputByNode[edge.to] = edge.from }
+            outgoingCounts[edge.from, default: 0] += 1
         }
+        edges.forEach(indexEdge)
 
-        func outgoingEdgeCount(for nodeID: ImageGraphNodeID) -> Int {
-            edges.filter { $0.from == nodeID }.count
+        func rewriteEdges(_ transform: (ImageGraphEdge) -> ImageGraphEdge?) {
+            firstInputByNode.removeAll(keepingCapacity: true)
+            outgoingCounts.removeAll(keepingCapacity: true)
+            // 重接时同步重建索引，保留当前边顺序与重复计数，不另做全图扫描。
+            edges = edges.compactMap { edge in
+                guard let rewritten = transform(edge) else { return nil }
+                indexEdge(rewritten)
+                return rewritten
+            }
         }
 
         func mergeDecision(for node: ImageGraphNode) -> String? {
@@ -202,11 +217,12 @@ enum ImageGraphOptimizer {
         while changed {
             changed = false
             for current in nodes.sorted(by: { $0.id < $1.id }) {
-                if let inputID = directInputID(for: current.id),
-                   let inputNode = nodes.first(where: { $0.id == inputID }),
+                let inputNode = firstInputByNode[current.id].flatMap { nodesByID[$0] }
+                if let inputNode,
                    let decision = isTransparentWrapper(current, inputNode: inputNode) {
                     nodes.removeAll(where: { $0.id == current.id })
-                    edges = edges.compactMap { edge in
+                    nodesByID.removeValue(forKey: current.id)
+                    rewriteEdges { edge in
                         if edge.from == inputNode.id && edge.to == current.id {
                             return nil
                         }
@@ -228,8 +244,7 @@ enum ImageGraphOptimizer {
 
                 guard let mergeDecision = mergeDecision(for: current),
                       current.cachePolicy == .transient,
-                      let inputID = directInputID(for: current.id),
-                      let inputNode = nodes.first(where: { $0.id == inputID }),
+                      let inputNode,
                       inputNode.kind == current.kind,
                       inputNode.cachePolicy == .transient,
                       inputNode.formsBoundary == false,
@@ -237,7 +252,7 @@ enum ImageGraphOptimizer {
                     continue
                 }
 
-                guard outgoingEdgeCount(for: inputNode.id) == 1 else {
+                guard outgoingCounts[inputNode.id, default: 0] == 1 else {
                     if decisions.contains("preserveSharedInputDependency") == false {
                         decisions.append("preserveSharedInputDependency")
                     }
@@ -263,7 +278,9 @@ enum ImageGraphOptimizer {
                 )
                 nodes.removeAll(where: { $0.id == inputNode.id || $0.id == current.id })
                 nodes.append(merged)
-                edges = edges.compactMap { edge in
+                nodesByID.removeValue(forKey: inputNode.id)
+                nodesByID[current.id] = merged
+                rewriteEdges { edge in
                     if edge.from == inputNode.id && edge.to == current.id {
                         return nil
                     }

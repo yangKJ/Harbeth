@@ -315,7 +315,8 @@ extension ImageNode {
                 sources: sources
             )
             renderRecipe = preparedInput.renderRecipe.appending(
-                filterDescriptors: filters.map(\.recipeDescriptor), derivative: effectiveDerivative
+                filterDescriptors: filters.map { $0.recipeDescriptor.withSamplerContract(activeSamplerDescriptor) },
+                derivative: effectiveDerivative
             )
             let program = RenderExecutionCompiler.compile(
                 filters: filters,
@@ -368,7 +369,8 @@ extension ImageNode {
                 sources: sources
             )
             renderRecipe = preparedInput.renderRecipe.appending(
-                filterDescriptors: [filter.recipeDescriptor], derivative: effectiveDerivative
+                filterDescriptors: [filter.recipeDescriptor.withSamplerContract(activeSamplerDescriptor)],
+                derivative: effectiveDerivative
             )
             let adaptedFilter = SamplerExecutionAdapter.adapt(
                 filter: filter,
@@ -424,13 +426,19 @@ extension ImageNode {
             ].joined(separator: "|")
 
         case .edit(let input, let recipe, let mode):
-            renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative, preparedPlan: plan, sources: sources)
             let preparedInput = try input.prepareExecution(
                 profile: profile,
                 derivative: profile.defaultDerivativeSpec,
                 executionIdentifier: executionIdentifier,
                 samplerDescriptorOverride: activeSamplerDescriptor,
                 sources: sources
+            )
+            renderRecipe = try makeRenderRecipe(
+                profile: profile,
+                derivative: effectiveDerivative,
+                preparedPlan: plan,
+                sources: sources,
+                preparedInputRecipe: preparedInput.renderRecipe
             )
             renderTextureClosure = {
                 let inputTexture = try preparedInput.renderTexture()
@@ -759,9 +767,15 @@ extension ImageNode {
     }
 
     public func makeDebugSnapshot(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> RenderGraphDebugSnapshot {
-        let plan = try makeRenderPlan(profile: profile, derivative: derivative)
+        let sources = ImageNodeSourcePreparation()
+        let plan = try makeRenderPlan(profile: profile, derivative: derivative, sources: sources)
         let graph = try plan.imageGraph ?? makeImageGraph(profile: profile, derivative: derivative)
-        let renderRecipe = try makeRenderRecipe(profile: profile, derivative: derivative)
+        let renderRecipe = try makeRenderRecipe(
+            profile: profile,
+            derivative: derivative,
+            preparedPlan: plan,
+            sources: sources
+        )
         return RenderGraphDebugSnapshot(
             graph: graph,
             diagnostics: plan.diagnostics,
@@ -1462,10 +1476,25 @@ extension ImageNode: ImagePromise {
     }
 
     func resolutionFingerprint(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) -> String {
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
+        Self.resolutionFingerprint(
+            nodeFingerprint: nodeFingerprint,
+            profile: profile,
+            derivative: derivative ?? profile.defaultDerivativeSpec,
+            cachePolicy: resolvedCachePolicy,
+            samplerDescriptor: resolvedSamplerDescriptor
+        )
+    }
+
+    static func resolutionFingerprint(
+        nodeFingerprint: String,
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec,
+        cachePolicy: ImageCachePolicy,
+        samplerDescriptor: ImageSamplerDescriptor
+    ) -> String {
         return [
-            nodeFingerprint, "profile=\(profile)", effectiveDerivative.fingerprint,
-            "cache=\(resolvedCachePolicy.rawValue)", "sampler=\(resolvedSamplerDescriptor.fingerprint)",
+            nodeFingerprint, "profile=\(profile)", derivative.fingerprint,
+            "cache=\(cachePolicy.rawValue)", "sampler=\(samplerDescriptor.fingerprint)",
         ].joined(separator: " || ")
     }
 
@@ -1839,18 +1868,31 @@ extension ImageNode: ImagePromise {
         profile: RenderProfile = .stablePreview,
         derivative: ImageDerivativeSpec? = nil,
         preparedPlan: RenderPlan? = nil,
-        sources: ImageNodeSourcePreparation? = nil
+        sources: ImageNodeSourcePreparation? = nil,
+        preparedInputRecipe: RenderRecipe? = nil,
+        samplerDescriptorOverride: ImageSamplerDescriptor? = nil
     ) throws -> RenderRecipe {
+        let sampler = samplerDescriptorOverride ?? preparedPlan?.diagnostics.samplerDescriptor ?? resolvedSamplerDescriptor
         switch storage {
-        case .filters(let input, let filters):
-            let base = try input.makeRenderRecipe(profile: profile, derivative: derivative, sources: sources)
-            return base.appending(filterDescriptors: filters.map(\.recipeDescriptor))
+        case .filters:
+            let route = flattenedFilterRoute()
+            let base = try route.input.makeRenderRecipe(
+                profile: profile, derivative: derivative, sources: sources, samplerDescriptorOverride: sampler
+            )
+            return base.appending(filterDescriptors: route.filters.map { $0.recipeDescriptor.withSamplerContract(sampler) })
         case .kernel(let input, _, let filter):
-            let base = try input.makeRenderRecipe(profile: profile, derivative: derivative, sources: sources)
-            return base.appending(filterDescriptors: [filter.recipeDescriptor])
+            let base = try input.makeRenderRecipe(
+                profile: profile, derivative: derivative, sources: sources, samplerDescriptorOverride: sampler
+            )
+            return base.appending(filterDescriptors: [filter.recipeDescriptor.withSamplerContract(sampler)])
         case .edit(let input, let recipe, let mode):
-            let plan = try preparedPlan ?? makeRenderPlan(profile: profile, derivative: derivative, sources: sources)
+            let plan = try preparedPlan ?? makeRenderPlan(
+                profile: profile, derivative: derivative, samplerDescriptorOverride: sampler, sources: sources
+            )
             let originalSource = try input.resolvedPrimarySource()
+            let upstream = try preparedInputRecipe ?? input.makeRenderRecipe(
+                profile: profile, derivative: profile.defaultDerivativeSpec, sources: sources, samplerDescriptorOverride: sampler
+            )
             return try recipe.makeRenderRecipe(
                 source: originalSource,
                 mode: mode,
@@ -1860,22 +1902,28 @@ extension ImageNode: ImagePromise {
                 alphaTypeOverride: originalSource.alphaType,
                 orientationOverride: originalSource.orientation,
                 preparedPlan: plan
-            )
+            ).withUpstreamProcessing(from: upstream)
         case .layerComposite(let recipe):
             return try recipe.makeRenderRecipe(
                 profile: profile,
                 derivative: derivative,
-                samplerDescriptor: resolvedSamplerDescriptor
+                samplerDescriptor: sampler
             )
         case .cachePolicy(let input, let policy):
-            let base = try input.makeRenderRecipe(profile: profile, derivative: derivative, sources: sources)
+            let base = try input.makeRenderRecipe(
+                profile: profile, derivative: derivative, sources: sources, samplerDescriptorOverride: sampler
+            )
             return base.with(outputCachePolicy: policy)
-        case .samplerDescriptor(let input, _):
-            return try input.makeRenderRecipe(profile: profile, derivative: derivative, sources: sources)
+        case .samplerDescriptor(let input, let descriptor):
+            return try input.makeRenderRecipe(
+                profile: profile, derivative: derivative, sources: sources, samplerDescriptorOverride: descriptor
+            )
         default:
             break
         }
-        let plan = try preparedPlan ?? makeRenderPlan(profile: profile, derivative: derivative, sources: sources)
+        let plan = try preparedPlan ?? makeRenderPlan(
+            profile: profile, derivative: derivative, samplerDescriptorOverride: sampler, sources: sources
+        )
         let primarySource = try resolvedPrimarySource()
         let filters = plan.diagnostics.nodes.filter { $0.name != "DerivativeResize" }.map { diagnostic in
             FilterRecipeDescriptor(
@@ -1886,7 +1934,7 @@ extension ImageNode: ImagePromise {
                 otherInputTextureCount: 0,
                 pipelineFilterFingerprints: [],
                 finalFilterFingerprint: nil
-            )
+            ).withSamplerContract(plan.diagnostics.samplerDescriptor)
         }
         return RenderRecipe(
             renderProfile: String(describing: plan.profile),
@@ -1937,13 +1985,20 @@ extension ImageNode: ImagePromise {
         ).configured(for: profile).output()
     }
 
-    /// 仅合并连续 filters 节点，遇到编辑、采样器、缓存或 kernel 合同立即停止。
-    private func flattenedFilterRoute() -> (input: ImageNode, filters: [C7FilterProtocol]) {
-        if case .filters(let input, let filters) = storage {
-            let upstream = input.flattenedFilterRoute()
-            return (upstream.input, upstream.filters + filters)
+    /// 仅收集连续 filters 节点，分组按外层到源端排列，保留空组和所有非 filters 边界。
+    func groupedFilterRoute() -> (input: ImageNode, groups: [[C7FilterProtocol]]) {
+        var input = self
+        var groups: [[C7FilterProtocol]] = []
+        while case .filters(let upstream, let filters) = input.storage {
+            groups.append(filters)
+            input = upstream
         }
-        return (self, [])
+        return (input, groups)
+    }
+
+    private func flattenedFilterRoute() -> (input: ImageNode, filters: [C7FilterProtocol]) {
+        let route = groupedFilterRoute()
+        return (route.input, route.groups.reversed().flatMap { $0 })
     }
 
     private var monitoringIdentifier: String { "ImageNode.\(nodeFingerprint)" }
@@ -2140,16 +2195,20 @@ extension ImageNode: ImagePromise {
         }
     }
 
-    private var nodeFingerprint: String {
+    static func filterNodeFingerprint(inputFingerprint: String, filters: [C7FilterProtocol]) -> String {
+        ["filters", inputFingerprint, filters.chainRecipe.fingerprint].joined(separator: "|")
+    }
+
+    var nodeFingerprint: String {
         switch storage {
         case .source(let source):
             return "source|\(source.resolutionFingerprint)"
-        case .filters(let input, let filters):
-            return [
-                "filters",
-                input.nodeFingerprint,
-                filters.chainRecipe.fingerprint
-            ].joined(separator: "|")
+        case .filters:
+            let route = groupedFilterRoute()
+            var components = Array(repeating: "filters", count: route.groups.count)
+            components.append(route.input.nodeFingerprint)
+            components.append(contentsOf: route.groups.reversed().map { $0.chainRecipe.fingerprint })
+            return components.joined(separator: "|")
         case .kernel(let input, let descriptor, let filter):
             return [
                 "kernel",
@@ -2311,7 +2370,8 @@ private extension RenderRecipe {
             orientation: orientation,
             filters: filters + filterDescriptors,
             localEffects: localEffects,
-            layerMasks: layerMasks
+            layerMasks: layerMasks,
+            upstreamProcessingFingerprint: upstreamProcessingFingerprint
         )
     }
 
@@ -2327,7 +2387,8 @@ private extension RenderRecipe {
             orientation: orientation,
             filters: filters,
             localEffects: localEffects,
-            layerMasks: layerMasks
+            layerMasks: layerMasks,
+            upstreamProcessingFingerprint: upstreamProcessingFingerprint
         )
     }
 }

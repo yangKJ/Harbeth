@@ -142,10 +142,19 @@ enum RenderExecutionCompiler {
     }
 
     private static func makeExecutionSteps(filters: [C7FilterProtocol], plan: RenderPlan) -> [RenderExecutionStep] {
+        let diagnosticsByNode = Dictionary(plan.diagnostics.nodes.map { ($0.index, $0) }, uniquingKeysWith: { first, _ in first })
         func isExecutableNode(at index: Int) -> Bool {
             guard plan.graph.nodes.indices.contains(index) else { return false }
-            return plan.graph.nodes[index].filter != nil
-                || plan.diagnostics.nodes.first(where: { $0.index == index })?.name == "DerivativeResize"
+            return plan.graph.nodes[index].filter != nil || diagnosticsByNode[index]?.name == "DerivativeResize"
+        }
+
+        // 每个阶段只定位一次末尾执行节点，节点归属保留原先首次匹配的顺序。
+        var stagesByNode: [Int: (index: Int, lastExecutableNode: Int?)] = [:]
+        for stage in plan.optimizedStages {
+            let lastExecutableNode = stage.nodeIndices.last(where: isExecutableNode(at:))
+            for nodeIndex in stage.nodeIndices where stagesByNode[nodeIndex] == nil {
+                stagesByNode[nodeIndex] = (stage.index, lastExecutableNode)
+            }
         }
 
         let lifecycleByStage = Dictionary(
@@ -155,30 +164,27 @@ enum RenderExecutionCompiler {
         )
         var filterIndex = 0
         return plan.graph.nodes.enumerated().compactMap { nodeIndex, node in
+            let diagnostic = diagnosticsByNode[nodeIndex]
             let filter: C7FilterProtocol
             if node.filter != nil, filters.indices.contains(filterIndex) {
                 filter = filters[filterIndex]
                 filterIndex += 1
-            } else if plan.diagnostics.nodes.first(where: { $0.index == nodeIndex })?.name == "DerivativeResize" {
-                let outputSize = node.outputSize
-                    ?? plan.diagnostics.nodes.first(where: { $0.index == nodeIndex })?.outputSize
-                    ?? plan.diagnostics.inputSize
+            } else if diagnostic?.name == "DerivativeResize" {
+                let outputSize = node.outputSize ?? diagnostic?.outputSize ?? plan.diagnostics.inputSize
                 filter = C7Resize(width: Float(outputSize.width), height: Float(outputSize.height))
             } else {
                 return nil
             }
-            let stage = plan.optimizedStages.first(where: { $0.nodeIndices.contains(nodeIndex) })
+            let stage = stagesByNode[nodeIndex]
             let stageIndex = stage?.index ?? 0
-            let isLastExecutableNodeInStage = stage?.nodeIndices.last(where: isExecutableNode(at:)) == nodeIndex
+            let isLastExecutableNodeInStage = stage?.lastExecutableNode == nodeIndex
             let lifecycleAction: RenderTextureLifecycleAction
             if isLastExecutableNodeInStage {
                 lifecycleAction = lifecycleByStage[stageIndex] ?? .allocateTransient
             } else {
                 lifecycleAction = .reuseTransient
             }
-            let outputSize = node.outputSize
-            ?? plan.diagnostics.nodes.first(where: { $0.index == nodeIndex })?.outputSize
-            ?? plan.diagnostics.inputSize
+            let outputSize = node.outputSize ?? diagnostic?.outputSize ?? plan.diagnostics.inputSize
             return RenderExecutionStep(
                 nodeIndex: nodeIndex,
                 stageIndex: stageIndex,

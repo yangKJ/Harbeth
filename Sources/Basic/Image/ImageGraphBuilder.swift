@@ -47,23 +47,8 @@ final class ImageGraphBuilder {
                 )
             )
             return nodeID
-        case .filters(let input, let filters):
-            let inputID = try append(input)
-            let nodeID = allocateID()
-            nodes.append(
-                ImageGraphNode(
-                    id: nodeID,
-                    kind: .filters,
-                    name: "Filters",
-                    cachePolicy: node.resolvedCachePolicy,
-                    samplerDescriptor: node.resolvedSamplerDescriptor,
-                    sourceKind: try node.resolvedPrimarySource().kindName,
-                    filterCount: filters.count,
-                    fingerprint: node.resolutionFingerprint(profile: profile, derivative: derivative)
-                )
-            )
-            edges.append(ImageGraphEdge(from: inputID, to: nodeID))
-            return nodeID
+        case .filters:
+            return try appendFilterNodes(node)
         case .kernel(let input, let descriptor, _):
             let inputID = try append(input)
             let nodeID = allocateID()
@@ -183,5 +168,37 @@ final class ImageGraphBuilder {
     private func allocateID() -> ImageGraphNodeID {
         defer { nextID += 1 }
         return ImageGraphNodeID(rawValue: nextID)
+    }
+
+    /// 连续滤镜节点从源端依次建图，每组配方只读取一次；不跨请求保存可变滤镜状态。
+    private func appendFilterNodes(_ node: ImageNode) throws -> ImageGraphNodeID {
+        let route = node.groupedFilterRoute()
+        var inputID = try append(route.input)
+        var inputFingerprint = route.input.nodeFingerprint
+        let cachePolicy = route.input.resolvedCachePolicy
+        let sourceKind = try route.input.resolvedPrimarySource().kindName
+        for filters in route.groups.reversed() {
+            let nodeID = allocateID()
+            inputFingerprint = ImageNode.filterNodeFingerprint(inputFingerprint: inputFingerprint, filters: filters)
+            nodes.append(ImageGraphNode(
+                id: nodeID,
+                kind: .filters,
+                name: "Filters",
+                cachePolicy: cachePolicy,
+                samplerDescriptor: .default,
+                sourceKind: sourceKind,
+                filterCount: filters.count,
+                fingerprint: ImageNode.resolutionFingerprint(
+                    nodeFingerprint: inputFingerprint,
+                    profile: profile,
+                    derivative: derivative,
+                    cachePolicy: cachePolicy,
+                    samplerDescriptor: .default
+                )
+            ))
+            edges.append(ImageGraphEdge(from: inputID, to: nodeID))
+            inputID = nodeID
+        }
+        return inputID
     }
 }

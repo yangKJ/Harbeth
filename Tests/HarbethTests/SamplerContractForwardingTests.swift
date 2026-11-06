@@ -10,6 +10,45 @@ import XCTest
 @testable import Harbeth
 
 final class SamplerContractForwardingTests: XCTestCase {
+    func testCoverageAggregationKeepsAdaptationOrderAndOriginalTypeNames() {
+        let recorder = SamplerCoverageRecorder()
+        let filters: [C7FilterProtocol] = [
+            SamplerCoverageProbe(index: 0, mode: .covered, recorder: recorder),
+            RenderBasicFilter(),
+            SamplerCoverageProbe(index: 1, mode: .partial, recorder: recorder),
+            SamplerCoverageProbe(index: 2, mode: .metadataOnly, recorder: recorder),
+            C7Brightness(brightness: 0),
+            SamplerCoverageProbe(index: 3, mode: .notApplicable, recorder: recorder),
+            SamplerCoverageProbe(index: 4, mode: .covered, recorder: recorder),
+            RenderBasicFilter()
+        ]
+        let plan = SamplerExecutionAdapter.makePlan(filters: filters, samplerDescriptor: .nearest)
+        XCTAssertEqual(recorder.indices, [0, 1, 2, 3, 4])
+        XCTAssertEqual(plan.filters.count, filters.count)
+        XCTAssertTrue(plan.filters[0] is C7Brightness)
+        XCTAssertTrue(plan.filters[2] is C7Contrast)
+        XCTAssertTrue(plan.filters[3] is SamplerCoverageProbe)
+        XCTAssertEqual(plan.coverage, SamplerExecutionCoverage(
+            mode: .partial,
+            coveredFilterTypes: ["RenderBasicFilter", "SamplerCoverageProbe"],
+            metadataOnlyFilterTypes: ["SamplerCoverageProbe"]
+        ))
+        recorder.indices.removeAll()
+        let unchanged = SamplerExecutionAdapter.makePlan(filters: filters, samplerDescriptor: .default)
+        XCTAssertTrue(recorder.indices.isEmpty)
+        XCTAssertTrue(unchanged.filters[0] is SamplerCoverageProbe)
+        XCTAssertEqual(unchanged.coverage.mode, .notApplicable)
+    }
+
+    func testCoverageMergeNormalizesSortedListsAndDerivesModeFromTheirContents() {
+        let first = SamplerExecutionCoverage(mode: .partial, coveredFilterTypes: ["Z", "A", "Z"], metadataOnlyFilterTypes: ["Z"])
+        let second = SamplerExecutionCoverage(mode: .notApplicable, coveredFilterTypes: ["A"], metadataOnlyFilterTypes: ["B", "Z"])
+        XCTAssertEqual(SamplerExecutionAdapter.merge(first, second), SamplerExecutionCoverage(
+            mode: .partial, coveredFilterTypes: ["A", "Z"], metadataOnlyFilterTypes: ["B", "Z"]
+        ))
+        XCTAssertEqual(SamplerExecutionAdapter.merge(.init(mode: .covered), .init(mode: .metadataOnly)).mode, .notApplicable)
+    }
+
     func testSamplerOverrideForwardsCompleteRenderContractAndOnlyChangesSamplerIdentity() {
         let base = SamplerContractProbeFilter()
         let adapted = SamplerExecutionAdapter.adapt(renderFilter: base, samplerDescriptor: .nearest)
@@ -96,6 +135,27 @@ final class SamplerContractForwardingTests: XCTestCase {
             bytesPerRow: MemoryLayout<UInt8>.size * 4
         )
         return texture
+    }
+}
+
+private final class SamplerCoverageRecorder {
+    var indices: [Int] = []
+}
+
+private struct SamplerCoverageProbe: SamplerAdaptableFilter {
+    let index: Int
+    let mode: SamplerExecutionCoverageMode
+    let recorder: SamplerCoverageRecorder
+    var modifier: ModifierEnum { .compute(kernel: "C7Brightness") }
+
+    func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
+        recorder.indices.append(index)
+        switch mode {
+        case .covered: return .covered(C7Brightness(brightness: 0.1))
+        case .partial: return .partial(C7Contrast(contrast: 1.2))
+        case .metadataOnly: return .metadataOnly
+        case .notApplicable: return .notApplicable
+        }
     }
 }
 

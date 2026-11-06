@@ -467,7 +467,7 @@ public struct LayerCompositeRecipe {
                     otherInputTextureCount: 0,
                     pipelineFilterFingerprints: [],
                     finalFilterFingerprint: nil
-                )
+                ).withSamplerContract(plan.diagnostics.samplerDescriptor)
             }
         return RenderRecipe(
             renderProfile: String(describing: plan.profile),

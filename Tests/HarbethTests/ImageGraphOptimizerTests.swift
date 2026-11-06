@@ -231,6 +231,82 @@ final class ImageGraphOptimizerTests: XCTestCase {
         XCTAssertFalse(optimized.decisions.contains("mergeAdjacentFilterNodes"))
     }
 
+    func testOptimizerKeepsRewriteOrderAndRootAcrossSparseIDs() {
+        let source = makeNode(10, kind: .source)
+        let first = makeNode(30, kind: .filters)
+        let sampler = makeNode(50, kind: .samplerDescriptor)
+        let second = makeNode(90, kind: .filters)
+        let cache = makeNode(100, kind: .cachePolicy)
+        let graph = ImageGraph(
+            nodes: [cache, second, source, sampler, first],
+            edges: [.init(from: source.id, to: first.id, label: "base"),
+                    .init(from: first.id, to: sampler.id), .init(from: sampler.id, to: second.id),
+                    .init(from: second.id, to: cache.id)],
+            rootNodeID: cache.id, profile: .stablePreview, derivative: RenderProfile.stablePreview.defaultDerivativeSpec
+        )
+        let result = ImageGraphOptimizer.optimize(graph)
+        XCTAssertEqual(result.decisions, ["collapseRedundantSamplerWrapper", "mergeAdjacentFilterNodes",
+                                          "collapseRedundantCachePolicyWrapper"])
+        XCTAssertEqual(result.graph.nodes.map(\.id), [source.id, second.id])
+        XCTAssertEqual(result.graph.nodes.last?.fingerprint, "f30||f90")
+        XCTAssertEqual(result.graph.nodes.last?.filterCount, 2)
+        XCTAssertEqual(result.graph.edges, [.init(from: source.id, to: second.id, label: "base")])
+        XCTAssertEqual(result.graph.rootNodeID, second.id)
+    }
+
+    func testDuplicateEdgesPreventMergeUntilFinalDeduplication() {
+        let source = makeNode(0, kind: .source)
+        let first = makeNode(20, kind: .filters)
+        let second = makeNode(40, kind: .filters)
+        let shared = ImageGraphEdge(from: first.id, to: second.id)
+        let graph = ImageGraph(
+            nodes: [source, first, second],
+            edges: [.init(from: source.id, to: first.id), shared, shared],
+            rootNodeID: second.id, profile: .stablePreview, derivative: RenderProfile.stablePreview.defaultDerivativeSpec
+        )
+        XCTAssertEqual(graph.sharedDependencyNodeCount, 1)
+        XCTAssertEqual(graph.outgoingEdgeCount(for: first.id), 2)
+        let result = ImageGraphOptimizer.optimize(graph)
+        XCTAssertEqual(result.graph.nodes, graph.nodes)
+        XCTAssertEqual(result.decisions, ["preserveSharedInputDependency"])
+        XCTAssertEqual(result.graph.edges, [.init(from: source.id, to: first.id), shared])
+        XCTAssertEqual(result.graph.sharedDependencyNodeCount, 0)
+    }
+
+    func testRewrittenMultiInputEdgesKeepTheirExistingSelectionOrder() {
+        let source = makeNode(0, kind: .source)
+        let first = makeNode(10, kind: .filters)
+        let otherSource = makeNode(20, kind: .source)
+        let sampler = makeNode(30, kind: .samplerDescriptor)
+        let second = makeNode(40, kind: .filters)
+        let graph = ImageGraph(
+            nodes: [source, first, otherSource, sampler, second],
+            edges: [.init(from: source.id, to: first.id), .init(from: first.id, to: sampler.id),
+                    .init(from: otherSource.id, to: second.id, label: "alternate"),
+                    .init(from: sampler.id, to: second.id, label: "chain")],
+            rootNodeID: second.id, profile: .stablePreview, derivative: RenderProfile.stablePreview.defaultDerivativeSpec
+        )
+        let result = ImageGraphOptimizer.optimize(graph)
+        // wrapper 重接后，首次输入仍是 otherSource；中途排序会错误地选择 first 并合并。
+        XCTAssertEqual(result.decisions, ["collapseRedundantSamplerWrapper"])
+        XCTAssertEqual(result.graph.nodes.map(\.id), [source.id, first.id, otherSource.id, second.id])
+        XCTAssertEqual(result.graph.edges, [.init(from: source.id, to: first.id),
+                                           .init(from: first.id, to: second.id, label: "chain"),
+                                           .init(from: otherSource.id, to: second.id, label: "alternate")])
+    }
+
+    private func makeNode(_ id: Int, kind: ImageGraphNodeKind) -> ImageGraphNode {
+        ImageGraphNode(
+            id: .init(rawValue: id),
+            kind: kind,
+            name: "n\(id)",
+            cachePolicy: .transient,
+            samplerDescriptor: .default,
+            filterCount: kind == .filters ? 1 : 0,
+            fingerprint: "f\(id)"
+        )
+    }
+
     private func makeTexture(width: Int, height: Int) throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

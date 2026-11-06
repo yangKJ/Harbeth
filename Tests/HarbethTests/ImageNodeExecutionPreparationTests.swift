@@ -70,6 +70,198 @@ final class ImageNodeExecutionPreparationTests: XCTestCase {
         XCTAssertEqual(recorder.encodingCount, 1, "生成描述不得再次执行滤镜。")
     }
 
+    func testChainedFilterGroupsPreserveOrderAcrossWrappers() throws {
+        let source = ImageNode.texture(try makeTexture())
+        let groups: [[C7FilterProtocol]] = [
+            [C7Brightness(brightness: 0.13), C7Contrast(contrast: 1.2)],
+            [],
+            [C7Saturation(saturation: 0.6)],
+            [C7Brightness(brightness: -0.08)]
+        ]
+        let boundaries = [
+            source,
+            source.editing(EditRecipe()),
+            source.withSamplerDescriptor(.nearest),
+            source.withCachePolicy(.transient),
+            source.applyingWithContract(C7Brightness(brightness: 0))
+        ]
+        for boundary in boundaries {
+            let chained = groups.reduce(boundary) { $0.applying(filters: $1) }
+            let array = boundary.applying(filters: groups.flatMap { $0 })
+            for profile in [RenderProfile.stablePreview, .exportQuality] {
+                let expected = try XCTUnwrap(array.makeTexture(profile: profile).c7.bytes())
+                XCTAssertEqual(try chained.makeTexture(profile: profile).c7.bytes(), expected)
+                XCTAssertEqual(try chained.makeFrame(profile: profile).texture.c7.bytes(), expected)
+            }
+        }
+    }
+
+    func testFilterGraphPreservesEveryPrefixAndWrapperBoundary() throws {
+        let source = ImageNode.texture(try makeTexture())
+        let bases = [source, source.withCachePolicy(.persistent).withSamplerDescriptor(.nearest),
+                     source.editing(EditRecipe()), source.applyingWithContract(C7Contrast(contrast: 1.1))]
+        let groups: [[C7FilterProtocol]] = [[C7Brightness(brightness: 0.1)], [],
+                                          [C7Contrast(contrast: 1.2), C7Saturation(saturation: 0.8)]]
+        for base in bases {
+            for profile in [RenderProfile.stablePreview, .exportQuality] {
+                let derivative = ImageDerivativeSpec(
+                    name: "graph-prefix-thumbnail", renderIntent: .delivery, sourceTier: .thumbnail,
+                    semantic: profile.defaultImageSemantic, outputSizePolicy: .maxPixelSize(3)
+                )
+                var node = base
+                let baseGraph = try base.makeImageGraph(profile: profile, derivative: derivative)
+                var expected = baseGraph.nodes
+                var edges = baseGraph.edges
+                var previousID = baseGraph.rootNodeID
+                for filters in groups {
+                    // 直接构造空组，覆盖内部图仍然允许的空 filters 节点。
+                    node = ImageNode.filters(input: node, filters: filters)
+                    let id = ImageGraphNodeID(rawValue: expected.count)
+                    expected.append(ImageGraphNode(
+                        id: id, kind: .filters, name: "Filters",
+                        cachePolicy: node.resolvedCachePolicy, samplerDescriptor: .default,
+                        sourceKind: try node.resolvedPrimarySource().kindName, filterCount: filters.count,
+                        fingerprint: node.resolutionFingerprint(profile: profile, derivative: derivative)
+                    ))
+                    edges.append(ImageGraphEdge(from: previousID, to: id))
+                    previousID = id
+                }
+                let graph = try node.makeImageGraph(profile: profile, derivative: derivative)
+                XCTAssertEqual(graph.nodes, expected)
+                XCTAssertEqual(graph.edges, edges)
+                XCTAssertEqual(graph.rootNodeID, previousID)
+            }
+        }
+    }
+
+    func testFilterGraphReadsEachGroupOnceAndRefreshesMutableFiltersBetweenBuilds() throws {
+        let source = ImageNode.texture(try makeTexture())
+        let filter = GraphCountingFilter()
+        _ = try source.applying(filter).makeImageGraph()
+        let readsPerGroup = filter.factorReadCount
+        XCTAssertGreaterThan(readsPerGroup, 0)
+        filter.factorReadCount = 0
+        let count = 64
+        let node = (0..<count).reduce(source) { node, _ in node.applying(filter) }
+        let first = try node.makeImageGraph()
+        XCTAssertEqual(filter.factorReadCount, readsPerGroup * count)
+        XCTAssertEqual(first.nodes.count, count + 1)
+        filter.brightness = 0.25
+        filter.factorReadCount = 0
+        let changed = try node.makeImageGraph()
+        XCTAssertEqual(filter.factorReadCount, readsPerGroup * count)
+        XCTAssertNotEqual(first.fingerprint, changed.fingerprint)
+    }
+
+    func testGroupedFilterFingerprintPreservesPrefixesEmptyGroupsAndBoundaries() throws {
+        let first: [C7FilterProtocol] = [C7Brightness(brightness: 0.1), C7Contrast(contrast: 1.2)]
+        let last: [C7FilterProtocol] = [C7Gamma(gamma: 0.9)]
+        for base in try makeBoundaryNodes() {
+            let node = ImageNode.filters(input: ImageNode.filters(
+                input: ImageNode.filters(input: base, filters: first), filters: []
+            ), filters: last)
+            let expected = "filters|filters|filters|\(base.nodeFingerprint)|\(first.chainRecipe.fingerprint)||\(last.chainRecipe.fingerprint)"
+            XCTAssertEqual(node.nodeFingerprint, expected)
+        }
+    }
+
+    func testGroupedFilterRecipeMatchesArrayAcrossAllNonFilterBoundaries() throws {
+        let groups: [[C7FilterProtocol]] = [[C7Brightness(brightness: 0.1)], [],
+                                          [C7Contrast(contrast: 1.2), C7Opacity(opacity: 0.8)]]
+        for base in try makeBoundaryNodes() {
+            let chained = groups.reduce(base) { ImageNode.filters(input: $0, filters: $1) }
+            let array = base.applying(filters: groups.flatMap { $0 })
+            for profile in [RenderProfile.stablePreview, .exportQuality] {
+                let derivative = ImageDerivativeSpec(
+                    name: "recipe-thumbnail", renderIntent: .delivery, sourceTier: .thumbnail,
+                    semantic: profile.defaultImageSemantic, outputSizePolicy: .maxPixelSize(3)
+                )
+                XCTAssertEqual(try chained.makeRenderRecipe(profile: profile, derivative: derivative),
+                               try array.makeRenderRecipe(profile: profile, derivative: derivative))
+            }
+        }
+    }
+
+    func testGroupedDescriptionsRefreshMutableFilterParameters() throws {
+        let filter = GraphCountingFilter()
+        let node = ImageNode.texture(try makeTexture()).applying(filter).applying(C7Contrast(contrast: 1.1))
+        let fingerprint = node.nodeFingerprint
+        let recipe = try node.makeRenderRecipe()
+        filter.brightness = 0.25
+        XCTAssertNotEqual(node.nodeFingerprint, fingerprint)
+        XCTAssertNotEqual(try node.makeRenderRecipe().filters, recipe.filters)
+    }
+
+    func testLongFilterRecipePreservesDescriptorOrderWithoutRecursiveStackGrowth() throws {
+        let source = ImageNode.source(.ciImage(CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))))
+        let filters = (0..<256).map { C7Brightness(brightness: Float($0) / 1000) }
+        let node = filters.reduce(source) { $0.applying($1) }
+        let recipe = try node.makeRenderRecipe()
+        XCTAssertEqual(recipe.filters, filters.map(\.recipeDescriptor))
+        XCTAssertEqual(recipe.source, try source.makeRenderRecipe().source)
+    }
+
+    func testDebugSnapshotMatchesSeparatePlanningAndRecipeAcrossBoundaries() throws {
+        let bases = try makeBoundaryNodes()
+        let nodes = bases + [bases[0].applying(C7Brightness(brightness: 0.1)),
+                             bases[3].withSamplerDescriptor(.nearest).withCachePolicy(.persistent)]
+        for node in nodes {
+            for profile in [RenderProfile.stablePreview, .exportQuality] {
+                let derivative = ImageDerivativeSpec(
+                    name: "snapshot-parity", renderIntent: .delivery, sourceTier: .thumbnail,
+                    semantic: profile.defaultImageSemantic, outputSizePolicy: .maxPixelSize(3)
+                )
+                HarbethContext.shared.removeAllRenderPlans()
+                let plan = try node.makeRenderPlan(profile: profile, derivative: derivative)
+                let graph = try plan.imageGraph ?? node.makeImageGraph(profile: profile, derivative: derivative)
+                let recipe = try node.makeRenderRecipe(profile: profile, derivative: derivative)
+                let expected = RenderGraphDebugSnapshot(
+                    graph: graph, diagnostics: plan.diagnostics,
+                    optimizationDecisions: plan.diagnostics.graphOptimizationDecisions, renderRecipe: recipe
+                )
+                HarbethContext.shared.removeAllRenderPlans()
+                XCTAssertEqual(try node.makeDebugSnapshot(profile: profile, derivative: derivative), expected)
+                XCTAssertEqual(try node.makeDebugSnapshot(profile: profile, derivative: derivative), expected)
+            }
+        }
+    }
+
+    func testDebugSnapshotPreservesSourcePlanningFailure() {
+        let node = ImageNode.source(.data(Data([0, 1, 2])))
+        var expected: String?
+        XCTAssertThrowsError(try node.makeRenderPlan()) { expected = String(describing: $0) }
+        XCTAssertThrowsError(try node.makeDebugSnapshot()) { XCTAssertEqual(String(describing: $0), expected) }
+    }
+
+    func testDebugSnapshotReusesPreparedRootPlanWithoutAnotherFingerprintPass() throws {
+        let filter = GraphCountingFilter()
+        let node = ImageNode.texture(try makeTexture()).applying(filter).editing(EditRecipe())
+        _ = try node.makeRenderPlan()
+        filter.factorReadCount = 0
+        let plan = try node.makeRenderPlan()
+        _ = try node.makeRenderRecipe(preparedPlan: plan)
+        let expectedReads = filter.factorReadCount
+        filter.factorReadCount = 0
+        _ = try node.makeDebugSnapshot()
+        XCTAssertGreaterThan(expectedReads, 0)
+        XCTAssertEqual(filter.factorReadCount, expectedReads)
+        filter.brightness = 0.25
+        filter.lastReadBrightness = nil
+        _ = try node.makeDebugSnapshot()
+        XCTAssertEqual(filter.lastReadBrightness, 0.25)
+    }
+
+    private func makeBoundaryNodes() throws -> [ImageNode] {
+        let source = ImageSource.texture(try makeTexture())
+        let node = ImageNode.source(source)
+        return [
+            node, node.withCachePolicy(.persistent), node.withSamplerDescriptor(.nearest),
+            node.editing(EditRecipe()), node.applyingWithContract(C7Contrast(contrast: 1.1)),
+            .transition(TransitionRecipe(from: source, to: source, kernel: .dissolve, progress: 0.3)),
+            .layerComposite(LayerCompositeRecipe(background: source, layers: []))
+        ]
+    }
+
     func testAsyncEditFrameEncodesUpstreamOnce() async throws {
         let recorder = PreparationEncodingRecorder()
         let node = try makeNode(recorder).editing(EditRecipe())
@@ -122,6 +314,18 @@ final class ImageNodeExecutionPreparationTests: XCTestCase {
 
 private final class MaskResolutionCounter {
     var count = 0
+}
+
+private final class GraphCountingFilter: C7FilterProtocol {
+    var brightness: Float = 0.1
+    var factorReadCount = 0
+    var lastReadBrightness: Float?
+    var modifier: ModifierEnum { .compute(kernel: "C7Brightness") }
+    var factors: [Float] {
+        factorReadCount += 1
+        lastReadBrightness = brightness
+        return [brightness]
+    }
 }
 
 private struct PreparationMaskRecipe: MaskRecipe {

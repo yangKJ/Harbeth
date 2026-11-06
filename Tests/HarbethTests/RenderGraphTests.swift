@@ -544,6 +544,106 @@ final class RenderGraphTests: XCTestCase {
         XCTAssertTrue(plan.diagnostics.optimizationPlan.decisions.contains("capTransientReusePrewarmToDoubleBuffer"))
     }
 
+    func testPrewarmGroupingPreservesOrderFormatsAndUncappedReadbackCounts() {
+        func stage(_ index: Int, width: Int = 8, readback: Bool = false, writes: Bool = true) -> RenderStage {
+            let size = C7Size(width: width, height: 4)
+            return RenderStage(
+                index: index, stageKind: .compute, mergeClass: nil, nodeIndices: [index],
+                kinds: [.compute], filterCount: 1, pixelContracts: [], breaksFusion: false,
+                inputSize: size, outputSize: size, boundaryReason: nil,
+                containsReadbackBoundary: readback, createsDestinationTexture: writes,
+                containsLocalEffectComposite: false, containsTransitionKernel: false, containsDerivativeResize: false
+            )
+        }
+        let stages = [stage(0), stage(1), stage(2, readback: true), stage(3, width: 16),
+                      stage(4, readback: true), stage(5, readback: true), stage(6, writes: false), stage(7), stage(8)]
+        let plan = GraphOptimizer.makeOptimizationPlan(
+            stages: stages,
+            nodeDiagnostics: [],
+            outputContract: .highPrecisionLinearTexture,
+            inputPixelFormat: .rgba32Float
+        )
+        XCTAssertEqual(plan.prewarmReservations, [
+            RenderTextureReservation(stageIndices: [8], size: C7Size(width: 8, height: 4), pixelFormat: .rgba16Float,
+                                     reason: .persistentOutput, count: 1),
+            RenderTextureReservation(stageIndices: [2, 4, 5], size: C7Size(width: 8, height: 4), pixelFormat: .rgba16Float,
+                                     reason: .readbackOutput, count: 3),
+            RenderTextureReservation(stageIndices: [0, 1, 7], size: C7Size(width: 8, height: 4), pixelFormat: .rgba32Float,
+                                     reason: .transientReuse, count: 2),
+            RenderTextureReservation(stageIndices: [3], size: C7Size(width: 16, height: 4), pixelFormat: .rgba32Float,
+                                     reason: .transientReuse, count: 1)
+        ])
+        XCTAssertEqual(plan.lifecycleDecisions[6].action, .allocateTransient)
+        XCTAssertTrue(plan.decisions.contains("capTransientReusePrewarmToDoubleBuffer"))
+    }
+
+    func testOptimizationMetricsKeepIndexSemanticsByteCategoriesAndDecisionOrder() {
+        func stage(
+            _ index: Int,
+            width: Int,
+            writes: Bool,
+            readback: Bool,
+            filterCount: Int,
+            merge: Bool,
+            render: Bool = false,
+            derivative: Bool = false
+        ) -> RenderStage {
+            let size = C7Size(width: width, height: 2)
+            return RenderStage(
+                index: index, stageKind: render ? .render : .compute, mergeClass: merge ? .pointCompute : nil,
+                nodeIndices: [index], kinds: [.compute], filterCount: filterCount, pixelContracts: [], breaksFusion: false,
+                inputSize: size, outputSize: size, boundaryReason: nil, containsReadbackBoundary: readback,
+                createsDestinationTexture: writes, containsLocalEffectComposite: false,
+                containsTransitionKernel: false, containsDerivativeResize: derivative
+            )
+        }
+        let stages = [
+            stage(7, width: 2, writes: false, readback: false, filterCount: 0, merge: false),
+            stage(0, width: 3, writes: true, readback: false, filterCount: 3, merge: true, derivative: true),
+            stage(4, width: 4, writes: true, readback: false, filterCount: 1, merge: true),
+            stage(4, width: 5, writes: true, readback: true, filterCount: 2, merge: true, render: true),
+            stage(1, width: 6, writes: false, readback: false, filterCount: 1, merge: false, render: true)
+        ]
+        let size = C7Size(width: 2, height: 2)
+        let diagnostics = (0..<3).map {
+            RenderNodeDiagnostic(index: $0, name: "node-\($0)", kind: .compute, inputSize: size,
+                                 outputSize: size, breaksFusion: false, parameterSummary: [:])
+        }
+        let plan = GraphOptimizer.makeOptimizationPlan(
+            stages: stages, nodeDiagnostics: diagnostics, outputContract: .highPrecisionLinearTexture,
+            imageCachePolicy: .persistent, inputPixelFormat: .rgba32Float
+        )
+        XCTAssertEqual(plan.intermediateTextureCount, 2)
+        XCTAssertEqual(plan.readbackBoundaryCount, 1)
+        XCTAssertEqual(plan.destinationTextureCreationCount, 3)
+        XCTAssertEqual(plan.mergedStageCount, 2)
+        XCTAssertEqual(plan.fusionEligibleNodeCount, 6)
+        XCTAssertEqual(plan.transientStageCount, 1)
+        XCTAssertEqual(plan.renderStageCount, 2)
+        XCTAssertEqual(plan.reusableTextureCount, 1)
+        XCTAssertEqual(plan.persistentOutputCount, 1)
+        XCTAssertEqual(plan.estimatedTransientByteCount, 352)
+        XCTAssertEqual(plan.estimatedPersistentByteCount, 144)
+        XCTAssertEqual(plan.lifecycleDecisions.map(\.action), [.allocateTransient, .reuseTransient,
+            .allocatePersistentOutput, .preserveForReadback, .allocateTransient])
+        XCTAssertEqual(plan.decisions, ["reuseTransientIntermediateTextures", "planTransientTextureReuse", "mergeCompatibleStages",
+            "keepDerivativeResizeAtTerminalStage", "preserveReadbackBoundary", "recordPixelFormatConversion",
+            "preservePersistentImageNode", "preserveInputPixelFormatForReservations"])
+    }
+
+    func testEmptyOptimizationMetricsKeepDeclaredOutputAndZeroResourceCosts() {
+        let plan = GraphOptimizer.makeOptimizationPlan(stages: [], nodeDiagnostics: [])
+        XCTAssertEqual(plan.persistentOutputCount, 1)
+        XCTAssertEqual(plan.intermediateTextureCount, 0)
+        XCTAssertEqual(plan.reusableTextureCount, 0)
+        XCTAssertEqual(plan.estimatedTransientByteCount, 0)
+        XCTAssertEqual(plan.estimatedPersistentByteCount, 0)
+        XCTAssertEqual(plan.destinationTextureCreationCount, 0)
+        XCTAssertTrue(plan.lifecycleDecisions.isEmpty)
+        XCTAssertTrue(plan.prewarmReservations.isEmpty)
+        XCTAssertEqual(plan.decisions, ["singleStageNoOptimizationNeeded"])
+    }
+
     func testRenderPlanDerivesAttachmentDrivenHDRInputColorSpace() {
         let contract = PixelBufferContract(
             width: 32,

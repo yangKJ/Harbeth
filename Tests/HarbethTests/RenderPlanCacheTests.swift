@@ -301,6 +301,20 @@ final class RenderPlanCacheTests: XCTestCase {
         XCTAssertEqual(HarbethContext.shared.renderPlanCacheCount(), 0)
     }
 
+    func testRepeatedNewestPlanHitsDoNotPromoteAnUnrelatedOverwrite() throws {
+        let context = HarbethContext.shared
+        let plan = try makeRealPlanStub()
+        for index in 0..<100 { context.storeRenderPlan(plan, for: "plan-\(index)") }
+        for _ in 0..<20 { XCTAssertNotNil(context.cachedRenderPlan(for: "plan-99")) }
+        // 现有 store 只替换值，不把旧键提升到最新位置。
+        context.storeRenderPlan(plan, for: "plan-0")
+        context.storeRenderPlan(plan, for: "plan-100")
+        XCTAssertNil(context.cachedRenderPlan(for: "plan-0"))
+        XCTAssertNotNil(context.cachedRenderPlan(for: "plan-1"))
+        XCTAssertNotNil(context.cachedRenderPlan(for: "plan-99"))
+        XCTAssertEqual(context.renderPlanCacheCount(), 100)
+    }
+
     func testAllocationStrategyChangeInvalidatesRenderPlanCache() throws {
         let plan = try makeRealPlanStub()
         HarbethContext.shared.storeRenderPlan(plan, for: "strategy-sensitive")

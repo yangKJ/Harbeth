@@ -670,7 +670,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertTrue(
             descriptor.arguments.contains(where: { argument in
                 argument.name == "factors" && argument.role == .parameter && argument.dataType == .floatArray
-                    && argument.valueFingerprint == "floats:0.4000"
+                    && argument.valueFingerprint == "floatArrayBitsLE:zczMPg=="
             })
         )
         XCTAssertTrue(
@@ -791,7 +791,7 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(unpremultiply.alphaBehavior, .outputsNonPremultiplied)
         XCTAssertEqual(unpremultiply.outputContract.alpha, .nonPremultiplied)
         XCTAssertEqual(opacity.alphaBehavior, .modifiesAlpha)
-        XCTAssertEqual(opacity.parameters["factors"]?.fingerprint, "floats:0.4000")
+        XCTAssertEqual(opacity.parameters["factors"]?.fingerprint, "floatArrayBitsLE:zczMPg==")
         XCTAssertTrue(opacity.fingerprint.contains("memory=point"))
         XCTAssertNil(opacity.passes.first?.renderPass)
     }

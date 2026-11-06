@@ -45,32 +45,36 @@ enum SamplerExecutionAdapter {
         }
 
         let resolutions = filters.map { resolve(filter: $0, samplerDescriptor: samplerDescriptor) }
-        var coverage = SamplerExecutionCoverage(mode: .notApplicable)
+        var covered = Set<String>()
+        var metadataOnly = Set<String>()
         for (filter, resolution) in zip(filters, resolutions) where isSamplerRelevant(filter) {
             let typeName = String(describing: type(of: filter))
-            let item: SamplerExecutionCoverage
             switch resolution.coverage {
             case .covered:
-                item = SamplerExecutionCoverage(mode: .covered, coveredFilterTypes: [typeName])
+                covered.insert(typeName)
             case .partial:
-                item = SamplerExecutionCoverage(
-                    mode: .partial,
-                    coveredFilterTypes: [typeName],
-                    metadataOnlyFilterTypes: [typeName]
-                )
+                covered.insert(typeName)
+                metadataOnly.insert(typeName)
             case .metadataOnly:
-                item = SamplerExecutionCoverage(mode: .metadataOnly, metadataOnlyFilterTypes: [typeName])
+                metadataOnly.insert(typeName)
             case .notApplicable:
-                item = SamplerExecutionCoverage(mode: .notApplicable)
+                break
             }
-            coverage = merge(coverage, item)
         }
-        return SamplerExecutionPlan(filters: resolutions.map(\.filter), coverage: coverage)
+        return SamplerExecutionPlan(
+            filters: resolutions.map(\.filter),
+            coverage: makeCoverage(covered: covered, metadataOnly: metadataOnly)
+        )
     }
 
     static func merge(_ lhs: SamplerExecutionCoverage, _ rhs: SamplerExecutionCoverage) -> SamplerExecutionCoverage {
-        let covered = Array(Set(lhs.coveredFilterTypes + rhs.coveredFilterTypes)).sorted()
-        let metadataOnly = Array(Set(lhs.metadataOnlyFilterTypes + rhs.metadataOnlyFilterTypes)).sorted()
+        makeCoverage(
+            covered: Set(lhs.coveredFilterTypes + rhs.coveredFilterTypes),
+            metadataOnly: Set(lhs.metadataOnlyFilterTypes + rhs.metadataOnlyFilterTypes)
+        )
+    }
+
+    private static func makeCoverage(covered: Set<String>, metadataOnly: Set<String>) -> SamplerExecutionCoverage {
         let mode: SamplerExecutionCoverageMode
         switch (covered.isEmpty, metadataOnly.isEmpty) {
         case (true, true):
@@ -84,8 +88,8 @@ enum SamplerExecutionAdapter {
         }
         return SamplerExecutionCoverage(
             mode: mode,
-            coveredFilterTypes: covered,
-            metadataOnlyFilterTypes: metadataOnly
+            coveredFilterTypes: covered.sorted(),
+            metadataOnlyFilterTypes: metadataOnly.sorted()
         )
     }
 

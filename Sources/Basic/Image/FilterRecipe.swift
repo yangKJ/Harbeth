@@ -53,6 +53,21 @@ struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
         }
         return components.joined(separator: "|")
     }
+
+    /// 记录该步骤收到的请求采样合同；是否完全消费仍由 sampler coverage 说明。
+    func withSamplerContract(_ descriptor: ImageSamplerDescriptor) -> FilterRecipeDescriptor {
+        guard descriptor != .default else { return self }
+        return FilterRecipeDescriptor(
+            stableTypeID: stableTypeID,
+            modifier: modifier,
+            parameterValues: parameterValues,
+            resourceIdentity: resourceIdentity,
+            otherInputTextureCount: otherInputTextureCount,
+            pipelineFilterFingerprints: pipelineFilterFingerprints,
+            finalFilterFingerprint: finalFilterFingerprint,
+            executionContractFingerprint: executionContractFingerprint + "|sampler={\(descriptor.fingerprint)}"
+        )
+    }
 }
 
 struct FilterChainRecipe: Sendable, Hashable, Codable {
@@ -79,6 +94,8 @@ struct RenderRecipe: Sendable, Hashable, Codable {
     let filters: [FilterRecipeDescriptor]
     let localEffects: [LocalEffectRecipeDescriptor]?
     let layerMasks: [LayerMaskRecipeDescriptor]?
+    /// edit 输入已执行的处理；不包含 profile、derivative 或缓存策略，旧配方缺省为 nil。
+    var upstreamProcessingFingerprint: String? = nil
 
     var fingerprint: String {
         let localEffectPart = localEffects?.map { descriptor in
@@ -88,7 +105,7 @@ struct RenderRecipe: Sendable, Hashable, Codable {
         let layerMaskPart = layerMasks?.map { descriptor in
             "layer=\(descriptor.layerIndex):mask=\(descriptor.mask?.fingerprint ?? "none"):compositing=\(descriptor.compositingMask?.fingerprint ?? "none")"
         }.joined(separator: "||") ?? "none"
-        return [
+        let localFingerprint = [
             "profile=\(renderProfile)",
             "intent=\(renderIntent.rawValue)",
             source.fingerprint,
@@ -101,12 +118,18 @@ struct RenderRecipe: Sendable, Hashable, Codable {
             "localEffects=\(localEffectPart)",
             "layerMasks=\(layerMaskPart)"
         ].joined(separator: " || ")
+        guard let upstreamProcessingFingerprint else { return localFingerprint }
+        return localFingerprint + " || upstreamProcessing={\(upstreamProcessingFingerprint)}"
     }
 
     /// 只描述会改变画面内容的配方部分。profile、derivative、缓存和交付语义
     /// 由 render parity 的 delivery 维度单独比较，避免把合法的预览/导出差异
     /// 误报为编辑内容漂移。
     var processingFingerprint: String {
+        // 空 edit 只改变交付描述时，继续沿用输入处理身份。
+        if let upstreamProcessingFingerprint, hasLocalProcessing == false {
+            return upstreamProcessingFingerprint
+        }
         let localEffectPart = localEffects?.map { descriptor in
             let blend = descriptor.foregroundBlendMode ?? "none"
             return "\(descriptor.mask.fingerprint):blend=\(blend):opacity=\(String(format: "%.4f", descriptor.foregroundBlendOpacity))"
@@ -114,7 +137,7 @@ struct RenderRecipe: Sendable, Hashable, Codable {
         let layerMaskPart = layerMasks?.map { descriptor in
             "layer=\(descriptor.layerIndex):mask=\(descriptor.mask?.fingerprint ?? "none"):compositing=\(descriptor.compositingMask?.fingerprint ?? "none")"
         }.joined(separator: "||") ?? "none"
-        return [
+        let localFingerprint = [
             "sourceKind=\(source.kind)",
             "alpha=\(alphaType.rawValue)",
             "orientation=\(orientation.rawValue)",
@@ -122,6 +145,19 @@ struct RenderRecipe: Sendable, Hashable, Codable {
             "localEffects=\(localEffectPart)",
             "layerMasks=\(layerMaskPart)"
         ].joined(separator: " || ")
+        guard let upstreamProcessingFingerprint else { return localFingerprint }
+        return "upstreamProcessing={\(upstreamProcessingFingerprint)} || current={\(localFingerprint)}"
+    }
+
+    func withUpstreamProcessing(from upstream: RenderRecipe) -> RenderRecipe {
+        var result = self
+        result.upstreamProcessingFingerprint = upstream.hasLocalProcessing || upstream.upstreamProcessingFingerprint != nil
+            ? upstream.processingFingerprint : nil
+        return result
+    }
+
+    private var hasLocalProcessing: Bool {
+        !filters.isEmpty || localEffects?.isEmpty == false || layerMasks?.isEmpty == false
     }
 }
 
