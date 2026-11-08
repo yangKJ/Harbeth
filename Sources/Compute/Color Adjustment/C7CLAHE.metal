@@ -174,3 +174,100 @@ kernel void C7CLAHEApply(
     const float3 result = clamp(straightColor * (mappedLuminance / luminance), 0.0f, 1.0f);
     outputTexture.write(half4(half3(result * source.a), half(source.a)), gid);
 }
+
+// 每个线程组只覆盖一个逻辑 tile，避免跨 tile 的局部计数混合。
+kernel void C7CLAHEHistogramGrouped(
+    texture2d<half, access::read> inputTexture [[texture(0)]],
+    device atomic_uint *histogram [[buffer(0)]],
+    device atomic_uint *sampleCounts [[buffer(1)]],
+    constant uint &columns [[buffer(2)]],
+    constant uint &rows [[buffer(3)]],
+    uint3 group [[threadgroup_position_in_grid]],
+    uint3 local [[thread_position_in_threadgroup]],
+    uint lane [[thread_index_in_threadgroup]]) {
+    threadgroup atomic_uint counts[257];
+    atomic_store_explicit(&counts[lane], 0u, memory_order_relaxed);
+    if (lane == 0u) atomic_store_explicit(&counts[256], 0u, memory_order_relaxed);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    const uint2 size = uint2(inputTexture.get_width(), inputTexture.get_height());
+    const uint2 tile = uint2(group.z % columns, group.z / columns);
+    const uint2 divisions = uint2(columns, rows);
+    const uint2 begin = (tile * size + divisions - 1u) / divisions;
+    const uint2 end = ((tile + 1u) * size + divisions - 1u) / divisions;
+    const uint2 p = begin + group.xy * 16u + local.xy;
+    if (all(p < end) && all(p < size)) {
+        const float4 source = float4(inputTexture.read(p));
+        if (source.a > 0.0f) {
+            const float3 straightColor = source.rgb / source.a;
+            if (c7CLAHEIsSDR(straightColor)) {
+                const uint bin = min(uint(c7CLAHELuminance(straightColor) * 255.0f + 0.5f), 255u);
+                atomic_fetch_add_explicit(&counts[bin], 1u, memory_order_relaxed);
+                atomic_fetch_add_explicit(&counts[256], 1u, memory_order_relaxed);
+            }
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    const uint count = atomic_load_explicit(&counts[lane], memory_order_relaxed);
+    if (count > 0u) {
+        atomic_fetch_add_explicit(&histogram[group.z * 256u + lane], count, memory_order_relaxed);
+    }
+    if (lane == 0u) {
+        atomic_fetch_add_explicit(&sampleCounts[group.z], atomic_load_explicit(&counts[256], memory_order_relaxed), memory_order_relaxed);
+    }
+}
+
+// 一个线程组负责一张 LUT；计数始终使用整数，归一化公式与串行路径一致。
+kernel void C7CLAHEBuildLookupTableParallel(
+    device const atomic_uint *histogram [[buffer(0)]],
+    device const atomic_uint *sampleCounts [[buffer(1)]],
+    device float *lookupTable [[buffer(2)]],
+    constant uint &columns [[buffer(3)]],
+    constant uint &rows [[buffer(4)]],
+    constant float &clipLimit [[buffer(5)]],
+    uint tile [[threadgroup_position_in_grid]],
+    uint bin [[thread_index_in_threadgroup]]) {
+    const uint offset = tile * 256u;
+    const uint sampleCount = atomic_load_explicit(&sampleCounts[tile], memory_order_relaxed);
+    if (sampleCount == 0u) {
+        lookupTable[offset + bin] = float(bin) / 255.0f;
+        return;
+    }
+    const uint clipCount = max(1u, uint(max(1.0f, clipLimit * float(sampleCount) / 256.0f)));
+    const uint count = atomic_load_explicit(&histogram[offset + bin], memory_order_relaxed);
+    threadgroup uint excess[256];
+    threadgroup uint occupied[256];
+    threadgroup uint first[256];
+    threadgroup uint cdf[256];
+    excess[bin] = count > clipCount ? count - clipCount : 0u;
+    occupied[bin] = count > 0u ? 1u : 0u;
+    first[bin] = count > 0u ? bin : 256u;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint step = 128u; step > 0u; step >>= 1u) {
+        if (bin < step) {
+            excess[bin] += excess[bin + step];
+            occupied[bin] += occupied[bin + step];
+            first[bin] = min(first[bin], first[bin + step]);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (occupied[0] <= 1u) {
+        lookupTable[offset + bin] = float(bin) / 255.0f;
+        return;
+    }
+    const uint redistribution = excess[0] / 256u;
+    const uint remainder = excess[0] % 256u;
+    cdf[bin] = min(count, clipCount) + redistribution + (bin < remainder ? 1u : 0u);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint step = 1u; step < 256u; step <<= 1u) {
+        const uint previous = bin >= step ? cdf[bin - step] : 0u;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        cdf[bin] += previous;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    const uint firstBin = redistribution > 0u || remainder > 0u ? 0u : first[0];
+    const uint minimum = bin < firstBin ? 0u : cdf[firstBin];
+    const uint denominator = sampleCount > minimum ? sampleCount - minimum : 0u;
+    lookupTable[offset + bin] = denominator > 0u
+        ? clamp(float(cdf[bin] - minimum) / float(denominator), 0.0f, 1.0f)
+        : float(bin) / 255.0f;
+}

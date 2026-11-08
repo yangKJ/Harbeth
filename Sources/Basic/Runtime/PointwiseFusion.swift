@@ -29,11 +29,30 @@ struct C7FusedPointOperations: C7FilterProtocol, FusedKernelProtocol {
     let operations: [Operation]
 
     var modifier: ModifierEnum {
-        .compute(kernel: "C7FusedPointOperations")
+        .compute(kernel: usesSpecializedKernel ? "C7FusedPointOperationsSpecialized" : "C7FusedPointOperations")
     }
 
-    var kernelParameterBindings: [KernelParameterBinding] {
-        [
+    let kernelParameterBindings: [KernelParameterBinding]
+
+    /// 仅专门化六种操作按固定顺序组成的子序列，最多 57 种；数值不进入变体键。
+    /// 其余顺序和重复操作继续使用通用内核，避免管线变体随配方无界增长。
+    var computeKernelFunctionConstants: [KernelFunctionConstantDescriptor] {
+        guard usesSpecializedKernel else { return [] }
+        let kinds = operations.enumerated().reduce(0) { $0 | (Int($1.element.kind.rawValue) << ($1.offset * 3)) }
+        return [
+            .init(name: "pointwiseKinds", index: 0, value: .int(kinds)),
+            .init(name: "pointwiseCount", index: 1, value: .int(operations.count))
+        ]
+    }
+
+    var usesSpecializedKernel: Bool {
+        operations.count >= 2 && operations.count <= 6
+            && zip(operations, operations.dropFirst()).allSatisfy { $0.kind.rawValue < $1.kind.rawValue }
+    }
+
+    init(operations: [Operation]) {
+        self.operations = operations
+        self.kernelParameterBindings = [
             KernelParameterBinding(
                 name: "operations",
                 index: 0,

@@ -227,6 +227,20 @@ final class RenderExecutionProgramTests: XCTestCase {
         XCTAssertNotNil(recipeFrame.metadata["renderExecutionFingerprint"])
     }
 
+    func testCachedLayoutBindsCurrentInstancesAndInvalidatesMutatedParameters() throws {
+        let firstFilter = MutableExecutionFilter()
+        let first = RenderExecutionCompiler.compile(filters: [firstFilter], inputSize: C7Size(width: 8, height: 6), planCacheKey: "mutable-layout")
+        let currentFilter = MutableExecutionFilter()
+        let reused = RenderExecutionCompiler.compile(filters: [currentFilter], inputSize: C7Size(width: 8, height: 6), planCacheKey: "mutable-layout")
+        XCTAssertTrue(reused.reusedCachedPlan)
+        XCTAssertTrue((reused.steps.first?.filter as? MutableExecutionFilter) === currentFilter)
+        firstFilter.brightness = 0.3
+        let changed = RenderExecutionCompiler.compile(filters: [firstFilter], inputSize: C7Size(width: 8, height: 6), planCacheKey: "mutable-layout")
+        XCTAssertFalse(changed.reusedCachedPlan)
+        XCTAssertNotEqual(first.plan.filterFingerprint, changed.plan.filterFingerprint)
+        XCTAssertEqual((changed.steps.first?.filter as? MutableExecutionFilter)?.brightness, 0.3)
+    }
+
     private func makeTexture() throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")
@@ -255,4 +269,10 @@ private struct UnfingerprintedResizeFilter: C7FilterProtocol {
     func resize(input size: C7Size) -> C7Size {
         C7Size(width: outputWidth, height: size.height)
     }
+}
+
+private final class MutableExecutionFilter: C7FilterProtocol {
+    var brightness: Float = 0
+    var modifier: ModifierEnum { .compute(kernel: "C7Brightness") }
+    var factors: [Float] { [brightness] }
 }

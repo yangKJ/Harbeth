@@ -173,8 +173,9 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
                                  grid: TileGridSize,
                                  commandBuffer: MTLCommandBuffer,
                                  environment: MetalCommandEnvironment) throws {
+        let grouped = source.width * source.height >= 4_096
         let pipeline = try environment.makeComputePipelineState(
-            KernelFunctionIdentity(kind: .compute, primaryName: "C7CLAHEHistogram")
+            KernelFunctionIdentity(kind: .compute, primaryName: grouped ? "C7CLAHEHistogramGrouped" : "C7CLAHEHistogram")
         )
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
@@ -185,7 +186,16 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
         encoder.setBuffer(histogram, offset: 0, index: 0)
         encoder.setBuffer(sampleCounts, offset: 0, index: 1)
         setGridParameters(on: encoder, grid: grid, columnsIndex: 2, rowsIndex: 3)
-        dispatchPixels(source, on: encoder)
+        if grouped {
+            let tileWidth = (source.width + grid.columns - 1) / grid.columns
+            let tileHeight = (source.height + grid.rows - 1) / grid.rows
+            encoder.dispatchThreadgroups(
+                MTLSize(width: (tileWidth + 15) / 16, height: (tileHeight + 15) / 16, depth: grid.columns * grid.rows),
+                threadsPerThreadgroup: MTLSize(width: 16, height: 16, depth: 1)
+            )
+        } else {
+            dispatchPixels(source, on: encoder)
+        }
         encoder.endEncoding()
     }
 
@@ -196,7 +206,7 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
                                    commandBuffer: MTLCommandBuffer,
                                    environment: MetalCommandEnvironment) throws {
         let pipeline = try environment.makeComputePipelineState(
-            KernelFunctionIdentity(kind: .compute, primaryName: "C7CLAHEBuildLookupTable")
+            KernelFunctionIdentity(kind: .compute, primaryName: "C7CLAHEBuildLookupTableParallel")
         )
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
@@ -210,9 +220,10 @@ public struct C7CLAHE: C7MetalCommandEncodingProtocol {
         var limit = clipLimit
         encoder.setBytes(&limit, length: MemoryLayout<Float>.size, index: 5)
         let tileCount = grid.columns * grid.rows
-        let threadsPerGroup = MTLSize(width: min(tileCount, 64), height: 1, depth: 1)
-        let groups = MTLSize(width: (tileCount + threadsPerGroup.width - 1) / threadsPerGroup.width, height: 1, depth: 1)
-        encoder.dispatchThreadgroups(groups, threadsPerThreadgroup: threadsPerGroup)
+        encoder.dispatchThreadgroups(
+            MTLSize(width: tileCount, height: 1, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: Self.histogramBinCount, height: 1, depth: 1)
+        )
         encoder.endEncoding()
     }
 

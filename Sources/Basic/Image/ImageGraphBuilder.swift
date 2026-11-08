@@ -174,12 +174,19 @@ final class ImageGraphBuilder {
     private func appendFilterNodes(_ node: ImageNode) throws -> ImageGraphNodeID {
         let route = node.groupedFilterRoute()
         var inputID = try append(route.input)
-        var inputFingerprint = route.input.nodeFingerprint
+        var inputFingerprint = ImageGraphFingerprint(route.input.nodeFingerprint)
         let cachePolicy = route.input.resolvedCachePolicy
         let sourceKind = try route.input.resolvedPrimarySource().kindName
+        let resolutionSuffix = ImageGraphFingerprint(" || " + [
+            "profile=\(profile)", derivative.fingerprint,
+            "cache=\(cachePolicy.rawValue)", "sampler=\(ImageSamplerDescriptor.default.fingerprint)"
+        ].joined(separator: " || "))
+        let filterPrefix = ImageGraphFingerprint("filters|")
         for filters in route.groups.reversed() {
             let nodeID = allocateID()
-            inputFingerprint = ImageNode.filterNodeFingerprint(inputFingerprint: inputFingerprint, filters: filters)
+            inputFingerprint = ImageGraphFingerprint(parts: [
+                filterPrefix, inputFingerprint, ImageGraphFingerprint("|" + filters.chainRecipe.fingerprint)
+            ])
             nodes.append(ImageGraphNode(
                 id: nodeID,
                 kind: .filters,
@@ -188,13 +195,7 @@ final class ImageGraphBuilder {
                 samplerDescriptor: .default,
                 sourceKind: sourceKind,
                 filterCount: filters.count,
-                fingerprint: ImageNode.resolutionFingerprint(
-                    nodeFingerprint: inputFingerprint,
-                    profile: profile,
-                    derivative: derivative,
-                    cachePolicy: cachePolicy,
-                    samplerDescriptor: .default
-                )
+                fingerprintText: ImageGraphFingerprint(parts: [inputFingerprint, resolutionSuffix])
             ))
             edges.append(ImageGraphEdge(from: inputID, to: nodeID))
             inputID = nodeID

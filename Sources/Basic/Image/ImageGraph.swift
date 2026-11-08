@@ -51,7 +51,8 @@ public struct ImageGraphNode: Sendable, Equatable, Hashable {
     public let samplerDescriptor: ImageSamplerDescriptor
     public let sourceKind: String?
     public let filterCount: Int
-    public let fingerprint: String
+    public var fingerprint: String { fingerprintText.value }
+    let fingerprintText: ImageGraphFingerprint
 
     init(id: ImageGraphNodeID,
          kind: ImageGraphNodeKind,
@@ -68,7 +69,25 @@ public struct ImageGraphNode: Sendable, Equatable, Hashable {
         self.samplerDescriptor = samplerDescriptor
         self.sourceKind = sourceKind
         self.filterCount = filterCount
-        self.fingerprint = fingerprint
+        self.fingerprintText = ImageGraphFingerprint(fingerprint)
+    }
+
+    init(id: ImageGraphNodeID,
+         kind: ImageGraphNodeKind,
+         name: String,
+         cachePolicy: ImageCachePolicy,
+         samplerDescriptor: ImageSamplerDescriptor,
+         sourceKind: String?,
+         filterCount: Int,
+         fingerprintText: ImageGraphFingerprint) {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.cachePolicy = cachePolicy
+        self.samplerDescriptor = samplerDescriptor
+        self.sourceKind = sourceKind
+        self.filterCount = filterCount
+        self.fingerprintText = fingerprintText
     }
 
     public var formsBoundary: Bool {
@@ -274,7 +293,7 @@ enum ImageGraphOptimizer {
                     samplerDescriptor: current.samplerDescriptor,
                     sourceKind: current.sourceKind ?? inputNode.sourceKind,
                     filterCount: inputNode.filterCount + current.filterCount,
-                    fingerprint: "\(inputNode.fingerprint)||\(current.fingerprint)"
+                    fingerprintText: ImageGraphFingerprint(parts: [inputNode.fingerprintText, ImageGraphFingerprint("||"), current.fingerprintText])
                 )
                 nodes.removeAll(where: { $0.id == inputNode.id || $0.id == current.id })
                 nodes.append(merged)

@@ -799,6 +799,8 @@ struct RenderPlan: @unchecked Sendable {
     let containsBoundary: Bool
     let optimizedStages: [RenderStage]
     let diagnostics: RenderPlanDiagnostics
+    let executionSlots: [RenderExecutionSlot]
+    let filterFingerprint: String
 
     init(graph: RenderGraph,
          imageGraph: ImageGraph? = nil,
@@ -808,12 +810,14 @@ struct RenderPlan: @unchecked Sendable {
          optimizedStages: [RenderStage],
          diagnostics: RenderPlanDiagnostics) {
         self.graph = graph
+        self.filterFingerprint = graph.nodes.compactMap(\.filter).chainRecipe.fingerprint
         self.imageGraph = imageGraph
         self.profile = profile
         self.requiresCompletedGPUWork = requiresCompletedGPUWork
         self.containsBoundary = containsBoundary
         self.optimizedStages = optimizedStages
         self.diagnostics = diagnostics
+        self.executionSlots = RenderExecutionCompiler.makeExecutionSlots(graph: graph, stages: optimizedStages, diagnostics: diagnostics)
     }
 
     init(graph: RenderGraph,
@@ -835,6 +839,7 @@ struct RenderPlan: @unchecked Sendable {
          imageGraph: ImageGraph? = nil,
          graphOptimizationDecisions: [String] = []) {
         self.graph = graph
+        self.filterFingerprint = graph.nodes.compactMap(\.filter).chainRecipe.fingerprint
         self.imageGraph = imageGraph
         self.profile = profile
         let requiresCompletedGPUWork = profile.requiresCompletedGPUWorkBeforeReadback
@@ -922,6 +927,7 @@ struct RenderPlan: @unchecked Sendable {
             nodes: nodeDiagnostics,
             stages: optimizedStages
         )
+        self.executionSlots = RenderExecutionCompiler.makeExecutionSlots(graph: graph, stages: optimizedStages, diagnostics: diagnostics)
     }
 
     public var debugSummary: String {

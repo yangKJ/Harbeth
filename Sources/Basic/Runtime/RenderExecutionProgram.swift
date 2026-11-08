@@ -33,6 +33,16 @@ struct RenderExecutionStep: @unchecked Sendable {
     let breaksFusion: Bool
 }
 
+/// 计划内冻结的拓扑信息不持有本次滤镜参数；每次执行仍绑定当前滤镜实例。
+struct RenderExecutionSlot: Sendable {
+    let nodeIndex: Int
+    let stageIndex: Int
+    let filterIndex: Int?
+    let outputSize: C7Size
+    let lifecycleAction: RenderTextureLifecycleAction
+    let breaksFusion: Bool
+}
+
 enum RenderExecutionCompiler {
     static func compile(
         filters: [C7FilterProtocol],
@@ -119,7 +129,7 @@ enum RenderExecutionCompiler {
         guard plan.diagnostics.inputSize == inputSize,
               plan.diagnostics.derivative.fingerprint == derivative.fingerprint,
               filterNodes.count == executionFilters.count,
-              filterNodes.compactMap(\.filter).chainRecipe.fingerprint == executionFilters.chainRecipe.fingerprint else {
+              plan.filterFingerprint == executionFilters.chainRecipe.fingerprint else {
             return false
         }
 
@@ -142,15 +152,35 @@ enum RenderExecutionCompiler {
     }
 
     private static func makeExecutionSteps(filters: [C7FilterProtocol], plan: RenderPlan) -> [RenderExecutionStep] {
-        let diagnosticsByNode = Dictionary(plan.diagnostics.nodes.map { ($0.index, $0) }, uniquingKeysWith: { first, _ in first })
+        plan.executionSlots.compactMap { slot in
+            let filter: C7FilterProtocol
+            if let index = slot.filterIndex {
+                guard filters.indices.contains(index) else { return nil }
+                filter = filters[index]
+            } else {
+                filter = C7Resize(width: Float(slot.outputSize.width), height: Float(slot.outputSize.height))
+            }
+            return RenderExecutionStep(
+                nodeIndex: slot.nodeIndex,
+                stageIndex: slot.stageIndex,
+                filter: filter,
+                outputSize: slot.outputSize,
+                lifecycleAction: slot.lifecycleAction,
+                breaksFusion: slot.breaksFusion
+            )
+        }
+    }
+
+    static func makeExecutionSlots(graph: RenderGraph, stages: [RenderStage], diagnostics: RenderPlanDiagnostics) -> [RenderExecutionSlot] {
+        let diagnosticsByNode = Dictionary(diagnostics.nodes.map { ($0.index, $0) }, uniquingKeysWith: { first, _ in first })
         func isExecutableNode(at index: Int) -> Bool {
-            guard plan.graph.nodes.indices.contains(index) else { return false }
-            return plan.graph.nodes[index].filter != nil || diagnosticsByNode[index]?.name == "DerivativeResize"
+            guard graph.nodes.indices.contains(index) else { return false }
+            return graph.nodes[index].filter != nil || diagnosticsByNode[index]?.name == "DerivativeResize"
         }
 
         // 每个阶段只定位一次末尾执行节点，节点归属保留原先首次匹配的顺序。
         var stagesByNode: [Int: (index: Int, lastExecutableNode: Int?)] = [:]
-        for stage in plan.optimizedStages {
+        for stage in stages {
             let lastExecutableNode = stage.nodeIndices.last(where: isExecutableNode(at:))
             for nodeIndex in stage.nodeIndices where stagesByNode[nodeIndex] == nil {
                 stagesByNode[nodeIndex] = (stage.index, lastExecutableNode)
@@ -158,20 +188,19 @@ enum RenderExecutionCompiler {
         }
 
         let lifecycleByStage = Dictionary(
-            uniqueKeysWithValues: plan.diagnostics.optimizationPlan.lifecycleDecisions.map {
+            uniqueKeysWithValues: diagnostics.optimizationPlan.lifecycleDecisions.map {
                 ($0.stageIndex, $0.action)
             }
         )
         var filterIndex = 0
-        return plan.graph.nodes.enumerated().compactMap { nodeIndex, node in
+        return graph.nodes.enumerated().compactMap { nodeIndex, node in
             let diagnostic = diagnosticsByNode[nodeIndex]
-            let filter: C7FilterProtocol
-            if node.filter != nil, filters.indices.contains(filterIndex) {
-                filter = filters[filterIndex]
+            let bindingIndex: Int?
+            if node.filter != nil {
+                bindingIndex = filterIndex
                 filterIndex += 1
             } else if diagnostic?.name == "DerivativeResize" {
-                let outputSize = node.outputSize ?? diagnostic?.outputSize ?? plan.diagnostics.inputSize
-                filter = C7Resize(width: Float(outputSize.width), height: Float(outputSize.height))
+                bindingIndex = nil
             } else {
                 return nil
             }
@@ -184,11 +213,11 @@ enum RenderExecutionCompiler {
             } else {
                 lifecycleAction = .reuseTransient
             }
-            let outputSize = node.outputSize ?? diagnostic?.outputSize ?? plan.diagnostics.inputSize
-            return RenderExecutionStep(
+            let outputSize = node.outputSize ?? diagnostic?.outputSize ?? diagnostics.inputSize
+            return RenderExecutionSlot(
                 nodeIndex: nodeIndex,
                 stageIndex: stageIndex,
-                filter: filter,
+                filterIndex: bindingIndex,
                 outputSize: outputSize,
                 lifecycleAction: lifecycleAction,
                 breaksFusion: node.breaksFusion

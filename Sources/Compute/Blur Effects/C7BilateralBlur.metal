@@ -14,6 +14,7 @@ kernel void C7BilateralBlur(texture2d<half, access::write> outputTexture [[textu
                             constant float *sigmaColor [[buffer(1)]],
                             constant float *blurRadius [[buffer(2)]],
                             uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const float x = float(grid.x);
     const float y = float(grid.y);
     const float width = float(inputTexture.get_width());
@@ -37,11 +38,11 @@ kernel void C7BilateralBlur(texture2d<half, access::write> outputTexture [[textu
             uint2 currentPixel = uint2(clamp(int(x) + offset.x, 0, int(width) - 1),
                                        clamp(int(y) + offset.y, 0, int(height) - 1));
             half4 currentColor = inputTexture.read(currentPixel);
-            float spatialDistance = sqrt(float(i * i + j * j));
+            float spatialDistanceSquared = float(i * i + j * j);
             half3 colorDiff = currentColor.rgb - centralColor.rgb;
-            float colorDistance = length(float3(colorDiff));
-            float spatialWeight = exp(-(spatialDistance * spatialDistance) / (2.0 * sigmaSpaceSquared));
-            float colorWeight = exp(-(colorDistance * colorDistance) / (2.0 * sigmaColorSquared));
+            float colorDistanceSquared = dot(float3(colorDiff), float3(colorDiff));
+            float spatialWeight = exp(-(spatialDistanceSquared) / (2.0 * sigmaSpaceSquared));
+            float colorWeight = exp(-(colorDistanceSquared) / (2.0 * sigmaColorSquared));
             float weight = spatialWeight * colorWeight;
             sum += currentColor * half(weight);
             weightSum += half(weight);
