@@ -186,7 +186,7 @@ extension HarbethWrapper where Base: CVPixelBuffer {
         }
     }
 
-    private func convertPlaneTextureReference(textureCache: CVMetalTextureCache?, pixelFormat: MTLPixelFormat, planeIndex: Int) -> (texture: MTLTexture, owner: AnyObject)? {
+    func convertPlaneTextureReference(textureCache: CVMetalTextureCache?, pixelFormat: MTLPixelFormat, planeIndex: Int) -> (texture: MTLTexture, owner: AnyObject)? {
         guard let textureCache = textureCache else { return nil }
         #if !targetEnvironment(simulator)
         var cvmTexture: CVMetalTexture?
@@ -196,8 +196,8 @@ extension HarbethWrapper where Base: CVPixelBuffer {
             self.base,
             nil,
             pixelFormat,
-            CVPixelBufferGetWidthOfPlane(base, planeIndex),
-            CVPixelBufferGetHeightOfPlane(base, planeIndex),
+            Self.width(of: base, planeIndex: planeIndex, planar: CVPixelBufferIsPlanar(base)),
+            Self.height(of: base, planeIndex: planeIndex, planar: CVPixelBufferIsPlanar(base)),
             planeIndex,
             &cvmTexture
         )

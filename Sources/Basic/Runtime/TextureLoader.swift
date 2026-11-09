@@ -347,15 +347,24 @@ extension TextureLoader {
         let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
         switch bridgePlan.loadStrategy {
         case .directMetalTexture:
-            guard let texture = pixelBuffer.c7.toMTLTexture() else {
-                throw HarbethError.source2Texture
-            }
+            #if targetEnvironment(simulator)
+            guard let texture = pixelBuffer.c7.toMTLTexture() else { throw HarbethError.source2Texture }
+            return PixelBufferTextureSource(primaryTexture: texture, planeTextures: [texture], bridgePlan: bridgePlan, retainedOwners: [pixelBuffer])
+            #else
+            guard let format = bridgePlan.contract.preferredMetalPixelFormat,
+                  let reference = pixelBuffer.c7.convertPlaneTextureReference(
+                    textureCache: HarbethContext.shared.cvMetalTextureCache,
+                    pixelFormat: format,
+                    planeIndex: 0
+                  ) else { throw HarbethError.source2Texture }
+            // 句柄归单次纹理源持有，避免给纹理挂载长期 owner 导致采集池滞留。
             return PixelBufferTextureSource(
-                primaryTexture: texture,
-                planeTextures: [texture],
+                primaryTexture: reference.texture,
+                planeTextures: [reference.texture],
                 bridgePlan: bridgePlan,
-                retainedOwners: TextureLoader.resolveRetainedOwners(primaryTexture: texture, fallbackOwner: pixelBuffer)
+                retainedOwners: [pixelBuffer, reference.owner]
             )
+            #endif
         case .directPlaneTexture:
             #if targetEnvironment(simulator)
             guard let texture = pixelBuffer.c7.toMTLTexture() else {

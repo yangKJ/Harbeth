@@ -60,6 +60,18 @@ public struct PreviewDisplayState: Sendable, Equatable {
 
 @MainActor
 open class RenderView: MTKView {
+    /// 显式绘制模式由调用方在新帧到达时调用 draw，布局和生命周期不启动定时循环。
+    public var usesExplicitDrawing = false {
+        didSet { updatePreviewHostScheduling() }
+    }
+
+    /// 实际 drawable 像素尺寸改变时通知宿主，用于更新上游采样预算。
+    public var onDrawableSizeChanged: ((CGSize) -> Void)?
+
+    /// true 表示本次 Metal 绘制已完成，false 表示当前无法绘制。
+    /// 回调固定在主线程，提交时冻结，后续替换回调不改变在途帧的接收者。
+    public var onFrameDrawCompleted: (@MainActor @Sendable (MTLTexture?, Result<Bool, HarbethError>) -> Void)?
+
     public var onPreviewHostExecutionReportUpdated: ((PreviewHostExecutionReport) -> Void)?
     public var onPreviewHostFleetSnapshotUpdated: ((PreviewHostFleetSnapshot) -> Void)?
     public var onPreviewDisplayStateUpdated: ((PreviewDisplayState) -> Void)?
@@ -446,6 +458,13 @@ open class RenderView: MTKView {
         )
         guard self.drawableSize != drawableSize else { return }
         self.drawableSize = drawableSize
+        onDrawableSizeChanged?(drawableSize)
+        if usesExplicitDrawing {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.usesExplicitDrawing, self.texture != nil else { return }
+                self.draw()
+            }
+        }
     }
 
     static func constrainedDrawableSize(for targetSize: CGSize, scale: CGFloat, maximumDimension: Int?) -> CGSize {
@@ -579,20 +598,25 @@ extension RenderView: MTKViewDelegate {
     }
 
     public func draw(in view: MTKView) {
+        let completion = onFrameDrawCompleted
         guard isUsingSampleBufferPreviewHost == false else {
+            completion?(texture, .success(false))
             return
         }
         guard let texture,
               let renderPassDescriptor = currentRenderPassDescriptor,
               let drawable = currentDrawable,
-              let pipelineState = currentRenderPipelineState(),
-              let samplerState,
               let vertices = PreviewQuadGeometry.vertices(
                   textureSize: CGSize(width: texture.width, height: texture.height),
                   drawableSize: drawableSize, resizingMode: resizingMode, viewport: viewport
-              ),
+              ) else {
+            completion?(texture, .success(false))
+            return
+        }
+        guard let pipelineState = currentRenderPipelineState(), let samplerState,
               let commandBuffer = HarbethContext.shared.makeCommandBuffer(),
               let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
+            completion?(texture, .failure(.configurationInvalid("无法创建Metal预览绘制资源")))
             return
         }
 
@@ -602,7 +626,24 @@ extension RenderView: MTKViewDelegate {
 
         currentRenderedFrame?.lease?.retainUntilCompleted(by: commandBuffer)
         commandBuffer.present(drawable)
+        if let completion {
+            Self.completeDraw(on: commandBuffer, texture: texture, completion: completion)
+        }
         commandBuffer.commit()
+    }
+
+    static func completeDraw(
+        on commandBuffer: MTLCommandBuffer,
+        texture: MTLTexture,
+        completion: @escaping @MainActor @Sendable (MTLTexture?, Result<Bool, HarbethError>) -> Void
+    ) {
+        let retainedTexture = HarbethUncheckedTransfer(value: texture)
+        commandBuffer.addCompletedHandler { command in
+            let result: Result<Bool, HarbethError> = command.status == .completed
+                ? .success(true)
+                : .failure(command.error.map(HarbethError.toHarbethError) ?? .commandBuffer)
+            Task { @MainActor in completion(retainedTexture.value, result) }
+        }
     }
 }
 
@@ -619,6 +660,11 @@ private extension RenderView {
     }
 
     func updatePreviewHostScheduling() {
+        if usesExplicitDrawing {
+            isPaused = true
+            enableSetNeedsDisplay = false
+            return
+        }
         let shouldPauseForVisibility = supportsVisibilityPauseForCurrentFrame && currentPreviewHostSuspension != nil
         if isUsingSampleBufferPreviewHost {
             isPaused = true

@@ -16,6 +16,55 @@ import AppKit
 @testable import Harbeth
 
 final class PreviewDynamicRangeTests: XCTestCase {
+    @MainActor
+    func testDrawableSizeChangesReportPhysicalPixelsOnce() throws {
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 20, height: 30), device: try XCTUnwrap(MTLCreateSystemDefaultDevice()))
+        view.preferredDrawableScale = 1
+        var sizes: [CGSize] = []
+        view.onDrawableSizeChanged = { sizes.append($0) }
+        view.preferredDrawableScale = 3
+        view.preferredDrawableScale = 3
+        view.texture = nil
+        XCTAssertEqual(sizes, [CGSize(width: 60, height: 90)])
+    }
+
+    @MainActor
+    func testExplicitDrawingSkipsUnavailableFrameAndRemainsPaused() throws {
+        let view = RenderView(frame: .zero, device: try XCTUnwrap(MTLCreateSystemDefaultDevice()))
+        view.usesExplicitDrawing = true
+        var completions = 0
+        view.onFrameDrawCompleted = { texture, result in
+            XCTAssertNil(texture)
+            XCTAssertEqual(try? result.get(), false)
+            completions += 1
+        }
+        view.display(nil)
+        view.draw(in: view)
+        XCTAssertEqual(completions, 1)
+        XCTAssertTrue(view.isPaused)
+        XCTAssertFalse(view.enableSetNeedsDisplay)
+        view.usesExplicitDrawing = false
+        XCTAssertTrue(view.enableSetNeedsDisplay)
+    }
+
+    @MainActor
+    func testDrawCompletionFollowsGPUCompletionExactlyOnce() async throws {
+        let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
+        let texture = try XCTUnwrap(device.makeTexture(descriptor: .texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 2, height: 2, mipmapped: false)))
+        let command = try XCTUnwrap(device.makeCommandQueue()?.makeCommandBuffer())
+        let completed = expectation(description: "GPU绘制完成")
+        completed.assertForOverFulfill = true
+        RenderView.completeDraw(on: command, texture: texture) { delivered, result in
+            XCTAssertTrue(Thread.isMainThread)
+            XCTAssertTrue(delivered === texture)
+            XCTAssertEqual(try? result.get(), true)
+            XCTAssertEqual(command.status, .completed)
+            completed.fulfill()
+        }
+        command.commit()
+        await fulfillment(of: [completed], timeout: 10)
+    }
+
     #if targetEnvironment(macCatalyst) || canImport(AppKit)
     @MainActor
     func testDesktopActivationRequestsRedrawWithoutReplacingRetainedFrame() async throws {

@@ -12,11 +12,16 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
+- `RenderView` 支持显式逐帧绘制、像素尺寸变化反馈与主线程 GPU 完成反馈，无法绘制时返回跳过结果，便于媒体宿主限制在途帧；默认显示策略保持。
 - `ImageTIFF16Encoder` 支持直接从 `RenderedFrame` 输出整数 TIFF16，颜色转换和整数化留在纹理链路，最终编码前才读取像素；原有 `CIImage` 与 `CGImage` 入口保留。
 
 #### Changed
 
 - 任意 ICC 纹理转换在可建立颜色转换合同时使用 MPS GPU 路径，其余情况沿用 Core Image GPU 路径；TIFF16 的 `CIImage` 输入复用进程级 Metal 背书 `CIContext`。
+
+#### Fixed
+
+- 单平面 `PixelBufferTextureSource` 同时持有采集缓冲与 `CVMetalTexture` 桥接句柄，所有权随单次纹理源释放，避免将 owner 长期附着到借用纹理。
 
 ### 2026-11-08
 

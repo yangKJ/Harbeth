@@ -820,6 +820,21 @@ final class TextureReadbackTests: XCTestCase {
         XCTAssertEqual(strategy.conversionOffset.x, 0, accuracy: 0.0001)
     }
 
+    func testPackedPixelBufferSourceRetainsBridgeWithoutAttachingOwnerToTexture() throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("本用例验证真实Metal桥接")
+        #else
+        let buffer = try makePixelBuffer(width: 8, height: 4, pixelFormatType: kCVPixelFormatType_32BGRA, unavailableMessage: "BGRA缓冲不可用")
+        let source = try TextureLoader.resolveTextureSource(with: buffer)
+        XCTAssertEqual(source.bridgePlan.loadStrategy, .directMetalTexture)
+        XCTAssertEqual(source.primaryTexture.width, 8)
+        XCTAssertEqual(source.primaryTexture.height, 4)
+        XCTAssertEqual(source.retainedOwners.count, 2)
+        XCTAssertTrue(source.retainedOwners.contains { $0 === buffer })
+        XCTAssertNil(TextureOwnerRegistry.owner(for: source.primaryTexture))
+        #endif
+    }
+
     func testBiPlanarPixelBufferTextureSourceResolvesAllPlaneTextures() throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Direct plane-texture bridge assertions are not stable on Simulator.")
