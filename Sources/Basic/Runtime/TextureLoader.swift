@@ -343,8 +343,20 @@ extension TextureLoader {
         let matrixContract: YCbCrDecodeMatrix
     }
 
-    public static func resolveTextureSource(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil) throws -> PixelBufferTextureSource {
+    /// 仅 BGRA8 的显式 sRGB 输入允许硬件解码；其它格式仍使用其桥接合同。
+    public static func resolveTextureSource(with pixelBuffer: CVPixelBuffer, options: [MTKTextureLoader.Option: Any]? = nil, decodesSRGB: Bool = false) throws -> PixelBufferTextureSource {
         let bridgePlan = pixelBuffer.c7.makeTextureBridgePlan()
+        if decodesSRGB {
+            guard CVPixelBufferGetPixelFormatType(pixelBuffer) == kCVPixelFormatType_32BGRA,
+                  bridgePlan.loadStrategy == .directMetalTexture,
+                  let reference = pixelBuffer.c7.convertPlaneTextureReference(
+                    textureCache: HarbethContext.shared.cvMetalTextureCache,
+                    pixelFormat: .bgra8Unorm_srgb,
+                    planeIndex: 0
+                  ) else { throw HarbethError.source2Texture }
+            return PixelBufferTextureSource(primaryTexture: reference.texture, planeTextures: [reference.texture],
+                                            bridgePlan: bridgePlan, retainedOwners: [pixelBuffer, reference.owner])
+        }
         switch bridgePlan.loadStrategy {
         case .directMetalTexture:
             #if targetEnvironment(simulator)

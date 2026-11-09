@@ -31,7 +31,7 @@ import ImageIO
 /// 取消通知或 scheduled 交付不代表 GPU 已完成，不能据此改写仍在使用的资源。
 public struct HarbethIO<Dest>: @unchecked Sendable {
     public typealias Element = Dest
-    public let element: Dest
+    public private(set) var element: Dest
     public let filters: [C7FilterProtocol]
     /// Stable instance identity exposed for external rendering, diagnostics and cancellation correlation.
     public let identifier: String
@@ -69,6 +69,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
 
     /// Stable render intent for planning and diagnostics.
     internal var renderProfile: RenderProfile = .stablePreview
+    internal var executionProgramCache: RenderExecutionProgramCache?
 
     // MARK: - Public Initialization
 
@@ -93,6 +94,16 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
         self.identifier = identifier
         self.filters = filters
     }
+
+    /// 保留同一滤镜链与配置，更换下一帧输入。缓存核对参数、尺寸和输出档位。
+    /// 在途期间不能并发重配置共享的引用类型滤镜。
+    public func replacingInput(with input: Dest) -> Self {
+        var value = self
+        value.element = input
+        value.executionProgramCache = executionProgramCache ?? RenderExecutionProgramCache()
+        return value
+    }
+
 }
 
 // MARK: - Public Direct Output
@@ -474,8 +485,15 @@ extension HarbethIO {
         // Same key ⇒ identical plan, so a stable chain rendered repeatedly (realtime / video) only
         // compiles the render graph once instead of on every frame.
         let effectiveDerivative = derivative ?? renderProfile.defaultDerivativeSpec
+        var size = inputSize
+        let sourceSizes = filters.map { filter -> String in
+            size = filter.resize(input: size)
+            return "\(size.width)x\(size.height)"
+        }.joined(separator: ",")
         let cacheKey = [
             "filtersPrimitive",
+            "generation=\(HarbethContext.shared.executionGeneration)",
+            "sizes=\(sourceSizes)",
             "executionProgram=v1",
             filters.chainRecipe.fingerprint,
             "input=\(inputSize.width)x\(inputSize.height)",
@@ -483,7 +501,7 @@ extension HarbethIO {
             "derivative=\(effectiveDerivative.fingerprint)",
             "source=\(sourceDescriptor?.fingerprint ?? "none")",
         ].joined(separator: "|")
-        let program = RenderExecutionCompiler.compile(
+        let program = executionProgramCache?.value(for: cacheKey) ?? RenderExecutionCompiler.compile(
             filters: filters,
             inputSize: inputSize,
             profile: renderProfile,
@@ -492,6 +510,7 @@ extension HarbethIO {
             sourceDescriptor: sourceDescriptor,
             planCacheKey: cacheKey
         )
+        executionProgramCache?.store(program, for: cacheKey)
         HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup(
             "renderPlan",
             hit: program.reusedCachedPlan

@@ -8,12 +8,22 @@
 #include <metal_stdlib>
 using namespace metal;
 
+static inline half4 spatialSample(texture2d<half, access::sample> input, uint2 p, int2 offset, float spacing) {
+    if (spacing == 1.0f) {
+        return input.read(uint2(clamp(int2(p) + offset, int2(0), int2(input.get_width() - 1, input.get_height() - 1))));
+    }
+    constexpr sampler linearClamp(coord::pixel, address::clamp_to_edge, filter::linear);
+    return input.sample(linearClamp, float2(p) + 0.5f + float2(offset) * spacing);
+}
+
 kernel void C7SharpenDetail(texture2d<half, access::write> outputTexture [[texture(0)]],
-                            texture2d<half, access::read> inputTexture [[texture(1)]],
+                            texture2d<half, access::sample> inputTexture [[texture(1)]],
                             constant float *sharpen [[buffer(0)]],
                             constant float *clarity [[buffer(1)]],
                             constant float *detail [[buffer(2)]],
+                            constant float *sampleSpacing [[buffer(3)]],
                             uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) { return; }
     const half4 inColor = inputTexture.read(grid);
     
     const half sharpenAmount = half(*sharpen);
@@ -29,9 +39,7 @@ kernel void C7SharpenDetail(texture2d<half, access::write> outputTexture [[textu
         half3 sharpenedColor = half3(0.0h, 0.0h, 0.0h);
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
-                uint2 offset = uint2(clamp(int(grid.x) + x, 0, int(inputTexture.get_width() - 1)),
-                                     clamp(int(grid.y) + y, 0, int(inputTexture.get_height() - 1)));
-                half3 sample = inputTexture.read(offset).rgb;
+                half3 sample = spatialSample(inputTexture, grid, int2(x, y), *sampleSpacing).rgb;
                 sharpenedColor += sample * half(sharpenKernel[x + 1][y + 1]);
             }
         }
@@ -42,9 +50,7 @@ kernel void C7SharpenDetail(texture2d<half, access::write> outputTexture [[textu
         half3 localMean = half3(0.0h);
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
-                uint2 offset = uint2(clamp(int(grid.x) + x, 0, int(inputTexture.get_width() - 1)),
-                                     clamp(int(grid.y) + y, 0, int(inputTexture.get_height() - 1)));
-                localMean += inputTexture.read(offset).rgb;
+                localMean += spatialSample(inputTexture, grid, int2(x, y), *sampleSpacing).rgb;
             }
         }
         localMean /= 9.0h;
@@ -62,9 +68,7 @@ kernel void C7SharpenDetail(texture2d<half, access::write> outputTexture [[textu
         half3 detailedColor = half3(0.0h, 0.0h, 0.0h);
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
-                uint2 offset = uint2(clamp(int(grid.x) + x, 0, int(inputTexture.get_width() - 1)),
-                                     clamp(int(grid.y) + y, 0, int(inputTexture.get_height() - 1)));
-                half3 sample = inputTexture.read(offset).rgb;
+                half3 sample = spatialSample(inputTexture, grid, int2(x, y), *sampleSpacing).rgb;
                 detailedColor += sample * half(detailKernel[x + 1][y + 1]);
             }
         }

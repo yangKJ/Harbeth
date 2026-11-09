@@ -357,9 +357,27 @@ open class RenderView: MTKView {
         dynamicRange == .extendedDynamicRange || dynamicRange == .highDynamicRange
     }
 
+    private struct DisplayConfigurationKey: Equatable {
+        let output: ImageColorSpaceContract
+        let dynamicRange: ImageDynamicRangeContract
+        let colorSpace: CGColorSpace?
+        let policy: PreviewDynamicRangePolicy
+        let supportsExtendedRange: Bool
+    }
+    private var displayConfigurationKey: DisplayConfigurationKey?
+
     private func applyPreviewDisplayConfiguration(for frame: RenderedFrame?) {
         let outputColorSpace = resolvedPreviewOutputColorSpace(for: frame)
         let frameDynamicRange = frame?.outputDynamicRange ?? .standardDynamicRange
+        let key = DisplayConfigurationKey(
+            output: outputColorSpace,
+            dynamicRange: frameDynamicRange,
+            colorSpace: frame?.colorSpace,
+            policy: dynamicRangePolicy,
+            supportsExtendedRange: supportsExtendedDynamicRangePresentation
+        )
+        guard displayConfigurationKey != key else { return }
+        displayConfigurationKey = key
         let state = Self.resolvePreviewDisplayState(
             policy: dynamicRangePolicy,
             frameDynamicRange: frameDynamicRange,
@@ -1387,7 +1405,7 @@ private extension RenderView {
                 actual: actualStrategy
             )
         }
-        if deliverCallbacks {
+        if deliverCallbacks, onPreviewHostExecutionReportUpdated != nil {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.onPreviewHostExecutionReportUpdated?(self.previewHostExecutionReport)
@@ -1401,7 +1419,7 @@ private extension RenderView {
             previewHostTelemetryIdentifier,
             snapshot: snapshot
         )
-        if deliverCallbacks {
+        if deliverCallbacks, onPreviewHostFleetSnapshotUpdated != nil {
             DispatchQueue.main.async { [weak self] in self?.onPreviewHostFleetSnapshotUpdated?(snapshot) }
         }
     }

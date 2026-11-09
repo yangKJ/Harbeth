@@ -241,6 +241,40 @@ final class RenderExecutionProgramTests: XCTestCase {
         XCTAssertEqual((changed.steps.first?.filter as? MutableExecutionFilter)?.brightness, 0.3)
     }
 
+    func testReplacingInputReusesProgramAndInvalidatesChangedParameters() throws {
+        let filter = MutableExecutionFilter()
+        let first = try makeTexture()
+        let second = try makeTexture()
+        let io = HarbethIO(element: first, filters: [filter]).replacingInput(with: first)
+        let original = io.makeRenderProgram(input: first)
+        let next = io.replacingInput(with: second)
+        let reused = next.makeRenderProgram(input: second)
+        XCTAssertTrue(reused.reusedCachedPlan)
+        XCTAssertEqual(original.fingerprint, reused.fingerprint)
+        XCTAssertTrue(next.element === second)
+        filter.brightness = 0.4
+        let changed = next.makeRenderProgram(input: second)
+        XCTAssertNotEqual(changed.sourceFilterFingerprint, original.sourceFilterFingerprint)
+    }
+
+    func testTextureFrameDeliveryCarriesFinalLease() async throws {
+        let source = try makeTexture()
+        let io = HarbethIO(element: source, filters: [C7Brightness(brightness: 0.1)])
+        let frame: RenderedFrame = try await withCheckedThrowingContinuation { continuation in
+            io.transmitFrame(outputColorSpace: .sRGB) { continuation.resume(with: $0.mapError { $0 as Error }) }
+        }
+        XCTAssertNotNil(frame.lease)
+        XCTAssertFalse(frame.texture === source)
+        XCTAssertEqual(frame.outputColorSpaceContract, .sRGB)
+    }
+
+    func testRegionalLanczosRejectsInvalidGeometry() throws {
+        XCTAssertThrowsError(try MPSLanczosResize(width: 8, height: 8, sourceRect: CGRect(x: -1, y: 0, width: 4, height: 4)))
+        let resize = try MPSLanczosResize(width: 4, height: 4, sourceRect: CGRect(x: 1, y: 1, width: 6, height: 4))
+        XCTAssertEqual(resize.resize(input: C7Size(width: 8, height: 6)), C7Size(width: 4, height: 4))
+        XCTAssertEqual(resize.factors.suffix(4), [1, 1, 6, 4])
+    }
+
     private func makeTexture() throws -> MTLTexture {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw XCTSkip("Metal device is unavailable.")

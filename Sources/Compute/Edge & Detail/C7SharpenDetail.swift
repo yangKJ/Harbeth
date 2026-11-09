@@ -25,12 +25,15 @@ public struct C7SharpenDetail: C7FilterProtocol {
     /// Detail enhancement, 0.0-1.0, higher values enhance details
     @ZeroOneRange public var detail: Float = range.value
     
+    /// 预览相对原生像素的采样间距；默认 1 保持既有照片输出。
+    @Clamping(0.001...1) public var sampleSpacing: Float = 1
+
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7SharpenDetail")
     }
     
     public var factors: [Float] {
-        return [sharpen, clarity, detail]
+        return [sharpen, clarity, detail, sampleSpacing]
     }
 
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -50,9 +53,10 @@ public struct C7SharpenDetail: C7FilterProtocol {
         .neighborhood(radius: 1)
     }
     
-    public init(sharpen: Float = 0,  clarity: Float = 0, detail: Float = 0) {
+    public init(sharpen: Float = 0,  clarity: Float = 0, detail: Float = 0, sampleSpacing: Float = 1) {
         self.sharpen = sharpen
         self.clarity = clarity
         self.detail = detail
+        self.sampleSpacing = sampleSpacing
     }
 }

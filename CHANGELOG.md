@@ -12,11 +12,15 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
+- `HarbethIO.transmitFrame` 在 GPU 完成后交付带最终纹理租约的 `RenderedFrame`；`replacingInput(with:)` 复用同一链的执行准备并核对参数、逐步尺寸与执行代次。
+- `TextureLoader.resolveTextureSource` 支持显式 BGRA sRGB 硬件解码，`MPSLanczosResize` 支持直接缩放指定源区域。
+- 局部细节与降噪增加 `sampleSpacing`，可将原生像素邻域投影到预览；默认间距 1 保持原照片输出。
 - `RenderView` 支持显式逐帧绘制、像素尺寸变化反馈与主线程 GPU 完成反馈，无法绘制时返回跳过结果，便于媒体宿主限制在途帧；默认显示策略保持。
 - `ImageTIFF16Encoder` 支持直接从 `RenderedFrame` 输出整数 TIFF16，颜色转换和整数化留在纹理链路，最终编码前才读取像素；原有 `CIImage` 与 `CGImage` 入口保留。
 
 #### Changed
 
+- `RenderView` 仅在颜色、动态范围或屏幕能力变化时重设显示颜色配置；没有观察者时不再派发空的宿主报告回调。
 - 任意 ICC 纹理转换在可建立颜色转换合同时使用 MPS GPU 路径，其余情况沿用 Core Image GPU 路径；TIFF16 的 `CIImage` 输入复用进程级 Metal 背书 `CIContext`。
 
 #### Fixed

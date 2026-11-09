@@ -322,6 +322,32 @@ extension RenderTextureLifecycleAction {
 // MARK: - Internal Texture-Only Execution Primitives
 
 extension HarbethIO where Dest == MTLTexture {
+    /// GPU 完成后交付带租约的帧。显示者持有帧到最后一次绘制结束，纹理随后归池。
+    /// 该入口固定完成态交付，不把源缓冲生命周期转嫁给 scheduled 回调。
+    @discardableResult
+    public func transmitFrame(
+        outputColorSpace: ImageColorSpaceContract,
+        generation: UInt64 = 0,
+        complete: @escaping @Sendable (Result<RenderedFrame, HarbethError>) -> Void
+    ) -> RenderSubmissionHandle {
+        var io = self
+        io.transmitOutputRealTimeCommit = false
+        let profile = io.renderProfile
+        let identifier = io.identifier
+        return io.transmitManagedTexture { result in
+            complete(result.map { output in
+                RenderedFrame(
+                    texture: output.texture,
+                    outputColorSpaceContract: outputColorSpace,
+                    profile: profile,
+                    generation: generation,
+                    identifier: identifier,
+                    lease: output.lease
+                )
+            })
+        }
+    }
+
     // MARK: - Program Encoding
 
     func encodeRenderProgram(_ program: RenderExecutionProgram, commandBuffer: MTLCommandBuffer) throws -> EncodedTextureProgram {

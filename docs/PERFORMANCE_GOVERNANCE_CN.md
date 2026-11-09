@@ -371,3 +371,14 @@ let filters: [C7FilterProtocol] = [
 - 实时预览路径应避免非必要 CPU readback。
 - 优化 `ImageNode` 或 graph 路径时，也应确认默认 `HarbethIO + filters` 路径没有退化。
 - 性能结论建议附带 benchmark 数据或 diagnostics，而不是只依赖主观感受。
+
+
+## 连续纹理输入的复用合同（2026-11-09）
+
+连续输入使用 `HarbethIO.replacingInput(with:)` 显式复用单条链的执行准备；普通单次 IO 不分配该缓存。输入尺寸、每一步输出尺寸、滤镜参数、源描述、profile 与执行代次共同隔离缓存。调用者不能在在途工作中并发重配置共享引用类型滤镜。
+
+`transmitFrame(outputColorSpace:generation:complete:)` 固定在 GPU 完成后返回带租约的 RenderedFrame，适合直接交给 RenderView。调用者保留外部输入资源至处理完成；显示者保留最终帧至最后一次 GPU 使用完成。scheduled 回调不构成释放外部 CVPixelBuffer / CVMetalTexture 的依据。
+
+明确的 BGRA sRGB 输入可请求 `resolveTextureSource(...decodesSRGB: true)`。区域 Lanczos 直接映射 sourceRect 到目标尺寸，重采样可使用区域附近的源像素，边缘与先裁切后钳制不保证逐像素相同；需要严格裁切边界时继续使用显式裁切链。局部细节/降噪的 sampleSpacing 默认 1，预览缩放必须由消费者按原生像素尺度投影。
+
+本批 `RenderExecutionProgramTests`、`PreviewDynamicRangeTests`、`PreviewViewportTests`、`TextureReadbackTests` 共 80 项通过，覆盖最终租约、输入替换、参数失效及区域几何。离线消费者完成 20 档同尺寸及跨尺寸对照；本记录不代表真机能耗或温升准入。

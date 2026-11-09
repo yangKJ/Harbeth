@@ -12,12 +12,21 @@ float luminance(float3 color) {
     return dot(color, float3(0.299f, 0.587f, 0.114f));
 }
 
+static inline half4 spatialSample(texture2d<half, access::sample> input, uint2 p, int2 offset, float spacing) {
+    if (spacing == 1.0f) {
+        return input.read(uint2(clamp(int2(p) + offset, int2(0), int2(input.get_width() - 1, input.get_height() - 1))));
+    }
+    constexpr sampler linearClamp(coord::pixel, address::clamp_to_edge, filter::linear);
+    return input.sample(linearClamp, float2(p) + 0.5f + float2(offset) * spacing);
+}
+
 kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[texture(0)]],
-                             texture2d<half, access::read> inputTexture [[texture(1)]],
+                             texture2d<half, access::sample> inputTexture [[texture(1)]],
                              constant float *radiusPointer [[buffer(0)]],
                              constant float *amountPointer [[buffer(1)]],
                              constant float *edgePreservationPointer [[buffer(2)]],
-                             uint2 grid [[thread_position_in_grid]]) {
+                             constant float *sampleSpacing [[buffer(3)]],
+                            uint2 grid [[thread_position_in_grid]]) {
     const uint width = outputTexture.get_width();
     const uint height = outputTexture.get_height();
     if (grid.x >= width || grid.y >= height) {
@@ -38,9 +47,7 @@ kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[text
 
     for (int y = -radius; y <= radius; y++) {
         for (int x = -radius; x <= radius; x++) {
-            const int sampleX = clamp(int(grid.x) + x, 0, int(width) - 1);
-            const int sampleY = clamp(int(grid.y) + y, 0, int(height) - 1);
-            const float4 sample = float4(inputTexture.read(uint2(sampleX, sampleY)));
+            const float4 sample = float4(spatialSample(inputTexture, grid, int2(x, y), *sampleSpacing));
             const float spatialDistance = float(x * x + y * y);
             const float spatialWeight = exp(-spatialDistance / max(float(radius * radius), 1.0f));
             const float colorDistance = fabs(luminance(sample.rgb) - centerLuma);

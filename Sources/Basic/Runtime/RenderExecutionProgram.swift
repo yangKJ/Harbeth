@@ -43,6 +43,33 @@ struct RenderExecutionSlot: Sendable {
     let breaksFusion: Bool
 }
 
+/// 单条复用 IO 的有界缓存；不跨消费者保存可变滤镜实例。
+final class RenderExecutionProgramCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var entry: (String, RenderExecutionProgram)?
+
+    func value(for key: String) -> RenderExecutionProgram? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let entry, entry.0 == key else { return nil }
+        let program = entry.1
+        return RenderExecutionProgram(
+            sourceFilterFingerprint: program.sourceFilterFingerprint,
+            filters: program.filters,
+            plan: program.plan,
+            steps: program.steps,
+            fingerprint: program.fingerprint,
+            reusedCachedPlan: true
+        )
+    }
+
+    func store(_ value: RenderExecutionProgram, for key: String) {
+        lock.lock()
+        entry = (key, value)
+        lock.unlock()
+    }
+}
+
 enum RenderExecutionCompiler {
     static func compile(
         filters: [C7FilterProtocol],
