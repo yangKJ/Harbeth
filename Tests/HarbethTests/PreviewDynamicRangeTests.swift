@@ -29,6 +29,43 @@ final class PreviewDynamicRangeTests: XCTestCase {
     }
 
     @MainActor
+    func testSystemDrawableResizeNotifiesAfterZeroSizedCreation() throws {
+        let view = RenderView(frame: .zero, device: try XCTUnwrap(MTLCreateSystemDefaultDevice()))
+        view.preferredDrawableScale = 1
+        var sizes: [CGSize] = []
+        view.onDrawableSizeChanged = { sizes.append($0) }
+
+        // 模拟 MetalKit 先更新 drawable，再进入宿主布局的顺序。
+        let pixels = CGSize(width: 150, height: 150)
+        view.drawableSize = pixels
+        view.mtkView(view, drawableSizeWillChange: pixels)
+        XCTAssertEqual(sizes, [pixels])
+
+        view.frame = CGRect(origin: .zero, size: pixels)
+        view.texture = nil
+        view.mtkView(view, drawableSizeWillChange: pixels)
+        XCTAssertEqual(sizes, [pixels])
+
+        let expanded = CGSize(width: 224, height: 224)
+        view.drawableSize = expanded
+        view.mtkView(view, drawableSizeWillChange: expanded)
+        XCTAssertEqual(sizes, [pixels, expanded])
+    }
+
+    @MainActor
+    func testDrawableSizeNotificationCatchesUpAfterObserverAttachment() throws {
+        let view = RenderView(frame: CGRect(x: 0, y: 0, width: 150, height: 150), device: try XCTUnwrap(MTLCreateSystemDefaultDevice()))
+        view.preferredDrawableScale = 1
+        var sizes: [CGSize] = []
+        view.onDrawableSizeChanged = { sizes.append($0) }
+
+        // drawable 已经正确时，布局核对仍须向新挂接的观察者交付尺寸。
+        view.texture = nil
+        view.texture = nil
+        XCTAssertEqual(sizes, [CGSize(width: 150, height: 150)])
+    }
+
+    @MainActor
     func testExplicitDrawingSkipsUnavailableFrameAndRemainsPaused() throws {
         let view = RenderView(frame: .zero, device: try XCTUnwrap(MTLCreateSystemDefaultDevice()))
         view.usesExplicitDrawing = true

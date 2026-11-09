@@ -25,6 +25,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Fixed
 
+- `RenderView` 补齐系统自动调整 drawable 与观察者晚挂接后的像素尺寸通知；相同尺寸去重，避免上游预览继续使用初始低分辨率。
 - 单平面 `PixelBufferTextureSource` 同时持有采集缓冲与 `CVMetalTexture` 桥接句柄，所有权随单次纹理源释放，避免将 owner 长期附着到借用纹理。
 
 ### 2026-11-08

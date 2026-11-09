@@ -67,6 +67,7 @@ open class RenderView: MTKView {
 
     /// 实际 drawable 像素尺寸改变时通知宿主，用于更新上游采样预算。
     public var onDrawableSizeChanged: ((CGSize) -> Void)?
+    private var lastNotifiedDrawableSize: CGSize?
 
     /// true 表示本次 Metal 绘制已完成，false 表示当前无法绘制。
     /// 回调固定在主线程，提交时冻结，后续替换回调不改变在途帧的接收者。
@@ -474,15 +475,27 @@ open class RenderView: MTKView {
             scale: scale,
             maximumDimension: Self.maximumMobileDrawableDimension
         )
-        guard self.drawableSize != drawableSize else { return }
+        guard self.drawableSize != drawableSize else {
+            notifyDrawableSizeChangedIfNeeded(drawableSize)
+            return
+        }
         self.drawableSize = drawableSize
-        onDrawableSizeChanged?(drawableSize)
+        notifyDrawableSizeChangedIfNeeded(drawableSize)
         if usesExplicitDrawing {
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.usesExplicitDrawing, self.texture != nil else { return }
                 self.draw()
             }
         }
+    }
+
+    private func notifyDrawableSizeChangedIfNeeded(_ size: CGSize) {
+        guard let onDrawableSizeChanged,
+              size.width.isFinite, size.height.isFinite, size.width > 0, size.height > 0,
+              lastNotifiedDrawableSize != size else { return }
+        // 系统自动调整和宿主主动调整共用通知，尺寸相同不重复派发。
+        lastNotifiedDrawableSize = size
+        onDrawableSizeChanged(size)
     }
 
     static func constrainedDrawableSize(for targetSize: CGSize, scale: CGFloat, maximumDimension: Int?) -> CGSize {
@@ -612,6 +625,7 @@ extension RenderView: PreviewDisplaying {
 extension RenderView: MTKViewDelegate {
 
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+        notifyDrawableSizeChangedIfNeeded(size)
         invalidateDisplay()
     }
 
