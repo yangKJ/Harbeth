@@ -34,6 +34,17 @@ renderView.display(frame)
 
 Use `makeTexture()` only when the host deliberately needs a raw GPU result and owns the surrounding delivery semantics. Use `makeFrame()` for preview hosting, metadata-aware handoff, inspection, or any path where output meaning must travel with the texture.
 
+For a Core Image host, call `frame.makeTextureBackedCIImage()` (or `makeTextureBackedCIImage(for:)` when the source is a `CIImage`). The returned frame keeps the Metal texture alive for deferred evaluation. `HarbethIO<CIImage>.output()` retains its bitmap-backed compatibility behavior and reads the filtered texture back before returning.
+
+For integer TIFF16 export, keep editing in a `RenderedFrame` until the final encoding boundary:
+
+```swift
+let frame = try ImageNode.cgImage(source).makeFrame(profile: .exportQuality)
+let data = try ImageTIFF16Encoder.encode(frame, colorSpace: outputColorSpace)
+```
+
+The frame overload converts a known source ICC profile to the requested RGB output space on a texture, quantizes to integer RGBA16 on the GPU, and reads pixels only for ImageIO encoding. The `CIImage` overload remains available for callers that supply a Core Image recipe. TIFF output as `Data` or a file still requires a final CPU-visible encoding step.
+
 ## Declare Output Semantics
 
 The effective output contract is derived from the source, filters, and structured recipes. A filter can declare `kernelOutputContract`; structured composition can declare ``RenderOutputContract`` directly:

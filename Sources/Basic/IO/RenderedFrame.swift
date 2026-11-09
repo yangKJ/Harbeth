@@ -10,6 +10,7 @@ import Foundation
 import CoreGraphics
 import CoreVideo
 import CoreMedia
+import MetalPerformanceShaders
 
 /// 附加在渲染纹理帧上的方向元数据。
 public enum FrameOrientation: String, Sendable, Equatable, Codable {
@@ -1150,9 +1151,16 @@ public extension RenderedFrame {
               let command = HarbethContext.shared.makeCommandBuffer() else { throw HarbethError.makeTexture }
         let source = alphaType == .nonPremultiplied
             ? try converted(to: RenderOutputContract(alpha: .premultiplied)) : self
-        let image = try source.makeTextureBackedCIImage().image
-        HarbethContext.shared.coreImageContext.render(image, to: output, commandBuffer: command,
-            bounds: CGRect(x: 0, y: 0, width: texture.width, height: texture.height), colorSpace: colorSpace)
+        if let sourceColorSpace = source.colorSpace,
+           let conversionInfo = CGColorConversionInfo(src: sourceColorSpace, dst: colorSpace) {
+            let conversion = MPSImageConversion(device: texture.device, srcAlpha: .premultiplied,
+                destAlpha: .premultiplied, backgroundColor: nil, conversionInfo: conversionInfo)
+            conversion.encode(commandBuffer: command, sourceTexture: source.texture, destinationTexture: output)
+        } else {
+            let image = try source.makeTextureBackedCIImage().image
+            HarbethContext.shared.coreImageContext.render(image, to: output, commandBuffer: command,
+                bounds: CGRect(x: 0, y: 0, width: texture.width, height: texture.height), colorSpace: colorSpace)
+        }
         command.commit()
         command.waitUntilCompleted()
         if let error = command.error { throw HarbethError.error(error) }

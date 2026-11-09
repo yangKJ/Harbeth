@@ -13,6 +13,33 @@ import XCTest
 @testable import Harbeth
 
 final class ImageTIFF16EncoderTests: XCTestCase {
+    func testTextureFrameTIFF16MatchesCIImageAndWritesPrintDensity() throws {
+        let source = try makeImage(width: 12, height: 7)
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let frame = try ImageNode.cgImage(source).makeFrame(profile: .exportQuality)
+        let textureData = try ImageTIFF16Encoder.encode(frame, colorSpace: colorSpace)
+        let referenceData = try ImageTIFF16Encoder.encode(CIImage(cgImage: source), colorSpace: colorSpace)
+        let textureSource = try XCTUnwrap(CGImageSourceCreateWithData(textureData as CFData, nil))
+        let referenceSource = try XCTUnwrap(CGImageSourceCreateWithData(referenceData as CFData, nil))
+        let decoded = try XCTUnwrap(CGImageSourceCreateImageAtIndex(textureSource, 0, nil))
+        let reference = try XCTUnwrap(CGImageSourceCreateImageAtIndex(referenceSource, 0, nil))
+        XCTAssertEqual(decoded.bitsPerComponent, 16)
+        XCTAssertFalse(decoded.bitmapInfo.contains(.floatComponents))
+        let actual = try rgbaBytes(for: decoded)
+        let expected = try rgbaBytes(for: reference)
+        XCTAssertLessThanOrEqual(zip(actual, expected).map { abs(Int($0) - Int($1)) }.max() ?? 0, 1)
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".tiff")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try ImageTIFF16Encoder.write(frame, to: url, colorSpace: colorSpace,
+            printResolution: ImagePrintResolution(horizontalDPI: 144, verticalDPI: 288))
+        let fileSource = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(fileSource, 0, nil) as? [CFString: Any])
+        XCTAssertEqual(properties[kCGImagePropertyDepth] as? Int, 16)
+        XCTAssertEqual(properties[kCGImagePropertyDPIWidth] as? Double, 144)
+        XCTAssertEqual(properties[kCGImagePropertyDPIHeight] as? Double, 288)
+    }
+
     func testTIFF16EncodingWritesRealSixteenBitPixels() throws {
         let source = try makeImage(width: 12, height: 7)
         let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))

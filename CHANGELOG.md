@@ -8,6 +8,16 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-09
+
+#### Added
+
+- `ImageTIFF16Encoder` 支持直接从 `RenderedFrame` 输出整数 TIFF16，颜色转换和整数化留在纹理链路，最终编码前才读取像素；原有 `CIImage` 与 `CGImage` 入口保留。
+
+#### Changed
+
+- 任意 ICC 纹理转换在可建立颜色转换合同时使用 MPS GPU 路径，其余情况沿用 Core Image GPU 路径；TIFF16 的 `CIImage` 输入复用进程级 Metal 背书 `CIContext`。
+
 ### 2026-11-08
 
 #### Changed
