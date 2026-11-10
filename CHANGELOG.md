@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-10
+
+#### Fixed
+
+- `C7Clarity` 显式使用框架 Metal 内核，避免外部同名内核覆盖；区域合同覆盖完整采样半径，零半径直接保留输入像素与透明度。
+
 ### 2026-11-09
 
 #### Added

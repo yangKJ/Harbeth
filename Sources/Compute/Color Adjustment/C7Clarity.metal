@@ -23,11 +23,11 @@ float4 clarityGaussianBlur(texture2d<half, access::read> texture, uint2 position
             float weight = exp(-(distance * distance) / (2.0 * blurRadius * blurRadius));
             
             // 计算采样位置
-            uint2 samplePos = position + uint2(x, y);
+            int2 samplePos = int2(position) + int2(x, y);
             
             // 边界检查
-            if (samplePos.x < size.x && samplePos.y < size.y) {
-                color += float4(texture.read(samplePos)) * weight;
+            if (all(samplePos >= 0) && samplePos.x < int(size.x) && samplePos.y < int(size.y)) {
+                color += float4(texture.read(uint2(samplePos))) * weight;
                 totalWeight += weight;
             }
         }
@@ -43,12 +43,13 @@ kernel void C7Clarity(texture2d<half, access::write> outputTexture [[texture(0)]
                    uint2 grid [[thread_position_in_grid]]) {
     
     const uint2 textureSize = uint2(inputTexture.get_width(), inputTexture.get_height());
+    if (grid.x >= textureSize.x || grid.y >= textureSize.y) return;
     const float4 inColor = float4(inputTexture.read(grid));
     
     float clarityIntensity = *intensity;
     float blurRadius = *radius;
     
-    if (clarityIntensity == 0.0) {
+    if (clarityIntensity == 0.0 || blurRadius <= 0.0) {
         outputTexture.write(half4(inColor), grid);
         return;
     }

@@ -3,6 +3,29 @@ import XCTest
 @testable import Harbeth
 
 final class SurfaceBlurTests: XCTestCase {
+    func testClarityOwnsFrameworkKernelAndItsFullSamplingRadius() {
+        let filter = C7Clarity(intensity: 0.8, radius: 0.125)
+        XCTAssertEqual(filter.computeKernelLibrarySource, .harbethFramework)
+        XCTAssertEqual(filter.kernelPixelContract.samplingFootprint, .neighborhood(radius: 13))
+        XCTAssertTrue(filter.kernelPixelContract.canAutoTile)
+    }
+
+    func testClarityZeroRadiusAndIntensityPreservePixels() throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "当前环境没有Metal设备")
+        let source = try makeTexture(pixels: [
+            [32, 64, 96, 128], [180, 120, 60, 255],
+            [0, 0, 0, 0], [24, 48, 72, 96]
+        ])
+        for filter in [C7Clarity(intensity: 0, radius: 0.12), C7Clarity(intensity: 1, radius: 0)] {
+            let output = try HarbethIO(element: source, filter: filter).renderTexture(profile: .stablePreview)
+            XCTAssertEqual(readPixels(output), readPixels(source))
+        }
+        let enhanced = try HarbethIO(element: source, filter: C7Clarity()).renderTexture(profile: .stablePreview)
+        let output = readPixels(enhanced)
+        XCTAssertEqual(output.map { $0[3] }, readPixels(source).map { $0[3] })
+        XCTAssertNotEqual(output, readPixels(source))
+    }
+
 
     func testPixelContractExposesTileHalo() {
         let filter = C7SurfaceBlur(radius: 8.25, threshold: 0.1)

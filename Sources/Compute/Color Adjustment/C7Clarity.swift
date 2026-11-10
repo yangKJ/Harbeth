@@ -11,7 +11,7 @@ import Foundation
 /// Clarity filter
 public struct C7Clarity: C7FilterProtocol {
     
-    /// 清晰度强度，0.0 到 1.0，默认 0.0
+    /// 清晰度强度，0.0 到 1.0，默认 1.0
     @ZeroOneRange public var intensity: Float = R.intensityRange.value
     
     /// 半径，0.0 到 1.0，默认 0.12
@@ -21,6 +21,8 @@ public struct C7Clarity: C7FilterProtocol {
         return .compute(kernel: "C7Clarity")
     }
     
+    public var computeKernelLibrarySource: KernelLibrarySource { .harbethFramework }
+
     public var factors: [Float] {
         return [intensity, radius]
     }
@@ -29,6 +31,16 @@ public struct C7Clarity: C7FilterProtocol {
         .neighborhood
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(
+            inputAlphaExpectation: .premultiplied,
+            outputAlpha: .premultiplied,
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .neighborhood(radius: intensity == 0 ? 0 : Int(ceil(radius * 100)))
+        )
+    }
+
     public init(intensity: Float = 1.0, radius: Float = 0.12) {
         self.intensity = intensity
         self.radius = radius
