@@ -66,6 +66,15 @@ public struct C7LookupTable: C7FilterProtocol {
         self.domainPolicy = domainPolicy
     }
     
+    /// Binds an already loaded resource while retaining its serializable resource identity.
+    public init(name: String, forResource resource: String, lookupTexture: MTLTexture?, intensity: Float = 1, domainPolicy: DomainPolicy = .legacy) {
+        self.lookupTexture = lookupTexture
+        self.intensity = intensity
+        self.resourceName = name
+        self.resourceBundleName = resource
+        self.domainPolicy = domainPolicy
+    }
+
     public func updateIntensity(_ intensity: CGFloat) -> Self {
         var copy = self
         copy.intensity = Float(intensity)
@@ -85,8 +94,10 @@ public struct C7LookupTable: C7FilterProtocol {
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        KernelPixelContract(precision: .float16,
+        KernelPixelContract(
+            precision: .float16,
             dynamicRangeBehavior: domainPolicy == .preserveOutsideDomain ? .preservesExtendedRange : .unspecified,
-            samplingFootprint: .point)
+            samplingFootprint: .point
+        )
     }
 }

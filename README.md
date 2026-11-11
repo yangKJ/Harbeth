@@ -169,7 +169,7 @@ Keep image readback explicit and local to the host UI. Use `HarbethRenderView` w
 ## Engine Capabilities
 
 - Image, texture, pixel-buffer, and sample-buffer input/output paths.
-- Compute, render, blit, MPS, filter pipelines, and an explicit Metal command-encoding escape hatch; see the source-aligned [Filter Catalog](docs/FILTER_CATALOG.md) for all 183 public execution types and 30 `C7Blend` modes.
+- Compute, render, blit, MPS, filter pipelines, and an explicit Metal command-encoding escape hatch; see the source-aligned [Filter Catalog](docs/FILTER_CATALOG.md) for the available public execution types and `C7Blend` modes.
 - Color adjustment, blur, blend, edge/detail, geometry, optics, LUT/Cube, utility, generator, and quality filters.
 - Public Combination filters implemented through `C7FilterPipelineProtocol`.
 - Mask, local-effect, layer-composite, transition, and edit-recipe primitives.
@@ -183,6 +183,8 @@ Harbeth is capability-driven: support for a contract or platform does not imply 
 Heap-backed allocation is opt-in and uses real `MTLHeap` resources in 3.0. It keeps the public workflow on `HarbethIO` / `ImageNode`, while the runtime owns descriptor compatibility, budgets, memory pressure, leases, and direct-allocation fallback. See the [3.0 Migration Guide](docs/MIGRATION_3_CN.md) before enabling it.
 
 Common pointwise adjustments can execute as one Metal dispatch when their pixel contracts prove the chain safe to fuse. Neighbor sampling, multi-texture kernels, global dependencies, CPU readback, and explicit barriers remain separate passes. `RenderRequest` can reject work against an explicit resource budget before allocating textures, compare preview/export parity, and return allocator-observed resource reports. These are supporting contracts under the two canonical routes, not additional processing APIs.
+
+Shared image primitives include generation-aware mesh pipeline caching, weighted GPU histograms, exact alpha bounds, versioned lookup textures, RGB/OKLab math, cached inverse-coordinate fields, and depth-dependent blur. See [Shared Image Primitives](docs/IMAGE_PRIMITIVES.md) for pixel semantics, budgets, coordinate conventions, and numerical tolerances.
 
 ## Errors, Logs, and Bug Reports
 

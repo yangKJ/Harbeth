@@ -8,6 +8,16 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-11
+
+#### Added
+
+- Added shared mesh-render pipeline creation with cached function/format/thread-limit identity, concurrent creation coalescing, and generation-aware invalidation.
+- Added weighted GPU RGB histograms and exact alpha bounds with explicit readback budgets. Histograms use alpha-times-coverage weights and block Float accumulation; alpha bounds preserve finite positive binary16 subnormals and return a fixed 24-byte summary.
+- Added versioned lookup-texture loading and coalesced derived-texture creation, including retry, recursive-creation rejection, namespace isolation, and stale-insertion protection. Preloaded lookup initializers retain serializable resource identity.
+- Added pure sRGB/Display-P3/OKLab transforms and inverse-coordinate grids with cached numeric RG32Float uploads and conservative input-region bounds.
+- Added `C7DepthLensBlur` and `DepthLensBlurDescriptor` as framework-owned primitives, preserving the existing depth sampling, alpha, extended-range, and region contracts. Direct users must import Harbeth.
+
 ### 2026-11-10
 
 #### Fixed

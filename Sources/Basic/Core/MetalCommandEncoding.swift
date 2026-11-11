@@ -73,6 +73,43 @@ public struct MetalCommandEnvironment {
         return try context.makeComputePipelineState(identity: identity)
     }
 
+    /// Creates or reuses a mesh pipeline in the shared, generation-aware render cache.
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, *)
+    public func makeMeshRenderPipelineState(
+        mesh: KernelFunctionIdentity,
+        fragment: KernelFunctionIdentity,
+        pixelFormat: MTLPixelFormat,
+        maximumThreadsPerMeshThreadgroup: Int
+    ) throws -> MTLRenderPipelineState {
+        try validateRuntimeDevice()
+        guard capabilityReport(.meshShaders).canBeImplementedByHigherPackage,
+              maximumThreadsPerMeshThreadgroup > 0, maximumThreadsPerMeshThreadgroup <= 1024 else {
+            throw HarbethError.configurationInvalid("Mesh pipeline requires a supported device and a valid thread limit.")
+        }
+        let key = RenderPipelineCacheKey(
+            vertex: "mesh:\(mesh.fingerprint):threads=\(maximumThreadsPerMeshThreadgroup)",
+            fragment: fragment.fingerprint,
+            renderPass: "mesh:format=\(pixelFormat.rawValue):samples=1"
+        )
+        return try HarbethContext.shared.makeRenderPipelineState(for: key) {
+            let descriptor = MTLMeshRenderPipelineDescriptor()
+            descriptor.colorAttachments[0].pixelFormat = pixelFormat
+            descriptor.rasterSampleCount = 1
+            descriptor.meshFunction = try makeMetalFunction(mesh)
+            descriptor.fragmentFunction = try makeMetalFunction(fragment)
+            descriptor.maxTotalThreadsPerMeshThreadgroup = maximumThreadsPerMeshThreadgroup
+            let creation = MeshPipelineCreation()
+            device.makeRenderPipelineState(descriptor: descriptor, options: []) { state, _, error in
+                if let state {
+                    creation.complete(.success(state))
+                } else {
+                    creation.complete(.failure(error ?? HarbethError.renderPipelineState(mesh.primaryName, fragment.primaryName)))
+                }
+            }
+            return try creation.wait()
+        }
+    }
+
     private func validateRuntimeDevice() throws {
         guard HarbethContext.shared.device === device else {
             throw HarbethError.configurationInvalid(
@@ -195,5 +232,25 @@ extension C7MetalCommandEncodingProtocol {
                 "Metal command output pixel format does not match its declared output contract."
             )
         }
+    }
+}
+
+private final class MeshPipelineCreation: @unchecked Sendable {
+    private let condition = NSCondition()
+    private var result: Result<MTLRenderPipelineState, Error>?
+
+    func complete(_ result: Result<MTLRenderPipelineState, Error>) {
+        condition.lock()
+        self.result = result
+        condition.broadcast()
+        condition.unlock()
+    }
+
+    func wait() throws -> MTLRenderPipelineState {
+        condition.lock()
+        while result == nil { condition.wait() }
+        let result = result!
+        condition.unlock()
+        return try result.get()
     }
 }

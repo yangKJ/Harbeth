@@ -13,6 +13,7 @@ public enum DerivedResourceDomain: String, CaseIterable, Sendable, Codable, Equa
     case outputContract
     case mask
     case lookupTable
+    case coordinateField
 }
 
 /// 进程内派生资源缓存身份。generation 由 HarbethContext 签发，用于阻止失效前启动的任务回写陈旧结果。
@@ -74,6 +75,7 @@ final class DerivedResourceStore: @unchecked Sendable {
     private var lru: [String] = []
     private var byteCount = 0
     private var scopeGenerations: [Scope: UInt64] = [:]
+    private var textureCreations: [DerivedResourceIdentity: DerivedTextureCreation] = [:]
     private var nextGeneration: UInt64 = 1
     private var hitCount = 0
     private var missCount = 0
@@ -82,6 +84,38 @@ final class DerivedResourceStore: @unchecked Sendable {
 
     init(configuration: DerivedResourceCacheConfiguration) {
         self.configuration = configuration
+    }
+
+    func texture(for identity: DerivedResourceIdentity, create: () throws -> MTLTexture) throws -> MTLTexture {
+        let key = identity.cacheKey
+        lock.lock()
+        let scope = Scope(domain: identity.domain, namespace: identity.namespace)
+        if generation(for: scope) == identity.generation, let texture = entries[key]?.value as? MTLTexture {
+            hitCount += 1
+            if lru.last != key {
+                lru.removeAll { $0 == key }
+                lru.append(key)
+            }
+            lock.unlock()
+            return texture
+        }
+        missCount += 1
+        if let pending = textureCreations[identity] {
+            lock.unlock()
+            return try pending.wait()
+        }
+        let pending = DerivedTextureCreation()
+        textureCreations[identity] = pending
+        lock.unlock()
+        let result = Result { try create() }
+        if case .success(let texture) = result {
+            insert(texture as AnyObject, byteCost: max(texture.allocatedSize, 1), for: identity)
+        }
+        pending.complete(result)
+        lock.lock()
+        textureCreations.removeValue(forKey: identity)
+        lock.unlock()
+        return try result.get()
     }
 
     func configure(_ configuration: DerivedResourceCacheConfiguration) {
@@ -109,8 +143,7 @@ final class DerivedResourceStore: @unchecked Sendable {
         let key = identity.cacheKey
         lock.lock()
         let scope = Scope(domain: identity.domain, namespace: identity.namespace)
-        guard generation(for: scope) == identity.generation,
-              let entry = entries[key] else {
+        guard generation(for: scope) == identity.generation, let entry = entries[key] else {
             missCount += 1
             lock.unlock()
             return nil
@@ -251,7 +284,42 @@ final class DerivedResourceStore: @unchecked Sendable {
     }
 }
 
+private final class DerivedTextureCreation: @unchecked Sendable {
+    private let condition = NSCondition()
+    private let owner = Thread.current
+    private var result: Result<MTLTexture, Error>?
+
+    func complete(_ result: Result<MTLTexture, Error>) {
+        condition.lock()
+        self.result = result
+        condition.broadcast()
+        condition.unlock()
+    }
+
+    func wait() throws -> MTLTexture {
+        guard Thread.current !== owner else {
+            throw HarbethError.configurationInvalid("A derived texture cannot recursively await its own creation.")
+        }
+        condition.lock()
+        while result == nil { condition.wait() }
+        let result = result!
+        condition.unlock()
+        return try result.get()
+    }
+}
+
 extension HarbethContext {
+    /// Coalesces concurrent creation and rejects stale cache insertion after invalidation.
+    public func makeDerivedTexture(for identity: DerivedResourceIdentity, create: () throws -> MTLTexture) throws -> MTLTexture {
+        try derivedResourceStore.texture(for: identity) {
+            let texture = try create()
+            guard texture.device === device else {
+                throw HarbethError.configurationInvalid("Derived textures must belong to the active context device.")
+            }
+            return texture
+        }
+    }
+
     public func configureDerivedResourceCache(_ configuration: DerivedResourceCacheConfiguration) {
         derivedResourceStore.configure(configuration)
     }

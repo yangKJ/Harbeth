@@ -1,8 +1,7 @@
-# Filter Catalog / 滤镜目录
+# Filter Catalog
 
-Harbeth currently exposes 183 public filter or encoder execution types across Compute, MPS, Blit, and Render. `C7Blend` additionally provides 30 blend modes through `C7Blend.BlendType`. This inventory must be updated with source changes; it is a navigation aid, not Harbeth's product definition.
+Harbeth currently exposes 184 public filter or encoder execution types across Compute, MPS, Blit, and Render. `C7Blend` additionally provides 30 blend modes through `C7Blend.BlendType`. This inventory must be updated with source changes; it is a navigation aid, not Harbeth's product definition.
 
-Harbeth 当前在 Compute、MPS、Blit 与 Render 四类执行路径中公开了 183 个滤镜或编码执行类型；`C7Blend` 还通过 `C7Blend.BlendType` 提供 30 种混合模式。该清单必须随源码变动更新；它是导航，不是 Harbeth 的产品定义。
 
 This catalog follows the current source tree and only lists public executable types. Editing primitives such as mask recipes, geometry recipes, transitions, layer composition, analysis, and output contracts belong to the `ImageNode` route and are documented separately in the [public API surface](API_SURFACE_CN.md) and [capability map](CAPABILITY_MAP_CN.md).
 
@@ -33,7 +32,7 @@ let node = ImageNode.image(inputImage)
 | Category | Count | Primary use / 主要用途 |
 | --- | ---: | --- |
 | Color Adjustment | 34 | 曝光、颜色、曲线、局部直方图、tone mapping、传递函数与色彩空间 |
-| Blur Effects | 14 | 模糊、散景、降噪、去色带与局部平滑 |
+| Blur Effects | 15 | Blur, depth-dependent bokeh, denoising, debanding, and local smoothing |
 | Edge & Detail | 17 | 锐化、边缘、轮廓与细节增强 |
 | Distortion & Warp | 15 | 像素形变、位移场、折射、镜头畸变与形态学 |
 | Stylization | 15 | 故障、卡通、油画、像素与视觉风格化 |
@@ -62,11 +61,11 @@ let node = ImageNode.image(inputImage)
 
 `C7CLAHE` 使用分块亮度直方图、clip/redistribution、CDF LUT 与相邻 tile 双线性插值增强局部对比度；透明和 HDR/EDR 像素保持原值。
 
-## Blur Effects / 模糊效果（14）
+## Blur Effects (15)
 
-覆盖通用模糊、边缘保护平滑、局部模糊、降噪与渐变去色带。
+Includes general and depth-dependent blur, edge-preserving smoothing, denoising, and debanding.
 
-- `C7BilateralBlur`, `C7CircleBlur`, `C7Deband`, `C7DetailPreservingBlur`, `C7GaussianBlur`, `C7HexagonalBokehBlur`
+- `C7BilateralBlur`, `C7CircleBlur`, `C7Deband`, `C7DepthLensBlur`, `C7DetailPreservingBlur`, `C7GaussianBlur`, `C7HexagonalBokehBlur`
 - `C7LocalBlur`, `C7MeanBlur`, `C7MotionBlur`, `C7NoiseReduction`
 - `C7RedMonochromeBlur`, `C7SurfaceBlur`, `C7TiltShift`, `C7ZoomBlur`
 

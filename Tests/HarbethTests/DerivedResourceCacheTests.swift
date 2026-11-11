@@ -257,3 +257,62 @@ final class DerivedResourceCacheTests: XCTestCase {
         try TextureLoader.makeTexture(width: 8, height: 8, identifier: "DerivedResourceCacheTests.\(label)")
     }
 }
+
+extension DerivedResourceCacheTests {
+    func testTextureCreationIsCoalescedAndReusedAcrossThreads() throws {
+        let texture = HarbethUncheckedTransfer(value: try makeTexture(label: "coalesced"))
+        let store = self.store!
+        let identity = identity(.lookupTable, "coalesced")
+        let recorder = DerivedTextureTestRecorder()
+        DispatchQueue.concurrentPerform(iterations: 16) { _ in
+            do {
+                let result = try store.texture(for: identity) {
+                    recorder.created()
+                    Thread.sleep(forTimeInterval: 0.01)
+                    return texture.value
+                }
+                recorder.received(result)
+            } catch { recorder.failed(error) }
+        }
+        XCTAssertEqual(recorder.creationCount, 1)
+        XCTAssertEqual(recorder.textures.count, 16)
+        XCTAssertTrue(recorder.textures.allSatisfy { $0 === texture.value })
+        XCTAssertTrue(recorder.errors.isEmpty)
+    }
+
+    func testInvalidationDuringCreationCannotRepopulateStaleIdentity() throws {
+        let identity = identity(.coordinateField, "stale-creation")
+        let texture = try makeTexture(label: "stale-creation")
+        let result = try store.texture(for: identity) {
+            store.invalidate(domain: .coordinateField, namespace: namespace)
+            return texture
+        }
+        XCTAssertTrue(result === texture)
+        XCTAssertNil(store.value(for: identity))
+        XCTAssertGreaterThan(store.snapshot().rejectedInsertionCount, 0)
+    }
+
+    func testFailedOrRecursiveTextureCreationCanBeRetried() throws {
+        let identity = identity(.lookupTable, "retry")
+        XCTAssertThrowsError(try store.texture(for: identity) { throw HarbethError.source2Texture })
+        XCTAssertThrowsError(try store.texture(for: identity) {
+            try store.texture(for: identity) { throw HarbethError.source2Texture }
+        })
+        let texture = try makeTexture(label: "retry")
+        XCTAssertTrue(try store.texture(for: identity) { texture } === texture)
+    }
+}
+
+private final class DerivedTextureTestRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedCreationCount = 0
+    private var storedTextures: [MTLTexture] = []
+    private var storedErrors: [String] = []
+
+    func created() { lock.withLock { storedCreationCount += 1 } }
+    func received(_ texture: MTLTexture) { lock.withLock { storedTextures.append(texture) } }
+    func failed(_ error: Error) { lock.withLock { storedErrors.append(String(describing: error)) } }
+    var creationCount: Int { lock.withLock { storedCreationCount } }
+    var textures: [MTLTexture] { lock.withLock { storedTextures } }
+    var errors: [String] { lock.withLock { storedErrors } }
+}

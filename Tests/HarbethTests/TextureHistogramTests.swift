@@ -1204,3 +1204,78 @@ final class TextureHistogramTests: XCTestCase {
         return texture
     }
 }
+
+extension TextureHistogramTests {
+    func testWeightedHistogramUnpremultipliesAndHonorsCoverageAndRegion() throws {
+        let texture = try reductionTexture(width: 3, height: 1, values: [
+            0.25, 0, 0, 0.5, 0, 0.25, 0, 0.25, 1, 1, 1, 1
+        ])
+        let coverage = try reductionTexture(width: 3, height: 1, values: [
+            0.5, 0.5, 0.5, 1, 0.25, 0.25, 0.25, 1, 0, 0, 0, 1
+        ])
+        let result = try texture.c7.makeWeightedColorHistogram(coverage: coverage, region: MTLRegionMake2D(0, 0, 2, 1))
+        XCTAssertEqual(result.channels[0][128], 0.25)
+        XCTAssertEqual(result.channels[1][255], 0.0625)
+        for channel in result.channels { XCTAssertEqual(channel.reduce(0, +), 0.3125) }
+        XCTAssertEqual(result.meanAndRGB.count, 4)
+        XCTAssertThrowsError(try texture.c7.makeWeightedColorHistogram(region: MTLRegionMake2D(2, 0, 2, 1)))
+    }
+
+    func testWeightedHistogramMatchesSerialReferenceAcrossBlockBoundaries() throws {
+        let width = 67, height = 35
+        var values: [Float] = []
+        var mask: [Float] = []
+        var expected = Array(repeating: Array(repeating: 0.0, count: 256), count: 3)
+        for pixel in 0..<(width * height) {
+            let alpha = Float(Float16(Float((pixel % 11) + 1) / 11))
+            let clip = Float(Float16(Float(pixel % 7) / 7))
+            let rgb = (0..<3).map { Float(Float16(Float((pixel * ($0 + 3)) % 251) / 251 * alpha)) }
+            values += rgb + [alpha]
+            mask += [clip, clip, clip, 1]
+            for channel in 0..<3 {
+                let bin = Int((min(1, max(0, rgb[channel] / alpha)) * 255).rounded())
+                expected[channel][bin] += Double(alpha * clip)
+            }
+        }
+        let texture = try reductionTexture(width: width, height: height, values: values)
+        let coverage = try reductionTexture(width: width, height: height, values: mask)
+        let result = try texture.c7.makeWeightedColorHistogram(coverage: coverage)
+        for channel in 0..<3 {
+            for bin in 0..<256 { XCTAssertEqual(result.channels[channel][bin], expected[channel][bin], accuracy: 0.0001) }
+        }
+    }
+
+    func testWeightedHistogramRejectsNonFiniteSamplesAndIgnoresTransparentRGB() throws {
+        let transparent = try reductionTexture(width: 1, height: 1, values: [.nan, .infinity, -.infinity, 0])
+        let result = try transparent.c7.makeWeightedColorHistogram()
+        XCTAssertEqual(result.channels.flatMap { $0 }.reduce(0, +), 0)
+        let invalid = try reductionTexture(width: 1, height: 1, values: [0, 0, 0, .nan])
+        XCTAssertThrowsError(try invalid.c7.makeWeightedColorHistogram())
+    }
+
+    func testAlphaReductionKeepsSubnormalAlphaAndRejectsNonFiniteAlpha() throws {
+        let tiny = Float(Float16(bitPattern: 1))
+        let texture = try reductionTexture(width: 2, height: 2, values: [
+            .nan, .infinity, -.infinity, -tiny, 0, 0, 0, -0.0,
+            0, 0, 0, 0, .nan, .nan, .nan, tiny
+        ])
+        XCTAssertEqual(try texture.c7.alphaCoverageBounds(), MaskCoverageBounds(x: 1, y: 1, width: 1, height: 1))
+        XCTAssertThrowsError(try texture.c7.alphaCoverageBounds(maximumReadbackBytes: 23))
+        let invalid = try reductionTexture(width: 1, height: 1, values: [0, 0, 0, .infinity])
+        XCTAssertThrowsError(try invalid.c7.alphaCoverageBounds())
+    }
+
+    private func reductionTexture(width: Int, height: Int, values: [Float]) throws -> MTLTexture {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal device is unavailable.")
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false)
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        descriptor.storageMode = .shared
+        let texture = try XCTUnwrap(HarbethContext.shared.device.makeTexture(descriptor: descriptor))
+        let bits = values.map { Float16($0).bitPattern }
+        bits.withUnsafeBytes {
+            texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0,
+                            withBytes: $0.baseAddress!, bytesPerRow: width * 8)
+        }
+        return texture
+    }
+}

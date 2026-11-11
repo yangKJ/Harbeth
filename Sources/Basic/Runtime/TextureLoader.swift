@@ -100,7 +100,6 @@ public struct TextureLoader {
         guard alignedRowBytes != packedBytesPerRow else {
             return (bytes, packedBytesPerRow)
         }
-
         var alignedBytes = [UInt8](repeating: 0, count: alignedRowBytes * max(height, 1))
         for row in 0..<height {
             let sourceStart = row * packedBytesPerRow
@@ -143,7 +142,6 @@ extension TextureLoader {
         guard extent.isNull == false, extent.isInfinite == false, extent.width > 0, extent.height > 0 else {
             throw HarbethError.configurationInvalid("CIImage input requires a finite, non-empty extent.")
         }
-
         if let pixelBuffer = ciImage.pixelBuffer {
             try self.init(with: pixelBuffer, options: options)
             return
@@ -152,7 +150,6 @@ extension TextureLoader {
             self.init(with: metalTexture)
             return
         }
-
         let pixelFormat = TextureLoader.preferredPixelFormat(for: ciImage)
         let texture = try TextureLoader.makeTexture(
             width: Int(extent.width),
@@ -354,14 +351,23 @@ extension TextureLoader {
                     pixelFormat: .bgra8Unorm_srgb,
                     planeIndex: 0
                   ) else { throw HarbethError.source2Texture }
-            return PixelBufferTextureSource(primaryTexture: reference.texture, planeTextures: [reference.texture],
-                                            bridgePlan: bridgePlan, retainedOwners: [pixelBuffer, reference.owner])
+            return PixelBufferTextureSource(
+                primaryTexture: reference.texture,
+                planeTextures: [reference.texture],
+                bridgePlan: bridgePlan,
+                retainedOwners: [pixelBuffer, reference.owner]
+            )
         }
         switch bridgePlan.loadStrategy {
         case .directMetalTexture:
             #if targetEnvironment(simulator)
             guard let texture = pixelBuffer.c7.toMTLTexture() else { throw HarbethError.source2Texture }
-            return PixelBufferTextureSource(primaryTexture: texture, planeTextures: [texture], bridgePlan: bridgePlan, retainedOwners: [pixelBuffer])
+            return PixelBufferTextureSource(
+                primaryTexture: texture,
+                planeTextures: [texture],
+                bridgePlan: bridgePlan,
+                retainedOwners: [pixelBuffer]
+            )
             #else
             guard let format = bridgePlan.contract.preferredMetalPixelFormat,
                   let reference = pixelBuffer.c7.convertPlaneTextureReference(
@@ -386,10 +392,7 @@ extension TextureLoader {
                 primaryTexture: texture,
                 planeTextures: [texture],
                 bridgePlan: bridgePlan,
-                retainedOwners: TextureLoader.resolveRetainedOwners(
-                    primaryTexture: texture,
-                    fallbackOwner: pixelBuffer
-                )
+                retainedOwners: TextureLoader.resolveRetainedOwners(primaryTexture: texture, fallbackOwner: pixelBuffer)
             )
             #else
             let references = pixelBuffer.c7.createPlaneTextureReferences()
@@ -703,9 +706,7 @@ extension TextureLoader {
         return try makeTexture(width: Int(size.width), height: Int(size.height), options: options, identifier: identifier)
     }
 
-    private static func makeTextureConfiguration(width: Int,
-                                                 height: Int,
-                                                 options: [Option: Any]?) -> (descriptor: MTLTextureDescriptor, allowsSizeTolerance: Bool) {
+    private static func makeTextureConfiguration(width: Int, height: Int, options: [Option: Any]?) -> (descriptor: MTLTextureDescriptor, allowsSizeTolerance: Bool) {
         let opts = options ?? [:]
         let pixelFormat = opts[.texturePixelFormat] as? MTLPixelFormat ?? .rgba8Unorm
         let usage = opts[.textureUsage] as? MTLTextureUsage ?? defaultUsage
@@ -916,14 +917,10 @@ extension TextureLoader {
         let data = UnsafeMutableRawPointer.allocate(byteCount: dataSize, alignment: highPrecision ? 8 : 4)
         defer { data.deallocate() }
         let colorSpace = cgImage.colorSpace
-            ?? (highPrecision
-                ? CGColorSpace(name: CGColorSpace.extendedLinearSRGB)
-                : HarbethContext.shared.colorSpace)
+            ?? (highPrecision ? CGColorSpace(name: CGColorSpace.extendedLinearSRGB) : HarbethContext.shared.colorSpace)
             ?? CGColorSpaceCreateDeviceRGB()
         let bitmapInfo = highPrecision
-            ? CGBitmapInfo.floatComponents.rawValue
-                | CGBitmapInfo.byteOrder16Little.rawValue
-                | CGImageAlphaInfo.premultipliedLast.rawValue
+            ? CGBitmapInfo.floatComponents.rawValue | CGBitmapInfo.byteOrder16Little.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
             : CGImageAlphaInfo.premultipliedLast.rawValue
         guard let context = CGContext(
             data: data,

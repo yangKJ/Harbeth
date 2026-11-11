@@ -92,6 +92,31 @@ public struct C7MultiZoneLookup: C7FilterProtocol {
         self.resourceBundleName = resource
     }
     
+    /// Binds preloaded textures without discarding the resource names used by recipe encoders.
+    public init(
+        shadowThreshold: Float = 0.3,
+        highlightThreshold: Float = 0.7,
+        transitionWidth: Float = 0.1,
+        shadowLookupName: String,
+        midtoneLookupName: String,
+        highlightLookupName: String,
+        forResource resource: String,
+        shadowLookupTexture: MTLTexture?,
+        midtoneLookupTexture: MTLTexture?,
+        highlightLookupTexture: MTLTexture?
+    ) {
+        self.shadowThreshold = shadowThreshold
+        self.highlightThreshold = highlightThreshold
+        self.transitionWidth = transitionWidth
+        self.shadowLookupTexture = shadowLookupTexture
+        self.midtoneLookupTexture = midtoneLookupTexture
+        self.highlightLookupTexture = highlightLookupTexture
+        self.shadowLookupName = shadowLookupName
+        self.midtoneLookupName = midtoneLookupName
+        self.highlightLookupName = highlightLookupName
+        self.resourceBundleName = resource
+    }
+
     public func updateShadowLookupTexture(_ texture: MTLTexture) -> Self {
         var copy = self
         copy.shadowLookupTexture = texture
