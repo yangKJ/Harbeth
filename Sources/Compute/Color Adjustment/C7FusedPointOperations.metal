@@ -25,7 +25,7 @@ static inline half4 applyPointOperation(half4 color, int kind, float value) {
             color = half4(color.rgb * half(pow(2.0f, value)), color.a);
             break;
         case 4:
-            color = half4(pow(color.rgb, half3(half(value))), color.a);
+            color = half4(select(half3(1.0h), half3(-1.0h), color.rgb < half3(0.0h)) * pow(abs(color.rgb), half3(half(value))), color.a);
             break;
         case 5:
             color = half4(color.rgb, half(value) * color.a);
@@ -44,7 +44,6 @@ kernel void C7FusedPointOperations(texture2d<half, access::write> outputTexture 
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
-
     half4 color = inputTexture.read(grid);
     for (int index = 0; index < operationCount; ++index) {
         const int kind = int(operations[index].x);
@@ -69,7 +68,7 @@ static __attribute__((noinline)) half4 pointExposure(half4 color, float value) {
     return half4(color.rgb * half(pow(2.0f, value)), color.a);
 }
 static __attribute__((noinline)) half4 pointGamma(half4 color, float value) {
-    return half4(pow(color.rgb, half3(half(value))), color.a);
+    return half4(select(half3(1.0h), half3(-1.0h), color.rgb < half3(0.0h)) * pow(abs(color.rgb), half3(half(value))), color.a);
 }
 static __attribute__((noinline)) half4 pointOpacity(half4 color, float value) {
     return half4(color.rgb, half(value) * color.a);

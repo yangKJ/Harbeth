@@ -1,10 +1,28 @@
 import XCTest
+import CoreVideo
 @testable import Harbeth
 
 final class FrameProcessingCapabilityTests: XCTestCase {
+    func testHDRBufferPlanningUsesDecodedAndConcreteFloatPrecision() throws {
+        for format in [kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange, kCVPixelFormatType_64RGBAHalf] {
+            var raw: CVPixelBuffer?
+            CVPixelBufferCreate(nil, 16, 16, format,
+                [kCVPixelBufferMetalCompatibilityKey: true, kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &raw)
+            let buffer = try XCTUnwrap(raw)
+            CVBufferSetAttachment(buffer, kCVImageBufferColorPrimariesKey, kCVImageBufferColorPrimaries_ITU_R_2020, .shouldPropagate)
+            CVBufferSetAttachment(buffer, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_ITU_R_2100_HLG, .shouldPropagate)
+            CVBufferSetAttachment(buffer, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_2020, .shouldPropagate)
+            let node = ImageNode.pixelBuffer(buffer).applying(C7Brightness(brightness: 0.05))
+            let diagnostics = try node.makeDiagnostics(profile: .exportQuality)
+            XCTAssertEqual(diagnostics.inputPixelFormat.precision, .float16)
+            XCTAssertEqual(diagnostics.outputPixelFormat.precision, .float16)
+            XCTAssertTrue(diagnostics.frameProcessingCapability(for: .extendedRangeDynamicFrame).isSupported)
+        }
+    }
+
     func testStrictDynamicFrameRejectsLegacyFallbackContract() {
         let diagnostics = GraphCompiler.compile(
-            filters: [C7Gamma(gamma: 1.1)],
+            filters: [FrameCapabilityLegacyFilter()],
             inputSize: C7Size(width: 16, height: 12),
             profile: .stablePreview
         ).diagnostics
@@ -163,6 +181,12 @@ private struct FrameCapabilityTestFilter: C7FilterProtocol {
     var modifier: ModifierEnum { .compute(kernel: "C7Brightness") }
     var memoryAccessPattern: MemoryAccessPattern { .point }
     var kernelPixelContract: KernelPixelContract { contract }
+}
+
+private struct FrameCapabilityLegacyFilter: C7FilterProtocol {
+    var modifier: ModifierEnum { .compute(kernel: "C7Gamma") }
+    var factors: [Float] { [1.1] }
+    var memoryAccessPattern: MemoryAccessPattern { .point }
 }
 
 private struct FrameCapabilityMetadataOnlySamplerFilter: RenderProtocol {

@@ -12,6 +12,8 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
+- `RenderedFrame.makePixelBuffer(...)` 支持显式色彩转换及 NV12/P010 GPU 双平面输出，覆盖 8/10-bit、full/video range、BT.709/BT.2020 矩阵与明确的 alpha 舍弃准入；实时缓冲池支持 RGBAHalf 和 P010。
+
 - Added shared mesh-render pipeline creation with cached function/format/thread-limit identity, concurrent creation coalescing, and generation-aware invalidation.
 - Added weighted GPU RGB histograms and exact alpha bounds with explicit readback budgets. Histograms use alpha-times-coverage weights and block Float accumulation; alpha bounds preserve finite positive binary16 subnormals; the GPU route returns a fixed 24-byte summary.
 - Added versioned lookup-texture loading and coalesced derived-texture creation, including retry, recursive-creation rejection, namespace isolation, and stale-insertion protection. Preloaded lookup initializers retain serializable resource identity.
@@ -23,6 +25,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 - Weighted histograms combine uniform active SIMD lanes on supported devices to avoid flat-color atomic contention; other devices and Simulator retain the original atomic kernel.
 - Alpha bounds use budgeted CPU inspection for small inputs and the 24-byte GPU summary for larger inputs, avoiding unprofitable small shared-texture submissions without changing alpha classification.
 - Inverse grids memoize immutable fingerprints and accept lazy producer revisions; region queries can access producer-owned corners without copying or validating a whole point array.
+
+#### Fixed
+
+- 渲染计划使用实际 YUV 解码目标和浮点缓冲精度，避免将真实 HDR 误报为 8-bit；HLG/PQ 跨域转换使用平台 GPU 媒体颜色管理并与线性色彩参考对照。
+- 局部 mix/replace 混合补齐扩展范围和采样合同，其他混合模式继续保守准入。
+- Gamma 及其融合路径对负扩展范围分量采用保留符号的幂变换，避免分数次幂产生 NaN；正分量与 alpha 行为保持，并补齐显式像素合同。
 
 ### 2026-11-10
 

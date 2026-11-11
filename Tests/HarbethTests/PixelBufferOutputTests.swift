@@ -722,7 +722,8 @@ final class PixelBufferOutputTests: XCTestCase {
 
         let diagnostics = try HarbethIO(element: pixelBuffer).renderDiagnostics()
 
-        XCTAssertEqual(diagnostics.inputPixelFormat, .init(pixelFormat: .rgba16Float, preservesInput: true))
+        XCTAssertEqual(diagnostics.inputPixelFormat, .init(pixelFormat: .rgba16Float, preservesInput: false))
+        XCTAssertEqual(diagnostics.outputPixelFormat.precision, .float16)
         XCTAssertEqual(diagnostics.inputPixelPrecision, .float16)
         XCTAssertTrue(diagnostics.inputIsHighPrecision)
         XCTAssertTrue(diagnostics.inputIsHDRFriendly)

@@ -279,8 +279,12 @@ public final class PixelBufferPool {
     private static func isSupportedRealtimeFormat(_ format: OSType) -> Bool {
         [
             kCVPixelFormatType_32BGRA,
+            kCVPixelFormatType_32RGBA,
+            kCVPixelFormatType_64RGBAHalf,
             kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
-            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+            kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
         ].contains(format)
     }
 

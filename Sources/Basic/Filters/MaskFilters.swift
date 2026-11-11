@@ -217,6 +217,17 @@ struct MaskRegionBlend: C7FilterProtocol {
     var memoryAccessPattern: MemoryAccessPattern {
         .multiTexture
     }
+
+    var kernelPixelContract: KernelPixelContract {
+        let preservesRange = mask.blendMode == .mix || mask.blendMode == .replace
+        return KernelPixelContract(
+            precision: .float16,
+            dynamicRangeBehavior: preservesRange ? .preservesExtendedRange : .unspecified,
+            samplingFootprint: .point,
+            coordinateDependency: .fullImage,
+            globalDependency: .imageDimensions
+        )
+    }
 }
 
 /// 把任意 `MaskDescriptor` 规范化成 coverage texture。

@@ -26,6 +26,15 @@ public struct C7Gamma: C7FilterProtocol {
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(
+            precision: .float16,
+            dynamicRangeBehavior: .preservesExtendedRange,
+            samplingFootprint: .point,
+            fusionPolicy: .pointwise
+        )
+    }
     
     public init(gamma: Float = range.value) {
         self.gamma = gamma

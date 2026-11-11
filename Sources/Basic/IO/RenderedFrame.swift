@@ -1151,12 +1151,15 @@ public extension RenderedFrame {
               let command = HarbethContext.shared.makeCommandBuffer() else { throw HarbethError.makeTexture }
         let source = alphaType == .nonPremultiplied
             ? try converted(to: RenderOutputContract(alpha: .premultiplied)) : self
-        if let sourceColorSpace = source.colorSpace,
+        defer { withExtendedLifetime((self, source)) {} }
+        let usesHDRTransfer = source.outputColorSpaceContract.isHDRTransfer || ImageColorSpaceContract(colorSpace: colorSpace).isHDRTransfer
+        if !usesHDRTransfer, let sourceColorSpace = source.colorSpace,
            let conversionInfo = CGColorConversionInfo(src: sourceColorSpace, dst: colorSpace) {
             let conversion = MPSImageConversion(device: texture.device, srcAlpha: .premultiplied,
                 destAlpha: .premultiplied, backgroundColor: nil, conversionInfo: conversionInfo)
             conversion.encode(commandBuffer: command, sourceTexture: source.texture, destinationTexture: output)
         } else {
+            // HDR传递函数沿用媒体颜色管理的参考标度，不通过相对ICC矩阵近似。
             let image = try source.makeTextureBackedCIImage().image
             HarbethContext.shared.coreImageContext.render(image, to: output, commandBuffer: command,
                 bounds: CGRect(x: 0, y: 0, width: texture.width, height: texture.height), colorSpace: colorSpace)
