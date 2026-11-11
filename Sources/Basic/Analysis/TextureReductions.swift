@@ -52,10 +52,16 @@ public extension MTLTextureCompatible_ {
         }
         var parameters = [UInt32(region.origin.x), UInt32(region.origin.y), UInt32(region.size.width),
                           UInt32(region.size.height), UInt32(blocksX), coverage == nil ? 0 : 1]
+        #if targetEnvironment(simulator)
+        let kernel = "WeightedColorHistogramBlocks"
+        #else
+        let supportsSIMD = texture.device.supportsFamily(.apple7) || texture.device.supportsFamily(.mac2)
+        let kernel = supportsSIMD ? "WeightedColorHistogramSIMDBlocks" : "WeightedColorHistogramBlocks"
+        #endif
         let buffer = try TextureReductionBackend.run(
             texture: texture,
             coverage: coverage,
-            kernel: "WeightedColorHistogramBlocks",
+            kernel: kernel,
             parameters: &parameters,
             resultBytes: resultBytes,
             groups: MTLSize(width: blocksX, height: blocksY, depth: 1),
@@ -76,7 +82,8 @@ public extension MTLTextureCompatible_ {
     }
 
     /// Finds every finite positive alpha, including binary16 subnormals. RGB values are ignored.
-    /// Only compact block bounds are read back; the source is never copied to CPU memory.
+    /// Small inputs use bounded CPU readback when the budget permits; shared inputs avoid GPU submission.
+    /// Larger inputs use a fixed 24-byte GPU summary. Producers must complete their writes before inspection.
     func alphaCoverageBounds(maximumReadbackBytes: Int = 16 * 1024 * 1024) throws -> MaskCoverageBounds? {
         let texture = target
         try TextureReductionBackend.validate(texture, allowsSRGB: true)
@@ -86,6 +93,12 @@ public extension MTLTextureCompatible_ {
         let byteCount = valueCount * MemoryLayout<UInt32>.stride
         guard byteCount <= maximumReadbackBytes else {
             throw HarbethError.configurationInvalid("Alpha reduction exceeds its readback budget.")
+        }
+        let bytesPerPixel = texture.pixelFormat == .rgba16Float ? 8 : (texture.pixelFormat == .rgba32Float ? 16 : 4)
+        let sourceBytes = texture.width * texture.height * bytesPerPixel
+        let cpuPixelLimit = texture.storageMode == .shared ? 256 * 256 : 64 * 64
+        if texture.width * texture.height <= cpuPixelLimit, sourceBytes <= maximumReadbackBytes {
+            return try TextureReductionBackend.alphaBoundsCPU(texture, bytesPerPixel: bytesPerPixel, maximumBytes: sourceBytes)
         }
         var parameters = [UInt32(texture.width), UInt32(texture.height), UInt32(blocksX)]
         let buffer = try TextureReductionBackend.run(
@@ -116,6 +129,39 @@ private enum TextureReductionBackend {
             throw HarbethError.configurationInvalid("Reduction requires a readable RGBA texture on the active device.")
         }
         try Task.checkCancellation()
+    }
+
+    static func alphaBoundsCPU(_ texture: MTLTexture, bytesPerPixel: Int, maximumBytes: Int) throws -> MaskCoverageBounds? {
+        guard let data = texture.c7.rawBytes(maximumBytes: maximumBytes) else { throw HarbethError.source2Texture }
+        var left = texture.width, top = texture.height, right = -1, bottom = -1
+        try data.withUnsafeBytes { raw in
+            for y in 0..<texture.height {
+                if y.isMultiple(of: 32) { try Task.checkCancellation() }
+                for x in 0..<texture.width {
+                    let offset = (y * texture.width + x) * bytesPerPixel
+                    let visible: Bool
+                    if bytesPerPixel == 4 {
+                        visible = raw[offset + 3] != 0
+                    } else if bytesPerPixel == 8 {
+                        let bits = UInt16(littleEndian: raw.loadUnaligned(fromByteOffset: offset + 6, as: UInt16.self))
+                        guard bits & 0x7C00 != 0x7C00 else { throw HarbethError.configurationInvalid("Alpha contains non-finite values.") }
+                        visible = bits & 0x8000 == 0 && bits & 0x7FFF != 0
+                    } else {
+                        let bits = UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: offset + 12, as: UInt32.self))
+                        guard bits & 0x7F800000 != 0x7F800000 else { throw HarbethError.configurationInvalid("Alpha contains non-finite values.") }
+                        visible = bits & 0x80000000 == 0 && bits & 0x7FFFFFFF != 0
+                    }
+                    if visible {
+                        left = min(left, x)
+                        top = min(top, y)
+                        right = max(right, x)
+                        bottom = max(bottom, y)
+                    }
+                }
+            }
+        }
+        try Task.checkCancellation()
+        return right >= left ? MaskCoverageBounds(x: left, y: top, width: right - left + 1, height: bottom - top + 1) : nil
     }
 
     static func run(

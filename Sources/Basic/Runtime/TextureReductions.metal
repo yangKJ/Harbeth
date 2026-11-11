@@ -19,15 +19,16 @@ static void addHistogramWeight(threadgroup atomic_uint *value, float weight) {
     )) {}
 }
 
-kernel void WeightedColorHistogramBlocks(
-    texture2d<float, access::read> source [[texture(0)]],
-    texture2d<float, access::read> coverage [[texture(1)]],
-    device float *results [[buffer(0)]],
-    constant uint *p [[buffer(1)]],
-    uint2 group [[threadgroup_position_in_grid]],
-    uint lane [[thread_index_in_threadgroup]]
+template <bool UseSIMD>
+static void weightedHistogramBlocks(
+    texture2d<float, access::read> source,
+    texture2d<float, access::read> coverage,
+    device float *results,
+    constant uint *p,
+    uint2 group,
+    uint lane,
+    threadgroup atomic_uint *bins
 ) {
-    threadgroup atomic_uint bins[768];
     for (uint i = lane; i < 768; i += 256) atomic_store_explicit(&bins[i], 0u, memory_order_relaxed);
     threadgroup_barrier(mem_flags::mem_threadgroup);
     const uint blocksY = (p[3] + 31) / 32;
@@ -56,7 +57,19 @@ kernel void WeightedColorHistogramBlocks(
                 continue;
             }
             const uint bin = uint(floor(clamp(rgb[channel], 0.0f, 1.0f) * 255.0f + 0.5f));
-            addHistogramWeight(&bins[channel * 256 + bin], weight);
+            // Merge uniform active SIMD lanes before the atomic update. Flat regions otherwise
+            // serialize hundreds of floating-point CAS retries against the same three bins.
+            if constexpr (UseSIMD) {
+                const uint firstBin = simd_broadcast_first(bin);
+                if (simd_all(bin == firstBin)) {
+                    const float combinedWeight = simd_sum(weight);
+                    if (simd_is_first()) addHistogramWeight(&bins[channel * 256 + bin], combinedWeight);
+                } else {
+                    addHistogramWeight(&bins[channel * 256 + bin], weight);
+                }
+            } else {
+                addHistogramWeight(&bins[channel * 256 + bin], weight);
+            }
         }
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -64,6 +77,30 @@ kernel void WeightedColorHistogramBlocks(
     for (uint i = lane; i < 768; i += 256) {
         results[offset + i] = as_type<float>(atomic_load_explicit(&bins[i], memory_order_relaxed));
     }
+}
+
+kernel void WeightedColorHistogramBlocks(
+    texture2d<float, access::read> source [[texture(0)]],
+    texture2d<float, access::read> coverage [[texture(1)]],
+    device float *results [[buffer(0)]],
+    constant uint *p [[buffer(1)]],
+    uint2 group [[threadgroup_position_in_grid]],
+    uint lane [[thread_index_in_threadgroup]]
+) {
+    threadgroup atomic_uint bins[768];
+    weightedHistogramBlocks<false>(source, coverage, results, p, group, lane, bins);
+}
+
+kernel void WeightedColorHistogramSIMDBlocks(
+    texture2d<float, access::read> source [[texture(0)]],
+    texture2d<float, access::read> coverage [[texture(1)]],
+    device float *results [[buffer(0)]],
+    constant uint *p [[buffer(1)]],
+    uint2 group [[threadgroup_position_in_grid]],
+    uint lane [[thread_index_in_threadgroup]]
+) {
+    threadgroup atomic_uint bins[768];
+    weightedHistogramBlocks<true>(source, coverage, results, p, group, lane, bins);
 }
 
 kernel void TextureAlphaBoundsBlocks(

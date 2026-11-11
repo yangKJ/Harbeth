@@ -13,10 +13,16 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 #### Added
 
 - Added shared mesh-render pipeline creation with cached function/format/thread-limit identity, concurrent creation coalescing, and generation-aware invalidation.
-- Added weighted GPU RGB histograms and exact alpha bounds with explicit readback budgets. Histograms use alpha-times-coverage weights and block Float accumulation; alpha bounds preserve finite positive binary16 subnormals and return a fixed 24-byte summary.
+- Added weighted GPU RGB histograms and exact alpha bounds with explicit readback budgets. Histograms use alpha-times-coverage weights and block Float accumulation; alpha bounds preserve finite positive binary16 subnormals; the GPU route returns a fixed 24-byte summary.
 - Added versioned lookup-texture loading and coalesced derived-texture creation, including retry, recursive-creation rejection, namespace isolation, and stale-insertion protection. Preloaded lookup initializers retain serializable resource identity.
 - Added pure sRGB/Display-P3/OKLab transforms and inverse-coordinate grids with cached numeric RG32Float uploads and conservative input-region bounds.
 - Added `C7DepthLensBlur` and `DepthLensBlurDescriptor` as framework-owned primitives, preserving the existing depth sampling, alpha, extended-range, and region contracts. Direct users must import Harbeth.
+
+#### Changed
+
+- Weighted histograms combine uniform active SIMD lanes on supported devices to avoid flat-color atomic contention; other devices and Simulator retain the original atomic kernel.
+- Alpha bounds use budgeted CPU inspection for small inputs and the 24-byte GPU summary for larger inputs, avoiding unprofitable small shared-texture submissions without changing alpha classification.
+- Inverse grids memoize immutable fingerprints and accept lazy producer revisions; region queries can access producer-owned corners without copying or validating a whole point array.
 
 ### 2026-11-10
 

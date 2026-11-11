@@ -1279,3 +1279,92 @@ extension TextureHistogramTests {
         return texture
     }
 }
+
+extension TextureHistogramTests {
+    func testUniformHistogramWithInactiveSIMDLanesMatchesSerialWeights() throws {
+        let width = 64, height = 33
+        var pixels: [Float] = []
+        var coverage: [Float] = []
+        var expected = 0.0
+        for index in 0..<(width * height) {
+            let alpha = index.isMultiple(of: 5) ? Float(0) : Float(Float16(Float(index % 11 + 1) / 11))
+            let mask = Float(Float16(Float(index % 7) / 7))
+            pixels += [alpha * 0.5, alpha * 0.25, alpha, alpha]
+            coverage += [mask, mask, mask, 1]
+            expected += Double(alpha * mask)
+        }
+        let input = try reductionTexture(width: width, height: height, values: pixels)
+        let mask = try reductionTexture(width: width, height: height, values: coverage)
+        let histogram = try input.c7.makeWeightedColorHistogram(coverage: mask)
+        for (channel, bin) in [(0, 128), (1, 64), (2, 255)] {
+            XCTAssertEqual(histogram.channels[channel][bin], expected, accuracy: 0.001)
+            XCTAssertEqual(histogram.channels[channel].reduce(0, +), expected, accuracy: 0.001)
+        }
+    }
+
+    func testSmallAlphaRoutingPreservesBudgetAndFloat32Semantics() throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal is unavailable.")
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba32Float, width: 2, height: 1, mipmapped: false)
+        descriptor.storageMode = .shared
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        let texture = try XCTUnwrap(HarbethContext.shared.device.makeTexture(descriptor: descriptor))
+        var pixels: [Float] = [.nan, .infinity, -.infinity, 0.25, 0, 0, 0, -0.0]
+        pixels.withUnsafeBytes {
+            texture.replace(region: MTLRegionMake2D(0, 0, 2, 1), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: 32)
+        }
+        let expected = MaskCoverageBounds(x: 0, y: 0, width: 1, height: 1)
+        XCTAssertEqual(try texture.c7.alphaCoverageBounds(), expected)
+        // A 24-byte budget forces the summary route instead of a 32-byte source readback.
+        XCTAssertEqual(try texture.c7.alphaCoverageBounds(maximumReadbackBytes: 24), expected)
+        pixels[3] = .nan
+        pixels.withUnsafeBytes {
+            texture.replace(region: MTLRegionMake2D(0, 0, 2, 1), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: 32)
+        }
+        XCTAssertThrowsError(try texture.c7.alphaCoverageBounds())
+        XCTAssertThrowsError(try texture.c7.alphaCoverageBounds(maximumReadbackBytes: 24))
+    }
+}
+
+extension TextureHistogramTests {
+    func testWeightedHistogramFallbackAndSIMDKernelsPreserveUniformWeights() throws {
+        let pixel: [Float] = [0.25, 0.125, 0.5, 0.5]
+        let values = Array(repeating: pixel, count: 32 * 32).flatMap { $0 }
+        let source = try reductionTexture(width: 32, height: 32, values: values)
+        var names = ["WeightedColorHistogramBlocks"]
+        #if !targetEnvironment(simulator)
+        if source.device.supportsFamily(.apple7) || source.device.supportsFamily(.mac2) {
+            names.append("WeightedColorHistogramSIMDBlocks")
+        }
+        #endif
+        for name in names {
+            let pipeline = try Compute.makeComputePipelineState(with: name)
+            let buffer = try XCTUnwrap(source.device.makeBuffer(length: 768 * 4 + 4, options: .storageModeShared))
+            memset(buffer.contents(), 0, buffer.length)
+            let command = try XCTUnwrap(HarbethContext.shared.makeCommandBuffer())
+            let encoder = try XCTUnwrap(command.makeComputeCommandEncoder())
+            var parameters: [UInt32] = [0, 0, 32, 32, 1, 0]
+            encoder.setComputePipelineState(pipeline)
+            encoder.setTexture(source, index: 0)
+            encoder.setTexture(source, index: 1)
+            encoder.setBuffer(buffer, offset: 0, index: 0)
+            encoder.setBytes(&parameters, length: parameters.count * 4, index: 1)
+            encoder.dispatchThreadgroups(MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+            encoder.endEncoding()
+            command.commit()
+            command.waitUntilCompleted()
+            XCTAssertNil(command.error)
+            let result = buffer.contents().bindMemory(to: Float.self, capacity: 768)
+            XCTAssertEqual(result[128], 512)
+            XCTAssertEqual(result[256 + 64], 512)
+            XCTAssertEqual(result[512 + 255], 512)
+            XCTAssertEqual(buffer.contents().advanced(by: 768 * 4).load(as: UInt32.self), 0)
+        }
+    }
+
+    func testSmallSharedAlphaInspectionDoesNotCreateAComputePipeline() throws {
+        let source = try reductionTexture(width: 2, height: 1, values: [0, 0, 0, 0, 0, 0, 0, 0.5])
+        let before = HarbethContext.shared.debugCacheSnapshot().computePipelineCount
+        XCTAssertEqual(try source.c7.alphaCoverageBounds(), MaskCoverageBounds(x: 1, y: 0, width: 1, height: 1))
+        XCTAssertEqual(HarbethContext.shared.debugCacheSnapshot().computePipelineCount, before)
+    }
+}

@@ -1,8 +1,23 @@
+import CoreGraphics
 import Harbeth
 import Metal
 import XCTest
 
 final class GPUPrimitivePublicAPITests: XCTestCase {
+
+    func testSharedColorDepthAndGridContractsRequireOnlyHarbeth() throws {
+        let rgb = SIMD3<Float>(0.2, 0.6, 0.9)
+        let restored = RGBColorMath.rgb(fromOKLab: RGBColorMath.oklab(rgb, space: .sRGB), space: .sRGB)
+        for channel in 0..<3 { XCTAssertEqual(restored[channel], rgb[channel], accuracy: 0.0001) }
+        let depth = C7DepthLensBlur.deferred(DepthLensBlurDescriptor(blurRadius: 11))
+        XCTAssertEqual(depth.computeKernelLibrarySource, .harbethFramework)
+        XCTAssertEqual(depth.kernelPixelContract.samplingFootprint, .neighborhood(radius: 22))
+        let grid = try InverseCoordinateGrid(width: 2, height: 2, points: [
+            CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 0, y: 1), CGPoint(x: 1, y: 1)
+        ])
+        let extent = CGRect(x: 0, y: 0, width: 32, height: 32)
+        XCTAssertEqual(grid.sourceRegion(for: extent, extent: extent), extent)
+    }
 
     func testPipelineFiltersArePubliclyConstructible() {
         let smoothing: any C7FilterProtocol = C7HighPassSkinSmoothing(amount: 0.5, radius: 6, sharpnessFactor: 0.2)

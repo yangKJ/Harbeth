@@ -105,3 +105,44 @@ extension PrimitiveMigrationTests {
         XCTAssertFalse(first === third)
     }
 }
+
+extension PrimitiveMigrationTests {
+    func testProducerGridRevisionSkipsPointPreparationAndSeparatesDimensions() throws {
+        try XCTSkipIf(MTLCreateSystemDefaultDevice() == nil, "Metal is unavailable.")
+        var loads = 0
+        let identifier = "PrimitiveMigrationTests.producer.\(UUID().uuidString)"
+        func points() -> [CGPoint] {
+            loads += 1
+            return [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 0, y: 1), CGPoint(x: 1, y: 1)]
+        }
+        let first = try InverseCoordinateGrid.makeTexture(width: 2, height: 2, identifier: identifier, points: points)
+        let second = try InverseCoordinateGrid.makeTexture(width: 2, height: 2, identifier: identifier, points: points)
+        XCTAssertTrue(first === second)
+        XCTAssertEqual(loads, 1)
+        let changed = try InverseCoordinateGrid.makeTexture(width: 2, height: 2, identifier: identifier + ":changed", points: points)
+        XCTAssertFalse(first === changed)
+        XCTAssertEqual(loads, 2)
+        HarbethContext.shared.invalidateDerivedResources(domain: .coordinateField)
+        _ = try InverseCoordinateGrid.makeTexture(width: 2, height: 2, identifier: identifier, points: points)
+        XCTAssertEqual(loads, 3)
+        let wider = try InverseCoordinateGrid.makeTexture(width: 3, height: 2, identifier: identifier) {
+            (0..<6).map { CGPoint(x: CGFloat($0 % 3) / 2, y: CGFloat($0 / 3)) }
+        }
+        XCTAssertEqual(wider.width, 3)
+        XCTAssertFalse(wider === first)
+    }
+
+    func testProducerROIOnlyReadsIntersectingGridCorners() throws {
+        let points = (0..<(65 * 65)).map { CGPoint(x: CGFloat($0 % 65) / 64, y: CGFloat($0 / 65) / 64) }
+        let grid = try InverseCoordinateGrid(width: 65, height: 65, points: points)
+        let extent = CGRect(x: 17, y: 31, width: 12_000, height: 8_000)
+        let region = CGRect(x: 5000, y: 3000, width: 256, height: 256)
+        var reads = 0
+        let actual = InverseCoordinateGrid.sourceRegion(for: region, extent: extent, width: 65, height: 65) {
+            reads += 1
+            return points[$0]
+        }
+        XCTAssertEqual(actual, grid.sourceRegion(for: region, extent: extent))
+        XCTAssertLessThan(reads, 20)
+    }
+}
