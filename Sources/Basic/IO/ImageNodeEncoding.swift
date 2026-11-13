@@ -70,13 +70,23 @@ extension HarbethIO where Dest == MTLTexture {
               !inputColorSpace.preservesInput, !workingColorSpace.preservesInput else {
             throw HarbethError.configurationInvalid("纹理编码需要未提交缓冲区、同一设备及明确颜色合同。")
         }
-        let sampledColorSpace: ImageColorSpaceContract
+        var sampledColorSpace: ImageColorSpaceContract
+        var samplingRecovery: [C7FilterProtocol] = []
         if element.pixelFormat == .rgba8Unorm_srgb || element.pixelFormat == .bgra8Unorm_srgb {
             guard inputColorSpace.gamut != .custom, !inputColorSpace.isHDRTransfer else {
                 throw HarbethError.configurationInvalid("硬件sRGB采样不能用于未知ICC或HDR传递函数。")
             }
             sampledColorSpace = ImageColorSpaceContract(name: "hardwareLinear", preservesInput: false,
                 gamut: inputColorSpace.gamut, transferFunction: .linear)
+            if alphaType == .premultiplied {
+                guard inputColorSpace.transferFunction == .sRGB,
+                      let restore = C7RGBTransferConversion(from: sampledColorSpace, to: inputColorSpace) else {
+                    throw HarbethError.configurationInvalid("硬件sRGB的预乘输入需要明确的sRGB编码域。")
+                }
+                // 硬件先解码了预乘通道；先还原存储域，再进行alpha安全的颜色转换。
+                samplingRecovery = [restore]
+                sampledColorSpace = inputColorSpace
+            }
         } else {
             sampledColorSpace = inputColorSpace
         }
@@ -87,14 +97,18 @@ extension HarbethIO where Dest == MTLTexture {
             guard let inputColorProfile, let target = workingColorSpace.cgColorSpace else {
                 throw HarbethError.configurationInvalid("自定义颜色输入必须提供实际ICC配置文件。")
             }
-            normalization = [try MPSColorConversion(from: inputColorProfile, to: target)]
+            normalization = [try MPSColorConversion(from: inputColorProfile, to: target, alphaType: alphaType)]
         } else {
             guard workingColorSpace.gamut != .custom, workingColorSpace.transferFunction != .custom else {
                 throw HarbethError.configurationInvalid("目标颜色合同必须明确。")
             }
-            normalization = workingColorSpace.makeColorConversionFilters(from: sampledColorSpace)
+            let conversion = workingColorSpace.makeColorConversionFilters(from: sampledColorSpace)
+            // 非线性传递函数必须作用于直通RGB，不能把覆盖率当作色值参与转换。
+            normalization = alphaType == .premultiplied && !conversion.isEmpty
+                ? [C7UnpremultiplyAlpha()] + conversion + [C7PremultiplyAlpha()]
+                : conversion
         }
-        var chain = normalization + filters
+        var chain = samplingRecovery + normalization + filters
         if chain.isEmpty, let format = bufferPixelFormat, format != element.pixelFormat {
             chain = [C7Brightness(brightness: 0)]
         }

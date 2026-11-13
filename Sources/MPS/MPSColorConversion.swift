@@ -13,15 +13,21 @@ public struct MPSColorConversion: MPSKernelProtocol {
     private let conversion: MPSImageConversion
     private let identity: String
 
-    public init(from source: CGColorSpace, to destination: CGColorSpace) throws {
+    public init(from source: CGColorSpace, to destination: CGColorSpace, alphaType: AlphaType = .premultiplied) throws {
         guard source.model == .rgb, destination.model == .rgb,
               let info = CGColorConversionInfo(src: source, dst: destination) else {
             throw HarbethError.configurationInvalid("GPU ICC转换需要有效RGB配置文件。")
         }
+        let alpha: MPSAlphaType
+        switch alphaType {
+        case .premultiplied: alpha = .premultiplied
+        case .nonPremultiplied: alpha = .nonPremultiplied
+        case .alphaIsOne: alpha = .alphaIsOne
+        }
         conversion = MPSImageConversion(device: HarbethContext.shared.device,
-            srcAlpha: .premultiplied, destAlpha: .premultiplied, backgroundColor: nil, conversionInfo: info)
+            srcAlpha: alpha, destAlpha: alpha, backgroundColor: nil, conversionInfo: info)
         identity = ImageColorProfileDescriptor(colorSpace: source).fingerprint
-            + ":" + ImageColorProfileDescriptor(colorSpace: destination).fingerprint
+            + ":" + ImageColorProfileDescriptor(colorSpace: destination).fingerprint + ":" + alphaType.rawValue
     }
 
     public var modifier: ModifierEnum { .mps(performance: conversion) }
