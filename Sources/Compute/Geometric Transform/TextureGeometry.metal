@@ -14,6 +14,8 @@ kernel void HarbethTextureGeometry(texture2d<half, access::write> output [[textu
                                    constant float4 &destinationRect [[buffer(1)]],
                                    constant float2 &flips [[buffer(2)]],
                                    constant float4 &background [[buffer(3)]],
+                                   constant float4 &sampleRowX [[buffer(4)]],
+                                   constant float4 &sampleRowY [[buffer(5)]],
                                    uint2 position [[thread_position_in_grid]]) {
     if (position.x >= output.get_width() || position.y >= output.get_height()) return;
     float2 uv = (float2(position) + 0.5f) / float2(output.get_width(), output.get_height());
@@ -24,7 +26,13 @@ kernel void HarbethTextureGeometry(texture2d<half, access::write> output [[textu
     }
     local = select(local, 1.0f - local, flips > 0.5f);
     constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
-    output.write(input.sample(sampling, sourceRect.xy + local * sourceRect.zw), position);
+    const float3 point = float3(sourceRect.xy + local * sourceRect.zw, 1.0f);
+    const float2 sourceUV = float2(dot(sampleRowX.xyz, point), dot(sampleRowY.xyz, point));
+    if (any(sourceUV < 0.0f) || any(sourceUV > 1.0f)) {
+        output.write(half4(background), position);
+        return;
+    }
+    output.write(input.sample(sampling, sourceUV), position);
 }
 
 kernel void HarbethTextureOverlay(texture2d<half, access::write> output [[texture(0)]],
