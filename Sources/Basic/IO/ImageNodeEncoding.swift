@@ -10,6 +10,47 @@ import CoreVideo
 import Foundation
 import Metal
 
+/// 单个执行器拥有的有界编译缓存；不保存帧像素，换源后仍重新绑定实际纹理。
+public final class ImageNodeEncodingContext: @unchecked Sendable {
+    private let lock = NSLock()
+    private var caches: [String: RenderExecutionProgramCache] = [:]
+    private var order: [String] = []
+    private var hits = 0
+    private var misses = 0
+
+    public init() {}
+
+    public var statistics: (entries: Int, hits: Int, misses: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (caches.count, hits, misses)
+    }
+
+    public func removeAll() {
+        lock.lock()
+        caches.removeAll()
+        order.removeAll()
+        lock.unlock()
+    }
+
+    func cache(for identifier: String) -> RenderExecutionProgramCache {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cache = caches[identifier] { return cache }
+        if order.count == 8 { caches.removeValue(forKey: order.removeFirst()) }
+        let cache = RenderExecutionProgramCache()
+        caches[identifier] = cache
+        order.append(identifier)
+        return cache
+    }
+
+    func record(reused: Bool) {
+        lock.lock()
+        if reused { hits += 1 } else { misses += 1 }
+        lock.unlock()
+    }
+}
+
 extension HarbethIO where Dest == MTLTexture {
     /// 将滤镜编码到调用方缓冲区，不提交、不等待、不读回。
     /// 调用方必须提交缓冲区（后续阶段失败时也需提交已编码工作），并保留输入资源至完成。
@@ -18,6 +59,7 @@ extension HarbethIO where Dest == MTLTexture {
         inputColorSpace: ImageColorSpaceContract,
         workingColorSpace: ImageColorSpaceContract,
         inputColorProfile: CGColorSpace? = nil,
+        context: ImageNodeEncodingContext? = nil,
         profile: RenderProfile = .stablePreview,
         generation: UInt64 = 0,
         alphaType: AlphaType = .alphaIsOne
@@ -28,10 +70,20 @@ extension HarbethIO where Dest == MTLTexture {
               !inputColorSpace.preservesInput, !workingColorSpace.preservesInput else {
             throw HarbethError.configurationInvalid("纹理编码需要未提交缓冲区、同一设备及明确颜色合同。")
         }
+        let sampledColorSpace: ImageColorSpaceContract
+        if element.pixelFormat == .rgba8Unorm_srgb || element.pixelFormat == .bgra8Unorm_srgb {
+            guard inputColorSpace.gamut != .custom, !inputColorSpace.isHDRTransfer else {
+                throw HarbethError.configurationInvalid("硬件sRGB采样不能用于未知ICC或HDR传递函数。")
+            }
+            sampledColorSpace = ImageColorSpaceContract(name: "hardwareLinear", preservesInput: false,
+                gamut: inputColorSpace.gamut, transferFunction: .linear)
+        } else {
+            sampledColorSpace = inputColorSpace
+        }
         let normalization: [C7FilterProtocol]
-        if inputColorSpace == workingColorSpace {
+        if sampledColorSpace == workingColorSpace {
             normalization = []
-        } else if inputColorSpace.gamut == .custom || inputColorSpace.transferFunction == .custom {
+        } else if sampledColorSpace.gamut == .custom || sampledColorSpace.transferFunction == .custom {
             guard let inputColorProfile, let target = workingColorSpace.cgColorSpace else {
                 throw HarbethError.configurationInvalid("自定义颜色输入必须提供实际ICC配置文件。")
             }
@@ -40,7 +92,7 @@ extension HarbethIO where Dest == MTLTexture {
             guard workingColorSpace.gamut != .custom, workingColorSpace.transferFunction != .custom else {
                 throw HarbethError.configurationInvalid("目标颜色合同必须明确。")
             }
-            normalization = workingColorSpace.makeColorConversionFilters(from: inputColorSpace)
+            normalization = workingColorSpace.makeColorConversionFilters(from: sampledColorSpace)
         }
         var chain = normalization + filters
         if chain.isEmpty, let format = bufferPixelFormat, format != element.pixelFormat {
@@ -48,7 +100,12 @@ extension HarbethIO where Dest == MTLTexture {
         }
         var io = HarbethIO<MTLTexture>(element: element, filters: chain, identifier: identifier).configured(for: profile)
         io.bufferPixelFormat = bufferPixelFormat
+        // 外部纹理可能来自采集池或临时图层，编译缓存不能延长这些帧的驻留时间。
+        if chain.allSatisfy({ $0.otherInputTextures.isEmpty }) {
+            io.executionProgramCache = context?.cache(for: identifier)
+        }
         let program = io.makeRenderProgram(input: element)
+        context?.record(reused: program.reusedCachedPlan)
         let encoded = try io.encodeManagedRenderProgram(program, commandBuffer: commandBuffer)
         encoded.retainUntilCompleted(by: commandBuffer)
         commandBuffer.addCompletedHandler { _ in encoded.releaseIntermediates() }
@@ -72,6 +129,7 @@ extension HarbethIO where Dest == CVPixelBuffer {
         inputColorSpace: ImageColorSpaceContract,
         workingColorSpace: ImageColorSpaceContract,
         inputColorProfile: CGColorSpace? = nil,
+        context: ImageNodeEncodingContext? = nil,
         profile: RenderProfile = .stablePreview,
         generation: UInt64 = 0
     ) throws -> RenderedFrame {
@@ -105,6 +163,7 @@ extension HarbethIO where Dest == CVPixelBuffer {
                 into: commandBuffer,
                 inputColorSpace: inputColorSpace,
                 workingColorSpace: inputColorSpace,
+                context: context,
                 profile: profile,
                 generation: generation
             )
@@ -117,6 +176,7 @@ extension HarbethIO where Dest == CVPixelBuffer {
             inputColorSpace: inputColorSpace,
             workingColorSpace: workingColorSpace,
             inputColorProfile: inputColorProfile,
+            context: context,
             profile: profile,
             generation: generation
         )
@@ -138,13 +198,14 @@ extension HarbethIO where Dest == CVPixelBuffer {
 }
 
 extension ImageNode {
-    /// 线性纹理/采集图编码入口，与上层媒体IO共用命令缓冲区。
-    /// 复杂编辑、过渡及分层图继续使用makeFrameAsync；不隐式同步或位图回退。
+    /// 纹理、采集与分层合成图编码入口，与上层媒体IO共用命令缓冲区。
+    /// 未物化蒙版与复杂编辑使用makeFrameAsync；不隐式同步或位图回退。
     public func encodeFrame(
         into commandBuffer: MTLCommandBuffer,
         inputColorSpace: ImageColorSpaceContract,
         workingColorSpace: ImageColorSpaceContract,
         inputColorProfile: CGColorSpace? = nil,
+        context: ImageNodeEncodingContext? = nil,
         pixelFormat: MTLPixelFormat = .rgba16Float,
         profile: RenderProfile = .stablePreview,
         identifier: String = "ImageNode.EncodedFrame",
@@ -156,6 +217,57 @@ extension ImageNode {
         while case .filters(let input, let filters) = sourceNode.storage {
             chain = filters + chain
             sourceNode = input
+        }
+        if case .layerComposite(let recipe) = sourceNode.storage {
+            guard recipe.outputContract == .preserveInput else {
+                throw HarbethError.configurationInvalid("相机分层图的输出合同由编码入口统一指定。")
+            }
+            var current = try ImageNode.source(recipe.background).encodeFrame(
+                into: commandBuffer, inputColorSpace: inputColorSpace, workingColorSpace: workingColorSpace,
+                inputColorProfile: inputColorProfile, context: context, pixelFormat: pixelFormat,
+                profile: profile, identifier: identifier + ".background", generation: generation, alphaType: alphaType)
+            for (index, layer) in recipe.layers.enumerated() {
+                guard layer.layoutUnit == .normalized, layer.maskSource == nil,
+                      layer.compositingMaskSource == nil, layer.programmableBlend == nil,
+                      layer.rasterSampleCount == 1 else {
+                    throw HarbethError.configurationInvalid("外部编码接受已物化遮罩与标准纹理图层。")
+                }
+                var transform = layer.transform
+                transform.rotationDegrees += layer.rotation
+                if layer.flipOptions.horizontal { transform.mirrorsHorizontally.toggle() }
+                if layer.flipOptions.vertical { transform.flipsVertically.toggle() }
+                guard case .texture(let texture) = layer.content else {
+                    throw HarbethError.configurationInvalid("图层输入必须先准备为纹理。")
+                }
+                let filters = transform.makeFilters(inputSize: C7Size(texture: texture)) + layer.filters
+                let prepared = try ImageNode.texture(texture).applying(filters: filters).encodeFrame(
+                    into: commandBuffer, inputColorSpace: inputColorSpace, workingColorSpace: workingColorSpace,
+                    inputColorProfile: inputColorProfile, context: context, pixelFormat: pixelFormat,
+                    profile: profile, identifier: identifier + ".layer.\(index)", generation: generation,
+                    alphaType: .premultiplied)
+                let composite = LayerComposite(layerTexture: prepared.texture, mask: layer.mask,
+                    compositingMask: layer.compositingMask, normalizedFrame: layer.normalizedFrame,
+                    contentRegion: layer.contentRegion, opacity: layer.opacity, blendMode: layer.blendMode,
+                    cornerRadius: layer.cornerRadius, cornerCurve: layer.cornerCurve, tintColor: layer.tintColor)
+                let previous = current
+                current = try ImageNode.texture(previous.texture).applying(composite).encodeFrame(
+                    into: commandBuffer, inputColorSpace: workingColorSpace, workingColorSpace: workingColorSpace,
+                    context: context, pixelFormat: pixelFormat, profile: profile,
+                    identifier: identifier + ".composite.\(index)", generation: generation, alphaType: .premultiplied)
+                commandBuffer.addCompletedHandler { _ in withExtendedLifetime((previous, prepared)) {} }
+            }
+            let target = recipe.derivative.resolvedOutputSize(for: C7Size(texture: current.texture))
+            if target != C7Size(texture: current.texture) {
+                chain.append(C7Resize(width: Float(target.width), height: Float(target.height)))
+            }
+            if chain.isEmpty { return current }
+            let previous = current
+            let output = try ImageNode.texture(previous.texture).applying(filters: chain).encodeFrame(
+                into: commandBuffer, inputColorSpace: workingColorSpace, workingColorSpace: workingColorSpace,
+                context: context, pixelFormat: pixelFormat, profile: profile, identifier: identifier + ".finish",
+                generation: generation, alphaType: .premultiplied)
+            commandBuffer.addCompletedHandler { _ in withExtendedLifetime(previous) {} }
+            return output
         }
         guard case .source(let source) = sourceNode.storage else {
             throw HarbethError.configurationInvalid("外部命令编码仅接受线性图；复杂图使用异步图执行入口。")
@@ -169,6 +281,7 @@ extension ImageNode {
                 inputColorSpace: inputColorSpace,
                 workingColorSpace: workingColorSpace,
                 inputColorProfile: inputColorProfile,
+                context: context,
                 profile: profile,
                 generation: generation,
                 alphaType: alphaType
@@ -181,6 +294,7 @@ extension ImageNode {
                 inputColorSpace: inputColorSpace,
                 workingColorSpace: workingColorSpace,
                 inputColorProfile: inputColorProfile,
+                context: context,
                 profile: profile,
                 generation: generation
             )

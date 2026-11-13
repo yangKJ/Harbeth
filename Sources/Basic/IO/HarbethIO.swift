@@ -500,6 +500,7 @@ extension HarbethIO {
             "profile=\(renderProfile.rawValue)",
             "derivative=\(effectiveDerivative.fingerprint)",
             "source=\(sourceDescriptor?.fingerprint ?? "none")",
+            "auxiliary=\(filters.flatMap { $0.otherInputTextures }.map { String(describing: ObjectIdentifier($0)) }.joined(separator: ","))",
         ].joined(separator: "|")
         let program = executionProgramCache?.value(for: cacheKey) ?? RenderExecutionCompiler.compile(
             filters: filters,
