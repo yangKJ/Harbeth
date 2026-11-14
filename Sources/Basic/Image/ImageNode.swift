@@ -78,6 +78,23 @@ private struct PreparedImageNodeExecution: @unchecked Sendable {
     }
 }
 
+private struct ImageNodeRenderPlanPreparation {
+    let node: ImageNode
+    let derivative: ImageDerivativeSpec?
+    let samplerDescriptor: ImageSamplerDescriptor
+    let cacheKey: String
+    let optimization: ImageGraphOptimizationResult
+}
+
+private struct ImageNodeExecutionPreparation {
+    let node: ImageNode
+    let derivative: ImageDerivativeSpec
+    let samplerDescriptor: ImageSamplerDescriptor
+    let plan: RenderPlan
+    let primarySource: ImageSource
+    let storage: ImageNodeStorage
+}
+
 private struct PreparedImageNodeAttachmentRoute: @unchecked Sendable {
     let inputExecution: PreparedImageNodeExecution
     let filter: any RenderProtocol
@@ -268,6 +285,61 @@ extension ImageNode {
         samplerDescriptorOverride: ImageSamplerDescriptor? = nil,
         sources: ImageNodeSourcePreparation = ImageNodeSourcePreparation()
     ) throws -> PreparedImageNodeExecution {
+        var preparations: [ImageNodeExecutionPreparation] = []
+        var node = self
+        var nextDerivative = derivative
+        var samplerOverride = samplerDescriptorOverride
+
+        // 先沿输入链收集与原递归相同的规划快照，再从来源向输出装配执行闭包。
+        // 大型装配栈帧不再随蒙版和 wrapper 深度叠加，源物化仍由本次请求唯一持有。
+        preparationLoop: while true {
+            let preparation = try node.prepareExecutionStep(
+                profile: profile,
+                derivative: nextDerivative,
+                samplerDescriptorOverride: samplerOverride,
+                sources: sources
+            )
+            preparations.append(preparation)
+            switch preparation.storage {
+            case .filters(let input, _), .kernel(let input, _, _), .edit(let input, _, _):
+                node = input
+                nextDerivative = profile.defaultDerivativeSpec
+                samplerOverride = preparation.samplerDescriptor
+            case .cachePolicy(let input, _):
+                node = input
+                nextDerivative = preparation.derivative
+                samplerOverride = preparation.samplerDescriptor
+            case .samplerDescriptor(let input, let descriptor):
+                node = input
+                nextDerivative = preparation.derivative
+                samplerOverride = descriptor
+            case .source, .transition, .layerComposite:
+                break preparationLoop
+            }
+        }
+
+        var preparedInput: PreparedImageNodeExecution?
+        for preparation in preparations.reversed() {
+            preparedInput = try preparation.node.assembleExecution(
+                from: preparation,
+                preparedInput: preparedInput,
+                profile: profile,
+                executionIdentifier: executionIdentifier,
+                sources: sources
+            )
+        }
+        guard let preparedInput else {
+            preconditionFailure("执行准备至少包含一个来源节点。")
+        }
+        return preparedInput
+    }
+
+    private func prepareExecutionStep(
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec?,
+        samplerDescriptorOverride: ImageSamplerDescriptor?,
+        sources: ImageNodeSourcePreparation
+    ) throws -> ImageNodeExecutionPreparation {
         let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
         let activeSamplerDescriptor = samplerDescriptorOverride ?? resolvedSamplerDescriptor
         let plan = try makeRenderPlan(
@@ -276,14 +348,7 @@ extension ImageNode {
             samplerDescriptorOverride: activeSamplerDescriptor,
             sources: sources
         )
-        let diagnostics = plan.diagnostics
-        let renderRecipe: RenderRecipe
         let primarySource = try resolvedPrimarySource()
-        let renderTextureClosure: () throws -> MTLTexture
-        var renderManagedTextureClosure: (() throws -> ManagedTextureResult)? = nil
-        var transmitManagedTextureClosure: ((RenderSubmissionContext, @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) -> Void)? = nil
-        let executionFingerprint: String
-
         let executionStorage: ImageNodeStorage
         if case .filters = storage {
             let route = flattenedFilterRoute()
@@ -291,8 +356,35 @@ extension ImageNode {
         } else {
             executionStorage = storage
         }
+        return ImageNodeExecutionPreparation(
+            node: self,
+            derivative: effectiveDerivative,
+            samplerDescriptor: activeSamplerDescriptor,
+            plan: plan,
+            primarySource: primarySource,
+            storage: executionStorage
+        )
+    }
 
-        switch executionStorage {
+    private func assembleExecution(
+        from preparation: ImageNodeExecutionPreparation,
+        preparedInput: PreparedImageNodeExecution?,
+        profile: RenderProfile,
+        executionIdentifier: String?,
+        sources: ImageNodeSourcePreparation
+    ) throws -> PreparedImageNodeExecution {
+        let effectiveDerivative = preparation.derivative
+        let activeSamplerDescriptor = preparation.samplerDescriptor
+        let plan = preparation.plan
+        let diagnostics = plan.diagnostics
+        let primarySource = preparation.primarySource
+        let renderRecipe: RenderRecipe
+        let renderTextureClosure: () throws -> MTLTexture
+        var renderManagedTextureClosure: (() throws -> ManagedTextureResult)? = nil
+        var transmitManagedTextureClosure: ((RenderSubmissionContext, @escaping @Sendable (Result<ManagedTextureResult, HarbethError>) -> Void) -> Void)? = nil
+        let executionFingerprint: String
+
+        switch preparation.storage {
         case .source(let source):
             renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative, preparedPlan: plan, sources: sources)
             renderTextureClosure = {
@@ -307,13 +399,9 @@ extension ImageNode {
             executionFingerprint = [diagnostics.graphFingerprint, source.descriptor.fingerprint].joined(separator: "|")
 
         case .filters(let input, let filters):
-            let preparedInput = try input.prepareExecution(
-                profile: profile,
-                derivative: profile.defaultDerivativeSpec,
-                executionIdentifier: executionIdentifier,
-                samplerDescriptorOverride: activeSamplerDescriptor,
-                sources: sources
-            )
+            guard let preparedInput else {
+                preconditionFailure("上游执行快照必须先于当前节点准备。")
+            }
             renderRecipe = preparedInput.renderRecipe.appending(
                 filterDescriptors: filters.map { $0.recipeDescriptor.withSamplerContract(activeSamplerDescriptor) },
                 derivative: effectiveDerivative
@@ -360,14 +448,10 @@ extension ImageNode {
                 program.fingerprint,
             ].joined(separator: "|")
 
-        case .kernel(let input, let descriptor, let filter):
-            let preparedInput = try input.prepareExecution(
-                profile: profile,
-                derivative: profile.defaultDerivativeSpec,
-                executionIdentifier: executionIdentifier,
-                samplerDescriptorOverride: activeSamplerDescriptor,
-                sources: sources
-            )
+        case .kernel(_, let descriptor, let filter):
+            guard let preparedInput else {
+                preconditionFailure("上游执行快照必须先于当前节点准备。")
+            }
             renderRecipe = preparedInput.renderRecipe.appending(
                 filterDescriptors: [filter.recipeDescriptor.withSamplerContract(activeSamplerDescriptor)],
                 derivative: effectiveDerivative
@@ -425,14 +509,10 @@ extension ImageNode {
                 descriptor.fingerprint,
             ].joined(separator: "|")
 
-        case .edit(let input, let recipe, let mode):
-            let preparedInput = try input.prepareExecution(
-                profile: profile,
-                derivative: profile.defaultDerivativeSpec,
-                executionIdentifier: executionIdentifier,
-                samplerDescriptorOverride: activeSamplerDescriptor,
-                sources: sources
-            )
+        case .edit(_, let recipe, let mode):
+            guard let preparedInput else {
+                preconditionFailure("上游执行快照必须先于当前节点准备。")
+            }
             renderRecipe = try makeRenderRecipe(
                 profile: profile,
                 derivative: effectiveDerivative,
@@ -482,14 +562,10 @@ extension ImageNode {
             }
             executionFingerprint = [diagnostics.graphFingerprint, recipe.fingerprint].joined(separator: "|")
 
-        case .cachePolicy(let input, let policy):
-            let preparedInput = try input.prepareExecution(
-                profile: profile,
-                derivative: effectiveDerivative,
-                executionIdentifier: executionIdentifier,
-                samplerDescriptorOverride: activeSamplerDescriptor,
-                sources: sources
-            )
+        case .cachePolicy(_, let policy):
+            guard let preparedInput else {
+                preconditionFailure("上游执行快照必须先于当前节点准备。")
+            }
             renderRecipe = preparedInput.renderRecipe.with(outputCachePolicy: policy)
             let cacheKey = resolutionFingerprint(profile: profile, derivative: effectiveDerivative)
             renderTextureClosure = {
@@ -505,14 +581,10 @@ extension ImageNode {
             }
             executionFingerprint = [diagnostics.graphFingerprint, preparedInput.executionFingerprint, "cache=\(policy.rawValue)"].joined(separator: "|")
 
-        case .samplerDescriptor(let input, let descriptor):
-            let preparedInput = try input.prepareExecution(
-                profile: profile,
-                derivative: effectiveDerivative,
-                executionIdentifier: executionIdentifier,
-                samplerDescriptorOverride: descriptor,
-                sources: sources
-            )
+        case .samplerDescriptor(_, let descriptor):
+            guard let preparedInput else {
+                preconditionFailure("上游执行快照必须先于当前节点准备。")
+            }
             renderRecipe = preparedInput.renderRecipe
             renderTextureClosure = { try preparedInput.renderTexture() }
             executionFingerprint = [diagnostics.graphFingerprint, preparedInput.executionFingerprint, descriptor.fingerprint].joined(separator: "|")
@@ -1509,69 +1581,143 @@ extension ImageNode: ImagePromise {
         sources: ImageNodeSourcePreparation? = nil
     ) throws -> RenderPlan {
         let sources = sources ?? ImageNodeSourcePreparation()
-        let activeSamplerDescriptor = samplerDescriptorOverride ?? resolvedSamplerDescriptor
-        let effectiveDerivative = derivative ?? profile.defaultDerivativeSpec
-        let cacheKey = ImageNode.makeRenderPlanCacheKey(
-            nodeFingerprint: nodeFingerprint,
-            profile: profile,
-            derivative: effectiveDerivative,
-            samplerDescriptor: activeSamplerDescriptor
-        )
-        if let cached = HarbethContext.shared.cachedRenderPlan(for: cacheKey) {
-            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: true)
-            return cached
+        var preparations: [ImageNodeRenderPlanPreparation] = []
+        var node = self
+        var nextDerivative = derivative
+        var samplerOverride = samplerDescriptorOverride
+        var inputPlan: RenderPlan?
+
+        // 规划也按输入依赖迭代展开；父节点的编译栈帧只在其输入就绪后出现。
+        while true {
+            let sampler = samplerOverride ?? node.resolvedSamplerDescriptor
+            let cacheKey = ImageNode.makeRenderPlanCacheKey(
+                nodeFingerprint: node.nodeFingerprint,
+                profile: profile,
+                derivative: nextDerivative ?? profile.defaultDerivativeSpec,
+                samplerDescriptor: sampler
+            )
+            if let cached = HarbethContext.shared.cachedRenderPlan(for: cacheKey) {
+                HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: true)
+                inputPlan = cached
+                break
+            }
+            HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: false)
+            let optimization = try node.makeOptimizedImageGraph(profile: profile, derivative: nextDerivative)
+            preparations.append(ImageNodeRenderPlanPreparation(
+                node: node,
+                derivative: nextDerivative,
+                samplerDescriptor: sampler,
+                cacheKey: cacheKey,
+                optimization: optimization
+            ))
+            guard let input = node.renderPlanInput(
+                profile: profile,
+                derivative: nextDerivative,
+                samplerDescriptor: sampler
+            ) else { break }
+            node = input.node
+            nextDerivative = input.derivative
+            samplerOverride = input.samplerDescriptor
         }
-        HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup("renderPlan", hit: false)
-        let optimization = try makeOptimizedImageGraph(profile: profile, derivative: derivative)
+
+        for preparation in preparations.reversed() {
+            let plan = try preparation.node.compileRenderPlan(
+                from: preparation,
+                inputPlan: inputPlan,
+                profile: profile,
+                sources: sources
+            )
+            HarbethContext.shared.storeRenderPlan(plan, for: preparation.cacheKey)
+            inputPlan = plan
+        }
+        guard let inputPlan else { preconditionFailure("规划至少包含一个来源节点。") }
+        return inputPlan
+    }
+
+    private func renderPlanInput(
+        profile: RenderProfile,
+        derivative: ImageDerivativeSpec?,
+        samplerDescriptor: ImageSamplerDescriptor
+    ) -> (node: ImageNode, derivative: ImageDerivativeSpec?, samplerDescriptor: ImageSamplerDescriptor)? {
+        let input: ImageNode
+        switch storage {
+        case .filters:
+            input = flattenedFilterRoute().input
+            if case .transition = input.storage { return nil }
+        case .kernel(let upstream, _, _):
+            input = upstream
+        case .edit(let input, _, _):
+            return (input, nil, samplerDescriptor)
+        case .cachePolicy(let input, _):
+            return (input, derivative, samplerDescriptor)
+        case .samplerDescriptor(let input, let descriptor):
+            _ = HarbethContext.shared.makeSamplerState(descriptor)
+            return (input, derivative, descriptor)
+        case .source, .transition, .layerComposite:
+            return nil
+        }
+        if case .edit(let upstream, _, _) = input.storage {
+            return (upstream, nil, samplerDescriptor)
+        }
+        guard input.resolvedPlanningOutputSizeHint(profile: profile) == nil else { return nil }
+        return (input, nil, samplerDescriptor)
+    }
+
+    private func compileRenderPlan(
+        from preparation: ImageNodeRenderPlanPreparation,
+        inputPlan: RenderPlan?,
+        profile: RenderProfile,
+        sources: ImageNodeSourcePreparation
+    ) throws -> RenderPlan {
+        let derivative = preparation.derivative
+        let activeSamplerDescriptor = preparation.samplerDescriptor
+        let optimization = preparation.optimization
         let plan: RenderPlan
-        // 编辑节点与 cache / sampler wrapper 都在轻量入口分派，避免多层蒙版递归时
-        // 反复保留下方大型 switch 的 Debug 栈帧，耗尽 dispatch worker 的小栈。
         switch storage {
         case .cachePolicy(let input, let policy):
+            guard let inputPlan else { preconditionFailure("上游规划必须先于当前节点完成。") }
             plan = try makeCachePolicyRenderPlan(
                 input: input,
+                innerPlan: inputPlan,
                 policy: policy,
-                profile: profile,
-                derivative: derivative,
-                samplerDescriptor: activeSamplerDescriptor,
-                optimization: optimization,
-                sources: sources
+                optimization: optimization
             )
         case .samplerDescriptor(let input, let descriptor):
+            guard let inputPlan else { preconditionFailure("上游规划必须先于当前节点完成。") }
             plan = try makeSamplerDescriptorRenderPlan(
                 input: input,
+                innerPlan: inputPlan,
                 descriptor: descriptor,
-                profile: profile,
-                derivative: derivative,
-                optimization: optimization,
-                sources: sources
+                optimization: optimization
             )
         case .edit(let input, let recipe, let mode):
+            guard let inputPlan else { preconditionFailure("上游规划必须先于当前节点完成。") }
             plan = try makeEditRenderPlan(
                 input: input,
+                inputPlan: inputPlan,
                 recipe: recipe,
                 mode: mode,
                 profile: profile,
                 derivative: derivative,
                 samplerDescriptor: activeSamplerDescriptor,
-                optimization: optimization,
-                sources: sources
+                optimization: optimization
             )
         default:
             plan = try makeUnwrappedRenderPlan(
                 profile: profile,
+                inputPlan: inputPlan,
                 derivative: derivative,
                 samplerDescriptor: activeSamplerDescriptor,
                 optimization: optimization,
                 sources: sources
             )
         }
-        HarbethContext.shared.storeRenderPlan(plan, for: cacheKey)
         return plan
     }
 
     private func makeUnwrappedRenderPlan(
         profile: RenderProfile,
+        inputPlan: RenderPlan?,
         derivative: ImageDerivativeSpec?,
         samplerDescriptor activeSamplerDescriptor: ImageSamplerDescriptor,
         optimization: ImageGraphOptimizationResult,
@@ -1605,9 +1751,8 @@ extension ImageNode: ImagePromise {
             let filters = route.filters
             switch input.storage {
             case .edit(let upstream, let recipe, let mode):
-                let inputSize = try upstream.makeRenderPlan(
-                    profile: profile, derivative: nil, samplerDescriptorOverride: activeSamplerDescriptor, sources: sources
-                ).diagnostics.outputSize
+                guard let inputPlan else { preconditionFailure("上游规划必须先于当前节点完成。") }
+                let inputSize = inputPlan.diagnostics.outputSize
                 plan = try makeWrappedEditRenderPlan(
                     source: try upstream.resolvedPrimarySource(),
                     inputSize: inputSize,
@@ -1645,9 +1790,8 @@ extension ImageNode: ImagePromise {
                 if let size = input.resolvedPlanningOutputSizeHint(profile: profile) {
                     inputSize = size
                 } else {
-                    inputSize = try input.makeRenderPlan(
-                        profile: profile, derivative: nil, samplerDescriptorOverride: activeSamplerDescriptor, sources: sources
-                    ).diagnostics.outputSize
+                    guard let inputPlan else { preconditionFailure("上游规划必须先于当前节点完成。") }
+                    inputSize = inputPlan.diagnostics.outputSize
                 }
                 let localPlan = RenderExecutionCompiler.compile(
                     filters: filters,
@@ -1660,22 +1804,24 @@ extension ImageNode: ImagePromise {
                     imageGraph: optimization.graph,
                     graphOptimizationDecisions: optimization.decisions
                 ).plan
-                plan = localPlan.withSamplerExecutionCoverage(
-                    SamplerExecutionAdapter.merge(
-                        try input.resolvedSamplerExecutionCoverage(
-                            profile: profile,
-                            samplerDescriptor: activeSamplerDescriptor
-                        ),
-                        localPlan.diagnostics.samplerExecutionCoverage
+                let inputCoverage: SamplerExecutionCoverage
+                if let inputPlan {
+                    inputCoverage = inputPlan.diagnostics.samplerExecutionCoverage
+                } else {
+                    inputCoverage = try input.resolvedSamplerExecutionCoverage(
+                        profile: profile,
+                        samplerDescriptor: activeSamplerDescriptor
                     )
+                }
+                plan = localPlan.withSamplerExecutionCoverage(
+                    SamplerExecutionAdapter.merge(inputCoverage, localPlan.diagnostics.samplerExecutionCoverage)
                 )
             }
         case .kernel(let input, let descriptor, let filter):
             switch input.storage {
             case .edit(let upstream, let recipe, let mode):
-                let inputSize = try upstream.makeRenderPlan(
-                    profile: profile, derivative: nil, samplerDescriptorOverride: activeSamplerDescriptor, sources: sources
-                ).diagnostics.outputSize
+                guard let inputPlan else { preconditionFailure("上游规划必须先于当前节点完成。") }
+                let inputSize = inputPlan.diagnostics.outputSize
                 try descriptor.validateCompatibility(with: filter, inputSize: inputSize)
                 plan = try makeWrappedEditRenderPlan(
                     source: try upstream.resolvedPrimarySource(),
@@ -1694,9 +1840,8 @@ extension ImageNode: ImagePromise {
                 if let size = input.resolvedPlanningOutputSizeHint(profile: profile) {
                     inputSize = size
                 } else {
-                    inputSize = try input.makeRenderPlan(
-                        profile: profile, derivative: nil, samplerDescriptorOverride: activeSamplerDescriptor, sources: sources
-                    ).diagnostics.outputSize
+                    guard let inputPlan else { preconditionFailure("上游规划必须先于当前节点完成。") }
+                    inputSize = inputPlan.diagnostics.outputSize
                 }
                 try descriptor.validateCompatibility(with: filter, inputSize: inputSize)
                 let localPlan = RenderExecutionCompiler.compile(
@@ -1711,14 +1856,17 @@ extension ImageNode: ImagePromise {
                     imageGraph: optimization.graph,
                     graphOptimizationDecisions: optimization.decisions
                 ).plan
-                plan = localPlan.withSamplerExecutionCoverage(
-                    SamplerExecutionAdapter.merge(
-                        try input.resolvedSamplerExecutionCoverage(
-                            profile: profile,
-                            samplerDescriptor: activeSamplerDescriptor
-                        ),
-                        localPlan.diagnostics.samplerExecutionCoverage
+                let inputCoverage: SamplerExecutionCoverage
+                if let inputPlan {
+                    inputCoverage = inputPlan.diagnostics.samplerExecutionCoverage
+                } else {
+                    inputCoverage = try input.resolvedSamplerExecutionCoverage(
+                        profile: profile,
+                        samplerDescriptor: activeSamplerDescriptor
                     )
+                }
+                plan = localPlan.withSamplerExecutionCoverage(
+                    SamplerExecutionAdapter.merge(inputCoverage, localPlan.diagnostics.samplerExecutionCoverage)
                 )
             }
         case .transition(let recipe):
@@ -1755,20 +1903,15 @@ extension ImageNode: ImagePromise {
 
     private func makeEditRenderPlan(
         input: ImageNode,
+        inputPlan: RenderPlan,
         recipe: EditRecipe,
         mode: EditRecipeMode,
         profile: RenderProfile,
         derivative: ImageDerivativeSpec?,
         samplerDescriptor: ImageSamplerDescriptor,
-        optimization: ImageGraphOptimizationResult,
-        sources: ImageNodeSourcePreparation
+        optimization: ImageGraphOptimizationResult
     ) throws -> RenderPlan {
-        let inputSize = try input.makeRenderPlan(
-            profile: profile,
-            derivative: nil,
-            samplerDescriptorOverride: samplerDescriptor,
-            sources: sources
-        ).diagnostics.outputSize
+        let inputSize = inputPlan.diagnostics.outputSize
         return try makeWrappedEditRenderPlan(
             source: try input.resolvedPrimarySource(),
             inputSize: inputSize,
@@ -1785,18 +1928,10 @@ extension ImageNode: ImagePromise {
 
     private func makeCachePolicyRenderPlan(
         input: ImageNode,
+        innerPlan: RenderPlan,
         policy: ImageCachePolicy,
-        profile: RenderProfile,
-        derivative: ImageDerivativeSpec?,
-        samplerDescriptor: ImageSamplerDescriptor,
-        optimization: ImageGraphOptimizationResult,
-        sources: ImageNodeSourcePreparation
+        optimization: ImageGraphOptimizationResult
     ) throws -> RenderPlan {
-        let innerPlan = try input.makeRenderPlan(
-            profile: profile,
-            derivative: derivative,
-            samplerDescriptorOverride: samplerDescriptor, sources: sources
-        )
         return RenderPlan(
             graph: innerPlan.graph,
             profile: innerPlan.profile,
@@ -1820,18 +1955,10 @@ extension ImageNode: ImagePromise {
 
     private func makeSamplerDescriptorRenderPlan(
         input: ImageNode,
+        innerPlan: RenderPlan,
         descriptor: ImageSamplerDescriptor,
-        profile: RenderProfile,
-        derivative: ImageDerivativeSpec?,
-        optimization: ImageGraphOptimizationResult,
-        sources: ImageNodeSourcePreparation
+        optimization: ImageGraphOptimizationResult
     ) throws -> RenderPlan {
-        _ = HarbethContext.shared.makeSamplerState(descriptor)
-        let innerPlan = try input.makeRenderPlan(
-            profile: profile,
-            derivative: derivative,
-            samplerDescriptorOverride: descriptor, sources: sources
-        )
         return RenderPlan(
             graph: innerPlan.graph,
             profile: innerPlan.profile,

@@ -708,6 +708,98 @@ final class ImageNodeRecipeRouteTests: XCTestCase {
         XCTAssertEqual(pixel.alpha, 255)
     }
 
+    func testDeepMaskedEditChainRendersOnWorkerStackAndMatchesMaterializedStages() throws {
+        let input = try makeTexture(width: 4, height: 4, pixel: [64, 96, 128, 192])
+        let mask = MaskShapeRecipe.rectangle(
+            size: C7Size(width: 4, height: 4),
+            rect: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+            profile: .responseLatency
+        )
+        var node = ImageNode.texture(input)
+        for _ in 0..<16 {
+            node = try node.applying(mask: mask, filters: [C7Brightness(brightness: 0.005)])
+        }
+        let workItem = ColdMaskedEditRenderWorkItem(node: node)
+        let completion = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            defer { completion.signal() }
+            workItem.run()
+        }
+        // 深层蒙版必须在正常 worker 栈上执行，不能靠增大线程栈绕过准备阶段递归。
+        thread.stackSize = 512 * 1024
+        thread.start()
+
+        XCTAssertEqual(completion.wait(timeout: .now() + 30), .success)
+        let frame = try workItem.result().get()
+        var reference = try makeTexture(width: 4, height: 4, pixel: [64, 96, 128, 192])
+        var referenceFrames: [RenderedFrame] = []
+        for _ in 0..<16 {
+            let stage = try ImageNode.texture(reference)
+                .applying(mask: mask, filters: [C7Brightness(brightness: 0.005)])
+                .makeFrame(profile: .responseLatency)
+            referenceFrames.append(stage)
+            reference = stage.texture
+        }
+        try withExtendedLifetime(referenceFrames) {
+            let actualBytes = try XCTUnwrap(frame.texture.c7.bytes())
+            let referenceBytes = try XCTUnwrap(reference.c7.bytes())
+            XCTAssertEqual(actualBytes.count, referenceBytes.count)
+            for (actual, expected) in zip(actualBytes, referenceBytes) {
+                XCTAssertEqual(Double(actual), Double(expected), accuracy: 1)
+            }
+        }
+        XCTAssertEqual(frame.profile, .responseLatency)
+        XCTAssertEqual(frame.texture.width, 4)
+        XCTAssertEqual(frame.texture.height, 4)
+    }
+
+    func testWrappedDeepMaskedEditChainPreservesPixelsAndContractsOnWorkerStack() throws {
+        func makeNode() throws -> ImageNode {
+            let input = try makeTexture(width: 4, height: 4, pixel: [64, 96, 128, 192])
+            let mask = MaskShapeRecipe.rectangle(
+                size: C7Size(width: 4, height: 4),
+                rect: CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+                profile: .responseLatency
+            )
+            var node = ImageNode.texture(input)
+            for _ in 0..<16 {
+                node = try node.applying(mask: mask, filters: [C7Brightness(brightness: 0.005)])
+            }
+            return node
+        }
+        let reference = try makeNode().makeFrame(profile: .responseLatency)
+        let node = try makeNode()
+            .withCachePolicy(.persistent)
+            .withSamplerDescriptor(.nearest)
+            .applying(C7Contrast(contrast: 1))
+            .applyingWithContract(C7Brightness(brightness: 0))
+        let workItem = ColdMaskedEditRenderWorkItem(node: node)
+        let completion = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            defer { completion.signal() }
+            workItem.run()
+        }
+        thread.stackSize = 512 * 1024
+        thread.start()
+
+        XCTAssertEqual(completion.wait(timeout: .now() + 30), .success)
+        let frame = try workItem.result().get()
+        let actualBytes = try XCTUnwrap(frame.texture.c7.bytes())
+        let referenceBytes = try XCTUnwrap(reference.texture.c7.bytes())
+        XCTAssertEqual(actualBytes.count, referenceBytes.count)
+        for (actual, expected) in zip(actualBytes, referenceBytes) {
+            XCTAssertEqual(Double(actual), Double(expected), accuracy: 1)
+        }
+        XCTAssertEqual(frame.profile, .responseLatency)
+        let request = try node.makeRenderRequest(profile: .responseLatency)
+        // 内层采样 wrapper 保持其作用域，后续追加的 kernel 使用默认采样。
+        XCTAssertEqual(request.diagnostics.samplerDescriptor, .default)
+        let outerRequest = try node.withSamplerDescriptor(.nearest).makeRenderRequest(profile: .responseLatency)
+        XCTAssertEqual(outerRequest.diagnostics.samplerDescriptor, .nearest)
+        XCTAssertEqual(request.outputCachePolicy, .persistent)
+        XCTAssertEqual(frame.cachePolicy, .persistent)
+    }
+
     func testTransitionNodeHonorsOverrideProfileAndDerivativeAcrossPlanAndTexture() throws {
         let from = try makeTexture(width: 6, height: 4, pixel: [255, 0, 0, 255])
         let to = try makeTexture(width: 6, height: 4, pixel: [0, 0, 255, 255])

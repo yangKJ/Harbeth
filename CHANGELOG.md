@@ -8,6 +8,12 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-15
+
+#### Fixed
+
+- 深层 `ImageNode` 规划与执行准备改为迭代收集上游依赖，再自来源向输出装配，避免 Debug 后台小栈随局部效果链叠加大型准备栈帧；保留滤镜顺序、来源物化、缓存、采样和派生尺寸合同。
+
 ### 2026-11-11
 
 #### Added
