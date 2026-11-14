@@ -13,9 +13,11 @@ import Metal
 /// 这组类型属于执行层，不作为普通用户公开 API 暴露。
 struct GradientMask: C7FilterProtocol {
     let kind: MaskGradientKind
+    let normalizedRegion: CGRect
 
-    init(kind: MaskGradientKind) {
+    init(kind: MaskGradientKind, normalizedRegion: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) {
         self.kind = kind
+        self.normalizedRegion = normalizedRegion
     }
 
     var modifier: ModifierEnum {
@@ -75,7 +77,10 @@ struct GradientMask: C7FilterProtocol {
                 values[11 + index * 2] = stop.coverage
             }
         }
-        return values
+        return [
+            Float(normalizedRegion.origin.x), Float(normalizedRegion.origin.y),
+            Float(normalizedRegion.width), Float(normalizedRegion.height)
+        ] + values
     }
 }
 

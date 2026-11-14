@@ -10,10 +10,13 @@ using namespace metal;
 
 kernel void InnerGradientMask(texture2d<half, access::write> outputTexture [[texture(0)]],
                               texture2d<half, access::read> inputTexture [[texture(1)]],
-                              constant float *parameters [[buffer(0)]],
+                              constant float *gradientParameters [[buffer(0)]],
                               uint2 grid [[thread_position_in_grid]]) {
     const float2 size = float2(outputTexture.get_width(), outputTexture.get_height());
-    const float2 uv = (float2(grid) + 0.5f) / size;
+    const float2 tileUV = (float2(grid) + 0.5f) / size;
+    const float2 uv = float2(gradientParameters[0], gradientParameters[1])
+        + tileUV * float2(gradientParameters[2], gradientParameters[3]);
+    constant float *parameters = gradientParameters + 4;
     const float kind = parameters[0];
 
     float coverage = 0.0f;

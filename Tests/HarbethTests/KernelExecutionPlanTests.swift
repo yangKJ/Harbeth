@@ -450,8 +450,9 @@ final class KernelExecutionPlanTests: XCTestCase {
               case .floatArray(let multiStopValues) = multiStop.kernelParameterBindings.first?.value else {
             return XCTFail("渐变参数应保持单个 Float 数组绑定。")
         }
-        XCTAssertEqual(linearValues.count, 8)
-        XCTAssertEqual(multiStopValues.count, 16)
+        XCTAssertEqual(Array(linearValues.prefix(4)), [0, 0, 1, 1])
+        XCTAssertEqual(linearValues.count, 12)
+        XCTAssertEqual(multiStopValues.count, 20)
     }
 
     func testShortBasicFiltersKeepLightweightFactorsRoute() throws {

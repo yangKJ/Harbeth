@@ -9,6 +9,19 @@ import Metal
 
 final class MaskRecipeTests: XCTestCase {
 
+    func testGradientRegionPreservesWholeImageDefaultAndRejectsInvalidGeometry() throws {
+        let recipe = MaskGradientRecipe(
+            size: C7Size(width: 13, height: 7),
+            kind: .radial(center: CGPoint(x: 0.42, y: 0.57), startRadius: 0.1, endRadius: 0.6)
+        )
+        let whole = try MaskTestHelpers.bytes(in: recipe.makeTexture())
+        let explicitWhole = try MaskTestHelpers.bytes(in: recipe.makeTexture(in: CGRect(x: 0, y: 0, width: 1, height: 1)))
+        XCTAssertEqual(whole, explicitWhole)
+        for region in [CGRect.zero, CGRect(x: CGFloat.nan, y: 0, width: 1, height: 1), CGRect(x: 0, y: 0, width: CGFloat.infinity, height: 1)] {
+            XCTAssertThrowsError(try recipe.makeTexture(in: region))
+        }
+    }
+
     func testAdvancedGradientFamiliesRenderDistinctCoverage() throws {
         let ring = MaskGradientRecipe(
             size: C7Size(width: 5, height: 5),

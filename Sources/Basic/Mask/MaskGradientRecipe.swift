@@ -151,6 +151,16 @@ public struct MaskGradientRecipe {
     }
 
     public func makeTexture(pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture {
+        try makeTexture(in: CGRect(x: 0, y: 0, width: 1, height: 1), pixelFormat: pixelFormat)
+    }
+
+    /// 在整图归一化坐标的指定区域直接生成 tile，保留非等比区域与画布外 halo 的渐变几何。
+    public func makeTexture(in normalizedRegion: CGRect, pixelFormat: MTLPixelFormat = .rgba8Unorm) throws -> MTLTexture {
+        let regionValues = [normalizedRegion.origin.x, normalizedRegion.origin.y, normalizedRegion.width, normalizedRegion.height]
+        guard regionValues.allSatisfy({ $0.isFinite && Float($0).isFinite }),
+              normalizedRegion.width > 0, normalizedRegion.height > 0 else {
+            throw HarbethError.textureRegionInvalidReadRegion
+        }
         let seed = try TextureLoader.makeTexture(
             width: max(size.width, 1),
             height: max(size.height, 1),
@@ -159,7 +169,7 @@ public struct MaskGradientRecipe {
         )
         return try HarbethIO(
             element: seed,
-            filter: GradientMask(kind: kind)
+            filter: GradientMask(kind: kind, normalizedRegion: normalizedRegion)
         )
         .configured(for: profile)
         .output()
