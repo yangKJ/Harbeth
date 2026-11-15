@@ -875,16 +875,7 @@ extension TextureLoader {
     }
 
     static func preferredPixelFormat(for cgImage: CGImage) -> MTLPixelFormat {
-        if cgImage.bitsPerComponent > 8 || cgImage.bitmapInfo.contains(.floatComponents) {
-            return .rgba16Float
-        }
-        guard let colorSpace = cgImage.colorSpace else { return .rgba8Unorm }
-        switch ImageColorSpaceContract(colorSpace: colorSpace).dynamicRange {
-        case .extendedDynamicRange, .highDynamicRange:
-            return .rgba16Float
-        case .preserveInput, .standardDynamicRange, .custom:
-            return .rgba8Unorm
-        }
+        ImageRasterPlan.requiresHighPrecision(cgImage) ? .rgba16Float : .rgba8Unorm
     }
 
     private static func preferredPixelFormat(for ciImage: CIImage) -> MTLPixelFormat {

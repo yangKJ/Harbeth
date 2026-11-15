@@ -15,6 +15,8 @@ Harbeth 支持 `UIImage` / `NSImage`、`CGImage`、`CIImage`、`MTLTexture`、`C
 
 它是产品内部的渲染底座，而不是产品工作流：交互、媒体生命周期、持久化与产品策略由宿主决定；Harbeth 负责把单张图像或单帧描述转成具有明确输出语义的 GPU 渲染结果。
 
+`ImageRasterPlan` 提供不降级为8-bit、不丢弃alpha的严格RGB CPU位图适配；纹理上传共用精度判断，保留自己的空间回退、行对齐和缓冲初始化。
+
 [English](README.md) | 简体中文
 
 ## 环境要求
