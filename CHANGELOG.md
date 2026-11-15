@@ -12,6 +12,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Added
 
+- Added `ProjectiveTransform` for explicit double-precision projective mapping/inversion and `ImageDifferenceStatistics` for aligned RGBA8 byte-domain difference summaries; consumer fallback and display policies remain outside the engine.
 - `MaskGradientRecipe.makeTexture(in:pixelFormat:)` 可在整图归一化区域直接生成 GPU 渐变 tile，支持非等比区域与画布外 halo；默认整图入口保持原坐标与像素格式。
 
 #### Changed
