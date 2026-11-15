@@ -6,6 +6,25 @@
 //
 import Foundation
 
+/// 有界缓存既有 POSIX 格式的纯数值映射，保留舍入、正负零与非有限值的完整字节。
+final class RecipeFloatDescriptionCache: @unchecked Sendable {
+    static let shared = RecipeFloatDescriptionCache()
+    private let lock = NSLock()
+    private var descriptions: [UInt32: String] = [:]
+
+    func description(for value: Float) -> String {
+        let key = value.bitPattern
+        if let cached = lock.withLock({ descriptions[key] }) { return cached }
+        let description = String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+        return lock.withLock {
+            if let cached = descriptions[key] { return cached }
+            if descriptions.count >= 1024 { descriptions.removeAll(keepingCapacity: true) }
+            descriptions[key] = description
+            return description
+        }
+    }
+}
+
 struct FilterRecipeDescriptor: Sendable, Hashable, Codable {
     let stableTypeID: String
     let modifier: String
@@ -215,7 +234,7 @@ extension C7FilterProtocol {
     }
 
     static func stableFloatDescription(_ value: Float) -> String {
-        String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+        RecipeFloatDescriptionCache.shared.description(for: value)
     }
 }
 

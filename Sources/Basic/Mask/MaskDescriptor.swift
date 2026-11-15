@@ -9,7 +9,7 @@ import Foundation
 import Metal
 
 private func stableRecipeFloatDescription(_ value: Float) -> String {
-    String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+    RecipeFloatDescriptionCache.shared.description(for: value)
 }
 
 public enum MaskComponent: Int, Sendable, Codable, Equatable, Hashable {

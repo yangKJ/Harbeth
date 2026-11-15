@@ -9,6 +9,66 @@ import Metal
 
 final class MaskFingerprintTests: XCTestCase {
 
+    func testScalarFingerprintCachePreservesLegacyBytesAcrossEviction() {
+        var values: [Float] = [
+            0, -0.0, .infinity, -.infinity, .nan, .leastNonzeroMagnitude,
+            -.leastNonzeroMagnitude, .leastNormalMagnitude, .greatestFiniteMagnitude,
+            Float(bitPattern: 0x7f800001), Float(bitPattern: 0xffc00001)
+        ]
+        for center: Float in [-1000000, -1, -0.000001, 0, 0.000001, 1, 1000000] {
+            for offset: Float in [-0.0000005, 0, 0.0000005] {
+                let value = center + offset
+                values += [value.nextDown, value, value.nextUp]
+            }
+        }
+        var state: UInt32 = 237871326
+        for _ in 0..<4096 {
+            state = state &* 1664525 &+ 1013904223
+            values.append(Float(bitPattern: state))
+        }
+
+        let cache = RecipeFloatDescriptionCache()
+        for _ in 0..<2 {
+            for value in values {
+                let expected = String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+                XCTAssertEqual(Array(cache.description(for: value).utf8), Array(expected.utf8), "bits=\(value.bitPattern)")
+            }
+        }
+    }
+
+    func testMaskAndFilterScalarFingerprintsKeepLegacyFormat() {
+        for value: Float in [0, -0.0, 0.1234565, 1, .infinity, -.infinity, .nan] {
+            let scalar = String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
+            let descriptor = MaskCompositeStepDescriptor(
+                name: "step",
+                component: .red,
+                blendMode: .add,
+                invert: false,
+                opacity: value,
+                featherAmount: value,
+                gradient: nil,
+                shape: nil,
+                path: nil
+            )
+            let expected = "name=step,component=1,blend=2,invert=0,opacity=\(scalar),feather=\(scalar)"
+            XCTAssertEqual(descriptor.fingerprint, expected)
+            XCTAssertEqual(C7Exposure.stableFloatDescription(value), scalar)
+        }
+    }
+
+    func testConcurrentScalarFingerprintCacheMatchesLegacyBytes() {
+        let cache = RecipeFloatDescriptionCache()
+        let samples = (0..<512).map { index -> (Float, String) in
+            let value = Float(index - 256) / 63
+            return (value, String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value))
+        }
+        DispatchQueue.concurrentPerform(iterations: 16) { _ in
+            for (value, expected) in samples {
+                XCTAssertEqual(cache.description(for: value), expected)
+            }
+        }
+    }
+
     func testMaskCompositeRecipeStepFingerprintTracksNamedOperations() throws {
         let baseMask = try MaskTestHelpers.makeTexture(pixel: [0, 0, 0, 255])
         let addMask = try MaskTestHelpers.makeTexture(pixel: [64, 0, 0, 255])
