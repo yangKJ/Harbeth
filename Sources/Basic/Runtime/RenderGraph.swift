@@ -226,6 +226,8 @@ struct RenderStage: Sendable, Codable, Equatable, Hashable {
     let containsLocalEffectComposite: Bool
     let containsTransitionKernel: Bool
     let containsDerivativeResize: Bool
+    var temporaryTextureBytes: Int = 0
+    var temporaryTextureCount: Int = 0
 }
 
 struct RenderNodeDiagnostic: Sendable, Codable, Equatable, Hashable {
@@ -1020,7 +1022,7 @@ enum GraphOptimizer {
         imageCachePolicy: ImageCachePolicy = .transient,
         inputPixelFormat: PixelFormatContract = .preserveInput
     ) -> RenderOptimizationPlan {
-        let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0)
+        let intermediateTextureCount = max(nodeDiagnostics.count - 1, 0) + stages.reduce(0) { $0 + $1.temporaryTextureCount }
         let formatConversionCount = outputContract.requiresPixelFormatConversion ? 1 : 0
         var readbackBoundaryCount = 0
         var destinationTextureCreationCount = 0
@@ -1049,7 +1051,7 @@ enum GraphOptimizer {
             inputPixelFormat: inputPixelFormat
         )
         var reusableTextureCount = 0
-        var estimatedTransientByteCount = 0
+        var estimatedTransientByteCount = stages.reduce(0) { $0 + $1.temporaryTextureBytes }
         var estimatedPersistentByteCount = 0
         for decision in lifecycleDecisions {
             if decision.action == .reuseTransient { reusableTextureCount += 1 }
@@ -1320,6 +1322,10 @@ enum GraphOptimizer {
             let outputSize = diagnostics.last?.outputSize ?? inputSize
             let kinds = stageNodes.map(\.kind)
             let mergeClasses = Set(stageNodes.compactMap(mergeClass(for:)))
+            let temporary = stageNodes.reduce((bytes: 0, count: 0)) { sum, node in
+                let requirement = (node.filter as? TemporaryTextureRequirementProviding)?.temporaryTextureRequirement(inputSize: inputSize) ?? (0, 0)
+                return (sum.bytes + requirement.0, sum.count + requirement.1)
+            }
             stages.append(
                 RenderStage(
                     index: stages.count,
@@ -1342,7 +1348,9 @@ enum GraphOptimizer {
                     },
                     containsLocalEffectComposite: stageNodes.contains(where: { $0.filter is MaskRegionBlend }),
                     containsTransitionKernel: stageNodes.contains(where: { $0.filter is TransitionKernel }),
-                    containsDerivativeResize: diagnostics.contains(where: { $0.name == "DerivativeResize" })
+                    containsDerivativeResize: diagnostics.contains(where: { $0.name == "DerivativeResize" }),
+                    temporaryTextureBytes: temporary.bytes,
+                    temporaryTextureCount: temporary.count
                 )
             )
             currentNodeIndices.removeAll(keepingCapacity: true)

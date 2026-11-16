@@ -63,18 +63,38 @@ final class TexturePool: @unchecked Sendable {
         }
     }
 
+    private struct SizeBucket: Hashable {
+        let format: MTLPixelFormat
+        let x: Int
+        let y: Int
+    }
+
+    private final class CacheEntry: Hashable {
+        let key: TextureDescriptorContract
+        var textures: [MTLTexture] = []
+        weak var previous: CacheEntry?
+        var next: CacheEntry?
+
+        init(key: TextureDescriptorContract) { self.key = key }
+        static func == (lhs: CacheEntry, rhs: CacheEntry) -> Bool { lhs === rhs }
+        func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
+    }
+
     private let maxMemoryUsage: Int
     private let device: MTLDevice
     private let sizeTolerance = 8
     private let queue = DispatchQueue(label: "com.harbeth.texturepool.concurrent", attributes: .concurrent)
-    private var cache: [TextureDescriptorContract: [MTLTexture]] = [:]
-    private var accessQueue: [TextureDescriptorContract] = []
+    private var cache: [TextureDescriptorContract: CacheEntry] = [:]
+    private var oldestEntry: CacheEntry?
+    private var newestEntry: CacheEntry?
+    private var sizeBuckets: [SizeBucket: Set<CacheEntry>]?
     private var textureToKey: [ObjectIdentifier: TextureDescriptorContract] = [:]
-    private var commonResolutions: Set<TextureDescriptorContract> = []
     private var directCachedMemoryUsage = 0
     private var heaps: [HeapKey: [MTLHeap]] = [:]
     private var knownHeapIdentifiers: Set<ObjectIdentifier> = []
     private var statisticsStorage = TexturePoolStatistics()
+
+    var byteLimit: Int { maxMemoryUsage }
 
     #if os(macOS)
     private var memoryPressureSource: DispatchSourceMemoryPressure?
@@ -124,6 +144,7 @@ final class TexturePool: @unchecked Sendable {
     }
 
     deinit {
+        for entry in cache.values { entry.previous = nil; entry.next = nil }
         #if os(iOS) || os(tvOS)
         NotificationCenter.default.removeObserver(self)
         #elseif os(macOS)
@@ -152,15 +173,10 @@ final class TexturePool: @unchecked Sendable {
                 statisticsStorage.totalTexturesCreated += 1
                 return nil
             }
-            for key in commonResolutions where key.isCompatible(with: requestedKey, sizeTolerance: sizeTolerance) {
-                if let texture = popFromCacheLocked(for: key) {
-                    recordReuseLocked(texture)
-                    return texture
-                }
-            }
-            for (key, textures) in cache where !textures.isEmpty && key.isCompatible(with: requestedKey, sizeTolerance: sizeTolerance) {
-                if let texture = popFromCacheLocked(for: key) {
-                    commonResolutions.insert(key)
+            for entry in candidateEntriesLocked(width: descriptor.width, height: descriptor.height,
+                                            pixelFormat: descriptor.pixelFormat, tolerance: sizeTolerance)
+                where entry.key.isCompatible(with: requestedKey, sizeTolerance: sizeTolerance) {
+                if let texture = popEntryLocked(entry) {
                     recordReuseLocked(texture)
                     return texture
                 }
@@ -344,14 +360,11 @@ final class TexturePool: @unchecked Sendable {
                                       pixelFormat: MTLPixelFormat,
                                       allowsSizeTolerance: Bool) -> MTLTexture? {
         queue.sync(flags: .barrier) {
-            let candidates = cache.keys.filter { key in
-                key.pixelFormat == pixelFormat &&
-                (allowsSizeTolerance
-                    ? abs(key.width - width) <= sizeTolerance && abs(key.height - height) <= sizeTolerance
-                    : key.width == width && key.height == height)
-            }
-            for key in candidates {
-                if let texture = popFromCacheLocked(for: key) {
+            let tolerance = allowsSizeTolerance ? sizeTolerance : 0
+            let candidates = candidateEntriesLocked(width: width, height: height, pixelFormat: pixelFormat, tolerance: tolerance)
+                .filter { abs($0.key.width - width) <= tolerance && abs($0.key.height - height) <= tolerance }
+            for entry in candidates {
+                if let texture = popEntryLocked(entry) {
                     recordReuseLocked(texture)
                     return texture
                 }
@@ -375,12 +388,11 @@ final class TexturePool: @unchecked Sendable {
                 descriptor.usage = [.shaderRead, .shaderWrite]
                 descriptor.storageMode = .shared
                 let key = TextureDescriptorContract(descriptor: descriptor)
-                let neededCount = max(request.count - (self.cache[key]?.count ?? 0), 0)
+                let neededCount = max(request.count - (self.cache[key]?.textures.count ?? 0), 0)
                 for _ in 0..<neededCount {
                     guard let texture = self.device.makeTexture(descriptor: descriptor) else { continue }
                     self.enqueueTextureLocked(texture)
                 }
-                self.commonResolutions.insert(key)
             }
         }
         if synchronously {
@@ -401,35 +413,37 @@ final class TexturePool: @unchecked Sendable {
         let additionalBytes = texture.heap == nil ? allocatedByteSize(of: texture) : 0
         guard reserveBudgetLocked(additionalBytes: additionalBytes) else { return }
         // 预算回收可能移除同一个键，因此在回收后判断是否需要追加访问记录。
-        let isNewKey = cache[key] == nil
-        cache[key, default: []].append(texture)
-        textureToKey[oid] = key
-        if isNewKey {
-            accessQueue.append(key)
+        let entry: CacheEntry
+        if let existing = cache[key] {
+            entry = existing
+        } else {
+            entry = CacheEntry(key: key)
+            cache[key] = entry
+            appendAccessLocked(entry)
+            sizeBuckets?[bucket(for: key), default: []].insert(entry)
         }
+        entry.textures.append(texture)
+        textureToKey[oid] = key
         directCachedMemoryUsage += additionalBytes
         statisticsStorage.currentTextureCount += 1
         updateStatisticsLocked()
     }
 
     private func popFromCacheLocked(for key: TextureDescriptorContract) -> MTLTexture? {
-        // 字典与访问队列同步增删；不存在的键无需扫描访问队列。
-        guard var textures = cache[key] else { return nil }
-        guard let texture = textures.popLast() else {
-            cache[key] = nil
-            accessQueue.removeAll { $0 == key }
+        guard let entry = cache[key] else { return nil }
+        return popEntryLocked(entry)
+    }
+
+    private func popEntryLocked(_ entry: CacheEntry) -> MTLTexture? {
+        guard let texture = entry.textures.popLast() else {
+            removeEntryLocked(entry)
             return nil
         }
-        if textures.isEmpty {
-            cache[key] = nil
-            accessQueue.removeAll { $0 == key }
-            commonResolutions.remove(key)
-        } else {
-            cache[key] = textures
-            if accessQueue.last != key {
-                accessQueue.removeAll { $0 == key }
-                accessQueue.append(key)
-            }
+        if entry.textures.isEmpty {
+            removeEntryLocked(entry)
+        } else if newestEntry !== entry {
+            removeAccessLocked(entry)
+            appendAccessLocked(entry)
         }
         textureToKey.removeValue(forKey: ObjectIdentifier(texture))
         if texture.heap == nil {
@@ -438,6 +452,58 @@ final class TexturePool: @unchecked Sendable {
         statisticsStorage.currentTextureCount = max(statisticsStorage.currentTextureCount - 1, 0)
         updateStatisticsLocked()
         return texture
+    }
+
+    // 尺寸桶只缩小候选集合；descriptor 路径仍逐一校验完整合同。
+    private func bucket(for key: TextureDescriptorContract) -> SizeBucket {
+        SizeBucket(format: key.pixelFormat, x: key.width / (sizeTolerance + 1), y: key.height / (sizeTolerance + 1))
+    }
+
+    private func candidateEntriesLocked(width: Int, height: Int, pixelFormat: MTLPixelFormat, tolerance: Int) -> [CacheEntry] {
+        guard width > 0, height > 0 else { return [] }
+        let side = sizeTolerance + 1
+        let maxX = (width > Int.max - tolerance ? Int.max : width + tolerance) / side
+        let maxY = (height > Int.max - tolerance ? Int.max : height + tolerance) / side
+        // 精确合同命中无需尺寸索引；首次尺寸查询才构建，避免常规帧额外记账。
+        if sizeBuckets == nil {
+            var index: [SizeBucket: Set<CacheEntry>] = [:]
+            for entry in cache.values { index[bucket(for: entry.key), default: []].insert(entry) }
+            sizeBuckets = index
+        }
+        var entries: [CacheEntry] = []
+        for x in max(width - tolerance, 0) / side...maxX {
+            for y in max(height - tolerance, 0) / side...maxY {
+                if let candidates = sizeBuckets?[SizeBucket(format: pixelFormat, x: x, y: y)] {
+                    entries.append(contentsOf: candidates)
+                }
+            }
+        }
+        return entries
+    }
+
+    private func appendAccessLocked(_ entry: CacheEntry) {
+        entry.previous = newestEntry
+        newestEntry?.next = entry
+        if oldestEntry == nil { oldestEntry = entry }
+        newestEntry = entry
+    }
+
+    private func removeAccessLocked(_ entry: CacheEntry) {
+        if let previous = entry.previous { previous.next = entry.next } else { oldestEntry = entry.next }
+        if let next = entry.next { next.previous = entry.previous } else { newestEntry = entry.previous }
+        entry.previous = nil
+        entry.next = nil
+    }
+
+    private func removeEntryLocked(_ entry: CacheEntry) {
+        cache[entry.key] = nil
+        removeAccessLocked(entry)
+        if sizeBuckets != nil {
+            let index = bucket(for: entry.key)
+            sizeBuckets?[index]?.remove(entry)
+            if sizeBuckets?[index]?.isEmpty == true { sizeBuckets?[index] = nil }
+            if cache.isEmpty { sizeBuckets = nil }
+        }
     }
 
     private func recordReuseLocked(_ texture: MTLTexture) {
@@ -455,24 +521,17 @@ final class TexturePool: @unchecked Sendable {
     }
 
     private func evictOldestTextureLocked() -> Bool {
-        guard let oldestKey = accessQueue.first,
-              var textures = cache[oldestKey],
-              let texture = textures.popLast() else {
-            accessQueue.removeFirst(min(accessQueue.count, 1))
-            return false
-        }
+        guard let entry = oldestEntry, let texture = entry.textures.popLast() else { return false }
         textureToKey.removeValue(forKey: ObjectIdentifier(texture))
         if texture.heap == nil {
             directCachedMemoryUsage = max(directCachedMemoryUsage - allocatedByteSize(of: texture), 0)
         }
         statisticsStorage.currentTextureCount = max(statisticsStorage.currentTextureCount - 1, 0)
-        accessQueue.removeFirst()
-        if textures.isEmpty {
-            cache[oldestKey] = nil
-            commonResolutions.remove(oldestKey)
+        if entry.textures.isEmpty {
+            removeEntryLocked(entry)
         } else {
-            cache[oldestKey] = textures
-            accessQueue.append(oldestKey)
+            removeAccessLocked(entry)
+            appendAccessLocked(entry)
         }
         return true
     }
@@ -507,7 +566,7 @@ final class TexturePool: @unchecked Sendable {
 
     private func purgeLeastUsedTextures() {
         queue.async(flags: .barrier) {
-            let releaseCount = min(max(self.accessQueue.count / 2, 1), self.accessQueue.count)
+            let releaseCount = min(max(self.cache.count / 2, 1), self.cache.count)
             for _ in 0..<releaseCount {
                 _ = self.evictOldestTextureLocked()
             }
@@ -521,10 +580,13 @@ final class TexturePool: @unchecked Sendable {
     }
 
     private func purgeAllTexturesLocked() {
+        // 清空时主动断链，避免大量键集中释放时递归销毁整条链。
+        for entry in cache.values { entry.previous = nil; entry.next = nil }
         cache.removeAll()
-        accessQueue.removeAll()
+        oldestEntry = nil
+        newestEntry = nil
+        sizeBuckets = nil
         textureToKey.removeAll()
-        commonResolutions.removeAll()
         directCachedMemoryUsage = 0
         removeEmptyHeapsLocked()
         statisticsStorage.currentTextureCount = 0
@@ -533,7 +595,7 @@ final class TexturePool: @unchecked Sendable {
 
     private func resetStatisticsLocked() {
         statisticsStorage = TexturePoolStatistics()
-        statisticsStorage.currentTextureCount = cache.values.reduce(0) { $0 + $1.count }
+        statisticsStorage.currentTextureCount = cache.values.reduce(0) { $0 + $1.textures.count }
         updateStatisticsLocked()
     }
 

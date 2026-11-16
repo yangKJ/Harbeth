@@ -22,7 +22,7 @@ static bool analysisAccept(float4 c, uint2 q, texture2d<float, access::read> sou
                       uint2(mask.get_width() - 1, mask.get_height() - 1));
         if (mask.read(m).r < p[6]) return false;
     }
-    float lum = c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f;
+    float lum = fma(c.r, 0.2126f, fma(c.g, 0.7152f, c.b * 0.0722f));
     if (p[7] != 0 && !(lum >= p[8] && lum <= p[9])) return false;
     if (p[10] != 0 || p[14] != 0 || p[18] != 0) {
         float high = max(c.r, max(c.g, c.b)), low = min(c.r, min(c.g, c.b));
@@ -65,7 +65,7 @@ kernel void AnalysisStatisticsBlocks(texture2d<float, access::read> source [[tex
         float4 c = analysisColor(source, q, p);
         if (analysisAccept(c, q, source, mask, p)) {
             if (all(isfinite(c))) {
-                float lum = c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f;
+                float lum = fma(c.r, 0.2126f, fma(c.g, 0.7152f, c.b * 0.0722f));
                 a.color = c; a.metrics = float4(lum, lum, lum, 0); a.counts.x = 1;
             } else a.counts.y = 1;
         }
@@ -95,7 +95,7 @@ static void analysisScopedHistogram(texture2d<float, access::read> source,
         uint2 q = uint2(p[0], p[1]) + uint2(index % width, index / width);
         float4 c = analysisColor(source, q, p);
         if (analysisAccept(c, q, source, mask, p)) {
-            float value = p[24] == 0 ? (c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f) : c[uint(p[24]) - 1];
+            float value = p[24] == 0 ? fma(c.r, 0.2126f, fma(c.g, 0.7152f, c.b * 0.0722f)) : c[uint(p[24]) - 1];
             float normalized = clamp(precise::divide(value - p[22], p[23] - p[22]), 0.0f, 1.0f);
             if (isfinite(value) && isfinite(normalized)) {
                 uint bin = min(uint(floor(normalized * float(count - 1) + 0.5f)), count - 1);

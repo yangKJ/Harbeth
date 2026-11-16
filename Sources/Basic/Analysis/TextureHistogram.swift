@@ -350,7 +350,7 @@ public extension MTLTextureCompatible_ {
                     let green = color.y
                     let blue = color.z
                     let alpha = color.w
-                    let luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
+                    let luminance = analysisRec709Luminance(red, green, blue)
                     if let luminanceRange, luminanceRange.contains(luminance) == false {
                         continue
                     }
@@ -475,7 +475,7 @@ struct MaskCoverageSample {
             case .blue:
                 return blue
             case .luminance:
-                return red * 0.2126 + green * 0.7152 + blue * 0.0722
+                return analysisRec709Luminance(red, green, blue)
             }
         }()
         let adjustedValue = invert ? 1 - baseValue : baseValue

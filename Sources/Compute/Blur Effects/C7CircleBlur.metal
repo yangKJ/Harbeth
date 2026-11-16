@@ -8,37 +8,34 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7CircleBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
-                         texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7CircleBlur(texture2d<float, access::write> outputTexture [[texture(0)]],
+                         texture2d<float, access::read> inputTexture [[texture(1)]],
                          constant float *blurRadius [[buffer(0)]],
                          constant float *sampleCountPointer [[buffer(1)]],
                          uint2 grid [[thread_position_in_grid]]) {
-    const float2 textureCoordinate = float2(grid) / float2(outputTexture.get_width(), outputTexture.get_height());
-    const half radius = half(*blurRadius) / 100.0h;
-    const half sampleCount = half(*sampleCountPointer);
-    const float width = float(inputTexture.get_width());
-    const float height = float(inputTexture.get_height());
-    
-    half4 result = half4(0.0h);
-    for (int i = 0; i < sampleCount; ++i) {
-        float fraction = float(i) / sampleCount;
-        float x = textureCoordinate.x;
-        float y = textureCoordinate.y;
-        float angle = fraction * M_PI_F * 2;
-        x += cos(angle) * radius;
-        y += sin(angle) * radius;
-        
-        // Convert normalized coordinates to pixel coordinates
-        float2 coord = float2(x, y) * float2(width, height);
-        uint2 pixel = uint2(coord.x, coord.y);
-        // Clamp to texture bounds
-        pixel.x = clamp(pixel.x, 0u, inputTexture.get_width() - 1u);
-        pixel.y = clamp(pixel.y, 0u, inputTexture.get_height() - 1u);
-        
-        const half4 sample = inputTexture.read(pixel);
-        result += sample;
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float2 extent = float2(inputTexture.get_width(), inputTexture.get_height());
+    float2 base = float2(grid);
+    if (inputTexture.get_width() != outputTexture.get_width() || inputTexture.get_height() != outputTexture.get_height()) {
+        base = precise::divide(float2(grid), float2(outputTexture.get_width(), outputTexture.get_height())) * extent;
     }
-    
-    const half4 outColor = result / sampleCount;
-    outputTexture.write(outColor, grid);
+    const uint2 center = uint2(clamp(base, float2(0), extent - 1));
+    // 保留旧 half 参数能表示的有效样本范围，不再让非法值进入整数转换。
+    if (!isfinite(*blurRadius) || !isfinite(*sampleCountPointer) || *blurRadius <= 0 ||
+        *sampleCountPointer < 1 || *sampleCountPointer > 65504) {
+        outputTexture.write(inputTexture.read(center), grid);
+        return;
+    }
+    const float radius = float(half(*blurRadius) / 100.0h);
+    if (!isfinite(radius)) { outputTexture.write(inputTexture.read(center), grid); return; }
+    const uint sampleCount = uint(*sampleCountPointer);
+    const float inverseCount = precise::divide(1.0f, float(sampleCount));
+    float4 result = 0;
+    for (uint i = 0; i < sampleCount; ++i) {
+        float angle = float(i) * inverseCount * M_PI_F * 2;
+        float2 position = base + float2(cos(angle), sin(angle)) * radius * extent;
+        uint2 pixel = uint2(clamp(position, float2(0), extent - 1));
+        result += inputTexture.read(pixel) * inverseCount;
+    }
+    outputTexture.write(result, grid);
 }

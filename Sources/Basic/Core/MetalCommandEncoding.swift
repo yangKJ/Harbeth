@@ -156,6 +156,11 @@ public struct MetalCommandEncodingContext {
     }
 }
 
+/// 内部多 pass 的额外表面需求，用于规划阶段的资源准入。
+protocol TemporaryTextureRequirementProviding {
+    func temporaryTextureRequirement(inputSize: C7Size) -> (bytes: Int, count: Int)
+}
+
 /// When the standard compute/render/blit/MPS and `C7FilterPipelineProtocol` cannot be expressed,
 /// Allow the filter to take over the bottom escape of the command buffer encoding once.
 ///

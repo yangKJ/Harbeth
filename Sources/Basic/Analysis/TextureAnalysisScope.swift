@@ -8,6 +8,12 @@
 import Foundation
 import Metal
 
+// Condy：Analysis 统一使用与 Metal 相同顺序的 Rec709 存储域亮度计算。
+@inline(__always)
+internal func analysisRec709Luminance(_ red: Float, _ green: Float, _ blue: Float) -> Float {
+    (blue * 0.0722).addingProduct(green, 0.7152).addingProduct(red, 0.2126)
+}
+
 public enum TextureToneBand: String, Sendable, Codable, Equatable, Hashable {
     case shadows
     case midtones
