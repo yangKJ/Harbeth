@@ -8,32 +8,9 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// 高斯模糊函数
-float4 gaussianBlur(texture2d<half, access::read> texture, int2 position, float blurRadius, int2 size) {
-    float4 color = float4(0.0);
-    float totalWeight = 0.0;
-    
-    // 计算高斯核大小
-    int kernelSize = int(ceil(blurRadius * 10.0));
-    
-    for (int x = -kernelSize; x <= kernelSize; x++) {
-        for (int y = -kernelSize; y <= kernelSize; y++) {
-            // 计算高斯权重
-            float distance = sqrt(float(x * x + y * y));
-            float weight = exp(-(distance * distance) / (2.0 * blurRadius * blurRadius));
-            
-            // 计算采样位置
-            const int2 samplePos = clamp(position + int2(x, y), int2(0), size - 1);
-            color += float4(texture.read(uint2(samplePos))) * weight;
-            totalWeight += weight;
-        }
-    }
-    
-    return color / totalWeight;
-}
-
-kernel void C7TiltShift(texture2d<half, access::write> outputTexture [[texture(0)]],
-                      texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7TiltShiftComposite(texture2d<float, access::write> outputTexture [[texture(0)]],
+                      texture2d<float, access::read> inputTexture [[texture(1)]],
+                      texture2d<float, access::read> blurredTexture [[texture(2)]],
                       constant float *blurRadius [[buffer(0)]],
                       constant float *center [[buffer(1)]],
                       constant float *size [[buffer(2)]],
@@ -48,6 +25,9 @@ kernel void C7TiltShift(texture2d<half, access::write> outputTexture [[texture(0
     const float2 globalPixel = float2(grid) + outputRegion.xy;
     const float2 logicalSize = max(outputRegion.zw, float2(1.0));
     
+    if (!isfinite(*blurRadius) || *blurRadius <= 0 || !isfinite(*center) || !isfinite(*size) || !isfinite(*transition)) {
+        outputTexture.write(inColor, grid); return;
+    }
     float blurAmount = *blurRadius;
     float centerPoint = *center;
     float clearSize = *size;
@@ -85,9 +65,26 @@ kernel void C7TiltShift(texture2d<half, access::write> outputTexture [[texture(0
         }
     }
     
-    // 应用模糊
-    float4 blurredColor = gaussianBlur(inputTexture, int2(grid), blurAmount * 10.0, textureSize);
+    float4 blurredColor = float4(blurredTexture.read(grid));
     float4 finalColor = mix(inColor, blurredColor, blurStrength * blurAmount);
     
-    outputTexture.write(half4(finalColor), grid);
+    outputTexture.write(finalColor, grid);
+}
+
+kernel void C7TiltShiftPass(texture2d<half, access::write> outputTexture [[texture(0)]],
+                      texture2d<half, access::read> inputTexture [[texture(1)]],
+                      constant float *blurRadius [[buffer(0)]], constant float *horizontal [[buffer(1)]], constant float *weights [[buffer(2)]],
+                      uint2 grid [[thread_position_in_grid]]) {
+    if (!isfinite(*blurRadius)) { outputTexture.write(inputTexture.read(grid), grid); return; }
+    int radius = int(ceil(clamp(*blurRadius * 100.0f, 0.0f, 100.0f)));
+    if (radius == 0) { outputTexture.write(inputTexture.read(grid), grid); return; }
+    float4 sum = float4(0.0f); float total = 0.0f;
+    int2 size = int2(inputTexture.get_width(), inputTexture.get_height());
+    for (int i = -radius; i <= radius; ++i) {
+        int2 p = int2(grid) + ((*horizontal > 0.5f) ? int2(i, 0) : int2(0, i));
+        p = clamp(p, int2(0), size - 1);
+        float w = weights[i + radius];
+        sum += float4(inputTexture.read(uint2(p))) * w; total += w;
+    }
+    outputTexture.write(half4(sum / total), grid);
 }

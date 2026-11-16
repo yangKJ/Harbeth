@@ -15,7 +15,8 @@ public enum SpatialSamplingMode: Int, Codable, Sendable, CaseIterable {
     case nearest = 0
     /// Always use linear filtering.
     case linear = 1
-    /// Prefer orthogonal high-quality sampling when available, otherwise linear.
+    /// 优先高质量正交采样，其余路径使用线性采样。
+    /// C7Transform 与四角透视缩小时增加最多 16×16 次面积采样；不承诺任意缩比严格带限。
     case adaptive = 2
 }
 

@@ -388,6 +388,8 @@ extension ImageNode {
         case .source(let source):
             renderRecipe = try makeRenderRecipe(profile: profile, derivative: effectiveDerivative, preparedPlan: plan, sources: sources)
             renderTextureClosure = {
+                if let io = try source.planeAwareIO(filters: [], profile: profile, identifier: executionIdentifier ?? "ImageNode.Source",
+                                                   derivative: effectiveDerivative) { return try io.output() }
                 let texture = try sources.texture(for: source)
                 return try ImageNode.applyDerivativeResize(
                     texture,
@@ -421,18 +423,30 @@ extension ImageNode {
                 preparedPlan: plan
             )
             renderTextureClosure = {
+                if case .source(let source) = input.storage,
+                   let io = try source.planeAwareIO(filters: program.filters, profile: profile, identifier: executionIdentifier ?? "ImageNode.PreparedFilters") {
+                    return try io.output()
+                }
                 let inputTexture = try preparedInput.renderTexture()
                 let io = HarbethIO<MTLTexture>(element: inputTexture, filters: filters, identifier: executionIdentifier ?? "ImageNode.PreparedFilters").configured(for: profile)
                 return try io.executeRenderProgram(input: inputTexture, program: program)
             }
             if case .source(let source) = input.storage {
                 renderManagedTextureClosure = {
+                    if let io = try source.planeAwareIO(filters: program.filters, profile: profile, identifier: executionIdentifier ?? "ImageNode.PreparedFilters") {
+                        return try io.renderManagedTexture()
+                    }
                     let inputTexture = try sources.texture(for: source)
                     let io = HarbethIO<MTLTexture>(element: inputTexture, filters: filters, identifier: executionIdentifier ?? "ImageNode.PreparedFilters").configured(for: profile)
                     return try io.renderManagedTexture(program: program)
                 }
                 transmitManagedTextureClosure = { submission, complete in
                     do {
+                        if var io = try source.planeAwareIO(filters: program.filters, profile: profile, identifier: executionIdentifier ?? "ImageNode.PreparedFilters") {
+                            io.transmitOutputRealTimeCommit = false
+                            io.transmitManagedTexture(program: io.makeRenderProgram(input: io.element), submission: submission, complete: complete)
+                            return
+                        }
                         let inputTexture = try sources.texture(for: source)
                         var io = HarbethIO<MTLTexture>(element: inputTexture, filters: filters, identifier: executionIdentifier ?? "ImageNode.PreparedFilters").configured(for: profile)
                         io.transmitOutputRealTimeCommit = false
@@ -1441,6 +1455,10 @@ extension ImageNode: ImagePromise {
     ) throws -> MTLTexture {
         switch storage {
         case .source(let source):
+            if let io = try source.planeAwareIO(filters: [], profile: profile, identifier: executionIdentifier ?? monitoringIdentifier,
+                                               derivative: derivative ?? profile.defaultDerivativeSpec) {
+                return try io.output()
+            }
             let texture = try source.makeTexture()
             return try resizeTextureIfNeeded(
                 texture,
@@ -1452,6 +1470,12 @@ extension ImageNode: ImagePromise {
             let route = flattenedFilterRoute()
             let input = route.input
             let filters = route.filters
+            if case .source(let source) = input.storage,
+               let io = try source.planeAwareIO(filters: SamplerExecutionAdapter.makePlan(filters: filters, samplerDescriptor: samplerDescriptor).filters,
+                    profile: profile, identifier: executionIdentifier ?? monitoringIdentifier,
+                    derivative: derivative ?? profile.defaultDerivativeSpec) {
+                return try io.output()
+            }
             let inputTexture = try input.makeTextureUncached(
                 profile: profile,
                 derivative: nil,

@@ -63,6 +63,11 @@ public extension MTLTextureCompatible_ {
                         luminanceRange: TextureLuminanceRange? = nil,
                         colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureStatistics? {
+        if target.width * target.height > 65_536,
+           let result = GPUTextureAnalysis.statistics(target, scope: TextureAnalysisScope(region: region, mask: mask,
+                luminanceRange: luminanceRange, colorRange: colorRange, coverageThreshold: coverageThreshold)) {
+            return result
+        }
         guard let readback = TextureAnalysisReadback(texture: target) else { return nil }
         return makeStatistics(
             readback: readback,
@@ -99,11 +104,11 @@ public extension MTLTextureCompatible_ {
         return readback.data.withUnsafeBytes { bytes in
             let resolvedCoverageThreshold = min(max(coverageThreshold, 0), 1)
             var sampleCount = 0
-            var redSum: Float = 0
-            var greenSum: Float = 0
-            var blueSum: Float = 0
-            var alphaSum: Float = 0
-            var luminanceSum: Float = 0
+            var redSum: Double = 0
+            var greenSum: Double = 0
+            var blueSum: Double = 0
+            var alphaSum: Double = 0
+            var luminanceSum: Double = 0
             var minimumLuminance = Float.greatestFiniteMagnitude
             var maximumLuminance = -Float.greatestFiniteMagnitude
 
@@ -126,11 +131,11 @@ public extension MTLTextureCompatible_ {
                         continue
                     }
 
-                    redSum += red
-                    greenSum += green
-                    blueSum += blue
-                    alphaSum += alpha
-                    luminanceSum += luminance
+                    redSum += Double(red)
+                    greenSum += Double(green)
+                    blueSum += Double(blue)
+                    alphaSum += Double(alpha)
+                    luminanceSum += Double(luminance)
                     minimumLuminance = min(minimumLuminance, luminance)
                     maximumLuminance = max(maximumLuminance, luminance)
                     sampleCount += 1
@@ -151,15 +156,15 @@ public extension MTLTextureCompatible_ {
                 )
             }
 
-            let divisor = Float(sampleCount)
+            let divisor = Double(sampleCount)
             return TextureStatistics(
                 pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false),
                 sampleCount: sampleCount,
-                meanRed: redSum / divisor,
-                meanGreen: greenSum / divisor,
-                meanBlue: blueSum / divisor,
-                meanAlpha: alphaSum / divisor,
-                meanLuminance: luminanceSum / divisor,
+                meanRed: Float(redSum / divisor),
+                meanGreen: Float(greenSum / divisor),
+                meanBlue: Float(blueSum / divisor),
+                meanAlpha: Float(alphaSum / divisor),
+                meanLuminance: Float(luminanceSum / divisor),
                 minimumLuminance: minimumLuminance,
                 maximumLuminance: maximumLuminance
             )

@@ -900,6 +900,15 @@ extension HarbethIO {
     // MARK: - Internal Destination Materialization
 
     private func filtering(pixelBuffer: CVPixelBuffer, outputColorSpace: ImageColorSpaceContract? = nil) throws -> CVPixelBuffer {
+        if var prepared = try ImageSource.pixelBuffer(pixelBuffer).planeAwareIO(filters: filters, profile: renderProfile, identifier: identifier) {
+            prepared.bufferPixelFormat = bufferPixelFormat
+            let texture: MTLTexture = try prepared.output()
+            let color = resolvedOutputColorSpace(inputSize: C7Size(pixelBuffer: pixelBuffer), outputColorSpace: outputColorSpace)
+            let output = try color.preservesInput ? pixelBuffer.c7.copyOutputTextureToCompatiblePixelBuffer(with: texture)
+                : pixelBuffer.c7.makeCompatibleOutputPixelBuffer(for: texture)
+            output.c7.setColorSpaceAttachments(color)
+            return output
+        }
         let inTexture = try TextureLoader(with: pixelBuffer).texture
         let outputColorSpace = resolvedOutputColorSpace(
             inputSize: C7Size(texture: inTexture),
@@ -994,6 +1003,23 @@ extension HarbethIO {
         complete: @escaping @Sendable (Result<CVPixelBuffer, HarbethError>) -> Void
     ) -> RenderSubmissionHandle {
         do {
+            if var prepared = try ImageSource.pixelBuffer(pixelBuffer).planeAwareIO(filters: filters, profile: renderProfile, identifier: identifier) {
+                prepared.bufferPixelFormat = bufferPixelFormat
+                prepared.submissionPolicy = submissionPolicy
+                prepared.transmitOutputRealTimeCommit = false
+                let owner = HarbethUncheckedTransfer(value: pixelBuffer)
+                let color = resolvedOutputColorSpace(inputSize: C7Size(pixelBuffer: pixelBuffer), outputColorSpace: outputColorSpace)
+                return prepared.transmitOutput { result in
+                    complete(result.flatMap { texture in
+                        do {
+                            let output = try color.preservesInput ? owner.value.c7.copyOutputTextureToCompatiblePixelBuffer(with: texture)
+                                : owner.value.c7.makeCompatibleOutputPixelBuffer(for: texture)
+                            output.c7.setColorSpaceAttachments(color)
+                            return .success(output)
+                        } catch { return .failure(HarbethError.toHarbethError(error)) }
+                    })
+                }
+            }
             let texture = try TextureLoader(with: pixelBuffer).texture
             let source = HarbethUncheckedTransfer(value: pixelBuffer)
             let outputColorSpace = resolvedOutputColorSpace(inputSize: C7Size(texture: texture), outputColorSpace: outputColorSpace)

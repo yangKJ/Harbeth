@@ -339,6 +339,28 @@ fragment float4 quadTransformFragment(VertexOut vertexOut [[stage_in]],
         (sourcePoint.y + inputTexture.get_height() * 0.5) / inputTexture.get_height()
     );
 
+    // 透视逆映射的屏幕导数给出每个输出像素覆盖的源图平行四边形。
+    const float2 dx = dfdx(uv), dy = dfdy(uv);
+    const float2 sourceSize = float2(inputTexture.get_width(), inputTexture.get_height());
+    const float footprintX = length(dx * sourceSize), footprintY = length(dy * sourceSize);
+    if (uniforms.samplingMode == 2 && all(isfinite(dx)) && all(isfinite(dy))
+        && max(footprintX, footprintY) > 1.5f) {
+        const uint nx = uint(clamp(ceil(footprintX), 1.0f, 16.0f));
+        const uint ny = uint(clamp(ceil(footprintY), 1.0f, 16.0f));
+        float4 sum = 0;
+        for (uint y = 0; y < ny; ++y) { for (uint x = 0; x < nx; ++x) {
+            float2 point = uv + ((float(x) + 0.5f) / float(nx) - 0.5f) * dx
+                + ((float(y) + 0.5f) / float(ny) - 0.5f) * dy;
+            switch (uniforms.edgeMode) {
+                case 1: sum += inputTexture.sample(linearClamp, point); break;
+                case 2: sum += inputTexture.sample(linearRepeat, point); break;
+                case 3: sum += inputTexture.sample(linearMirror, point); break;
+                default: sum += inputTexture.sample(linearTransparent, point); break;
+            }
+        } }
+        return sum / float(nx * ny);
+    }
+
     const bool useNearest = uniforms.samplingMode == 0;
 #if defined(__HAVE_BICUBIC_FILTERING__)
     const bool preferBicubic = uniforms.samplingMode == 2;

@@ -48,7 +48,7 @@ final class AlgorithmExecutionTests: XCTestCase {
         }
     }
 
-    func testBilateralSquaredDistancesMatchOriginalAcrossOddExtentsAndRadii() throws {
+    func testBilateralFloatAccumulationMatchesIndependentDoubleReference() throws {
         try prepareBilateralReference()
         for (width, height) in [(1, 1), (3, 17), (35, 19)] {
             let source = try makeTexture(width: width, height: height)
@@ -58,8 +58,10 @@ final class AlgorithmExecutionTests: XCTestCase {
             ] {
                 let filter = C7BilateralBlur(sigmaSpace: space, sigmaColor: color, radius: radius)
                 let actual = try render(filter, source: source).texture
-                let expected = try render(OriginalBilateral(base: filter), source: source).texture
-                XCTAssertEqual(read(actual), read(expected), "尺寸 \(width)x\(height)，半径 \(radius)")
+                let expected = bilateralReference(source, radius: Int(radius), space: space, color: color)
+                let observed = read(actual).map { Float(Float16(bitPattern: $0)) }
+                let error = zip(observed, expected).map { abs($0 - $1) }.max() ?? 0
+                XCTAssertLessThan(error, 0.001, "尺寸 \(width)x\(height)，半径 \(radius)")
             }
         }
     }
@@ -128,6 +130,27 @@ final class AlgorithmExecutionTests: XCTestCase {
         var nodes = 0
         for _ in 0..<20 { nodes += try node.makeImageGraph().nodeCount }
         print("算法基准 256 层图构建 20 次 ms：\(Date().timeIntervalSince(start) * 1_000)，节点 \(nodes)")
+    }
+
+    // 独立 Double 参考不复用 GPU 权重或生产 kernel，覆盖半精度累加升级后的数值合同。
+    private func bilateralReference(_ texture: MTLTexture, radius: Int, space: Float, color: Float) -> [Float] {
+        let values = read(texture).map { Double(Float16(bitPattern: $0)) }
+        var result = [Float](repeating: 0, count: values.count)
+        let r = max(radius, 1), width = texture.width, height = texture.height
+        for y in 0..<height { for x in 0..<width {
+            let center = (y * width + x) * 4
+            var sum = [Double](repeating: 0, count: 4), total = 0.0
+            for dy in -r...r { for dx in -r...r {
+                let index = (min(max(y + dy, 0), height - 1) * width + min(max(x + dx, 0), width - 1)) * 4
+                let distance = (0..<3).reduce(0.0) { $0 + pow(values[index + $1] - values[center + $1], 2) }
+                let weight = exp(-Double(dx * dx + dy * dy) / (2 * Double(space) * Double(space)))
+                    * exp(-distance / (2 * Double(color) * Double(color)))
+                for channel in 0..<4 { sum[channel] += values[index + channel] * weight }
+                total += weight
+            } }
+            for channel in 0..<4 { result[center + channel] = Float(sum[channel] / total) }
+        } }
+        return result
     }
 
     private func prepareBilateralReference() throws {

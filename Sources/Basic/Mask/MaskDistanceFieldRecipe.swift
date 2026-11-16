@@ -21,11 +21,7 @@ public struct MaskDistanceFieldRecipe: Sendable {
     }
 
     public func makeTexture(from mask: MaskDescriptor) throws -> MTLTexture {
-        let coverage = try MaskProcessingRecipe(mask: mask).makeCoverageTexture()
-        return try HarbethIO(
-            element: coverage,
-            filter: MaskDistanceField(maxDistance: maxDistance, threshold: threshold)
-        ).output()
+        return try MaskDistanceTransformExecutor.execute(mask: mask, maxDistance: maxDistance, threshold: threshold, signed: false, outputFormat: .rgba8Unorm)
     }
 }
 

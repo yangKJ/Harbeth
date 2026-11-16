@@ -121,13 +121,29 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
         transform::zeroOrOne(b) &&
         transform::zeroOrOne(c) &&
         transform::zeroOrOne(d);
-    const half4 outColor = transform::sampleColor(
-        inputTexture,
-        sampleCoord,
-        int(*samplingMode),
-        int(*edgeMode),
-        orthogonalHint
-    );
+    half4 outColor;
+    const float determinant = a * d - b * c;
+    const float2 inverseDx = float2(d, -b) / determinant;
+    const float2 inverseDy = float2(-c, a) / determinant;
+    if (int(*samplingMode) == 2 && all(isfinite(inverseDx)) && all(isfinite(inverseDy))
+        && max(length(inverseDx), length(inverseDy)) > 1.5f) {
+        const uint nx = uint(clamp(ceil(length(inverseDx)), 1.0f, 16.0f));
+        const uint ny = uint(clamp(ceil(length(inverseDy)), 1.0f, 16.0f));
+        float4 accumulated = 0.0f;
+        const float2 sourceSize = float2(inputTexture.get_width(), inputTexture.get_height());
+        const float2 stepX = inverseDx / sourceSize;
+        const float2 stepY = inverseDy / sourceSize;
+        for (uint j = 0; j < max(ny, 1u); ++j) {
+            for (uint i = 0; i < max(nx, 1u); ++i) {
+                const float2 offset = ((float(i) + 0.5f) / float(max(nx, 1u)) - 0.5f) * stepX
+                    + ((float(j) + 0.5f) / float(max(ny, 1u)) - 0.5f) * stepY;
+                accumulated += float4(transform::sampleColor(inputTexture, sampleCoord + offset, 1, int(*edgeMode), false));
+            }
+        }
+        outColor = half4(accumulated / float(max(nx, 1u) * max(ny, 1u)));
+    } else {
+        outColor = transform::sampleColor(inputTexture, sampleCoord, int(*samplingMode), int(*edgeMode), orthogonalHint);
+    }
 
     outputTexture.write(outColor, grid);
 }

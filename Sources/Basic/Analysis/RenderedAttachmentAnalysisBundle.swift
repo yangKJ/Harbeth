@@ -295,9 +295,12 @@ extension RenderedAttachmentSet {
         guard let attachment = attachment(for: semantic) else { return nil }
         let resolvedChannel = channel ?? attachment.defaultHistogramChannel
         let texture = attachment.texture.c7
-        let readback = TextureAnalysisReadback(texture: attachment.texture)
-        let maskSample = texture.makeMaskCoverageSample(for: mask)
-        let statistics = readback.flatMap {
+        let analysisScope = TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
+            colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)
+        let gpuStatistics = preferredMethod == .gpuMPS ? GPUTextureAnalysis.statistics(attachment.texture, scope: analysisScope) : nil
+        let readback = preferredMethod == .cpuReadback || gpuStatistics == nil ? TextureAnalysisReadback(texture: attachment.texture) : nil
+        let maskSample = readback == nil ? nil : texture.makeMaskCoverageSample(for: mask)
+        let statistics = gpuStatistics ?? readback.flatMap {
             texture.makeStatistics(
                 readback: $0,
                 region: region,
@@ -310,7 +313,7 @@ extension RenderedAttachmentSet {
         let colorProbe = attachment.texture.c7.resolvedHistogramRegion(region).flatMap { resolvedRegion in
             statistics.map { TextureColorProbe(region: resolvedRegion, statistics: $0) }
         }
-        let requiresCPUHistogram = preferredMethod == .cpuReadback || mask != nil || luminanceRange != nil || colorRange != nil
+        let requiresCPUHistogram = preferredMethod == .cpuReadback
         let histogram: TextureHistogram?
         let histogramAttachment: RenderedHistogramAttachment?
         if requiresCPUHistogram, let readback {
@@ -334,6 +337,7 @@ extension RenderedAttachmentSet {
                 bins: bins,
                 height: histogramHeight,
                 region: region,
+                mask: mask, luminanceRange: luminanceRange, colorRange: colorRange, coverageThreshold: coverageThreshold,
                 valueRange: valueRange,
                 preferredMethod: preferredMethod
             )
@@ -341,6 +345,7 @@ extension RenderedAttachmentSet {
                 channel: resolvedChannel,
                 bins: bins,
                 region: region,
+                mask: mask, luminanceRange: luminanceRange, colorRange: colorRange, coverageThreshold: coverageThreshold,
                 valueRange: valueRange,
                 preferredMethod: preferredMethod
             )

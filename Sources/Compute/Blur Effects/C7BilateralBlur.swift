@@ -31,11 +31,29 @@ public struct C7BilateralBlur: C7FilterProtocol {
         return [sigmaSpace, sigmaColor, radius]
     }
     
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        // 小中半径使用一维空间权重的乘积；大半径保留原计算路径，避免无界参数上传。
+        let usesTable = radius.isFinite && radius >= 0 && radius <= 100 && sigmaSpace.isFinite && sigmaSpace > 0
+        let r = usesTable ? max(Int(radius), 1) : 0
+        let weights = usesTable ? (-r...r).map { $0 == 0 ? 1 : exp(-Float($0 * $0) / (2 * sigmaSpace * sigmaSpace)) } : [1]
+        return [
+            .init(name: "sigmaSpace", index: 0, stage: .compute, value: .float(sigmaSpace)),
+            .init(name: "sigmaColor", index: 1, stage: .compute, value: .float(sigmaColor)),
+            .init(name: "radius", index: 2, stage: .compute, value: .float(radius)),
+            .init(name: "spatialWeights", index: 3, stage: .compute, value: .floatArray(weights)),
+            .init(name: "usesSpatialWeights", index: 4, stage: .compute, value: .float(usesTable ? 1 : 0))
+        ]
+    }
+
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood
     }
     
-    public init(sigmaSpace: Float = 15.0, sigmaColor: Float = 0.3, radius: Float = 7) {
+    public init(
+        sigmaSpace: Float = 15.0,
+        sigmaColor: Float = 0.3,
+        radius: Float = 7
+    ) {
         self.sigmaSpace = sigmaSpace
         self.sigmaColor = sigmaColor
         self.radius = radius

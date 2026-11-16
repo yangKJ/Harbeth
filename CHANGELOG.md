@@ -8,6 +8,24 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-16
+
+#### Changed
+
+- 加权 RGB 直方图采用有界 GPU 条带与最终归约，CPU 只读 3076 字节结果，4K 默认调用不再超出读回预算；mask 分析最终只读 72 字节摘要。
+- 大图统计采用 GPU 分层归约，scoped histogram 和 scope mask 可直接在 GPU 执行，保留纹理存储域、范围、遮罩及 CPU 回退合同。
+- 局部模糊按作用区和半径选择直接或可分离高斯；移轴模糊改为两次一维高斯，保留既有实际半径、过渡和全局坐标；分离路径与双边模糊预计算空间权重，小作用区保留直接计算。
+- Kuwahara 大半径与油画整数大半径窗口复用横向列统计，不分配整图积分纹理；小半径保留原路径。浮点归约顺序可能改变几乎等方差象限的选择。
+- `C7Transform` 与四角透视路径的 adaptive 缩小路径使用逆映射面积采样，单轴最多 16 taps；nearest、linear 与放大行为保持。
+- 无符号与内部有符号 mask 距离场共用单次提交的欧氏距离变换，保留距离截断、阈值及空/满 mask 输出。
+- YCbCr 输入在支持的 HarbethIO 与 ImageNode 来源滤镜链中作为解码首阶段执行，与后续滤镜共享提交；同步 TextureLoader 的完成态返回合同保持。
+
+#### Fixed
+
+- 修正大图 CPU 均值的顺序单精度累加误差、双边模糊的半精度累加溢出，以及零半径局部/移轴模糊产生非法像素的问题；双边模糊采用单精度计算，结果不再逐位复现旧半精度舍入。
+- 修正 Canny 灰度变换、sigma 和双阈值接线；C7Canny 使用完整滞后连接并统一输出灰度 RGB 与不透明 alpha，参数进入缓存身份。
+- mask coverage 比例保留低于活动阈值的软覆盖值，活动计数与质心继续遵循阈值语义。
+
 ### 2026-11-15
 
 #### Added

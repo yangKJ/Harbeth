@@ -130,3 +130,20 @@ kernel void TextureAlphaBoundsBlocks(
     }
     if (invalid != 0) atomic_store_explicit(&results[5], 1u, memory_order_relaxed);
 }
+
+// 按 bin 归并条带，补偿求和降低大图累加误差。
+kernel void WeightedColorHistogramFinalize(device const float *partials [[buffer(0)]],
+                                          device float *result [[buffer(1)]],
+                                          constant uint &count [[buffer(2)]],
+                                          uint bin [[thread_position_in_grid]]) {
+    if (bin >= 768) return;
+    float sum = 0.0f, correction = 0.0f;
+    for (uint block = 0; block < count; ++block) {
+        float value = partials[block * 768 + bin] - correction;
+        float next = sum + value;
+        correction = (next - sum) - value;
+        sum = next;
+    }
+    result[bin] += sum;
+    if (bin == 0 && as_type<uint>(partials[count * 768]) != 0) result[768] = as_type<float>(1u);
+}

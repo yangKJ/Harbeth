@@ -368,7 +368,9 @@ final class ImageNodeTests: XCTestCase {
         XCTAssertEqual(diagnostics.samplerDescriptor, .nearest)
         XCTAssertTrue(diagnostics.summary.contains("origin=pixelBuffer"))
         XCTAssertEqual(diagnostics.inputColorSpace.name, "preserveInput")
-        XCTAssertEqual(diagnostics.inputPixelFormat.name, "r8Unorm")
+        // 原始 plane 保持 R8；滤镜实际消费的是已经解码的 RGBA。
+        XCTAssertEqual(pixelBuffer.c7.contract.preferredMetalPixelFormat, .r8Unorm)
+        XCTAssertEqual(diagnostics.inputPixelFormat.name, "rgba8Unorm")
     }
 
     func testNodeEditingCanAttachRecipeToExistingNodeChain() throws {

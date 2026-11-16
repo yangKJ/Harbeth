@@ -22,25 +22,7 @@ struct MaskSignedDistanceFieldRecipe {
     }
 
     func makePlane(from mask: MaskDescriptor) throws -> MaskPlane {
-        let coverage = try MaskProcessingRecipe(mask: mask).makeCoverageTexture()
-        var insideIO = HarbethIO(element: coverage, filter: MaskPointThreshold(threshold: threshold))
-            .configured(for: profile)
-        insideIO.bufferPixelFormat = .r8Unorm
-        let inside = try insideIO.output()
-        var outsideIO = HarbethIO(
-            element: coverage,
-            filter: MaskCoverageExtract(mask: MaskDescriptor(texture: coverage, component: .red, invert: true))
-        ).configured(for: profile)
-        outsideIO.bufferPixelFormat = .r8Unorm
-        let outside = try outsideIO.output()
-        let distanceToInside = try distanceTransform(inside)
-        let distanceToOutside = try distanceTransform(outside)
-        var io = HarbethIO(
-            element: distanceToInside,
-            filter: MaskSignedDistanceCombine(distanceToOutside: distanceToOutside, maxDistance: maxDistance)
-        ).configured(for: profile)
-        io.bufferPixelFormat = .r16Float
-        let texture = try io.output()
+        let texture = try MaskDistanceTransformExecutor.execute(mask: mask, maxDistance: maxDistance, threshold: threshold, signed: true, outputFormat: .r16Float)
         return MaskPlane(
             texture: texture,
             coordinateSpace: mask.plane.descriptor.coordinateSpace,
@@ -204,32 +186,6 @@ struct MaskGuidedRefinementRecipe {
             resourceIdentity: mask.plane.descriptor.resourceIdentity.advanced(),
             lastModifiedBounds: mask.plane.descriptor.lastModifiedBounds
         )
-    }
-}
-
-private extension MaskSignedDistanceFieldRecipe {
-    func distanceTransform(_ input: MTLTexture) throws -> MTLTexture {
-        let output = try MaskGuidedRefinementRecipe.makeTexture(
-            device: input.device,
-            width: input.width,
-            height: input.height,
-            pixelFormat: .r16Float,
-            identifier: "MaskSignedDistanceField.distance"
-        )
-        guard let commandBuffer = makeMaskCommandBuffer(for: input.device) else {
-            throw HarbethError.commandBuffer
-        }
-        let transform = MPSImageEuclideanDistanceTransform(device: input.device)
-        if #available(macOS 11.0, iOS 14.0, tvOS 14.0, *) {
-            transform.searchLimitRadius = maxDistance
-        }
-        transform.encode(commandBuffer: commandBuffer, sourceTexture: input, destinationTexture: output)
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-        if commandBuffer.status == .error {
-            throw commandBuffer.error ?? HarbethError.commandBuffer
-        }
-        return output
     }
 }
 

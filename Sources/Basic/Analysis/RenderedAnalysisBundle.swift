@@ -117,11 +117,12 @@ extension RenderedAnalysisBundle {
         attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
     ) -> RenderedAnalysisBundle {
         let texture = frame.texture.c7
-        let requiresCPUHistogram = preferredMethod == .cpuReadback || scope.mask != nil || scope.luminanceRange != nil || scope.colorRange != nil
-        let readback = TextureAnalysisReadback(texture: frame.texture)
-        let maskSample = texture.makeMaskCoverageSample(for: scope.mask)
+        let requiresCPUHistogram = preferredMethod == .cpuReadback
+        let gpuStatistics = preferredMethod == .gpuMPS ? GPUTextureAnalysis.statistics(frame.texture, scope: scope) : nil
+        let readback = requiresCPUHistogram || gpuStatistics == nil ? TextureAnalysisReadback(texture: frame.texture) : nil
+        let maskSample = readback == nil ? nil : texture.makeMaskCoverageSample(for: scope.mask)
 
-        let statistics = readback.flatMap {
+        let statistics = gpuStatistics ?? readback.flatMap {
             texture.makeStatistics(
                 readback: $0,
                 region: scope.region,

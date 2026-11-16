@@ -14,7 +14,7 @@ public struct C7OilPainting: C7FilterProtocol {
     public var pixel: Int = 1
     
     public var modifier: ModifierEnum {
-        return .compute(kernel: "C7OilPainting")
+        return .compute(kernel: radius >= 5 && radius <= 32 && radius.rounded(.towardZero) == radius ? "C7OilPaintingWindowed" : "C7OilPainting")
     }
     
     public var factors: [Float] {

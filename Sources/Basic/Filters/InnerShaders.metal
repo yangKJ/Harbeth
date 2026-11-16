@@ -1188,7 +1188,9 @@ kernel void InnerMaskEdgeCleanup(texture2d<half, access::write> outputTexture [[
 kernel void MaskAnalyzeCoverageBlocks(texture2d<half, access::read> inputTexture [[texture(0)]],
                                       device uint *partials [[buffer(0)]],
                                       constant uint *parameters [[buffer(1)]],
-                                      uint2 blockIndex [[thread_position_in_grid]]) {
+                                      uint2 blockIndex [[threadgroup_position_in_grid]],
+                                      uint2 localIndex [[thread_position_in_threadgroup]],
+                                      uint lane [[thread_index_in_threadgroup]]) {
     const uint blockSize = parameters[0];
     const uint blockCountX = parameters[1];
     const uint width = parameters[2];
@@ -1196,41 +1198,97 @@ kernel void MaskAnalyzeCoverageBlocks(texture2d<half, access::read> inputTexture
     const float threshold = as_type<float>(parameters[4]);
     const uint outputIndex = (blockIndex.y * blockCountX + blockIndex.x) * 9u;
     const uint2 origin = blockIndex * blockSize;
-    uint activeCount = 0u;
-    uint minX = width;
-    uint minY = height;
-    uint maxX = 0u;
-    uint maxY = 0u;
-    uint sumX = 0u;
-    uint sumY = 0u;
+    threadgroup uint active[256], minValuesX[256], minValuesY[256], maxValuesX[256], maxValuesY[256];
+    threadgroup uint sumsX[256], sumsY[256], edges[256];
+    threadgroup float coverages[256];
+    const uint x = origin.x + localIndex.x;
+    const uint y = origin.y + localIndex.y;
+    uint activeCount = 0u, minX = width, minY = height, maxX = 0u, maxY = 0u;
+    uint sumX = 0u, sumY = 0u, edgeCount = 0u;
     float coverageSum = 0.0f;
-    uint edgeCount = 0u;
-    for (uint y = origin.y; y < min(origin.y + blockSize, height); ++y) {
-        for (uint x = origin.x; x < min(origin.x + blockSize, width); ++x) {
-            const float coverage = float(inputTexture.read(uint2(x, y)).r);
-            coverageSum += coverage;
-            if (coverage < threshold) continue;
-            activeCount += 1u;
-            minX = min(minX, x); minY = min(minY, y);
-            maxX = max(maxX, x); maxY = max(maxY, y);
-            sumX += x; sumY += y;
+    if (x < width && y < height) {
+        const float coverage = float(inputTexture.read(uint2(x, y)).r);
+        coverageSum = coverage;
+        if (coverage >= threshold) {
+            activeCount = 1u; minX = maxX = x; minY = maxY = y; sumX = x; sumY = y;
             bool edge = false;
             if (x + 1u < width) edge = edge || (float(inputTexture.read(uint2(x + 1u, y)).r) < threshold);
             if (y + 1u < height) edge = edge || (float(inputTexture.read(uint2(x, y + 1u)).r) < threshold);
             if (x > 0u) edge = edge || (float(inputTexture.read(uint2(x - 1u, y)).r) < threshold);
             if (y > 0u) edge = edge || (float(inputTexture.read(uint2(x, y - 1u)).r) < threshold);
-            if (edge) edgeCount += 1u;
+            edgeCount = edge ? 1u : 0u;
         }
     }
-    partials[outputIndex] = activeCount;
-    partials[outputIndex + 1u] = minX;
-    partials[outputIndex + 2u] = minY;
-    partials[outputIndex + 3u] = maxX;
-    partials[outputIndex + 4u] = maxY;
-    partials[outputIndex + 5u] = sumX;
-    partials[outputIndex + 6u] = sumY;
-    partials[outputIndex + 7u] = as_type<uint>(coverageSum);
-    partials[outputIndex + 8u] = edgeCount;
+    active[lane] = activeCount; minValuesX[lane] = minX; minValuesY[lane] = minY;
+    maxValuesX[lane] = maxX; maxValuesY[lane] = maxY; sumsX[lane] = sumX; sumsY[lane] = sumY;
+    edges[lane] = edgeCount; coverages[lane] = coverageSum;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint stride = 128u; stride > 0u; stride >>= 1u) {
+        if (lane < stride) {
+            active[lane] += active[lane + stride];
+            minValuesX[lane] = min(minValuesX[lane], minValuesX[lane + stride]);
+            minValuesY[lane] = min(minValuesY[lane], minValuesY[lane + stride]);
+            maxValuesX[lane] = max(maxValuesX[lane], maxValuesX[lane + stride]);
+            maxValuesY[lane] = max(maxValuesY[lane], maxValuesY[lane + stride]);
+            sumsX[lane] += sumsX[lane + stride]; sumsY[lane] += sumsY[lane + stride];
+            edges[lane] += edges[lane + stride]; coverages[lane] += coverages[lane + stride];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (lane != 0u) return;
+    partials[outputIndex] = active[0];
+    partials[outputIndex + 1u] = minValuesX[0];
+    partials[outputIndex + 2u] = minValuesY[0];
+    partials[outputIndex + 3u] = maxValuesX[0];
+    partials[outputIndex + 4u] = maxValuesY[0];
+    partials[outputIndex + 5u] = sumsX[0];
+    partials[outputIndex + 6u] = sumsY[0];
+    partials[outputIndex + 7u] = as_type<uint>(coverages[0]);
+    partials[outputIndex + 8u] = edges[0];
+}
+
+// 第二阶段 ABI：跨 block 的计数和坐标和使用 ulong，避免大图在 CPU 合并前溢出。
+// 输出仍为 9 个槽位；第 8 槽 coverage 以 float 位模式零扩展为 ulong。
+kernel void MaskAnalyzeCoverageFinalize(device const uint *partials [[buffer(0)]],
+                                        device ulong *result [[buffer(1)]],
+                                        constant uint *parameters [[buffer(2)]],
+                                        uint lane [[thread_index_in_threadgroup]]) {
+    const uint blockCount = parameters[0];
+    const uint width = parameters[1];
+    const uint height = parameters[2];
+    threadgroup ulong active[256], sumX[256], sumY[256], edges[256];
+    threadgroup uint minX[256], minY[256], maxX[256], maxY[256];
+    threadgroup float coverage[256];
+    ulong a = 0, sx = 0, sy = 0, e = 0;
+    uint loX = width, loY = height, hiX = 0, hiY = 0;
+    float c = 0.0f;
+    for (uint index = lane; index < blockCount; index += 256u) {
+        const uint offset = index * 9u;
+        const uint count = partials[offset];
+        a += ulong(count); sx += ulong(partials[offset + 5u]); sy += ulong(partials[offset + 6u]);
+        e += ulong(partials[offset + 8u]);
+        if (count > 0u) {
+            loX = min(loX, partials[offset + 1u]); loY = min(loY, partials[offset + 2u]);
+            hiX = max(hiX, partials[offset + 3u]); hiY = max(hiY, partials[offset + 4u]);
+        }
+        c += as_type<float>(partials[offset + 7u]);
+    }
+    active[lane] = a; sumX[lane] = sx; sumY[lane] = sy; edges[lane] = e;
+    minX[lane] = loX; minY[lane] = loY; maxX[lane] = hiX; maxY[lane] = hiY; coverage[lane] = c;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint stride = 128u; stride > 0u; stride >>= 1u) {
+        if (lane < stride) {
+            active[lane] += active[lane + stride]; sumX[lane] += sumX[lane + stride]; sumY[lane] += sumY[lane + stride]; edges[lane] += edges[lane + stride];
+            minX[lane] = min(minX[lane], minX[lane + stride]); minY[lane] = min(minY[lane], minY[lane + stride]);
+            maxX[lane] = max(maxX[lane], maxX[lane + stride]); maxY[lane] = max(maxY[lane], maxY[lane + stride]); coverage[lane] += coverage[lane + stride];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (lane == 0u) {
+        result[0] = active[0]; result[1] = ulong(minX[0]); result[2] = ulong(minY[0]);
+        result[3] = ulong(maxX[0]); result[4] = ulong(maxY[0]); result[5] = sumX[0]; result[6] = sumY[0];
+        result[7] = ulong(as_type<uint>(coverage[0])); result[8] = edges[0];
+    }
 }
 
 static inline uint2 InnerYCbCrScaleCoordinate(uint2 outputCoordinate,
@@ -1506,34 +1564,54 @@ kernel void InnerPageCurlBacksideTransition(texture2d<half, access::write> outpu
     );
 }
 
-kernel void MaskDistanceField(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::read> inputTexture [[texture(1)]],
-                              constant float &maxDistance [[buffer(0)]],
-                              constant float &threshold [[buffer(1)]],
-                              uint2 gid [[thread_position_in_grid]]) {
-    const uint width = inputTexture.get_width();
-    const uint height = inputTexture.get_height();
-    if (gid.x >= width || gid.y >= height) {
+
+
+kernel void MaskDistanceBinary(texture2d<half, access::write> insideTexture [[texture(0)]],
+                               texture2d<half, access::write> outsideTexture [[texture(1)]],
+                               texture2d<half, access::read> inputTexture [[texture(2)]],
+                               device atomic_uint *flags [[buffer(1)]],
+                               constant float &threshold [[buffer(0)]], uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= inputTexture.get_width() || gid.y >= inputTexture.get_height()) return;
+    const half value = inputTexture.read(gid).r >= half(threshold) ? 1.0h : 0.0h;
+    atomic_fetch_or_explicit(&flags[value > 0.5h ? 0 : 1], 1u, memory_order_relaxed);
+    insideTexture.write(half4(value), gid); outsideTexture.write(half4(1.0h - value), gid);
+}
+
+kernel void MaskDistanceUnsignedCombine(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                        texture2d<half, access::read> insideDistance [[texture(1)]],
+                                        texture2d<half, access::read> outsideDistance [[texture(2)]],
+                                        texture2d<half, access::read> insideTexture [[texture(3)]],
+                                        constant float &maxDistance [[buffer(0)]], device atomic_uint *flags [[buffer(1)]], uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const float limit = max(maxDistance, 1.0f);
+    const bool hasInside = atomic_load_explicit(&flags[0], memory_order_relaxed) != 0u;
+    const bool hasOutside = atomic_load_explicit(&flags[1], memory_order_relaxed) != 0u;
+    if (!hasInside || !hasOutside) {
+        outputTexture.write(half4(1.0h, 1.0h, 1.0h, 1.0h), gid);
         return;
     }
-    const float safeDistance = max(maxDistance, 1.0f);
-    const int radius = int(ceil(safeDistance));
-    const bool inside = inputTexture.read(gid).r >= half(threshold);
-    float best = safeDistance;
-    for (int y = -radius; y <= radius; y++) {
-        for (int x = -radius; x <= radius; x++) {
-            const int2 position = int2(gid) + int2(x, y);
-            if (position.x < 0 || position.y < 0 || position.x >= int(width) || position.y >= int(height)) {
-                continue;
-            }
-            const bool neighborInside = inputTexture.read(uint2(position)).r >= half(threshold);
-            if (neighborInside == inside) {
-                continue;
-            }
-            const float candidate = length(float2(x, y));
-            best = min(best, candidate);
-        }
-    }
-    const half normalized = half(clamp(best / safeDistance, 0.0f, 1.0f));
-    outputTexture.write(half4(normalized, normalized, normalized, 1.0h), gid);
+    // MPS 返回到最近非零像素的距离：inside 像素应读取 outside 的距离场。
+    const float distance = insideTexture.read(gid).r >= 0.5h ? float(outsideDistance.read(gid).r) : float(insideDistance.read(gid).r);
+    const float value = clamp(distance / limit, 0.0f, 1.0f);
+    outputTexture.write(half4(half(value), half(value), half(value), 1.0h), gid);
+}
+
+kernel void MaskDistanceSignedCombineMPS(texture2d<half, access::write> outputTexture [[texture(0)]],
+                                         texture2d<half, access::read> insideDistance [[texture(1)]],
+                                         texture2d<half, access::read> outsideDistance [[texture(2)]],
+                                         constant float &maxDistance [[buffer(0)]], device atomic_uint *flags [[buffer(1)]], uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outputTexture.get_width() || gid.y >= outputTexture.get_height()) return;
+    const float limit = max(maxDistance, 1.0f);
+    const bool hasInside = atomic_load_explicit(&flags[0], memory_order_relaxed) != 0u;
+    const bool hasOutside = atomic_load_explicit(&flags[1], memory_order_relaxed) != 0u;
+    if (!hasInside) { outputTexture.write(half4(1.0h), gid); return; }
+    if (!hasOutside) { outputTexture.write(half4(0.0h), gid); return; }
+    const float insideDistanceValue = float(insideDistance.read(gid).r);
+    const float outsideDistanceValue = float(outsideDistance.read(gid).r);
+    // 空/满 mask 会出现无穷距离，避免 inf - inf 产生 NaN。
+    const float signedDistance = isfinite(insideDistanceValue) && isfinite(outsideDistanceValue)
+        ? insideDistanceValue - outsideDistanceValue
+        : (isfinite(insideDistanceValue) ? -limit : (isfinite(outsideDistanceValue) ? limit : 0.0f));
+    const float value = clamp(signedDistance / (2.0f * limit) + 0.5f, 0.0f, 1.0f);
+    outputTexture.write(half4(half(value)), gid);
 }

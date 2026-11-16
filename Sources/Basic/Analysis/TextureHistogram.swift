@@ -153,6 +153,12 @@ public extension MTLTextureCompatible_ {
                        coverageThreshold: Float = 0.5,
                        valueRange: TextureAnalysisValueRange = .normalized,
                        preferredMethod: TextureHistogramComputationMethod = .cpuReadback) -> TextureHistogram? {
+        if preferredMethod == .gpuMPS,
+           let histogram = GPUTextureAnalysis.histogram(target, channel: channel, bins: max(1, bins),
+                scope: TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
+                    colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)) {
+            return histogram
+        }
         if mask != nil || luminanceRange != nil || colorRange != nil {
             return makeCPUHistogram(
                 channel: channel,
@@ -208,6 +214,12 @@ public extension MTLTextureCompatible_ {
                                    coverageThreshold: Float = 0.5,
                                    valueRange: TextureAnalysisValueRange = .normalized,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
+        if preferredMethod == .gpuMPS,
+           let histogram = GPUTextureAnalysis.histogram(target, channel: channel, bins: max(1, bins),
+                scope: TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
+                    colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)) {
+            return makeHistogramAttachment(from: histogram, height: height)
+        }
         if mask == nil && luminanceRange == nil && colorRange == nil {
             switch preferredMethod {
             case .gpuMPS:

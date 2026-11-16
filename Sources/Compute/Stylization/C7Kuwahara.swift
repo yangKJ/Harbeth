@@ -16,7 +16,7 @@ public struct C7Kuwahara: C7FilterProtocol {
     @Clamping(range.min...range.max) public var radius: Int = range.value
     
     public var modifier: ModifierEnum {
-        return .compute(kernel: "C7Kuwahara")
+        return .compute(kernel: radius >= 5 ? "C7KuwaharaWindowed" : "C7Kuwahara")
     }
     
     public var factors: [Float] {

@@ -10,7 +10,7 @@ using namespace metal;
 
 float colorDifference(float4 color1, float4 color2) {
     float3 diff = color1.rgb - color2.rgb;
-    return length(diff);
+    return dot(diff, diff);
 }
 
 float4 surfaceBlur(texture2d<half, access::read> texture, uint2 coord, uint2 size, float radius, float threshold) {
@@ -30,11 +30,11 @@ float4 surfaceBlur(texture2d<half, access::read> texture, uint2 coord, uint2 siz
             }
             const uint2 offset = uint2(sampleX, sampleY);
             float4 sampleColor = float4(texture.read(offset));
-            float spatialDistance = sqrt(float(x * x + y * y));
-            float spatialWeight = exp(-spatialDistance * spatialDistance / (2.0 * radius * radius));
+            float spatialDistanceSquared = float(x * x + y * y);
+            float spatialWeight = exp(-spatialDistanceSquared / (2.0 * radius * radius));
             
             float colorDist = colorDifference(centerColor, sampleColor);
-            float colorWeight = exp(-colorDist * colorDist / (2.0 * threshold * threshold));
+            float colorWeight = exp(-colorDist / (2.0 * threshold * threshold));
             float weight = spatialWeight * colorWeight;
             
             blurredColor += sampleColor * weight;

@@ -135,3 +135,52 @@ kernel void C7Kuwahara(texture2d<float, access::write> outTexture [[texture(0)]]
     // Write the result
     outTexture.write(resultColor, grid);
 }
+
+// 每个线程处理一行中最多 16 个像素，列统计按段复用，不分配整图中间纹理。
+kernel void C7KuwaharaWindowed(texture2d<float, access::write> destination [[texture(0)]],
+    texture2d<float, access::read> source [[texture(1)]], constant float &radius [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]]) {
+    int2 extent = int2(source.get_width(), source.get_height());
+    int start = int(gid.x) * 16;
+    if (start >= extent.x || int(gid.y) >= extent.y) return;
+    int r = int(radius), end = min(start + 16, extent.x);
+    float4 sums[4], squares[4];
+    float n = (radius + 1) * (radius + 1);
+    for (int x = start; x < end; ++x) {
+        // 定期重建局部和，约束反复相减的误差，仍比逐像素二维扫描少采样。
+        if ((x - start) % 16 == 0) {
+            for (int k = 0; k < 4; ++k) {
+                bool left = k == 0 || k == 3;
+                bool top = k < 2;
+                sums[k] = 0; squares[k] = 0;
+                for (int dy = top ? -r : 0; dy <= (top ? 0 : r); ++dy) {
+                    for (int dx = left ? -r : 0; dx <= (left ? 0 : r); ++dx) {
+                        float4 c = source.read(uint2(clamp(int2(x + dx, int(gid.y) + dy), int2(0), extent - 1)));
+                        sums[k] += c; squares[k] += c * c;
+                    }
+                }
+            }
+        }
+        float best = 100; float4 result = float4(0, 0, 0, 1);
+        for (int k = 0; k < 4; ++k) {
+            float4 mean = sums[k] / n;
+            float3 variance = abs(squares[k].rgb / n - mean.rgb * mean.rgb);
+            float score = variance.r + variance.g + variance.b;
+            if (score < best) { best = score; result = mean; }
+        }
+        destination.write(result, uint2(x, gid.y));
+        if (x + 1 < end && (x + 1 - start) % 16 != 0) {
+            for (int k = 0; k < 4; ++k) {
+                bool left = k == 0 || k == 3, top = k < 2;
+                int leaving = left ? x - r : x;
+                int entering = left ? x + 1 : x + r + 1;
+                for (int dy = top ? -r : 0; dy <= (top ? 0 : r); ++dy) {
+                    int y = clamp(int(gid.y) + dy, 0, extent.y - 1);
+                    float4 a = source.read(uint2(clamp(leaving, 0, extent.x - 1), y));
+                    float4 b = source.read(uint2(clamp(entering, 0, extent.x - 1), y));
+                    sums[k] += b - a; squares[k] += b * b - a * a;
+                }
+            }
+        }
+    }
+}

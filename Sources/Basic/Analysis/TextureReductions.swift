@@ -43,41 +43,61 @@ public extension MTLTextureCompatible_ {
                 throw HarbethError.configurationInvalid("Coverage must match the source device and dimensions.")
             }
         }
-        let blocksX = (region.size.width + 31) / 32
-        let blocksY = (region.size.height + 31) / 32
-        let valueCount = blocksX * blocksY * 768
-        let resultBytes = valueCount * MemoryLayout<Float>.stride + MemoryLayout<UInt32>.stride
+        // 中间直方图按条带复用，CPU 只读取最终 768 个 bin 和错误标志。
+        let resultBytes = 769 * MemoryLayout<Float>.stride
         guard resultBytes <= maximumReadbackBytes else {
             throw HarbethError.configurationInvalid("Histogram reduction exceeds its readback budget.")
         }
-        var parameters = [UInt32(region.origin.x), UInt32(region.origin.y), UInt32(region.size.width),
-                          UInt32(region.size.height), UInt32(blocksX), coverage == nil ? 0 : 1]
+        let blocksX = (region.size.width + 31) / 32
+        let stripeRows = max(1, 1024 / blocksX) * 32
+        let maximumBlocks = blocksX * ((min(stripeRows, region.size.height) + 31) / 32)
+        let partialBytes = (maximumBlocks * 768 + 1) * MemoryLayout<Float>.stride
+        guard let partials = texture.device.makeBuffer(length: partialBytes, options: .storageModePrivate),
+              let result = texture.device.makeBuffer(length: resultBytes, options: .storageModeShared),
+              let command = HarbethContext.shared.makeCommandBuffer() else { throw HarbethError.commandBuffer }
+        defer { HarbethContext.shared.recycleCommandBuffer(command) }
+        memset(result.contents(), 0, resultBytes)
         #if targetEnvironment(simulator)
         let kernel = "WeightedColorHistogramBlocks"
         #else
         let supportsSIMD = texture.device.supportsFamily(.apple7) || texture.device.supportsFamily(.mac2)
         let kernel = supportsSIMD ? "WeightedColorHistogramSIMDBlocks" : "WeightedColorHistogramBlocks"
         #endif
-        let buffer = try TextureReductionBackend.run(
-            texture: texture,
-            coverage: coverage,
-            kernel: kernel,
-            parameters: &parameters,
-            resultBytes: resultBytes,
-            groups: MTLSize(width: blocksX, height: blocksY, depth: 1),
-            threads: MTLSize(width: 256, height: 1, depth: 1)
-        )
-        let invalid = buffer.contents().advanced(by: valueCount * MemoryLayout<Float>.stride).load(as: UInt32.self)
-        guard invalid == 0 else { throw HarbethError.configurationInvalid("Histogram input contains non-finite values.") }
-        let values = buffer.contents().bindMemory(to: Float.self, capacity: valueCount)
-        var channels = Array(repeating: Array(repeating: 0.0, count: 256), count: 3)
-        for block in 0..<(blocksX * blocksY) {
-            for channel in 0..<3 {
-                for bin in 0..<256 {
-                    channels[channel][bin] += Double(values[block * 768 + channel * 256 + bin])
-                }
-            }
+        let blockPipeline = try Compute.makeComputePipelineState(with: kernel)
+        let finalPipeline = try Compute.makeComputePipelineState(with: "WeightedColorHistogramFinalize")
+        for startY in stride(from: 0, to: region.size.height, by: stripeRows) {
+            try Task.checkCancellation()
+            let rows = min(stripeRows, region.size.height - startY)
+            let blocksY = (rows + 31) / 32
+            var parameters = [UInt32(region.origin.x), UInt32(region.origin.y + startY), UInt32(region.size.width),
+                              UInt32(rows), UInt32(blocksX), coverage == nil ? 0 : 1]
+            guard let clear = command.makeBlitCommandEncoder() else { throw HarbethError.commandBuffer }
+            clear.fill(buffer: partials, range: 0..<partialBytes, value: 0)
+            clear.endEncoding()
+            guard let encoder = command.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
+            encoder.setComputePipelineState(blockPipeline)
+            encoder.setTexture(texture, index: 0)
+            encoder.setTexture(coverage ?? texture, index: 1)
+            encoder.setBuffer(partials, offset: 0, index: 0)
+            encoder.setBytes(&parameters, length: parameters.count * 4, index: 1)
+            encoder.dispatchThreadgroups(MTLSize(width: blocksX, height: blocksY, depth: 1),
+                                         threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+            encoder.endEncoding()
+            guard let final = command.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
+            var count = UInt32(blocksX * blocksY)
+            final.setComputePipelineState(finalPipeline)
+            final.setBuffer(partials, offset: 0, index: 0)
+            final.setBuffer(result, offset: 0, index: 1)
+            final.setBytes(&count, length: 4, index: 2)
+            final.dispatchThreads(MTLSize(width: 768, height: 1, depth: 1),
+                                  threadsPerThreadgroup: MTLSize(width: min(256, finalPipeline.maxTotalThreadsPerThreadgroup), height: 1, depth: 1))
+            final.endEncoding()
         }
+        try command.commitAndWaitUntilCompleted(identifier: "WeightedHistogram")
+        try Task.checkCancellation()
+        let values = result.contents().bindMemory(to: Float.self, capacity: 769)
+        guard values[768].bitPattern == 0 else { throw HarbethError.configurationInvalid("Histogram input contains non-finite values.") }
+        let channels = (0..<3).map { channel in (0..<256).map { Double(values[channel * 256 + $0]) } }
         return WeightedColorHistogram(channels: channels)
     }
 

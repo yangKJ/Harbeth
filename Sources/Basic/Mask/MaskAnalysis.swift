@@ -42,13 +42,12 @@ enum MaskGPUAnalysisBackend {
         let pipeline = try Compute.makeComputePipelineState(with: "MaskAnalyzeCoverageBlocks")
         guard let buffer = texture.device.makeBuffer(
             length: valueCount * MemoryLayout<UInt32>.stride,
-            options: .storageModeShared
-        ), let commandBuffer = makeMaskCommandBuffer(for: texture.device),
+            options: .storageModePrivate
+        ), let result = texture.device.makeBuffer(length: 9 * MemoryLayout<UInt64>.stride, options: .storageModeShared),
+           let commandBuffer = makeMaskCommandBuffer(for: texture.device),
            let encoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.commandBuffer
         }
-        memset(buffer.contents(), 0, buffer.length)
-
         var parameters: [UInt32] = [
             UInt32(blockSize), UInt32(blockCountX), UInt32(texture.width), UInt32(texture.height),
             threshold.bitPattern
@@ -59,42 +58,34 @@ enum MaskGPUAnalysisBackend {
         encoder.setBytes(&parameters, length: parameters.count * MemoryLayout<UInt32>.stride, index: 1)
         encoder.dispatchThreadgroups(
             MTLSize(width: blockCountX, height: blockCountY, depth: 1),
-            threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1)
+            threadsPerThreadgroup: MTLSize(width: blockSize, height: blockSize, depth: 1)
         )
         encoder.endEncoding()
+        let finalizePipeline = try Compute.makeComputePipelineState(with: "MaskAnalyzeCoverageFinalize")
+        guard let finalize = commandBuffer.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
+        var finalizeParameters = [UInt32(blockCount), UInt32(texture.width), UInt32(texture.height)]
+        finalize.setComputePipelineState(finalizePipeline)
+        finalize.setBuffer(buffer, offset: 0, index: 0)
+        finalize.setBuffer(result, offset: 0, index: 1)
+        finalize.setBytes(&finalizeParameters, length: finalizeParameters.count * MemoryLayout<UInt32>.stride, index: 2)
+        finalize.dispatchThreadgroups(MTLSize(width: 1, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+        finalize.endEncoding()
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
         if commandBuffer.status == .error {
             throw commandBuffer.error ?? HarbethError.commandBuffer
         }
 
-        let values = buffer.contents().bindMemory(to: UInt32.self, capacity: valueCount)
-        var activeCount: UInt64 = 0
-        var minX = texture.width
-        var minY = texture.height
-        var maxX = -1
-        var maxY = -1
-        var sumX: UInt64 = 0
-        var sumY: UInt64 = 0
-        var coverageSum: Double = 0
-        var edgeCount: UInt64 = 0
-        for block in 0..<blockCount {
-            let offset = block * valuesPerBlock
-            let count = UInt64(values[offset])
-            guard count > 0 else { continue }
-            activeCount += count
-            minX = min(minX, Int(values[offset + 1]))
-            minY = min(minY, Int(values[offset + 2]))
-            maxX = max(maxX, Int(values[offset + 3]))
-            maxY = max(maxY, Int(values[offset + 4]))
-            sumX += UInt64(values[offset + 5])
-            sumY += UInt64(values[offset + 6])
-            coverageSum += Double(Float(bitPattern: values[offset + 7]))
-            edgeCount += UInt64(values[offset + 8])
-        }
+        let values = result.contents().bindMemory(to: UInt64.self, capacity: 9)
+        let activeCount = values[0]
+        let minX = Int(values[1]), minY = Int(values[2]), maxX = Int(values[3]), maxY = Int(values[4])
+        let sumX = values[5], sumY = values[6]
+        let coverageSum = Double(Float(bitPattern: UInt32(truncatingIfNeeded: values[7])))
+        let edgeCount = values[8]
 
         guard activeCount > 0 else {
-            return MaskAnalysis(bounds: nil, coverageFraction: 0, centroid: nil, activePixelCount: 0, edgePixelFraction: 0)
+            let pixelCount = max(texture.width * texture.height, 1)
+            return MaskAnalysis(bounds: nil, coverageFraction: Float(coverageSum / Double(pixelCount)), centroid: nil, activePixelCount: 0, edgePixelFraction: 0)
         }
         let bounds = MaskCoverageBounds(
             x: minX,

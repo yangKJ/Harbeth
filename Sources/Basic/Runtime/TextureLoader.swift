@@ -595,6 +595,30 @@ extension TextureLoader {
         }
     }
 
+    /// 仅解析来源，不提交 GPU；同步 TextureLoader 入口继续保留原物化合同。
+    static func planeAwarePreparation(_ source: ImageSource) throws -> (texture: MTLTexture, filter: C7FilterProtocol)? {
+        let pixelBuffer: CVPixelBuffer
+        switch source {
+        case .pixelBuffer(let value): pixelBuffer = value
+        case .sampleBuffer(let value):
+            guard let value = CMSampleBufferGetImageBuffer(value) else { throw HarbethError.CMSampleBufferToCVPixelBuffer }
+            pixelBuffer = value
+        default: return nil
+        }
+        let bridge = pixelBuffer.c7.makeTextureBridgePlan()
+        guard bridge.requiresColorConversion, bridge.directPlaneBridgeCount > 1 else { return nil }
+        let resolved = try resolveTextureSource(with: pixelBuffer)
+        guard resolved.requiresPlaneAwareDecoding,
+              let strategy = makeYCbCrDecodeStrategy(for: pixelBuffer, bridgePlan: resolved.bridgePlan) else { return nil }
+        let filter = PreparedYCbCrDecode(
+            decode: YCbCrPlaneDecodeFilter(layout: strategy.layout, conversionMatrix: strategy.conversionMatrix,
+                conversionOffset: strategy.conversionOffset, planeTextures: resolved.planeTextures),
+            size: C7Size(width: resolved.bridgePlan.contract.width, height: resolved.bridgePlan.contract.height),
+            format: strategy.destinationPixelFormat, owners: resolved.retainedOwners
+        )
+        return (resolved.primaryTexture, filter)
+    }
+
     private static func decodeYCbCrTextureSource(_ source: PixelBufferTextureSource, owner: CVPixelBuffer) throws -> MTLTexture {
         guard let strategy = makeYCbCrDecodeStrategy(for: owner, bridgePlan: source.bridgePlan) else {
             return source.primaryTexture
@@ -1010,4 +1034,25 @@ extension TextureLoader.Option {
 
     /// 纹理 hazard tracking 模式，默认由 Metal 决定。
     public static let textureHazardTrackingMode: TextureLoader.Option = .init(rawValue: 1 << 9)
+}
+
+/// 解码是同一渲染程序的首阶段；CV 桥接 owner 随 GPU 完成释放。
+private struct PreparedYCbCrDecode: C7FilterProtocol {
+    let decode: YCbCrPlaneDecodeFilter
+    let size: C7Size
+    let format: MTLPixelFormat
+    let owners: [AnyObject]
+    var modifier: ModifierEnum { decode.modifier }
+    var memoryAccessPattern: MemoryAccessPattern { .multiTexture }
+    var otherInputTextures: C7InputTextures { decode.otherInputTextures }
+    var kernelParameterBindings: [KernelParameterBinding] { decode.kernelParameterBindings }
+    var kernelOutputContract: RenderOutputContract {
+        RenderOutputContract(pixelFormat: PixelFormatContract(pixelFormat: format, preservesInput: false))
+    }
+    func resize(input: C7Size) -> C7Size { size }
+    func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest: MTLTexture) throws -> MTLTexture {
+        let transfer = HarbethUncheckedTransfer(value: owners)
+        buffer.addCompletedHandler { _ in withExtendedLifetime(transfer.value) {} }
+        return texture
+    }
 }

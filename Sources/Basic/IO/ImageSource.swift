@@ -391,3 +391,14 @@ private extension Data {
         return hasher.value
     }
 }
+
+extension ImageSource {
+    /// 保留公开来源身份，只为实际执行构建内部解码阶段。
+    func planeAwareIO(filters: [C7FilterProtocol], profile: RenderProfile, identifier: String, derivative: ImageDerivativeSpec? = nil) throws -> HarbethIO<MTLTexture>? {
+        guard let source = try TextureLoader.planeAwarePreparation(self) else { return nil }
+        let io = HarbethIO(element: source.texture, filters: [source.filter] + filters, identifier: identifier).configured(for: profile)
+        guard let derivative else { return io }
+        return HarbethIO(element: source.texture,
+            filters: io.makeEffectiveFilters(inputSize: C7Size(texture: source.texture), derivative: derivative), identifier: identifier).configured(for: profile)
+    }
+}

@@ -162,6 +162,14 @@ extension HarbethIO {
 
     /// texture-first 同步输出，不执行 CPU 读回。
     func renderTexture(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {
+        let source = try makeImageSource()
+        if var prepared = try source.planeAwareIO(filters: filters, profile: profile, identifier: identifier) {
+            prepared.bufferPixelFormat = bufferPixelFormat
+            let effective = prepared.makeEffectiveFilters(inputSize: C7Size(texture: prepared.element), derivative: derivative ?? profile.defaultDerivativeSpec)
+            var io = HarbethIO<MTLTexture>(element: prepared.element, filters: effective, identifier: identifier).configured(for: profile)
+            io.bufferPixelFormat = bufferPixelFormat
+            return try io.output()
+        }
         let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
         guard context.effectiveFilters.isEmpty == false else {
             return context.sourceTexture
@@ -236,8 +244,6 @@ private extension HarbethIO {
         outputPixelFormat: PixelFormatContract,
         outputColorSpace: ImageColorSpaceContract? = nil
     ) throws -> (texture: MTLTexture, outputColorSpace: ImageColorSpaceContract) {
-        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
-        var effectiveFilters = context.effectiveFilters
         let targetPixelFormat: MTLPixelFormat? = {
             if outputPixelFormat.preservesInput {
                 switch requestedPixelFormatType {
@@ -255,6 +261,17 @@ private extension HarbethIO {
             }
             return outputPixelFormat.metalPixelFormat
         }()
+        if let prepared = try makeImageSource().planeAwareIO(filters: filters, profile: profile, identifier: identifier,
+                                                            derivative: derivative ?? profile.defaultDerivativeSpec) {
+            // 即便没有用户滤镜，也在同一程序末端完成目标格式物化。
+            var io = HarbethIO<MTLTexture>(element: prepared.element,
+                filters: prepared.filters + [C7Brightness(brightness: 0)], identifier: identifier).configured(for: profile)
+            io.bufferPixelFormat = targetPixelFormat ?? bufferPixelFormat
+            let color = io.resolvedOutputColorSpace(inputSize: C7Size(texture: prepared.element), outputColorSpace: outputColorSpace)
+            return (try io.output(), color)
+        }
+        let context = try resolvedExecutionContext(profile: profile, derivative: derivative)
+        var effectiveFilters = context.effectiveFilters
         if effectiveFilters.isEmpty, let targetPixelFormat, context.sourceTexture.pixelFormat != targetPixelFormat {
             effectiveFilters = [C7Brightness(brightness: 0)]
         }
