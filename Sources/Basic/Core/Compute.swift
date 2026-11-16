@@ -205,11 +205,30 @@ struct Compute {
         texture: MTLTexture,
         filter: C7FilterProtocol
     ) -> MTLSize {
+        if case .compute(kernel: "C7Deband") = filter.modifier,
+           texture.width >= 512, texture.height >= 512 {
+            let width = max(pipelineState.threadExecutionWidth, 1)
+            let height = min(8, pipelineState.maxTotalThreadsPerThreadgroup / width)
+            if height > 0 { return MTLSize(width: width, height: height, depth: 1) }
+        }
         let pattern = filter.memoryAccessPattern
         let baseSize = calculateBaseSize(pattern: pattern, pipelineState: pipelineState)
         return adjustForAspectRatio(baseSize, texture: texture)
     }
     
+    // 内置 kernel 的共享执行 ABI 按函数名绑定，包装滤镜不会丢失目标格式信息。
+    private static func halfOutputBindingIndex(for filter: C7FilterProtocol) -> Int? {
+        guard case .compute(let name) = filter.modifier else { return nil }
+        switch name {
+        case "C7ColorCube": return 5
+        case "C7Deband": return 4
+        case "C7HexagonalBokehFirstPass", "C7HexagonalBokehFirstPassWithCoC",
+             "C7HexagonalBokehSecondPass", "C7HexagonalBokehSecondPassWithCoC",
+             "C7HexagonalBokehComposite", "C7HexagonalBokehCompositeWithCoC": return 2
+        default: return nil
+        }
+    }
+
     private static func encoding(
         commandBuffer: MTLCommandBuffer,
         computeEncoder: MTLComputeCommandEncoder,
@@ -253,6 +272,10 @@ struct Compute {
                 computeEncoder.endEncoding()
                 throw error
             }
+        }
+        if let index = halfOutputBindingIndex(for: filter) {
+            var halfOutput: Float = [.r16Float, .rg16Float, .rgba16Float].contains(destTexture.pixelFormat) ? 1 : 0
+            computeEncoder.setBytes(&halfOutput, length: MemoryLayout<Float>.size, index: index)
         }
         // Calculate optimal threadgroup size based on memory access pattern and GPU architecture
         let threadgroupSize = calculateOptimalThreadgroupSize(for: pipelineState, texture: destTexture, filter: filter)

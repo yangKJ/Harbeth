@@ -14,6 +14,7 @@ kernel void C7LookupTable1D(texture2d<half, access::write> outputTexture [[textu
                             constant float *intensity [[buffer(0)]],
                             constant float *domainPolicy [[buffer(1)]],
                             uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const half4 inColor = inputTexture.read(grid);
     
     const float strength = intensity[0];
@@ -22,16 +23,26 @@ kernel void C7LookupTable1D(texture2d<half, access::write> outputTexture [[textu
     constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
     float2 lookup;
     lookup.y = 0.5;
+    const float width = float(lookupTexture.get_width());
     
     half4 lookupColor = inColor;
     lookup.x = float(inColor.r);
-    if (!preservesOutsideDomain || (lookup.x >= 0.0 && lookup.x <= 1.0)) lookupColor.r = lookupTexture.sample(s, lookup).r;
+    if (!preservesOutsideDomain || (lookup.x >= 0.0 && lookup.x <= 1.0)) {
+        lookup.x = (clamp(lookup.x, 0.0f, 1.0f) * (width - 1.0f) + 0.5f) / width;
+        lookupColor.r = lookupTexture.sample(s, lookup).r;
+    }
     
     lookup.x = float(inColor.g);
-    if (!preservesOutsideDomain || (lookup.x >= 0.0 && lookup.x <= 1.0)) lookupColor.g = lookupTexture.sample(s, lookup).g;
+    if (!preservesOutsideDomain || (lookup.x >= 0.0 && lookup.x <= 1.0)) {
+        lookup.x = (clamp(lookup.x, 0.0f, 1.0f) * (width - 1.0f) + 0.5f) / width;
+        lookupColor.g = lookupTexture.sample(s, lookup).g;
+    }
     
     lookup.x = float(inColor.b);
-    if (!preservesOutsideDomain || (lookup.x >= 0.0 && lookup.x <= 1.0)) lookupColor.b = lookupTexture.sample(s, lookup).b;
+    if (!preservesOutsideDomain || (lookup.x >= 0.0 && lookup.x <= 1.0)) {
+        lookup.x = (clamp(lookup.x, 0.0f, 1.0f) * (width - 1.0f) + 0.5f) / width;
+        lookupColor.b = lookupTexture.sample(s, lookup).b;
+    }
     
     lookupColor.a = inColor.a;
     

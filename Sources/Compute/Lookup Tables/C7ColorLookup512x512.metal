@@ -13,28 +13,18 @@ kernel void C7ColorLookup512x512(texture2d<half, access::write> outputTexture [[
                                  texture2d<half, access::sample> lookupTexture [[texture(2)]],
                                  constant float *intensity [[buffer(0)]],
                                  uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const half4 inColor = inputTexture.read(grid);
-    constexpr sampler lookupSampler(mag_filter::linear, min_filter::linear);
-    
-    half3 color = inColor.rgb;
-    float size = 512.0;
-    float2 lookupCoord;
-    
-    float3 scaledColor = float3(color) * 31.0;
-    float3 floorColor = floor(scaledColor);
-    float3 fracColor = scaledColor - floorColor;
-    
-    int z = int(floorColor.z);
-    int tileSize = 32;
-    int tileX = z % 16;
-    int tileY = z / 16;
-    
-    float2 tileOffset = float2(float(tileX) * float(tileSize), float(tileY) * float(tileSize));
-    float2 texCoord = float2(fracColor.x, fracColor.y) * float(tileSize - 1) + 0.5;
-    lookupCoord = (tileOffset + texCoord) / size;
-    
-    half4 lookupColor = lookupTexture.sample(lookupSampler, lookupCoord);
-    half4 outColor = mix(inColor, lookupColor, half(*intensity));
-    
-    outputTexture.write(outColor, grid);
+    constexpr sampler lookupSampler(coord::normalized, address::clamp_to_edge, filter::linear);
+    const float3 color = clamp(float3(inColor.rgb), 0.0f, 1.0f);
+    const float blue = color.b * 31.0f;
+    const int lower = int(floor(blue));
+    const int upper = min(lower + 1, 31);
+    const float2 local = color.rg * 31.0f + 0.5f;
+    // 既有资源按每块 32 像素、每行 16 个蓝切片解释。
+    const float2 first = (float2(lower % 16, lower / 16) * 32.0f + local) / 512.0f;
+    const float2 second = (float2(upper % 16, upper / 16) * 32.0f + local) / 512.0f;
+    const half3 mapped = mix(lookupTexture.sample(lookupSampler, first).rgb,
+                            lookupTexture.sample(lookupSampler, second).rgb, half(fract(blue)));
+    outputTexture.write(half4(mix(inColor.rgb, mapped, half(*intensity)), inColor.a), grid);
 }

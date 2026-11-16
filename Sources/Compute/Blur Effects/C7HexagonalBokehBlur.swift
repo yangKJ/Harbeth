@@ -36,13 +36,13 @@ public final class C7HexagonalBokehBlur: C7FilterPipelineProtocol {
     public var pipelineFilters: [C7FilterProtocol] {
         if let cocTexture {
             return [
-                HexagonalBokehFirstPass(radius: radius, angle: angle, cocTexture: cocTexture),
-                HexagonalBokehSecondPass(radius: radius, angle: angle, cocTexture: cocTexture)
+                HexagonalBokehFirstPass(radius: safeRadius, angle: safeAngle, cocTexture: cocTexture),
+                HexagonalBokehSecondPass(radius: safeRadius, angle: safeAngle, cocTexture: cocTexture)
             ]
         }
         return [
-            HexagonalBokehFirstPass(radius: radius, angle: angle),
-            HexagonalBokehSecondPass(radius: radius, angle: angle)
+            HexagonalBokehFirstPass(radius: safeRadius, angle: safeAngle),
+            HexagonalBokehSecondPass(radius: safeRadius, angle: safeAngle)
         ]
     }
 
@@ -53,14 +53,18 @@ public final class C7HexagonalBokehBlur: C7FilterPipelineProtocol {
             outputColorSpace: .preserveInput,
             inputAlphaExpectation: .premultiplied,
             outputAlpha: .premultiplied,
-            precision: .float16,
+            precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
-            samplingFootprint: .neighborhood(radius: Int(ceil(radius)) * 2),
+            samplingFootprint: .neighborhood(radius: Int(ceil(safeRadius)) * 2),
             coordinateDependency: .local,
             globalDependency: .none,
             fusionPolicy: .disabled
         )
     }
+
+    private var safeRadius: Float { radius.isFinite ? radius : 0 }
+    private var safeBrightness: Float { brightness.isFinite ? brightness : 0 }
+    private var safeAngle: Float { angle.isFinite ? angle.truncatingRemainder(dividingBy: 360) : 0 }
 
     public init(
         radius: Float = radiusRange.value,
@@ -82,18 +86,18 @@ public final class C7HexagonalBokehBlur: C7FilterPipelineProtocol {
                         ? "C7HexagonalBokehComposite"
                         : "C7HexagonalBokehCompositeWithCoC"
                 ),
-                factors: [radius, brightness]
+                factors: [safeRadius, safeBrightness]
             )
         }
         if let cocTexture {
             return HexagonalBokehComposite(
-                radius: radius,
-                brightness: brightness,
+                radius: safeRadius,
+                brightness: safeBrightness,
                 blurredTexture: blurredTexture,
                 cocTexture: cocTexture
             )
         }
-        return HexagonalBokehComposite(radius: radius, brightness: brightness, blurredTexture: blurredTexture)
+        return HexagonalBokehComposite(radius: safeRadius, brightness: safeBrightness, blurredTexture: blurredTexture)
     }
 }
 

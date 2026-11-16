@@ -29,12 +29,14 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         public let domainMinimum: SIMD3<Float>
         public let domainMaximum: SIMD3<Float>
         public let identity: String
+        fileprivate let isValid: Bool
 
         public init(dimension: Int, data: Data, domainMinimum: SIMD3<Float> = .zero, domainMaximum: SIMD3<Float> = SIMD3<Float>(repeating: 1)) {
             self.dimension = dimension
             self.data = data
             self.domainMinimum = domainMinimum
             self.domainMaximum = domainMaximum
+            self.isValid = Self.validateStorage(dimension: dimension, data: data, minimum: domainMinimum, maximum: domainMaximum)
             self.identity = Self.makeIdentity(dimension: dimension, data: data, domainMinimum: domainMinimum, domainMaximum: domainMaximum)
         }
     }
@@ -85,6 +87,8 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     }
 
     public func makeFinalFilter(otherInputTextures: C7InputTextures?) -> C7FilterProtocol? {
+        if let resourceLoadError { return ColorCubeResourceFailure(error: resourceLoadError, kernelParameterBindings: kernelParameterBindings) }
+        if replacement == nil && lutTexture == nil { return ColorCubeResourceFailure(error: .cubeResource, kernelParameterBindings: kernelParameterBindings) }
         if var fused = replacement?.fusedAtoms {
             fused.intensity = intensity
             fused.domainPolicy = domainPolicy
@@ -98,7 +102,7 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     }
 
     public var kernelPixelContract: KernelPixelContract {
-        KernelPixelContract(precision: .float16,
+        KernelPixelContract(precision: replacement == nil ? .float32 : .float16,
             dynamicRangeBehavior: domainPolicy == .preserveOutsideDomain ? .preservesExtendedRange : .unspecified,
             samplingFootprint: .point)
     }
@@ -123,7 +127,7 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         self.init(cubeResource: resolution.resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
         self.resourceName = cubeName
         self.resourceBundleName = bundle.bundleURL.deletingPathExtension().lastPathComponent
-        self.resourceLoadError = resolution.error
+        self.resourceLoadError = resolution.error ?? self.resourceLoadError
     }
 
     public init(cubeName: String, forResource resource: String, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral) {
@@ -146,6 +150,7 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
         self.init(cubeResource: resource, intensity: intensity, interpolation: interpolation, domainPolicy: domainPolicy)
         self.resourceName = nil
         self.resourceBundleName = nil
+        if resource == nil { self.resourceLoadError = .cubeResource }
     }
     
     public init(cubeData: Data, dimension: Int, intensity: Float = 1.0, interpolation: Interpolation = .tetrahedral, domainPolicy: DomainPolicy = .clampToDomain) {
@@ -168,7 +173,13 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
             self.dimension = resource.dimension
             self.domainMinimum = resource.domainMinimum
             self.domainMaximum = resource.domainMaximum
-            self.lutTexture = C7ColorCube.Resource.createLUTTexture(from: resource)
+            do {
+                self.lutTexture = try C7ColorCube.Resource.createLUTTexture(from: resource)
+            } catch {
+                self.lutTexture = nil
+                self.resourceIdentity = nil
+                self.resourceLoadError = error as? HarbethError ?? .error(error)
+            }
         } else {
             self.dimension = 0
             self.domainMinimum = .zero
@@ -196,7 +207,13 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
             copy.resourceIdentity = resource.identity
             copy.domainMinimum = resource.domainMinimum
             copy.domainMaximum = resource.domainMaximum
-            copy.lutTexture = C7ColorCube.Resource.createLUTTexture(from: resource)
+            do {
+                copy.lutTexture = try C7ColorCube.Resource.createLUTTexture(from: resource)
+            } catch {
+                copy.lutTexture = nil
+                copy.resourceIdentity = nil
+                copy.resourceLoadError = error as? HarbethError ?? .error(error)
+            }
         } else {
             copy.dimension = 0
             copy.resourceIdentity = nil
@@ -205,6 +222,16 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
             copy.lutTexture = nil
         }
         return copy
+    }
+
+    public func combinationBegin(for buffer: MTLCommandBuffer, source texture: MTLTexture, dest texture2: MTLTexture) throws -> MTLTexture {
+        try validateResource()
+        return texture
+    }
+
+    private func validateResource() throws {
+        if let resourceLoadError { throw resourceLoadError }
+        guard replacement != nil || lutTexture != nil else { throw HarbethError.cubeResource }
     }
 
     public func updateInterpolation(_ interpolation: Interpolation) -> Self {
@@ -220,6 +247,15 @@ public struct C7ColorCube: C7FilterPipelineProtocol {
     }
 }
 
+private struct ColorCubeResourceFailure: BlitProtocol {
+    let error: HarbethError
+    let kernelParameterBindings: [KernelParameterBinding]
+    var modifier: ModifierEnum { .blit }
+    func encode(commandBuffer: MTLCommandBuffer, textures: [MTLTexture]) throws -> MTLTexture {
+        throw error
+    }
+}
+
 extension C7ColorCube.Resource {
     struct NamedResourceResolution {
         let resource: C7ColorCube.Resource?
@@ -231,48 +267,41 @@ extension C7ColorCube.Resource {
         return try? parse(contents: contents)
     }
     
-    static func createLUTTexture(from resource: C7ColorCube.Resource) -> MTLTexture? {
-        guard resource.hasValidStorage else { return nil }
+    static func createLUTTexture(from resource: C7ColorCube.Resource) throws -> MTLTexture {
+        guard resource.isValid else { throw HarbethError.cubeResource }
         let context = HarbethContext.shared
         let cacheIdentity = context.makeDerivedResourceIdentity(
             domain: .lookupTable,
             namespace: "harbeth.lookup-table",
             fingerprint: resource.identity
         )
-        if let cached = context.cachedDerivedTexture(for: cacheIdentity) {
-            return cached
+        return try context.makeDerivedTexture(for: cacheIdentity) {
+            let descriptor = MTLTextureDescriptor()
+            descriptor.textureType = .type3D
+            descriptor.pixelFormat = .rgba32Float
+            descriptor.width = resource.dimension
+            descriptor.height = resource.dimension
+            descriptor.depth = resource.dimension
+            descriptor.mipmapLevelCount = 1
+            descriptor.usage = [.shaderRead]
+            descriptor.storageMode = .shared
+            descriptor.cpuCacheMode = .writeCombined
+            guard let texture = context.device.makeTexture(descriptor: descriptor) else { throw HarbethError.makeTexture }
+            let bytesPerRow = resource.dimension * 4 * MemoryLayout<Float>.size
+            resource.data.withUnsafeBytes { bytes in
+                texture.replace(
+                    region: MTLRegionMake3D(0, 0, 0, resource.dimension, resource.dimension, resource.dimension),
+                    mipmapLevel: 0,
+                    slice: 0,
+                    withBytes: bytes.baseAddress!,
+                    bytesPerRow: bytesPerRow,
+                    bytesPerImage: resource.dimension * bytesPerRow
+                )
+            }
+            return texture
         }
-        let textureDescriptor = MTLTextureDescriptor()
-        textureDescriptor.textureType = .type3D
-        textureDescriptor.pixelFormat = .rgba32Float
-        textureDescriptor.width = resource.dimension
-        textureDescriptor.height = resource.dimension
-        textureDescriptor.depth = resource.dimension
-        textureDescriptor.mipmapLevelCount = 1
-        textureDescriptor.usage = [.shaderRead]
-        textureDescriptor.storageMode = .shared
-        textureDescriptor.cpuCacheMode = .writeCombined
-        guard let texture = HarbethContext.shared.device.makeTexture(descriptor: textureDescriptor) else { return nil }
-
-        let bytesPerPixel = 4 * MemoryLayout<Float>.size
-        let bytesPerRow = resource.dimension * bytesPerPixel
-        let bytesPerImage = resource.dimension * bytesPerRow
-        resource.data.withUnsafeBytes { buffer in
-            let floatBuffer = buffer.bindMemory(to: Float.self)
-            guard let baseAddress = floatBuffer.baseAddress else { return }
-            texture.replace(
-                region: MTLRegionMake3D(0, 0, 0, resource.dimension, resource.dimension, resource.dimension),
-                mipmapLevel: 0,
-                slice: 0,
-                withBytes: baseAddress,
-                bytesPerRow: bytesPerRow,
-                bytesPerImage: bytesPerImage
-            )
-        }
-        context.storeDerivedTexture(texture, for: cacheIdentity)
-        return texture
     }
-    
+
     /// Read Cube file resources.
     /// - Parameters:
     ///   - name: File name.
@@ -388,10 +417,18 @@ private extension C7ColorCube.Resource {
     static let compactChecksumOffset = 40
     static let compactChecksumLength = 32
 
-    var hasValidStorage: Bool {
-        dimension >= 2
-        && dimension <= 65
-        && data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.size
+    static func validateStorage(dimension: Int, data: Data, minimum: SIMD3<Float>, maximum: SIMD3<Float>) -> Bool {
+        guard (2...65).contains(dimension),
+              data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.size,
+              (0..<3).allSatisfy({ minimum[$0].isFinite && maximum[$0].isFinite && minimum[$0] < maximum[$0] }) else {
+            return false
+        }
+        return data.withUnsafeBytes { bytes in
+            // Data 的切片不保证 Float 对齐，验证只在不可变资源构造时执行一次。
+            stride(from: 0, to: bytes.count, by: MemoryLayout<Float>.size).allSatisfy {
+                bytes.loadUnaligned(fromByteOffset: $0, as: Float.self).isFinite
+            }
+        }
     }
 
     static func parseDomain(_ fields: [Substring]) throws -> SIMD3<Float> {

@@ -24,7 +24,7 @@ public struct C7Deband: C7FilterProtocol {
     }
 
     public var factors: [Float] {
-        [radius, threshold, amount, dither]
+        [safeRadius, threshold.isFinite ? threshold : 0, amount.isFinite ? amount : 0, dither.isFinite ? dither : 0]
     }
 
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -33,11 +33,15 @@ public struct C7Deband: C7FilterProtocol {
 
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
-            precision: .float16,
+            inputAlphaExpectation: .premultiplied,
+            outputAlpha: .premultiplied,
+            precision: .float32,
             dynamicRangeBehavior: .clampsToUnitRange,
-            samplingFootprint: .neighborhood(radius: Int(ceil(radius)))
+            samplingFootprint: .neighborhood(radius: Int(ceil(safeRadius)))
         )
     }
+
+    private var safeRadius: Float { radius.isFinite ? radius : Self.radiusRange.lowerBound }
 
     public init(radius: Float = 2, threshold: Float = 0.12, amount: Float = 0.7, dither: Float = 0.15) {
         self.radius = radius

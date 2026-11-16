@@ -301,6 +301,7 @@ extension ColorCubeTests {
         let input = try makeTexture(pixel: [32, 64, 96, 128])
         let cube = C7ColorCube(cubeName: "invert-v1", forResource: "tests.cube-replacement", intensity: 0.5)
         XCTAssertTrue(cube.usesAtomReplacement)
+        XCTAssertEqual(cube.kernelPixelContract.precision, .float16)
         XCTAssertEqual(cube.resourceName, "invert-v1")
         XCTAssertEqual(cube.resourceBundleName, "tests.cube-replacement")
         XCTAssertTrue(cube.otherInputTextures.isEmpty)
@@ -343,6 +344,7 @@ extension ColorCubeTests {
         let resource = try C7ColorCube.Resource.parse(contents: unitIdentityCube)
         let original = C7ColorCube(cubeResource: resource)
         XCTAssertEqual(original.kernelDescriptor().resources.inputTextureCount, 2)
+        XCTAssertEqual(original.kernelPixelContract.precision, .float32)
         let input = try makeTexture(pixel: [32, 64, 96, 128])
         let atom = C7ColorCube(cubeName: "invert-v1", forResource: "tests.cube-replacement", intensity: 0.5)
         for cube in [original, atom] {
