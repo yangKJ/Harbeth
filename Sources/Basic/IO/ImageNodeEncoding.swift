@@ -161,16 +161,25 @@ extension HarbethIO where Dest == CVPixelBuffer {
         commandBuffer.addCompletedHandler { _ in borrowed.release() }
         var texture = source.primaryTexture
         var decoded: RenderedFrame?
+        var remaining = filters
         if source.requiresPlaneAwareDecoding {
             guard let strategy = TextureLoader.makeYCbCrDecodeStrategy(for: element, bridgePlan: plan) else {
                 throw HarbethError.configurationInvalid("缺少输入平面解码合同。")
             }
-            let filter = YCbCrPlaneDecodeFilter(
+            // 仅合并同一颜色域的首级缩小几何；保持原先逐像素解码、夹紧后线性采样的顺序。
+            let geometry = remaining.first as? C7TextureGeometry
+            let fusesGeometry = inputColorSpace == workingColorSpace
+                && geometry.map { $0.width * $0.height < texture.width * texture.height } == true
+            var filter = YCbCrPlaneDecodeFilter(
                 layout: strategy.layout,
                 conversionMatrix: strategy.conversionMatrix,
                 conversionOffset: strategy.conversionOffset,
                 planeTextures: source.planeTextures
             )
+            if fusesGeometry {
+                filter.geometry = geometry
+                remaining.removeFirst()
+            }
             var io = HarbethIO<MTLTexture>(element: texture, filter: filter, identifier: identifier + ".decode")
             io.bufferPixelFormat = .rgba16Float
             decoded = try io.encodeFrame(
@@ -183,7 +192,7 @@ extension HarbethIO where Dest == CVPixelBuffer {
             )
             texture = decoded!.texture
         }
-        var io = HarbethIO<MTLTexture>(element: texture, filters: filters, identifier: identifier)
+        var io = HarbethIO<MTLTexture>(element: texture, filters: remaining, identifier: identifier)
         io.bufferPixelFormat = bufferPixelFormat
         let output = try io.encodeFrame(
             into: commandBuffer,
@@ -198,7 +207,8 @@ extension HarbethIO where Dest == CVPixelBuffer {
         commandBuffer.addCompletedHandler { _ in withExtendedLifetime(retained.value) {} }
         guard output.lease == nil else { return output }
         // 直通结果可能在GPU完成后仍由显示宿主持有，采集缓冲不能提前归还。
-        let lease = TextureLease(texture: output.texture) { withExtendedLifetime(owners.value) {} }
+        // 解码融合后可能直接返回解码纹理，显示帧必须继续持有其池租约。
+        let lease = TextureLease(texture: output.texture) { withExtendedLifetime((owners.value, retained.value)) {} }
         return RenderedFrame(
             texture: output.texture,
             colorSpace: output.colorSpace,

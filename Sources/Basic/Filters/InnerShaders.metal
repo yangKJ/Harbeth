@@ -1615,3 +1615,62 @@ kernel void MaskDistanceSignedCombineMPS(texture2d<half, access::write> outputTe
     const float value = clamp(signedDistance / (2.0f * limit) + 0.5f, 0.0f, 1.0f);
     outputTexture.write(half4(half(value)), gid);
 }
+
+// 缩小输入时直接在输出网格解码；四个源像素分别夹紧并量化为half后再插值，保持原有顺序。
+static inline half4 InnerYCbCrGeometryPixel(int2 position,
+    texture2d<half, access::read> y, texture2d<half, access::read> uv,
+    texture2d<half, access::read> v, bool biPlanar, float3x3 matrix, float3 offset) {
+    const uint2 p = uint2(clamp(position, int2(0), int2(y.get_width() - 1, y.get_height() - 1)));
+    const uint2 uPoint = uint2(p.x * uv.get_width() / y.get_width(), p.y * uv.get_height() / y.get_height());
+    const half2 u = uv.read(uPoint).rg;
+    const uint2 vPoint = uint2(p.x * v.get_width() / y.get_width(), p.y * v.get_height() / y.get_height());
+    return InnerYCbCrConvertToRGBA(matrix, offset, y.read(p).r, u.x, biPlanar ? u.y : v.read(vPoint).r);
+}
+
+static inline half4 InnerYCbCrGeometrySample(float2 uvPoint,
+    texture2d<half, access::read> y, texture2d<half, access::read> uv,
+    texture2d<half, access::read> v, bool biPlanar, float3x3 matrix, float3 offset) {
+    const float2 point = uvPoint * float2(y.get_width(), y.get_height()) - 0.5f;
+    const int2 base = int2(floor(point));
+    const float2 weight = fract(point);
+    const half4 a = InnerYCbCrGeometryPixel(base, y, uv, v, biPlanar, matrix, offset);
+    const half4 b = InnerYCbCrGeometryPixel(base + int2(1, 0), y, uv, v, biPlanar, matrix, offset);
+    const half4 c = InnerYCbCrGeometryPixel(base + int2(0, 1), y, uv, v, biPlanar, matrix, offset);
+    const half4 d = InnerYCbCrGeometryPixel(base + int2(1, 1), y, uv, v, biPlanar, matrix, offset);
+    return half4(mix(mix(float4(a), float4(b), weight.x), mix(float4(c), float4(d), weight.x), weight.y));
+}
+
+static inline bool InnerYCbCrGeometryUV(uint2 p, uint2 size, float4 source, float4 destination,
+    float2 flips, float4 rowX, float4 rowY, thread float2 &point) {
+    const float2 uv = (float2(p) + 0.5f) / float2(size);
+    float2 local = (uv - destination.xy) / destination.zw;
+    if (any(local < 0) || any(local > 1)) return false;
+    local = select(local, 1 - local, flips > 0.5f);
+    const float3 sampled = float3(source.xy + local * source.zw, 1);
+    point = float2(dot(rowX.xyz, sampled), dot(rowY.xyz, sampled));
+    return all(point >= 0) && all(point <= 1);
+}
+
+kernel void InnerYCbCrBiPlanarToRGBAGeometry(texture2d<half, access::write> output [[texture(0)]],
+    texture2d<half, access::read> y [[texture(1)]], texture2d<half, access::read> uv [[texture(2)]],
+    constant float3x3 &matrix [[buffer(0)]], constant float3 &offset [[buffer(1)]],
+    constant float4 &source [[buffer(2)]], constant float4 &destination [[buffer(3)]],
+    constant float2 &flips [[buffer(4)]], constant float4 &background [[buffer(5)]],
+    constant float4 &rowX [[buffer(6)]], constant float4 &rowY [[buffer(7)]], uint2 p [[thread_position_in_grid]]) {
+    if (p.x >= output.get_width() || p.y >= output.get_height()) return;
+    float2 point;
+    const bool valid = InnerYCbCrGeometryUV(p, uint2(output.get_width(), output.get_height()), source, destination, flips, rowX, rowY, point);
+    output.write(valid ? InnerYCbCrGeometrySample(point, y, uv, uv, true, matrix, offset) : half4(background), p);
+}
+
+kernel void InnerYCbCrTriPlanarToRGBAGeometry(texture2d<half, access::write> output [[texture(0)]],
+    texture2d<half, access::read> y [[texture(1)]], texture2d<half, access::read> u [[texture(2)]], texture2d<half, access::read> v [[texture(3)]],
+    constant float3x3 &matrix [[buffer(0)]], constant float3 &offset [[buffer(1)]],
+    constant float4 &source [[buffer(2)]], constant float4 &destination [[buffer(3)]],
+    constant float2 &flips [[buffer(4)]], constant float4 &background [[buffer(5)]],
+    constant float4 &rowX [[buffer(6)]], constant float4 &rowY [[buffer(7)]], uint2 p [[thread_position_in_grid]]) {
+    if (p.x >= output.get_width() || p.y >= output.get_height()) return;
+    float2 point;
+    const bool valid = InnerYCbCrGeometryUV(p, uint2(output.get_width(), output.get_height()), source, destination, flips, rowX, rowY, point);
+    output.write(valid ? InnerYCbCrGeometrySample(point, y, u, v, false, matrix, offset) : half4(background), p);
+}
