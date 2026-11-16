@@ -84,6 +84,11 @@ struct C7FusedPointOperations: C7FilterProtocol, FusedKernelProtocol {
 enum PointwiseFusionPlanner {
     static let maximumOperationCount = 16
 
+    static func canReuseSourceFingerprint(_ filters: [C7FilterProtocol]) -> Bool {
+        // 仅内置纯点运算允许提前复用；其他滤镜可能在尺寸准备时更新参数。
+        filters.allSatisfy { operation(for: $0) != nil }
+    }
+
     static func makeExecutionFilters(_ filters: [C7FilterProtocol]) -> [C7FilterProtocol] {
         guard filters.count > 1 else { return filters }
         var result: [C7FilterProtocol] = []

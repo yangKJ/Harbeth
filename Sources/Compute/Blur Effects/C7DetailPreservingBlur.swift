@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Metal
 
 /// 在降噪的同时尽可能保留细节，避免传统模糊导致的细节丢失
 /// Keep the details as much as possible
@@ -17,6 +18,9 @@ public struct C7DetailPreservingBlur: C7FilterProtocol {
     @ZeroOneRange public var detailPreservation: Float = 0.7
     
     public var modifier: ModifierEnum {
+        if #available(macOS 11.0, iOS 14.0, tvOS 16.0, *), HarbethContext.shared.device.supports32BitFloatFiltering {
+            return .compute(kernel: "C7DetailPreservingBlurPacked")
+        }
         return .compute(kernel: "C7DetailPreservingBlur")
     }
     

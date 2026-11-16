@@ -82,10 +82,11 @@ kernel void AnalysisStatisticsReduce(device const AnalysisPartial *input [[buffe
     analysisReduce(values, lane);
     if (lane == 0) out[group] = values[0];
 }
-kernel void AnalysisScopedHistogram(texture2d<float, access::read> source [[texture(0)]],
-    texture2d<float, access::read> mask [[texture(1)]], device atomic_uint *out [[buffer(0)]],
-    constant float *p [[buffer(1)]], uint group [[threadgroup_position_in_grid]], uint lane [[thread_index_in_threadgroup]]) {
-    threadgroup atomic_uint bins[4096];
+// 归并完 bin 后复用线程组空间汇总样本数，避免争用单一全局计数器。
+template <bool UseSIMD>
+static void analysisScopedHistogram(texture2d<float, access::read> source,
+    texture2d<float, access::read> mask, device atomic_uint *out, constant float *p,
+    uint group, uint lane, uint simdGroup, threadgroup atomic_uint *bins) {
     uint count = uint(p[25]);
     for (uint b = lane; b < count; b += 256) atomic_store_explicit(bins + b, 0, memory_order_relaxed);
     threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -95,18 +96,62 @@ kernel void AnalysisScopedHistogram(texture2d<float, access::read> source [[text
         float4 c = analysisColor(source, q, p);
         if (analysisAccept(c, q, source, mask, p)) {
             float value = p[24] == 0 ? (c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f) : c[uint(p[24]) - 1];
-            if (isfinite(value)) {
-                uint bin = min(uint(floor(clamp((value - p[22]) / (p[23] - p[22]), 0.0f, 1.0f) * float(count - 1) + 0.5f)), count - 1);
+            float normalized = clamp(precise::divide(value - p[22], p[23] - p[22]), 0.0f, 1.0f);
+            if (isfinite(value) && isfinite(normalized)) {
+                uint bin = min(uint(floor(normalized * float(count - 1) + 0.5f)), count - 1);
                 atomic_fetch_add_explicit(bins + bin, 1, memory_order_relaxed);
             } else atomic_store_explicit(out + count + 1, 1, memory_order_relaxed);
         }
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
+    uint subtotal = 0;
     for (uint b = lane; b < count; b += 256) {
         uint n = atomic_load_explicit(bins + b, memory_order_relaxed);
-        if (n != 0) { atomic_fetch_add_explicit(out + b, n, memory_order_relaxed); atomic_fetch_add_explicit(out + count, n, memory_order_relaxed); }
+        subtotal += n;
+        if (n != 0) atomic_fetch_add_explicit(out + b, n, memory_order_relaxed);
+    }
+    // 所有 bin 已加载并写到全局结果后，才能覆盖线程组 bin 存储。
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (UseSIMD) {
+        uint combined = simd_sum(subtotal);
+        if (simd_is_first()) atomic_store_explicit(bins + simdGroup, combined, memory_order_relaxed);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (lane == 0) {
+            uint total = 0;
+            for (uint i = 0; i < 256 / uint(p[26]); ++i) total += atomic_load_explicit(bins + i, memory_order_relaxed);
+            atomic_fetch_add_explicit(out + count, total, memory_order_relaxed);
+        }
+    } else {
+        uint active = min(count, 256u);
+        if (lane < active) atomic_store_explicit(bins + lane, subtotal, memory_order_relaxed);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        for (uint step = 128; step > 0; step >>= 1) {
+            if (lane < step && lane + step < active) {
+                uint sum = atomic_load_explicit(bins + lane, memory_order_relaxed)
+                    + atomic_load_explicit(bins + lane + step, memory_order_relaxed);
+                atomic_store_explicit(bins + lane, sum, memory_order_relaxed);
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+        }
+        if (lane == 0) atomic_fetch_add_explicit(out + count, atomic_load_explicit(bins, memory_order_relaxed), memory_order_relaxed);
     }
 }
+
+kernel void AnalysisScopedHistogram(texture2d<float, access::read> source [[texture(0)]],
+    texture2d<float, access::read> mask [[texture(1)]], device atomic_uint *out [[buffer(0)]],
+    constant float *p [[buffer(1)]], threadgroup atomic_uint *bins [[threadgroup(0)]],
+    uint group [[threadgroup_position_in_grid]], uint lane [[thread_index_in_threadgroup]]) {
+    analysisScopedHistogram<false>(source, mask, out, p, group, lane, 0, bins);
+}
+
+kernel void AnalysisScopedHistogramSIMD(texture2d<float, access::read> source [[texture(0)]],
+    texture2d<float, access::read> mask [[texture(1)]], device atomic_uint *out [[buffer(0)]],
+    constant float *p [[buffer(1)]], threadgroup atomic_uint *bins [[threadgroup(0)]],
+    uint group [[threadgroup_position_in_grid]], uint lane [[thread_index_in_threadgroup]],
+    uint simdGroup [[simdgroup_index_in_threadgroup]]) {
+    analysisScopedHistogram<true>(source, mask, out, p, group, lane, simdGroup, bins);
+}
+
 kernel void AnalysisScopeMask(texture2d<float, access::read> source [[texture(0)]],
     texture2d<float, access::read> mask [[texture(1)]], texture2d<float, access::write> out [[texture(2)]],
     constant float *p [[buffer(1)]], uint2 q [[thread_position_in_grid]]) {
@@ -114,4 +159,19 @@ kernel void AnalysisScopeMask(texture2d<float, access::read> source [[texture(0)
     bool region = q.x >= uint(p[0]) && q.y >= uint(p[1]) && q.x < uint(p[0] + p[2]) && q.y < uint(p[1] + p[3]);
     float value = region && analysisAccept(analysisColor(source, q, p), q, source, mask, p) ? 1.0f : 0.0f;
     out.write(float4(value, value, value, 1), q);
+}
+
+// 预览参数 ABI 与 histogramPreviewKernel 共用：offset / count / height / peak。
+kernel void AnalysisHistogramPeak(device const uint *histogram [[buffer(0)]],
+    device uint *parameters [[buffer(1)]], uint lane [[thread_index_in_threadgroup]]) {
+    threadgroup uint peaks[256];
+    uint peak = 0;
+    for (uint bin = lane; bin < parameters[1]; bin += 256) peak = max(peak, histogram[parameters[0] + bin]);
+    peaks[lane] = peak;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint step = 128; step > 0; step >>= 1) {
+        if (lane < step) peaks[lane] = max(peaks[lane], peaks[lane + step]);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (lane == 0) parameters[3] = peaks[0];
 }

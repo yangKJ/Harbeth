@@ -215,10 +215,10 @@ public extension MTLTextureCompatible_ {
                                    valueRange: TextureAnalysisValueRange = .normalized,
                                    preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedHistogramAttachment? {
         if preferredMethod == .gpuMPS,
-           let histogram = GPUTextureAnalysis.histogram(target, channel: channel, bins: max(1, bins),
+           let attachment = GPUTextureAnalysis.histogramAttachment(target, channel: channel, bins: max(1, bins), height: height,
                 scope: TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
                     colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)) {
-            return makeHistogramAttachment(from: histogram, height: height)
+            return attachment
         }
         if mask == nil && luminanceRange == nil && colorRange == nil {
             switch preferredMethod {
@@ -292,7 +292,12 @@ public extension MTLTextureCompatible_ {
                                   colorRange: TextureColorRange?,
                                   coverageThreshold: Float,
                                   valueRange: TextureAnalysisValueRange) -> TextureHistogram? {
-        guard let readback = TextureAnalysisReadback(texture: target) else { return nil }
+        guard TextureAnalysisReadback.supports(target) else { return nil }
+        guard let resolvedRegion = resolvedHistogramRegion(region) else {
+            return TextureHistogram(channel: channel, bins: [UInt32](repeating: 0, count: max(1, bins)), totalSampleCount: 0,
+                valueRange: valueRange, pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false))
+        }
+        guard let readback = TextureAnalysisReadback(texture: target, region: resolvedRegion) else { return nil }
         return makeCPUHistogram(
             readback: readback,
             maskSample: makeMaskCoverageSample(for: mask),
@@ -361,7 +366,10 @@ public extension MTLTextureCompatible_ {
                     case .blue: value = blue
                     case .alpha: value = alpha
                     }
-                    let index = min(max(Int((valueRange.normalizedValue(value) * scale).rounded()), 0), clampedBins - 1)
+                    guard value.isFinite else { return nil }
+                    let normalized = valueRange.normalizedValue(value)
+                    guard normalized.isFinite else { return nil }
+                    let index = min(max(Int((normalized * scale).rounded()), 0), clampedBins - 1)
                     counts[index] += 1
                     totalSampleCount += 1
                 }

@@ -85,7 +85,8 @@ enum RenderExecutionCompiler {
         imageGraph: ImageGraph? = nil,
         graphOptimizationDecisions: [String] = [],
         planCacheKey: String? = nil,
-        preparedPlan: RenderPlan? = nil
+        preparedPlan: RenderPlan? = nil,
+        sourceFilterFingerprint: String? = nil
     ) -> RenderExecutionProgram {
         let samplerPlan = SamplerExecutionAdapter.makePlan(
             filters: filters,
@@ -132,7 +133,7 @@ enum RenderExecutionCompiler {
         let executableFilters = steps.map(\.filter)
 
         return RenderExecutionProgram(
-            sourceFilterFingerprint: filters.chainRecipe.fingerprint,
+            sourceFilterFingerprint: sourceFilterFingerprint ?? filters.chainRecipe.fingerprint,
             filters: executableFilters,
             plan: plan,
             steps: steps,

@@ -820,9 +820,14 @@ extension ImageNode {
     public func startRenderFrameTask(profile: RenderProfile = .stablePreview,
                                      derivative: ImageDerivativeSpec? = nil,
                                      metadata: [String: String] = [:]) throws -> RenderTask<RenderedFrame> {
-        let frame = try makeFrame(profile: profile, derivative: derivative, metadata: metadata)
-        let diagnostics = try makeDiagnostics(profile: profile, derivative: derivative ?? profile.defaultDerivativeSpec)
-        return .completed(identifier: frame.identifier, output: frame, diagnostics: diagnostics)
+        let monitoringIdentifier = self.monitoringIdentifier
+        let monitorEnabled = HarbethContext.shared.enablePerformanceMonitor
+        if monitorEnabled { HarbethContext.shared.performanceMonitor.beginMonitoring(monitoringIdentifier) }
+        defer { if monitorEnabled { HarbethContext.shared.performanceMonitor.endMonitoring(monitoringIdentifier) } }
+        let prepared = try prepareExecution(profile: profile, derivative: derivative, executionIdentifier: monitoringIdentifier)
+        let frame = try makeFrame(prepared: prepared, outputColorSpace: nil, metadata: metadata,
+                                  frameIdentifier: monitoringIdentifier, metricsIdentifier: monitoringIdentifier)
+        return .completed(identifier: frame.identifier, output: frame, diagnostics: prepared.diagnostics)
     }
 
     public func makeTexture(profile: RenderProfile = .stablePreview, derivative: ImageDerivativeSpec? = nil) throws -> MTLTexture {

@@ -441,7 +441,7 @@ kernel void histogramPreviewKernel(
 
     uint index = min(gid.x, max(params.histogramCount, 1u) - 1u);
     uint count = histogramBuffer[params.histogramOffset + index];
-    float normalized = params.peakCount > 0 ? float(count) / float(params.peakCount) : 0.0;
+    float normalized = params.peakCount > 0 ? precise::divide(float(count), float(params.peakCount)) : 0.0;
     uint filledHeight = uint(ceil(normalized * float(params.textureHeight)));
     uint thresholdRow = params.textureHeight > filledHeight ? (params.textureHeight - filledHeight) : 0u;
 

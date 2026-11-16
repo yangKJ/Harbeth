@@ -11,29 +11,25 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7GaussianBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
-                           texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7GaussianBlur(texture2d<float, access::write> outputTexture [[texture(0)]],
+                           texture2d<float, access::read> inputTexture [[texture(1)]],
                            constant float *blurRadius [[buffer(0)]],
                            uint2 grid [[thread_position_in_grid]]) {
-    const float2 textureCoordinate = float2(grid) / float2(outputTexture.get_width(), outputTexture.get_height());
-    const half radius = half(*blurRadius) / 100.0h;
-    const float x = textureCoordinate.x;
-    const float y = textureCoordinate.y;
-    const float w = float(inputTexture.get_width());
-    const float h = float(inputTexture.get_height());
-    
-    // 高斯模糊卷积核
-    const half3x3 matrix = half3x3(half3(1.0h, 2.0h, 1.0h), half3(2.0h, 4.0h, 2.0h), half3(1.0h, 2.0h, 1.0h));
-    half4 result = half4(0.0h);
-    for (int i = 0; i < 9; i++) {
-        int a = i % 3; int b = i / 3;
-        float2 sampleCoord = float2(x + (a-1) * radius, y + (b-1) * radius);
-        sampleCoord = clamp(sampleCoord, 0.0, 1.0);
-        uint2 texCoord = uint2(sampleCoord * float2(w, h));
-        const half4 sample = inputTexture.read(texCoord);
-        result += sample * matrix[a][b];
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float2 extent = float2(inputTexture.get_width(), inputTexture.get_height());
+    float2 base = float2(grid);
+    if (inputTexture.get_width() != outputTexture.get_width() || inputTexture.get_height() != outputTexture.get_height()) {
+        base = precise::divide(float2(grid), float2(outputTexture.get_width(), outputTexture.get_height())) * extent;
     }
-    
-    const half4 outColor = result / 16.0h;
-    outputTexture.write(outColor, grid);
+    if (!isfinite(*blurRadius) || *blurRadius <= 0.0f) {
+        outputTexture.write(inputTexture.read(uint2(clamp(base, float2(0), extent - 1))), grid); return;
+    }
+    const float spacing = precise::divide(*blurRadius, 100.0f);
+    const float weights[3] = {1,2,1};
+    float4 result = 0;
+    for (int y = -1; y <= 1; ++y) for (int x = -1; x <= 1; ++x) {
+        uint2 point = uint2(clamp(base + float2(x,y) * spacing * extent, float2(0), extent - 1));
+        result += inputTexture.read(point) * (weights[x+1] * weights[y+1] / 16.0f);
+    }
+    outputTexture.write(result, grid);
 }

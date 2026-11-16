@@ -107,7 +107,13 @@ extension HarbethIO {
 
     func resolvedOutputColorSpace(inputSize: C7Size, outputColorSpace: ImageColorSpaceContract? = nil) -> ImageColorSpaceContract {
         outputColorSpace ?? filters.reduce(.preserveInput) { current, filter in
-            let declared = filter.kernelDescriptor(inputSize: inputSize).outputContract.colorSpace
+            let effective = (filter as? C7FilterPipelineProtocol)?.makeFinalFilter(otherInputTextures: nil) ?? filter
+            let declared: ImageColorSpaceContract
+            if let render = effective as? RenderProtocol, case .render = render.modifier {
+                declared = render.renderOutputContract.colorSpace
+            } else {
+                declared = effective.kernelOutputContract.colorSpace
+            }
             return declared.preservesInput ? current : declared
         }
     }

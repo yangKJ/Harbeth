@@ -12,7 +12,7 @@ float luminance(float3 color) {
     return dot(color, float3(0.299f, 0.587f, 0.114f));
 }
 
-static inline half4 spatialSample(texture2d<half, access::sample> input, uint2 p, int2 offset, float spacing) {
+static inline float4 spatialSample(texture2d<float, access::sample> input, uint2 p, int2 offset, float spacing) {
     if (spacing == 1.0f) {
         return input.read(uint2(clamp(int2(p) + offset, int2(0), int2(input.get_width() - 1, input.get_height() - 1))));
     }
@@ -20,8 +20,8 @@ static inline half4 spatialSample(texture2d<half, access::sample> input, uint2 p
     return input.sample(linearClamp, float2(p) + 0.5f + float2(offset) * spacing);
 }
 
-kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[texture(0)]],
-                             texture2d<half, access::sample> inputTexture [[texture(1)]],
+kernel void C7NoiseReduction(texture2d<float, access::write> outputTexture [[texture(0)]],
+                             texture2d<float, access::sample> inputTexture [[texture(1)]],
                              constant float *radiusPointer [[buffer(0)]],
                              constant float *amountPointer [[buffer(1)]],
                              constant float *edgePreservationPointer [[buffer(2)]],
@@ -33,12 +33,13 @@ kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[text
         return;
     }
 
-    const int radius = max(int(round(*radiusPointer)), 1);
     const float amount = clamp(*amountPointer, 0.0f, 1.0f);
     const float edgePreservation = clamp(*edgePreservationPointer, 0.0f, 1.0f);
     const float colorSigma = mix(0.35f, 0.08f, edgePreservation);
 
     const float4 center = float4(inputTexture.read(grid));
+    if (!isfinite(*amountPointer) || !isfinite(*radiusPointer) || !isfinite(*edgePreservationPointer) || !isfinite(*sampleSpacing) || amount <= 0.0f) { outputTexture.write(center, grid); return; }
+    const int radius = max(int(round(*radiusPointer)), 1);
     const float centerLuma = luminance(center.rgb);
     float4 accumulated = float4(0.0f);
     float weightSum = 0.0f;
@@ -76,5 +77,5 @@ kernel void C7NoiseReduction(texture2d<half, access::write> outputTexture [[text
     denoised = mix(denoised, spatialMean, impulseStrength);
     denoised.a = center.a;
 
-    outputTexture.write(half4(mix(center, denoised, amount)), grid);
+    outputTexture.write(mix(center, denoised, amount), grid);
 }

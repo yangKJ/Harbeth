@@ -294,68 +294,20 @@ extension RenderedAttachmentSet {
                       preferredMethod: TextureHistogramComputationMethod = .gpuMPS) -> RenderedAttachmentAnalysis? {
         guard let attachment = attachment(for: semantic) else { return nil }
         let resolvedChannel = channel ?? attachment.defaultHistogramChannel
-        let texture = attachment.texture.c7
         let analysisScope = TextureAnalysisScope(region: region, mask: mask, luminanceRange: luminanceRange,
             colorRange: colorRange, coverageThreshold: coverageThreshold, valueRange: valueRange)
-        let gpuStatistics = preferredMethod == .gpuMPS ? GPUTextureAnalysis.statistics(attachment.texture, scope: analysisScope) : nil
-        let readback = preferredMethod == .cpuReadback || gpuStatistics == nil ? TextureAnalysisReadback(texture: attachment.texture) : nil
-        let maskSample = readback == nil ? nil : texture.makeMaskCoverageSample(for: mask)
-        let statistics = gpuStatistics ?? readback.flatMap {
-            texture.makeStatistics(
-                readback: $0,
-                region: region,
-                maskSample: maskSample,
-                luminanceRange: luminanceRange,
-                colorRange: colorRange,
-                coverageThreshold: coverageThreshold
-            )
-        }
+        let artifacts = TextureAnalysisArtifacts.make(texture: attachment.texture, channel: resolvedChannel,
+            bins: bins, height: histogramHeight, scope: analysisScope, preferredMethod: preferredMethod)
+        let statistics = artifacts.statistics
         let colorProbe = attachment.texture.c7.resolvedHistogramRegion(region).flatMap { resolvedRegion in
             statistics.map { TextureColorProbe(region: resolvedRegion, statistics: $0) }
         }
-        let requiresCPUHistogram = preferredMethod == .cpuReadback
-        let histogram: TextureHistogram?
-        let histogramAttachment: RenderedHistogramAttachment?
-        if requiresCPUHistogram, let readback {
-            histogram = texture.makeCPUHistogram(
-                readback: readback,
-                maskSample: maskSample,
-                channel: resolvedChannel,
-                bins: bins,
-                region: region,
-                luminanceRange: luminanceRange,
-                colorRange: colorRange,
-                coverageThreshold: coverageThreshold,
-                valueRange: valueRange
-            )
-            histogramAttachment = histogram.flatMap { histogram in
-                texture.makeHistogramAttachment(from: histogram, height: histogramHeight)
-            }
-        } else {
-            histogramAttachment = texture.renderHistogramAttachment(
-                channel: resolvedChannel,
-                bins: bins,
-                height: histogramHeight,
-                region: region,
-                mask: mask, luminanceRange: luminanceRange, colorRange: colorRange, coverageThreshold: coverageThreshold,
-                valueRange: valueRange,
-                preferredMethod: preferredMethod
-            )
-            histogram = histogramAttachment?.histogram ?? attachment.makeHistogram(
-                channel: resolvedChannel,
-                bins: bins,
-                region: region,
-                mask: mask, luminanceRange: luminanceRange, colorRange: colorRange, coverageThreshold: coverageThreshold,
-                valueRange: valueRange,
-                preferredMethod: preferredMethod
-            )
-        }
         return RenderedAttachmentAnalysis(
             attachment: attachment,
-            histogram: histogram,
+            histogram: artifacts.histogram,
             statistics: statistics,
             colorProbe: colorProbe,
-            histogramAttachment: histogramAttachment
+            histogramAttachment: artifacts.histogramAttachment
         )
     }
 

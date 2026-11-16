@@ -490,12 +490,13 @@ extension HarbethIO {
             size = filter.resize(input: size)
             return "\(size.width)x\(size.height)"
         }.joined(separator: ",")
+        let sourceFilterFingerprint = filters.chainRecipe.fingerprint
         let cacheKey = [
             "filtersPrimitive",
             "generation=\(HarbethContext.shared.executionGeneration)",
             "sizes=\(sourceSizes)",
             "executionProgram=v1",
-            filters.chainRecipe.fingerprint,
+            sourceFilterFingerprint,
             "input=\(inputSize.width)x\(inputSize.height)",
             "profile=\(renderProfile.rawValue)",
             "derivative=\(effectiveDerivative.fingerprint)",
@@ -509,7 +510,8 @@ extension HarbethIO {
             derivative: effectiveDerivative,
             compilationSource: .filtersPrimitive,
             sourceDescriptor: sourceDescriptor,
-            planCacheKey: cacheKey
+            planCacheKey: cacheKey,
+            sourceFilterFingerprint: PointwiseFusionPlanner.canReuseSourceFingerprint(filters) ? sourceFilterFingerprint : nil
         )
         executionProgramCache?.store(program, for: cacheKey)
         HarbethContext.shared.performanceMonitor.recordPipelineCacheLookup(

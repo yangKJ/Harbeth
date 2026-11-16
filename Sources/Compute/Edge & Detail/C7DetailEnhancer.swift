@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Metal
 
 /// 使用非锐化掩模技术增强图像细节，比普通锐化更自然
 /// Use non-sharpening mask technology to enhance image details,
@@ -17,6 +18,9 @@ public struct C7DetailEnhancer: C7FilterProtocol {
     @Clamping(0.0...0.5) public var detailThreshold: Float = 0.05
     
     public var modifier: ModifierEnum {
+        if #available(macOS 11.0, iOS 14.0, tvOS 16.0, *), HarbethContext.shared.device.supports32BitFloatFiltering {
+            return .compute(kernel: "C7DetailEnhancerPacked")
+        }
         return .compute(kernel: "C7DetailEnhancer")
     }
     

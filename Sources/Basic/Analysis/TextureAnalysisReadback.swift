@@ -18,18 +18,52 @@ struct TextureAnalysisReadback {
     let height: Int
     let bytesPerRow: Int
     let pixelFormat: MTLPixelFormat
+    let origin: MTLOrigin
+    let regionSize: MTLSize
 
-    init?(texture: MTLTexture) {
-        guard texture.width > 0,
-              texture.height > 0,
-              let bytesPerPixel = Self.bytesPerPixel(for: texture.pixelFormat) else {
+    static func supports(_ texture: MTLTexture) -> Bool {
+        texture.width > 0 && texture.height > 0 && texture.textureType == .type2D &&
+            texture.arrayLength == 1 && texture.sampleCount == 1 && texture.storageMode != .memoryless &&
+            bytesPerPixel(for: texture.pixelFormat) != nil
+    }
+
+    init?(texture: MTLTexture, region requestedRegion: MTLRegion? = nil) {
+        guard Self.supports(texture), let bytesPerPixel = Self.bytesPerPixel(for: texture.pixelFormat) else {
             return nil
         }
-        let bytesPerRow = texture.width * bytesPerPixel
-        var data = Data(count: bytesPerRow * texture.height)
-        let copied = data.withUnsafeMutableBytes { rawBuffer in
-            guard let baseAddress = rawBuffer.baseAddress else { return false }
-            return texture.c7.copyBytes(to: baseAddress, bytesPerRow: bytesPerRow)
+        let full = MTLRegionMake2D(0, 0, texture.width, texture.height)
+        let requested = requestedRegion ?? full
+        let x = min(max(requested.origin.x, 0), texture.width)
+        let y = min(max(requested.origin.y, 0), texture.height)
+        let width = min(max(requested.size.width, 0), texture.width - x)
+        let height = min(max(requested.size.height, 0), texture.height - y)
+        guard width > 0, height > 0 else { return nil }
+        let region = MTLRegionMake2D(x, y, width, height)
+        let bytesPerRow = width * bytesPerPixel
+        var data = Data(count: bytesPerRow * height)
+        let copied: Bool
+        if texture.storageMode == .shared {
+            copied = data.withUnsafeMutableBytes { rawBuffer in
+                guard let baseAddress = rawBuffer.baseAddress else { return false }
+                texture.getBytes(baseAddress, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+                return true
+            }
+        } else {
+            // private/managed 先沿用完整安全读回，再裁切 ROI，避免直接 getBytes 违反 storage 合同。
+            var fullData = Data(count: texture.width * bytesPerPixel * texture.height)
+            let fullCopied = fullData.withUnsafeMutableBytes { rawBuffer -> Bool in
+                guard let baseAddress = rawBuffer.baseAddress else { return false }
+                return texture.c7.copyBytes(to: baseAddress, bytesPerRow: texture.width * bytesPerPixel)
+            }
+            copied = fullCopied && fullData.withUnsafeBytes { source in
+                data.withUnsafeMutableBytes { destination in
+                    guard let sourceBase = source.baseAddress, let destinationBase = destination.baseAddress else { return false }
+                    for row in 0..<height {
+                        memcpy(destinationBase.advanced(by: row * bytesPerRow), sourceBase.advanced(by: (y + row) * texture.width * bytesPerPixel + x * bytesPerPixel), bytesPerRow)
+                    }
+                    return true
+                }
+            }
         }
         guard copied else { return nil }
         self.data = data
@@ -37,6 +71,8 @@ struct TextureAnalysisReadback {
         self.height = texture.height
         self.bytesPerRow = bytesPerRow
         self.pixelFormat = texture.pixelFormat
+        self.origin = MTLOrigin(x: x, y: y, z: 0)
+        self.regionSize = MTLSize(width: width, height: height, depth: 1)
     }
 
     func color(x: Int, y: Int) -> SIMD4<Float>? {
@@ -46,19 +82,22 @@ struct TextureAnalysisReadback {
     /// bytes 仅可借用当前 data.withUnsafeBytes 的缓冲区，不得跨闭包保存或返回。
     func color(x: Int, y: Int, bytes rawBuffer: UnsafeRawBufferPointer) -> SIMD4<Float>? {
         guard x >= 0, x < width, y >= 0, y < height else { return nil }
-        let rowOffset = y * bytesPerRow
+        let localX = x - origin.x
+        let localY = y - origin.y
+        guard localX >= 0, localX < regionSize.width, localY >= 0, localY < regionSize.height else { return nil }
+        let rowOffset = localY * bytesPerRow
         switch pixelFormat {
         case .a8Unorm:
-            let alpha = Float(rawBuffer[rowOffset + x]) / 255
+            let alpha = Float(rawBuffer[rowOffset + localX]) / 255
             return SIMD4(0, 0, 0, alpha)
         case .r8Unorm:
-            let value = Float(rawBuffer[rowOffset + x]) / 255
+            let value = Float(rawBuffer[rowOffset + localX]) / 255
             return SIMD4(value, value, value, 1)
         case .rg8Unorm:
-            let offset = rowOffset + x * 2
+            let offset = rowOffset + localX * 2
             return SIMD4(Float(rawBuffer[offset]) / 255, Float(rawBuffer[offset + 1]) / 255, 0, 1)
         case .rgba8Unorm, .rgba8Unorm_srgb:
-            let offset = rowOffset + x * 4
+            let offset = rowOffset + localX * 4
             return SIMD4(
                 Float(rawBuffer[offset]) / 255,
                 Float(rawBuffer[offset + 1]) / 255,
@@ -66,7 +105,7 @@ struct TextureAnalysisReadback {
                 Float(rawBuffer[offset + 3]) / 255
             )
         case .bgra8Unorm, .bgra8Unorm_srgb:
-            let offset = rowOffset + x * 4
+            let offset = rowOffset + localX * 4
             return SIMD4(
                 Float(rawBuffer[offset + 2]) / 255,
                 Float(rawBuffer[offset + 1]) / 255,
@@ -74,13 +113,13 @@ struct TextureAnalysisReadback {
                 Float(rawBuffer[offset + 3]) / 255
             )
         case .r16Float:
-            let value = Self.float16(rawBuffer, offset: rowOffset + x * 2)
+            let value = Self.float16(rawBuffer, offset: rowOffset + localX * 2)
             return SIMD4(value, value, value, 1)
         case .rg16Float:
-            let offset = rowOffset + x * 4
+            let offset = rowOffset + localX * 4
             return SIMD4(Self.float16(rawBuffer, offset: offset), Self.float16(rawBuffer, offset: offset + 2), 0, 1)
         case .rgba16Float:
-            let offset = rowOffset + x * 8
+            let offset = rowOffset + localX * 8
             return SIMD4(
                 Self.float16(rawBuffer, offset: offset),
                 Self.float16(rawBuffer, offset: offset + 2),
@@ -88,13 +127,13 @@ struct TextureAnalysisReadback {
                 Self.float16(rawBuffer, offset: offset + 6)
             )
         case .r32Float:
-            let value = Self.float32(rawBuffer, offset: rowOffset + x * 4)
+            let value = Self.float32(rawBuffer, offset: rowOffset + localX * 4)
             return SIMD4(value, value, value, 1)
         case .rg32Float:
-            let offset = rowOffset + x * 8
+            let offset = rowOffset + localX * 8
             return SIMD4(Self.float32(rawBuffer, offset: offset), Self.float32(rawBuffer, offset: offset + 4), 0, 1)
         case .rgba32Float:
-            let offset = rowOffset + x * 16
+            let offset = rowOffset + localX * 16
             return SIMD4(
                 Self.float32(rawBuffer, offset: offset),
                 Self.float32(rawBuffer, offset: offset + 4),

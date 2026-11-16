@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreGraphics
+import Metal
 
 /// 轻量分析输出集合。
 ///
@@ -116,67 +117,45 @@ extension RenderedAnalysisBundle {
         preferredMethod: TextureHistogramComputationMethod,
         attachmentDebugPolicies: [RenderOutputAttachmentDebugPolicy]
     ) -> RenderedAnalysisBundle {
-        let texture = frame.texture.c7
-        let requiresCPUHistogram = preferredMethod == .cpuReadback
-        let gpuStatistics = preferredMethod == .gpuMPS ? GPUTextureAnalysis.statistics(frame.texture, scope: scope) : nil
-        let readback = requiresCPUHistogram || gpuStatistics == nil ? TextureAnalysisReadback(texture: frame.texture) : nil
-        let maskSample = readback == nil ? nil : texture.makeMaskCoverageSample(for: scope.mask)
-
-        let statistics = gpuStatistics ?? readback.flatMap {
-            texture.makeStatistics(
-                readback: $0,
-                region: scope.region,
-                maskSample: maskSample,
-                luminanceRange: scope.luminanceRange,
-                colorRange: scope.colorRange,
-                coverageThreshold: scope.coverageThreshold
-            )
+        let artifacts = TextureAnalysisArtifacts.make(texture: frame.texture, channel: channel, bins: bins,
+            height: histogramHeight, scope: scope, preferredMethod: preferredMethod)
+        let statistics = artifacts.statistics
+        let colorProbe = frame.texture.c7.resolvedHistogramRegion(scope.region).flatMap { region in
+            statistics.map { TextureColorProbe(region: region, statistics: $0) }
         }
-        let colorProbe = texture.resolvedHistogramRegion(scope.region).flatMap { resolvedRegion in
-            statistics.map { TextureColorProbe(region: resolvedRegion, statistics: $0) }
-        }
-
-        let histogram: TextureHistogram?
-        let histogramAttachment: RenderedHistogramAttachment?
-        if requiresCPUHistogram, let readback {
-            histogram = texture.makeCPUHistogram(
-                readback: readback,
-                maskSample: maskSample,
-                channel: channel,
-                bins: bins,
-                region: scope.region,
-                luminanceRange: scope.luminanceRange,
-                colorRange: scope.colorRange,
-                coverageThreshold: scope.coverageThreshold,
-                valueRange: scope.valueRange
-            )
-            histogramAttachment = histogram.flatMap { histogram in
-                texture.makeHistogramAttachment(from: histogram, height: histogramHeight)
-            }
-        } else {
-            histogramAttachment = frame.renderHistogramAttachment(
-                channel: channel,
-                bins: bins,
-                height: histogramHeight,
-                scope: scope,
-                preferredMethod: preferredMethod
-            )
-            histogram = histogramAttachment?.histogram ?? frame.makeHistogram(
-                channel: channel,
-                bins: bins,
-                scope: scope,
-                preferredMethod: preferredMethod
-            )
-        }
-
         return RenderedAnalysisBundle(
             frame: frame,
-            histogram: histogram,
+            histogram: artifacts.histogram,
             statistics: statistics,
             colorProbe: colorProbe,
-            histogramAttachment: histogramAttachment,
+            histogramAttachment: artifacts.histogramAttachment,
             analysisScopeFingerprint: scope.fingerprint,
             attachmentDebugPolicies: attachmentDebugPolicies
         )
+    }
+}
+
+extension TextureAnalysisArtifacts {
+    /// GPU 一次提交；需要回退时共享一次 ROI 读回和一次 mask 解析。
+    static func make(texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, height: Int,
+                     scope: TextureAnalysisScope, preferredMethod: TextureHistogramComputationMethod) -> Self {
+        let compatible = texture.c7
+        let empty = compatible.resolvedHistogramRegion(scope.region) == nil
+        let gpu = preferredMethod == .gpuMPS && !empty
+            ? GPUTextureAnalysis.bundle(texture, channel: channel, bins: max(1, bins), height: height, scope: scope) : nil
+        if let gpu, gpu.statistics != nil, gpu.histogram != nil, gpu.histogramAttachment != nil { return gpu }
+        let readback = TextureAnalysisReadback(texture: texture, region: scope.region)
+        let mask = readback == nil ? nil : compatible.makeMaskCoverageSample(for: scope.mask)
+        let statistics = gpu?.statistics ?? readback.flatMap {
+            compatible.makeStatistics(readback: $0, region: scope.region, maskSample: mask,
+                luminanceRange: scope.luminanceRange, colorRange: scope.colorRange, coverageThreshold: scope.coverageThreshold)
+        } ?? (empty ? compatible.makeStatistics(scope: scope) : nil)
+        let histogram = gpu?.histogram ?? readback.flatMap {
+            compatible.makeCPUHistogram(readback: $0, maskSample: mask, channel: channel, bins: bins,
+                region: scope.region, luminanceRange: scope.luminanceRange, colorRange: scope.colorRange,
+                coverageThreshold: scope.coverageThreshold, valueRange: scope.valueRange)
+        } ?? (empty ? compatible.makeHistogram(channel: channel, bins: bins, scope: scope, preferredMethod: .cpuReadback) : nil)
+        let preview = gpu?.histogramAttachment ?? histogram.flatMap { compatible.makeHistogramAttachment(from: $0, height: height) }
+        return Self(statistics: statistics, histogram: histogram, histogramAttachment: preview)
     }
 }

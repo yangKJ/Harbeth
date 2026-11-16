@@ -63,12 +63,18 @@ public extension MTLTextureCompatible_ {
                         luminanceRange: TextureLuminanceRange? = nil,
                         colorRange: TextureColorRange? = nil,
                         coverageThreshold: Float = 0.5) -> TextureStatistics? {
-        if target.width * target.height > 65_536,
+        guard TextureAnalysisReadback.supports(target) else { return nil }
+        guard let resolvedRegion = resolvedHistogramRegion(region) else {
+            return TextureStatistics(pixelFormat: PixelFormatContract(pixelFormat: target.pixelFormat, preservesInput: false), sampleCount: 0,
+                meanRed: 0, meanGreen: 0, meanBlue: 0, meanAlpha: 0, meanLuminance: 0, minimumLuminance: 0, maximumLuminance: 0)
+        }
+        let roiArea = resolvedRegion.size.width * resolvedRegion.size.height
+        if target.storageMode != .shared || roiArea > 65_536,
            let result = GPUTextureAnalysis.statistics(target, scope: TextureAnalysisScope(region: region, mask: mask,
                 luminanceRange: luminanceRange, colorRange: colorRange, coverageThreshold: coverageThreshold)) {
             return result
         }
-        guard let readback = TextureAnalysisReadback(texture: target) else { return nil }
+        guard let readback = TextureAnalysisReadback(texture: target, region: resolvedRegion) else { return nil }
         return makeStatistics(
             readback: readback,
             region: region,
