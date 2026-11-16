@@ -22,10 +22,6 @@ public struct DerivedResourceIdentity: Sendable, Equatable, Hashable {
     public let namespace: String
     public let fingerprint: String
     public let generation: UInt64
-
-    fileprivate var cacheKey: String {
-        "\(domain.rawValue)||\(namespace)||\(generation)||\(fingerprint)"
-    }
 }
 
 public struct DerivedResourceCacheConfiguration: Sendable, Codable, Equatable, Hashable {
@@ -62,17 +58,26 @@ final class DerivedResourceStore: @unchecked Sendable {
         let namespace: String
     }
 
-    private struct Entry {
+    private final class Entry {
         let identity: DerivedResourceIdentity
         let value: AnyObject
         let byteCost: Int
+        weak var previous: Entry?
+        var next: Entry?
+
+        init(identity: DerivedResourceIdentity, value: AnyObject, byteCost: Int) {
+            self.identity = identity
+            self.value = value
+            self.byteCost = byteCost
+        }
     }
 
     private let lock = NSLock()
     private var configuration: DerivedResourceCacheConfiguration
     private var namespace = "default"
-    private var entries: [String: Entry] = [:]
-    private var lru: [String] = []
+    private var entries: [DerivedResourceIdentity: Entry] = [:]
+    private var oldest: Entry?
+    private var newest: Entry?
     private var byteCount = 0
     private var scopeGenerations: [Scope: UInt64] = [:]
     private var textureCreations: [DerivedResourceIdentity: DerivedTextureCreation] = [:]
@@ -86,16 +91,17 @@ final class DerivedResourceStore: @unchecked Sendable {
         self.configuration = configuration
     }
 
+    deinit {
+        for entry in entries.values { entry.previous = nil; entry.next = nil }
+    }
+
     func texture(for identity: DerivedResourceIdentity, create: () throws -> MTLTexture) throws -> MTLTexture {
-        let key = identity.cacheKey
+        let key = identity
         lock.lock()
         let scope = Scope(domain: identity.domain, namespace: identity.namespace)
-        if generation(for: scope) == identity.generation, let texture = entries[key]?.value as? MTLTexture {
+        if generation(for: scope) == identity.generation, let entry = entries[key], let texture = entry.value as? MTLTexture {
             hitCount += 1
-            if lru.last != key {
-                lru.removeAll { $0 == key }
-                lru.append(key)
-            }
+            touch(entry)
             lock.unlock()
             return texture
         }
@@ -140,7 +146,7 @@ final class DerivedResourceStore: @unchecked Sendable {
     }
 
     func value(for identity: DerivedResourceIdentity) -> AnyObject? {
-        let key = identity.cacheKey
+        let key = identity
         lock.lock()
         let scope = Scope(domain: identity.domain, namespace: identity.namespace)
         guard generation(for: scope) == identity.generation, let entry = entries[key] else {
@@ -148,10 +154,7 @@ final class DerivedResourceStore: @unchecked Sendable {
             lock.unlock()
             return nil
         }
-        if lru.last != key {
-            lru.removeAll { $0 == key }
-            lru.append(key)
-        }
+        touch(entry)
         hitCount += 1
         lock.unlock()
         return entry.value
@@ -159,7 +162,7 @@ final class DerivedResourceStore: @unchecked Sendable {
 
     @discardableResult
     func insert(_ value: AnyObject, byteCost: Int, for identity: DerivedResourceIdentity) -> Bool {
-        let key = identity.cacheKey
+        let key = identity
         lock.lock()
         let scope = Scope(domain: identity.domain, namespace: identity.namespace)
         guard generation(for: scope) == identity.generation else {
@@ -176,8 +179,9 @@ final class DerivedResourceStore: @unchecked Sendable {
         if entries[key] != nil {
             removeEntry(for: key)
         }
-        entries[key] = Entry(identity: identity, value: value, byteCost: byteCost)
-        lru.append(key)
+        let entry = Entry(identity: identity, value: value, byteCost: byteCost)
+        entries[key] = entry
+        append(entry)
         byteCount += byteCost
         evictIfNeeded()
         let retained = entries[key] != nil
@@ -198,15 +202,7 @@ final class DerivedResourceStore: @unchecked Sendable {
             let matchesNamespace = namespace == nil || entry.identity.namespace == namespace
             return matchesDomain && matchesNamespace ? key : nil
         }
-        if keys.isEmpty == false {
-            // 一次移除匹配的访问记录，保留其他条目的 LRU 相对顺序。
-            let removedKeys = Set(keys)
-            lru.removeAll { removedKeys.contains($0) }
-            for key in keys {
-                guard let entry = entries.removeValue(forKey: key) else { continue }
-                byteCount = max(byteCount - entry.byteCost, 0)
-            }
-        }
+        for key in keys { removeEntry(for: key) }
         lock.unlock()
     }
 
@@ -261,27 +257,40 @@ final class DerivedResourceStore: @unchecked Sendable {
         return generation
     }
 
+    private func append(_ entry: Entry) {
+        entry.previous = newest
+        newest?.next = entry
+        if oldest == nil { oldest = entry }
+        newest = entry
+    }
+
+    private func unlink(_ entry: Entry) {
+        if let previous = entry.previous { previous.next = entry.next } else { oldest = entry.next }
+        if let next = entry.next { next.previous = entry.previous } else { newest = entry.previous }
+        entry.previous = nil
+        entry.next = nil
+    }
+
+    private func touch(_ entry: Entry) {
+        guard newest !== entry else { return }
+        unlink(entry)
+        append(entry)
+    }
+
     private func evictIfNeeded() {
-        var removedCount = 0
-        for key in lru {
-            guard entries.count > configuration.countLimit || byteCount > configuration.byteLimit else { break }
-            if let entry = entries.removeValue(forKey: key) {
-                byteCount = max(byteCount - entry.byteCost, 0)
-                evictionCount += 1
-            }
-            removedCount += 1
-        }
-        // 淘汰仍按旧到新进行，最后一次性删除已淘汰的 LRU 前缀。
-        if removedCount > 0 {
-            lru.removeFirst(removedCount)
+        while entries.count > configuration.countLimit || byteCount > configuration.byteLimit {
+            guard let entry = oldest else { break }
+            removeEntry(for: entry.identity)
+            evictionCount += 1
         }
     }
 
-    private func removeEntry(for key: String) {
-        lru.removeAll { $0 == key }
+    private func removeEntry(for key: DerivedResourceIdentity) {
         guard let entry = entries.removeValue(forKey: key) else { return }
+        unlink(entry)
         byteCount = max(byteCount - entry.byteCost, 0)
     }
+
 }
 
 private final class DerivedTextureCreation: @unchecked Sendable {

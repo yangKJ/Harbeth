@@ -25,7 +25,7 @@ public struct C7SharpenEnhanced: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [intensity, threshold, Float(kernelSize)]
+        return [intensity, threshold, Float(min(max(kernelSize, 1), 5))]
     }
     
     public init(intensity: Float = 1.0, threshold: Float = 0.1, kernelSize: Int = 3) {

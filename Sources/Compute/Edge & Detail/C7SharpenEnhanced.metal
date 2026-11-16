@@ -8,8 +8,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7SharpenEnhanced(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7SharpenEnhanced(texture2d<float, access::write> outputTexture [[texture(0)]],
+                              texture2d<float, access::read> inputTexture [[texture(1)]],
                               constant float *intensity [[buffer(0)]],
                               constant float *threshold [[buffer(1)]],
                               constant float *kernelSize [[buffer(2)]],
@@ -19,7 +19,9 @@ kernel void C7SharpenEnhanced(texture2d<half, access::write> outputTexture [[tex
     const int x = int(grid.x);
     const int y = int(grid.y);
     
-    const int kSize = int(*kernelSize);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    if (!isfinite(*intensity) || !isfinite(*threshold) || !isfinite(*kernelSize) || *intensity == 0.0f) { outputTexture.write(inputTexture.read(grid), grid); return; }
+    const int kSize = int(clamp(*kernelSize, 1.0f, 5.0f));
     const int kernelRadius = kSize / 2;
     
     // Calculate the blur
@@ -38,6 +40,7 @@ kernel void C7SharpenEnhanced(texture2d<half, access::write> outputTexture [[tex
         }
     }
     
+    if (blurCount == 0) { outputTexture.write(inputTexture.read(grid), grid); return; }
     blurColor /= float(blurCount);
     
     // Get the original color
@@ -51,7 +54,7 @@ kernel void C7SharpenEnhanced(texture2d<half, access::write> outputTexture [[tex
     float thresholdValue = float(*threshold);
     if (edgeStrength < thresholdValue) {
         // No sharpening for low contrast areas
-        outputTexture.write(half4(originalColor), grid);
+        outputTexture.write(float4(originalColor), grid);
         return;
     }
     
@@ -59,5 +62,5 @@ kernel void C7SharpenEnhanced(texture2d<half, access::write> outputTexture [[tex
     float sharpenIntensity = float(*intensity);
     float4 sharpenedColor = originalColor + edge * sharpenIntensity;
     
-    outputTexture.write(half4(sharpenedColor), grid);
+    outputTexture.write(float4(sharpenedColor), grid);
 }

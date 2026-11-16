@@ -45,6 +45,10 @@ public struct MPSMorphology: MPSKernelProtocol {
     }
 
     public init(operation: Operation, kernelSize: Int = 3) {
+        self.init(operation: operation, kernelSize: kernelSize, device: HarbethContext.shared.device)
+    }
+
+    init(operation: Operation, kernelSize: Int, device: MTLDevice) {
         let normalizedKernelSize = Self.normalize(kernelSize)
         self.operation = operation
         self.kernelSize = normalizedKernelSize
@@ -53,14 +57,14 @@ public struct MPSMorphology: MPSKernelProtocol {
             switch operation {
             case .dilate:
                 MPSImageDilate(
-                    device: HarbethContext.shared.device,
+                    device: device,
                     kernelWidth: normalizedKernelSize,
                     kernelHeight: normalizedKernelSize,
                     values: buffer.baseAddress!
                 )
             case .erode:
                 MPSImageErode(
-                    device: HarbethContext.shared.device,
+                    device: device,
                     kernelWidth: normalizedKernelSize,
                     kernelHeight: normalizedKernelSize,
                     values: buffer.baseAddress!

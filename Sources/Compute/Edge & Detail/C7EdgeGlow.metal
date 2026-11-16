@@ -24,18 +24,20 @@ kernel void C7EdgeGlow(texture2d<float, access::write> outputTexture [[texture(0
     const half4 inColor = half4(center);
     const half spacing = half(*spacingPointer);
     
-    // 边缘检测矩阵卷积核
-    const half3x3 matrix = half3x3(half3(-1.0h, -1.0h, -1.0h), half3(-1.0h, 8.0h, -1.0h), half3(-1.0h, -1.0h, -1.0h));
+    // 逐邻居求差保持直流稳定；显式平坦标记避免零阈值放大消减舍入。
     float4 result = 0;
+    bool hasDifference = false;
     for (int i = 0; i < 9; i++) {
+        if (i == 4) continue;
         int a = i % 3; int b = i / 3;
         float2 offset = sameSize ? float2(a - 1, b - 1) : float2(a - 1, b - 1) * precise::divide(sourceSize, outputSize);
         uint2 texCoord = uint2(clamp(base + offset, float2(0), sourceSize - 1));
         const float4 sample = inputTexture.read(texCoord);
-        result += sample * matrix[a][b];
+        hasDifference = hasDifference || any(center != sample);
+        result += center - sample;
     }
     
-    if (length(result) <= spacing) {
+    if (!hasDifference || length(result) <= spacing) {
         outputTexture.write(center, grid);
         return;
     }

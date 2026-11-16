@@ -44,6 +44,14 @@ public struct C7LensDistortionCorrection: C7FilterProtocol, SamplerAdaptableFilt
         .point
     }
 
+    public var samplingFootprint: SamplingFootprint { .global }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+                            samplingFootprint: samplingFootprint, coordinateDependency: .fullImage,
+                            globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+
     public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
         guard descriptor != .default else {
             return .notApplicable

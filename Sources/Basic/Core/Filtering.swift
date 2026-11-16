@@ -55,6 +55,9 @@ public protocol C7FilterProtocol: Mirrorable {
     /// Memory access pattern for threadgroup optimization
     var memoryAccessPattern: MemoryAccessPattern { get }
 
+    /// 通用链路必须动态读取滤镜已声明的区域依赖；默认实现继续兼容旧滤镜。
+    var samplingFootprint: SamplingFootprint { get }
+
     /// Kernel's pixel, dynamic range and area execution contract.
     var kernelPixelContract: KernelPixelContract { get }
 

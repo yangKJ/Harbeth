@@ -41,6 +41,14 @@ public struct C7ChromaticAberrationCorrection: C7FilterProtocol, SamplerAdaptabl
         .point
     }
 
+    public var samplingFootprint: SamplingFootprint { .global }
+
+    public var kernelPixelContract: KernelPixelContract {
+        KernelPixelContract(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+                            samplingFootprint: samplingFootprint, coordinateDependency: .fullImage,
+                            globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+
     public func samplerAdaptation(for descriptor: ImageSamplerDescriptor) -> SamplerAdaptation {
         guard descriptor != .default else {
             return .notApplicable

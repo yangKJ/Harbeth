@@ -15,6 +15,16 @@ static bool analysisRange(float value, constant float *p, uint offset) {
     return p[offset + 3] != 0 ? (value >= p[offset + 1] || value <= p[offset + 2])
         : (value >= min(p[offset + 1], p[offset + 2]) && value <= max(p[offset + 1], p[offset + 2]));
 }
+static float analysisNormalize(float value, float minimum, float maximum) {
+    if (isnan(value)) return value;
+    if (value <= minimum) return 0.0f;
+    if (value >= maximum) return 1.0f;
+    float span = maximum - minimum;
+    float normalized = isfinite(span)
+        ? precise::divide(value - minimum, span)
+        : precise::divide(value * 0.5f - minimum * 0.5f, maximum * 0.5f - minimum * 0.5f);
+    return clamp(normalized, 0.0f, 1.0f);
+}
 static bool analysisAccept(float4 c, uint2 q, texture2d<float, access::read> source,
                            texture2d<float, access::read> mask, constant float *p) {
     if (p[5] != 0) {
@@ -96,7 +106,7 @@ static void analysisScopedHistogram(texture2d<float, access::read> source,
         float4 c = analysisColor(source, q, p);
         if (analysisAccept(c, q, source, mask, p)) {
             float value = p[24] == 0 ? fma(c.r, 0.2126f, fma(c.g, 0.7152f, c.b * 0.0722f)) : c[uint(p[24]) - 1];
-            float normalized = clamp(precise::divide(value - p[22], p[23] - p[22]), 0.0f, 1.0f);
+            float normalized = analysisNormalize(value, p[22], p[23]);
             if (isfinite(value) && isfinite(normalized)) {
                 uint bin = min(uint(floor(normalized * float(count - 1) + 0.5f)), count - 1);
                 atomic_fetch_add_explicit(bins + bin, 1, memory_order_relaxed);

@@ -466,8 +466,19 @@ static inline uint imageScopeDensityIndex(uint x, uint y, uint channel, constant
     return ((y * params.scopeWidth + x) * params.densityChannelCount) + channel;
 }
 
+// 与 TextureAnalysisValueRange 使用相同的有限跨度和溢出缩放规则。
+static float imageScopeNormalize(float value, float minimum, float maximum) {
+    if (isnan(value)) return value;
+    if (value <= minimum) return 0;
+    if (value >= maximum) return 1;
+    float span = maximum - minimum;
+    float normalized = isfinite(span) ? precise::divide(value - minimum, span)
+        : precise::divide(value * 0.5f - minimum * 0.5f, maximum * 0.5f - minimum * 0.5f);
+    return clamp(normalized, 0.0f, 1.0f);
+}
+
 kernel void imageScopeAccumulateKernel(
-    texture2d<half, access::read> inputTexture [[texture(0)]],
+    texture2d<float, access::read> inputTexture [[texture(0)]],
     device atomic_uint *densityBuffer [[buffer(0)]],
     constant ImageScopeParameters &params [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]]
@@ -476,8 +487,11 @@ kernel void imageScopeAccumulateKernel(
         return;
     }
 
-    const float valueSpan = max(params.valueMaximum - params.valueMinimum, 0.000001f);
-    const float3 rgb = clamp((float3(inputTexture.read(gid).rgb) - params.valueMinimum) / valueSpan, 0.0f, 1.0f);
+    const float3 source = inputTexture.read(gid).rgb;
+    const float3 rgb = float3(imageScopeNormalize(source.r, params.valueMinimum, params.valueMaximum),
+                             imageScopeNormalize(source.g, params.valueMinimum, params.valueMaximum),
+                             imageScopeNormalize(source.b, params.valueMinimum, params.valueMaximum));
+    if (any(isnan(rgb))) return;
     if (params.kind <= 1u) {
         const uint scopeX = min(uint(float(gid.x) / max(float(params.sourceWidth - 1u), 1.0f) * float(params.scopeWidth - 1u)), params.scopeWidth - 1u);
         if (params.kind == 0u) {

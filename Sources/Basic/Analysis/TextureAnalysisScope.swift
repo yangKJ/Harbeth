@@ -37,18 +37,36 @@ public struct TextureAnalysisValueRange: Sendable, Codable, Equatable, Hashable 
         let validMinimum = minimum.isFinite ? minimum : 0
         let validMaximum = maximum.isFinite ? maximum : 1
         if validMinimum == validMaximum {
-            self.minimum = validMinimum
-            self.maximum = validMinimum + 1
+            let unitMaximum = validMinimum + 1
+            let next = unitMaximum.isFinite && unitMaximum > validMinimum ? unitMaximum : validMinimum.nextUp
+            if next.isFinite, next > validMinimum {
+                self.minimum = validMinimum; self.maximum = next
+            } else {
+                self.minimum = validMinimum.nextDown; self.maximum = validMinimum
+            }
         } else {
             self.minimum = min(validMinimum, validMaximum)
             self.maximum = max(validMinimum, validMaximum)
         }
     }
 
+    private enum CodingKeys: String, CodingKey { case minimum, maximum }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(minimum: try container.decode(Float.self, forKey: .minimum), maximum: try container.decode(Float.self, forKey: .maximum))
+    }
+
     public static let normalized = TextureAnalysisValueRange(minimum: 0, maximum: 1)
 
     public func normalizedValue(_ value: Float) -> Float {
-        min(max((value - minimum) / (maximum - minimum), 0), 1)
+        if value.isNaN { return value }
+        if value <= minimum { return 0 }
+        if value >= maximum { return 1 }
+        let span = maximum - minimum
+        let normalized = span.isFinite
+            ? (value - minimum) / span
+            : (value * 0.5 - minimum * 0.5) / (maximum * 0.5 - minimum * 0.5)
+        return min(max(normalized, 0), 1)
     }
 
     public var fingerprint: String {

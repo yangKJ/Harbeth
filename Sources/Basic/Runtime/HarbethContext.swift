@@ -279,6 +279,10 @@ public final class HarbethContext: @unchecked Sendable {
         }
     }
 
+    var morphologyScratchBudget: MorphologyScratchBudget {
+        transientResourceStore.resource(MorphologyScratchBudget.self) { MorphologyScratchBudget() }
+    }
+
     var textureAllocator: TextureAllocator {
         get {
             runtimeStateLock.lock()

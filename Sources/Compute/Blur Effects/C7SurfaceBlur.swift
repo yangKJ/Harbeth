@@ -22,7 +22,7 @@ public struct C7SurfaceBlur: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [radius, threshold, intensity]
+        return [safeRadius, threshold.isFinite ? threshold : 0, intensity.isFinite ? intensity : 0]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -35,10 +35,12 @@ public struct C7SurfaceBlur: C7FilterProtocol {
             outputAlpha: .premultiplied,
             precision: .float16,
             dynamicRangeBehavior: .preservesExtendedRange,
-            samplingFootprint: .neighborhood(radius: Int(ceil(radius)))
+            samplingFootprint: .neighborhood(radius: Int(ceil(safeRadius)))
         )
     }
     
+    private var safeRadius: Float { radius.isFinite ? min(max(radius, 0), 50) : 0 }
+
     public init(radius: Float = 8.0, threshold: Float = 0.1) {
         self.radius = radius
         self.threshold = threshold

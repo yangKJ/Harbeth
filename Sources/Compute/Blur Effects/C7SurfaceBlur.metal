@@ -13,7 +13,7 @@ float colorDifference(float4 color1, float4 color2) {
     return dot(diff, diff);
 }
 
-float4 surfaceBlur(texture2d<half, access::read> texture, uint2 coord, uint2 size, float radius, float threshold) {
+float4 surfaceBlur(texture2d<float, access::read> texture, uint2 coord, uint2 size, float radius, float threshold) {
     float4 centerColor = float4(texture.read(coord));
     float4 blurredColor = float4(0.0);
     float weightSum = 0.0;
@@ -51,8 +51,8 @@ float4 surfaceBlur(texture2d<half, access::read> texture, uint2 coord, uint2 siz
     return blurredColor;
 }
 
-kernel void C7SurfaceBlur(texture2d<half, access::write> outputTexture [[texture(0)]],
-                         texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7SurfaceBlur(texture2d<float, access::write> outputTexture [[texture(0)]],
+                         texture2d<float, access::read> inputTexture [[texture(1)]],
                          constant float *radiusPointer [[buffer(0)]],
                          constant float *thresholdPointer [[buffer(1)]],
                          constant float *intensityPointer [[buffer(2)]],
@@ -66,12 +66,12 @@ kernel void C7SurfaceBlur(texture2d<half, access::write> outputTexture [[texture
     const float intensity = clamp(*intensityPointer, 0.0, 1.0);
     
     const float4 originalColor = float4(inputTexture.read(grid));
-    if (intensity <= 0.0 || radius <= 0.0 || threshold <= 0.0) {
-        outputTexture.write(half4(originalColor), grid);
+    if (!isfinite(*radiusPointer) || !isfinite(*thresholdPointer) || !isfinite(*intensityPointer) || intensity <= 0.0 || radius <= 0.0 || threshold <= 0.0) {
+        outputTexture.write(originalColor, grid);
         return;
     }
     float4 blurredColor = surfaceBlur(inputTexture, grid, size, radius, threshold);
     float4 finalColor = mix(originalColor, blurredColor, float(intensity));
     
-    outputTexture.write(half4(finalColor), grid);
+    outputTexture.write(finalColor, grid);
 }

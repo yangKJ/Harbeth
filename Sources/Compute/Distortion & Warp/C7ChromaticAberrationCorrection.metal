@@ -8,7 +8,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-static float4 sampleOpticsColor(texture2d<half, access::sample> inputTexture,
+static float4 sampleOpticsColor(texture2d<float, access::sample> inputTexture,
                                 float2 uv,
                                 int sampleMode,
                                 int edgeMode) {
@@ -34,7 +34,7 @@ static float4 sampleOpticsColor(texture2d<half, access::sample> inputTexture,
     const bool preferBicubic = false;
 #endif
 
-    half4 color;
+    float4 color;
     if (useNearest) {
         switch (edgeMode) {
             case 1: color = inputTexture.sample(nearestClamp, uv); break;
@@ -70,8 +70,24 @@ static float4 sampleOpticsColor(texture2d<half, access::sample> inputTexture,
     return float4(color);
 }
 
-kernel void C7ChromaticAberrationCorrection(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                            texture2d<half, access::sample> inputTexture [[texture(1)]],
+// 透明边缘的覆盖衰减与对象自身 alpha 分开处理，保持不透明图片的原边界视觉。
+static float channelObjectAlpha(texture2d<float, access::sample> input, float2 uv,
+                                float sampledAlpha, int mode, int edgeMode) {
+    if (sampledAlpha <= 0 || edgeMode != 0) return sampledAlpha;
+#if defined(__HAVE_BICUBIC_FILTERING__)
+    float radius = mode == 0 ? 0 : (mode == 2 ? 2 : 0.5f);
+#else
+    float radius = mode == 0 ? 0 : 0.5f;
+#endif
+    float2 margin = radius / float2(input.get_width(), input.get_height());
+    if (any(uv < margin) || any(uv > 1.0f - margin)) {
+        return sampleOpticsColor(input, uv, mode, 1).a;
+    }
+    return sampledAlpha;
+}
+
+kernel void C7ChromaticAberrationCorrection(texture2d<float, access::write> outputTexture [[texture(0)]],
+                                            texture2d<float, access::sample> inputTexture [[texture(1)]],
                                             constant float2 &center [[buffer(0)]],
                                             constant float2 &channelShifts [[buffer(1)]],
                                             constant int &samplingMode [[buffer(2)]],
@@ -99,11 +115,15 @@ kernel void C7ChromaticAberrationCorrection(texture2d<half, access::write> outpu
     const int borderMode = edgeMode;
 
     float4 base = sampleOpticsColor(inputTexture, uv, sampleMode, borderMode);
-    float4 redShifted = sampleOpticsColor(inputTexture, uv + shiftBase * channelShifts.x, sampleMode, borderMode);
-    float4 blueShifted = sampleOpticsColor(inputTexture, uv + shiftBase * channelShifts.y, sampleMode, borderMode);
-
+    if (base.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    float2 redUV = uv + shiftBase * channelShifts.x;
+    float2 blueUV = uv + shiftBase * channelShifts.y;
+    float4 redShifted = sampleOpticsColor(inputTexture, redUV, sampleMode, borderMode);
+    float4 blueShifted = sampleOpticsColor(inputTexture, blueUV, sampleMode, borderMode);
+    float redAlpha = channelObjectAlpha(inputTexture, redUV, redShifted.a, sampleMode, borderMode);
+    float blueAlpha = channelObjectAlpha(inputTexture, blueUV, blueShifted.a, sampleMode, borderMode);
     float4 outputColor = base;
-    outputColor.r = redShifted.r;
-    outputColor.b = blueShifted.b;
-    outputTexture.write(half4(outputColor), grid);
+    outputColor.r = channelShifts.x == 0 ? base.r : (redAlpha > 0 ? redShifted.r / redAlpha * base.a : 0);
+    outputColor.b = channelShifts.y == 0 ? base.b : (blueAlpha > 0 ? blueShifted.b / blueAlpha * base.a : 0);
+    outputTexture.write(float4(outputColor), grid);
 }
