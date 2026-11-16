@@ -11,7 +11,7 @@ import simd
 
 /// Numeric RGBA operations. Inputs and outputs use the same premultiplied representation.
 public struct PixelGraphOperation: C7FilterProtocol {
-    public enum Operation: Int { case matrix, clamp, maskRed, maskAlpha, multiply, unpremultiply, opaque, interpolate, preserveAlpha, constant }
+    public enum Operation: Int { case matrix, clamp, maskRed, maskAlpha, multiply, unpremultiply, opaque, interpolate, preserveAlpha, constant, multiplyCoverage }
     public let operation: Operation
     public let background: MTLTexture
     public let mask: MTLTexture

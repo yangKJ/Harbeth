@@ -12,6 +12,7 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 #### Changed
 
+- `PixelGraphOperation.multiplyCoverage` 直接将 red 数值覆盖夹到 0...1 后乘入预乘 RGBA，覆盖合成可省去透明底图和独立覆盖归一化表面。
 - 加权 RGB 直方图采用有界 GPU 条带与最终归约，CPU 只读 3076 字节结果，4K 默认调用不再超出读回预算；mask 分析最终只读 72 字节摘要。
 - 大图统计采用 GPU 分层归约，scoped histogram 和 scope mask 可直接在 GPU 执行，保留纹理存储域、范围、遮罩及 CPU 回退合同。
 - 局部模糊按作用区和半径选择直接或可分离高斯；移轴模糊改为两次一维高斯，保留既有实际半径、过渡和全局坐标；分离路径与双边模糊预计算空间权重，小作用区保留直接计算。

@@ -14,6 +14,11 @@ kernel void PixelGraphOperation(texture2d<half, access::write> output [[texture(
     constant float4 &a [[buffer(4)]], constant float4 &bias [[buffer(5)]], constant float4 &maximum [[buffer(6)]],
     uint2 p [[thread_position_in_grid]]) {
     if (p.x >= output.get_width() || p.y >= output.get_height()) return;
+    // 数值覆盖直接乘入完整预乘 RGBA，无需透明底图或中间覆盖表面。
+    if (operation == 10) {
+        output.write(half4(float4(source.read(p)) * clamp(float(mask.read(p).r), 0.0f, 1.0f)), p);
+        return;
+    }
     float4 s = float4(source.read(p)), d = float4(background.read(p)), m = float4(mask.read(p));
     float4 value = s;
     if (operation == 9) value = bias;
