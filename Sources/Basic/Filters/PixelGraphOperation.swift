@@ -48,21 +48,24 @@ public struct PixelGraphOperation: C7FilterProtocol {
 
 /// Samples a finite source region using an inverse projective mapping in pixel coordinates.
 public struct ImageRegionTransform: C7FilterProtocol {
+    public enum Interpolation: Sendable { case linear, lanczos }
     public let sourceRegion: CGRect
     public let outputRegion: CGRect
     public let inverse: simd_float3x3
     public let edgeClamped: Bool
     public let outputSize: CGSize?
+    public let interpolation: Interpolation
 
-    public init(sourceRegion: CGRect, outputRegion: CGRect, inverse: simd_float3x3, edgeClamped: Bool = false, outputSize: CGSize? = nil) {
+    public init(sourceRegion: CGRect, outputRegion: CGRect, inverse: simd_float3x3, edgeClamped: Bool = false, outputSize: CGSize? = nil, interpolation: Interpolation = .linear) {
         self.sourceRegion = sourceRegion
         self.outputRegion = outputRegion
         self.inverse = inverse
         self.edgeClamped = edgeClamped
         self.outputSize = outputSize
+        self.interpolation = interpolation
     }
     public func resize(input size: C7Size) -> C7Size { outputSize.map { C7Size(width: Int($0.width), height: Int($0.height)) } ?? size }
-    public var modifier: ModifierEnum { .compute(kernel: "ImageRegionTransform") }
+    public var modifier: ModifierEnum { .compute(kernel: interpolation == .lanczos ? "ImageRegionLanczosTransform" : "ImageRegionTransform") }
     public var kernelParameterBindings: [KernelParameterBinding] {
         let rows = (0..<3).map { SIMD4<Float>(inverse[0][$0], inverse[1][$0], inverse[2][$0], 0) }
         return [KernelParameterBinding(name: "sourceRegion", index: 0, stage: .compute, value: .float4(SIMD4(Float(sourceRegion.minX), Float(sourceRegion.minY), Float(sourceRegion.width), Float(sourceRegion.height)))),

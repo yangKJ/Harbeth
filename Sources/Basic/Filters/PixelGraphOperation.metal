@@ -51,3 +51,49 @@ kernel void ImageRegionTransform(texture2d<half, access::write> output [[texture
     constexpr sampler edge(coord::normalized, address::clamp_to_edge, filter::linear);
     output.write(abs(z) > 1e-8 ? (clamped ? source.sample(edge, sampleUV) : source.sample(transparent, sampleUV)) : half4(0), p);
 }
+
+// 核心采样位置和滤波尺度只由全局逆映射决定，裁片尺寸不参与缩小相位。
+static float regionLanczosWeight(float x) {
+    x = abs(x);
+    if (x < 1e-5f) return 1;
+    if (x >= 3) return 0;
+    float p = M_PI_F * x;
+    return sin(p) * sin(p / 3) / (p * p / 3);
+}
+
+kernel void ImageRegionLanczosTransform(texture2d<half, access::write> output [[texture(0)]],
+    texture2d<half, access::read> source [[texture(1)]], constant float4 &src [[buffer(0)]],
+    constant float4 &dst [[buffer(1)]], constant float4 &r0 [[buffer(2)]], constant float4 &r1 [[buffer(3)]],
+    constant float4 &r2 [[buffer(4)]], constant bool &clamped [[buffer(5)]], uint2 p [[thread_position_in_grid]]) {
+    if (p.x >= output.get_width() || p.y >= output.get_height()) return;
+    float2 step = dst.zw / float2(output.get_width(), output.get_height());
+    float3 position = float3(dst.x + (p.x + .5f) * step.x, dst.y + dst.w - (p.y + .5f) * step.y, 1);
+    float z = dot(r2.xyz, position);
+    if (abs(z) < 1e-8f) { output.write(half4(0), p); return; }
+    float2 q = float2(dot(r0.xyz, position), dot(r1.xyz, position)) / z;
+    float2 dx = (float2(r0.x, r1.x) - q * r2.x) / z * step.x;
+    float2 dy = (float2(r0.y, r1.y) - q * r2.y) / z * step.y;
+    float2 footprint = max(float2(1), float2(length(float2(dx.x, dy.x)), length(float2(dx.y, dy.y))));
+    float2 radius = 3 * footprint;
+    int2 first = int2(ceil(q - radius - .5f));
+    int2 last = int2(floor(q + radius - .5f));
+    float4 sum = 0;
+    float total = 0;
+    int2 size = int2(source.get_width(), source.get_height());
+    for (int y = first.y; y <= last.y; ++y) {
+        float wy = regionLanczosWeight((y + .5f - q.y) / footprint.y);
+        for (int x = first.x; x <= last.x; ++x) {
+            float weight = wy * regionLanczosWeight((x + .5f - q.x) / footprint.x);
+            int2 index = int2(x - int(src.x), int(src.y + src.w) - 1 - y);
+            if (clamped || all(index >= 0) && all(index < size)) {
+                sum += float4(source.read(uint2(clamp(index, int2(0), size - 1)))) * weight;
+            }
+            total += weight;
+        }
+    }
+    // 预乘域统一滤波；只约束 alpha，不裁掉 HDR 的超白颜色。
+    float4 value = abs(total) > 1e-8f ? sum / total : float4(0);
+    value.a = clamp(value.a, 0.0f, 1.0f);
+    if (value.a == 0) value.rgb = 0;
+    output.write(half4(value), p);
+}

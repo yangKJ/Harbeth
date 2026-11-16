@@ -1,9 +1,36 @@
 import CoreGraphics
 import Metal
+import simd
 import XCTest
 @testable import Harbeth
 
 final class RegionalProcessingContractTests: XCTestCase {
+
+    func testLanczosRegionMappingKeepsIdentityAndGlobalCropPhase() throws {
+        let source = try makePatternTexture(width: 18, height: 18)
+        let fullRegion = CGRect(x: 0, y: 0, width: 18, height: 18)
+        let identity = ImageRegionTransform(sourceRegion: fullRegion, outputRegion: fullRegion,
+            inverse: matrix_identity_float3x3, interpolation: .lanczos)
+        let unchanged: MTLTexture = try HarbethIO(element: source, filter: identity).output()
+        XCTAssertEqual(try bytes(in: unchanged), try bytes(in: source))
+        XCTAssertEqual(ImageRegionTransform(sourceRegion: fullRegion, outputRegion: fullRegion,
+            inverse: matrix_identity_float3x3).interpolation, .linear)
+
+        let inverse = simd_float3x3(diagonal: SIMD3(1.3, 1.3, 1))
+        let outputRegion = CGRect(x: 4, y: 4, width: 4, height: 4)
+        let full: MTLTexture = try HarbethIO(element: source, filter: ImageRegionTransform(
+            sourceRegion: fullRegion, outputRegion: outputRegion, inverse: inverse,
+            edgeClamped: true, outputSize: outputRegion.size, interpolation: .lanczos
+        )).output()
+        let cropped: MTLTexture = try HarbethIO(element: source,
+            filter: C7CropBlit(rect: CGRect(x: 0, y: 2, width: 16, height: 16))).output()
+        let partial: MTLTexture = try HarbethIO(element: cropped, filter: ImageRegionTransform(
+            sourceRegion: CGRect(x: 0, y: 0, width: 16, height: 16), outputRegion: outputRegion, inverse: inverse,
+            edgeClamped: true, outputSize: outputRegion.size, interpolation: .lanczos
+        )).output()
+        let delta = zip(try bytes(in: full), try bytes(in: partial)).map { abs(Int($0) - Int($1)) }.max() ?? 0
+        XCTAssertLessThanOrEqual(delta, 1)
+    }
 
     func testCropNoOpReturnsTheRequestedSourceRegion() throws {
         let source = try makePatternTexture(width: 4, height: 4)
