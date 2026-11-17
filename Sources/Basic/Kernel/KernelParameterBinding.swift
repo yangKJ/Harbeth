@@ -32,27 +32,27 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
     public var fingerprint: String {
         switch self {
         case .float(let value):
-            return "float:\(String(format: "%.4f", value))"
+            return "floatBits:\(value.bitPattern)"
         case .int(let value):
             return "int:\(value)"
         case .bool(let value):
             return "bool:\(value ? 1 : 0)"
         case .float2(let value):
-            return "float2:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y))"
+            return "float2:\(Self.floatArrayFingerprint([value.x, value.y]))"
         case .float3(let value):
-            return "float3:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y)),\(String(format: "%.4f", value.z))"
+            return "float3:\(Self.floatArrayFingerprint([value.x, value.y, value.z]))"
         case .float4(let value):
-            return "float4:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y)),\(String(format: "%.4f", value.z)),\(String(format: "%.4f", value.w))"
+            return "float4:\(Self.floatArrayFingerprint([value.x, value.y, value.z, value.w]))"
         case .vector4(let value):
             return "vector4:\(Self.floatArrayFingerprint(value.values))"
         case .floatArray(let values):
             return Self.floatArrayFingerprint(values)
         case .matrix3x3(let value):
-            return "matrix3x3:\(value.values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
+            return "matrix3x3:\(Self.floatArrayFingerprint(value.values))"
         case .matrix4x4(let value):
             return "matrix4x4:\(Self.floatArrayFingerprint(value.values))"
         case .bytes(let bytes, let dataType):
-            return "bytes:\(dataType.rawValue):\(bytes.count)"
+            return "bytes:\(dataType.rawValue):\(bytes.count):\(Data(bytes).base64EncodedString())"
         }
     }
 

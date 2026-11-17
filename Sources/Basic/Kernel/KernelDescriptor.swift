@@ -73,7 +73,7 @@ public enum KernelFunctionConstantValue: Sendable, Codable, Equatable, Hashable 
         case .int(let value):
             return "int:\(value)"
         case .float(let value):
-            return "float:\(String(format: "%.4f", value))"
+            return "floatBits:\(value.bitPattern)"
         case .string(let value):
             return "string:\(value)"
         }
@@ -167,9 +167,9 @@ enum KernelParameterValue: Sendable, Codable, Equatable, Hashable {
     var fingerprint: String {
         switch self {
         case .float(let value):
-            return "float:\(String(format: "%.4f", value))"
+            return "floatBits:\(value.bitPattern)"
         case .double(let value):
-            return "double:\(String(format: "%.4f", value))"
+            return "doubleBits:\(value.bitPattern)"
         case .int(let value):
             return "int:\(value)"
         case .bool(let value):

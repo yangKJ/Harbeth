@@ -24,8 +24,11 @@ extension Placement {
         case .fixed:
             return size
         case .fit:
-            let w = Int(abs(sin(angle) * Float(size.height)) + abs(cos(angle) * Float(size.width)))
-            let h = Int(abs(sin(angle) * Float(size.width)) + abs(cos(angle) * Float(size.height)))
+            guard angle.isFinite else { return size }
+            let coefficients = Self.rotationCoefficients(angle)
+            let c = abs(Double(coefficients.x)), s = abs(Double(coefficients.y))
+            let w = Self.safeDimension(ceil(s * Double(size.height) + c * Double(size.width)), fallback: size.width)
+            let h = Self.safeDimension(ceil(s * Double(size.width) + c * Double(size.height)), fallback: size.height)
             return C7Size(width: w, height: h)
         }
     }
@@ -35,12 +38,27 @@ extension Placement {
         case .fixed:
             return size
         case .fit:
-            let w = width > 0 ? Int(width) : size.width
-            let h = height > 0 ? Int(height) : size.height
+            let w = Self.safeDimension(Double(width), fallback: size.width)
+            let h = Self.safeDimension(Double(height), fallback: size.height)
             return C7Size(width: w, height: h)
         }
     }
     
+    static func rotationCoefficients(_ angle: Float) -> SIMD2<Float> {
+        guard angle.isFinite else { return SIMD2(1, 0) }
+        let turns = angle / (.pi / 2)
+        if abs(turns - turns.rounded()) <= turns.ulp {
+            let radians = Double(turns.rounded()) * .pi / 2
+            return SIMD2(Float(cos(radians).rounded()), Float(sin(radians).rounded()))
+        }
+        return SIMD2(cos(angle), sin(angle))
+    }
+
+    private static func safeDimension(_ value: Double, fallback: Int) -> Int {
+        guard value.isFinite, value >= 1, value < Double(Int.max) else { return fallback }
+        return Int(value)
+    }
+
     public func transform(_ transform: CGAffineTransform, size: C7Size) -> C7Size {
         switch self {
         case .fixed:
@@ -48,6 +66,19 @@ extension Placement {
         case .fit:
             let rect = CGRect(x: 0, y: 0, width: size.width, height: size.height).applying(transform)
             return rect.size.c7.toC7Size()
+        }
+    }
+}
+
+// 非抛错的尺寸查询保持安全，真正执行时由统一编码边界报告非法几何参数。
+protocol GeometryParameterValidating {
+    func validateGeometryParameters() throws
+}
+
+func validateResizeDimensions(_ width: Float, _ height: Float) throws {
+    for value in [width, height] where value > 0 {
+        guard value.isFinite, value >= 1, Double(value) < Double(Int.max) else {
+            throw HarbethError.configurationInvalid("缩放尺寸必须能表示为正整数；非正值保留原轴。")
         }
     }
 }

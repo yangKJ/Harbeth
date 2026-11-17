@@ -108,6 +108,8 @@ struct Compute {
         let pipelineState = descriptor.functionIdentity.primaryName == kernel
         ? try makeComputePipelineState(with: identity)
         : try makeComputePipelineState(with: kernel)
+        if filter is C7Resize || filter is C7LanczosResize,
+           let output = try LanczosResampling.encode(commandBuffer: commandBuffer, textures: textures, descriptor: descriptor) { return output }
         if filter is TemporaryTextureRequirementProviding, let output = try OutlineFlatClassification.encode(commandBuffer: commandBuffer, textures: textures, descriptor: descriptor, identity: identity) { return output }
         // 管线可能因缺失函数抛错，成功后才创建需要显式结束的编码器。
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
@@ -146,6 +148,10 @@ struct Compute {
             switch res {
             case .success(let pipelineState):
                 do {
+                    if execution.value.2 is C7Resize || execution.value.2 is C7LanczosResize,
+                       let output = try LanczosResampling.encode(commandBuffer: execution.value.0, textures: execution.value.1, descriptor: execution.value.4) {
+                        complete(.success(output)); return
+                    }
                     if execution.value.2 is TemporaryTextureRequirementProviding, let output = try OutlineFlatClassification.encode(commandBuffer: execution.value.0, textures: execution.value.1, descriptor: execution.value.4, identity: identity) {
                         complete(.success(output)); return
                     }
@@ -272,6 +278,9 @@ struct Compute {
         case "C7ChannelControl": return 5
         case "C7Curves", "C7CurvesCubic", "C7CurvesLegacy", "C7CurvesLegacyOrdered": return 7
         case "C7DepthLensBlur": return 1
+        case "C7Resize", "C7LanczosResize": return 0
+        case "C7Rotate": return 5
+        case "HarbethTextureGeometry": return 6
         case "C7BlendColorAdd", "C7BlendColorAlpha", "C7BlendColorBurn", "C7BlendColorDodge", "C7BlendDarken", "C7BlendDarkerColor",
              "C7BlendDifference", "C7BlendDissolve", "C7BlendDivide", "C7BlendExclusion", "C7BlendHardLight", "C7BlendHardMix",
              "C7BlendHue", "C7BlendLighten", "C7BlendLighterColor", "C7BlendLinearBurn", "C7BlendLinearLight", "C7BlendLuminosity",

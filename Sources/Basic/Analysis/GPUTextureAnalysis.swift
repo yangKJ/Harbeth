@@ -24,11 +24,16 @@ enum GPUTextureAnalysis {
     }
 
     private static func prepare(_ texture: MTLTexture, scope: TextureAnalysisScope, command: MTLCommandBuffer) throws -> PreparedScope {
-        let formats: [MTLPixelFormat] = [.rgba8Unorm, .bgra8Unorm, .rgba16Float, .rgba32Float,
-                                        .r8Unorm, .r16Float, .r32Float, .rg8Unorm, .rg16Float, .rg32Float, .a8Unorm]
+        let formats: [MTLPixelFormat] = [
+            .rgba8Unorm, .bgra8Unorm, .rgba16Float, .rgba32Float,
+            .r8Unorm, .r16Float, .r32Float, .rg8Unorm,
+            .rg16Float, .rg32Float, .a8Unorm
+        ]
         guard texture.device === HarbethContext.shared.device, formats.contains(texture.pixelFormat),
               texture.textureType == .type2D, texture.sampleCount == 1, texture.arrayLength == 1,
-              texture.storageMode != .memoryless else { throw HarbethError.configurationInvalid("Unsupported analysis texture.") }
+              texture.storageMode != .memoryless else {
+            throw HarbethError.configurationInvalid("Unsupported analysis texture.")
+        }
         guard let region = texture.c7.resolvedHistogramRegion(scope.region) else {
             throw HarbethError.configurationInvalid("Empty analysis region.")
         }
@@ -37,8 +42,14 @@ enum GPUTextureAnalysis {
         var lease: TextureLease?
         if let mask = scope.mask {
             guard mask.texture.device === texture.device else { throw HarbethError.configurationInvalid("Analysis mask device mismatch.") }
-            let normalized = try TextureLoader.makeTextureLease(width: mask.texture.width, height: mask.texture.height,
-                options: [.texturePixelFormat: mask.texture.pixelFormat, .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite])], identifier: "AnalysisMask")
+            let normalized = try TextureLoader.makeTextureLease(
+                width: mask.texture.width, height: mask.texture.height,
+                options: [
+                    .texturePixelFormat: mask.texture.pixelFormat,
+                    .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite])
+                ],
+                identifier: "AnalysisMask"
+            )
             do {
                 _ = try MaskCoverageExtract(mask: mask).applyAtTexture(form: mask.texture, to: normalized.texture, for: command)
             } catch {
@@ -47,9 +58,15 @@ enum GPUTextureAnalysis {
             }
             lease = normalized
         }
-        var p: [Float] = [Float(region.origin.x), Float(region.origin.y), Float(region.size.width), Float(region.size.height),
-                          kind, lease == nil ? 0 : 1, scope.coverageThreshold,
-                          scope.luminanceRange == nil ? 0 : 1, scope.luminanceRange?.minimum ?? 0, scope.luminanceRange?.maximum ?? 1]
+        var p: [Float] = [
+            Float(region.origin.x), Float(region.origin.y),
+            Float(region.size.width), Float(region.size.height),
+            kind, lease == nil ? 0 : 1,
+            scope.coverageThreshold,
+            scope.luminanceRange == nil ? 0 : 1,
+            scope.luminanceRange?.minimum ?? 0,
+            scope.luminanceRange?.maximum ?? 1
+        ]
         for range in [scope.colorRange?.hue, scope.colorRange?.saturation, scope.colorRange?.lightness] {
             p += [range == nil ? 0 : 1, range?.minimum ?? 0, range?.maximum ?? 1, range?.wrapsAroundUnit == true ? 1 : 0]
         }
@@ -73,30 +90,41 @@ enum GPUTextureAnalysis {
             encoder.setThreadgroupMemoryLength(bytes, index: 0)
         }
         encoder.setBytes(&p, length: p.count * 4, index: 1)
-        encoder.dispatchThreadgroups(MTLSize(width: (threads + 255) / 256, height: 1, depth: 1),
-                                     threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+        encoder.dispatchThreadgroups(
+            MTLSize(width: (threads + 255) / 256, height: 1, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1)
+        )
         encoder.endEncoding()
     }
 
     private static func encodeStatistics(_ texture: MTLTexture, scope: PreparedScope, command: MTLCommandBuffer) throws -> MTLBuffer {
         let p = scope.parameters
         var count = (Int(p[2]) * Int(p[3]) + 255) / 256
-        guard var partials = texture.device.makeBuffer(length: count * 48, options: .storageModePrivate) else { throw HarbethError.commandBuffer }
-        try encode("AnalysisStatisticsBlocks", command: command, texture: texture, scope: scope,
-                   parameters: p, buffer: partials, threads: Int(p[2]) * Int(p[3]))
+        guard var partials = texture.device.makeBuffer(length: count * 48, options: .storageModePrivate) else {
+            throw HarbethError.commandBuffer
+        }
+        try encode(
+            "AnalysisStatisticsBlocks",
+            command: command, texture: texture, scope: scope,
+            parameters: p, buffer: partials,
+            threads: Int(p[2]) * Int(p[3])
+        )
         let pipeline = try Compute.makeComputePipelineState(with: "AnalysisStatisticsReduce")
         repeat {
             let nextCount = (count + 255) / 256
-            guard let next = texture.device.makeBuffer(length: nextCount * 48,
-                    options: nextCount == 1 ? .storageModeShared : .storageModePrivate),
-                  let encoder = command.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
+            guard let next = texture.device.makeBuffer(
+                length: nextCount * 48,
+                options: nextCount == 1 ? .storageModeShared : .storageModePrivate
+            ), let encoder = command.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
             var n = UInt32(count)
             encoder.setComputePipelineState(pipeline)
             encoder.setBuffer(partials, offset: 0, index: 0)
             encoder.setBuffer(next, offset: 0, index: 1)
             encoder.setBytes(&n, length: 4, index: 2)
-            encoder.dispatchThreadgroups(MTLSize(width: nextCount, height: 1, depth: 1),
-                                         threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+            encoder.dispatchThreadgroups(
+                MTLSize(width: nextCount, height: 1, depth: 1),
+                threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1)
+            )
             encoder.endEncoding()
             partials = next
             count = nextCount
@@ -110,10 +138,17 @@ enum GPUTextureAnalysis {
         guard integers[9] == 0 else { return nil }
         let samples = Int(integers[8]), divisor = Float(max(samples, 1))
         guard samples == 0 || (0...6).allSatisfy({ values[$0].isFinite }) else { return nil }
-        return TextureStatistics(pixelFormat: PixelFormatContract(pixelFormat: texture.pixelFormat, preservesInput: false),
-            sampleCount: samples, meanRed: values[0] / divisor, meanGreen: values[1] / divisor,
-            meanBlue: values[2] / divisor, meanAlpha: values[3] / divisor, meanLuminance: values[4] / divisor,
-            minimumLuminance: samples == 0 ? 0 : values[5], maximumLuminance: samples == 0 ? 0 : values[6])
+        return TextureStatistics(
+            pixelFormat: PixelFormatContract(pixelFormat: texture.pixelFormat, preservesInput: false),
+            sampleCount: samples,
+            meanRed: values[0] / divisor,
+            meanGreen: values[1] / divisor,
+            meanBlue: values[2] / divisor,
+            meanAlpha: values[3] / divisor,
+            meanLuminance: values[4] / divisor,
+            minimumLuminance: samples == 0 ? 0 : values[5],
+            maximumLuminance: samples == 0 ? 0 : values[6]
+        )
     }
 
     private static func encodeHistogram(_ texture: MTLTexture, scope: PreparedScope, channel: TextureHistogramChannel,
@@ -135,8 +170,11 @@ enum GPUTextureAnalysis {
         let simd = bins >= 32 && (texture.device.supportsFamily(.apple7) || texture.device.supportsFamily(.mac2))
         #endif
         let kernel = simd ? "AnalysisScopedHistogramSIMD" : "AnalysisScopedHistogram"
-        try encode(kernel, command: command, texture: texture, scope: scope, parameters: p, buffer: result,
-                   threads: Int(p[2]) * Int(p[3]), histogram: true)
+        try encode(
+            kernel, command: command, texture: texture,
+            scope: scope, parameters: p, buffer: result,
+            threads: Int(p[2]) * Int(p[3]), histogram: true
+        )
         return result
     }
 
@@ -144,9 +182,13 @@ enum GPUTextureAnalysis {
                                         bins: Int, valueRange: TextureAnalysisValueRange) -> TextureHistogram? {
         let values = buffer.contents().bindMemory(to: UInt32.self, capacity: bins + 2)
         guard values[bins + 1] == 0 else { return nil }
-        return TextureHistogram(channel: channel, bins: Array(UnsafeBufferPointer(start: values, count: bins)),
-            totalSampleCount: Int(values[bins]), valueRange: valueRange,
-            pixelFormat: PixelFormatContract(pixelFormat: texture.pixelFormat, preservesInput: false))
+        return TextureHistogram(
+            channel: channel,
+            bins: Array(UnsafeBufferPointer(start: values, count: bins)),
+            totalSampleCount: Int(values[bins]),
+            valueRange: valueRange,
+            pixelFormat: PixelFormatContract(pixelFormat: texture.pixelFormat, preservesInput: false)
+        )
     }
 
     /// 参数准备、mask、统计、直方图和预览都属于本次请求，完成后再读取摘要。
@@ -160,16 +202,25 @@ enum GPUTextureAnalysis {
             defer { prepared.lease?.release() }
             let statistics = try encodeStatistics(texture, scope: prepared, command: command)
             let histogram = try encodeHistogram(texture, scope: prepared, channel: channel, bins: bins, command: command)
-            let preview = try encodePreview(texture.device, histogram: histogram, channel: channel,
-                                            bins: bins, height: max(1, height), command: command)
+            let preview = try encodePreview(
+                texture.device, histogram: histogram, channel: channel,
+                bins: bins, height: max(1, height),
+                command: command
+            )
             try command.commitAndWaitUntilCompleted(identifier: "AnalysisBundle")
             let decoded = decodeHistogram(texture, buffer: histogram, channel: channel, bins: bins, valueRange: scope.valueRange)
             let attachment = decoded.map {
-                RenderedHistogramAttachment(histogram: $0, attachment: RenderedAttachment(index: 1, semantic: .histogram,
-                    texture: preview, debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy))
+                RenderedHistogramAttachment(histogram: $0, attachment: RenderedAttachment(
+                    index: 1, semantic: .histogram,
+                    texture: preview,
+                    debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy
+                ))
             }
-            return TextureAnalysisArtifacts(statistics: decodeStatistics(texture, buffer: statistics), histogram: decoded,
-                                            histogramAttachment: attachment)
+            return TextureAnalysisArtifacts(
+                statistics: decodeStatistics(texture, buffer: statistics),
+                histogram: decoded,
+                histogramAttachment: attachment
+            )
         } catch { return nil }
     }
 
@@ -182,18 +233,18 @@ enum GPUTextureAnalysis {
             let prepared = try prepare(texture, scope: scope, command: command)
             defer { prepared.lease?.release() }
             let result = try encodeHistogram(texture, scope: prepared, channel: channel, bins: bins, command: command)
-            let preview = try encodePreview(texture.device, histogram: result, channel: channel,
-                                            bins: bins, height: max(1, height), command: command)
+            let preview = try encodePreview(texture.device, histogram: result, channel: channel, bins: bins, height: max(1, height), command: command)
             try command.commitAndWaitUntilCompleted(identifier: "AnalysisHistogramAttachment")
             guard let histogram = decodeHistogram(texture, buffer: result, channel: channel, bins: bins, valueRange: scope.valueRange) else { return nil }
-            return RenderedHistogramAttachment(histogram: histogram, attachment: RenderedAttachment(index: 1,
+            return RenderedHistogramAttachment(histogram: histogram, attachment: RenderedAttachment(
+                index: 1,
                 semantic: .histogram, texture: preview,
-                debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy))
+                debugPolicy: RenderOutputAttachmentContract.histogram(index: 1, pixelFormat: .rgba8Unorm).debugPolicy
+            ))
         } catch { return nil }
     }
 
-    private static func encodePreview(_ device: MTLDevice, histogram: MTLBuffer, channel: TextureHistogramChannel,
-                                      bins: Int, height: Int, command: MTLCommandBuffer) throws -> MTLTexture {
+    private static func encodePreview(_ device: MTLDevice, histogram: MTLBuffer, channel: TextureHistogramChannel, bins: Int, height: Int, command: MTLCommandBuffer) throws -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: bins, height: height, mipmapped: false)
         descriptor.storageMode = .private; descriptor.usage = [.shaderRead, .shaderWrite]
         guard let output = device.makeTexture(descriptor: descriptor),
@@ -236,8 +287,7 @@ enum GPUTextureAnalysis {
         } catch { return nil }
     }
 
-    static func histogram(_ texture: MTLTexture, channel: TextureHistogramChannel, bins: Int,
-                          scope: TextureAnalysisScope) -> TextureHistogram? {
+    static func histogram(_ texture: MTLTexture, channel: TextureHistogramChannel, bins: Int, scope: TextureAnalysisScope) -> TextureHistogram? {
         guard bins > 0, bins <= 4096 else { return nil }
         do {
             guard let command = HarbethContext.shared.makeCommandBuffer() else { return nil }
@@ -255,15 +305,24 @@ enum GPUTextureAnalysis {
         defer { HarbethContext.shared.recycleCommandBuffer(command) }
         let prepared = try prepare(texture, scope: scope, command: command)
         defer { prepared.lease?.release() }
-        let output = try TextureLoader.makeTexture(width: texture.width, height: texture.height,
-            options: [.texturePixelFormat: pixelFormat, .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite])], identifier: "AnalysisMask")
+        let output = try TextureLoader.makeTexture(
+            width: texture.width, height: texture.height,
+            options: [
+                .texturePixelFormat: pixelFormat,
+                .textureUsage: MTLTextureUsage([.shaderRead, .shaderWrite])
+            ],
+            identifier: "AnalysisMask"
+        )
         guard let encoder = command.makeComputeCommandEncoder() else { throw HarbethError.commandBuffer }
         let pipeline = try Compute.makeComputePipelineState(with: "AnalysisScopeMask")
         var p = prepared.parameters
         encoder.setComputePipelineState(pipeline)
         encoder.setTexture(texture, index: 0); encoder.setTexture(prepared.mask ?? texture, index: 1); encoder.setTexture(output, index: 2)
         encoder.setBytes(&p, length: p.count * 4, index: 1)
-        encoder.dispatchThreads(MTLSize(width: texture.width, height: texture.height, depth: 1), threadsPerThreadgroup: MTLSize(width: 16, height: 16, depth: 1))
+        encoder.dispatchThreads(
+            MTLSize(width: texture.width, height: texture.height, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: 16, height: 16, depth: 1)
+        )
         encoder.endEncoding()
         try command.commitAndWaitUntilCompleted(identifier: "AnalysisScopeMask")
         return output

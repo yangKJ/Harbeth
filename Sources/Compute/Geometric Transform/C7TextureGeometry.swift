@@ -18,6 +18,7 @@ public struct C7TextureGeometry: C7FilterProtocol {
     public let flipsVertically: Bool
     /// 裁切后的归一化坐标映射到实际输入纹理，越界像素使用background。
     public let sampleTransform: CGAffineTransform
+    /// 已关联的原始 RGBA，允许扩展范围颜色；不会再次乘 Alpha。
     public let background: SIMD4<Float>
 
     public init(width: Int, height: Int,
@@ -48,7 +49,14 @@ public struct C7TextureGeometry: C7FilterProtocol {
     }
 
     public var modifier: ModifierEnum { .compute(kernel: "HarbethTextureGeometry") }
-    public var memoryAccessPattern: MemoryAccessPattern { .point }
+    public var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+              precision: .float32, dynamicRangeBehavior: .preservesExtendedRange,
+              samplingFootprint: .global, coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
     public func resize(input size: C7Size) -> C7Size { C7Size(width: width, height: height) }
     public var kernelParameterBindings: [KernelParameterBinding] {
         [

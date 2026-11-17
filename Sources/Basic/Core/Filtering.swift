@@ -138,7 +138,7 @@ extension C7FilterProtocol {
         }
         let bindings = kernelParameterBindings
         if bindings.isEmpty {
-            return factors.map { String(format: "%.4f", $0) }.joined(separator: ",")
+            return KernelParameterBindingValue.floatArrayFingerprint(factors)
         }
         return bindings.sorted { lhs, rhs in
             if lhs.index == rhs.index {
@@ -155,6 +155,7 @@ extension C7FilterProtocol {
 extension C7FilterProtocol {
     @discardableResult
     func apply(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer, complete: C7TextureResultBlock?) throws -> MTLTexture {
+        try (self as? GeometryParameterValidating)?.validateGeometryParameters()
         let outputTexture: MTLTexture
         switch self.modifier {
         case .compute(let kernel):

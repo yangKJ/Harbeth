@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct C7Rotate: C7FilterProtocol, SamplerAdaptableFilter {
+public struct C7Rotate: C7FilterProtocol, SamplerAdaptableFilter, GeometryParameterValidating {
 
     /// Angle to rotate, unit is degree
     @DegreeRange public var angle: Float
@@ -19,11 +19,22 @@ public struct C7Rotate: C7FilterProtocol, SamplerAdaptableFilter {
     }
 
     public var factors: [Float] {
-        return [Degree(value: angle).radians, Float(samplingMode.rawValue), Float(edgeMode.rawValue)]
+        let radians = Degree(value: angle).radians
+        let coefficients = Placement.rotationCoefficients(radians)
+        return [radians, Float(samplingMode.rawValue), Float(edgeMode.rawValue), coefficients.x, coefficients.y]
     }
 
-    public var memoryAccessPattern: MemoryAccessPattern {
-        .point
+    public var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+              precision: .float32, dynamicRangeBehavior: .preservesExtendedRange,
+              samplingFootprint: .global, coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
+
+    func validateGeometryParameters() throws {
+        guard angle.isFinite else { throw HarbethError.configurationInvalid("旋转角度必须是有限值。") }
     }
 
     public func resize(input size: C7Size) -> C7Size {

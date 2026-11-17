@@ -200,7 +200,7 @@ extension C7FilterProtocol {
         return FilterRecipeDescriptor(
             stableTypeID: stableTypeID,
             modifier: modifier.recipeName,
-            parameterValues: bindings.isEmpty ? factors.map { Self.stableFloatDescription($0) } : bindings.map(\.fingerprint),
+            parameterValues: bindings.isEmpty ? factors.map { "floatBits:\($0.bitPattern)" } : bindings.map(\.fingerprint),
             resourceIdentity: kernelResourceIdentity,
             otherInputTextureCount: otherInputTextures.count,
             pipelineFilterFingerprints: [],

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct C7LanczosResize: C7FilterProtocol {
+public struct C7LanczosResize: C7FilterProtocol, GeometryParameterValidating, TemporaryTextureRequirementProviding {
 
     public var width: Float
     public var height: Float
@@ -20,8 +20,23 @@ public struct C7LanczosResize: C7FilterProtocol {
         .neighborhood
     }
 
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .global,
+              coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
+    func validateGeometryParameters() throws { try validateResizeDimensions(width, height) }
+
     public func resize(input size: C7Size) -> C7Size {
         Placement.fit.resize(width: width, height: height, size: size)
+    }
+
+    func temporaryTextureRequirement(inputSize: C7Size) -> (bytes: Int, count: Int) {
+        guard let scratch = LanczosResampling.scratch(input: inputSize, output: resize(input: inputSize), limit: LanczosResampling.byteLimit) else { return (0, 0) }
+        return (scratch.bytes, 1)
     }
 
     public init(size: CGSize) {

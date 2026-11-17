@@ -9,7 +9,7 @@
 using namespace metal;
 
 namespace rotate {
-    METAL_FUNC half4 sampleColor(texture2d<half, access::sample> inputTexture,
+    METAL_FUNC float4 sampleColor(texture2d<float, access::sample> inputTexture,
                                  float2 coord,
                                  int samplingMode,
                                  int edgeMode,
@@ -64,31 +64,33 @@ namespace rotate {
     }
 }
 
-kernel void C7Rotate(texture2d<half, access::write> outputTexture [[texture(0)]],
-                     texture2d<half, access::sample> inputTexture [[texture(1)]],
+kernel void C7Rotate(texture2d<float, access::write> outputTexture [[texture(0)]],
+                     texture2d<float, access::sample> inputTexture [[texture(1)]],
                      constant float *angle [[buffer(0)]],
                      constant float *samplingMode [[buffer(1)]],
                      constant float *edgeMode [[buffer(2)]],
+                     constant float &cosAngle [[buffer(3)]],
+                     constant float &sinAngle [[buffer(4)]],
+                     constant float &halfOutput [[buffer(5)]],
                      uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
 
-    const float outX = float(grid.x) - outputTexture.get_width() / 2.0f;
-    const float outY = float(grid.y) - outputTexture.get_height() / 2.0f;
-    const float dd = distance(float2(outX, outY), float2(0, 0));
-    const float pi = 3.14159265358979323846264338327950288;
-    const float w = inputTexture.get_width();
-    const float h = inputTexture.get_height();
-    float outAngle = atan(outY / outX);
-    if (outX < 0) { outAngle += pi; };
-    const float inAngle = outAngle - float(*angle);
-    const float inX = (cos(inAngle) * dd + w / 2.0f) / w;
-    const float inY = (sin(inAngle) * dd + h / 2.0f) / h;
+    if (*angle == 0.0f && outputTexture.get_width() == inputTexture.get_width() && outputTexture.get_height() == inputTexture.get_height()) {
+        const float4 color = inputTexture.read(grid);
+        outputTexture.write(halfOutput > 0.5f ? float4(half4(color)) : color, grid);
+        return;
+    }
 
-    // Set empty pixel when out of range
+    // 像素中心的逆映射避免极坐标奇点；系数在 CPU 每次执行前准备。
+    const float2 delta = float2(grid) + 0.5f - float2(outputTexture.get_width(), outputTexture.get_height()) * 0.5f;
+    const float w = inputTexture.get_width(), h = inputTexture.get_height();
+    const float inX = (delta.x * cosAngle + delta.y * sinAngle + w * 0.5f) / w;
+    const float inY = (-delta.x * sinAngle + delta.y * cosAngle + h * 0.5f) / h;
+
     if (*edgeMode == 0 && (inX < 0 || inX > 1 || inY < 0 || inY > 1)) {
-        outputTexture.write(half4(0), grid);
+        outputTexture.write(float4(0), grid);
         return;
     }
 
@@ -96,7 +98,7 @@ kernel void C7Rotate(texture2d<half, access::write> outputTexture [[texture(0)]]
     const float quarterTurn = float(M_PI_F) * 0.5f;
     const float normalizedTurns = (*angle) / quarterTurn;
     const bool orthogonalHint = abs(normalizedTurns - round(normalizedTurns)) < 0.0001f;
-    const half4 outColor = rotate::sampleColor(
+    const float4 outColor = rotate::sampleColor(
         inputTexture,
         sampleCoord,
         int(*samplingMode),
@@ -104,5 +106,5 @@ kernel void C7Rotate(texture2d<half, access::write> outputTexture [[texture(0)]]
         orthogonalHint
     );
 
-    outputTexture.write(outColor, grid);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(outColor)) : outColor, grid);
 }

@@ -82,7 +82,7 @@ enum FilterPipelineExecutor {
         let style = filter.pipelineExecutionStyle
         let pipelineFilters = filter.pipelineFilters
         let auxiliaryTextures: [MTLTexture]
-        let transientTextures: [MTLTexture]
+        let recycling = CommandBufferTextureRecycling(commandBuffer)
 
         switch style {
         case .sequential:
@@ -90,18 +90,18 @@ enum FilterPipelineExecutor {
                 filters: pipelineFilters,
                 source: source,
                 destination: destination,
-                commandBuffer: commandBuffer
+                commandBuffer: commandBuffer,
+                recycling: recycling
             )
-            auxiliaryTextures = execution.auxiliaryTextures
-            transientTextures = execution.transientTextures
+            auxiliaryTextures = execution
         case .parallelFromSource:
             let execution = try executeParallelPipeline(
                 filters: pipelineFilters,
                 source: source,
-                commandBuffer: commandBuffer
+                commandBuffer: commandBuffer,
+                recycling: recycling
             )
-            auxiliaryTextures = execution.auxiliaryTextures
-            transientTextures = execution.transientTextures
+            auxiliaryTextures = execution
         }
 
         guard let finalFilter = filter.makeFinalFilter(otherInputTextures: auxiliaryTextures) else {
@@ -109,13 +109,6 @@ enum FilterPipelineExecutor {
         }
         _ = try finalFilter.apply(form: source, to: destination, for: commandBuffer, complete: nil)
 
-        let texturesToRecycle = transientTextures.filter { $0 !== destination && $0 !== source }
-        if texturesToRecycle.isEmpty == false {
-            let transfer = HarbethUncheckedTransfer(value: texturesToRecycle)
-            commandBuffer.addCompletedHandler { _ in
-                HarbethContext.shared.texturePool.enqueueTexturesSync(transfer.value)
-            }
-        }
         return destination
     }
 
@@ -123,50 +116,45 @@ enum FilterPipelineExecutor {
         filters: [C7FilterProtocol],
         source: MTLTexture,
         destination: MTLTexture,
-        commandBuffer: MTLCommandBuffer
-    ) throws -> (auxiliaryTextures: [MTLTexture], transientTextures: [MTLTexture]) {
-        guard filters.isEmpty == false else { return ([], []) }
+        commandBuffer: MTLCommandBuffer,
+        recycling: CommandBufferTextureRecycling
+    ) throws -> [MTLTexture] {
+        guard filters.isEmpty == false else { return [] }
         var currentTexture = source
-        var transientTextures: [MTLTexture] = []
 
         for stageFilter in filters {
             // Pipeline stage output must not alias the final destination. The final
             // filter consumes the last stage as an auxiliary texture while writing
             // `destination`; binding one texture for read and write is undefined.
-            let stageDestination = try makeIntermediateTexture(source: currentTexture, filter: stageFilter)
+            let stageDestination = try makeIntermediateTexture(source: currentTexture, filter: stageFilter, recycling: recycling)
             let outputTexture = try stageFilter.applyAtTexture(
                 form: currentTexture,
                 to: stageDestination,
                 for: commandBuffer
             )
-            if stageDestination !== source {
-                transientTextures.append(stageDestination)
-            }
             currentTexture = outputTexture
         }
 
-        return ([currentTexture], transientTextures)
+        return [currentTexture]
     }
 
     private static func executeParallelPipeline(
         filters: [C7FilterProtocol],
         source: MTLTexture,
-        commandBuffer: MTLCommandBuffer
-    ) throws -> (auxiliaryTextures: [MTLTexture], transientTextures: [MTLTexture]) {
+        commandBuffer: MTLCommandBuffer,
+        recycling: CommandBufferTextureRecycling
+    ) throws -> [MTLTexture] {
         var outputs: [MTLTexture] = []
-        var transientTextures: [MTLTexture] = []
         for stageFilter in filters {
-            let stageDestination = try makeIntermediateTexture(source: source, filter: stageFilter)
+            let stageDestination = try makeIntermediateTexture(source: source, filter: stageFilter, recycling: recycling)
             let outputTexture = try stageFilter.applyAtTexture(form: source, to: stageDestination, for: commandBuffer)
             outputs.append(outputTexture)
-            if stageDestination !== source {
-                transientTextures.append(stageDestination)
-            }
         }
-        return (outputs, transientTextures)
+        return outputs
     }
 
-    private static func makeIntermediateTexture(source: MTLTexture, filter: C7FilterProtocol) throws -> MTLTexture {
+    private static func makeIntermediateTexture(source: MTLTexture, filter: C7FilterProtocol, recycling: CommandBufferTextureRecycling) throws -> MTLTexture {
+        try (filter as? GeometryParameterValidating)?.validateGeometryParameters()
         let inputSize = C7Size(width: source.width, height: source.height)
         let outputSize = filter.resize(input: inputSize)
         let usage: MTLTextureUsage
@@ -185,12 +173,14 @@ enum FilterPipelineExecutor {
         if let storageMode = filter.destinationTextureContract.storageMode {
             options[.textureStorageMode] = storageMode
         }
-        return try TextureLoader.makeTexture(
+        let lease = try TextureLoader.makeTextureLease(
             width: outputSize.width,
             height: outputSize.height,
             options: options,
             identifier: "FilterPipelineExecutor"
         )
+        recycling.retain(lease)
+        return lease.texture
     }
 }
 
@@ -233,4 +223,22 @@ struct PipelineIdentityFilter: C7FilterProtocol, BlitProtocol {
         encoder.endEncoding()
         return output
     }
+}
+
+// handler 保持所有权至完成；未提交的缓冲区销毁时，handler 释放也会归还租约。
+// 对象不反向持有 command buffer，因此不会形成环；编码失败不提前复用已引用纹理。
+final class CommandBufferTextureRecycling: @unchecked Sendable {
+    private let lock = NSLock()
+    private var leases: [TextureLease] = []
+
+    init(_ commandBuffer: MTLCommandBuffer) {
+        commandBuffer.addCompletedHandler { [self] _ in release() }
+    }
+
+    func retain(_ lease: TextureLease) { lock.withLock { leases.append(lease) } }
+    private func release() {
+        let retained = lock.withLock { let result = leases; leases.removeAll(); return result }
+        retained.forEach { $0.release() }
+    }
+    deinit { release() }
 }

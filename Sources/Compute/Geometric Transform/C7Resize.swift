@@ -8,7 +8,7 @@
 import Foundation
 
 /// Pull and compress the picture, the picture will be distorted
-public struct C7Resize: C7FilterProtocol {
+public struct C7Resize: C7FilterProtocol, GeometryParameterValidating {
     
     public var width: Float
     public var height: Float
@@ -21,6 +21,15 @@ public struct C7Resize: C7FilterProtocol {
         .point
     }
     
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .global,
+              coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
+
+    func validateGeometryParameters() throws { try validateResizeDimensions(width, height) }
+
     public func resize(input size: C7Size) -> C7Size {
         return Placement.fit.resize(width: width, height: height, size: size)
     }

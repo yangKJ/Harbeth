@@ -313,7 +313,8 @@ final class HarbethIOAsyncTests: XCTestCase {
 
         XCTAssertEqual(descriptor.stableTypeID, "C7Brightness")
         XCTAssertEqual(descriptor.modifier, "compute:C7Brightness")
-        XCTAssertEqual(descriptor.parameterValues, ["0.200000"])
+        XCTAssertEqual(descriptor.parameterValues, ["floatBits:\(Float(0.2).bitPattern)"])
+        XCTAssertNotEqual(descriptor.fingerprint, C7Brightness(brightness: Float(0.2).nextUp).recipeDescriptor.fingerprint)
         XCTAssertTrue(descriptor.fingerprint.contains("C7Brightness"))
     }
 

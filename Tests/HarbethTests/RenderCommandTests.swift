@@ -66,7 +66,7 @@ final class RenderCommandTests: XCTestCase {
         XCTAssertEqual(descriptor.outputContract.attachments[0].semantic, .primaryColor)
         XCTAssertEqual(descriptor.outputContract.attachments[1].semantic, .maskCoverage)
         XCTAssertEqual(descriptor.fragmentTextureCount, 2)
-        XCTAssertEqual(descriptor.parameterFingerprint, "0.6000,1.0000,1.0000,0.2500")
+        XCTAssertEqual(descriptor.parameterFingerprint, "floatArrayBitsLE:mpkZPwAAgD8AAIA/AACAPg==")
         XCTAssertEqual(descriptor.renderPass.colorAttachments.map(\.index), [0, 1])
     }
 
@@ -78,7 +78,7 @@ final class RenderCommandTests: XCTestCase {
         XCTAssertEqual(descriptor.outputContract.attachments[0].semantic, .primaryColor)
         XCTAssertEqual(descriptor.outputContract.attachments[1].semantic, .analysis)
         XCTAssertEqual(descriptor.outputContract.attachments[1].pixelFormat, .rgba8Unorm)
-        XCTAssertEqual(descriptor.parameterFingerprint, "0.8500,0.1000")
+        XCTAssertEqual(descriptor.parameterFingerprint, "floatArrayBitsLE:mplZP83MzD0=")
         XCTAssertEqual(descriptor.renderPass.colorAttachments.map(\.index), [0, 1])
     }
 
@@ -90,7 +90,7 @@ final class RenderCommandTests: XCTestCase {
         XCTAssertEqual(descriptor.outputContract.attachments[0].semantic, .primaryColor)
         XCTAssertEqual(descriptor.outputContract.attachments[1].semantic, .analysis)
         XCTAssertEqual(descriptor.outputContract.attachments[1].pixelFormat, .rgba8Unorm)
-        XCTAssertEqual(descriptor.parameterFingerprint, "0.1200,0.0200")
+        XCTAssertEqual(descriptor.parameterFingerprint, "floatArrayBitsLE:j8L1PQrXozw=")
         XCTAssertEqual(descriptor.renderPass.colorAttachments.map(\.index), [0, 1])
     }
 
@@ -107,7 +107,7 @@ final class RenderCommandTests: XCTestCase {
         XCTAssertEqual(descriptor.outputContract.attachments[0].semantic, .primaryColor)
         XCTAssertEqual(descriptor.outputContract.attachments[1].semantic, .analysis)
         XCTAssertEqual(descriptor.outputContract.attachments[1].pixelFormat, .rgba8Unorm)
-        XCTAssertEqual(descriptor.parameterFingerprint, "0.1000,0.3500,0.7000,0.9200")
+        XCTAssertEqual(descriptor.parameterFingerprint, "floatArrayBitsLE:zczMPTMzsz4zMzM/H4VrPw==")
         XCTAssertEqual(descriptor.renderPass.colorAttachments.map(\.index), [0, 1])
     }
 
@@ -125,7 +125,7 @@ final class RenderCommandTests: XCTestCase {
 
         XCTAssertEqual(basic.fragmentTextureCount, 1)
         XCTAssertEqual(overlayDescriptor.fragmentTextureCount, 2)
-        XCTAssertTrue(overlayDescriptor.parameterFingerprint.contains("0.2500"))
+        XCTAssertEqual(overlayDescriptor.parameterFingerprint, "floatArrayBitsLE:AACAPg==")
         XCTAssertFalse(basic.geometry.usesCustomVertices)
         XCTAssertTrue(projective.geometry.usesCustomVertices)
         XCTAssertEqual(projective.geometry.vertexStride, 5)
