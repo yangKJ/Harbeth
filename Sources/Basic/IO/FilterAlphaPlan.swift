@@ -20,7 +20,12 @@ struct FilterAlphaPlan {
             }
             result.append(filter)
             let declared = contract.alpha == .preserveInput ? filter.kernelPixelContract.outputAlpha : contract.alpha
-            current = declared.expectedAlphaType ?? filter.defaultAlphaBehavior.renderAlphaContract.expectedAlphaType ?? current
+            if declared == .preserveInput && filter.defaultAlphaBehavior == .modifiesAlpha && current == .alphaIsOne {
+                // 原始RGBA矩阵不改变关联域，但改变覆盖后不能继续宣称不透明。
+                current = .premultiplied
+            } else {
+                current = declared.expectedAlphaType ?? filter.defaultAlphaBehavior.renderAlphaContract.expectedAlphaType ?? current
+            }
         }
         self.filters = result
         self.outputType = current

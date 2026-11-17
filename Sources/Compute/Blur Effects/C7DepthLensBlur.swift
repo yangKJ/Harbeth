@@ -84,8 +84,8 @@ public struct C7DepthLensBlur: C7FilterProtocol {
             workingColorSpace: .preserveInput,
             outputColorSpace: .preserveInput,
             inputAlphaExpectation: .premultiplied,
-            outputAlpha: .premultiplied,
-            precision: .float16,
+            outputAlpha: .preserveInput,
+            precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
             // The outer sample ring reaches twice the radius; tiles must include the entire neighborhood.
             samplingFootprint: .neighborhood(radius: Int(ceil(descriptor.blurRadius * 2))),
@@ -94,6 +94,8 @@ public struct C7DepthLensBlur: C7FilterProtocol {
             fusionPolicy: .disabled
         )
     }
+
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
 
     public var kernelResourceIdentity: String? {
         guard let depthTexture else {

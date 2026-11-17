@@ -1348,10 +1348,18 @@ kernel void InnerYCbCrTriPlanarToRGBA(texture2d<half, access::write> outputTextu
     outputTexture.write(InnerYCbCrConvertToRGBA(conversionMatrix, conversionOffset, y, u, v), grid);
 }
 
-static inline half4 safe_read(texture2d<half, access::read> texture, uint2 gid) {
-    uint x = min(gid.x, texture.get_width() - 1);
-    uint y = min(gid.y, texture.get_height() - 1);
-    return texture.read(uint2(x, y));
+// 相同尺寸保持整数读取；不同画布统一映射像素中心，辅助数据使用同一坐标。
+static inline half4 transitionRead(texture2d<half, access::read> texture, uint2 gid, uint2 canvas) {
+    const int2 size = int2(texture.get_width(), texture.get_height());
+    if (all(uint2(size) == canvas)) return texture.read(min(gid, uint2(size - 1)));
+    const float2 point = (float2(gid) + 0.5f) / float2(canvas) * float2(size) - 0.5f;
+    const int2 base = int2(floor(point));
+    const float2 fraction = fract(point);
+    const float4 a = float4(texture.read(uint2(clamp(base, int2(0), size - 1))));
+    const float4 b = float4(texture.read(uint2(clamp(base + int2(1, 0), int2(0), size - 1))));
+    const float4 c = float4(texture.read(uint2(clamp(base + int2(0, 1), int2(0), size - 1))));
+    const float4 d = float4(texture.read(uint2(clamp(base + int2(1, 1), int2(0), size - 1))));
+    return half4(mix(mix(a, b, fraction.x), mix(c, d, fraction.x), fraction.y));
 }
 
 kernel void InnerDissolveTransition(texture2d<half, access::write> outputTexture [[texture(0)]],
@@ -1363,8 +1371,8 @@ kernel void InnerDissolveTransition(texture2d<half, access::write> outputTexture
         return;
     }
     const half progress = half(clamp(*progressPointer, 0.0f, 1.0f));
-    const half4 from = safe_read(fromTexture, gid);
-    const half4 to = safe_read(toTexture, gid);
+    const half4 from = transitionRead(fromTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
+    const half4 to = transitionRead(toTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
     outputTexture.write(mix(from, to, progress), gid);
 }
 
@@ -1379,18 +1387,18 @@ kernel void InnerDirectionalWipeTransition(texture2d<half, access::write> output
         return;
     }
     const float progressValue = clamp(*progressPointer, 0.0f, 1.0f);
-    const half2 uv = half2(float(gid.x) / max(float(outputTexture.get_width() - 1), 1.0f),
+    const float2 uv = float2(float(gid.x) / max(float(outputTexture.get_width() - 1), 1.0f),
                            float(gid.y) / max(float(outputTexture.get_height() - 1), 1.0f));
-    const half2 direction = normalize(half2(cos(*anglePointer), sin(*anglePointer)));
-    const half projection = dot(uv - 0.5h, direction);
-    const half softness = half(max(*softnessPointer, 0.0001f));
-    const half progress = half(progressValue);
-    const half halfRange = (abs(direction.x) + abs(direction.y)) * 0.5h;
-    const half boundary = mix(halfRange + softness, -halfRange - softness, progress);
-    const half mixFactor = smoothstep(boundary - softness, boundary + softness, projection);
-    const half4 from = safe_read(fromTexture, gid);
-    const half4 to = safe_read(toTexture, gid);
-    outputTexture.write(mix(from, to, mixFactor), gid);
+    const float2 direction = normalize(float2(cos(*anglePointer), sin(*anglePointer)));
+    const float projection = dot(uv - 0.5h, direction);
+    const float softness = max(*softnessPointer, 0.0001f);
+    const float progress = progressValue;
+    const float halfRange = (abs(direction.x) + abs(direction.y)) * 0.5h;
+    const float boundary = mix(halfRange + softness, -halfRange - softness, progress);
+    const float mixFactor = smoothstep(boundary - softness, boundary + softness, projection);
+    const half4 from = transitionRead(fromTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
+    const half4 to = transitionRead(toTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
+    outputTexture.write(mix(from, to, half(mixFactor)), gid);
 }
 
 kernel void InnerLumaWipeTransition(texture2d<half, access::write> outputTexture [[texture(0)]],
@@ -1404,15 +1412,15 @@ kernel void InnerLumaWipeTransition(texture2d<half, access::write> outputTexture
         return;
     }
     const float progressValue = clamp(*progressPointer, 0.0f, 1.0f);
-    const half4 lumaSample = safe_read(lumaTexture, gid);
-    const half luma = dot(lumaSample.rgb, half3(0.299h, 0.587h, 0.114h));
-    const half softness = half(max(*softnessPointer, 0.0001f));
-    const half progress = half(progressValue);
-    const half boundary = mix(1.0h + softness, -softness, progress);
-    const half mixFactor = smoothstep(boundary - softness, boundary + softness, luma);
-    const half4 from = safe_read(fromTexture, gid);
-    const half4 to = safe_read(toTexture, gid);
-    outputTexture.write(mix(from, to, mixFactor), gid);
+    const half4 lumaSample = transitionRead(lumaTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
+    const float luma = dot(float3(lumaSample.rgb), float3(0.299f, 0.587f, 0.114f));
+    const float softness = max(*softnessPointer, 0.0001f);
+    const float progress = progressValue;
+    const float boundary = mix(1.0h + softness, -softness, progress);
+    const float mixFactor = smoothstep(boundary - softness, boundary + softness, luma);
+    const half4 from = transitionRead(fromTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
+    const half4 to = transitionRead(toTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
+    outputTexture.write(mix(from, to, half(mixFactor)), gid);
 }
 
 kernel void InnerDisplacementTransition(texture2d<half, access::write> outputTexture [[texture(0)]],
@@ -1427,20 +1435,21 @@ kernel void InnerDisplacementTransition(texture2d<half, access::write> outputTex
     }
     const float progressValue = clamp(*progressPointer, 0.0f, 1.0f);
     if (progressValue <= 0.0f) {
-        outputTexture.write(safe_read(fromTexture, gid), gid);
+        outputTexture.write(transitionRead(fromTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height())), gid);
         return;
     }
     if (progressValue >= 1.0f) {
-        outputTexture.write(safe_read(toTexture, gid), gid);
+        outputTexture.write(transitionRead(toTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height())), gid);
         return;
     }
-    const half4 displacementSample = safe_read(displacementTexture, gid);
+    const half4 displacementSample = transitionRead(displacementTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
     const half progress = half(progressValue);
-    const half2 offset = (displacementSample.rg - 0.5h) * half(*scalePointer) * half(1.0f - progressValue) * half2(outputTexture.get_width(), outputTexture.get_height());
+    const float2 size = float2(outputTexture.get_width(), outputTexture.get_height());
+    const float2 offset = clamp((float2(displacementSample.rg) - 0.5f) * *scalePointer * (1.0f - progressValue) * size, -size, size);
     const int2 displaced = int2(clamp(int(gid.x) + int(offset.x), 0, int(outputTexture.get_width() - 1)),
                                 clamp(int(gid.y) + int(offset.y), 0, int(outputTexture.get_height() - 1)));
-    const half4 from = fromTexture.read(uint2(displaced));
-    const half4 to = safe_read(toTexture, gid);
+    const half4 from = transitionRead(fromTexture, uint2(displaced), uint2(outputTexture.get_width(), outputTexture.get_height()));
+    const half4 to = transitionRead(toTexture, gid, uint2(outputTexture.get_width(), outputTexture.get_height()));
     outputTexture.write(mix(from, to, progress), gid);
 }
 

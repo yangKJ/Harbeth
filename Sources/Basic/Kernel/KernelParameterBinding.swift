@@ -22,6 +22,8 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
     case float2(SIMD2<Float>)
     case float3(SIMD3<Float>)
     case float4(SIMD4<Float>)
+    /// 保留原始向量到编码阶段，先校验形状再转换 SIMD。
+    case vector4(Vector4)
     case floatArray([Float])
     case matrix3x3(Matrix3x3)
     case matrix4x4(Matrix4x4)
@@ -41,12 +43,14 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
             return "float3:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y)),\(String(format: "%.4f", value.z))"
         case .float4(let value):
             return "float4:\(String(format: "%.4f", value.x)),\(String(format: "%.4f", value.y)),\(String(format: "%.4f", value.z)),\(String(format: "%.4f", value.w))"
+        case .vector4(let value):
+            return "vector4:\(Self.floatArrayFingerprint(value.values))"
         case .floatArray(let values):
             return Self.floatArrayFingerprint(values)
         case .matrix3x3(let value):
             return "matrix3x3:\(value.values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
         case .matrix4x4(let value):
-            return "matrix4x4:\(value.values.map { String(format: "%.4f", $0) }.joined(separator: ","))"
+            return "matrix4x4:\(Self.floatArrayFingerprint(value.values))"
         case .bytes(let bytes, let dataType):
             return "bytes:\(dataType.rawValue):\(bytes.count)"
         }
@@ -70,7 +74,7 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
             return .float2
         case .float3:
             return .float3
-        case .float4:
+        case .float4, .vector4:
             return .float4
         case .floatArray:
             return .floatArray
@@ -95,7 +99,7 @@ public enum KernelParameterBindingValue: Sendable, Codable, Equatable, Hashable 
             return MemoryLayout<SIMD2<Float>>.stride
         case .float3:
             return MemoryLayout<SIMD3<Float>>.stride
-        case .float4:
+        case .float4, .vector4:
             return MemoryLayout<SIMD4<Float>>.stride
         case .floatArray(let values):
             return values.count * MemoryLayout<Float>.stride
@@ -146,6 +150,12 @@ enum KernelBindingEncoder {
     private static func encode(_ binding: KernelParameterBinding, on encoder: MTLCommandEncoder) throws {
         if case .matrix3x3(let matrix) = binding.value, matrix.values.count != 9 {
             throw HarbethError.configurationInvalid("3×3 矩阵必须包含九个元素")
+        }
+        if case .matrix4x4(let matrix) = binding.value, matrix.values.count != 16 {
+            throw HarbethError.configurationInvalid("4×4 矩阵必须包含十六个元素")
+        }
+        if case .vector4(let vector) = binding.value, vector.values.count != 4 {
+            throw HarbethError.configurationInvalid("四维向量必须包含四个元素")
         }
         // Metal 的 inline bytes 上限为 4 KB；长笔触等大参数必须使用独立 buffer。
         var requiresBuffer = false
@@ -208,6 +218,9 @@ enum KernelBindingEncoder {
             withUnsafeBytes(of: &value) { applier($0.baseAddress!, $0.count, index) }
         case .float4(let rawValue):
             var value = rawValue
+            withUnsafeBytes(of: &value) { applier($0.baseAddress!, $0.count, index) }
+        case .vector4(let rawValue):
+            var value = rawValue.to_factor()
             withUnsafeBytes(of: &value) { applier($0.baseAddress!, $0.count, index) }
         case .floatArray(let rawValue):
             if rawValue.isEmpty {

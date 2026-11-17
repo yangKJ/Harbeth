@@ -875,7 +875,9 @@ struct RenderPlan: @unchecked Sendable {
         let resolvedOutputColorSpace = outputContract.colorSpace
         let normalizedInputAlpha: AlphaType? = sourceDescriptor?.alphaType == .nonPremultiplied && outputContract.inputAlphaExpectation == .premultiplied
             ? .premultiplied : sourceDescriptor?.alphaType
-        let resolvedOutputAlphaType = outputContract.alpha.expectedAlphaType ?? normalizedInputAlpha
+        let modifiesOpaqueCoverage = normalizedInputAlpha == .alphaIsOne && outputContract.alpha == .preserveInput
+            && graph.nodes.contains { $0.filter?.defaultAlphaBehavior == .modifiesAlpha }
+        let resolvedOutputAlphaType = outputContract.alpha.expectedAlphaType ?? (modifiesOpaqueCoverage ? .premultiplied : normalizedInputAlpha)
         let resolvedLossyConversionCount = outputContract.allowsLossyConversion ? 1 : 0
         let resolvedGraphNodeCount = imageGraph?.nodeCount ?? max(nodeDiagnostics.count, graph.nodes.count)
         let resolvedGraphEdgeCount = imageGraph?.edgeCount ?? max(resolvedGraphNodeCount - 1, 0)

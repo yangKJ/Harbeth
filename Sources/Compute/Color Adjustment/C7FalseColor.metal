@@ -1,25 +1,14 @@
-//
-//  C7FalseColor.metal
-//  ATMetalBand
-//
-//  Created by Condy on 2022/2/16.
-//
-
+// 由 Condy 维护。两色仍按原亮度权重映射，输出恢复源覆盖。
 #include <metal_stdlib>
 using namespace metal;
-
-kernel void C7FalseColor(texture2d<half, access::write> outputTexture [[texture(0)]],
-                         texture2d<half, access::read> inputTexture [[texture(1)]],
-                         constant float3 *firstVector [[buffer(0)]],
-                         constant float3 *secondVector [[buffer(1)]],
-                         uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    
-    const half3 luminanceWeighting = half3(0.2125, 0.7154, 0.0721);
-    const half luminance = dot(inColor.rgb, luminanceWeighting);
-    const half3 color1 = half3(*firstVector);
-    const half3 color2 = half3(*secondVector);
-    const half4 outColor = half4(mix(color1.rgb, color2.rgb, half3(luminance)), inColor.a);
-    
-    outputTexture.write(outColor, grid);
+kernel void C7FalseColor(
+    texture2d<float, access::write> output [[texture(0)]], texture2d<float, access::read> input [[texture(1)]],
+    constant float3 &first [[buffer(0)]], constant float3 &second [[buffer(1)]],
+    constant float &halfOutput [[buffer(2)]], uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= output.get_width() || grid.y >= output.get_height()) return;
+    const float4 source = input.read(grid);
+    if (source.a <= 0.0f) { output.write(float4(0), grid); return; }
+    const float luminance = dot(source.rgb / source.a, float3(0.2125f, 0.7154f, 0.0721f));
+    const float4 result = float4(mix(first, second, luminance) * source.a, source.a);
+    output.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

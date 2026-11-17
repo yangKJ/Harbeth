@@ -39,6 +39,9 @@ public struct Matrix4x5: Sendable, Equatable, Hashable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let matrix4x4Values = try container.decode([Float].self, forKey: .matrix4x4)
         let vector4Values = try container.decode([Float].self, forKey: .vector4)
+        guard matrix4x4Values.count == 16, vector4Values.count == 4 else {
+            throw DecodingError.dataCorruptedError(forKey: .matrix4x4, in: container, debugDescription: "4×5 矩阵必须包含十六个矩阵元素和四个偏移元素")
+        }
         self.matrix4x4 = Matrix4x4(values: matrix4x4Values)
         self.vector4 = Vector4(values: vector4Values)
     }

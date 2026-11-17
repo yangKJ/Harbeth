@@ -32,6 +32,12 @@ public struct C7RedMonochromeBlur: C7FilterProtocol {
         .neighborhood
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(outputAlpha: .opaque, precision: .float32, samplingFootprint: .dynamic,
+              coordinateDependency: .transformed, globalDependency: .imageDimensions)
+    }
+    public var kernelOutputContract: RenderOutputContract { .init(alpha: .opaque) }
+
     public init(pixelRadius: Int = 0) {
         self.pixelRadius = pixelRadius
     }

@@ -23,11 +23,15 @@ public struct C7ColorMatrix4x5: C7FilterProtocol {
         .point
     }
 
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity.isFinite ? intensity : 0)),
             KernelParameterBinding(name: "matrix", index: 1, stage: .compute, value: .matrix4x4(matrix.matrix4x4)),
-            KernelParameterBinding(name: "offset", index: 2, stage: .compute, value: .float4(matrix.vector4.to_factor()))
+            KernelParameterBinding(name: "offset", index: 2, stage: .compute, value: .vector4(matrix.vector4))
         ]
     }
     

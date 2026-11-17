@@ -1,57 +1,27 @@
-//
-//  C7ColorCorrection.metal
-//  Harbeth
-//
-//  Created by Condy on 2026/3/13.
-//
-
+// 由 Condy 维护。保留目录色阶/曲线/平衡顺序，在直色域计算后关联。
 #include <metal_stdlib>
 using namespace metal;
-
-kernel void C7ColorCorrection(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::read> inputTexture [[texture(1)]],
-                              constant float *levels [[buffer(0)]],
-                              constant float *curves [[buffer(1)]],
-                              constant float *colorBalance [[buffer(2)]],
-                              uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    
-    const half levelsAmount = half(*levels);
-    const half curvesAmount = half(*curves);
-    const half colorBalanceAmount = half(*colorBalance);
-    
-    half3 color = inColor.rgb;
-    
-    if (levelsAmount != 0.0h) {
-        half minInput = 0.0h + abs(levelsAmount) * 0.1h;
-        half maxInput = 1.0h - abs(levelsAmount) * 0.1h;
-        half gamma = 1.0h - levelsAmount * 0.3h;
-        color = (color - minInput) / (maxInput - minInput);
-        color = pow(max(color, 0.0h), gamma);
+kernel void C7ColorCorrection(
+    texture2d<float, access::write> output [[texture(0)]], texture2d<float, access::read> input [[texture(1)]],
+    constant float &levels [[buffer(0)]], constant float &curves [[buffer(1)]],
+    constant float &balance [[buffer(2)]], constant float &halfOutput [[buffer(3)]], uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= output.get_width() || grid.y >= output.get_height()) return;
+    const float4 source = input.read(grid);
+    if (levels == 0.0f && curves == 0.0f && balance == 0.0f) { output.write(source, grid); return; }
+    if (source.a <= 0.0f) { output.write(float4(0), grid); return; }
+    float3 color = source.rgb / source.a;
+    if (levels != 0.0f) {
+        const float low = abs(levels) * 0.1f, high = 1.0f - low;
+        color = pow(max((color - low) / (high - low), 0.0f), float3(1.0f - levels * 0.3f));
     }
-
-    if (curvesAmount != 0.0h) {
-        half curveStrength = abs(curvesAmount) * 0.5h;
-        for (int i = 0; i < 3; i++) {
-            half c = color[i];
-            if (c < 0.0h) {
-                // Pass through negative values (shouldn't occur normally)
-            } else if (c < 0.5h) {
-                color[i] = pow(c / 0.5h, 1.0h + curveStrength) * 0.5h;
-            } else if (c <= 1.0h) {
-                color[i] = 1.0h - pow((1.0h - c) / 0.5h, 1.0h + curveStrength) * 0.5h;
-            }
-            // Values > 1.0 pass through to preserve HDR
+    if (curves != 0.0f) {
+        const float exponent = 1.0f + abs(curves) * 0.5f;
+        for (uint c = 0; c < 3; c++) {
+            if (color[c] >= 0.0f && color[c] < 0.5f) color[c] = pow(color[c] / 0.5f, exponent) * 0.5f;
+            else if (color[c] >= 0.5f && color[c] <= 1.0f) color[c] = 1.0f - pow((1.0f - color[c]) / 0.5f, exponent) * 0.5f;
         }
     }
-
-    if (colorBalanceAmount != 0.0h) {
-        half balanceStrength = abs(colorBalanceAmount) * 0.2h;
-        color.r += balanceStrength * 0.5h * sign(colorBalanceAmount);
-        color.g += balanceStrength * 0.2h * sign(colorBalanceAmount);
-        color.b -= balanceStrength * 0.3h * sign(colorBalanceAmount);
-    }
-    const half4 outColor = half4(color, inColor.a);
-    
-    outputTexture.write(outColor, grid);
+    color += balance * 0.2f * float3(0.5f, 0.2f, -0.3f);
+    const float4 result = float4(color * source.a, source.a);
+    output.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

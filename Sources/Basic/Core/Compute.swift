@@ -263,6 +263,11 @@ struct Compute {
         case "C7Temperature", "C7ColorBalanceEnhanced": return 4
         case "C7WhiteBalance": return 2
         case "C7LevelsFilter", "C7LevelsAdjustment": return 5
+        case "C7ColorMatrix4x4", "C7ColorMatrix4x5", "C7ColorCorrection", "C7Hue": return 3
+        case "C7ColorVector4", "C7WhitesBlacks", "C7LuminanceAdaptiveContrast", "C7FalseColor": return 2
+        case "C7ChannelControl": return 5
+        case "C7Curves", "C7CurvesCubic", "C7CurvesLegacy", "C7CurvesLegacyOrdered": return 7
+        case "C7DepthLensBlur": return 1
         case "C7BlendColorAdd", "C7BlendColorAlpha", "C7BlendColorBurn", "C7BlendColorDodge", "C7BlendDarken", "C7BlendDarkerColor",
              "C7BlendDifference", "C7BlendDissolve", "C7BlendDivide", "C7BlendExclusion", "C7BlendHardLight", "C7BlendHardMix",
              "C7BlendHue", "C7BlendLighten", "C7BlendLighterColor", "C7BlendLinearBurn", "C7BlendLinearLight", "C7BlendLuminosity",

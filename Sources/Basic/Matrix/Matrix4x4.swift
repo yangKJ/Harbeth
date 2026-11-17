@@ -28,8 +28,9 @@ public struct Matrix4x4: Matrix, Sendable, Equatable, Hashable {
 
     /// Input is provided in column-major order and converted into Harbeth's row-major storage.
     public init(columnMajor values: [Float]) {
-        if values.count != 16 {
-            HarbethError.failed("There must be 16 values for 4x4 Matrix.")
+        guard values.count == 16 else {
+            self.init(values: values)
+            return
         }
         self.init(values: [
             values[0], values[4], values[8], values[12],
@@ -57,6 +58,9 @@ public struct Matrix4x4: Matrix, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         self.values = try container.decode([Float].self)
+        guard values.count == 16 else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "4×4 矩阵必须包含十六个元素")
+        }
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -71,6 +75,10 @@ public struct Matrix4x4: Matrix, Sendable, Equatable, Hashable {
             SIMD4<Float>(values[2], values[6], values[10], values[14]),
             SIMD4<Float>(values[3], values[7], values[11], values[15]),
         ])
+    }
+
+    var preservesAlpha: Bool {
+        values.count == 16 && values[12] == 0 && values[13] == 0 && values[14] == 0 && values[15] == 1
     }
 }
 
@@ -157,18 +165,18 @@ extension Matrix4x4.Color {
     
     /// 反相效果
     public static let invert = Matrix4x4(values: [
-        -1.0,  0.0,  0.0, 0.0,
-         0.0, -1.0,  0.0, 0.0,
-         0.0,  0.0, -1.0, 0.0,
-         1.0,  1.0,  1.0, 1.0,
+        -1.0,  0.0,  0.0, 1.0,
+         0.0, -1.0,  0.0, 1.0,
+         0.0,  0.0, -1.0, 1.0,
+         0.0,  0.0,  0.0, 1.0,
     ])
     
     /// 负片效果
     public static let negative = Matrix4x4(values: [
-        -1.0,  0.0,  0.0, 0.0,
-         0.0, -1.0,  0.0, 0.0,
-         0.0,  0.0, -1.0, 0.0,
-         1.0,  1.0,  1.0, 1.0,
+        -1.0,  0.0,  0.0, 1.0,
+         0.0, -1.0,  0.0, 1.0,
+         0.0,  0.0, -1.0, 1.0,
+         0.0,  0.0,  0.0, 1.0,
     ])
     
     /// 暖色调
@@ -277,7 +285,8 @@ extension Matrix4x4.Color {
     /// - Parameter alpha: Alpha, 0 ~ 1
     public static func decreasingOpacity(_ alpha: Float) -> Matrix4x4 {
         var matrix = Matrix4x4.Color.identity
-        matrix.values[15] = min(1.0, max(0.0, alpha))
+        let amount = alpha.isFinite ? min(1, max(0, alpha)) : 1
+        for index in [0, 5, 10, 15] { matrix.values[index] = amount }
         return matrix
     }
     
@@ -302,8 +311,8 @@ extension Matrix4x4.Color {
         let radians = angle * Float.pi / 180.0
         matrix.values[0] = cos(radians)
         matrix.values[2] = -sin(radians)
-        matrix.values[7] = sin(radians)
-        matrix.values[9] = cos(radians)
+        matrix.values[8] = sin(radians)
+        matrix.values[10] = cos(radians)
         return matrix
     }
     

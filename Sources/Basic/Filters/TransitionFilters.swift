@@ -24,21 +24,32 @@ public extension TransitionKernel {
     }
 }
 
-struct DissolveTransition: TransitionKernel {
+// 内置转场共享画布与关联颜色合同，自定义转场继续自行声明。
+protocol BuiltinTransitionKernel: TransitionKernel {}
+extension BuiltinTransitionKernel {
+    var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+              samplingFootprint: .dynamic, coordinateDependency: .transformed,
+              globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+    var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+}
+
+struct DissolveTransition: BuiltinTransitionKernel {
     var toTexture: MTLTexture
     var progress: Float
     var auxiliaryTextures: [MTLTexture] { [] }
 
     init(toTexture: MTLTexture, progress: Float) {
         self.toTexture = toTexture
-        self.progress = min(max(progress, 0), 1)
+        self.progress = sanitizedTransitionFloat(progress, fallback: 0, range: 0...1)
     }
 
     var modifier: ModifierEnum { .compute(kernel: "InnerDissolveTransition") }
-    var factors: [Float] { [progress] }
+    var factors: [Float] { [sanitizedTransitionFloat(progress, fallback: 0, range: 0...1)] }
 }
 
-struct DirectionalWipeTransition: TransitionKernel {
+struct DirectionalWipeTransition: BuiltinTransitionKernel {
     var toTexture: MTLTexture
     var progress: Float
     var angleDegrees: Float
@@ -47,16 +58,20 @@ struct DirectionalWipeTransition: TransitionKernel {
 
     init(toTexture: MTLTexture, progress: Float, angleDegrees: Float = 0, softness: Float = 0.02) {
         self.toTexture = toTexture
-        self.progress = min(max(progress, 0), 1)
-        self.angleDegrees = angleDegrees
-        self.softness = max(softness, 0.0001)
+        self.progress = sanitizedTransitionFloat(progress, fallback: 0, range: 0...1)
+        self.angleDegrees = angleDegrees.isFinite ? angleDegrees : 0
+        self.softness = sanitizedTransitionFloat(softness, fallback: 0.02, range: 0.0001...(Float.greatestFiniteMagnitude / 4))
     }
 
     var modifier: ModifierEnum { .compute(kernel: "InnerDirectionalWipeTransition") }
-    var factors: [Float] { [progress, Degree(value: angleDegrees).radians, softness] }
+    var factors: [Float] {
+        let angle = angleDegrees.isFinite ? angleDegrees.truncatingRemainder(dividingBy: 360) : 0
+        return [sanitizedTransitionFloat(progress, fallback: 0, range: 0...1), Degree(value: angle).radians,
+                sanitizedTransitionFloat(softness, fallback: 0.02, range: 0.0001...(Float.greatestFiniteMagnitude / 4))]
+    }
 }
 
-struct LumaWipeTransition: TransitionKernel {
+struct LumaWipeTransition: BuiltinTransitionKernel {
     var toTexture: MTLTexture
     let lumaTexture: MTLTexture
     var progress: Float
@@ -66,15 +81,15 @@ struct LumaWipeTransition: TransitionKernel {
     init(toTexture: MTLTexture, lumaTexture: MTLTexture, progress: Float, softness: Float = 0.1) {
         self.toTexture = toTexture
         self.lumaTexture = lumaTexture
-        self.progress = min(max(progress, 0), 1)
-        self.softness = max(softness, 0.0001)
+        self.progress = sanitizedTransitionFloat(progress, fallback: 0, range: 0...1)
+        self.softness = sanitizedTransitionFloat(softness, fallback: 0.1, range: 0.0001...(Float.greatestFiniteMagnitude / 4))
     }
 
     var modifier: ModifierEnum { .compute(kernel: "InnerLumaWipeTransition") }
-    var factors: [Float] { [progress, softness] }
+    var factors: [Float] { [sanitizedTransitionFloat(progress, fallback: 0, range: 0...1), sanitizedTransitionFloat(softness, fallback: 0.1, range: 0.0001...(Float.greatestFiniteMagnitude / 4))] }
 }
 
-struct DisplacementTransition: TransitionKernel {
+struct DisplacementTransition: BuiltinTransitionKernel {
     var toTexture: MTLTexture
     let displacementTexture: MTLTexture
     var progress: Float
@@ -84,15 +99,15 @@ struct DisplacementTransition: TransitionKernel {
     init(toTexture: MTLTexture, displacementTexture: MTLTexture, progress: Float, scale: Float = 0.05) {
         self.toTexture = toTexture
         self.displacementTexture = displacementTexture
-        self.progress = min(max(progress, 0), 1)
-        self.scale = scale
+        self.progress = sanitizedTransitionFloat(progress, fallback: 0, range: 0...1)
+        self.scale = (scale.isFinite ? scale : 0.05)
     }
 
     var modifier: ModifierEnum { .compute(kernel: "InnerDisplacementTransition") }
-    var factors: [Float] { [progress, scale] }
+    var factors: [Float] { [sanitizedTransitionFloat(progress, fallback: 0, range: 0...1), (scale.isFinite ? scale : 0.05)] }
 }
 
-struct PageCurlTransition: TransitionKernel {
+struct PageCurlTransition: BuiltinTransitionKernel {
     var toTexture: MTLTexture
     let backsideTexture: MTLTexture?
     var progress: Float
@@ -123,8 +138,12 @@ struct PageCurlTransition: TransitionKernel {
     }
 
     var factors: [Float] {
-        let radians = Degree(value: angleDegrees).radians
-        return [progress, cos(radians), sin(radians), radius, shadowStrength, shadowRadius]
+        let angle = angleDegrees.isFinite ? angleDegrees.truncatingRemainder(dividingBy: 360) : 0
+        let radians = Degree(value: angle).radians
+        return [Self.sanitized(progress, fallback: 0, range: 0...1), cos(radians), sin(radians),
+                Self.sanitized(radius, fallback: 0.22, range: 0.001...0.5),
+                Self.sanitized(shadowStrength, fallback: 0.7, range: 0...1),
+                Self.sanitized(shadowRadius, fallback: 0.06, range: 0.001...0.5)]
     }
 
     var kernelPixelContract: KernelPixelContract {

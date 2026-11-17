@@ -94,12 +94,17 @@ public struct C7Curves: C7FilterProtocol {
 
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
-            precision: .float16,
+            inputAlphaExpectation: interpolation == .shapePreserving ? .premultiplied : .preserveInput,
+            precision: .float32,
             dynamicRangeBehavior: interpolation != .legacy && extrapolation == .linear
                 ? .preservesExtendedRange : .unspecified,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
         )
+    }
+
+    public var kernelOutputContract: RenderOutputContract {
+        interpolation == .shapePreserving ? .premultipliedColorInput : .preserveInput
     }
 
     private var pointCounts: SIMD4<Float> {

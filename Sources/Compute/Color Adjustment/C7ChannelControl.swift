@@ -38,7 +38,7 @@ public struct C7ChannelControl: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [red, green, blue, alpha, blend]
+        return [red.isFinite ? red : 0, green.isFinite ? green : 0, blue.isFinite ? blue : 0, alpha.isFinite ? alpha : 1, blend.isFinite ? blend : 0]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -53,7 +53,7 @@ public struct C7ChannelControl: C7FilterProtocol {
         KernelPixelContract(
             inputAlphaExpectation: .premultiplied,
             outputAlpha: .premultiplied,
-            precision: .float16,
+            precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .point,
             fusionPolicy: .pointwise

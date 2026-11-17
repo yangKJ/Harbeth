@@ -32,6 +32,9 @@ public struct Vector4: Matrix, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         self.values = try container.decode([Float].self)
+        guard values.count == 4 else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "四维向量必须包含四个元素")
+        }
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -42,6 +45,8 @@ public struct Vector4: Matrix, Sendable, Equatable, Hashable {
     public func to_factor() -> vector_float4 {
         vector_float4.init(x: values[0], y: values[1], z: values[2], w: values[3])
     }
+
+    var hasZeroAlpha: Bool { values.count == 4 && values[3] == 0 }
 }
 
 // MARK: - color vector

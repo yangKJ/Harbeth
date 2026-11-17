@@ -108,14 +108,23 @@ static float curveValue(float value, constant float *points, int count, bool leg
     return cubic ? curveCubic(value, points, count, extrapolates) : curveInterpolation(value, points, count, extrapolates);
 }
 
-static half4 c7ApplyCurves(half4 input, float4 counts, constant float *rgbPoints,
+static bool curveIsUnitIdentity(constant float *points, int count) {
+    return count < 2 || (count == 2 && points[0] == 0.0f && points[1] == 0.0f && points[2] == 1.0f && points[3] == 1.0f);
+}
+
+static float4 c7ApplyCurves(float4 input, float4 counts, constant float *rgbPoints,
                          constant float *redPoints, constant float *greenPoints, constant float *bluePoints,
                          bool legacy, bool cubic, bool extrapolates, bool channelsFirst) {
     // 新模式按直色值调节后恢复预乘；旧模式保留已持久化像素语义。
     const float alpha = float(input.a);
-    if (cubic && alpha <= 0) return half4(0);
+    if (cubic && alpha <= 0) return float4(0);
     float3 color = float3(input.rgb);
     if (cubic) color /= alpha;
+    // 空曲线恒等；单位曲线仅在其有效域或显式线性外推时省去往返舍入。
+    if (all(counts < float4(2))) return input;
+    if (curveIsUnitIdentity(rgbPoints, int(counts.x)) && curveIsUnitIdentity(redPoints, int(counts.y))
+        && curveIsUnitIdentity(greenPoints, int(counts.z)) && curveIsUnitIdentity(bluePoints, int(counts.w))
+        && ((!legacy && extrapolates) || (all(color >= 0.0f) && all(color <= 1.0f)))) return input;
     if (!channelsFirst) {
         color.r = curveValue(color.r, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
         color.g = curveValue(color.g, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
@@ -130,11 +139,11 @@ static half4 c7ApplyCurves(half4 input, float4 counts, constant float *rgbPoints
         color.b = curveValue(color.b, rgbPoints, int(counts.x), legacy, cubic, extrapolates);
     }
     if (cubic) color *= alpha;
-    return half4(half3(color), input.a);
+    return float4(color, input.a);
 }
 
-kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]],
-                     texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7Curves(texture2d<float, access::write> outputTexture [[texture(0)]],
+                     texture2d<float, access::read> inputTexture [[texture(1)]],
                      constant float4 &pointCounts [[buffer(0)]],
                      constant float *rgbPoints [[buffer(1)]],
                      constant float *redPoints [[buffer(2)]],
@@ -142,13 +151,16 @@ kernel void C7Curves(texture2d<half, access::write> outputTexture [[texture(0)]]
                      constant float *bluePoints [[buffer(4)]],
                      constant float *extrapolation [[buffer(5)]],
                      constant float *compositionOrder [[buffer(6)]],
+                     constant float &halfOutput [[buffer(7)]],
                      uint2 grid [[thread_position_in_grid]]) {
-    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                      false, false, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f), grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      false, false, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }
 
-kernel void C7CurvesCubic(texture2d<half, access::write> outputTexture [[texture(0)]],
-                     texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7CurvesCubic(texture2d<float, access::write> outputTexture [[texture(0)]],
+                     texture2d<float, access::read> inputTexture [[texture(1)]],
                      constant float4 &pointCounts [[buffer(0)]],
                      constant float *rgbPoints [[buffer(1)]],
                      constant float *redPoints [[buffer(2)]],
@@ -156,32 +168,41 @@ kernel void C7CurvesCubic(texture2d<half, access::write> outputTexture [[texture
                      constant float *bluePoints [[buffer(4)]],
                      constant float *extrapolation [[buffer(5)]],
                      constant float *compositionOrder [[buffer(6)]],
+                     constant float &halfOutput [[buffer(7)]],
                      uint2 grid [[thread_position_in_grid]]) {
-    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                      false, true, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f), grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      false, true, extrapolation[0] >= 0.5f, compositionOrder[0] >= 0.5f);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }
 
-kernel void C7CurvesLegacy(texture2d<half, access::write> outputTexture [[texture(0)]],
-                     texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7CurvesLegacy(texture2d<float, access::write> outputTexture [[texture(0)]],
+                     texture2d<float, access::read> inputTexture [[texture(1)]],
                      constant float4 &pointCounts [[buffer(0)]],
                      constant float *rgbPoints [[buffer(1)]],
                      constant float *redPoints [[buffer(2)]],
                      constant float *greenPoints [[buffer(3)]],
                      constant float *bluePoints [[buffer(4)]],
+                     constant float &halfOutput [[buffer(7)]],
                      uint2 grid [[thread_position_in_grid]]) {
-    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                      true, false, false, false), grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      true, false, false, false);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }
 
-kernel void C7CurvesLegacyOrdered(texture2d<half, access::write> outputTexture [[texture(0)]],
-                     texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7CurvesLegacyOrdered(texture2d<float, access::write> outputTexture [[texture(0)]],
+                     texture2d<float, access::read> inputTexture [[texture(1)]],
                      constant float4 &pointCounts [[buffer(0)]],
                      constant float *rgbPoints [[buffer(1)]],
                      constant float *redPoints [[buffer(2)]],
                      constant float *greenPoints [[buffer(3)]],
                      constant float *bluePoints [[buffer(4)]],
                      constant float *compositionOrder [[buffer(5)]],
+                     constant float &halfOutput [[buffer(7)]],
                      uint2 grid [[thread_position_in_grid]]) {
-    outputTexture.write(c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
-                                      true, false, false, compositionOrder[0] >= 0.5f), grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 result = c7ApplyCurves(inputTexture.read(grid), pointCounts, rgbPoints, redPoints, greenPoints, bluePoints,
+                                      true, false, false, compositionOrder[0] >= 0.5f);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

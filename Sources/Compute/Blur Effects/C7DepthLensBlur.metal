@@ -34,10 +34,11 @@ static float c7DepthLensBlurDepth(texture2d<float, access::read> texture, float2
 }
 
 kernel void C7DepthLensBlur(
-    texture2d<half, access::write> outputTexture [[texture(0)]],
-    texture2d<half, access::read> inputTexture [[texture(1)]],
+    texture2d<float, access::write> outputTexture [[texture(0)]],
+    texture2d<float, access::read> inputTexture [[texture(1)]],
     texture2d<float, access::read> depthTexture [[texture(2)]],
     constant float *parameters [[buffer(0)]],
+    constant float &halfOutput [[buffer(1)]],
     constant float *mappingContext [[buffer(30)]],
     uint2 grid [[thread_position_in_grid]]
 ) {
@@ -50,13 +51,15 @@ kernel void C7DepthLensBlur(
     const int2 inputPixel = c7DepthLensBlurClamp(
         int2(round(globalPixel - inputOrigin)), inputTexture.get_width(), inputTexture.get_height()
     );
-    const half4 original = inputTexture.read(uint2(inputPixel));
+    const float4 original = inputTexture.read(uint2(inputPixel));
     const float intensity = clamp(parameters[2], 0.0, 1.0);
     const float radius = max(parameters[5], 0.0);
     if (intensity <= 0.0 || radius <= 0.0) {
         outputTexture.write(original, grid);
         return;
     }
+
+    if (original.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
 
     const float2 uv = clamp((globalPixel + 0.5) / logicalSize, float2(0.0), float2(1.0));
     const float focusDepth = c7DepthLensBlurDepth(depthTexture, float2(parameters[0], parameters[1]));
@@ -82,8 +85,8 @@ kernel void C7DepthLensBlur(
         float2(2.0, 0.0), float2(-2.0, 0.0), float2(1.0, 1.732),
         float2(-1.0, 1.732), float2(1.0, -1.732), float2(-1.0, -1.732)
     };
-    half3 sum = half3(0.0);
-    float weightSum = 0.0;
+    float3 sum = float3(0);
+    float alphaSum = 0.0f;
     for (uint index = 0; index < 13; index++) {
         const float weight = index == 0 ? 0.24 : (index < 7 ? 0.10 : 0.026);
         // Round relative offsets symmetrically so mirrored sampling does not favor either side.
@@ -92,9 +95,10 @@ kernel void C7DepthLensBlur(
             inputPixel + sampleOffset,
             inputTexture.get_width(), inputTexture.get_height()
         );
-        sum += inputTexture.read(uint2(point)).rgb * half(weight);
-        weightSum += weight;
+        const float4 sample = inputTexture.read(uint2(point));
+        if (sample.a > 0.0f) { sum += sample.rgb * weight; alphaSum += sample.a * weight; }
     }
-    const half3 blurred = sum / half(max(weightSum, 0.0001));
-    outputTexture.write(half4(mix(original.rgb, blurred, half(coc)), original.a), grid);
+    const float3 blurred = alphaSum > 0.0f ? sum / alphaSum * original.a : original.rgb;
+    const float4 result = float4(mix(original.rgb, blurred, coc), original.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

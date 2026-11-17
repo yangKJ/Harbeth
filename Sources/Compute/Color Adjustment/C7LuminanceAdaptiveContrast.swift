@@ -21,13 +21,19 @@ public struct C7LuminanceAdaptiveContrast: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [amount, adaptivity]
+        return [amount.isFinite ? amount : 0, adaptivity.isFinite ? adaptivity : 0.5]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, precision: .float32,
+              dynamicRangeBehavior: .preservesExtendedRange, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(amount: Float, adaptivity: Float = 0.5) {
         self.amount = amount
         self.adaptivity = adaptivity

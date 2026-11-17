@@ -701,6 +701,12 @@ extension C7FilterProtocol {
     }
 
     var defaultAlphaBehavior: KernelAlphaBehavior {
+        if let filter = self as? C7ColorMatrix4x4, filter.intensity.isFinite, filter.intensity > 0,
+           !filter.matrix.preservesAlpha || !filter.offset.hasZeroAlpha { return .modifiesAlpha }
+        if let filter = self as? C7ColorMatrix4x5, filter.intensity.isFinite, filter.intensity > 0,
+           !filter.matrix.matrix4x4.preservesAlpha || !filter.matrix.vector4.hasZeroAlpha { return .modifiesAlpha }
+        if let filter = self as? C7ColorVector4, filter.intensity.isFinite, filter.intensity > 0,
+           !filter.vector.hasZeroAlpha { return .modifiesAlpha }
         if self is C7Opacity {
             return .modifiesAlpha
         }

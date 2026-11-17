@@ -31,23 +31,23 @@ public enum TransitionKernelDescriptor {
         case .directionalWipe(let angleDegrees, let softness):
             return [
                 "directionalWipe",
-                "angle=\(stableTransitionFloatDescription(angleDegrees))",
-                "softness=\(stableTransitionFloatDescription(softness))"
+                "angle=\(stableTransitionFloatDescription(angleDegrees.isFinite ? angleDegrees.truncatingRemainder(dividingBy: 360) : 0))",
+                "softness=\(stableTransitionFloatDescription(sanitizedTransitionFloat(softness, fallback: 0.02, range: 0.0001...(Float.greatestFiniteMagnitude / 4))))"
             ].joined(separator: "|")
         case .lumaWipe(let lumaSource, let softness):
             return [
                 "lumaWipe",
                 lumaSource.resolutionFingerprint,
-                "softness=\(stableTransitionFloatDescription(softness))"
+                "softness=\(stableTransitionFloatDescription(sanitizedTransitionFloat(softness, fallback: 0.1, range: 0.0001...(Float.greatestFiniteMagnitude / 4))))"
             ].joined(separator: "|")
         case .displacement(let displacementSource, let scale):
             return [
                 "displacement",
                 displacementSource.resolutionFingerprint,
-                "scale=\(stableTransitionFloatDescription(scale))"
+                "scale=\(stableTransitionFloatDescription((scale.isFinite ? scale : 0.05)))"
             ].joined(separator: "|")
         case .pageCurl(let angleDegrees, let radius, let shadowStrength, let shadowRadius, let backsideSource):
-            let effectiveAngle = angleDegrees.isFinite ? angleDegrees : 0
+            let effectiveAngle = angleDegrees.isFinite ? angleDegrees.truncatingRemainder(dividingBy: 360) : 0
             let effectiveRadius = sanitizedTransitionFloat(radius, fallback: 0.22, range: 0.001...0.5)
             let effectiveShadowStrength = sanitizedTransitionFloat(shadowStrength, fallback: 0.7, range: 0...1)
             let effectiveShadowRadius = sanitizedTransitionFloat(shadowRadius, fallback: 0.06, range: 0.001...0.5)
@@ -95,7 +95,7 @@ public enum TransitionKernelDescriptor {
         case .pageCurl(let angleDegrees, let radius, let shadowStrength, let shadowRadius, let backsideSource):
             return PageCurlTransition(
                 toTexture: toTexture,
-                backsideTexture: try backsideSource?.makeTexture(),
+                backsideTexture: try backsideSource.map { try transitionColorTexture($0) },
                 progress: progress,
                 angleDegrees: angleDegrees,
                 radius: radius,
@@ -110,7 +110,7 @@ private func stableTransitionFloatDescription(_ value: Float) -> String {
     String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
 }
 
-private func sanitizedTransitionFloat(_ value: Float, fallback: Float, range: ClosedRange<Float>) -> Float {
+func sanitizedTransitionFloat(_ value: Float, fallback: Float, range: ClosedRange<Float>) -> Float {
     guard value.isFinite else { return fallback }
     return min(max(value, range.lowerBound), range.upperBound)
 }
@@ -142,10 +142,10 @@ public struct TransitionRecipe {
     }
 
     func makeFilter() throws -> C7FilterProtocol {
-        try kernel.makeFilter(
-            toTexture: to.makeTexture(),
-            progress: progress
-        )
+        let texture: MTLTexture
+        if case .custom = kernel { texture = try to.makeTexture() }
+        else { texture = try transitionColorTexture(to) }
+        return try kernel.makeFilter(toTexture: texture, progress: progress)
     }
 }
 
@@ -171,4 +171,11 @@ extension ImageNode {
             )
         )
     }
+}
+
+// 辅助亮度/位移是数据，只有目标与背面颜色来源需要正规化关联。
+private func transitionColorTexture(_ source: ImageSource) throws -> MTLTexture {
+    let texture = try source.makeTexture()
+    guard source.alphaType == .nonPremultiplied else { return texture }
+    return try HarbethIO(element: texture, filter: C7PremultiplyAlpha()).output()
 }

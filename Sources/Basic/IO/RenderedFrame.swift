@@ -1058,7 +1058,8 @@ private struct CompiledTransitionExecution {
          resizeTextureIfNeeded: @escaping (MTLTexture, ImageDerivativeSpec, RenderProfile) throws -> MTLTexture) throws {
         let input = try source.makeTexture()
         let inputSize = C7Size(texture: input)
-        var filters = [try recipe.makeFilter()] + extraFilters
+        let transitionFilters = [try recipe.makeFilter()] + extraFilters
+        var filters = transitionFilters
         let baseOutputSize = filters.reduce(inputSize) { size, filter in
             filter.resize(input: size)
         }
@@ -1073,7 +1074,7 @@ private struct CompiledTransitionExecution {
             filter.resize(input: size)
         }
         self.renderTextureClosure = {
-            let rendered = try renderTexture(input, [try recipe.makeFilter()] + extraFilters, profile)
+            let rendered = try renderTexture(input, transitionFilters, profile)
             return try resizeTextureIfNeeded(rendered, outputDerivative, profile)
         }
     }
