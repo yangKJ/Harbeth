@@ -33,9 +33,15 @@ public struct C7Temperature: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [temperature, tint, colorShift, intensity]
+        return [temperature.isFinite ? temperature : 0, tint.isFinite ? tint : 0,
+                colorShift.isFinite ? colorShift : 0, intensity.isFinite ? intensity : 0]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(temperature: Float = range.value, tint: Float = range.value) {
         self.init(temperature: temperature, tint: tint, colorShift: 0.0, intensity: 1.0)
     }

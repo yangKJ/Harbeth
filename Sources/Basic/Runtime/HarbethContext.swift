@@ -279,6 +279,10 @@ public final class HarbethContext: @unchecked Sendable {
         }
     }
 
+    var outlineClassificationBudget: OutlineClassificationBudget {
+        transientResourceStore.resource(OutlineClassificationBudget.self) { OutlineClassificationBudget() }
+    }
+
     var voronoiCellBudget: VoronoiCellBudget {
         transientResourceStore.resource(VoronoiCellBudget.self) { VoronoiCellBudget() }
     }

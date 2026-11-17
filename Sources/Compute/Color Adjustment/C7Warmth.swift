@@ -22,9 +22,14 @@ public struct C7Warmth: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [warmth]
+        return [warmth.isFinite ? warmth : 0]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(warmth: Float = range.value) {
         self.warmth = warmth
     }

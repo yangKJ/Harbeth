@@ -8,33 +8,21 @@
 #include <metal_stdlib>
 using namespace metal;
 
-#define C7LevelsInputRange(color, minInput, maxInput) \
-min(max(color - minInput, half3(0.0)) / (maxInput - minInput), half3(1.0))
-
-#define C7LevelsInput(color, minInput, gamma, maxInput) \
-GammaCorrection(C7LevelsInputRange(color, minInput, maxInput), gamma)
-
-#define C7LevelsOutputRange(color, minOutput, maxOutput) mix(minOutput, maxOutput, color)
-
-#define C7LevelsColor(color, minInput, gamma, maxInput, minOutput, maxOutput) \
-C7LevelsOutputRange(C7LevelsInput(color, minInput, gamma, maxInput), minOutput, maxOutput)
-
-// Gamma correction
-// http://blog.mouaif.org/2009/01/22/photoshop-gamma-correction-shader
-#define GammaCorrection(color, gamma) pow(color, 1.0 / gamma)
-
-kernel void  C7LevelsFilter(texture2d<half, access::write> outputTexture [[texture(0)]],
-                            texture2d<half, access::read> inputTexture [[texture(1)]],
-                            constant float3 *minimum [[buffer(0)]],
-                            constant float3 *middle [[buffer(1)]],
-                            constant float3 *maximum [[buffer(2)]],
-                            constant float3 *minOutput [[buffer(3)]],
-                            constant float3 *maxOutput [[buffer(4)]],
-                            uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    
-    const half3 rgb = C7LevelsColor(inColor.rgb, half3(*minimum), half3(*middle), half3(*maximum), half3(*minOutput), half3(*maxOutput));
-    const half4 outColor = half4(rgb, inColor.a);
-    
-    outputTexture.write(outColor, grid);
+kernel void C7LevelsFilter(texture2d<float, access::write> outputTexture [[texture(0)]],
+                              texture2d<float, access::read> inputTexture [[texture(1)]],
+                              constant float3 &inputBlack [[buffer(0)]],
+                              constant float3 &gamma [[buffer(1)]],
+                              constant float3 &inputWhite [[buffer(2)]],
+                              constant float3 &outputBlack [[buffer(3)]],
+                              constant float3 &outputWhite [[buffer(4)]],
+                              constant float &halfOutput [[buffer(5)]],
+                              uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 input = inputTexture.read(grid);
+    if (input.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    const float3 color = input.rgb / input.a;
+    const float3 fraction = clamp((color - inputBlack) / (inputWhite - inputBlack), 0.0f, 1.0f);
+    const float3 adjusted = outputBlack + (outputWhite - outputBlack) * pow(fraction, 1.0f / gamma);
+    const float4 result = float4(adjusted * input.a, input.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

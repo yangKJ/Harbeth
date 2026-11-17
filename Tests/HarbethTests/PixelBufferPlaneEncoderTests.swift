@@ -46,9 +46,9 @@ final class PixelBufferPlaneEncoderTests: XCTestCase {
         let result = try io.output()
         var output = [Float16](repeating: 0, count: 64)
         XCTAssertTrue(output.withUnsafeMutableBytes { result.c7.copyBytes(to: $0.baseAddress!, bytesPerRow: 32) })
-        XCTAssertEqual(Float(output[0]), -0.5, accuracy: 0.002)
-        XCTAssertEqual(Float(output[1]), Float(2).squareRoot(), accuracy: 0.002)
-        XCTAssertEqual(Float(output[2]), 2, accuracy: 0.002)
+        XCTAssertEqual(Float(output[0]), -Float(0.5).squareRoot() * 0.5, accuracy: 0.002)
+        XCTAssertEqual(Float(output[1]), 1, accuracy: 0.002)
+        XCTAssertEqual(Float(output[2]), Float(8).squareRoot() * 0.5, accuracy: 0.002)
         XCTAssertEqual(Float(output[3]), 0.5, accuracy: 0.002)
     }
 

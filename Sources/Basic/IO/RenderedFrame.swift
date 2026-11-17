@@ -771,7 +771,7 @@ struct FrameRenderer: @unchecked Sendable {
             ]
         }
         return SamplerExecutionAdapter.adapt(
-            filters: resolvedFilters,
+            filters: FilterAlphaPlan(filters: resolvedFilters, inputType: source.alphaType).filters,
             samplerDescriptor: samplerDescriptor
         )
     }
@@ -798,10 +798,7 @@ struct FrameRenderer: @unchecked Sendable {
     }
 
     private func resolvedFrameAlphaType(source: ImageSource, filterChain: [C7FilterProtocol]) -> AlphaType {
-        filterChain.reduce(source.alphaType) { current, filter in
-            let declared = filter.kernelDescriptor(inputSize: source.resolvedSizeHint).outputContract.alpha
-            return declared.expectedAlphaType ?? current
-        }
+        FilterAlphaPlan(filters: filterChain, inputType: source.alphaType).outputType
     }
 
     private func resolvedFrameColorSpace(source: ImageSource, filterChain: [C7FilterProtocol]) -> CGColorSpace? {
@@ -906,11 +903,11 @@ struct FrameRenderer: @unchecked Sendable {
     }
 
     private func makeIO(element: MTLTexture, filters: [C7FilterProtocol]) -> HarbethIO<MTLTexture> {
-        HarbethIO(element: element, filters: filters, identifier: identifier)
+        HarbethIO(element: element, filters: FilterAlphaPlan(filters: filters, inputType: source.alphaType).filters, identifier: identifier)
     }
 
     private func makeIO(element: MTLTexture, filter: C7FilterProtocol) -> HarbethIO<MTLTexture> {
-        HarbethIO(element: element, filter: filter, identifier: identifier)
+        makeIO(element: element, filters: [filter])
     }
 
     private func compiledRecipeExecution(_ recipe: EditRecipe, mode: EditRecipeMode) throws -> CompiledRecipeExecution {

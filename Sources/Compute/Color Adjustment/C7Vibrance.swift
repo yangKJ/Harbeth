@@ -20,9 +20,14 @@ public struct C7Vibrance: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [vibrance]
+        return [vibrance.isFinite ? vibrance : 0]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(vibrance: Float = range.value) {
         self.vibrance = vibrance
     }

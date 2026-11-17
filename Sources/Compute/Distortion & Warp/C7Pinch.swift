@@ -27,6 +27,12 @@ public struct C7Pinch: C7FilterProtocol {
         .point
     }
     
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float16, samplingFootprint: .global, coordinateDependency: .fullImage,
+              globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+
     public init(radius: Float = 0.5, scale: Float = 0.5) {
         self.radius = radius
         self.scale = scale

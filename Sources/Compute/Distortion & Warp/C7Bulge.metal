@@ -17,6 +17,7 @@ kernel void C7Bulge(texture2d<half, access::write> outputTexture [[texture(0)]],
                     constant float4 *regionContext [[buffer(30)]],
                     uint2 grid [[thread_position_in_grid]]) {
     
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
     const float4 inputRegion = regionContext[0];
     const float4 outputRegion = regionContext[1];
     int width = int(outputRegion.z);
@@ -46,7 +47,7 @@ kernel void C7Bulge(texture2d<half, access::write> outputTexture [[texture(0)]],
     }
     
     textureCoordinate = clamp(textureCoordinate, float2(0.0), float2(1.0));
-    int2 samplePos = int2(textureCoordinate.x * float(width), textureCoordinate.y * float(height)) - int2(inputRegion.xy);
+    int2 samplePos = int2(textureCoordinate * inputRegion.zw - inputRegion.xy);
     samplePos = clamp(samplePos, int2(0), int2(inputTexture.get_width() - 1, inputTexture.get_height() - 1));
     const half4 outColor = inputTexture.read(uint2(samplePos));
     

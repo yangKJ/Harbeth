@@ -22,13 +22,20 @@ public struct C7Saturation: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [saturation]
+        return [saturation.isFinite ? saturation : 1]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32,
+              samplingFootprint: .point, fusionPolicy: .pointwise)
+    }
+
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(saturation: Float = range.value) {
         self.saturation = saturation
     }

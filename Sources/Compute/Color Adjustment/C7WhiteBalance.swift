@@ -23,9 +23,14 @@ public struct C7WhiteBalance: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [temperature, tint]
+        return [temperature.isFinite ? temperature : 5000, tint.isFinite ? tint : 0]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(temperature: Float = range.value, tint: Float = 0) {
         self.temperature = temperature
         self.tint = tint

@@ -72,11 +72,16 @@ struct C7FusedPointOperations: C7FilterProtocol, FusedKernelProtocol {
 
     var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
+            workingColorSpace: operations.contains(where: { $0.kind == .brightness || $0.kind == .exposure }) ? .extendedLinearDisplayP3 : .preserveInput,
+            inputAlphaExpectation: .premultiplied, outputAlpha: alphaOutput, precision: .float32,
             dynamicRangeBehavior: .unspecified,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
         )
     }
+
+    private var alphaOutput: ImageAlphaContract { operations.contains { $0.kind == .opacity } ? .premultiplied : .preserveInput }
+    var kernelOutputContract: RenderOutputContract { .init(inputAlphaExpectation: .premultiplied, alpha: alphaOutput) }
 
     var fusedOperationCount: Int { operations.count }
 }
@@ -124,17 +129,17 @@ enum PointwiseFusionPlanner {
               filter.samplingFootprint == .point else { return nil }
         switch filter {
         case let filter as C7Brightness:
-            return .init(kind: .brightness, value: filter.brightness)
+            return .init(kind: .brightness, value: filter.factors[0])
         case let filter as C7Contrast:
-            return .init(kind: .contrast, value: filter.contrast)
+            return .init(kind: .contrast, value: filter.factors[0])
         case let filter as C7Saturation:
-            return .init(kind: .saturation, value: filter.saturation)
+            return .init(kind: .saturation, value: filter.factors[0])
         case let filter as C7Exposure:
-            return .init(kind: .exposure, value: filter.exposure)
+            return .init(kind: .exposure, value: filter.factors[0])
         case let filter as C7Gamma:
-            return .init(kind: .gamma, value: filter.gamma)
+            return .init(kind: .gamma, value: filter.factors[0])
         case let filter as C7Opacity:
-            return .init(kind: .opacity, value: filter.opacity)
+            return .init(kind: .opacity, value: filter.factors[0])
         default:
             return nil
         }

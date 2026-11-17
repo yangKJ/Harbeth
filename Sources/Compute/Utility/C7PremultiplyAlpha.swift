@@ -22,7 +22,7 @@ public struct C7PremultiplyAlpha: C7FilterProtocol {
         KernelPixelContract(
             inputAlphaExpectation: .nonPremultiplied,
             outputAlpha: .premultiplied,
-            precision: .float16,
+            precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .point,
             fusionPolicy: .pointwise

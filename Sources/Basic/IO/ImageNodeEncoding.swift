@@ -108,7 +108,8 @@ extension HarbethIO where Dest == MTLTexture {
                 ? [C7UnpremultiplyAlpha()] + conversion + [C7PremultiplyAlpha()]
                 : conversion
         }
-        var chain = samplingRecovery + normalization + filters
+        let alphaPlan = FilterAlphaPlan(filters: samplingRecovery + normalization + filters, inputType: alphaType)
+        var chain = alphaPlan.filters
         if chain.isEmpty, let format = bufferPixelFormat, format != element.pixelFormat {
             chain = [C7Brightness(brightness: 0)]
         }
@@ -127,7 +128,7 @@ extension HarbethIO where Dest == MTLTexture {
             texture: encoded.result.texture,
             colorSpace: workingColorSpace.cgColorSpace ?? inputColorProfile,
             outputColorSpaceContract: workingColorSpace,
-            alphaType: alphaType,
+            alphaType: alphaPlan.outputType,
             profile: profile,
             generation: generation,
             identifier: identifier,

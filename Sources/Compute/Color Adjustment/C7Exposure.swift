@@ -21,7 +21,7 @@ public struct C7Exposure: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [exposure]
+        return [exposure.isFinite ? exposure : 0]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -31,13 +31,17 @@ public struct C7Exposure: C7FilterProtocol {
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
             workingColorSpace: .extendedLinearDisplayP3,
-            precision: .float16,
+            inputAlphaExpectation: .premultiplied,
+            outputAlpha: .preserveInput,
+            precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
         )
     }
     
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(exposure: Float = range.value) {
         self.exposure = exposure
     }

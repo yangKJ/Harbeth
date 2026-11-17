@@ -8,44 +8,39 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7WhiteBalance(texture2d<half, access::write> outputTexture [[texture(0)]],
-                           texture2d<half, access::read> inputTexture [[texture(1)]],
-                           constant float *temperature_ [[buffer(0)]],
-                           constant float *tint [[buffer(1)]],
-                           uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    
-    const half3x3 RGBtoYIQ = half3x3(half3(0.299h, 0.587h, 0.114h), half3(0.596h, -0.274h, -0.322h), half3(0.212h, -0.523h, 0.311h));
-    const half3x3 YIQtoRGB = half3x3(half3(1.000h, 0.956h, 0.621h), half3(1.000h, -0.272h, -0.647h), half3(1.000h, -1.105h, 1.702h));
-    
-    half3 yiq = RGBtoYIQ * inColor.rgb;
-    yiq.b = clamp(yiq.b + half(*tint/100) * 0.5226 * 0.1, -0.5226, 0.5226);
-    const half3 rgb = YIQtoRGB * yiq;
-    
-    const half3 warm = half3(0.93, 0.54, 0.0);
-    // Overlay blend, HDR-safe: extrapolate linearly outside [0,1].
-    half3 blended;
-    for (int i = 0; i < 3; i++) {
-        half v = rgb[i];
-        half w = warm[i];
-        if (v < 0.0h || v > 1.0h) {
-            if (v < 0.0h) {
-                blended[i] = v * (2.0h * w);
-            } else {
-                blended[i] = 1.0h + 2.0h * (1.0h - w) * (v - 1.0h);
-            }
-        } else if (v < 0.5h) {
-            blended[i] = 2.0h * v * w;
-        } else {
-            blended[i] = 1.0h - 2.0h * (1.0h - v) * (1.0h - w);
-        }
+static float3 tintedRGB(float3 rgb, float tint) {
+    if (tint == 0.0f) return rgb;
+    const float3x3 toYIQ = float3x3(float3(0.299f, 0.587f, 0.114f), float3(0.596f, -0.274f, -0.322f), float3(0.212f, -0.523f, 0.311f));
+    const float3x3 toRGB = float3x3(float3(1.0f, 0.956f, 0.621f), float3(1.0f, -0.272f, -0.647f), float3(1.0f, -1.105f, 1.702f));
+    float3 yiq = toYIQ * rgb;
+    const float shifted = yiq.b + tint * 0.05226f;
+    // SDR 保持既有色偏边界；HDR 的原信号不压回单位色度范围。
+    yiq.b = all(rgb >= 0.0f) && all(rgb <= 1.0f) ? clamp(shifted, -0.5226f, 0.5226f) : shifted;
+    return toRGB * yiq;
+}
+static float3 warmRGB(float3 rgb) {
+    const float3 warm = float3(0.93f, 0.54f, 0.0f);
+    float3 result;
+    for (uint i = 0; i < 3; i++) {
+        const float v = rgb[i], w = warm[i];
+        result[i] = v < 0.5f ? 2.0f * v * w : 1.0f + 2.0f * (1.0f - w) * (v - 1.0f);
     }
-    const half r = blended.r;
-    const half g = blended.g;
-    const half b = blended.b;
-    
-    half temperature = half(*temperature_);
-    temperature = temperature < 5000 ? 0.0004 * (temperature - 5000) : 0.00006 * (temperature - 5000);
-    const half4 outColor = half4(mix(rgb, half3(r, g, b), temperature), inColor.a);
-    outputTexture.write(outColor, grid);
+    return result;
+}
+
+kernel void C7WhiteBalance(texture2d<float, access::write> outputTexture [[texture(0)]],
+                          texture2d<float, access::read> inputTexture [[texture(1)]],
+                          constant float &temperature [[buffer(0)]],
+                           constant float &tint [[buffer(1)]],
+                           constant float &halfOutput [[buffer(2)]],
+                          uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 color = inputTexture.read(grid);
+    if (temperature == 5000.0f && tint == 0.0f) { outputTexture.write(color, grid); return; }
+    if (color.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    const float3 source = color.rgb / color.a;
+    const float3 rgb = tintedRGB(source, tint / 100.0f);
+    const float amount = temperature < 5000.0f ? 0.0004f * (temperature - 5000.0f) : 0.00006f * (temperature - 5000.0f);
+    const float4 result = float4((rgb + (warmRGB(rgb) - rgb) * amount) * color.a, color.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

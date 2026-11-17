@@ -420,7 +420,8 @@ extension ImageNode {
                 sourceDescriptor: primarySource.descriptor,
                 imageGraph: plan.imageGraph,
                 graphOptimizationDecisions: diagnostics.graphOptimizationDecisions,
-                preparedPlan: plan
+                preparedPlan: plan,
+                inputAlphaType: preparedInput.diagnostics.outputAlphaType ?? primarySource.alphaType
             )
             renderTextureClosure = {
                 if case .source(let source) = input.storage,
@@ -490,7 +491,8 @@ extension ImageNode {
                 outputContract: descriptor.outputContract,
                 imageCachePolicy: diagnostics.imageCachePolicy,
                 samplerDescriptor: activeSamplerDescriptor,
-                sourceDescriptor: primarySource.descriptor
+                sourceDescriptor: primarySource.descriptor,
+                inputAlphaType: preparedInput.diagnostics.outputAlphaType ?? primarySource.alphaType
             )
             renderTextureClosure = {
                 let inputTexture = try preparedInput.renderTexture()
@@ -535,7 +537,11 @@ extension ImageNode {
                 preparedInputRecipe: preparedInput.renderRecipe
             )
             renderTextureClosure = {
-                let inputTexture = try preparedInput.renderTexture()
+                var inputTexture = try preparedInput.renderTexture()
+                if (preparedInput.diagnostics.outputAlphaType ?? primarySource.alphaType) == .nonPremultiplied,
+                   diagnostics.outputContract.inputAlphaExpectation == .premultiplied {
+                    inputTexture = try HarbethIO(element: inputTexture, filter: C7PremultiplyAlpha()).configured(for: profile).output()
+                }
                 return try FrameRenderer(
                     source: .texture(inputTexture),
                     recipe: recipe,
@@ -1792,7 +1798,8 @@ extension ImageNode: ImagePromise {
                     derivative: derivative,
                     samplerDescriptor: activeSamplerDescriptor,
                     sourceDescriptor: try upstream.resolvedPrimarySource().descriptor,
-                    optimization: optimization
+                    optimization: optimization,
+                    upstreamContract: inputPlan.diagnostics.outputContract
                 )
             case .transition(let recipe):
                 let inputSize: C7Size
@@ -1951,7 +1958,8 @@ extension ImageNode: ImagePromise {
             derivative: derivative,
             samplerDescriptor: samplerDescriptor,
             sourceDescriptor: try input.resolvedPrimarySource().descriptor,
-            optimization: optimization
+            optimization: optimization,
+            upstreamContract: inputPlan.diagnostics.outputContract
         )
     }
 
@@ -2481,7 +2489,8 @@ extension ImageNode: ImagePromise {
         derivative: ImageDerivativeSpec?,
         samplerDescriptor: ImageSamplerDescriptor,
         sourceDescriptor: ImageSourceDescriptor,
-        optimization: ImageGraphOptimizationResult
+        optimization: ImageGraphOptimizationResult,
+        upstreamContract: RenderOutputContract? = nil
     ) throws -> RenderPlan {
         let plan = try recipe.makeRenderPlan(
             source: source,
@@ -2499,7 +2508,7 @@ extension ImageNode: ImagePromise {
             outputSize: plan.diagnostics.outputSize,
             nodeDiagnostics: plan.diagnostics.nodes,
             compilationSource: plan.diagnostics.compilationSource,
-            outputContract: plan.diagnostics.outputContract,
+            outputContract: GraphCompiler.resolveOutputContract(plan.diagnostics.outputContract, preserving: upstreamContract ?? .preserveInput),
             imageCachePolicy: plan.diagnostics.imageCachePolicy,
             samplerDescriptor: plan.diagnostics.samplerDescriptor,
             samplerExecutionCoverage: plan.diagnostics.samplerExecutionCoverage,

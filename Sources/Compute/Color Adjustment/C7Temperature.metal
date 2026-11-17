@@ -8,75 +8,43 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7Temperature(texture2d<half, access::write> outputTexture [[texture(0)]],
-                          texture2d<half, access::read> inputTexture [[texture(1)]],
-                          constant float *temperature [[buffer(0)]],
-                          constant float *tint [[buffer(1)]],
-                          constant float *colorShift [[buffer(2)]],
-                          constant float *intensity [[buffer(3)]],
+static float3 tintedRGB(float3 rgb, float tint) {
+    if (tint == 0.0f) return rgb;
+    const float3x3 toYIQ = float3x3(float3(0.299f, 0.587f, 0.114f), float3(0.596f, -0.274f, -0.322f), float3(0.212f, -0.523f, 0.311f));
+    const float3x3 toRGB = float3x3(float3(1.0f, 0.956f, 0.621f), float3(1.0f, -0.272f, -0.647f), float3(1.0f, -1.105f, 1.702f));
+    float3 yiq = toYIQ * rgb;
+    const float shifted = yiq.b + tint * 0.05226f;
+    // SDR 保持既有色偏边界；HDR 的原信号不压回单位色度范围。
+    yiq.b = all(rgb >= 0.0f) && all(rgb <= 1.0f) ? clamp(shifted, -0.5226f, 0.5226f) : shifted;
+    return toRGB * yiq;
+}
+static float3 warmRGB(float3 rgb) {
+    const float3 warm = float3(0.93f, 0.54f, 0.0f);
+    float3 result;
+    for (uint i = 0; i < 3; i++) {
+        const float v = rgb[i], w = warm[i];
+        result[i] = v < 0.5f ? 2.0f * v * w : 1.0f + 2.0f * (1.0f - w) * (v - 1.0f);
+    }
+    return result;
+}
+
+kernel void C7Temperature(texture2d<float, access::write> outputTexture [[texture(0)]],
+                          texture2d<float, access::read> inputTexture [[texture(1)]],
+                          constant float &temperature [[buffer(0)]],
+                          constant float &tint [[buffer(1)]],
+                          constant float &colorShift [[buffer(2)]],
+                          constant float &intensity [[buffer(3)]],
+                          constant float &halfOutput [[buffer(4)]],
                           uint2 grid [[thread_position_in_grid]]) {
-    const half4 source = inputTexture.read(grid);
-    
-    // YIQ color space conversion matrices
-    const half3x3 RGBtoYIQ = half3x3(half3(0.299h, 0.587h, 0.114h), half3(0.596h, -0.274h, -0.322h), half3(0.212h, -0.523h, 0.311h));
-    const half3x3 YIQtoRGB = half3x3(half3(1.0h, 0.956h, 0.621h), half3(1.0h, -0.272h, -0.647h), half3(1.0h, -1.105h, 1.702h));
-    
-    // Warm filter for temperature adjustment
-    const half3 warmFilter = half3(0.93, 0.54, 0.0);
-    
-    // Adjust tint using YIQ color space
-    half3 yiq = RGBtoYIQ * source.rgb;
-    yiq.b = clamp(yiq.b + half(*tint) * 0.5226 * 0.1, -0.5226, 0.5226);
-    half3 rgb = YIQtoRGB * yiq;
-    
-    // Apply warm filter based on temperature (overlay blend, HDR-safe)
-    // For values outside 0–1, extrapolate linearly to preserve extended range.
-    half3 processed;
-    for (int i = 0; i < 3; i++) {
-        half v = rgb[i];
-        half w = warmFilter[i];
-        if (v < 0.0h || v > 1.0h) {
-            // Outside SDR range: linearly extrapolate from the nearest boundary.
-            // Overlay derivative at v=0 is 2*w, at v=1 is 2*(1-w).
-            if (v < 0.0h) {
-                processed[i] = v * (2.0h * w);
-            } else {
-                processed[i] = 1.0h + 2.0h * (1.0h - w) * (v - 1.0h);
-            }
-        } else if (v < 0.5h) {
-            processed[i] = 2.0h * v * w;
-        } else {
-            processed[i] = 1.0h - 2.0h * (1.0h - v) * (1.0h - w);
-        }
-    }
-
-    // Blend based on temperature factor
-    half tempFactor = half(*temperature);
-    // Adjust for intuitive control: positive temperature = warmer, negative = cooler
-    tempFactor = (tempFactor + 1.0) * 0.5; // Convert from [-1,1] to [0,1]
-
-    half3 tempAdjusted = mix(rgb, processed, tempFactor);
-
-    // Apply color shift (cyan to magenta)
-    half shift = half(*colorShift);
-    if (shift != 0.0) {
-        if (shift > 0.0) {
-            // Magenta shift
-            tempAdjusted.r = tempAdjusted.r + shift * 0.2;
-            tempAdjusted.b = tempAdjusted.b + shift * 0.2;
-            tempAdjusted.g = tempAdjusted.g - shift * 0.1;
-        } else {
-            // Cyan shift
-            tempAdjusted.g = tempAdjusted.g - shift * 0.2;
-            tempAdjusted.b = tempAdjusted.b - shift * 0.2;
-            tempAdjusted.r = tempAdjusted.r + shift * 0.1;
-        }
-    }
-
-    // Apply intensity (no clamping — preserve HDR extended range)
-    half3 finalRGB = mix(source.rgb, tempAdjusted, half(*intensity));
-    
-    // Output result
-    const half4 outColor = half4(finalRGB, source.a);
-    outputTexture.write(outColor, grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 color = inputTexture.read(grid);
+    if (intensity == 0.0f || (temperature == 0.0f && tint == 0.0f && colorShift == 0.0f)) { outputTexture.write(color, grid); return; }
+    if (color.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    const float3 source = color.rgb / color.a;
+    const float3 rgb = tintedRGB(source, tint);
+    float3 adjusted = rgb + (warmRGB(rgb) - rgb) * temperature;
+    const float3 shift = colorShift > 0.0f ? float3(0.2f, -0.1f, 0.2f) * colorShift : float3(0.1f, -0.2f, -0.2f) * colorShift;
+    adjusted += shift;
+    const float4 result = float4((source + (adjusted - source) * intensity) * color.a, color.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

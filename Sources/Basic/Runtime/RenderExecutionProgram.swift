@@ -86,10 +86,12 @@ enum RenderExecutionCompiler {
         graphOptimizationDecisions: [String] = [],
         planCacheKey: String? = nil,
         preparedPlan: RenderPlan? = nil,
-        sourceFilterFingerprint: String? = nil
+        sourceFilterFingerprint: String? = nil,
+        inputAlphaType: AlphaType? = nil
     ) -> RenderExecutionProgram {
+        let alphaFilters = inputAlphaType.map { FilterAlphaPlan(filters: filters, inputType: $0).filters } ?? filters
         let samplerPlan = SamplerExecutionAdapter.makePlan(
-            filters: filters,
+            filters: alphaFilters,
             samplerDescriptor: samplerDescriptor
         )
         let executionFilters = PointwiseFusionPlanner.makeExecutionFilters(samplerPlan.filters)

@@ -20,13 +20,20 @@ public struct C7Opacity: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [opacity]
+        return [opacity.isFinite ? opacity : 1]
     }
 
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied, precision: .float32,
+              samplingFootprint: .point, fusionPolicy: .pointwise)
+    }
+
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+
     public init(opacity: Float = range.value) {
         self.opacity = opacity
     }

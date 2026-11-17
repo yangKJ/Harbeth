@@ -24,16 +24,17 @@ public struct C7Levels: C7FilterProtocol {
         .point
     }
 
-    public var kernelParameterBindings: [KernelParameterBinding] {
-        [
-            KernelParameterBinding(name: "minimum", index: 0, stage: .compute, value: .float3(minimum.c7.toSIMD3())),
-            KernelParameterBinding(name: "middle", index: 1, stage: .compute, value: .float3(middle.c7.toSIMD3())),
-            KernelParameterBinding(name: "maximum", index: 2, stage: .compute, value: .float3(maximum.c7.toSIMD3())),
-            KernelParameterBinding(name: "minOutput", index: 3, stage: .compute, value: .float3(minOutput.c7.toSIMD3())),
-            KernelParameterBinding(name: "maxOutput", index: 4, stage: .compute, value: .float3(maxOutput.c7.toSIMD3()))
-        ]
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32,
+              dynamicRangeBehavior: .clampsToUnitRange, samplingFootprint: .point)
     }
-    
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+    public var kernelParameterBindings: [KernelParameterBinding] {
+        LevelsParameters(inputBlack: minimum.c7.toSIMD3(), gamma: middle.c7.toSIMD3(), inputWhite: maximum.c7.toSIMD3(),
+                         outputBlack: minOutput.c7.toSIMD3(), outputWhite: maxOutput.c7.toSIMD3())
+            .bindings(names: ["minimum", "middle", "maximum", "minOutput", "maxOutput"])
+    }
+
     public init(minimum: C7Color = .black, middle: C7Color = .white, maximum: C7Color = .white, minOutput: C7Color = .black, maxOutput: C7Color = .white) {
         self.minimum = minimum
         self.middle = middle

@@ -21,9 +21,14 @@ public struct C7Posterize: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [colorLevels]
+        return [colorLevels.isFinite ? colorLevels : 10]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(colorLevels: Float = range.value) {
         self.colorLevels = colorLevels
     }

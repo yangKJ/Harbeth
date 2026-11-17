@@ -8,16 +8,21 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7Vibrance(texture2d<half, access::write> outputTexture [[texture(0)]],
-                       texture2d<half, access::read> inputTexture [[texture(1)]],
-                       constant float *vibrance [[buffer(0)]],
+kernel void C7Vibrance(texture2d<float, access::write> outputTexture [[texture(0)]],
+                       texture2d<float, access::read> inputTexture [[texture(1)]],
+                       constant float &parameter [[buffer(0)]],
+                       constant float &halfOutput [[buffer(1)]],
                        uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    
-    const half average = (inColor.r + inColor.g + inColor.b) / 3.0h;
-    const half mx = max(inColor.r, max(inColor.g, inColor.b));
-    const half amt = (mx - average) * (-half(*vibrance) * 3.0h);
-    const half4 outColor = half4(mix(inColor.rgb, half3(mx), amt), inColor.a);
-    
-    outputTexture.write(outColor, grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 color = inputTexture.read(grid);
+    const float value = isfinite(parameter) ? parameter : 0.0f;
+    if (value == 0.0f) { outputTexture.write(color, grid); return; }
+    if (color.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    const float3 rgb = color.rgb / color.a;
+    if (rgb.r == rgb.g && rgb.g == rgb.b) { outputTexture.write(color, grid); return; }
+    const float average = rgb.r / 3.0f + rgb.g / 3.0f + rgb.b / 3.0f;
+    const float maximum = max(rgb.r, max(rgb.g, rgb.b));
+    const float amount = (maximum - average) * (-value * 3.0f);
+    const float4 result = float4((rgb + (float3(maximum) - rgb) * amount) * color.a, color.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

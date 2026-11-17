@@ -1,8 +1,9 @@
 import Foundation
+import Metal
 
 /// 贴纸轮廓效果滤镜
 /// Sticker outline effect filter
-public struct C7StickerOutline: C7FilterProtocol {
+public struct C7StickerOutline: C7FilterProtocol, TemporaryTextureRequirementProviding {
     
     /// 轮廓颜色，默认为黑色
     public var outlineColor: C7Color = C7Color.black
@@ -36,6 +37,18 @@ public struct C7StickerOutline: C7FilterProtocol {
         ]
     }
     
+    func temporaryTextureRequirement(inputSize: C7Size) -> (bytes: Int, count: Int) {
+        let device = HarbethContext.shared.device
+        guard device.supportsFamily(.apple7) || device.supportsFamily(.mac2),
+              let size = OutlineFlatClassification.requirement(width: inputSize.width, height: inputSize.height,
+                  thickness: outlineThickness, limit: OutlineFlatClassification.byteLimit) else { return (0, 0) }
+        let runtime = HarbethContext.shared.runtimeDevice
+        guard !(runtime.externalLibraries() + [runtime.defaultLibrary].compactMap { $0 }).contains(where: {
+            $0.makeFunction(name: "C7StickerOutline") != nil
+        }) else { return (0, 0) }
+        return (size.bytes, 1)
+    }
+
     public init(outlineColor: C7Color = C7Color.black, outlineThickness: Float = 0.02, outlineBlur: Float = 0.1) {
         self.outlineColor = outlineColor
         self.outlineThickness = outlineThickness

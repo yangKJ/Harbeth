@@ -790,7 +790,9 @@ extension HarbethIO {
               filters.contains(where: { $0 is C7MetalCommandEncodingProtocol }) == false,
               filters.allSatisfy({
                   $0.destinationTextureContract == FilterDestinationTextureContract()
-                      && $0.kernelOutputContract == .preserveInput
+                      && $0.kernelOutputContract == RenderOutputContract(
+                          inputAlphaExpectation: $0.kernelOutputContract.inputAlphaExpectation,
+                          alpha: $0.kernelOutputContract.alpha)
               }),
               program.steps.dropLast().allSatisfy({ $0.lifecycleAction.isTransient }) else {
             return false

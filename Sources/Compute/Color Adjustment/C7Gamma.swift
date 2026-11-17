@@ -20,7 +20,7 @@ public struct C7Gamma: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [gamma]
+        return [gamma.isFinite && gamma >= 0 ? gamma : 1]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
@@ -29,13 +29,17 @@ public struct C7Gamma: C7FilterProtocol {
 
     public var kernelPixelContract: KernelPixelContract {
         KernelPixelContract(
-            precision: .float16,
+            inputAlphaExpectation: .premultiplied,
+            outputAlpha: .preserveInput,
+            precision: .float32,
             dynamicRangeBehavior: .preservesExtendedRange,
             samplingFootprint: .point,
             fusionPolicy: .pointwise
         )
     }
     
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(gamma: Float = range.value) {
         self.gamma = gamma
     }

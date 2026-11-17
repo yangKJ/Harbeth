@@ -8,30 +8,17 @@
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void C7Warmth(texture2d<half, access::write> outputTexture [[texture(0)]],
-                   texture2d<half, access::read> inputTexture [[texture(1)]],
-                   constant float *warmth [[buffer(0)]],
-                   uint2 grid [[thread_position_in_grid]]) {
-    
-    const half4 inColor = inputTexture.read(grid);
-    float warmthValue = *warmth;
-    
-    half4 outColor = inColor;
-    
-    if (warmthValue > 0.0) {
-        // 暖色调：增加红色和绿色，减少蓝色
-        outColor.r += half(warmthValue * 0.3);
-        outColor.g += half(warmthValue * 0.2);
-        outColor.b -= half(warmthValue * 0.2);
-    } else if (warmthValue < 0.0) {
-        // 冷色调：减少红色和绿色，增加蓝色
-        float absWarmth = abs(warmthValue);
-        outColor.r -= half(absWarmth * 0.2);
-        outColor.g -= half(absWarmth * 0.1);
-        outColor.b += half(absWarmth * 0.3);
-    }
-    
-    outColor.a = inColor.a;
-    
-    outputTexture.write(outColor, grid);
+kernel void C7Warmth(texture2d<float, access::write> outputTexture [[texture(0)]],
+                       texture2d<float, access::read> inputTexture [[texture(1)]],
+                       constant float &parameter [[buffer(0)]],
+                       constant float &halfOutput [[buffer(1)]],
+                       uint2 grid [[thread_position_in_grid]]) {
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 color = inputTexture.read(grid);
+    const float value = isfinite(parameter) ? parameter : 0.0f;
+    if (value == 0.0f) { outputTexture.write(color, grid); return; }
+    if (color.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    const float3 delta = value > 0.0f ? float3(0.3f, 0.2f, -0.2f) * value : float3(-0.2f, -0.1f, 0.3f) * -value;
+    const float4 result = float4(color.rgb + delta * color.a, color.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

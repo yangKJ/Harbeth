@@ -20,13 +20,20 @@ public struct C7Contrast: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [contrast]
+        return [contrast.isFinite ? contrast : 1]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32,
+              samplingFootprint: .point, fusionPolicy: .pointwise)
+    }
+
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public init(contrast: Float = range.value) {
         self.contrast = contrast
     }

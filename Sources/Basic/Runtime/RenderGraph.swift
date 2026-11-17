@@ -873,7 +873,9 @@ struct RenderPlan: @unchecked Sendable {
         )
         let resolvedOutputPixelFormat = outputContract.pixelFormat.preservesInput ? (resolvedInputPixelFormat.preservesInput ? .rgba8Unorm : resolvedInputPixelFormat) : outputContract.pixelFormat
         let resolvedOutputColorSpace = outputContract.colorSpace
-        let resolvedOutputAlphaType = outputContract.alpha.expectedAlphaType ?? sourceDescriptor?.alphaType
+        let normalizedInputAlpha: AlphaType? = sourceDescriptor?.alphaType == .nonPremultiplied && outputContract.inputAlphaExpectation == .premultiplied
+            ? .premultiplied : sourceDescriptor?.alphaType
+        let resolvedOutputAlphaType = outputContract.alpha.expectedAlphaType ?? normalizedInputAlpha
         let resolvedLossyConversionCount = outputContract.allowsLossyConversion ? 1 : 0
         let resolvedGraphNodeCount = imageGraph?.nodeCount ?? max(nodeDiagnostics.count, graph.nodes.count)
         let resolvedGraphEdgeCount = imageGraph?.edgeCount ?? max(resolvedGraphNodeCount - 1, 0)
@@ -1517,7 +1519,7 @@ enum GraphCompiler {
         }
     }
 
-    private static func resolveOutputContract(_ declared: RenderOutputContract, preserving previous: RenderOutputContract) -> RenderOutputContract {
+    static func resolveOutputContract(_ declared: RenderOutputContract, preserving previous: RenderOutputContract) -> RenderOutputContract {
         guard declared != .preserveInput else { return previous }
         return RenderOutputContract(
             inputAlphaExpectation: declared.inputAlphaExpectation == .preserveInput

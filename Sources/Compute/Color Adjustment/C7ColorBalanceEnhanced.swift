@@ -31,9 +31,14 @@ public struct C7ColorBalanceEnhanced: C7FilterProtocol {
         .point
     }
 
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .preserveInput, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorInput }
+
     public var kernelParameterBindings: [KernelParameterBinding] {
         return [
-            KernelParameterBinding(name: "strength", index: 0, stage: .compute, value: .float(strength)),
+            KernelParameterBinding(name: "strength", index: 0, stage: .compute, value: .float(strength.isFinite ? strength : 0)),
             KernelParameterBinding(name: "shadows", index: 1, stage: .compute, value: .float3(colorAdjustment(shadows))),
             KernelParameterBinding(name: "midtones", index: 2, stage: .compute, value: .float3(colorAdjustment(midtones))),
             KernelParameterBinding(name: "highlights", index: 3, stage: .compute, value: .float3(colorAdjustment(highlights)))
@@ -41,7 +46,7 @@ public struct C7ColorBalanceEnhanced: C7FilterProtocol {
     }
 
     private func colorAdjustment(_ color: C7Color) -> SIMD3<Float> {
-        color.c7.toSIMD3() * 2 - SIMD3<Float>(repeating: 1)
+        color == .zero ? .zero : color.c7.toSIMD3() * 2 - SIMD3<Float>(repeating: 1)
     }
 
     public init(shadows: C7Color = .zero, midtones: C7Color = .zero, highlights: C7Color = .zero, strength: Float = 1.0) {

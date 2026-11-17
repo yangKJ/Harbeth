@@ -26,6 +26,12 @@ public struct C7GlassSphere: C7FilterProtocol {
         .point
     }
     
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float16, samplingFootprint: .global, coordinateDependency: .fullImage,
+              globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+
     public init(radius: Float = 0.25, refractiveIndex: Float = 0.71, aspectRatio: Float = 1) {
         self.radius = radius
         self.refractiveIndex = refractiveIndex

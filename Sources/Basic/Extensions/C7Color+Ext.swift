@@ -13,9 +13,9 @@ extension C7Color: HarbethCompatible {
     /// Random color
     public static var random: C7Color {
         get {
-            return C7Color(hue: CGFloat(arc4random() % 256 / 256),
-                           saturation: CGFloat(arc4random() % 128 / 256) + 0.5,
-                           brightness: CGFloat(arc4random() % 128 / 256) + 0.5,
+            return C7Color(hue: CGFloat(arc4random() % 256) / 256,
+                           saturation: CGFloat(arc4random() % 128) / 256 + 0.5,
+                           brightness: CGFloat(arc4random() % 128) / 256 + 0.5,
                            alpha: 1.0)
         }
     }
@@ -60,12 +60,14 @@ extension HarbethWrapper where Base: C7Color {
     }
 
     public func linearInterpolation(directionColor: C7Color, rate: Float) -> C7Color {
-        let rate = min(1, max(0, rate))
+        let rate = rate.isNaN ? 0 : min(1, max(0, rate))
+        if rate == 0 { return base }
+        if rate == 1 { return directionColor }
         let (fR, fG, fB, fA) = base.c7.toRGBA()
         let (tR, tG, tB, tA) = directionColor.c7.toRGBA()
-        let dR = CGFloat((tR-fR) * rate + fR) / 255.0
-        let dG = CGFloat((tG-fG) * rate + fR) / 255.0
-        let dB = CGFloat((tB-fB) * rate + fR) / 255.0
+        let dR = CGFloat((tR-fR) * rate + fR)
+        let dG = CGFloat((tG-fG) * rate + fG)
+        let dB = CGFloat((tB-fB) * rate + fB)
         let dA = CGFloat((tA-fA) * rate + fA)
         return C7Color.init(red: dR, green: dG, blue: dB, alpha: dA)
     }

@@ -155,7 +155,7 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
     func testBrightnessPreservesExtendedPixelsAndAlphaInRealMetalExecution() throws {
         let filter = C7Brightness(brightness: 0.25)
         XCTAssertEqual(filter.kernelPixelContract.workingColorSpace, .extendedLinearDisplayP3)
-        XCTAssertEqual(filter.kernelPixelContract.precision, .float16)
+        XCTAssertEqual(filter.kernelPixelContract.precision, .float32)
         XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
         XCTAssertEqual(filter.kernelPixelContract.outputAlpha, .preserveInput)
 
@@ -163,16 +163,16 @@ final class FilterPrimitiveCoverageTests: XCTestCase {
         let output: MTLTexture = try HarbethIO(element: source, filter: filter).output()
         let pixel = try rgba16FloatPixels(in: output)
 
-        XCTAssertEqual(pixel[0], -0.25, accuracy: 0.01)
-        XCTAssertEqual(pixel[1], 1.75, accuracy: 0.01)
-        XCTAssertEqual(pixel[2], 0.5, accuracy: 0.01)
+        XCTAssertEqual(pixel[0], -0.40625, accuracy: 0.01)
+        XCTAssertEqual(pixel[1], 1.59375, accuracy: 0.01)
+        XCTAssertEqual(pixel[2], 0.34375, accuracy: 0.01)
         XCTAssertEqual(pixel[3], 0.375, accuracy: 0.01)
     }
 
     func testExposurePreservesExtendedPixelsAndAlphaInRealMetalExecution() throws {
         let filter = C7Exposure(exposure: 1)
         XCTAssertEqual(filter.kernelPixelContract.workingColorSpace, .extendedLinearDisplayP3)
-        XCTAssertEqual(filter.kernelPixelContract.precision, .float16)
+        XCTAssertEqual(filter.kernelPixelContract.precision, .float32)
         XCTAssertEqual(filter.kernelPixelContract.dynamicRangeBehavior, .preservesExtendedRange)
         XCTAssertEqual(filter.kernelPixelContract.outputAlpha, .preserveInput)
 

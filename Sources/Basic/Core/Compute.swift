@@ -103,10 +103,12 @@ struct Compute {
         textures: [MTLTexture],
         filter: C7FilterProtocol
     ) throws -> MTLTexture {
-        let identity = pipelineIdentity(filter: filter, textures: textures)
+        let descriptor = filter.kernelDescriptor()
+        let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures)
         let pipelineState = identity.primaryName == kernel
         ? try makeComputePipelineState(with: identity)
         : try makeComputePipelineState(with: kernel)
+        if filter is TemporaryTextureRequirementProviding, let output = try OutlineFlatClassification.encode(commandBuffer: commandBuffer, textures: textures, descriptor: descriptor, identity: identity) { return output }
         // 管线可能因缺失函数抛错，成功后才创建需要显式结束的编码器。
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else {
             throw HarbethError.makeComputeCommandEncoder
@@ -116,7 +118,8 @@ struct Compute {
             computeEncoder: computeEncoder,
             pipelineState: pipelineState,
             textures: textures,
-            filter: filter
+            filter: filter,
+            parameterBindings: descriptor.parameterBindings
         )
     }
     
@@ -127,7 +130,8 @@ struct Compute {
         filter: C7FilterProtocol,
         complete: @escaping @Sendable (Result<MTLTexture, HarbethError>) -> Void
     ) {
-        let identity = pipelineIdentity(filter: filter, textures: textures)
+        let descriptor = filter.kernelDescriptor()
+        let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures)
         let makePipeline: (@escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = {
             callback in
             if identity.primaryName == kernel {
@@ -136,10 +140,15 @@ struct Compute {
                 makeComputePipelineState(with: kernel, complete: callback)
             }
         }
-        let execution = HarbethUncheckedTransfer(value: (commandBuffer, textures, filter))
+        let execution = HarbethUncheckedTransfer(value: (commandBuffer, textures, filter, descriptor.parameterBindings, descriptor))
         makePipeline { res in
             switch res {
             case .success(let pipelineState):
+                do {
+                    if execution.value.2 is TemporaryTextureRequirementProviding, let output = try OutlineFlatClassification.encode(commandBuffer: execution.value.0, textures: execution.value.1, descriptor: execution.value.4, identity: identity) {
+                        complete(.success(output)); return
+                    }
+                } catch { complete(.failure(error as? HarbethError ?? .configurationInvalid(error.localizedDescription))); return }
                 guard let computeEncoder = execution.value.0.makeComputeCommandEncoder() else {
                     complete(.failure(HarbethError.makeComputeCommandEncoder))
                     return
@@ -150,7 +159,8 @@ struct Compute {
                         computeEncoder: computeEncoder,
                         pipelineState: pipelineState,
                         textures: execution.value.1,
-                        filter: execution.value.2
+                        filter: execution.value.2,
+                        parameterBindings: execution.value.3
                     )
                     complete(.success(destTexture))
                 } catch {
@@ -161,8 +171,7 @@ struct Compute {
         }
     }
     
-    private static func pipelineIdentity(filter: C7FilterProtocol, textures: [MTLTexture]) -> KernelFunctionIdentity {
-        let identity = filter.kernelDescriptor().functionIdentity
+    private static func pipelineIdentity(identity: KernelFunctionIdentity, textures: [MTLTexture]) -> KernelFunctionIdentity {
         guard identity.primaryName == "C7StickerOutline", identity.functionConstants.isEmpty,
               let target = textures.first, target.width >= 512, target.height >= 512,
               target.device.supportsFamily(.apple7) || target.device.supportsFamily(.mac2) else { return identity }
@@ -240,13 +249,18 @@ struct Compute {
     private static func halfOutputBindingIndex(for filter: C7FilterProtocol) -> Int? {
         guard case .compute(let name) = filter.modifier else { return nil }
         switch name {
+        case "C7Brightness", "C7Contrast", "C7Saturation", "C7Exposure", "C7Gamma", "C7Opacity",
+             "C7Warmth", "C7Posterize", "C7Vibrance": return 1
+        case "C7Temperature", "C7ColorBalanceEnhanced": return 4
+        case "C7WhiteBalance": return 2
+        case "C7LevelsFilter", "C7LevelsAdjustment": return 5
         case "C7ColorCube": return 5
-        case "C7UnpremultiplyAlpha": return 0
+        case "C7UnpremultiplyAlpha", "C7PremultiplyAlpha": return 0
         case "C7SolidColor", "C7Pixellated", "C7Halftone": return 1
         case "C7PolkaDot", "C7Toon", "C7Haze": return 2
         case "C7LensVignetteCorrection", "C7SphereRefraction": return 5
         case "C7DefringeCorrection": return 8
-        case "C7StickerOutline": return 3
+        case "C7StickerOutline", "C7StickerOutlineClassified": return 3
         case "C7VoronoiOverlay", "C7VoronoiOverlayField": return 4
         case "C7Sharpen", "C7Sobel", "C7Sketch", "C7BlendColorBurn", "C7BlendDivide": return 1
         case "C7RGBADilation": return 2
@@ -264,7 +278,8 @@ struct Compute {
         computeEncoder: MTLComputeCommandEncoder,
         pipelineState: MTLComputePipelineState,
         textures: [MTLTexture],
-        filter: C7FilterProtocol
+        filter: C7FilterProtocol,
+        parameterBindings: [KernelParameterBinding]
     ) throws -> MTLTexture {
         if case .compute(let kernel) = filter.modifier {
             computeEncoder.label = kernel + " encoder"
@@ -288,11 +303,11 @@ struct Compute {
             computeEncoder.setBytes($0.baseAddress!, length: $0.count, index: 30)
         }
 
-        let parameterBindings = filter.kernelParameterBindings
+        let factors = parameterBindings.isEmpty ? filter.factors : []
         if parameterBindings.isEmpty {
             let size = MemoryLayout<Float>.size
-            for i in 0..<filter.factors.count {
-                var factor = filter.factors[i]
+            for i in factors.indices {
+                var factor = factors[i]
                 computeEncoder.setBytes(&factor, length: size, index: i)
             }
         } else {
@@ -303,7 +318,18 @@ struct Compute {
                 throw error
             }
         }
-        if let index = halfOutputBindingIndex(for: filter) {
+        // 内置辅助槽位只填补空位，显式绑定及同名自定义内核的参数保持优先。
+        func occupies(_ index: Int) -> Bool {
+            parameterBindings.isEmpty ? factors.indices.contains(index)
+                : parameterBindings.contains { $0.stage == .compute && $0.index == index }
+        }
+        if case .compute(let name) = filter.modifier,
+           (name == "C7FusedPointOperations" || name == "C7FusedPointOperationsSpecialized"), !occupies(2) {
+            var storage: Float = [.r16Float, .rg16Float, .rgba16Float].contains(destTexture.pixelFormat) ? 1
+                : [.rgba8Unorm, .bgra8Unorm].contains(destTexture.pixelFormat) ? 2 : 0
+            computeEncoder.setBytes(&storage, length: MemoryLayout<Float>.size, index: 2)
+        }
+        if let index = halfOutputBindingIndex(for: filter), !occupies(index) {
             var halfOutput: Float = [.r16Float, .rg16Float, .rgba16Float].contains(destTexture.pixelFormat) ? 1 : 0
             computeEncoder.setBytes(&halfOutput, length: MemoryLayout<Float>.size, index: index)
         }

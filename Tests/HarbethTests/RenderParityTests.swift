@@ -92,7 +92,7 @@ final class RenderParityTests: XCTestCase {
         let edited = source.editing(EditRecipe())
         let preview = try edited.makeRenderRequest(profile: .stablePreview)
         let export = try edited.makeRenderRequest(profile: .exportQuality)
-        XCTAssertTrue(direct.parityReport(comparedTo: preview).isVisuallyEquivalent)
+        XCTAssertTrue(direct.parityReport(comparedTo: preview).isVisuallyEquivalent, "\(direct.parityReport(comparedTo: preview).visualDifferences)")
         let report = preview.parityReport(comparedTo: export)
         XCTAssertTrue(report.isVisuallyEquivalent)
         XCTAssertFalse(report.isExactlyEquivalent)
