@@ -40,7 +40,7 @@ public struct C7ConvolutionMatrix3x3: C7FilterProtocol {
 
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity)),
+            KernelParameterBinding(name: "intensity", index: 0, stage: .compute, value: .float(intensity.isFinite ? intensity : 0)),
             KernelParameterBinding(name: "convolutionPixel", index: 1, stage: .compute, value: .float(Float(convolutionPixel))),
             KernelParameterBinding(name: "kernelMatrix", index: 2, stage: .compute, value: .matrix3x3(matrix))
         ]
@@ -78,7 +78,7 @@ extension C7ConvolutionMatrix3x3.ConvolutionType {
     var matrix: Matrix3x3 {
         switch self {
         case .identity:
-            return Matrix3x3.Kernel.identity
+            return Matrix3x3.Kernel.default
         case .edgedetect:
             return Matrix3x3.Kernel.edgedetect
         case .embossment:

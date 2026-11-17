@@ -18,7 +18,7 @@ public struct C7Sketch: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [edgeStrength]
+        return [edgeStrength.isFinite ? edgeStrength : 0]
     }
     
     public init(edgeStrength: Float = 1) {

@@ -221,6 +221,10 @@ struct Compute {
         guard case .compute(let name) = filter.modifier else { return nil }
         switch name {
         case "C7ColorCube": return 5
+        case "C7UnpremultiplyAlpha": return 0
+        case "C7Sharpen", "C7Sobel", "C7Sketch", "C7BlendColorBurn", "C7BlendDivide": return 1
+        case "C7RGBADilation": return 2
+        case "C7ConvolutionMatrix3x3", "C7MultiZoneLookup": return 3
         case "C7Deband": return 4
         case "C7HexagonalBokehFirstPass", "C7HexagonalBokehFirstPassWithCoC",
              "C7HexagonalBokehSecondPass", "C7HexagonalBokehSecondPassWithCoC",

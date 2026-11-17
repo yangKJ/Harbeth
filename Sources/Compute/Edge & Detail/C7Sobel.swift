@@ -20,7 +20,7 @@ public struct C7Sobel: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [edgeStrength]
+        return [edgeStrength.isFinite ? edgeStrength : 0]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {

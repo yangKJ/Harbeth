@@ -144,6 +144,9 @@ enum KernelBindingEncoder {
     }
 
     private static func encode(_ binding: KernelParameterBinding, on encoder: MTLCommandEncoder) throws {
+        if case .matrix3x3(let matrix) = binding.value, matrix.values.count != 9 {
+            throw HarbethError.configurationInvalid("3×3 矩阵必须包含九个元素")
+        }
         // Metal 的 inline bytes 上限为 4 KB；长笔触等大参数必须使用独立 buffer。
         var requiresBuffer = false
         var parameterBuffer: MTLBuffer?

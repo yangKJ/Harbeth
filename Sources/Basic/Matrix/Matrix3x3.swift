@@ -23,7 +23,11 @@ public struct Matrix3x3: Matrix, Sendable, Equatable, Hashable {
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        self.values = try container.decode([Float].self)
+        let values = try container.decode([Float].self)
+        guard values.count == 9 else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "3×3 矩阵必须包含九个元素")
+        }
+        self.values = values
     }
     
     public func encode(to encoder: Encoder) throws {

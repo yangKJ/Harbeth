@@ -19,7 +19,7 @@ public struct C7Sharpen: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [sharpeness]
+        return [sharpeness.isFinite ? sharpeness : 0]
     }
     
     public init(sharpeness: Float = range.value) {

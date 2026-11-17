@@ -1,48 +1,20 @@
-//
-//  C7Sharpen.metal
-//  ATMetalBand
-//
-//  Created by Condy on 2022/2/15.
-//
-
+// 由 Condy 维护。基础锐化使用单精度差分，保留中心 alpha。
 #include <metal_stdlib>
 using namespace metal;
-
-kernel void C7Sharpen(texture2d<half, access::write> outputTexture [[texture(0)]],
-                      texture2d<half, access::read> inputTexture [[texture(1)]],
-                      constant float *sharpeness [[buffer(0)]],
+kernel void C7Sharpen(texture2d<float, access::write> outputTexture [[texture(0)]],
+                      texture2d<float, access::read> inputTexture [[texture(1)]],
+                      constant float &sharpness [[buffer(0)]],
+                      constant float &halfOutput [[buffer(1)]],
                       uint2 grid [[thread_position_in_grid]]) {
-    const half4 inColor = inputTexture.read(grid);
-    
-    const float x = float(grid.x);
-    const float y = float(grid.y);
-    const float width = float(inputTexture.get_width());
-    const float height = float(inputTexture.get_height());
-    
-    float2 leftCoordinate = float2((x - 1) / width, y / height);
-    float2 rightCoordinate = float2((x + 1) / width, y / height);
-    float2 topCoordinate = float2(x / width, (y - 1) / height);
-    float2 bottomCoordinate = float2(x / width, (y + 1) / height);
-    
-    leftCoordinate = clamp(leftCoordinate, 0.0, 1.0);
-    rightCoordinate = clamp(rightCoordinate, 0.0, 1.0);
-    topCoordinate = clamp(topCoordinate, 0.0, 1.0);
-    bottomCoordinate = clamp(bottomCoordinate, 0.0, 1.0);
-    
-    uint2 leftCoord = uint2(leftCoordinate * float2(width, height));
-    uint2 rightCoord = uint2(rightCoordinate * float2(width, height));
-    uint2 topCoord = uint2(topCoordinate * float2(width, height));
-    uint2 bottomCoord = uint2(bottomCoordinate * float2(width, height));
-    
-    const half4 leftColor = inputTexture.read(leftCoord);
-    const half4 rightColor = inputTexture.read(rightCoord);
-    const half4 topColor = inputTexture.read(topCoord);
-    const half4 bottomColor = inputTexture.read(bottomCoord);
-    
-    const half centerMultiplier = 1.0h + 4.0h * half(*sharpeness);
-    const half edgeMultiplier = half(*sharpeness);
-    const half3 rgb = (inColor.rgb * centerMultiplier - (leftColor.rgb + rightColor.rgb + topColor.rgb + bottomColor.rgb) * edgeMultiplier);
-    const half4 outColor = half4(rgb, bottomColor.a);
-    
-    outputTexture.write(outColor, grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 center = inputTexture.read(grid);
+    float4 result = center;
+    if (isfinite(sharpness) && sharpness != 0.0f) {
+        const int2 p = int2(grid), maximum = int2(inputTexture.get_width() - 1, inputTexture.get_height() - 1);
+        const int2 offsets[4] = {int2(-1,0), int2(1,0), int2(0,-1), int2(0,1)};
+        float3 difference = float3(0.0f);
+        for (uint i = 0; i < 4; i++) difference += center.rgb - inputTexture.read(uint2(clamp(p + offsets[i], int2(0), maximum))).rgb;
+        result.rgb += sharpness * difference;
+    }
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

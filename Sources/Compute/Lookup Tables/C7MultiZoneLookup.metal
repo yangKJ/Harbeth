@@ -1,107 +1,41 @@
-//
-//  C7MultiZoneLookup.metal
-//  Harbeth
-//
-//  Created by Condy on 2026/3/13.
-//
-
+// 由 Condy 维护。三区权重连续且和为一，参数对应独立 scalar 槽位。
 #include <metal_stdlib>
 using namespace metal;
-
-float4 sampleLookupTable(texture2d<half, access::sample> lookupTexture, float3 color) {
+static float3 zoneLookup(texture2d<half, access::sample> table, float3 color) {
     constexpr sampler s(coord::normalized, address::clamp_to_edge, filter::linear);
-    float2 lookup;
-    lookup.y = 0.5;
-    
-    float4 lookupColor;
-    lookup.x = color.r;
-    lookupColor.r = lookupTexture.sample(s, lookup).r;
-    
-    lookup.x = color.g;
-    lookupColor.g = lookupTexture.sample(s, lookup).g;
-    
-    lookup.x = color.b;
-    lookupColor.b = lookupTexture.sample(s, lookup).b;
-    
-    lookupColor.a = 1.0;
-    return lookupColor;
+    const float width = float(table.get_width());
+    const float3 x = (clamp(color, 0.0f, 1.0f) * (width - 1.0f) + 0.5f) / width;
+    return float3(table.sample(s, float2(x.r,0.5f)).r, table.sample(s, float2(x.g,0.5f)).g, table.sample(s, float2(x.b,0.5f)).b);
 }
-
-struct WeightResult {
-    float shadow;
-    float midtone;
-    float highlight;
-};
-
-WeightResult multiZoneCalculateWeights(float luminance, float shadowThreshold, float highlightThreshold, float transitionWidth) {
-    float shadow = min(shadowThreshold, highlightThreshold - 0.01);
-    float highlight = max(highlightThreshold, shadow + 0.01);
-    
-    float shadowEnd = shadow + transitionWidth;
-    float highlightStart = highlight - transitionWidth;
-    
-    WeightResult result;
-    
-    if (luminance <= shadow) {
-        result.shadow = 1.0;
-        result.midtone = 0.0;
-        result.highlight = 0.0;
-    } else if (luminance >= highlight) {
-        result.shadow = 0.0;
-        result.midtone = 0.0;
-        result.highlight = 1.0;
-    } else if (luminance > shadow && luminance < highlight) {
-        if (luminance <= shadowEnd) {
-            float t = (luminance - shadow) / (transitionWidth * 2.0);
-            result.shadow = 1.0 - t;
-            result.midtone = t;
-            result.highlight = 0.0;
-        } else if (luminance >= highlightStart) {
-            float t = (luminance - highlightStart) / (transitionWidth * 2.0);
-            result.shadow = 0.0;
-            result.midtone = 1.0 - t;
-            result.highlight = t;
-        } else {
-            result.shadow = 0.0;
-            result.midtone = 1.0;
-            result.highlight = 0.0;
-        }
-    } else {
-        result.shadow = 0.0;
-        result.midtone = 1.0;
-        result.highlight = 0.0;
-    }
-    
-    return result;
-}
-
-kernel void C7MultiZoneLookup(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::read> inputTexture [[texture(1)]],
-                              texture2d<half, access::sample> shadowLookupTexture [[texture(2)]],
-                              texture2d<half, access::sample> midtoneLookupTexture [[texture(3)]],
-                              texture2d<half, access::sample> highlightLookupTexture [[texture(4)]],
-                              constant float *parameters [[buffer(0)]],
+kernel void C7MultiZoneLookup(texture2d<float, access::write> outputTexture [[texture(0)]],
+                              texture2d<float, access::read> inputTexture [[texture(1)]],
+                              texture2d<half, access::sample> shadowTable [[texture(2)]],
+                              texture2d<half, access::sample> midtoneTable [[texture(3)]],
+                              texture2d<half, access::sample> highlightTable [[texture(4)]],
+                              constant float &shadowThreshold [[buffer(0)]],
+                              constant float &highlightThreshold [[buffer(1)]],
+                              constant float &transitionWidth [[buffer(2)]],
+                              constant float &halfOutput [[buffer(3)]],
                               uint2 grid [[thread_position_in_grid]]) {
-    float shadowThreshold = parameters[0];
-    float highlightThreshold = parameters[1];
-    float transitionWidth = parameters[2];
-    
-    const half4 inColor = inputTexture.read(grid);
-    float3 color = float3(inColor.r, inColor.g, inColor.b);
-    
-    float luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
-    
-    WeightResult weights = multiZoneCalculateWeights(luminance, shadowThreshold, highlightThreshold, transitionWidth);
-    
-    float4 shadowColor = sampleLookupTable(shadowLookupTexture, color);
-    float4 midtoneColor = sampleLookupTable(midtoneLookupTexture, color);
-    float4 highlightColor = sampleLookupTable(highlightLookupTexture, color);
-    float4 finalColor = shadowColor * weights.shadow + midtoneColor * weights.midtone + highlightColor * weights.highlight;
-    half4 outColor;
-    outColor.r = half(finalColor.r);
-    outColor.g = half(finalColor.g);
-    outColor.b = half(finalColor.b);
-    outColor.a = inColor.a;
-    
-    outputTexture.write(outColor, grid);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 input = inputTexture.read(grid);
+    const float shadow = min(shadowThreshold, highlightThreshold - 0.01f);
+    const float highlight = max(highlightThreshold, shadow + 0.01f);
+    const float width = clamp(transitionWidth, 0.0f, (highlight - shadow) * 0.5f);
+    const float luma = dot(input.rgb, float3(0.299f,0.587f,0.114f));
+    float3 weights = float3(0,1,0);
+    if (luma <= shadow) weights = float3(1,0,0);
+    else if (luma >= highlight) weights = float3(0,0,1);
+    else if (width > 0.0f && luma < shadow + width) {
+        const float t = clamp((luma - shadow) / width, 0.0f, 1.0f);
+        weights = float3(1.0f - t, t, 0);
+    } else if (width > 0.0f && luma > highlight - width) {
+        const float t = clamp((luma - (highlight - width)) / width, 0.0f, 1.0f);
+        weights = float3(0, 1.0f - t, t);
+    }
+    const float3 s = weights.x > 0.0f ? zoneLookup(shadowTable,input.rgb) : float3(0);
+    const float3 m = weights.y > 0.0f ? zoneLookup(midtoneTable,input.rgb) : float3(0);
+    const float3 h = weights.z > 0.0f ? zoneLookup(highlightTable,input.rgb) : float3(0);
+    const float4 result = float4(s * weights.x + m * weights.y + h * weights.z, input.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

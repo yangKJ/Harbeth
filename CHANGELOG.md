@@ -8,6 +8,23 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-17
+
+#### Changed
+
+- RGBA 单方向膨胀在大图、大半径及已验收格式下采用上下文代次缓存的 AreaMax，保留小图/小核、Float32、显存额度不足和同名自定义内核的直接路径；不透明临时资源使用有界保守准入。
+- 多区域 LUT 只采样权重非零的表，保持三表资源布局与源 alpha。
+
+#### Fixed
+
+- 多区域 LUT 的三个标量参数与 shader 槽位一致，过渡区连续且宽度按阈值间距限制；一维曲线按样本中心定位，不再使恒等表偏色。
+- 3×3 矩阵解码拒绝错误元素数，参数编码拒绝后续非法形状修改，避免数组越界终止进程。
+- 基础锐化保留中心 alpha；空间卷积 identity 使用单点核，锐化/卷积使用整数夹边、单精度累加及真实零强度旁路，修复边缘暗化、高图错位和有限 HDR 中间溢出。
+- Sobel 与 Sketch 补回横向梯度的左下邻居，保留步长 2；Sobel 明确零填充、Sketch 保持夹边，继续输出不透明灰度。
+- RGBA 膨胀保留负通道及零半径输入，在整数域按轴裁边并归一化过大半径；正 alpha 的解预乘不再被固定阈值清空。
+- 降噪在 straight 亮度域比较、按覆盖率归一化范围均值与脉冲回退，恢复原 alpha，透明像素不再残留 RGB。
+- Burn 与 Divide 的零强度直接保留输入，除法前处理零分母。Burn 对零叠加通道采用基底为 1 时取 1、否则取 0；Divide 对零通道分母采用原饱和分支，包括 0/0；保留其他 legacy 公式与 alpha 规则。
+
 ### 2026-11-16
 
 #### Added

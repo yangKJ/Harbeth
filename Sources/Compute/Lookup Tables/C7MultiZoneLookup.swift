@@ -32,7 +32,7 @@ public struct C7MultiZoneLookup: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [shadowThreshold, highlightThreshold, transitionWidth]
+        return [shadowThreshold.isFinite ? shadowThreshold : 0.3, highlightThreshold.isFinite ? highlightThreshold : 0.7, transitionWidth.isFinite ? transitionWidth : 0]
     }
     
     public var otherInputTextures: C7InputTextures {

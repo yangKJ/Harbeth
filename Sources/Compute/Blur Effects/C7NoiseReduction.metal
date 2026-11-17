@@ -40,42 +40,32 @@ kernel void C7NoiseReduction(texture2d<float, access::write> outputTexture [[tex
     const float4 center = float4(inputTexture.read(grid));
     if (!isfinite(*amountPointer) || !isfinite(*radiusPointer) || !isfinite(*edgePreservationPointer) || !isfinite(*sampleSpacing) || amount <= 0.0f) { outputTexture.write(center, grid); return; }
     const int radius = max(int(round(*radiusPointer)), 1);
-    const float centerLuma = luminance(center.rgb);
+    if (center.a <= 0.0f) { outputTexture.write(float4(0.0f), grid); return; }
+    const float centerLuma = luminance(center.rgb) / center.a;
     float4 accumulated = float4(0.0f);
-    float weightSum = 0.0f;
     float4 spatialAccumulated = float4(0.0f);
-    float spatialWeightSum = 0.0f;
 
     for (int y = -radius; y <= radius; y++) {
         for (int x = -radius; x <= radius; x++) {
             const float4 sample = float4(spatialSample(inputTexture, grid, int2(x, y), *sampleSpacing));
+            if (sample.a <= 0.0f) continue;
             const float spatialDistance = float(x * x + y * y);
             const float spatialWeight = exp(-spatialDistance / max(float(radius * radius), 1.0f));
-            const float colorDistance = fabs(luminance(sample.rgb) - centerLuma);
+            const float colorDistance = fabs(luminance(sample.rgb) / sample.a - centerLuma);
             const float colorWeight = exp(-(colorDistance * colorDistance) / max(colorSigma * colorSigma, 1e-5f));
             const float weight = spatialWeight * colorWeight;
             accumulated += sample * weight;
-            weightSum += weight;
             spatialAccumulated += sample * spatialWeight;
-            spatialWeightSum += spatialWeight;
         }
     }
 
-    float4 denoised = center;
-    float4 spatialMean = center;
-    if (weightSum > 0.0f) {
-        denoised = accumulated / weightSum;
-    }
-    if (spatialWeightSum > 0.0f) {
-        spatialMean = spatialAccumulated / spatialWeightSum;
-    }
-    denoised.a = center.a;
-
-    const float impulseDelta = fabs(centerLuma - luminance(spatialMean.rgb));
+    // 分母使用同一窗口的有效覆盖，空间均值与脉冲回退都在 straight 域计算。
+    const float3 centerColor = center.rgb / center.a;
+    const float3 denoised = accumulated.a > 0.0f ? accumulated.rgb / accumulated.a : centerColor;
+    const float3 spatialMean = spatialAccumulated.a > 0.0f ? spatialAccumulated.rgb / spatialAccumulated.a : centerColor;
+    const float impulseDelta = fabs(centerLuma - luminance(spatialMean));
     const float impulseBlend = clamp((impulseDelta - colorSigma * 0.5f) / max(1.0f - colorSigma * 0.5f, 1e-5f), 0.0f, 1.0f);
     const float impulseStrength = amount * impulseBlend * mix(0.45f, 0.8f, 1.0f - edgePreservation);
-    denoised = mix(denoised, spatialMean, impulseStrength);
-    denoised.a = center.a;
-
-    outputTexture.write(mix(center, denoised, amount), grid);
+    const float3 result = mix(centerColor, mix(denoised, spatialMean, impulseStrength), amount) * center.a;
+    outputTexture.write(float4(result, center.a), grid);
 }

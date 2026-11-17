@@ -32,6 +32,11 @@ public struct C7NoiseReduction: C7FilterProtocol {
         .neighborhood
     }
 
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+              precision: .float32, samplingFootprint: .dynamic)
+    }
+
     public init(radius: Float = 3, amount: Float = 0.5, edgePreservation: Float = 0.8, sampleSpacing: Float = 1) {
         self.radius = radius
         self.amount = amount

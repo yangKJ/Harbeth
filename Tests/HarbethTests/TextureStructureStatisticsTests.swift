@@ -121,10 +121,10 @@ final class TextureStructureStatisticsTests: XCTestCase {
         var values = [Float](repeating: 0.5, count: 25)
         values[12] = .infinity
         XCTAssertThrowsError(try makeTexture(values: values, format: .rgba32Float).c7.makeStructureStatistics(alphaType: .alphaIsOne))
+        let source = HarbethUncheckedTransfer(value: try makeTexture(values: [Float](repeating: 0.5, count: 25), format: .rgba32Float))
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
-            try Task.checkCancellation()
-            return try makeTexture(values: [Float](repeating: 0.5, count: 25), format: .rgba32Float).c7.makeStructureStatistics(alphaType: .alphaIsOne)
+            return try source.value.c7.makeStructureStatistics(alphaType: .alphaIsOne)
         }
         task.cancel()
         do { _ = try await task.value; XCTFail("Expected cancellation") } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
