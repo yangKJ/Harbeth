@@ -15,12 +15,18 @@ public struct C7Pixellated: C7FilterProtocol {
     /// Adjust the pixel color block size,  from 0.0 to 1.0, with a default of 0.05
     @ZeroOneRange public var scale: Float = range.value
     
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, samplingFootprint: .global, coordinateDependency: .fullImage,
+              globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7Pixellated")
     }
     
     public var factors: [Float] {
-        return [scale]
+        return [scale.isFinite ? scale : 0]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {

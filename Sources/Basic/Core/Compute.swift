@@ -103,7 +103,7 @@ struct Compute {
         textures: [MTLTexture],
         filter: C7FilterProtocol
     ) throws -> MTLTexture {
-        let identity = filter.kernelDescriptor().functionIdentity
+        let identity = pipelineIdentity(filter: filter, textures: textures)
         let pipelineState = identity.primaryName == kernel
         ? try makeComputePipelineState(with: identity)
         : try makeComputePipelineState(with: kernel)
@@ -127,7 +127,7 @@ struct Compute {
         filter: C7FilterProtocol,
         complete: @escaping @Sendable (Result<MTLTexture, HarbethError>) -> Void
     ) {
-        let identity = filter.kernelDescriptor().functionIdentity
+        let identity = pipelineIdentity(filter: filter, textures: textures)
         let makePipeline: (@escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = {
             callback in
             if identity.primaryName == kernel {
@@ -161,6 +161,26 @@ struct Compute {
         }
     }
     
+    private static func pipelineIdentity(filter: C7FilterProtocol, textures: [MTLTexture]) -> KernelFunctionIdentity {
+        let identity = filter.kernelDescriptor().functionIdentity
+        guard identity.primaryName == "C7StickerOutline", identity.functionConstants.isEmpty,
+              let target = textures.first, target.width >= 512, target.height >= 512,
+              target.device.supportsFamily(.apple7) || target.device.supportsFamily(.mac2) else { return identity }
+        switch identity.librarySource {
+        case .harbethFramework: break
+        case .automatic:
+            let runtime = HarbethContext.shared.runtimeDevice
+            if (runtime.externalLibraries() + [runtime.defaultLibrary].compactMap { $0 }).contains(where: {
+                $0.makeFunction(name: identity.primaryName) != nil
+            }) { return identity }
+        default: return identity
+        }
+        // 大图才支付按组剪枝的特化成本；显式常量和同名外部库的解析优先级保持。
+        return KernelFunctionIdentity(kind: identity.kind, primaryName: identity.primaryName,
+            secondaryName: identity.secondaryName, librarySource: identity.librarySource,
+            functionConstants: [.init(name: "stickerUsesSIMDGroup", index: 0, value: .bool(true))])
+    }
+
     private static func calculateBaseSize(pattern: MemoryAccessPattern, pipelineState: MTLComputePipelineState) -> MTLSize {
         let maxThreads = pipelineState.maxTotalThreadsPerThreadgroup
         let architecture = Device.detectGPUArchitecture()
@@ -222,6 +242,12 @@ struct Compute {
         switch name {
         case "C7ColorCube": return 5
         case "C7UnpremultiplyAlpha": return 0
+        case "C7SolidColor", "C7Pixellated", "C7Halftone": return 1
+        case "C7PolkaDot", "C7Toon", "C7Haze": return 2
+        case "C7LensVignetteCorrection", "C7SphereRefraction": return 5
+        case "C7DefringeCorrection": return 8
+        case "C7StickerOutline": return 3
+        case "C7VoronoiOverlay", "C7VoronoiOverlayField": return 4
         case "C7Sharpen", "C7Sobel", "C7Sketch", "C7BlendColorBurn", "C7BlendDivide": return 1
         case "C7RGBADilation": return 2
         case "C7ConvolutionMatrix3x3", "C7MultiZoneLookup": return 3

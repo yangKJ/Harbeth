@@ -29,8 +29,16 @@ public struct C7LensVignetteCorrection: C7FilterProtocol {
     }
 
     public var factors: [Float] {
-        [center.x, center.y, amount, start, end]
+        [center.x.isFinite ? center.x : 0.5, center.y.isFinite ? center.y : 0.5,
+         amount.isFinite ? amount : 0, start.isFinite ? start : 0.35, end.isFinite ? end : 1]
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied, precision: .float32, samplingFootprint: .point,
+              coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
+
+    public var kernelOutputContract: RenderOutputContract { .init(alpha: .premultiplied) }
 
     public var memoryAccessPattern: MemoryAccessPattern {
         .point

@@ -20,9 +20,13 @@ public struct C7Haze: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [distance, slope]
+        return distance.isFinite && slope.isFinite ? [distance, slope] : [0, 0]
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, samplingFootprint: .point, coordinateDependency: .fullImage, globalDependency: .imageDimensions)
+    }
+
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }

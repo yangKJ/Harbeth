@@ -161,6 +161,8 @@ extension HarbethIO {
     func configured(for profile: RenderProfile) -> Self {
         var copy = self
         copy.renderProfile = profile
+        // 图、帧与带档位的物化不能覆盖借用来源或已发布的表面。
+        copy.preservesInputTexture = true
         return copy
     }
 

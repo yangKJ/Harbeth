@@ -14,12 +14,18 @@ public struct C7PolkaDot: C7FilterProtocol {
     /// What fraction of each grid space is taken up by a dot, default of 0.9
     public var dotScaling: Float = 0.9
     
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, samplingFootprint: .global, coordinateDependency: .fullImage,
+              globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7PolkaDot")
     }
     
     public var factors: [Float] {
-        return [fractionalWidth, dotScaling]
+        return fractionalWidth.isFinite && fractionalWidth > 0 && dotScaling.isFinite ? [fractionalWidth, dotScaling] : [0, 0]
     }
     
     public init(fractionalWidth: Float = 0.05, dotScaling: Float = 0.9) {

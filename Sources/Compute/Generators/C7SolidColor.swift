@@ -29,10 +29,20 @@ public struct C7SolidColor: C7FilterProtocol {
 
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "color", index: 0, stage: .compute, value: .float4(color.c7.toSIMD4()))
+            KernelParameterBinding(name: "color", index: 0, stage: .compute, value: .float4(premultipliedColor))
         ]
     }
     
+    private var premultipliedColor: SIMD4<Float> {
+        var value = color.c7.toSIMD4()
+        value.x *= value.w; value.y *= value.w; value.z *= value.w
+        return value
+    }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(outputAlpha: .premultiplied, precision: .float32, samplingFootprint: .point)
+    }
+    public var kernelOutputContract: RenderOutputContract { .init(alpha: .premultiplied) }
+
     public init(color: C7Color = .white) {
         self.color = color
     }

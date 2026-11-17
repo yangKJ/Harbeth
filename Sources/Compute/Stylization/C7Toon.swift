@@ -22,7 +22,7 @@ public struct C7Toon: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [threshold, quantizationLevels]
+        return [threshold.isFinite ? threshold : Self.thresholdRange.value, quantizationLevels.isFinite && quantizationLevels > 0 ? quantizationLevels : 10]
     }
     
     public var memoryAccessPattern: MemoryAccessPattern {

@@ -17,11 +17,22 @@ public struct C7StickerOutline: C7FilterProtocol {
         return .compute(kernel: "C7StickerOutline")
     }
     
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied, precision: .float32, samplingFootprint: .dynamic)
+    }
+    public var kernelOutputContract: RenderOutputContract { .init(alpha: .premultiplied) }
+
+    private var premultipliedColor: SIMD4<Float> {
+        var value = outlineColor.c7.toSIMD4()
+        value.x *= value.w; value.y *= value.w; value.z *= value.w
+        return value
+    }
+
     public var kernelParameterBindings: [KernelParameterBinding] {
         [
-            KernelParameterBinding(name: "outlineThickness", index: 0, stage: .compute, value: .float(outlineThickness)),
-            KernelParameterBinding(name: "outlineBlur", index: 1, stage: .compute, value: .float(outlineBlur)),
-            KernelParameterBinding(name: "outlineColor", index: 2, stage: .compute, value: .float4(outlineColor.c7.toSIMD4()))
+            KernelParameterBinding(name: "outlineThickness", index: 0, stage: .compute, value: .float(outlineThickness.isFinite ? outlineThickness : 0)),
+            KernelParameterBinding(name: "outlineBlur", index: 1, stage: .compute, value: .float(outlineBlur.isFinite ? outlineBlur : 0)),
+            KernelParameterBinding(name: "outlineColor", index: 2, stage: .compute, value: .float4(premultipliedColor))
         ]
     }
     

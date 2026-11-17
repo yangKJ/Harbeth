@@ -61,16 +61,17 @@ static float hueRangeCoverage(float hue, float start, float end, float softness)
     return 1.0f - smoothstep(0.0f, softness, distance);
 }
 
-static float readNeighborLuma(texture2d<half, access::read> texture, int2 coordinate) {
+static float readNeighborLuma(texture2d<float, access::read> texture, int2 coordinate, float fallback) {
     int2 clamped = int2(
         clamp(coordinate.x, 0, int(texture.get_width()) - 1),
         clamp(coordinate.y, 0, int(texture.get_height()) - 1)
     );
-    return luminance(float3(texture.read(uint2(clamped)).rgb));
+    const float4 value = texture.read(uint2(clamped));
+    return value.a > 0.0f ? luminance(value.rgb / value.a) : fallback;
 }
 
-kernel void C7DefringeCorrection(texture2d<half, access::write> outputTexture [[texture(0)]],
-                                 texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7DefringeCorrection(texture2d<float, access::write> outputTexture [[texture(0)]],
+                                 texture2d<float, access::read> inputTexture [[texture(1)]],
                                  constant float *purpleAmount [[buffer(0)]],
                                  constant float *purpleHueStart [[buffer(1)]],
                                  constant float *purpleHueEnd [[buffer(2)]],
@@ -79,25 +80,28 @@ kernel void C7DefringeCorrection(texture2d<half, access::write> outputTexture [[
                                  constant float *greenHueEnd [[buffer(5)]],
                                  constant float *edgeThreshold [[buffer(6)]],
                                  constant float *saturationThreshold [[buffer(7)]],
+                                 constant float &halfOutput [[buffer(8)]],
                                  uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
 
-    half4 inputColor = inputTexture.read(grid);
-    float3 rgb = float3(inputColor.rgb);
+    float4 inputColor = inputTexture.read(grid);
+    if (*purpleAmount == 0.0f && *greenAmount == 0.0f) { outputTexture.write(inputColor, grid); return; }
+    if (inputColor.a <= 0.0f) { outputTexture.write(float4(0), grid); return; }
+    float3 rgb = inputColor.rgb / inputColor.a;
     float3 hsl = rgbToHslDefringe(rgb);
 
     int2 coordinate = int2(grid);
     float centerLuma = luminance(rgb);
     float contrast = 0.0f;
-    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(-1, 0))));
-    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(1, 0))));
-    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(0, -1))));
-    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(0, 1))));
+    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(-1, 0), centerLuma)));
+    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(1, 0), centerLuma)));
+    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(0, -1), centerLuma)));
+    contrast = max(contrast, fabs(centerLuma - readNeighborLuma(inputTexture, coordinate + int2(0, 1), centerLuma)));
 
     float edgeFactor = smoothstep(*edgeThreshold, max(*edgeThreshold * 3.0f, *edgeThreshold + 0.0001f), contrast);
-    float saturationFactor = smoothstep(*saturationThreshold, 1.0f, hsl.y);
+    float saturationFactor = *saturationThreshold >= 1.0f ? step(1.0f, hsl.y) : smoothstep(*saturationThreshold, 1.0f, hsl.y);
 
     float purpleCoverage = hueRangeCoverage(hsl.x, *purpleHueStart, *purpleHueEnd, 10.0f);
     float greenCoverage = hueRangeCoverage(hsl.x, *greenHueStart, *greenHueEnd, 10.0f);
@@ -116,5 +120,6 @@ kernel void C7DefringeCorrection(texture2d<half, access::write> outputTexture [[
         corrected.g = mix(corrected.g, greenNeutral, greenStrength);
     }
 
-    outputTexture.write(half4(half3(clamp(corrected, 0.0f, 1.0f)), inputColor.a), grid);
+    const float4 result = float4(clamp(corrected, 0.0f, 1.0f) * inputColor.a, inputColor.a);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(result)) : result, grid);
 }

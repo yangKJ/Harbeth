@@ -69,6 +69,7 @@ public struct HarbethIO<Dest>: @unchecked Sendable {
 
     /// Stable render intent for planning and diagnostics.
     internal var renderProfile: RenderProfile = .stablePreview
+    internal var preservesInputTexture = false
     internal var executionProgramCache: RenderExecutionProgramCache?
 
     // MARK: - Public Initialization
@@ -671,7 +672,7 @@ extension HarbethIO {
     }
 
     private func shouldCreateDestinationTexture(for filter: C7FilterProtocol, sourceTexture: MTLTexture) -> Bool {
-        if filter.destinationTextureContract.aliasingPolicy == .requiredDistinct {
+        if preservesInputTexture || filter.destinationTextureContract.aliasingPolicy == .requiredDistinct {
             return true
         }
         if let pixelFormat = declaredOutputPixelFormat(for: filter), pixelFormat != sourceTexture.pixelFormat {

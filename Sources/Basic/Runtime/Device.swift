@@ -527,7 +527,12 @@ extension Device {
             if let constantValues {
                 return try? library.makeFunction(name: functionName, constantValues: constantValues)
             }
-            return library.makeFunction(name: functionName)
+            guard let function = library.makeFunction(name: functionName) else { return nil }
+            // 可选常量也必须经过特化；空表让内核选择未定义常量的默认分支。
+            if !function.functionConstantsDictionary.isEmpty {
+                return try? library.makeFunction(name: functionName, constantValues: MTLFunctionConstantValues())
+            }
+            return function
         }
 
         let candidateLibraries: [MTLLibrary] = {

@@ -19,9 +19,18 @@ public struct C7SphereRefraction: C7FilterProtocol {
     }
     
     public var factors: [Float] {
-        return [radius, refractiveIndex, aspectRatio, center.x, center.y]
+        return [radius.isFinite ? max(radius, 0) : 0, refractiveIndex.isFinite ? refractiveIndex : 0.71,
+                aspectRatio.isFinite && aspectRatio > 0 ? aspectRatio : 1,
+                center.x.isFinite ? center.x : 0.5, center.y.isFinite ? center.y : 0.5]
     }
     
+    public var samplingFootprint: SamplingFootprint { .global }
+
+    public var kernelPixelContract: KernelPixelContract {
+        .init(precision: .float32, samplingFootprint: .global, coordinateDependency: .fullImage,
+              globalDependency: .imageDimensions, fusionPolicy: .disabled)
+    }
+
     public var memoryAccessPattern: MemoryAccessPattern {
         .point
     }

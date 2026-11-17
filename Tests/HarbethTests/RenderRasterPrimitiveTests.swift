@@ -85,8 +85,9 @@ final class RenderRasterPrimitiveTests: XCTestCase {
         HarbethContext.shared.recoverExecution()
         let background = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
         let layer = try makeTexture(width: 2, height: 2, pixel: [128, 0, 0, 128])
-        let io = HarbethIO(element: background, filter: try RenderLayerComposite(layerTexture: layer))
-            .configured(for: .interactiveLatency)
+        var io = HarbethIO(element: background, filter: try RenderLayerComposite(layerTexture: layer))
+        // 显式低层原地路径，绕过图/帧配置的借用来源保护。
+        io.renderProfile = .interactiveLatency
 
         let output: MTLTexture = try io.output()
         let bytes = try XCTUnwrap(output.c7.bytes())
@@ -95,6 +96,21 @@ final class RenderRasterPrimitiveTests: XCTestCase {
         XCTAssertEqual(bytes[0], 128, accuracy: 1)
         XCTAssertEqual(bytes[2], 127, accuracy: 1)
         XCTAssertEqual(bytes[3], 255, accuracy: 1)
+    }
+
+    func testConfiguredLayerCompositeProtectsBorrowedBackground() throws {
+        let background = try makeTexture(width: 2, height: 2, pixel: [0, 0, 255, 255])
+        let layer = try makeTexture(width: 2, height: 2, pixel: [128, 0, 0, 128])
+        let output: MTLTexture = try HarbethIO(element: background, filter: RenderLayerComposite(layerTexture: layer))
+            .configured(for: .interactiveLatency).output()
+        XCTAssertFalse(output === background)
+        let originalBytes = try XCTUnwrap(background.c7.bytes())
+        for i in stride(from: 0, to: originalBytes.count, by: 4) {
+            XCTAssertEqual(Array(originalBytes[i..<i + 4]), [0, 0, 255, 255])
+        }
+        let bytes = try XCTUnwrap(output.c7.bytes())
+        XCTAssertEqual(bytes[0], 128, accuracy: 1)
+        XCTAssertEqual(bytes[2], 127, accuracy: 1)
     }
 
     func testLayerCompositeSingleBufferAllocatesRenderTargetUsage() throws {

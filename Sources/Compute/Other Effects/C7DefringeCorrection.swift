@@ -32,17 +32,23 @@ public struct C7DefringeCorrection: C7FilterProtocol {
     }
 
     public var factors: [Float] {
-        [
-            purpleAmount,
-            purpleHueStart,
-            purpleHueEnd,
-            greenAmount,
-            greenHueStart,
-            greenHueEnd,
-            edgeThreshold,
-            saturationThreshold
-        ]
+        func amount(_ value: Float) -> Float { value.isFinite ? min(max(value, 0), 1) : 0 }
+        func hue(_ value: Float, fallback: Float) -> Float {
+            guard value.isFinite else { return fallback }
+            let wrapped = value.truncatingRemainder(dividingBy: 360)
+            return wrapped < 0 ? wrapped + 360 : wrapped
+        }
+        return [amount(purpleAmount), hue(purpleHueStart, fallback: 250), hue(purpleHueEnd, fallback: 320),
+                amount(greenAmount), hue(greenHueStart, fallback: 90), hue(greenHueEnd, fallback: 170),
+                edgeThreshold.isFinite ? min(max(edgeThreshold, 0), 1) : 0.08,
+                saturationThreshold.isFinite ? min(max(saturationThreshold, 0), 1) : 0.15]
     }
+
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied, precision: .float32, samplingFootprint: .dynamic)
+    }
+
+    public var kernelOutputContract: RenderOutputContract { .init(alpha: .premultiplied) }
 
     public var memoryAccessPattern: MemoryAccessPattern {
         .neighborhood

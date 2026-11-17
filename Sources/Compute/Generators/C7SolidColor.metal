@@ -12,11 +12,13 @@ using namespace metal;
 // If use `device` and then throw the error as above.
 // See: https://developer.apple.com/forums/thread/658233
 
-kernel void C7SolidColor(texture2d<half, access::write> outputTexture [[texture(0)]],
-                         texture2d<half, access::read> inputTexture [[texture(1)]],
+kernel void C7SolidColor(texture2d<float, access::write> outputTexture [[texture(0)]],
+                         texture2d<float, access::read> inputTexture [[texture(1)]],
                          constant float4 *colorVector [[buffer(0)]],
+                         constant float &halfOutput [[buffer(1)]],
                          uint2 grid [[thread_position_in_grid]]) {
-    const half4 outColor = half4(*colorVector);
+    if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) return;
+    const float4 outColor = *colorVector;
     
-    outputTexture.write(outColor, grid);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(outColor)) : outColor, grid);
 }
