@@ -103,7 +103,7 @@ struct Compute {
         textures: [MTLTexture],
         filter: C7FilterProtocol
     ) throws -> MTLTexture {
-        let descriptor = filter.kernelDescriptor()
+        let descriptor = filter.kernelDescriptor(inputSize: textures.count > 1 ? C7Size(texture: textures[1]) : nil)
         let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures, filter: filter)
         let pipelineState = descriptor.functionIdentity.primaryName == kernel
         ? try makeComputePipelineState(with: identity)
@@ -133,7 +133,7 @@ struct Compute {
         filter: C7FilterProtocol,
         complete: @escaping @Sendable (Result<MTLTexture, HarbethError>) -> Void
     ) {
-        let descriptor = filter.kernelDescriptor()
+        let descriptor = filter.kernelDescriptor(inputSize: textures.count > 1 ? C7Size(texture: textures[1]) : nil)
         let identity = pipelineIdentity(identity: descriptor.functionIdentity, textures: textures, filter: filter)
         let makePipeline: (@escaping @Sendable (Result<MTLComputePipelineState, HarbethError>) -> Void) -> Void = {
             callback in
@@ -279,7 +279,8 @@ struct Compute {
         case "C7Curves", "C7CurvesCubic", "C7CurvesLegacy", "C7CurvesLegacyOrdered": return 7
         case "C7DepthLensBlur": return 1
         case "C7Resize", "C7LanczosResize": return 0
-        case "C7Rotate": return 5
+        case "C7Rotate", "C7AffineTransform": return 5
+        case "C7Crop": return 4
         case "HarbethTextureGeometry": return 6
         case "C7BlendColorAdd", "C7BlendColorAlpha", "C7BlendColorBurn", "C7BlendColorDodge", "C7BlendDarken", "C7BlendDarkerColor",
              "C7BlendDifference", "C7BlendDissolve", "C7BlendDivide", "C7BlendExclusion", "C7BlendHardLight", "C7BlendHardMix",

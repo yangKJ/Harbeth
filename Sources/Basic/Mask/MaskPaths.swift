@@ -55,15 +55,15 @@ public enum MaskGradientKind: Sendable, Codable, Equatable, Hashable {
         case .linear(let startPoint, let endPoint):
             return [
                 "kind=linear",
-                "start=\(String(format: "%.4f", startPoint.x)),\(String(format: "%.4f", startPoint.y))",
-                "end=\(String(format: "%.4f", endPoint.x)),\(String(format: "%.4f", endPoint.y))"
+                "start=\(maskScalarIdentity(startPoint.x)),\(maskScalarIdentity(startPoint.y))",
+                "end=\(maskScalarIdentity(endPoint.x)),\(maskScalarIdentity(endPoint.y))"
             ].joined(separator: "|")
         case .radial(let center, let startRadius, let endRadius):
             return [
                 "kind=radial",
-                "center=\(String(format: "%.4f", center.x)),\(String(format: "%.4f", center.y))",
-                "startRadius=\(String(format: "%.4f", startRadius))",
-                "endRadius=\(String(format: "%.4f", endRadius))"
+                "center=\(maskScalarIdentity(center.x)),\(maskScalarIdentity(center.y))",
+                "startRadius=\(maskScalarIdentity(startRadius))",
+                "endRadius=\(maskScalarIdentity(endRadius))"
             ].joined(separator: "|")
         case .angular(let center, let startAngle, let endAngle, let clockwise):
             return [
@@ -134,11 +134,11 @@ public enum MaskGradientKind: Sendable, Codable, Equatable, Hashable {
     }
 
     private static func pointFingerprint(_ point: CGPoint) -> String {
-        "\(String(format: "%.4f", point.x)),\(String(format: "%.4f", point.y))"
+        "\(maskScalarIdentity(point.x)),\(maskScalarIdentity(point.y))"
     }
 
     private static func floatFingerprint(_ value: Float) -> String {
-        String(format: "%.4f", value.isFinite ? value : 0)
+        maskScalarIdentity(value.isFinite ? value : 0)
     }
 }
 
@@ -154,36 +154,36 @@ public enum MaskShapeKind: Sendable, Codable, Equatable, Hashable {
         case .rectangle(let rect, let feather):
             return [
                 "kind=rectangle",
-                "rect=\(String(format: "%.4f", rect.origin.x)),\(String(format: "%.4f", rect.origin.y)),\(String(format: "%.4f", rect.width)),\(String(format: "%.4f", rect.height))",
-                "feather=\(String(format: "%.4f", min(max(feather, 0), 1)))"
+                "rect=\(maskScalarIdentity(rect.origin.x)),\(maskScalarIdentity(rect.origin.y)),\(maskScalarIdentity(rect.width)),\(maskScalarIdentity(rect.height))",
+                "feather=\(maskScalarIdentity(min(max(feather, 0), 1)))"
             ].joined(separator: "|")
         case .ellipse(let rect, let feather):
             return [
                 "kind=ellipse",
-                "rect=\(String(format: "%.4f", rect.origin.x)),\(String(format: "%.4f", rect.origin.y)),\(String(format: "%.4f", rect.width)),\(String(format: "%.4f", rect.height))",
-                "feather=\(String(format: "%.4f", min(max(feather, 0), 1)))"
+                "rect=\(maskScalarIdentity(rect.origin.x)),\(maskScalarIdentity(rect.origin.y)),\(maskScalarIdentity(rect.width)),\(maskScalarIdentity(rect.height))",
+                "feather=\(maskScalarIdentity(min(max(feather, 0), 1)))"
             ].joined(separator: "|")
         case .roundedRect(let rect, let cornerRadius, let feather):
             return [
                 "kind=roundedRect",
-                "rect=\(String(format: "%.4f", rect.origin.x)),\(String(format: "%.4f", rect.origin.y)),\(String(format: "%.4f", rect.width)),\(String(format: "%.4f", rect.height))",
-                "cornerRadius=\(String(format: "%.4f", min(max(cornerRadius, 0), 1)))",
-                "feather=\(String(format: "%.4f", min(max(feather, 0), 1)))"
+                "rect=\(maskScalarIdentity(rect.origin.x)),\(maskScalarIdentity(rect.origin.y)),\(maskScalarIdentity(rect.width)),\(maskScalarIdentity(rect.height))",
+                "cornerRadius=\(maskScalarIdentity(min(max(cornerRadius, 0), 1)))",
+                "feather=\(maskScalarIdentity(min(max(feather, 0), 1)))"
             ].joined(separator: "|")
         case .regularPolygon(let rect, let sides, let feather):
             return [
                 "kind=regularPolygon",
-                "rect=\(String(format: "%.4f", rect.origin.x)),\(String(format: "%.4f", rect.origin.y)),\(String(format: "%.4f", rect.width)),\(String(format: "%.4f", rect.height))",
+                "rect=\(maskScalarIdentity(rect.origin.x)),\(maskScalarIdentity(rect.origin.y)),\(maskScalarIdentity(rect.width)),\(maskScalarIdentity(rect.height))",
                 "sides=\(max(sides, 3))",
-                "feather=\(String(format: "%.4f", min(max(feather, 0), 1)))"
+                "feather=\(maskScalarIdentity(min(max(feather, 0), 1)))"
             ].joined(separator: "|")
         case .star(let rect, let points, let innerRadiusRatio, let feather):
             return [
                 "kind=star",
-                "rect=\(String(format: "%.4f", rect.origin.x)),\(String(format: "%.4f", rect.origin.y)),\(String(format: "%.4f", rect.width)),\(String(format: "%.4f", rect.height))",
+                "rect=\(maskScalarIdentity(rect.origin.x)),\(maskScalarIdentity(rect.origin.y)),\(maskScalarIdentity(rect.width)),\(maskScalarIdentity(rect.height))",
                 "points=\(max(points, 2))",
-                "innerRadiusRatio=\(String(format: "%.4f", min(max(innerRadiusRatio, 0), 1)))",
-                "feather=\(String(format: "%.4f", min(max(feather, 0), 1)))"
+                "innerRadiusRatio=\(maskScalarIdentity(min(max(innerRadiusRatio, 0), 1)))",
+                "feather=\(maskScalarIdentity(min(max(feather, 0), 1)))"
             ].joined(separator: "|")
         }
     }
@@ -217,7 +217,7 @@ public enum MaskPathCommand: Sendable, Codable, Equatable, Hashable {
     }
 
     static func pointFingerprint(_ point: CGPoint) -> String {
-        "\(String(format: "%.4f", point.x)),\(String(format: "%.4f", point.y))"
+        "\(maskScalarIdentity(point.x)),\(maskScalarIdentity(point.y))"
     }
 }
 
@@ -269,14 +269,14 @@ public struct MaskPathTransform: Sendable, Codable, Equatable, Hashable {
 
     var fingerprint: String {
         [
-            "tx=\(String(format: "%.4f", translation.x))",
-            "ty=\(String(format: "%.4f", translation.y))",
-            "sx=\(String(format: "%.4f", scale.x))",
-            "sy=\(String(format: "%.4f", scale.y))",
-            "r=\(String(format: "%.4f", rotationRadians))",
-            "ax=\(String(format: "%.4f", anchor.x))",
-            "ay=\(String(format: "%.4f", anchor.y))",
-            "rotationAspect=\(String(format: "%.4f", rotationAspectRatio))"
+            "tx=\(maskScalarIdentity(translation.x))",
+            "ty=\(maskScalarIdentity(translation.y))",
+            "sx=\(maskScalarIdentity(scale.x))",
+            "sy=\(maskScalarIdentity(scale.y))",
+            "r=\(maskScalarIdentity(rotationRadians))",
+            "ax=\(maskScalarIdentity(anchor.x))",
+            "ay=\(maskScalarIdentity(anchor.y))",
+            "rotationAspect=\(maskScalarIdentity(rotationAspectRatio))"
         ].joined(separator: ",")
     }
 

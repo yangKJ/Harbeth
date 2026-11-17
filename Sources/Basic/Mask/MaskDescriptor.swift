@@ -9,8 +9,13 @@ import Foundation
 import Metal
 
 private func stableRecipeFloatDescription(_ value: Float) -> String {
-    RecipeFloatDescriptionCache.shared.description(for: value)
+    maskScalarIdentity(value)
 }
+
+// 语义身份保留实际数值；诊断面板的短数值展示继续使用各自的格式化方法。
+func maskScalarIdentity(_ value: Float) -> String { "f32:\(value.bitPattern)" }
+func maskScalarIdentity(_ value: Double) -> String { "f64:\(value.bitPattern)" }
+func maskScalarIdentity(_ value: CGFloat) -> String { maskScalarIdentity(Double(value)) }
 
 public enum MaskComponent: Int, Sendable, Codable, Equatable, Hashable {
     case alpha = 0
@@ -54,6 +59,7 @@ public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
     public let gradient: MaskGradientDescriptor?
     public let shape: MaskShapeDescriptor?
     public let path: MaskPathDescriptor?
+    public var sourceFingerprint: String? = nil
 
     public var fingerprint: String {
         var parts = [
@@ -64,6 +70,7 @@ public struct MaskCompositeStepDescriptor: Sendable, Hashable, Codable {
             "opacity=\(stableRecipeFloatDescription(opacity))",
             "feather=\(stableRecipeFloatDescription(featherAmount))"
         ]
+        if let sourceFingerprint { parts.append("source={\(sourceFingerprint)}") }
         if let gradient {
             parts.append("gradient=\(gradient.fingerprint)")
         }
@@ -110,6 +117,21 @@ public struct MaskGraphDescriptor: Sendable, Hashable, Codable {
     public let gradient: MaskGradientDescriptor?
     public let shape: MaskShapeDescriptor?
     public let path: MaskPathDescriptor?
+    init(kind: String, fingerprint: String, component: MaskComponent, blendMode: MaskBlendMode,
+         invert: Bool, opacity: Float, featherAmount: Float, stepCount: Int,
+         steps: [MaskCompositeStepDescriptor], gradient: MaskGradientDescriptor?, shape: MaskShapeDescriptor?, path: MaskPathDescriptor?) {
+        self.kind = kind
+        self.component = component; self.blendMode = blendMode; self.invert = invert
+        self.opacity = opacity; self.featherAmount = featherAmount; self.stepCount = stepCount
+        self.steps = steps; self.gradient = gradient; self.shape = shape; self.path = path
+        self.fingerprint = [
+            "kind=\(kind)", "payload={\(fingerprint)}", "component=\(component.rawValue)",
+            "blend=\(blendMode.rawValue)", "invert=\(invert)",
+            // payload 已包含生成配方、资源及步骤，诊断视图不再次展开，避免嵌套图重复增长。
+            "opacity=\(maskScalarIdentity(opacity))", "feather=\(maskScalarIdentity(featherAmount))"
+        ].joined(separator: "|")
+    }
+
 }
 
 public struct MaskDescriptor: @unchecked Sendable {
@@ -155,6 +177,7 @@ extension MaskDescriptor {
         MaskGraphDescriptor(
             kind: "maskDescriptor",
             fingerprint: [
+                "plane={\(plane.descriptor.fingerprint)}",
                 "component=\(component.rawValue)",
                 "blend=\(blendMode.rawValue)",
                 "invert=\(invert ? 1 : 0)",
@@ -194,7 +217,7 @@ struct LocalEffectRecipeDescriptor: Sendable, Hashable, Codable {
             "filters=\(chain)",
             "mask=\(mask.fingerprint)",
             "blend=\(foregroundBlendMode ?? "none")",
-            "opacity=\(String(format: "%.4f", foregroundBlendOpacity))"
+            "opacity=\(maskScalarIdentity(foregroundBlendOpacity))"
         ].joined(separator: "|")
     }
 }

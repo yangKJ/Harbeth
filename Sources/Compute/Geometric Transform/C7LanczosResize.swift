@@ -12,6 +12,10 @@ public struct C7LanczosResize: C7FilterProtocol, GeometryParameterValidating, Te
     public var width: Float
     public var height: Float
 
+    public var kernelConfigurationIdentity: String? {
+        "size=\(width.bitPattern),\(height.bitPattern)"
+    }
+
     public var modifier: ModifierEnum {
         .compute(kernel: "C7LanczosResize")
     }

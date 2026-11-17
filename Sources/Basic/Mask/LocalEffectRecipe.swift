@@ -10,7 +10,16 @@ import Metal
 
 public struct LocalEffectRecipe {
     public var filters: [C7FilterProtocol]
-    public var mask: MaskDescriptor
+    private var storedMask: MaskDescriptor
+    private var initialMask: InitialMaskDescriptor?
+    public var mask: MaskDescriptor {
+        get {
+            // 暴露纹理后不能再假设初始化产物未被宿主写入。
+            initialMask?.invalidate()
+            return storedMask
+        }
+        set { initialMask?.invalidate(); initialMask = nil; storedMask = newValue }
+    }
     public var maskRecipe: MaskCompositeRecipe?
     var maskSource: AnyMaskRecipe?
     public var foregroundBlendType: C7Blend.BlendType?
@@ -18,7 +27,7 @@ public struct LocalEffectRecipe {
 
     public init(filters: [C7FilterProtocol], mask: MaskDescriptor, foregroundBlendType: C7Blend.BlendType? = nil, foregroundBlendOpacity: Float = 1.0) {
         self.filters = filters
-        self.mask = mask
+        self.storedMask = mask
         self.maskRecipe = nil
         self.maskSource = nil
         self.foregroundBlendType = foregroundBlendType
@@ -27,7 +36,7 @@ public struct LocalEffectRecipe {
 
     public init(filters: [C7FilterProtocol], maskRecipe: MaskCompositeRecipe, foregroundBlendType: C7Blend.BlendType? = nil, foregroundBlendOpacity: Float = 1.0) {
         self.filters = filters
-        self.mask = maskRecipe.baseMask
+        self.storedMask = maskRecipe.baseMask
         self.maskRecipe = maskRecipe
         self.maskSource = AnyMaskRecipe(maskRecipe)
         self.foregroundBlendType = foregroundBlendType
@@ -45,7 +54,7 @@ public struct LocalEffectRecipe {
                         foregroundBlendOpacity: Float = 1.0) throws {
         let source = AnyMaskRecipe(recipe)
         self.filters = filters
-        self.mask = try source.makeMaskDescriptor(
+        self.storedMask = try source.makeMaskDescriptor(
             component: component,
             blendMode: blendMode,
             invert: invert,
@@ -54,6 +63,7 @@ public struct LocalEffectRecipe {
         )
         self.maskRecipe = recipe as? MaskCompositeRecipe
         self.maskSource = source
+        self.initialMask = source.canReuseInitialDescriptor ? InitialMaskDescriptor(storedMask) : nil
         self.foregroundBlendType = foregroundBlendType
         self.foregroundBlendOpacity = min(max(foregroundBlendOpacity, 0), 1)
     }
@@ -84,16 +94,17 @@ public struct LocalEffectRecipe {
         if let maskRecipe {
             return try maskRecipe.makeMaskDescriptor()
         }
+        if let prepared = initialMask?.take() { return prepared }
         if let maskSource {
             return try maskSource.makeMaskDescriptor(
-                component: mask.component,
-                blendMode: mask.blendMode,
-                invert: mask.invert,
-                featherPolicy: mask.featherPolicy,
-                opacity: mask.opacity
+                component: storedMask.component,
+                blendMode: storedMask.blendMode,
+                invert: storedMask.invert,
+                featherPolicy: storedMask.featherPolicy,
+                opacity: storedMask.opacity
             )
         }
-        return mask
+        return storedMask
     }
 
     var recipeDescriptor: LocalEffectRecipeDescriptor {
@@ -108,16 +119,27 @@ public struct LocalEffectRecipe {
     private var maskGraphDescriptor: MaskGraphDescriptor {
         if let maskSource {
             return maskSource.graphDescriptor(
-                component: mask.component,
-                blendMode: mask.blendMode,
-                invert: mask.invert,
-                featherPolicy: mask.featherPolicy,
-                opacity: mask.opacity
+                component: storedMask.component,
+                blendMode: storedMask.blendMode,
+                invert: storedMask.invert,
+                featherPolicy: storedMask.featherPolicy,
+                opacity: storedMask.opacity
             )
         }
         if let maskRecipe {
             return maskRecipe.graphDescriptor
         }
-        return mask.graphDescriptor
+        return storedMask.graphDescriptor
     }
+}
+
+// 只把构造阶段已完成的结果交给首次执行；结构体副本共享一次性领取，后续执行仍重新物化。
+private final class InitialMaskDescriptor {
+    private let lock = NSLock()
+    private var value: MaskDescriptor?
+    init(_ value: MaskDescriptor) { self.value = value }
+    func take() -> MaskDescriptor? {
+        lock.withLock { let result = value; value = nil; return result }
+    }
+    func invalidate() { lock.withLock { value = nil } }
 }

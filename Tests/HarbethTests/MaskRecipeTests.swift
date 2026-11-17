@@ -350,7 +350,7 @@ final class MaskRecipeTests: XCTestCase {
         )
 
         XCTAssertEqual(rebased.feather, 0.2, accuracy: 0.0001)
-        XCTAssertTrue(rebased.fingerprint.contains("feather=0.200000"))
+        XCTAssertTrue(rebased.fingerprint.contains("feather=f32:\(Float(0.2).bitPattern)"))
     }
 
     func testPathMaskRecipeRebaseDoesNotClampWideLogicalFeatherToTileBounds() {
@@ -374,7 +374,7 @@ final class MaskRecipeTests: XCTestCase {
         )
 
         XCTAssertEqual(rebased.feather, 9.375, accuracy: 0.0001)
-        XCTAssertTrue(rebased.fingerprint.contains("feather=9.375000"))
+        XCTAssertTrue(rebased.fingerprint.contains("feather=f32:\(Float(9.375).bitPattern)"))
     }
 
     func testPathMaskRecipeRebasePreservesFeatherCoverageOnWideCanvas() throws {

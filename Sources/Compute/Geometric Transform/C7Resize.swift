@@ -13,6 +13,10 @@ public struct C7Resize: C7FilterProtocol, GeometryParameterValidating {
     public var width: Float
     public var height: Float
     
+    public var kernelConfigurationIdentity: String? {
+        "size=\(width.bitPattern),\(height.bitPattern)"
+    }
+
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7Resize")
     }

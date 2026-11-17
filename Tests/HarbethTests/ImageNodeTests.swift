@@ -69,7 +69,7 @@ final class ImageNodeTests: XCTestCase {
 
         let linearNode = ImageNode.texture(input).applying(
             C7Crop(
-                origin: C7Point2D(x: 0.5, y: 0),
+                origin: C7Point2D(x: 0.25, y: 0),
                 width: 1,
                 height: 1,
                 samplingMode: .adaptive,
@@ -96,7 +96,7 @@ final class ImageNodeTests: XCTestCase {
         let baseNode = ImageNode.texture(input)
             .applying(
                 C7Crop(
-                    origin: C7Point2D(x: 0.5, y: 0),
+                    origin: C7Point2D(x: 0.25, y: 0),
                     width: 1,
                     height: 1,
                     samplingMode: .adaptive,

@@ -62,7 +62,7 @@ public struct MaskPathRecipe {
             "size=\(size.width)x\(size.height)",
             "fillRule=\(fillRule.rawValue)",
             "transform={\(transform.fingerprint)}",
-            "feather=\(Self.stableFloatDescription(feather))",
+            "feather=\(maskScalarIdentity(feather))",
             "subpaths=\(subpaths.map(\.fingerprint).joined(separator: "||"))",
             "profile=\(profile.rawValue)"
         ].joined(separator: "|")

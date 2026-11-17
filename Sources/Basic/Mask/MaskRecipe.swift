@@ -24,57 +24,29 @@ protocol MaskRebasableRecipe: MaskRecipe {
 public extension MaskRecipe {
     /// 把当前 recipe 的 `fingerprint` 拆成 `(key, value)` 列表，按出现顺序保留。
     var fingerprintFields: [(String, String)] {
-        func appendField(_ raw: String, into result: inout [(String, String)]) {
-            // 先把占位符还原回 `||`，保持 value 字符串与原 fingerprint 等价
-            let restored = raw.replacingOccurrences(of: "\u{1F}", with: "||")
-            let segment = restored.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !segment.isEmpty, let eqIndex = segment.firstIndex(of: "=") else { return }
-            let key = String(segment[..<eqIndex])
-            let value = String(segment[segment.index(after: eqIndex)...])
-            result.append((key, value))
+        var result: [(String, String)] = [], field = "", depth = 0
+        func append() {
+            guard let equal = field.firstIndex(of: "=") else { return }
+            result.append((String(field[..<equal]), String(field[field.index(after: equal)...])))
         }
-        // 用 ASCII 控制字符 \u{1F} 作为 `||` 的占位符;`{...}` 内不做替换。
-        let placeholder: Character = "\u{1F}"
-        var masked = ""
-        var depth = 0
-        var i = fingerprint.startIndex
-        while i < fingerprint.endIndex {
-            let ch = fingerprint[i]
-            if ch == "{" {
-                depth += 1
-                masked.append(ch)
-                i = fingerprint.index(after: i)
-                continue
-            }
-            if ch == "}" {
-                depth = max(depth - 1, 0)
-                masked.append(ch)
-                i = fingerprint.index(after: i)
-                continue
-            }
-            if depth == 0, ch == "|",
-               let next = fingerprint.index(i, offsetBy: 1, limitedBy: fingerprint.endIndex),
-               next < fingerprint.endIndex, fingerprint[next] == "|" {
-                masked.append(placeholder)
-                i = fingerprint.index(after: next)
-                continue
-            }
-            masked.append(ch)
-            i = fingerprint.index(after: i)
+        var index = fingerprint.startIndex
+        while index < fingerprint.endIndex {
+            let character = fingerprint[index]
+            if character == "{" { depth += 1 }
+            if character == "}" { depth = max(depth - 1, 0) }
+            let next = fingerprint.index(after: index)
+            if character == "|", depth == 0 {
+                if next < fingerprint.endIndex, fingerprint[next] == "|" {
+                    field += "||"; index = fingerprint.index(after: next); continue
+                }
+                append(); field = ""
+            } else { field.append(character) }
+            index = next
         }
-        var result: [(String, String)] = []
-        var current = ""
-        for ch in masked {
-            if ch == "|" {
-                appendField(current, into: &result)
-                current.removeAll(keepingCapacity: true)
-                continue
-            }
-            current.append(ch)
-        }
-        appendField(current, into: &result)
+        append()
         return result
     }
+
 }
 
 extension AnyMaskRecipe: MaskRebasableRecipe {

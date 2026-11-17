@@ -40,7 +40,7 @@ public enum MaskDerivedOperation: Sendable, Equatable, Hashable {
     }
 
     private static func float(_ value: Float) -> String {
-        String(format: "%.4f", value.isFinite ? value : 0)
+        maskScalarIdentity(value.isFinite ? value : 0)
     }
 }
 public struct MaskExecutionPlan: Sendable, Equatable {

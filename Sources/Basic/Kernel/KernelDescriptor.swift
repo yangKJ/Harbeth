@@ -508,7 +508,8 @@ struct KernelDescriptor: Sendable, Codable, Equatable, Hashable {
 
 extension KernelDescriptor {
     func compatibilitySummary(with filter: C7FilterProtocol, inputSize: C7Size? = nil) -> String {
-        let runtimeDescriptor = filter.kernelDescriptor(inputSize: inputSize)
+        // 未指定输入的描述是配置模板，按同一模板比较；有尺寸描述继续严格比较解析绑定。
+        let runtimeDescriptor = filter.kernelDescriptor(inputSize: output.outputSize == nil ? nil : inputSize)
         if functionIdentity != runtimeDescriptor.functionIdentity {
             return "functionIdentityMismatch"
         }
@@ -517,6 +518,9 @@ extension KernelDescriptor {
         }
         if resources.inputTextureCount != runtimeDescriptor.resources.inputTextureCount {
             return "inputTextureCountMismatch"
+        }
+        if parameters["configurationIdentity"] != runtimeDescriptor.parameters["configurationIdentity"] {
+            return "configurationIdentityMismatch"
         }
         if parameterBindings != runtimeDescriptor.parameterBindings {
             return "parameterBindingsMismatch"
@@ -590,12 +594,13 @@ extension C7FilterProtocol {
             requiresDestinationTexture = true
         }
 
-        let parameterBindings = effectiveFilter.kernelParameterBindings
+        let parameterBindings = effectiveFilter.kernelParameterBindings(inputSize: inputSize)
         var parameters: [String: KernelParameterValue] = [
             "factors": .floatArray(parameterBindings.isEmpty ? effectiveFilter.factors : []),
             "otherInputTextures": .int(otherInputCount),
             "memoryAccessPattern": .string(String(describing: memoryAccessPattern))
         ]
+        if let identity = effectiveFilter.kernelConfigurationIdentity { parameters["configurationIdentity"] = .string(identity) }
         for (key, value) in parameterDescription {
             if let parameter = KernelParameterValue(value: value) {
                 parameters[key] = parameter

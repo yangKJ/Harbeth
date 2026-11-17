@@ -66,8 +66,8 @@ final class GeometrySamplingTests: XCTestCase {
         ).output()
 
         let pixel = try firstPixel(in: output)
-        XCTAssertEqual(pixel.red, 255)
-        XCTAssertEqual(pixel.blue, 0)
+        XCTAssertEqual(pixel.red, 0)
+        XCTAssertEqual(pixel.blue, 255)
     }
 
     func testCropLinearSamplingBlendsNeighboringTexels() throws {
@@ -75,7 +75,7 @@ final class GeometrySamplingTests: XCTestCase {
         let output: MTLTexture = try HarbethIO(
             element: input,
             filter: C7Crop(
-                origin: C7Point2D(x: 0.5, y: 0),
+                origin: C7Point2D(x: 0.25, y: 0),
                 width: 1,
                 height: 1,
                 samplingMode: .linear

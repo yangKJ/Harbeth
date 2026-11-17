@@ -122,7 +122,6 @@ extension HarbethIO where Dest == MTLTexture {
         let program = io.makeRenderProgram(input: element)
         context?.record(reused: program.reusedCachedPlan)
         let encoded = try io.encodeManagedRenderProgram(program, commandBuffer: commandBuffer)
-        encoded.retainUntilCompleted(by: commandBuffer)
         commandBuffer.addCompletedHandler { _ in encoded.releaseIntermediates() }
         return RenderedFrame(
             texture: encoded.result.texture,

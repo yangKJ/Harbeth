@@ -15,7 +15,7 @@ namespace transform {
         return a == 0 || a == 1;
     }
 
-    METAL_FUNC half4 sampleColor(texture2d<half, access::sample> inputTexture,
+    METAL_FUNC float4 sampleColor(texture2d<float, access::sample> inputTexture,
                                  float2 coord,
                                  int samplingMode,
                                  int edgeMode,
@@ -70,13 +70,14 @@ namespace transform {
     }
 }
 
-kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[texture(0)]],
-                              texture2d<half, access::sample> inputTexture [[texture(1)]],
+kernel void C7AffineTransform(texture2d<float, access::write> outputTexture [[texture(0)]],
+                              texture2d<float, access::sample> inputTexture [[texture(1)]],
                               constant float *anchorPointX [[buffer(0)]],
                               constant float *anchorPointY [[buffer(1)]],
                               constant float *samplingMode [[buffer(2)]],
                               constant float *edgeMode [[buffer(3)]],
                               constant float3x2 *transformMatrix [[buffer(4)]],
+                              constant float &halfOutput [[buffer(5)]],
                               constant float4 *regionContext [[buffer(30)]],
                               uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
@@ -93,12 +94,19 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
     const float anchorX = (*anchorPointX);
     const float anchorY = (*anchorPointY);
 
+    if (a == 1.0f && b == 0.0f && c == 0.0f && d == 1.0f && matrix[2][0] == 0.0f && matrix[2][1] == 0.0f
+        && all(inputRegion == outputRegion) && inputTexture.get_width() == outputTexture.get_width()
+        && inputTexture.get_height() == outputTexture.get_height()) {
+        const float4 color = inputTexture.read(grid);
+        outputTexture.write(halfOutput > 0.5f ? float4(half4(color)) : color, grid); return;
+    }
+
     if (a * d - b * c == 0) {
-        outputTexture.write(half4(0), grid);
+        outputTexture.write(float4(0), grid);
         return;
     }
 
-    const float2 globalOutput = float2(grid) + outputRegion.xy;
+    const float2 globalOutput = float2(grid) + 0.5f + outputRegion.xy;
     const float outX = globalOutput.x - outputRegion.z * anchorX;
     const float outY = globalOutput.y - outputRegion.w * anchorY;
 
@@ -109,7 +117,7 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
 
     // Set empty pixel when out of range
     if (*edgeMode == 0 && (inX < 0 || inX > 1 || inY < 0 || inY > 1)) {
-        outputTexture.write(half4(0), grid);
+        outputTexture.write(float4(0), grid);
         return;
     }
 
@@ -121,7 +129,7 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
         transform::zeroOrOne(b) &&
         transform::zeroOrOne(c) &&
         transform::zeroOrOne(d);
-    half4 outColor;
+    float4 outColor;
     const float determinant = a * d - b * c;
     const float2 inverseDx = float2(d, -b) / determinant;
     const float2 inverseDy = float2(-c, a) / determinant;
@@ -140,10 +148,10 @@ kernel void C7AffineTransform(texture2d<half, access::write> outputTexture [[tex
                 accumulated += float4(transform::sampleColor(inputTexture, sampleCoord + offset, 1, int(*edgeMode), false));
             }
         }
-        outColor = half4(accumulated / float(max(nx, 1u) * max(ny, 1u)));
+        outColor = float4(accumulated / float(max(nx, 1u) * max(ny, 1u)));
     } else {
         outColor = transform::sampleColor(inputTexture, sampleCoord, int(*samplingMode), int(*edgeMode), orthogonalHint);
     }
 
-    outputTexture.write(outColor, grid);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(outColor)) : outColor, grid);
 }

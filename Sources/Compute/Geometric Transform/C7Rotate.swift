@@ -14,6 +14,8 @@ public struct C7Rotate: C7FilterProtocol, SamplerAdaptableFilter, GeometryParame
     public var samplingMode: SpatialSamplingMode = .adaptive
     public var edgeMode: SpatialEdgeMode = .transparent
 
+    public var kernelConfigurationIdentity: String? { "placement=\(mode.rawValue)" }
+
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7Rotate")
     }

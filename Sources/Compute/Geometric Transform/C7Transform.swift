@@ -8,12 +8,42 @@
 import Foundation
 import simd
 
-public struct C7Transform: C7FilterProtocol, SamplerAdaptableFilter {
+public struct C7Transform: C7FilterProtocol, SamplerAdaptableFilter, GeometryParameterValidating {
 
     public var transform: CGAffineTransform
     public var anchorPoint: C7Point2D = C7Point2D.zero
     public var samplingMode: SpatialSamplingMode = .adaptive
     public var edgeMode: SpatialEdgeMode = .transparent
+
+    public var kernelConfigurationIdentity: String? {
+        "placement=\(placement.rawValue)|matrix=" + [transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty].map { String(Double($0).bitPattern) }.joined(separator: ",")
+    }
+    public var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+              precision: .float32, dynamicRangeBehavior: .preservesExtendedRange,
+              samplingFootprint: .global, coordinateDependency: .transformed, globalDependency: .imageDimensions)
+    }
+
+    func validateGeometryParameters() throws {
+        let values = [transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty]
+        let determinant = Float(transform.a) * Float(transform.d) - Float(transform.b) * Float(transform.c)
+        guard values.allSatisfy({ $0.isFinite && Float($0).isFinite }), determinant.isFinite,
+              anchorPoint.x.isFinite, anchorPoint.y.isFinite else {
+            throw HarbethError.configurationInvalid("仿射参数必须可表示为有限单精度值。")
+        }
+    }
+    func validateGeometryParameters(inputSize: C7Size) throws {
+        try validateGeometryParameters()
+        if placement == .fit {
+            let rect = CGRect(x: 0, y: 0, width: inputSize.width, height: inputSize.height).applying(transform)
+            guard Placement.validDimension(Double(rect.width)), Placement.validDimension(Double(rect.height)) else {
+                throw HarbethError.configurationInvalid("仿射画布尺寸无效。")
+            }
+        }
+    }
 
     public var modifier: ModifierEnum {
         return .compute(kernel: "C7AffineTransform")

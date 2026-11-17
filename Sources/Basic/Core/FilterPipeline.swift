@@ -154,7 +154,7 @@ enum FilterPipelineExecutor {
     }
 
     private static func makeIntermediateTexture(source: MTLTexture, filter: C7FilterProtocol, recycling: CommandBufferTextureRecycling) throws -> MTLTexture {
-        try (filter as? GeometryParameterValidating)?.validateGeometryParameters()
+        try (filter as? GeometryParameterValidating)?.validateGeometryParameters(inputSize: C7Size(texture: source))
         let inputSize = C7Size(width: source.width, height: source.height)
         let outputSize = filter.resize(input: inputSize)
         let usage: MTLTextureUsage

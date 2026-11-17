@@ -9,7 +9,7 @@ import Foundation
 
 /// For use class.
 /// See: https://stackoverflow.com/questions/49253299/cannot-assign-to-property-self-is-immutable-i-know-how-to-fix-but-needs-unde
-public final class C7Crop: C7FilterProtocol, SamplerAdaptableFilter {
+public final class C7Crop: C7FilterProtocol, SamplerAdaptableFilter, GeometryParameterValidating {
 
     /// The adjusted contrast, from 0 to 1.0, with a default of 0.0
     public var origin: C7Point2D = C7Point2D.zero
@@ -24,8 +24,65 @@ public final class C7Crop: C7FilterProtocol, SamplerAdaptableFilter {
         return origin.toXY() + [Float(samplingMode.rawValue), Float(edgeMode.rawValue)]
     }
 
-    public var memoryAccessPattern: MemoryAccessPattern {
-        .point
+    public var memoryAccessPattern: MemoryAccessPattern { .neighborhood }
+    public var samplingFootprint: SamplingFootprint { .global }
+    public var kernelOutputContract: RenderOutputContract { .premultipliedColorOutput }
+    public var kernelPixelContract: KernelPixelContract {
+        .init(inputAlphaExpectation: .premultiplied, outputAlpha: .premultiplied,
+              precision: .float32, dynamicRangeBehavior: .preservesExtendedRange,
+              samplingFootprint: .global, coordinateDependency: .absoluteInput, globalDependency: .imageDimensions)
+    }
+    public var kernelConfigurationIdentity: String? {
+        switch cropType {
+        case .size(let width, let height): return "size=\(width.bitPattern),\(height.bitPattern)"
+        case .space(let space): return "space=\(space.bitPattern)"
+        case .rect(let rect):
+            return "rect=" + [rect.origin.x, rect.origin.y, rect.width, rect.height].map { String(Double($0).bitPattern) }.joined(separator: ",")
+        }
+    }
+    public var kernelParameterBindings: [KernelParameterBinding] { kernelParameterBindings(inputSize: nil) }
+
+    public func kernelParameterBindings(inputSize: C7Size?) -> [KernelParameterBinding] {
+        let resolvedOrigin: C7Point2D
+        switch cropType {
+        case .size: resolvedOrigin = origin
+        case .space(let space):
+            resolvedOrigin = inputSize.map { C7Point2D(x: space / Float(max($0.width, 1)), y: space / Float(max($0.height, 1))) } ?? .zero
+        case .rect(let rect):
+            resolvedOrigin = inputSize.map { C7Point2D(x: Float(rect.origin.x) / Float(max($0.width, 1)), y: Float(rect.origin.y) / Float(max($0.height, 1))) } ?? .zero
+        }
+        return [
+            .init(name: "originX", index: 0, stage: .compute, value: .float(resolvedOrigin.x)),
+            .init(name: "originY", index: 1, stage: .compute, value: .float(resolvedOrigin.y)),
+            .init(name: "samplingMode", index: 2, stage: .compute, value: .float(Float(samplingMode.rawValue))),
+            .init(name: "edgeMode", index: 3, stage: .compute, value: .float(Float(edgeMode.rawValue)))
+        ]
+    }
+
+    func validateGeometryParameters() throws {
+        switch cropType {
+        case .size(let width, let height):
+            try validateResizeDimensions(width, height)
+            guard origin.x.isFinite, origin.y.isFinite else { throw HarbethError.configurationInvalid("裁切原点必须是有限值。") }
+        case .space(let space):
+            guard space.isFinite, Double(space) > Double(Int.min), Double(space) < Double(Int.max) else {
+                throw HarbethError.configurationInvalid("裁切边距必须可表示为整数。")
+            }
+        case .rect(let rect):
+            guard rect.origin.x.isFinite, rect.origin.y.isFinite, Float(rect.origin.x).isFinite, Float(rect.origin.y).isFinite,
+                  Placement.validDimension(Double(rect.width)), Placement.validDimension(Double(rect.height)) else {
+                throw HarbethError.configurationInvalid("裁切矩形无效。")
+            }
+        }
+    }
+    func validateGeometryParameters(inputSize: C7Size) throws {
+        try validateGeometryParameters()
+        if case .space(let space) = cropType {
+            let inset = Double(Int(space)) * 2
+            guard Placement.validDimension(Double(inputSize.width) - inset), Placement.validDimension(Double(inputSize.height) - inset) else {
+                throw HarbethError.configurationInvalid("裁切边距没有留下有效画布。")
+            }
+        }
     }
 
     public func resize(input size: C7Size) -> C7Size {
@@ -87,17 +144,15 @@ extension C7Crop {
 
     func crop(size: C7Size) -> C7Size {
         switch cropType {
-        case .size(let width, let height):
-            let w = width > 0 ? Int(width) : size.width
-            let h = height > 0 ? Int(height) : size.height
-            return C7Size(width: w, height: h)
+        case .size(let width, let height): return Placement.fit.resize(width: width, height: height, size: size)
         case .space(let space):
-            self.origin = C7Point2D(x: space/Float(size.width), y: space/Float(size.height))
-            return C7Size(width: size.width-2*Int(space), height: size.height-2*Int(space))
+            guard space.isFinite, Double(space) > Double(Int.min), Double(space) < Double(Int.max) else { return size }
+            let inset = Double(Int(space)) * 2
+            return C7Size(width: Placement.safeDimension(Double(size.width) - inset, fallback: size.width),
+                          height: Placement.safeDimension(Double(size.height) - inset, fallback: size.height))
         case .rect(let rect):
-            self.origin = C7Point2D(x: Float(rect.origin.x) / Float(size.width),
-                                    y: Float(rect.origin.y) / Float(size.height))
-            return C7Size(width: Int(rect.size.width), height: Int(rect.size.height))
+            return C7Size(width: Placement.safeDimension(Double(rect.width), fallback: size.width),
+                          height: Placement.safeDimension(Double(rect.height), fallback: size.height))
         }
     }
 

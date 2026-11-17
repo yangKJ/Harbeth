@@ -623,6 +623,7 @@ extension HarbethIO {
     }
 
     private func createDestTextureLease(with sourceTexture: MTLTexture, filter: C7FilterProtocol) throws -> TextureLease? {
+        try (filter as? GeometryParameterValidating)?.validateGeometryParameters(inputSize: C7Size(texture: sourceTexture))
         guard shouldCreateDestinationTexture(for: filter, sourceTexture: sourceTexture) else {
             return nil
         }
@@ -737,6 +738,8 @@ extension HarbethIO {
 
     func textureIOManaged(input texture: MTLTexture, filter: C7FilterProtocol, for buffer: MTLCommandBuffer) throws -> ManagedTextureResult {
         let destLease = try createDestTextureLease(with: texture, filter: filter)
+        // 编码前即保护输出，后续阶段抛错也不能把待提交的表面交给其他请求。
+        destLease?.retainUntilCompleted(by: buffer)
         let destTexture = destLease?.texture ?? texture
         do {
             try validateDestinationAliasing(for: filter, source: texture, destination: destTexture)

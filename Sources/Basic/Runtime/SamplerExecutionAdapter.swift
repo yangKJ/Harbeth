@@ -181,6 +181,8 @@ private struct RenderSamplerOverride: RenderProtocol {
     var factors: [Float] { base.factors }
     var otherInputTextures: C7InputTextures { base.otherInputTextures }
     var kernelParameterBindings: [KernelParameterBinding] { base.kernelParameterBindings }
+    func kernelParameterBindings(inputSize: C7Size?) -> [KernelParameterBinding] { base.kernelParameterBindings(inputSize: inputSize) }
+    var kernelConfigurationIdentity: String? { base.kernelConfigurationIdentity }
     var computeKernelLibrarySource: KernelLibrarySource { base.computeKernelLibrarySource }
     var computeKernelFunctionConstants: [KernelFunctionConstantDescriptor] { base.computeKernelFunctionConstants }
     var destinationTextureContract: FilterDestinationTextureContract { base.destinationTextureContract }

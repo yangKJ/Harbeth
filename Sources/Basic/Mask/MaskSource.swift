@@ -77,13 +77,7 @@ enum MaskSource {
     var fingerprintLabel: String {
         switch self {
         case .descriptor(let descriptor):
-            return [
-                "component=\(descriptor.component.rawValue)",
-                "blend=\(descriptor.blendMode.rawValue)",
-                "invert=\(descriptor.invert ? 1 : 0)",
-                "opacity=\(String(format: "%.4f", descriptor.opacity))",
-                "feather=\(descriptor.featherPolicy.amount)"
-            ].joined(separator: ",")
+            return descriptor.graphDescriptor.fingerprint
         case .recipe(let recipe):
             switch recipe.graphDescriptor.kind {
             case "maskGradientRecipe":
@@ -101,6 +95,7 @@ enum MaskSource {
 
 struct AnyMaskRecipe {
     let profile: RenderProfile
+    let canReuseInitialDescriptor: Bool
     let fingerprint: String
     let graphDescriptor: MaskGraphDescriptor
 
@@ -110,6 +105,9 @@ struct AnyMaskRecipe {
 
     init<R: MaskRecipe>(_ recipe: R) {
         profile = recipe.profile
+        // 仅值语义程序化配方可证明不读取可变外部纹理；范围、派生及自定义源保持执行时刷新。
+        canReuseInitialDescriptor = (recipe as? AnyMaskRecipe)?.canReuseInitialDescriptor
+            ?? (recipe is MaskGradientRecipe || recipe is MaskShapeRecipe || recipe is MaskPathRecipe || recipe is MaskBrushRecipe)
         fingerprint = recipe.fingerprint
         graphDescriptor = recipe.graphDescriptor
         graphBuilder = { component, blendMode, invert, featherPolicy, opacity in

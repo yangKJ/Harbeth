@@ -75,7 +75,7 @@ public struct MaskCompositeStep {
             featherPolicy: mask.featherPolicy,
             opacity: mask.opacity
         )
-        return MaskCompositeStepDescriptor(
+        var descriptor = MaskCompositeStepDescriptor(
             name: name,
             component: mask.component,
             blendMode: mask.blendMode,
@@ -86,6 +86,8 @@ public struct MaskCompositeStep {
             shape: graphDescriptor?.shape,
             path: graphDescriptor?.path
         )
+        descriptor.sourceFingerprint = graphDescriptor?.fingerprint ?? mask.graphDescriptor.fingerprint
+        return descriptor
     }
 
     public static func add(_ mask: MaskDescriptor, name: String = "add") -> MaskCompositeStep {

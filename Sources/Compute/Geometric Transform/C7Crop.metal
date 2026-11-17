@@ -9,7 +9,7 @@
 using namespace metal;
 
 namespace crop {
-    METAL_FUNC half4 sampleColor(texture2d<half, access::sample> inputTexture,
+    METAL_FUNC float4 sampleColor(texture2d<float, access::sample> inputTexture,
                                  float2 coord,
                                  int samplingMode,
                                  int edgeMode) {
@@ -35,32 +35,39 @@ namespace crop {
     }
 }
 
-kernel void C7Crop(texture2d<half, access::write> outputTexture [[texture(0)]],
-                   texture2d<half, access::sample> inputTexture [[texture(1)]],
+kernel void C7Crop(texture2d<float, access::write> outputTexture [[texture(0)]],
+                   texture2d<float, access::sample> inputTexture [[texture(1)]],
                    constant float *originX [[buffer(0)]],
                    constant float *originY [[buffer(1)]],
                    constant float *samplingMode [[buffer(2)]],
                    constant float *edgeMode [[buffer(3)]],
+                   constant float &halfOutput [[buffer(4)]],
                    uint2 grid [[thread_position_in_grid]]) {
     if (grid.x >= outputTexture.get_width() || grid.y >= outputTexture.get_height()) {
         return;
     }
 
+    if (*originX == 0.0f && *originY == 0.0f && outputTexture.get_width() == inputTexture.get_width()
+        && outputTexture.get_height() == inputTexture.get_height()) {
+        const float4 color = inputTexture.read(grid);
+        outputTexture.write(halfOutput > 0.5f ? float4(half4(color)) : color, grid); return;
+    }
+
     const float minX = inputTexture.get_width()  * (*originX);
     const float minY = inputTexture.get_height() * (*originY);
 
-    float2 sampleCoord = float2((grid.x + minX) / inputTexture.get_width(), (grid.y + minY) / inputTexture.get_height());
+    float2 sampleCoord = float2((float(grid.x) + 0.5f + minX) / inputTexture.get_width(), (float(grid.y) + 0.5f + minY) / inputTexture.get_height());
     if (*edgeMode == 0 &&
         (sampleCoord.x < 0.0 || sampleCoord.x > 1.0 || sampleCoord.y < 0.0 || sampleCoord.y > 1.0)) {
-        outputTexture.write(half4(0), grid);
+        outputTexture.write(float4(0), grid);
         return;
     }
-    const half4 outColor = crop::sampleColor(
+    const float4 outColor = crop::sampleColor(
         inputTexture,
         sampleCoord,
         int(*samplingMode),
         int(*edgeMode)
     );
 
-    outputTexture.write(outColor, grid);
+    outputTexture.write(halfOutput > 0.5f ? float4(half4(outColor)) : outColor, grid);
 }

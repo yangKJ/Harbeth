@@ -37,7 +37,7 @@ public enum MaskRangeKind: Sendable, Codable, Equatable, Hashable {
     }
 
     var fingerprint: String {
-        shaderParameters.map { String(format: "%.5f", $0) }.joined(separator: ",")
+        KernelParameterBindingValue.floatArrayFingerprint(shaderParameters)
     }
 
     private static func unit(_ value: Float) -> Float {
@@ -68,6 +68,7 @@ public struct MaskRangeRecipe {
     public var fingerprint: String {
         [
             "source=\(sourceIdentifier)",
+            "texture=\(ObjectIdentifier(sourceTexture))",
             "size=\(sourceTexture.width)x\(sourceTexture.height)",
             "range=\(kind.fingerprint)",
             "storage=\(storageFormat.rawValue)",
@@ -142,7 +143,7 @@ public struct MaskTextureRecipe {
     }
 
     public var fingerprint: String {
-        "source=\(sourceIdentifier)|size=\(texture.width)x\(texture.height)|component=\(sourceComponent.rawValue)|storage=\(storageFormat.rawValue)"
+        "source=\(sourceIdentifier)|texture=\(ObjectIdentifier(texture))|size=\(texture.width)x\(texture.height)|component=\(sourceComponent.rawValue)|storage=\(storageFormat.rawValue)|profile=\(profile.rawValue)"
     }
 
     public var graphDescriptor: MaskGraphDescriptor { graphDescriptor() }

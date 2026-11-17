@@ -295,6 +295,6 @@ extension MaskBrushRecipe {
     }
 
     static func stable(_ value: Double) -> String {
-        String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), value)
+        maskScalarIdentity(value)
     }
 }

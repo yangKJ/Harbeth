@@ -36,7 +36,7 @@ final class MaskFingerprintTests: XCTestCase {
         }
     }
 
-    func testMaskAndFilterScalarFingerprintsKeepLegacyFormat() {
+    func testMaskScalarIdentityKeepsEveryBitAndFilterDisplayKeepsLegacyFormat() {
         for value: Float in [0, -0.0, 0.1234565, 1, .infinity, -.infinity, .nan] {
             let scalar = String(format: "%.6f", locale: Locale(identifier: "en_US_POSIX"), value)
             let descriptor = MaskCompositeStepDescriptor(
@@ -50,7 +50,7 @@ final class MaskFingerprintTests: XCTestCase {
                 shape: nil,
                 path: nil
             )
-            let expected = "name=step,component=1,blend=2,invert=0,opacity=\(scalar),feather=\(scalar)"
+            let expected = "name=step,component=1,blend=2,invert=0,opacity=f32:\(value.bitPattern),feather=f32:\(value.bitPattern)"
             XCTAssertEqual(descriptor.fingerprint, expected)
             XCTAssertEqual(C7Exposure.stableFloatDescription(value), scalar)
         }

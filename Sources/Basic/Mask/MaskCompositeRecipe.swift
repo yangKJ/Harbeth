@@ -229,13 +229,13 @@ public struct MaskCompositeRecipe {
             "component=\(baseMask.component.rawValue)",
             "blend=\(baseMask.blendMode.rawValue)",
             "invert=\(baseMask.invert ? 1 : 0)",
-            "opacity=\(String(format: "%.4f", baseMask.opacity))",
+            "opacity=\(maskScalarIdentity(baseMask.opacity))",
             "feather=\(baseMask.featherPolicy.amount)"
         ].joined(separator: ",")
         return [
             "profile=\(profile)",
             "base={\(baseSegment)}",
-            "baseSource=\(baseGraphOverride?.fingerprint ?? "none")",
+            "baseSource={\(baseGraphOverride?.fingerprint ?? baseMask.graphDescriptor.fingerprint)}",
             "steps=\(steps.isEmpty ? "none" : steps.map(\.fingerprint).joined(separator: "||"))"
         ].joined(separator: "|")
     }

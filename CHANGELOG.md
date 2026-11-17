@@ -8,6 +8,19 @@ Harbeth 的公开变更按时间倒序记录，格式遵循 [Keep a Changelog](h
 
 > Target: Harbeth 3.0.0. This is a breaking upgrade from 2.x; read the [3.0 migration guide](docs/MIGRATION_3_CN.md) before adopting it.
 
+### 2026-11-18
+
+#### Changed
+
+- 滤镜开发合同增加 `kernelConfigurationIdentity` 及按输入尺寸准备参数绑定的方法，默认保持既有绑定；尺寸依赖包装器应转发准备方法。几何尺寸、画布模式与像素合同进入配方身份和一致性比较，修复普通 `ImageNode.applying` 持久缓存返回旧尺寸或旧裁切位置。
+- 程序化渐变、形状、路径及笔刷的局部效果可把构造产物交给首次执行，公开访问或修改 mask 后取消该复用；后续执行、范围/派生/自定义及纹理依赖源保持刷新，保留构造期错误交付。
+
+#### Fixed
+
+- 外部命令编码在输出首次被引用前保护租约，阶段失败后不再把待提交纹理提前归池，避免新请求表面被旧命令覆盖；成功帧继续由宿主持有，提交权保持在调用方。
+- 遮罩图身份贯通 plane 的资源、revision/generation、坐标和采样合同；原始 mask、组合 base/steps 与范围源区分实际纹理，数值身份保留精确值，修复黑白遮罩及相邻范围/笔刷参数错误命中旧效果。
+- Crop 与 Affine 使用像素中心和 Float32 工作值，恢复零裁切/恒等仿射，修正透明边缘、非预乘输入及不透明帧标记。Crop 尺寸查询不再改写 origin，依赖输入的绑定在执行准备时解析；保留采样模式、区域仿射 ABI 与合法负尺度，非法几何规划不再因整数转换终止进程。
+
 ### 2026-11-17
 
 #### Added

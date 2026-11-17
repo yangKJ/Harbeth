@@ -40,10 +40,6 @@ struct EncodedManagedTextureProgram: @unchecked Sendable {
     let result: ManagedTextureResult
     let producedLeases: [TextureLease]
 
-    func retainUntilCompleted(by commandBuffer: MTLCommandBuffer) {
-        producedLeases.forEach { $0.retainUntilCompleted(by: commandBuffer) }
-    }
-
     func releaseAll() {
         producedLeases.forEach { $0.release() }
     }
@@ -549,7 +545,6 @@ extension HarbethIO where Dest == MTLTexture {
             HarbethContext.shared.recycleCommandBuffer(commandBuffer)
             return
         }
-        encoded.retainUntilCompleted(by: commandBuffer)
         let commandBufferState = HarbethUncheckedTransfer(value: commandBuffer)
         switch resolvedTransmitOutputDelivery(requiresCompletedGPUWork: false) {
         case .commandBufferScheduled:
@@ -715,6 +710,9 @@ extension HarbethIO where Dest == MTLTexture {
             throw error
         }
 
+        // 两张输出均在首个阶段编码前绑定生命周期，覆盖前缀失败后由宿主继续提交的路径。
+        leaseA.retainUntilCompleted(by: commandBuffer)
+        leaseB.retainUntilCompleted(by: commandBuffer)
         var currentInput = input
         var currentOutput = leaseA.texture
 

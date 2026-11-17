@@ -149,10 +149,7 @@ struct RenderRecipe: Sendable, Hashable, Codable {
         if let upstreamProcessingFingerprint, hasLocalProcessing == false {
             return upstreamProcessingFingerprint
         }
-        let localEffectPart = localEffects?.map { descriptor in
-            let blend = descriptor.foregroundBlendMode ?? "none"
-            return "\(descriptor.mask.fingerprint):blend=\(blend):opacity=\(String(format: "%.4f", descriptor.foregroundBlendOpacity))"
-        }.joined(separator: "||") ?? "none"
+        let localEffectPart = localEffects?.map(\.fingerprint).joined(separator: "||") ?? "none"
         let layerMaskPart = layerMasks?.map { descriptor in
             "layer=\(descriptor.layerIndex):mask=\(descriptor.mask?.fingerprint ?? "none"):compositing=\(descriptor.compositingMask?.fingerprint ?? "none")"
         }.joined(separator: "||") ?? "none"
@@ -229,7 +226,9 @@ extension C7FilterProtocol {
             "constants=\(constants.isEmpty ? "none" : constants)",
             destinationTextureContract.fingerprint,
             kernelOutputContract.fingerprint,
-            "capabilities=\(capabilities)"
+            "capabilities=\(capabilities)",
+            "configuration=\(kernelConfigurationIdentity ?? "none")",
+            "pixel=\(kernelPixelContract.fingerprint)"
         ].joined(separator: "|")
     }
 

@@ -184,7 +184,7 @@ extension RenderProtocol {
             usesCustomVertices: customVertices != nil,
             primitiveTopology: renderPrimitiveTopology
         )
-        let parameterBindings = kernelParameterBindings
+        let parameterBindings = kernelParameterBindings(inputSize: inputSize)
         let outputContract = renderOutputContract
         let resolvedRenderPass = renderPass ?? RenderPassContract(
             colorAttachments: outputContract.attachments.map {

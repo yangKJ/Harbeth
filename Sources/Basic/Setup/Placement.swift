@@ -54,8 +54,11 @@ extension Placement {
         return SIMD2(cos(angle), sin(angle))
     }
 
-    private static func safeDimension(_ value: Double, fallback: Int) -> Int {
-        guard value.isFinite, value >= 1, value < Double(Int.max) else { return fallback }
+    static func validDimension(_ value: Double) -> Bool {
+        value.isFinite && value >= 1 && value < Double(Int.max)
+    }
+    static func safeDimension(_ value: Double, fallback: Int) -> Int {
+        guard validDimension(value) else { return fallback }
         return Int(value)
     }
 
@@ -64,8 +67,10 @@ extension Placement {
         case .fixed:
             return size
         case .fit:
+            guard [transform.a, transform.b, transform.c, transform.d, transform.tx, transform.ty].allSatisfy(\.isFinite) else { return size }
             let rect = CGRect(x: 0, y: 0, width: size.width, height: size.height).applying(transform)
-            return rect.size.c7.toC7Size()
+            return C7Size(width: Self.safeDimension(Double(rect.width), fallback: size.width),
+                          height: Self.safeDimension(Double(rect.height), fallback: size.height))
         }
     }
 }
@@ -73,6 +78,10 @@ extension Placement {
 // 非抛错的尺寸查询保持安全，真正执行时由统一编码边界报告非法几何参数。
 protocol GeometryParameterValidating {
     func validateGeometryParameters() throws
+    func validateGeometryParameters(inputSize: C7Size) throws
+}
+extension GeometryParameterValidating {
+    func validateGeometryParameters(inputSize: C7Size) throws { try validateGeometryParameters() }
 }
 
 func validateResizeDimensions(_ width: Float, _ height: Float) throws {

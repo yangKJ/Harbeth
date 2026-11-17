@@ -40,6 +40,10 @@ public protocol C7FilterProtocol: Mirrorable {
     /// Explicit shader parameter bindings for compute/render encoders.
     var kernelParameterBindings: [KernelParameterBinding] { get }
 
+    /// 依赖输入尺寸的绑定在本次执行准备时解析；包装滤镜应继续转发此方法。
+    /// nil 表示尚未指定输入尺寸的配置模板，查询不得改写滤镜状态。
+    func kernelParameterBindings(inputSize: C7Size?) -> [KernelParameterBinding]
+
     /// Metal library used to resolve the primary compute function.
     var computeKernelLibrarySource: KernelLibrarySource { get }
 
@@ -63,6 +67,9 @@ public protocol C7FilterProtocol: Mirrorable {
 
     /// Execution identity for immutable lookup textures or other external resources.
     var kernelResourceIdentity: String? { get }
+
+    /// 未通过 shader 参数上传，但会改变执行语义的配置身份，例如输出尺寸和画布模式。
+    var kernelConfigurationIdentity: String? { get }
     
     /// The resize of the output texture.
     func resize(input size: C7Size) -> C7Size
@@ -91,10 +98,12 @@ extension C7FilterProtocol {
             return "\(typeName)-pipeline-\(pipelineFilter.recipeDescriptor.fingerprint)"
         }
         let typeName = String(describing: type(of: self))
-        return "\(typeName)-\(kernelParameterFingerprint)-\(kernelResourceIdentity ?? "inputs=\(otherInputTextures.count)")"
+        return "\(typeName)-\(kernelParameterFingerprint)-\(kernelResourceIdentity ?? "inputs=\(otherInputTextures.count)")" + (kernelConfigurationIdentity.map { "|configuration=\($0)" } ?? "")
     }
     /// Lightweight Float-only parameter route.
     public var factors: [Float] { [] }
+    public func kernelParameterBindings(inputSize: C7Size?) -> [KernelParameterBinding] { kernelParameterBindings }
+    public var kernelConfigurationIdentity: String? { nil }
     /// Multiple input source extensions, an array containing the `MTLTexture`.
     public var otherInputTextures: C7InputTextures { [] }
     public var kernelResourceIdentity: String? {
@@ -155,7 +164,7 @@ extension C7FilterProtocol {
 extension C7FilterProtocol {
     @discardableResult
     func apply(form texture: MTLTexture, to destTexture: MTLTexture, for buffer: MTLCommandBuffer, complete: C7TextureResultBlock?) throws -> MTLTexture {
-        try (self as? GeometryParameterValidating)?.validateGeometryParameters()
+        try (self as? GeometryParameterValidating)?.validateGeometryParameters(inputSize: C7Size(texture: texture))
         let outputTexture: MTLTexture
         switch self.modifier {
         case .compute(let kernel):
